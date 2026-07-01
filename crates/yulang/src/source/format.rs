@@ -2472,89 +2472,29 @@ pub(super) fn write_check_diagnostics(
 
 pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {
     match error {
-        infer::lowering::BodyLoweringError::Expr {
-            error:
-                infer::lowering::LoweringError::TypeMismatch {
-                    actual, expected, ..
-                },
-            ..
-        } => format!("type mismatch: {actual} is not {expected}"),
-        infer::lowering::BodyLoweringError::Expr {
-            error:
-                infer::lowering::LoweringError::AnnotationBuild {
-                    error: infer::annotation::AnnBuildError::UnresolvedTypeName { path },
-                    ..
-                },
-            ..
-        } => format!("unresolved type name: {}", format_name_path(path)),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::AnnotationBuild { error, .. },
-            ..
-        } => format_annotation_build_error(error),
-        infer::lowering::BodyLoweringError::Expr {
-            error:
-                infer::lowering::LoweringError::NegSignatureBuild {
-                    error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path },
-                },
-            ..
-        } => format!("unresolved type name: {}", format_name_path(path)),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
-            ..
-        } => format!("unresolved value name: {}", name.0),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { name, .. },
-            ..
-        }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { name, .. },
-        } => format!(
-            "top-level mutable binding {} is not supported; move it into a block or function body",
-            name.0
-        ),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. },
-            ..
-        }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. },
-        } => {
-            let quantifier = match kind {
-                parser::lex::SyntaxKind::RuleQuantStarLazy => "*?",
-                parser::lex::SyntaxKind::RuleQuantPlusLazy => "+?",
-                _ => "lazy quantifier",
-            };
+        infer::lowering::BodyLoweringError::MissingBindingDecl { name } => {
             format!(
-                "rule lazy quantifier `{quantifier}` is not supported; rule uses PEG-style greedy repetition"
+                "binding `{}` is declared but was not available during lowering",
+                name.0
             )
         }
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchScrutinee,
-            ..
+        infer::lowering::BodyLoweringError::MissingModuleDecl { name } => {
+            format!(
+                "module `{}` is declared but was not available during lowering",
+                name.0
+            )
         }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchScrutinee,
-        } => "catch expression is missing the computation to handle".to_string(),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchArmPattern,
-            ..
+        infer::lowering::BodyLoweringError::MissingBody { name, .. } => {
+            format!("binding `{}` is missing a body expression", name.0)
         }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchArmPattern,
-        } => "catch arm is missing a value pattern or effect operation".to_string(),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchArmBody,
-            ..
+        infer::lowering::BodyLoweringError::NonLetDef { name, .. } => {
+            format!("definition `{}` is not a value binding", name.0)
         }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchArmBody,
-        } => "catch arm is missing a body expression".to_string(),
+        infer::lowering::BodyLoweringError::Expr { error, .. } => format_lowering_error(error),
         infer::lowering::BodyLoweringError::RootExpr {
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
         } => format!("unresolved value name in root expression: {}", name.0),
-        infer::lowering::BodyLoweringError::RootExpr { error } => {
-            format!("root expression lowering error: {error:?}")
-        }
+        infer::lowering::BodyLoweringError::RootExpr { error } => format_lowering_error(error),
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,
@@ -2583,7 +2523,126 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
                 format_subtractability(filter)
             )
         }
-        _ => format!("{error:?}"),
+    }
+}
+
+fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
+    match error {
+        infer::lowering::LoweringError::UnsupportedSyntax { kind } => {
+            format!("unsupported expression syntax: {kind:?}")
+        }
+        infer::lowering::LoweringError::UnsupportedPatternSyntax { kind } => {
+            format!("unsupported pattern syntax: {kind:?}")
+        }
+        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. } => {
+            let quantifier = match kind {
+                parser::lex::SyntaxKind::RuleQuantStarLazy => "*?",
+                parser::lex::SyntaxKind::RuleQuantPlusLazy => "+?",
+                _ => "lazy quantifier",
+            };
+            format!(
+                "rule lazy quantifier `{quantifier}` is not supported; rule uses PEG-style greedy repetition"
+            )
+        }
+        infer::lowering::LoweringError::UnresolvedName { name, .. } => {
+            format!("unresolved value name: {}", name.0)
+        }
+        infer::lowering::LoweringError::InvalidNumber { text } => {
+            format!("invalid number literal `{text}`")
+        }
+        infer::lowering::LoweringError::MissingLambdaBody => {
+            "lambda expression is missing a body expression".to_string()
+        }
+        infer::lowering::LoweringError::MissingIfCondition => {
+            "if expression is missing a condition".to_string()
+        }
+        infer::lowering::LoweringError::MissingIfBody => {
+            "if expression is missing a body expression".to_string()
+        }
+        infer::lowering::LoweringError::MissingCaseScrutinee => {
+            "case expression is missing the value to inspect".to_string()
+        }
+        infer::lowering::LoweringError::MissingCaseArmPattern => {
+            "case arm is missing a pattern".to_string()
+        }
+        infer::lowering::LoweringError::MissingCaseArmBody => {
+            "case arm is missing a body expression".to_string()
+        }
+        infer::lowering::LoweringError::MissingCatchScrutinee => {
+            "catch expression is missing the computation to handle".to_string()
+        }
+        infer::lowering::LoweringError::MissingCatchArmPattern => {
+            "catch arm is missing a value pattern or effect operation".to_string()
+        }
+        infer::lowering::LoweringError::MissingCatchArmBody => {
+            "catch arm is missing a body expression".to_string()
+        }
+        infer::lowering::LoweringError::MissingFieldName => {
+            "field access is missing a field name".to_string()
+        }
+        infer::lowering::LoweringError::MissingOpName => {
+            "effect operation is missing an operation name".to_string()
+        }
+        infer::lowering::LoweringError::MissingOpOperand => {
+            "effect operation is missing an operand".to_string()
+        }
+        infer::lowering::LoweringError::MissingRecordFieldName => {
+            "record field is missing a name".to_string()
+        }
+        infer::lowering::LoweringError::MissingRecordFieldValue => {
+            "record field is missing a value expression".to_string()
+        }
+        infer::lowering::LoweringError::MissingIndexArgument => {
+            "index expression is missing an argument".to_string()
+        }
+        infer::lowering::LoweringError::MissingLocalBindingName => {
+            "local binding is missing a name".to_string()
+        }
+        infer::lowering::LoweringError::MissingLocalBindingBody => {
+            "local binding is missing a body expression".to_string()
+        }
+        infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { name, .. } => format!(
+            "top-level mutable binding {} is not supported; move it into a block or function body",
+            name.0
+        ),
+        infer::lowering::LoweringError::MissingLocalVarAct { name } => {
+            format!(
+                "mutable binding `{}` is missing its variable effect body",
+                name.0
+            )
+        }
+        infer::lowering::LoweringError::MissingSubLabelAct { label } => {
+            format!("labeled sub `{}` is missing its effect body", label.0)
+        }
+        infer::lowering::LoweringError::AnnotationBuild { error, .. } => {
+            format_annotation_build_error(error)
+        }
+        infer::lowering::LoweringError::AnnotationConstraint { error } => {
+            format_annotation_constraint_error(error)
+        }
+        infer::lowering::LoweringError::NegSignatureBuild { error } => {
+            format_neg_signature_build_error(error)
+        }
+        infer::lowering::LoweringError::SignatureConstraint { error } => {
+            format_signature_constraint_error(error)
+        }
+        infer::lowering::LoweringError::SignatureShapeMismatch { expected } => {
+            format!(
+                "signature shape mismatch: expected {}",
+                format_signature_shape(*expected)
+            )
+        }
+        infer::lowering::LoweringError::SignatureTypeMismatch { expected } => {
+            format!(
+                "signature type mismatch: expected {}",
+                format_signature_shape(*expected)
+            )
+        }
+        infer::lowering::LoweringError::TypeMismatch {
+            actual, expected, ..
+        } => {
+            format!("type mismatch: {actual} is not {expected}")
+        }
     }
 }
 
@@ -2611,6 +2670,76 @@ fn format_annotation_build_error(error: &infer::annotation::AnnBuildError) -> St
         infer::annotation::AnnBuildError::UnsupportedSyntax { kind } => {
             format!("unsupported type annotation syntax: {kind:?}")
         }
+    }
+}
+
+fn format_neg_signature_build_error(error: &infer::lowering::NegSignatureBuildError) -> String {
+    match error {
+        infer::lowering::NegSignatureBuildError::ExpectedTypeExpr { kind } => {
+            format!("expected type expression in signature, found {kind:?}")
+        }
+        infer::lowering::NegSignatureBuildError::EmptyTypeExpr => {
+            "expected type expression in signature".to_string()
+        }
+        infer::lowering::NegSignatureBuildError::EmptyEffectfulType => {
+            "expected effectful type in signature".to_string()
+        }
+        infer::lowering::NegSignatureBuildError::MissingFunctionReturn => {
+            "function signature is missing a return type".to_string()
+        }
+        infer::lowering::NegSignatureBuildError::MissingEffectRow => {
+            "effectful signature is missing an effect row".to_string()
+        }
+        infer::lowering::NegSignatureBuildError::InvalidEffectRowTail { .. } => {
+            "effect row tail in signature must be a row variable".to_string()
+        }
+        infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path } => {
+            format!("unresolved type name: {}", format_name_path(path))
+        }
+        infer::lowering::NegSignatureBuildError::UnsupportedSyntax { kind } => {
+            format!("unsupported signature syntax: {kind:?}")
+        }
+    }
+}
+
+fn format_annotation_constraint_error(error: &infer::annotation::AnnConstraintError) -> String {
+    match error {
+        infer::annotation::AnnConstraintError::MissingTypeDecl { .. } => {
+            "type annotation references a type declaration that is not available".to_string()
+        }
+        infer::annotation::AnnConstraintError::InvalidConstructorCallee { .. } => {
+            "type annotation applies a value that is not a type constructor".to_string()
+        }
+        infer::annotation::AnnConstraintError::InvalidEffectAtom { .. } => {
+            "effect row contains an item that is not an effect".to_string()
+        }
+        infer::annotation::AnnConstraintError::WildcardEffectRowInTypePosition => {
+            "wildcard effect row cannot appear in type position".to_string()
+        }
+    }
+}
+
+fn format_signature_constraint_error(error: &infer::lowering::SignatureConstraintError) -> String {
+    match error {
+        infer::lowering::SignatureConstraintError::MissingTypeDecl { .. } => {
+            "signature references a type declaration that is not available".to_string()
+        }
+        infer::lowering::SignatureConstraintError::InvalidConstructorCallee { .. } => {
+            "signature applies a value that is not a type constructor".to_string()
+        }
+        infer::lowering::SignatureConstraintError::WildcardEffectRowInTypePosition => {
+            "wildcard effect row cannot appear in signature type position".to_string()
+        }
+    }
+}
+
+fn format_signature_shape(shape: infer::lowering::SignatureShape) -> &'static str {
+    match shape {
+        infer::lowering::SignatureShape::Any => "any signature shape",
+        infer::lowering::SignatureShape::Constructor => "a type constructor",
+        infer::lowering::SignatureShape::EffectRow => "an effect row",
+        infer::lowering::SignatureShape::Function => "a function type",
+        infer::lowering::SignatureShape::Tuple => "a tuple type",
     }
 }
 

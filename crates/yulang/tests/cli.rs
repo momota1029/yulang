@@ -708,6 +708,62 @@ fn public_diagnostics_check_reports_catch_missing_arm_body() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_catch_missing_scrutinee() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/catch_missing_scrutinee.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.missing-catch-scrutinee]: catch expression is missing the computation to handle\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    hint: write `catch <expr>:` before the handler arms\n"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("MissingCatchScrutinee"), "{stdout}");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_check_reports_catch_missing_arm_pattern() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/catch_missing_arm_pattern.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.missing-catch-arm-pattern]: catch arm is missing a value pattern or effect operation\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    hint: write a value pattern or effect operation before `->`\n"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("MissingCatchArmPattern"), "{stdout}");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_global_cst_and_timing_flags_are_accepted() {
     let entry = write_entry("global-cst", "1\n");
 
@@ -2980,11 +3036,15 @@ fn compatible_run_reports_dependency_lowering_errors_before_runtime() {
     assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
     assert!(
-        stderr.contains("cannot build executable program with lowering errors"),
+        stderr.contains("compile error [yulang.lowering]: source has lowering errors"),
         "{stderr}"
     );
     assert!(
-        stderr.contains("unresolved value name: #op:infix:+"),
+        stderr.contains("detail: unresolved value name: #op:infix:+"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("hint: run `yulang check` to see source ranges before running"),
         "{stderr}"
     );
     assert!(!stderr.contains("unbound local"), "{stderr}");

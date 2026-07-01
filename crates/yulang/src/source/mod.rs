@@ -1664,11 +1664,17 @@ impl fmt::Display for RouteError {
                 format_module_path(to)
             ),
             RouteError::LoweringDiagnostics { errors } => {
-                write!(f, "cannot build executable program with lowering errors")?;
+                write!(
+                    f,
+                    "compile error [yulang.lowering]: source has lowering errors"
+                )?;
                 for error in errors {
-                    write!(f, "\nerror: {error}")?;
+                    write!(f, "\n  detail: {error}")?;
                 }
-                Ok(())
+                write!(
+                    f,
+                    "\n  hint: run `yulang check` to see source ranges before running"
+                )
             }
             RouteError::InvalidDumpModulePath { module } => {
                 write!(f, "dump module path `{module}` is invalid")
@@ -1683,9 +1689,15 @@ impl fmt::Display for RouteError {
                 "check module {} was not found",
                 format_module_path(module)
             ),
-            RouteError::SyntaxMerge(error) => {
-                write!(f, "compiled syntax surface merge failed: {error:?}")
-            }
+            RouteError::SyntaxMerge(sources::CompiledSyntaxMergeError::ConflictingOperator {
+                module_path,
+                name,
+            }) => write!(
+                f,
+                "compile error [yulang.conflicting-operator]: operator `{}` from module {} conflicts with another compiled syntax surface",
+                name.0,
+                format_module_path(module_path)
+            ),
             RouteError::Lower(error) => write!(f, "{error}"),
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
@@ -2726,7 +2738,24 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
 
 fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'static str> {
     match error {
+        infer::lowering::LoweringError::UnsupportedSyntax { .. } => {
+            Some("yulang.unsupported-syntax")
+        }
+        infer::lowering::LoweringError::UnsupportedPatternSyntax { .. } => {
+            Some("yulang.unsupported-pattern-syntax")
+        }
         infer::lowering::LoweringError::TypeMismatch { .. } => Some("yulang.type-mismatch"),
+        infer::lowering::LoweringError::InvalidNumber { .. } => Some("yulang.invalid-number"),
+        infer::lowering::LoweringError::MissingLambdaBody => Some("yulang.missing-lambda-body"),
+        infer::lowering::LoweringError::MissingIfCondition => Some("yulang.missing-if-condition"),
+        infer::lowering::LoweringError::MissingIfBody => Some("yulang.missing-if-body"),
+        infer::lowering::LoweringError::MissingCaseScrutinee => {
+            Some("yulang.missing-case-scrutinee")
+        }
+        infer::lowering::LoweringError::MissingCaseArmPattern => {
+            Some("yulang.missing-case-arm-pattern")
+        }
+        infer::lowering::LoweringError::MissingCaseArmBody => Some("yulang.missing-case-arm-body"),
         infer::lowering::LoweringError::AnnotationBuild {
             error: infer::annotation::AnnBuildError::UnresolvedTypeName { .. },
             ..
@@ -2740,6 +2769,15 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         } => Some("yulang.unsupported-type-syntax"),
         infer::lowering::LoweringError::AnnotationBuild { .. } => {
             Some("yulang.invalid-type-annotation")
+        }
+        infer::lowering::LoweringError::AnnotationConstraint { .. } => {
+            Some("yulang.invalid-type-annotation")
+        }
+        infer::lowering::LoweringError::NegSignatureBuild { .. }
+        | infer::lowering::LoweringError::SignatureConstraint { .. }
+        | infer::lowering::LoweringError::SignatureShapeMismatch { .. }
+        | infer::lowering::LoweringError::SignatureTypeMismatch { .. } => {
+            Some("yulang.invalid-signature")
         }
         infer::lowering::LoweringError::UnresolvedName { .. } => Some("yulang.unresolved-value"),
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { .. } => {
@@ -2757,7 +2795,32 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::MissingCatchArmBody => {
             Some("yulang.missing-catch-arm-body")
         }
-        _ => Some("yulang.lowering"),
+        infer::lowering::LoweringError::MissingFieldName => Some("yulang.missing-field-name"),
+        infer::lowering::LoweringError::MissingOpName => Some("yulang.missing-operation-name"),
+        infer::lowering::LoweringError::MissingOpOperand => {
+            Some("yulang.missing-operation-operand")
+        }
+        infer::lowering::LoweringError::MissingRecordFieldName => {
+            Some("yulang.missing-record-field-name")
+        }
+        infer::lowering::LoweringError::MissingRecordFieldValue => {
+            Some("yulang.missing-record-field-value")
+        }
+        infer::lowering::LoweringError::MissingIndexArgument => {
+            Some("yulang.missing-index-argument")
+        }
+        infer::lowering::LoweringError::MissingLocalBindingName => {
+            Some("yulang.missing-local-binding-name")
+        }
+        infer::lowering::LoweringError::MissingLocalBindingBody => {
+            Some("yulang.missing-local-binding-body")
+        }
+        infer::lowering::LoweringError::MissingLocalVarAct { .. } => {
+            Some("yulang.missing-local-var-act")
+        }
+        infer::lowering::LoweringError::MissingSubLabelAct { .. } => {
+            Some("yulang.missing-sub-label-act")
+        }
     }
 }
 
@@ -2823,56 +2886,112 @@ fn body_lowering_error_related(
 
 fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Option<String> {
     match error {
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
-            ..
+        infer::lowering::BodyLoweringError::Expr { error, .. }
+        | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_hint(error),
+        _ => None,
+    }
+}
+
+fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String> {
+    match error {
+        infer::lowering::LoweringError::UnsupportedSyntax { .. } => {
+            Some("rewrite this form using supported expression syntax".to_string())
         }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
-        } => Some(format!(
+        infer::lowering::LoweringError::UnsupportedPatternSyntax { .. } => {
+            Some("rewrite this form using supported pattern syntax".to_string())
+        }
+        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
+            Some("use greedy `*` or `+`, then handle optional matching explicitly".to_string())
+        }
+        infer::lowering::LoweringError::UnresolvedName { name, .. } => Some(format!(
             "define `{}` before this use, or import the module that provides it",
             name.0
         )),
-        infer::lowering::BodyLoweringError::Expr {
-            error:
-                infer::lowering::LoweringError::AnnotationBuild {
-                    error: infer::annotation::AnnBuildError::UnresolvedTypeName { path },
-                    ..
-                },
+        infer::lowering::LoweringError::InvalidNumber { .. } => {
+            Some("use a valid integer, float, or fraction literal".to_string())
+        }
+        infer::lowering::LoweringError::MissingLambdaBody => {
+            Some("write a body expression after the lambda arrow".to_string())
+        }
+        infer::lowering::LoweringError::MissingIfCondition => {
+            Some("write a condition after `if`".to_string())
+        }
+        infer::lowering::LoweringError::MissingIfBody => {
+            Some("write the branch body expression".to_string())
+        }
+        infer::lowering::LoweringError::MissingCaseScrutinee => {
+            Some("write `case <expr>:` before the arms".to_string())
+        }
+        infer::lowering::LoweringError::MissingCaseArmPattern => {
+            Some("write a pattern before `->`".to_string())
+        }
+        infer::lowering::LoweringError::MissingCaseArmBody => {
+            Some("write an expression after `->`".to_string())
+        }
+        infer::lowering::LoweringError::MissingCatchScrutinee => {
+            Some("write `catch <expr>:` before the handler arms".to_string())
+        }
+        infer::lowering::LoweringError::MissingCatchArmPattern => {
+            Some("write a value pattern or effect operation before `->`".to_string())
+        }
+        infer::lowering::LoweringError::MissingCatchArmBody => {
+            Some("write an expression after `->`".to_string())
+        }
+        infer::lowering::LoweringError::MissingFieldName => {
+            Some("write a field name after `.`".to_string())
+        }
+        infer::lowering::LoweringError::MissingOpName => {
+            Some("write the effect operation name after the effect path".to_string())
+        }
+        infer::lowering::LoweringError::MissingOpOperand => {
+            Some("write the operation argument expression".to_string())
+        }
+        infer::lowering::LoweringError::MissingRecordFieldName => {
+            Some("write the record field name before `:`".to_string())
+        }
+        infer::lowering::LoweringError::MissingRecordFieldValue => {
+            Some("write the record field value after `:`".to_string())
+        }
+        infer::lowering::LoweringError::MissingIndexArgument => {
+            Some("write an index expression inside the brackets".to_string())
+        }
+        infer::lowering::LoweringError::MissingLocalBindingName => {
+            Some("write a local binding name after `my`".to_string())
+        }
+        infer::lowering::LoweringError::MissingLocalBindingBody => {
+            Some("write a body expression after `=`".to_string())
+        }
+        infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { .. } => {
+            Some("move the mutable binding into a block or function body".to_string())
+        }
+        infer::lowering::LoweringError::MissingLocalVarAct { .. } => Some(
+            "let the mutable binding lower with its generated variable effect body".to_string(),
+        ),
+        infer::lowering::LoweringError::MissingSubLabelAct { .. } => {
+            Some("let the labeled sub lower with its generated effect body".to_string())
+        }
+        infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::UnresolvedTypeName { path },
             ..
         }
-        | infer::lowering::BodyLoweringError::Expr {
-            error:
-                infer::lowering::LoweringError::NegSignatureBuild {
-                    error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path },
-                },
-            ..
+        | infer::lowering::LoweringError::NegSignatureBuild {
+            error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path },
         } => Some(format!(
             "define type `{}` before this annotation, or import it",
             format_name_path(path)
         )),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchScrutinee,
-            ..
+        infer::lowering::LoweringError::AnnotationBuild { .. }
+        | infer::lowering::LoweringError::AnnotationConstraint { .. } => Some(
+            "use a supported type annotation form and keep effect rows in effect position"
+                .to_string(),
+        ),
+        infer::lowering::LoweringError::NegSignatureBuild { .. }
+        | infer::lowering::LoweringError::SignatureConstraint { .. }
+        | infer::lowering::LoweringError::SignatureShapeMismatch { .. }
+        | infer::lowering::LoweringError::SignatureTypeMismatch { .. } => {
+            Some("check the declared signature shape and effect row".to_string())
         }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchScrutinee,
-        } => Some("write `catch <expr>:` before the handler arms".to_string()),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchArmPattern,
-            ..
-        }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchArmPattern,
-        } => Some("write a value pattern or effect operation before `->`".to_string()),
-        infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::MissingCatchArmBody,
-            ..
-        }
-        | infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::MissingCatchArmBody,
-        } => Some("write an expression after `->`".to_string()),
-        _ => None,
+        infer::lowering::LoweringError::TypeMismatch { .. } => None,
     }
 }
 

@@ -603,6 +603,12 @@ pub(super) fn run_route_to_value<T>(result: Result<T, yulang::RouteError>) -> T 
     }
 }
 
+pub(super) fn format_runtime_lowering_errors(errors: &[String]) -> String {
+    format_route_error(&yulang::RouteError::LoweringDiagnostics {
+        errors: errors.to_vec(),
+    })
+}
+
 fn format_route_error(error: &yulang::RouteError) -> String {
     match error {
         yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {

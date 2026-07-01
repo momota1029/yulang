@@ -140,8 +140,8 @@ TODO:
     - first CLI canary: `runtime error [yulang.unhandled-effect]` with a
       handler hint on `run` when `std::control::nondet::each` escapes.
   - handler arm mismatch
-    - first syntax-side canary: missing catch arm body is no longer reported as
-      raw `MissingCatchArmBody`.
+    - syntax-side canaries: missing catch scrutinee, missing catch arm pattern,
+      and missing catch arm body no longer report raw lowering enum names.
   - unsupported host request
 - Runtime / lowering errors:
   - 普通の user path で residual polymorphic runtime IR を漏らさない
@@ -150,6 +150,10 @@ TODO:
     見直せる user-facing message として出す。
   - not-record / pattern-mismatch も同じ normal run formatter を通し、VM 内部文言を
     user-facing contract にしない。
+  - normal `run` の lowering abort は `compile error [yulang.lowering]` と
+    `yulang check` hint を出す。source range は `check` 側へ誘導する。
+  - lowering error formatter は既知の `LoweringError` variant を明示的に整形し、
+    `Debug` fallback へ落とさない。
   - specialize の unsatisfied subtype は型/shape 契約違反として compile error code
     を付ける。record literal の missing required field は structured origin を持つ。
     将来的には source range / expected-origin と接続する。

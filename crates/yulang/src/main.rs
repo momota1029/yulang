@@ -936,10 +936,7 @@ fn abort_on_runtime_lowering_errors(errors: &[String]) {
     if errors.is_empty() {
         return;
     }
-    eprintln!("cannot build executable program with lowering errors");
-    for error in errors {
-        eprintln!("error: {error}");
-    }
+    eprintln!("{}", format_runtime_lowering_errors(errors));
     process::exit(1);
 }
 
