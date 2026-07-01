@@ -3498,6 +3498,12 @@ fn assert_contract_manifest_tags_are_canonical(case: &PublicContractCase) {
             case.name,
             tag
         );
+        assert!(
+            is_known_contract_tag(tag),
+            "contract manifest case {} has unknown contract tag {:?}",
+            case.name,
+            tag
+        );
     }
 }
 
@@ -3506,6 +3512,65 @@ fn is_canonical_contract_tag(tag: &str) -> bool {
         && tag.bytes().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-'
         })
+}
+
+fn is_known_contract_tag(tag: &str) -> bool {
+    matches!(
+        tag,
+        "attached-impl"
+            | "bindings"
+            | "bundled-std"
+            | "callback-residual"
+            | "calls"
+            | "casts"
+            | "compile-error"
+            | "console"
+            | "data-position-effect"
+            | "deep-handler"
+            | "defaults"
+            | "diagnostics"
+            | "display"
+            | "effect-hygiene"
+            | "effects"
+            | "errors"
+            | "file"
+            | "filesystem"
+            | "from"
+            | "handler-syntax"
+            | "host.native"
+            | "host.unsupported"
+            | "junction"
+            | "lists"
+            | "names"
+            | "parser-dsl"
+            | "path"
+            | "patterns"
+            | "preview"
+            | "public-example"
+            | "public-signature"
+            | "records"
+            | "refs"
+            | "related-ranges"
+            | "release-artifact"
+            | "result"
+            | "roles"
+            | "runtime"
+            | "runtime-error"
+            | "runtime-failure"
+            | "showcase"
+            | "standard-api"
+            | "std.flow"
+            | "std.nondet"
+            | "std.parse"
+            | "std.ref"
+            | "sub-return"
+            | "syntax"
+            | "typechecker"
+            | "typed-failure"
+            | "types"
+            | "up"
+            | "update"
+    )
 }
 
 fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
@@ -3569,6 +3634,11 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
         if is_compile_error {
+            assert_eq!(
+                case.kind, "run",
+                "compile-error contract manifest case {} should remain a run-only migration marker; add a separate check case for SourceDiagnostic coverage",
+                case.name
+            );
             assert!(
                 contract_manifest_case_has_tag(case, "diagnostics"),
                 "compile-error contract manifest case {} should be tagged diagnostics",
@@ -3616,6 +3686,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             "standard-api contract manifest case {} should include a narrower API area tag",
             case.name
         );
+        if contract_manifest_case_has_tag(case, "file") {
+            assert!(
+                contract_manifest_case_has_any_tag(case, &["host.native", "host.unsupported"]),
+                "standard-api file contract manifest case {} should declare host scope",
+                case.name
+            );
+        }
     }
 
     if case.kind == "public-signature" {

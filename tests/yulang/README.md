@@ -13,13 +13,20 @@ cases carry `diagnostics`, and `public-signature` cases carry
 `public-signature`, so the tags remain useful as a contract index rather than
 free-form notes.
 Contract tags use lowercase ASCII letters, digits, `.`, and `-` only.
+They are also checked against the manifest runner's known tag set, so new tags
+must be deliberately added to the taxonomy instead of appearing as ad-hoc notes.
 `runtime-error` cases must set `expect_success = false` and be classified as
 exactly one of `runtime-failure` or `compile-error`; `compile-error` cases also
 carry `diagnostics`, because their current contract is the user-facing compile
-error text rather than a completed runtime path. These cases should assert a
-matching `compile error [` or `runtime error [` stderr prefix. `public-example`
-cases must point at `examples/` from the repo root; and `standard-api` cases
-must name a narrower API area such as `result`, `errors`, `path`, or `file`.
+error text rather than a completed runtime path. A `compile-error` tag is a
+run-only migration marker: add a separate `kind = "check"` case when the same
+failure has structured `SourceDiagnostic` coverage. These cases should assert a
+matching `compile error [` or `runtime error [` stderr prefix.
+`public-example` cases must point at `examples/` from the repo root; and
+`standard-api` cases must name a narrower API area such as `result`, `errors`,
+`path`, or `file`. Standard file API cases must also declare a host scope such as
+`host.native` or `host.unsupported`; the broad `host` tag is intentionally not
+part of the manifest taxonomy.
 All `public-signature` cases also reject private evidence fragments such as
 `#...` and `AllExcept(...)` in the projected public type. Individual cases can
 still add narrower `deny_type_contains` checks for surface-specific leaks.
