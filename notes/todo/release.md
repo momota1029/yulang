@@ -49,6 +49,9 @@ release artifact
   - `scripts/release-smoke.sh`
   - `HOME` / `XDG_CACHE_HOME` / `YULANG_CACHE_DIR` を一時ディレクトリに向け、user cache を汚さない。
   - `YULANG_SMOKE_SERVER=1` で server startup も見る。
+- release gate / hardening smoke:
+  - `scripts/hardening-smoke.sh` は Rust 側の public contract manifest に加えて、
+    release binary の `yulang contract` コマンドを filtered manifest case で確認する。
 - archive smoke script:
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
