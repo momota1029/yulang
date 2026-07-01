@@ -46,6 +46,9 @@ Diagnostics の最初の slice:
 - 2026-07-01 時点で、type mismatch、unresolved value/type、top-level mutable
   binding、unsupported rule lazy quantifier は `SourceDiagnostic.code` から CLI
   summary / LSP diagnostic code / playground diagnostic code へ流れる。
+- 同日後続 slice で、型注釈 mismatch は annotation / expression の related 情報を
+  `SourceDiagnostic.related` に載せ、CLI note / LSP relatedInformation /
+  playground JSON related へ流れる。
 
 API 固定の最初の slice:
 

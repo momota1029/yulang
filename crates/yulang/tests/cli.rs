@@ -156,6 +156,10 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         ),
         "{stdout}"
     );
+    assert!(
+        stdout.contains("    note: expected type: int\n    note: actual expression type: bool\n"),
+        "{stdout}"
+    );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
     assert!(
         stdout.contains("  x: type mismatch: bool is not int\n"),

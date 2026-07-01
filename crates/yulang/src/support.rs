@@ -669,6 +669,9 @@ fn print_check_diagnostics_summary(diagnostics: &[yulang::SourceDiagnostic]) {
             (None, Some(label)) => println!("  error: {label}: {}", diagnostic.message),
             (None, None) => println!("  error: {}", diagnostic.message),
         }
+        for related in &diagnostic.related {
+            println!("    note: {}", related.message);
+        }
     }
 }
 
