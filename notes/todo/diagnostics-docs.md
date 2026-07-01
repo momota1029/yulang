@@ -49,6 +49,9 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、型注釈 mismatch は annotation / expression の related 情報を
   `SourceDiagnostic.related` に載せ、CLI note / LSP relatedInformation /
   playground JSON related へ流れる。
+- 同日後続 slice で、CLI `check` summary は primary / related range に対して
+  1-based line / column と source frame を表示する。std-root で差し込まれる
+  implicit prelude は CLI 表示から差し引く。
 
 API 固定の最初の slice:
 

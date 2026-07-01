@@ -1189,6 +1189,13 @@ pub struct CheckPolyOutput {
     pub text: String,
     pub file_count: usize,
     pub diagnostics: Vec<SourceDiagnostic>,
+    pub diagnostic_source: Option<CheckDiagnosticSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckDiagnosticSource {
+    pub source: String,
+    pub range_offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1731,6 +1738,7 @@ fn check_poly_from_loaded_files(
             source_diagnostics_from_check(&check, &module_check.diagnostics)
         }
     };
+    let diagnostic_source = check_diagnostic_source(&loaded);
     let text = match kind {
         CheckPolyKind::All { title } => {
             format_check_poly_output(loaded.len(), &check, &timing, title)
@@ -1747,6 +1755,29 @@ fn check_poly_from_loaded_files(
         text,
         file_count: loaded.len(),
         diagnostics,
+        diagnostic_source,
+    })
+}
+
+fn check_diagnostic_source(loaded: &[sources::LoadedFile]) -> Option<CheckDiagnosticSource> {
+    let root = loaded
+        .iter()
+        .find(|file| file.module_path.segments.is_empty())?;
+    let source = root.source.as_str();
+    let range_offset = if source.starts_with(IMPLICIT_PRELUDE_IMPORT)
+        && source
+            .get(IMPLICIT_PRELUDE_IMPORT.len()..)
+            .is_some_and(|rest| rest.starts_with(IMPLICIT_STD_MODULE_DECL))
+    {
+        IMPLICIT_STD_SOURCE_PREFIX_LEN
+    } else if source.starts_with(IMPLICIT_PRELUDE_IMPORT) {
+        IMPLICIT_PRELUDE_IMPORT.len()
+    } else {
+        0
+    };
+    Some(CheckDiagnosticSource {
+        source: source.get(range_offset..).unwrap_or_default().to_string(),
+        range_offset,
     })
 }
 

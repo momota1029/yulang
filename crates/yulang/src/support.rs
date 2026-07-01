@@ -651,11 +651,14 @@ pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMon
 }
 
 pub(super) fn print_check_poly_output(output: &yulang::CheckPolyOutput) {
-    print_check_diagnostics_summary(&output.diagnostics);
+    print_check_diagnostics_summary(&output.diagnostics, output.diagnostic_source.as_ref());
     print!("{}", output.text);
 }
 
-fn print_check_diagnostics_summary(diagnostics: &[yulang::SourceDiagnostic]) {
+fn print_check_diagnostics_summary(
+    diagnostics: &[yulang::SourceDiagnostic],
+    source: Option<&yulang::CheckDiagnosticSource>,
+) {
     if diagnostics.is_empty() {
         return;
     }
@@ -669,10 +672,97 @@ fn print_check_diagnostics_summary(diagnostics: &[yulang::SourceDiagnostic]) {
             (None, Some(label)) => println!("  error: {label}: {}", diagnostic.message),
             (None, None) => println!("  error: {}", diagnostic.message),
         }
+        if let Some(range) = diagnostic.range {
+            print_source_frame(source, range);
+        }
         for related in &diagnostic.related {
             println!("    note: {}", related.message);
+            print_source_frame(source, related.range);
         }
     }
+}
+
+fn print_source_frame(source: Option<&yulang::CheckDiagnosticSource>, range: yulang::SourceRange) {
+    let Some(source) = source else {
+        return;
+    };
+    let Some(range) = diagnostic_display_range(source, range) else {
+        return;
+    };
+    let Some(frame) = source_frame(&source.source, range) else {
+        return;
+    };
+    let number_width = frame.line_number.to_string().len();
+    println!(
+        "    --> line {}, column {}",
+        frame.line_number, frame.column_number
+    );
+    println!(
+        "    {:>number_width$} | {}",
+        frame.line_number, frame.line_text
+    );
+    println!(
+        "    {:>number_width$} | {}{}",
+        "",
+        " ".repeat(frame.marker_start),
+        "^".repeat(frame.marker_len)
+    );
+}
+
+fn diagnostic_display_range(
+    source: &yulang::CheckDiagnosticSource,
+    range: yulang::SourceRange,
+) -> Option<yulang::SourceRange> {
+    if range.end <= source.range_offset {
+        return None;
+    }
+    let start = range.start.saturating_sub(source.range_offset);
+    let end = range.end.saturating_sub(source.range_offset);
+    Some(yulang::SourceRange {
+        start: start.min(source.source.len()),
+        end: end.max(start).min(source.source.len()),
+    })
+}
+
+struct SourceFrame {
+    line_number: usize,
+    column_number: usize,
+    line_text: String,
+    marker_start: usize,
+    marker_len: usize,
+}
+
+fn source_frame(source: &str, range: yulang::SourceRange) -> Option<SourceFrame> {
+    let starts = source_line_starts(source);
+    let line_index = starts
+        .partition_point(|start| *start <= range.start)
+        .saturating_sub(1);
+    let line_start = *starts.get(line_index)?;
+    let line_end = source[line_start..]
+        .find('\n')
+        .map(|offset| line_start + offset)
+        .unwrap_or(source.len());
+    let range_start = range.start.clamp(line_start, line_end);
+    let range_end = range.end.clamp(range_start, line_end);
+    let marker_start = source[line_start..range_start].chars().count();
+    let marker_len = source[range_start..range_end].chars().count().max(1);
+    Some(SourceFrame {
+        line_number: line_index + 1,
+        column_number: marker_start + 1,
+        line_text: source[line_start..line_end].to_string(),
+        marker_start,
+        marker_len,
+    })
+}
+
+fn source_line_starts(source: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    starts.extend(
+        source
+            .char_indices()
+            .filter_map(|(index, ch)| (ch == '\n').then_some(index + 1)),
+    );
+    starts
 }
 
 pub(super) fn print_usage_error_and_exit(program: &str, error: &str) -> ! {

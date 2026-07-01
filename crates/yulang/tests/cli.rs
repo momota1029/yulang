@@ -157,7 +157,15 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("    note: expected type: int\n    note: actual expression type: bool\n"),
+        stdout.contains("    --> line 1, column 4\n    1 | my x: int = true\n      |    ^\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    note: expected type: int\n    --> line 1, column 7\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    note: actual expression type: bool\n    --> line 1, column 13\n"),
         "{stdout}"
     );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
@@ -165,6 +173,29 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         stdout.contains("  x: type mismatch: bool is not int\n"),
         "{stdout}"
     );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_source_frame_uses_user_source_with_std_root() {
+    let entry = write_entry("diagnostics-source-frame-std-root", "my x: int = true\n");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("    --> line 1, column 4\n    1 | my x: int = true\n      |    ^\n"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("line 3, column 4"), "{stdout}");
     assert_eq!(stderr(&output), "");
 }
 
