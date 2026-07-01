@@ -170,7 +170,10 @@ The public contract manifest lives at `tests/yulang/cases.toml`; the hardening
 gate runs it through the public `yulang` CLI tests. The hardening gate also
 enables the `release-smoke.sh` `yulang server` startup check by default; set
 `YULANG_HARDENING_RELEASE_SERVER_SMOKE=0` only for focused local runs where the
-language-server process check is not relevant.
+language-server process check is not relevant. Release archive smoke enables
+the same server startup check by default; set
+`YULANG_RELEASE_ARCHIVE_SMOKE_SERVER=0` to skip it while inspecting an archive
+locally.
 
 Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
 `~"..."` are experimental. They are useful for trying the direction of the

@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 archive="${1:-}"
+archive_server_smoke="${YULANG_RELEASE_ARCHIVE_SMOKE_SERVER:-${YULANG_SMOKE_SERVER:-1}}"
 
 if [[ -z "$archive" ]]; then
   echo "release archive smoke: archive path is required" >&2
@@ -82,4 +83,5 @@ if [[ "$bin" != *.exe ]]; then
   chmod 755 "$bin"
 fi
 
-"$repo_root/scripts/release-smoke.sh" "$bin"
+env YULANG_SMOKE_SERVER="$archive_server_smoke" \
+  "$repo_root/scripts/release-smoke.sh" "$bin"
