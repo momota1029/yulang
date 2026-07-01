@@ -40,7 +40,7 @@ The public contract is the combination of these gates:
 | Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
-| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. `std::data::result` is contract-covered by runtime and public-signature manifest cases; `std::text::path` display/byte conversion and `std::io::file` read/write-text and predicate operations now have native CLI host contracts, while the managed file-resource surface is still provisional. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); host/filesystem/FFI TODO notes |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. `std::data::result` is contract-covered by runtime and public-signature manifest cases; `std::text::path` display/byte conversion and the first `std::io::file` text API slice now have native CLI host contracts, while full file-resource metadata/locking/close semantics are still provisional. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); host/filesystem/FFI TODO notes |
 
 A change can be treated as contract-hardening when it improves one of those
 gates without changing parser, inference, standard-library, or runtime
@@ -159,9 +159,10 @@ The columns trace a value through the pipeline:
   per-variant wording is a future surface, not part of the current contract.
 - `std::io::file::read_text`, `write_text`, `exists`, `is_file`, and `is_dir`
   run through the native CLI host path and return typed `io_err` effects for
-  failed reads/writes. This is the first executable filesystem contract; range
-  writes, metadata, directory listing, managed text refs (`open_text`/`open`),
-  and scope-exit close/write-back semantics are still provisional.
+  failed reads/writes. `open_text`, `open`, and `open_in` also cover the first
+  managed text-ref get/set path. This is the first executable filesystem
+  contract; range writes, metadata, directory listing, locking, and explicit
+  close/scope-exit write-back semantics are still provisional.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path

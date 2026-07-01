@@ -647,6 +647,39 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "file", "host"]
 
 [[case]]
+name = "std_file_open_text_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.open_text"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref std::io::file::file std::text::str::str"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host", "refs"]
+
+[[case]]
+name = "std_file_open_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.open"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref(std::io::file::file, std::text::str::str)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host", "refs"]
+
+[[case]]
+name = "std_file_open_in_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.open_in"
+expect_type = "std::text::path::path -> (std::control::var::ref(std::io::file::file, std::text::str::str) [std::io::file::file, std::io::file::io_err] -> ['a] 'b) -> ['a] 'b"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host", "refs"]
+
+[[case]]
 name = "std_file_exists_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
