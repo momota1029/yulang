@@ -124,6 +124,8 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 同日、`std::data::result` の `map` / `and_then` / `unwrap_or` を runtime fixture と
   public signature case の両方で manifest に載せた。standard API case は、実行挙動と
   公開型の両方が現在の public surface として観測できるものから追加する。
+- 同日後続 slice で、`result_propagation.yu` を追加し、`map` / `and_then` が
+  `err` を潰さず伝播し、`unwrap_or` が `ok` を優先することも public CLI contract にした。
 - 同日、`error E:` の基本 `fail (E::variant payload)` + `E::wrap` flow を
   `error_wrap_fail.yu` として manifest に載せた。`E::wrap` は runtime output と
   public signature の両方で、action 引数の effect row が保持されることを見る。

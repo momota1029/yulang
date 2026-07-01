@@ -1,0 +1,7 @@
+pub use std::data::result::result::*
+
+my map_err = (result::err "bad").map \x -> x + 1
+my and_then_err = (result::err "bad").and_then \x -> result::ok (x + 1)
+my ok_unwrap = (result::ok 5).unwrap_or 9
+
+(map_err, and_then_err, ok_unwrap)

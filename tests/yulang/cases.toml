@@ -44,6 +44,15 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "result"]
 
 [[case]]
+name = "result_propagation"
+file = "regressions/runtime/result_propagation.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(result::err(\"bad\"), result::err(\"bad\"), 5)]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "result"]
+
+[[case]]
 name = "path_display"
 file = "regressions/runtime/path_display.yu"
 kind = "run"
