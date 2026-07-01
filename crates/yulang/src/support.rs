@@ -462,7 +462,7 @@ pub(super) fn run_built_evidence_for_cli(
         let output = match evidence_vm::run_program_with_plan(&program, &plan) {
             Ok(output) => output,
             Err(error) => {
-                eprintln!("{error}");
+                eprintln!("{}", format_runtime_evidence_run_error(&error));
                 process::exit(1);
             }
         };
@@ -484,6 +484,16 @@ pub(super) fn run_built_evidence_for_cli(
             },
         }
     })
+}
+
+fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunError) -> String {
+    match error {
+        evidence_vm::RuntimeEvidenceRunError::EscapedEffect(path) => format!(
+            "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
+            path.join("::")
+        ),
+        _ => error.to_string(),
+    }
 }
 
 pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bool) {

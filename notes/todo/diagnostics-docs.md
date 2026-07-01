@@ -55,6 +55,10 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、root module の parser recovery `InvalidToken` は
   `yulang.syntax` として CLI / LSP / playground に流れる。未閉じ `(` は
   `syntax error: unexpected end of input` として user source line の末尾を指す。
+- 同日後続 slice で、通常の `run` 経路で処理されない effect request が外へ漏れた
+  とき、CLI は `yulang.unhandled-effect` と handler 追加を促す hint を表示する。
+  これは runtime evidence VM の内部エラー文言を user-facing contract にしないための
+  最初の runtime diagnostic canary とする。
 
 API 固定の最初の slice:
 
@@ -102,6 +106,8 @@ TODO:
   - missing field
 - Effect errors:
   - unhandled effect
+    - first CLI canary: `runtime error [yulang.unhandled-effect]` with a
+      handler hint on `run` when `std::control::nondet::each` escapes.
   - handler arm mismatch
   - unsupported host request
 - Runtime / lowering errors:

@@ -101,6 +101,46 @@ fn compatible_run_print_roots_keeps_console_stdout_before_roots() {
 }
 
 #[test]
+fn compatible_run_reports_unhandled_effect_hint() {
+    let entry = write_entry(
+        "run-unhandled-nondet-effect",
+        "use std::control::nondet::*\n\neach [1, 2]\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains(
+            "runtime error [yulang.unhandled-effect]: unhandled effect request std::control::nondet::nondet::branch\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: handle this computation with a matching effect handler before running it"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 
