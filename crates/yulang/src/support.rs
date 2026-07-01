@@ -495,6 +495,12 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
         evidence_vm::RuntimeEvidenceRunError::NotFunction(value) => format!(
             "runtime error [yulang.not-callable]: tried to call a non-function value {value}\n  hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
         ),
+        evidence_vm::RuntimeEvidenceRunError::NotRecord(value) => format!(
+            "runtime error [yulang.not-record]: tried to read fields from non-record value {value}\n  hint: use `.field` only on record values"
+        ),
+        evidence_vm::RuntimeEvidenceRunError::PatternMismatch => {
+            "runtime error [yulang.pattern-mismatch]: no pattern matched the value\n  hint: add a fallback pattern such as `_ -> ...`".to_string()
+        }
         _ => error.to_string(),
     }
 }

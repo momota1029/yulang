@@ -65,6 +65,9 @@ Diagnostics の最初の slice:
   最初の runtime diagnostic canary とする。
 - 同日後続 slice で、文法上は application として valid な `1 2` のような
   not-callable runtime failure は `yulang.not-callable` と call syntax hint を出す。
+- 同日後続 slice で、`1.a` と unmatched `case` の normal run runtime failure は
+  それぞれ `yulang.not-record` / `yulang.pattern-mismatch` として、field access /
+  fallback pattern の hint を出す。
 
 API 固定の最初の slice:
 
@@ -121,6 +124,8 @@ TODO:
   - impossible runtime state は recoverable value ではなく trap として説明する
   - not-callable は `runtime-evidence-run not a function` ではなく、call syntax を
     見直せる user-facing message として出す。
+  - not-record / pattern-mismatch も同じ normal run formatter を通し、VM 内部文言を
+    user-facing contract にしない。
 
 ## Examples
 
