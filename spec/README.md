@@ -52,6 +52,10 @@
 
 ### Standard API / host capabilities
 
+- [2026-07-01-stable-standard-api.md](2026-07-01-stable-standard-api.md)
+  — 標準 API を stable contract / provisional spelling / experimental に分ける。
+  filesystem、server、host capability、将来の FFI-backed implementation に共通する
+  resource lifetime、scope exit、capability failure、contract gate を固定する。
 - [2026-07-01-file-resource-api.md](2026-07-01-file-resource-api.md)
   — filesystem API の中心を file session、metadata、whole-file managed text/bytes lens、
   `raw` resource に分ける。managed lens には close/save/flush を置かず、scope exit で

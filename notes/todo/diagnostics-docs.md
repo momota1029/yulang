@@ -90,9 +90,11 @@ Diagnostics の最初の slice:
 
 API 固定の最初の slice:
 
+- 標準 API の安定性は `spec/2026-07-01-stable-standard-api.md` を anchor とする。
 - filesystem は `spec/2026-07-01-file-resource-api.md` を anchor とする。
 - server API は、file session と同じ resource lifetime / scope exit / host capability
-  のモデルへ寄せる。
+  のモデルへ寄せる。HTTP framework ではなく、host event session と request/response
+  resource contract から始める。
 - FFI は標準 API の裏側になりうるが、当面は public ABI ではなく host capability
   boundary として扱う。
 - API メモの都合で既存 std surface を compatibility promise にしない。

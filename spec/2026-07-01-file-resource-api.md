@@ -2,6 +2,8 @@
 
 この文書は、標準 filesystem API の現時点での仕様方針を固定する。
 実装方法は未確定だが、API の意味論と境界はここを基準にする。
+安定度の扱い、host capability failure、scope exit の共通規則は
+[2026-07-01-stable-standard-api.md](2026-07-01-stable-standard-api.md) に従う。
 
 目的は、`read_text` / `write_text` / `exists` のような薄い関数群ではなく、
 Yulang の lens / effect / continuation marker に沿った file resource API を作ること。
