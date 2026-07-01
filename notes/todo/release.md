@@ -52,6 +52,8 @@ release artifact
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
     `release-smoke.sh` を呼ぶ。
+  - `release-manifest.txt` の `contract_runner=1` を確認し、packaged binary と同梱 std で
+    filtered `yulang contract tests/yulang/cases.toml` を実行する。
 - installer smoke scripts:
   - `scripts/release-install-smoke.sh` / `scripts/release-install-smoke.ps1`
   - ローカル HTTP release directory から installer を実行し、custom prefix install、
@@ -98,7 +100,8 @@ release artifact
 ## Cache / std contract
 
 - `POLY_CACHE_FORMAT` / `CONTROL_CACHE_FORMAT` の bump 漏れが release artifact に混ざらないようにする。
-- std bundle の version、source hash、artifact format を manifest に入れる。
+- std bundle の version、source hash、artifact format、contract runner capability を
+  manifest に入れる。
 - 将来の realm/band release freeze では、固定した source snapshot と resolution metadata に加えて
   published band root の `.yucu` を生成する。
   `.yucu` は依存 prefix 用の cache artifact であり、release の正本は source snapshot と

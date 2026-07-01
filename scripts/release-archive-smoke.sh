@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 archive="${1:-}"
 archive_server_smoke="${YULANG_RELEASE_ARCHIVE_SMOKE_SERVER:-${YULANG_SMOKE_SERVER:-1}}"
+archive_contract_smoke="${YULANG_RELEASE_ARCHIVE_SMOKE_CONTRACT:-1}"
 
 if [[ -z "$archive" ]]; then
   echo "release archive smoke: archive path is required" >&2
@@ -72,7 +73,7 @@ if [[ ! -f "$manifest" ]]; then
   echo "release archive smoke: release-manifest.txt not found" >&2
   exit 1
 fi
-for key in name version target stdlib stdlib_source_hash cache_schema poly_cache_format control_cache_format compiled_unit_cache_format realm_resolution_cache_format; do
+for key in name version target stdlib stdlib_source_hash cache_schema poly_cache_format control_cache_format compiled_unit_cache_format realm_resolution_cache_format contract_runner; do
   if ! grep -q "^$key=" "$manifest"; then
     echo "release archive smoke: manifest key missing: $key" >&2
     exit 1
@@ -85,3 +86,12 @@ fi
 
 env YULANG_SMOKE_SERVER="$archive_server_smoke" \
   "$repo_root/scripts/release-smoke.sh" "$bin"
+
+if [[ "$archive_contract_smoke" != "0" ]]; then
+  "$bin" --std-root "$package_root/lib" contract \
+    --case optional_record_defaults \
+    "$repo_root/tests/yulang/cases.toml" >/dev/null
+  "$bin" --std-root "$package_root/lib" contract \
+    --case std_result_unwrap_or_public_signature \
+    "$repo_root/tests/yulang/cases.toml" >/dev/null
+fi

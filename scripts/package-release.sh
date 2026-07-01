@@ -182,6 +182,7 @@ poly_cache_format=$poly_cache_format
 control_cache_format=$control_cache_format
 compiled_unit_cache_format=$compiled_unit_cache_format
 realm_resolution_cache_format=$realm_resolution_cache_format
+contract_runner=1
 EOF
 
 rm -f "$archive"
