@@ -27,9 +27,10 @@ matching `compile error [` or `runtime error [` stderr prefix.
 `path`, or `file`. Standard file API cases must also declare a host scope such as
 `host.native` or `host.unsupported`; the broad `host` tag is intentionally not
 part of the manifest taxonomy.
-All `public-signature` cases also reject private evidence fragments such as
-`#...` and `AllExcept(...)` in the projected public type. Individual cases can
-still add narrower `deny_type_contains` checks for surface-specific leaks.
+All `public-signature` cases also reject private evidence and placeholder-like
+fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
+projected public type. Individual cases can still add narrower
+`deny_type_contains` checks for surface-specific leaks.
 Each `public-signature` case must also carry an exact `expect_type`; broad
 substring-only public type checks are not enough for the contract manifest.
 Diagnostic entries may also assert the structured `SourceDiagnostic` payload

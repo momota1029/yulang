@@ -4171,7 +4171,7 @@ fn public_signature_contract_manifest_case(case: &PublicContractCase) {
 }
 
 fn assert_public_contract_signature_type_is_clean(case: &PublicContractCase, ty: &str) {
-    for denied in ["#", "AllExcept"] {
+    for denied in ["#", "AllExcept", "Unknown", "Any"] {
         assert!(
             !ty.contains(denied),
             "case {} leaked private public-signature fragment {denied:?}:\n{ty}",
