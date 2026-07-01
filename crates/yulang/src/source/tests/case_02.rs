@@ -1543,7 +1543,16 @@ fn dump_poly_fixture_sub_return_callback_public_signature_keeps_callback_effect(
 #[test]
 fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-ref-update-public-type", "1\n");
+    let parent_output = dump_poly_from_entry_with_std_in_module(&entry, "std.control.var").unwrap();
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.var.ref").unwrap();
+
+    let ref_ty =
+        assert_public_signature_type_hides_stack_evidence(&parent_output, "std.control.var.ref");
+    assert_eq!(
+        ref_ty,
+        "{get: () -> ['a] 'b, update_effect: () -> [std::control::var::ref_update 'b; 'c] ()} -> std::control::var::ref('a | 'c, 'b)",
+        "ref constructor should expose update_effect as a ref_update residual without private evidence"
+    );
 
     let ty =
         assert_public_signature_type_hides_stack_evidence(&output, "std.control.var.ref.update");
@@ -1590,18 +1599,10 @@ fn dump_poly_std_nondet_once_act_method_uses_deep_handler_effect() {
     let output =
         dump_poly_from_entry_with_std_in_module(entry, "std.control.nondet.nondet").unwrap();
 
-    let once = output
-        .text
-        .lines()
-        .find(|line| line.starts_with("pub ") && line.contains("#act-method:once"))
-        .expect("once act method should be dumped");
-    assert!(
-        once.contains(" [std::control::nondet::nondet; '"),
-        "once act method should expose nondet with an independent residual:\n{once}"
-    );
-    assert!(
-        !once.contains("& [std::control::nondet::nondet;"),
-        "once act method is deep/recursive, not shallow:\n{once}"
+    assert_eq!(
+        assert_public_signature_type_containing_hides_stack_evidence(&output, "#act-method:once"),
+        "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a",
+        "once act method should expose nondet with an independent residual, not a shallow handler type"
     );
 }
 
@@ -1612,18 +1613,10 @@ fn dump_poly_std_nondet_list_act_method_uses_deep_handler_effect() {
     let output =
         dump_poly_from_entry_with_std_in_module(entry, "std.control.nondet.nondet").unwrap();
 
-    let list = output
-        .text
-        .lines()
-        .find(|line| line.starts_with("pub ") && line.contains("#act-method:list"))
-        .expect("list act method should be dumped");
-    assert!(
-        list.contains(" [std::control::nondet::nondet; '"),
-        "list act method should expose nondet with an independent residual:\n{list}"
-    );
-    assert!(
-        !list.contains("& [std::control::nondet::nondet;"),
-        "list act method is deep/recursive, not shallow:\n{list}"
+    assert_eq!(
+        assert_public_signature_type_containing_hides_stack_evidence(&output, "#act-method:list"),
+        "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a",
+        "list act method should expose nondet with an independent residual, not a shallow handler type"
     );
 }
 

@@ -207,6 +207,31 @@ fn dump_public_signature_type<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &
     panic!("public symbol {symbol:?} has an unexpected signature line:\n{signature}");
 }
 
+fn dump_public_signature_containing<'a>(output: &'a DumpPolyOutput, needle: &str) -> &'a str {
+    let line = output
+        .text
+        .lines()
+        .find(|line| line.trim_start().starts_with("pub ") && line.contains(needle))
+        .unwrap_or_else(|| {
+            panic!(
+                "public signature containing {needle:?} should be dumped:\n{}",
+                output.text
+            )
+        });
+    line.find(" = e")
+        .or_else(|| line.find(" = <missing>"))
+        .map(|body_start| &line[..body_start])
+        .unwrap_or(line)
+}
+
+fn dump_public_signature_type_containing<'a>(output: &'a DumpPolyOutput, needle: &str) -> &'a str {
+    let signature = dump_public_signature_containing(output, needle);
+    let Some(start) = signature.find("\": ") else {
+        panic!("public signature containing {needle:?} is not quoted:\n{signature}");
+    };
+    &signature[start + "\": ".len()..]
+}
+
 fn assert_public_signature_type_eq<'a>(
     output: &'a DumpPolyOutput,
     symbol: &str,
@@ -225,6 +250,18 @@ fn assert_public_signature_type_hides_stack_evidence<'a>(
     assert!(
         !ty.contains('#') && !ty.contains("AllExcept"),
         "private stack evidence escaped into {symbol}:\n{ty}"
+    );
+    ty
+}
+
+fn assert_public_signature_type_containing_hides_stack_evidence<'a>(
+    output: &'a DumpPolyOutput,
+    needle: &str,
+) -> &'a str {
+    let ty = dump_public_signature_type_containing(output, needle);
+    assert!(
+        !ty.contains('#') && !ty.contains("AllExcept"),
+        "private stack evidence escaped into public signature containing {needle:?}:\n{ty}"
     );
     ty
 }
