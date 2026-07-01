@@ -15,6 +15,7 @@ type Diagnostic = {
     severity: "error";
     code?: string;
     message: string;
+    hint?: string;
     start: number;
     end: number;
     related: DiagnosticRelated[];
@@ -1144,13 +1145,14 @@ function reportColorizeFallback(error: unknown): void {
 
 function formatDiagnostic(diagnostic: Diagnostic): string {
     const code = diagnostic.code ? ` [${diagnostic.code}]` : "";
+    const hint = diagnostic.hint ? `\n  hint: ${diagnostic.hint}` : "";
     const related =
         diagnostic.related.length === 0
             ? ""
             : diagnostic.related
                   .map((item) => `\n  - ${item.message}`)
                   .join("");
-    return `${diagnostic.severity}${code}: ${diagnostic.message}${related}`;
+    return `${diagnostic.severity}${code}: ${diagnostic.message}${hint}${related}`;
 }
 
 function resolveInitialLang(): Lang {

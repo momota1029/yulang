@@ -80,6 +80,8 @@ Diagnostics の最初の slice:
   を持つ。CLI は missing field 名と実際の record field 一覧を出す。source range はまだ
   specialize に来ていないため、次の detailed diagnostics で selection / expected shape
   origin と接続する。
+- 同日後続 slice で、`SourceDiagnostic` は optional `hint` を持つ。未解決 value/type
+  name は CLI / LSP / playground に同じ修復案を流す。
 
 API 固定の最初の slice:
 
@@ -119,6 +121,7 @@ TODO:
   - expected / actual の衝突した形を示す
   - 可能な範囲で raw internal type variable noise を避ける
   - expected / actual の出自を related information へ出す
+  - unresolved value/type name は定義または import の hint を出す
   - LSP hover で同じ出自情報を短く見せる
 - Role / method errors:
   - missing role impl

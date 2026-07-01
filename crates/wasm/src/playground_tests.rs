@@ -479,6 +479,7 @@ pair
             output.diagnostics[0].message,
             "type mismatch: bool is not int"
         );
+        assert_eq!(output.diagnostics[0].hint, None);
         assert_eq!(output.diagnostics[0].related.len(), 2);
         assert_eq!(
             output.diagnostics[0].related[0].message,
@@ -518,6 +519,10 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "unresolved type name: missing_type"
+        );
+        assert_eq!(
+            output.diagnostics[0].hint.as_deref(),
+            Some("define type `missing_type` before this annotation, or import it")
         );
     }
 

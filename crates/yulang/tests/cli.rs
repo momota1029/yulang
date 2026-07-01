@@ -402,6 +402,12 @@ fn public_diagnostics_check_reports_unresolved_value_name() {
         ),
         "{stdout}"
     );
+    assert!(
+        stdout.contains(
+            "    hint: define `missing` before this use, or import the module that provides it\n"
+        ),
+        "{stdout}"
+    );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
     assert!(
         stdout.contains("  result: unresolved value name: missing\n"),
@@ -427,6 +433,12 @@ fn public_diagnostics_check_reports_unresolved_type_name() {
     assert!(
         stdout.contains(
             "diagnostics:\n  error [yulang.unresolved-type]: x: unresolved type name: missing_type\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "    hint: define type `missing_type` before this annotation, or import it\n"
         ),
         "{stdout}"
     );

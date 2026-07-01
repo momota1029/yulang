@@ -241,6 +241,14 @@ fn diagnostics_for_analysis(
         .diagnostics
         .into_iter()
         .map(|diagnostic| {
+            let mut message = match diagnostic.label {
+                Some(label) => format!("{label}: {}", diagnostic.message),
+                None => diagnostic.message,
+            };
+            if let Some(hint) = diagnostic.hint {
+                message.push_str("\nhint: ");
+                message.push_str(&hint);
+            }
             let related_information = uri.as_ref().and_then(|uri| {
                 let related = diagnostic
                     .related
@@ -273,10 +281,7 @@ fn diagnostics_for_analysis(
                 severity: Some(DiagnosticSeverity::ERROR),
                 code: diagnostic.code.map(NumberOrString::String),
                 source: Some("yulang".to_string()),
-                message: match diagnostic.label {
-                    Some(label) => format!("{label}: {}", diagnostic.message),
-                    None => diagnostic.message,
-                },
+                message,
                 related_information,
                 ..Default::default()
             }
@@ -1127,6 +1132,12 @@ mod tests {
             diagnostics[0].message.contains("unresolved value name"),
             "{diagnostics:?}"
         );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("hint: define `missing` before this use"),
+            "{diagnostics:?}"
+        );
         assert_diagnostic_code(&diagnostics[0], "yulang.unresolved-value");
     }
 
@@ -1162,6 +1173,12 @@ mod tests {
         );
         assert!(
             diagnostics[0].message.contains("unresolved type name"),
+            "{diagnostics:?}"
+        );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("hint: define type `missing_type` before this annotation"),
             "{diagnostics:?}"
         );
         assert_diagnostic_code(&diagnostics[0], "yulang.unresolved-type");

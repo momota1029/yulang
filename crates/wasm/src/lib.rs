@@ -722,6 +722,8 @@ pub struct Diagnostic {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
     pub start: usize,
     pub end: usize,
     pub related: Vec<DiagnosticRelated>,
@@ -899,6 +901,7 @@ impl Diagnostic {
             severity: DiagnosticSeverity::Error,
             code: None,
             message,
+            hint: None,
             start: 0,
             end: source_len,
             related: Vec::new(),
@@ -915,6 +918,7 @@ impl Diagnostic {
             severity: DiagnosticSeverity::Error,
             code: diagnostic.code.clone(),
             message: diagnostic.message.clone(),
+            hint: diagnostic.hint.clone(),
             start,
             end,
             related: diagnostic

@@ -2103,6 +2103,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
             }),
             message: "type mismatch: bool is not int".to_string(),
+            hint: None,
             related: vec![
                 SourceDiagnosticRelated {
                     message: "expected type comes from this type annotation: int".to_string(),
@@ -2152,6 +2153,10 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 19,
             }),
             message: "unresolved value name: missing".to_string(),
+            hint: Some(
+                "define `missing` before this use, or import the module that provides it"
+                    .to_string(),
+            ),
             related: Vec::new(),
         }]
     );

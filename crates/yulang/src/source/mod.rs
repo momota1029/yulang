@@ -1321,6 +1321,7 @@ pub struct SourceDiagnostic {
     pub label: Option<String>,
     pub range: Option<SourceRange>,
     pub message: String,
+    pub hint: Option<String>,
     pub related: Vec<SourceDiagnosticRelated>,
 }
 
@@ -1837,6 +1838,7 @@ fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceD
                 } else {
                     "syntax error: unexpected token".to_string()
                 },
+                hint: None,
                 related: Vec::new(),
             }
         })
@@ -2703,6 +2705,7 @@ fn source_diagnostics_from_check(
                         .and_then(|def| check.lowering.modules.def_source_range(def))
                 }),
                 message: format_body_lowering_error(error),
+                hint: body_lowering_error_hint(error),
                 related: body_lowering_error_related(error),
             }
         })
@@ -2806,6 +2809,40 @@ fn body_lowering_error_related(
             related
         }
         _ => Vec::new(),
+    }
+}
+
+fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Option<String> {
+    match error {
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
+        } => Some(format!(
+            "define `{}` before this use, or import the module that provides it",
+            name.0
+        )),
+        infer::lowering::BodyLoweringError::Expr {
+            error:
+                infer::lowering::LoweringError::AnnotationBuild {
+                    error: infer::annotation::AnnBuildError::UnresolvedTypeName { path },
+                    ..
+                },
+            ..
+        }
+        | infer::lowering::BodyLoweringError::Expr {
+            error:
+                infer::lowering::LoweringError::NegSignatureBuild {
+                    error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path },
+                },
+            ..
+        } => Some(format!(
+            "define type `{}` before this annotation, or import it",
+            format_name_path(path)
+        )),
+        _ => None,
     }
 }
 

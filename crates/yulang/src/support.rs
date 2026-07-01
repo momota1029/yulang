@@ -724,6 +724,9 @@ fn print_check_diagnostics_summary(
         if let Some(range) = diagnostic.range {
             print_source_frame(source, range);
         }
+        if let Some(hint) = &diagnostic.hint {
+            println!("    hint: {hint}");
+        }
         for related in &diagnostic.related {
             println!("    note: {}", related.message);
             print_source_frame(source, related.range);
