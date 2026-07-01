@@ -3490,6 +3490,70 @@ fn public_contract_manifest_cli_cases_hold() {
     }
 }
 
+#[test]
+fn public_contract_manifest_covers_status_spine_claims() {
+    let status_path = repo_file("docs/status.md");
+    let status = fs::read_to_string(&status_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", status_path.display()));
+    for claim in [
+        "Public signatures",
+        "Runtime behavior",
+        "Diagnostics",
+        "Release artifacts",
+        "Standard API surface",
+        "std::data::result",
+        "std::text::path",
+        "std::io::file",
+    ] {
+        assert!(
+            status.contains(claim),
+            "docs/status.md should keep Public Contract Spine claim {claim:?}"
+        );
+    }
+
+    let cases = public_contract_manifest_cases();
+    for requirement in [
+        StatusSpineManifestRequirement::new("public signatures", &["public-signature"]),
+        StatusSpineManifestRequirement::new("runtime behavior", &["runtime"]),
+        StatusSpineManifestRequirement::new("public examples", &["public-example"]),
+        StatusSpineManifestRequirement::new("runtime error behavior", &["runtime-error"]),
+        StatusSpineManifestRequirement::new("diagnostics", &["diagnostics"]),
+        StatusSpineManifestRequirement::new("standard API", &["standard-api"]),
+        StatusSpineManifestRequirement::new("result API", &["standard-api", "result"]),
+        StatusSpineManifestRequirement::new("error API", &["standard-api", "errors"]),
+        StatusSpineManifestRequirement::new("path API", &["standard-api", "path"]),
+        StatusSpineManifestRequirement::new(
+            "native file API host scope",
+            &["standard-api", "file", "host.native"],
+        ),
+    ] {
+        assert!(
+            contract_manifest_has_case_with_tags(&cases, requirement.tags),
+            "docs/status.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
+            requirement.label,
+            requirement.tags
+        );
+    }
+}
+
+struct StatusSpineManifestRequirement<'a> {
+    label: &'a str,
+    tags: &'a [&'a str],
+}
+
+impl<'a> StatusSpineManifestRequirement<'a> {
+    fn new(label: &'a str, tags: &'a [&'a str]) -> Self {
+        Self { label, tags }
+    }
+}
+
+fn contract_manifest_has_case_with_tags(cases: &[PublicContractCase], tags: &[&str]) -> bool {
+    cases.iter().any(|case| {
+        tags.iter()
+            .all(|tag| contract_manifest_case_has_tag(case, tag))
+    })
+}
+
 fn assert_contract_manifest_tags_are_canonical(case: &PublicContractCase) {
     for tag in &case.contracts {
         assert!(
