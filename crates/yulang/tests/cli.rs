@@ -138,7 +138,7 @@ fn compatible_check_no_prelude_uses_local_source_only() {
 
 #[test]
 fn public_diagnostics_check_reports_type_annotation_mismatch() {
-    let entry = write_entry("diagnostic-type-annotation-mismatch", "my x: int = true\n");
+    let entry = repo_yulang_fixture("regressions/diagnostics/type_annotation_mismatch.yu");
 
     let output = yulang_command()
         .arg("--no-prelude")
@@ -164,7 +164,7 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
 
 #[test]
 fn public_diagnostics_check_reports_unresolved_value_name() {
-    let entry = write_entry("diagnostic-unresolved-value-name", "my result = missing\n");
+    let entry = repo_yulang_fixture("regressions/diagnostics/unresolved_value_name.yu");
 
     let output = yulang_command()
         .arg("--no-prelude")
@@ -185,6 +185,81 @@ fn public_diagnostics_check_reports_unresolved_value_name() {
         stdout.contains("  result: unresolved value name: missing\n"),
         "{stdout}"
     );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_check_reports_unresolved_type_name() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/unresolved_type_name.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("diagnostics:\n  error: x: unresolved type name: missing_type\n"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains("  x: unresolved type name: missing_type\n"),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_check_reports_top_level_mutable_binding() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/top_level_mutable_binding.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error: $x: top-level mutable binding $x is not supported; move it into a block or function body\n"
+        ),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "  $x: top-level mutable binding $x is not supported; move it into a block or function body\n"
+        ),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/unclosed_paren.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("check-poly\n"), "{stdout}");
+    assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
     assert_eq!(stderr(&output), "");
 }
 
