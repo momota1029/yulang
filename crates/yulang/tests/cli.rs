@@ -3536,6 +3536,8 @@ fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
 
 fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
     if contract_manifest_case_has_tag(case, "runtime-error") {
+        let is_runtime_failure = contract_manifest_case_has_tag(case, "runtime-failure");
+        let is_compile_error = contract_manifest_case_has_tag(case, "compile-error");
         assert_eq!(
             case.expect_success,
             Some(false),
@@ -3543,8 +3545,21 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
         assert!(
-            contract_manifest_case_has_any_tag(case, &["runtime-failure", "compile-error"]),
-            "runtime-error contract manifest case {} should be tagged runtime-failure or compile-error",
+            is_runtime_failure ^ is_compile_error,
+            "runtime-error contract manifest case {} should be tagged exactly one of runtime-failure or compile-error",
+            case.name
+        );
+        if is_compile_error {
+            assert!(
+                contract_manifest_case_has_tag(case, "diagnostics"),
+                "compile-error contract manifest case {} should be tagged diagnostics",
+                case.name
+            );
+        }
+    } else {
+        assert!(
+            !contract_manifest_case_has_any_tag(case, &["runtime-failure", "compile-error"]),
+            "non-runtime-error contract manifest case {} should not use runtime-failure or compile-error tags",
             case.name
         );
     }
