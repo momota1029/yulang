@@ -37,6 +37,9 @@ Yulang test file
 - manifest case は fixture path、case kind、compact expected output、contract tags を持つ。
   現在は Rust CLI test が読む。将来の `yulang test` / playground / LSP canary も同じ
   manifest を読む前提にする。
+- 未実装 API の TODO / ignored placeholder は manifest に置かない。manifest は current
+  executable contract だけを表す。standard API / host capability の予定 case は、native
+  host または unsupported host の public CLI behavior が観測できるまで spec / TODO に残す。
 - 完全実行系の public regression は、Rust の内部 helper ではなく `yulang` CLI 起動を第一経路にする。
 - CLI test は repo の `lib` を `--std-root` に渡し、isolated `YULANG_CACHE_DIR` で artifact cache の経路も見る。
 - Rust の内部 helper は parser / lowering / inference の局所検査、fake std を使う型・効果 regression、

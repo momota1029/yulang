@@ -13,6 +13,11 @@ point at a focused `.yu` file and list the contract tags it protects.
 surface paths such as `std::control::flow::sub` but do not need the full public
 standard library.
 
+Do not add TODO or ignored placeholders to `cases.toml`. A manifest case is a
+current executable contract, not a roadmap entry. Standard API and host
+capability cases should enter the manifest only after the native or unsupported
+host behavior can be observed through the public CLI.
+
 ## Fixture roles
 
 - `regressions/effect/` holds public-signature and handler-hygiene canaries.

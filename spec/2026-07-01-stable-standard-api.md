@@ -231,6 +231,38 @@ scope exit semantics は変えてはいけない。
 - playground / wasm が native-only capability を fake success にしない。
 - current provisional std helper を互換性 promise と混同しない docs がある。
 
+## Executable contract staging
+
+未実装または host policy 未確定の API を、passing test として
+`tests/yulang/cases.toml` に入れない。
+
+`cases.toml` は executable contract の正本であり、そこにある case は current
+implementation が実際に守る public behavior を表す。将来の file / server /
+host capability case は、次のいずれかになった時点で追加する。
+
+- native CLI で実際に動く stable または provisional API があり、stdout / roots /
+  typed failure を compact に固定できる。
+- unsupported host や denied capability が、fake success ではなく structured
+  diagnostic または typed failure として観測できる。
+- release artifact から bundled std 経由で import でき、repo-local helper だけに
+  依存しない。
+
+実装前の contract は、この spec、file-specific spec、TODO notes に置く。
+`cases.toml` には `todo` / `ignored` / expected-failure placeholder を置かない。
+placeholder は green test ではなく design debt として見える必要がある。
+
+standard API case を manifest に追加する時は、contract tag で host scope を明示する。
+
+```toml
+contracts = ["standard-api", "host.native", "filesystem", "typed-failure"]
+contracts = ["standard-api", "host.unsupported", "filesystem"]
+contracts = ["standard-api", "release-artifact", "bundled-std"]
+```
+
+provisional helper を残す場合は、stable tag を付けない。例えば現行の薄い
+`std::io::file` helper を固定するなら、互換性 promise ではなく migration canary として
+扱う。
+
 ## Non-goals
 
 - current `std::fs` helper をそのまま stable と呼ぶこと。
