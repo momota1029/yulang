@@ -178,7 +178,8 @@ language, but their public API and diagnostics are not a compatibility promise.
 - [docs/language/overview.ja.md](docs/language/overview.ja.md):
   Japanese language overview.
 - [docs/status.md](docs/status.md):
-  support status across parser, inference, runtime, and archived surfaces.
+  support status and the public contract spine across inference, runtime,
+  diagnostics, release artifacts, and archived surfaces.
 - [docs/cache.md](docs/cache.md):
   compiled-unit, poly, VM, and source-unit cache routes.
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):

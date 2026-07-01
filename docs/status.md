@@ -10,6 +10,10 @@ It complements these documents:
 - [docs/language/overview.md](language/overview.md) — what each feature does.
 - [docs/effect-inference-brief.md](effect-inference-brief.md) — the short
   outward-facing claim about hygienic effect inference.
+- [docs/infer-solver-invariants.md](infer-solver-invariants.md) — the solver
+  and public-signature contracts that must stay true when inference changes.
+- [tests/yulang/](../tests/yulang/) — small public regression fixtures used by
+  CLI and Rust tests.
 - [docs/native-backend.md](native-backend.md) — archived native backend status.
 - [docs/native-experimental-release.md](native-experimental-release.md) —
   release-gate notes for the archived opt-in native subset.
@@ -18,6 +22,31 @@ Archive split note: on 2026-06-14 the old `yulang` implementation was moved
 to `archive/crates/` and removed from the Cargo workspace. The active CLI is
 `yulang`; archived playground/native columns are historical reference points,
 not build guarantees for the current workspace.
+
+## Public Contract Spine
+
+Yulang is past the point where adding another surface feature is the main path
+to completion. The active work is to keep the existing language promises true
+across inference, runtime, diagnostics, and release artifacts.
+
+The public contract is the combination of these gates:
+
+| Contract area | What must stay true | Main gates |
+| --- | --- | --- |
+| Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. | `cargo test -q -p yulang public -- --test-threads=1`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
+| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
+| Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. | `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
+| Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. | [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); host/filesystem TODO notes |
+
+A change can be treated as contract-hardening when it improves one of those
+gates without changing parser, inference, standard-library, or runtime
+semantics by accident. A performance fast path is part of the contract only
+when its fallback behavior and compare-control evidence are clear.
+
+Not-yet-contract surfaces include the archived native backend, direct native
+ABI FFI, remote package registry workflows, full parser DSL runtime exposure,
+and the Yumark value model.
 
 ## Legend
 
