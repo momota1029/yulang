@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "npm --prefix playground run build && npm --prefix docs run build && node scripts/copy-installers.mjs",
-    "deploy:dir": "npm run build && node scripts/deploy-dir.mjs"
+    "deploy:dir": "npm run build && node scripts/deploy-dir.mjs",
+    "deploy:stable:dir": "npm run build && node scripts/deploy-dir.mjs --channel stable",
+    "deploy:nightly:dir": "npm run build && node scripts/deploy-dir.mjs --channel nightly"
   }
 }

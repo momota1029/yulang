@@ -36,7 +36,8 @@ release artifact
   - nightly playground:
     - solver / std / docs の実験を触る先。
     - 壊れてよい代わりに、deploy commit と build time を表示できるようにする。
-  - 初期は deploy script の出力先を分けるだけでよい。
+  - `npm --prefix web run deploy:stable:dir` は `<deploy-dir>/stable`、
+    `deploy:nightly:dir` は `<deploy-dir>/nightly` へ出す。
     stable URL / nightly URL / docs のリンク方針は別 commit で固定する。
 - cargo を介さない smoke を作る。
   - executable path を引数で受け取る。
