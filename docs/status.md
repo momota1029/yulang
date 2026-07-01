@@ -36,11 +36,11 @@ The public contract is the combination of these gates:
 
 | Contract area | What must stay true | Main gates |
 | --- | --- | --- |
-| Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. | `cargo test -q -p yulang public -- --test-threads=1`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
+| Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. Manifest public-signature cases must carry exact expected types. | `cargo test -q -p yulang public -- --test-threads=1`; `tests/yulang/cases.toml`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
 | Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
-| Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
+| Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
-| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. `std::data::result` is contract-covered by runtime and public-signature manifest cases; `std::text::path` display/byte conversion and the first `std::io::file` text API slice now have native CLI host contracts, while full file-resource metadata/locking/close semantics are still provisional. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. `std::data::result` is contract-covered by runtime and public-signature manifest cases, including `err` propagation; `std::text::path` display/byte conversion and the first `std::io::file` text API slice now have native CLI host contracts, while full file-resource metadata/locking/close semantics are still provisional. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
 
 A change can be treated as contract-hardening when it improves one of those
 gates without changing parser, inference, standard-library, or runtime
@@ -193,9 +193,11 @@ The columns trace a value through the pipeline:
 - The global package workflow is still experimental. Remote providers,
   version-family solving, `yulang.lock`, and registry/git source policies are
   not stable user workflows yet.
-- Full diagnostics polish is still in progress. Parser, type, role, and
-  effect errors are being moved toward language-level explanations rather
-  than internal-implementation messages.
+- Full diagnostics polish is still in progress. Parser, type, and catch syntax
+  diagnostics now have structured CLI/LSP/playground coverage for the focused
+  manifest cases. Role/method specialization failures are currently covered as
+  `run` compile-error contracts and still need to move into `SourceDiagnostic`
+  for `check`, LSP, and playground.
 
 ## Reporting gaps
 
