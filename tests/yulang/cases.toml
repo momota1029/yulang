@@ -603,6 +603,94 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "path"]
 
 [[case]]
+name = "std_file_read_at_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.read_at"
+expect_type = "std::text::path::path -> std::data::range::range -> [std::io::file::file, std::io::file::io_err] (std::text::str::str, std::data::range::range)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_write_at_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.write_at"
+expect_type = "std::text::path::path -> std::data::range::range -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_read_text_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.read_text"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::text::str::str"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_write_text_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.write_text"
+expect_type = "std::text::path::path -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_exists_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.file"
+symbol = "std.io.file.file.exists"
+expect_type = "std::text::path::path -> [std::io::file::file] bool"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_is_file_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.file"
+symbol = "std.io.file.file.is_file"
+expect_type = "std::text::path::path -> [std::io::file::file] bool"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_is_dir_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.file"
+symbol = "std.io.file.file.is_dir"
+expect_type = "std::text::path::path -> [std::io::file::file] bool"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "host"]
+
+[[case]]
+name = "std_file_io_err_wrap_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.io_err"
+symbol = "std.io.file.io_err.wrap"
+expect_type = "'a [std::io::file::io_err; 'b] -> ['b] std::data::result::result('a, 'c | std::io::file::io_err)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "file", "errors"]
+
+[[case]]
 name = "std_parse_choice_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"

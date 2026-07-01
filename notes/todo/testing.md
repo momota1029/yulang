@@ -145,6 +145,13 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   `path_display.yu` と CLI missing-file display test に載せた。これにより
   generated `Display E` の path payload が user-facing error text まで届く。
   platform-native non-UTF-8 path behavior はまだ stable contract にしない。
+- 同日後続 slice で、`std::io::file` の実行可能 first slice に対応する
+  public signatures も manifest に載せた。
+  - high-level: `read_at` / `write_at` / `read_text` / `write_text`
+  - host predicates: `file.exists` / `file.is_file` / `file.is_dir`
+  - typed failure boundary: `io_err.wrap`
+  `open_text` / `open` / `open_in` は managed ref surface が安定するまで
+  public contract manifest には載せない。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`
