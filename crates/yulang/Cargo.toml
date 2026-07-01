@@ -20,12 +20,10 @@ serde_json = "1"
 specialize = { path = "../specialize" }
 sources = { path = "../sources" }
 parser = { path = "../parser" }
+toml = "0.8"
 yulang-editor = { path = "../yulang-editor" }
 unicode-ident = "1.0.12"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["full"] }
 tower-lsp = "0.20"
-
-[dev-dependencies]
-toml = "0.8"

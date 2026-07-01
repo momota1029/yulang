@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::process;
 use std::time::{Duration, Instant};
 
+mod contract;
 mod cst_view;
 mod parse_view;
 mod runtime_evidence_debug;
@@ -33,6 +34,7 @@ fn main() {
 
     match command.to_str() {
         Some("check") => run_compatible_check(&program, &options, args),
+        Some("contract") => contract::run(&program, options.std_root.clone(), args),
         Some("build") => run_compatible_build(&program, &options, args),
         Some("run") | Some("interpret") => run_compatible_run(&program, &options, args),
         Some("dump") => run_compatible_dump(&program, &options, args),
