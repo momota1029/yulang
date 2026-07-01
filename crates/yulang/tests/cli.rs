@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -3309,12 +3310,19 @@ fn public_contract_manifest_cli_cases_hold() {
     let cases = public_contract_manifest_cases();
     assert!(!cases.is_empty());
 
+    let mut names = BTreeSet::new();
     for case in cases {
+        assert!(
+            names.insert(case.name.clone()),
+            "duplicate contract manifest case name {}",
+            case.name
+        );
         assert!(
             !case.contracts.is_empty(),
             "contract manifest case {} should list contracts",
             case.name
         );
+        assert_contract_manifest_case_has_expectation(&case);
         assert!(
             public_contract_case_entry(&case).exists(),
             "contract manifest case {} points at missing fixture {}",
@@ -3332,6 +3340,21 @@ fn public_contract_manifest_cli_cases_hold() {
             ),
         }
     }
+}
+
+fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
+    let has_output_expectation = case.expect_stdout.is_some()
+        || case.expect_stderr.is_some()
+        || !case.expect_stdout_contains.is_empty()
+        || !case.expect_stderr_contains.is_empty()
+        || case.expect_type.is_some()
+        || !case.expect_type_contains.is_empty()
+        || !case.deny_type_contains.is_empty();
+    assert!(
+        has_output_expectation,
+        "contract manifest case {} should assert output or public type",
+        case.name
+    );
 }
 
 #[test]
