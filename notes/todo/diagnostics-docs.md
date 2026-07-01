@@ -87,6 +87,10 @@ Diagnostics の最初の slice:
   または receiver 型の具体化を促す hint を出す。
 - 同日後続 slice で、構文として壊れた `catch` arm body は
   `yulang.missing-catch-arm-body` として、`->` 後に式を書く hint を出す。
+- 2026-07-02 に、`tests/yulang/cases.toml` の check cases は CLI compact output に加えて
+  structured `SourceDiagnostic` payload の diagnostic count / code / label /
+  related count / related origin も固定できるようになった。現行 public diagnostics
+  fixtures はこの manifest 経路で payload も見る。
 
 API 固定の最初の slice:
 

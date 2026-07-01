@@ -166,6 +166,8 @@ It runs formatting, parser / core `infer` / `yulang` tests, the release binary
 build, hardening smoke tests, source-unit cache smoke, and the docs build. Set
 `YULANG_RELEASE_GATE_WEB_BUILD=1` when the full playground/docs web bundle
 should be rebuilt too.
+The public contract manifest lives at `tests/yulang/cases.toml`; the hardening
+gate runs it through the public `yulang` CLI tests.
 
 Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
 `~"..."` are experimental. They are useful for trying the direction of the
