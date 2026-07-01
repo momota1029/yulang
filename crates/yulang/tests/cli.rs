@@ -3466,6 +3466,7 @@ fn public_contract_manifest_cli_cases_hold() {
             "contract manifest case {} should list contracts",
             case.name
         );
+        assert_contract_manifest_tags_are_canonical(&case);
         assert_contract_manifest_tags_match_kind(&case);
         assert_contract_manifest_tags_match_shape(&case);
         assert_contract_manifest_case_has_expectation(&case);
@@ -3487,6 +3488,24 @@ fn public_contract_manifest_cli_cases_hold() {
             ),
         }
     }
+}
+
+fn assert_contract_manifest_tags_are_canonical(case: &PublicContractCase) {
+    for tag in &case.contracts {
+        assert!(
+            is_canonical_contract_tag(tag),
+            "contract manifest case {} has non-canonical contract tag {:?}",
+            case.name,
+            tag
+        );
+    }
+}
+
+fn is_canonical_contract_tag(tag: &str) -> bool {
+    !tag.is_empty()
+        && tag.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-'
+        })
 }
 
 fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {

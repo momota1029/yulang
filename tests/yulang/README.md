@@ -12,6 +12,7 @@ The manifest runner checks that `run` cases carry a runtime-facing tag, `check`
 cases carry `diagnostics`, and `public-signature` cases carry
 `public-signature`, so the tags remain useful as a contract index rather than
 free-form notes.
+Contract tags use lowercase ASCII letters, digits, `.`, and `-` only.
 `runtime-error` cases must set `expect_success = false` and be classified as
 exactly one of `runtime-failure` or `compile-error`; `compile-error` cases also
 carry `diagnostics`, because their current contract is the user-facing compile
