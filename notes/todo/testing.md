@@ -131,6 +131,10 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   `error_from_wrap.yu` / `error_up_wrap.yu` として manifest に載せた。
   wider error の `wrap` は narrower error を `from` variant へ閉じ、
   `up` は narrower effect を wider error effect へ持ち上げる contract として見る。
+- 同日、`error_display.yu` / `error_display_from_wrap.yu` を追加し、
+  `error E:` から生成される `Display E` impl も public CLI manifest に載せた。
+  通常 payload は variant label + payload display、unit variant は label、
+  `from` variant は wrapped error の display へ委譲する contract として見る。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

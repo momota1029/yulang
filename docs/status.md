@@ -134,7 +134,7 @@ The columns trace a value through the pipeline:
 | `error E:` sugar + `Throw` / `fail`  |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
 | `E::wrap` / `from` aggregation / `E::up` | ✅ | ✅ |   ✅    |     △      |   ❌   |  ✅  |
 | `result 'ok 'err` value form         |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
-| Auto-generated `Display E`           |  ✅   |  △    |   △    |     △      |   ❌   |  △   |
+| Auto-generated `Display E`           |  ✅   |  ✅   |   ✅   |     △      |   ❌   |  ✅  |
 
 ### Research / preview surface
 
@@ -152,9 +152,11 @@ The columns trace a value through the pipeline:
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The basic `fail E::variant` + `E::wrap`
-  flow, `from`-based aggregation through a wider `E::wrap`, and the `E::up`
-  lifting helper are now part of the public manifest contract. The
-  auto-generated `Display E` impl is still finishing up.
+  flow, `from`-based aggregation through a wider `E::wrap`, the `E::up`
+  lifting helper, and generated `Display E` impls are now part of the public
+  manifest contract. Generated error display uses variant labels and payload
+  `Display`; `from` variants delegate to the wrapped error's display. Custom
+  per-variant wording is a future surface, not part of the current contract.
 - Library code that surfaces failures (notably `std::fs::read_text`) still
   uses provisional shapes such as `opt str` while host requests learn to
   return typed filesystem errors. These should not be treated as stable.

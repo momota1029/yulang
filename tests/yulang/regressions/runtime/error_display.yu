@@ -1,0 +1,10 @@
+pub error display_err 'a:
+    item 'a
+    empty
+    pair int str
+
+my generic_value: display_err int = display_err::item 7
+my unit_value = display_err::empty
+my tuple_value = display_err::pair (3, "x")
+
+(generic_value.show, unit_value.show, tuple_value.show)

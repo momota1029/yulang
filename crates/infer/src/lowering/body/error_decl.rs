@@ -18,6 +18,7 @@ impl BodyLowerer {
         };
         self.lower_error_operations(node, decl, &error);
         self.lower_error_throw_impl(node, decl, &error);
+        self.lower_error_display_impl(node, decl, &error);
         self.lower_error_wrap_helper(node, decl, &error);
         self.lower_error_up_helper(node, decl, &error);
     }
@@ -224,6 +225,144 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
     }
 
+    fn lower_error_display_impl(&mut self, node: &Cst, decl: &ModuleTypeDecl, error: &ErrorDecl) {
+        let Some(display_role) = self.display_role_decl(error.module) else {
+            return;
+        };
+        if self.modules.role_inputs(display_role.id).len() != 1 {
+            return;
+        }
+        let Some(display_method) = self
+            .modules
+            .role_methods(display_role.id)
+            .iter()
+            .find(|method| method.name.0 == "show")
+            .cloned()
+        else {
+            return;
+        };
+
+        let impl_def = self.session.poly.defs.fresh();
+        let method_def = self.session.poly.defs.fresh();
+        self.session.poly.defs.set(
+            impl_def,
+            Def::Mod {
+                vis: Vis::My,
+                children: vec![method_def],
+            },
+        );
+        self.session.poly.defs.set(
+            method_def,
+            Def::Let {
+                vis: Vis::Our,
+                scheme: None,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        self.labels
+            .set_def_label(method_def, format!("{}::show#error", decl.name.0));
+
+        let Some(source) = synthetic_error_display_source(error) else {
+            self.push_registered_expr_error(
+                method_def,
+                display_method.name,
+                LoweringError::UnsupportedSyntax { kind: node.kind() },
+            );
+            return;
+        };
+        let Some(binding) = synthetic_binding(&source) else {
+            self.push_registered_expr_error(
+                method_def,
+                display_method.name,
+                LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::Binding,
+                },
+            );
+            return;
+        };
+
+        let Some(mut context) = self.error_display_context(impl_def, &display_role, error) else {
+            return;
+        };
+        let requirement = self.role_impl_method_requirement(&context, display_method.name.clone());
+        self.lower_role_impl_method_binding(
+            &binding,
+            impl_def,
+            error.companion,
+            &RoleImplMethodDecl {
+                name: display_method.name,
+                receiver: Some(Name("__error_value".into())),
+                def: method_def,
+                vis: Vis::Our,
+                order: module_path_site(),
+            },
+            &context.target_ann,
+            &context.type_var_bindings,
+            &mut context.ann_solver_vars,
+            requirement,
+        );
+    }
+
+    fn error_display_context(
+        &mut self,
+        impl_def: DefId,
+        role: &ModuleTypeDecl,
+        error: &ErrorDecl,
+    ) -> Option<RoleImplLoweringContext> {
+        let role_path = self
+            .modules
+            .type_decl_path(role)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let role_inputs = self.modules.role_inputs(role.id).to_vec();
+        let role_associated = self.modules.role_associated(role.id).to_vec();
+        let mut builder =
+            ann_type_builder(&self.modules, error.companion, module_path_site(), None);
+        let target_ann = builder.type_decl_application(error.owner, &error.type_vars);
+        let input_anns = vec![target_ann.clone()];
+        let associated_anns = role_associated
+            .iter()
+            .map(|name| {
+                (
+                    name.clone(),
+                    AnnType::Var(builder.ann_type_var_for_role(name)),
+                )
+            })
+            .collect::<Vec<_>>();
+        let type_var_bindings = builder.type_var_bindings();
+        let (inputs, associated, ann_solver_vars) = self
+            .lower_role_impl_args(&input_anns, &associated_anns)
+            .ok()?;
+        let input_signatures = input_anns
+            .iter()
+            .map(signature_from_ann_type)
+            .collect::<Vec<_>>();
+        let associated_signatures = associated_anns
+            .iter()
+            .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
+            .collect::<Vec<_>>();
+        self.session.role_impls.insert(RoleImplCandidate {
+            impl_def: Some(impl_def),
+            role: role_path,
+            inputs,
+            associated,
+            prerequisites: Vec::new(),
+            methods: Vec::new(),
+        });
+        Some(RoleImplLoweringContext {
+            role: role.id,
+            target_ann,
+            input_names: role_inputs,
+            input_signatures,
+            associated_signatures,
+            type_var_bindings,
+            ann_solver_vars,
+        })
+    }
+
     fn lower_error_wrap_helper(&mut self, node: &Cst, decl: &ModuleTypeDecl, error: &ErrorDecl) {
         let Some(def) = error.wrap_def else {
             return;
@@ -384,6 +523,20 @@ impl BodyLowerer {
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
     }
 
+    fn display_role_decl(&self, module: ModuleId) -> Option<ModuleTypeDecl> {
+        let std_path = names(&["std", "core", "fmt", "Display"]);
+        self.modules
+            .type_path_at(module, &std_path, module_path_site())
+            .or_else(|| {
+                self.modules.lexical_type_at(
+                    module,
+                    &Name("Display".to_string()),
+                    module_path_site(),
+                )
+            })
+            .filter(|decl| decl.kind == ModuleTypeKind::Role)
+    }
+
     fn error_throw_candidate(
         &mut self,
         impl_def: DefId,
@@ -440,6 +593,72 @@ impl BodyLowerer {
 struct ErrorLiftSource {
     source: ErrorDecl,
     wrappers: Vec<String>,
+}
+
+fn synthetic_error_display_source(error: &ErrorDecl) -> Option<String> {
+    if error.variants.is_empty() {
+        return None;
+    }
+    let mut out = "our __error_value.show = case __error_value:\n".to_string();
+    for (index, variant) in error.variants.iter().enumerate() {
+        let pattern = error_variant_pattern_source(&variant.name, &variant.payload, index)?;
+        let body = error_display_expr(&variant.name.0, &variant.payload, index, variant.from)?;
+        out.push_str("    ");
+        out.push_str(&pattern);
+        out.push_str(" -> ");
+        out.push_str(&body);
+        out.push('\n');
+    }
+    Some(out)
+}
+
+fn error_display_expr(
+    name: &str,
+    payload: &ConstructorPayload,
+    index: usize,
+    from: bool,
+) -> Option<String> {
+    match constructor_payload_arity(payload) {
+        0 => Some(quoted_string_literal(name)),
+        1 if from => Some(format!("{}.show", error_payload_name(index, 0).0)),
+        1 => Some(format!(
+            "{} + {}.show",
+            quoted_string_literal(&format!("{name}: ")),
+            error_payload_name(index, 0).0
+        )),
+        len => {
+            let mut parts = Vec::with_capacity(len.saturating_mul(2) + 2);
+            parts.push(quoted_string_literal(&format!("{name}(")));
+            for payload_index in 0..len {
+                if payload_index > 0 {
+                    parts.push(quoted_string_literal(", "));
+                }
+                parts.push(format!(
+                    "{}.show",
+                    error_payload_name(index, payload_index).0
+                ));
+            }
+            parts.push(quoted_string_literal(")"));
+            Some(parts.join(" + "))
+        }
+    }
+}
+
+fn quoted_string_literal(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for ch in text.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+    out
 }
 
 fn synthetic_error_wrap_source(

@@ -71,6 +71,24 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "errors", "from", "up", "result"]
 
 [[case]]
+name = "error_display"
+file = "regressions/runtime/error_display.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"item: 7\", \"empty\", \"pair(3, x)\")]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "errors", "display"]
+
+[[case]]
+name = "error_display_from_wrap"
+file = "regressions/runtime/error_display_from_wrap.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [\"err: not_found: /missing\"]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "errors", "display", "from", "result"]
+
+[[case]]
 name = "example_struct_with"
 file = "examples/01_struct_with.yu"
 root = "repo"
