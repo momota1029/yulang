@@ -915,7 +915,7 @@ impl Diagnostic {
             .map(|range| playground_diagnostic_range(range, source_len))
             .unwrap_or((0, source_len));
         Self {
-            severity: DiagnosticSeverity::Error,
+            severity: DiagnosticSeverity::from_source(diagnostic.severity),
             code: diagnostic.code.clone(),
             message: diagnostic.message.clone(),
             hint: diagnostic.hint.clone(),
@@ -943,6 +943,14 @@ fn diagnostic_origin_code(origin: &yulang::SourceDiagnosticRelatedOrigin) -> Str
     match origin {
         yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation => "type_annotation".to_string(),
         yulang::SourceDiagnosticRelatedOrigin::Expression => "expression".to_string(),
+    }
+}
+
+impl DiagnosticSeverity {
+    fn from_source(severity: yulang::SourceDiagnosticSeverity) -> Self {
+        match severity {
+            yulang::SourceDiagnosticSeverity::Error => DiagnosticSeverity::Error,
+        }
     }
 }
 

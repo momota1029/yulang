@@ -278,7 +278,7 @@ fn diagnostics_for_analysis(
                         )
                     })
                     .unwrap_or_default(),
-                severity: Some(DiagnosticSeverity::ERROR),
+                severity: Some(lsp_diagnostic_severity(diagnostic.severity)),
                 code: diagnostic.code.map(NumberOrString::String),
                 source: Some("yulang".to_string()),
                 message,
@@ -287,6 +287,12 @@ fn diagnostics_for_analysis(
             }
         })
         .collect()
+}
+
+fn lsp_diagnostic_severity(severity: crate::SourceDiagnosticSeverity) -> DiagnosticSeverity {
+    match severity {
+        crate::SourceDiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
+    }
 }
 
 fn diagnostic_for_route_error(error: crate::RouteError) -> Diagnostic {

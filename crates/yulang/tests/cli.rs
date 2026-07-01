@@ -3352,6 +3352,7 @@ fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
         || !case.deny_type_contains.is_empty()
         || case.expect_diagnostic_count.is_some()
         || case.expect_diagnostic_code.is_some()
+        || case.expect_diagnostic_severity.is_some()
         || case.expect_diagnostic_label.is_some()
         || case.expect_diagnostic_related_count.is_some()
         || !case.expect_diagnostic_related_origins.is_empty();
@@ -3584,6 +3585,7 @@ struct PublicContractCase {
     expect_type: Option<String>,
     expect_diagnostic_count: Option<usize>,
     expect_diagnostic_code: Option<String>,
+    expect_diagnostic_severity: Option<String>,
     expect_diagnostic_label: Option<String>,
     expect_diagnostic_related_count: Option<usize>,
     #[serde(default)]
@@ -3718,6 +3720,7 @@ fn public_contract_case_entry(case: &PublicContractCase) -> PathBuf {
 fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
     let expects_diagnostic = case.expect_diagnostic_count.is_some()
         || case.expect_diagnostic_code.is_some()
+        || case.expect_diagnostic_severity.is_some()
         || case.expect_diagnostic_label.is_some()
         || case.expect_diagnostic_related_count.is_some()
         || !case.expect_diagnostic_related_origins.is_empty();
@@ -3754,6 +3757,14 @@ fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
     if let Some(expected) = &case.expect_diagnostic_code {
         assert_eq!(diagnostic.code.as_ref(), Some(expected), "{}", case.name);
     }
+    if let Some(expected) = &case.expect_diagnostic_severity {
+        assert_eq!(
+            public_contract_diagnostic_severity_name(diagnostic.severity),
+            expected,
+            "{}",
+            case.name
+        );
+    }
     if let Some(expected) = &case.expect_diagnostic_label {
         assert_eq!(diagnostic.label.as_ref(), Some(expected), "{}", case.name);
     }
@@ -3781,6 +3792,14 @@ fn public_contract_related_origin_name(
         Some(yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation) => "type-annotation",
         Some(yulang::SourceDiagnosticRelatedOrigin::Expression) => "expression",
         None => "none",
+    }
+}
+
+fn public_contract_diagnostic_severity_name(
+    severity: yulang::SourceDiagnosticSeverity,
+) -> &'static str {
+    match severity {
+        yulang::SourceDiagnosticSeverity::Error => "error",
     }
 }
 

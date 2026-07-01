@@ -948,13 +948,14 @@ fn print_check_diagnostics_summary(
     }
     println!("diagnostics:");
     for diagnostic in diagnostics {
+        let severity = source_diagnostic_severity_name(diagnostic.severity);
         match (diagnostic.code.as_deref(), diagnostic.label.as_deref()) {
             (Some(code), Some(label)) => {
-                println!("  error [{code}]: {label}: {}", diagnostic.message)
+                println!("  {severity} [{code}]: {label}: {}", diagnostic.message)
             }
-            (Some(code), None) => println!("  error [{code}]: {}", diagnostic.message),
-            (None, Some(label)) => println!("  error: {label}: {}", diagnostic.message),
-            (None, None) => println!("  error: {}", diagnostic.message),
+            (Some(code), None) => println!("  {severity} [{code}]: {}", diagnostic.message),
+            (None, Some(label)) => println!("  {severity}: {label}: {}", diagnostic.message),
+            (None, None) => println!("  {severity}: {}", diagnostic.message),
         }
         if let Some(range) = diagnostic.range {
             print_source_frame(source, range);
@@ -966,6 +967,12 @@ fn print_check_diagnostics_summary(
             println!("    note: {}", related.message);
             print_source_frame(source, related.range);
         }
+    }
+}
+
+fn source_diagnostic_severity_name(severity: yulang::SourceDiagnosticSeverity) -> &'static str {
+    match severity {
+        yulang::SourceDiagnosticSeverity::Error => "error",
     }
 }
 

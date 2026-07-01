@@ -1317,6 +1317,7 @@ pub struct SourceTextEdit {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
+    pub severity: SourceDiagnosticSeverity,
     pub code: Option<String>,
     pub label: Option<String>,
     pub range: Option<SourceRange>,
@@ -1336,6 +1337,11 @@ pub struct SourceDiagnosticRelated {
 pub enum SourceDiagnosticRelatedOrigin {
     TypeAnnotation,
     Expression,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceDiagnosticSeverity {
+    Error,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1842,6 +1848,7 @@ fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceD
         .map(|node| {
             let range = parser_diagnostic_range(&root.source, node.text_range());
             SourceDiagnostic {
+                severity: SourceDiagnosticSeverity::Error,
                 code: Some("yulang.syntax".to_string()),
                 label: None,
                 range: Some(range),
@@ -2709,6 +2716,7 @@ fn source_diagnostics_from_check(
         .map(|diagnostic| {
             let error = &check.lowering.errors[diagnostic.error_index];
             SourceDiagnostic {
+                severity: SourceDiagnosticSeverity::Error,
                 code: body_lowering_error_code(error).map(str::to_string),
                 label: diagnostic.label.clone(),
                 range: body_lowering_error_source_range(error).or_else(|| {
