@@ -3350,6 +3350,7 @@ fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
         || case.expect_type.is_some()
         || !case.expect_type_contains.is_empty()
         || !case.deny_type_contains.is_empty()
+        || case.expect_diagnostic_count.is_some()
         || case.expect_diagnostic_code.is_some()
         || case.expect_diagnostic_label.is_some()
         || case.expect_diagnostic_related_count.is_some()
@@ -3581,6 +3582,7 @@ struct PublicContractCase {
     expect_stdout: Option<String>,
     expect_stderr: Option<String>,
     expect_type: Option<String>,
+    expect_diagnostic_count: Option<usize>,
     expect_diagnostic_code: Option<String>,
     expect_diagnostic_label: Option<String>,
     expect_diagnostic_related_count: Option<usize>,
@@ -3714,7 +3716,8 @@ fn public_contract_case_entry(case: &PublicContractCase) -> PathBuf {
 }
 
 fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
-    let expects_diagnostic = case.expect_diagnostic_code.is_some()
+    let expects_diagnostic = case.expect_diagnostic_count.is_some()
+        || case.expect_diagnostic_code.is_some()
         || case.expect_diagnostic_label.is_some()
         || case.expect_diagnostic_related_count.is_some()
         || !case.expect_diagnostic_related_origins.is_empty();
@@ -3745,6 +3748,9 @@ fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
         )
     });
 
+    if let Some(expected) = case.expect_diagnostic_count {
+        assert_eq!(output.diagnostics.len(), expected, "{}", case.name);
+    }
     if let Some(expected) = &case.expect_diagnostic_code {
         assert_eq!(diagnostic.code.as_ref(), Some(expected), "{}", case.name);
     }

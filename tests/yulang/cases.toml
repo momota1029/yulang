@@ -281,6 +281,7 @@ expect_stdout_contains = [
   "note: actual type comes from this expression: bool",
 ]
 expect_diagnostic_code = "yulang.type-mismatch"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
 expect_diagnostic_related_count = 2
 expect_diagnostic_related_origins = ["type-annotation", "expression"]
@@ -297,6 +298,7 @@ expect_stdout_contains = [
   "hint: define type `missing_type` before this annotation, or import it",
 ]
 expect_diagnostic_code = "yulang.unresolved-type"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
@@ -312,6 +314,7 @@ expect_stdout_contains = [
   "hint: define `missing` before this use, or import the module that provides it",
 ]
 expect_diagnostic_code = "yulang.unresolved-value"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "result"
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
@@ -327,6 +330,7 @@ expect_stdout_contains = [
   "hint: use a supported type annotation form and keep effect rows in effect position",
 ]
 expect_diagnostic_code = "yulang.unsupported-type-syntax"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "typechecker", "records"]
@@ -342,6 +346,7 @@ expect_stdout_contains = [
   "hint: move the mutable binding into a block or function body",
 ]
 expect_diagnostic_code = "yulang.top-level-mutable-binding"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "$x"
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "bindings"]
@@ -357,6 +362,7 @@ expect_stdout_contains = [
   "hint: use greedy `*` or `+`, then handle optional matching explicitly",
 ]
 expect_diagnostic_code = "yulang.unsupported-rule-lazy-quantifier"
+expect_diagnostic_count = 1
 expect_diagnostic_label = "p"
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "parser-dsl"]
@@ -372,6 +378,7 @@ expect_stdout_contains = [
   "--> line 1, column 10",
 ]
 expect_diagnostic_code = "yulang.syntax"
+expect_diagnostic_count = 1
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 
@@ -386,6 +393,7 @@ expect_stdout_contains = [
   "--> line 1, column 10",
 ]
 expect_diagnostic_code = "yulang.syntax"
+expect_diagnostic_count = 1
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 
@@ -400,6 +408,7 @@ expect_stdout_contains = [
   "hint: write `catch <expr>:` before the handler arms",
 ]
 expect_diagnostic_code = "yulang.missing-catch-scrutinee"
+expect_diagnostic_count = 1
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
@@ -414,6 +423,7 @@ expect_stdout_contains = [
   "hint: write a value pattern or effect operation before `->`",
 ]
 expect_diagnostic_code = "yulang.missing-catch-arm-pattern"
+expect_diagnostic_count = 1
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
@@ -428,6 +438,7 @@ expect_stdout_contains = [
   "hint: write an expression after `->`",
 ]
 expect_diagnostic_code = "yulang.missing-catch-arm-body"
+expect_diagnostic_count = 1
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
