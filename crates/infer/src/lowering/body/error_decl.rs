@@ -451,7 +451,11 @@ fn synthetic_error_wrap_source(
     if error.variants.is_empty() {
         return None;
     }
-    let mut out = String::from("pub wrap action = catch action:\n");
+    let effect_row = error_effect_row_source(
+        modules,
+        std::iter::once(error).chain(sources.iter().map(|source| &source.source)),
+    )?;
+    let mut out = format!("pub wrap(action: [{effect_row}] _) = catch action:\n");
     for (index, variant) in error.variants.iter().enumerate() {
         let pattern = error_operation_pattern(&variant.name.0, &variant.payload, index)?;
         let value = error_constructor_expr(&variant.name.0, &variant.payload, index)?;
@@ -484,7 +488,8 @@ fn synthetic_error_up_source(
     if sources.is_empty() {
         return None;
     }
-    let mut out = String::from("pub up action = catch action:\n");
+    let effect_row = error_effect_row_source(modules, sources.iter().map(|source| &source.source))?;
+    let mut out = format!("pub up(action: [{effect_row}] _) = catch action:\n");
     for (source_index, source) in sources.iter().enumerate() {
         append_lifted_error_arms(modules, decl, source, source_index, "#throw", &mut out)?;
     }
@@ -587,6 +592,44 @@ fn error_variant_constructor_path(
                 .join("::")
         })
         .unwrap_or_else(|| variant.name.0.clone())
+}
+
+fn error_effect_row_source<'a>(
+    modules: &ModuleTable,
+    errors: impl IntoIterator<Item = &'a ErrorDecl>,
+) -> Option<String> {
+    let mut items = Vec::new();
+    for error in errors {
+        let item = error_type_source(modules, error)?;
+        if !items.contains(&item) {
+            items.push(item);
+        }
+    }
+    Some(items.join(", "))
+}
+
+fn error_type_source(modules: &ModuleTable, error: &ErrorDecl) -> Option<String> {
+    let decl = modules.type_decl_by_id(error.owner)?;
+    let mut source = modules
+        .type_decl_path(&decl)
+        .segments
+        .into_iter()
+        .map(|name| name.0)
+        .collect::<Vec<_>>()
+        .join("::");
+    for var in &error.type_vars {
+        source.push(' ');
+        source.push_str(&type_var_source(var));
+    }
+    Some(source)
+}
+
+fn type_var_source(var: &str) -> String {
+    if var.starts_with('\'') {
+        var.to_string()
+    } else {
+        format!("'{var}")
+    }
 }
 
 fn signature_named_head(signature: &SignatureType) -> Option<TypeDeclId> {

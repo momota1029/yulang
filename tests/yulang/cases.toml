@@ -44,6 +44,15 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "result"]
 
 [[case]]
+name = "error_wrap_fail"
+file = "regressions/runtime/error_wrap_fail.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(result::ok(7), result::err(small_err::nope(3)))]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "errors", "result"]
+
+[[case]]
 name = "example_struct_with"
 file = "examples/01_struct_with.yu"
 root = "repo"
@@ -558,6 +567,16 @@ symbol_contains = "#act-method:once"
 expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "std.nondet", "deep-handler"]
+
+[[case]]
+name = "user_error_wrap_public_signature"
+file = "regressions/runtime/error_wrap_fail.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "small_err.wrap"
+expect_type = "'a [small_err; 'b] -> ['b] std::data::result::result('a, 'c | small_err)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "errors", "effect-hygiene"]
 
 [[case]]
 name = "std_nondet_list_public_signature"

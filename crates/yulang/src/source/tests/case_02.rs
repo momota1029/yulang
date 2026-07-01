@@ -1020,6 +1020,26 @@ fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_runs_user_error_fail_wrap() {
+    let source = "\
+error small_err:
+  nope int
+
+my boom n = fail (small_err::nope n)
+
+(small_err::wrap: 7, small_err::wrap: boom 3)
+";
+    let build = build_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [(result::ok(7), result::err(small_err::nope(3)))]\n"
+    );
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_replaces_strings() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",

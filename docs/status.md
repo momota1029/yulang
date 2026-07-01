@@ -151,9 +151,10 @@ The columns trace a value through the pipeline:
   execution; the mono-runtime/control-VM path is the execution surface.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
-  and lands across the pipeline. The `from`-based aggregation path and the
-  auto-generated `Display E` impl are still finishing up — both parse, but
-  end-to-end behavior across all stages is not yet uniform.
+  and lands across the pipeline. The basic `fail E::variant` + `E::wrap`
+  flow is now part of the public manifest contract; `from`-based aggregation,
+  the full `E::up` surface, and the auto-generated `Display E` impl are still
+  finishing up.
 - Library code that surfaces failures (notably `std::fs::read_text`) still
   uses provisional shapes such as `opt str` while host requests learn to
   return typed filesystem errors. These should not be treated as stable.

@@ -422,6 +422,12 @@ impl<'a> SignatureLowerer<'a> {
         &mut self,
         signature: &SignatureType,
     ) -> Result<RoleConstraintArg, SignatureConstraintError> {
+        if let SignatureType::EffectRow(row) = signature {
+            return Ok(RoleConstraintArg {
+                lower: self.lower_effect_row_pos(row)?,
+                upper: self.lower_effect_row_neg(row)?,
+            });
+        }
         Ok(RoleConstraintArg {
             lower: self.lower_pos(signature)?,
             upper: self.lower_neg(signature)?,
