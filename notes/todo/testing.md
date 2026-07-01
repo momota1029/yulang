@@ -127,6 +127,10 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 同日、`error E:` の基本 `fail (E::variant payload)` + `E::wrap` flow を
   `error_wrap_fail.yu` として manifest に載せた。`E::wrap` は runtime output と
   public signature の両方で、action 引数の effect row が保持されることを見る。
+- 同日、`from` aggregation と `E::up` の最小 public flow も
+  `error_from_wrap.yu` / `error_up_wrap.yu` として manifest に載せた。
+  wider error の `wrap` は narrower error を `from` variant へ閉じ、
+  `up` は narrower effect を wider error effect へ持ち上げる contract として見る。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

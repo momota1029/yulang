@@ -53,6 +53,24 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "errors", "result"]
 
 [[case]]
+name = "error_from_wrap"
+file = "regressions/runtime/error_from_wrap.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [result::err(io_err::fs(fs_err::not_found(\"missing\")))]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "errors", "from", "result"]
+
+[[case]]
+name = "error_up_wrap"
+file = "regressions/runtime/error_up_wrap.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [result::err(io_err::fs(fs_err::not_found(\"missing\")))]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "errors", "from", "up", "result"]
+
+[[case]]
 name = "example_struct_with"
 file = "examples/01_struct_with.yu"
 root = "repo"
@@ -577,6 +595,26 @@ symbol = "small_err.wrap"
 expect_type = "'a [small_err; 'b] -> ['b] std::data::result::result('a, 'c | small_err)"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "errors", "effect-hygiene"]
+
+[[case]]
+name = "user_error_from_wrap_public_signature"
+file = "regressions/runtime/error_from_wrap.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "io_err.wrap"
+expect_type = "'a [fs_err, io_err; 'b] -> ['b] std::data::result::result('a, 'c | io_err)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "errors", "from", "effect-hygiene"]
+
+[[case]]
+name = "user_error_up_public_signature"
+file = "regressions/runtime/error_from_wrap.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "io_err.up"
+expect_type = "'a [fs_err; 'b] -> [io_err, 'b] 'a"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "errors", "from", "up", "effect-hygiene"]
 
 [[case]]
 name = "std_nondet_list_public_signature"
