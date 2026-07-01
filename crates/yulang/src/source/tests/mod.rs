@@ -188,10 +188,7 @@ fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a st
                 output.text
             )
         });
-    line.find(" = e")
-        .or_else(|| line.find(" = <missing>"))
-        .map(|body_start| &line[..body_start])
-        .unwrap_or(line)
+    trim_public_signature_body(line)
 }
 
 fn dump_public_signature_type<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a str {
@@ -218,10 +215,23 @@ fn dump_public_signature_containing<'a>(output: &'a DumpPolyOutput, needle: &str
                 output.text
             )
         });
+    trim_public_signature_body(line)
+}
+
+fn trim_public_signature_body(line: &str) -> &str {
     line.find(" = e")
         .or_else(|| line.find(" = <missing>"))
         .map(|body_start| &line[..body_start])
         .unwrap_or(line)
+}
+
+fn public_signature_type_from_dump_line(line: &str) -> Option<&str> {
+    if !line.trim_start().starts_with("pub ") {
+        return None;
+    }
+    let signature = trim_public_signature_body(line);
+    let (_, ty) = signature.split_once(": ")?;
+    Some(ty)
 }
 
 fn dump_public_signature_type_containing<'a>(output: &'a DumpPolyOutput, needle: &str) -> &'a str {
@@ -247,10 +257,7 @@ fn assert_public_signature_type_hides_stack_evidence<'a>(
     symbol: &str,
 ) -> &'a str {
     let ty = dump_public_signature_type(output, symbol);
-    assert!(
-        !ty.contains('#') && !ty.contains("AllExcept"),
-        "private stack evidence escaped into {symbol}:\n{ty}"
-    );
+    assert_public_signature_type_has_no_private_stack_evidence(ty, symbol);
     ty
 }
 
@@ -259,11 +266,30 @@ fn assert_public_signature_type_containing_hides_stack_evidence<'a>(
     needle: &str,
 ) -> &'a str {
     let ty = dump_public_signature_type_containing(output, needle);
-    assert!(
-        !ty.contains('#') && !ty.contains("AllExcept"),
-        "private stack evidence escaped into public signature containing {needle:?}:\n{ty}"
+    assert_public_signature_type_has_no_private_stack_evidence(
+        ty,
+        &format!("public signature containing {needle:?}"),
     );
     ty
+}
+
+fn assert_all_public_signature_types_hide_stack_evidence(output: &DumpPolyOutput, context: &str) {
+    for line in output.text.lines() {
+        let Some(ty) = public_signature_type_from_dump_line(line) else {
+            continue;
+        };
+        assert_public_signature_type_has_no_private_stack_evidence(
+            ty,
+            &format!("{context} public signature line `{line}`"),
+        );
+    }
+}
+
+fn assert_public_signature_type_has_no_private_stack_evidence(ty: &str, context: &str) {
+    assert!(
+        !ty.contains('#') && !ty.contains("AllExcept"),
+        "private stack evidence escaped into {context}:\n{ty}"
+    );
 }
 
 fn assert_mono_dump_contains(output: &DumpMonoOutput, expected: &str) {

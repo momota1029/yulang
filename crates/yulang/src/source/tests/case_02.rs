@@ -1620,6 +1620,21 @@ fn dump_poly_std_nondet_list_act_method_uses_deep_handler_effect() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn dump_poly_public_contract_spine_modules_hide_private_stack_evidence() {
+    let entry = write_main_with_std("dump-poly-public-contract-spine-clean-types", "1\n");
+    for module in [
+        "std.control.var.ref",
+        "std.control.flow.loop",
+        "std.control.nondet.nondet",
+        "std.text.parse",
+    ] {
+        let output = dump_poly_from_entry_with_std_in_module(&entry, module).unwrap();
+        assert_all_public_signature_types_hide_stack_evidence(&output, module);
+    }
+}
+
 #[test]
 fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
     let output =
