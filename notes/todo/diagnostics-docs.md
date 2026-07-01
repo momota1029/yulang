@@ -44,8 +44,8 @@ Diagnostics の最初の slice:
   compact に見る。
 - その後、同じ原因を `CheckReport` / LSP / playground で共有できる表示へ移す。
 - 2026-07-01 時点で、type mismatch、unresolved value/type、top-level mutable
-  binding は `SourceDiagnostic.code` から LSP diagnostic code へ流れる。CLI summary
-  の文面はまだ大きく変えず、compact golden を保つ。
+  binding、unsupported rule lazy quantifier は `SourceDiagnostic.code` から CLI
+  summary / LSP diagnostic code / playground diagnostic code へ流れる。
 
 API 固定の最初の slice:
 
