@@ -81,6 +81,21 @@ playground で同じ構造化診断として扱えるようにする。
 - `my x: str = 1`
 - `if true: 1 else: false`
 
+2026-07-01 の public CLI golden first slice:
+
+- `my x: int = true`
+  - `check --no-prelude --no-cache`
+  - `diagnostics: error: x: type mismatch: bool is not int`
+  - `x: type mismatch: bool is not int`
+- `my result = missing`
+  - `check --no-prelude --no-cache`
+  - `diagnostics: error: result: unresolved value name: missing`
+  - `result: unresolved value name: missing`
+
+この slice は型推論の意味を変えず、現在の CLI surface を固定する。
+次の改善では、同じ原因を `CheckReport` 由来の source range / related information へ
+接続し、CLI / LSP / playground の表示差分を縮める。
+
 ## `case` / `catch` の準備
 
 lowering で登録する site の候補:

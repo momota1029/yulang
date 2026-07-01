@@ -137,6 +137,58 @@ fn compatible_check_no_prelude_uses_local_source_only() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_type_annotation_mismatch() {
+    let entry = write_entry("diagnostic-type-annotation-mismatch", "my x: int = true\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("diagnostics:\n  error: x: type mismatch: bool is not int\n"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains("  x: type mismatch: bool is not int\n"),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn public_diagnostics_check_reports_unresolved_value_name() {
+    let entry = write_entry("diagnostic-unresolved-value-name", "my result = missing\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("diagnostics:\n  error: result: unresolved value name: missing\n"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains("  result: unresolved value name: missing\n"),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_global_cst_and_timing_flags_are_accepted() {
     let entry = write_entry("global-cst", "1\n");
 

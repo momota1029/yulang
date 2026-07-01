@@ -651,7 +651,21 @@ pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMon
 }
 
 pub(super) fn print_check_poly_output(output: &yulang::CheckPolyOutput) {
+    print_check_diagnostics_summary(&output.diagnostics);
     print!("{}", output.text);
+}
+
+fn print_check_diagnostics_summary(diagnostics: &[yulang::SourceDiagnostic]) {
+    if diagnostics.is_empty() {
+        return;
+    }
+    println!("diagnostics:");
+    for diagnostic in diagnostics {
+        match diagnostic.label.as_deref() {
+            Some(label) => println!("  error: {label}: {}", diagnostic.message),
+            None => println!("  error: {}", diagnostic.message),
+        }
+    }
 }
 
 pub(super) fn print_usage_error_and_exit(program: &str, error: &str) -> ! {

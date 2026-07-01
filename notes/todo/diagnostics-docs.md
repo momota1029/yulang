@@ -23,6 +23,31 @@
 - `my a = 1 2` のような最小失敗例で、primary range と related range を固定する。
 - playground の blank / missing diagnostic regression を小さい fixture で追う。
 
+## 2026-07-01 weekly target
+
+今週は diagnostics と標準 API 固定を、公開準備の主作業として扱う。
+
+Diagnostics の最初の slice:
+
+- public CLI golden を小さく追加し、現在の `check` で見える代表的な lowering
+  diagnostics を固定する。
+- 最初に固定するケースは、型注釈 mismatch と未解決 value name。
+- `check` は source diagnostics がある場合、詳細 dump の前に compact な
+  `diagnostics:` summary を出す。
+- 続けて parser error、role/method error、effect/runtime error を足す。
+- 期待値は全文 snapshot にせず、ユーザーが直すために必要な主文言と label だけを
+  compact に見る。
+- その後、同じ原因を `CheckReport` / LSP / playground で共有できる表示へ移す。
+
+API 固定の最初の slice:
+
+- filesystem は `spec/2026-07-01-file-resource-api.md` を anchor とする。
+- server API は、file session と同じ resource lifetime / scope exit / host capability
+  のモデルへ寄せる。
+- FFI は標準 API の裏側になりうるが、当面は public ABI ではなく host capability
+  boundary として扱う。
+- API メモの都合で既存 std surface を compatibility promise にしない。
+
 ## Detailed type checker
 
 Simple-sub、`case` / `catch`、role / impl conformance をまとめて扱う計画は
