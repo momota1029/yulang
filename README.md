@@ -167,7 +167,10 @@ build, hardening smoke tests, source-unit cache smoke, and the docs build. Set
 `YULANG_RELEASE_GATE_WEB_BUILD=1` when the full playground/docs web bundle
 should be rebuilt too.
 The public contract manifest lives at `tests/yulang/cases.toml`; the hardening
-gate runs it through the public `yulang` CLI tests.
+gate runs it through the public `yulang` CLI tests. The hardening gate also
+enables the `release-smoke.sh` `yulang server` startup check by default; set
+`YULANG_HARDENING_RELEASE_SERVER_SMOKE=0` only for focused local runs where the
+language-server process check is not relevant.
 
 Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
 `~"..."` are experimental. They are useful for trying the direction of the
