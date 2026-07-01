@@ -74,6 +74,10 @@ run_timeout "$test_timeout" \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
+  cargo test -q -p wasm check_inner_returns_ \
+  -- --test-threads=1
+
+run_timeout "$test_timeout" \
   cargo test -q -p control-vm routes_foreign_thunk_effect_past_inner_handler_like_oracle \
   -- --test-threads=1
 
