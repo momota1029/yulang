@@ -347,6 +347,8 @@ expect_diagnostic_code = "yulang.type-mismatch"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
+expect_diagnostic_start = 3
+expect_diagnostic_end = 4
 expect_diagnostic_related_count = 2
 expect_diagnostic_related_origins = ["type-annotation", "expression"]
 contracts = ["diagnostics", "typechecker", "related-ranges"]
@@ -365,6 +367,8 @@ expect_diagnostic_code = "yulang.unresolved-type"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
+expect_diagnostic_start = 6
+expect_diagnostic_end = 18
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
 
@@ -382,6 +386,8 @@ expect_diagnostic_code = "yulang.unresolved-value"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "result"
+expect_diagnostic_start = 12
+expect_diagnostic_end = 19
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
 
@@ -399,6 +405,8 @@ expect_diagnostic_code = "yulang.unsupported-type-syntax"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "x"
+expect_diagnostic_start = 6
+expect_diagnostic_end = 25
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "typechecker", "records"]
 
@@ -416,6 +424,8 @@ expect_diagnostic_code = "yulang.top-level-mutable-binding"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "$x"
+expect_diagnostic_start = 3
+expect_diagnostic_end = 5
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "bindings"]
 
@@ -433,6 +443,8 @@ expect_diagnostic_code = "yulang.unsupported-rule-lazy-quantifier"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
 expect_diagnostic_label = "p"
+expect_diagnostic_start = 18
+expect_diagnostic_end = 20
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "parser-dsl"]
 
@@ -449,6 +461,8 @@ expect_stdout_contains = [
 expect_diagnostic_code = "yulang.syntax"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
+expect_diagnostic_start = 9
+expect_diagnostic_end = 9
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 
@@ -465,6 +479,8 @@ expect_stdout_contains = [
 expect_diagnostic_code = "yulang.syntax"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
+expect_diagnostic_start = 9
+expect_diagnostic_end = 10
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 

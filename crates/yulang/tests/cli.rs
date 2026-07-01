@@ -3572,6 +3572,8 @@ fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
         || case.expect_diagnostic_code.is_some()
         || case.expect_diagnostic_severity.is_some()
         || case.expect_diagnostic_label.is_some()
+        || case.expect_diagnostic_start.is_some()
+        || case.expect_diagnostic_end.is_some()
         || case.expect_diagnostic_related_count.is_some()
         || !case.expect_diagnostic_related_origins.is_empty();
     assert!(
@@ -3805,6 +3807,8 @@ struct PublicContractCase {
     expect_diagnostic_code: Option<String>,
     expect_diagnostic_severity: Option<String>,
     expect_diagnostic_label: Option<String>,
+    expect_diagnostic_start: Option<usize>,
+    expect_diagnostic_end: Option<usize>,
     expect_diagnostic_related_count: Option<usize>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
@@ -3951,6 +3955,8 @@ fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
         || case.expect_diagnostic_code.is_some()
         || case.expect_diagnostic_severity.is_some()
         || case.expect_diagnostic_label.is_some()
+        || case.expect_diagnostic_start.is_some()
+        || case.expect_diagnostic_end.is_some()
         || case.expect_diagnostic_related_count.is_some()
         || !case.expect_diagnostic_related_origins.is_empty();
     if !expects_diagnostic {
@@ -3996,6 +4002,20 @@ fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
     }
     if let Some(expected) = &case.expect_diagnostic_label {
         assert_eq!(diagnostic.label.as_ref(), Some(expected), "{}", case.name);
+    }
+    if case.expect_diagnostic_start.is_some() || case.expect_diagnostic_end.is_some() {
+        let range = diagnostic.range.unwrap_or_else(|| {
+            panic!(
+                "contract manifest case {} expected a diagnostic primary range",
+                case.name
+            )
+        });
+        if let Some(expected) = case.expect_diagnostic_start {
+            assert_eq!(range.start, expected, "{}", case.name);
+        }
+        if let Some(expected) = case.expect_diagnostic_end {
+            assert_eq!(range.end, expected, "{}", case.name);
+        }
     }
     if let Some(expected) = case.expect_diagnostic_related_count {
         assert_eq!(diagnostic.related.len(), expected, "{}", case.name);
