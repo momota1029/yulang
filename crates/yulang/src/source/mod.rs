@@ -2748,6 +2748,15 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
             Some("yulang.unsupported-rule-lazy-quantifier")
         }
+        infer::lowering::LoweringError::MissingCatchScrutinee => {
+            Some("yulang.missing-catch-scrutinee")
+        }
+        infer::lowering::LoweringError::MissingCatchArmPattern => {
+            Some("yulang.missing-catch-arm-pattern")
+        }
+        infer::lowering::LoweringError::MissingCatchArmBody => {
+            Some("yulang.missing-catch-arm-body")
+        }
         _ => Some("yulang.lowering"),
     }
 }
@@ -2842,6 +2851,27 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
             "define type `{}` before this annotation, or import it",
             format_name_path(path)
         )),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchScrutinee,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchScrutinee,
+        } => Some("write `catch <expr>:` before the handler arms".to_string()),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchArmPattern,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchArmPattern,
+        } => Some("write a value pattern or effect operation before `->`".to_string()),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchArmBody,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchArmBody,
+        } => Some("write an expression after `->`".to_string()),
         _ => None,
     }
 }

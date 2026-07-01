@@ -2528,6 +2528,27 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
                 "rule lazy quantifier `{quantifier}` is not supported; rule uses PEG-style greedy repetition"
             )
         }
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchScrutinee,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchScrutinee,
+        } => "catch expression is missing the computation to handle".to_string(),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchArmPattern,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchArmPattern,
+        } => "catch arm is missing a value pattern or effect operation".to_string(),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::MissingCatchArmBody,
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::MissingCatchArmBody,
+        } => "catch arm is missing a body expression".to_string(),
         infer::lowering::BodyLoweringError::RootExpr {
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
         } => format!("unresolved value name in root expression: {}", name.0),

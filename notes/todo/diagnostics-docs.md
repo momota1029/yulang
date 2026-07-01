@@ -85,6 +85,8 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、通常の `run` 経路に漏れる role method 解決失敗は
   `yulang.unresolved-method` / `yulang.ambiguous-method` として、impl の追加/import
   または receiver 型の具体化を促す hint を出す。
+- 同日後続 slice で、構文として壊れた `catch` arm body は
+  `yulang.missing-catch-arm-body` として、`->` 後に式を書く hint を出す。
 
 API 固定の最初の slice:
 
@@ -138,6 +140,8 @@ TODO:
     - first CLI canary: `runtime error [yulang.unhandled-effect]` with a
       handler hint on `run` when `std::control::nondet::each` escapes.
   - handler arm mismatch
+    - first syntax-side canary: missing catch arm body is no longer reported as
+      raw `MissingCatchArmBody`.
   - unsupported host request
 - Runtime / lowering errors:
   - 普通の user path で residual polymorphic runtime IR を漏らさない
