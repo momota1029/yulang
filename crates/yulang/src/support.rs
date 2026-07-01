@@ -606,10 +606,29 @@ pub(super) fn run_route_to_value<T>(result: Result<T, yulang::RouteError>) -> T 
 fn format_route_error(error: &yulang::RouteError) -> String {
     match error {
         yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    field,
+                    actual_fields,
+                }),
             ..
-        }) => format!(
-            "compile error [yulang.unsatisfied-subtype]: {error}\n  hint: check that the value provides the fields or shape required by this use"
-        ),
+        }) => {
+            let actual = if actual_fields.is_empty() {
+                "no fields".to_string()
+            } else {
+                format!("fields {}", actual_fields.join(", "))
+            };
+            format!(
+                "compile error [yulang.unsatisfied-subtype]: record is missing field `{field}`\n  detail: {error}\n  hint: add `{field}` to this record or use a value that provides it; actual record has {actual}"
+            )
+        }
+        yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {
+            ..
+        }) => {
+            format!(
+                "compile error [yulang.unsatisfied-subtype]: {error}\n  hint: check that the value provides the fields or shape required by this use"
+            )
+        }
         _ => error.to_string(),
     }
 }

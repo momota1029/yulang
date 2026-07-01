@@ -235,6 +235,39 @@ fn concrete_subtype_rejects_missing_required_record_field() {
 }
 
 #[test]
+fn record_literal_missing_required_field_reports_origin() {
+    let mut arena = poly_expr::Arena::new();
+    let field_value = arena.add_expr(poly_expr::Expr::Lit(poly_expr::Lit::Int(1)));
+    let record = arena.add_expr(poly_expr::Expr::Record {
+        fields: vec![("a".into(), field_value)],
+        spread: poly_expr::RecordSpread::None,
+    });
+    let expected = vec![field("b", int_type(), false)];
+    let mut solver = TaskSolver::new(&arena);
+
+    let err = solver
+        .expr_with_value_consumer(record, &Type::Record(expected.clone()))
+        .unwrap_err();
+
+    let SpecializeError::UnsatisfiedSubtype {
+        lower,
+        upper,
+        origin:
+            Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
+                field: missing_field,
+                actual_fields,
+            }),
+    } = err
+    else {
+        panic!("expected missing record field origin, got {err:?}");
+    };
+    assert_eq!(lower, Type::Record(vec![field("a", int_type(), false)]));
+    assert_eq!(upper, Type::Record(expected));
+    assert_eq!(missing_field, "b");
+    assert_eq!(actual_fields, vec!["a"]);
+}
+
+#[test]
 fn concrete_subtype_allows_missing_optional_record_field() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
@@ -677,6 +710,7 @@ fn assert_unsatisfied_subtype(error: SpecializeError, lower: Type, upper: Type) 
     let SpecializeError::UnsatisfiedSubtype {
         lower: actual_lower,
         upper: actual_upper,
+        ..
     } = error
     else {
         panic!("expected unsatisfied subtype, got {error:?}");

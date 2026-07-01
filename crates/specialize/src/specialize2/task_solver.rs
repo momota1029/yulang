@@ -536,6 +536,21 @@ impl<'a> TaskSolver<'a> {
                 }
             }
         }
+        if matches!(spread, poly_expr::RecordSpread::None)
+            && let Some(expected_fields) = expected_fields
+            && let Some(missing) = expected_fields.iter().find(|expected| {
+                !expected.optional && record_field_type(&typed, &expected.name).is_none()
+            })
+        {
+            return Err(SpecializeError::UnsatisfiedSubtype {
+                lower: Type::Record(typed.clone()),
+                upper: Type::Record(expected_fields.to_vec()),
+                origin: Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    field: missing.name.clone(),
+                    actual_fields: typed.iter().map(|field| field.name.clone()).collect(),
+                }),
+            });
+        }
         let effect = self.join_effects(effects)?;
         let result = self.runtime_shape(effect, Type::Record(typed))?;
         if matches!(result, Type::Thunk { .. }) {

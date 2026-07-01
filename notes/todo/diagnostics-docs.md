@@ -75,6 +75,11 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、`type mismatch` の related payload は
   `SourceDiagnosticRelated.origin` を持ち、expected が type annotation 由来、
   actual が expression 由来であることを CLI / LSP / playground へ同じ message として流す。
+- 同日後続 slice で、record literal が expected record consumer の必須 field を
+  満たさない `UnsatisfiedSubtype` は `UnsatisfiedSubtypeOrigin::MissingRecordField`
+  を持つ。CLI は missing field 名と実際の record field 一覧を出す。source range はまだ
+  specialize に来ていないため、次の detailed diagnostics で selection / expected shape
+  origin と接続する。
 
 API 固定の最初の slice:
 
@@ -134,7 +139,8 @@ TODO:
   - not-record / pattern-mismatch も同じ normal run formatter を通し、VM 内部文言を
     user-facing contract にしない。
   - specialize の unsatisfied subtype は型/shape 契約違反として compile error code
-    を付ける。将来的には source range / expected-origin と接続する。
+    を付ける。record literal の missing required field は structured origin を持つ。
+    将来的には source range / expected-origin と接続する。
 
 ## Examples
 

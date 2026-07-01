@@ -265,13 +265,16 @@ fn compatible_run_reports_unsatisfied_subtype_hint() {
     assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
     assert!(
-        stderr.contains("compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: {a: int} <: {b: 'open"),
+        stderr
+            .contains("compile error [yulang.unsatisfied-subtype]: record is missing field `b`\n"),
         "{stderr}"
     );
     assert!(
-        stderr.contains(
-            "hint: check that the value provides the fields or shape required by this use"
-        ),
+        stderr.contains("detail: unsatisfied subtype constraint: {a: int} <: {b: 'open"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("hint: add `b` to this record or use a value that provides it; actual record has fields a"),
         "{stderr}"
     );
 }

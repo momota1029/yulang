@@ -517,5 +517,9 @@ impl<'a> TypeGraph<'a> {
 }
 
 fn unsatisfied_subtype(lower: Type, upper: Type) -> Result<(), SpecializeError> {
-    Err(SpecializeError::UnsatisfiedSubtype { lower, upper })
+    Err(SpecializeError::UnsatisfiedSubtype {
+        lower,
+        upper,
+        origin: None,
+    })
 }

@@ -15,9 +15,9 @@ use mono::{
 use poly::expr as poly_expr;
 
 use crate::{
-    ExprTypeRole, SpecializeError, convert_def, convert_def_spread, convert_lit,
-    convert_primitive_op, convert_vis, def_kind, equivalent_boundary_types, hygiene, lit_type,
-    primitive_context, roles, std_types, types,
+    ExprTypeRole, SpecializeError, UnsatisfiedSubtypeOrigin, convert_def, convert_def_spread,
+    convert_lit, convert_primitive_op, convert_vis, def_kind, equivalent_boundary_types, hygiene,
+    lit_type, primitive_context, roles, std_types, types,
 };
 
 mod candidate;

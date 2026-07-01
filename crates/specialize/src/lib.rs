@@ -120,6 +120,7 @@ pub enum SpecializeError {
     UnsatisfiedSubtype {
         lower: Type,
         upper: Type,
+        origin: Option<UnsatisfiedSubtypeOrigin>,
     },
     UndeterminedTypeSlot {
         slot: u32,
@@ -164,6 +165,14 @@ pub enum SchemeFeature {
 pub enum ExprTypeRole {
     Actual,
     Expected,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnsatisfiedSubtypeOrigin {
+    MissingRecordField {
+        field: String,
+        actual_fields: Vec<String>,
+    },
 }
 
 impl fmt::Display for SpecializeError {
@@ -221,7 +230,7 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(incoming),
                 )
             }
-            Self::UnsatisfiedSubtype { lower, upper } => {
+            Self::UnsatisfiedSubtype { lower, upper, .. } => {
                 write!(
                     f,
                     "unsatisfied subtype constraint: {} <: {}",
