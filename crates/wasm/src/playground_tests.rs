@@ -47,6 +47,15 @@ mod tests {
             "rule_lazy_quantifier" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/rule_lazy_quantifier.yu"
             ),
+            "catch_missing_scrutinee" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_scrutinee.yu"
+            ),
+            "catch_missing_arm_pattern" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_pattern.yu"
+            ),
+            "catch_missing_arm_body" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
+            ),
             _ => panic!("unknown diagnostics fixture: {name}"),
         }
     }
@@ -649,6 +658,52 @@ pair
             output.diagnostics[0].message,
             "rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition"
         );
+    }
+
+    #[test]
+    fn check_inner_returns_catch_syntax_codes_and_ranges() {
+        let cases = [
+            (
+                "catch_missing_scrutinee",
+                "yulang.missing-catch-scrutinee",
+                0,
+                5,
+                "catch expression is missing the computation to handle",
+                Some("write `catch <expr>:` before the handler arms"),
+            ),
+            (
+                "catch_missing_arm_pattern",
+                "yulang.missing-catch-arm-pattern",
+                13,
+                15,
+                "catch arm is missing a value pattern or effect operation",
+                Some("write a value pattern or effect operation before `->`"),
+            ),
+            (
+                "catch_missing_arm_body",
+                "yulang.missing-catch-arm-body",
+                19,
+                21,
+                "catch arm is missing a body expression",
+                Some("write an expression after `->`"),
+            ),
+        ];
+
+        for (fixture, code, start, end, message, hint) in cases {
+            let output = check_inner(diagnostics_fixture(fixture));
+
+            assert!(!output.ok, "{fixture}: {output:?}");
+            assert_eq!(output.diagnostics.len(), 1, "{fixture}");
+            let diagnostic = &output.diagnostics[0];
+            assert_eq!(diagnostic.severity, DiagnosticSeverity::Error, "{fixture}");
+            assert_eq!(diagnostic.label, None, "{fixture}");
+            assert_eq!(diagnostic.code.as_deref(), Some(code), "{fixture}");
+            assert_eq!(diagnostic.start, start, "{fixture}");
+            assert_eq!(diagnostic.end, end, "{fixture}");
+            assert_eq!(diagnostic.message, message, "{fixture}");
+            assert_eq!(diagnostic.hint.as_deref(), hint, "{fixture}");
+            assert!(diagnostic.related.is_empty(), "{fixture}");
+        }
     }
 
     #[test]
