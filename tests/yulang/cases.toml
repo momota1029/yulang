@@ -5,7 +5,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [opt::just((3, 4, 5))]\n"
 expect_stderr = ""
-contracts = ["runtime", "std.nondet", "deep-handler"]
+contracts = ["stable-core", "runtime", "std.nondet", "deep-handler"]
 
 [[case]]
 name = "optional_record_defaults"
@@ -14,7 +14,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [6, 2, 12, 12]\n"
 expect_stderr = ""
-contracts = ["runtime", "records", "defaults"]
+contracts = ["stable-core", "runtime", "records", "defaults"]
 
 [[case]]
 name = "attached_impl_pick"
@@ -23,7 +23,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(10, false)]\n"
 expect_stderr = ""
-contracts = ["runtime", "roles", "attached-impl"]
+contracts = ["stable-core", "runtime", "roles", "attached-impl"]
 
 [[case]]
 name = "list_update"
@@ -32,7 +32,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [[2, 6, 4]]\n"
 expect_stderr = ""
-contracts = ["runtime", "lists", "update"]
+contracts = ["stable-core", "runtime", "lists", "update"]
 
 [[case]]
 name = "result_api"
@@ -41,7 +41,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(result::ok(11), result::err(\"odd\"), 42)]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "result"]
 
 [[case]]
 name = "result_propagation"
@@ -50,7 +50,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(result::err(\"bad\"), result::err(\"bad\"), 5)]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "result"]
 
 [[case]]
 name = "path_display"
@@ -59,7 +59,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(\"/tmp/yulang-path\", \"/tmp/yulang-path\")]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "path", "display"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "path", "display"]
 
 [[case]]
 name = "error_wrap_fail"
@@ -68,7 +68,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(result::ok(7), result::err(small_err::nope(3)))]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "errors", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "result"]
 
 [[case]]
 name = "error_from_wrap"
@@ -77,7 +77,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [result::err(io_err::fs(fs_err::not_found(\"missing\")))]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "errors", "from", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "from", "result"]
 
 [[case]]
 name = "error_up_wrap"
@@ -86,7 +86,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [result::err(io_err::fs(fs_err::not_found(\"missing\")))]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "errors", "from", "up", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "from", "up", "result"]
 
 [[case]]
 name = "error_display"
@@ -95,7 +95,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(\"item: 7\", \"empty\", \"pair(3, x)\")]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "errors", "display"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "display"]
 
 [[case]]
 name = "error_display_from_wrap"
@@ -104,7 +104,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [\"err: not_found: /missing\"]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "stable-api", "errors", "display", "from", "result"]
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "display", "from", "result"]
 
 [[case]]
 name = "example_struct_with"
@@ -114,7 +114,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [25]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "records"]
+contracts = ["stable-core", "public-example", "runtime", "records"]
 
 [[case]]
 name = "example_refs"
@@ -124,7 +124,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(11, 21)]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "refs"]
+contracts = ["stable-core", "public-example", "runtime", "refs"]
 
 [[case]]
 name = "example_for_last"
@@ -134,7 +134,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [5]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "std.flow"]
+contracts = ["stable-core", "public-example", "runtime", "std.flow"]
 
 [[case]]
 name = "example_sub_return"
@@ -144,7 +144,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [5]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "sub-return"]
+contracts = ["stable-core", "public-example", "runtime", "sub-return"]
 
 [[case]]
 name = "example_nondet_all"
@@ -154,7 +154,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [[5, 6, 7, 6, 7, 8, 7, 8, 9]]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "std.nondet"]
+contracts = ["stable-core", "public-example", "runtime", "std.nondet"]
 
 [[case]]
 name = "example_nondet_once"
@@ -164,7 +164,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [opt::just((3, 4, 5))]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "std.nondet", "deep-handler"]
+contracts = ["stable-core", "public-example", "runtime", "std.nondet", "deep-handler"]
 
 [[case]]
 name = "example_junction"
@@ -174,7 +174,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [1]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "junction"]
+contracts = ["stable-core", "public-example", "runtime", "junction"]
 
 [[case]]
 name = "example_types"
@@ -184,7 +184,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [42]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "types"]
+contracts = ["stable-core", "public-example", "runtime", "types"]
 
 [[case]]
 name = "example_optional_record_args"
@@ -194,7 +194,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [6, 2, 12, 12]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "records", "defaults"]
+contracts = ["stable-core", "public-example", "runtime", "records", "defaults"]
 
 [[case]]
 name = "example_effect_handler"
@@ -204,7 +204,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(9, \"3\\n6\\n\")]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "effects"]
+contracts = ["stable-core", "public-example", "runtime", "effects"]
 
 [[case]]
 name = "example_attached_impl"
@@ -214,7 +214,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(10, false)]\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "roles", "attached-impl"]
+contracts = ["stable-core", "public-example", "runtime", "roles", "attached-impl"]
 
 [[case]]
 name = "example_cast"
@@ -224,7 +224,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots []\n"
 expect_stderr = ""
-contracts = ["public-example", "runtime", "casts"]
+contracts = ["stable-core", "public-example", "runtime", "casts"]
 
 [[case]]
 name = "example_console"
@@ -358,7 +358,7 @@ expect_diagnostic_label = "show"
 expect_diagnostic_start = 39
 expect_diagnostic_end = 43
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "roles"]
+contracts = ["stable-core", "diagnostics", "roles"]
 
 [[case]]
 name = "ambiguous_method_diagnostic"
@@ -378,7 +378,7 @@ expect_diagnostic_label = "foo"
 expect_diagnostic_start = 97
 expect_diagnostic_end = 100
 expect_diagnostic_related_count = 2
-contracts = ["diagnostics", "roles"]
+contracts = ["stable-core", "diagnostics", "roles"]
 
 [[case]]
 name = "type_annotation_mismatch"
@@ -399,7 +399,7 @@ expect_diagnostic_start = 3
 expect_diagnostic_end = 4
 expect_diagnostic_related_count = 2
 expect_diagnostic_related_origins = ["type-annotation", "expression"]
-contracts = ["diagnostics", "typechecker", "related-ranges"]
+contracts = ["stable-core", "diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
 name = "unresolved_type_name"
@@ -418,7 +418,7 @@ expect_diagnostic_label = "x"
 expect_diagnostic_start = 6
 expect_diagnostic_end = 18
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "names"]
+contracts = ["stable-core", "diagnostics", "names"]
 
 [[case]]
 name = "unresolved_value_name"
@@ -437,7 +437,7 @@ expect_diagnostic_label = "result"
 expect_diagnostic_start = 12
 expect_diagnostic_end = 19
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "names"]
+contracts = ["stable-core", "diagnostics", "names"]
 
 [[case]]
 name = "unsupported_record_type_annotation"
@@ -456,7 +456,7 @@ expect_diagnostic_label = "x"
 expect_diagnostic_start = 6
 expect_diagnostic_end = 25
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "typechecker", "records"]
+contracts = ["stable-core", "diagnostics", "typechecker", "records"]
 
 [[case]]
 name = "top_level_mutable_binding"
@@ -475,7 +475,7 @@ expect_diagnostic_label = "$x"
 expect_diagnostic_start = 3
 expect_diagnostic_end = 5
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "bindings"]
+contracts = ["stable-core", "diagnostics", "bindings"]
 
 [[case]]
 name = "rule_lazy_quantifier"
@@ -512,7 +512,7 @@ expect_diagnostic_count = 1
 expect_diagnostic_start = 9
 expect_diagnostic_end = 9
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "syntax"]
+contracts = ["stable-core", "diagnostics", "syntax"]
 
 [[case]]
 name = "trailing_operator"
@@ -530,7 +530,7 @@ expect_diagnostic_count = 1
 expect_diagnostic_start = 9
 expect_diagnostic_end = 10
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "syntax"]
+contracts = ["stable-core", "diagnostics", "syntax"]
 
 [[case]]
 name = "catch_missing_scrutinee"
@@ -548,7 +548,7 @@ expect_diagnostic_count = 1
 expect_diagnostic_start = 0
 expect_diagnostic_end = 5
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "effects", "handler-syntax"]
+contracts = ["stable-core", "diagnostics", "effects", "handler-syntax"]
 
 [[case]]
 name = "catch_missing_arm_pattern"
@@ -566,7 +566,7 @@ expect_diagnostic_count = 1
 expect_diagnostic_start = 13
 expect_diagnostic_end = 15
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "effects", "handler-syntax"]
+contracts = ["stable-core", "diagnostics", "effects", "handler-syntax"]
 
 [[case]]
 name = "catch_missing_arm_body"
@@ -584,7 +584,7 @@ expect_diagnostic_count = 1
 expect_diagnostic_start = 19
 expect_diagnostic_end = 21
 expect_diagnostic_related_count = 0
-contracts = ["diagnostics", "effects", "handler-syntax"]
+contracts = ["stable-core", "diagnostics", "effects", "handler-syntax"]
 
 [[case]]
 name = "data_position_effect_function_public_signature"
@@ -594,7 +594,7 @@ std = "none"
 symbol = "box.handle"
 expect_type = "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
 deny_type_contains = ["#", "AllExcept", "tick"]
-contracts = ["public-signature", "effect-hygiene", "data-position-effect"]
+contracts = ["stable-core", "public-signature", "effect-hygiene", "data-position-effect"]
 
 [[case]]
 name = "nested_data_position_effect_function_public_signature"
@@ -604,7 +604,7 @@ std = "none"
 symbol = "demo.cell.apply"
 expect_type = "demo::cell('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
 deny_type_contains = ["#", "AllExcept", "pulse"]
-contracts = ["public-signature", "effect-hygiene", "data-position-effect"]
+contracts = ["stable-core", "public-signature", "effect-hygiene", "data-position-effect"]
 
 [[case]]
 name = "std_ref_update_public_signature"
@@ -615,7 +615,7 @@ module = "std.control.var.ref"
 symbol = "std.control.var.ref.update"
 expect_type = "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
 deny_type_contains = ["#", "AllExcept", "std::control::var::ref_update"]
-contracts = ["public-signature", "std.ref", "effect-hygiene"]
+contracts = ["stable-core", "public-signature", "std.ref", "effect-hygiene"]
 
 [[case]]
 name = "std_result_map_public_signature"
@@ -626,7 +626,7 @@ module = "std.data.result"
 symbol = "std.data.result.map"
 expect_type = "std::data::result::result 'a 'b -> ('a -> ['c] 'd) -> ['c] std::data::result::result 'd 'b"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "result"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "result"]
 
 [[case]]
 name = "std_result_and_then_public_signature"
@@ -637,7 +637,7 @@ module = "std.data.result"
 symbol = "std.data.result.and_then"
 expect_type = "std::data::result::result 'a 'b -> ('a -> ['c] std::data::result::result 'd 'b) -> ['c] std::data::result::result 'd 'b"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "result"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "result"]
 
 [[case]]
 name = "std_result_unwrap_or_public_signature"
@@ -648,7 +648,7 @@ module = "std.data.result"
 symbol = "std.data.result.unwrap_or"
 expect_type = "std::data::result::result 'a 'b -> 'a -> 'a"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "result"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "result"]
 
 [[case]]
 name = "std_path_of_bytes_public_signature"
@@ -659,7 +659,7 @@ module = "std.text.path"
 symbol = "std.text.path.of_bytes"
 expect_type = "std::text::bytes::bytes -> std::text::path::path"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "path"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "path"]
 
 [[case]]
 name = "std_path_to_bytes_public_signature"
@@ -670,7 +670,7 @@ module = "std.text.path"
 symbol = "std.text.path.to_bytes"
 expect_type = "std::text::path::path -> std::text::bytes::bytes"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "path"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "path"]
 
 [[case]]
 name = "std_file_read_at_public_signature"
@@ -824,7 +824,7 @@ module = "std.text.parse"
 symbol = "std.text.parse.choice"
 expect_type = "(() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "std.parse", "effect-hygiene"]
+contracts = ["stable-core", "public-signature", "std.parse", "effect-hygiene"]
 
 [[case]]
 name = "std_flow_for_in_public_signature"
@@ -835,7 +835,7 @@ module = "std.control.flow.loop"
 symbol = "std.control.flow.loop.for_in"
 expect_type = "'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "std.flow", "callback-residual"]
+contracts = ["stable-core", "public-signature", "std.flow", "callback-residual"]
 
 [[case]]
 name = "std_nondet_once_public_signature"
@@ -846,7 +846,7 @@ module = "std.control.nondet.nondet"
 symbol_contains = "#act-method:once"
 expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "std.nondet", "deep-handler"]
+contracts = ["stable-core", "public-signature", "std.nondet", "deep-handler"]
 
 [[case]]
 name = "user_error_wrap_public_signature"
@@ -856,7 +856,7 @@ std = "repo"
 symbol = "small_err.wrap"
 expect_type = "'a [small_err; 'b] -> ['b] std::data::result::result('a, 'c | small_err)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "errors", "effect-hygiene"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "errors", "effect-hygiene"]
 
 [[case]]
 name = "user_error_from_wrap_public_signature"
@@ -866,7 +866,7 @@ std = "repo"
 symbol = "io_err.wrap"
 expect_type = "'a [fs_err, io_err; 'b] -> ['b] std::data::result::result('a, 'c | io_err)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "errors", "from", "effect-hygiene"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "errors", "from", "effect-hygiene"]
 
 [[case]]
 name = "user_error_up_public_signature"
@@ -876,7 +876,7 @@ std = "repo"
 symbol = "io_err.up"
 expect_type = "'a [fs_err; 'b] -> [io_err, 'b] 'a"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "errors", "from", "up", "effect-hygiene"]
+contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "errors", "from", "up", "effect-hygiene"]
 
 [[case]]
 name = "std_nondet_list_public_signature"
@@ -887,4 +887,4 @@ module = "std.control.nondet.nondet"
 symbol_contains = "#act-method:list"
 expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "std.nondet", "deep-handler"]
+contracts = ["stable-core", "public-signature", "std.nondet", "deep-handler"]

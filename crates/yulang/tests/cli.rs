@@ -3592,6 +3592,8 @@ fn public_contract_manifest_covers_status_spine_claims() {
         "Diagnostics",
         "Release artifacts",
         "Standard API surface",
+        "Yulang Contract v0",
+        "stable-core",
         "std::data::result",
         "std::text::path",
         "std::io::file",
@@ -3605,12 +3607,30 @@ fn public_contract_manifest_covers_status_spine_claims() {
     let cases = public_contract_manifest_cases();
     for requirement in [
         StatusSpineManifestRequirement::new("public signatures", &["public-signature"]),
+        StatusSpineManifestRequirement::new("stable core", &["stable-core"]),
+        StatusSpineManifestRequirement::new("stable core runtime", &["stable-core", "runtime"]),
+        StatusSpineManifestRequirement::new(
+            "stable core diagnostics",
+            &["stable-core", "diagnostics"],
+        ),
+        StatusSpineManifestRequirement::new(
+            "stable core public signatures",
+            &["stable-core", "public-signature"],
+        ),
+        StatusSpineManifestRequirement::new(
+            "stable core public examples",
+            &["stable-core", "public-example"],
+        ),
         StatusSpineManifestRequirement::new("runtime behavior", &["runtime"]),
         StatusSpineManifestRequirement::new("public examples", &["public-example"]),
         StatusSpineManifestRequirement::new("runtime error behavior", &["runtime-error"]),
         StatusSpineManifestRequirement::new("diagnostics", &["diagnostics"]),
         StatusSpineManifestRequirement::new("standard API", &["standard-api"]),
         StatusSpineManifestRequirement::new("stable standard API", &["standard-api", "stable-api"]),
+        StatusSpineManifestRequirement::new(
+            "stable core standard API",
+            &["stable-core", "standard-api", "stable-api"],
+        ),
         StatusSpineManifestRequirement::new(
             "standard API migration canary",
             &["standard-api", "migration-canary"],
@@ -3719,6 +3739,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime-error"
             | "runtime-failure"
             | "showcase"
+            | "stable-core"
             | "stable-api"
             | "standard-api"
             | "std.flow"
@@ -3867,6 +3888,16 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert!(
             contract_manifest_case_has_tag(case, "standard-api"),
             "contract manifest case {} should only use stable-api or migration-canary with standard-api",
+            case.name
+        );
+    }
+    if contract_manifest_case_has_tag(case, "stable-core") {
+        assert!(
+            !contract_manifest_case_has_any_tag(
+                case,
+                &["preview", "migration-canary", "compile-error"]
+            ),
+            "stable-core contract manifest case {} should not be preview, migration-canary, or compile-error",
             case.name
         );
     }

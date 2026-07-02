@@ -8,6 +8,8 @@ pipeline so it is clear what to expect before you try it.
 It complements these documents:
 
 - [docs/language/overview.md](language/overview.md) — what each feature does.
+- [docs/language/stable-core.md](language/stable-core.md) — Contract v0, the
+  current executable stable language core.
 - [docs/effect-inference-brief.md](effect-inference-brief.md) — the short
   outward-facing claim about hygienic effect inference.
 - [docs/infer-solver-invariants.md](infer-solver-invariants.md) — the solver
@@ -32,7 +34,9 @@ Yulang is past the point where adding another surface feature is the main path
 to completion. The active work is to keep the existing language promises true
 across inference, runtime, diagnostics, and release artifacts.
 
-The public contract is the combination of these gates:
+The public contract is the combination of these gates. The `stable-core`
+manifest tag marks the **Yulang Contract v0** subset described in
+[docs/language/stable-core.md](language/stable-core.md).
 
 | Contract area | What must stay true | Main gates |
 | --- | --- | --- |

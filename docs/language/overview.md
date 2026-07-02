@@ -1,6 +1,6 @@
 # Yulang Language Overview
 
-This page is a user-facing overview of Yulang as it exists today. The language is still experimental, so this document describes the current implementation rather than a stability promise.
+This page is a user-facing overview of Yulang as it exists today. The language is still experimental, so this document describes the current implementation rather than a stability promise. For the narrower executable stability contract, see [Stable Core](stable-core.md).
 
 For a Japanese version, see [overview.ja.md](overview.ja.md).
 
