@@ -54,7 +54,7 @@ Contract v0 as a generic TODO.
 | Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. New runtime speedups should prefer static proof emission in mono/specialize over signal-by-signal dynamic cert checks when the static conditions are available. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs; `notes/design/2026-07-02-static-route-promotion-plan.md` |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `yulang contract tests/yulang/cases.toml`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
-| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the `std::io::file` helper/metadata surface remains a native host canary until rollback, multi-shot, unsupported-host, locking, and portable metadata behavior are finalized. The current IO resource spec fixes file / connect / serve under one `host act + session + managed view + raw` model. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the `std::io::file` helper/metadata surface remains a native host canary until pure mock resource-lifetime parity, locking, and portable metadata behavior are finalized. The current IO resource spec fixes file / connect / serve under one `host act + session + managed view + raw` model. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
 | File Resource Contract | Contract v1 should prove that files behave like durable `&` variables across pure mock handlers, the native CLI host, and unsupported hosts. Managed text/bytes lenses must follow snapshot transaction semantics: normal scope exit commits, abort rolls back, multi-shot branches keep independent buffers, and multiple commits are last-write-wins. Existing `std::io::file` helper coverage stays `migration-canary` until those semantics are executable. | [docs/language/file-resource-contract.md](language/file-resource-contract.md); [docs/language/contract-v1-file-evidence.md](language/contract-v1-file-evidence.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [notes/design/2026-07-02-resource-lifetime-decisions.md](../notes/design/2026-07-02-resource-lifetime-decisions.md); [notes/todo/contract-v1-file-resource-priority.md](../notes/todo/contract-v1-file-resource-priority.md) |
 
 A change can be treated as contract-hardening when it improves one of those
@@ -180,14 +180,16 @@ The columns trace a value through the pipeline:
   `text`, and `text_with` cover managed text-ref get/set. The native scoped
   `open_in` / `text_with` path now uses a snapshot handle for normal scope-exit
   commit: callback reads and writes see the buffer, while backing-file reads
-  inside the callback still see the old file until the scope returns. This is
-  not yet the full Contract v1 file-resource contract; rollback after dirty
-  callback abort, branch-local multi-shot buffers, directory listing, portable
-  metadata expansion, unsupported-host behavior, and lock release remain
-  provisional. The resource lifetime semantics are specified: `_with` resources
-  close at continuation end, unscoped resources close at the provider handler
-  extent, managed lens commits only on normal scope exit, aborted branches roll
-  back, and first-slice lock release may stay tied to handler discharge.
+  inside the callback still see the old file until the scope returns. Native
+  rollback after dirty callback abort and native branch-local multi-shot buffers
+  are executable manifest cases; unsupported native host capability is also a
+  manifest runtime-failure case. This is still not the full Contract v1
+  file-resource contract because pure mock resource-lifetime parity, directory
+  listing, portable metadata expansion, and lock release remain provisional. The
+  resource lifetime semantics are specified: `_with` resources close at
+  continuation end, unscoped resources close at the provider handler extent,
+  managed lens commits only on normal scope exit, aborted branches roll back,
+  and first-slice lock release may stay tied to handler discharge.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path
