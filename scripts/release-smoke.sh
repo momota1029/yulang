@@ -158,6 +158,27 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     echo "$file_resource_output" >&2
     exit 1
   fi
+
+  host_act_cases=(
+    console_unsupported_host
+    console_mock_out_handler
+    std_console_out_write_public_signature
+  )
+  host_act_case_args=()
+  for case_name in "${host_act_cases[@]}"; do
+    host_act_case_args+=(--case "$case_name")
+  done
+  host_act_output="$(run_with_timeout "$file_resource_timeout_duration" \
+    "$bin" --std-root "$std_root" contract \
+    --contract host-act \
+    "${host_act_case_args[@]}" \
+    "$contract_cases_manifest")"
+  expected_host_act_output="contract cases ok: ${#host_act_cases[@]}"
+  if [[ "$host_act_output" != "$expected_host_act_output" ]]; then
+    echo "release smoke: unexpected host-act contract output" >&2
+    echo "$host_act_output" >&2
+    exit 1
+  fi
 fi
 
 cache_path="$(run "$bin" cache path)"

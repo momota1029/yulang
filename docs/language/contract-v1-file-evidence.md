@@ -183,6 +183,10 @@ public surface:
   `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
+- `scripts/release-smoke.sh` also runs a focused `host-act` contract set for
+  console: unsupported-host denial, source-handler mock routing, and exact
+  public signature projection. This keeps release binaries from proving only the
+  file side of the host-act registry.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped
