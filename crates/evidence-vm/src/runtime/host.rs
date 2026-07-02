@@ -2,7 +2,6 @@
 pub(super) enum RuntimeHostAct {
     ConsoleOut,
     File,
-    FileBuffer,
 }
 
 impl RuntimeHostAct {
@@ -10,7 +9,6 @@ impl RuntimeHostAct {
         match self {
             Self::ConsoleOut => &["std", "io", "console", "out"],
             Self::File => &["std", "io", "file", "file"],
-            Self::FileBuffer => &["std", "io", "file", "file_buffer"],
         }
     }
 }
@@ -36,16 +34,9 @@ pub(super) enum RuntimeHostOperation {
     FileMeta,
     FileReadAt,
     FileWriteAt,
-    FileOpenTextRaw,
-    FileGet,
-    FileSet,
-    FileFlush,
-    FileOpenTextSnapshotRaw,
-    FileSnapshotGet,
-    FileSnapshotSet,
-    FileSnapshotCommit,
-    FileBufferAmbientGet,
-    FileBufferAmbientSet,
+    FileAmbientTouch,
+    FileAmbientGet,
+    FileAmbientSet,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -203,7 +194,6 @@ impl RuntimeHostAct {
         match self {
             Self::ConsoleOut => "std.io.console.out",
             Self::File => "std.io.file.file",
-            Self::FileBuffer => "std.io.file.file_buffer",
         }
     }
 }
@@ -290,101 +280,34 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     },
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::File,
-        operation_id: "open_text_raw",
+        operation_id: "ambient_touch",
         tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "path -> result file_handle io_err",
-        path: &["std", "io", "file", "file", "open_text_raw"],
-        operation: RuntimeHostOperation::FileOpenTextRaw,
+        surface: RuntimeHostOperationSurface::Contract,
+        signature: "path -> result unit io_err",
+        path: &["std", "io", "file", "file", "ambient_touch"],
+        operation: RuntimeHostOperation::FileAmbientTouch,
     },
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::File,
-        operation_id: "file_get",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "file_handle -> str",
-        path: &["std", "io", "file", "file", "file_get"],
-        operation: RuntimeHostOperation::FileGet,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "file_set",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "(file_handle, str) -> ()",
-        path: &["std", "io", "file", "file", "file_set"],
-        operation: RuntimeHostOperation::FileSet,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "file_flush",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "file_handle -> result unit io_err",
-        path: &["std", "io", "file", "file", "file_flush"],
-        operation: RuntimeHostOperation::FileFlush,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "open_text_snapshot_raw",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "path -> result file_handle io_err",
-        path: &["std", "io", "file", "file", "open_text_snapshot_raw"],
-        operation: RuntimeHostOperation::FileOpenTextSnapshotRaw,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "file_snapshot_get",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "file_handle -> str",
-        path: &["std", "io", "file", "file", "file_snapshot_get"],
-        operation: RuntimeHostOperation::FileSnapshotGet,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "file_snapshot_set",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "(file_handle, str) -> ()",
-        path: &["std", "io", "file", "file", "file_snapshot_set"],
-        operation: RuntimeHostOperation::FileSnapshotSet,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "file_snapshot_commit",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "file_handle -> result unit io_err",
-        path: &["std", "io", "file", "file", "file_snapshot_commit"],
-        operation: RuntimeHostOperation::FileSnapshotCommit,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::FileBuffer,
         operation_id: "ambient_get",
         tier: RuntimeHostOperationTier::Sync,
         surface: RuntimeHostOperationSurface::Contract,
         signature: "path -> str",
-        path: &["std", "io", "file", "file_buffer", "ambient_get"],
-        operation: RuntimeHostOperation::FileBufferAmbientGet,
+        path: &["std", "io", "file", "file", "ambient_get"],
+        operation: RuntimeHostOperation::FileAmbientGet,
     },
     RuntimeHostOperationSpec {
-        act: RuntimeHostAct::FileBuffer,
+        act: RuntimeHostAct::File,
         operation_id: "ambient_set",
         tier: RuntimeHostOperationTier::Sync,
         surface: RuntimeHostOperationSurface::Contract,
         signature: "(path, str) -> unit",
-        path: &["std", "io", "file", "file_buffer", "ambient_set"],
-        operation: RuntimeHostOperation::FileBufferAmbientSet,
+        path: &["std", "io", "file", "file", "ambient_set"],
+        operation: RuntimeHostOperation::FileAmbientSet,
     },
 ];
 
-const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[
-    RuntimeHostAct::ConsoleOut,
-    RuntimeHostAct::File,
-    RuntimeHostAct::FileBuffer,
-];
+const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[RuntimeHostAct::ConsoleOut, RuntimeHostAct::File];
 
 const RUNTIME_HOST_MANIFEST: RuntimeHostManifest =
     RuntimeHostManifest::new(RUNTIME_HOST_OPERATIONS, RUNTIME_HOST_ACTS);
@@ -479,21 +402,15 @@ mod tests {
     fn runtime_host_operation_table_separates_console_and_file_acts() {
         let mut console_ops = 0;
         let mut file_ops = 0;
-        let mut file_buffer_ops = 0;
         for spec in RUNTIME_HOST_OPERATIONS {
             match spec.act {
                 RuntimeHostAct::ConsoleOut => console_ops += 1,
                 RuntimeHostAct::File => file_ops += 1,
-                RuntimeHostAct::FileBuffer => file_buffer_ops += 1,
             }
         }
 
         assert_eq!(console_ops, 1, "console out should have one current op");
-        assert_eq!(file_ops, 13, "file act should have current file host ops");
-        assert_eq!(
-            file_buffer_ops, 2,
-            "file buffer act should have current ambient host ops"
-        );
+        assert_eq!(file_ops, 8, "file act should have current file host ops");
     }
 
     #[test]
@@ -508,12 +425,12 @@ mod tests {
         }
 
         assert_eq!(
-            contract_ops, 6,
+            contract_ops, 7,
             "contract host ops should cover console plus file protocol and ambient ops"
         );
         assert_eq!(
-            raw_compat_ops, 10,
-            "raw compatibility ops should stay isolated from the contract surface"
+            raw_compat_ops, 2,
+            "only provisional range helpers should stay isolated from the contract surface"
         );
     }
 
@@ -534,29 +451,22 @@ mod tests {
             contract_paths,
             BTreeSet::from([
                 "std.io.console.out.write".to_string(),
+                "std.io.file.file.ambient_get".to_string(),
+                "std.io.file.file.ambient_set".to_string(),
+                "std.io.file.file.ambient_touch".to_string(),
                 "std.io.file.file.load".to_string(),
                 "std.io.file.file.meta".to_string(),
                 "std.io.file.file.store".to_string(),
-                "std.io.file.file_buffer.ambient_get".to_string(),
-                "std.io.file.file_buffer.ambient_set".to_string(),
             ]),
-            "only the protocol file ops and ambient file buffer ops should be contract surface"
+            "only the protocol and ambient file ops should be contract surface"
         );
         assert_eq!(
             raw_compat_paths,
             BTreeSet::from([
-                "std.io.file.file.file_flush".to_string(),
-                "std.io.file.file.file_get".to_string(),
-                "std.io.file.file.file_set".to_string(),
-                "std.io.file.file.file_snapshot_commit".to_string(),
-                "std.io.file.file.file_snapshot_get".to_string(),
-                "std.io.file.file.file_snapshot_set".to_string(),
-                "std.io.file.file.open_text_raw".to_string(),
-                "std.io.file.file.open_text_snapshot_raw".to_string(),
                 "std.io.file.file.read_at".to_string(),
                 "std.io.file.file.write_at".to_string(),
             ]),
-            "legacy range/raw/snapshot operations must stay isolated as raw-compat"
+            "only provisional range helpers should remain isolated as raw-compat"
         );
     }
 
@@ -685,13 +595,13 @@ mod tests {
     }
 
     #[test]
-    fn runtime_host_registry_reports_known_file_buffer_unknown_op_as_capability_failure() {
+    fn runtime_host_registry_reports_known_file_unknown_op_as_capability_failure() {
         let registry = RuntimeHostRegistry::new(true);
         let path = [
             "std".into(),
             "io".into(),
             "file".into(),
-            "file_buffer".into(),
+            "file".into(),
             "not_registered".into(),
         ];
 
@@ -699,7 +609,7 @@ mod tests {
             registry.resolve(&path),
             Some(RuntimeHostRequestResolution::UnsupportedCapability(
                 RuntimeHostCapabilityFailure {
-                    act: RuntimeHostAct::FileBuffer
+                    act: RuntimeHostAct::File
                 }
             ))
         );

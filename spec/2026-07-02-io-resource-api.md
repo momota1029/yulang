@@ -73,6 +73,9 @@ pub host act file:
     pub store: (path, str) -> result unit io_err
     pub store_bytes: (path, bytes) -> result unit io_err
     pub meta: path -> file_meta
+    pub ambient_touch: path -> result unit io_err   -- 追補 2026-07-03 (D4)
+    pub ambient_get: path -> str                    -- handler-extent ledger hit
+    pub ambient_set: (path, str) -> unit            -- ledger 更新
 
 pub error io_err:
     not_found path
@@ -91,6 +94,14 @@ pub struct file_meta {
 **`meta` は失敗しない。** 存在しない・アクセスできないは `kind` の値であって
 例外ではない。存在確認は try/catch にならない。`exists` / `is_file` / `is_dir`
 を中心 API に置かない方針（07-01 spec）はこれで実現される。
+
+ambient 三操作は unscoped `text` の下部機構である（追補 2026-07-03。正本:
+[notes/design/2026-07-03-contract-v1-stage2-closeout.md](../notes/design/2026-07-03-contract-v1-stage2-closeout.md)
+D1 / D2 / D4）。`text` は作成点で `ambient_touch` を行い、失敗は typed
+`io_err`（missing は `not_found`。create 意味論は持たない）。touch 済み path
+への `ambient_get` / `ambient_set` は失敗しない（`meta` と同じく素の型）。
+extent 終端の flush 失敗と、untouched path への直接 perform は structured
+runtime error であり、typed の保証は `text` 経由にだけ与える。
 
 ### 高レベル（純 Yulang。buffer + commit は v1 決定2）
 

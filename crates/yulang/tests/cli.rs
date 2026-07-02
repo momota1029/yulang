@@ -189,8 +189,8 @@ my missing_meta = std::io::file::meta {missing}
 }
 
 #[test]
-fn compatible_run_std_file_open_text_ref_host_contract() {
-    let root = temp_root("run-std-file-open-text-ref");
+fn compatible_run_std_file_text_with_host_contract() {
+    let root = temp_root("run-std-file-text-with");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     let direct = root.join("direct.txt");
@@ -202,24 +202,27 @@ fn compatible_run_std_file_open_text_ref_host_contract() {
         &entry,
         format!(
             "\
+use std::control::var::*
+
 my direct_result = {{
-    my &txt = std::io::file::open_text {direct}
-    my before = $txt
-    &txt = before + \" direct\"
-    my after = std::io::file::read_text {direct}
-    (before, after)
+    std::io::file::text_with {direct}: \\text0 ->
+        my $text = text0
+        my before = $text
+        &text = before + \" direct\"
+        ((before, $text), $text)
 }}
 
-my scoped_result = std::io::file::open_in {scoped}: \\&txt ->
-    my before = $txt
-    &txt = before + \" scoped\"
-    my buffer = $txt
-    my backing_during_scope = std::io::file::read_text {scoped}
-    (before, buffer, backing_during_scope)
+my direct_after = std::io::file::read_text {direct}
+
+my scoped_result = std::io::file::text_with {scoped}: \\text0 ->
+    my $text = text0
+    my before = $text
+    &text = before + \" scoped\"
+    ((before, $text), $text)
 
 my scoped_after = std::io::file::read_text {scoped}
 
-(direct_result, scoped_result, scoped_after)
+(direct_result, direct_after, scoped_result, scoped_after)
 ",
             direct = yulang_string_literal(&direct),
             scoped = yulang_string_literal(&scoped),
@@ -240,7 +243,7 @@ my scoped_after = std::io::file::read_text {scoped}
     assert_success(&output);
     assert_eq!(
         stdout(&output),
-        "run roots [((\"hello\", \"hello direct\"), (\"hi\", \"hi scoped\", \"hi\"), \"hi scoped\")]\n"
+        "run roots [((\"hello\", \"hello direct\"), \"hello direct\", (\"hi\", \"hi scoped\"), \"hi scoped\")]\n"
     );
     assert_eq!(fs::read_to_string(&direct).unwrap(), "hello direct");
     assert_eq!(fs::read_to_string(&scoped).unwrap(), "hi scoped");
@@ -1718,13 +1721,13 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert!(stdout.starts_with("runtime host manifest:\n"), "{stdout}");
     assert_eq!(
         stdout.matches(" surface=contract\n").count(),
-        6,
-        "debug manifest should expose only console, file protocol, and ambient file_buffer ops as contract surface:\n{stdout}"
+        7,
+        "debug manifest should expose only console and file protocol/ambient ops as contract surface:\n{stdout}"
     );
     assert_eq!(
         stdout.matches(" surface=raw-compat\n").count(),
-        10,
-        "debug manifest should keep legacy range/raw/snapshot file ops isolated as raw-compat:\n{stdout}"
+        2,
+        "debug manifest should keep only provisional range file ops isolated as raw-compat:\n{stdout}"
     );
     assert!(
         stdout.contains(
@@ -1761,19 +1764,19 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=open_text_raw tier=sync path=std.io.file.file.open_text_raw sig=path -> result file_handle io_err surface=raw-compat\n"
+            "  act=std.io.file.file op=ambient_touch tier=sync path=std.io.file.file.ambient_touch sig=path -> result unit io_err surface=contract\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get sig=path -> str surface=contract\n"
+            "  act=std.io.file.file op=ambient_get tier=sync path=std.io.file.file.ambient_get sig=path -> str surface=contract\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file_buffer op=ambient_set tier=sync path=std.io.file.file_buffer.ambient_set sig=(path, str) -> unit surface=contract\n"
+            "  act=std.io.file.file op=ambient_set tier=sync path=std.io.file.file.ambient_set sig=(path, str) -> unit surface=contract\n"
         ),
         "{stdout}"
     );

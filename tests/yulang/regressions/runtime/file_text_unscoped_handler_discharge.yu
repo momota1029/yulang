@@ -7,8 +7,9 @@ my edit() = (\&text ->
 ) (std::io::file::text "/mock")
 
 my run(backing, x: [_] _) = catch x:
-    std::io::file::file_buffer::ambient_get path, k -> run backing: k backing
-    std::io::file::file_buffer::ambient_set (path, text), k -> run text: k ()
+    std::io::file::file::ambient_touch path, k -> run backing: k (result::ok ())
+    std::io::file::file::ambient_get path, k -> run backing: k backing
+    std::io::file::file::ambient_set (path, text), k -> run text: k ()
     value -> (value, backing)
 
 run "start": edit()

@@ -54,7 +54,7 @@ Contract v0 as a generic TODO.
 | Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. New runtime speedups should prefer static proof emission in mono/specialize over signal-by-signal dynamic cert checks when the static conditions are available. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs; `notes/design/2026-07-02-static-route-promotion-plan.md` |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `yulang contract tests/yulang/cases.toml`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
-| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the `std::io::file` helper/metadata surface remains a migration canary until locking, portable metadata behavior, and the public replacement/removal of `raw-compat` file session operations are finalized. The current IO resource spec fixes file / connect / serve under one `host act + session + managed view + raw` model, and the native CLI host now covers public `file::load` / `file::store` / `file::meta` protocol cases plus the first unscoped `file_buffer` ambient handler-extent case. The host-act canaries now also cover console source mocking and unsupported-host denial, so file and console share one capability-routing shape. Serve implementation must start from the structured concurrency decision: `accept` branches are children of the serving handler extent, cancel is queued through the scheduler, and the first slice only drops suspended branches. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); [notes/design/2026-07-03-structured-concurrency-decisions.md](../notes/design/2026-07-03-structured-concurrency-decisions.md); host/filesystem/FFI TODO notes |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the `std::io::file` helper/metadata surface remains a migration canary until locking and portable metadata behavior are finalized. The current IO resource spec fixes file / connect / serve under one `host act + session + managed view + raw` model, and the native CLI host now covers public `file::load` / `file::store` / `file::meta` protocol cases plus integrated `file::ambient_touch` / `ambient_get` / `ambient_set` handler-extent cases. The host-act canaries now also cover console source mocking and unsupported-host denial, so file and console share one capability-routing shape. Serve implementation must start from the structured concurrency decision: `accept` branches are children of the serving handler extent, cancel is queued through the scheduler, and the first slice only drops suspended branches. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); [notes/design/2026-07-03-structured-concurrency-decisions.md](../notes/design/2026-07-03-structured-concurrency-decisions.md); host/filesystem/FFI TODO notes |
 | File Resource Contract | Contract v1 should prove that files behave like durable `&` variables across pure mock handlers, the native CLI host, and unsupported hosts. Managed text/bytes lenses must follow snapshot transaction semantics: normal scope exit commits, abort rolls back, multi-shot branches keep independent buffers, and multiple commits are last-write-wins. Existing `std::io::file` helper coverage stays `migration-canary` until those semantics are executable. | [docs/language/file-resource-contract.md](language/file-resource-contract.md); [docs/language/contract-v1-file-evidence.md](language/contract-v1-file-evidence.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [notes/design/2026-07-02-resource-lifetime-decisions.md](../notes/design/2026-07-02-resource-lifetime-decisions.md); [notes/todo/contract-v1-file-resource-priority.md](../notes/todo/contract-v1-file-resource-priority.md) |
 
 A change can be treated as contract-hardening when it improves one of those
@@ -192,28 +192,24 @@ The columns trace a value through the pipeline:
   now return typed
   `result ... io_err` values at the host act boundary while preserving the
   existing throwing public wrappers, and the runtime manifest classifies them as
-  `raw-compat` because range semantics remain provisional. `open_text` /
-  `open_in` raw open and commit operations also return typed
-  `result ... io_err` values now; the old integer-code mapper is gone.
+  `raw-compat` because range semantics remain provisional. The old
+  `open_text` / `open` / `open_in` snapshot helper surface and its private
+  raw host operations are retired from `std::io::file` and from the runtime
+  host manifest; the old integer-code mapper is gone.
   `text_with` is now the state-passing protocol
   over public `load` / `store`: native normal commit, callback-abort rollback,
   nondet branch-local last-write-wins, nested cross-file sessions, and nested
   state-var capture are executable manifest cases, and source mock handlers
   cover commit, rollback, branch-local buffers, and nested cross-file sessions
-  under `--host unsupported`. `open_text`, `open`, and `open_in` remain legacy
-  native snapshot
-  canaries, not the center of the Contract v1 evidence. The runtime host
-  manifest now exposes `surface=contract|raw-compat`, so those
-  compatibility operations are separated from the contract protocol in debug
-  and release smoke output. This is still not the full Contract v1
-  file-resource contract because a public session replacement for `raw-compat`,
-  native unscoped ambient failure typing, directory listing, portable metadata
-  expansion, and lock release remain provisional. Unsupported host coverage now
-  includes both the `file` act and ambient `file_buffer` act, so neither path
-  fakes success under `--host unsupported`; native ambient read failure now has
-  `yulang.host-io-error` coverage for missing backing files, but typed
-  `io_err` propagation for ambient refs is still blocked on the session/error
-  boundary. The
+  under `--host unsupported`. The runtime host manifest now exposes
+  `surface=contract|raw-compat`, and Stage A of the Contract v1 Stage 2
+  closeout leaves only the provisional range helpers on `raw-compat`. This is
+  still keeps directory listing, portable metadata expansion, and lock release
+  provisional. Unsupported host coverage now goes through the unified `file`
+  act, so ambient `text` does not fake success under `--host unsupported`;
+  native `file::text` missing-path creation reports typed `io_err::not_found`,
+  while direct out-of-protocol `file::ambient_get` still reports structured
+  `yulang.host-io-error` as specified by the Stage 2 closeout decision.
   resource lifetime semantics are specified: `_with` resources close at
   continuation end, unscoped resources close at the provider handler extent,
   managed lens commits only on normal scope exit, aborted branches roll back,

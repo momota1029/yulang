@@ -362,10 +362,6 @@ enum EvidenceContinuationFrame {
         snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
         inner: EvidenceContinuation,
     },
-    FileSnapshots {
-        state: RuntimeFileHostSnapshotState,
-        inner: EvidenceContinuation,
-    },
     ForceThunk {
         target_value_is_thunk: bool,
         next: EvidenceContinuation,
@@ -1486,11 +1482,6 @@ impl EvidenceResumeScopedTraceBuilder {
                 }
             }
             EvidenceContinuationFrame::StateFrames { inner, .. } => {
-                if let Some(frame) = inner.frame() {
-                    self.append_frame(scope, frame, routed_yield_handler);
-                }
-            }
-            EvidenceContinuationFrame::FileSnapshots { inner, .. } => {
                 if let Some(frame) = inner.frame() {
                     self.append_frame(scope, frame, routed_yield_handler);
                 }
@@ -3508,9 +3499,6 @@ impl EvidenceScopeInstructionPlanBuilder {
             EvidenceContinuationFrame::StateFrames { .. } => {
                 Err(EvidenceScopeLocalPlanReject::RequestBoundary)
             }
-            EvidenceContinuationFrame::FileSnapshots { .. } => {
-                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
-            }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -3619,9 +3607,6 @@ impl EvidenceScopeLocalPlanBuilder {
             EvidenceContinuationFrame::StateFrames { .. } => {
                 Err(EvidenceScopeLocalPlanReject::RequestBoundary)
             }
-            EvidenceContinuationFrame::FileSnapshots { .. } => {
-                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
-            }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -3723,9 +3708,6 @@ impl EvidenceScopeSidecarPlanBuilder {
                 self.append_continuation(second)
             }
             EvidenceContinuationFrame::StateFrames { .. } => {
-                Err(EvidenceScopeSidecarPlanReject::RequestBoundary)
-            }
-            EvidenceContinuationFrame::FileSnapshots { .. } => {
                 Err(EvidenceScopeSidecarPlanReject::RequestBoundary)
             }
             EvidenceContinuationFrame::MarkerFrame {
@@ -4621,15 +4603,6 @@ impl EvidenceEffectSignal {
     fn from_request(request: EvidenceRequest) -> Self {
         Self::GenericRequest(request)
     }
-
-    fn continuation_has_file_snapshots(&self) -> bool {
-        match self {
-            Self::GenericRequest(request) => request.continuation.contains_file_snapshots(),
-            Self::DirectTailResumptive(call) => call.continuation.contains_file_snapshots(),
-            Self::RoutedYield(call) => call.request.continuation.contains_file_snapshots(),
-            Self::DirectAbortive(_) => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -4895,16 +4868,6 @@ impl EvidenceContinuation {
         }
         Self::Frame(Rc::new(EvidenceContinuationFrame::StateFrames {
             snapshots,
-            inner,
-        }))
-    }
-
-    fn file_snapshots(state: RuntimeFileHostSnapshotState, inner: Self) -> Self {
-        if state.snapshots.is_empty() {
-            return inner;
-        }
-        Self::Frame(Rc::new(EvidenceContinuationFrame::FileSnapshots {
-            state,
             inner,
         }))
     }
@@ -5286,13 +5249,6 @@ impl EvidenceContinuation {
         matches!(self, Self::Identity)
     }
 
-    fn contains_file_snapshots(&self) -> bool {
-        let Some(frame) = self.frame() else {
-            return false;
-        };
-        frame.contains_file_snapshots()
-    }
-
     fn then_counted(
         self,
         tail: Self,
@@ -5616,27 +5572,9 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
-    fn contains_file_snapshots(&self) -> bool {
-        match self {
-            Self::FileSnapshots { .. } => true,
-            Self::Then { first, second } => {
-                first.contains_file_snapshots() || second.contains_file_snapshots()
-            }
-            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
-                scope.contains_file_snapshots() || next.contains_file_snapshots()
-            }
-            _ => self
-                .tail_ref()
-                .is_some_and(EvidenceContinuation::contains_file_snapshots),
-        }
-    }
-
     fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
         match (self, routed_yield_handler) {
             (Self::StateFrames { inner, .. }, _) => {
-                inner.starts_with_foreign_catch_boundary(routed_yield_handler)
-            }
-            (Self::FileSnapshots { inner, .. }, _) => {
                 inner.starts_with_foreign_catch_boundary(routed_yield_handler)
             }
             (Self::CatchBody { catch_expr, .. }, Some(handler)) => *catch_expr != handler,
@@ -5759,10 +5697,6 @@ impl EvidenceContinuationFrame {
                 )
             }
             Self::StateFrames { .. } => EvidenceResumePlanShadowProfile {
-                eval_frames: 1,
-                ..EvidenceResumePlanShadowProfile::default()
-            },
-            Self::FileSnapshots { .. } => EvidenceResumePlanShadowProfile {
                 eval_frames: 1,
                 ..EvidenceResumePlanShadowProfile::default()
             },
@@ -6205,7 +6139,7 @@ impl EvidenceContinuationFrame {
                     frame.append_eval_delta_plan(frames);
                 }
             }
-            Self::StateFrames { .. } | Self::FileSnapshots { .. } => {}
+            Self::StateFrames { .. } => {}
         }
     }
 
@@ -6444,10 +6378,6 @@ impl EvidenceContinuationFrame {
                 request_boundaries: 1,
                 ..EvidenceDirectTailSegmentProfile::default()
             },
-            Self::FileSnapshots { .. } => EvidenceDirectTailSegmentProfile {
-                request_boundaries: 1,
-                ..EvidenceDirectTailSegmentProfile::default()
-            },
             Self::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -6533,9 +6463,6 @@ impl EvidenceContinuationFrame {
                 }
             }
             EvidenceContinuationFrame::StateFrames { inner, .. } => {
-                inner.request_boundary_profile(routed_yield_handler, stats)
-            }
-            EvidenceContinuationFrame::FileSnapshots { inner, .. } => {
                 inner.request_boundary_profile(routed_yield_handler, stats)
             }
             EvidenceContinuationFrame::CatchBody {
@@ -7407,7 +7334,6 @@ impl EvidenceContinuationFrame {
             EvidenceContinuationFrame::MarkerFrame { .. }
             | EvidenceContinuationFrame::ProviderEnv { .. }
             | EvidenceContinuationFrame::StateFrames { .. } => None,
-            EvidenceContinuationFrame::FileSnapshots { inner, .. } => Some(inner),
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
@@ -7448,7 +7374,6 @@ impl EvidenceContinuationFrame {
             EvidenceContinuationFrame::MarkerFrame { .. }
             | EvidenceContinuationFrame::ProviderEnv { .. }
             | EvidenceContinuationFrame::StateFrames { .. } => None,
-            EvidenceContinuationFrame::FileSnapshots { inner, .. } => Some(inner),
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
@@ -8175,7 +8100,6 @@ struct RuntimeEvidenceRunner<'a> {
     active_provider_handlers: Vec<u32>,
     active_state_handler_frames: Vec<RuntimeStateHandlerFrame>,
     state_frame_snapshot_resume_counts: HashMap<RuntimeStateFrameId, usize>,
-    file_snapshot_resume_depth: usize,
     resume_plans: Vec<EvidenceResumePlan>,
     resume_plan_traces: Vec<EvidenceResumePlanTracePlan>,
     resume_plan_scoped_traces: Vec<EvidenceResumeScopedTracePlan>,
@@ -8186,32 +8110,12 @@ struct RuntimeEvidenceRunner<'a> {
     provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, EvidenceProviderDeltaId>,
     provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
     stdout: String,
-    file_handles: HashMap<i64, PathBuf>,
-    file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
-    // Callback-local file snapshots can close before the surrounding managed
-    // lens reaches its commit operation. Keep the normal-return state here so
-    // commit consumes the branch-local buffer, while abortive exits still roll
-    // back by never recording a closed snapshot.
-    closed_file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
     file_ambient_buffers: HashMap<PathBuf, String>,
-    next_file_handle: i64,
     host_scheduler: RuntimeHostScheduler,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct RuntimeFileHostSnapshotState {
-    snapshots: HashMap<i64, RuntimeFileSnapshot>,
-    next_file_handle: i64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct RuntimeFileSnapshot {
-    path: PathBuf,
-    text: String,
 }
 
 impl<'a> RuntimeEvidenceRunner<'a> {
@@ -8252,7 +8156,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_provider_handlers: Vec::new(),
             active_state_handler_frames: Vec::new(),
             state_frame_snapshot_resume_counts: HashMap::new(),
-            file_snapshot_resume_depth: 0,
             resume_plans: Vec::new(),
             resume_plan_traces: Vec::new(),
             resume_plan_scoped_traces: Vec::new(),
@@ -8263,11 +8166,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
             stdout: String::new(),
-            file_handles: HashMap::new(),
-            file_snapshots: HashMap::new(),
-            closed_file_snapshots: HashMap::new(),
             file_ambient_buffers: HashMap::new(),
-            next_file_handle: 0,
             host_scheduler,
             host_registry,
             host_constructors,
@@ -12195,22 +12094,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeHostOperation::FileMeta => self.file_meta(spec, payload),
             RuntimeHostOperation::FileReadAt => self.file_read_at(spec, payload),
             RuntimeHostOperation::FileWriteAt => self.file_write_at(spec, payload),
-            RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(spec, payload),
-            RuntimeHostOperation::FileGet => self.file_get(spec, payload),
-            RuntimeHostOperation::FileSet => self.file_set(spec, payload),
-            RuntimeHostOperation::FileFlush => self.file_flush(spec, payload),
-            RuntimeHostOperation::FileOpenTextSnapshotRaw => {
-                self.file_open_text_snapshot_raw(spec, payload)
-            }
-            RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(spec, payload),
-            RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(spec, payload),
-            RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(spec, payload),
-            RuntimeHostOperation::FileBufferAmbientGet => {
-                self.file_buffer_ambient_get(spec, payload)
-            }
-            RuntimeHostOperation::FileBufferAmbientSet => {
-                self.file_buffer_ambient_set(spec, payload)
-            }
+            RuntimeHostOperation::FileAmbientTouch => self.file_ambient_touch(spec, payload),
+            RuntimeHostOperation::FileAmbientGet => self.file_ambient_get(spec, payload),
+            RuntimeHostOperation::FileAmbientSet => self.file_ambient_set(spec, payload),
         }
     }
 
@@ -12409,135 +12295,28 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
-    fn file_open_text_raw(
+    fn file_ambient_touch(
         &mut self,
         spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let path = runtime_host_path(payload)?;
-        if let Err(error) = fs::read_to_string(&path) {
-            let error = self.host_io_error(spec, &path, &error)?;
-            return self.host_result_err(spec, error);
+        if self.file_ambient_buffers.contains_key(&path) {
+            return self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit));
         }
-        let handle = self.next_file_handle;
-        self.next_file_handle += 1;
-        self.file_handles.insert(handle, path);
-        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Int(handle)))
-    }
-
-    fn file_get(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let handle = runtime_host_int(payload)?;
-        let Some(path) = self.file_handles.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        };
-        let text = fs::read_to_string(path)
-            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
-        Ok(shared(RuntimeEvidenceValue::Str(text)))
-    }
-
-    fn file_set(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 2)?;
-        let handle = runtime_host_int(args[0].as_ref())?;
-        let text = runtime_host_string(args[1].as_ref())?;
-        let Some(path) = self.file_handles.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        };
-        fs::write(path, text)
-            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
-        Ok(shared(RuntimeEvidenceValue::Unit))
-    }
-
-    fn file_flush(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let handle = runtime_host_int(payload)?;
-        if !self.file_handles.contains_key(&handle) {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        }
-        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit))
-    }
-
-    fn file_open_text_snapshot_raw(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        let text = match fs::read_to_string(&path) {
-            Ok(text) => text,
+        match fs::read_to_string(&path) {
+            Ok(text) => {
+                self.file_ambient_buffers.insert(path, text);
+                self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit))
+            }
             Err(error) => {
                 let error = self.host_io_error(spec, &path, &error)?;
-                return self.host_result_err(spec, error);
-            }
-        };
-        let handle = self.next_file_handle;
-        self.next_file_handle += 1;
-        self.closed_file_snapshots.remove(&handle);
-        self.file_snapshots
-            .insert(handle, RuntimeFileSnapshot { path, text });
-        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Int(handle)))
-    }
-
-    fn file_snapshot_get(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let handle = runtime_host_int(payload)?;
-        let Some(snapshot) = self.file_snapshots.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        };
-        Ok(shared(RuntimeEvidenceValue::Str(snapshot.text.clone())))
-    }
-
-    fn file_snapshot_set(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 2)?;
-        let handle = runtime_host_int(args[0].as_ref())?;
-        let text = runtime_host_string(args[1].as_ref())?;
-        let Some(snapshot) = self.file_snapshots.get_mut(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        };
-        snapshot.text = text;
-        Ok(shared(RuntimeEvidenceValue::Unit))
-    }
-
-    fn file_snapshot_commit(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let handle = runtime_host_int(payload)?;
-        let snapshot = self
-            .closed_file_snapshots
-            .remove(&handle)
-            .or_else(|| self.file_snapshots.get(&handle).cloned());
-        let Some(snapshot) = snapshot else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
-        };
-        match fs::write(&snapshot.path, &snapshot.text) {
-            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
-            Err(error) => {
-                let error = self.host_io_error(spec, &snapshot.path, &error)?;
                 self.host_result_err(spec, error)
             }
         }
     }
 
-    fn file_buffer_ambient_get(
+    fn file_ambient_get(
         &mut self,
         spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
@@ -12552,14 +12331,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Ok(shared(RuntimeEvidenceValue::Str(text)))
     }
 
-    fn file_buffer_ambient_set(
+    fn file_ambient_set(
         &mut self,
-        _spec: &RuntimeHostOperationSpec,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let args = runtime_host_tuple(payload, 2)?;
         let path = runtime_host_path(args[0].as_ref())?;
         let text = runtime_host_string(args[1].as_ref())?;
+        if !self.file_ambient_buffers.contains_key(&path) {
+            fs::read_to_string(&path)
+                .map_err(|error| host_io_runtime_error(spec.path_strings(), &path, &error))?;
+        }
         self.file_ambient_buffers.insert(path, text);
         Ok(shared(RuntimeEvidenceValue::Unit))
     }
@@ -12572,7 +12355,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         "std".into(),
                         "io".into(),
                         "file".into(),
-                        "file_buffer".into(),
+                        "file".into(),
                         "ambient_set".into(),
                     ],
                     path,
@@ -13057,161 +12840,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::direct_abortive(call)
             }
         }
-    }
-
-    fn continue_result_under_file_snapshots(
-        &mut self,
-        state: RuntimeFileHostSnapshotState,
-        result: EvidenceEvalResult,
-        inner: EvidenceContinuation,
-    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let previous = self.replace_file_host_snapshot_state(state);
-        self.file_snapshot_resume_depth += 1;
-        let mut result = self.continue_result(result, inner);
-        loop {
-            let request = match result {
-                Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))) => {
-                    request
-                }
-                _ => break,
-            };
-            match self.try_handle_runtime_host_request(request) {
-                Ok(RuntimeHostRequestHandling::Handled(host_result)) => {
-                    result = Ok(host_result);
-                }
-                Ok(RuntimeHostRequestHandling::Unhandled(request)) => {
-                    result = Ok(EvidenceEvalResult::request(request));
-                    break;
-                }
-                Err(err) => {
-                    result = Err(err);
-                    break;
-                }
-            }
-        }
-        self.file_snapshot_resume_depth -= 1;
-        match result {
-            Ok(result) => Ok(self.close_file_snapshot_resume_result(previous, result)),
-            Err(err) => {
-                self.replace_file_host_snapshot_state(previous);
-                Err(err)
-            }
-        }
-    }
-
-    fn close_file_snapshot_resume_result(
-        &mut self,
-        previous: RuntimeFileHostSnapshotState,
-        result: EvidenceEvalResult,
-    ) -> EvidenceEvalResult {
-        match result {
-            EvidenceEvalResult::Value(value) => {
-                self.record_closed_file_snapshot_values(&previous);
-                let restore = if self.file_snapshot_resume_depth > 0 {
-                    self.snapshot_file_host_state()
-                } else {
-                    previous
-                };
-                self.replace_file_host_snapshot_state(restore);
-                EvidenceEvalResult::Value(value)
-            }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
-                let state = self.snapshot_file_host_state();
-                self.replace_file_host_snapshot_state(previous);
-                EvidenceEvalResult::request(self.rewrap_request_with_file_snapshots(request, state))
-            }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
-                let state = self.snapshot_file_host_state();
-                self.replace_file_host_snapshot_state(previous);
-                EvidenceEvalResult::direct_tail_resumptive(
-                    self.rewrap_direct_tail_with_file_snapshots(call, state),
-                )
-            }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
-                let state = self.snapshot_file_host_state();
-                self.replace_file_host_snapshot_state(previous);
-                EvidenceEvalResult::routed_yield(
-                    self.rewrap_routed_yield_with_file_snapshots(call, state),
-                )
-            }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                self.replace_file_host_snapshot_state(previous);
-                EvidenceEvalResult::direct_abortive(call)
-            }
-        }
-    }
-
-    fn file_snapshot_scoped_continuation(
-        &self,
-        continuation: EvidenceContinuation,
-    ) -> EvidenceContinuation {
-        if self.file_snapshot_resume_depth > 0
-            || self.file_snapshots.is_empty()
-            || matches!(
-                continuation.frame(),
-                Some(EvidenceContinuationFrame::FileSnapshots { .. })
-            )
-        {
-            return continuation;
-        }
-        EvidenceContinuation::file_snapshots(self.snapshot_file_host_state(), continuation)
-    }
-
-    fn snapshot_file_host_state(&self) -> RuntimeFileHostSnapshotState {
-        RuntimeFileHostSnapshotState {
-            snapshots: self.file_snapshots.clone(),
-            next_file_handle: self.next_file_handle,
-        }
-    }
-
-    fn replace_file_host_snapshot_state(
-        &mut self,
-        state: RuntimeFileHostSnapshotState,
-    ) -> RuntimeFileHostSnapshotState {
-        let snapshots = mem::replace(&mut self.file_snapshots, state.snapshots);
-        let next_file_handle = mem::replace(&mut self.next_file_handle, state.next_file_handle);
-        RuntimeFileHostSnapshotState {
-            snapshots,
-            next_file_handle,
-        }
-    }
-
-    fn record_closed_file_snapshot_values(&mut self, previous: &RuntimeFileHostSnapshotState) {
-        for (handle, snapshot) in &self.file_snapshots {
-            if previous.snapshots.get(handle) != Some(snapshot) {
-                self.closed_file_snapshots.insert(*handle, snapshot.clone());
-            }
-        }
-    }
-
-    fn rewrap_request_with_file_snapshots(
-        &mut self,
-        request: EvidenceRequest,
-        state: RuntimeFileHostSnapshotState,
-    ) -> EvidenceRequest {
-        let continuation =
-            EvidenceContinuation::file_snapshots(state, EvidenceContinuation::identity());
-        self.append_request_continuation(request, continuation)
-    }
-
-    fn rewrap_direct_tail_with_file_snapshots(
-        &mut self,
-        call: EvidenceDirectTailResumptive,
-        state: RuntimeFileHostSnapshotState,
-    ) -> EvidenceDirectTailResumptive {
-        let continuation =
-            EvidenceContinuation::file_snapshots(state, EvidenceContinuation::identity());
-        self.append_direct_tail_continuation(call, continuation)
-    }
-
-    fn rewrap_routed_yield_with_file_snapshots(
-        &mut self,
-        call: EvidenceRoutedYield,
-        state: RuntimeFileHostSnapshotState,
-    ) -> EvidenceRoutedYield {
-        let continuation =
-            EvidenceContinuation::file_snapshots(state, EvidenceContinuation::identity());
-        call.append_continuation(continuation, &mut self.stats)
     }
 
     fn state_frame_rewrap_continuation(
@@ -14540,12 +14168,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceEvalResult::Value(value),
                     inner,
                 ),
-            EvidenceContinuationFrame::FileSnapshots { state, inner } => self
-                .continue_result_under_file_snapshots(
-                    state,
-                    EvidenceEvalResult::Value(value),
-                    inner,
-                ),
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
                 next,
@@ -15863,9 +15485,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::StateFrames { .. } => {
                 self.stats.continuation_resume_force_steps += 1;
             }
-            EvidenceContinuationFrame::FileSnapshots { .. } => {
-                self.stats.continuation_resume_force_steps += 1;
-            }
             EvidenceContinuationFrame::ForceThunk { .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { .. } => {
                 self.stats.continuation_resume_force_steps += 1;
@@ -15985,11 +15604,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         signal: EvidenceEffectSignal,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let continuation = if signal.continuation_has_file_snapshots() {
-            continuation
-        } else {
-            self.file_snapshot_scoped_continuation(continuation)
-        };
         match signal {
             EvidenceEffectSignal::GenericRequest(request) => {
                 self.continue_request_with_continuation(request, continuation)
@@ -16025,12 +15639,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::StateFrames { snapshots, inner } => self
                 .continue_result_under_state_frames(
                     snapshots,
-                    EvidenceEvalResult::direct_abortive(call),
-                    inner,
-                ),
-            EvidenceContinuationFrame::FileSnapshots { state, inner } => self
-                .continue_result_under_file_snapshots(
-                    state,
                     EvidenceEvalResult::direct_abortive(call),
                     inner,
                 ),
@@ -16421,13 +16029,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::StateFrames { snapshots, inner } => {
                 return self.continue_result_under_state_frames(
                     snapshots,
-                    EvidenceEvalResult::direct_tail_resumptive(call),
-                    inner,
-                );
-            }
-            EvidenceContinuationFrame::FileSnapshots { state, inner } => {
-                return self.continue_result_under_file_snapshots(
-                    state,
                     EvidenceEvalResult::direct_tail_resumptive(call),
                     inner,
                 );
@@ -16937,13 +16538,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::StateFrames { snapshots, inner } => {
                 return self.continue_result_under_state_frames(
                     snapshots,
-                    self.routed_request_result(routed_yield_handler, request),
-                    inner,
-                );
-            }
-            EvidenceContinuationFrame::FileSnapshots { state, inner } => {
-                return self.continue_result_under_file_snapshots(
-                    state,
                     self.routed_request_result(routed_yield_handler, request),
                     inner,
                 );
@@ -20223,16 +19817,6 @@ fn host_io_error_kind(kind: io::ErrorKind) -> &'static str {
         io::ErrorKind::PermissionDenied => "permission_denied",
         io::ErrorKind::InvalidData | io::ErrorKind::InvalidInput => "invalid_path",
         _ => "operation_failed",
-    }
-}
-
-fn runtime_host_int(value: &RuntimeEvidenceValue) -> Result<i64, RuntimeEvidenceRunError> {
-    match value {
-        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_int(value),
-        RuntimeEvidenceValue::Int(value) => Ok(*value),
-        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
-            "non-int host argument",
-        )),
     }
 }
 

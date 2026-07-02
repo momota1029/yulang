@@ -96,14 +96,12 @@ fi
 host_manifest_output="$(run "$bin" debug host-act-manifest)"
 expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io.console.out.write'
 expected_file_manifest='act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta'
-expected_file_buffer_manifest='act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get'
-expected_file_raw_surface='act=std.io.file.file op=open_text_raw tier=sync path=std.io.file.file.open_text_raw sig=path -> result file_handle io_err surface=raw-compat'
+expected_file_ambient_manifest='act=std.io.file.file op=ambient_touch tier=sync path=std.io.file.file.ambient_touch'
 expected_file_range_raw_surface='act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(path, range) -> result (str, range) io_err surface=raw-compat'
 expected_suspend_multi_tier='tier=suspend-multi-shot'
 if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
   "$host_manifest_output" != *"$expected_file_manifest"* ||
-  "$host_manifest_output" != *"$expected_file_buffer_manifest"* ||
-  "$host_manifest_output" != *"$expected_file_raw_surface"* ||
+  "$host_manifest_output" != *"$expected_file_ambient_manifest"* ||
   "$host_manifest_output" != *"$expected_file_range_raw_surface"* ||
   "$host_manifest_output" != *"$expected_suspend_multi_tier"* ]]; then
   echo "release smoke: unexpected host act manifest output" >&2
@@ -141,7 +139,9 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_read_text_unsupported_host
     file_write_text_unsupported_host
     file_text_unsupported_host
-    file_text_native_missing_host_io_error
+    file_text_native_missing_typed_io_err
+    file_ambient_get_untouched_missing_host_io_error
+    file_text_mock_ambient_typed_not_found
   )
   file_resource_case_args=()
   for case_name in "${file_resource_cases[@]}"; do

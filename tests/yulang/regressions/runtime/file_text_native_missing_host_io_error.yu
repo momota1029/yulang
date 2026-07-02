@@ -1,3 +1,0 @@
-my &text = std::io::file::text {{missing_file}}
-
-$text

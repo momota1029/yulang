@@ -1,0 +1,11 @@
+my result = std::io::file::io_err::wrap:
+    catch (\&text -> $text) (std::io::file::text "/mock"):
+        std::io::file::file::ambient_touch path, k ->
+            k (result::err (std::io::file::io_err::not_found path))
+        value -> value
+
+case result:
+    result::err err -> case err:
+        std::io::file::io_err::not_found _ -> "mock-not-found"
+        _ -> "mock-other"
+    result::ok _ -> "mock-ok"

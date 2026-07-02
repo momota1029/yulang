@@ -3,12 +3,16 @@
 This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
-Status on 2026-07-03: **open, Stage 2 native protocol bridge covered**. The
+Status on 2026-07-03: **Stage 2 closeout covered for the file-session-free
+Contract v1 slice**. The
 contract box and tag policy exist, and the `file-resource` manifest subset now
 covers the public `file::load` / `file::store` / `file::meta` Stage 0 surface,
 the Stage 1 source-mock `text_with` protocol fixtures, and the first native
-registry parity cases over the same public protocol. Remaining legacy raw /
-snapshot operations stay a compatibility window, not the Contract v1 center.
+registry parity cases over the same public protocol. `file::text` now performs
+an eager `file::ambient_touch`, so missing native text resources become typed
+`io_err` at lens creation time while the returned ref remains `ref '[file] str`.
+Remaining `raw-compat` surface is limited to provisional `read_at` / `write_at`
+range helpers, not legacy snapshot sessions.
 Integer error-code translation has been removed from the `std::io::file` host
 bridge. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
@@ -35,16 +39,16 @@ public surface:
   and writes. Their host manifest surface is `raw-compat` because exact range
   semantics remain provisional rather than the Contract v1 center.
 - The contract manifest now mirrors that boundary with a `raw-compat` tag for
-  current executable range/raw/snapshot helper canaries, so manifest queries can
-  separate compatibility evidence from protocol-center evidence.
-- `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_flush`,
-  and `file::file_snapshot_commit` also return typed `result ... io_err`
-  values at the host act boundary. This removes `legacy_err_from_code` from
-  `lib/std/io/file.yu` and removes the runtime integer error-code helper.
+  current executable range helper canaries, so manifest queries can separate
+  compatibility evidence from protocol-center evidence.
+- `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_get`,
+  `file::file_set`, `file::file_flush`, `file::file_snapshot_get`,
+  `file::file_snapshot_set`, and `file::file_snapshot_commit` are retired from
+  `lib/std/io/file.yu` and from the runtime host manifest. Their public helper
+  entrypoints `open_text`, `open`, and `open_in` are retired with them.
 - `debug host-act-manifest` now exposes a `surface` column. Current operations
-  are separated into `contract` and `raw-compat`, so legacy snapshot operations
-  are observable as compatibility surface instead of being mixed into the
-  Contract v1 protocol surface.
+  are separated into `contract` and `raw-compat`, and the only file
+  `raw-compat` operations left after Stage A are `read_at` and `write_at`.
 - `debug host-act-manifest` also exposes the supported host operation tier ids:
   `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
   operations are still all registered as `sync`; the suspend tiers are the
@@ -62,15 +66,17 @@ public surface:
 - `io_err::wrap` converts failed file reads and writes into typed result
   boundaries. The `not_found` and `failed` constructors observed by runtime
   typed-failure cases also have public signature canaries.
-- `open_text`, `open`, and `open_in` remain as legacy native snapshot canaries
-  for Stage 2 migration, but they are not substitutes for the Stage 1 protocol
-  fixtures.
-- `file_buffer` is now ambient-only. It exposes `ambient_get` / `ambient_set`
-  for unscoped `file::text` and no longer has scoped `get` / `set` operations,
-  reperform transfer arms, or path-matching `same_path` checks.
+- `open_text`, `open`, and `open_in` are retired with the legacy native
+  snapshot operations. Stage 2 migration evidence now goes through
+  `text_with`, ambient `file::text`, and the public protocol operations.
+- Ambient text operations are integrated into the `file` act as
+  `ambient_touch`, `ambient_get`, and `ambient_set`. The former separate
+  `file_buffer` act is retired, so `file::text` exposes one `[file, io_err]`
+  entry row and returns `ref '[file] str`.
 - The native runtime host registry now registers
-  `std::io::file::file_buffer.ambient_get` and
-  `std::io::file::file_buffer.ambient_set` as a separate `file_buffer` host act.
+  `std::io::file::file.ambient_touch`,
+  `std::io::file::file.ambient_get`, and
+  `std::io::file::file.ambient_set` under the unified `file` host act.
   Unscoped `file::text` uses a handler-extent ambient ledger in the native
   runtime and flushes it at the end of a successful run.
 - `text_with` is the four-line state-passing protocol:
@@ -87,7 +93,7 @@ public surface:
   `file_text_with_nested_cross_file`.
 - Rollback and multi-shot evidence now run through `--host unsupported` source
   handlers over public `file::load` / `file::store`; they no longer depend on
-  native temp files or legacy `open_in` snapshot operations.
+  native temp files or legacy snapshot operations.
 - `tests/yulang/cases.toml` includes `file_native_protocol_load_store_meta`,
   a native CLI host case that calls public `file::load`, `file::store`, and
   `file::meta` directly, checks the compact roots, and verifies the backing
@@ -115,16 +121,16 @@ public surface:
 - `tests/yulang/cases.toml` includes
   `file_text_with_native_nested_cross_file`, which proves nested native
   `text_with` sessions over two backing files commit independently while the
-  inner callback can still close over the outer entry snapshot.
+  inner callback can still close over the outer entry text.
 - `tests/yulang/cases.toml` includes
   `file_text_with_native_nested_state_var`, which proves that the native
   protocol also supports a callback-local `&` state variable while an inner
   `text_with` callback mutates it through lexical capture.
 - `tests/yulang/cases.toml` includes
   `file_text_unscoped_native_handler_extent`, which proves unscoped
-  `file::text` reads through the native ambient `file_buffer` act, keeps the
-  backing file unchanged during the handler extent, and writes the dirty buffer
-  back at successful run completion.
+  `file::text` reads through the native ambient `file` act operations, keeps
+  the backing file unchanged during the handler extent, and writes the dirty
+  buffer back at successful run completion.
 - `tests/yulang/cases.toml` includes `file_read_write_at_native_result`, which
   proves native range read/write helpers execute through the typed result host
   boundary. Exact range slicing semantics remain provisional.
@@ -205,10 +211,19 @@ public surface:
   public `write_text` helper also reports unsupported host capability instead
   of pretending to write under a sandboxed host.
 - `tests/yulang/cases.toml` includes `file_text_unsupported_host`, so unscoped
-  `file::text` / `file_buffer::ambient_get` also reports unsupported host
-  capability instead of returning fake text under a sandboxed host. This is
-  structured failure evidence; typed ambient `io_err` is still a Stage 2
-  blocker.
+  `file::text` / `file::ambient_touch` also reports unsupported host
+  capability instead of returning fake text under a sandboxed host.
+- `tests/yulang/cases.toml` includes `file_text_native_missing_typed_io_err`,
+  so native missing-path `file::text` creation is caught as typed
+  `io_err::not_found` rather than leaking as a runtime host IO error.
+- `tests/yulang/cases.toml` includes
+  `file_ambient_get_untouched_missing_host_io_error`, so direct
+  out-of-protocol `file::ambient_get` on an untouched missing path remains a
+  structured `yulang.host-io-error`.
+- `tests/yulang/cases.toml` includes
+  `file_text_mock_ambient_typed_not_found`, so source handlers can still return
+  typed ambient failures by handling `file::ambient_touch` before the native
+  host registry.
 - `tests/yulang/cases.toml` includes `console_unsupported_host`, so
   `std::io::console::out.write` also reports unsupported host capability under
   `--host unsupported`. This keeps the host capability denial shape shared
@@ -256,11 +271,10 @@ public surface:
   executable. The same source has a CLI std-prefix cache regression so cached
   execution keeps matching a full build.
 
-Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because raw / snapshot host operations remain as compatibility
-operations, native unscoped ambient read/write failures do not yet have a typed
-file error policy, and the raw/provisional operations have not yet moved behind
-a public session replacement.
+Those canaries are still `migration-canary` evidence. They close the Stage 2
+typed ambient and snapshot raw-compat blockers for the file-session-free
+Contract v1 slice. Remaining range helpers still carry provisional
+`raw-compat` semantics and are not the final session API.
 
 ## Missing Evidence
 
@@ -270,25 +284,27 @@ executable `file-resource` cases for:
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | complete for the Stage 1 protocol fixture set |
-| Native host | raw/provisional isolation of legacy snapshot operations is covered; eventual public session replacement or removal remains |
+| Native host | snapshot raw-compat retirement is covered; native ambient typed failure remains |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 
 ## Known Blockers
 
 The Stage 1 callback residual blocker is closed by the protocol rewrite:
-`text_with` no longer passes a scoped `file_buffer` ref into the callback.
+`text_with` no longer passes a scoped file-buffer ref into the callback.
 Callback state is carried explicitly as `(result, final_text)`, so user effects
 compose through the callback row rather than through a handler-local file buffer
 effect.
 
-The remaining blockers are Stage 2 host-boundary cleanup items:
+The Stage 2 host-boundary blockers are closed under the D3 decision that
+`file_session` is post-v1:
 
-- replacing native unscoped ambient read/write failures with typed `io_err`
-  without leaking private row constraints. Structured runtime error coverage
-  exists for missing native ambient reads;
-- replacing or retiring `raw-compat` snapshot operations with a public session
-  boundary.
+- snapshot raw-compat operations and `open_text` / `open` / `open_in` are
+  retired;
+- unscoped `file::text` performs eager `ambient_touch` and reports missing
+  native paths as typed `io_err::not_found`;
+- direct untouched `file::ambient_get` remains structured `HostIoError`, as
+  specified for out-of-protocol use.
 
 Do not solve Stage 2 by restoring scoped `file_buffer` operations, transfer
 arms, `same_path` checks, raw snapshot public operations, or weaker public
@@ -311,16 +327,18 @@ Release evidence should run the focused smoke set through `scripts/release-smoke
 and the full tag filter through archive smoke with the packaged binary and
 bundled standard library.
 
-As of the Stage 2 native protocol bridge plus native parity evidence on
-2026-07-03, the local checkout passes the filtered `file-resource` subset with
-source mock handlers, native CLI protocol cases, native nondet/nested
-`text_with` parity, native missing/file/directory metadata coverage, native
-typed operation-failure coverage, and native unscoped ambient handler-extent
-coverage. The latest local full tag run reports `contract cases ok: 57`, and
-the focused release smoke now also includes console host-act denial, mock
-routing, and public-signature canaries. Release/archive smoke also passes
-against the packaged binary and bundled standard library for the same
-`file-resource` subset.
+As of the Stage 2 closeout implementation on 2026-07-03, the local checkout
+passes the filtered `file-resource` subset with source mock handlers, native CLI
+protocol cases, native nondet/nested `text_with` parity, native
+missing/file/directory metadata coverage, native typed operation-failure
+coverage, integrated `file::ambient_*` handler-extent coverage, typed
+missing-path `file::text` creation, and structured out-of-protocol
+`file::ambient_get` failure coverage. The latest local full tag run reports
+`contract cases ok: 57`, and the focused release smoke now also includes
+console host-act denial, mock routing, public-signature canaries, and the
+integrated ambient file act cases. Release/archive smoke also passes against
+the packaged binary and bundled standard library for the same `file-resource`
+subset.
 
 ## Rollback Conditions
 

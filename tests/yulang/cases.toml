@@ -614,7 +614,7 @@ host = "unsupported"
 expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
-  "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file_buffer is not available in this runtime",
+  "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file is not available in this runtime",
 ]
 contracts = [
   "runtime-error",
@@ -663,14 +663,36 @@ contracts = [
 ]
 
 [[case]]
-name = "file_text_native_missing_host_io_error"
-file = "regressions/runtime/file_text_native_missing_host_io_error.yu"
+name = "file_text_native_missing_typed_io_err"
+file = "regressions/runtime/file_text_native_missing_typed_io_err.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [\"typed-not-found\"]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{missing_file}}", missing = true },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "typed-failure",
+  "host.native",
+  "refs",
+]
+
+[[case]]
+name = "file_ambient_get_untouched_missing_host_io_error"
+file = "regressions/runtime/file_ambient_get_untouched_missing_host_io_error.yu"
 kind = "run"
 std = "repo"
 expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
-  "runtime error [yulang.host-io-error]: host operation std::io::file::file_buffer::ambient_get failed",
+  "runtime error [yulang.host-io-error]: host operation std::io::file::file::ambient_get failed",
   "(not_found)",
 ]
 temp_files = [
@@ -685,6 +707,27 @@ contracts = [
   "file-resource",
   "resource-lifetime",
   "host.native",
+  "refs",
+]
+
+[[case]]
+name = "file_text_mock_ambient_typed_not_found"
+file = "regressions/runtime/file_text_mock_ambient_typed_not_found.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [\"mock-not-found\"]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "typed-failure",
+  "mock-host",
+  "host.unsupported",
   "refs",
 ]
 
@@ -1605,46 +1648,13 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
 
 [[case]]
-name = "std_file_open_text_public_signature"
-file = "support/empty.yu"
-kind = "public-signature"
-std = "repo"
-module = "std.io.file"
-symbol = "std.io.file.open_text"
-expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref std::io::file::file std::text::str::str"
-deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
-
-[[case]]
-name = "std_file_open_public_signature"
-file = "support/empty.yu"
-kind = "public-signature"
-std = "repo"
-module = "std.io.file"
-symbol = "std.io.file.open"
-expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref(std::io::file::file, std::text::str::str)"
-deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
-
-[[case]]
-name = "std_file_open_in_public_signature"
-file = "support/empty.yu"
-kind = "public-signature"
-std = "repo"
-module = "std.io.file"
-symbol = "std.io.file.open_in"
-expect_type = "std::text::path::path -> (std::control::var::ref std::io::file::file std::text::str::str -> ['a] 'b) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
-deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
-
-[[case]]
 name = "std_file_text_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.text"
-expect_type = "std::text::path::path -> std::control::var::ref std::io::file::file_buffer std::text::str::str"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref std::io::file::file std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "refs"]
 
@@ -1693,24 +1703,35 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "metadata"]
 
 [[case]]
-name = "std_file_buffer_ambient_get_public_signature"
+name = "std_file_file_ambient_touch_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
 std = "repo"
-module = "std.io.file.file_buffer"
-symbol = "std.io.file.file_buffer.ambient_get"
-expect_type = "std::text::path::path -> [std::io::file::file_buffer] std::text::str::str"
+module = "std.io.file.file"
+symbol = "std.io.file.file.ambient_touch"
+expect_type = "std::text::path::path -> [std::io::file::file] std::data::result::result () std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
-name = "std_file_buffer_ambient_set_public_signature"
+name = "std_file_file_ambient_get_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
 std = "repo"
-module = "std.io.file.file_buffer"
-symbol = "std.io.file.file_buffer.ambient_set"
-expect_type = "(std::text::path::path, std::text::str::str) -> [std::io::file::file_buffer] ()"
+module = "std.io.file.file"
+symbol = "std.io.file.file.ambient_get"
+expect_type = "std::text::path::path -> [std::io::file::file] std::text::str::str"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+
+[[case]]
+name = "std_file_file_ambient_set_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.file"
+symbol = "std.io.file.file.ambient_set"
+expect_type = "(std::text::path::path, std::text::str::str) -> [std::io::file::file] ()"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
 

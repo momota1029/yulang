@@ -1,0 +1,11 @@
+my missing = {{missing_file}}
+
+my result = std::io::file::io_err::wrap:
+    my &text = std::io::file::text missing
+    $text
+
+case result:
+    result::err err -> case err:
+        std::io::file::io_err::not_found _ -> "typed-not-found"
+        _ -> "typed-other"
+    result::ok _ -> "typed-ok"
