@@ -131,6 +131,9 @@ public surface:
   `file_native_protocol_typed_failures`, which proves native `file::load` and
   `file::store` operation failures produce domain `io_err` constructors
   (`not_found`, `failed`) instead of exposing an integer error-code bridge.
+- `tests/yulang/cases.toml` also includes
+  `file_native_helper_typed_failures`, which proves public `read_text` /
+  `write_text` wrappers preserve those typed failures through `io_err::wrap`.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-file-metadata-predicates --target
@@ -168,9 +171,10 @@ public surface:
 - `scripts/release-smoke.sh` also runs a focused `file-resource` contract set
   through the smoke binary and the installed standard library. The focused set
   covers the Stage 1 state-passing protocol cases, native load/store/meta,
-  native typed operation failure, native `text_with` commit/rollback/nondet/
-  nested session cases, file/meta/ambient unsupported-host capability failure,
-  and native ambient missing-file `host-io-error` failure.
+  native typed operation/helper failure, native `text_with`
+  commit/rollback/nondet/nested session cases, file/meta/ambient
+  unsupported-host capability failure, and native ambient missing-file
+  `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
 - The Evidence VM also has a deny path for known native host operations:
@@ -285,8 +289,8 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing/file/directory metadata coverage, native
 typed operation-failure coverage, and native unscoped ambient handler-extent
-coverage. The latest local full tag run reports `contract cases ok: 49` after
-adding the native typed-failure case.
+coverage. The latest local full tag run reports `contract cases ok: 50` after
+adding the public helper typed-failure case.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

@@ -1,0 +1,22 @@
+my missing = {{missing_file}}
+my directory = {{directory}}
+
+my read_result = std::io::file::io_err::wrap:
+    std::io::file::read_text missing
+
+my read_failure = case read_result:
+    result::err err -> case err:
+        std::io::file::io_err::not_found _ -> "read-not-found"
+        _ -> "read-other-error"
+    result::ok _ -> "read-ok"
+
+my write_result = std::io::file::io_err::wrap:
+    std::io::file::write_text directory "blocked"
+
+my write_failure = case write_result:
+    result::err err -> case err:
+        std::io::file::io_err::failed (_, _) -> "write-failed"
+        _ -> "write-other-error"
+    result::ok _ -> "write-ok"
+
+(read_failure, write_failure)

@@ -236,6 +236,28 @@ contracts = [
 ]
 
 [[case]]
+name = "file_native_helper_typed_failures"
+file = "regressions/runtime/file_native_helper_typed_failures.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"read-not-found\", \"write-failed\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{missing_file}}", missing = true },
+  { placeholder = "{{directory}}", directory = true },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "host-act",
+  "host.native",
+  "typed-failure",
+]
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"
