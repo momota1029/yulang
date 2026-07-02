@@ -34,6 +34,11 @@ public surface:
   tier metadata for the current console and file operations. This is not the
   final host act manifest / registry, but it gives that migration one runtime
   metadata boundary instead of another scattered path-matching chain.
+- The runtime registry now preserves the resolved operation spec through host
+  execution and has a manifest-view canary for stable act id, operation id, sync
+  tier, and path reconstruction. Known host act prefixes with an unregistered
+  operation are classified as capability failures; unrelated user effects still
+  fall through to escaped-effect behavior.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped

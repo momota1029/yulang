@@ -256,6 +256,47 @@ fn runtime_host_path_starts_with(path: &[String], expected_prefix: &[&str]) -> b
 }
 
 #[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct RuntimeHostOperationManifestEntry {
+    act_id: &'static str,
+    operation_id: &'static str,
+    tier: &'static str,
+    path: &'static [&'static str],
+}
+
+#[cfg(test)]
+fn runtime_host_operation_manifest_entries() -> Vec<RuntimeHostOperationManifestEntry> {
+    RUNTIME_HOST_OPERATIONS
+        .iter()
+        .map(|spec| RuntimeHostOperationManifestEntry {
+            act_id: spec.act.manifest_id(),
+            operation_id: spec.operation_id,
+            tier: spec.tier.manifest_id(),
+            path: spec.path,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+impl RuntimeHostAct {
+    fn manifest_id(self) -> &'static str {
+        match self {
+            Self::ConsoleOut => "std.io.console.out",
+            Self::File => "std.io.file.file",
+        }
+    }
+}
+
+#[cfg(test)]
+impl RuntimeHostOperationTier {
+    fn manifest_id(self) -> &'static str {
+        match self {
+            Self::Sync => "sync",
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
@@ -332,6 +373,34 @@ mod tests {
 
         assert_eq!(console_ops, 1, "console out should have one current op");
         assert_eq!(file_ops, 14, "file act should have current file host ops");
+    }
+
+    #[test]
+    fn runtime_host_operation_manifest_view_has_stable_act_op_tier_keys() {
+        let entries = runtime_host_operation_manifest_entries();
+        let mut act_op_keys = BTreeSet::new();
+
+        assert_eq!(entries.len(), RUNTIME_HOST_OPERATIONS.len());
+        for entry in entries {
+            assert!(
+                act_op_keys.insert((entry.act_id, entry.operation_id)),
+                "duplicate host manifest operation key {}.{}",
+                entry.act_id,
+                entry.operation_id
+            );
+            assert_eq!(entry.tier, "sync");
+            assert!(
+                entry
+                    .path
+                    .iter()
+                    .copied()
+                    .eq(entry.act_id.split('.').chain([entry.operation_id])),
+                "manifest key {}.{} should reconstruct operation path {:?}",
+                entry.act_id,
+                entry.operation_id,
+                entry.path
+            );
+        }
     }
 
     #[test]
