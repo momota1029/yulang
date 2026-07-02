@@ -112,6 +112,8 @@ Current executable mock evidence:
 - `file_mock_text_with_rollback_on_error` proves that the same public helper
   shape discards dirty callback-local buffer updates when the callback exits
   through a user error.
+- `file_mock_text_with_nondet_branch_buffers` proves that the same public helper
+  shape gives each `nondet.each` branch an independent callback-local buffer.
 
 Remaining F1 evidence still needs the real `std::io::file::text_with` surface
 or a public file-session host-act boundary. Do not make private snapshot helper

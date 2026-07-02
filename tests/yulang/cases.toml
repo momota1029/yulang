@@ -294,6 +294,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_mock_text_with_nondet_branch_buffers"
+file = "regressions/runtime/file_mock_text_with_nondet_branch_buffers.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [[((\" A\", \"start A\"), \"start A\"), ((\" B\", \"start B\"), \"start B\")]]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "mock-host",
+  "host.unsupported",
+  "std.nondet",
+  "refs",
+]
+
+[[case]]
 name = "error_wrap_fail"
 file = "regressions/runtime/error_wrap_fail.yu"
 kind = "run"

@@ -186,12 +186,13 @@ The columns trace a value through the pipeline:
   rollback after dirty callback abort and native branch-local multi-shot buffers
   are executable manifest cases; unsupported native host capability is also a
   manifest runtime-failure case. Public mock-host canaries cover `read_at` /
-  `write_at` interception plus reusable pure-Yulang managed-ref helper commit
-  and rollback, but production `text_with` still uses private snapshot helpers
-  and is not yet fully mockable at a public host-act/session boundary. This is
-  still not the full Contract v1 file-resource contract because production pure
-  mock resource-lifetime parity, directory listing, portable metadata expansion,
-  and lock release remain provisional. The
+  `write_at` interception plus reusable pure-Yulang managed-ref helper commit,
+  rollback, and branch-local buffers, but production `text_with` still uses
+  private snapshot helpers and is not yet fully mockable at a public
+  host-act/session boundary. This is still not the full Contract v1
+  file-resource contract because production pure mock resource-lifetime parity,
+  directory listing, portable metadata expansion, and lock release remain
+  provisional. The
   resource lifetime semantics are specified: `_with` resources close at
   continuation end, unscoped resources close at the provider handler extent,
   managed lens commits only on normal scope exit, aborted branches roll back,

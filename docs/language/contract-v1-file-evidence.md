@@ -112,6 +112,10 @@ public surface:
   `file_mock_text_with_rollback_on_error`, which proves that the same public
   helper shape can discard dirty callback-local buffer updates when the callback
   exits through a user error.
+- `tests/yulang/cases.toml` includes
+  `file_mock_text_with_nondet_branch_buffers`, which proves that the same public
+  helper shape gives each `nondet.each` branch an independent callback-local
+  buffer.
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   remaining pure mock blocker: production `text_with` still relies on private
   snapshot helper operations that outside source cannot catch, while a
@@ -203,9 +207,10 @@ As of 2026-07-02, `scripts/hardening-smoke.sh` and
 through the release binary surface. The local release binary passes the current
 subset including native rollback, native multi-shot branch buffers,
 unsupported-host failure, public host-act mocks, the public function-boundary
-managed-ref mock, and public helper rollback. A locally built release archive
-also passes the same subset through bundled std. Full production `text_with` mock
-resource-lifetime parity remains open.
+managed-ref mock, public helper rollback, and public helper branch-local
+buffers. A locally built release archive also passes the same subset through
+bundled std. Full production `text_with` mock resource-lifetime parity remains
+open.
 
 ## Rollback Conditions
 
