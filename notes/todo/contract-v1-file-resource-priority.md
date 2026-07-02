@@ -21,6 +21,11 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - Contract v1 の箱を作る。
    - pure mock file handler で `text_with` commit / rollback / multi-shot commit を
      fixture 化する。
+     - 2026-07-02: public helper shape covers reusable commit, rollback, and
+       branch-local buffers. Direct public `ref.update` over local `$buffer` is
+       also a `stable-core` contract. Production `text_with` still needs a
+       public mockable session boundary; private snapshot helpers must not be
+       made public just to satisfy this.
    - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
      - 2026-07-02: native normal commit / user-error rollback / nondet
        branch-local snapshot は executable contract 化済み。

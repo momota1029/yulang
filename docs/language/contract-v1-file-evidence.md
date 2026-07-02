@@ -116,6 +116,11 @@ public surface:
   `file_mock_text_with_nondet_branch_buffers`, which proves that the same public
   helper shape gives each `nondet.each` branch an independent callback-local
   buffer.
+- `tests/yulang/cases.toml` includes `ref_update_local_buffer_public`, a
+  `stable-core` runtime case proving that direct public `ref.update` over a
+  public `ref { get, update_effect }` view backed by local `$buffer` state is
+  executable. The same source has a CLI std-prefix cache regression so cached
+  execution keeps matching a full build.
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   remaining pure mock blocker: production `text_with` still relies on private
   snapshot helper operations that outside source cannot catch, while a
@@ -132,7 +137,7 @@ executable `file-resource` cases for:
 
 | Slice | Required evidence |
 | --- | --- |
-| Mock host | pure handler commit, rollback, multi-shot branch commit, handler-extent discharge |
+| Mock host | production `text_with` through a public mockable session boundary, multi-shot branch commit, handler-extent discharge |
 | Native host | parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
@@ -178,18 +183,18 @@ That case used to pass only with `--no-cache`; the CLI now falls back to a full
 build when a std-prefix cache route introduces a specialize/control error, so
 the normal cached contract runner observes the same roots.
 
-The real `std::io::file::text_with` path also still uses private snapshot
-helper operations, and a source-level outer handler cannot fully mock that
-private callback path. `open_text_snapshot_raw` can be caught by a local
-handler, but `file_snapshot_get` performed through the callback escapes the
-same public mock handler. Do not solve this by making those raw snapshot
-operations public.
+The direct `.update` residual probe is resolved and contract-covered by
+`ref_update_local_buffer_public`. `notes/bugs/ref_update_local_buffer_public_probe.yu`
+now runs on both cached and no-cache paths, so direct public `ref.update` over a
+local `$buffer` view is not the remaining file-resource blocker.
 
-`notes/bugs/ref_update_local_buffer_public_probe.yu` remains a separate
-`.update`-method residual probe: direct `r.update` over a public ref view backed
-by local `$buffer` state still fails, while callback assignment through
-`&text = ...` is executable and contract-covered in the function-boundary
-reduction.
+The real `std::io::file::text_with` path still uses private snapshot helper
+operations, and a source-level outer handler cannot fully mock that private
+callback path. `open_text_snapshot_raw` can be caught by a local handler, but
+`file_snapshot_get` performed through the callback escapes the same public mock
+handler. Do not solve this by making those raw snapshot operations public. The
+remaining fix should be a public mockable file session boundary or an equivalent
+language-level resource representation.
 
 ## Acceptance Gate
 
