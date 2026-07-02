@@ -115,11 +115,11 @@ public surface:
   boundary. Exact range slicing semantics remain provisional.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
-- `scripts/package-release.sh --version contract-v1-scheduler-ids --target
+- `scripts/package-release.sh --version contract-v1-file-parity --target
   x86_64-unknown-linux-gnu --binary target/release/yulang --out
-  target/release-contract-v1-scheduler-ids` followed by
+  target/release-contract-v1-file-parity` followed by
   `scripts/release-archive-smoke.sh
-  target/release-contract-v1-scheduler-ids/yulang-x86_64-unknown-linux-gnu.tar.gz`
+  target/release-contract-v1-file-parity/yulang-x86_64-unknown-linux-gnu.tar.gz`
   passes. The archive smoke expands the packaged binary, uses the bundled
   standard library, and runs the filtered `file-resource` manifest subset.
 - public signature canaries cover the current file helper surface, carry the
@@ -255,12 +255,12 @@ Release evidence should run the focused smoke set through `scripts/release-smoke
 and the full tag filter through archive smoke with the packaged binary and
 bundled standard library.
 
-As of the Stage 2 native protocol bridge plus scheduler-id evidence on
+As of the Stage 2 native protocol bridge plus native parity evidence on
 2026-07-03, the local checkout passes the filtered `file-resource` subset with
-source mock handlers, native CLI protocol cases, and the first native unscoped
-ambient handler-extent case. Release/archive smoke also passes against the
-packaged binary and bundled standard library for the same `file-resource`
-subset.
+source mock handlers, native CLI protocol cases, native nondet/nested
+`text_with` parity, and native unscoped ambient handler-extent coverage.
+Release/archive smoke also passes against the packaged binary and bundled
+standard library for the same `file-resource` subset.
 
 ## Rollback Conditions
 
