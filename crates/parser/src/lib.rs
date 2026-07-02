@@ -158,6 +158,27 @@ mod tests {
     }
 
     #[test]
+    fn header_parse_stops_before_raw_catch_brace_scrutinee() {
+        for source in ["catch {:", "catch {:\n"] {
+            let root = SyntaxNode::<YulangLanguage>::new_root(parse_header_to_green(source));
+            assert_eq!(root.text().to_string(), "");
+        }
+    }
+
+    #[test]
+    fn parse_module_recovers_raw_catch_brace_scrutinee() {
+        for source in ["catch {:", "catch {:\n"] {
+            let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+            assert_eq!(root.text().to_string(), source);
+            assert!(
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::CatchExpr),
+                "catch expression should remain visible in recovered CST"
+            );
+        }
+    }
+
+    #[test]
     fn parse_module_keeps_leading_line_comment_in_cst() {
         let source = "// note\nmy value = 1\n";
         let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));

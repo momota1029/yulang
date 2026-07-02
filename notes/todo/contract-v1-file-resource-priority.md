@@ -47,6 +47,11 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - registry dispatch へ移行し、perform 時の文字列 if をなくす。
    - file / console / server / clock / random / future FFI を同じ host handler 機構へ寄せる。
    - 未登録 act は `EscapedEffect` crash ではなく capability failure にする。
+   - 2026-07-02 Claude Fable decision: `std::io::file` should move onto the
+     `io-resource-api` spec shape. Session operations should become publicly
+     catchable, integer error codes should be removed, and dispatch should go
+     through the host registry. This is the regular fix for the pure mock
+     parity blocker, so priorities 1 and 2 are one implementation track.
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。
@@ -77,6 +82,8 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      nondet / showcase / `03_for_last` have 0 unclassified runtime hits;
      `02_refs` still has 2 unclassified runtime hits. Stage 1 remains blocked
      because static-tail runtime hits are still 0.
+   - 2026-07-02 Claude Fable decision: evidence VM micro-optimizations stay
+     frozen until the mono-time proof emission translation work starts.
 
 7. **Later tracks**
    - package / registry。
@@ -155,5 +162,6 @@ Done:
 - Contract v0 を一般論で reopen しない。
 - file resource の中心を `read_text` / `write_text` helper にしない。
 - HTTP framework を server first slice にしない。
+- serve implementation に入る前に structured-concurrency の決定文書を先に書く。
 - native ABI FFI や native backend 復活へ先に行かない。
 - performance work で Stage 0 の停止条件を飛ばさない。

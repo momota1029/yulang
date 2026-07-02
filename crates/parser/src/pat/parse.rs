@@ -56,7 +56,11 @@ fn parse_pattern_from_nud_bp<I: EventInput, S: EventSink>(
         PatNudTag::PolyVariantStart => {
             i.env.state.sink.start(SyntaxKind::Pattern);
             i.env.state.sink.lex(&nud.lex);
-            let rhs = scan_pat_nud(nud.lex.trailing_trivia_info(), i.rb())?;
+            let rhs_leading = nud.lex.trailing_trivia_info();
+            let Some(rhs) = scan_pat_nud(rhs_leading, i.rb()) else {
+                i.env.state.sink.finish();
+                return Some(Ok(Either::Left(rhs_leading)));
+            };
             match rhs.tag {
                 PatNudTag::Atom if rhs.lex.kind == SyntaxKind::Ident => {
                     i.env.state.sink.lex(&rhs.lex);

@@ -913,6 +913,24 @@ expect_diagnostic_related_count = 0
 contracts = ["stable-core", "diagnostics", "effects", "handler-syntax"]
 
 [[case]]
+name = "catch_raw_brace_scrutinee"
+file = "regressions/diagnostics/catch_raw_brace_scrutinee.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-catch-scrutinee]: catch expression is missing the computation to handle",
+  "hint: write `catch <expr>:` before the handler arms",
+]
+expect_diagnostic_code = "yulang.missing-catch-scrutinee"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 0
+expect_diagnostic_end = 5
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "effects", "handler-syntax", "syntax"]
+
+[[case]]
 name = "catch_missing_arm_pattern"
 file = "regressions/diagnostics/catch_missing_arm_pattern.yu"
 kind = "check"

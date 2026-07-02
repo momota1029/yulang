@@ -221,18 +221,14 @@ pub fn parse_header_statement<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
 ) -> Option<HeaderStep> {
     let nud = scan_stmt_head_nud(leading_info, i.rb())?;
-    match parse_expr_from_nud(None, i.rb(), nud)? {
-        Ok(Either::Left(_)) => Some(HeaderStep::Stop),
-        Ok(Either::Right(stop)) => match stop.kind {
-            SyntaxKind::Use => header_step(use_decl::parse_use_decl(i, None, stop)),
-            SyntaxKind::Lazy => header_step(op_def::parse_lazy_op_def_stmt(i, None, stop)),
-            SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
-                header_step(op_def::parse_op_def_stmt(i, None, stop))
-            }
-            SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => parse_header_visibility(i, stop),
-            _ => Some(HeaderStep::Stop),
-        },
-        Err(_) => Some(HeaderStep::Stop),
+    match nud.lex.kind {
+        SyntaxKind::Use => header_step(use_decl::parse_use_decl(i, None, nud.lex)),
+        SyntaxKind::Lazy => header_step(op_def::parse_lazy_op_def_stmt(i, None, nud.lex)),
+        SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
+            header_step(op_def::parse_op_def_stmt(i, None, nud.lex))
+        }
+        SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => parse_header_visibility(i, nud.lex),
+        _ => Some(HeaderStep::Stop),
     }
 }
 

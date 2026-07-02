@@ -1,4 +1,5 @@
 use chasa::Back as _;
+use chasa::prelude::eoi;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -602,7 +603,9 @@ fn parse_case_brace_block<I: EventInput, S: EventSink>(
         match leading {
             TriviaInfo::Newline { indent, .. } if indent <= base_indent => {
                 // 空アイテム時に閉じ括弧を探す
-                let nud = scan_expr_nud(leading, i.rb())?;
+                let Some(nud) = scan_expr_nud(leading, i.rb()) else {
+                    return Some(leading);
+                };
                 if nud.lex.kind == SyntaxKind::BraceR {
                     i.env.state.sink.lex(&nud.lex);
                     return Some(nud.lex.trailing_trivia_info());
@@ -613,7 +616,9 @@ fn parse_case_brace_block<I: EventInput, S: EventSink>(
             _ => {}
         }
 
-        let arm_result = parse_arm(i.rb(), leading, config)?;
+        let Some(arm_result) = parse_arm(i.rb(), leading, config) else {
+            return Some(leading);
+        };
         match arm_result {
             Either::Right(stop) if stop.kind == SyntaxKind::BraceR => {
                 i.env.state.sink.lex(&stop);
@@ -630,6 +635,9 @@ fn parse_case_brace_block<I: EventInput, S: EventSink>(
                 leading = stop.trailing_trivia_info();
             }
             Either::Left(info) => {
+                if matches!(info, TriviaInfo::None) && i.maybe(eoi).is_some() {
+                    return Some(info);
+                }
                 leading = info;
             }
         }
@@ -678,10 +686,16 @@ fn parse_arm<I: EventInput, S: EventSink>(
     if config.allow_handler_name {
         i.env.stop.insert(SyntaxKind::Comma);
     }
-    let pat_result = parse_pattern(leading_info, i.rb());
+    let pat_result = match parse_pattern(leading_info, i.rb()) {
+        Some(result) => result,
+        None => {
+            i.env.state.sink.finish();
+            return Some(Either::Left(leading_info));
+        }
+    };
     i.env.stop = old_stop;
 
-    let pat_stop = match pat_result? {
+    let pat_stop = match pat_result {
         Either::Left(info) => {
             // パターンが trivia で終わった = 入力終端
             i.env.state.sink.finish();
@@ -700,7 +714,11 @@ fn parse_arm<I: EventInput, S: EventSink>(
         i.env.stop.insert(SyntaxKind::Where);
         let name_result = parse_pattern(pat_stop.trailing_trivia_info(), i.rb());
         i.env.stop = old_stop;
-        match name_result? {
+        let Some(name_result) = name_result else {
+            i.env.state.sink.finish();
+            return Some(Either::Left(pat_stop.trailing_trivia_info()));
+        };
+        match name_result {
             Either::Left(info) => {
                 i.env.state.sink.finish();
                 return Some(Either::Left(info));
@@ -721,7 +739,15 @@ fn parse_arm<I: EventInput, S: EventSink>(
         let guard_result = parse_expr(next_stop.trailing_trivia_info(), i.rb());
         i.env.stop = old_stop;
 
-        let guard_stop = match guard_result? {
+        let guard_result = match guard_result {
+            Some(result) => result,
+            None => {
+                i.env.state.sink.finish();
+                i.env.state.sink.finish();
+                return Some(Either::Left(next_stop.trailing_trivia_info()));
+            }
+        };
+        let guard_stop = match guard_result {
             Either::Left(info) => {
                 i.env.state.sink.finish();
                 i.env.state.sink.finish();
@@ -748,7 +774,13 @@ fn parse_arm<I: EventInput, S: EventSink>(
     // `->` とボディ
     i.env.state.sink.lex(&arrow_lex);
     i.env.state.line_indent = i.env.indent;
-    let body = parse_inline_or_indent(i.rb(), arrow_lex.trailing_trivia_info())?;
+    let body = match parse_inline_or_indent(i.rb(), arrow_lex.trailing_trivia_info()) {
+        Some(body) => body,
+        None => {
+            i.env.state.sink.finish();
+            return Some(Either::Left(arrow_lex.trailing_trivia_info()));
+        }
+    };
 
     // arm 末尾の `;` は separator として消費
     let result = match body {
