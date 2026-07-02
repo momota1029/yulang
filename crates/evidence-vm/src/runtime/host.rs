@@ -18,6 +18,8 @@ impl RuntimeHostAct {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimeHostOperationTier {
     Sync,
+    SuspendOneShot,
+    SuspendMultiShot,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,6 +170,11 @@ pub struct RuntimeHostManifestOperation {
     pub path: &'static [&'static str],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RuntimeHostManifestTier {
+    pub id: &'static str,
+}
+
 pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
     RUNTIME_HOST_OPERATIONS
         .iter()
@@ -178,6 +185,15 @@ pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
             surface: spec.surface.manifest_id(),
             signature: spec.signature,
             path: spec.path,
+        })
+        .collect()
+}
+
+pub fn runtime_host_manifest_tiers() -> Vec<RuntimeHostManifestTier> {
+    RUNTIME_HOST_OPERATION_TIERS
+        .iter()
+        .map(|tier| RuntimeHostManifestTier {
+            id: tier.manifest_id(),
         })
         .collect()
 }
@@ -196,6 +212,8 @@ impl RuntimeHostOperationTier {
     fn manifest_id(self) -> &'static str {
         match self {
             Self::Sync => "sync",
+            Self::SuspendOneShot => "suspend-one-shot",
+            Self::SuspendMultiShot => "suspend-multi-shot",
         }
     }
 }
@@ -208,6 +226,12 @@ impl RuntimeHostOperationSurface {
         }
     }
 }
+
+const RUNTIME_HOST_OPERATION_TIERS: &[RuntimeHostOperationTier] = &[
+    RuntimeHostOperationTier::Sync,
+    RuntimeHostOperationTier::SuspendOneShot,
+    RuntimeHostOperationTier::SuspendMultiShot,
+];
 
 const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     RuntimeHostOperationSpec {
@@ -531,6 +555,26 @@ mod tests {
                 entry.path
             );
         }
+    }
+
+    #[test]
+    fn runtime_host_manifest_exposes_suspend_tiers_before_server_ops() {
+        let tiers = runtime_host_manifest_tiers()
+            .into_iter()
+            .map(|tier| tier.id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            tiers,
+            ["sync", "suspend-one-shot", "suspend-multi-shot"],
+            "host act manifest should expose the suspend tiers required by server resources"
+        );
+        assert!(
+            RUNTIME_HOST_OPERATIONS
+                .iter()
+                .all(|spec| spec.tier == RuntimeHostOperationTier::Sync),
+            "registered operations should stay sync until the scheduler branch table lands"
+        );
     }
 
     #[test]

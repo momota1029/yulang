@@ -90,10 +90,12 @@ expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io
 expected_file_manifest='act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta'
 expected_file_buffer_manifest='act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get'
 expected_file_raw_surface='act=std.io.file.file op=open_text_raw tier=sync path=std.io.file.file.open_text_raw sig=path -> result file_handle io_err surface=raw-compat'
+expected_suspend_multi_tier='tier=suspend-multi-shot'
 if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
   "$host_manifest_output" != *"$expected_file_manifest"* ||
   "$host_manifest_output" != *"$expected_file_buffer_manifest"* ||
-  "$host_manifest_output" != *"$expected_file_raw_surface"* ]]; then
+  "$host_manifest_output" != *"$expected_file_raw_surface"* ||
+  "$host_manifest_output" != *"$expected_suspend_multi_tier"* ]]; then
   echo "release smoke: unexpected host act manifest output" >&2
   echo "$host_manifest_output" >&2
   exit 1

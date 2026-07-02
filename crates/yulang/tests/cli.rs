@@ -1767,6 +1767,12 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
         ),
         "{stdout}"
     );
+    assert!(
+        stdout.contains(
+            "runtime host tiers:\n  tier=sync\n  tier=suspend-one-shot\n  tier=suspend-multi-shot\n"
+        ),
+        "{stdout}"
+    );
 }
 
 #[test]

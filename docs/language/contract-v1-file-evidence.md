@@ -41,6 +41,10 @@ public surface:
   are separated into `contract` and `raw-compat`, so legacy snapshot operations
   are observable as compatibility surface instead of being mixed into the
   Contract v1 protocol surface.
+- `debug host-act-manifest` also exposes the supported host operation tier ids:
+  `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
+  operations are still all registered as `sync`; the suspend tiers are the
+  manifest vocabulary needed before server branches enter the registry.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
@@ -119,7 +123,8 @@ public surface:
   makes the current registry surface observable outside unit tests.
 - `scripts/release-smoke.sh` now checks representative console/file manifest
   lines, so release and archive smokes cover the debug manifest surface through
-  the packaged binary path.
+  the packaged binary path. It also checks that the suspend multi-shot tier is
+  visible in the packaged binary manifest output.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped

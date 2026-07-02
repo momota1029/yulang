@@ -2979,6 +2979,10 @@ fn run_host_act_manifest(program: &str, args: VecDeque<OsString>) {
             operation.surface
         );
     }
+    println!("runtime host tiers:");
+    for tier in evidence_vm::runtime_host_manifest_tiers() {
+        println!("  tier={}", tier.id);
+    }
 }
 
 fn parse_realm_freeze_args(
