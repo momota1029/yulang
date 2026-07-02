@@ -2892,6 +2892,24 @@ fn hover_entry_source_reports_shorthand_record_pattern_type() {
 }
 
 #[test]
+fn hover_entry_source_reports_record_field_selection_type() {
+    let source = "my p = { x: 1, y: false }\nmy got = p.x\n";
+    let field_offset = source.rfind(".x").unwrap() + 1;
+    let hover = hover_entry_source("main.yu", source, field_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: field_offset,
+            end: field_offset + 1,
+        }
+    );
+    assert_eq!(hover.contents, "x: int");
+}
+
+#[test]
 fn hover_entry_source_reports_selected_method_type() {
     let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
     let method_offset = source.rfind("id").unwrap();

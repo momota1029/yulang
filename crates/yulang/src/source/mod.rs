@@ -2539,8 +2539,27 @@ fn hover_for_select(
         poly::expr::SelectResolution::TypeclassMethod { member } => {
             hover_for_selected_method(check, format_context, select, member, range)
         }
-        poly::expr::SelectResolution::RecordField => None,
+        poly::expr::SelectResolution::RecordField => {
+            hover_for_resolved_selection_value(check, format_context, select, range)
+        }
     }
+}
+
+fn hover_for_resolved_selection_value(
+    check: &infer::check::PolyCheckOutput,
+    format_context: &HoverFormatContext<'_>,
+    select: poly::expr::SelectId,
+    range: SourceRange,
+) -> Option<SourceHover> {
+    let use_site = check.lowering.session.selections.resolved(select)?;
+    Some(SourceHover {
+        range,
+        contents: format!(
+            "{}: {}",
+            check.lowering.session.poly.select(select).name,
+            format_context.format_value_type(use_site.selected_value)
+        ),
+    })
 }
 
 fn hover_for_selected_method(
@@ -2557,15 +2576,8 @@ fn hover_for_selected_method(
     else {
         return None;
     };
-    if let Some(use_site) = check.lowering.session.selections.resolved(select) {
-        return Some(SourceHover {
-            range,
-            contents: format!(
-                "{}: {}",
-                check.lowering.session.poly.select(select).name,
-                format_context.format_value_type(use_site.selected_value)
-            ),
-        });
+    if let Some(hover) = hover_for_resolved_selection_value(check, format_context, select, range) {
+        return Some(hover);
     }
     let raw_label = check.lowering.labels.def_label(def)?;
     let label = if hover_label_is_hidden(raw_label) {

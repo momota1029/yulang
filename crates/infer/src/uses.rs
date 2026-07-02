@@ -231,6 +231,7 @@ impl SelectionUseTable {
 /// 1つの `SelectId` use-site に対応する推論メタデータ。
 ///
 /// `method_value` は、selection lowering が作った method 関数 slot。
+/// `selected_value` は `receiver.field` / `receiver.method` 式そのものの value slot。
 /// `receiver_value` は dot selection の subject で、typeclass method 解決時の role demand に使う。
 /// `receiver_effect` は receiver 式の評価 effect で、effect method 探索に使う。
 pub struct SelectionUse {

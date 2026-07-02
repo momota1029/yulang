@@ -91,7 +91,6 @@ hover の label だけを call-site 表示へ寄せる。
 - `Any` を hover の fallback 型として使わない。
 - std path / fixture name / method name の文字列分岐を入れない。
 - LSP 側で CST を再走査して型を推測しない。
-- record field hover をこの slice で実装しない。
 
 ## First Slice
 
@@ -107,6 +106,17 @@ hover の label だけを call-site 表示へ寄せる。
      hidden label / `#` を出さない。
    - selected type に std paths があっても import/prelude visible shortening を保つ。
 
+## Second Slice
+
+Record field selection も `SelectionUse` の `selected_value` を call-site type として使う。
+record field は解決先 def を持たないため、target scheme fallback は置かない。
+
+source hover regression:
+
+- `p.x` は `x: int` 相当の selected value type を出す。
+- source range は field token の range を使い、record literal 側の field 定義へ広げない。
+- CST 再走査や field 名の文字列特別扱いは入れない。
+
 ## Validation
 
 Focused:
@@ -114,6 +124,7 @@ Focused:
 ```text
 cargo fmt --all -- --check
 timeout 240s cargo test -q -p yulang hover_entry_source_reports_selected_method_type -- --test-threads=1
+timeout 240s cargo test -q -p yulang hover_entry_source_reports_record_field_selection_type -- --test-threads=1
 timeout 240s cargo test -q -p yulang hover_entry_source_reports_attached_role_method_selection_type -- --test-threads=1
 timeout 240s cargo test -q -p yulang hover_entry_source_shortens_selected_method_type_paths -- --test-threads=1
 ```

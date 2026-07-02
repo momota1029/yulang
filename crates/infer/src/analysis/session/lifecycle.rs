@@ -381,6 +381,7 @@ impl AnalysisSession {
             let Some(use_site) = self.selections.remove(select_id) else {
                 continue;
             };
+            self.selections.insert_resolved(select_id, use_site.into());
             self.trace_selection_bounds(select_id, &name, use_site);
             constraints
                 .extend(self.record_field_selection_constraints(use_site.method_value, &name));
