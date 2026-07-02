@@ -181,13 +181,15 @@ The columns trace a value through the pipeline:
   public `file::load`, `file::store`, and `file::meta` are directly covered by
   native CLI contract cases. `read_at` / `write_at` now return typed
   `result ... io_err` values at the host act boundary while preserving the
-  existing throwing public wrappers. `text_with` is now the state-passing
-  protocol over public `load` / `store`: native normal commit and callback-abort
-  rollback are executable manifest cases, and source mock handlers cover
-  commit, rollback, branch-local buffers, and nested cross-file sessions under
-  `--host unsupported`. `open_text`, `open`, and `open_in` remain legacy native
-  snapshot canaries, not the center of the Contract v1 evidence. This is still
-  not the full Contract v1 file-resource contract because raw/provisional
+  existing throwing public wrappers. `open_text` / `open_in` raw open and commit
+  operations also return typed `result ... io_err` values now; the old
+  integer-code mapper is gone. `text_with` is now the state-passing protocol
+  over public `load` / `store`: native normal commit and callback-abort rollback
+  are executable manifest cases, and source mock handlers cover commit,
+  rollback, branch-local buffers, and nested cross-file sessions under `--host
+  unsupported`. `open_text`, `open`, and `open_in` remain legacy native snapshot
+  canaries, not the center of the Contract v1 evidence. This is still not the
+  full Contract v1 file-resource contract because raw/provisional
   isolation, native unscoped ambient failure typing, directory listing,
   portable metadata expansion, and lock release remain provisional. The
   resource lifetime semantics are specified: `_with` resources close at

@@ -52,6 +52,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        transfer probe、`same_path`、callback residual blocker note は撤去済み。
        残りは Stage 2: native registry、int error code 全廃、release/archive
        evidence の更新。
+     - 2026-07-03 follow-up: native registry / release/archive evidence /
+       `std::io::file` host bridge の int error code 全廃は通過済み。残りは
+       raw/provisional isolation と native ambient failure typing。
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。

@@ -12172,12 +12172,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeHostOperation::FileMeta => self.file_meta(spec, payload),
             RuntimeHostOperation::FileReadAt => self.file_read_at(spec, payload),
             RuntimeHostOperation::FileWriteAt => self.file_write_at(spec, payload),
-            RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(payload),
+            RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(spec, payload),
             RuntimeHostOperation::FileGet => self.file_get(spec, payload),
             RuntimeHostOperation::FileSet => self.file_set(spec, payload),
             RuntimeHostOperation::FileFlush => self.file_flush(spec, payload),
             RuntimeHostOperation::FileOpenTextSnapshotRaw => {
-                self.file_open_text_snapshot_raw(payload)
+                self.file_open_text_snapshot_raw(spec, payload)
             }
             RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(spec, payload),
             RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(spec, payload),
@@ -12397,26 +12397,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_open_text_raw(
         &mut self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let path = runtime_host_path(payload)?;
-        let code = match fs::read_to_string(&path) {
-            Ok(_) => 0,
-            Err(error) => runtime_file_error_code(&error),
-        };
-        if code != 0 {
-            return Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-                shared(RuntimeEvidenceValue::Int(code)),
-                shared(RuntimeEvidenceValue::Int(0)),
-            ])));
+        if let Err(error) = fs::read_to_string(&path) {
+            let error = self.host_io_error(spec, &path, &error)?;
+            return self.host_result_err(spec, error);
         }
         let handle = self.next_file_handle;
         self.next_file_handle += 1;
         self.file_handles.insert(handle, path);
-        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-            shared(RuntimeEvidenceValue::Int(0)),
-            shared(RuntimeEvidenceValue::Int(handle)),
-        ])))
+        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Int(handle)))
     }
 
     fn file_get(
@@ -12458,21 +12450,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.file_handles.contains_key(&handle) {
             return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         }
-        Ok(shared(RuntimeEvidenceValue::Int(0)))
+        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit))
     }
 
     fn file_open_text_snapshot_raw(
         &mut self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let path = runtime_host_path(payload)?;
         let text = match fs::read_to_string(&path) {
             Ok(text) => text,
             Err(error) => {
-                return Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-                    shared(RuntimeEvidenceValue::Int(runtime_file_error_code(&error))),
-                    shared(RuntimeEvidenceValue::Int(0)),
-                ])));
+                let error = self.host_io_error(spec, &path, &error)?;
+                return self.host_result_err(spec, error);
             }
         };
         let handle = self.next_file_handle;
@@ -12480,10 +12471,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.closed_file_snapshots.remove(&handle);
         self.file_snapshots
             .insert(handle, RuntimeFileSnapshot { path, text });
-        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-            shared(RuntimeEvidenceValue::Int(0)),
-            shared(RuntimeEvidenceValue::Int(handle)),
-        ])))
+        self.host_result_ok(spec, shared(RuntimeEvidenceValue::Int(handle)))
     }
 
     fn file_snapshot_get(
@@ -12526,11 +12514,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(snapshot) = snapshot else {
             return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
-        let code = match fs::write(&snapshot.path, &snapshot.text) {
-            Ok(()) => 0,
-            Err(error) => runtime_file_error_code(&error),
-        };
-        Ok(shared(RuntimeEvidenceValue::Int(code)))
+        match fs::write(&snapshot.path, &snapshot.text) {
+            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
+            Err(error) => {
+                let error = self.host_io_error(spec, &snapshot.path, &error)?;
+                self.host_result_err(spec, error)
+            }
+        }
     }
 
     fn file_buffer_ambient_get(
@@ -20217,14 +20207,6 @@ fn runtime_host_tuple(
         _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
             "non-tuple host argument",
         )),
-    }
-}
-
-fn runtime_file_error_code(error: &io::Error) -> i64 {
-    match error.kind() {
-        io::ErrorKind::NotFound => 1,
-        io::ErrorKind::PermissionDenied => 2,
-        _ => 3,
     }
 }
 

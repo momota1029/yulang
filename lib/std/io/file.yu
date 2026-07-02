@@ -12,14 +12,14 @@ pub act file:
     pub load: path -> result str io_err
     pub store: (path, str) -> result unit io_err
     pub meta: path -> file_meta
-    my open_text_raw: path -> (int, file_handle)
+    my open_text_raw: path -> result file_handle io_err
     my file_get: file_handle -> str
     my file_set: (file_handle, str) -> unit
-    my file_flush: file_handle -> int
-    my open_text_snapshot_raw: path -> (int, file_handle)
+    my file_flush: file_handle -> result unit io_err
+    my open_text_snapshot_raw: path -> result file_handle io_err
     my file_snapshot_get: file_handle -> str
     my file_snapshot_set: (file_handle, str) -> unit
-    my file_snapshot_commit: file_handle -> int
+    my file_snapshot_commit: file_handle -> result unit io_err
     pub read_at: (path, range) -> result (str, range) io_err
     pub write_at: (path, range, str) -> result unit io_err
     pub exists: path -> bool
@@ -35,15 +35,6 @@ pub error io_err:
     denied path
     invalid_path path
     failed (path, str)
-
-my legacy_err_from_code(path: path, code: int): io_err =
-    if std::int::eq code 1:
-        io_err::not_found path
-    else:
-        if std::int::eq code 2:
-            io_err::denied path
-        else:
-            io_err::invalid_path path
 
 my unwrap_io(result) = case result:
     result::ok value -> value
@@ -65,43 +56,34 @@ pub write_text(path: path, text: str): unit =
     unwrap_io (file::store (path, text))
 
 pub open_text(path: path): ref '[file] str =
-    my (code, handle) = file::open_text_raw path
-    if std::int::eq code 0:
-        ref {
-            get: \() -> file::file_get handle,
-            update_effect: \() ->
-                file::file_set (handle, ref_update::update (file::file_get handle))
-        }
-    else:
-        (legacy_err_from_code path code).throw
+    my handle = unwrap_io (file::open_text_raw path)
+    ref {
+        get: \() -> file::file_get handle,
+        update_effect: \() ->
+            file::file_set (handle, ref_update::update (file::file_get handle))
+    }
 
 pub open(path: path): ref '[file] str = open_text path
 
 my open_text_snapshot(path: path): (file_handle, ref '[file] str) =
-    my (code, handle) = file::open_text_snapshot_raw path
-    if std::int::eq code 0:
-        (
-            handle,
-            ref {
-                get: \() -> file::file_snapshot_get handle,
-                update_effect: \() ->
-                    file::file_snapshot_set (
-                        handle,
-                        ref_update::update (file::file_snapshot_get handle)
-                    )
-            }
-        )
-    else:
-        (legacy_err_from_code path code).throw
+    my handle = unwrap_io (file::open_text_snapshot_raw path)
+    (
+        handle,
+        ref {
+            get: \() -> file::file_snapshot_get handle,
+            update_effect: \() ->
+                file::file_snapshot_set (
+                    handle,
+                    ref_update::update (file::file_snapshot_get handle)
+                )
+        }
+    )
 
 pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
     my (handle, text_ref) = open_text_snapshot path
     my result = f text_ref
-    my code = file::file_snapshot_commit handle
-    if std::int::eq code 0:
-        result
-    else:
-        (legacy_err_from_code path code).throw
+    unwrap_io (file::file_snapshot_commit handle)
+    result
 
 pub text(path: path): ref '[file_buffer] str =
     ref {

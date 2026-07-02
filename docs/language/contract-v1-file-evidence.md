@@ -8,8 +8,9 @@ contract box and tag policy exist, and the `file-resource` manifest subset now
 covers the public `file::load` / `file::store` / `file::meta` Stage 0 surface,
 the Stage 1 source-mock `text_with` protocol fixtures, and the first native
 registry parity cases over the same public protocol. Remaining legacy raw /
-snapshot operations and their integer error-code translation stay a
-compatibility window, not the Contract v1 center. Contract v0 remains closed in
+snapshot operations stay a compatibility window, not the Contract v1 center.
+Integer error-code translation has been removed from the `std::io::file` host
+bridge. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -31,6 +32,10 @@ public surface:
   values at the host act boundary. The public wrappers keep their existing
   throwing surface, but no longer decode integer error codes for range reads
   and writes.
+- `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_flush`,
+  and `file::file_snapshot_commit` also return typed `result ... io_err`
+  values at the host act boundary. This removes `legacy_err_from_code` from
+  `lib/std/io/file.yu` and removes the runtime integer error-code helper.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
@@ -154,9 +159,9 @@ public surface:
   execution keeps matching a full build.
 
 Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because legacy raw / snapshot host operations still carry integer
-error-code translation, native unscoped ambient read/write failures do not yet
-have a typed file error policy, and raw/provisional isolation is still open.
+Contract v1 because raw / snapshot host operations remain as compatibility
+operations, native unscoped ambient read/write failures do not yet have a typed
+file error policy, and raw/provisional isolation is still open.
 
 ## Missing Evidence
 
@@ -180,8 +185,6 @@ effect.
 
 The remaining blockers are Stage 2 host-boundary cleanup items:
 
-- removal of legacy int error-code translation from the remaining public
-  `open_text` / `open_in` compatibility path;
 - replacing native unscoped ambient read/write escaped-effect fallbacks with a
   typed or structured file failure policy;
 - raw/provisional isolation for legacy snapshot operations and range helpers.
