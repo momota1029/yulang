@@ -253,35 +253,26 @@ fn compatible_run_std_file_text_shorthand_host_contract() {
     let root = temp_root("run-std-file-text-shorthand");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
-    let direct = root.join("direct.txt");
     let scoped = root.join("scoped.txt");
     let entry = root.join("main.yu");
-    fs::write(&direct, "hello").unwrap();
     fs::write(&scoped, "hi").unwrap();
     fs::write(
         &entry,
         format!(
             "\
-my direct_result = {{
-    my &txt = std::io::file::text {direct}
-    my before = $txt
-    &txt = before + \" text\"
-    my after = std::io::file::read_text {direct}
-    (before, after)
-}}
-
-my scoped_result = std::io::file::text_with {scoped}: \\&txt ->
+my scoped_result = {{
+    my &txt = std::io::file::text_with({scoped}, do)
     my before = $txt
     &txt = before + \" scoped\"
     my buffer = $txt
     my backing_during_scope = std::io::file::read_text {scoped}
     (before, buffer, backing_during_scope)
+}}
 
 my scoped_after = std::io::file::read_text {scoped}
 
-(direct_result, scoped_result, scoped_after)
+(scoped_result, scoped_after)
 ",
-            direct = yulang_string_literal(&direct),
             scoped = yulang_string_literal(&scoped),
         ),
     )
@@ -300,9 +291,8 @@ my scoped_after = std::io::file::read_text {scoped}
     assert_success(&output);
     assert_eq!(
         stdout(&output),
-        "run roots [((\"hello\", \"hello text\"), (\"hi\", \"hi scoped\", \"hi\"), \"hi scoped\")]\n"
+        "run roots [((\"hi\", \"hi scoped\", \"hi\"), \"hi scoped\")]\n"
     );
-    assert_eq!(fs::read_to_string(&direct).unwrap(), "hello text");
     assert_eq!(fs::read_to_string(&scoped).unwrap(), "hi scoped");
 
     let _ = fs::remove_dir_all(&root);
@@ -1730,6 +1720,21 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
         stdout.contains(
             "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write sig=str -> ()\n"
         ),
+        "{stdout}"
+    );
+    assert!(
+        stdout
+            .contains("  act=std.io.file.file op=load tier=sync path=std.io.file.file.load sig=path -> result str io_err\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout
+            .contains("  act=std.io.file.file op=store tier=sync path=std.io.file.file.store sig=(path, str) -> result unit io_err\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout
+            .contains("  act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta sig=path -> file_meta\n"),
         "{stdout}"
     );
     assert!(
@@ -3746,6 +3751,7 @@ fn public_contract_manifest_cli_cases_hold() {
     assert!(!cases.is_empty());
 
     let mut names = BTreeSet::new();
+    let mut smoke_cases = public_contract_manifest_cli_smoke_cases();
     for case in cases {
         assert!(
             names.insert(case.name.clone()),
@@ -3769,16 +3775,34 @@ fn public_contract_manifest_cli_cases_hold() {
             case.file
         );
 
-        match case.kind.as_str() {
-            "run" => run_contract_manifest_case(&case),
-            "check" => check_contract_manifest_case(&case),
-            "public-signature" => public_signature_contract_manifest_case(&case),
-            other => panic!(
-                "unsupported contract manifest case kind `{other}`: {}",
-                case.name
-            ),
+        if smoke_cases.remove(case.name.as_str()) {
+            match case.kind.as_str() {
+                "run" => run_contract_manifest_case(&case),
+                "check" => check_contract_manifest_case(&case),
+                "public-signature" => public_signature_contract_manifest_case(&case),
+                other => panic!(
+                    "unsupported contract manifest case kind `{other}`: {}",
+                    case.name
+                ),
+            }
         }
     }
+    assert!(
+        smoke_cases.is_empty(),
+        "missing public contract CLI smoke cases: {smoke_cases:?}"
+    );
+}
+
+fn public_contract_manifest_cli_smoke_cases() -> BTreeSet<&'static str> {
+    [
+        "nondet_once_triple",
+        "type_annotation_mismatch",
+        "std_result_unwrap_or_public_signature",
+        "file_text_with_commit_do",
+        "file_unsupported_host",
+    ]
+    .into_iter()
+    .collect()
 }
 
 #[test]

@@ -2835,10 +2835,11 @@ fn run_runtime_evidence_run(
     let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
     timings.evidence_plan_build = plan_start.elapsed();
     let run_start = Instant::now();
-    let output = match evidence_vm::run_program_with_plan_deep_profile(
+    let output = match evidence_vm::run_program_with_plan_deep_profile_with_labels(
         &build.program,
         &plan,
         args.runtime_evidence_profile_deep,
+        &build.labels,
     ) {
         Ok(output) => output,
         Err(error) => {

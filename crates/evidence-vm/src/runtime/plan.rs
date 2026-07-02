@@ -5,7 +5,8 @@ use smallvec::{SmallVec, smallvec};
 
 use super::{
     ControlEvidenceIndex, EvidenceEffectRoute, EvidenceProviderGrant, EvidenceResolvedEffectRoute,
-    EvidenceResolvedRouteOrigin, RuntimeEvidenceProviderView, RuntimeEvidenceRunStats,
+    EvidenceResolvedRouteOrigin, RuntimeEvidenceHostConstructors, RuntimeEvidenceProviderView,
+    RuntimeEvidenceRunStats,
 };
 use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
@@ -78,6 +79,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
     static_routes_by_call: Vec<Option<(ExprId, RuntimeEvidenceStaticRouteResolution)>>,
+    host_constructors: RuntimeEvidenceHostConstructors,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -306,6 +308,7 @@ impl RuntimeEvidenceRunContext {
             operation_visibilities,
             operation_provider_lookups,
             static_routes_by_call,
+            host_constructors: RuntimeEvidenceHostConstructors::default(),
         }
     }
 
@@ -321,6 +324,18 @@ impl RuntimeEvidenceRunContext {
     pub(super) fn without_native_host_operations(mut self) -> Self {
         self.native_host_operations_disabled = true;
         self
+    }
+
+    pub(super) fn with_host_constructors(
+        mut self,
+        host_constructors: RuntimeEvidenceHostConstructors,
+    ) -> Self {
+        self.host_constructors = host_constructors;
+        self
+    }
+
+    pub(super) fn host_constructors(&self) -> &RuntimeEvidenceHostConstructors {
+        &self.host_constructors
     }
 
     pub(super) fn native_host_operations_enabled(&self) -> bool {

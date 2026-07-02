@@ -21,6 +21,9 @@ enum RuntimeHostOperationTier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostOperation {
     ConsoleOutWrite,
+    FileLoad,
+    FileStore,
+    FileMeta,
     FileReadAt,
     FileWriteAt,
     FileOpenTextRaw,
@@ -195,6 +198,30 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         signature: "str -> ()",
         path: &["std", "io", "console", "out", "write"],
         operation: RuntimeHostOperation::ConsoleOutWrite,
+    },
+    RuntimeHostOperationSpec {
+        act: RuntimeHostAct::File,
+        operation_id: "load",
+        tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> result str io_err",
+        path: &["std", "io", "file", "file", "load"],
+        operation: RuntimeHostOperation::FileLoad,
+    },
+    RuntimeHostOperationSpec {
+        act: RuntimeHostAct::File,
+        operation_id: "store",
+        tier: RuntimeHostOperationTier::Sync,
+        signature: "(path, str) -> result unit io_err",
+        path: &["std", "io", "file", "file", "store"],
+        operation: RuntimeHostOperation::FileStore,
+    },
+    RuntimeHostOperationSpec {
+        act: RuntimeHostAct::File,
+        operation_id: "meta",
+        tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> file_meta",
+        path: &["std", "io", "file", "file", "meta"],
+        operation: RuntimeHostOperation::FileMeta,
     },
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::File,
@@ -413,7 +440,7 @@ mod tests {
         }
 
         assert_eq!(console_ops, 1, "console out should have one current op");
-        assert_eq!(file_ops, 14, "file act should have current file host ops");
+        assert_eq!(file_ops, 17, "file act should have current file host ops");
     }
 
     #[test]

@@ -11,9 +11,12 @@ use specialize::{
 
 mod runtime;
 pub use runtime::{
-    RuntimeEvidenceDisplayContext, RuntimeEvidenceRunError, RuntimeEvidenceRunOutput,
-    RuntimeEvidenceRunStats, RuntimeHostManifestOperation, run_program, run_program_with_plan,
-    run_program_with_plan_deep_profile, run_program_with_plan_without_native_host_operations,
+    RuntimeEvidenceDisplayContext, RuntimeEvidenceHostConstructors, RuntimeEvidenceRunError,
+    RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, RuntimeHostManifestOperation, run_program,
+    run_program_with_plan, run_program_with_plan_deep_profile,
+    run_program_with_plan_deep_profile_with_labels, run_program_with_plan_with_labels,
+    run_program_with_plan_without_native_host_operations,
+    run_program_with_plan_without_native_host_operations_with_labels,
     runtime_host_manifest_operations,
 };
 

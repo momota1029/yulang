@@ -122,6 +122,49 @@ impl RuntimeEvidenceDisplayContext {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RuntimeEvidenceHostConstructors {
+    result_ok: Option<DefId>,
+    result_err: Option<DefId>,
+    file_meta: Option<DefId>,
+    file_kind_missing: Option<DefId>,
+    file_kind_denied: Option<DefId>,
+    file_kind_file: Option<DefId>,
+    file_kind_dir: Option<DefId>,
+    file_kind_symlink: Option<DefId>,
+    file_kind_other: Option<DefId>,
+    io_err_not_found: Option<DefId>,
+    io_err_denied: Option<DefId>,
+    io_err_invalid_path: Option<DefId>,
+    io_err_failed: Option<DefId>,
+}
+
+impl RuntimeEvidenceHostConstructors {
+    pub fn from_labels(labels: &poly::dump::DumpLabels) -> Self {
+        Self {
+            result_ok: def_with_label(labels, "std.data.result.result.ok"),
+            result_err: def_with_label(labels, "std.data.result.result.err"),
+            file_meta: def_with_label(labels, "std.io.file.file_meta"),
+            file_kind_missing: def_with_label(labels, "std.io.file.file_kind.missing"),
+            file_kind_denied: def_with_label(labels, "std.io.file.file_kind.denied"),
+            file_kind_file: def_with_label(labels, "std.io.file.file_kind.file"),
+            file_kind_dir: def_with_label(labels, "std.io.file.file_kind.dir"),
+            file_kind_symlink: def_with_label(labels, "std.io.file.file_kind.symlink"),
+            file_kind_other: def_with_label(labels, "std.io.file.file_kind.other"),
+            io_err_not_found: def_with_label(labels, "std.io.file.io_err.not_found"),
+            io_err_denied: def_with_label(labels, "std.io.file.io_err.denied"),
+            io_err_invalid_path: def_with_label(labels, "std.io.file.io_err.invalid_path"),
+            io_err_failed: def_with_label(labels, "std.io.file.io_err.failed"),
+        }
+    }
+}
+
+fn def_with_label(labels: &poly::dump::DumpLabels, expected: &str) -> Option<DefId> {
+    labels
+        .def_labels()
+        .find_map(|(def, label)| (label == expected).then_some(DefId(def.0)))
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum RuntimeEvidenceValue {
     Int(i64),
@@ -7747,11 +7790,32 @@ pub fn run_program_with_plan(
     RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
 }
 
+pub fn run_program_with_plan_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_without_native_host_operations(
     program: &Program,
     plan: &EvidenceVmPlan,
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan).without_native_host_operations();
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_without_native_host_operations_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .without_native_host_operations()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
@@ -7761,6 +7825,18 @@ pub fn run_program_with_plan_deep_profile(
     enabled: bool,
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan).with_deep_profile(enabled);
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_deep_profile_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
@@ -8100,6 +8176,7 @@ struct RuntimeEvidenceRunner<'a> {
     closed_file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
     next_file_handle: i64,
     host_registry: RuntimeHostRegistry,
+    host_constructors: RuntimeEvidenceHostConstructors,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
 }
@@ -8124,6 +8201,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
         let host_registry = RuntimeHostRegistry::new(context.native_host_operations_enabled());
+        let host_constructors = context.host_constructors().clone();
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
         stats.runtime_breakdown_stats_enabled =
@@ -8168,6 +8246,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             closed_file_snapshots: HashMap::new(),
             next_file_handle: 0,
             host_registry,
+            host_constructors,
             context,
             stats,
         }
@@ -12085,6 +12164,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))?;
                 Ok(shared(RuntimeEvidenceValue::Unit))
             }
+            RuntimeHostOperation::FileLoad => self.file_load(spec, payload),
+            RuntimeHostOperation::FileStore => self.file_store(spec, payload),
+            RuntimeHostOperation::FileMeta => self.file_meta(spec, payload),
             RuntimeHostOperation::FileReadAt => self.file_read_at(payload),
             RuntimeHostOperation::FileWriteAt => self.file_write_at(payload),
             RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(payload),
@@ -12111,6 +12193,158 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Ok(shared(RuntimeEvidenceValue::Bool(path.is_dir())))
             }
         }
+    }
+
+    fn file_load(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        match fs::read_to_string(&path) {
+            Ok(text) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Str(text))),
+            Err(error) => {
+                let error = self.host_io_error(spec, &path, &error)?;
+                self.host_result_err(spec, error)
+            }
+        }
+    }
+
+    fn file_store(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 2)?;
+        let path = runtime_host_path(args[0].as_ref())?;
+        let text = runtime_host_string(args[1].as_ref())?;
+        match fs::write(&path, text) {
+            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
+            Err(error) => {
+                let error = self.host_io_error(spec, &path, &error)?;
+                self.host_result_err(spec, error)
+            }
+        }
+    }
+
+    fn file_meta(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        let (kind, size, readonly) = match fs::symlink_metadata(&path) {
+            Ok(meta) => {
+                let ty = meta.file_type();
+                let kind = if ty.is_file() {
+                    self.host_constructors.file_kind_file
+                } else if ty.is_dir() {
+                    self.host_constructors.file_kind_dir
+                } else if ty.is_symlink() {
+                    self.host_constructors.file_kind_symlink
+                } else {
+                    self.host_constructors.file_kind_other
+                };
+                (kind, meta.len() as i64, meta.permissions().readonly())
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                (self.host_constructors.file_kind_missing, 0, false)
+            }
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+                (self.host_constructors.file_kind_denied, 0, false)
+            }
+            Err(_) => (self.host_constructors.file_kind_other, 0, false),
+        };
+        let kind = self.host_constructor(spec, kind)?;
+        let record = shared(RuntimeEvidenceValue::Record(vec![
+            RuntimeEvidenceValueField {
+                name: "kind".into(),
+                value: shared(RuntimeEvidenceValue::DataConstructor {
+                    def: kind,
+                    payloads: Vec::new(),
+                }),
+            },
+            RuntimeEvidenceValueField {
+                name: "size".into(),
+                value: shared(RuntimeEvidenceValue::Int(size)),
+            },
+            RuntimeEvidenceValueField {
+                name: "readonly".into(),
+                value: shared(RuntimeEvidenceValue::Bool(readonly)),
+            },
+        ]));
+        let Some(def) = self.host_constructors.file_meta else {
+            return Ok(record);
+        };
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: vec![record],
+        }))
+    }
+
+    fn host_result_ok(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        value: SharedValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let def = self.host_constructor(spec, self.host_constructors.result_ok)?;
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: vec![value],
+        }))
+    }
+
+    fn host_result_err(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        value: SharedValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let def = self.host_constructor(spec, self.host_constructors.result_err)?;
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: vec![value],
+        }))
+    }
+
+    fn host_io_error(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        path: &PathBuf,
+        error: &io::Error,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path_value = shared(RuntimeEvidenceValue::Str(runtime_path_text(path)));
+        let (def, payloads) = match error.kind() {
+            io::ErrorKind::NotFound => (self.host_constructors.io_err_not_found, vec![path_value]),
+            io::ErrorKind::PermissionDenied => {
+                (self.host_constructors.io_err_denied, vec![path_value])
+            }
+            _ => {
+                if let Some(def) = self.host_constructors.io_err_failed {
+                    (
+                        Some(def),
+                        vec![
+                            path_value,
+                            shared(RuntimeEvidenceValue::Str(error.to_string())),
+                        ],
+                    )
+                } else {
+                    (self.host_constructors.io_err_invalid_path, vec![path_value])
+                }
+            }
+        };
+        let def = self.host_constructor(spec, def)?;
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads,
+        }))
+    }
+
+    fn host_constructor(
+        &self,
+        spec: &RuntimeHostOperationSpec,
+        def: Option<DefId>,
+    ) -> Result<DefId, RuntimeEvidenceRunError> {
+        def.ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))
     }
 
     fn file_read_at(
@@ -19929,6 +20163,10 @@ fn runtime_host_string(value: &RuntimeEvidenceValue) -> Result<String, RuntimeEv
 
 fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvidenceRunError> {
     runtime_host_string(value).map(PathBuf::from)
+}
+
+fn runtime_path_text(path: &PathBuf) -> String {
+    path.to_string_lossy().into_owned()
 }
 
 fn runtime_host_int(value: &RuntimeEvidenceValue) -> Result<i64, RuntimeEvidenceRunError> {

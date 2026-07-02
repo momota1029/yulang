@@ -498,9 +498,13 @@ pub(super) fn run_built_evidence_for_cli_with_host(
 
         let run_start = Instant::now();
         let run_result = match host {
-            RunHostMode::Native => evidence_vm::run_program_with_plan(&program, &plan),
+            RunHostMode::Native => {
+                evidence_vm::run_program_with_plan_with_labels(&program, &plan, &labels)
+            }
             RunHostMode::Unsupported => {
-                evidence_vm::run_program_with_plan_without_native_host_operations(&program, &plan)
+                evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(
+                    &program, &plan, &labels,
+                )
             }
         };
         let output = match run_result {
