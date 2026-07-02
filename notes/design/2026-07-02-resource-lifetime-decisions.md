@@ -105,12 +105,21 @@ spec/2026-07-01-file-resource-api.md の Locking 節に
 
 ## 決定4: server の `accept` は multi-shot 領域で禁止する
 
+> **修正条項（2026-07-02、ユーザ承認済み）**: 本決定の enforcement 手段
+> 「typed failure または structured diagnostic」は、
+> [2026-07-02-host-act-ffi-decisions.md](2026-07-02-host-act-ffi-decisions.md) §F7 の
+> 三層契約（型は縛らない／安い動的検査／unspecified 文書化）に置き換える。
+> 禁止の意図は不変。また同文書 §F6 により、`accept` 自体は suspend multi-shot tier の
+> operation となり、「host が接続ごとに resume する」形が server の中心になった。
+
 spec/2026-07-02-server-resource-api.md は stored continuation の one-shot を
 既に決めているが、「`accept` を undet / junction の内側で perform した場合」が
 未定である。scheduler に保存された継続が複製されると one-shot 保証が壊れる。
 
-決定: **最初は typed failure または structured diagnostic で禁止する。**
-「junction × server」は将来の別 capability として明示的に閉じる。
+当初決定では失敗値または診断で明示的に拒否する方式を考えていたが、
+上の修正条項により enforcement は §F7 の三層契約へ移る。
+「junction × server」は、型で縛らず、安い動的検査で拾えないものは unspecified と
+文書化する。
 
 非対称性の明文化: file 側はトランザクション意味論（決定2）で multi-shot と
 共存できるが、server 側は共存できない。この非対称は設計の欠陥ではなく、

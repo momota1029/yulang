@@ -187,9 +187,11 @@ stable contract:
 - request scope が response なしで終わる場合の扱いは、host policy と diagnostics に残す。
 - external event は、server boundary が明示的に渡した capability だけを見えるものとする。
 - inner handler / local continuation / ref / thunk / closure を host event へ暗黙に渡さない。
-- stored continuation は原則 one-shot であり、multi-shot server continuation は別 capability とする。
-- `server.accept` を multi-shot resume されうる領域の内側で perform することは、
-  最初は typed failure または structured diagnostic として拒否する。
+- `server.accept` は host act FFI の suspend multi-shot tier operation であり、
+  host scheduler は外部 event ごとに stored continuation を resume してよい。
+- request response capability は one-shot であり、二重消費は安い動的検査で弾く。
+- `server.accept` などの suspend operation を user-level multi-shot 領域の内側で
+  perform した場合の意味は、最初の stable API では unspecified と文書化する。
 - HTTP / WebSocket / stdin / test driver は、この core の adapter であって core semantics ではない。
 
 最小の意味論:
