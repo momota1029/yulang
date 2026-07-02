@@ -23,6 +23,8 @@
 --   rewriting `text_with` only in public Yulang with `read_text` / `write_text`
 --   and a local `$text` ref currently leaves a `ref_update` / local var residual
 --   conflict when the constructed ref escapes to the callback.
+--   The smaller compiler-only reduction is in:
+--     notes/bugs/ref_constructor_local_var_specialize_conflict.yu
 --
 -- Do not solve this by making the raw snapshot operations public. The next
 -- proper fix should give file resources a mockable public host-act/session

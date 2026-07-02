@@ -1,0 +1,36 @@
+-- open (2026-07-02): user-level `std::control::var::ref { ... }` around a
+-- local mutable binding passes `check` but fails during `run` specialization.
+--
+-- This is a reduced form of the Contract v1 file-resource mock blocker. A pure
+-- mock `text_with` implementation wants to create a managed `ref` view over
+-- handler-local state, then pass that ref to the user callback. The native file
+-- implementation avoids this by using private snapshot host operations, but
+-- the mock path should not require exposing those raw helpers.
+--
+-- Expected:
+--   - the program checks;
+--   - specialization keeps the local var effect inside the block;
+--   - the constructed public ref can be read through `r.get()`;
+--   - later, the same shape should allow passing `r` to a callback.
+--
+-- Current:
+--   `yulang check` succeeds.
+--   `yulang run --print-roots` fails with:
+--
+--     conflicting type candidates for slot 0: std::text::str::str vs {get: 'open7}
+--
+-- The failure happens before any file host behavior is involved. Do not fix the
+-- file mock blocker by making `std::io::file` private snapshot operations
+-- public; the missing abstraction is that specialize2 still cannot monomorphize
+-- this public ref-constructor shape with a local-var-backed `update_effect`.
+
+use std::control::var::*
+
+{
+    my &text = "start"
+    my r: std::control::var::ref _ str = std::control::var::ref {
+        get: \() -> $text,
+        update_effect: \() -> &text = ref_update::update $text
+    }
+    r.get()
+}
