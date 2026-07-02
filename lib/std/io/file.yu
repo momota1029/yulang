@@ -121,6 +121,6 @@ pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
 
 pub text(path: path): ref '[file] str = open path
 
-pub text_with(path: path, f) = open_in path f
+pub text_with = open_in
 
 pub use file::*

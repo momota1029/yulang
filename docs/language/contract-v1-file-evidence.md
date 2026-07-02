@@ -5,8 +5,9 @@ This page records evidence for
 
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
 `file-resource` manifest subset has native normal-commit and unsupported-host
-cases. Rollback, branch-local multi-shot buffers, pure mock host behavior, and
-release archive parity remain open. Contract v0 remains closed in
+cases. Native rollback on user error is now covered. Branch-local multi-shot
+buffers, pure mock resource-lifetime behavior, and release archive parity remain
+open. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -28,6 +29,10 @@ public surface:
 - `tests/yulang/cases.toml` includes `file_text_with_commit`, the first
   `file-resource` / `resource-lifetime` / `host.native` manifest case. It uses
   runner-managed temp files and checks both CLI output and final file contents.
+- `tests/yulang/cases.toml` includes `file_text_with_rollback_on_error`, a
+  native `text_with` rollback case. The callback reads and updates the managed
+  text ref, exits through a user error caught by `E::wrap`, and the temp backing
+  file remains unchanged.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
@@ -60,34 +65,35 @@ pure mock parity, or packaged-release parity.
 
 ## Missing Evidence
 
-Contract v1 is complete only after the manifest contains executable
-`file-resource` cases for:
+Contract v1 is complete only after the manifest contains the remaining
+executable `file-resource` cases for:
 
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | pure handler commit, rollback, multi-shot branch commit, handler-extent discharge |
-| Native host | temp-file rollback, multi-shot branch-local buffers, and parity with mock shape |
+| Native host | multi-shot branch-local buffers and parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 | Release | packaged binary plus bundled std runs representative `file-resource` cases |
 
 ## Known Blockers
 
-The first native slice deliberately stops short of rollback and multi-shot
-contract cases. A callback that reads or writes the provided file ref and then
-escapes through an outer error or nondet handler currently exposes a solver
-row-combination gap:
+The native user-error rollback gap was narrowed to the thin `text_with` wrapper:
+direct `open_in` already worked, while `text_with(path, f) = open_in path f`
+split the callback residual during specialization. `text_with` is now a direct
+alias of `open_in`, and the rollback case is executable.
+
+The remaining native multi-shot case still exposes a solver row-combination gap
+when a callback reads or writes the provided file ref and then escapes through
+an outer nondet handler:
 
 ```text
-conflicting type candidates: [std::io::file::file, edit_err] vs [edit_err]
 conflicting type candidates: [std::control::nondet::nondet, std::io::file::file] vs [std::control::nondet::nondet]
 ```
 
-The conflict is specific to the provided ref's `file` effect under the outer
-handler. Plain file residuals under `edit_err::wrap` and plain file residuals
-under `.list` both work. Do not paper over this with a fixture-specific
-fallback; the next fix belongs near callback residual inference or the future
-host act/resource operation separation.
+Do not paper over this with a fixture-specific fallback; the next fix belongs
+near callback residual inference or the future host act/resource operation
+separation.
 
 The current native snapshot storage is runner-local, not branch-local. It is
 adequate for normal scope-exit commit but is not evidence for multi-shot

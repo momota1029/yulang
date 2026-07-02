@@ -84,6 +84,28 @@ contents = "start"
 expect_contents = "start scoped"
 
 [[case]]
+name = "file_text_with_rollback_on_error"
+file = "regressions/runtime/file_text_with_rollback_on_error.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"start\", result::err(edit_err::abort), \"start\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "errors",
+]
+[[case.temp_files]]
+placeholder = "__YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__"
+contents = "start"
+expect_contents = "start"
+
+[[case]]
 name = "file_unsupported_host"
 file = "regressions/runtime/file_unsupported_host.yu"
 kind = "run"

@@ -1,9 +1,9 @@
--- open (2026-07-02): `file::text_with` callback reads the managed text ref,
+-- resolved (2026-07-02): `file::text_with` callback reads the managed text ref,
 -- then exits through a user error that is caught by that user's generated
 -- `E::wrap`.
 --
--- This is a Contract v1 file-resource rollback blocker. The source type-checks,
--- but specialize2 fails before runtime:
+-- This was a Contract v1 file-resource rollback blocker. The source
+-- type-checked, but specialize2 failed before runtime:
 --
 --   conflicting type candidates for slot 0:
 --     [std::io::file::file, edit_err] vs [edit_err]
@@ -14,16 +14,21 @@
 --   - callback then performs `edit_err`;
 --   - outer `edit_err::wrap` consumes only `edit_err`.
 --
--- Removing `$text` makes the program specialize.
--- Replacing `edit_err::wrap` with `std::io::file::io_err::wrap` also works when
--- the backing file exists. So this is not a native host bridge problem and not
--- a simple `E::wrap` problem. It is the cross-effect callback residual shape.
+-- Removing `$text` made the program specialize.
+-- Calling `std::io::file::open_in` directly also worked with the same callback.
+-- The root cause was the thin `text_with(path, f) = open_in path f` wrapper:
+-- passing the callback function value through the wrapper caused specialize2 to
+-- collapse the callback's file residual against the outer wrapped error
+-- residual. Defining `text_with` as a direct alias of `open_in` keeps both
+-- spellings on the same implementation identity and avoids the residual split.
 --
--- Do not add this to `tests/yulang/cases.toml` until it passes. The contract
--- manifest must stay executable and should not carry expected-failure
--- placeholders.
+-- The executable regression is:
+--   `tests/yulang/regressions/runtime/file_text_with_rollback_on_error.yu`
+-- Do not add expected-failure placeholders to `tests/yulang/cases.toml`; this
+-- file remains a historical note and a minimal shape for future audits.
 --
--- Likely fix area:
+-- If the same pattern reappears for a wrapper that cannot be a direct alias,
+-- likely fix area:
 --   `crates/specialize/src/specialize2/type_resolver.rs`
 --   `crates/specialize/src/specialize2/candidate.rs`
 --
@@ -32,7 +37,7 @@
 --   - special-case generated `*.wrap`;
 --   - erase the callback residual to make the candidate conflict disappear.
 --
--- Expected runtime behavior after fixing specialization:
+-- Expected runtime behavior:
 --   - with an existing backing file containing "start";
 --   - callback reads `$text`, updates no backing state, then throws edit_err;
 --   - `edit_err::wrap` returns `result::err(edit_err::abort)`;
