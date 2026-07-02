@@ -4,6 +4,11 @@
 関連正本: 2026-07-02-resource-lifetime-decisions.md（v1 決定1〜3）、
 2026-07-02-host-act-ffi-decisions.md（v2 F6）、spec/2026-07-02-io-resource-api.md。
 
+2026-07-03: 決定文書として
+[notes/design/2026-07-03-structured-concurrency-decisions.md](../design/2026-07-03-structured-concurrency-decisions.md)
+を追加した。以後 serve first slice はこの文書を入口にし、この TODO は
+実装チェックリストとして扱う。
+
 ## 問題
 
 `accept`（suspend multi-shot tier）は接続ごとに分岐世界を作るが、
@@ -48,11 +53,14 @@
 
 ## First slice
 
-1. 決定文書（Claude との相談 → 署名）: 上記 1〜3 を確定。
-2. scheduler に cancel(branch_id) を実装。suspend 中の分岐の即時 drop のみ。
-3. fixture: accept 分岐を suspend 中に cancel → 分岐のファイル編集が
+1. 決定文書: `notes/design/2026-07-03-structured-concurrency-decisions.md` で完了。
+2. scheduler に branch id / parent id / status を持たせる。
+3. scheduler に cancel(branch_id) を実装。suspend 中の分岐の即時 drop のみ。
+4. fixture: accept 分岐を suspend 中に cancel → 分岐のファイル編集が
    rollback されている（v1 決定2 の検証と同一機構）。
-4. 実行中分岐の協調的 drop は次 slice。
+5. fixture: parent extent 終了で suspended child branches が drop される。
+6. fixture: double respond は dynamic failure になる。
+7. 実行中分岐の協調的 drop は次 slice。
 
 ## やってはいけないこと
 

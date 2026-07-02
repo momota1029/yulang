@@ -80,6 +80,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
 5. **Server in-process driver**
    - HTTP framework ではなく in-process test driver から始める。
    - `accept` suspend/resume、request resource、one-shot response、double respond failure を固定する。
+   - 2026-07-03: serve 実装前の structured concurrency 決定文書を
+     `notes/design/2026-07-03-structured-concurrency-decisions.md` に追加した。
+     first slice は scheduler branch id / parent id、cancel queue、suspend 中 branch
+     の immediate drop から始める。
 
 6. **Static route Stage 0, then conditional Stage 1**
    - `notes/design/2026-07-02-static-route-promotion-plan.md` に従い、まず被覆率計測だけ行う。

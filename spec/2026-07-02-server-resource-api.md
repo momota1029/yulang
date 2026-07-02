@@ -9,6 +9,9 @@ multi-shot continuation と resource lifetime の相互作用は
 host operation tier と FFI registry の設計は
 [2026-07-02-host-act-ffi-decisions.md](../notes/design/2026-07-02-host-act-ffi-decisions.md)
 の host act FFI 決定に従う。
+`accept` が作る分岐の所有権、キャンセル、branch drop の規則は
+[2026-07-03-structured-concurrency-decisions.md](../notes/design/2026-07-03-structured-concurrency-decisions.md)
+を serve first slice の前提として扱う。
 表面 API の現行 anchor は
 [2026-07-02-io-resource-api.md](2026-07-02-io-resource-api.md)（ユーザ承認済み）であり、
 本文書と矛盾する箇所はそちらを優先する（特に: `accept` は suspend multi-shot
@@ -96,6 +99,12 @@ resume してよい。
 multi-shot resume されうる領域の内側で perform した場合の意味は、最初の stable API では
 保証しない。型で multi-shot 性を追跡せず、ランタイムは token 二重消費のような安い
 動的検査だけを行い、それ以外は unspecified と文書化する。
+
+`accept` で resume された request branch は detached task ではなく、server handler
+extent の子である。parent extent が終わると未完了 branch は cancel/drop される。
+cancel は host から runtime への再入ではなく、scheduler queue に
+`Cancel { branch_id, reason }` を積む形で扱う。first slice は suspended branch の
+immediate drop のみを実装対象にし、running branch の協調 cancel は後段へ回す。
 
 ## Multi-shot asymmetry with files
 

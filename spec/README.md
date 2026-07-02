@@ -68,6 +68,9 @@
   — server API の中心を HTTP framework ではなく host event session と request/response
   resource に置く。`accept` は continuation suspend/resume 境界で、request response は
   one-shot capability 消費として扱い、host boundary を越える値には explicit wire codec を要求する。
+  `accept` が作る branch の所有権と cancellation は
+  [../notes/design/2026-07-03-structured-concurrency-decisions.md](../notes/design/2026-07-03-structured-concurrency-decisions.md)
+  を serve first slice の前提として読む。
 
 ### 後段（単相化）
 
