@@ -182,6 +182,10 @@ The columns trace a value through the pipeline:
   public `file::load`, `file::store`, and `file::meta` are directly covered by
   native CLI contract cases, including file, missing-target, and directory
   metadata cases that keep `exists`, `is_file`, and `is_dir` as metadata wrappers.
+  Native `file::load` on a missing target and `file::store` on a directory now
+  have `typed-failure` coverage that observes `io_err::not_found` and
+  `io_err::failed` constructors directly, so the contract surface does not rely
+  on an integer error-code bridge.
   `read_at` / `write_at`
   now return typed
   `result ... io_err` values at the host act boundary while preserving the

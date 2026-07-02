@@ -51,7 +51,9 @@ Contract v0. Do not combine it with `stable-core`. File resource cases should
 use `resource-lifetime` when they observe commit, rollback, handler-extent
 discharge, branch-local buffers, or last-write-wins, and `metadata` when they
 observe the non-throwing metadata shape. Use `host-act` when a case proves
-source handlers intercept host act operations before the native host registry.
+the public host act protocol itself, including source handlers intercepting host
+act operations before the native host registry or native operation failures
+becoming typed domain values instead of integer-code bridges.
 Runtime cases should declare a host scope: `host.native`, `host.unsupported`, or
 `mock-host` plus `host.unsupported` when the mock handler is intentionally run
 with native host capabilities disabled. A `mock-host` / `resource-lifetime`

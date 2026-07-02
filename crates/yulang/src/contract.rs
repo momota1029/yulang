@@ -630,13 +630,12 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
                 );
             }
             if !has_unsupported_host
-                && !contract_case_has_tag(case, "resource-lifetime")
-                && !contract_case_has_tag(case, "metadata")
+                && !contract_case_has_any_tag(case, &["resource-lifetime", "metadata", "host-act"])
             {
                 contract_manifest_fail(
                     path,
                     &format!(
-                        "file-resource runtime case `{}` should carry resource-lifetime or metadata",
+                        "file-resource runtime case `{}` should carry resource-lifetime, metadata, or host-act",
                         case.name
                     ),
                 );

@@ -1,0 +1,16 @@
+my missing = {{missing_file}}
+my directory = {{directory}}
+
+my load_failure = case std::io::file::file::load missing:
+    result::err err -> case err:
+        std::io::file::io_err::not_found _ -> "load-not-found"
+        _ -> "load-other-error"
+    result::ok _ -> "load-ok"
+
+my store_failure = case std::io::file::file::store (directory, "blocked"):
+    result::err err -> case err:
+        std::io::file::io_err::failed (_, _) -> "store-failed"
+        _ -> "store-other-error"
+    result::ok _ -> "store-ok"
+
+(load_failure, store_failure)

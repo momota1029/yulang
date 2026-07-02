@@ -53,8 +53,11 @@ release artifact
   - `scripts/hardening-smoke.sh` は Rust 側の public contract manifest に加えて、
     release binary の `yulang contract` コマンドを filtered manifest case で確認する。
     2026-07-02 時点で representative `--contract stable-core` cases を通す。
-    Contract v1 file-resource は `--contract file-resource` subset を通し、native
-    normal scope-exit commit と unsupported-host failure の両方を見る。
+    Contract v1 file-resource は direct release smoke の focused subset と archive
+    smoke の full tag filter で確認する。focused subset は Stage 1 protocol
+    fixture、native `text_with` commit / rollback / nondet / nested session、native
+    file metadata file / missing / directory、native typed operation failure、unsupported
+    host file / meta / ambient failure、native ambient host I/O error を含む。
 - archive smoke script:
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
@@ -63,6 +66,8 @@ release artifact
     filtered `yulang contract tests/yulang/cases.toml` を実行する。
     2026-07-02 時点で representative `--contract stable-core` cases を通す。
     Contract v1 file-resource subset も同じ packaged binary / bundled std 経路で通す。
+    Direct release smoke は短い focused subset、archive smoke は broader/full
+    `file-resource` tag filter を担当する。
 - installer smoke scripts:
   - `scripts/release-install-smoke.sh` / `scripts/release-install-smoke.ps1`
   - ローカル HTTP release directory から installer を実行し、custom prefix install、

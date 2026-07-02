@@ -54,6 +54,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: added `file_text_with_native_nested_state_var`, so native
        `text_with` also covers callback-local `&` state captured and mutated
        from an inner `text_with` callback.
+     - 2026-07-03: added `file_native_protocol_typed_failures`, so native
+       `file::load` missing-target and `file::store` directory failures are
+       observed as `io_err::not_found` / `io_err::failed` values rather than
+       integer error codes.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
      - 2026-07-03: added `file_text_unsupported_host`, so the ambient
