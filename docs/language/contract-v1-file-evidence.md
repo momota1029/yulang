@@ -34,6 +34,11 @@ public surface:
   tier metadata for the current console and file operations. This is not the
   final host act manifest / registry, but it gives that migration one runtime
   metadata boundary instead of another scattered path-matching chain.
+- The Evidence VM also has a deny path for known native host operations:
+  disabling native host operations in the runtime context reports
+  `UnsupportedHostCapability` instead of collapsing into a generic escaped
+  effect. There is not yet a public `host.unsupported` manifest case or
+  playground/wasm route for this behavior.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove rollback, branch-local buffers,

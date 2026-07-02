@@ -7601,6 +7601,7 @@ pub enum RuntimeEvidenceRunError {
     UnsupportedExpr(&'static str),
     UnsupportedPrimitive(PrimitiveOp),
     EscapedEffect(Vec<String>),
+    UnsupportedHostCapability(Vec<String>),
     NotFunction(String),
     NotThunk(String),
     NotRecord(String),
@@ -7634,6 +7635,11 @@ impl fmt::Display for RuntimeEvidenceRunError {
             Self::EscapedEffect(path) => write!(
                 f,
                 "runtime-evidence-run escaped effect request: {}",
+                path.join("::")
+            ),
+            Self::UnsupportedHostCapability(path) => write!(
+                f,
+                "runtime-evidence-run unsupported host capability: {}",
                 path.join("::")
             ),
             Self::NotFunction(value) => write!(f, "runtime-evidence-run not a function: {value}"),
@@ -12082,8 +12088,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if let Some(operation) = runtime_host_operation(request.path.as_ref()) {
-            let value = self.handle_runtime_host_operation(operation, request.payload.as_ref())?;
+        if let Some(spec) = runtime_host_operation_spec(request.path.as_ref()) {
+            if !self.context.native_host_operations_enabled() {
+                return Err(RuntimeEvidenceRunError::UnsupportedHostCapability(
+                    spec.act
+                        .path()
+                        .iter()
+                        .map(|part| (*part).to_string())
+                        .collect(),
+                ));
+            }
+            let value =
+                self.handle_runtime_host_operation(spec.operation, request.payload.as_ref())?;
             return self.resume_continuation(request.continuation, value);
         }
         Err(RuntimeEvidenceRunError::EscapedEffect(
@@ -19790,6 +19806,7 @@ fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvi
     runtime_host_string(value).map(PathBuf::from)
 }
 
+#[cfg(test)]
 fn runtime_host_operation(path: &[String]) -> Option<RuntimeHostOperation> {
     runtime_host_operation_spec(path).map(|spec| spec.operation)
 }
@@ -20683,6 +20700,40 @@ mod tests {
 
         assert_eq!(console_ops, 1, "console out should have one current op");
         assert_eq!(file_ops, 14, "file act should have current file host ops");
+    }
+
+    #[test]
+    fn runtime_host_operation_denied_by_context_reports_unsupported_capability() {
+        let program = Program::default();
+        let context = RuntimeEvidenceRunContext::default().without_native_host_operations();
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "file".to_string(),
+                "file".to_string(),
+                "exists".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let error = match runner.handle_escaped_request(request) {
+            Ok(_) => panic!("disabled native host operation should fail"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error,
+            RuntimeEvidenceRunError::UnsupportedHostCapability(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into()
+            ])
+        );
     }
 
     #[test]

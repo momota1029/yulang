@@ -20,6 +20,7 @@ use crate::{
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceRunContext {
     deep_profile: bool,
+    native_host_operations_disabled: bool,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -226,6 +227,7 @@ impl RuntimeEvidenceRunContext {
         let static_routes_by_call = static_routes_by_call_from_plan(plan, expr_table_len);
         Self {
             deep_profile: false,
+            native_host_operations_disabled: false,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -314,6 +316,16 @@ impl RuntimeEvidenceRunContext {
 
     pub(super) fn deep_profile_enabled(&self) -> bool {
         self.deep_profile
+    }
+
+    #[cfg(test)]
+    pub(super) fn without_native_host_operations(mut self) -> Self {
+        self.native_host_operations_disabled = true;
+        self
+    }
+
+    pub(super) fn native_host_operations_enabled(&self) -> bool {
+        !self.native_host_operations_disabled
     }
 
     pub(super) fn apply_to_evidence(&mut self, evidence: &mut ControlEvidenceIndex) {
