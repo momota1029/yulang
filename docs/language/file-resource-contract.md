@@ -106,7 +106,9 @@ Current executable mock evidence:
   that source handlers intercept the public `load` / `store` host act
   operations before the native host registry.
 - `file_text_with_commit` proves the production `text_with` protocol path over
-  public `file::load` and `file::store`.
+  public `file::load` and `file::store`. The callback protocol is
+  `str -> [e] ('a, str)`: the entry snapshot goes in, and the callback result
+  plus final buffer comes out.
 - `file_text_with_rollback_on_error` proves that a callback which exits through
   a user error does not reach the protocol `store`, leaving mock backing
   unchanged.

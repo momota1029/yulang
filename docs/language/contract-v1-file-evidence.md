@@ -70,7 +70,10 @@ public surface:
   runtime and flushes it at the end of a successful run.
 - `text_with` is the four-line state-passing protocol:
   load initial text, run a callback `str -> ('a, str)`, store the final text
-  only if the callback returns, then return the callback result.
+  only if the callback returns, then return the callback result. The integrated
+  IO resource spec now records this protocol shape instead of the earlier
+  `ref` callback sketch; future `\my &text ->` sugar should desugar to the same
+  protocol.
 - `tests/yulang/cases.toml` includes the Stage 1 source-mock protocol set:
   `file_text_with_commit`, `file_text_with_rollback_on_error`,
   `file_text_with_undet_last_write_wins`,
