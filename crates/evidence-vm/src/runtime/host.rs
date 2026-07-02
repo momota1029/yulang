@@ -23,7 +23,6 @@ enum RuntimeHostOperationTier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimeHostOperationSurface {
     Contract,
-    Migration,
     RawCompatibility,
 }
 
@@ -43,9 +42,6 @@ pub(super) enum RuntimeHostOperation {
     FileSnapshotGet,
     FileSnapshotSet,
     FileSnapshotCommit,
-    FileExists,
-    FileIsFile,
-    FileIsDir,
     FileBufferAmbientGet,
     FileBufferAmbientSet,
 }
@@ -208,7 +204,6 @@ impl RuntimeHostOperationSurface {
     fn manifest_id(self) -> &'static str {
         match self {
             Self::Contract => "contract",
-            Self::Migration => "migration",
             Self::RawCompatibility => "raw-compat",
         }
     }
@@ -342,33 +337,6 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         operation: RuntimeHostOperation::FileSnapshotCommit,
     },
     RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "exists",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Migration,
-        signature: "path -> bool",
-        path: &["std", "io", "file", "file", "exists"],
-        operation: RuntimeHostOperation::FileExists,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "is_file",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Migration,
-        signature: "path -> bool",
-        path: &["std", "io", "file", "file", "is_file"],
-        operation: RuntimeHostOperation::FileIsFile,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "is_dir",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Migration,
-        signature: "path -> bool",
-        path: &["std", "io", "file", "file", "is_dir"],
-        operation: RuntimeHostOperation::FileIsDir,
-    },
-    RuntimeHostOperationSpec {
         act: RuntimeHostAct::FileBuffer,
         operation_id: "ambient_get",
         tier: RuntimeHostOperationTier::Sync,
@@ -497,7 +465,7 @@ mod tests {
         }
 
         assert_eq!(console_ops, 1, "console out should have one current op");
-        assert_eq!(file_ops, 16, "file act should have current file host ops");
+        assert_eq!(file_ops, 13, "file act should have current file host ops");
         assert_eq!(
             file_buffer_ops, 2,
             "file buffer act should have current ambient host ops"
@@ -507,12 +475,10 @@ mod tests {
     #[test]
     fn runtime_host_operation_table_separates_contract_and_raw_surfaces() {
         let mut contract_ops = 0;
-        let mut migration_ops = 0;
         let mut raw_compat_ops = 0;
         for spec in RUNTIME_HOST_OPERATIONS {
             match spec.surface {
                 RuntimeHostOperationSurface::Contract => contract_ops += 1,
-                RuntimeHostOperationSurface::Migration => migration_ops += 1,
                 RuntimeHostOperationSurface::RawCompatibility => raw_compat_ops += 1,
             }
         }
@@ -520,10 +486,6 @@ mod tests {
         assert_eq!(
             contract_ops, 8,
             "contract host ops should cover console plus file protocol and ambient ops"
-        );
-        assert_eq!(
-            migration_ops, 3,
-            "migration host ops should cover legacy metadata predicates"
         );
         assert_eq!(
             raw_compat_ops, 8,
@@ -546,7 +508,7 @@ mod tests {
             );
             assert_eq!(entry.tier, "sync");
             assert!(
-                matches!(entry.surface, "contract" | "migration" | "raw-compat"),
+                matches!(entry.surface, "contract" | "raw-compat"),
                 "host manifest operation {}.{} should expose a known surface",
                 entry.act_id,
                 entry.operation_id
@@ -579,11 +541,11 @@ mod tests {
             "io".into(),
             "file".into(),
             "file".into(),
-            "exists".into(),
+            "meta".into(),
         ];
 
         let resolution = registry.resolve(&path);
-        let spec = runtime_host_operation_spec(&path).expect("file exists op should be registered");
+        let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
 
         assert_eq!(
             resolution,
@@ -601,16 +563,16 @@ mod tests {
             "io".into(),
             "file".into(),
             "file".into(),
-            "exists".into(),
+            "meta".into(),
         ];
 
-        let spec = runtime_host_operation_spec(&path).expect("file exists op should be registered");
+        let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
 
         assert_eq!(
             registry.resolve(&path),
             Some(RuntimeHostRequestResolution::Operation(spec))
         );
-        assert_eq!(spec.operation, RuntimeHostOperation::FileExists);
+        assert_eq!(spec.operation, RuntimeHostOperation::FileMeta);
         assert_eq!(spec.path_strings(), path.to_vec());
     }
 

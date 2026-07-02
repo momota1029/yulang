@@ -22,9 +22,6 @@ pub act file:
     my file_snapshot_commit: file_handle -> result unit io_err
     pub read_at: (path, range) -> result (str, range) io_err
     pub write_at: (path, range, str) -> result unit io_err
-    pub exists: path -> bool
-    pub is_file: path -> bool
-    pub is_dir: path -> bool
 
 pub act file_buffer:
     pub ambient_get: path -> str
@@ -42,6 +39,19 @@ my unwrap_io(result) = case result:
 
 pub meta(path: path): file_meta =
     file::meta path
+
+pub exists(path: path): bool = case (meta path).kind:
+    file_kind::missing -> false
+    file_kind::denied -> false
+    _ -> true
+
+pub is_file(path: path): bool = case (meta path).kind:
+    file_kind::file -> true
+    _ -> false
+
+pub is_dir(path: path): bool = case (meta path).kind:
+    file_kind::dir -> true
+    _ -> false
 
 pub read_at(path: path, r: range): (str, range) =
     unwrap_io (file::read_at (path, r))

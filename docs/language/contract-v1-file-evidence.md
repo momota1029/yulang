@@ -22,9 +22,10 @@ public surface:
   `file::load` / `file::store` result operations. Source mock handlers can
   intercept those operations under `--host unsupported`, and the native CLI
   host executes the same public operations through the runtime host registry.
-- `exists`, `is_file`, and `is_dir` still run through the native CLI host.
-  `file_meta { kind, size, readonly }` is now the public metadata shape, and
-  the new public `file::meta` operation has native registry coverage.
+- `file_meta { kind, size, readonly }` is now the public metadata shape, and
+  the public `file::meta` operation has native registry coverage. `exists`,
+  `is_file`, and `is_dir` are pure Yulang wrappers over `meta.kind`; they no
+  longer occupy separate host operations.
 - The old private `file::meta_raw` integer-code operation has been removed from
   `std::io::file` and from the runtime host manifest. Metadata now enters the
   public surface through `file::meta`.
@@ -37,9 +38,9 @@ public surface:
   values at the host act boundary. This removes `legacy_err_from_code` from
   `lib/std/io/file.yu` and removes the runtime integer error-code helper.
 - `debug host-act-manifest` now exposes a `surface` column. Current operations
-  are separated into `contract`, `migration`, and `raw-compat`, so legacy
-  snapshot operations are observable as compatibility surface instead of being
-  mixed into the Contract v1 protocol surface.
+  are separated into `contract` and `raw-compat`, so legacy snapshot operations
+  are observable as compatibility surface instead of being mixed into the
+  Contract v1 protocol surface.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.

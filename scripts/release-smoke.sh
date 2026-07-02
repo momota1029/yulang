@@ -87,7 +87,7 @@ fi
 
 host_manifest_output="$(run "$bin" debug host-act-manifest)"
 expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io.console.out.write'
-expected_file_manifest='act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists'
+expected_file_manifest='act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta'
 expected_file_buffer_manifest='act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get'
 expected_file_raw_surface='act=std.io.file.file op=open_text_raw tier=sync path=std.io.file.file.open_text_raw sig=path -> result file_handle io_err surface=raw-compat'
 if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||

@@ -172,11 +172,12 @@ The columns trace a value through the pipeline:
   manifest contract. Generated error display uses variant labels and payload
   `Display`; `from` variants delegate to the wrapped error's display. Custom
   per-variant wording is a future surface, not part of the current contract.
-- `std::io::file::read_text`, `write_text`, `exists`, `is_file`, `is_dir`,
-  and `meta`
+- `std::io::file::read_text`, `write_text`, and `meta`
   run through the native CLI host path. Reads/writes return typed `io_err`
   effects for operation failures; `meta` follows the resource API decision and
   reports missing/denied/other through `file_meta.kind` instead of throwing.
+  `exists`, `is_file`, and `is_dir` are pure wrappers over `meta.kind`, not
+  separate host operations.
   `meta` currently returns a first `file_meta { kind, size, readonly }` canary;
   public `file::load`, `file::store`, and `file::meta` are directly covered by
   native CLI contract cases. `read_at` / `write_at` now return typed
@@ -189,7 +190,7 @@ The columns trace a value through the pipeline:
   rollback, branch-local buffers, and nested cross-file sessions under `--host
   unsupported`. `open_text`, `open`, and `open_in` remain legacy native snapshot
   canaries, not the center of the Contract v1 evidence. The runtime host
-  manifest now exposes `surface=contract|migration|raw-compat`, so those
+  manifest now exposes `surface=contract|raw-compat`, so those
   compatibility operations are separated from the contract protocol in debug
   and release smoke output. This is still not the full Contract v1
   file-resource contract because a public session replacement for `raw-compat`,

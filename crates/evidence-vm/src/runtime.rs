@@ -12182,18 +12182,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(spec, payload),
             RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(spec, payload),
             RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(spec, payload),
-            RuntimeHostOperation::FileExists => {
-                let path = runtime_host_path(payload)?;
-                Ok(shared(RuntimeEvidenceValue::Bool(path.exists())))
-            }
-            RuntimeHostOperation::FileIsFile => {
-                let path = runtime_host_path(payload)?;
-                Ok(shared(RuntimeEvidenceValue::Bool(path.is_file())))
-            }
-            RuntimeHostOperation::FileIsDir => {
-                let path = runtime_host_path(payload)?;
-                Ok(shared(RuntimeEvidenceValue::Bool(path.is_dir())))
-            }
             RuntimeHostOperation::FileBufferAmbientGet => {
                 self.file_buffer_ambient_get(spec, payload)
             }

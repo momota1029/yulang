@@ -1750,11 +1750,6 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
         "{stdout}"
     );
     assert!(
-        stdout
-            .contains("  act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists sig=path -> bool surface=migration\n"),
-        "{stdout}"
-    );
-    assert!(
         stdout.contains(
             "  act=std.io.file.file op=open_text_raw tier=sync path=std.io.file.file.open_text_raw sig=path -> result file_handle io_err surface=raw-compat\n"
         ),
