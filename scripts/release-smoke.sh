@@ -85,6 +85,16 @@ if [[ "$ref_loop_output" != "run roots [100]" ]]; then
   exit 1
 fi
 
+host_manifest_output="$(run "$bin" debug host-act-manifest)"
+expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io.console.out.write'
+expected_file_manifest='act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists'
+if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
+  "$host_manifest_output" != *"$expected_file_manifest"* ]]; then
+  echo "release smoke: unexpected host act manifest output" >&2
+  echo "$host_manifest_output" >&2
+  exit 1
+fi
+
 cache_path="$(run "$bin" cache path)"
 expected_cache_path="$(path_for_compare "$YULANG_CACHE_DIR")"
 actual_cache_path="$(path_for_compare "$cache_path")"

@@ -74,6 +74,9 @@ public surface:
   reconstructed path for console/file operations. This is still the interim
   runtime manifest, not compiler-generated `host act` lowering output, but it
   makes the current registry surface observable outside unit tests.
+- `scripts/release-smoke.sh` now checks representative console/file manifest
+  lines, so release and archive smokes cover the debug manifest surface through
+  the packaged binary path.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped
