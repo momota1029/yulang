@@ -15,13 +15,15 @@
 --     std::io::file::file::file_snapshot_set
 --     std::io::file::file::file_snapshot_commit
 --
---   Source outside `std::io::file` cannot catch those `my` operations as a
---   mock host surface. The registry therefore reports unsupported host
---   capability before the mock resource-lifetime handler can run.
+--   Source outside `std::io::file` cannot rely on those `my` operations as a
+--   mock host surface. Current reductions may lower and run, but they do not
+--   produce a portable contract observation for production `text_with` pure
+--   mock parity. The public mock-host contract must target a public
+--   file-session / host-act boundary instead.
 --
 -- Current blocker B:
 --   rewriting `text_with` only in public Yulang with `read_text` / `write_text`
---   and a local `$text` ref still needs a public way to construct the managed
+--   and a local `$text` ref used to look blocked on constructing the managed
 --   `ref` view passed to the callback.
 --   The old fully-qualified constructor reduction is in:
 --     notes/bugs/ref_constructor_public_path_blocker.yu
@@ -36,12 +38,13 @@
 --   `d171:"std.control.var.ref"`; with current mutable-binding syntax
 --   (`my $text = ...`) it also runs successfully.
 --
--- Current side probe C:
+-- Resolved side probe C:
 --   `notes/bugs/ref_update_local_buffer_public_probe.yu` constructs a public
 --   `ref` view over a handler-local `$buffer`, then updates it through
---   `r.update`. That direct `.update` method probe still fails with a callback
---   residual conflict. It is a useful ref.update-specific reduction, but it is
---   no longer the blocker for function-shaped mock text scopes.
+--   `r.update`. That direct `.update` method probe now runs on both cached and
+--   no-cache paths and is contract-covered by:
+--     tests/yulang/regressions/runtime/ref_update_local_buffer_public.yu
+--   It is no longer a file-resource blocker.
 --
 -- Resolved reduction D:
 --   The function-shaped public mock reduction is:
@@ -57,16 +60,11 @@
 --
 -- Remaining blocker D:
 --   The real `std::io::file::text_with` path still uses private snapshot helper
---   operations. A public handler can catch the initial
---   `open_text_snapshot_raw`, but `file_snapshot_get` performed through the
---   callback escapes the same public mock handler:
---
---     runtime error [yulang.unhandled-effect]:
---       unhandled effect request std::io::file::file::file_snapshot_get
---
---   So the remaining blocker is not public name resolution, ref-view
---   construction, or the reusable function boundary. It is the lack of a
---   mockable public host-act/session boundary for the real file resource path.
+--   operations. Reductions around those private paths are useful for debugging,
+--   but not for a public `file-resource` manifest case. So the remaining
+--   blocker is not public name resolution, ref-view construction, or the
+--   reusable function boundary. It is the lack of a mockable public
+--   host-act/session boundary for the real file resource path.
 --
 -- Do not solve this by making the raw snapshot operations public. The next
 -- proper fix should give file resources a mockable public host-act/session
@@ -77,15 +75,24 @@
 --   Rewriting `open_in` directly as `read_text path`, a handler-local
 --   `$buffer`, a public `ref { get, update_effect }`, callback invocation, and
 --   `write_text path $buffer` would make the real API mockable through the
---   public `read_at` / `write_at` operations. However the public `open_in`
---   callback type currently splits the callback residual candidates:
+--   public `read_at` / `write_at` operations.
 --
---     [file, io_err, &buffer#..., ref_update(str)] vs [&buffer#...]
+--   That rewrite is still not a safe implementation path. Rechecking it on
+--   2026-07-02 showed an even stronger rejection: `dump-poly-std-in
+--   std.io.file` projects public `open_in` / `text_with` types containing the
+--   handler-local `std::io::file::"&buffer#..."` private effect. That violates
+--   the public signature contract even before runtime parity is considered.
+--   The correct fix must keep the resource-local buffer behind a public file
+--   session/host-act boundary, not behind a public function's local `$buffer`.
 --
---   Existing native `file_text_with_commit`,
---   `file_text_with_rollback_on_error`, and
---   `file_text_with_nondet_branch_snapshots` all fail with that shape. So the
---   direct public-Yulang rewrite is not yet a safe implementation path.
+-- Probe caution:
+--   Do not write `catch { ... }:` when reducing this issue. A raw brace block
+--   as the catch scrutinee is not valid Yulang surface syntax. Also avoid
+--   `my program = effectful_file_call; run program` as a mock probe: that
+--   binding evaluates before the handler can catch the host act. Existing
+--   source mock fixtures use inline `catch std::io::file::read_text ...:` for
+--   thin helpers, or a reusable public `text_with_mock(backing, f)` helper for
+--   pure resource-lifetime semantics.
 
 my run(body, backing, buffer) = catch body:
     std::io::file::file::open_text_snapshot_raw path, k -> run (k (0, 0)) backing backing

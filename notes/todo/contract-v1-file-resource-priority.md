@@ -26,6 +26,13 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        also a `stable-core` contract. Production `text_with` still needs a
        public mockable session boundary; private snapshot helpers must not be
        made public just to satisfy this.
+      - 2026-07-02 follow-up: replacing production `open_in` with a plain
+        public `read_text` / local `$buffer` / public `ref { ... }` /
+        `write_text` helper leaks the handler-local `&buffer#...` effect into
+        the public `open_in` / `text_with` signature. This is rejected by the
+        public type boundary, so the next implementation path must be a real
+        public file-session or host-act boundary that hides resource-local
+        state.
    - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
      - 2026-07-02: native normal commit / user-error rollback / nondet
        branch-local snapshot は executable contract 化済み。

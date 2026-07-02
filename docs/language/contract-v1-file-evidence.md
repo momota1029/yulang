@@ -190,11 +190,25 @@ local `$buffer` view is not the remaining file-resource blocker.
 
 The real `std::io::file::text_with` path still uses private snapshot helper
 operations, and a source-level outer handler cannot fully mock that private
-callback path. `open_text_snapshot_raw` can be caught by a local handler, but
-`file_snapshot_get` performed through the callback escapes the same public mock
-handler. Do not solve this by making those raw snapshot operations public. The
-remaining fix should be a public mockable file session boundary or an equivalent
+callback path as a public contract. Reductions around those private operations
+are useful for debugging, but they do not provide portable mock-host evidence.
+Do not solve this by making those raw snapshot operations public. The remaining
+fix should be a public mockable file session boundary or an equivalent
 language-level resource representation.
+
+A direct public-Yulang rewrite of `open_in` is also rejected. Rewriting the
+implementation as `read_text path`, a local `$buffer`, a public `ref { ... }`
+view, callback invocation, and `write_text path $buffer` would route through the
+mockable public `read_at` / `write_at` act operations, but it projects the
+handler-local `&buffer#...` effect into the public `open_in` / `text_with`
+signature. That violates the no-private-evidence public type boundary. The file
+session boundary must hide this resource-local buffer; it cannot be a plain
+public helper-local mutable variable.
+
+Probe reductions should also avoid `catch { ... }:`. A raw brace block in the
+catch scrutinee is not valid Yulang surface syntax. Binding an effectful file
+call before passing it to a handler runner is not equivalent either: the binding
+executes before the handler can catch the host act.
 
 ## Acceptance Gate
 
