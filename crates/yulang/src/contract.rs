@@ -92,7 +92,26 @@ struct ContractCase {
     #[serde(default)]
     expect_diagnostic_related_origins: Vec<String>,
     #[serde(default)]
+    temp_files: Vec<ContractTempFile>,
+    #[serde(default)]
     contracts: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractTempFile {
+    placeholder: String,
+    contents: String,
+    expect_contents: Option<String>,
+}
+
+struct MaterializedContractRunCase {
+    entry: PathBuf,
+    temp_files: Vec<MaterializedContractTempFile>,
+}
+
+struct MaterializedContractTempFile {
+    path: PathBuf,
+    expect_contents: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -275,16 +294,103 @@ fn run_contract_run_case(options: &ContractOptions, repo_root: &Path, case: &Con
         );
     }
     let cache_root = root.join("cache-root");
-    let entry = contract_case_entry(repo_root, case);
+    let source_entry = contract_case_entry(repo_root, case);
+    let materialized = materialize_contract_run_case(case, &source_entry, &root);
     let mut command = contract_child_command(options, case);
     command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
     }
-    let output = contract_output(case, command.arg(&entry));
+    let output = contract_output(case, command.arg(&materialized.entry));
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
+    assert_contract_temp_files(case, &materialized.temp_files);
     let _ = fs::remove_dir_all(&root);
+}
+
+fn materialize_contract_run_case(
+    case: &ContractCase,
+    source_entry: &Path,
+    root: &Path,
+) -> MaterializedContractRunCase {
+    if case.temp_files.is_empty() {
+        return MaterializedContractRunCase {
+            entry: source_entry.to_path_buf(),
+            temp_files: Vec::new(),
+        };
+    }
+
+    let mut source = fs::read_to_string(source_entry).unwrap_or_else(|error| {
+        contract_fail(
+            case,
+            &format!(
+                "failed to read contract case source {}: {error}",
+                source_entry.display()
+            ),
+        )
+    });
+    let mut temp_files = Vec::new();
+    for (index, temp_file) in case.temp_files.iter().enumerate() {
+        if !source.contains(&temp_file.placeholder) {
+            contract_fail(
+                case,
+                &format!(
+                    "temp file placeholder {:?} is not present in {}",
+                    temp_file.placeholder,
+                    source_entry.display()
+                ),
+            );
+        }
+        let path = root.join(format!("temp-{index}.txt"));
+        fs::write(&path, &temp_file.contents).unwrap_or_else(|error| {
+            contract_fail(
+                case,
+                &format!("failed to write temp file {}: {error}", path.display()),
+            )
+        });
+        source = source.replace(
+            &temp_file.placeholder,
+            &contract_yulang_string_literal(&path),
+        );
+        temp_files.push(MaterializedContractTempFile {
+            path,
+            expect_contents: temp_file.expect_contents.clone(),
+        });
+    }
+
+    let entry = root.join("main.yu");
+    fs::write(&entry, source).unwrap_or_else(|error| {
+        contract_fail(
+            case,
+            &format!(
+                "failed to materialize contract source {}: {error}",
+                entry.display()
+            ),
+        )
+    });
+    MaterializedContractRunCase { entry, temp_files }
+}
+
+fn assert_contract_temp_files(case: &ContractCase, temp_files: &[MaterializedContractTempFile]) {
+    for temp_file in temp_files {
+        if let Some(expected) = &temp_file.expect_contents {
+            let actual = fs::read_to_string(&temp_file.path).unwrap_or_else(|error| {
+                contract_fail(
+                    case,
+                    &format!(
+                        "failed to read temp file {}: {error}",
+                        temp_file.path.display()
+                    ),
+                )
+            });
+            assert_contract_eq(
+                case,
+                &format!("temp file {}", temp_file.path.display()),
+                &actual,
+                expected,
+            );
+        }
+    }
 }
 
 fn run_contract_check_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
@@ -688,6 +794,10 @@ fn contract_temp_root(name: &str) -> PathBuf {
         .unwrap_or_default()
         .as_nanos();
     env::temp_dir().join(format!("yulang-contract-{name}-{nanos}"))
+}
+
+fn contract_yulang_string_literal(path: &Path) -> String {
+    format!("{:?}", path.display().to_string())
 }
 
 fn contract_fail(case: &ContractCase, message: &str) -> ! {

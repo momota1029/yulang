@@ -1,0 +1,11 @@
+my scoped_result = std::io::file::text_with __YULANG_FILE_TEXT_WITH_COMMIT_PATH__: \&text ->
+    my before = $text
+    &text = before + " scoped"
+    my buffer = $text
+    my backing_during_scope =
+        std::io::file::read_text __YULANG_FILE_TEXT_WITH_COMMIT_PATH__
+    (before, buffer, backing_during_scope)
+
+my scoped_after = std::io::file::read_text __YULANG_FILE_TEXT_WITH_COMMIT_PATH__
+
+(scoped_result, scoped_after)

@@ -3985,6 +3985,50 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             );
         }
     }
+    if !case.temp_files.is_empty() {
+        assert_eq!(
+            case.kind, "run",
+            "contract manifest case {} should only use temp_files for run cases",
+            case.name
+        );
+        let mut placeholders = BTreeSet::new();
+        for temp_file in &case.temp_files {
+            assert!(
+                !temp_file.placeholder.is_empty(),
+                "contract manifest case {} has an empty temp file placeholder",
+                case.name
+            );
+            assert!(
+                placeholders.insert(temp_file.placeholder.as_str()),
+                "contract manifest case {} reuses temp file placeholder {:?}",
+                case.name,
+                temp_file.placeholder
+            );
+        }
+    }
+    if contract_manifest_case_has_tag(case, "file-resource") {
+        assert!(
+            !contract_manifest_case_has_tag(case, "stable-core"),
+            "file-resource contract manifest case {} should not be stable-core",
+            case.name
+        );
+        if case.kind == "run" {
+            let host_scope_count = ["mock-host", "host.native", "host.unsupported"]
+                .into_iter()
+                .filter(|tag| contract_manifest_case_has_tag(case, tag))
+                .count();
+            assert_eq!(
+                host_scope_count, 1,
+                "file-resource runtime case {} should declare exactly one host scope",
+                case.name
+            );
+            assert!(
+                contract_manifest_case_has_tag(case, "resource-lifetime"),
+                "file-resource runtime case {} should declare resource-lifetime",
+                case.name
+            );
+        }
+    }
     if contract_manifest_case_has_any_tag(case, &["stable-api", "migration-canary"]) {
         assert!(
             contract_manifest_case_has_tag(case, "standard-api"),
@@ -4321,7 +4365,26 @@ struct PublicContractCase {
     #[serde(default)]
     expect_diagnostic_related_origins: Vec<String>,
     #[serde(default)]
+    temp_files: Vec<PublicContractTempFile>,
+    #[serde(default)]
     contracts: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PublicContractTempFile {
+    placeholder: String,
+    contents: String,
+    expect_contents: Option<String>,
+}
+
+struct MaterializedContractRunCase {
+    entry: PathBuf,
+    temp_files: Vec<MaterializedContractTempFile>,
+}
+
+struct MaterializedContractTempFile {
+    path: PathBuf,
+    expect_contents: Option<String>,
 }
 
 fn public_contract_manifest_cases() -> Vec<PublicContractCase> {
@@ -4342,7 +4405,8 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     let cache_root = root.join("cache-root");
-    let entry = public_contract_case_entry(case);
+    let source_entry = public_contract_case_entry(case);
+    let materialized = materialize_contract_run_case(case, &source_entry, &root);
 
     let mut command = yulang_command();
     push_contract_std_args(&mut command, case);
@@ -4350,12 +4414,92 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
     }
-    let output = command.arg(&entry).output().unwrap();
+    let output = command.arg(&materialized.entry).output().unwrap();
 
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
+    assert_contract_temp_files(case, &materialized.temp_files);
 
     let _ = fs::remove_dir_all(&root);
+}
+
+fn materialize_contract_run_case(
+    case: &PublicContractCase,
+    source_entry: &Path,
+    root: &Path,
+) -> MaterializedContractRunCase {
+    if case.temp_files.is_empty() {
+        return MaterializedContractRunCase {
+            entry: source_entry.to_path_buf(),
+            temp_files: Vec::new(),
+        };
+    }
+
+    let mut source = fs::read_to_string(source_entry).unwrap_or_else(|error| {
+        panic!(
+            "failed to read contract case source {} for {}: {error}",
+            source_entry.display(),
+            case.name
+        )
+    });
+    let mut temp_files = Vec::new();
+    for (index, temp_file) in case.temp_files.iter().enumerate() {
+        assert!(
+            source.contains(&temp_file.placeholder),
+            "contract manifest case {} temp file placeholder {:?} is not present in {}",
+            case.name,
+            temp_file.placeholder,
+            source_entry.display()
+        );
+        let path = root.join(format!("temp-{index}.txt"));
+        fs::write(&path, &temp_file.contents).unwrap_or_else(|error| {
+            panic!(
+                "failed to write temp file {} for contract case {}: {error}",
+                path.display(),
+                case.name
+            )
+        });
+        source = source.replace(&temp_file.placeholder, &yulang_string_literal(&path));
+        temp_files.push(MaterializedContractTempFile {
+            path,
+            expect_contents: temp_file.expect_contents.clone(),
+        });
+    }
+
+    let entry = root.join("main.yu");
+    fs::write(&entry, source).unwrap_or_else(|error| {
+        panic!(
+            "failed to materialize contract case {} at {}: {error}",
+            case.name,
+            entry.display()
+        )
+    });
+
+    MaterializedContractRunCase { entry, temp_files }
+}
+
+fn assert_contract_temp_files(
+    case: &PublicContractCase,
+    temp_files: &[MaterializedContractTempFile],
+) {
+    for temp_file in temp_files {
+        if let Some(expected) = &temp_file.expect_contents {
+            let actual = fs::read_to_string(&temp_file.path).unwrap_or_else(|error| {
+                panic!(
+                    "failed to read temp file {} for contract case {}: {error}",
+                    temp_file.path.display(),
+                    case.name
+                )
+            });
+            assert_eq!(
+                &actual,
+                expected,
+                "contract manifest case {} temp file {}",
+                case.name,
+                temp_file.path.display()
+            );
+        }
+    }
 }
 
 fn check_contract_manifest_case(case: &PublicContractCase) {

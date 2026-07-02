@@ -57,6 +57,11 @@ byte range, related count, and related origins.
 For `kind = "check"` entries, the manifest requires diagnostic count, code,
 severity, a complete primary byte range, and related-count assertions so new
 diagnostic fixtures cannot silently fall back to message-only coverage.
+`run` entries that need native host files can declare `[[case.temp_files]]`
+items. The manifest runner creates one temporary file per item, replaces the
+declared placeholder in the source with the Yulang string literal for that temp
+path, and optionally checks `expect_contents` after the CLI run. Use this only
+for current executable host behavior; it is not a placeholder mechanism.
 
 `support/fake_std/` contains narrow std shims for tests that need compiler-known
 surface paths such as `std::control::flow::sub` but do not need the full public

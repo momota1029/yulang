@@ -3,10 +3,11 @@
 This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
-Status on 2026-07-02: **open**. The contract box and tag policy exist, but the
-`file-resource` manifest subset is intentionally empty until executable cases
-observe the resource lifetime semantics. Contract v0 remains closed in
-[contract-v0-evidence.md](contract-v0-evidence.md).
+Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
+`file-resource` manifest subset has its first native normal-commit case.
+Rollback, branch-local multi-shot buffers, pure mock host behavior, unsupported
+host failure, and release archive parity remain open. Contract v0 remains
+closed in [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
 
@@ -24,12 +25,15 @@ public surface:
 - Native `open_in` / `text_with` now use a scoped snapshot handle for the normal
   path: the buffer changes during the callback, the backing file is unchanged
   while the callback is running, and normal scope exit commits the final buffer.
+- `tests/yulang/cases.toml` includes `file_text_with_commit`, the first
+  `file-resource` / `resource-lifetime` / `host.native` manifest case. It uses
+  runner-managed temp files and checks both CLI output and final file contents.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 
-Those canaries are `migration-canary` evidence. They do not complete Contract v1
-because they do not yet prove snapshot transaction behavior, branch-local
-buffers, rollback, unsupported-host failure, or packaged-release parity.
+Those canaries are still `migration-canary` evidence. They do not complete
+Contract v1 because they do not yet prove rollback, branch-local buffers,
+unsupported-host failure, pure mock parity, or packaged-release parity.
 
 ## Missing Evidence
 
