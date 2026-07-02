@@ -3,7 +3,7 @@ use std::data::range::*
 use std::text::path::*
 use std::control::var::*
 
-pub enum file_kind = missing | file | dir | symlink | other
+pub enum file_kind = missing | denied | file | dir | symlink | other
 
 pub struct file_meta { kind: file_kind, readonly: bool }
 
@@ -42,22 +42,22 @@ my kind_from_code(code: int): file_kind =
         file_kind::missing
     else:
         if std::int::eq code 1:
-            file_kind::file
+            file_kind::denied
         else:
             if std::int::eq code 2:
-                file_kind::dir
+                file_kind::file
             else:
                 if std::int::eq code 3:
-                    file_kind::symlink
+                    file_kind::dir
                 else:
-                    file_kind::other
+                    if std::int::eq code 4:
+                        file_kind::symlink
+                    else:
+                        file_kind::other
 
 pub meta(path: path): file_meta =
-    my (code, kind, readonly) = file::meta_raw path
-    if std::int::eq code 0:
-        file_meta { kind: kind_from_code kind, readonly: readonly }
-    else:
-        (err_from_code path code).throw
+    my (_, kind, readonly) = file::meta_raw path
+    file_meta { kind: kind_from_code kind, readonly: readonly }
 
 pub read_at(path: path, r: range): (str, range) =
     my (code, text, valid) = file::read_at (path, r)

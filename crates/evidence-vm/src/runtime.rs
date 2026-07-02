@@ -12277,18 +12277,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(meta) => {
                 let ty = meta.file_type();
                 let kind = if ty.is_file() {
-                    1
-                } else if ty.is_dir() {
                     2
-                } else if ty.is_symlink() {
+                } else if ty.is_dir() {
                     3
-                } else {
+                } else if ty.is_symlink() {
                     4
+                } else {
+                    5
                 };
                 (0, kind, meta.permissions().readonly())
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => (0, 0, false),
-            Err(error) => (runtime_file_error_code(&error), 0, false),
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => (0, 1, false),
+            Err(_) => (0, 5, false),
         };
         Ok(shared(RuntimeEvidenceValue::Tuple(vec![
             shared(RuntimeEvidenceValue::Int(code)),

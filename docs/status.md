@@ -174,9 +174,11 @@ The columns trace a value through the pipeline:
   per-variant wording is a future surface, not part of the current contract.
 - `std::io::file::read_text`, `write_text`, `exists`, `is_file`, `is_dir`,
   and `meta`
-  run through the native CLI host path and return typed `io_err` effects for
-  failed reads/writes/metadata. `meta` currently returns a first
-  `file_meta { kind, readonly }` canary; `open_text`, `open`, `open_in`,
+  run through the native CLI host path. Reads/writes return typed `io_err`
+  effects for operation failures; `meta` follows the resource API decision and
+  reports missing/denied/other through `file_meta.kind` instead of throwing.
+  `meta` currently returns a first `file_meta { kind, readonly }` canary;
+  `open_text`, `open`, `open_in`,
   `text`, and `text_with` cover managed text-ref get/set. The native scoped
   `open_in` / `text_with` path now uses a snapshot handle for normal scope-exit
   commit: callback reads and writes see the buffer, while backing-file reads

@@ -18,7 +18,9 @@ public surface:
 - `std::io::file::read_text` / `write_text` run through the native CLI evidence
   VM route.
 - `exists`, `is_file`, `is_dir`, and the current `file_meta { kind, readonly }`
-  shape run through the native CLI host.
+  shape run through the native CLI host. `meta` is non-throwing in the public
+  type: missing, denied, and other inaccessible paths are represented by
+  `file_meta.kind` rather than `io_err`.
 - `io_err::wrap` converts failed file reads and writes into typed result
   boundaries.
 - `open_text`, `open`, `open_in`, `text`, and `text_with` have basic whole-file

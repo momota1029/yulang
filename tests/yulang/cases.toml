@@ -827,7 +827,7 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.meta"
-expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::io::file::file_meta"
+expect_type = "std::text::path::path -> [std::io::file::file] std::io::file::file_meta"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "host.native"]
 
