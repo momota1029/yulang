@@ -14,6 +14,7 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
     let options = ContractOptions { std_root };
     let contract_args = parse_contract_args(program, args);
     let manifest = read_contract_manifest(&contract_args.manifest);
+    contract_args.validate_contract_filters(&manifest);
     let repo_root = contract_args
         .repo_root
         .clone()
@@ -103,6 +104,23 @@ struct ContractArgs {
 }
 
 impl ContractArgs {
+    fn validate_contract_filters(&self, manifest: &ContractManifest) {
+        for filter in &self.contract_filters {
+            if manifest
+                .case
+                .iter()
+                .any(|case| case.contracts.iter().any(|contract| contract == filter))
+            {
+                continue;
+            }
+            eprintln!(
+                "contract manifest {} has no contract tag `{filter}`",
+                self.manifest.display()
+            );
+            process::exit(1);
+        }
+    }
+
     fn matches(&self, case: &ContractCase) -> bool {
         if let Some(filter) = &self.case_filter {
             if &case.name != filter {
@@ -156,7 +174,11 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
                 let Some(value) = args.pop_front() else {
                     print_usage_error_and_exit(program, "contract --contract requires a tag");
                 };
-                contract_filters.push(value.to_string_lossy().into_owned());
+                let value = value.to_string_lossy().into_owned();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "contract --contract requires a tag");
+                }
+                contract_filters.push(value);
             }
             Some(value) if value.starts_with("--contract=") => {
                 let value = value.strip_prefix("--contract=").unwrap_or_default();
