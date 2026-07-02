@@ -34,6 +34,9 @@ public surface:
   throwing surface, but no longer decode integer error codes for range reads
   and writes. Their host manifest surface is `raw-compat` because exact range
   semantics remain provisional rather than the Contract v1 center.
+- The contract manifest now mirrors that boundary with a `raw-compat` tag for
+  current executable range/raw/snapshot helper canaries, so manifest queries can
+  separate compatibility evidence from protocol-center evidence.
 - `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_flush`,
   and `file::file_snapshot_commit` also return typed `result ... io_err`
   values at the host act boundary. This removes `legacy_err_from_code` from

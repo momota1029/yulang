@@ -809,6 +809,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "preview"
             | "public-example"
             | "public-signature"
+            | "raw-compat"
             | "records"
             | "refs"
             | "related-ranges"

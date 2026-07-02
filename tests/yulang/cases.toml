@@ -170,6 +170,7 @@ contracts = [
   "resource-lifetime",
   "host-act",
   "host.native",
+  "raw-compat",
 ]
 
 [[case]]
@@ -1428,7 +1429,7 @@ module = "std.io.file"
 symbol = "std.io.file.read_at"
 expect_type = "std::text::path::path -> std::data::range::range -> [std::io::file::file, std::io::file::io_err] (std::text::str::str, std::data::range::range)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "raw-compat"]
 
 [[case]]
 name = "std_file_write_at_public_signature"
@@ -1439,7 +1440,7 @@ module = "std.io.file"
 symbol = "std.io.file.write_at"
 expect_type = "std::text::path::path -> std::data::range::range -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] ()"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "raw-compat"]
 
 [[case]]
 name = "std_file_read_text_public_signature"
@@ -1483,7 +1484,7 @@ module = "std.io.file"
 symbol = "std.io.file.open_text"
 expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref std::io::file::file std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
 
 [[case]]
 name = "std_file_open_public_signature"
@@ -1494,7 +1495,7 @@ module = "std.io.file"
 symbol = "std.io.file.open"
 expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref(std::io::file::file, std::text::str::str)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
 
 [[case]]
 name = "std_file_open_in_public_signature"
@@ -1505,7 +1506,7 @@ module = "std.io.file"
 symbol = "std.io.file.open_in"
 expect_type = "std::text::path::path -> (std::control::var::ref std::io::file::file std::text::str::str -> ['a] 'b) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "refs", "raw-compat"]
 
 [[case]]
 name = "std_file_text_public_signature"

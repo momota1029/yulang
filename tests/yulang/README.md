@@ -63,6 +63,9 @@ Existing native `std::io::file` helper canaries should stay `migration-canary`
 until they observe the file resource lifetime contract. File public-signature
 canaries may still carry `file-resource` because they guard the projected type
 surface for the Contract v1 slice.
+Use `raw-compat` for current executable coverage of range/raw/snapshot helpers
+that are intentionally isolated from the Contract v1 protocol center and should
+not be mistaken for the final session API.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower
