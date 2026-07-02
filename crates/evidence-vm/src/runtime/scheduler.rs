@@ -294,4 +294,22 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn scheduler_does_not_allocate_operations_for_dropped_branches() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+
+        assert!(scheduler.enqueue_cancel(child, RuntimeHostCancelReason::ParentExtentClosed));
+        let _ = scheduler.process_next_event();
+
+        assert_eq!(
+            scheduler.branch_status(child),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+        assert_eq!(scheduler.next_operation_instance(child), None);
+        assert_eq!(scheduler.spawn_suspended_child(child), None);
+    }
 }
