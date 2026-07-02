@@ -1,0 +1,9 @@
+my action() =
+    std::io::console::out::write "hi"
+    "done"
+
+my run(log, x: [_] _) = catch x:
+    std::io::console::out::write text, k -> run (log + text): k ()
+    value -> (value, log)
+
+run "" action()

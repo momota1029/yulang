@@ -114,6 +114,12 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      catchable, integer error codes should be removed, and dispatch should go
      through the host registry. This is the regular fix for the pure mock
      parity blocker, so priorities 1 and 2 are one implementation track.
+   - 2026-07-03 follow-up: console now has the same public host-act contract
+     evidence shape as file for the first routing slice:
+     `console_unsupported_host` proves unsupported host denial, and
+     `console_mock_out_handler` proves source handlers intercept
+     `std::io::console::out.write` before the host registry when native host
+     operations are disabled.
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。

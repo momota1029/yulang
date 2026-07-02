@@ -205,6 +205,10 @@ public surface:
   capability instead of returning fake text under a sandboxed host. This is
   structured failure evidence; typed ambient `io_err` is still a Stage 2
   blocker.
+- `tests/yulang/cases.toml` includes `console_unsupported_host`, so
+  `std::io::console::out.write` also reports unsupported host capability under
+  `--host unsupported`. This keeps the host capability denial shape shared
+  across console and file acts rather than making file support a one-off.
 - `tests/yulang/cases.toml` includes
   `file_text_native_missing_host_io_error`, so native unscoped `file::text`
   over a missing backing file reports `yulang.host-io-error` instead of
@@ -220,6 +224,10 @@ public surface:
   and `write_text` helper paths through source-level `load` / `store`
   arms while the native host is disabled. This keeps mock-host evidence on both
   read and write directions without making raw snapshot operations public.
+- `tests/yulang/cases.toml` includes `console_mock_out_handler`, which handles
+  `std::io::console::out.write` in source while the native host is disabled.
+  This proves source handlers can intercept console host acts before the host
+  registry in the same way the file mock cases intercept `load` / `store`.
 - `tests/yulang/cases.toml` includes `file_mock_public_ref_view_commit`, which
   proves the inline public managed-ref view shape over pure Yulang state.
 - `tests/yulang/cases.toml` includes `file_mock_text_with_function_commit`,
