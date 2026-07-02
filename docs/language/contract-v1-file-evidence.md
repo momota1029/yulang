@@ -30,6 +30,10 @@ public surface:
   runner-managed temp files and checks both CLI output and final file contents.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
+- The Evidence VM host operation table now carries explicit act and operation
+  tier metadata for the current console and file operations. This is not the
+  final host act manifest / registry, but it gives that migration one runtime
+  metadata boundary instead of another scattered path-matching chain.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove rollback, branch-local buffers,
