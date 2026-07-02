@@ -65,13 +65,25 @@ impl RuntimeHostRegistry {
     }
 
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
-        let spec = runtime_host_operation_spec(path)?;
+        let Some(spec) = runtime_host_operation_spec(path) else {
+            return self.resolve_known_act_without_registered_operation(path);
+        };
         if !self.native_host_operations_enabled {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
                 RuntimeHostCapabilityFailure { act: spec.act },
             ));
         }
         Some(RuntimeHostRequestResolution::Operation(spec))
+    }
+
+    fn resolve_known_act_without_registered_operation(
+        &self,
+        path: &[String],
+    ) -> Option<RuntimeHostRequestResolution> {
+        let act = runtime_host_act_for_path(path)?;
+        Some(RuntimeHostRequestResolution::UnsupportedCapability(
+            RuntimeHostCapabilityFailure { act },
+        ))
     }
 }
 
@@ -204,6 +216,8 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     },
 ];
 
+const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[RuntimeHostAct::ConsoleOut, RuntimeHostAct::File];
+
 pub(super) fn runtime_host_operation_spec(
     path: &[String],
 ) -> Option<&'static RuntimeHostOperationSpec> {
@@ -217,6 +231,13 @@ pub(super) fn runtime_host_operation_spec(
         })
 }
 
+fn runtime_host_act_for_path(path: &[String]) -> Option<RuntimeHostAct> {
+    RUNTIME_HOST_ACTS
+        .iter()
+        .copied()
+        .find(|act| runtime_host_path_starts_with(path, act.path()))
+}
+
 #[cfg(test)]
 fn runtime_host_operation(path: &[String]) -> Option<RuntimeHostOperation> {
     runtime_host_operation_spec(path).map(|spec| spec.operation)
@@ -224,6 +245,14 @@ fn runtime_host_operation(path: &[String]) -> Option<RuntimeHostOperation> {
 
 fn runtime_host_path_matches(path: &[String], expected: &[&str]) -> bool {
     path.iter().map(String::as_str).eq(expected.iter().copied())
+}
+
+fn runtime_host_path_starts_with(path: &[String], expected_prefix: &[&str]) -> bool {
+    path.iter()
+        .map(String::as_str)
+        .zip(expected_prefix.iter().copied())
+        .all(|(actual, expected)| actual == expected)
+        && path.len() >= expected_prefix.len()
 }
 
 #[cfg(test)]
@@ -346,6 +375,27 @@ mod tests {
         );
         assert_eq!(spec.operation, RuntimeHostOperation::FileExists);
         assert_eq!(spec.path_strings(), path.to_vec());
+    }
+
+    #[test]
+    fn runtime_host_registry_reports_known_act_unknown_op_as_capability_failure() {
+        let registry = RuntimeHostRegistry::new(true);
+        let path = [
+            "std".into(),
+            "io".into(),
+            "file".into(),
+            "file".into(),
+            "not_registered".into(),
+        ];
+
+        assert_eq!(
+            registry.resolve(&path),
+            Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act: RuntimeHostAct::File
+                }
+            ))
+        );
     }
 
     #[test]
