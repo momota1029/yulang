@@ -77,8 +77,13 @@ Rules:
   runner exercises the public `run --host unsupported` CLI route.
 - Each case must fix one compact observation: runtime output, typed failure,
   public signature, or structured diagnostic payload.
-- Existing `std::io::file` helper canaries stay `migration-canary` until they
-  observe this resource lifetime contract.
+- Contract v1 protocol-center cases are `stable-api`: public `load` / `store`
+  / `meta`, `text_with`, ambient `text`, typed file failures, unsupported-host
+  denial, source mock routing, and the exact public signatures for those
+  entrypoints.
+- `raw-compat` cases remain `migration-canary`. Today that means only the
+  executable `read_at` / `write_at` range helper canaries; range semantics and
+  the future session/raw API are outside the Contract v1 center.
 
 ## Contract v1 Slices
 
@@ -114,8 +119,9 @@ Current executable mock evidence:
   unchanged.
 - `file_text_with_undet_last_write_wins` proves that multi-shot branches each
   receive the entry snapshot and commit in arrival order.
-- `file_text_unscoped_handler_discharge` proves the separate ambient
-  `file::text` / `file_buffer::ambient_get` / `ambient_set` path.
+- `file_text_unscoped_handler_discharge` proves the ambient `file::text` /
+  `file::ambient_touch` / `ambient_get` / `ambient_set` path under the unified
+  `file` act.
 - `file_text_mock_matches_native_shape` fixes the reusable protocol body and
   observation that Stage 2 native parity must match.
 - `file_text_with_nested_cross_file` proves that nested `text_with` calls over
@@ -144,8 +150,10 @@ the snapshot transaction model:
 - effect abort leaves the temp file unchanged;
 - multi-shot branches own independent buffers;
 - public signatures do not leak private stack evidence;
-- `read_text` and `write_text` remain helper wrappers, not the center of the
-  stable API story.
+- `read_text` and `write_text` are stable helper wrappers over the public
+  `load` / `store` protocol. They are not the semantic center; the durable
+  resource contract is proved by `text_with`, ambient `text`, mock routing, and
+  native host parity.
 
 ### F3. Unsupported Host
 

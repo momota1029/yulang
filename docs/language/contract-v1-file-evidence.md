@@ -271,22 +271,27 @@ public surface:
   executable. The same source has a CLI std-prefix cache regression so cached
   execution keeps matching a full build.
 
-Those canaries are still `migration-canary` evidence. They close the Stage 2
-typed ambient and snapshot raw-compat blockers for the file-session-free
-Contract v1 slice. Remaining range helpers still carry provisional
-`raw-compat` semantics and are not the final session API.
+Those canaries now form the `stable-api` protocol center for Contract v1 File
+Resource. They close the Stage 2 typed ambient and snapshot raw-compat blockers
+for the file-session-free slice. Remaining range helpers still carry
+provisional `raw-compat` / `migration-canary` semantics and are not the final
+session API.
 
-## Missing Evidence
+## Completion Boundary
 
-Contract v1 is complete only after the manifest contains the remaining
-executable `file-resource` cases for:
+The manifest now contains executable `file-resource` cases for:
 
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | complete for the Stage 1 protocol fixture set |
-| Native host | snapshot raw-compat retirement is covered; native ambient typed failure remains |
+| Native host | complete for the Stage 2 protocol, metadata, typed failure, and ambient text fixture set |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
+
+Post-v1 evidence remains for bytes/range semantics, directory listing,
+portable metadata expansion, locking policy, and any future public
+`file_session` / raw escape-hatch API. Those surfaces must not be folded into
+the Contract v1 center by relabeling current `raw-compat` canaries.
 
 ## Known Blockers
 
@@ -348,7 +353,7 @@ Stop implementation and return to the semantic documents if any of these happen:
   output;
 - multi-shot branches cannot keep independent managed buffers;
 - unsupported hosts need fake success to keep examples passing;
-- file helper spellings are promoted to `stable-api` before resource lifetime
-  semantics are executable;
+- raw range or future session helper spellings are promoted to `stable-api`
+  before their resource lifetime and range semantics are executable;
 - public signatures leak private stack evidence or use `Any` / `Unknown` as
   fallback.

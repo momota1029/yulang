@@ -4637,6 +4637,22 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 );
             }
         }
+        let is_raw_compat = contract_manifest_case_has_tag(case, "raw-compat");
+        let is_stable_api = contract_manifest_case_has_tag(case, "stable-api");
+        let is_migration_canary = contract_manifest_case_has_tag(case, "migration-canary");
+        if is_raw_compat {
+            assert!(
+                is_migration_canary && !is_stable_api,
+                "file-resource raw-compat case {} should remain migration-canary",
+                case.name
+            );
+        } else {
+            assert!(
+                is_stable_api && !is_migration_canary,
+                "file-resource protocol-center case {} should be stable-api",
+                case.name
+            );
+        }
     }
     if contract_manifest_case_has_any_tag(case, &["stable-api", "migration-canary"]) {
         assert!(

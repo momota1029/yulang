@@ -81,7 +81,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -101,7 +101,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -123,7 +123,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -144,7 +144,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -186,7 +186,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -206,7 +206,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -227,7 +227,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host-act",
@@ -249,7 +249,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host-act",
@@ -267,7 +267,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host-act",
@@ -286,7 +286,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -308,7 +308,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -329,7 +329,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -350,7 +350,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -369,7 +369,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -389,7 +389,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -411,7 +411,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -430,7 +430,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -452,7 +452,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -470,7 +470,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -493,7 +493,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -512,7 +512,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -535,7 +535,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host.unsupported",
@@ -556,7 +556,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "metadata",
@@ -578,7 +578,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host.unsupported",
@@ -599,7 +599,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host.unsupported",
@@ -620,7 +620,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host.unsupported",
@@ -675,7 +675,7 @@ temp_files = [
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -702,7 +702,7 @@ contracts = [
   "runtime-error",
   "runtime-failure",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -721,7 +721,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -742,7 +742,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host-act",
@@ -761,7 +761,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "host-act",
@@ -780,7 +780,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -800,7 +800,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -820,7 +820,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -841,7 +841,7 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "migration-canary",
+  "stable-api",
   "file",
   "file-resource",
   "resource-lifetime",
@@ -1623,7 +1623,7 @@ module = "std.io.file"
 symbol = "std.io.file.read_text"
 expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_write_text_public_signature"
@@ -1634,7 +1634,7 @@ module = "std.io.file"
 symbol = "std.io.file.write_text"
 expect_type = "std::text::path::path -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] ()"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_meta_public_signature"
@@ -1645,7 +1645,7 @@ module = "std.io.file"
 symbol = "std.io.file.meta"
 expect_type = "std::text::path::path -> [std::io::file::file] std::io::file::file_meta"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_text_public_signature"
@@ -1656,7 +1656,7 @@ module = "std.io.file"
 symbol = "std.io.file.text"
 expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref std::io::file::file std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "refs"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native", "refs"]
 
 [[case]]
 name = "std_file_text_with_public_signature"
@@ -1667,7 +1667,7 @@ module = "std.io.file"
 symbol = "std.io.file.text_with"
 expect_type = "std::text::path::path -> (std::text::str::str -> ['a] ('b, std::text::str::str)) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_load_public_signature"
@@ -1678,7 +1678,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.load"
 expect_type = "std::text::path::path -> [std::io::file::file] std::data::result::result std::text::str::str std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_store_public_signature"
@@ -1689,7 +1689,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.store"
 expect_type = "(std::text::path::path, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_meta_public_signature"
@@ -1700,7 +1700,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.meta"
 expect_type = "std::text::path::path -> [std::io::file::file] std::io::file::file_meta"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "metadata"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native", "metadata"]
 
 [[case]]
 name = "std_file_file_ambient_touch_public_signature"
@@ -1711,7 +1711,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.ambient_touch"
 expect_type = "std::text::path::path -> [std::io::file::file] std::data::result::result () std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_ambient_get_public_signature"
@@ -1722,7 +1722,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.ambient_get"
 expect_type = "std::text::path::path -> [std::io::file::file] std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_ambient_set_public_signature"
@@ -1733,7 +1733,7 @@ module = "std.io.file.file"
 symbol = "std.io.file.file.ambient_set"
 expect_type = "(std::text::path::path, std::text::str::str) -> [std::io::file::file] ()"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_exists_public_signature"
@@ -1744,7 +1744,7 @@ module = "std.io.file"
 symbol = "std.io.file.exists"
 expect_type = "std::text::path::path -> [std::io::file::file] bool"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_is_file_public_signature"
@@ -1755,7 +1755,7 @@ module = "std.io.file"
 symbol = "std.io.file.is_file"
 expect_type = "std::text::path::path -> [std::io::file::file] bool"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_is_dir_public_signature"
@@ -1766,7 +1766,7 @@ module = "std.io.file"
 symbol = "std.io.file.is_dir"
 expect_type = "std::text::path::path -> [std::io::file::file] bool"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native"]
 
 [[case]]
 name = "std_file_io_err_wrap_public_signature"
@@ -1777,7 +1777,7 @@ module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.wrap"
 expect_type = "'a [std::io::file::io_err; 'b] -> ['b] std::data::result::result('a, 'c | std::io::file::io_err)"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native", "errors"]
 
 [[case]]
 name = "std_file_io_err_not_found_public_signature"
@@ -1788,7 +1788,7 @@ module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.not_found"
 expect_type = "std::text::path::path -> std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native", "errors", "typed-failure"]
 
 [[case]]
 name = "std_file_io_err_denied_public_signature"
@@ -1799,7 +1799,7 @@ module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.denied"
 expect_type = "std::text::path::path -> std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native", "errors", "typed-failure"]
 
 [[case]]
 name = "std_file_io_err_invalid_path_public_signature"
@@ -1810,7 +1810,7 @@ module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.invalid_path"
 expect_type = "std::text::path::path -> std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native", "errors", "typed-failure"]
 
 [[case]]
 name = "std_file_io_err_failed_public_signature"
@@ -1821,7 +1821,7 @@ module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.failed"
 expect_type = "std::text::path::path -> std::text::str::str -> std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host.native", "errors", "typed-failure"]
 
 [[case]]
 name = "std_parse_choice_public_signature"

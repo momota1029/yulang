@@ -70,16 +70,20 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
      - 2026-07-03: added `file_text_unsupported_host`, so the ambient
-       `file_buffer` act used by unscoped `file::text` also has structured
-       unsupported-host failure coverage. Typed ambient `io_err` is still open.
+       operations used by unscoped `file::text` also have structured
+       unsupported-host failure coverage.
      - 2026-07-03: added `file_read_text_unsupported_host` and
        `file_write_text_unsupported_host`, so public text helper load/store
        routes also fail structurally under `--host unsupported` instead of
        faking success.
      - 2026-07-03: added `file_text_native_missing_host_io_error`, so native
        missing-file ambient reads now report `yulang.host-io-error` instead of
-       falling through as an unhandled effect. Typed ambient `io_err` remains
-       open because the local result-wrapping attempt leaked row constraints.
+       falling through as an unhandled effect.
+     - 2026-07-03 closeout: ambient operations are integrated into the unified
+       `file` act as `ambient_touch`, `ambient_get`, and `ambient_set`.
+       `file::text` now performs eager `ambient_touch`, so missing native text
+       resources become typed `io_err::not_found` at lens creation time while
+       the returned ref stays `ref '[file] str`.
    - packaged binary + bundled std で file-resource contract を走らせる。
      - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
      - 2026-07-03: direct `scripts/release-smoke.sh` now runs a focused
@@ -103,6 +107,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        `raw-compat` file session replacement/removal と native ambient failure
        typing。raw/provisional isolation 自体は manifest/debug/CLI/unit
        canary で固定済み。
+     - 2026-07-03 closeout: legacy snapshot session helpers are retired from
+       `std::io::file`; `read_at` / `write_at` are the only remaining
+       `raw-compat` range helpers. Contract v1 protocol-center cases are now
+       classified as `stable-api`; `raw-compat` remains `migration-canary`.
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。

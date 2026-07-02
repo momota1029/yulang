@@ -44,8 +44,8 @@ public evidence VM path and usually does not need an explicit backend tag.
 do not combine it with `preview`, `migration-canary`, or `compile-error`.
 Every `standard-api` case must also be classified as exactly one of
 `stable-api` or `migration-canary`. Use `migration-canary` for executable
-coverage of current helper spellings that should not be read as long-term
-compatibility promises.
+coverage of current helper spellings or raw surfaces that should not be read as
+long-term compatibility promises.
 `file-resource` is the Contract v1 file/host resource slice, not part of
 Contract v0. Do not combine it with `stable-core`. File resource cases should
 use `resource-lifetime` when they observe commit, rollback, handler-extent
@@ -59,13 +59,13 @@ Runtime cases should declare a host scope: `host.native`, `host.unsupported`, or
 with native host capabilities disabled. A `mock-host` / `resource-lifetime`
 case may also use pure Yulang state to prove the public managed-ref view shape
 before the reusable host-backed helper is available.
-Existing native `std::io::file` helper canaries should stay `migration-canary`
-until they observe the file resource lifetime contract. File public-signature
-canaries may still carry `file-resource` because they guard the projected type
-surface for the Contract v1 slice.
-Use `raw-compat` for current executable coverage of provisional range helpers
-that are intentionally isolated from the Contract v1 protocol center and should
-not be mistaken for the final session API.
+Contract v1 file protocol-center cases are `stable-api`: public
+`load`/`store`/`meta`, `text_with`, ambient `text`, typed file failures,
+unsupported-host denial, source mock routing, and their exact public
+signatures. Use `raw-compat` for current executable coverage of provisional
+range helpers that are intentionally isolated from the Contract v1 protocol
+center and should not be mistaken for the final session API; `raw-compat` file
+cases remain `migration-canary`.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower
