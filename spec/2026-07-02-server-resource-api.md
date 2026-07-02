@@ -9,6 +9,11 @@ multi-shot continuation と resource lifetime の相互作用は
 host operation tier と FFI registry の設計は
 [2026-07-02-host-act-ffi-decisions.md](../notes/design/2026-07-02-host-act-ffi-decisions.md)
 の host act FFI 決定に従う。
+表面 API の現行 anchor は
+[2026-07-02-io-resource-api.md](2026-07-02-io-resource-api.md)（ユーザ承認済み）であり、
+本文書と矛盾する箇所はそちらを優先する（特に: `accept` は suspend multi-shot
+tier となり、accept 以後が接続ごとの世界になる。listener は第一級で、
+並行の `accept` と逐次の `requests` は別綴り）。
 
 目的は HTTP framework を先に作ることではない。
 Yulang の effect / continuation / resource lifetime に沿った host event session を

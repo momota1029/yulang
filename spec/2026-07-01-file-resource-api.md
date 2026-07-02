@@ -7,6 +7,11 @@
 resource lifetime / multi-shot continuation との相互作用については
 [2026-07-02-resource-lifetime-decisions.md](../notes/design/2026-07-02-resource-lifetime-decisions.md)
 を意味論の決定として扱う。
+表面 API の現行 anchor は
+[2026-07-02-io-resource-api.md](2026-07-02-io-resource-api.md)（ユーザ承認済み）であり、
+本文書と矛盾する箇所はそちらを優先する（特に: `file::meta` は失敗せず
+missing / denied を `kind` で表す、managed lens はスナップショット・
+トランザクション）。
 
 目的は、`read_text` / `write_text` / `exists` のような薄い関数群ではなく、
 Yulang の lens / effect / continuation marker に沿った file resource API を作ること。

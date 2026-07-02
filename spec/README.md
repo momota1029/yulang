@@ -56,6 +56,10 @@
   — 標準 API を stable contract / provisional spelling / experimental に分ける。
   filesystem、server、host capability、将来の FFI-backed implementation に共通する
   resource lifetime、scope exit、capability failure、contract gate を固定する。
+- [2026-07-02-io-resource-api.md](2026-07-02-io-resource-api.md)
+  — file / connect / serve を `host act + session + managed view + raw` の
+  同じ型紙で固定する現行の IO resource API 正本。file/server 個別 spec と矛盾する
+  箇所ではこの統合仕様を優先する。
 - [2026-07-01-file-resource-api.md](2026-07-01-file-resource-api.md)
   — filesystem API の中心を file session、metadata、whole-file managed text/bytes lens、
   `raw` resource に分ける。managed lens には close/save/flush を置かず、scope exit で
