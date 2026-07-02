@@ -44,6 +44,24 @@ Contract v0 covers these current language promises:
 - stable standard API slices for `std::data::result`, generated `error` helpers,
   and `std::text::path` byte/display behavior.
 
+## Completed Slices
+
+These Contract v0 slices are already executable through the manifest:
+
+- runtime fixtures and public examples for nondeterminism, records, refs, roles,
+  effects, casts, list update, result/error helpers, and path display;
+- `kind = "check"` diagnostics for parser, name, type, role/method, binding,
+  record, and handler syntax failures;
+- `unresolved_method_diagnostic` and `ambiguous_method_diagnostic` as structured
+  role/method `SourceDiagnostic` cases;
+- public-signature exact-type canaries for effect hygiene, `ref.update`,
+  parser `choice`, `for_in`, nondet `.once` / `.list`, stable result/path/error
+  APIs, and file API migration canaries;
+- `yulang contract --contract stable-core` tag filtering, including unknown tag
+  rejection;
+- hardening and release archive smoke paths that run representative
+  `stable-core` contract cases through the release binary surface.
+
 ## Not Contract v0
 
 These surfaces are implemented, designed, or previewed, but are not part of the
