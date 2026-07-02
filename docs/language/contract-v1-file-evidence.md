@@ -98,6 +98,10 @@ public surface:
   `text_with` follows the same branch-local buffer / arrival-order
   last-write-wins behavior already covered by the source mock protocol case.
 - `tests/yulang/cases.toml` includes
+  `file_text_with_native_nested_cross_file`, which proves nested native
+  `text_with` sessions over two backing files commit independently while the
+  inner callback can still close over the outer entry snapshot.
+- `tests/yulang/cases.toml` includes
   `file_text_unscoped_native_handler_extent`, which proves unscoped
   `file::text` reads through the native ambient `file_buffer` act, keeps the
   backing file unchanged during the handler extent, and writes the dirty buffer

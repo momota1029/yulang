@@ -39,6 +39,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: added `file_text_with_native_undet_last_write_wins`, so
        native `text_with` now has executable nondet branch-local
        last-write-wins evidence over the public `load` / `store` protocol.
+     - 2026-07-03: added `file_text_with_native_nested_cross_file`, so native
+       `text_with` also covers two backing files with independent commits and
+       lexical capture of the outer entry snapshot.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
    - packaged binary + bundled std で file-resource contract を走らせる。

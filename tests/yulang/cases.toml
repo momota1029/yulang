@@ -316,6 +316,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_text_with_native_nested_cross_file"
+file = "regressions/runtime/file_text_with_native_nested_cross_file.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [((\"A\", (\"B\", \"B b\", \"A a\"), \"A a\"), \"A a\", \"B b\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file_a}}", contents = "A", expect_contents = "A a" },
+  { placeholder = "{{file_b}}", contents = "B", expect_contents = "B b" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+]
+
+[[case]]
 name = "file_text_with_nested_state_var"
 file = "regressions/runtime/file_text_with_nested_state_var.yu"
 kind = "run"
