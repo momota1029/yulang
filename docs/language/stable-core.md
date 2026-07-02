@@ -64,7 +64,7 @@ These Contract v0 slices are already executable through the manifest:
 - hardening and release archive smoke paths that run representative
   `stable-core` contract cases through the release binary surface.
 
-The current manifest has 55 `stable-core` cases: 24 `run`, 16 `check`, and
+The current manifest has 56 `stable-core` cases: 25 `run`, 16 `check`, and
 15 `public-signature`. Treat requests to "finish Contract v0" as requests to
 name a missing fixture or gate in that manifest. Work on file transactions,
 server resources, host act FFI, and other preview surfaces belongs to the next
