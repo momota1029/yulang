@@ -1,0 +1,49 @@
+-- open (2026-07-02): pure mock resource-lifetime for `file::text_with`
+-- cannot yet be expressed through the current public file surface.
+--
+-- Desired shape:
+--   - run with `--host unsupported`;
+--   - catch file operations in source;
+--   - use the same `std::io::file::text_with` program as native;
+--   - observe commit / rollback / nondet branch snapshots in pure state.
+--
+-- Current blocker A:
+--   `text_with` is implemented with private helper operations:
+--
+--     std::io::file::file::open_text_snapshot_raw
+--     std::io::file::file::file_snapshot_get
+--     std::io::file::file::file_snapshot_set
+--     std::io::file::file::file_snapshot_commit
+--
+--   Source outside `std::io::file` cannot catch those `my` operations as a
+--   mock host surface. The registry therefore reports unsupported host
+--   capability before the mock resource-lifetime handler can run.
+--
+-- Current blocker B:
+--   rewriting `text_with` only in public Yulang with `read_text` / `write_text`
+--   and a local `$text` ref currently leaves a `ref_update` / local var residual
+--   conflict when the constructed ref escapes to the callback.
+--
+-- Do not solve this by making the raw snapshot operations public. The next
+-- proper fix should give file resources a mockable public host-act/session
+-- boundary or make the language-level local ref construction carry the right
+-- residuals through callbacks.
+
+my run(body, backing, buffer) = catch body:
+    std::io::file::file::open_text_snapshot_raw path, k -> run (k (0, 0)) backing backing
+    std::io::file::file::file_snapshot_get handle, k -> run (k buffer) backing buffer
+    std::io::file::file::file_snapshot_set (handle, next), k -> run (k ()) backing next
+    std::io::file::file::file_snapshot_commit handle, k -> run (k 0) buffer buffer
+    std::io::file::file::read_at (path, range), k -> run (k (0, backing, range)) backing buffer
+    v -> (v, backing)
+
+my program = {
+    my scoped = std::io::file::text_with "/mock": \&text ->
+        my before = $text
+        &text = before + " mock"
+        (before, $text, std::io::file::read_text "/mock")
+    my after = std::io::file::read_text "/mock"
+    (scoped, after)
+}
+
+run program "start" ""

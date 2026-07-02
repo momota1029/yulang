@@ -67,6 +67,10 @@ public surface:
   intercept file host acts before the host registry, even when native host
   capabilities are unavailable. This is mock-host evidence for act routing, not
   resource-lifetime mock evidence.
+- `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
+  current pure mock blocker: `text_with` relies on private snapshot helper
+  operations that outside source cannot catch, while a public-only local-ref
+  rewrite still hits a callback residual conflict.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove pure mock resource-lifetime parity or
@@ -101,6 +105,14 @@ updates to reach the surrounding managed-lens commit.
 
 Do not collapse this back into runner-global `file_snapshots`: it regresses
 multi-shot branch isolation.
+
+Pure mock resource-lifetime parity is still blocked. The current native
+`text_with` path is mockable at the public `read_at`/`write_at` act level only
+for thin helpers; full `text_with` uses private snapshot helper operations.
+Making those raw helpers public would be the wrong fix. The next fix should
+either provide a mockable public host-act/session boundary for file resources or
+make the language-level local ref construction carry the right residuals through
+callbacks.
 
 ## Acceptance Gate
 
