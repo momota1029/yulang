@@ -131,11 +131,17 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
   for case_name in "${file_resource_cases[@]}"; do
     file_resource_case_args+=(--case "$case_name")
   done
-  run_with_timeout "$file_resource_timeout_duration" \
+  file_resource_output="$(run_with_timeout "$file_resource_timeout_duration" \
     "$bin" --std-root "$std_root" contract \
     --contract file-resource \
     "${file_resource_case_args[@]}" \
-    "$contract_cases_manifest" >/dev/null
+    "$contract_cases_manifest")"
+  expected_file_resource_output="contract cases ok: ${#file_resource_cases[@]}"
+  if [[ "$file_resource_output" != "$expected_file_resource_output" ]]; then
+    echo "release smoke: unexpected file-resource contract output" >&2
+    echo "$file_resource_output" >&2
+    exit 1
+  fi
 fi
 
 cache_path="$(run "$bin" cache path)"
