@@ -137,11 +137,22 @@ specialize2 bug: `dump-poly` reports the external
 `std::control::var::ref { ... }` value constructor as unresolved. The corrected
 reduction is `notes/bugs/ref_constructor_short_value_probe.yu`: after importing
 `std::control::var::*`, the short `ref { ... }` constructor resolves to
-`d171:"std.control.var.ref"` in `dump-poly`, while `run --print-roots` still
-fails with `conflicting type candidates for slot 0: std::text::str::str vs
-{get: 'open7}`. That narrows the remaining blocker to public ref-view
-construction / specialization for a record-shaped `ref` value over
-handler-local state, not to constructor name resolution.
+`d171:"std.control.var.ref"` in `dump-poly` and runs successfully when written
+with current mutable-binding syntax (`my $text = ...`). The next reduced
+reduction, `notes/bugs/ref_update_local_buffer_public_probe.yu`, also runs: a
+public record-shaped `ref` view over handler-local state can be built and
+updated through `r.update`. The current executable canary for this is
+`file_mock_public_ref_view_commit`, which runs with `--host unsupported` and
+observes inline scope-end commit in pure Yulang state.
+
+Pure mock `text_with` parity still has one narrower blocker:
+`notes/bugs/file_text_with_mock_function_boundary_blocker.yu`. Moving the same
+public ref-view commit shape behind a reusable `text_with_mock(backing, f)`
+function still fails with a callback residual conflict. That narrows the
+remaining blocker to reusable function-boundary residual handling for callbacks
+that update record-shaped public ref views over local resource effects, not to
+constructor name resolution, ref-view construction, or direct public
+`ref.update`.
 
 ## Acceptance Gate
 

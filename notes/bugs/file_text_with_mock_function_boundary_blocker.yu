@@ -1,0 +1,35 @@
+-- open (2026-07-02): a pure public-Yulang `text_with_mock` helper can build a
+-- managed ref view over a local `$buffer`, but moving the same code behind a
+-- function boundary currently loses the callback residual shape.
+--
+-- The inline shape works and is contract-covered by:
+--   tests/yulang/regressions/runtime/file_mock_public_ref_view_commit.yu
+--
+-- This function-shaped reduction still fails with:
+--
+--   conflicting type candidates for slot ...:
+--     [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
+--       vs
+--     [&buffer#...:0(std::text::str::str)]
+--
+-- Do not solve this by making private `std::io::file` snapshot operations
+-- public, or by adding a name/path special case for this helper. The missing
+-- rule is a general function-boundary residual rule for callbacks that update a
+-- record-shaped public ref view backed by a local resource effect.
+
+use std::control::var::*
+
+my text_with_mock(backing, f) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    my result = f r
+    (result, $buffer)
+}
+
+text_with_mock "start": \&text ->
+    my before = $text
+    &text = before + "!"
+    (before, $text)

@@ -1,0 +1,27 @@
+-- resolved (2026-07-02): a public `ref { ... }` view over a local `$buffer`
+-- can be constructed, read, and updated through the public
+-- `std::control::var::ref.update` method.
+--
+-- This proves that the remaining pure mock `file::text_with` blocker is not
+-- local ref-view construction or `ref.update` itself.
+--
+-- Expected:
+--   `run --print-roots` should produce `run roots ["next"]`.
+--
+-- Current:
+--   `run --print-roots` succeeds.
+--
+-- The remaining function-boundary blocker is recorded in:
+--   notes/bugs/file_text_with_mock_function_boundary_blocker.yu
+
+use std::control::var::*
+
+{
+    my $buffer = "start"
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    r.update (\_ -> "next")
+    r.get()
+}

@@ -26,15 +26,27 @@
 -- That specialize conflict is not a trustworthy compiler-only reduction for
 -- this file: it follows an unresolved value constructor.
 --
--- Use this newer reduction instead:
+-- Use this newer constructor reduction instead:
 --
 --   notes/bugs/ref_constructor_short_value_probe.yu
 --
 -- The short `ref { ... }` constructor with `use std::control::var::*` resolves
--- to `d171:"std.control.var.ref"` in `dump-poly`. It still fails at `run`
--- with the same slot conflict, so the remaining blocker is no longer the
--- constructor path. It is the public ref-view construction / specialization
--- boundary for a record-shaped `ref` value over handler-local state.
+-- to `d171:"std.control.var.ref"` in `dump-poly` and runs successfully when
+-- written with current mutable-binding syntax (`my $text = ...`).
+--
+-- The next local-ref update reduction is:
+--
+--   notes/bugs/ref_update_local_buffer_public_probe.yu
+--
+-- That file constructs the public ref view successfully and also updates
+-- through the public `ref.update` method over handler-local state.
+--
+-- The remaining pure mock file-resource blocker is now reduced in:
+--
+--   notes/bugs/file_text_with_mock_function_boundary_blocker.yu
+--
+-- The same ref-view update shape works inline, but loses its callback residual
+-- shape when moved behind a reusable `text_with_mock(backing, f)` helper.
 --
 -- Do not fix the file mock blocker by making `std::io::file` private snapshot
 -- operations public. The missing abstraction is still expected to be either a

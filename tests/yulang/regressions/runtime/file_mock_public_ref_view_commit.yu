@@ -1,0 +1,17 @@
+use std::control::var::*
+
+{
+    my $backing = "start"
+    my $buffer = $backing
+    my text: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    my scoped = (\&text ->
+        my before = $text
+        &text = before + "!"
+        (before, $text)
+    ) text
+    &backing = $buffer
+    (scoped, $backing)
+}

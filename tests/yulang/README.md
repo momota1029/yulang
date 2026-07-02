@@ -48,7 +48,9 @@ observe the non-throwing metadata shape. Use `host-act` when a case proves
 source handlers intercept host act operations before the native host registry.
 Runtime cases should declare a host scope: `host.native`, `host.unsupported`, or
 `mock-host` plus `host.unsupported` when the mock handler is intentionally run
-with native host capabilities disabled.
+with native host capabilities disabled. A `mock-host` / `resource-lifetime`
+case may also use pure Yulang state to prove the public managed-ref view shape
+before the reusable host-backed helper is available.
 Existing native `std::io::file` helper canaries should stay `migration-canary`
 until they observe the file resource lifetime contract.
 All `public-signature` cases also reject private evidence and placeholder-like
