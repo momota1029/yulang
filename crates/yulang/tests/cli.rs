@@ -3996,7 +3996,7 @@ contracts = [
     assert_eq!(stdout(&output), "");
     assert!(
         stderr(&output).contains(
-            "file-resource runtime case `bad_file_resource` should carry exactly one host scope"
+            "file-resource runtime case `bad_file_resource` should carry exactly one native or unsupported host scope"
         ),
         "{}",
         stderr(&output)
