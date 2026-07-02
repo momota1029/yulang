@@ -42,6 +42,7 @@ pub(super) struct RuntimeHostOperationSpec {
     pub(super) act: RuntimeHostAct,
     operation_id: &'static str,
     tier: RuntimeHostOperationTier,
+    signature: &'static str,
     path: &'static [&'static str],
     pub(super) operation: RuntimeHostOperation,
 }
@@ -152,6 +153,7 @@ pub struct RuntimeHostManifestOperation {
     pub act_id: &'static str,
     pub operation_id: &'static str,
     pub tier: &'static str,
+    pub signature: &'static str,
     pub path: &'static [&'static str],
 }
 
@@ -162,6 +164,7 @@ pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
             act_id: spec.act.manifest_id(),
             operation_id: spec.operation_id,
             tier: spec.tier.manifest_id(),
+            signature: spec.signature,
             path: spec.path,
         })
         .collect()
@@ -189,6 +192,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::ConsoleOut,
         operation_id: "write",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "str -> ()",
         path: &["std", "io", "console", "out", "write"],
         operation: RuntimeHostOperation::ConsoleOutWrite,
     },
@@ -196,6 +200,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "read_at",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "(path, range) -> (int, str, range)",
         path: &["std", "io", "file", "file", "read_at"],
         operation: RuntimeHostOperation::FileReadAt,
     },
@@ -203,6 +208,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "write_at",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "(path, range, str) -> int",
         path: &["std", "io", "file", "file", "write_at"],
         operation: RuntimeHostOperation::FileWriteAt,
     },
@@ -210,6 +216,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "open_text_raw",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> (int, file_handle)",
         path: &["std", "io", "file", "file", "open_text_raw"],
         operation: RuntimeHostOperation::FileOpenTextRaw,
     },
@@ -217,6 +224,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_get",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "file_handle -> str",
         path: &["std", "io", "file", "file", "file_get"],
         operation: RuntimeHostOperation::FileGet,
     },
@@ -224,6 +232,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_set",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "(file_handle, str) -> ()",
         path: &["std", "io", "file", "file", "file_set"],
         operation: RuntimeHostOperation::FileSet,
     },
@@ -231,6 +240,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_flush",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "file_handle -> int",
         path: &["std", "io", "file", "file", "file_flush"],
         operation: RuntimeHostOperation::FileFlush,
     },
@@ -238,6 +248,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "open_text_snapshot_raw",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> (int, file_handle)",
         path: &["std", "io", "file", "file", "open_text_snapshot_raw"],
         operation: RuntimeHostOperation::FileOpenTextSnapshotRaw,
     },
@@ -245,6 +256,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_get",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "file_handle -> str",
         path: &["std", "io", "file", "file", "file_snapshot_get"],
         operation: RuntimeHostOperation::FileSnapshotGet,
     },
@@ -252,6 +264,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_set",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "(file_handle, str) -> ()",
         path: &["std", "io", "file", "file", "file_snapshot_set"],
         operation: RuntimeHostOperation::FileSnapshotSet,
     },
@@ -259,6 +272,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_commit",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "file_handle -> int",
         path: &["std", "io", "file", "file", "file_snapshot_commit"],
         operation: RuntimeHostOperation::FileSnapshotCommit,
     },
@@ -266,6 +280,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "meta_raw",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> (int, int, bool)",
         path: &["std", "io", "file", "file", "meta_raw"],
         operation: RuntimeHostOperation::FileMetaRaw,
     },
@@ -273,6 +288,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "exists",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> bool",
         path: &["std", "io", "file", "file", "exists"],
         operation: RuntimeHostOperation::FileExists,
     },
@@ -280,6 +296,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "is_file",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> bool",
         path: &["std", "io", "file", "file", "is_file"],
         operation: RuntimeHostOperation::FileIsFile,
     },
@@ -287,6 +304,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "is_dir",
         tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> bool",
         path: &["std", "io", "file", "file", "is_dir"],
         operation: RuntimeHostOperation::FileIsDir,
     },
@@ -412,6 +430,12 @@ mod tests {
                 entry.operation_id
             );
             assert_eq!(entry.tier, "sync");
+            assert!(
+                !entry.signature.is_empty(),
+                "host manifest operation {}.{} should expose a provisional signature",
+                entry.act_id,
+                entry.operation_id
+            );
             assert!(
                 entry
                     .path

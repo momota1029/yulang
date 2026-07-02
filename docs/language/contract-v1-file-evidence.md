@@ -72,8 +72,9 @@ public surface:
   request semantics while making the future lowering-produced host manifest a
   single replacement boundary.
 - `yulang debug host-act-manifest` prints the current runtime host manifest
-  view from the release binary: stable act id, operation id, sync tier, and
-  reconstructed path for console/file operations. This is still the interim
+  view from the release binary: stable act id, operation id, sync tier,
+  reconstructed path, and provisional argument/result signature for console/file
+  operations. This is still the interim
   runtime manifest, not compiler-generated `host act` lowering output, but it
   makes the current registry surface observable outside unit tests.
 - `scripts/release-smoke.sh` now checks representative console/file manifest
