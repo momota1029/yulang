@@ -58,11 +58,20 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        `file::load` missing-target and `file::store` directory failures are
        observed as `io_err::not_found` / `io_err::failed` values rather than
        integer error codes.
+     - 2026-07-03: added `file_native_helper_typed_failures`, so public
+       `read_text` / `write_text` preserve those typed failures through
+       `io_err::wrap`.
+     - 2026-07-03: added public signature canaries for
+       `std.io.file.io_err.not_found` and `std.io.file.io_err.failed`.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
      - 2026-07-03: added `file_text_unsupported_host`, so the ambient
        `file_buffer` act used by unscoped `file::text` also has structured
        unsupported-host failure coverage. Typed ambient `io_err` is still open.
+     - 2026-07-03: added `file_read_text_unsupported_host` and
+       `file_write_text_unsupported_host`, so public text helper load/store
+       routes also fail structurally under `--host unsupported` instead of
+       faking success.
      - 2026-07-03: added `file_text_native_missing_host_io_error`, so native
        missing-file ambient reads now report `yulang.host-io-error` instead of
        falling through as an unhandled effect. Typed ambient `io_err` remains
