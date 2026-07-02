@@ -8000,6 +8000,93 @@ struct RuntimeFileSnapshot {
     text: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeHostOperation {
+    ConsoleOutWrite,
+    FileReadAt,
+    FileWriteAt,
+    FileOpenTextRaw,
+    FileGet,
+    FileSet,
+    FileFlush,
+    FileOpenTextSnapshotRaw,
+    FileSnapshotGet,
+    FileSnapshotSet,
+    FileSnapshotCommit,
+    FileMetaRaw,
+    FileExists,
+    FileIsFile,
+    FileIsDir,
+}
+
+struct RuntimeHostOperationSpec {
+    path: &'static [&'static str],
+    operation: RuntimeHostOperation,
+}
+
+const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "console", "out", "write"],
+        operation: RuntimeHostOperation::ConsoleOutWrite,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "read_at"],
+        operation: RuntimeHostOperation::FileReadAt,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "write_at"],
+        operation: RuntimeHostOperation::FileWriteAt,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "open_text_raw"],
+        operation: RuntimeHostOperation::FileOpenTextRaw,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_get"],
+        operation: RuntimeHostOperation::FileGet,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_set"],
+        operation: RuntimeHostOperation::FileSet,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_flush"],
+        operation: RuntimeHostOperation::FileFlush,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "open_text_snapshot_raw"],
+        operation: RuntimeHostOperation::FileOpenTextSnapshotRaw,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_snapshot_get"],
+        operation: RuntimeHostOperation::FileSnapshotGet,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_snapshot_set"],
+        operation: RuntimeHostOperation::FileSnapshotSet,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "file_snapshot_commit"],
+        operation: RuntimeHostOperation::FileSnapshotCommit,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "meta_raw"],
+        operation: RuntimeHostOperation::FileMetaRaw,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "exists"],
+        operation: RuntimeHostOperation::FileExists,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "is_file"],
+        operation: RuntimeHostOperation::FileIsFile,
+    },
+    RuntimeHostOperationSpec {
+        path: &["std", "io", "file", "file", "is_dir"],
+        operation: RuntimeHostOperation::FileIsDir,
+    },
+];
+
 impl<'a> RuntimeEvidenceRunner<'a> {
     fn new(program: &'a Program, mut context: RuntimeEvidenceRunContext) -> Self {
         let mut evidence = ControlEvidenceIndex::new(program);
@@ -11927,15 +12014,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if request.path.as_ref() == ["std", "io", "console", "out", "write"] {
-            push_runtime_host_string_payload(request.payload.as_ref(), &mut self.stdout)
-                .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(request.path.to_vec()))?;
-            return self
-                .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit));
-        }
-        if let Some(value) =
-            self.handle_escaped_file_request(request.path.as_ref(), request.payload.as_ref())?
-        {
+        if let Some(operation) = runtime_host_operation(request.path.as_ref()) {
+            let value = self.handle_runtime_host_operation(operation, request.payload.as_ref())?;
             return self.resume_continuation(request.continuation, value);
         }
         Err(RuntimeEvidenceRunError::EscapedEffect(
@@ -11943,57 +12023,50 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         ))
     }
 
-    fn handle_escaped_file_request(
+    fn handle_runtime_host_operation(
         &mut self,
-        path: &[String],
+        operation: RuntimeHostOperation,
         payload: &RuntimeEvidenceValue,
-    ) -> Result<Option<SharedValue>, RuntimeEvidenceRunError> {
-        if path == ["std", "io", "file", "file", "read_at"] {
-            return self.file_read_at(payload).map(Some);
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        match operation {
+            RuntimeHostOperation::ConsoleOutWrite => {
+                push_runtime_host_string_payload(payload, &mut self.stdout).ok_or_else(|| {
+                    RuntimeEvidenceRunError::EscapedEffect(vec![
+                        "std".into(),
+                        "io".into(),
+                        "console".into(),
+                        "out".into(),
+                        "write".into(),
+                    ])
+                })?;
+                Ok(shared(RuntimeEvidenceValue::Unit))
+            }
+            RuntimeHostOperation::FileReadAt => self.file_read_at(payload),
+            RuntimeHostOperation::FileWriteAt => self.file_write_at(payload),
+            RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(payload),
+            RuntimeHostOperation::FileGet => self.file_get(payload),
+            RuntimeHostOperation::FileSet => self.file_set(payload),
+            RuntimeHostOperation::FileFlush => self.file_flush(payload),
+            RuntimeHostOperation::FileOpenTextSnapshotRaw => {
+                self.file_open_text_snapshot_raw(payload)
+            }
+            RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(payload),
+            RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(payload),
+            RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(payload),
+            RuntimeHostOperation::FileMetaRaw => self.file_meta_raw(payload),
+            RuntimeHostOperation::FileExists => {
+                let path = runtime_host_path(payload)?;
+                Ok(shared(RuntimeEvidenceValue::Bool(path.exists())))
+            }
+            RuntimeHostOperation::FileIsFile => {
+                let path = runtime_host_path(payload)?;
+                Ok(shared(RuntimeEvidenceValue::Bool(path.is_file())))
+            }
+            RuntimeHostOperation::FileIsDir => {
+                let path = runtime_host_path(payload)?;
+                Ok(shared(RuntimeEvidenceValue::Bool(path.is_dir())))
+            }
         }
-        if path == ["std", "io", "file", "file", "write_at"] {
-            return self.file_write_at(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "open_text_raw"] {
-            return self.file_open_text_raw(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_get"] {
-            return self.file_get(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_set"] {
-            return self.file_set(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_flush"] {
-            return self.file_flush(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "open_text_snapshot_raw"] {
-            return self.file_open_text_snapshot_raw(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_snapshot_get"] {
-            return self.file_snapshot_get(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_snapshot_set"] {
-            return self.file_snapshot_set(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "file_snapshot_commit"] {
-            return self.file_snapshot_commit(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "meta_raw"] {
-            return self.file_meta_raw(payload).map(Some);
-        }
-        if path == ["std", "io", "file", "file", "exists"] {
-            let path = runtime_host_path(payload)?;
-            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.exists()))));
-        }
-        if path == ["std", "io", "file", "file", "is_file"] {
-            let path = runtime_host_path(payload)?;
-            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.is_file()))));
-        }
-        if path == ["std", "io", "file", "file", "is_dir"] {
-            let path = runtime_host_path(payload)?;
-            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.is_dir()))));
-        }
-        Ok(None)
     }
 
     fn file_read_at(
@@ -19647,6 +19720,17 @@ fn runtime_host_string(value: &RuntimeEvidenceValue) -> Result<String, RuntimeEv
 
 fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvidenceRunError> {
     runtime_host_string(value).map(PathBuf::from)
+}
+
+fn runtime_host_operation(path: &[String]) -> Option<RuntimeHostOperation> {
+    RUNTIME_HOST_OPERATIONS
+        .iter()
+        .find(|spec| runtime_host_path_matches(path, spec.path))
+        .map(|spec| spec.operation)
+}
+
+fn runtime_host_path_matches(path: &[String], expected: &[&str]) -> bool {
+    path.iter().map(String::as_str).eq(expected.iter().copied())
 }
 
 fn runtime_host_int(value: &RuntimeEvidenceValue) -> Result<i64, RuntimeEvidenceRunError> {
