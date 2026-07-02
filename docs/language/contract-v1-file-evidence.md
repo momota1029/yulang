@@ -60,6 +60,10 @@ public surface:
   tier, and path reconstruction. Known host act prefixes with an unregistered
   operation are classified as capability failures; unrelated user effects still
   fall through to escaped-effect behavior.
+- The runtime registry now resolves through an explicit `RuntimeHostManifest`
+  owner for the current static operation table. This keeps the existing escaped
+  request semantics while making the future lowering-produced host manifest a
+  single replacement boundary.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped

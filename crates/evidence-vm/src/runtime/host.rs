@@ -53,19 +53,54 @@ impl RuntimeHostOperationSpec {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeHostManifest {
+    operations: &'static [RuntimeHostOperationSpec],
+    acts: &'static [RuntimeHostAct],
+}
+
+impl RuntimeHostManifest {
+    const fn new(
+        operations: &'static [RuntimeHostOperationSpec],
+        acts: &'static [RuntimeHostAct],
+    ) -> Self {
+        Self { operations, acts }
+    }
+
+    fn operation_spec(self, path: &[String]) -> Option<&'static RuntimeHostOperationSpec> {
+        self.operations
+            .iter()
+            .find(|spec| runtime_host_path_matches(path, spec.path))
+            .inspect(|spec| {
+                debug_assert_eq!(spec.tier, RuntimeHostOperationTier::Sync);
+                debug_assert!(spec.path.starts_with(spec.act.path()));
+                debug_assert_eq!(spec.path.last().copied(), Some(spec.operation_id));
+            })
+    }
+
+    fn act_for_path(self, path: &[String]) -> Option<RuntimeHostAct> {
+        self.acts
+            .iter()
+            .copied()
+            .find(|act| runtime_host_path_starts_with(path, act.path()))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeHostRegistry {
+    manifest: RuntimeHostManifest,
     native_host_operations_enabled: bool,
 }
 
 impl RuntimeHostRegistry {
     pub(super) fn new(native_host_operations_enabled: bool) -> Self {
         Self {
+            manifest: RUNTIME_HOST_MANIFEST,
             native_host_operations_enabled,
         }
     }
 
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
-        let Some(spec) = runtime_host_operation_spec(path) else {
+        let Some(spec) = self.manifest.operation_spec(path) else {
             return self.resolve_known_act_without_registered_operation(path);
         };
         if !self.native_host_operations_enabled {
@@ -80,7 +115,7 @@ impl RuntimeHostRegistry {
         &self,
         path: &[String],
     ) -> Option<RuntimeHostRequestResolution> {
-        let act = runtime_host_act_for_path(path)?;
+        let act = self.manifest.act_for_path(path)?;
         Some(RuntimeHostRequestResolution::UnsupportedCapability(
             RuntimeHostCapabilityFailure { act },
         ))
@@ -218,24 +253,12 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
 
 const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[RuntimeHostAct::ConsoleOut, RuntimeHostAct::File];
 
-pub(super) fn runtime_host_operation_spec(
-    path: &[String],
-) -> Option<&'static RuntimeHostOperationSpec> {
-    RUNTIME_HOST_OPERATIONS
-        .iter()
-        .find(|spec| runtime_host_path_matches(path, spec.path))
-        .inspect(|spec| {
-            debug_assert_eq!(spec.tier, RuntimeHostOperationTier::Sync);
-            debug_assert!(spec.path.starts_with(spec.act.path()));
-            debug_assert_eq!(spec.path.last().copied(), Some(spec.operation_id));
-        })
-}
+const RUNTIME_HOST_MANIFEST: RuntimeHostManifest =
+    RuntimeHostManifest::new(RUNTIME_HOST_OPERATIONS, RUNTIME_HOST_ACTS);
 
-fn runtime_host_act_for_path(path: &[String]) -> Option<RuntimeHostAct> {
-    RUNTIME_HOST_ACTS
-        .iter()
-        .copied()
-        .find(|act| runtime_host_path_starts_with(path, act.path()))
+#[cfg(test)]
+fn runtime_host_operation_spec(path: &[String]) -> Option<&'static RuntimeHostOperationSpec> {
+    RUNTIME_HOST_MANIFEST.operation_spec(path)
 }
 
 #[cfg(test)]
