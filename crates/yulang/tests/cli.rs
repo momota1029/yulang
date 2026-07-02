@@ -1446,6 +1446,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "operation evidence objects should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("static_route "),
+        "operation evidence objects should show static route classification:\n{stdout}"
+    );
+    assert!(
         stdout.contains("provider-index:") && stdout.contains("needs-evidence-env"),
         "provider candidates should be visible without forcing direct lowering:\n{stdout}"
     );

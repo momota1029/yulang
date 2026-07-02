@@ -3745,11 +3745,12 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 .unwrap_or_else(|| "none".to_string());
             writeln!(
                 out,
-                "    e{} slot s{} handler {} exec {} visibility a{} legacy_bridge={}",
+                "    e{} slot s{} handler {} exec {} static_route {} visibility a{} legacy_bridge={}",
                 operation.expr.0,
                 operation.slot_id,
                 handler,
                 format_operation_execution_plan(operation.execution),
+                format_static_route_resolution(operation.static_route),
                 operation.visibility.allowed_set_id.0,
                 operation.visibility.legacy_guard_bridge
             )
@@ -3944,6 +3945,29 @@ fn format_operation_execution_plan(plan: EvidenceVmOperationExecutionPlan) -> &'
         EvidenceVmOperationExecutionPlan::YieldFallback => "yield-fallback",
         EvidenceVmOperationExecutionPlan::BlockedFallback => "blocked-fallback",
         EvidenceVmOperationExecutionPlan::GenericFallback => "generic-fallback",
+    }
+}
+
+fn format_static_route_resolution(resolution: EvidenceVmStaticRouteResolution) -> String {
+    match resolution {
+        EvidenceVmStaticRouteResolution::StaticHandler { arm_class } => {
+            format!("static-{}", format_handler_arm_class(arm_class))
+        }
+        EvidenceVmStaticRouteResolution::Dynamic(reason) => {
+            format!("dynamic-{}", format_static_route_dynamic_reason(reason))
+        }
+    }
+}
+
+fn format_static_route_dynamic_reason(reason: EvidenceVmStaticRouteDynamicReason) -> &'static str {
+    match reason {
+        EvidenceVmStaticRouteDynamicReason::OpenRow => "open-row",
+        EvidenceVmStaticRouteDynamicReason::MultipleCandidates => "multiple-candidates",
+        EvidenceVmStaticRouteDynamicReason::HygieneBarrier => "hygiene-barrier",
+        EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent => "provider-env",
+        EvidenceVmStaticRouteDynamicReason::DelayedBoundary => "delayed-boundary",
+        EvidenceVmStaticRouteDynamicReason::HostEscape => "host-escape",
+        EvidenceVmStaticRouteDynamicReason::Unclassified => "unclassified",
     }
 }
 
