@@ -1591,6 +1591,99 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn diagnostics_use_role_method_ranges_and_related_candidates() {
+        let unresolved_root = temp_root("lsp-unresolved-method-diagnostic");
+        std::fs::create_dir_all(&unresolved_root).unwrap();
+        let unresolved = diagnostics_for_source(
+            &unresolved_root.join("unresolved_method_error.yu"),
+            diagnostics_fixture("unresolved_method_error").to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(workspace_std_root()),
+            },
+        );
+
+        assert_eq!(unresolved.len(), 1, "{unresolved:?}");
+        let diagnostic = &unresolved[0];
+        assert_eq!(
+            diagnostic.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 10,
+                },
+                end: Position {
+                    line: 0,
+                    character: 14,
+                },
+            }
+        );
+        assert_eq!(diagnostic.severity, Some(DiagnosticSeverity::ERROR));
+        assert!(
+            diagnostic
+                .message
+                .contains("no role implementation satisfies this method call"),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic.message.contains(
+                "hint: add or import an impl for the receiver type, or call a method supported by that value"
+            ),
+            "{diagnostic:?}"
+        );
+        assert_eq!(diagnostic.related_information, None);
+        assert_diagnostic_code(diagnostic, "yulang.unresolved-method");
+
+        let ambiguous_root = temp_root("lsp-ambiguous-method-diagnostic");
+        std::fs::create_dir_all(&ambiguous_root).unwrap();
+        let ambiguous = diagnostics_for_source(
+            &ambiguous_root.join("ambiguous_method_error.yu"),
+            diagnostics_fixture("ambiguous_method_error").to_string(),
+            &crate::StdSourceOptions::default(),
+        );
+
+        assert_eq!(ambiguous.len(), 1, "{ambiguous:?}");
+        let diagnostic = &ambiguous[0];
+        assert_eq!(
+            diagnostic.range,
+            Range {
+                start: Position {
+                    line: 9,
+                    character: 2,
+                },
+                end: Position {
+                    line: 9,
+                    character: 5,
+                },
+            }
+        );
+        assert_eq!(diagnostic.severity, Some(DiagnosticSeverity::ERROR));
+        assert!(
+            diagnostic
+                .message
+                .contains("more than one role implementation satisfies this method call"),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic
+                .message
+                .contains("hint: make the receiver type more specific"),
+            "{diagnostic:?}"
+        );
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("ambiguous method should carry candidate impl related ranges");
+        assert_eq!(related.len(), 2, "{related:?}");
+        assert!(
+            related
+                .iter()
+                .all(|item| item.message.contains("matching impl method candidate")),
+            "{related:?}"
+        );
+        assert_diagnostic_code(diagnostic, "yulang.ambiguous-method");
+    }
+
+    #[test]
     fn lsp_range_uses_utf16_columns() {
         let source = "my x = \"💡\"\nmy y: bool = 1\n";
         let start = source.find("y:").unwrap();
