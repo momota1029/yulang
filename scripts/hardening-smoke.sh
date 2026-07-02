@@ -61,6 +61,11 @@ if [[ "$run_contract_runner_smoke" != "0" ]]; then
     --contract stable-core \
     --case std_result_unwrap_or_public_signature \
     "$repo_root/tests/yulang/cases.toml"
+  run_timeout "$test_timeout" \
+    "$bin" --std-root "$repo_root/lib" contract \
+    --contract file-resource \
+    --case file_text_with_commit \
+    "$repo_root/tests/yulang/cases.toml"
 fi
 
 run_timeout "$test_timeout" \

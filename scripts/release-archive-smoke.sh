@@ -96,4 +96,8 @@ if [[ "$archive_contract_smoke" != "0" ]]; then
     --contract stable-core \
     --case std_result_unwrap_or_public_signature \
     "$repo_root/tests/yulang/cases.toml" >/dev/null
+  "$bin" --std-root "$package_root/lib" contract \
+    --contract file-resource \
+    --case file_text_with_commit \
+    "$repo_root/tests/yulang/cases.toml" >/dev/null
 fi

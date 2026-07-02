@@ -53,6 +53,8 @@ release artifact
   - `scripts/hardening-smoke.sh` は Rust 側の public contract manifest に加えて、
     release binary の `yulang contract` コマンドを filtered manifest case で確認する。
     2026-07-02 時点で representative `--contract stable-core` cases を通す。
+    Contract v1 file-resource は、同日時点で native normal scope-exit commit を見る
+    representative `--contract file-resource --case file_text_with_commit` も通す。
 - archive smoke script:
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
@@ -60,6 +62,7 @@ release artifact
   - `release-manifest.txt` の `contract_runner=1` を確認し、packaged binary と同梱 std で
     filtered `yulang contract tests/yulang/cases.toml` を実行する。
     2026-07-02 時点で representative `--contract stable-core` cases を通す。
+    Contract v1 file-resource の代表 case も同じ packaged binary / bundled std 経路で通す。
 - installer smoke scripts:
   - `scripts/release-install-smoke.sh` / `scripts/release-install-smoke.ps1`
   - ローカル HTTP release directory から installer を実行し、custom prefix install、
