@@ -2559,13 +2559,13 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
         infer::lowering::LoweringError::MissingIfBody => {
             "if expression is missing a body expression".to_string()
         }
-        infer::lowering::LoweringError::MissingCaseScrutinee => {
+        infer::lowering::LoweringError::MissingCaseScrutinee { .. } => {
             "case expression is missing the value to inspect".to_string()
         }
-        infer::lowering::LoweringError::MissingCaseArmPattern => {
+        infer::lowering::LoweringError::MissingCaseArmPattern { .. } => {
             "case arm is missing a pattern".to_string()
         }
-        infer::lowering::LoweringError::MissingCaseArmBody => {
+        infer::lowering::LoweringError::MissingCaseArmBody { .. } => {
             "case arm is missing a body expression".to_string()
         }
         infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {

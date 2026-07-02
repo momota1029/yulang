@@ -132,7 +132,10 @@ impl<'a> ExprLowerer<'a> {
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
         let scrutinee_node =
-            case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCaseScrutinee)?;
+            case_like_scrutinee_expr(node).ok_or_else(|| LoweringError::MissingCaseScrutinee {
+                source_range: first_token_source_range(node, SyntaxKind::Case)
+                    .unwrap_or_else(|| crate::node_trimmed_source_range(node)),
+            })?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
         if let Some(label) = case_like_label(node) {
             return self.lower_recursive_case_like(
@@ -262,7 +265,10 @@ impl<'a> ExprLowerer<'a> {
         result_value: TypeVar,
         result_effect: TypeVar,
     ) -> Result<CaseArm, LoweringError> {
-        let pattern = arm_pattern(arm).ok_or(LoweringError::MissingCaseArmPattern)?;
+        let pattern = arm_pattern(arm).ok_or_else(|| LoweringError::MissingCaseArmPattern {
+            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+        })?;
         let pattern_value = self.fresh_type_var();
         let var_bindings = self.prepare_var_pattern_bindings(&pattern)?;
         let pat =
@@ -278,7 +284,10 @@ impl<'a> ExprLowerer<'a> {
             .map(|guard| self.lower_arm_guard(&guard, result_effect))
             .transpose()?;
         let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
-        let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
+        let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCaseArmBody {
+            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+        })?;
         let mut body = self.lower_expr(&body_node)?;
         body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
         self.subtype_var_to_var(body.value, result_value);
@@ -594,7 +603,10 @@ impl<'a> ExprLowerer<'a> {
         result_effect: TypeVar,
         _rule_locals_start: usize,
     ) -> Result<Computation, LoweringError> {
-        let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
+        let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCaseArmBody {
+            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+        })?;
         let body = self.lower_expr(&body_node)?;
         self.subtype_var_to_var(body.value, result_value);
         self.subtype_var_to_var(body.effect, result_effect);

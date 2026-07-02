@@ -1060,6 +1060,15 @@ mod tests {
 
     fn diagnostics_fixture(name: &str) -> &'static str {
         match name {
+            "case_missing_scrutinee" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/case_missing_scrutinee.yu"
+            ),
+            "case_missing_arm_pattern" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/case_missing_arm_pattern.yu"
+            ),
+            "case_missing_arm_body" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/case_missing_arm_body.yu"
+            ),
             "catch_missing_scrutinee" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_scrutinee.yu"
             ),
@@ -1543,6 +1552,73 @@ my got = make(1).norm2
             "{diagnostics:?}"
         );
         assert_diagnostic_code(&diagnostics[0], "yulang.missing-index-argument");
+    }
+
+    #[test]
+    fn diagnostics_use_case_syntax_ranges() {
+        let cases = [
+            (
+                "case_missing_scrutinee",
+                "yulang.missing-case-scrutinee",
+                Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 4,
+                    },
+                },
+                "case expression is missing the value to inspect",
+            ),
+            (
+                "case_missing_arm_pattern",
+                "yulang.missing-case-arm-pattern",
+                Range {
+                    start: Position {
+                        line: 1,
+                        character: 2,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 4,
+                    },
+                },
+                "case arm is missing a pattern",
+            ),
+            (
+                "case_missing_arm_body",
+                "yulang.missing-case-arm-body",
+                Range {
+                    start: Position {
+                        line: 1,
+                        character: 4,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 6,
+                    },
+                },
+                "case arm is missing a body expression",
+            ),
+        ];
+
+        for (fixture, code, range, message) in cases {
+            let diagnostics = diagnostics_for_source(
+                &PathBuf::from(format!("{fixture}.yu")),
+                diagnostics_fixture(fixture).to_string(),
+                &crate::StdSourceOptions::default(),
+            );
+            assert_eq!(diagnostics.len(), 1, "{fixture}: {diagnostics:?}");
+            let diagnostic = &diagnostics[0];
+            assert_eq!(diagnostic.range, range, "{fixture}: {diagnostics:?}");
+            assert!(
+                diagnostic.message.contains(message),
+                "{fixture}: {diagnostics:?}"
+            );
+            assert_diagnostic_code(diagnostic, code);
+        }
     }
 
     #[test]

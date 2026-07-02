@@ -2923,13 +2923,15 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::MissingLambdaBody => Some("yulang.missing-lambda-body"),
         infer::lowering::LoweringError::MissingIfCondition => Some("yulang.missing-if-condition"),
         infer::lowering::LoweringError::MissingIfBody => Some("yulang.missing-if-body"),
-        infer::lowering::LoweringError::MissingCaseScrutinee => {
+        infer::lowering::LoweringError::MissingCaseScrutinee { .. } => {
             Some("yulang.missing-case-scrutinee")
         }
-        infer::lowering::LoweringError::MissingCaseArmPattern => {
+        infer::lowering::LoweringError::MissingCaseArmPattern { .. } => {
             Some("yulang.missing-case-arm-pattern")
         }
-        infer::lowering::LoweringError::MissingCaseArmBody => Some("yulang.missing-case-arm-body"),
+        infer::lowering::LoweringError::MissingCaseArmBody { .. } => {
+            Some("yulang.missing-case-arm-body")
+        }
         infer::lowering::LoweringError::AnnotationBuild {
             error: infer::annotation::AnnBuildError::UnresolvedTypeName { .. },
             ..
@@ -3093,13 +3095,13 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
         infer::lowering::LoweringError::MissingIfBody => {
             Some("write the branch body expression".to_string())
         }
-        infer::lowering::LoweringError::MissingCaseScrutinee => {
+        infer::lowering::LoweringError::MissingCaseScrutinee { .. } => {
             Some("write `case <expr>:` before the arms".to_string())
         }
-        infer::lowering::LoweringError::MissingCaseArmPattern => {
+        infer::lowering::LoweringError::MissingCaseArmPattern { .. } => {
             Some("write a pattern before `->`".to_string())
         }
-        infer::lowering::LoweringError::MissingCaseArmBody => {
+        infer::lowering::LoweringError::MissingCaseArmBody { .. } => {
             Some("write an expression after `->`".to_string())
         }
         infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {
@@ -3178,7 +3180,10 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. } => {
             Some(*source_range)
         }
-        infer::lowering::LoweringError::MissingCatchScrutinee { source_range }
+        infer::lowering::LoweringError::MissingCaseScrutinee { source_range }
+        | infer::lowering::LoweringError::MissingCaseArmPattern { source_range }
+        | infer::lowering::LoweringError::MissingCaseArmBody { source_range }
+        | infer::lowering::LoweringError::MissingCatchScrutinee { source_range }
         | infer::lowering::LoweringError::MissingCatchArmPattern { source_range }
         | infer::lowering::LoweringError::MissingCatchArmBody { source_range }
         | infer::lowering::LoweringError::MissingIndexArgument { source_range } => {

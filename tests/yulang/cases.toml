@@ -770,6 +770,60 @@ expect_diagnostic_related_count = 0
 contracts = ["stable-core", "diagnostics", "syntax"]
 
 [[case]]
+name = "case_missing_scrutinee"
+file = "regressions/diagnostics/case_missing_scrutinee.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-case-scrutinee]: case expression is missing the value to inspect",
+  "hint: write `case <expr>:` before the arms",
+]
+expect_diagnostic_code = "yulang.missing-case-scrutinee"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 0
+expect_diagnostic_end = 4
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "patterns", "syntax"]
+
+[[case]]
+name = "case_missing_arm_pattern"
+file = "regressions/diagnostics/case_missing_arm_pattern.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-case-arm-pattern]: case arm is missing a pattern",
+  "hint: write a pattern before `->`",
+]
+expect_diagnostic_code = "yulang.missing-case-arm-pattern"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 10
+expect_diagnostic_end = 12
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "patterns", "syntax"]
+
+[[case]]
+name = "case_missing_arm_body"
+file = "regressions/diagnostics/case_missing_arm_body.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-case-arm-body]: case arm is missing a body expression",
+  "hint: write an expression after `->`",
+]
+expect_diagnostic_code = "yulang.missing-case-arm-body"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 12
+expect_diagnostic_end = 14
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "patterns", "syntax"]
+
+[[case]]
 name = "catch_missing_scrutinee"
 file = "regressions/diagnostics/catch_missing_scrutinee.yu"
 kind = "check"

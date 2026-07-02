@@ -27,9 +27,15 @@ pub enum LoweringError {
     MissingLambdaBody,
     MissingIfCondition,
     MissingIfBody,
-    MissingCaseScrutinee,
-    MissingCaseArmPattern,
-    MissingCaseArmBody,
+    MissingCaseScrutinee {
+        source_range: SourceRange,
+    },
+    MissingCaseArmPattern {
+        source_range: SourceRange,
+    },
+    MissingCaseArmBody {
+        source_range: SourceRange,
+    },
     MissingCatchScrutinee {
         source_range: SourceRange,
     },

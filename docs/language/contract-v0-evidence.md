@@ -29,9 +29,9 @@ Current `stable-core` manifest coverage:
 | kind | count | contract role |
 | --- | ---: | --- |
 | `run` | 24 | runtime behavior and public examples |
-| `check` | 13 | structured source diagnostics |
+| `check` | 16 | structured source diagnostics |
 | `public-signature` | 15 | exact public type projection |
-| total | 52 | Contract v0 executable floor |
+| total | 55 | Contract v0 executable floor |
 
 The conformance command is:
 
@@ -42,7 +42,7 @@ cargo run -q -p yulang -- --std-root lib contract --contract stable-core tests/y
 Last recorded local validation on 2026-07-02:
 
 ```text
-contract cases ok: 52
+contract cases ok: 55
 ```
 
 ## Closed Slices
