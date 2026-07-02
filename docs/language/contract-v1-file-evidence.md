@@ -69,13 +69,13 @@ public surface:
   back at successful run completion.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
-- `scripts/package-release.sh --version contract-v1-smoke --target
+- `scripts/package-release.sh --version contract-v1-file-buffer-ambient --target
   x86_64-unknown-linux-gnu --binary target/release/yulang --out
-  target/release-contract-v1` followed by
+  target/release-contract-v1-file-buffer-ambient` followed by
   `scripts/release-archive-smoke.sh
-  target/release-contract-v1/yulang-x86_64-unknown-linux-gnu.tar.gz` passes.
-  The archive smoke expands the packaged binary, uses the bundled standard
-  library, and runs the filtered `file-resource` manifest subset.
+  target/release-contract-v1-file-buffer-ambient/yulang-x86_64-unknown-linux-gnu.tar.gz`
+  passes. The archive smoke expands the packaged binary, uses the bundled
+  standard library, and runs the filtered `file-resource` manifest subset.
 - public signature canaries cover the current file helper surface, carry the
   `file-resource` tag, and reject private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
@@ -146,8 +146,7 @@ public surface:
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because legacy raw / snapshot host operations still carry integer
 error-code translation, native unscoped ambient read/write failures do not yet
-have a typed file error policy, and packaged release evidence for the refreshed
-protocol surface still needs to be rerun.
+have a typed file error policy, and raw/provisional isolation is still open.
 
 ## Missing Evidence
 
@@ -174,7 +173,7 @@ The remaining blockers are Stage 2 host-boundary cleanup items:
 - removal of legacy int error-code translation from the public file path;
 - replacing native unscoped ambient read/write escaped-effect fallbacks with a
   typed or structured file failure policy;
-- release/archive smoke evidence for the new file-resource subset.
+- raw/provisional isolation for legacy snapshot operations and range helpers.
 
 Do not solve Stage 2 by restoring scoped `file_buffer` operations, transfer
 arms, `same_path` checks, raw snapshot public operations, or weaker public
@@ -199,8 +198,8 @@ bundled standard library.
 As of the Stage 2 native protocol bridge on 2026-07-03, the local checkout
 passes the filtered `file-resource` subset through `cargo run` with source mock
 handlers, native CLI protocol cases, and the first native unscoped ambient
-handler-extent case. Release binary and archive evidence must be refreshed for
-the new native protocol cases.
+handler-extent case. Release/archive smoke also passes against the packaged
+binary and bundled standard library for the same `file-resource` subset.
 
 ## Rollback Conditions
 
