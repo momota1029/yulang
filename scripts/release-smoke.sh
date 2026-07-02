@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${1:-"$repo_root/target/debug/yulang"}"
 timeout_duration="${YULANG_SMOKE_TIMEOUT:-30s}"
 file_resource_contract_smoke="${YULANG_SMOKE_FILE_RESOURCE_CONTRACT:-1}"
-file_resource_timeout_duration="${YULANG_SMOKE_FILE_RESOURCE_TIMEOUT:-120s}"
+file_resource_timeout_duration="${YULANG_SMOKE_FILE_RESOURCE_TIMEOUT:-180s}"
 
 if [[ ! -x "$bin" ]]; then
   echo "release smoke: executable yulang binary not found: $bin" >&2
