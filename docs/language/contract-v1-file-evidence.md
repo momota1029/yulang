@@ -135,6 +135,12 @@ public surface:
   lines, so release and archive smokes cover the debug manifest surface through
   the packaged binary path. It also checks that the suspend multi-shot tier is
   visible in the packaged binary manifest output.
+- `scripts/release-smoke.sh` also runs a focused `file-resource` contract set
+  through the smoke binary and the installed standard library. The focused set
+  covers the Stage 1 state-passing protocol cases, native load/store/meta,
+  native `text_with` commit/rollback, and unsupported-host capability failure.
+  Full `--contract file-resource` remains the archive-smoke and local validation
+  gate because it is materially heavier than a release smoke.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped
@@ -228,7 +234,8 @@ When the first executable slice lands, use a filtered contract run:
 cargo run -q -p yulang -- --std-root lib contract --contract file-resource tests/yulang/cases.toml
 ```
 
-Release evidence should run the same tag filter through the packaged binary and
+Release evidence should run the focused smoke set through `scripts/release-smoke.sh`
+and the full tag filter through archive smoke with the packaged binary and
 bundled standard library.
 
 As of the Stage 2 native protocol bridge plus scheduler-id evidence on

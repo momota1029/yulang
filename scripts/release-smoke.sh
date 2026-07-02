@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${1:-"$repo_root/target/debug/yulang"}"
 timeout_duration="${YULANG_SMOKE_TIMEOUT:-30s}"
+file_resource_contract_smoke="${YULANG_SMOKE_FILE_RESOURCE_CONTRACT:-1}"
 
 if [[ ! -x "$bin" ]]; then
   echo "release smoke: executable yulang binary not found: $bin" >&2
@@ -99,6 +100,32 @@ if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
   echo "release smoke: unexpected host act manifest output" >&2
   echo "$host_manifest_output" >&2
   exit 1
+fi
+
+if [[ "$file_resource_contract_smoke" != "0" ]]; then
+  contract_cases_manifest="$repo_root/tests/yulang/cases.toml"
+  if [[ ! -f "$contract_cases_manifest" ]]; then
+    echo "release smoke: contract manifest not found: $contract_cases_manifest" >&2
+    exit 1
+  fi
+  file_resource_cases=(
+    file_text_with_commit
+    file_text_with_rollback_on_error
+    file_text_with_undet_last_write_wins
+    file_text_unscoped_handler_discharge
+    file_text_mock_matches_native_shape
+    file_text_with_nested_cross_file
+    file_native_protocol_load_store_meta
+    file_text_with_native_commit
+    file_text_with_native_rollback_on_error
+    file_unsupported_host
+  )
+  for case_name in "${file_resource_cases[@]}"; do
+    run "$bin" --std-root "$std_root" contract \
+      --contract file-resource \
+      --case "$case_name" \
+      "$contract_cases_manifest" >/dev/null
+  done
 fi
 
 cache_path="$(run "$bin" cache path)"
