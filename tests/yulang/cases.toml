@@ -628,6 +628,25 @@ contracts = [
 ]
 
 [[case]]
+name = "console_unsupported_host"
+file = "regressions/runtime/console_unsupported_host.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-host-capability]: host capability std::io::console::out is not available in this runtime",
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "host-act",
+  "host.unsupported",
+  "console",
+]
+
+[[case]]
 name = "file_text_native_missing_host_io_error"
 file = "regressions/runtime/file_text_native_missing_host_io_error.yu"
 kind = "run"
