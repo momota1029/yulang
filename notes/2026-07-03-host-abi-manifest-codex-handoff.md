@@ -226,3 +226,31 @@ scripts/release-smoke.sh <binary>
 ## 進捗ログ（実装 agent が追記する）
 
 - （WP ごとに: 日付 / 変更したファイル / 受け入れゲートの結果 / 停止した場合はその状況）
+- 2026-07-03 / WP2 Stage 1 partial:
+  - Added the contextual `host` act modifier without reserving `host` globally:
+    parser `ActDecl` now carries `Keyword "host"`, and ordinary `host`
+    bindings still parse as identifiers.
+  - Threaded the host act flag through `ModuleTable`, compiled namespace
+    serialization, compiled namespace merge/restore, and the compiled namespace
+    cache hash.
+  - Marked only `std::io::file::file` and `std::io::console::out` as host acts.
+  - Added `poly::host_manifest` with deterministic sorting, columns, stable
+    hash, raw/contract surface, sync/suspend tiers, and A4 length-prefixed
+    host symbol mangling.
+  - Added `infer::host_acts::host_act_manifest_from_compiled`, generated from
+    compiled namespace + lowering + typed surfaces. Signatures use the existing
+    `poly::dump::format_scheme` printer over compiled typed schemes; no new
+    signature printer was introduced.
+  - Added the Stage 1 yulang equivalence test comparing compiler-generated std
+    manifest with `evidence_vm::runtime_host_manifest_operations()` on
+    `(act_id, operation_id, path, tier, surface)`, intentionally excluding
+    signature per D6.
+  - Validation run so far:
+    - `cargo fmt --all -- --check`
+    - `cargo test -q -p parser host -- --test-threads=1`
+    - `cargo test -q -p poly host_manifest -- --test-threads=1`
+    - `cargo test -q -p infer host_acts -- --test-threads=1`
+    - `cargo check -q -p infer -p yulang`
+    - `cargo test -q -p yulang --test cli compiler_generated_host_manifest_matches_runtime_stage1_table -- --test-threads=1`
+  - No stop condition hit. Full WP acceptance gate still remains before calling
+    WP2 complete.

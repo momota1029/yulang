@@ -1789,6 +1789,75 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
 }
 
 #[test]
+fn compiler_generated_host_manifest_matches_runtime_stage1_table() {
+    let root = temp_root("compiler-host-manifest-stage1");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let entry = root.join("main.yu");
+    fs::write(&entry, "1\n").unwrap();
+
+    let files = yulang::collect_local_sources_with_std_options(
+        &entry,
+        &yulang::StdSourceOptions {
+            std_root: Some(repo_lib_root()),
+        },
+    )
+    .unwrap();
+    let output = yulang::build_poly_and_compiled_unit_from_collected_sources(files).unwrap();
+    let manifest = infer::host_acts::host_act_manifest_from_compiled(
+        &output.compiled_unit.namespace,
+        &output.compiled_unit.lowering,
+        &output.compiled_unit.typed,
+    )
+    .unwrap();
+
+    let generated = manifest
+        .operations
+        .iter()
+        .map(|op| {
+            (
+                op.act_id.clone(),
+                op.operation_id.clone(),
+                op.path.join("."),
+                generated_tier_id(op.tier).to_string(),
+                generated_surface_id(op.surface).to_string(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let runtime = evidence_vm::runtime_host_manifest_operations()
+        .into_iter()
+        .map(|op| {
+            (
+                op.act_id.to_string(),
+                op.operation_id.to_string(),
+                op.path.join("."),
+                op.tier.to_string(),
+                op.surface.to_string(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+
+    assert_eq!(generated, runtime);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+fn generated_tier_id(tier: poly::host_manifest::HostOperationTier) -> &'static str {
+    match tier {
+        poly::host_manifest::HostOperationTier::Sync => "sync",
+        poly::host_manifest::HostOperationTier::SuspendOneShot => "suspend-one-shot",
+        poly::host_manifest::HostOperationTier::SuspendMultiShot => "suspend-multi-shot",
+    }
+}
+
+fn generated_surface_id(surface: poly::host_manifest::HostOperationSurface) -> &'static str {
+    match surface {
+        poly::host_manifest::HostOperationSurface::Contract => "contract",
+        poly::host_manifest::HostOperationSurface::RawCompat => "raw-compat",
+    }
+}
+
+#[test]
 fn debug_evidence_vm_run_passes_call_evidence_to_returned_effect_thunks() {
     let entry = write_entry(
         "debug-evidence-vm-run-call-evidence",
