@@ -2502,6 +2502,33 @@ fn hover_entry_source_reports_lambda_arg_ref_type() {
 }
 
 #[test]
+fn hover_entry_source_uses_nearest_shadowed_lambda_arg_type() {
+    let source = "my f = \\x: bool -> (\\x: int -> x) 1\n";
+    let ref_offset = source.rfind('x').unwrap();
+    let hover = hover_entry_source("main.yu", source, ref_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: ref_offset,
+            end: ref_offset + 1,
+        }
+    );
+    assert!(
+        hover.contents.starts_with("x: ") && hover.contents.contains("int"),
+        "expected hover to use nearest lambda arg type, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("bool"),
+        "expected hover not to use outer lambda arg type, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
 fn definition_entry_source_reports_lambda_arg_target() {
     let source = "my id x = x\n";
     let arg_offset = source.find('x').unwrap();
