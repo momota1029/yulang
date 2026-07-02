@@ -20533,6 +20533,41 @@ mod tests {
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn runtime_host_operation_table_resolves_current_console_and_file_ops() {
+        for spec in RUNTIME_HOST_OPERATIONS {
+            let path = spec
+                .path
+                .iter()
+                .map(|part| (*part).to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(runtime_host_operation(&path), Some(spec.operation));
+        }
+        assert_eq!(
+            runtime_host_operation(&[
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "unknown".into()
+            ]),
+            None
+        );
+    }
+
+    #[test]
+    fn runtime_host_operation_table_has_unique_paths() {
+        let mut paths = BTreeSet::new();
+        for spec in RUNTIME_HOST_OPERATIONS {
+            assert!(
+                paths.insert(spec.path),
+                "duplicate runtime host operation path {:?}",
+                spec.path
+            );
+        }
+    }
 
     #[test]
     fn provider_env_close_wraps_escaped_request_continuation() {
