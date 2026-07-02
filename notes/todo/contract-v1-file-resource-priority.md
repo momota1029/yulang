@@ -53,6 +53,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
 6. **Static route Stage 0, then conditional Stage 1**
    - `notes/design/2026-07-02-static-route-promotion-plan.md` に従い、まず被覆率計測だけ行う。
    - Stage 1 は Stage 0 の hits と Stage 1a shadow mismatch 0 が揃った場合だけ。
+   - 2026-07-02: Stage 0 counters and deep-profile runtime-hit counters are
+     already wired. Use `scripts/static-route-stage0-profile.sh` to collect the
+     representative 4-workload table before deciding whether Stage 1 is allowed.
 
 7. **Later tracks**
    - package / registry。
