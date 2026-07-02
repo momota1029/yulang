@@ -155,8 +155,8 @@ public surface:
 - `scripts/release-smoke.sh` also runs a focused `file-resource` contract set
   through the smoke binary and the installed standard library. The focused set
   covers the Stage 1 state-passing protocol cases, native load/store/meta,
-  native `text_with` commit/rollback, unsupported-host capability failure, and
-  native ambient missing-file `host-io-error` failure.
+  native `text_with` commit/rollback, file/meta/ambient unsupported-host
+  capability failure, and native ambient missing-file `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
 - The Evidence VM also has a deny path for known native host operations:
