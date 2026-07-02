@@ -1,28 +1,20 @@
--- open (2026-07-02): `file::text_with` under nondet now specializes and runs,
--- but the managed snapshot buffer is runner-global rather than branch-local.
+-- resolved (2026-07-02): `file::text_with` under nondet now carries
+-- branch-local managed snapshot buffers through Evidence VM continuations.
 --
--- With a backing file containing "start", this currently prints:
---
---   run roots [([(" A", "start A"), (" B", "start A B")], "start A B")]
---
--- and leaves the file as:
---
---   start A B
---
--- Contract v1 expects multi-shot branches to carry independent managed buffers:
--- both branches should read "start" on entry, produce branch-local updates, and
--- commit in arrival order with last-write-wins. A likely final observable shape
--- is:
+-- With a backing file containing "start", this prints:
 --
 --   run roots [([(" A", "start A"), (" B", "start B")], "start B")]
 --
--- This is no longer a specialize2 blocker after `text_with` became a direct
--- alias of `open_in`. The remaining issue is runtime state placement:
--- `RuntimeEvidenceRunner::file_snapshots` is shared by all resumed branches.
+-- and leaves the file as:
 --
--- Do not add this to `tests/yulang/cases.toml` until branch-local buffers are
--- implemented. The contract manifest must remain executable and should not
--- carry current wrong behavior as a compatibility promise.
+--   start B
+--
+-- The executable contract is:
+--
+--   tests/yulang/regressions/runtime/file_text_with_nondet_branch_snapshots.yu
+--   tests/yulang/cases.toml: file_text_with_nondet_branch_snapshots
+--
+-- This note remains as the original reduced probe.
 
 use std::control::nondet::*
 

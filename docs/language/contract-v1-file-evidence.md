@@ -5,8 +5,8 @@ This page records evidence for
 
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
 `file-resource` manifest subset has native normal-commit and unsupported-host
-cases. Native rollback on user error is now covered. Branch-local multi-shot
-buffers, pure mock resource-lifetime behavior, and release archive parity remain
+cases. Native rollback on user error and branch-local multi-shot buffers are now
+covered. Pure mock resource-lifetime behavior and release archive parity remain
 open. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
@@ -33,6 +33,11 @@ public surface:
   native `text_with` rollback case. The callback reads and updates the managed
   text ref, exits through a user error caught by `E::wrap`, and the temp backing
   file remains unchanged.
+- `tests/yulang/cases.toml` includes
+  `file_text_with_nondet_branch_snapshots`, a native `text_with` multi-shot case.
+  The callback branches through `nondet.each`; each resumed branch reads the
+  original `"start"` buffer, writes an independent branch-local text value, and
+  commits in arrival order with last-write-wins final file contents.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
@@ -60,8 +65,8 @@ public surface:
   resource-lifetime mock evidence.
 
 Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because they do not yet prove rollback, branch-local buffers,
-pure mock parity, or packaged-release parity.
+Contract v1 because they do not yet prove pure mock resource-lifetime parity or
+packaged-release parity.
 
 ## Missing Evidence
 
@@ -71,7 +76,7 @@ executable `file-resource` cases for:
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | pure handler commit, rollback, multi-shot branch commit, handler-extent discharge |
-| Native host | multi-shot branch-local buffers and parity with mock shape |
+| Native host | parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 | Release | packaged binary plus bundled std runs representative `file-resource` cases |
@@ -83,22 +88,15 @@ direct `open_in` already worked, while `text_with(path, f) = open_in path f`
 split the callback residual during specialization. `text_with` is now a direct
 alias of `open_in`, and the rollback case is executable.
 
-The remaining native multi-shot case is now past specialization, but it still
-has the wrong runtime state placement. `text_with` under nondet currently shares
-the runner-local snapshot buffer across resumed branches:
+The native multi-shot blocker is resolved by Evidence VM file snapshot
+continuation frames. The runtime now carries managed file buffers with resumed
+continuations, executes synchronous host file requests inside the restored
+branch state, and lets `file_snapshot_commit` consume the normal-return snapshot
+sidecar. This keeps abortive exits as rollback while allowing callback-local
+updates to reach the surrounding managed-lens commit.
 
-```text
-current:  [(" A", "start A"), (" B", "start A B")], final file "start A B"
-desired:  [(" A", "start A"), (" B", "start B")],   final file "start B"
-```
-
-The current `RuntimeEvidenceRunner::file_snapshots` storage is shared by all
-resumed branches. Do not paper over this with a fixture-specific fallback; the
-next fix belongs in branch-local runtime state / resource operation separation.
-
-The current native snapshot storage is runner-local, not branch-local. It is
-adequate for normal scope-exit commit but is not evidence for multi-shot
-branch-local buffers.
+Do not collapse this back into runner-global `file_snapshots`: it regresses
+multi-shot branch isolation.
 
 ## Acceptance Gate
 
@@ -115,7 +113,8 @@ As of 2026-07-02, `scripts/hardening-smoke.sh` and
 `scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
 through the release binary surface. This is release evidence for native normal
 scope-exit commit and unsupported-host failure only; rollback, multi-shot branch
-buffers, and mock-host parity remain open.
+buffers, and mock-host resource-lifetime parity still need packaged-release
+evidence.
 
 ## Rollback Conditions
 

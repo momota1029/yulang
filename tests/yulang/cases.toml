@@ -106,6 +106,28 @@ contents = "start"
 expect_contents = "start"
 
 [[case]]
+name = "file_text_with_nondet_branch_snapshots"
+file = "regressions/runtime/file_text_with_nondet_branch_snapshots.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [([(\" A\", \"start A\"), (\" B\", \"start B\")], \"start B\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "std.nondet",
+]
+[[case.temp_files]]
+placeholder = "__YULANG_FILE_TEXT_WITH_NONDET_PATH__"
+contents = "start"
+expect_contents = "start B"
+
+[[case]]
 name = "file_unsupported_host"
 file = "regressions/runtime/file_unsupported_host.yu"
 kind = "run"
