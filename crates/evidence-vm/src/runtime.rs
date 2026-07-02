@@ -33,6 +33,7 @@ use format::{
     format_values_with_display_context, format_values_with_labels,
 };
 pub(crate) use host::runtime_host_manifest_has_known_act;
+pub use host::{RuntimeHostManifestOperation, runtime_host_manifest_operations};
 use host::{
     RuntimeHostOperation, RuntimeHostOperationSpec, RuntimeHostRegistry,
     RuntimeHostRequestResolution,

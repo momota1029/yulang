@@ -69,6 +69,11 @@ public surface:
   owner for the current static operation table. This keeps the existing escaped
   request semantics while making the future lowering-produced host manifest a
   single replacement boundary.
+- `yulang debug host-act-manifest` prints the current runtime host manifest
+  view from the release binary: stable act id, operation id, sync tier, and
+  reconstructed path for console/file operations. This is still the interim
+  runtime manifest, not compiler-generated `host act` lowering output, but it
+  makes the current registry surface observable outside unit tests.
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped

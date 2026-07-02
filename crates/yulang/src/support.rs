@@ -1135,7 +1135,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} realm install [path] [--version <version>]");
     eprintln!("       {program} [--std-root <path>] server");
     eprintln!(
-        "       {program} debug <control-vm|control-vm-emit|control-vm-load|runtime-evidence-bench|runtime-evidence-run|evidence-vm-plan|evidence-vm-run> ..."
+        "       {program} debug <host-act-manifest|control-vm|control-vm-emit|control-vm-load|runtime-evidence-bench|runtime-evidence-run|evidence-vm-plan|evidence-vm-run> ..."
     );
     eprintln!("       {program} dump-poly <path>");
     eprintln!("       {program} dump-poly-raw <path>");

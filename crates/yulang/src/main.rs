@@ -2859,6 +2859,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         print_usage_and_exit(program);
     };
     match op.to_str() {
+        Some("host-act-manifest") => run_host_act_manifest(program, args),
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
@@ -2889,6 +2890,23 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
             run_control_artifact(artifact, selection.print_roots);
         }
         _ => print_usage_and_exit(program),
+    }
+}
+
+fn run_host_act_manifest(program: &str, args: VecDeque<OsString>) {
+    if !args.is_empty() {
+        print_usage_error_and_exit(program, "debug host-act-manifest does not take arguments");
+    }
+
+    println!("runtime host manifest:");
+    for operation in evidence_vm::runtime_host_manifest_operations() {
+        println!(
+            "  act={} op={} tier={} path={}",
+            operation.act_id,
+            operation.operation_id,
+            operation.tier,
+            operation.path.join(".")
+        );
     }
 }
 

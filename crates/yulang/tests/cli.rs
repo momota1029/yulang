@@ -1716,6 +1716,36 @@ fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
 }
 
 #[test]
+fn debug_host_act_manifest_prints_runtime_registry_view() {
+    let output = yulang_command()
+        .arg("debug")
+        .arg("host-act-manifest")
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.starts_with("runtime host manifest:\n"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout
+            .contains("  act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.file.file op=meta_raw tier=sync path=std.io.file.file.meta_raw\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn debug_evidence_vm_run_passes_call_evidence_to_returned_effect_thunks() {
     let entry = write_entry(
         "debug-evidence-vm-run-call-evidence",

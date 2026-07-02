@@ -147,6 +147,43 @@ pub(crate) fn runtime_host_manifest_has_known_act(path: &[String]) -> bool {
     RUNTIME_HOST_MANIFEST.act_for_path(path).is_some()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RuntimeHostManifestOperation {
+    pub act_id: &'static str,
+    pub operation_id: &'static str,
+    pub tier: &'static str,
+    pub path: &'static [&'static str],
+}
+
+pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
+    RUNTIME_HOST_OPERATIONS
+        .iter()
+        .map(|spec| RuntimeHostManifestOperation {
+            act_id: spec.act.manifest_id(),
+            operation_id: spec.operation_id,
+            tier: spec.tier.manifest_id(),
+            path: spec.path,
+        })
+        .collect()
+}
+
+impl RuntimeHostAct {
+    fn manifest_id(self) -> &'static str {
+        match self {
+            Self::ConsoleOut => "std.io.console.out",
+            Self::File => "std.io.file.file",
+        }
+    }
+}
+
+impl RuntimeHostOperationTier {
+    fn manifest_id(self) -> &'static str {
+        match self {
+            Self::Sync => "sync",
+        }
+    }
+}
+
 const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::ConsoleOut,
@@ -283,47 +320,6 @@ fn runtime_host_path_starts_with(path: &[String], expected_prefix: &[&str]) -> b
 }
 
 #[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct RuntimeHostOperationManifestEntry {
-    act_id: &'static str,
-    operation_id: &'static str,
-    tier: &'static str,
-    path: &'static [&'static str],
-}
-
-#[cfg(test)]
-fn runtime_host_operation_manifest_entries() -> Vec<RuntimeHostOperationManifestEntry> {
-    RUNTIME_HOST_OPERATIONS
-        .iter()
-        .map(|spec| RuntimeHostOperationManifestEntry {
-            act_id: spec.act.manifest_id(),
-            operation_id: spec.operation_id,
-            tier: spec.tier.manifest_id(),
-            path: spec.path,
-        })
-        .collect()
-}
-
-#[cfg(test)]
-impl RuntimeHostAct {
-    fn manifest_id(self) -> &'static str {
-        match self {
-            Self::ConsoleOut => "std.io.console.out",
-            Self::File => "std.io.file.file",
-        }
-    }
-}
-
-#[cfg(test)]
-impl RuntimeHostOperationTier {
-    fn manifest_id(self) -> &'static str {
-        match self {
-            Self::Sync => "sync",
-        }
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
@@ -404,7 +400,7 @@ mod tests {
 
     #[test]
     fn runtime_host_operation_manifest_view_has_stable_act_op_tier_keys() {
-        let entries = runtime_host_operation_manifest_entries();
+        let entries = runtime_host_manifest_operations();
         let mut act_op_keys = BTreeSet::new();
 
         assert_eq!(entries.len(), RUNTIME_HOST_OPERATIONS.len());
