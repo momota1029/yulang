@@ -1,5 +1,39 @@
--- open (2026-07-02): pure mock resource-lifetime for `file::text_with`
--- cannot yet be expressed through the current public file surface.
+-- resolved (2026-07-03): pure mock resource-lifetime for `file::text_with`
+-- is now expressed through the production public file surface.
+--
+-- Resolution:
+--   `std::io::file::text_with` was rewritten to the state-passing protocol:
+--
+--     file::load path
+--     f initial_text  -- f : str -> [e] ('a, str)
+--     file::store (path, final_text)
+--     result
+--
+--   Source mock handlers can catch the public `std::io::file::file.load` and
+--   `std::io::file::file.store` operations under `--host unsupported`, so the
+--   real production helper no longer depends on private snapshot operations for
+--   Contract v1 resource-lifetime evidence.
+--
+-- Fixed contract evidence:
+--   - tests/yulang/regressions/runtime/file_text_with_commit.yu
+--   - tests/yulang/regressions/runtime/file_text_with_rollback_on_error.yu
+--   - tests/yulang/regressions/runtime/file_text_with_undet_last_write_wins.yu
+--   - tests/yulang/regressions/runtime/file_text_unscoped_handler_discharge.yu
+--   - tests/yulang/regressions/runtime/file_text_mock_matches_native_shape.yu
+--   - tests/yulang/regressions/runtime/file_text_with_nested_cross_file.yu
+--   - tests/yulang/regressions/runtime/file_text_with_nested_state_var.yu
+--
+-- Remaining file-resource blockers have moved to:
+--   - replacing or retiring `raw-compat` snapshot operations with a public
+--     session boundary;
+--   - typing native unscoped ambient failures without leaking private row
+--     constraints.
+--
+-- Historical note below records the old private-snapshot blocker. It is no
+-- longer the current implementation path.
+--
+-- Previous open note (2026-07-02): pure mock resource-lifetime for
+-- `file::text_with` could not yet be expressed through the public file surface.
 --
 -- Desired shape:
 --   - run with `--host unsupported`;
