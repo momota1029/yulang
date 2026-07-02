@@ -11,7 +11,9 @@ point at a focused `.yu` file and list the contract tags it protects.
 `yulang contract tests/yulang/cases.toml` runs the same manifest through the
 release binary surface; pass `--std-root lib` when running it from a repository
 checkout. Use `--contract stable-core` to run the Contract v0 subset, or repeat
-`--contract <tag>` to require multiple tags.
+`--contract <tag>` to require multiple tags. Repeat `--case <name>` to run a
+focused set in one runner invocation; release smoke uses this for the
+representative file-resource evidence.
 The manifest runner checks that `run` cases carry a runtime-facing tag, `check`
 cases carry `diagnostics`, and `public-signature` cases carry
 `public-signature`, so the tags remain useful as a contract index rather than
