@@ -47,6 +47,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        from an inner `text_with` callback.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
+     - 2026-07-03: added `file_text_unsupported_host`, so the ambient
+       `file_buffer` act used by unscoped `file::text` also has structured
+       unsupported-host failure coverage. Typed ambient `io_err` is still open.
    - packaged binary + bundled std で file-resource contract を走らせる。
      - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
      - 2026-07-03: direct `scripts/release-smoke.sh` now runs a focused

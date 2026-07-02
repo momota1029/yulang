@@ -1,0 +1,1 @@
+(\&text -> $text) (std::io::file::text "/tmp/yulang-contract-unsupported-text")

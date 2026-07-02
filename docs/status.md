@@ -197,7 +197,9 @@ The columns trace a value through the pipeline:
   and release smoke output. This is still not the full Contract v1
   file-resource contract because a public session replacement for `raw-compat`,
   native unscoped ambient failure typing, directory listing, portable metadata
-  expansion, and lock release remain provisional. The
+  expansion, and lock release remain provisional. Unsupported host coverage now
+  includes both the `file` act and ambient `file_buffer` act, so neither path
+  fakes success under `--host unsupported`. The
   resource lifetime semantics are specified: `_with` resources close at
   continuation end, unscoped resources close at the provider handler extent,
   managed lens commits only on normal scope exit, aborted branches roll back,

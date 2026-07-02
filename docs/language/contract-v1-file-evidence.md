@@ -164,6 +164,11 @@ public surface:
 - `tests/yulang/cases.toml` also includes `file_meta_unsupported_host`, so the
   metadata path goes through the same unsupported-host capability failure
   instead of returning fake metadata under a sandboxed host.
+- `tests/yulang/cases.toml` includes `file_text_unsupported_host`, so unscoped
+  `file::text` / `file_buffer::ambient_get` also reports unsupported host
+  capability instead of returning fake text under a sandboxed host. This is
+  structured failure evidence; typed ambient `io_err` is still a Stage 2
+  blocker.
 - `tests/yulang/cases.toml` includes `file_mock_read_text_handler`, a focused
   `file-resource` / `host-act` / `mock-host` canary that runs with
   `--host unsupported` and handles `std::io::file::file.load` in Yulang. It
