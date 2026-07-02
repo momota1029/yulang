@@ -184,8 +184,10 @@ The columns trace a value through the pipeline:
   metadata cases that keep `exists`, `is_file`, and `is_dir` as metadata wrappers.
   Native `file::load` on a missing target and `file::store` on a directory now
   have `typed-failure` coverage that observes `io_err::not_found` and
-  `io_err::failed` constructors directly, so the contract surface does not rely
-  on an integer error-code bridge.
+  `io_err::failed` constructors directly. Native invalid host paths now
+  classify `InvalidInput` / `InvalidData` as `io_err::invalid_path` through both
+  protocol operations and text helpers, so the contract surface does not rely on
+  an integer error-code bridge or collapse invalid paths into generic failure.
   `read_at` / `write_at`
   now return typed
   `result ... io_err` values at the host act boundary while preserving the

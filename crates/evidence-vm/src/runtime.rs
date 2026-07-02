@@ -12337,6 +12337,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             io::ErrorKind::PermissionDenied => {
                 (self.host_constructors.io_err_denied, vec![path_value])
             }
+            io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
+                (self.host_constructors.io_err_invalid_path, vec![path_value])
+            }
             _ => {
                 if let Some(def) = self.host_constructors.io_err_failed {
                     (

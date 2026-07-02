@@ -258,6 +258,24 @@ contracts = [
 ]
 
 [[case]]
+name = "file_native_invalid_path_typed_failure"
+file = "regressions/runtime/file_native_invalid_path_typed_failure.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"load-invalid\", \"store-invalid\", \"read-invalid\", \"write-invalid\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "host-act",
+  "host.native",
+  "typed-failure",
+]
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"
@@ -1700,6 +1718,28 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file.io_err"
 symbol = "std.io.file.io_err.not_found"
+expect_type = "std::text::path::path -> std::io::file::io_err"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+
+[[case]]
+name = "std_file_io_err_denied_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.io_err"
+symbol = "std.io.file.io_err.denied"
+expect_type = "std::text::path::path -> std::io::file::io_err"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+
+[[case]]
+name = "std_file_io_err_invalid_path_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.io_err"
+symbol = "std.io.file.io_err.invalid_path"
 expect_type = "std::text::path::path -> std::io::file::io_err"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]

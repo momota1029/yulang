@@ -135,6 +135,11 @@ public surface:
 - `tests/yulang/cases.toml` also includes
   `file_native_helper_typed_failures`, which proves public `read_text` /
   `write_text` wrappers preserve those typed failures through `io_err::wrap`.
+- `tests/yulang/cases.toml` also includes
+  `file_native_invalid_path_typed_failure`, which proves native
+  `InvalidInput` / `InvalidData` host failures are classified as
+  `io_err::invalid_path` through both public protocol operations and text
+  helpers instead of falling through to the generic `failed` constructor.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-file-metadata-predicates --target
@@ -172,7 +177,7 @@ public surface:
 - `scripts/release-smoke.sh` also runs a focused `file-resource` contract set
   through the smoke binary and the installed standard library. The focused set
   covers the Stage 1 state-passing protocol cases, native load/store/meta,
-  native typed operation/helper failure, native `text_with`
+  native typed operation/helper/invalid-path failure, native `text_with`
   commit/rollback/nondet/nested session cases, file/meta/ambient
   unsupported-host capability failure, and native ambient missing-file
   `host-io-error` failure.

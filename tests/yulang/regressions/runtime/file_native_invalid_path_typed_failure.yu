@@ -1,0 +1,37 @@
+my invalid = std::text::path::of_bytes (std::text::str::to_bytes "bad\0path")
+
+my load_failure = case std::io::file::file::load invalid:
+    result::err err -> case err:
+        std::io::file::io_err::invalid_path _ -> "load-invalid"
+        std::io::file::io_err::failed (_, _) -> "load-failed"
+        _ -> "load-other-error"
+    result::ok _ -> "load-ok"
+
+my store_failure = case std::io::file::file::store (invalid, "blocked"):
+    result::err err -> case err:
+        std::io::file::io_err::invalid_path _ -> "store-invalid"
+        std::io::file::io_err::failed (_, _) -> "store-failed"
+        _ -> "store-other-error"
+    result::ok _ -> "store-ok"
+
+my read_result = std::io::file::io_err::wrap:
+    std::io::file::read_text invalid
+
+my read_failure = case read_result:
+    result::err err -> case err:
+        std::io::file::io_err::invalid_path _ -> "read-invalid"
+        std::io::file::io_err::failed (_, _) -> "read-failed"
+        _ -> "read-other-error"
+    result::ok _ -> "read-ok"
+
+my write_result = std::io::file::io_err::wrap:
+    std::io::file::write_text invalid "blocked"
+
+my write_failure = case write_result:
+    result::err err -> case err:
+        std::io::file::io_err::invalid_path _ -> "write-invalid"
+        std::io::file::io_err::failed (_, _) -> "write-failed"
+        _ -> "write-other-error"
+    result::ok _ -> "write-ok"
+
+(load_failure, store_failure, read_failure, write_failure)

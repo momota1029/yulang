@@ -63,6 +63,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        `io_err::wrap`.
      - 2026-07-03: added public signature canaries for
        `std.io.file.io_err.not_found` and `std.io.file.io_err.failed`.
+     - 2026-07-03: classified native `InvalidInput` / `InvalidData` host
+       failures as `io_err::invalid_path` and added
+       `file_native_invalid_path_typed_failure` plus public signature canaries
+       for `io_err::denied` and `io_err::invalid_path`.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
      - 2026-07-03: added `file_text_unsupported_host`, so the ambient
