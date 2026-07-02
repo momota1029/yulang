@@ -35,6 +35,15 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "lists", "update"]
 
 [[case]]
+name = "ref_update_local_buffer_public"
+file = "regressions/runtime/ref_update_local_buffer_public.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [\"start!\"]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "refs", "update"]
+
+[[case]]
 name = "result_api"
 file = "regressions/runtime/result_api.yu"
 kind = "run"

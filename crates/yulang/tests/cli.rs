@@ -3365,6 +3365,49 @@ fn compatible_run_with_std_prefix_cache_matches_full_build_for_mock_ref_view() {
 }
 
 #[test]
+fn compatible_run_with_std_prefix_cache_matches_full_build_for_direct_ref_update() {
+    let root = temp_root("run-std-prefix-direct-ref-update");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let entry = root.join("main.yu");
+    fs::write(
+        &entry,
+        r#"use std::control::var::*
+
+my update_local_ref(backing) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    r.update (\old -> old + "!")
+    r.get()
+}
+
+update_local_ref "start"
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [\"start!\"]\n");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_uses_single_source_unit_prefix_cache() {
     let root = temp_root("run-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);

@@ -1,31 +1,34 @@
--- open (2026-07-02): a public `ref { ... }` view over a local `$buffer`
--- can be constructed and read, but direct update through the public
--- `std::control::var::ref.update` method still loses the local `$buffer`
--- residual shape.
+-- resolved (2026-07-02): a public `ref { ... }` view over a local
+-- `$buffer` can be constructed, read, and directly updated through the public
+-- `std::control::var::ref.update` method.
 --
--- This is now a narrower ref.update-specific reduction. It no longer blocks
--- the function-shaped pure mock text scope: callback assignment through
--- `&text = ...` is executable and contract-covered by
+-- This is now a stable-core runtime contract in:
+--   tests/yulang/regressions/runtime/ref_update_local_buffer_public.yu
+--
+-- The direct `.update` shape is no longer the file-resource blocker. Callback
+-- assignment through `&text = ...` is executable and contract-covered by
 -- `tests/yulang/regressions/runtime/file_mock_text_with_function_commit.yu`.
 --
 -- Expected:
---   eventually, `run --print-roots` should produce `run roots ["next"]`.
+--   `run --print-roots` should produce `run roots ["start!"]`.
 --
 -- Current:
---   `run --print-roots` fails with a conflicting type candidate over
---   `&buffer#...` residual shape.
+--   cached and no-cache path runs both produce `run roots ["start!"]`.
 --
--- The resolved function-boundary probe is recorded in:
---   notes/bugs/file_text_with_mock_function_boundary_blocker.yu
+-- The remaining file-resource-only blocker is private snapshot helper
+-- mockability in:
+--   notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu
 
 use std::control::var::*
 
-{
-    my $buffer = "start"
+my update_local_ref(backing) = {
+    my $buffer = backing
     my r: std::control::var::ref _ str = ref {
         get: \() -> $buffer,
         update_effect: \() -> &buffer = ref_update::update $buffer
     }
-    r.update (\_ -> "next")
+    r.update (\old -> old + "!")
     r.get()
 }
+
+update_local_ref "start"
