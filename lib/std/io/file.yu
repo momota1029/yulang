@@ -28,8 +28,6 @@ pub act file:
     pub is_dir: path -> bool
 
 pub act file_buffer:
-    pub get: path -> str
-    pub set: (path, str) -> unit
     pub ambient_get: path -> str
     pub ambient_set: (path, str) -> unit
 
@@ -65,9 +63,6 @@ my kind_from_code(code: int): file_kind =
                         file_kind::symlink
                     else:
                         file_kind::other
-
-my same_path(a: path, b: path): bool =
-    std::text::bytes::eq (std::text::path::to_bytes a) (std::text::path::to_bytes b)
 
 my unwrap_io(result) = case result:
     result::ok value -> value
@@ -156,30 +151,10 @@ pub text(path: path): ref '[file_buffer] str =
             )
     }
 
-pub text_with(path: path, f) =
-    my view: ref '[file_buffer] str = ref {
-        get: \() -> file_buffer::get path,
-        update_effect: \() ->
-            file_buffer::set (
-                path,
-                ref_update::update (file_buffer::get path)
-            )
-    }
-    my run(buffer, x: [_] _) = catch x:
-        file_buffer::get request_path, k ->
-            if same_path request_path path:
-                run buffer: k buffer
-            else:
-                run buffer: k (file_buffer::get request_path)
-        file_buffer::set (request_path, buffer_next), k ->
-            if same_path request_path path:
-                run buffer_next: k()
-            else:
-                run buffer: k (file_buffer::set (request_path, buffer_next))
-        value -> (value, buffer)
-    my initial = read_text path
-    my (result, final) = run initial: f view
-    write_text path final
+pub text_with(path: path, f: std::text::str::str -> ['e] ('a, std::text::str::str)): [file, io_err, 'e] 'a =
+    my initial = unwrap_io (file::load path)
+    my (result, final) = f initial
+    unwrap_io (file::store (path, final))
     result
 
 pub use file::*

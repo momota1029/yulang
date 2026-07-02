@@ -3,13 +3,12 @@
 This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
-Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
-`file-resource` manifest subset now has the first public `file_buffer` /
-`file::load` / `file::store` / `file::meta` Stage 0 surface. The current
-production `std::io::file::text_with` path can be source-mocked for the normal
-commit case, while rollback and multi-shot cases still use the legacy native
-`open_in` snapshot route until the callback residual blocker is fixed. Contract
-v0 remains closed in [contract-v0-evidence.md](contract-v0-evidence.md).
+Status on 2026-07-02: **open, Stage 1 mock protocol complete**. The contract
+box and tag policy exist, and the `file-resource` manifest subset now covers
+the public `file::load` / `file::store` / `file::meta` Stage 0 surface plus the
+Stage 1 source-mock `text_with` protocol fixtures. Native registry parity and
+int error-code removal remain Stage 2 work. Contract v0 remains closed in
+[contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
 
@@ -29,22 +28,23 @@ public surface:
 - `io_err::wrap` converts failed file reads and writes into typed result
   boundaries.
 - `open_text`, `open`, and `open_in` remain as legacy native snapshot canaries
-  for Stage 2 parity.
-- `text` and `text_with` now expose the Stage 0 `file_buffer` view shape.
-- `tests/yulang/cases.toml` includes `file_text_with_commit`, the first
-  production `text_with` source-mock case. It runs with `--host unsupported`,
-  catches `file::load` / `file::store` in Yulang, and observes normal scope
-  exit commit.
-- `tests/yulang/cases.toml` includes `file_text_with_rollback_on_error`, a
-  legacy native `open_in` rollback canary. The callback reads and updates the managed
-  text ref, exits through a user error caught by `E::wrap`, and the temp backing
-  file remains unchanged.
-- `tests/yulang/cases.toml` includes
-  `file_text_with_nondet_branch_snapshots`, a legacy native `open_in`
-  multi-shot canary.
-  The callback branches through `nondet.each`; each resumed branch reads the
-  original `"start"` buffer, writes an independent branch-local text value, and
-  commits in arrival order with last-write-wins final file contents.
+  for Stage 2 migration, but they are not substitutes for the Stage 1 protocol
+  fixtures.
+- `file_buffer` is now ambient-only. It exposes `ambient_get` / `ambient_set`
+  for unscoped `file::text` and no longer has scoped `get` / `set` operations,
+  reperform transfer arms, or path-matching `same_path` checks.
+- `text_with` is the four-line state-passing protocol:
+  load initial text, run a callback `str -> ('a, str)`, store the final text
+  only if the callback returns, then return the callback result.
+- `tests/yulang/cases.toml` includes the Stage 1 source-mock protocol set:
+  `file_text_with_commit`, `file_text_with_rollback_on_error`,
+  `file_text_with_undet_last_write_wins`,
+  `file_text_unscoped_handler_discharge`,
+  `file_text_mock_matches_native_shape`, and
+  `file_text_with_nested_cross_file`.
+- Rollback and multi-shot evidence now run through `--host unsupported` source
+  handlers over public `file::load` / `file::store`; they no longer depend on
+  native temp files or legacy `open_in` snapshot operations.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-smoke --target
@@ -120,14 +120,10 @@ public surface:
   public `ref { get, update_effect }` view backed by local `$buffer` state is
   executable. The same source has a CLI std-prefix cache regression so cached
   execution keeps matching a full build.
-- `notes/bugs/file_text_with_callback_residual_blocker.yu` records the
-  remaining Stage 1 blocker: a production `text_with` callback that touches
-  `file_buffer` and then raises another user effect still hits a residual-row
-  conflict.
 
 Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because rollback, multi-shot, unscoped ambient discharge, and
-native parity have not yet moved onto the new `file_buffer` surface.
+Contract v1 because native registry parity, int error-code removal, and packaged
+release evidence for the new protocol surface remain open.
 
 ## Missing Evidence
 
@@ -136,29 +132,30 @@ executable `file-resource` cases for:
 
 | Slice | Required evidence |
 | --- | --- |
-| Mock host | production `text_with` through a public mockable session boundary, multi-shot branch commit, handler-extent discharge |
-| Native host | parity with mock shape |
+| Mock host | complete for the Stage 1 protocol fixture set |
+| Native host | registry-backed parity with the Stage 1 mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 
 ## Known Blockers
 
-The private snapshot mockability blocker is narrowed but not closed. Stage 0
-replaces production `text_with` with a public `file_buffer` transaction handler
-and public `file::load` / `file::store` operations. This is enough for the
-normal commit mock-host canary.
+The Stage 1 callback residual blocker is closed by the protocol rewrite:
+`text_with` no longer passes a scoped `file_buffer` ref into the callback.
+Callback state is carried explicitly as `(result, final_text)`, so user effects
+compose through the callback row rather than through a handler-local file buffer
+effect.
 
-The remaining blocker is callback residual composition. A callback that touches
-`file_buffer` and then raises another effect still conflicts during type
-checking. `notes/bugs/file_text_with_callback_residual_blocker.yu` records the
-reduction. Until that is fixed, rollback and multi-shot canaries remain on the
-legacy native `open_in` route and do not count as the final Contract v1
-`text_with` evidence.
+The remaining blockers are Stage 2 host-boundary items:
 
-Do not solve the remaining gap by making raw snapshot operations public, by
-putting handler-local mutable state back into `text_with`, or by weakening the
-public signature canaries. The fix must keep `file_buffer` public and preserve
-callback residuals without leaking private evidence.
+- native registry support for `file::load` / `file::store` / `file::meta`;
+- removal of legacy int error-code translation from the public file path;
+- keeping `file_buffer::ambient_get` / `ambient_set` registered for unscoped
+  `file::text`;
+- release/archive smoke evidence for the new file-resource subset.
+
+Do not solve Stage 2 by restoring scoped `file_buffer` operations, transfer
+arms, `same_path` checks, raw snapshot public operations, or weaker public
+signature canaries.
 
 Probe reductions should also avoid `catch { ... }:`. A raw brace block in the
 catch scrutinee is not valid Yulang surface syntax. Binding an effectful file
@@ -176,12 +173,11 @@ cargo run -q -p yulang -- --std-root lib contract --contract file-resource tests
 Release evidence should run the same tag filter through the packaged binary and
 bundled standard library.
 
-As of the Stage 0 rewrite on 2026-07-02, the local checkout passes the filtered
-`file-resource` subset through `cargo run`. Release binary and archive evidence
-must be refreshed after Stage 2, when the native registry is moved to the new
-`file::load` / `file::store` / `file::meta` surface. Full production
-`text_with` rollback, multi-shot, and unscoped mock resource-lifetime parity
-remain open.
+As of the Stage 1 protocol rewrite on 2026-07-02, the local checkout passes the
+filtered `file-resource` subset through `cargo run` with `--host unsupported`
+mock handlers. Release binary and archive evidence must be refreshed after
+Stage 2, when the native registry is moved to the new `file::load` /
+`file::store` / `file::meta` surface.
 
 ## Rollback Conditions
 

@@ -1,13 +1,14 @@
 use std::control::var::*
 
-pub error edit_err:
-    abort
+my body(text0) =
+    my final = text0 + "!"
+    ((text0, final), final)
+
+my direct = body "start"
 
 my run(backing, x: [_] _) = catch x:
     std::io::file::file::load path, k -> run backing: k (result::ok backing)
     std::io::file::file::store (path, text), k -> run text: k (result::ok ())
     value -> (value, backing)
 
-run "start": edit_err::wrap:
-    std::io::file::text_with "/mock": \text0 ->
-        edit_err::abort.throw
+(run "start": std::io::file::text_with "/mock" body, direct)

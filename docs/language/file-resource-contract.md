@@ -96,16 +96,28 @@ Required observations:
   buffers and commit in arrival order.
 - `file_text_unscoped_handler_discharge`: unscoped resources commit at the
   supplying handler extent.
-- `file_text_mock_matches_native_shape`: mock and native paths expose the same
-  public surface shape.
+- `file_text_mock_matches_native_shape`: the mock path fixes the public
+  protocol body and observation that native parity must match in Stage 2.
+- `file_text_with_nested_cross_file`: nested sessions commit independently.
 
 Current executable mock evidence:
 
 - `file_mock_read_text_handler` and `file_mock_read_write_text_handler` prove
   that source handlers intercept the public `load` / `store` host act
   operations before the native host registry.
-- `file_text_with_commit` proves the first production `text_with` source-mock
-  path over `file_buffer`, `file::load`, and `file::store`.
+- `file_text_with_commit` proves the production `text_with` protocol path over
+  public `file::load` and `file::store`.
+- `file_text_with_rollback_on_error` proves that a callback which exits through
+  a user error does not reach the protocol `store`, leaving mock backing
+  unchanged.
+- `file_text_with_undet_last_write_wins` proves that multi-shot branches each
+  receive the entry snapshot and commit in arrival order.
+- `file_text_unscoped_handler_discharge` proves the separate ambient
+  `file::text` / `file_buffer::ambient_get` / `ambient_set` path.
+- `file_text_mock_matches_native_shape` fixes the reusable protocol body and
+  observation that Stage 2 native parity must match.
+- `file_text_with_nested_cross_file` proves that nested `text_with` calls over
+  different paths commit independently through the same public protocol.
 - `file_mock_public_ref_view_commit` proves the inline public ref-view commit
   shape over pure Yulang state.
 - `file_mock_text_with_function_commit` proves that the same public ref-view
@@ -117,10 +129,9 @@ Current executable mock evidence:
 - `file_mock_text_with_nondet_branch_buffers` proves that the same public helper
   shape gives each `nondet.each` branch an independent callback-local buffer.
 
-Remaining F1 evidence needs rollback, nondet/multi-shot, and unscoped ambient
-discharge on the real `std::io::file::text_with` / `file::text` surface. The
-current blocker is recorded in
-`notes/bugs/file_text_with_callback_residual_blocker.yu`.
+The Stage 1 green path is `--host unsupported` plus source mock handlers. Native
+registry parity is intentionally Stage 2; do not keep native snapshot fixtures
+as substitutes for this protocol evidence.
 
 ### F2. Native Host Parity
 

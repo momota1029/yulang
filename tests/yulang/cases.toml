@@ -35,15 +35,6 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "lists", "update"]
 
 [[case]]
-name = "handler_reperform_outer_scope"
-file = "regressions/runtime/handler_reperform_outer_scope.yu"
-kind = "run"
-std = "repo"
-expect_stdout = "run roots [12]\n"
-expect_stderr = ""
-contracts = ["runtime", "effects", "handler-syntax"]
-
-[[case]]
 name = "ref_update_local_buffer_public"
 file = "regressions/runtime/ref_update_local_buffer_public.yu"
 kind = "run"
@@ -124,7 +115,8 @@ name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"
 std = "repo"
-expect_stdout = "run roots [(\"start\", result::err(edit_err::abort), \"start\")]\n"
+host = "unsupported"
+expect_stdout = "run roots [(result::err(edit_err::abort), \"start\")]\n"
 expect_stderr = ""
 contracts = [
   "runtime",
@@ -133,19 +125,17 @@ contracts = [
   "file",
   "file-resource",
   "resource-lifetime",
-  "host.native",
+  "mock-host",
+  "host.unsupported",
   "errors",
 ]
-[[case.temp_files]]
-placeholder = "__YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__"
-contents = "start"
-expect_contents = "start"
 
 [[case]]
-name = "file_text_with_nondet_branch_snapshots"
-file = "regressions/runtime/file_text_with_nondet_branch_snapshots.yu"
+name = "file_text_with_undet_last_write_wins"
+file = "regressions/runtime/file_text_with_undet_last_write_wins.yu"
 kind = "run"
 std = "repo"
+host = "unsupported"
 expect_stdout = "run roots [([(\" A\", \"start A\"), (\" B\", \"start B\")], \"start B\")]\n"
 expect_stderr = ""
 contracts = [
@@ -155,13 +145,68 @@ contracts = [
   "file",
   "file-resource",
   "resource-lifetime",
-  "host.native",
+  "mock-host",
+  "host.unsupported",
   "std.nondet",
 ]
-[[case.temp_files]]
-placeholder = "__YULANG_FILE_TEXT_WITH_NONDET_PATH__"
-contents = "start"
-expect_contents = "start B"
+
+[[case]]
+name = "file_text_unscoped_handler_discharge"
+file = "regressions/runtime/file_text_unscoped_handler_discharge.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((\"start\", \"start!\"), \"start!\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "mock-host",
+  "host.unsupported",
+  "refs",
+]
+
+[[case]]
+name = "file_text_with_nested_cross_file"
+file = "regressions/runtime/file_text_with_nested_cross_file.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((\"A\", (\"B\", \"B b\", \"A a\"), \"A a\"), \"A a\", \"B b\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "mock-host",
+  "host.unsupported",
+]
+
+[[case]]
+name = "file_text_mock_matches_native_shape"
+file = "regressions/runtime/file_text_mock_matches_native_shape.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(((\"start\", \"start!\"), \"start!\"), ((\"start\", \"start!\"), \"start!\"))]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "mock-host",
+  "host.unsupported",
+]
 
 [[case]]
 name = "file_unsupported_host"
@@ -1161,9 +1206,9 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.text_with"
-expect_type = "std::text::path::path -> (std::control::var::ref std::io::file::file_buffer std::text::str::str -> ['a] 'b) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
+expect_type = "std::text::path::path -> (std::text::str::str -> ['a] ('b, std::text::str::str)) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "refs"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_file_load_public_signature"
@@ -1197,28 +1242,6 @@ symbol = "std.io.file.file.meta"
 expect_type = "std::text::path::path -> [std::io::file::file] std::io::file::file_meta"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native", "metadata"]
-
-[[case]]
-name = "std_file_buffer_get_public_signature"
-file = "support/empty.yu"
-kind = "public-signature"
-std = "repo"
-module = "std.io.file.file_buffer"
-symbol = "std.io.file.file_buffer.get"
-expect_type = "std::text::path::path -> [std::io::file::file_buffer] std::text::str::str"
-deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
-
-[[case]]
-name = "std_file_buffer_set_public_signature"
-file = "support/empty.yu"
-kind = "public-signature"
-std = "repo"
-module = "std.io.file.file_buffer"
-symbol = "std.io.file.file_buffer.set"
-expect_type = "(std::text::path::path, std::text::str::str) -> [std::io::file::file_buffer] ()"
-deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_file_buffer_ambient_get_public_signature"

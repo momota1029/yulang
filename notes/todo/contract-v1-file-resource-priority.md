@@ -46,6 +46,12 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        として確定した。file-resource の次の作業はこの指示書の Stage 0 から始める。
        周辺 case の追加は本工事の代わりにしない。進捗は指示書 Stage 1 の
        fixture 6 件と Stage 2 の削除項目でだけ測る。
+     - 2026-07-02 follow-up: 改訂4 の state-passing protocol へ載せ替え済み。
+       Stage 1 の mock/protocol fixture 6 件は `--host unsupported` の
+       `file-resource` subset で通る。旧 scoped `file_buffer::get/set`、
+       transfer probe、`same_path`、callback residual blocker note は撤去済み。
+       残りは Stage 2: native registry、int error code 全廃、release/archive
+       evidence の更新。
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。

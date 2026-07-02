@@ -1,29 +1,28 @@
--- resolved (2026-07-02): `file::text_with` under nondet now carries
--- branch-local managed snapshot buffers through Evidence VM continuations.
+-- superseded (2026-07-02): the old native snapshot probe moved to the
+-- revision-4 `text_with` state-passing protocol.
 --
 -- With a backing file containing "start", this prints:
 --
 --   run roots [([(" A", "start A"), (" B", "start B")], "start B")]
 --
--- and leaves the file as:
---
---   start B
---
 -- The executable contract is:
 --
---   tests/yulang/regressions/runtime/file_text_with_nondet_branch_snapshots.yu
---   tests/yulang/cases.toml: file_text_with_nondet_branch_snapshots
+--   tests/yulang/regressions/runtime/file_text_with_undet_last_write_wins.yu
+--   tests/yulang/cases.toml: file_text_with_undet_last_write_wins
 --
 -- This note remains as the original reduced probe.
 
 use std::control::nondet::*
 
-my result = (std::io::file::text_with "__YULANG_EXISTING_TEXT_FILE__": \&text ->
+my result = (std::io::file::text_with "/mock": \text0 ->
     my suffix = each [" A", " B"]
-    my before = $text
-    &text = before + suffix
-    (suffix, $text)
+    my final = text0 + suffix
+    ((suffix, final), final)
 ).list
-my after = std::io::file::read_text "__YULANG_EXISTING_TEXT_FILE__"
 
-(result, after)
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::load path, k -> run backing: k (result::ok backing)
+    std::io::file::file::store (path, text), k -> run text: k (result::ok ())
+    value -> (value, backing)
+
+run "start": result
