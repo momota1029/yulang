@@ -274,7 +274,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "read_at",
         tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "(path, range) -> result (str, range) io_err",
         path: &["std", "io", "file", "file", "read_at"],
         operation: RuntimeHostOperation::FileReadAt,
@@ -283,7 +283,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "write_at",
         tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "(path, range, str) -> result unit io_err",
         path: &["std", "io", "file", "file", "write_at"],
         operation: RuntimeHostOperation::FileWriteAt,
@@ -508,11 +508,11 @@ mod tests {
         }
 
         assert_eq!(
-            contract_ops, 8,
+            contract_ops, 6,
             "contract host ops should cover console plus file protocol and ambient ops"
         );
         assert_eq!(
-            raw_compat_ops, 8,
+            raw_compat_ops, 10,
             "raw compatibility ops should stay isolated from the contract surface"
         );
     }

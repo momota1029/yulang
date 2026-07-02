@@ -184,9 +184,11 @@ The columns trace a value through the pipeline:
   `exists`, `is_file`, and `is_dir` as metadata wrappers. `read_at` / `write_at`
   now return typed
   `result ... io_err` values at the host act boundary while preserving the
-  existing throwing public wrappers. `open_text` / `open_in` raw open and commit
-  operations also return typed `result ... io_err` values now; the old
-  integer-code mapper is gone. `text_with` is now the state-passing protocol
+  existing throwing public wrappers, and the runtime manifest classifies them as
+  `raw-compat` because range semantics remain provisional. `open_text` /
+  `open_in` raw open and commit operations also return typed
+  `result ... io_err` values now; the old integer-code mapper is gone.
+  `text_with` is now the state-passing protocol
   over public `load` / `store`: native normal commit, callback-abort rollback,
   nondet branch-local last-write-wins, nested cross-file sessions, and nested
   state-var capture are executable manifest cases, and source mock handlers

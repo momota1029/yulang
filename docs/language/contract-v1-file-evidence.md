@@ -32,7 +32,8 @@ public surface:
 - `file::read_at` and `file::write_at` now return typed `result ... io_err`
   values at the host act boundary. The public wrappers keep their existing
   throwing surface, but no longer decode integer error codes for range reads
-  and writes.
+  and writes. Their host manifest surface is `raw-compat` because exact range
+  semantics remain provisional rather than the Contract v1 center.
 - `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_flush`,
   and `file::file_snapshot_commit` also return typed `result ... io_err`
   values at the host act boundary. This removes `legacy_err_from_code` from

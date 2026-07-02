@@ -1739,13 +1739,13 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(path, range) -> result (str, range) io_err surface=contract\n"
+            "  act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(path, range) -> result (str, range) io_err surface=raw-compat\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=write_at tier=sync path=std.io.file.file.write_at sig=(path, range, str) -> result unit io_err surface=contract\n"
+            "  act=std.io.file.file op=write_at tier=sync path=std.io.file.file.write_at sig=(path, range, str) -> result unit io_err surface=raw-compat\n"
         ),
         "{stdout}"
     );
