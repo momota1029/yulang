@@ -83,17 +83,18 @@ direct `open_in` already worked, while `text_with(path, f) = open_in path f`
 split the callback residual during specialization. `text_with` is now a direct
 alias of `open_in`, and the rollback case is executable.
 
-The remaining native multi-shot case still exposes a solver row-combination gap
-when a callback reads or writes the provided file ref and then escapes through
-an outer nondet handler:
+The remaining native multi-shot case is now past specialization, but it still
+has the wrong runtime state placement. `text_with` under nondet currently shares
+the runner-local snapshot buffer across resumed branches:
 
 ```text
-conflicting type candidates: [std::control::nondet::nondet, std::io::file::file] vs [std::control::nondet::nondet]
+current:  [(" A", "start A"), (" B", "start A B")], final file "start A B"
+desired:  [(" A", "start A"), (" B", "start B")],   final file "start B"
 ```
 
-Do not paper over this with a fixture-specific fallback; the next fix belongs
-near callback residual inference or the future host act/resource operation
-separation.
+The current `RuntimeEvidenceRunner::file_snapshots` storage is shared by all
+resumed branches. Do not paper over this with a fixture-specific fallback; the
+next fix belongs in branch-local runtime state / resource operation separation.
 
 The current native snapshot storage is runner-local, not branch-local. It is
 adequate for normal scope-exit commit but is not evidence for multi-shot
