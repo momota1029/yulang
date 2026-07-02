@@ -68,6 +68,26 @@
   - 研究相談向けのメール・短い技術資料・what-is-new を整える。
   - 公開準備の外側だが、solver hardening の理論的位置づけを言語化するために近い。
 
+## 置き土産トラック（2026-07-02、Claude Fable 5 評価より）
+
+出典は `notes/design/2026-07-02-parting-assessment.md`（ユーザ承認済み）。
+それぞれ独立の TODO ファイルに詳細がある。**時間制約があるのは最初の二つ**——
+FFI registry / serve の実装より前に設計を確定しないと後付けが高くつく。
+
+- `record-replay.md` — 決定的記録再生。**registry manifest に operation 列番号と
+  分岐 id を最初から入れる**（実装は後でよいが、識別子設計は registry と同時）。
+- `structured-concurrency.md` — accept 分岐のキャンセルと死の規則。
+  **serve 実装（FFI 指示書 実装順 5）より前に決定文書を書く**。
+- `case-exhaustiveness.md` — 保守的な網羅性検査。前段の「未知 constructor 診断」
+  は type-checker-diagnostics に合流させてよい。
+- `deriving.md` — with: ブロックの derive。io 仕様の Wire が死文化する前に。
+- `property-testing.md` — undet を探索器にした property testing。
+  1〜3 slice は std だけで書けるはず（dogfooding 価値あり）。
+- `effect-trace.md` — effect-aware エラートレース。diagnostics-docs と同じ流れで。
+- `deterministic-parallelism.md` — 地平線トラック。実装は急がないが、
+  「Yulang の並列は決定的」という定理は研究相談・公開文書で今すぐ使える。
+  他の全 TODO への制約（定理の前提を崩す機能を足さない）としても働く。
+
 ## 退避済み track
 
 - `archive/notes/todo/native-backend.md`

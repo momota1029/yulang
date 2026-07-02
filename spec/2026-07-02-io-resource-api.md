@@ -276,6 +276,10 @@ driver）の順とする。
 - `?` unwrap 記法確定後の signature 表記統一。
 - console の `channel str` instance 化。
 - 複数 listener の多重待ちと junction の合流。
+- メモリより大きいファイルの扱い。whole-file lens はスナップショット・
+  トランザクションの意味論上、巨大ファイルに適さない。raw の上に
+  `messages` と同型の Fold 流ストリーム view（例: 行単位）を置く方向で、
+  別途設計する（notes/design/2026-07-02-parting-assessment.md §8）。
 
 ## Rollback 条件
 
