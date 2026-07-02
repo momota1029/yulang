@@ -6,8 +6,8 @@ This page records evidence for
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
 `file-resource` manifest subset has native normal-commit and unsupported-host
 cases. Native rollback on user error and branch-local multi-shot buffers are now
-covered. Pure mock resource-lifetime behavior and release archive parity remain
-open. Contract v0 remains closed in
+covered in both debug and release binaries. Pure mock resource-lifetime behavior
+and packaged archive parity remain open. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -38,6 +38,10 @@ public surface:
   The callback branches through `nondet.each`; each resumed branch reads the
   original `"start"` buffer, writes an independent branch-local text value, and
   commits in arrival order with last-write-wins final file contents.
+- `target/release/yulang --std-root lib contract --contract file-resource
+  tests/yulang/cases.toml` passes the current native file-resource subset:
+  normal commit, user-error rollback, nondet branch-local snapshots, and
+  unsupported-host failure.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
@@ -79,7 +83,7 @@ executable `file-resource` cases for:
 | Native host | parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
-| Release | packaged binary plus bundled std runs representative `file-resource` cases |
+| Release | packaged archive plus bundled std runs representative `file-resource` cases |
 
 ## Known Blockers
 
@@ -111,10 +115,9 @@ bundled standard library.
 
 As of 2026-07-02, `scripts/hardening-smoke.sh` and
 `scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
-through the release binary surface. This is release evidence for native normal
-scope-exit commit and unsupported-host failure only; rollback, multi-shot branch
-buffers, and mock-host resource-lifetime parity still need packaged-release
-evidence.
+through the release binary surface. The local release binary passes the current
+native subset including rollback and multi-shot branch buffers. Packaged archive
+parity and mock-host resource-lifetime parity remain open.
 
 ## Rollback Conditions
 
