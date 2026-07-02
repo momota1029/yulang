@@ -316,10 +316,11 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing/file/directory metadata coverage, native
 typed operation-failure coverage, and native unscoped ambient handler-extent
-coverage. The latest local full tag run reports `contract cases ok: 54` after
-adding `io_err.not_found` / `io_err.failed` public signature canaries.
-Release/archive smoke also passes against the packaged binary and bundled
-standard library for the same `file-resource` subset.
+coverage. The latest local full tag run reports `contract cases ok: 57`, and
+the focused release smoke now also includes console host-act denial, mock
+routing, and public-signature canaries. Release/archive smoke also passes
+against the packaged binary and bundled standard library for the same
+`file-resource` subset.
 
 ## Rollback Conditions
 
