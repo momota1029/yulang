@@ -421,6 +421,67 @@ fn var_reference_name_from_source(source: &Name) -> Option<Name> {
     (!raw.is_empty()).then(|| Name(format!("&{raw}")))
 }
 
+/// `my &x = <expr with do>` — protocol do-binding の参照名 `&x` を返す。
+/// この形は state-passing protocol 糖衣として lower される
+/// （notes/design/2026-07-02-my-binder-sugar.md）。収集パスと lowering の
+/// 双方がこの一つの判定を使うことで synthetic act の消費順序を揃える。
+pub(crate) fn protocol_do_binding_reference_name(binding: &Cst) -> Option<Name> {
+    if binding.kind() != SyntaxKind::Binding {
+        return None;
+    }
+    let pattern = binding_pattern(binding)?;
+    if contains_node_kind(&pattern, SyntaxKind::ApplyML)
+        || contains_node_kind(&pattern, SyntaxKind::ApplyC)
+        || contains_node_kind(&pattern, SyntaxKind::TypeAnn)
+    {
+        return None;
+    }
+    let name = pattern_head_binding_name(&pattern)?;
+    let raw = name.0.strip_prefix('&')?;
+    if raw.is_empty() {
+        return None;
+    }
+    let names = binding_value_names(binding);
+    if names.len() != 1 || names[0] != name {
+        return None;
+    }
+    let body = child_node(binding, SyntaxKind::BindingBody)?;
+    if body.children().any(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    }) {
+        return None;
+    }
+    let expr = body
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)?;
+    expr_has_do_at_chain_depth(&expr).then_some(name)
+}
+
+/// chain 深さ（IndentBlock / BraceGroup を跨がない範囲）に `do` atom があるか。
+pub(crate) fn expr_has_do_at_chain_depth(node: &Cst) -> bool {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Do => return true,
+            NodeOrToken::Node(child) => {
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                ) {
+                    continue;
+                }
+                if expr_has_do_at_chain_depth(&child) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 pub(crate) fn synthetic_var_act_internal_name(source: &Name, owner: DefId, index: usize) -> Name {
     Name(format!("{}#{}:{index}", source.0, owner.0))
 }
@@ -437,6 +498,8 @@ pub(crate) fn synthetic_sub_label_act_internal_name(
 pub(crate) fn expr_needs_synthetic_owner(expr: &Cst) -> bool {
     expr.descendants().any(|node| {
         (node.kind() == SyntaxKind::Binding && local_var_act_name(&node).is_some())
+            || (node.kind() == SyntaxKind::Binding
+                && protocol_do_binding_reference_name(&node).is_some())
             || (node.kind() == SyntaxKind::Pattern && !pattern_var_act_names(&node).is_empty())
             || sub_syntax_label(&node).is_some()
     })

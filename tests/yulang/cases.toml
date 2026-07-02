@@ -1382,3 +1382,31 @@ symbol_contains = "#act-method:list"
 expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["stable-core", "public-signature", "std.nondet", "deep-handler"]
+
+[[case]]
+name = "do_binding_state_protocol"
+file = "regressions/runtime/do_binding_state_protocol.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((20, 2), (((\"A!\", \"BA\"), \"BA\"), \"A!\"))]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "refs",
+  "host.unsupported",
+]
+
+[[case]]
+name = "file_text_with_commit_do"
+file = "regressions/runtime/file_text_with_commit_do.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((\"start\", \"start scoped\"), \"start scoped\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "refs",
+  "host.unsupported",
+]

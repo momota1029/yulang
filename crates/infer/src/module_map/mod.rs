@@ -383,10 +383,17 @@ impl Lower {
         owner: DefId,
     ) {
         let mut local_var_index = 0;
-        for pattern in scope.descendants().filter(is_local_var_act_pattern_root) {
-            for name in pattern_var_act_names(&pattern) {
-                self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
-                local_var_index += 1;
+        for node in scope.descendants() {
+            if is_local_var_act_pattern_root(&node) {
+                for name in pattern_var_act_names(&node) {
+                    self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
+                    local_var_index += 1;
+                }
+            } else if node.kind() == SyntaxKind::Binding {
+                if let Some(name) = protocol_do_binding_reference_name(&node) {
+                    self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
+                    local_var_index += 1;
+                }
             }
         }
     }

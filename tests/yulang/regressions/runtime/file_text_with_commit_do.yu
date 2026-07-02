@@ -1,0 +1,17 @@
+use std::control::var::*
+
+-- file_text_with_commit の `my &text = ... do` 糖衣版。
+-- 手書き protocol lambda 版と同一の public 観測になることを固定する。
+
+my edit() =
+    my &text = std::io::file::text_with("/mock", do)
+    my before = $text
+    &text = before + " scoped"
+    (before, $text)
+
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::load path, k -> run backing: k (result::ok backing)
+    std::io::file::file::store (path, text), k -> run text: k (result::ok ())
+    value -> (value, backing)
+
+run "start": edit()

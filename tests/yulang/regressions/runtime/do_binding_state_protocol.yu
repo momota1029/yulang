@@ -1,0 +1,23 @@
+use std::control::var::*
+
+-- `my &x = f(do)` state-passing protocol 糖衣の canary。
+-- notes/design/2026-07-02-my-binder-sugar.md 解釈2:
+--   \#x -> { my $x = #x; my #r = <rest>; (#r, $x) }
+
+my with_val(v0, f) =
+    my (r, final) = f v0
+    (r, final)
+
+my basic =
+    my &x = with_val(1, do)
+    &x = $x + 1
+    $x * 10
+
+my nested =
+    my &a = with_val("A", do)
+    my &b = with_val("B", do)
+    &b = $b + $a
+    &a = $a + "!"
+    ($a, $b)
+
+(basic, nested)

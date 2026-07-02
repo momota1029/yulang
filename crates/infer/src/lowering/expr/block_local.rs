@@ -132,6 +132,14 @@ impl<'a> ExprLowerer<'a> {
         binding: &Cst,
         rest: &[Cst],
     ) -> Result<Computation, LoweringError> {
+        if let Some(reference_name) = crate::protocol_do_binding_reference_name(binding) {
+            let rhs = do_binding_rhs_expr(binding).ok_or(LoweringError::MissingLocalBindingBody)?;
+            let replacement = self.lower_protocol_do_binding_continuation(reference_name, rest)?;
+            let saved_do = self.do_replacement.replace(replacement);
+            let lowered = self.lower_expr(&rhs);
+            self.do_replacement = saved_do;
+            return lowered;
+        }
         let name = do_binding_name(binding).ok_or(LoweringError::MissingLocalBindingName)?;
         let rhs = do_binding_rhs_expr(binding).ok_or(LoweringError::MissingLocalBindingBody)?;
         let replacement = self.lower_do_binding_continuation(name, rest)?;
@@ -193,6 +201,114 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    /// `my &x = f(do)` の継続を state-passing protocol lambda として組む:
+    /// `\#x -> { my $x 相当の var 束縛; <rest>; ($rest_value, $x) }`。
+    /// notes/design/2026-07-02-my-binder-sugar.md の解釈2（貧者の存在型）。
+    fn lower_protocol_do_binding_continuation(
+        &mut self,
+        reference_name: Name,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let raw = reference_name
+            .0
+            .strip_prefix('&')
+            .filter(|raw| !raw.is_empty())
+            .ok_or(LoweringError::MissingLocalBindingName)?
+            .to_string();
+        let init_name = Name(format!("#{raw}"));
+        let local_act = self.next_synthetic_var_act(&reference_name)?;
+
+        let param_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            init_name.clone(),
+            param_value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_protocol_continuation_body(
+            &local_act,
+            &raw,
+            &reference_name,
+            &init_name,
+            param_value,
+            rest,
+        );
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("protocol do continuation lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Anonymous,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_protocol_continuation_body(
+        &mut self,
+        local_act: &SyntheticVarActUse,
+        raw: &str,
+        reference_name: &Name,
+        init_name: &Name,
+        param_value: TypeVar,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let boundary = self.local_generalize_boundary;
+        let reference = self.lower_var_ref_constructor(local_act, param_value)?;
+        let reference_value = self.fresh_type_var();
+        self.subtype_var_to_var(reference.value, reference_value);
+        self.subtype_var_to_var(reference_value, reference.value);
+        self.constrain_local_ref_value(local_act, reference_value, param_value)?;
+        let (reference_pat, reference_def) = self.bind_let_local_with_def(
+            reference_name.clone(),
+            reference_value,
+            LocalCallReturnEffect::Annotated,
+            Some(reference.expr),
+        );
+        self.generalize_local_binding(
+            reference_def,
+            reference_value,
+            boundary,
+            BindingFetch::FetchComputation,
+        );
+        let reference_stmt = LoweredLocalStmt {
+            stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
+            effect: reference.effect,
+        };
+
+        let tail = self.lower_block_items(rest)?;
+        let final_read = self.lower_sigil_name_at(&format!("${raw}"), None)?;
+        let pair = self.synthetic_tuple_value(vec![tail, final_read]);
+        let wrapped = self.wrap_var_binding_run(local_act, init_name.clone(), param_value, pair)?;
+        Ok(self.prepend_block(reference_stmt, wrapped))
     }
 
     fn lower_do_replacement_block(&mut self, items: &[Cst]) -> Result<Computation, LoweringError> {

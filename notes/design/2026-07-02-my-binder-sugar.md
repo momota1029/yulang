@@ -2,9 +2,33 @@
 
 決定日: 2026-07-02
 発案: ユーザ。記録: Claude (Fable 5)。
-状態: **方向決定（authoritative）・実装は未着手**。file slice
-（[2026-07-02-file-session-boundary-plan.md](2026-07-02-file-session-boundary-plan.md)）
-の**外**の独立トラック。実装時期はユーザが決める。
+状態: **方向決定（authoritative）・文形は実装済み（2026-07-02、Claude 実装）**。
+file slice（[2026-07-02-file-session-boundary-plan.md](2026-07-02-file-session-boundary-plan.md)）
+の**外**の独立トラック。
+
+## 0. 実装状況（2026-07-02 夜）
+
+- **文形 `my &x = f(do)`: 実装済み・検証済み**。parser 変更ゼロ
+  （`my &x = f(do)` は既にパースされ、従来は無意味な生ローカル束縛だった。
+  repo 内に既存使用ゼロを確認済み）。実装は infer のみ:
+  - `crates/infer/src/syntax.rs` — `protocol_do_binding_reference_name`
+    （収集と lowering が同じ判定を共有）、`expr_needs_synthetic_owner` 拡張
+  - `crates/infer/src/module_map/mod.rs` — synthetic var act の収集走査に
+    protocol do-binding を追加（単一 descendants 走査で文書順を維持）
+  - `crates/infer/src/lowering/expr/block_local.rs` —
+    `lower_protocol_do_binding_continuation`（`\#x -> { my $x 束縛; <rest>;
+    ($rest, $x) }` を既存の var 束縛機構 = init/var_ref/run で合成）
+- 検証: infer 511 tests / stable-core 57 / file-resource 34 すべて green。
+  canary は `do_binding_state_protocol`（基本 + 入れ子、期待値は手導出）と
+  `file_text_with_commit_do`（手書き protocol 版と同一観測）。
+  rollback（abort で backing 無傷）と undet 分岐独立（entry snapshot +
+  last-write-wins）も probe で確認済み。
+- **λ形 `\my &x -> body`: 未実装**（parser のパターン走査に `my` を通す
+  変更が必要。文形と同じ継続組み立てを流用できる）。
+- **既知の別問題**: 入れ子 `text_with` × 状態変数の交差は check を通るが
+  specialize の slot 衝突で落ちる。糖衣と無関係の既存問題（手書きで再現）。
+  [notes/bugs/nested-text-with-state-var-specialize-conflict.md](../bugs/nested-text-with-state-var-specialize-conflict.md)。
+  局所の無注釈関数の入れ子は動く。
 
 ## 1. 何を解くか
 
