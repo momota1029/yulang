@@ -127,6 +127,7 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_text_with_native_rollback_on_error
     file_text_with_native_undet_last_write_wins
     file_text_with_native_nested_cross_file
+    file_text_with_native_nested_state_var
     file_unsupported_host
   )
   file_resource_case_args=()

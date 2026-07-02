@@ -102,6 +102,10 @@ public surface:
   `text_with` sessions over two backing files commit independently while the
   inner callback can still close over the outer entry snapshot.
 - `tests/yulang/cases.toml` includes
+  `file_text_with_native_nested_state_var`, which proves that the native
+  protocol also supports a callback-local `&` state variable while an inner
+  `text_with` callback mutates it through lexical capture.
+- `tests/yulang/cases.toml` includes
   `file_text_unscoped_native_handler_extent`, which proves unscoped
   `file::text` reads through the native ambient `file_buffer` act, keeps the
   backing file unchanged during the handler extent, and writes the dirty buffer

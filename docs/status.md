@@ -186,10 +186,11 @@ The columns trace a value through the pipeline:
   operations also return typed `result ... io_err` values now; the old
   integer-code mapper is gone. `text_with` is now the state-passing protocol
   over public `load` / `store`: native normal commit, callback-abort rollback,
-  nondet branch-local last-write-wins, and nested cross-file sessions are
-  executable manifest cases, and source mock handlers cover commit, rollback,
-  branch-local buffers, and nested cross-file sessions under `--host
-  unsupported`. `open_text`, `open`, and `open_in` remain legacy native snapshot
+  nondet branch-local last-write-wins, nested cross-file sessions, and nested
+  state-var capture are executable manifest cases, and source mock handlers
+  cover commit, rollback, branch-local buffers, and nested cross-file sessions
+  under `--host unsupported`. `open_text`, `open`, and `open_in` remain legacy
+  native snapshot
   canaries, not the center of the Contract v1 evidence. The runtime host
   manifest now exposes `surface=contract|raw-compat`, so those
   compatibility operations are separated from the contract protocol in debug

@@ -42,6 +42,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: added `file_text_with_native_nested_cross_file`, so native
        `text_with` also covers two backing files with independent commits and
        lexical capture of the outer entry snapshot.
+     - 2026-07-03: added `file_text_with_native_nested_state_var`, so native
+       `text_with` also covers callback-local `&` state captured and mutated
+       from an inner `text_with` callback.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
    - packaged binary + bundled std で file-resource contract を走らせる。

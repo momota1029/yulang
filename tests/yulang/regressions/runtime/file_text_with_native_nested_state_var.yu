@@ -1,0 +1,18 @@
+use std::control::var::*
+
+my path_a = {{file_a}}
+my path_b = {{file_b}}
+
+my result = std::io::file::text_with path_a: \a0 ->
+    my $a = a0
+    my inner = std::io::file::text_with path_b: \b0 ->
+        my $b = b0
+        &b = $b + $a
+        &a = $a + "!"
+        (($a, $b), $b)
+    ((inner, $a), $a)
+
+my after_a = std::io::file::read_text path_a
+my after_b = std::io::file::read_text path_b
+
+(result, after_a, after_b)
