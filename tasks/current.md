@@ -79,6 +79,9 @@ roadmap ではなく現状証拠として固定する。以後「Contract v0 を
 曖昧な指摘には、まず欠けている manifest case / public signature /
 structured diagnostic / release gate を具体的に要求する。file transaction、
 server resource、host act FFI は Contract v0 の未完ではなく、次の contract slice である。
+次の優先順位は `notes/todo/contract-v1-file-resource-priority.md` に置く。
+Contract v1 は File / Host Resource Contract とし、最初に file resource の
+mock / native / unsupported host contract を閉じる。
 
 - public signature golden
 - public runtime regression

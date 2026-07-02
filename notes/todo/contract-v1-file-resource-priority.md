@@ -1,0 +1,130 @@
+# Contract v1: File / Host Resource priority memo
+
+出典: ChatGPT Pro の 2026-07-02 優先順位提案。ユーザ承認済みの
+優先順メモとして記録する。
+
+## Verdict
+
+Contract v0 は再び「完成させる対象」ではない。`stable-core` の executable spine は
+`docs/language/contract-v0-evidence.md` と `tests/yulang/cases.toml` によって閉じた。
+
+次に Yulang を「完成」に近づける contract slice は:
+
+> **Contract v1: File / Host Resource Contract**
+
+具体的には、ファイルが「耐久性のある `&` 変数」として、mock / native CLI /
+unsupported host で同じ意味論を持って動く状態を目標にする。
+
+## Priority Order
+
+1. **File Resource Contract**
+   - Contract v1 の箱を作る。
+   - pure mock file handler で `text_with` commit / rollback / multi-shot commit を
+     fixture 化する。
+   - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
+   - unsupported host は fake success せず typed failure または structured diagnostic にする。
+   - packaged binary + bundled std で file-resource contract を走らせる。
+
+2. **Host act FFI registry**
+   - `host act` manifest 生成。
+   - registry dispatch へ移行し、perform 時の文字列 if をなくす。
+   - file / console / server / clock / random / future FFI を同じ host handler 機構へ寄せる。
+   - 未登録 act は `EscapedEffect` crash ではなく capability failure にする。
+
+3. **Diagnostics + LSP / playground parity**
+   - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。
+   - CLI / LSP / playground が同じ `SourceDiagnostic` payload を読む。
+   - hover は public projection を出し、内部 evidence や巨大型を漏らさない。
+
+4. **Release artifact contract**
+   - packaged binary で `stable-core` と file-resource representative contract を通す。
+   - bundled std と repo std の差で結果が変わらないようにする。
+   - `yulang server` startup、Zed discovery、cache status を release smoke へ残す。
+
+5. **Server in-process driver**
+   - HTTP framework ではなく in-process test driver から始める。
+   - `accept` suspend/resume、request resource、one-shot response、double respond failure を固定する。
+
+6. **Static route Stage 0, then conditional Stage 1**
+   - `notes/design/2026-07-02-static-route-promotion-plan.md` に従い、まず被覆率計測だけ行う。
+   - Stage 1 は Stage 0 の hits と Stage 1a shadow mismatch 0 が揃った場合だけ。
+
+7. **Later tracks**
+   - package / registry。
+   - parser DSL / Yumark。
+   - native ABI / native backend。
+
+## File Resource Contract Box
+
+最初の PR / commit 列では、実装を広げすぎず、contract の箱を作る。
+
+追加候補:
+
+- `docs/language/file-resource-contract.md`
+- `docs/language/contract-v1-file-evidence.md`
+- `docs/status.md` の Public Contract Spine に File Resource Contract 行
+- `tests/yulang/cases.toml` の tag policy:
+  - `file-resource`
+  - `resource-lifetime`
+  - `mock-host`
+  - `host.native`
+  - `host.unsupported`
+
+Done:
+
+- `stable-core` と `file-resource` を混ぜない。
+- `migration-canary` と `stable-api` を混ぜない。
+- manifest に TODO placeholder を置かない。
+- file resource case は runtime output / typed failure / public signature /
+  diagnostic のどれかを compact に固定する。
+
+## First Implementation Slice: Mock File Handler
+
+最初の実装はディスクに触らない pure mock handler とする。
+
+必須 fixture:
+
+- `file_text_with_commit`
+  - scope exit で write-back。
+- `file_text_with_rollback_on_error`
+  - effect abort なら rollback。
+- `file_text_with_undet_last_write_wins`
+  - multi-shot branch ごとの独立 buffer と到達順 last-write-wins。
+- `file_text_unscoped_handler_discharge`
+  - unscoped resource は handler extent 終端で commit。
+- `file_text_mock_matches_native_shape`
+  - mock handler と native handler が同じ public surface を見る。
+
+この slice が通ると、Yulang の file API は単なる I/O ではなく、
+multi-shot continuation と resource lifetime が同居する標準 API になる。
+
+## Native Host Slice
+
+native 側はまず lock なしでよい。
+
+Done:
+
+- `text_with` 内で通常編集すると temp file が更新される。
+- `text_with` 内で error abort すると temp file が無傷。
+- `text_with` 内で undet / junction branch を使っても branch-local buffer と
+  last-write-wins が観測できる。
+- public signature に `#...` / `AllExcept` が漏れない。
+- `read_text` / `write_text` は便利 wrapper として残すが、中心 API とは呼ばない。
+
+## Unsupported Host Slice
+
+native success だけで contract を閉じない。
+
+Done:
+
+- wasm / playground / sandboxed host で unsupported file capability が fake success しない。
+- capability unsupported / denied と operation failure (`not_found` など) を分ける。
+- unsupported behavior を CLI / playground / LSP の structured payload に寄せる。
+
+## Do Not
+
+- Contract v0 を一般論で reopen しない。
+- file resource の中心を `read_text` / `write_text` helper にしない。
+- HTTP framework を server first slice にしない。
+- native ABI FFI や native backend 復活へ先に行かない。
+- performance work で Stage 0 の停止条件を飛ばさない。

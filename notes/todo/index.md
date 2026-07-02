@@ -7,6 +7,16 @@
 
 今やるべきことは「公開して触れる状態」を作るための順番で見る。
 
+### 次の contract slice
+
+- `contract-v1-file-resource-priority.md`
+  - Contract v0 は `stable-core` として閉じたため、次の完成線は
+    **Contract v1: File / Host Resource Contract** とする。
+  - file resource の mock / native / unsupported host contract を先に閉じ、
+    host act FFI、diagnostics parity、release artifact、server in-process driver へ進む。
+
+### 既存の公開準備 track
+
 0. `yulang-hardening-phase.md`
    - 2026-06-23 の `ref.update` / directed stack weight 修正を境に、しばらくは新機能より solver hardening を優先する。
    - invariant doc、public signature golden test、opt-in metrics、stable/nightly playground 運用を同じ流れで扱う。
