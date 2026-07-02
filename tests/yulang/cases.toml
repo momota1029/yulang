@@ -1539,6 +1539,17 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["stable-core", "public-signature", "standard-api", "stable-api", "path"]
 
 [[case]]
+name = "std_console_out_write_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.console.out"
+symbol = "std.io.console.out.write"
+expect_type = "std::text::str::str -> [std::io::console::out] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "console", "host-act", "host.native"]
+
+[[case]]
 name = "std_file_read_at_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"

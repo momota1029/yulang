@@ -119,7 +119,8 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      `console_unsupported_host` proves unsupported host denial, and
      `console_mock_out_handler` proves source handlers intercept
      `std::io::console::out.write` before the host registry when native host
-     operations are disabled.
+     operations are disabled. `std_console_out_write_public_signature` also
+     fixes the console host-act public type boundary.
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。

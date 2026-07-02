@@ -228,6 +228,9 @@ public surface:
   `std::io::console::out.write` in source while the native host is disabled.
   This proves source handlers can intercept console host acts before the host
   registry in the same way the file mock cases intercept `load` / `store`.
+- `tests/yulang/cases.toml` includes
+  `std_console_out_write_public_signature`, so the console host-act boundary
+  also has an exact public type canary and rejects private evidence fragments.
 - `tests/yulang/cases.toml` includes `file_mock_public_ref_view_commit`, which
   proves the inline public managed-ref view shape over pure Yulang state.
 - `tests/yulang/cases.toml` includes `file_mock_text_with_function_commit`,
