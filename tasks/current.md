@@ -74,12 +74,39 @@ manifest 化を進める。
 Yulang Contract v0 の実行可能 subset として定義した。`yulang contract` は
 `--contract stable-core` filter と unknown tag rejection を持ち、
 hardening / archive smoke も representative stable-core cases を通す。
+`docs/language/contract-v0-evidence.md` は、Contract v0 の完了証拠を
+roadmap ではなく現状証拠として固定する。以後「Contract v0 を本物にする」という
+曖昧な指摘には、まず欠けている manifest case / public signature /
+structured diagnostic / release gate を具体的に要求する。file transaction、
+server resource、host act FFI は Contract v0 の未完ではなく、次の contract slice である。
 
 - public signature golden
 - public runtime regression
 - structured diagnostics
 - release artifact / install smoke
 - filesystem / server / FFI の API boundary
+
+## 2026-07-02 追記: Evidence VM proof は静的 route 昇格へ寄せる
+
+Claude (Fable 5) のユーザ承認済み文書として、次を現行 runtime 高速化の入口にする。
+
+- `notes/design/2026-07-02-speedup-proof-system.md`
+  - 既存 Evidence VM の cert / plan / invariant 群を翻訳し、
+    現在の弱点を「Koka が静的に済ませる証明を signal ごとに動的再演している」
+    ことだと整理する。
+- `notes/design/2026-07-02-static-route-promotion-plan.md`
+  - 提案 1（静的 route 昇格）と提案 2（evidence slot 静的インデックス化）の
+    authoritative implementation instruction。
+
+今後の performance work は、まず Stage 0 の被覆率計測 pass から始める。
+Stage 0 は挙動変更なしで、静的解決できる operation call site と runtime hits を測る。
+判定表の停止条件を無視して Stage 1 へ進まない。
+`StaticHandler × TailResumptive` の direct execution は、Stage 0 の数字と
+Stage 1a shadow mismatch 0 が揃った時だけ行う。
+
+動的 cert / shadow は安全策として残すが、完成形ではない。
+静的に証明できる経路は mono / specialize 時に発行し、実行時の gate 検査を消す。
+静的に判定できない site は Dynamic(reason) として現行 fallback に残す。
 
 ## 仕様（実装の根拠）
 

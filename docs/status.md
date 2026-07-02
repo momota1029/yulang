@@ -10,6 +10,8 @@ It complements these documents:
 - [docs/language/overview.md](language/overview.md) — what each feature does.
 - [docs/language/stable-core.md](language/stable-core.md) — Contract v0, the
   current executable stable language core.
+- [docs/language/contract-v0-evidence.md](language/contract-v0-evidence.md) —
+  completion evidence for the current Contract v0 executable spine.
 - [docs/effect-inference-brief.md](effect-inference-brief.md) — the short
   outward-facing claim about hygienic effect inference.
 - [docs/infer-solver-invariants.md](infer-solver-invariants.md) — the solver
@@ -36,12 +38,16 @@ across inference, runtime, diagnostics, and release artifacts.
 
 The public contract is the combination of these gates. The `stable-core`
 manifest tag marks the **Yulang Contract v0** subset described in
-[docs/language/stable-core.md](language/stable-core.md).
+[docs/language/stable-core.md](language/stable-core.md). Its current completion
+evidence is recorded in
+[docs/language/contract-v0-evidence.md](language/contract-v0-evidence.md);
+new work should name the next contract slice it expands instead of reopening
+Contract v0 as a generic TODO.
 
 | Contract area | What must stay true | Main gates |
 | --- | --- | --- |
 | Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. Manifest public-signature cases must carry exact expected types. | `cargo test -q -p yulang public -- --test-threads=1`; `tests/yulang/cases.toml`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
-| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
+| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. New runtime speedups should prefer static proof emission in mono/specialize over signal-by-signal dynamic cert checks when the static conditions are available. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs; `notes/design/2026-07-02-static-route-promotion-plan.md` |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `yulang contract tests/yulang/cases.toml`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
 | Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the first `std::io::file` text/helper/metadata slice is a native host canary until file-resource locking/close semantics and portable metadata expansion are finalized. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |

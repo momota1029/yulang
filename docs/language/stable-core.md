@@ -9,6 +9,8 @@ implemented features": it names the surface that should not change by accident.
 
 The executable source of truth is [`tests/yulang/cases.toml`](../../tests/yulang/cases.toml).
 Cases tagged `stable-core` are the conformance floor for this page.
+[`contract-v0-evidence.md`](contract-v0-evidence.md) records the current
+completion evidence for that floor.
 
 ## Contract v0 Rule
 
@@ -61,6 +63,12 @@ These Contract v0 slices are already executable through the manifest:
   rejection;
 - hardening and release archive smoke paths that run representative
   `stable-core` contract cases through the release binary surface.
+
+The current manifest has 51 `stable-core` cases: 24 `run`, 12 `check`, and
+15 `public-signature`. Treat requests to "finish Contract v0" as requests to
+name a missing fixture or gate in that manifest. Work on file transactions,
+server resources, host act FFI, and other preview surfaces belongs to the next
+contract slice, not to reopening Contract v0 generically.
 
 ## Not Contract v0
 
