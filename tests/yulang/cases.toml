@@ -752,6 +752,24 @@ expect_diagnostic_related_count = 0
 contracts = ["stable-core", "diagnostics", "syntax"]
 
 [[case]]
+name = "missing_index_argument"
+file = "regressions/diagnostics/missing_index_argument.yu"
+kind = "check"
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-index-argument]: index expression is missing an argument",
+  "hint: write an index expression inside the brackets",
+]
+expect_diagnostic_code = "yulang.missing-index-argument"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 32
+expect_diagnostic_end = 34
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "syntax"]
+
+[[case]]
 name = "catch_missing_scrutinee"
 file = "regressions/diagnostics/catch_missing_scrutinee.yu"
 kind = "check"

@@ -2980,7 +2980,7 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::MissingRecordFieldValue => {
             Some("yulang.missing-record-field-value")
         }
-        infer::lowering::LoweringError::MissingIndexArgument => {
+        infer::lowering::LoweringError::MissingIndexArgument { .. } => {
             Some("yulang.missing-index-argument")
         }
         infer::lowering::LoweringError::MissingLocalBindingName => {
@@ -3126,7 +3126,7 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
         infer::lowering::LoweringError::MissingRecordFieldValue => {
             Some("write the record field value after `:`".to_string())
         }
-        infer::lowering::LoweringError::MissingIndexArgument => {
+        infer::lowering::LoweringError::MissingIndexArgument { .. } => {
             Some("write an index expression inside the brackets".to_string())
         }
         infer::lowering::LoweringError::MissingLocalBindingName => {
@@ -3180,7 +3180,8 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
         }
         infer::lowering::LoweringError::MissingCatchScrutinee { source_range }
         | infer::lowering::LoweringError::MissingCatchArmPattern { source_range }
-        | infer::lowering::LoweringError::MissingCatchArmBody { source_range } => {
+        | infer::lowering::LoweringError::MissingCatchArmBody { source_range }
+        | infer::lowering::LoweringError::MissingIndexArgument { source_range } => {
             Some(*source_range)
         }
         infer::lowering::LoweringError::AnnotationBuild { source_range, .. } => *source_range,

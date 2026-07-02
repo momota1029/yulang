@@ -2592,7 +2592,7 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
         infer::lowering::LoweringError::MissingRecordFieldValue => {
             "record field is missing a value expression".to_string()
         }
-        infer::lowering::LoweringError::MissingIndexArgument => {
+        infer::lowering::LoweringError::MissingIndexArgument { .. } => {
             "index expression is missing an argument".to_string()
         }
         infer::lowering::LoweringError::MissingLocalBindingName => {

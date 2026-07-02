@@ -149,7 +149,9 @@ impl<'a> ExprLowerer<'a> {
         receiver: Computation,
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
-        let arg_node = index_expr(node).ok_or(LoweringError::MissingIndexArgument)?;
+        let arg_node = index_expr(node).ok_or_else(|| LoweringError::MissingIndexArgument {
+            source_range: index_source_range(node),
+        })?;
         let index = self.lower_expr(&arg_node)?;
         let selection = self.lower_synthetic_selection(receiver, "index".to_string());
         Ok(self.make_app(selection, index))
@@ -770,6 +772,13 @@ pub(in crate::lowering) fn field_source_range(node: &Cst) -> Option<SourceRange>
         range.start = range.start.saturating_add(1);
     }
     Some(range)
+}
+
+fn index_source_range(node: &Cst) -> SourceRange {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::Bracket)
+        .map(|bracket| crate::node_trimmed_source_range(&bracket))
+        .unwrap_or_else(|| crate::node_trimmed_source_range(node))
 }
 
 fn expr_references_def(poly: &poly::expr::Arena, expr: ExprId, def: DefId) -> bool {

@@ -44,7 +44,9 @@ pub enum LoweringError {
     MissingOpOperand,
     MissingRecordFieldName,
     MissingRecordFieldValue,
-    MissingIndexArgument,
+    MissingIndexArgument {
+        source_range: SourceRange,
+    },
     MissingLocalBindingName,
     MissingLocalBindingBody,
     UnsupportedTopLevelVarBinding {

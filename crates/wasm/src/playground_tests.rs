@@ -56,6 +56,9 @@ mod tests {
             "catch_missing_arm_body" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
             ),
+            "missing_index_argument" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/missing_index_argument.yu"
+            ),
             "unresolved_method_error" => {
                 include_str!("../../../tests/yulang/regressions/runtime/unresolved_method_error.yu")
             }
@@ -651,6 +654,29 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "syntax error: unexpected token"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_missing_index_argument_code_and_range() {
+        let output = check_inner(diagnostics_fixture("missing_index_argument"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label, None);
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.missing-index-argument")
+        );
+        assert_eq!(output.diagnostics[0].start, 3);
+        assert_eq!(output.diagnostics[0].end, 5);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "index expression is missing an argument"
+        );
+        assert_eq!(
+            output.diagnostics[0].hint.as_deref(),
+            Some("write an index expression inside the brackets")
         );
     }
 

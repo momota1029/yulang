@@ -1069,6 +1069,9 @@ mod tests {
             "catch_missing_arm_body" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
             ),
+            "missing_index_argument" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/missing_index_argument.yu"
+            ),
             "unresolved_method_error" => {
                 include_str!("../../../tests/yulang/regressions/runtime/unresolved_method_error.yu")
             }
@@ -1500,6 +1503,46 @@ my got = make(1).norm2
             "{diagnostics:?}"
         );
         assert_diagnostic_code(&diagnostics[0], "yulang.syntax");
+    }
+
+    #[test]
+    fn diagnostics_use_missing_index_argument_range() {
+        let source = diagnostics_fixture("missing_index_argument");
+        let diagnostics = diagnostics_for_source(
+            &PathBuf::from("missing_index_argument.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(workspace_std_root()),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 5
+                },
+            }
+        );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("index expression is missing an argument"),
+            "{diagnostics:?}"
+        );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("hint: write an index expression inside the brackets"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.missing-index-argument");
     }
 
     #[test]
