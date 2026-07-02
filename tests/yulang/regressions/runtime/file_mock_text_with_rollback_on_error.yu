@@ -1,0 +1,27 @@
+use std::control::var::*
+
+pub error edit_err:
+    abort
+
+my text_with_mock(backing, f) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    my result = f r
+    (result, $buffer)
+}
+
+my run(backing) = {
+    my $store = backing
+    my wrapped = edit_err::wrap:
+        my (_, next) = text_with_mock $store: \&text ->
+            my before = $text
+            &text = before + " dirty"
+            edit_err::abort.throw
+        &store = next
+    (wrapped, $store)
+}
+
+run "start"

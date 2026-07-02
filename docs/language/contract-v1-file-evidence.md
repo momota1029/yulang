@@ -108,6 +108,10 @@ public surface:
   `text_with_mock(backing, f)` function boundary. This case also fixes the
   previous no-cache/cached split: normal cached contract runs now observe the
   same roots as a full build.
+- `tests/yulang/cases.toml` includes
+  `file_mock_text_with_rollback_on_error`, which proves that the same public
+  helper shape can discard dirty callback-local buffer updates when the callback
+  exits through a user error.
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   remaining pure mock blocker: production `text_with` still relies on private
   snapshot helper operations that outside source cannot catch, while a
@@ -198,9 +202,9 @@ As of 2026-07-02, `scripts/hardening-smoke.sh` and
 `scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
 through the release binary surface. The local release binary passes the current
 subset including native rollback, native multi-shot branch buffers,
-unsupported-host failure, public host-act mocks, and the public
-function-boundary managed-ref mock. A locally built release archive also passes
-the same subset through bundled std. Full production `text_with` mock
+unsupported-host failure, public host-act mocks, the public function-boundary
+managed-ref mock, and public helper rollback. A locally built release archive
+also passes the same subset through bundled std. Full production `text_with` mock
 resource-lifetime parity remains open.
 
 ## Rollback Conditions

@@ -109,6 +109,9 @@ Current executable mock evidence:
 - `file_mock_text_with_function_commit` proves that the same public ref-view
   shape survives a reusable `text_with_mock(backing, f)` function boundary and
   callback assignment through the normal cached contract route.
+- `file_mock_text_with_rollback_on_error` proves that the same public helper
+  shape discards dirty callback-local buffer updates when the callback exits
+  through a user error.
 
 Remaining F1 evidence still needs the real `std::io::file::text_with` surface
 or a public file-session host-act boundary. Do not make private snapshot helper
