@@ -54,6 +54,8 @@ File resource cases use these contract tags:
 - `file-resource` for the Contract v1 slice itself;
 - `resource-lifetime` when the case observes commit, rollback, handler-extent
   discharge, branch-local buffers, or last-write-wins;
+- `metadata` when the case observes non-throwing metadata behavior such as
+  missing / denied / other targets represented by `file_meta.kind`;
 - `mock-host` for pure Yulang mock host behavior;
 - `host.native` for the native CLI host surface;
 - `host.unsupported` for wasm, playground, sandbox, or other unsupported host

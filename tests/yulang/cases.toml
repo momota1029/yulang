@@ -84,6 +84,30 @@ contents = "start"
 expect_contents = "start scoped"
 
 [[case]]
+name = "file_meta_kind"
+file = "regressions/runtime/file_meta_kind.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(file_kind::file, file_kind::missing)]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "metadata",
+  "host.native",
+]
+[[case.temp_files]]
+placeholder = "__YULANG_FILE_META_KIND_PATH__"
+contents = "hello"
+expect_contents = "hello"
+[[case.temp_files]]
+placeholder = "__YULANG_FILE_META_MISSING_PATH__"
+missing = true
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"

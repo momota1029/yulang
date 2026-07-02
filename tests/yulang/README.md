@@ -43,10 +43,11 @@ compatibility promises.
 `file-resource` is the Contract v1 file/host resource slice, not part of
 Contract v0. Do not combine it with `stable-core`. File resource cases should
 use `resource-lifetime` when they observe commit, rollback, handler-extent
-discharge, branch-local buffers, or last-write-wins. Runtime cases should also
-declare exactly one host scope from `mock-host`, `host.native`, or
-`host.unsupported`. Existing native `std::io::file` helper canaries should stay
-`migration-canary` until they observe the file resource lifetime contract.
+discharge, branch-local buffers, or last-write-wins, and `metadata` when they
+observe the non-throwing metadata shape. Runtime cases should also declare
+exactly one host scope from `mock-host`, `host.native`, or `host.unsupported`.
+Existing native `std::io::file` helper canaries should stay `migration-canary`
+until they observe the file resource lifetime contract.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower
@@ -59,10 +60,11 @@ byte range, related count, and related origins.
 For `kind = "check"` entries, the manifest requires diagnostic count, code,
 severity, a complete primary byte range, and related-count assertions so new
 diagnostic fixtures cannot silently fall back to message-only coverage.
-`run` entries that need native host files can declare `[[case.temp_files]]`
-items. The manifest runner creates one temporary file per item, replaces the
-declared placeholder in the source with the Yulang string literal for that temp
-path, and optionally checks `expect_contents` after the CLI run. Use this only
+`run` entries that need native host paths can declare `[[case.temp_files]]`
+items. The manifest runner replaces the declared placeholder in the source with
+the Yulang string literal for that temp path. Set `contents = "..."` to create a
+file and optionally check `expect_contents` after the CLI run, or set
+`missing = true` to use a path that is intentionally not created. Use this only
 for current executable host behavior; it is not a placeholder mechanism.
 
 `support/fake_std/` contains narrow std shims for tests that need compiler-known

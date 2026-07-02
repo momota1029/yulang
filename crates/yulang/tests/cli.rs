@@ -3994,6 +3994,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "host.unsupported"
             | "junction"
             | "lists"
+            | "metadata"
             | "migration-canary"
             | "mock-host"
             | "names"
@@ -4203,6 +4204,21 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 "contract manifest case {} has an empty temp file placeholder",
                 case.name
             );
+            if temp_file.missing {
+                assert!(
+                    temp_file.contents.is_none() && temp_file.expect_contents.is_none(),
+                    "missing temp file placeholder {:?} in contract manifest case {} should not set contents or expect_contents",
+                    temp_file.placeholder,
+                    case.name
+                );
+            } else {
+                assert!(
+                    temp_file.contents.is_some(),
+                    "temp file placeholder {:?} in contract manifest case {} should set contents or missing = true",
+                    temp_file.placeholder,
+                    case.name
+                );
+            }
             assert!(
                 placeholders.insert(temp_file.placeholder.as_str()),
                 "contract manifest case {} reuses temp file placeholder {:?}",
@@ -4227,10 +4243,12 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 "file-resource runtime case {} should declare exactly one host scope",
                 case.name
             );
-            if !contract_manifest_case_has_tag(case, "host.unsupported") {
+            if !contract_manifest_case_has_tag(case, "host.unsupported")
+                && !contract_manifest_case_has_tag(case, "metadata")
+            {
                 assert!(
                     contract_manifest_case_has_tag(case, "resource-lifetime"),
-                    "file-resource runtime case {} should declare resource-lifetime",
+                    "file-resource runtime case {} should declare resource-lifetime or metadata",
                     case.name
                 );
             }
@@ -4581,7 +4599,9 @@ struct PublicContractCase {
 #[derive(Debug, Deserialize)]
 struct PublicContractTempFile {
     placeholder: String,
-    contents: String,
+    contents: Option<String>,
+    #[serde(default)]
+    missing: bool,
     expect_contents: Option<String>,
 }
 
@@ -4661,13 +4681,15 @@ fn materialize_contract_run_case(
             source_entry.display()
         );
         let path = root.join(format!("temp-{index}.txt"));
-        fs::write(&path, &temp_file.contents).unwrap_or_else(|error| {
-            panic!(
-                "failed to write temp file {} for contract case {}: {error}",
-                path.display(),
-                case.name
-            )
-        });
+        if let Some(contents) = &temp_file.contents {
+            fs::write(&path, contents).unwrap_or_else(|error| {
+                panic!(
+                    "failed to write temp file {} for contract case {}: {error}",
+                    path.display(),
+                    case.name
+                )
+            });
+        }
         source = source.replace(&temp_file.placeholder, &yulang_string_literal(&path));
         temp_files.push(MaterializedContractTempFile {
             path,

@@ -21,6 +21,9 @@ public surface:
   shape run through the native CLI host. `meta` is non-throwing in the public
   type: missing, denied, and other inaccessible paths are represented by
   `file_meta.kind` rather than `io_err`.
+- `tests/yulang/cases.toml` includes `file_meta_kind`, a
+  `file-resource` / `metadata` / `host.native` runtime canary that checks the
+  file and missing metadata kinds through the manifest runner.
 - `io_err::wrap` converts failed file reads and writes into typed result
   boundaries.
 - `open_text`, `open`, `open_in`, `text`, and `text_with` have basic whole-file
