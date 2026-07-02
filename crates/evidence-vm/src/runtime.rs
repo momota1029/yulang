@@ -7732,6 +7732,11 @@ pub enum RuntimeEvidenceRunError {
     UnsupportedPrimitive(PrimitiveOp),
     EscapedEffect(Vec<String>),
     UnsupportedHostCapability(Vec<String>),
+    HostIoError {
+        operation: Vec<String>,
+        path: String,
+        kind: &'static str,
+    },
     NotFunction(String),
     NotThunk(String),
     NotRecord(String),
@@ -7771,6 +7776,15 @@ impl fmt::Display for RuntimeEvidenceRunError {
                 f,
                 "runtime-evidence-run unsupported host capability: {}",
                 path.join("::")
+            ),
+            Self::HostIoError {
+                operation,
+                path,
+                kind,
+            } => write!(
+                f,
+                "runtime-evidence-run host I/O error: {} failed for {path} ({kind})",
+                operation.join("::")
             ),
             Self::NotFunction(value) => write!(f, "runtime-evidence-run not a function: {value}"),
             Self::NotThunk(value) => write!(f, "runtime-evidence-run not a thunk: {value}"),
@@ -12530,7 +12544,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(shared(RuntimeEvidenceValue::Str(text.clone())));
         }
         let text = fs::read_to_string(&path)
-            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))?;
+            .map_err(|error| host_io_runtime_error(spec.path_strings(), &path, &error))?;
         self.file_ambient_buffers.insert(path, text.clone());
         Ok(shared(RuntimeEvidenceValue::Str(text)))
     }
@@ -12549,14 +12563,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
         for (path, text) in &self.file_ambient_buffers {
-            fs::write(path, text).map_err(|_| {
-                RuntimeEvidenceRunError::EscapedEffect(vec![
-                    "std".into(),
-                    "io".into(),
-                    "file".into(),
-                    "file_buffer".into(),
-                    "ambient_set".into(),
-                ])
+            fs::write(path, text).map_err(|error| {
+                host_io_runtime_error(
+                    vec![
+                        "std".into(),
+                        "io".into(),
+                        "file".into(),
+                        "file_buffer".into(),
+                        "ambient_set".into(),
+                    ],
+                    path,
+                    &error,
+                )
             })?;
         }
         Ok(())
@@ -20182,6 +20200,27 @@ fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvi
 
 fn runtime_path_text(path: &PathBuf) -> String {
     path.to_string_lossy().into_owned()
+}
+
+fn host_io_runtime_error(
+    operation: Vec<String>,
+    path: &PathBuf,
+    error: &io::Error,
+) -> RuntimeEvidenceRunError {
+    RuntimeEvidenceRunError::HostIoError {
+        operation,
+        path: runtime_path_text(path),
+        kind: host_io_error_kind(error.kind()),
+    }
+}
+
+fn host_io_error_kind(kind: io::ErrorKind) -> &'static str {
+    match kind {
+        io::ErrorKind::NotFound => "not_found",
+        io::ErrorKind::PermissionDenied => "permission_denied",
+        io::ErrorKind::InvalidData | io::ErrorKind::InvalidInput => "invalid_path",
+        _ => "operation_failed",
+    }
 }
 
 fn runtime_host_int(value: &RuntimeEvidenceValue) -> Result<i64, RuntimeEvidenceRunError> {

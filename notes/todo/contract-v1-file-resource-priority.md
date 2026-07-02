@@ -53,6 +53,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: added `file_text_unsupported_host`, so the ambient
        `file_buffer` act used by unscoped `file::text` also has structured
        unsupported-host failure coverage. Typed ambient `io_err` is still open.
+     - 2026-07-03: added `file_text_native_missing_host_io_error`, so native
+       missing-file ambient reads now report `yulang.host-io-error` instead of
+       falling through as an unhandled effect. Typed ambient `io_err` remains
+       open because the local result-wrapping attempt leaked row constraints.
    - packaged binary + bundled std で file-resource contract を走らせる。
      - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
      - 2026-07-03: direct `scripts/release-smoke.sh` now runs a focused

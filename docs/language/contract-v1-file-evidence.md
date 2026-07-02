@@ -155,7 +155,8 @@ public surface:
 - `scripts/release-smoke.sh` also runs a focused `file-resource` contract set
   through the smoke binary and the installed standard library. The focused set
   covers the Stage 1 state-passing protocol cases, native load/store/meta,
-  native `text_with` commit/rollback, and unsupported-host capability failure.
+  native `text_with` commit/rollback, unsupported-host capability failure, and
+  native ambient missing-file `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
 - The Evidence VM also has a deny path for known native host operations:
@@ -174,6 +175,10 @@ public surface:
   capability instead of returning fake text under a sandboxed host. This is
   structured failure evidence; typed ambient `io_err` is still a Stage 2
   blocker.
+- `tests/yulang/cases.toml` includes
+  `file_text_native_missing_host_io_error`, so native unscoped `file::text`
+  over a missing backing file reports `yulang.host-io-error` instead of
+  pretending the host I/O failure is an unhandled effect.
 - `tests/yulang/cases.toml` includes `file_mock_read_text_handler`, a focused
   `file-resource` / `host-act` / `mock-host` canary that runs with
   `--host unsupported` and handles `std::io::file::file.load` in Yulang. It
@@ -234,8 +239,9 @@ effect.
 
 The remaining blockers are Stage 2 host-boundary cleanup items:
 
-- replacing native unscoped ambient read/write escaped-effect fallbacks with a
-  typed or structured file failure policy;
+- replacing native unscoped ambient read/write failures with typed `io_err`
+  without leaking private row constraints. Structured runtime error coverage
+  exists for missing native ambient reads;
 - replacing or retiring `raw-compat` snapshot operations with a public session
   boundary.
 
@@ -265,7 +271,7 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing metadata coverage, and native unscoped
 ambient handler-extent coverage. The latest local full tag run reports
-`contract cases ok: 45` in about `2m19s`.
+`contract cases ok: 46` in about `2m58s`.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

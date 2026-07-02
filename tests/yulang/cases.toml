@@ -483,6 +483,32 @@ contracts = [
 ]
 
 [[case]]
+name = "file_text_native_missing_host_io_error"
+file = "regressions/runtime/file_text_native_missing_host_io_error.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.host-io-error]: host operation std::io::file::file_buffer::ambient_get failed",
+  "(not_found)",
+]
+temp_files = [
+  { placeholder = "{{missing_file}}", missing = true },
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "refs",
+]
+
+[[case]]
 name = "file_mock_read_text_handler"
 file = "regressions/runtime/file_mock_read_text_handler.yu"
 kind = "run"
