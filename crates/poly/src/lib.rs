@@ -9,5 +9,6 @@
 
 pub mod dump;
 pub mod expr;
+pub mod host_manifest;
 pub mod roles;
 pub mod types;
