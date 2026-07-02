@@ -85,6 +85,9 @@ public surface:
   `file-resource` / `host.unsupported` runtime-failure case. It runs through
   `yulang contract`, passes `run --host unsupported`, and proves that file
   helpers do not fake success when native host capabilities are unavailable.
+- `tests/yulang/cases.toml` also includes `file_meta_unsupported_host`, so the
+  metadata path goes through the same unsupported-host capability failure
+  instead of returning fake metadata under a sandboxed host.
 - `tests/yulang/cases.toml` includes `file_mock_read_text_handler`, a focused
   `file-resource` / `host-act` / `mock-host` canary that runs with
   `--host unsupported` and handles `std::io::file::file.read_at` in Yulang. It
