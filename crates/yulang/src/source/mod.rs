@@ -2557,6 +2557,16 @@ fn hover_for_selected_method(
     else {
         return None;
     };
+    if let Some(use_site) = check.lowering.session.selections.resolved(select) {
+        return Some(SourceHover {
+            range,
+            contents: format!(
+                "{}: {}",
+                check.lowering.session.poly.select(select).name,
+                format_context.format_value_type(use_site.selected_value)
+            ),
+        });
+    }
     let raw_label = check.lowering.labels.def_label(def)?;
     let label = if hover_label_is_hidden(raw_label) {
         check.lowering.session.poly.select(select).name.clone()
@@ -2600,6 +2610,14 @@ impl<'a> HoverFormatContext<'a> {
         poly::dump::format_scheme_with_path_rewriter(
             &self.check.lowering.session.poly.typ,
             scheme,
+            &|path| self.rewrite_type_path(path),
+        )
+    }
+
+    fn format_value_type(&self, value: poly::types::TypeVar) -> String {
+        infer::check::format_inferred_value_type_with_path_rewriter(
+            &self.check.lowering,
+            value,
             &|path| self.rewrite_type_path(path),
         )
     }

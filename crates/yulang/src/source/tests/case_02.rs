@@ -2814,8 +2814,8 @@ fn hover_entry_source_reports_attached_role_method_selection_type() {
         .unwrap();
 
     assert!(
-        hover.contents.contains("pick: "),
-        "expected hover to show selected pick method type, got {:?}",
+        hover.contents.starts_with("pick: "),
+        "expected hover to show selected pick call-site type, got {:?}",
         hover.contents
     );
     assert!(
@@ -2906,11 +2906,7 @@ fn hover_entry_source_reports_selected_method_type() {
             end: method_offset + 2,
         }
     );
-    assert!(
-        hover.contents.starts_with("User.id: "),
-        "expected hover to show selected method, got {:?}",
-        hover.contents
-    );
+    assert_eq!(hover.contents, "id: User");
 }
 
 #[test]

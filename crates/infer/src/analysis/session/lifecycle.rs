@@ -511,6 +511,7 @@ impl AnalysisSession {
                 let Some(use_site) = self.selections.remove(select_id) else {
                     return;
                 };
+                self.selections.insert_resolved(select_id, use_site.into());
                 self.trace_selection_bounds(select_id, &name, use_site);
                 match target {
                     SelectionTarget::RecordField => {

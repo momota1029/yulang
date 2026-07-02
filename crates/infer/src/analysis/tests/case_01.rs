@@ -66,6 +66,7 @@ fn register_test_selection_use(
         SelectionUse {
             parent,
             method_value,
+            selected_value: result,
             receiver_value: receiver,
             receiver_effect,
             local_method_scope: None,

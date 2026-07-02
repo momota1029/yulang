@@ -240,6 +240,7 @@ impl<'a> ExprLowerer<'a> {
             SelectionUse {
                 parent: self.parent,
                 method_value,
+                selected_value: result_value,
                 receiver_value: receiver.value,
                 receiver_effect: receiver.effect,
                 local_method_scope: self.local_method_scope,

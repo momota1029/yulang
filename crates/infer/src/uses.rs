@@ -136,6 +136,7 @@ pub struct RefUse {
 pub struct SelectionUseTable {
     uses: FxHashMap<SelectId, SelectionUse>,
     source_spans: FxHashMap<SelectId, SourceSpan>,
+    resolved: FxHashMap<SelectId, ResolvedSelectionUse>,
     pending_by_receiver: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_ref_payload: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_effect: FxHashMap<TypeVar, Vec<SelectId>>,
@@ -166,6 +167,14 @@ impl SelectionUseTable {
         self.source_spans
             .iter()
             .map(|(select, span)| (*select, span))
+    }
+
+    pub fn insert_resolved(&mut self, id: SelectId, use_site: ResolvedSelectionUse) {
+        self.resolved.insert(id, use_site);
+    }
+
+    pub fn resolved(&self, id: SelectId) -> Option<&ResolvedSelectionUse> {
+        self.resolved.get(&id)
     }
 
     pub fn remove(&mut self, id: SelectId) -> Option<SelectionUse> {
@@ -227,10 +236,36 @@ impl SelectionUseTable {
 pub struct SelectionUse {
     pub parent: DefId,
     pub method_value: TypeVar,
+    pub selected_value: TypeVar,
     pub receiver_value: TypeVar,
     pub receiver_effect: TypeVar,
     pub local_method_scope: Option<ModuleId>,
     pub recursive_self_value: Option<TypeVar>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 解決済み selection の hover/definition 用メタデータ。
+///
+/// `SelectionUse` 本体は未解決 selection queue から取り除かれるため、source 表示に
+/// 必要な type slots だけを別 table に残す。
+pub struct ResolvedSelectionUse {
+    pub parent: DefId,
+    pub method_value: TypeVar,
+    pub selected_value: TypeVar,
+    pub receiver_value: TypeVar,
+    pub receiver_effect: TypeVar,
+}
+
+impl From<SelectionUse> for ResolvedSelectionUse {
+    fn from(use_site: SelectionUse) -> Self {
+        Self {
+            parent: use_site.parent,
+            method_value: use_site.method_value,
+            selected_value: use_site.selected_value,
+            receiver_value: use_site.receiver_value,
+            receiver_effect: use_site.receiver_effect,
+        }
+    }
 }
 
 fn push_unique<T: Copy + PartialEq>(items: &mut Vec<T>, item: T) {
@@ -294,6 +329,7 @@ mod tests {
             SelectionUse {
                 parent: DefId(1),
                 method_value: TypeVar(4),
+                selected_value: TypeVar(5),
                 receiver_value: TypeVar(2),
                 receiver_effect: TypeVar(3),
                 local_method_scope: None,
@@ -329,6 +365,7 @@ mod tests {
             SelectionUse {
                 parent: DefId(1),
                 method_value: TypeVar(4),
+                selected_value: TypeVar(5),
                 receiver_value: TypeVar(2),
                 receiver_effect: TypeVar(3),
                 local_method_scope: None,
@@ -341,5 +378,27 @@ mod tests {
 
         assert!(table.get(select).is_none());
         assert_eq!(table.source_span(select), Some(&source_span));
+    }
+
+    #[test]
+    fn resolved_selection_metadata_survives_resolution_removal() {
+        let mut table = SelectionUseTable::new();
+        let select = SelectId(0);
+        let use_site = SelectionUse {
+            parent: DefId(1),
+            method_value: TypeVar(4),
+            selected_value: TypeVar(5),
+            receiver_value: TypeVar(2),
+            receiver_effect: TypeVar(3),
+            local_method_scope: None,
+            recursive_self_value: None,
+        };
+        table.insert(select, use_site);
+
+        let removed = table.remove(select).unwrap();
+        table.insert_resolved(select, removed.into());
+
+        assert!(table.get(select).is_none());
+        assert_eq!(table.resolved(select).unwrap().selected_value, TypeVar(5));
     }
 }
