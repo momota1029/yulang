@@ -100,7 +100,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        evidence の更新。
      - 2026-07-03 follow-up: native registry / release/archive evidence /
        `std::io::file` host bridge の int error code 全廃は通過済み。残りは
-       raw/provisional isolation と native ambient failure typing。
+       `raw-compat` file session replacement/removal と native ambient failure
+       typing。raw/provisional isolation 自体は manifest/debug/CLI/unit
+       canary で固定済み。
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。

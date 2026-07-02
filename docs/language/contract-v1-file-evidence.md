@@ -255,7 +255,7 @@ executable `file-resource` cases for:
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | complete for the Stage 1 protocol fixture set |
-| Native host | eventual removal or raw/provisional isolation of legacy snapshot operations |
+| Native host | raw/provisional isolation of legacy snapshot operations is covered; eventual public session replacement or removal remains |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 
