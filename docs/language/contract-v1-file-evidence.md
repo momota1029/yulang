@@ -87,6 +87,10 @@ public surface:
   a native CLI host case that calls public `file::load`, `file::store`, and
   `file::meta` directly, checks the compact roots, and verifies the backing
   temp file contents after `store`.
+- `tests/yulang/cases.toml` includes `file_native_meta_missing`, which proves
+  native `file::meta` reports a missing target through `file_meta.kind` and that
+  `exists` / `is_file` / `is_dir` are wrappers over that metadata result rather
+  than separate throwing host probes.
 - `tests/yulang/cases.toml` includes `file_text_with_native_commit`, which
   proves production `text_with` commits through public `load` / `store` under
   the native CLI host.

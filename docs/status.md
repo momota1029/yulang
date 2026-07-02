@@ -180,7 +180,9 @@ The columns trace a value through the pipeline:
   separate host operations.
   `meta` currently returns a first `file_meta { kind, size, readonly }` canary;
   public `file::load`, `file::store`, and `file::meta` are directly covered by
-  native CLI contract cases. `read_at` / `write_at` now return typed
+  native CLI contract cases, including a missing-target metadata case that keeps
+  `exists`, `is_file`, and `is_dir` as metadata wrappers. `read_at` / `write_at`
+  now return typed
   `result ... io_err` values at the host act boundary while preserving the
   existing throwing public wrappers. `open_text` / `open_in` raw open and commit
   operations also return typed `result ... io_err` values now; the old
