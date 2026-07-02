@@ -21,23 +21,18 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
 
     let mut checked = 0usize;
     for case in manifest.case {
-        if let Some(filter) = &contract_args.case_filter {
-            if &case.name != filter {
-                continue;
-            }
+        if !contract_args.matches(&case) {
+            continue;
         }
         run_contract_case(&options, &repo_root, &case);
         checked += 1;
     }
 
     if checked == 0 {
-        let filter = contract_args
-            .case_filter
-            .as_deref()
-            .unwrap_or("<all cases>");
         eprintln!(
-            "contract manifest {} matched no cases for {filter}",
-            contract_args.manifest.display()
+            "contract manifest {} matched no cases for {}",
+            contract_args.manifest.display(),
+            contract_args.filter_label()
         );
         process::exit(1);
     }
@@ -95,6 +90,8 @@ struct ContractCase {
     deny_type_contains: Vec<String>,
     #[serde(default)]
     expect_diagnostic_related_origins: Vec<String>,
+    #[serde(default)]
+    contracts: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,12 +99,44 @@ struct ContractArgs {
     manifest: PathBuf,
     repo_root: Option<PathBuf>,
     case_filter: Option<String>,
+    contract_filters: Vec<String>,
+}
+
+impl ContractArgs {
+    fn matches(&self, case: &ContractCase) -> bool {
+        if let Some(filter) = &self.case_filter {
+            if &case.name != filter {
+                return false;
+            }
+        }
+        self.contract_filters
+            .iter()
+            .all(|filter| case.contracts.iter().any(|contract| contract == filter))
+    }
+
+    fn filter_label(&self) -> String {
+        let mut parts = Vec::new();
+        if let Some(filter) = &self.case_filter {
+            parts.push(format!("case={filter}"));
+        }
+        parts.extend(
+            self.contract_filters
+                .iter()
+                .map(|filter| format!("contract={filter}")),
+        );
+        if parts.is_empty() {
+            "<all cases>".to_string()
+        } else {
+            parts.join(", ")
+        }
+    }
 }
 
 fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractArgs {
     let mut manifest = None;
     let mut repo_root = None;
     let mut case_filter = None;
+    let mut contract_filters = Vec::new();
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
             Some("--case") => {
@@ -122,6 +151,19 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
                     print_usage_error_and_exit(program, "contract --case requires a value");
                 }
                 case_filter = Some(value.to_string());
+            }
+            Some("--contract") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "contract --contract requires a tag");
+                };
+                contract_filters.push(value.to_string_lossy().into_owned());
+            }
+            Some(value) if value.starts_with("--contract=") => {
+                let value = value.strip_prefix("--contract=").unwrap_or_default();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "contract --contract requires a tag");
+                }
+                contract_filters.push(value.to_string());
             }
             Some("--repo-root") => {
                 let Some(value) = args.pop_front() else {
@@ -155,6 +197,7 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
         manifest,
         repo_root,
         case_filter,
+        contract_filters,
     }
 }
 

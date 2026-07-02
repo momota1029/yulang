@@ -64,7 +64,7 @@ stable core yet:
 Use the manifest runner for the executable conformance suite:
 
 ```bash
-cargo run -q -p yulang -- --std-root lib contract tests/yulang/cases.toml
+cargo run -q -p yulang -- --std-root lib contract --contract stable-core tests/yulang/cases.toml
 ```
 
 Focused Rust gates also read the same manifest:

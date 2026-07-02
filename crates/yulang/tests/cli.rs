@@ -3582,6 +3582,25 @@ fn contract_command_runs_filtered_public_signature_case() {
 }
 
 #[test]
+fn contract_command_filters_by_contract_tag() {
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg("--contract")
+        .arg("stable-core")
+        .arg("--case")
+        .arg("optional_record_defaults")
+        .arg(repo_yulang_fixture("cases.toml"))
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "contract cases ok: 1\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_contract_manifest_covers_status_spine_claims() {
     let status_path = repo_file("docs/status.md");
     let status = fs::read_to_string(&status_path)
