@@ -518,6 +518,49 @@ mod tests {
     }
 
     #[test]
+    fn runtime_host_operation_surface_sets_are_explicit() {
+        let contract_paths = RUNTIME_HOST_OPERATIONS
+            .iter()
+            .filter(|spec| spec.surface == RuntimeHostOperationSurface::Contract)
+            .map(|spec| spec.path.join("."))
+            .collect::<BTreeSet<_>>();
+        let raw_compat_paths = RUNTIME_HOST_OPERATIONS
+            .iter()
+            .filter(|spec| spec.surface == RuntimeHostOperationSurface::RawCompatibility)
+            .map(|spec| spec.path.join("."))
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            contract_paths,
+            BTreeSet::from([
+                "std.io.console.out.write".to_string(),
+                "std.io.file.file.load".to_string(),
+                "std.io.file.file.meta".to_string(),
+                "std.io.file.file.store".to_string(),
+                "std.io.file.file_buffer.ambient_get".to_string(),
+                "std.io.file.file_buffer.ambient_set".to_string(),
+            ]),
+            "only the protocol file ops and ambient file buffer ops should be contract surface"
+        );
+        assert_eq!(
+            raw_compat_paths,
+            BTreeSet::from([
+                "std.io.file.file.file_flush".to_string(),
+                "std.io.file.file.file_get".to_string(),
+                "std.io.file.file.file_set".to_string(),
+                "std.io.file.file.file_snapshot_commit".to_string(),
+                "std.io.file.file.file_snapshot_get".to_string(),
+                "std.io.file.file.file_snapshot_set".to_string(),
+                "std.io.file.file.open_text_raw".to_string(),
+                "std.io.file.file.open_text_snapshot_raw".to_string(),
+                "std.io.file.file.read_at".to_string(),
+                "std.io.file.file.write_at".to_string(),
+            ]),
+            "legacy range/raw/snapshot operations must stay isolated as raw-compat"
+        );
+    }
+
+    #[test]
     fn runtime_host_operation_manifest_view_has_stable_act_op_tier_keys() {
         let entries = runtime_host_manifest_operations();
         let mut act_op_keys = BTreeSet::new();
