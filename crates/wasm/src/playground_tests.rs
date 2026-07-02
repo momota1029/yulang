@@ -59,6 +59,9 @@ mod tests {
             "catch_missing_scrutinee" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_scrutinee.yu"
             ),
+            "catch_raw_brace_scrutinee" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_raw_brace_scrutinee.yu"
+            ),
             "catch_missing_arm_pattern" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_pattern.yu"
             ),
@@ -759,6 +762,14 @@ pair
         let cases = [
             (
                 "catch_missing_scrutinee",
+                "yulang.missing-catch-scrutinee",
+                0,
+                5,
+                "catch expression is missing the computation to handle",
+                Some("write `catch <expr>:` before the handler arms"),
+            ),
+            (
+                "catch_raw_brace_scrutinee",
                 "yulang.missing-catch-scrutinee",
                 0,
                 5,
