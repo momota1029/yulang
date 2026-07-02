@@ -1,7 +1,7 @@
 # 入れ子 text_with + 状態変数の specialize slot 衝突
 
 日付: 2026-07-02。発見: Claude (Fable 5)（`my &x = ... do` 糖衣の検証中）。
-状態: **open**。糖衣とは独立の既存問題（手書き λ で同一エラーを再現済み）。
+状態: **resolved**。糖衣とは独立の既存問題（手書き λ で同一エラーを再現済み）。
 
 ## 症状
 
@@ -51,3 +51,24 @@ my edit() = std::io::file::text_with "/a": \a0 ->
   役割的には generic fallback / provider-env 依存の分類対象のはず。
 - 過去の類例: role demand の中心乗っ取り（2026-06-13、Bounds 化で解決）と
   同系の「複数候補の合流」だが、こちらは effect row の slot。
+
+## 解決
+
+原因は `text_with` 糖衣ではなく、specialize2 の effect row candidate refinement だった。
+入れ子の `text_with` と state var handler は、`e = file/io + &a + &b + e`
+に近い recursive row equation を作る。既存 resolver は open tail が upper-prefix
+へ到達している証拠を見ず、tail が一時的に閉じて見えた候補を hard upper として扱ったため、
+`[file, io_err, tail]` と `[&a, &b]` の conflict になっていた。
+
+修正では、closed upper に見える row でも、lower の open tail からその upper item
+へ到達する upper-bound chain がある場合だけ、finite row 解へ畳むようにした。
+到達証拠が無い `[file, tail] <: [&state]` のような通常の不一致は、これまで通り
+refinement しない。
+
+固定した regression:
+
+- `tests/yulang/regressions/runtime/file_text_with_nested_state_var.yu`
+- `file_text_with_nested_state_var` contract case
+- specialize2 unit tests:
+  - `effect_row_recursive_tail_refines_to_finite_closed_row`
+  - `effect_row_tail_does_not_refine_to_unreachable_closed_upper`

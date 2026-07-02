@@ -1,0 +1,28 @@
+use std::control::var::*
+
+my path_eq(a, b): bool =
+    std::text::bytes::eq (std::text::path::to_bytes a) (std::text::path::to_bytes b)
+
+my edit() = std::io::file::text_with "/a": \a0 ->
+    my $a = a0
+    my inner = std::io::file::text_with "/b": \b0 ->
+        my $b = b0
+        &b = $b + $a
+        &a = $a + "!"
+        (($a, $b), $b)
+    ((inner, $a), $a)
+
+my run(a, b, x: [_] _) = catch x:
+    std::io::file::file::load path, k ->
+        if path_eq path "/a":
+            run a b: k (result::ok a)
+        else:
+            run a b: k (result::ok b)
+    std::io::file::file::store (path, text), k ->
+        if path_eq path "/a":
+            run text b: k (result::ok ())
+        else:
+            run a text: k (result::ok ())
+    value -> (value, a, b)
+
+run "A" "B": edit()

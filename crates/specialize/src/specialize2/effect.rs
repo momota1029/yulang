@@ -128,22 +128,52 @@ pub(super) fn refine_effect_lower_with_upper(
     let (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) = (lower, upper) else {
         return Ok(None);
     };
-    let (lower_items, lower_has_tail) = split_effect_candidate_tail(graph, lower_items);
-    let (upper_items, upper_has_tail) = split_effect_candidate_tail(graph, upper_items);
-    if lower_has_tail {
-        if upper_has_tail
-            || !lower_items.iter().all(|lower_item| {
-                upper_items
-                    .iter()
-                    .any(|upper_item| same_effect_row_family(lower_item, upper_item))
-            })
-        {
+    let (lower_items, lower_tail) = split_effect_candidate_tail_owned(graph, lower_items.clone());
+    let (upper_items, upper_tail) = split_effect_candidate_tail_owned(graph, upper_items.clone());
+    if let Some(lower_tail) = lower_tail {
+        if upper_tail.is_some() {
             return Ok(None);
         }
-        return meet_type_candidates(graph, lower.clone(), upper.clone()).map(Some);
+        if lower_items.iter().all(|lower_item| {
+            upper_items
+                .iter()
+                .any(|upper_item| same_effect_row_family(lower_item, upper_item))
+        }) {
+            return meet_type_candidates(graph, lower.clone(), upper.clone()).map(Some);
+        }
+        if upper_items.iter().all(|upper_item| {
+            lower_items
+                .iter()
+                .any(|lower_item| same_effect_row_family(lower_item, upper_item))
+        }) && effect_tail_reaches_items(graph, &lower_tail, &upper_items)
+        {
+            return Ok(Some(types::simplify_type(Type::EffectRow(lower_items))));
+        }
+        let missing_upper_items = upper_items
+            .iter()
+            .filter(|upper_item| {
+                !lower_items
+                    .iter()
+                    .any(|lower_item| same_effect_row_family(lower_item, upper_item))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if !missing_upper_items.is_empty()
+            && effect_tail_reaches_items(graph, &lower_tail, &missing_upper_items)
+        {
+            return merge_effect_row_candidates(
+                graph,
+                lower_items,
+                missing_upper_items,
+                CandidateMerge::Join,
+            )
+            .map(|items| Some(types::simplify_type(Type::EffectRow(items))));
+        }
+        return Ok(None);
     }
     let mut refined = Vec::with_capacity(lower_items.len());
-    for lower_item in lower_items {
+    let upper_has_tail = upper_tail.is_some();
+    for lower_item in &lower_items {
         match upper_items
             .iter()
             .find(|upper_item| same_effect_row_family(lower_item, upper_item))
@@ -159,6 +189,80 @@ pub(super) fn refine_effect_lower_with_upper(
         }
     }
     Ok(Some(types::simplify_type(Type::EffectRow(refined))))
+}
+
+fn merge_effect_row_candidates(
+    graph: &TypeGraph<'_>,
+    lower_items: Vec<Type>,
+    upper_items: Vec<Type>,
+    merge: CandidateMerge,
+) -> Result<Vec<Type>, SpecializeError> {
+    let mut out = lower_items;
+    for upper_item in upper_items {
+        if let Some(index) = out
+            .iter()
+            .position(|lower_item| same_effect_row_family(lower_item, &upper_item))
+        {
+            out[index] =
+                merge_effect_row_item_candidate(graph, out[index].clone(), upper_item, merge)?;
+        } else {
+            out.push(upper_item);
+        }
+    }
+    Ok(out)
+}
+
+fn effect_tail_reaches_items(graph: &TypeGraph<'_>, tail: &Type, targets: &[Type]) -> bool {
+    targets.iter().all(|target| {
+        let mut visited = HashSet::new();
+        effect_tail_reaches_item(graph, tail, target, &mut visited)
+    })
+}
+
+fn effect_tail_reaches_item(
+    graph: &TypeGraph<'_>,
+    tail: &Type,
+    target: &Type,
+    visited: &mut HashSet<u32>,
+) -> bool {
+    match tail {
+        Type::OpenVar(slot) => {
+            if !visited.insert(*slot) {
+                return false;
+            }
+            let Some(slot) = graph.slots.get(*slot as usize) else {
+                return false;
+            };
+            slot.upper
+                .iter()
+                .any(|upper| effect_candidate_reaches_item(graph, upper, target, visited))
+        }
+        Type::EffectRow(_) => effect_candidate_reaches_item(graph, tail, target, visited),
+        Type::Intersection(left, right) => {
+            effect_tail_reaches_item(graph, left, target, visited)
+                || effect_tail_reaches_item(graph, right, target, visited)
+        }
+        Type::Stack { inner, .. } => effect_tail_reaches_item(graph, inner, target, visited),
+        _ => false,
+    }
+}
+
+fn effect_candidate_reaches_item(
+    graph: &TypeGraph<'_>,
+    candidate: &Type,
+    target: &Type,
+    visited: &mut HashSet<u32>,
+) -> bool {
+    let Some(items) = effect_candidate_items(candidate.clone()) else {
+        return false;
+    };
+    let (items, tail) = split_effect_candidate_tail_owned(graph, items);
+    items
+        .iter()
+        .any(|item| same_effect_row_family(item, target))
+        || tail
+            .as_ref()
+            .is_some_and(|tail| effect_tail_reaches_item(graph, tail, target, visited))
 }
 
 pub(super) fn effect_row_item_candidate_subtype(

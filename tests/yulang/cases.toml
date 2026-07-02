@@ -190,6 +190,26 @@ contracts = [
 ]
 
 [[case]]
+name = "file_text_with_nested_state_var"
+file = "regressions/runtime/file_text_with_nested_state_var.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(((\"A!\", \"BA\"), \"A!\"), \"A!\", \"BA\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "mock-host",
+  "host.unsupported",
+  "refs",
+]
+
+[[case]]
 name = "file_text_mock_matches_native_shape"
 file = "regressions/runtime/file_text_mock_matches_native_shape.yu"
 kind = "run"

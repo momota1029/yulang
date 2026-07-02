@@ -493,6 +493,53 @@ fn effect_row_lower_with_tail_refines_to_closed_upper() {
 }
 
 #[test]
+fn effect_row_recursive_tail_refines_to_finite_closed_row() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let tail = graph.fresh_effect();
+    let residual = graph.fresh_effect();
+    let file = con(&["std", "io", "file", "file"], Vec::new());
+    let io_err = con(&["std", "io", "file", "io_err"], Vec::new());
+    let state = con(&["&state"], vec![int_type()]);
+    let other = con(&["&other"], vec![int_type()]);
+
+    graph
+        .constrain_subtype(
+            tail.clone(),
+            Type::EffectRow(vec![state.clone(), residual.clone()]),
+        )
+        .unwrap();
+    graph
+        .constrain_subtype(residual, Type::EffectRow(vec![other.clone()]))
+        .unwrap();
+    graph.solve_constraints().unwrap();
+
+    let lower = Type::EffectRow(vec![file.clone(), io_err.clone(), state.clone(), tail]);
+    let upper = Type::EffectRow(vec![state.clone(), other.clone()]);
+
+    assert_eq!(
+        refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+        Some(Type::EffectRow(vec![file, io_err, state, other]))
+    );
+}
+
+#[test]
+fn effect_row_tail_does_not_refine_to_unreachable_closed_upper() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let tail = graph.fresh_effect();
+    let file = con(&["std", "io", "file", "file"], Vec::new());
+    let state = con(&["&state"], vec![int_type()]);
+    let lower = Type::EffectRow(vec![file, tail]);
+    let upper = Type::EffectRow(vec![state]);
+
+    assert_eq!(
+        refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+        None
+    );
+}
+
+#[test]
 fn function_candidate_subtype_checks_ret_effect() {
     let arena = poly_expr::Arena::new();
     let graph = TypeGraph::new(&arena);
