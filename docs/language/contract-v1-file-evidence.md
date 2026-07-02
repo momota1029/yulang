@@ -49,7 +49,9 @@ public surface:
   not execute server operations yet, but unit tests lock the first scheduler
   rules needed by the structured concurrency decision: suspended child cancel
   drops the branch, running cancel becomes pending, and parent extent close
-  enqueues child cancels.
+  enqueues child cancels. The same table also assigns branch-local operation
+  sequence ids so record/replay can identify host operation instances without
+  retrofitting the scheduler later.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.

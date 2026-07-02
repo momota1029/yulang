@@ -9,6 +9,12 @@ use std::collections::{BTreeMap, VecDeque};
 pub(super) struct RuntimeHostBranchId(u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeHostOperationInstanceId {
+    branch_id: RuntimeHostBranchId,
+    seq: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostBranchStatus {
     Running,
     Suspended,
@@ -44,6 +50,7 @@ pub(super) struct RuntimeHostScheduler {
 struct RuntimeHostBranch {
     parent: Option<RuntimeHostBranchId>,
     status: RuntimeHostBranchStatus,
+    next_operation_seq: u64,
 }
 
 impl RuntimeHostScheduler {
@@ -55,6 +62,7 @@ impl RuntimeHostScheduler {
             RuntimeHostBranch {
                 parent: None,
                 status: RuntimeHostBranchStatus::Running,
+                next_operation_seq: 0,
             },
         );
         Self {
@@ -83,9 +91,26 @@ impl RuntimeHostScheduler {
             RuntimeHostBranch {
                 parent: Some(parent),
                 status: RuntimeHostBranchStatus::Suspended,
+                next_operation_seq: 0,
             },
         );
         Some(branch_id)
+    }
+
+    pub(super) fn next_operation_instance(
+        &mut self,
+        branch_id: RuntimeHostBranchId,
+    ) -> Option<RuntimeHostOperationInstanceId> {
+        let branch = self.branches.get_mut(&branch_id)?;
+        if !branch.status.is_live() {
+            return None;
+        }
+        let instance = RuntimeHostOperationInstanceId {
+            branch_id,
+            seq: branch.next_operation_seq,
+        };
+        branch.next_operation_seq += 1;
+        Some(instance)
     }
 
     pub(super) fn enqueue_cancel(
@@ -237,6 +262,36 @@ mod tests {
         assert_eq!(
             scheduler.branch_status(second),
             Some(RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn scheduler_assigns_branch_local_operation_sequences() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+
+        assert_eq!(
+            scheduler.next_operation_instance(scheduler.root_branch),
+            Some(RuntimeHostOperationInstanceId {
+                branch_id: scheduler.root_branch,
+                seq: 0,
+            })
+        );
+        assert_eq!(
+            scheduler.next_operation_instance(scheduler.root_branch),
+            Some(RuntimeHostOperationInstanceId {
+                branch_id: scheduler.root_branch,
+                seq: 1,
+            })
+        );
+        assert_eq!(
+            scheduler.next_operation_instance(child),
+            Some(RuntimeHostOperationInstanceId {
+                branch_id: child,
+                seq: 0,
+            })
         );
     }
 }
