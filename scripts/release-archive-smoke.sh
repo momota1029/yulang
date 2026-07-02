@@ -89,9 +89,11 @@ env YULANG_SMOKE_SERVER="$archive_server_smoke" \
 
 if [[ "$archive_contract_smoke" != "0" ]]; then
   "$bin" --std-root "$package_root/lib" contract \
+    --contract stable-core \
     --case optional_record_defaults \
     "$repo_root/tests/yulang/cases.toml" >/dev/null
   "$bin" --std-root "$package_root/lib" contract \
+    --contract stable-core \
     --case std_result_unwrap_or_public_signature \
     "$repo_root/tests/yulang/cases.toml" >/dev/null
 fi
