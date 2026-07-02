@@ -45,6 +45,50 @@ pub(super) struct RuntimeHostOperationSpec {
     pub(super) operation: RuntimeHostOperation,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeHostRegistry {
+    native_host_operations_enabled: bool,
+}
+
+impl RuntimeHostRegistry {
+    pub(super) fn new(native_host_operations_enabled: bool) -> Self {
+        Self {
+            native_host_operations_enabled,
+        }
+    }
+
+    pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
+        let spec = runtime_host_operation_spec(path)?;
+        if !self.native_host_operations_enabled {
+            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure { act: spec.act },
+            ));
+        }
+        Some(RuntimeHostRequestResolution::Operation(spec.operation))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RuntimeHostRequestResolution {
+    Operation(RuntimeHostOperation),
+    UnsupportedCapability(RuntimeHostCapabilityFailure),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeHostCapabilityFailure {
+    act: RuntimeHostAct,
+}
+
+impl RuntimeHostCapabilityFailure {
+    pub(super) fn act_path_strings(self) -> Vec<String> {
+        self.act
+            .path()
+            .iter()
+            .map(|part| (*part).to_string())
+            .collect()
+    }
+}
+
 const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::ConsoleOut,
@@ -252,5 +296,36 @@ mod tests {
 
         assert_eq!(console_ops, 1, "console out should have one current op");
         assert_eq!(file_ops, 14, "file act should have current file host ops");
+    }
+
+    #[test]
+    fn runtime_host_registry_reports_unsupported_capability_before_operation() {
+        let registry = RuntimeHostRegistry::new(false);
+        let path = [
+            "std".into(),
+            "io".into(),
+            "file".into(),
+            "file".into(),
+            "exists".into(),
+        ];
+
+        let resolution = registry.resolve(&path);
+
+        assert_eq!(
+            resolution,
+            Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act: RuntimeHostAct::File
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn runtime_host_registry_leaves_unknown_effects_unresolved() {
+        let registry = RuntimeHostRegistry::new(false);
+        let path = ["std".into(), "unknown".into(), "op".into()];
+
+        assert_eq!(registry.resolve(&path), None);
     }
 }

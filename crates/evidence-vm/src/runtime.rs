@@ -32,7 +32,7 @@ use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
     format_values_with_display_context, format_values_with_labels,
 };
-use host::{RuntimeHostOperation, runtime_host_operation_spec};
+use host::{RuntimeHostOperation, RuntimeHostRegistry, RuntimeHostRequestResolution};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceKnownOperationCall, RuntimeEvidenceKnownStateOperationKind,
@@ -8007,6 +8007,7 @@ struct RuntimeEvidenceRunner<'a> {
     file_handles: HashMap<i64, PathBuf>,
     file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
     next_file_handle: i64,
+    host_registry: RuntimeHostRegistry,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
 }
@@ -8023,6 +8024,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let runtime_exprs = runtime_expr_cache(program);
         let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
+        let host_registry = RuntimeHostRegistry::new(context.native_host_operations_enabled());
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
         stats.runtime_breakdown_stats_enabled =
@@ -8064,6 +8066,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             file_handles: HashMap::new(),
             file_snapshots: HashMap::new(),
             next_file_handle: 0,
+            host_registry,
             context,
             stats,
         }
@@ -11943,19 +11946,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if let Some(spec) = runtime_host_operation_spec(request.path.as_ref()) {
-            if !self.context.native_host_operations_enabled() {
-                return Err(RuntimeEvidenceRunError::UnsupportedHostCapability(
-                    spec.act
-                        .path()
-                        .iter()
-                        .map(|part| (*part).to_string())
-                        .collect(),
-                ));
+        if let Some(resolution) = self.host_registry.resolve(request.path.as_ref()) {
+            match resolution {
+                RuntimeHostRequestResolution::Operation(operation) => {
+                    let value =
+                        self.handle_runtime_host_operation(operation, request.payload.as_ref())?;
+                    return self.resume_continuation(request.continuation, value);
+                }
+                RuntimeHostRequestResolution::UnsupportedCapability(failure) => {
+                    return Err(RuntimeEvidenceRunError::UnsupportedHostCapability(
+                        failure.act_path_strings(),
+                    ));
+                }
             }
-            let value =
-                self.handle_runtime_host_operation(spec.operation, request.payload.as_ref())?;
-            return self.resume_continuation(request.continuation, value);
         }
         Err(RuntimeEvidenceRunError::EscapedEffect(
             request.path.to_vec(),
