@@ -3848,6 +3848,27 @@ fn contract_command_runs_filtered_runtime_case() {
 }
 
 #[test]
+fn contract_command_runs_multiple_filtered_cases() {
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg("--case")
+        .arg("file_text_with_commit")
+        .arg("--case")
+        .arg("file_text_with_rollback_on_error")
+        .arg("--contract")
+        .arg("file-resource")
+        .arg(repo_yulang_fixture("cases.toml"))
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "contract cases ok: 2\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn contract_command_runs_filtered_public_signature_case() {
     let output = yulang_command()
         .arg("--std-root")

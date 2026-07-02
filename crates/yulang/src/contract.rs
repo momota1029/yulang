@@ -15,6 +15,7 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
     let contract_args = parse_contract_args(program, args);
     let manifest = read_contract_manifest(&contract_args.manifest);
     validate_contract_manifest(&contract_args.manifest, &manifest);
+    contract_args.validate_case_filters(&manifest);
     contract_args.validate_contract_filters(&manifest);
     let repo_root = contract_args
         .repo_root
@@ -123,11 +124,24 @@ struct MaterializedContractTempFile {
 struct ContractArgs {
     manifest: PathBuf,
     repo_root: Option<PathBuf>,
-    case_filter: Option<String>,
+    case_filters: BTreeSet<String>,
     contract_filters: Vec<String>,
 }
 
 impl ContractArgs {
+    fn validate_case_filters(&self, manifest: &ContractManifest) {
+        for filter in &self.case_filters {
+            if manifest.case.iter().any(|case| &case.name == filter) {
+                continue;
+            }
+            eprintln!(
+                "contract manifest {} has no case `{filter}`",
+                self.manifest.display()
+            );
+            process::exit(1);
+        }
+    }
+
     fn validate_contract_filters(&self, manifest: &ContractManifest) {
         for filter in &self.contract_filters {
             if manifest
@@ -146,10 +160,8 @@ impl ContractArgs {
     }
 
     fn matches(&self, case: &ContractCase) -> bool {
-        if let Some(filter) = &self.case_filter {
-            if &case.name != filter {
-                return false;
-            }
+        if !self.case_filters.is_empty() && !self.case_filters.contains(&case.name) {
+            return false;
         }
         self.contract_filters
             .iter()
@@ -158,9 +170,11 @@ impl ContractArgs {
 
     fn filter_label(&self) -> String {
         let mut parts = Vec::new();
-        if let Some(filter) = &self.case_filter {
-            parts.push(format!("case={filter}"));
-        }
+        parts.extend(
+            self.case_filters
+                .iter()
+                .map(|filter| format!("case={filter}")),
+        );
         parts.extend(
             self.contract_filters
                 .iter()
@@ -177,7 +191,7 @@ impl ContractArgs {
 fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractArgs {
     let mut manifest = None;
     let mut repo_root = None;
-    let mut case_filter = None;
+    let mut case_filters = BTreeSet::new();
     let mut contract_filters = Vec::new();
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
@@ -185,14 +199,18 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
                 let Some(value) = args.pop_front() else {
                     print_usage_error_and_exit(program, "contract --case requires a value");
                 };
-                case_filter = Some(value.to_string_lossy().into_owned());
+                let value = value.to_string_lossy().into_owned();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "contract --case requires a value");
+                }
+                case_filters.insert(value);
             }
             Some(value) if value.starts_with("--case=") => {
                 let value = value.strip_prefix("--case=").unwrap_or_default();
                 if value.is_empty() {
                     print_usage_error_and_exit(program, "contract --case requires a value");
                 }
-                case_filter = Some(value.to_string());
+                case_filters.insert(value.to_string());
             }
             Some("--contract") => {
                 let Some(value) = args.pop_front() else {
@@ -242,7 +260,7 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
     ContractArgs {
         manifest,
         repo_root,
-        case_filter,
+        case_filters,
         contract_filters,
     }
 }

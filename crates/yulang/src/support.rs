@@ -1121,7 +1121,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "usage: {program} [--std-root <path>] [--no-prelude] [--cst] [--no-cache] check <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] contract [--repo-root <path>] [--case <name>] [--contract <tag>] <cases.toml>"
+        "       {program} [--std-root <path>] contract [--repo-root <path>] [--case <name>]... [--contract <tag>] <cases.toml>"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"

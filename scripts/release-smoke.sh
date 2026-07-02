@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${1:-"$repo_root/target/debug/yulang"}"
 timeout_duration="${YULANG_SMOKE_TIMEOUT:-30s}"
 file_resource_contract_smoke="${YULANG_SMOKE_FILE_RESOURCE_CONTRACT:-1}"
+file_resource_timeout_duration="${YULANG_SMOKE_FILE_RESOURCE_TIMEOUT:-120s}"
 
 if [[ ! -x "$bin" ]]; then
   echo "release smoke: executable yulang binary not found: $bin" >&2
@@ -27,12 +28,18 @@ std_root="$tmp/lib/std"
 main="$tmp/main.yu"
 ref_loop="$tmp/ref-loop.yu"
 
-run() {
+run_with_timeout() {
+  local duration="$1"
+  shift
   if command -v timeout >/dev/null 2>&1; then
-    timeout "$timeout_duration" "$@"
+    timeout "$duration" "$@"
   else
     "$@"
   fi
+}
+
+run() {
+  run_with_timeout "$timeout_duration" "$@"
 }
 
 path_for_compare() {
@@ -120,12 +127,15 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_text_with_native_rollback_on_error
     file_unsupported_host
   )
+  file_resource_case_args=()
   for case_name in "${file_resource_cases[@]}"; do
-    run "$bin" --std-root "$std_root" contract \
-      --contract file-resource \
-      --case "$case_name" \
-      "$contract_cases_manifest" >/dev/null
+    file_resource_case_args+=(--case "$case_name")
   done
+  run_with_timeout "$file_resource_timeout_duration" \
+    "$bin" --std-root "$std_root" contract \
+    --contract file-resource \
+    "${file_resource_case_args[@]}" \
+    "$contract_cases_manifest" >/dev/null
 fi
 
 cache_path="$(run "$bin" cache path)"
