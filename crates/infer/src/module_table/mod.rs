@@ -29,6 +29,7 @@ impl ModuleTable {
             synthetic_sub_label_act_uses: FxHashMap::default(),
             root_expr_owners: FxHashMap::default(),
             act_ops: FxHashMap::default(),
+            host_acts: FxHashSet::default(),
             act_op_defs: FxHashMap::default(),
             lazy_ops: FxHashSet::default(),
             act_methods: FxHashMap::default(),
@@ -118,6 +119,12 @@ impl ModuleTable {
     }
     pub(super) fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<ActOperationSig>) {
         self.act_ops.insert(id, ops);
+    }
+    pub(super) fn set_host_act(&mut self, id: TypeDeclId) {
+        self.host_acts.insert(id);
+    }
+    pub fn is_host_act(&self, id: TypeDeclId) -> bool {
+        self.host_acts.contains(&id)
     }
     pub(super) fn insert_act_operation_def(&mut self, owner: TypeDeclId, name: Name, def: DefId) {
         self.act_op_defs.insert(

@@ -161,6 +161,9 @@ impl<'a> CompiledModuleTableBuilder<'a> {
             module_type_kind(ty.kind),
             visibility(ty.visibility),
         );
+        if ty.host {
+            self.modules.set_host_act(id);
+        }
         self.type_ids.insert(ty.symbol, id);
     }
 

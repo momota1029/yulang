@@ -1056,6 +1056,17 @@ pub(crate) fn module_type_kind(kind: SyntaxKind) -> Option<ModuleTypeKind> {
     }
 }
 
+pub(crate) fn act_decl_is_host(node: &Cst) -> bool {
+    if node.kind() != SyntaxKind::ActDecl {
+        return false;
+    }
+    node.children_with_tokens().any(|child| {
+        child
+            .into_token()
+            .is_some_and(|token| token.kind() == SyntaxKind::Keyword && token.text() == "host")
+    })
+}
+
 /// `use mod foo::...` の `foo`。
 ///
 /// parser の設計では `use mod path` は `mod path_head; use path` の sugar なので、

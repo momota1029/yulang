@@ -8,7 +8,7 @@ pub enum file_kind = missing | denied | file | dir | symlink | other
 
 pub struct file_meta { kind: file_kind, size: int, readonly: bool }
 
-pub act file:
+pub host act file:
     pub load: path -> result str io_err
     pub store: (path, str) -> result unit io_err
     pub meta: path -> file_meta

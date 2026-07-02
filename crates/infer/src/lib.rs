@@ -501,6 +501,7 @@ pub struct ModuleTable {
     synthetic_sub_label_act_uses: FxHashMap<DefId, Vec<SyntheticSubLabelActUse>>,
     root_expr_owners: FxHashMap<ModuleId, Vec<Option<DefId>>>,
     act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
+    host_acts: FxHashSet<TypeDeclId>,
     act_op_defs: FxHashMap<DefId, ActOperationDef>,
     lazy_ops: FxHashSet<DefId>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,

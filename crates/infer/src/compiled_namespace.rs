@@ -40,6 +40,8 @@ pub struct CompiledNamespaceTypeSymbol {
     pub unit_id: u32,
     pub path: Vec<String>,
     pub kind: CompiledNamespaceTypeKind,
+    #[serde(default)]
+    pub host: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,6 +60,8 @@ pub struct CompiledNamespaceModuleType {
     pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
     pub kind: CompiledNamespaceTypeKind,
+    #[serde(default)]
+    pub host: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +88,8 @@ pub struct CompiledNamespaceImportedType {
     pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
     pub kind: CompiledNamespaceTypeKind,
+    #[serde(default)]
+    pub host: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -284,6 +290,7 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
                     unit_id: symbol,
                     path: ty.path.clone(),
                     kind: ty.kind,
+                    host: ty.host,
                 });
             }
         }
@@ -732,6 +739,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
             .into_iter()
             .map(|decl| {
                 let kind = compiled_type_kind(decl.kind);
+                let host = decl.kind == ModuleTypeKind::Act && self.modules.is_host_act(decl.id);
                 let symbol = self.surface.types.len() as u32;
                 let mut path = namespace_path(&self.modules.module_path(module));
                 path.push(decl.name.0.clone());
@@ -740,6 +748,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                     unit_id: symbol,
                     path,
                     kind,
+                    host,
                 });
                 CompiledNamespaceModuleType {
                     name: decl.name.0,
@@ -747,6 +756,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                     visibility: compiled_visibility(decl.vis),
                     order: decl.order.index(),
                     kind,
+                    host,
                 }
             })
             .collect()
@@ -784,12 +794,15 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
             .filter_map(|decl| {
                 let symbol = *self.type_symbols.get(&decl.decl.id)?;
                 let kind = compiled_type_kind(decl.decl.kind);
+                let host =
+                    decl.decl.kind == ModuleTypeKind::Act && self.modules.is_host_act(decl.decl.id);
                 Some(CompiledNamespaceImportedType {
                     name: decl.name.0,
                     symbol,
                     visibility: compiled_visibility(decl.vis),
                     order: decl.order.index(),
                     kind,
+                    host,
                 })
             })
             .collect::<Vec<_>>();

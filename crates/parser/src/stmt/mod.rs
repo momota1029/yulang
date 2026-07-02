@@ -63,7 +63,7 @@ fn parse_statement_from_stop<I: EventInput, S: EventSink>(
         SyntaxKind::Role => role_decl::parse_role_decl(i, None, stop),
         SyntaxKind::Impl => impl_decl::parse_impl_decl(i, None, stop),
         SyntaxKind::Cast => cast_decl::parse_cast_decl(i, None, stop),
-        SyntaxKind::Act => act_decl::parse_act_decl(i, None, stop),
+        SyntaxKind::Act => act_decl::parse_act_decl(i, None, None, stop),
         SyntaxKind::For => for_stmt::parse_for_stmt(i, stop),
         SyntaxKind::Lazy => op_def::parse_lazy_op_def_stmt(i, None, stop),
         SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
@@ -146,7 +146,7 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
                 && nud.lex.kind == SyntaxKind::Act
                 && my_contextual_act_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
             {
-                return act_decl::parse_act_decl(i, Some(vis_kw), nud.lex);
+                return act_decl::parse_act_decl(i, Some(vis_kw), None, nud.lex);
             }
         }
         i.rollback(checkpoint);
@@ -162,6 +162,14 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
         return binding::parse_binding_stmt(i, vis_kw);
     };
 
+    if contextual_host_act_modifier(&nud.lex)
+        && let Some(act_kw) = scan_contextual_host_act(nud.lex.trailing_trivia_info(), i.rb())
+    {
+        let mut host = nud.lex;
+        host.kind = SyntaxKind::Keyword;
+        return act_decl::parse_act_decl(i, Some(vis_kw), Some(host), act_kw);
+    }
+
     // stop トークンなら decl kw か Equal かで早期 dispatch
     use crate::pat::scan::PatNudTag;
     if matches!(nud.tag, PatNudTag::Stop) {
@@ -176,7 +184,7 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
             SyntaxKind::Role => role_decl::parse_role_decl(i, vis, nud.lex),
             SyntaxKind::Impl => impl_decl::parse_impl_decl(i, vis, nud.lex),
             SyntaxKind::Cast => cast_decl::parse_cast_decl(i, vis, nud.lex),
-            SyntaxKind::Act => act_decl::parse_act_decl(i, vis, nud.lex),
+            SyntaxKind::Act => act_decl::parse_act_decl(i, vis, None, nud.lex),
             SyntaxKind::Lazy => op_def::parse_lazy_op_def_stmt(i, vis, nud.lex),
             SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
                 op_def::parse_op_def_stmt(i, vis, nud.lex)
@@ -188,6 +196,24 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
 
     // Atom 等（パターンの先頭）→ parse_pattern_from_nud で pat を構築してから binding へ
     binding::parse_binding_stmt_from_nud(i, vis_kw, nud)
+}
+
+fn contextual_host_act_modifier(lex: &Lex) -> bool {
+    lex.kind == SyntaxKind::Ident && lex.text.as_ref() == "host"
+}
+
+fn scan_contextual_host_act<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<Lex> {
+    if matches!(leading_info, TriviaInfo::Newline { .. } | TriviaInfo::None) {
+        return None;
+    }
+    let next = peek_stmt_lex(leading_info, i.rb())?;
+    if next.kind != SyntaxKind::Act {
+        return None;
+    }
+    scan_stmt_lex(leading_info, i)
 }
 
 fn my_contextual_act_decl_after_keyword<I: EventInput, S: EventSink>(

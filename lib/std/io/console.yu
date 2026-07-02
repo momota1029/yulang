@@ -1,7 +1,7 @@
 use std::core::fmt::*
 use std::core::ops::*
 
-pub act out:
+pub host act out:
     pub write: str -> ()
 
 pub print value = out::write value

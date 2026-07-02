@@ -983,6 +983,51 @@ fn stmt_act_decl_path_semicolon() {
 }
 
 #[test]
+fn stmt_host_act_decl_is_contextual_modifier() {
+    let got = parse_stmt_once("pub host act file:\n  pub load: path -> str");
+    let expected = vec![
+        "(ActDecl",
+        "  Pub \"pub\"",
+        "  Keyword \"host\"",
+        "  Act \"act\"",
+        "  Ident \"file\"",
+        "  Colon \":\"",
+        "  (IndentBlock",
+        "    (Binding",
+        "      (BindingHeader",
+        "        Pub \"pub\"",
+        "        (Pattern",
+        "          Ident \"load\"",
+        "          (TypeAnn",
+        "            Colon \":\"",
+        "            (TypeExpr",
+        "              Ident \"path\"",
+        "              (TypeArrow",
+        "                Arrow \"->\"",
+        "                (TypeExpr",
+        "                  Ident \"str\"",
+        "                )",
+        "              )",
+        "            )",
+        "          )",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_host_identifier_binding_still_allowed() {
+    let got = parse_stmt_once("my host = 1");
+    assert!(got.iter().any(|line| line == "(Binding"));
+    assert!(got.iter().any(|line| line == "      Ident \"host\""));
+    assert!(!got.iter().any(|line| line.contains("(ActDecl")));
+}
+
+#[test]
 fn stmt_act_decl_copy_with_type_arg() {
     let got = parse_stmt_once("act local 't = var 't");
     let expected = vec![

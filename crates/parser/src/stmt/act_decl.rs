@@ -14,11 +14,15 @@ use super::type_decl::finish_with_or_stmt_stop;
 pub(super) fn parse_act_decl<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     visibility: Option<Lex>,
+    host_modifier: Option<Lex>,
     decl_kw: Lex,
 ) -> Option<Either<TriviaInfo, Lex>> {
     i.env.state.sink.start(SyntaxKind::ActDecl);
     if let Some(vis) = visibility {
         i.env.state.sink.lex(&vis);
+    }
+    if let Some(host) = host_modifier {
+        i.env.state.sink.lex(&host);
     }
     i.env.state.sink.lex(&decl_kw);
 

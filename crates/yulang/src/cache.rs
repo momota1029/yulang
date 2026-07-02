@@ -1799,6 +1799,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hash_compiled_namespace_visibility(&mut hasher, ty.visibility);
             hasher.u32(ty.order);
             hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+            hasher.bool(ty.host);
         }
 
         hasher.usize(module.modules.len());
@@ -1825,6 +1826,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hash_compiled_namespace_visibility(&mut hasher, ty.visibility);
             hasher.u32(ty.order);
             hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+            hasher.bool(ty.host);
         }
 
         hasher.usize(module.imported_modules.len());
@@ -1855,6 +1857,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
         hasher.u32(ty.unit_id);
         hash_string_path(&mut hasher, &ty.path);
         hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+        hasher.bool(ty.host);
     }
 
     hasher.finish()
