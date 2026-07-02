@@ -102,8 +102,10 @@ Required observations:
 Current executable mock evidence:
 
 - `file_mock_read_text_handler` and `file_mock_read_write_text_handler` prove
-  that source handlers intercept the public `read_at` / `write_at` host act
+  that source handlers intercept the public `load` / `store` host act
   operations before the native host registry.
+- `file_text_with_commit` proves the first production `text_with` source-mock
+  path over `file_buffer`, `file::load`, and `file::store`.
 - `file_mock_public_ref_view_commit` proves the inline public ref-view commit
   shape over pure Yulang state.
 - `file_mock_text_with_function_commit` proves that the same public ref-view
@@ -115,9 +117,10 @@ Current executable mock evidence:
 - `file_mock_text_with_nondet_branch_buffers` proves that the same public helper
   shape gives each `nondet.each` branch an independent callback-local buffer.
 
-Remaining F1 evidence still needs the real `std::io::file::text_with` surface
-or a public file-session host-act boundary. Do not make private snapshot helper
-operations public only to satisfy the mock cases.
+Remaining F1 evidence needs rollback, nondet/multi-shot, and unscoped ambient
+discharge on the real `std::io::file::text_with` / `file::text` surface. The
+current blocker is recorded in
+`notes/bugs/file_text_with_callback_residual_blocker.yu`.
 
 ### F2. Native Host Parity
 

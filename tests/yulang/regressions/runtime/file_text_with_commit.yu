@@ -1,11 +1,14 @@
-my scoped_result = std::io::file::text_with __YULANG_FILE_TEXT_WITH_COMMIT_PATH__: \&text ->
+use std::control::var::*
+
+my edit() = std::io::file::text_with "/mock": \&text ->
     my before = $text
     &text = before + " scoped"
     my buffer = $text
-    my backing_during_scope =
-        std::io::file::read_text __YULANG_FILE_TEXT_WITH_COMMIT_PATH__
-    (before, buffer, backing_during_scope)
+    (before, buffer)
 
-my scoped_after = std::io::file::read_text __YULANG_FILE_TEXT_WITH_COMMIT_PATH__
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::load path, k -> run backing: k (result::ok backing)
+    std::io::file::file::store (path, text), k -> run text: k (result::ok ())
+    value -> (value, backing)
 
-(scoped_result, scoped_after)
+run "start": edit()

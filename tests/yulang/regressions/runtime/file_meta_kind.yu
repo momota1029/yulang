@@ -1,7 +1,6 @@
-my path = __YULANG_FILE_META_KIND_PATH__
-my missing = __YULANG_FILE_META_MISSING_PATH__
+my file_meta = catch (std::io::file::meta "/mock-file"):
+    std::io::file::file::meta path, k ->
+        k (std::io::file::file_meta { kind: std::io::file::file_kind::file, size: 5, readonly: false })
+    value -> value
 
-my file_meta = std::io::file::meta path
-my missing_meta = std::io::file::meta missing
-
-(file_meta.kind, missing_meta.kind)
+file_meta.kind

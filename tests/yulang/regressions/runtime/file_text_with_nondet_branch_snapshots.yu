@@ -1,11 +1,13 @@
 use std::control::nondet::*
+use std::control::var::*
 
-my result = (std::io::file::text_with __YULANG_FILE_TEXT_WITH_NONDET_PATH__: \&text ->
+my result = (std::io::file::open_in __YULANG_FILE_TEXT_WITH_NONDET_PATH__: \&text ->
     my suffix = each [" A", " B"]
     my before = $text
     &text = before + suffix
     (suffix, $text)
 ).list
-my after = std::io::file::read_text __YULANG_FILE_TEXT_WITH_NONDET_PATH__
+my after_ref = std::io::file::open_text __YULANG_FILE_TEXT_WITH_NONDET_PATH__
+my after = after_ref.get()
 
 (result, after)

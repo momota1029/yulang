@@ -1,13 +1,17 @@
 use std::control::throw::Throw
 use std::data::range::*
+use std::data::result::*
 use std::text::path::*
 use std::control::var::*
 
 pub enum file_kind = missing | denied | file | dir | symlink | other
 
-pub struct file_meta { kind: file_kind, readonly: bool }
+pub struct file_meta { kind: file_kind, size: int, readonly: bool }
 
 pub act file:
+    pub load: path -> result str io_err
+    pub store: (path, str) -> result unit io_err
+    pub meta: path -> file_meta
     my open_text_raw: path -> (int, file_handle)
     my file_get: file_handle -> str
     my file_set: (file_handle, str) -> unit
@@ -23,10 +27,17 @@ pub act file:
     pub is_file: path -> bool
     pub is_dir: path -> bool
 
+pub act file_buffer:
+    pub get: path -> str
+    pub set: (path, str) -> unit
+    pub ambient_get: path -> str
+    pub ambient_set: (path, str) -> unit
+
 pub error io_err:
     not_found path
     denied path
     invalid_path path
+    failed (path, str)
 
 my err_from_code(path: path, code: int): io_err =
     if std::int::eq code 1:
@@ -55,9 +66,19 @@ my kind_from_code(code: int): file_kind =
                     else:
                         file_kind::other
 
-pub meta(path: path): file_meta =
+my same_path(a: path, b: path): bool =
+    std::text::bytes::eq (std::text::path::to_bytes a) (std::text::path::to_bytes b)
+
+my unwrap_io(result) = case result:
+    result::ok value -> value
+    result::err err -> err.throw
+
+my legacy_meta(path: path): file_meta =
     my (_, kind, readonly) = file::meta_raw path
-    file_meta { kind: kind_from_code kind, readonly: readonly }
+    file_meta { kind: kind_from_code kind, size: 0, readonly: readonly }
+
+pub meta(path: path): file_meta =
+    file::meta path
 
 pub read_at(path: path, r: range): (str, range) =
     my (code, text, valid) = file::read_at (path, r)
@@ -73,12 +94,18 @@ pub write_at(path: path, r: range, text: str): unit =
     else:
         (err_from_code path code).throw
 
-pub read_text(path: path): str =
+my legacy_read_text(path: path): str =
     my (text, _) = read_at path (std::data::range::full())
     text
 
-pub write_text(path: path, text: str): unit =
+my legacy_write_text(path: path, text: str): unit =
     write_at path (std::data::range::full()) text
+
+pub read_text(path: path): str =
+    unwrap_io (file::load path)
+
+pub write_text(path: path, text: str): unit =
+    unwrap_io (file::store (path, text))
 
 pub open_text(path: path): ref '[file] str =
     my (code, handle) = file::open_text_raw path
@@ -119,8 +146,40 @@ pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
     else:
         (err_from_code path code).throw
 
-pub text(path: path): ref '[file] str = open path
+pub text(path: path): ref '[file_buffer] str =
+    ref {
+        get: \() -> file_buffer::ambient_get path,
+        update_effect: \() ->
+            file_buffer::ambient_set (
+                path,
+                ref_update::update (file_buffer::ambient_get path)
+            )
+    }
 
-pub text_with = open_in
+pub text_with(path: path, f) =
+    my view: ref '[file_buffer] str = ref {
+        get: \() -> file_buffer::get path,
+        update_effect: \() ->
+            file_buffer::set (
+                path,
+                ref_update::update (file_buffer::get path)
+            )
+    }
+    my run(buffer, x: [_] _) = catch x:
+        file_buffer::get request_path, k ->
+            if same_path request_path path:
+                run buffer: k buffer
+            else:
+                run buffer: k (file_buffer::get request_path)
+        file_buffer::set (request_path, buffer_next), k ->
+            if same_path request_path path:
+                run buffer_next: k()
+            else:
+                run buffer: k (file_buffer::set (request_path, buffer_next))
+        value -> (value, buffer)
+    my initial = read_text path
+    my (result, final) = run initial: f view
+    write_text path final
+    result
 
 pub use file::*

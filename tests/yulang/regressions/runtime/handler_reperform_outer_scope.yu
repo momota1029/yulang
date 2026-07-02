@@ -1,0 +1,9 @@
+act probe:
+    pub ask: int -> int
+
+catch (catch probe::ask 1:
+    probe::ask x, k -> k (probe::ask 2)
+    value -> value
+):
+    probe::ask x, k -> k 12
+    value -> value

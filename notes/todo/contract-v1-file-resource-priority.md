@@ -41,6 +41,11 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - packaged binary + bundled std で file-resource contract を走らせる。
      - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
    - 残りの大きな blocker は pure mock resource-lifetime parity。
+     - 2026-07-02: この blocker の実装指示書が
+       `notes/design/2026-07-02-file-session-boundary-plan.md`（Claude 署名・authoritative）
+       として確定した。file-resource の次の作業はこの指示書の Stage 0 から始める。
+       周辺 case の追加は本工事の代わりにしない。進捗は指示書 Stage 1 の
+       fixture 6 件と Stage 2 の削除項目でだけ測る。
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。

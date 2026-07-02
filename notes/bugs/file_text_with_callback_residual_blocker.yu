@@ -1,0 +1,29 @@
+-- Contract v1 file-resource Stage 0 reduction.
+--
+-- This is intentionally not a public contract fixture yet.  The Stage 0
+-- `file_buffer` rewrite handles a callback whose only effect is the scoped
+-- buffer, but a callback that first touches the buffer and then raises another
+-- effect still hits a residual-row conflict.
+--
+-- Expected future behavior:
+--   run roots [(result::err(edit_err::abort), "start")]
+--
+-- Current failure observed on 2026-07-02:
+--   conflicting type candidates: [edit_err] vs [std::io::file::file_buffer]
+
+use std::control::var::*
+
+pub error edit_err:
+    abort
+
+my edit() = edit_err::wrap:
+    std::io::file::text_with "/mock": \&text ->
+        my before = $text
+        edit_err::abort.throw
+
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::load path, k -> run backing: k (result::ok backing)
+    std::io::file::file::store (path, text), k -> run text: k (result::ok ())
+    value -> (value, backing)
+
+run "start": edit()

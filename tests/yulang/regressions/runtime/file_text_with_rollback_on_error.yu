@@ -1,12 +1,16 @@
+use std::control::var::*
+
 pub error edit_err:
     abort
 
-my before = std::io::file::read_text __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__
+my before_ref = std::io::file::open_text __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__
+my before = before_ref.get()
 my wrapped = edit_err::wrap:
-    std::io::file::text_with __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__: \&text ->
+    std::io::file::open_in __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__: \&text ->
         my old = $text
         &text = old + " dirty"
         edit_err::abort.throw
-my after = std::io::file::read_text __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__
+my after_ref = std::io::file::open_text __YULANG_FILE_TEXT_WITH_ROLLBACK_PATH__
+my after = after_ref.get()
 
 (before, wrapped, after)
