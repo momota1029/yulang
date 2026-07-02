@@ -1,0 +1,8 @@
+my path = {{file}}
+
+my before = std::io::file::file::load path
+my stored = std::io::file::file::store (path, "native!")
+my after = std::io::file::file::load path
+my meta = std::io::file::file::meta path
+
+(before, stored, after, meta.kind, meta.size)

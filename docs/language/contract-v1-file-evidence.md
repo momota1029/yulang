@@ -3,11 +3,13 @@
 This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
-Status on 2026-07-02: **open, Stage 1 mock protocol complete**. The contract
-box and tag policy exist, and the `file-resource` manifest subset now covers
-the public `file::load` / `file::store` / `file::meta` Stage 0 surface plus the
-Stage 1 source-mock `text_with` protocol fixtures. Native registry parity and
-int error-code removal remain Stage 2 work. Contract v0 remains closed in
+Status on 2026-07-03: **open, Stage 2 native protocol bridge covered**. The
+contract box and tag policy exist, and the `file-resource` manifest subset now
+covers the public `file::load` / `file::store` / `file::meta` Stage 0 surface,
+the Stage 1 source-mock `text_with` protocol fixtures, and the first native
+registry parity cases over the same public protocol. Legacy raw / snapshot
+operations and integer error-code translation remain a compatibility window,
+not the Contract v1 center. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -17,11 +19,11 @@ public surface:
 
 - `std::io::file::read_text` / `write_text` now project to public
   `file::load` / `file::store` result operations. Source mock handlers can
-  intercept those operations under `--host unsupported`; native registry
-  support is a Stage 2 item.
+  intercept those operations under `--host unsupported`, and the native CLI
+  host executes the same public operations through the runtime host registry.
 - `exists`, `is_file`, and `is_dir` still run through the native CLI host.
-  `file_meta { kind, size, readonly }` is now the public metadata shape; native
-  registry support for the new `file::meta` operation is a Stage 2 item.
+  `file_meta { kind, size, readonly }` is now the public metadata shape, and
+  the new public `file::meta` operation has native registry coverage.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
@@ -45,6 +47,16 @@ public surface:
 - Rollback and multi-shot evidence now run through `--host unsupported` source
   handlers over public `file::load` / `file::store`; they no longer depend on
   native temp files or legacy `open_in` snapshot operations.
+- `tests/yulang/cases.toml` includes `file_native_protocol_load_store_meta`,
+  a native CLI host case that calls public `file::load`, `file::store`, and
+  `file::meta` directly, checks the compact roots, and verifies the backing
+  temp file contents after `store`.
+- `tests/yulang/cases.toml` includes `file_text_with_native_commit`, which
+  proves production `text_with` commits through public `load` / `store` under
+  the native CLI host.
+- `tests/yulang/cases.toml` includes
+  `file_text_with_native_rollback_on_error`, which proves a callback abort does
+  not reach the protocol `store`, leaving the native backing file unchanged.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-smoke --target
@@ -122,8 +134,10 @@ public surface:
   execution keeps matching a full build.
 
 Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because native registry parity, int error-code removal, and packaged
-release evidence for the new protocol surface remain open.
+Contract v1 because legacy raw / snapshot host operations still carry integer
+error-code translation, unscoped ambient native registration is not closed, and
+packaged release evidence for the refreshed protocol surface still needs to be
+rerun.
 
 ## Missing Evidence
 
@@ -133,7 +147,7 @@ executable `file-resource` cases for:
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | complete for the Stage 1 protocol fixture set |
-| Native host | registry-backed parity with the Stage 1 mock shape |
+| Native host | remaining multi-shot native parity and eventual removal or raw/provisional isolation of legacy snapshot operations |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 
@@ -145,9 +159,8 @@ Callback state is carried explicitly as `(result, final_text)`, so user effects
 compose through the callback row rather than through a handler-local file buffer
 effect.
 
-The remaining blockers are Stage 2 host-boundary items:
+The remaining blockers are Stage 2 host-boundary cleanup items:
 
-- native registry support for `file::load` / `file::store` / `file::meta`;
 - removal of legacy int error-code translation from the public file path;
 - keeping `file_buffer::ambient_get` / `ambient_set` registered for unscoped
   `file::text`;
@@ -173,11 +186,10 @@ cargo run -q -p yulang -- --std-root lib contract --contract file-resource tests
 Release evidence should run the same tag filter through the packaged binary and
 bundled standard library.
 
-As of the Stage 1 protocol rewrite on 2026-07-02, the local checkout passes the
-filtered `file-resource` subset through `cargo run` with `--host unsupported`
-mock handlers. Release binary and archive evidence must be refreshed after
-Stage 2, when the native registry is moved to the new `file::load` /
-`file::store` / `file::meta` surface.
+As of the Stage 2 native protocol bridge on 2026-07-03, the local checkout
+passes the filtered `file-resource` subset through `cargo run` with both source
+mock handlers and native CLI protocol cases. Release binary and archive
+evidence must be refreshed for the new native protocol cases.
 
 ## Rollback Conditions
 

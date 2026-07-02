@@ -111,6 +111,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_native_protocol_load_store_meta"
+file = "regressions/runtime/file_native_protocol_load_store_meta.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(result::ok(\"native\"), result::ok(()), result::ok(\"native!\"), file_kind::file, 7)]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "native", expect_contents = "native!" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "metadata",
+  "host-act",
+  "host.native",
+]
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"
@@ -127,6 +148,48 @@ contracts = [
   "resource-lifetime",
   "mock-host",
   "host.unsupported",
+  "errors",
+]
+
+[[case]]
+name = "file_text_with_native_commit"
+file = "regressions/runtime/file_text_with_native_commit.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [((\"start\", \"start scoped\"), \"start scoped\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "start", expect_contents = "start scoped" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "refs",
+]
+
+[[case]]
+name = "file_text_with_native_rollback_on_error"
+file = "regressions/runtime/file_text_with_native_rollback_on_error.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(result::err(edit_err::abort), \"start\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "start", expect_contents = "start" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
   "errors",
 ]
 

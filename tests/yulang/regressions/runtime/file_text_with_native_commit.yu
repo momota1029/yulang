@@ -1,0 +1,13 @@
+use std::control::var::*
+
+my path = {{file}}
+
+my result = std::io::file::text_with path: \text0 ->
+    my $text = text0
+    my before = $text
+    &text = before + " scoped"
+    ((before, $text), $text)
+
+my after = std::io::file::read_text path
+
+(result, after)

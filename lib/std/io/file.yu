@@ -37,7 +37,7 @@ pub error io_err:
     invalid_path path
     failed (path, str)
 
-my err_from_code(path: path, code: int): io_err =
+my legacy_err_from_code(path: path, code: int): io_err =
     if std::int::eq code 1:
         io_err::not_found path
     else:
@@ -46,31 +46,9 @@ my err_from_code(path: path, code: int): io_err =
         else:
             io_err::invalid_path path
 
-my kind_from_code(code: int): file_kind =
-    if std::int::eq code 0:
-        file_kind::missing
-    else:
-        if std::int::eq code 1:
-            file_kind::denied
-        else:
-            if std::int::eq code 2:
-                file_kind::file
-            else:
-                if std::int::eq code 3:
-                    file_kind::dir
-                else:
-                    if std::int::eq code 4:
-                        file_kind::symlink
-                    else:
-                        file_kind::other
-
 my unwrap_io(result) = case result:
     result::ok value -> value
     result::err err -> err.throw
-
-my legacy_meta(path: path): file_meta =
-    my (_, kind, readonly) = file::meta_raw path
-    file_meta { kind: kind_from_code kind, size: 0, readonly: readonly }
 
 pub meta(path: path): file_meta =
     file::meta path
@@ -80,21 +58,14 @@ pub read_at(path: path, r: range): (str, range) =
     if std::int::eq code 0:
         (text, valid)
     else:
-        (err_from_code path code).throw
+        (legacy_err_from_code path code).throw
 
 pub write_at(path: path, r: range, text: str): unit =
     my code = file::write_at (path, r, text)
     if std::int::eq code 0:
         ()
     else:
-        (err_from_code path code).throw
-
-my legacy_read_text(path: path): str =
-    my (text, _) = read_at path (std::data::range::full())
-    text
-
-my legacy_write_text(path: path, text: str): unit =
-    write_at path (std::data::range::full()) text
+        (legacy_err_from_code path code).throw
 
 pub read_text(path: path): str =
     unwrap_io (file::load path)
@@ -111,7 +82,7 @@ pub open_text(path: path): ref '[file] str =
                 file::file_set (handle, ref_update::update (file::file_get handle))
         }
     else:
-        (err_from_code path code).throw
+        (legacy_err_from_code path code).throw
 
 pub open(path: path): ref '[file] str = open_text path
 
@@ -130,7 +101,7 @@ my open_text_snapshot(path: path): (file_handle, ref '[file] str) =
             }
         )
     else:
-        (err_from_code path code).throw
+        (legacy_err_from_code path code).throw
 
 pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
     my (handle, text_ref) = open_text_snapshot path
@@ -139,7 +110,7 @@ pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
     if std::int::eq code 0:
         result
     else:
-        (err_from_code path code).throw
+        (legacy_err_from_code path code).throw
 
 pub text(path: path): ref '[file_buffer] str =
     ref {

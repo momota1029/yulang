@@ -1,0 +1,13 @@
+pub error edit_err:
+    abort
+
+my path = {{file}}
+
+my result = edit_err::wrap:
+    std::io::file::text_with path: \text0 ->
+        my dirty = text0 + " dirty"
+        edit_err::abort.throw
+
+my after = std::io::file::read_text path
+
+(result, after)
