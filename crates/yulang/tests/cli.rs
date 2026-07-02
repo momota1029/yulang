@@ -4284,6 +4284,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "preview"
             | "public-example"
             | "public-signature"
+            | "raw-compat"
             | "records"
             | "refs"
             | "related-ranges"
@@ -4605,10 +4606,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                     case.name
                 );
             }
-            if !has_unsupported_host && !contract_manifest_case_has_tag(case, "metadata") {
+            if !has_unsupported_host {
                 assert!(
-                    contract_manifest_case_has_tag(case, "resource-lifetime"),
-                    "file-resource runtime case {} should declare resource-lifetime or metadata",
+                    contract_manifest_case_has_any_tag(
+                        case,
+                        &["resource-lifetime", "metadata", "host-act"],
+                    ),
+                    "file-resource runtime case {} should declare resource-lifetime, metadata, or host-act",
                     case.name
                 );
             }
