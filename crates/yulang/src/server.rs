@@ -1102,23 +1102,52 @@ mod tests {
 
     #[test]
     fn semantic_tokens_share_editor_type_function_property_classification() {
-        let source = "struct point { x: int } with:\n  our p.norm2 = p.x\n";
+        let source = "\
+struct point { x: int } with:
+  our p.norm2 = p.x
+my make(x) = { name: x }
+my got = make(1).norm2
+";
         let tokens = decode_tokens(semantic_tokens_for_source(source));
         let ty = token_type_index("type");
         let function = token_type_index("function");
         let property = token_type_index("property");
 
-        assert!(
-            tokens.contains(&(0, 7, 5, ty)),
-            "expected struct name 'point' to be semantic type; got: {tokens:?}"
+        assert_semantic_token_at(&tokens, source, source.find("point").unwrap(), "point", ty);
+        assert_semantic_token_at(
+            &tokens,
+            source,
+            source.find("make").unwrap(),
+            "make",
+            function,
         );
-        assert!(
-            tokens.contains(&(1, 8, 5, function)),
-            "expected dot-field 'norm2' to be semantic function; got: {tokens:?}"
+        assert_semantic_token_at(
+            &tokens,
+            source,
+            source.rfind("make").unwrap(),
+            "make",
+            function,
         );
-        assert!(
-            !tokens.contains(&(1, 8, 5, property)),
-            "expected dot-field 'norm2' not to be semantic property; got: {tokens:?}"
+        assert_semantic_token_at(
+            &tokens,
+            source,
+            source.rfind("norm2").unwrap(),
+            "norm2",
+            function,
+        );
+        assert_semantic_token_at(
+            &tokens,
+            source,
+            source.find("name").unwrap(),
+            "name",
+            property,
+        );
+        assert_no_semantic_token_at(
+            &tokens,
+            source,
+            source.rfind("norm2").unwrap(),
+            "norm2",
+            property,
         );
     }
 
@@ -2310,6 +2339,51 @@ mod tests {
             .iter()
             .position(|token| *token == name)
             .expect("semantic token type") as u32
+    }
+
+    fn assert_semantic_token_at(
+        tokens: &[(u32, u32, u32, u32)],
+        source: &str,
+        offset: usize,
+        text: &str,
+        token_type: u32,
+    ) {
+        let expected = semantic_token_tuple_at(source, offset, text, token_type);
+        assert!(
+            tokens.contains(&expected),
+            "expected semantic token {expected:?}; got: {tokens:?}"
+        );
+    }
+
+    fn assert_no_semantic_token_at(
+        tokens: &[(u32, u32, u32, u32)],
+        source: &str,
+        offset: usize,
+        text: &str,
+        token_type: u32,
+    ) {
+        let unexpected = semantic_token_tuple_at(source, offset, text, token_type);
+        assert!(
+            !tokens.contains(&unexpected),
+            "unexpected semantic token {unexpected:?}; got: {tokens:?}"
+        );
+    }
+
+    fn semantic_token_tuple_at(
+        source: &str,
+        offset: usize,
+        text: &str,
+        token_type: u32,
+    ) -> (u32, u32, u32, u32) {
+        assert_eq!(&source[offset..offset + text.len()], text);
+        let line_starts = compute_line_starts(source);
+        let position = byte_offset_to_position(source, &line_starts, offset);
+        (
+            position.line,
+            position.character,
+            text.encode_utf16().count() as u32,
+            token_type,
+        )
     }
 
     fn decode_tokens(tokens: Vec<SemanticToken>) -> Vec<(u32, u32, u32, u32)> {

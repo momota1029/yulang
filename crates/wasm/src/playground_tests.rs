@@ -377,6 +377,7 @@ sub:
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
+my make() = { name: \"origin\" }
 point { x: 3, y: 4 } .norm2
 ";
         let output = colorize_inner(source);
@@ -390,6 +391,12 @@ point { x: 3, y: 4 } .norm2
         }));
         assert!(!output.spans.iter().any(|span| {
             span.kind == HighlightKind::Property && &source[span.start..span.end] == "norm2"
+        }));
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Function && &source[span.start..span.end] == "make"
+        }));
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Property && &source[span.start..span.end] == "name"
         }));
     }
 
