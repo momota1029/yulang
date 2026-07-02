@@ -6,8 +6,8 @@ This page records evidence for
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
 `file-resource` manifest subset has native normal-commit and unsupported-host
 cases. Native rollback on user error and branch-local multi-shot buffers are now
-covered in both debug and release binaries. Pure mock resource-lifetime behavior
-and packaged archive parity remain open. Contract v0 remains closed in
+covered in debug, release, and packaged archive smoke routes. Pure mock
+resource-lifetime behavior remains open. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -42,6 +42,13 @@ public surface:
   tests/yulang/cases.toml` passes the current native file-resource subset:
   normal commit, user-error rollback, nondet branch-local snapshots, and
   unsupported-host failure.
+- `scripts/package-release.sh --version contract-v1-smoke --target
+  x86_64-unknown-linux-gnu --binary target/release/yulang --out
+  target/release-contract-v1` followed by
+  `scripts/release-archive-smoke.sh
+  target/release-contract-v1/yulang-x86_64-unknown-linux-gnu.tar.gz` passes.
+  The archive smoke expands the packaged binary, uses the bundled standard
+  library, and runs the filtered `file-resource` manifest subset.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
@@ -73,8 +80,7 @@ public surface:
   rewrite still hits a callback residual conflict.
 
 Those canaries are still `migration-canary` evidence. They do not complete
-Contract v1 because they do not yet prove pure mock resource-lifetime parity or
-packaged-release parity.
+Contract v1 because they do not yet prove pure mock resource-lifetime parity.
 
 ## Missing Evidence
 
@@ -87,7 +93,6 @@ executable `file-resource` cases for:
 | Native host | parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
-| Release | packaged archive plus bundled std runs representative `file-resource` cases |
 
 ## Known Blockers
 
@@ -128,8 +133,9 @@ bundled standard library.
 As of 2026-07-02, `scripts/hardening-smoke.sh` and
 `scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
 through the release binary surface. The local release binary passes the current
-native subset including rollback and multi-shot branch buffers. Packaged archive
-parity and mock-host resource-lifetime parity remain open.
+native subset including rollback and multi-shot branch buffers. A locally built
+release archive also passes the same subset through bundled std. Mock-host
+resource-lifetime parity remains open.
 
 ## Rollback Conditions
 

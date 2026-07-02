@@ -22,8 +22,13 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - pure mock file handler で `text_with` commit / rollback / multi-shot commit を
      fixture 化する。
    - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
+     - 2026-07-02: native normal commit / user-error rollback / nondet
+       branch-local snapshot は executable contract 化済み。
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
+     - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
    - packaged binary + bundled std で file-resource contract を走らせる。
+     - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
+   - 残りの大きな blocker は pure mock resource-lifetime parity。
 
 2. **Host act FFI registry**
    - `host act` manifest 生成。
