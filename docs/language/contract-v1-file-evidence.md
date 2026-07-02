@@ -132,11 +132,16 @@ Making those raw helpers public would be the wrong fix. The next fix should
 either provide a mockable public host-act/session boundary for file resources or
 provide a documented public language-level ref view shape that carries the right
 residuals through callbacks. `notes/bugs/ref_constructor_public_path_blocker.yu`
-records the current attempted reduction on the local-ref construction side. It
-is not yet evidence of a specialize2 bug: `dump-poly` reports the external
-`std::control::var::ref { ... }` value constructor as unresolved, so the
-downstream `run` conflict must not be used as proof until the public constructor
-shape is corrected or replaced.
+records the old fully-qualified constructor attempt. It is not evidence of a
+specialize2 bug: `dump-poly` reports the external
+`std::control::var::ref { ... }` value constructor as unresolved. The corrected
+reduction is `notes/bugs/ref_constructor_short_value_probe.yu`: after importing
+`std::control::var::*`, the short `ref { ... }` constructor resolves to
+`d171:"std.control.var.ref"` in `dump-poly`, while `run --print-roots` still
+fails with `conflicting type candidates for slot 0: std::text::str::str vs
+{get: 'open7}`. That narrows the remaining blocker to public ref-view
+construction / specialization for a record-shaped `ref` value over
+handler-local state, not to constructor name resolution.
 
 ## Acceptance Gate
 

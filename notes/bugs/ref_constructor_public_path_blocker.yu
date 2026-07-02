@@ -1,5 +1,6 @@
--- open (2026-07-02): user-level `std::control::var::ref { ... }` is not
--- currently a valid reduced proof for the pure mock `text_with` blocker.
+-- superseded (2026-07-02): the fully-qualified
+-- `std::control::var::ref { ... }` value constructor is not a valid reduced
+-- proof for the pure mock `text_with` blocker.
 --
 -- A pure mock `text_with` implementation still wants to create a managed `ref`
 -- view over handler-local state, then pass that ref to the user callback. The
@@ -12,7 +13,7 @@
 --   - or public source cannot construct that type directly, and the file mock
 --     path needs a different public host-act/session boundary.
 --
--- Current:
+-- Fully-qualified constructor result:
 --   `yulang check` currently succeeds, but `dump-poly` shows the annotated
 --   constructor expression is lowered as `<missing>`:
 --
@@ -22,10 +23,18 @@
 --
 --     conflicting type candidates for slot 0: std::text::str::str vs {get: 'open7}
 --
--- That specialize conflict is not yet a trustworthy compiler-only reduction:
--- it follows an unresolved value constructor. Do not use this file as proof of
--- a specialize2 bug until the constructor path is corrected or replaced with a
--- valid public source shape.
+-- That specialize conflict is not a trustworthy compiler-only reduction for
+-- this file: it follows an unresolved value constructor.
+--
+-- Use this newer reduction instead:
+--
+--   notes/bugs/ref_constructor_short_value_probe.yu
+--
+-- The short `ref { ... }` constructor with `use std::control::var::*` resolves
+-- to `d171:"std.control.var.ref"` in `dump-poly`. It still fails at `run`
+-- with the same slot conflict, so the remaining blocker is no longer the
+-- constructor path. It is the public ref-view construction / specialization
+-- boundary for a record-shaped `ref` value over handler-local state.
 --
 -- Do not fix the file mock blocker by making `std::io::file` private snapshot
 -- operations public. The missing abstraction is still expected to be either a

@@ -1,0 +1,33 @@
+-- probe (2026-07-02): public source can construct a `std::control::var::ref`
+-- value with the short `ref { ... }` constructor after importing
+-- `std::control::var::*`.
+--
+-- This separates the mock file-resource blocker from the earlier fully
+-- qualified constructor failure in:
+--   notes/bugs/ref_constructor_public_path_blocker.yu
+--
+-- Desired:
+--   `check` should accept this file.
+--   `run --print-roots` should eventually produce `run roots ["start"]`.
+--
+-- Current:
+--   `check` accepts this file and `dump-poly` resolves the constructor to
+--   `d171:"std.control.var.ref"`.
+--
+--   `run --print-roots` still fails in specialization / monomorphization with:
+--
+--     conflicting type candidates for slot 0: std::text::str::str vs {get: 'open7}
+--
+-- If this fails, the failure is a public ref-view construction blocker and not
+-- evidence about file resource lifetime semantics.
+
+use std::control::var::*
+
+{
+    my &text = "start"
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $text,
+        update_effect: \() -> &text = ref_update::update $text
+    }
+    r.get()
+}

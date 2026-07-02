@@ -23,12 +23,23 @@
 --   rewriting `text_with` only in public Yulang with `read_text` / `write_text`
 --   and a local `$text` ref still needs a public way to construct the managed
 --   `ref` view passed to the callback.
---   The current attempted reduction is in:
+--   The old fully-qualified constructor reduction is in:
 --     notes/bugs/ref_constructor_public_path_blocker.yu
---   That reduction is intentionally not treated as a specialize2 proof yet:
+--   That reduction is intentionally not treated as a specialize2 proof:
 --   `dump-poly` shows `std::control::var::ref` is unresolved as a value
---   constructor in external source, so the downstream run conflict is not
---   trustworthy evidence by itself.
+--   constructor in external source.
+--
+--   The corrected reduction is:
+--     notes/bugs/ref_constructor_short_value_probe.yu
+--   It imports `std::control::var::*` and uses the short `ref { ... }`
+--   constructor. `check` accepts it and `dump-poly` resolves the constructor to
+--   `d171:"std.control.var.ref"`, but `run --print-roots` still fails with:
+--
+--     conflicting type candidates for slot 0: std::text::str::str vs {get: 'open7}
+--
+--   So the remaining blocker is not public name resolution. It is the public
+--   ref-view construction / specialization boundary for a record-shaped `ref`
+--   value over handler-local state.
 --
 -- Do not solve this by making the raw snapshot operations public. The next
 -- proper fix should give file resources a mockable public host-act/session
