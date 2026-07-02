@@ -56,8 +56,8 @@ public surface:
   target/release-contract-v1/yulang-x86_64-unknown-linux-gnu.tar.gz` passes.
   The archive smoke expands the packaged binary, uses the bundled standard
   library, and runs the filtered `file-resource` manifest subset.
-- public signature canaries cover the current file helper surface and reject
-  private evidence in projected types.
+- public signature canaries cover the current file helper surface, carry the
+  `file-resource` tag, and reject private evidence in projected types.
 - The Evidence VM host operation table now carries explicit act and operation
   tier metadata for the current console and file operations. This is not the
   final host act manifest / registry, but it gives that migration one runtime
@@ -207,10 +207,10 @@ As of 2026-07-02, `scripts/hardening-smoke.sh` and
 through the release binary surface. The local release binary passes the current
 subset including native rollback, native multi-shot branch buffers,
 unsupported-host failure, public host-act mocks, the public function-boundary
-managed-ref mock, public helper rollback, and public helper branch-local
-buffers. A locally built release archive also passes the same subset through
-bundled std. Full production `text_with` mock resource-lifetime parity remains
-open.
+managed-ref mock, public helper rollback, public helper branch-local buffers,
+and exact file API public signatures. A locally built release archive also
+passes the same subset through bundled std. Full production `text_with` mock
+resource-lifetime parity remains open.
 
 ## Rollback Conditions
 
