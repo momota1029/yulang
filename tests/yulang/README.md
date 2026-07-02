@@ -38,6 +38,13 @@ Every `standard-api` case must also be classified as exactly one of
 `stable-api` or `migration-canary`. Use `migration-canary` for executable
 coverage of current helper spellings that should not be read as long-term
 compatibility promises.
+`file-resource` is the Contract v1 file/host resource slice, not part of
+Contract v0. Do not combine it with `stable-core`. File resource cases should
+use `resource-lifetime` when they observe commit, rollback, handler-extent
+discharge, branch-local buffers, or last-write-wins. Runtime cases should also
+declare exactly one host scope from `mock-host`, `host.native`, or
+`host.unsupported`. Existing native `std::io::file` helper canaries should stay
+`migration-canary` until they observe the file resource lifetime contract.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower
