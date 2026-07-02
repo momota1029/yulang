@@ -56,6 +56,8 @@ File resource cases use these contract tags:
   discharge, branch-local buffers, or last-write-wins;
 - `metadata` when the case observes non-throwing metadata behavior such as
   missing / denied / other targets represented by `file_meta.kind`;
+- `host-act` when the case observes source handlers intercepting host act
+  operations before the native host registry;
 - `mock-host` for pure Yulang mock host behavior;
 - `host.native` for the native CLI host surface;
 - `host.unsupported` for wasm, playground, sandbox, or other unsupported host
@@ -67,8 +69,10 @@ Rules:
 - Do not combine `stable-api` and `migration-canary`.
 - Any `standard-api` file case still carries exactly one of `stable-api` or
   `migration-canary`.
-- A runtime file-resource case declares exactly one host scope:
-  `mock-host`, `host.native`, or `host.unsupported`.
+- A runtime file-resource case declares a host scope. Native and unsupported
+  host cases choose exactly one of `host.native` or `host.unsupported`;
+  mock-host cases use `mock-host` and normally also set `host.unsupported` so
+  the native registry cannot satisfy the operation first.
 - A `host.unsupported` run case sets `host = "unsupported"` so the manifest
   runner exercises the public `run --host unsupported` CLI route.
 - Each case must fix one compact observation: runtime output, typed failure,

@@ -78,11 +78,11 @@ public surface:
   `yulang contract`, passes `run --host unsupported`, and proves that file
   helpers do not fake success when native host capabilities are unavailable.
 - `tests/yulang/cases.toml` includes `file_mock_read_text_handler`, a focused
-  mock-host canary that runs with `--host unsupported` and handles
-  `std::io::file::file.read_at` in Yulang. It proves that source handlers still
-  intercept file host acts before the host registry, even when native host
-  capabilities are unavailable. This is mock-host evidence for act routing, not
-  resource-lifetime mock evidence.
+  `file-resource` / `host-act` / `mock-host` canary that runs with
+  `--host unsupported` and handles `std::io::file::file.read_at` in Yulang. It
+  proves that source handlers still intercept file host acts before the host
+  registry, even when native host capabilities are unavailable. This is
+  mock-host evidence for act routing, not resource-lifetime mock evidence.
 - `tests/yulang/cases.toml` also includes
   `file_mock_read_write_text_handler`, which handles both public `read_text`
   and `write_text` helper paths through source-level `read_at` / `write_at`

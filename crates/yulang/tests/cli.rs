@@ -3990,6 +3990,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "filesystem"
             | "from"
             | "handler-syntax"
+            | "host-act"
             | "host.native"
             | "host.unsupported"
             | "junction"
@@ -4234,21 +4235,42 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
         if case.kind == "run" {
-            let host_scope_count = ["mock-host", "host.native", "host.unsupported"]
-                .into_iter()
-                .filter(|tag| contract_manifest_case_has_tag(case, tag))
-                .count();
-            assert_eq!(
-                host_scope_count, 1,
-                "file-resource runtime case {} should declare exactly one host scope",
-                case.name
-            );
-            if !contract_manifest_case_has_tag(case, "host.unsupported")
-                && !contract_manifest_case_has_tag(case, "metadata")
-            {
+            let has_mock_host = contract_manifest_case_has_tag(case, "mock-host");
+            let has_native_host = contract_manifest_case_has_tag(case, "host.native");
+            let has_unsupported_host = contract_manifest_case_has_tag(case, "host.unsupported");
+            if has_mock_host {
+                assert!(
+                    !has_native_host,
+                    "file-resource mock-host runtime case {} should not also carry host.native",
+                    case.name
+                );
+                assert!(
+                    has_unsupported_host,
+                    "file-resource mock-host runtime case {} should also run with host.unsupported",
+                    case.name
+                );
+            } else {
+                assert_eq!(
+                    [has_native_host, has_unsupported_host]
+                        .into_iter()
+                        .filter(|present| *present)
+                        .count(),
+                    1,
+                    "file-resource runtime case {} should declare exactly one native or unsupported host scope",
+                    case.name
+                );
+            }
+            if !has_unsupported_host && !contract_manifest_case_has_tag(case, "metadata") {
                 assert!(
                     contract_manifest_case_has_tag(case, "resource-lifetime"),
                     "file-resource runtime case {} should declare resource-lifetime or metadata",
+                    case.name
+                );
+            }
+            if has_mock_host {
+                assert!(
+                    contract_manifest_case_has_any_tag(case, &["host-act", "resource-lifetime"]),
+                    "file-resource mock-host runtime case {} should declare host-act or resource-lifetime",
                     case.name
                 );
             }

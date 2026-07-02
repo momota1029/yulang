@@ -185,6 +185,8 @@ contracts = [
   "standard-api",
   "migration-canary",
   "file",
+  "file-resource",
+  "host-act",
   "mock-host",
   "host.unsupported",
 ]
@@ -202,6 +204,8 @@ contracts = [
   "standard-api",
   "migration-canary",
   "file",
+  "file-resource",
+  "host-act",
   "mock-host",
   "host.unsupported",
 ]

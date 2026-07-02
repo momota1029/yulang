@@ -506,20 +506,43 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
             );
         }
         if case.kind == "run" {
-            let host_scope_count = ["mock-host", "host.native", "host.unsupported"]
+            let has_mock_host = contract_case_has_tag(case, "mock-host");
+            let has_native_host = contract_case_has_tag(case, "host.native");
+            let has_unsupported_host = contract_case_has_tag(case, "host.unsupported");
+            if has_mock_host {
+                if has_native_host {
+                    contract_manifest_fail(
+                        path,
+                        &format!(
+                            "file-resource mock-host runtime case `{}` should not also carry host.native",
+                            case.name
+                        ),
+                    );
+                }
+                if !has_unsupported_host {
+                    contract_manifest_fail(
+                        path,
+                        &format!(
+                            "file-resource mock-host runtime case `{}` should also run with host.unsupported",
+                            case.name
+                        ),
+                    );
+                }
+            } else if [has_native_host, has_unsupported_host]
                 .into_iter()
-                .filter(|tag| contract_case_has_tag(case, tag))
-                .count();
-            if host_scope_count != 1 {
+                .filter(|present| *present)
+                .count()
+                != 1
+            {
                 contract_manifest_fail(
                     path,
                     &format!(
-                        "file-resource runtime case `{}` should carry exactly one host scope",
+                        "file-resource runtime case `{}` should carry exactly one native or unsupported host scope",
                         case.name
                     ),
                 );
             }
-            if !contract_case_has_tag(case, "host.unsupported")
+            if !has_unsupported_host
                 && !contract_case_has_tag(case, "resource-lifetime")
                 && !contract_case_has_tag(case, "metadata")
             {
@@ -527,6 +550,16 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
                     path,
                     &format!(
                         "file-resource runtime case `{}` should carry resource-lifetime or metadata",
+                        case.name
+                    ),
+                );
+            }
+            if has_mock_host && !contract_case_has_any_tag(case, &["host-act", "resource-lifetime"])
+            {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "file-resource mock-host runtime case `{}` should carry host-act or resource-lifetime",
                         case.name
                     ),
                 );
@@ -653,6 +686,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "filesystem"
             | "from"
             | "handler-syntax"
+            | "host-act"
             | "host.native"
             | "host.unsupported"
             | "junction"

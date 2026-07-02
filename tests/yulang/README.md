@@ -44,8 +44,11 @@ compatibility promises.
 Contract v0. Do not combine it with `stable-core`. File resource cases should
 use `resource-lifetime` when they observe commit, rollback, handler-extent
 discharge, branch-local buffers, or last-write-wins, and `metadata` when they
-observe the non-throwing metadata shape. Runtime cases should also declare
-exactly one host scope from `mock-host`, `host.native`, or `host.unsupported`.
+observe the non-throwing metadata shape. Use `host-act` when a case proves
+source handlers intercept host act operations before the native host registry.
+Runtime cases should declare a host scope: `host.native`, `host.unsupported`, or
+`mock-host` plus `host.unsupported` when the mock handler is intentionally run
+with native host capabilities disabled.
 Existing native `std::io::file` helper canaries should stay `migration-canary`
 until they observe the file resource lifetime contract.
 All `public-signature` cases also reject private evidence and placeholder-like
