@@ -123,11 +123,11 @@ public surface:
   boundary. Exact range slicing semantics remain provisional.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
-- `scripts/package-release.sh --version contract-v1-meta-unsupported-smoke --target
+- `scripts/package-release.sh --version contract-v1-directory-metadata --target
   x86_64-unknown-linux-gnu --binary target/release/yulang --out
-  target/release-contract-v1-meta-unsupported-smoke` followed by
+  target/release-contract-v1-directory-metadata` followed by
   `scripts/release-archive-smoke.sh
-  target/release-contract-v1-meta-unsupported-smoke/yulang-x86_64-unknown-linux-gnu.tar.gz`
+  target/release-contract-v1-directory-metadata/yulang-x86_64-unknown-linux-gnu.tar.gz`
   passes. The archive smoke expands the packaged binary, uses the bundled
   standard library, and runs the filtered `file-resource` manifest subset.
 - public signature canaries cover the current file helper surface, carry the
