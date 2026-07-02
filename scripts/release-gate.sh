@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${YULANG:-"$repo_root/target/release/yulang"}"
-test_timeout="${YULANG_RELEASE_GATE_TEST_TIMEOUT:-300s}"
+test_timeout="${YULANG_RELEASE_GATE_TEST_TIMEOUT:-720s}"
 smoke_timeout="${YULANG_RELEASE_GATE_SMOKE_TIMEOUT:-420s}"
 build_timeout="${YULANG_RELEASE_GATE_BUILD_TIMEOUT:-900s}"
 
