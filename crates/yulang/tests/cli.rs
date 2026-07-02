@@ -3905,6 +3905,55 @@ contracts = ["runtime", "stablecore"]
 }
 
 #[test]
+fn contract_command_rejects_file_resource_without_standard_file_tags() {
+    let root = temp_root("contract-rejects-file-resource-area-tags");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let manifest = root.join("cases.toml");
+    fs::write(
+        &manifest,
+        r#"
+[[case]]
+name = "bad_file_resource_area"
+file = "support/unused.yu"
+kind = "run"
+contracts = [
+    "runtime",
+    "file-resource",
+    "resource-lifetime",
+    "host.native",
+]
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg(&manifest)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    assert!(
+        stderr(&output)
+            .contains("file-resource contract case `bad_file_resource_area` should carry standard-api and file"),
+        "{}",
+        stderr(&output)
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn contract_command_rejects_file_resource_runtime_case_without_host_scope() {
     let root = temp_root("contract-rejects-file-resource-without-host-scope");
     let _ = fs::remove_dir_all(&root);
@@ -4439,6 +4488,12 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert!(
             !contract_manifest_case_has_tag(case, "stable-core"),
             "file-resource contract manifest case {} should not be stable-core",
+            case.name
+        );
+        assert!(
+            contract_manifest_case_has_tag(case, "standard-api")
+                && contract_manifest_case_has_tag(case, "file"),
+            "file-resource contract manifest case {} should carry standard-api and file",
             case.name
         );
         if case.kind == "run" {
