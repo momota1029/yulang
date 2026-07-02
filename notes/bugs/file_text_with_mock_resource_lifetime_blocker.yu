@@ -72,6 +72,20 @@
 -- proper fix should give file resources a mockable public host-act/session
 -- boundary or provide a documented public language-level ref view shape that
 -- carries the right residuals through callbacks.
+--
+-- Tried and rejected:
+--   Rewriting `open_in` directly as `read_text path`, a handler-local
+--   `$buffer`, a public `ref { get, update_effect }`, callback invocation, and
+--   `write_text path $buffer` would make the real API mockable through the
+--   public `read_at` / `write_at` operations. However the public `open_in`
+--   callback type currently splits the callback residual candidates:
+--
+--     [file, io_err, &buffer#..., ref_update(str)] vs [&buffer#...]
+--
+--   Existing native `file_text_with_commit`,
+--   `file_text_with_rollback_on_error`, and
+--   `file_text_with_nondet_branch_snapshots` all fail with that shape. So the
+--   direct public-Yulang rewrite is not yet a safe implementation path.
 
 my run(body, backing, buffer) = catch body:
     std::io::file::file::open_text_snapshot_raw path, k -> run (k (0, 0)) backing backing
