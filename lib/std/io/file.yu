@@ -20,7 +20,6 @@ pub act file:
     my file_snapshot_get: file_handle -> str
     my file_snapshot_set: (file_handle, str) -> unit
     my file_snapshot_commit: file_handle -> int
-    my meta_raw: path -> (int, int, bool)
     pub read_at: (path, range) -> (int, str, range)
     pub write_at: (path, range, str) -> int
     pub exists: path -> bool

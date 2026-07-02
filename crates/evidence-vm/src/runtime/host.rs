@@ -36,7 +36,6 @@ pub(super) enum RuntimeHostOperation {
     FileSnapshotGet,
     FileSnapshotSet,
     FileSnapshotCommit,
-    FileMetaRaw,
     FileExists,
     FileIsFile,
     FileIsDir,
@@ -310,14 +309,6 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     },
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::File,
-        operation_id: "meta_raw",
-        tier: RuntimeHostOperationTier::Sync,
-        signature: "path -> (int, int, bool)",
-        path: &["std", "io", "file", "file", "meta_raw"],
-        operation: RuntimeHostOperation::FileMetaRaw,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
         operation_id: "exists",
         tier: RuntimeHostOperationTier::Sync,
         signature: "path -> bool",
@@ -467,7 +458,7 @@ mod tests {
         }
 
         assert_eq!(console_ops, 1, "console out should have one current op");
-        assert_eq!(file_ops, 17, "file act should have current file host ops");
+        assert_eq!(file_ops, 16, "file act should have current file host ops");
         assert_eq!(
             file_buffer_ops, 2,
             "file buffer act should have current ambient host ops"

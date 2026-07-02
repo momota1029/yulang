@@ -24,6 +24,9 @@ public surface:
 - `exists`, `is_file`, and `is_dir` still run through the native CLI host.
   `file_meta { kind, size, readonly }` is now the public metadata shape, and
   the new public `file::meta` operation has native registry coverage.
+- The old private `file::meta_raw` integer-code operation has been removed from
+  `std::io::file` and from the runtime host manifest. Metadata now enters the
+  public surface through `file::meta`.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.

@@ -12182,7 +12182,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(spec, payload),
             RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(spec, payload),
             RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(spec, payload),
-            RuntimeHostOperation::FileMetaRaw => self.file_meta_raw(payload),
             RuntimeHostOperation::FileExists => {
                 let path = runtime_host_path(payload)?;
                 Ok(shared(RuntimeEvidenceValue::Bool(path.exists())))
@@ -12524,36 +12523,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Err(error) => runtime_file_error_code(&error),
         };
         Ok(shared(RuntimeEvidenceValue::Int(code)))
-    }
-
-    fn file_meta_raw(
-        &self,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        let (code, kind, readonly) = match fs::symlink_metadata(path) {
-            Ok(meta) => {
-                let ty = meta.file_type();
-                let kind = if ty.is_file() {
-                    2
-                } else if ty.is_dir() {
-                    3
-                } else if ty.is_symlink() {
-                    4
-                } else {
-                    5
-                };
-                (0, kind, meta.permissions().readonly())
-            }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => (0, 0, false),
-            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => (0, 1, false),
-            Err(_) => (0, 5, false),
-        };
-        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-            shared(RuntimeEvidenceValue::Int(code)),
-            shared(RuntimeEvidenceValue::Int(kind)),
-            shared(RuntimeEvidenceValue::Bool(readonly)),
-        ])))
     }
 
     fn file_buffer_ambient_get(
