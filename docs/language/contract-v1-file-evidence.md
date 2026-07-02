@@ -60,7 +60,8 @@ public surface:
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
 - `io_err::wrap` converts failed file reads and writes into typed result
-  boundaries.
+  boundaries. The `not_found` and `failed` constructors observed by runtime
+  typed-failure cases also have public signature canaries.
 - `open_text`, `open`, and `open_in` remain as legacy native snapshot canaries
   for Stage 2 migration, but they are not substitutes for the Stage 1 protocol
   fixtures.
@@ -295,8 +296,8 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing/file/directory metadata coverage, native
 typed operation-failure coverage, and native unscoped ambient handler-extent
-coverage. The latest local full tag run reports `contract cases ok: 52` after
-adding the unsupported-host `read_text` / `write_text` helper cases.
+coverage. The latest local full tag run reports `contract cases ok: 54` after
+adding `io_err.not_found` / `io_err.failed` public signature canaries.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

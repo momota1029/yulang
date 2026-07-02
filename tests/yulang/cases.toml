@@ -1694,6 +1694,28 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors"]
 
 [[case]]
+name = "std_file_io_err_not_found_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.io_err"
+symbol = "std.io.file.io_err.not_found"
+expect_type = "std::text::path::path -> std::io::file::io_err"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+
+[[case]]
+name = "std_file_io_err_failed_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file.io_err"
+symbol = "std.io.file.io_err.failed"
+expect_type = "std::text::path::path -> std::text::str::str -> std::io::file::io_err"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "file-resource", "host.native", "errors", "typed-failure"]
+
+[[case]]
 name = "std_parse_choice_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
