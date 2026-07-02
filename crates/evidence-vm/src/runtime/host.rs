@@ -37,12 +37,19 @@ pub(super) enum RuntimeHostOperation {
     FileIsDir,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeHostOperationSpec {
     pub(super) act: RuntimeHostAct,
     operation_id: &'static str,
     tier: RuntimeHostOperationTier,
     path: &'static [&'static str],
     pub(super) operation: RuntimeHostOperation,
+}
+
+impl RuntimeHostOperationSpec {
+    pub(super) fn path_strings(self) -> Vec<String> {
+        self.path.iter().map(|part| (*part).to_string()).collect()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,13 +71,13 @@ impl RuntimeHostRegistry {
                 RuntimeHostCapabilityFailure { act: spec.act },
             ));
         }
-        Some(RuntimeHostRequestResolution::Operation(spec.operation))
+        Some(RuntimeHostRequestResolution::Operation(spec))
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostRequestResolution {
-    Operation(RuntimeHostOperation),
+    Operation(&'static RuntimeHostOperationSpec),
     UnsupportedCapability(RuntimeHostCapabilityFailure),
 }
 
@@ -310,15 +317,35 @@ mod tests {
         ];
 
         let resolution = registry.resolve(&path);
+        let spec = runtime_host_operation_spec(&path).expect("file exists op should be registered");
 
         assert_eq!(
             resolution,
             Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure {
-                    act: RuntimeHostAct::File
-                }
+                RuntimeHostCapabilityFailure { act: spec.act }
             ))
         );
+    }
+
+    #[test]
+    fn runtime_host_registry_resolves_to_operation_spec_when_enabled() {
+        let registry = RuntimeHostRegistry::new(true);
+        let path = [
+            "std".into(),
+            "io".into(),
+            "file".into(),
+            "file".into(),
+            "exists".into(),
+        ];
+
+        let spec = runtime_host_operation_spec(&path).expect("file exists op should be registered");
+
+        assert_eq!(
+            registry.resolve(&path),
+            Some(RuntimeHostRequestResolution::Operation(spec))
+        );
+        assert_eq!(spec.operation, RuntimeHostOperation::FileExists);
+        assert_eq!(spec.path_strings(), path.to_vec());
     }
 
     #[test]

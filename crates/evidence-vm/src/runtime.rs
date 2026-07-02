@@ -32,7 +32,10 @@ use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
     format_values_with_display_context, format_values_with_labels,
 };
-use host::{RuntimeHostOperation, RuntimeHostRegistry, RuntimeHostRequestResolution};
+use host::{
+    RuntimeHostOperation, RuntimeHostOperationSpec, RuntimeHostRegistry,
+    RuntimeHostRequestResolution,
+};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceKnownOperationCall, RuntimeEvidenceKnownStateOperationKind,
@@ -11948,9 +11951,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if let Some(resolution) = self.host_registry.resolve(request.path.as_ref()) {
             match resolution {
-                RuntimeHostRequestResolution::Operation(operation) => {
+                RuntimeHostRequestResolution::Operation(spec) => {
                     let value =
-                        self.handle_runtime_host_operation(operation, request.payload.as_ref())?;
+                        self.handle_runtime_host_operation(spec, request.payload.as_ref())?;
                     return self.resume_continuation(request.continuation, value);
                 }
                 RuntimeHostRequestResolution::UnsupportedCapability(failure) => {
@@ -11967,34 +11970,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn handle_runtime_host_operation(
         &mut self,
-        operation: RuntimeHostOperation,
+        spec: &'static RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        match operation {
+        match spec.operation {
             RuntimeHostOperation::ConsoleOutWrite => {
-                push_runtime_host_string_payload(payload, &mut self.stdout).ok_or_else(|| {
-                    RuntimeEvidenceRunError::EscapedEffect(vec![
-                        "std".into(),
-                        "io".into(),
-                        "console".into(),
-                        "out".into(),
-                        "write".into(),
-                    ])
-                })?;
+                push_runtime_host_string_payload(payload, &mut self.stdout)
+                    .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))?;
                 Ok(shared(RuntimeEvidenceValue::Unit))
             }
             RuntimeHostOperation::FileReadAt => self.file_read_at(payload),
             RuntimeHostOperation::FileWriteAt => self.file_write_at(payload),
             RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(payload),
-            RuntimeHostOperation::FileGet => self.file_get(payload),
-            RuntimeHostOperation::FileSet => self.file_set(payload),
-            RuntimeHostOperation::FileFlush => self.file_flush(payload),
+            RuntimeHostOperation::FileGet => self.file_get(spec, payload),
+            RuntimeHostOperation::FileSet => self.file_set(spec, payload),
+            RuntimeHostOperation::FileFlush => self.file_flush(spec, payload),
             RuntimeHostOperation::FileOpenTextSnapshotRaw => {
                 self.file_open_text_snapshot_raw(payload)
             }
-            RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(payload),
-            RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(payload),
-            RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(payload),
+            RuntimeHostOperation::FileSnapshotGet => self.file_snapshot_get(spec, payload),
+            RuntimeHostOperation::FileSnapshotSet => self.file_snapshot_set(spec, payload),
+            RuntimeHostOperation::FileSnapshotCommit => self.file_snapshot_commit(spec, payload),
             RuntimeHostOperation::FileMetaRaw => self.file_meta_raw(payload),
             RuntimeHostOperation::FileExists => {
                 let path = runtime_host_path(payload)?;
@@ -12069,17 +12065,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_get(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let handle = runtime_host_int(payload)?;
         let Some(path) = self.file_handles.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_get".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
         let text = fs::read_to_string(path)
             .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
@@ -12088,19 +12079,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_set(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let args = runtime_host_tuple(payload, 2)?;
         let handle = runtime_host_int(args[0].as_ref())?;
         let text = runtime_host_string(args[1].as_ref())?;
         let Some(path) = self.file_handles.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_set".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
         fs::write(path, text)
             .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
@@ -12109,17 +12095,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_flush(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let handle = runtime_host_int(payload)?;
         if !self.file_handles.contains_key(&handle) {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_flush".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         }
         Ok(shared(RuntimeEvidenceValue::Int(0)))
     }
@@ -12150,36 +12131,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_snapshot_get(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let handle = runtime_host_int(payload)?;
         let Some(snapshot) = self.file_snapshots.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_snapshot_get".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
         Ok(shared(RuntimeEvidenceValue::Str(snapshot.text.clone())))
     }
 
     fn file_snapshot_set(
         &mut self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let args = runtime_host_tuple(payload, 2)?;
         let handle = runtime_host_int(args[0].as_ref())?;
         let text = runtime_host_string(args[1].as_ref())?;
         let Some(snapshot) = self.file_snapshots.get_mut(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_snapshot_set".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
         snapshot.text = text;
         Ok(shared(RuntimeEvidenceValue::Unit))
@@ -12187,17 +12158,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_snapshot_commit(
         &mut self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let handle = runtime_host_int(payload)?;
         let Some(snapshot) = self.file_snapshots.get(&handle) else {
-            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "file_snapshot_commit".into(),
-            ]));
+            return Err(RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()));
         };
         let code = match fs::write(&snapshot.path, &snapshot.text) {
             Ok(()) => 0,
