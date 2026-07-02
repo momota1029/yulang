@@ -3720,6 +3720,101 @@ fn contract_command_rejects_unknown_contract_tag() {
 }
 
 #[test]
+fn contract_command_rejects_unknown_manifest_contract_tag() {
+    let root = temp_root("contract-rejects-unknown-manifest-tag");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let manifest = root.join("cases.toml");
+    fs::write(
+        &manifest,
+        r#"
+[[case]]
+name = "bad_tag"
+file = "support/unused.yu"
+kind = "run"
+contracts = ["runtime", "stablecore"]
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg(&manifest)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    assert!(
+        stderr(&output).contains("has unknown contract tag `stablecore`"),
+        "{}",
+        stderr(&output)
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn contract_command_rejects_file_resource_runtime_case_without_host_scope() {
+    let root = temp_root("contract-rejects-file-resource-without-host-scope");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let manifest = root.join("cases.toml");
+    fs::write(
+        &manifest,
+        r#"
+[[case]]
+name = "bad_file_resource"
+file = "support/unused.yu"
+kind = "run"
+contracts = [
+    "runtime",
+    "standard-api",
+    "migration-canary",
+    "file",
+    "file-resource",
+    "resource-lifetime",
+]
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg(&manifest)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    assert!(
+        stderr(&output).contains(
+            "file-resource runtime case `bad_file_resource` should carry exactly one host scope"
+        ),
+        "{}",
+        stderr(&output)
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn public_contract_manifest_covers_status_spine_claims() {
     let status_path = repo_file("docs/status.md");
     let status = fs::read_to_string(&status_path)

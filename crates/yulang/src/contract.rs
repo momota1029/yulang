@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -14,6 +14,7 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
     let options = ContractOptions { std_root };
     let contract_args = parse_contract_args(program, args);
     let manifest = read_contract_manifest(&contract_args.manifest);
+    validate_contract_manifest(&contract_args.manifest, &manifest);
     contract_args.validate_contract_filters(&manifest);
     let repo_root = contract_args
         .repo_root
@@ -273,6 +274,355 @@ fn default_contract_repo_root(manifest: &Path) -> PathBuf {
         }
     }
     env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+fn validate_contract_manifest(path: &Path, manifest: &ContractManifest) {
+    let mut names = BTreeSet::new();
+    for case in &manifest.case {
+        if !names.insert(case.name.as_str()) {
+            contract_manifest_fail(
+                path,
+                &format!("duplicate contract case name `{}`", case.name),
+            );
+        }
+        validate_contract_case_tags(path, case);
+        validate_contract_case_kind_tags(path, case);
+        validate_contract_case_shape_tags(path, case);
+        validate_contract_case_expectation_shape(path, case);
+    }
+}
+
+fn validate_contract_case_tags(path: &Path, case: &ContractCase) {
+    if case.contracts.is_empty() {
+        contract_manifest_fail(
+            path,
+            &format!("contract case `{}` should list contract tags", case.name),
+        );
+    }
+    for tag in &case.contracts {
+        if !is_canonical_contract_tag(tag) {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` has non-canonical contract tag `{tag}`",
+                    case.name
+                ),
+            );
+        }
+        if !is_known_contract_tag(tag) {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` has unknown contract tag `{tag}`",
+                    case.name
+                ),
+            );
+        }
+    }
+}
+
+fn validate_contract_case_kind_tags(path: &Path, case: &ContractCase) {
+    match case.kind.as_str() {
+        "run" => {
+            if !contract_case_has_any_tag(case, &["runtime", "runtime-error", "public-example"]) {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "run contract case `{}` should carry runtime, runtime-error, or public-example",
+                        case.name
+                    ),
+                );
+            }
+        }
+        "check" => {
+            if !contract_case_has_tag(case, "diagnostics") {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "check contract case `{}` should carry diagnostics",
+                        case.name
+                    ),
+                );
+            }
+        }
+        "public-signature" => {
+            if !contract_case_has_tag(case, "public-signature") {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "public-signature contract case `{}` should carry public-signature",
+                        case.name
+                    ),
+                );
+            }
+        }
+        other => contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` has unsupported kind `{other}`",
+                case.name
+            ),
+        ),
+    }
+}
+
+fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
+    if contract_case_has_tag(case, "runtime-error") {
+        let runtime_failure = contract_case_has_tag(case, "runtime-failure");
+        let compile_error = contract_case_has_tag(case, "compile-error");
+        if case.expect_success != Some(false) {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "runtime-error contract case `{}` should set expect_success = false",
+                    case.name
+                ),
+            );
+        }
+        if runtime_failure == compile_error {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "runtime-error contract case `{}` should carry exactly one of runtime-failure or compile-error",
+                    case.name
+                ),
+            );
+        }
+    } else if contract_case_has_any_tag(case, &["runtime-failure", "compile-error"]) {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only use runtime-failure or compile-error with runtime-error",
+                case.name
+            ),
+        );
+    }
+
+    if contract_case_has_tag(case, "stable-core")
+        && contract_case_has_any_tag(case, &["preview", "migration-canary", "compile-error"])
+    {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "stable-core contract case `{}` should not carry preview, migration-canary, or compile-error",
+                case.name
+            ),
+        );
+    }
+
+    if contract_case_has_tag(case, "standard-api") {
+        let stable_api = contract_case_has_tag(case, "stable-api");
+        let migration_canary = contract_case_has_tag(case, "migration-canary");
+        if stable_api == migration_canary {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "standard-api contract case `{}` should carry exactly one of stable-api or migration-canary",
+                    case.name
+                ),
+            );
+        }
+        if !contract_case_has_any_tag(case, &["result", "errors", "path", "file"]) {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "standard-api contract case `{}` should carry a narrower API area tag",
+                    case.name
+                ),
+            );
+        }
+    } else if contract_case_has_any_tag(case, &["stable-api", "migration-canary"]) {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only use stable-api or migration-canary with standard-api",
+                case.name
+            ),
+        );
+    }
+
+    if contract_case_has_tag(case, "file-resource") {
+        if contract_case_has_tag(case, "stable-core") {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "file-resource contract case `{}` should not carry stable-core",
+                    case.name
+                ),
+            );
+        }
+        if !contract_case_has_tag(case, "standard-api") || !contract_case_has_tag(case, "file") {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "file-resource contract case `{}` should carry standard-api and file",
+                    case.name
+                ),
+            );
+        }
+        if case.kind == "run" {
+            let host_scope_count = ["mock-host", "host.native", "host.unsupported"]
+                .into_iter()
+                .filter(|tag| contract_case_has_tag(case, tag))
+                .count();
+            if host_scope_count != 1 {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "file-resource runtime case `{}` should carry exactly one host scope",
+                        case.name
+                    ),
+                );
+            }
+            if !contract_case_has_tag(case, "resource-lifetime") {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "file-resource runtime case `{}` should carry resource-lifetime",
+                        case.name
+                    ),
+                );
+            }
+        }
+    }
+
+    if contract_case_has_tag(case, "file")
+        && !contract_case_has_any_tag(case, &["host.native", "host.unsupported", "mock-host"])
+    {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "file contract case `{}` should carry host.native, host.unsupported, or mock-host",
+                case.name
+            ),
+        );
+    }
+}
+
+fn validate_contract_case_expectation_shape(path: &Path, case: &ContractCase) {
+    if case.kind == "public-signature" && case.expect_type.is_none() {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "public-signature contract case `{}` should set expect_type",
+                case.name
+            ),
+        );
+    }
+    if case.kind == "check" {
+        if case.expect_diagnostic_count.is_none()
+            || case.expect_diagnostic_code.is_none()
+            || case.expect_diagnostic_severity.is_none()
+            || case.expect_diagnostic_start.is_none()
+            || case.expect_diagnostic_end.is_none()
+            || case.expect_diagnostic_related_count.is_none()
+        {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "check contract case `{}` should assert diagnostic count, code, severity, primary range, and related count",
+                    case.name
+                ),
+            );
+        }
+    } else if case.expect_diagnostic_start.is_some() || case.expect_diagnostic_end.is_some() {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "non-check contract case `{}` should not assert source diagnostic primary ranges",
+                case.name
+            ),
+        );
+    }
+    if !case.temp_files.is_empty() && case.kind != "run" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only use temp_files with run cases",
+                case.name
+            ),
+        );
+    }
+}
+
+fn contract_case_has_any_tag(case: &ContractCase, tags: &[&str]) -> bool {
+    tags.iter().any(|tag| contract_case_has_tag(case, tag))
+}
+
+fn contract_case_has_tag(case: &ContractCase, tag: &str) -> bool {
+    case.contracts.iter().any(|contract| contract == tag)
+}
+
+fn is_canonical_contract_tag(tag: &str) -> bool {
+    !tag.is_empty()
+        && tag.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-'
+        })
+}
+
+fn is_known_contract_tag(tag: &str) -> bool {
+    matches!(
+        tag,
+        "attached-impl"
+            | "bindings"
+            | "bundled-std"
+            | "callback-residual"
+            | "calls"
+            | "casts"
+            | "compile-error"
+            | "console"
+            | "data-position-effect"
+            | "deep-handler"
+            | "defaults"
+            | "diagnostics"
+            | "display"
+            | "effect-hygiene"
+            | "effects"
+            | "errors"
+            | "file"
+            | "file-resource"
+            | "filesystem"
+            | "from"
+            | "handler-syntax"
+            | "host.native"
+            | "host.unsupported"
+            | "junction"
+            | "lists"
+            | "migration-canary"
+            | "mock-host"
+            | "names"
+            | "parser-dsl"
+            | "path"
+            | "patterns"
+            | "preview"
+            | "public-example"
+            | "public-signature"
+            | "records"
+            | "refs"
+            | "related-ranges"
+            | "release-artifact"
+            | "result"
+            | "resource-lifetime"
+            | "roles"
+            | "runtime"
+            | "runtime-error"
+            | "runtime-failure"
+            | "showcase"
+            | "stable-core"
+            | "stable-api"
+            | "standard-api"
+            | "std.flow"
+            | "std.nondet"
+            | "std.parse"
+            | "std.ref"
+            | "sub-return"
+            | "syntax"
+            | "typechecker"
+            | "typed-failure"
+            | "types"
+            | "up"
+            | "update"
+    )
 }
 
 fn run_contract_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
@@ -802,5 +1152,10 @@ fn contract_yulang_string_literal(path: &Path) -> String {
 
 fn contract_fail(case: &ContractCase, message: &str) -> ! {
     eprintln!("contract case {} failed: {message}", case.name);
+    process::exit(1);
+}
+
+fn contract_manifest_fail(path: &Path, message: &str) -> ! {
+    eprintln!("contract manifest {} failed: {message}", path.display());
     process::exit(1);
 }
