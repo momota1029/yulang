@@ -3,11 +3,16 @@ use std::data::range::*
 use std::text::path::*
 use std::control::var::*
 
+pub enum file_kind = missing | file | dir | symlink | other
+
+pub struct file_meta { kind: file_kind, readonly: bool }
+
 pub act file:
     my open_text_raw: path -> (int, file_handle)
     my file_get: file_handle -> str
     my file_set: (file_handle, str) -> unit
     my file_flush: file_handle -> int
+    my meta_raw: path -> (int, int, bool)
     pub read_at: (path, range) -> (int, str, range)
     pub write_at: (path, range, str) -> int
     pub exists: path -> bool
@@ -27,6 +32,28 @@ my err_from_code(path: path, code: int): io_err =
             io_err::denied path
         else:
             io_err::invalid_path path
+
+my kind_from_code(code: int): file_kind =
+    if std::int::eq code 0:
+        file_kind::missing
+    else:
+        if std::int::eq code 1:
+            file_kind::file
+        else:
+            if std::int::eq code 2:
+                file_kind::dir
+            else:
+                if std::int::eq code 3:
+                    file_kind::symlink
+                else:
+                    file_kind::other
+
+pub meta(path: path): file_meta =
+    my (code, kind, readonly) = file::meta_raw path
+    if std::int::eq code 0:
+        file_meta { kind: kind_from_code kind, readonly: readonly }
+    else:
+        (err_from_code path code).throw
 
 pub read_at(path: path, r: range): (str, range) =
     my (code, text, valid) = file::read_at (path, r)

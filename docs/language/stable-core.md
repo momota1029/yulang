@@ -73,7 +73,8 @@ stable core yet:
 - full parser DSL runtime exposure;
 - Yumark value model;
 - server resource APIs;
-- filesystem metadata, directory listing, locking, scope-exit write-back, and
+- filesystem metadata beyond the current `file_meta { kind, readonly }`
+  migration canary, directory listing, locking, scope-exit write-back, and
   unsupported-host behavior;
 - file helper spellings tagged `migration-canary`.
 

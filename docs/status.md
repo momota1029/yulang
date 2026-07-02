@@ -44,7 +44,7 @@ manifest tag marks the **Yulang Contract v0** subset described in
 | Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `yulang contract tests/yulang/cases.toml`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
-| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the first `std::io::file` text/helper slice is a native host canary until file-resource metadata/locking/close semantics are finalized. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
+| Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers, and `std::text::path` byte/display behavior are contract-covered, while the first `std::io::file` text/helper/metadata slice is a native host canary until file-resource locking/close semantics and portable metadata expansion are finalized. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | `tests/yulang/cases.toml`; [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); host/filesystem/FFI TODO notes |
 
 A change can be treated as contract-hardening when it improves one of those
 gates without changing parser, inference, standard-library, or runtime
@@ -161,13 +161,15 @@ The columns trace a value through the pipeline:
   manifest contract. Generated error display uses variant labels and payload
   `Display`; `from` variants delegate to the wrapped error's display. Custom
   per-variant wording is a future surface, not part of the current contract.
-- `std::io::file::read_text`, `write_text`, `exists`, `is_file`, and `is_dir`
+- `std::io::file::read_text`, `write_text`, `exists`, `is_file`, `is_dir`,
+  and `meta`
   run through the native CLI host path and return typed `io_err` effects for
-  failed reads/writes. `open_text`, `open`, `open_in`, `text`, and `text_with`
-  also cover the first managed text-ref get/set path. This is the first
-  executable filesystem contract; range writes, metadata, directory listing,
-  locking, and explicit close/scope-exit write-back semantics are still
-  provisional.
+  failed reads/writes/metadata. `meta` currently returns a first
+  `file_meta { kind, readonly }` canary; `open_text`, `open`, `open_in`,
+  `text`, and `text_with` cover the first managed text-ref get/set path. This is
+  the first executable filesystem contract; range writes, directory listing,
+  portable metadata expansion, locking, and explicit close/scope-exit
+  write-back semantics are still provisional.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path

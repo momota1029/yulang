@@ -717,6 +717,17 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "host.native"]
 
 [[case]]
+name = "std_file_meta_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.file"
+symbol = "std.io.file.meta"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::io::file::file_meta"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "migration-canary", "file", "host.native"]
+
+[[case]]
 name = "std_file_open_text_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"

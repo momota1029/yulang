@@ -11956,6 +11956,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if path == ["std", "io", "file", "file", "file_flush"] {
             return self.file_flush(payload).map(Some);
         }
+        if path == ["std", "io", "file", "file", "meta_raw"] {
+            return self.file_meta_raw(payload).map(Some);
+        }
         if path == ["std", "io", "file", "file", "exists"] {
             let path = runtime_host_path(payload)?;
             return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.exists()))));
@@ -12082,6 +12085,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ]));
         }
         Ok(shared(RuntimeEvidenceValue::Int(0)))
+    }
+
+    fn file_meta_raw(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        let (code, kind, readonly) = match fs::symlink_metadata(path) {
+            Ok(meta) => {
+                let ty = meta.file_type();
+                let kind = if ty.is_file() {
+                    1
+                } else if ty.is_dir() {
+                    2
+                } else if ty.is_symlink() {
+                    3
+                } else {
+                    4
+                };
+                (0, kind, meta.permissions().readonly())
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => (0, 0, false),
+            Err(error) => (runtime_file_error_code(&error), 0, false),
+        };
+        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+            shared(RuntimeEvidenceValue::Int(code)),
+            shared(RuntimeEvidenceValue::Int(kind)),
+            shared(RuntimeEvidenceValue::Bool(readonly)),
+        ])))
     }
 
     fn eval_expr_result(

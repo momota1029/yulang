@@ -143,6 +143,52 @@ case result:
 }
 
 #[test]
+fn compatible_run_std_file_meta_reports_file_dir_and_missing_kind() {
+    let root = temp_root("run-std-file-meta-kind");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let file = root.join("input.txt");
+    let dir = root.join("dir");
+    let missing = root.join("missing.txt");
+    let entry = root.join("main.yu");
+    fs::write(&file, "hello").unwrap();
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        &entry,
+        format!(
+            "\
+my file_meta = std::io::file::meta {file}
+my dir_meta = std::io::file::meta {dir}
+my missing_meta = std::io::file::meta {missing}
+(file_meta.kind, dir_meta.kind, missing_meta.kind)
+",
+            file = yulang_string_literal(&file),
+            dir = yulang_string_literal(&dir),
+            missing = yulang_string_literal(&missing),
+        ),
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        "run roots [(file_kind::file, file_kind::dir, file_kind::missing)]\n"
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_std_file_open_text_ref_host_contract() {
     let root = temp_root("run-std-file-open-text-ref");
     let _ = fs::remove_dir_all(&root);
