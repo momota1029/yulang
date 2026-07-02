@@ -168,8 +168,12 @@ The columns trace a value through the pipeline:
   `file_meta { kind, readonly }` canary; `open_text`, `open`, `open_in`,
   `text`, and `text_with` cover the first managed text-ref get/set path. This is
   the first executable filesystem contract; range writes, directory listing,
-  portable metadata expansion, locking, and explicit close/scope-exit
-  write-back semantics are still provisional.
+  portable metadata expansion, and the full executable lowering for managed
+  snapshot transactions are still provisional. The resource lifetime semantics
+  are specified: `_with` resources close at continuation end, unscoped resources
+  close at the provider handler extent, managed lens commits only on normal
+  scope exit, aborted branches roll back, and first-slice lock release may stay
+  tied to handler discharge.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path

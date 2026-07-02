@@ -74,8 +74,11 @@ host resource API は次を共有する。
 - operation failure と capability deny は区別する。
 - high-level managed resource は close 済み state machine を表面に出さない。
 - explicit lifetime が必要な API は `_with` form で scope を受け取る。
-- scope exit で、write-back、unlock、response completion、continuation release などの
-  後処理を行う。
+- `_with` form の resource lifetime は continuation の終端で閉じる。
+- unscoped resource の lifetime は、その resource を供給した handler の extent で閉じる。
+- write-back、unlock、response completion、continuation release などの後処理は、
+  resource lifetime の終端で行う。
+- resource lifetime は値の生存や GC finalizer に依存しない。
 - raw resource は escape hatch であり、managed API の意味論を壊してはいけない。
 
 `_with` form は continuation marker または closure を受け取る。
@@ -116,6 +119,11 @@ stable contract:
 - `file::open_with path do` は file session の lifetime を scope で閉じる。
 - `file.text` / `file.bytes` は whole-file managed lens であり、stream ではない。
 - managed lens には close / save / flush を置かない。
+- managed lens は snapshot transaction であり、scope entry で buffer を作り、
+  scope exit へ到達した分岐だけが commit する。
+- effect abort などで scope exit へ到達しなかった分岐は rollback する。
+- multi-shot resume された分岐は独立に commit し、最終内容は到達順の
+  last-write-wins である。
 - dirty buffer の write-back、unlock、close 相当は lifetime の終端で行う。
 - durability、seek、truncate、sync などは `file.raw` 側へ閉じ込める。
 - `raw.sync` は close ではなく、write capability を手放さない。
@@ -180,6 +188,8 @@ stable contract:
 - external event は、server boundary が明示的に渡した capability だけを見えるものとする。
 - inner handler / local continuation / ref / thunk / closure を host event へ暗黙に渡さない。
 - stored continuation は原則 one-shot であり、multi-shot server continuation は別 capability とする。
+- `server.accept` を multi-shot resume されうる領域の内側で perform することは、
+  最初は typed failure または structured diagnostic として拒否する。
 - HTTP / WebSocket / stdin / test driver は、この core の adapter であって core semantics ではない。
 
 最小の意味論:

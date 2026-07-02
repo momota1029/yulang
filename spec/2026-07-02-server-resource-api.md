@@ -3,6 +3,9 @@
 この文書は、標準 server API の仕様方針を固定する。
 共通の安定度、host capability failure、scope exit の扱いは
 [2026-07-01-stable-standard-api.md](2026-07-01-stable-standard-api.md) に従う。
+multi-shot continuation と resource lifetime の相互作用は
+[2026-07-02-resource-lifetime-decisions.md](../notes/design/2026-07-02-resource-lifetime-decisions.md)
+を意味論の決定として扱う。
 
 目的は HTTP framework を先に作ることではない。
 Yulang の effect / continuation / resource lifetime に沿った host event session を
@@ -79,6 +82,26 @@ serve(action):
 `server.accept` は host event が来るまで current continuation を suspend してよい。
 stored continuation は原則 one-shot である。
 multi-shot server continuation は別 capability と別 API を要求する。
+
+`server.accept` を `undet` / junction / multi-shot resume されうる領域の内側で
+perform することは、最初は typed failure または structured diagnostic として拒否する。
+host scheduler に保存された continuation が複製されると、stored continuation の
+one-shot 保証と request response capability の消費規則が壊れるためである。
+
+## Multi-shot asymmetry with files
+
+file managed lens と server request resource は、multi-shot continuation に対して
+同じ扱いにしない。
+
+file managed lens は snapshot transaction として定義できる。各分岐は独立した buffer を
+持ち、scope exit へ到達した分岐だけが commit し、abort した分岐は rollback する。
+この commit は host state を上書きする操作であり、複数回起きても
+last-write-wins として意味を持てる。
+
+server request resource は外部 event に由来する one-shot response capability である。
+同じ request に対する二重 response や、複製された scheduler continuation からの
+複数 response は意味を持たない。したがって、server の multi-shot 対応は将来の
+別 capability として明示的に設計するまで stable API に入れない。
 
 ## Request / response resource
 
