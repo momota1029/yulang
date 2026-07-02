@@ -188,6 +188,9 @@ public surface:
 - `tests/yulang/cases.toml` also includes `file_meta_unsupported_host`, so the
   metadata path goes through the same unsupported-host capability failure
   instead of returning fake metadata under a sandboxed host.
+- `tests/yulang/cases.toml` includes `file_read_text_unsupported_host`, so the
+  public `read_text` helper also reports unsupported host capability instead of
+  returning fake file contents under a sandboxed host.
 - `tests/yulang/cases.toml` includes `file_text_unsupported_host`, so unscoped
   `file::text` / `file_buffer::ambient_get` also reports unsupported host
   capability instead of returning fake text under a sandboxed host. This is
@@ -289,8 +292,8 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing/file/directory metadata coverage, native
 typed operation-failure coverage, and native unscoped ambient handler-extent
-coverage. The latest local full tag run reports `contract cases ok: 50` after
-adding the public helper typed-failure case.
+coverage. The latest local full tag run reports `contract cases ok: 51` after
+adding the unsupported-host `read_text` helper case.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

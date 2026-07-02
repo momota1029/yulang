@@ -137,6 +137,7 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_text_with_native_nested_state_var
     file_unsupported_host
     file_meta_unsupported_host
+    file_read_text_unsupported_host
     file_text_unsupported_host
     file_text_native_missing_host_io_error
   )
