@@ -56,6 +56,12 @@ mod tests {
             "catch_missing_arm_body" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
             ),
+            "unresolved_method_error" => {
+                include_str!("../../../tests/yulang/regressions/runtime/unresolved_method_error.yu")
+            }
+            "ambiguous_method_error" => {
+                include_str!("../../../tests/yulang/regressions/runtime/ambiguous_method_error.yu")
+            }
             _ => panic!("unknown diagnostics fixture: {name}"),
         }
     }
@@ -711,6 +717,68 @@ pair
             assert_eq!(diagnostic.hint.as_deref(), hint, "{fixture}");
             assert!(diagnostic.related.is_empty(), "{fixture}");
         }
+    }
+
+    #[test]
+    fn check_inner_returns_role_method_diagnostic_payloads() {
+        let output = check_inner(diagnostics_fixture("unresolved_method_error"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+        assert_eq!(diagnostic.label.as_deref(), Some("show"));
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.unresolved-method"));
+        assert_eq!(diagnostic.start, 10);
+        assert_eq!(diagnostic.end, 14);
+        assert!(
+            diagnostic
+                .message
+                .contains("no role implementation satisfies this method call"),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic
+                .hint
+                .as_deref()
+                .unwrap_or_default()
+                .contains("add or import an impl"),
+            "{diagnostic:?}"
+        );
+        assert!(diagnostic.related.is_empty(), "{diagnostic:?}");
+
+        let output = check_inner(diagnostics_fixture("ambiguous_method_error"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+        assert_eq!(diagnostic.label.as_deref(), Some("foo"));
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.ambiguous-method"));
+        assert_eq!(diagnostic.start, 97);
+        assert_eq!(diagnostic.end, 100);
+        assert!(
+            diagnostic
+                .message
+                .contains("more than one role implementation satisfies this method call"),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic
+                .hint
+                .as_deref()
+                .unwrap_or_default()
+                .contains("make the receiver type more specific"),
+            "{diagnostic:?}"
+        );
+        assert_eq!(diagnostic.related.len(), 2, "{diagnostic:?}");
+        assert!(
+            diagnostic
+                .related
+                .iter()
+                .all(|item| item.message.contains("matching impl method candidate")),
+            "{diagnostic:?}"
+        );
     }
 
     #[test]
