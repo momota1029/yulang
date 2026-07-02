@@ -12,6 +12,10 @@ pub act file:
     my file_get: file_handle -> str
     my file_set: (file_handle, str) -> unit
     my file_flush: file_handle -> int
+    my open_text_snapshot_raw: path -> (int, file_handle)
+    my file_snapshot_get: file_handle -> str
+    my file_snapshot_set: (file_handle, str) -> unit
+    my file_snapshot_commit: file_handle -> int
     my meta_raw: path -> (int, int, bool)
     pub read_at: (path, range) -> (int, str, range)
     pub write_at: (path, range, str) -> int
@@ -89,7 +93,31 @@ pub open_text(path: path): ref '[file] str =
 
 pub open(path: path): ref '[file] str = open_text path
 
-pub open_in(path: path, f) = f (open path)
+my open_text_snapshot(path: path): (file_handle, ref '[file] str) =
+    my (code, handle) = file::open_text_snapshot_raw path
+    if std::int::eq code 0:
+        (
+            handle,
+            ref {
+                get: \() -> file::file_snapshot_get handle,
+                update_effect: \() ->
+                    file::file_snapshot_set (
+                        handle,
+                        ref_update::update (file::file_snapshot_get handle)
+                    )
+            }
+        )
+    else:
+        (err_from_code path code).throw
+
+pub open_in(path: path, f: _ [file, io_err, _] -> [_] _) =
+    my (handle, text_ref) = open_text_snapshot path
+    my result = f text_ref
+    my code = file::file_snapshot_commit handle
+    if std::int::eq code 0:
+        result
+    else:
+        (err_from_code path code).throw
 
 pub text(path: path): ref '[file] str = open path
 

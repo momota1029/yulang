@@ -21,6 +21,9 @@ public surface:
   boundaries.
 - `open_text`, `open`, `open_in`, `text`, and `text_with` have basic whole-file
   text-ref get/set coverage.
+- Native `open_in` / `text_with` now use a scoped snapshot handle for the normal
+  path: the buffer changes during the callback, the backing file is unchanged
+  while the callback is running, and normal scope exit commits the final buffer.
 - public signature canaries cover the current file helper surface and reject
   private evidence in projected types.
 
@@ -36,10 +39,32 @@ Contract v1 is complete only after the manifest contains executable
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | pure handler commit, rollback, multi-shot branch commit, handler-extent discharge |
-| Native host | temp-file commit, rollback, multi-shot parity with mock shape |
+| Native host | temp-file rollback, multi-shot branch-local buffers, and parity with mock shape |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 | Release | packaged binary plus bundled std runs representative `file-resource` cases |
+
+## Known Blockers
+
+The first native slice deliberately stops short of rollback and multi-shot
+contract cases. A callback that reads or writes the provided file ref and then
+escapes through an outer error or nondet handler currently exposes a solver
+row-combination gap:
+
+```text
+conflicting type candidates: [std::io::file::file, edit_err] vs [edit_err]
+conflicting type candidates: [std::control::nondet::nondet, std::io::file::file] vs [std::control::nondet::nondet]
+```
+
+The conflict is specific to the provided ref's `file` effect under the outer
+handler. Plain file residuals under `edit_err::wrap` and plain file residuals
+under `.list` both work. Do not paper over this with a fixture-specific
+fallback; the next fix belongs near callback residual inference or the future
+host act/resource operation separation.
+
+The current native snapshot storage is runner-local, not branch-local. It is
+adequate for normal scope-exit commit but is not evidence for multi-shot
+branch-local buffers.
 
 ## Acceptance Gate
 

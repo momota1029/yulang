@@ -177,14 +177,17 @@ The columns trace a value through the pipeline:
   run through the native CLI host path and return typed `io_err` effects for
   failed reads/writes/metadata. `meta` currently returns a first
   `file_meta { kind, readonly }` canary; `open_text`, `open`, `open_in`,
-  `text`, and `text_with` cover the first managed text-ref get/set path. This is
-  the first executable filesystem contract; range writes, directory listing,
-  portable metadata expansion, and the full executable lowering for managed
-  snapshot transactions are still provisional. The resource lifetime semantics
-  are specified: `_with` resources close at continuation end, unscoped resources
-  close at the provider handler extent, managed lens commits only on normal
-  scope exit, aborted branches roll back, and first-slice lock release may stay
-  tied to handler discharge.
+  `text`, and `text_with` cover managed text-ref get/set. The native scoped
+  `open_in` / `text_with` path now uses a snapshot handle for normal scope-exit
+  commit: callback reads and writes see the buffer, while backing-file reads
+  inside the callback still see the old file until the scope returns. This is
+  not yet the full Contract v1 file-resource contract; rollback after dirty
+  callback abort, branch-local multi-shot buffers, directory listing, portable
+  metadata expansion, unsupported-host behavior, and lock release remain
+  provisional. The resource lifetime semantics are specified: `_with` resources
+  close at continuation end, unscoped resources close at the provider handler
+  extent, managed lens commits only on normal scope exit, aborted branches roll
+  back, and first-slice lock release may stay tied to handler discharge.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path

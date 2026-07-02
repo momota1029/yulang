@@ -213,10 +213,13 @@ my direct_result = {{
 my scoped_result = std::io::file::open_in {scoped}: \\&txt ->
     my before = $txt
     &txt = before + \" scoped\"
-    my after = std::io::file::read_text {scoped}
-    (before, after)
+    my buffer = $txt
+    my backing_during_scope = std::io::file::read_text {scoped}
+    (before, buffer, backing_during_scope)
 
-(direct_result, scoped_result)
+my scoped_after = std::io::file::read_text {scoped}
+
+(direct_result, scoped_result, scoped_after)
 ",
             direct = yulang_string_literal(&direct),
             scoped = yulang_string_literal(&scoped),
@@ -237,7 +240,7 @@ my scoped_result = std::io::file::open_in {scoped}: \\&txt ->
     assert_success(&output);
     assert_eq!(
         stdout(&output),
-        "run roots [((\"hello\", \"hello direct\"), (\"hi\", \"hi scoped\"))]\n"
+        "run roots [((\"hello\", \"hello direct\"), (\"hi\", \"hi scoped\", \"hi\"), \"hi scoped\")]\n"
     );
     assert_eq!(fs::read_to_string(&direct).unwrap(), "hello direct");
     assert_eq!(fs::read_to_string(&scoped).unwrap(), "hi scoped");
@@ -270,10 +273,13 @@ my direct_result = {{
 my scoped_result = std::io::file::text_with {scoped}: \\&txt ->
     my before = $txt
     &txt = before + \" scoped\"
-    my after = std::io::file::read_text {scoped}
-    (before, after)
+    my buffer = $txt
+    my backing_during_scope = std::io::file::read_text {scoped}
+    (before, buffer, backing_during_scope)
 
-(direct_result, scoped_result)
+my scoped_after = std::io::file::read_text {scoped}
+
+(direct_result, scoped_result, scoped_after)
 ",
             direct = yulang_string_literal(&direct),
             scoped = yulang_string_literal(&scoped),
@@ -294,7 +300,7 @@ my scoped_result = std::io::file::text_with {scoped}: \\&txt ->
     assert_success(&output);
     assert_eq!(
         stdout(&output),
-        "run roots [((\"hello\", \"hello text\"), (\"hi\", \"hi scoped\"))]\n"
+        "run roots [((\"hello\", \"hello text\"), (\"hi\", \"hi scoped\", \"hi\"), \"hi scoped\")]\n"
     );
     assert_eq!(fs::read_to_string(&direct).unwrap(), "hello text");
     assert_eq!(fs::read_to_string(&scoped).unwrap(), "hi scoped");

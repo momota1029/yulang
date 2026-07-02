@@ -7987,9 +7987,15 @@ struct RuntimeEvidenceRunner<'a> {
     provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
     stdout: String,
     file_handles: HashMap<i64, PathBuf>,
+    file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
     next_file_handle: i64,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
+}
+
+struct RuntimeFileSnapshot {
+    path: PathBuf,
+    text: String,
 }
 
 impl<'a> RuntimeEvidenceRunner<'a> {
@@ -8038,6 +8044,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             provider_delta_plans: Vec::new(),
             stdout: String::new(),
             file_handles: HashMap::new(),
+            file_snapshots: HashMap::new(),
             next_file_handle: 0,
             context,
             stats,
@@ -11956,6 +11963,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if path == ["std", "io", "file", "file", "file_flush"] {
             return self.file_flush(payload).map(Some);
         }
+        if path == ["std", "io", "file", "file", "open_text_snapshot_raw"] {
+            return self.file_open_text_snapshot_raw(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_snapshot_get"] {
+            return self.file_snapshot_get(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_snapshot_set"] {
+            return self.file_snapshot_set(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_snapshot_commit"] {
+            return self.file_snapshot_commit(payload).map(Some);
+        }
         if path == ["std", "io", "file", "file", "meta_raw"] {
             return self.file_meta_raw(payload).map(Some);
         }
@@ -12085,6 +12104,88 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ]));
         }
         Ok(shared(RuntimeEvidenceValue::Int(0)))
+    }
+
+    fn file_open_text_snapshot_raw(
+        &mut self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                return Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+                    shared(RuntimeEvidenceValue::Int(runtime_file_error_code(&error))),
+                    shared(RuntimeEvidenceValue::Int(0)),
+                ])));
+            }
+        };
+        let handle = self.next_file_handle;
+        self.next_file_handle += 1;
+        self.file_snapshots
+            .insert(handle, RuntimeFileSnapshot { path, text });
+        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+            shared(RuntimeEvidenceValue::Int(0)),
+            shared(RuntimeEvidenceValue::Int(handle)),
+        ])))
+    }
+
+    fn file_snapshot_get(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let handle = runtime_host_int(payload)?;
+        let Some(snapshot) = self.file_snapshots.get(&handle) else {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_snapshot_get".into(),
+            ]));
+        };
+        Ok(shared(RuntimeEvidenceValue::Str(snapshot.text.clone())))
+    }
+
+    fn file_snapshot_set(
+        &mut self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 2)?;
+        let handle = runtime_host_int(args[0].as_ref())?;
+        let text = runtime_host_string(args[1].as_ref())?;
+        let Some(snapshot) = self.file_snapshots.get_mut(&handle) else {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_snapshot_set".into(),
+            ]));
+        };
+        snapshot.text = text;
+        Ok(shared(RuntimeEvidenceValue::Unit))
+    }
+
+    fn file_snapshot_commit(
+        &mut self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let handle = runtime_host_int(payload)?;
+        let Some(snapshot) = self.file_snapshots.get(&handle) else {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_snapshot_commit".into(),
+            ]));
+        };
+        let code = match fs::write(&snapshot.path, &snapshot.text) {
+            Ok(()) => 0,
+            Err(error) => runtime_file_error_code(&error),
+        };
+        Ok(shared(RuntimeEvidenceValue::Int(code)))
     }
 
     fn file_meta_raw(

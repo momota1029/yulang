@@ -756,7 +756,7 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.open_in"
-expect_type = "std::text::path::path -> (std::control::var::ref(std::io::file::file, std::text::str::str) [std::io::file::file, std::io::file::io_err] -> ['a] 'b) -> ['a] 'b"
+expect_type = "std::text::path::path -> (std::control::var::ref std::io::file::file std::text::str::str -> ['a] 'b) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "host.native", "refs"]
 
@@ -778,7 +778,7 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.text_with"
-expect_type = "std::text::path::path -> (std::control::var::ref(std::io::file::file, std::text::str::str) [std::io::file::file, std::io::file::io_err] -> ['a] 'b) -> ['a] 'b"
+expect_type = "std::text::path::path -> (std::control::var::ref std::io::file::file std::text::str::str -> ['a] 'b) -> [std::io::file::file, std::io::file::io_err, 'a] 'b"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "migration-canary", "file", "host.native", "refs"]
 
