@@ -2970,12 +2970,13 @@ fn run_host_act_manifest(program: &str, args: VecDeque<OsString>) {
     println!("runtime host manifest:");
     for operation in evidence_vm::runtime_host_manifest_operations() {
         println!(
-            "  act={} op={} tier={} path={} sig={}",
+            "  act={} op={} tier={} path={} sig={} surface={}",
             operation.act_id,
             operation.operation_id,
             operation.tier,
             operation.path.join("."),
-            operation.signature
+            operation.signature,
+            operation.surface
         );
     }
 }

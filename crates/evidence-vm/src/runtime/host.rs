@@ -21,6 +21,13 @@ enum RuntimeHostOperationTier {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeHostOperationSurface {
+    Contract,
+    Migration,
+    RawCompatibility,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostOperation {
     ConsoleOutWrite,
     FileLoad,
@@ -48,6 +55,7 @@ pub(super) struct RuntimeHostOperationSpec {
     pub(super) act: RuntimeHostAct,
     operation_id: &'static str,
     tier: RuntimeHostOperationTier,
+    surface: RuntimeHostOperationSurface,
     signature: &'static str,
     path: &'static [&'static str],
     pub(super) operation: RuntimeHostOperation,
@@ -159,6 +167,7 @@ pub struct RuntimeHostManifestOperation {
     pub act_id: &'static str,
     pub operation_id: &'static str,
     pub tier: &'static str,
+    pub surface: &'static str,
     pub signature: &'static str,
     pub path: &'static [&'static str],
 }
@@ -170,6 +179,7 @@ pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
             act_id: spec.act.manifest_id(),
             operation_id: spec.operation_id,
             tier: spec.tier.manifest_id(),
+            surface: spec.surface.manifest_id(),
             signature: spec.signature,
             path: spec.path,
         })
@@ -194,11 +204,22 @@ impl RuntimeHostOperationTier {
     }
 }
 
+impl RuntimeHostOperationSurface {
+    fn manifest_id(self) -> &'static str {
+        match self {
+            Self::Contract => "contract",
+            Self::Migration => "migration",
+            Self::RawCompatibility => "raw-compat",
+        }
+    }
+}
+
 const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::ConsoleOut,
         operation_id: "write",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "str -> ()",
         path: &["std", "io", "console", "out", "write"],
         operation: RuntimeHostOperation::ConsoleOutWrite,
@@ -207,6 +228,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "load",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "path -> result str io_err",
         path: &["std", "io", "file", "file", "load"],
         operation: RuntimeHostOperation::FileLoad,
@@ -215,6 +237,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "store",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "(path, str) -> result unit io_err",
         path: &["std", "io", "file", "file", "store"],
         operation: RuntimeHostOperation::FileStore,
@@ -223,6 +246,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "meta",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "path -> file_meta",
         path: &["std", "io", "file", "file", "meta"],
         operation: RuntimeHostOperation::FileMeta,
@@ -231,6 +255,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "read_at",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "(path, range) -> result (str, range) io_err",
         path: &["std", "io", "file", "file", "read_at"],
         operation: RuntimeHostOperation::FileReadAt,
@@ -239,6 +264,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "write_at",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "(path, range, str) -> result unit io_err",
         path: &["std", "io", "file", "file", "write_at"],
         operation: RuntimeHostOperation::FileWriteAt,
@@ -247,6 +273,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "open_text_raw",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "path -> result file_handle io_err",
         path: &["std", "io", "file", "file", "open_text_raw"],
         operation: RuntimeHostOperation::FileOpenTextRaw,
@@ -255,6 +282,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_get",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "file_handle -> str",
         path: &["std", "io", "file", "file", "file_get"],
         operation: RuntimeHostOperation::FileGet,
@@ -263,6 +291,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_set",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "(file_handle, str) -> ()",
         path: &["std", "io", "file", "file", "file_set"],
         operation: RuntimeHostOperation::FileSet,
@@ -271,6 +300,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_flush",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "file_handle -> result unit io_err",
         path: &["std", "io", "file", "file", "file_flush"],
         operation: RuntimeHostOperation::FileFlush,
@@ -279,6 +309,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "open_text_snapshot_raw",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "path -> result file_handle io_err",
         path: &["std", "io", "file", "file", "open_text_snapshot_raw"],
         operation: RuntimeHostOperation::FileOpenTextSnapshotRaw,
@@ -287,6 +318,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_get",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "file_handle -> str",
         path: &["std", "io", "file", "file", "file_snapshot_get"],
         operation: RuntimeHostOperation::FileSnapshotGet,
@@ -295,6 +327,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_set",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "(file_handle, str) -> ()",
         path: &["std", "io", "file", "file", "file_snapshot_set"],
         operation: RuntimeHostOperation::FileSnapshotSet,
@@ -303,6 +336,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "file_snapshot_commit",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::RawCompatibility,
         signature: "file_handle -> result unit io_err",
         path: &["std", "io", "file", "file", "file_snapshot_commit"],
         operation: RuntimeHostOperation::FileSnapshotCommit,
@@ -311,6 +345,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "exists",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Migration,
         signature: "path -> bool",
         path: &["std", "io", "file", "file", "exists"],
         operation: RuntimeHostOperation::FileExists,
@@ -319,6 +354,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "is_file",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Migration,
         signature: "path -> bool",
         path: &["std", "io", "file", "file", "is_file"],
         operation: RuntimeHostOperation::FileIsFile,
@@ -327,6 +363,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::File,
         operation_id: "is_dir",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Migration,
         signature: "path -> bool",
         path: &["std", "io", "file", "file", "is_dir"],
         operation: RuntimeHostOperation::FileIsDir,
@@ -335,6 +372,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::FileBuffer,
         operation_id: "ambient_get",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "path -> str",
         path: &["std", "io", "file", "file_buffer", "ambient_get"],
         operation: RuntimeHostOperation::FileBufferAmbientGet,
@@ -343,6 +381,7 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         act: RuntimeHostAct::FileBuffer,
         operation_id: "ambient_set",
         tier: RuntimeHostOperationTier::Sync,
+        surface: RuntimeHostOperationSurface::Contract,
         signature: "(path, str) -> unit",
         path: &["std", "io", "file", "file_buffer", "ambient_set"],
         operation: RuntimeHostOperation::FileBufferAmbientSet,
@@ -466,6 +505,33 @@ mod tests {
     }
 
     #[test]
+    fn runtime_host_operation_table_separates_contract_and_raw_surfaces() {
+        let mut contract_ops = 0;
+        let mut migration_ops = 0;
+        let mut raw_compat_ops = 0;
+        for spec in RUNTIME_HOST_OPERATIONS {
+            match spec.surface {
+                RuntimeHostOperationSurface::Contract => contract_ops += 1,
+                RuntimeHostOperationSurface::Migration => migration_ops += 1,
+                RuntimeHostOperationSurface::RawCompatibility => raw_compat_ops += 1,
+            }
+        }
+
+        assert_eq!(
+            contract_ops, 8,
+            "contract host ops should cover console plus file protocol and ambient ops"
+        );
+        assert_eq!(
+            migration_ops, 3,
+            "migration host ops should cover legacy metadata predicates"
+        );
+        assert_eq!(
+            raw_compat_ops, 8,
+            "raw compatibility ops should stay isolated from the contract surface"
+        );
+    }
+
+    #[test]
     fn runtime_host_operation_manifest_view_has_stable_act_op_tier_keys() {
         let entries = runtime_host_manifest_operations();
         let mut act_op_keys = BTreeSet::new();
@@ -479,6 +545,12 @@ mod tests {
                 entry.operation_id
             );
             assert_eq!(entry.tier, "sync");
+            assert!(
+                matches!(entry.surface, "contract" | "migration" | "raw-compat"),
+                "host manifest operation {}.{} should expose a known surface",
+                entry.act_id,
+                entry.operation_id
+            );
             assert!(
                 !entry.signature.is_empty(),
                 "host manifest operation {}.{} should expose a provisional signature",

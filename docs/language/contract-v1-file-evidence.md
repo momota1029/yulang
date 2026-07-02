@@ -36,6 +36,10 @@ public surface:
   and `file::file_snapshot_commit` also return typed `result ... io_err`
   values at the host act boundary. This removes `legacy_err_from_code` from
   `lib/std/io/file.yu` and removes the runtime integer error-code helper.
+- `debug host-act-manifest` now exposes a `surface` column. Current operations
+  are separated into `contract`, `migration`, and `raw-compat`, so legacy
+  snapshot operations are observable as compatibility surface instead of being
+  mixed into the Contract v1 protocol surface.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
@@ -161,7 +165,8 @@ public surface:
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because raw / snapshot host operations remain as compatibility
 operations, native unscoped ambient read/write failures do not yet have a typed
-file error policy, and raw/provisional isolation is still open.
+file error policy, and the raw/provisional operations have not yet moved behind
+a public session replacement.
 
 ## Missing Evidence
 
@@ -187,7 +192,8 @@ The remaining blockers are Stage 2 host-boundary cleanup items:
 
 - replacing native unscoped ambient read/write escaped-effect fallbacks with a
   typed or structured file failure policy;
-- raw/provisional isolation for legacy snapshot operations and range helpers.
+- replacing or retiring `raw-compat` snapshot operations with a public session
+  boundary.
 
 Do not solve Stage 2 by restoring scoped `file_buffer` operations, transfer
 arms, `same_path` checks, raw snapshot public operations, or weaker public

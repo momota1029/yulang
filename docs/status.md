@@ -188,10 +188,13 @@ The columns trace a value through the pipeline:
   are executable manifest cases, and source mock handlers cover commit,
   rollback, branch-local buffers, and nested cross-file sessions under `--host
   unsupported`. `open_text`, `open`, and `open_in` remain legacy native snapshot
-  canaries, not the center of the Contract v1 evidence. This is still not the
-  full Contract v1 file-resource contract because raw/provisional
-  isolation, native unscoped ambient failure typing, directory listing,
-  portable metadata expansion, and lock release remain provisional. The
+  canaries, not the center of the Contract v1 evidence. The runtime host
+  manifest now exposes `surface=contract|migration|raw-compat`, so those
+  compatibility operations are separated from the contract protocol in debug
+  and release smoke output. This is still not the full Contract v1
+  file-resource contract because a public session replacement for `raw-compat`,
+  native unscoped ambient failure typing, directory listing, portable metadata
+  expansion, and lock release remain provisional. The
   resource lifetime semantics are specified: `_with` resources close at
   continuation end, unscoped resources close at the provider handler extent,
   managed lens commits only on normal scope exit, aborted branches roll back,
