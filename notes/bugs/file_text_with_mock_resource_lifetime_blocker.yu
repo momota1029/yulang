@@ -49,22 +49,13 @@
 --   The same public ref-view commit shape works inline and is covered by:
 --     tests/yulang/regressions/runtime/file_mock_public_ref_view_commit.yu
 --   Moving it behind a reusable `text_with_mock(backing, f)` function now also
---   runs with `--no-cache`.
+--   runs through the normal cached contract route and is covered by:
+--     tests/yulang/regressions/runtime/file_mock_text_with_function_commit.yu
+--   The previous cached-route conflict was fixed by rejecting cached prefix
+--   routes that introduce specialize/control errors and falling back to a full
+--   build.
 --
--- Current blocker D:
---   The same function-shaped reduction still fails through the normal cached
---   route and through `yulang contract`, with:
---
---     conflicting type candidates for slot ...:
---       [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
---         vs
---       [&buffer#...:0(std::text::str::str)]
---
---   Therefore it cannot be promoted into `tests/yulang/cases.toml` until the
---   cached route preserves the same callback residual shape as the no-cache
---   route.
---
--- Remaining blocker C:
+-- Remaining blocker D:
 --   The real `std::io::file::text_with` path still uses private snapshot helper
 --   operations. A public handler can catch the initial
 --   `open_text_snapshot_raw`, but `file_snapshot_get` performed through the

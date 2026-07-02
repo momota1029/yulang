@@ -106,11 +106,9 @@ Current executable mock evidence:
   operations before the native host registry.
 - `file_mock_public_ref_view_commit` proves the inline public ref-view commit
   shape over pure Yulang state.
-- `notes/bugs/file_text_with_mock_function_boundary_blocker.yu` proves that the
-  same public ref-view shape survives a reusable `text_with_mock(backing, f)`
-  function boundary and callback assignment in the no-cache route. It is not a
-  manifest case yet because the normal cached route still reports a callback
-  residual conflict for that source.
+- `file_mock_text_with_function_commit` proves that the same public ref-view
+  shape survives a reusable `text_with_mock(backing, f)` function boundary and
+  callback assignment through the normal cached contract route.
 
 Remaining F1 evidence still needs the real `std::io::file::text_with` surface
 or a public file-session host-act boundary. Do not make private snapshot helper

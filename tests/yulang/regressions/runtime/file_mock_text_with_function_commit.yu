@@ -1,0 +1,16 @@
+use std::control::var::*
+
+my text_with_mock(backing, f) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    my result = f r
+    (result, $buffer)
+}
+
+text_with_mock "start": \&text ->
+    my before = $text
+    &text = before + "!"
+    (before, $text)

@@ -102,8 +102,7 @@ public surface:
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   current pure mock blocker: `text_with` relies on private snapshot helper
   operations that outside source cannot catch, while a public-only local-ref
-  rewrite is now partially executable in the no-cache route but not yet
-  contract-coverable through the normal cached contract runner.
+  rewrite is now contract-covered through a reusable public function boundary.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove pure mock resource-lifetime parity.
@@ -152,14 +151,14 @@ after importing `std::control::var::*`, the short `ref { ... }` constructor
 resolves to `d171:"std.control.var.ref"` in `dump-poly` and runs successfully
 when written with current mutable-binding syntax (`my $text = ...`).
 
-The public ref-view function boundary is partially narrowed but not
-contract-coverable yet: `notes/bugs/file_text_with_mock_function_boundary_blocker.yu`
-runs with `--no-cache`, proving that a reusable `text_with_mock(backing, f)`
-helper can pass a public record-shaped `ref` view to a callback and commit
-callback-local assignment at helper exit in the uncached route. The same source
-still fails through the normal cached run/contract route with a callback
-residual conflict, so it cannot enter `tests/yulang/cases.toml` as a passing
-contract case yet.
+The public ref-view function boundary is now contract-covered by
+`file_mock_text_with_function_commit`. The reduced source originally lived in
+`notes/bugs/file_text_with_mock_function_boundary_blocker.yu`: it proves that a
+reusable `text_with_mock(backing, f)` helper can pass a public record-shaped
+`ref` view to a callback and commit callback-local assignment at helper exit.
+That case used to pass only with `--no-cache`; the CLI now falls back to a full
+build when a std-prefix cache route introduces a specialize/control error, so
+the normal cached contract runner observes the same roots.
 
 The real `std::io::file::text_with` path also still uses private snapshot
 helper operations, and a source-level outer handler cannot fully mock that
@@ -171,7 +170,8 @@ operations public.
 `notes/bugs/ref_update_local_buffer_public_probe.yu` remains a separate
 `.update`-method residual probe: direct `r.update` over a public ref view backed
 by local `$buffer` state still fails, while callback assignment through
-`&text = ...` is executable in the no-cache function-boundary reduction.
+`&text = ...` is executable and contract-covered in the function-boundary
+reduction.
 
 ## Acceptance Gate
 

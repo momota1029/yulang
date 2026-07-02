@@ -1,24 +1,21 @@
--- partially resolved (2026-07-02): a pure public-Yulang `text_with_mock`
--- helper can build a managed ref view over a local `$buffer`, pass it through a
--- function boundary, and commit callback assignment at helper exit on the
--- no-cache route.
+-- resolved for public mock function-boundary shape (2026-07-02): a pure
+-- public-Yulang `text_with_mock` helper can build a managed ref view over a
+-- local `$buffer`, pass it through a function boundary, and commit callback
+-- assignment at helper exit.
 --
 -- The inline shape works and is contract-covered by:
 --   tests/yulang/regressions/runtime/file_mock_public_ref_view_commit.yu
+-- The function-boundary shape works and is contract-covered by:
+--   tests/yulang/regressions/runtime/file_mock_text_with_function_commit.yu
 --
 -- Current:
---   `run --no-cache --host unsupported --print-roots` succeeds with
+--   `run --host unsupported --print-roots` succeeds with
 --   `run roots [(("start", "start!"), "start!")]`.
 --
---   normal cached `run --host unsupported --print-roots` still fails with:
---
---     conflicting type candidates for slot ...:
---       [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
---         vs
---       [&buffer#...:0(std::text::str::str)]
---
--- Therefore this file is not a passing `tests/yulang/cases.toml` contract case
--- yet. The cached route must preserve the same callback residual shape first.
+-- The previous normal cached-route failure was a std-prefix cache artifact
+-- problem: the cached prefix path could introduce a specialize/control error
+-- that the full build did not have. The CLI now rejects that cached route and
+-- falls back to a full build.
 --
 -- Do not solve this by making private `std::io::file` snapshot operations
 -- public, or by adding a name/path special case for this helper. The remaining

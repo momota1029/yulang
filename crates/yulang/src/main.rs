@@ -822,15 +822,30 @@ fn build_control_with_source_key_timed(
     }
 
     let poly_start = Instant::now();
-    let poly = build_poly_with_cache_timed(files, key, &cache, timings.as_deref_mut());
+    let poly = build_poly_with_cache_timed(files.clone(), key, &cache, timings.as_deref_mut());
     if let Some(timings) = timings.as_deref_mut() {
         timings.build_poly = poly_start.elapsed();
     }
-    let output = build_control_from_poly_output_with_optional_mono_cache(
+    let output = match try_build_control_from_poly_output_with_optional_mono_cache(
         poly,
         Some((&cache, key)),
         timings.as_deref_mut(),
-    );
+    ) {
+        Ok(output) => output,
+        Err(()) => {
+            let poly_start = Instant::now();
+            let poly =
+                build_poly_full_miss_with_cache_timed(files, key, &cache, timings.as_deref_mut());
+            if let Some(timings) = timings.as_deref_mut() {
+                timings.build_poly = poly_start.elapsed();
+            }
+            build_control_from_poly_output_with_optional_mono_cache(
+                poly,
+                Some((&cache, key)),
+                timings.as_deref_mut(),
+            )
+        }
+    };
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
         runtime_evidence: output.runtime_evidence.clone(),
@@ -892,6 +907,47 @@ fn build_control_from_poly_output_with_optional_mono_cache(
         file_count: poly.file_count,
         errors: poly.errors,
     }
+}
+
+fn try_build_control_from_poly_output_with_optional_mono_cache(
+    poly: yulang::BuildPolyOutput,
+    mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> Result<yulang::BuildControlOutput, ()> {
+    if !poly.errors.is_empty() {
+        return Err(());
+    }
+
+    let specialize_start = Instant::now();
+    let specialized = specialize::specialize_with_runtime_evidence(&poly.arena).map_err(|_| ())?;
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.specialize = specialize_start.elapsed();
+    }
+
+    let control_lower_start = Instant::now();
+    let program = control_vm::lower(&specialized.program).map_err(|_| ())?;
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.control_lower = control_lower_start.elapsed();
+    }
+
+    if let Some((cache, key)) = mono_cache {
+        let artifact = yulang::cache::CachedMonoArtifact {
+            program: specialized.program.clone(),
+            file_count: poly.file_count,
+            errors: poly.errors.clone(),
+        };
+        if let Err(error) = cache.write_mono_artifact(key, &artifact) {
+            eprintln!("warning: {error}");
+        }
+    }
+
+    Ok(yulang::BuildControlOutput {
+        program,
+        runtime_evidence: specialized.runtime_evidence,
+        labels: poly.labels,
+        file_count: poly.file_count,
+        errors: poly.errors,
+    })
 }
 
 fn specialize_mono_program(
@@ -1881,36 +1937,45 @@ fn build_poly_with_cache_timed(
                 record_runtime_build_cache(&mut timings, cache_kind);
                 return output;
             }
-            record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::FullMiss);
-            let output = run_route_to_value(
-                yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()),
-            );
-            if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
-                eprintln!("warning: {error}");
-            }
-            write_source_unit_closure_artifacts(&files, cache);
-            let poly = output.poly;
-            let artifact = yulang::cache::CachedPolyArtifact {
-                arena: poly.arena,
-                labels: poly.labels,
-                file_count: poly.file_count,
-                errors: poly.errors,
-            };
-            if let Err(error) = cache.write_poly_artifact(key, &artifact) {
-                eprintln!("warning: {error}");
-            }
-            yulang::BuildPolyOutput {
-                arena: artifact.arena,
-                labels: artifact.labels,
-                file_count: artifact.file_count,
-                errors: artifact.errors,
-            }
+            build_poly_full_miss_with_cache_timed(files, key, cache, timings.as_deref_mut())
         }
         Err(error) => {
             eprintln!("warning: {error}");
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::ErrorFallback);
             run_route_to_value(yulang::build_poly_from_collected_sources(files))
         }
+    }
+}
+
+fn build_poly_full_miss_with_cache_timed(
+    files: Vec<yulang::CollectedSource>,
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildPolyOutput {
+    record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::FullMiss);
+    let output = run_route_to_value(yulang::build_poly_and_compiled_unit_from_collected_sources(
+        files.clone(),
+    ));
+    if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
+        eprintln!("warning: {error}");
+    }
+    write_source_unit_closure_artifacts(&files, cache);
+    let poly = output.poly;
+    let artifact = yulang::cache::CachedPolyArtifact {
+        arena: poly.arena,
+        labels: poly.labels,
+        file_count: poly.file_count,
+        errors: poly.errors,
+    };
+    if let Err(error) = cache.write_poly_artifact(key, &artifact) {
+        eprintln!("warning: {error}");
+    }
+    yulang::BuildPolyOutput {
+        arena: artifact.arena,
+        labels: artifact.labels,
+        file_count: artifact.file_count,
+        errors: artifact.errors,
     }
 }
 
@@ -2105,6 +2170,9 @@ fn build_poly_from_compiled_source_unit_prefix(
                 return None;
             }
         };
+    if !output.poly.errors.is_empty() {
+        return None;
+    }
     if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
         eprintln!("warning: {error}");
     }

@@ -5,8 +5,8 @@
 --
 -- This is now a narrower ref.update-specific reduction. It no longer blocks
 -- the function-shaped pure mock text scope: callback assignment through
--- `&text = ...` is executable in the no-cache route recorded by
--- `notes/bugs/file_text_with_mock_function_boundary_blocker.yu`.
+-- `&text = ...` is executable and contract-covered by
+-- `tests/yulang/regressions/runtime/file_mock_text_with_function_commit.yu`.
 --
 -- Expected:
 --   eventually, `run --print-roots` should produce `run roots ["next"]`.
