@@ -33,6 +33,10 @@ matching `compile error [` or `runtime error [` stderr prefix.
 part of the manifest taxonomy. Unsupported-host run cases set
 `host = "unsupported"` so the manifest runner passes `run --host unsupported`
 through the same CLI route users can reproduce.
+Run cases may also set `backend = "control-vm"` or `backend = "interpreter"`
+to pin backend-specific runtime behavior. Such cases must carry the matching
+`backend.control-vm` or `backend.interpreter` tag. The default backend is the
+public evidence VM path and usually does not need an explicit backend tag.
 `stable-core` marks the Yulang Contract v0 subset described in
 `docs/language/stable-core.md`. It is not a synonym for "currently implemented":
 do not combine it with `preview`, `migration-canary`, or `compile-error`.

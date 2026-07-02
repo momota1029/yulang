@@ -65,6 +65,7 @@ struct ContractCase {
     name: String,
     file: String,
     kind: String,
+    backend: Option<String>,
     host: Option<String>,
     root: Option<String>,
     std: Option<String>,
@@ -289,6 +290,7 @@ fn validate_contract_manifest(path: &Path, manifest: &ContractManifest) {
             );
         }
         validate_contract_case_tags(path, case);
+        validate_contract_case_backend(path, case);
         validate_contract_case_host(path, case);
         validate_contract_case_kind_tags(path, case);
         validate_contract_case_shape_tags(path, case);
@@ -322,6 +324,62 @@ fn validate_contract_case_tags(path: &Path, case: &ContractCase) {
                 ),
             );
         }
+    }
+}
+
+fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
+    let backend = case.backend.as_deref().unwrap_or("evidence-vm");
+    match backend {
+        "evidence-vm" | "control-vm" | "interpreter" => {}
+        other => contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` has unsupported backend mode `{other}`",
+                case.name
+            ),
+        ),
+    }
+    if backend != "evidence-vm" && case.kind != "run" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only set backend mode on run cases",
+                case.name
+            ),
+        );
+    }
+    for (tag, expected) in [
+        ("backend.evidence-vm", "evidence-vm"),
+        ("backend.control-vm", "control-vm"),
+        ("backend.interpreter", "interpreter"),
+    ] {
+        if contract_case_has_tag(case, tag) && backend != expected {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` uses {tag} but sets backend = {:?}",
+                    case.name, case.backend
+                ),
+            );
+        }
+    }
+    if backend == "control-vm" && !contract_case_has_tag(case, "backend.control-vm") {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "control-vm contract case `{}` should carry backend.control-vm",
+                case.name
+            ),
+        );
+    }
+    if backend == "interpreter" && !contract_case_has_tag(case, "backend.interpreter") {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "interpreter contract case `{}` should carry backend.interpreter",
+                case.name
+            ),
+        );
     }
 }
 
@@ -666,6 +724,9 @@ fn is_known_contract_tag(tag: &str) -> bool {
     matches!(
         tag,
         "attached-impl"
+            | "backend.control-vm"
+            | "backend.evidence-vm"
+            | "backend.interpreter"
             | "bindings"
             | "bundled-std"
             | "callback-residual"
@@ -752,6 +813,7 @@ fn run_contract_run_case(options: &ContractOptions, repo_root: &Path, case: &Con
     let materialized = materialize_contract_run_case(case, &source_entry, &root);
     let mut command = contract_child_command(options, case);
     command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    push_contract_backend_args(&mut command, case);
     push_contract_host_args(&mut command, case);
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
@@ -925,6 +987,19 @@ fn push_contract_std_args(command: &mut Command, options: &ContractOptions, case
             command.arg("--no-prelude");
         }
         other => contract_fail(case, &format!("unsupported std mode `{other}`")),
+    }
+}
+
+fn push_contract_backend_args(command: &mut Command, case: &ContractCase) {
+    match case.backend.as_deref().unwrap_or("evidence-vm") {
+        "evidence-vm" => {}
+        "control-vm" => {
+            command.arg("--control-vm");
+        }
+        "interpreter" => {
+            command.arg("--interpreter");
+        }
+        other => contract_fail(case, &format!("unsupported backend mode `{other}`")),
     }
 }
 

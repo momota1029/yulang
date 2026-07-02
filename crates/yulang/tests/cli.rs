@@ -4000,6 +4000,9 @@ fn is_known_contract_tag(tag: &str) -> bool {
     matches!(
         tag,
         "attached-impl"
+            | "backend.control-vm"
+            | "backend.evidence-vm"
+            | "backend.interpreter"
             | "bindings"
             | "bundled-std"
             | "callback-residual"
@@ -4109,6 +4112,47 @@ fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
 }
 
 fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
+    let backend = case.backend.as_deref().unwrap_or("evidence-vm");
+    assert!(
+        matches!(backend, "evidence-vm" | "control-vm" | "interpreter"),
+        "contract manifest case {} has unsupported backend mode {backend:?}",
+        case.name
+    );
+    if backend != "evidence-vm" {
+        assert_eq!(
+            case.kind, "run",
+            "contract manifest case {} should only set backend mode on run cases",
+            case.name
+        );
+    }
+    for (tag, expected) in [
+        ("backend.evidence-vm", "evidence-vm"),
+        ("backend.control-vm", "control-vm"),
+        ("backend.interpreter", "interpreter"),
+    ] {
+        if contract_manifest_case_has_tag(case, tag) {
+            assert_eq!(
+                backend, expected,
+                "contract manifest case {} uses {tag} with backend {:?}",
+                case.name, case.backend
+            );
+        }
+    }
+    if backend == "control-vm" {
+        assert!(
+            contract_manifest_case_has_tag(case, "backend.control-vm"),
+            "control-vm contract manifest case {} should carry backend.control-vm",
+            case.name
+        );
+    }
+    if backend == "interpreter" {
+        assert!(
+            contract_manifest_case_has_tag(case, "backend.interpreter"),
+            "interpreter contract manifest case {} should carry backend.interpreter",
+            case.name
+        );
+    }
+
     let host = case.host.as_deref().unwrap_or("native");
     assert!(
         matches!(host, "native" | "unsupported"),
@@ -4614,6 +4658,7 @@ struct PublicContractCase {
     name: String,
     file: String,
     kind: String,
+    backend: Option<String>,
     host: Option<String>,
     root: Option<String>,
     std: Option<String>,
@@ -4691,6 +4736,7 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
     let mut command = yulang_command();
     push_contract_std_args(&mut command, case);
     command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    push_contract_backend_args(&mut command, case);
     push_contract_host_args(&mut command, case);
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
@@ -4861,6 +4907,22 @@ fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
         }
         other => panic!(
             "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    }
+}
+
+fn push_contract_backend_args(command: &mut Command, case: &PublicContractCase) {
+    match case.backend.as_deref().unwrap_or("evidence-vm") {
+        "evidence-vm" => {}
+        "control-vm" => {
+            command.arg("--control-vm");
+        }
+        "interpreter" => {
+            command.arg("--interpreter");
+        }
+        other => panic!(
+            "unsupported backend mode `{other}` in contract case {}",
             case.name
         ),
     }

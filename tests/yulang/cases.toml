@@ -468,6 +468,34 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "runtime-failure", "calls"]
 
 [[case]]
+name = "not_callable_interpreter_unsupported_runtime_error"
+file = "regressions/runtime/not_callable_error.yu"
+kind = "run"
+backend = "interpreter"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature:",
+  "hint: try the control VM oracle or reduce this source to a smaller report",
+]
+contracts = ["runtime-error", "runtime-failure", "calls", "backend.interpreter"]
+
+[[case]]
+name = "not_callable_control_vm_unsupported_runtime_error"
+file = "regressions/runtime/not_callable_error.yu"
+kind = "run"
+backend = "control-vm"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature:",
+  "hint: try the control VM oracle or reduce this source to a smaller report",
+]
+contracts = ["runtime-error", "runtime-failure", "calls", "backend.control-vm"]
+
+[[case]]
 name = "not_record_error"
 file = "regressions/runtime/not_record_error.yu"
 kind = "run"
