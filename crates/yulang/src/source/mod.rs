@@ -1337,6 +1337,7 @@ pub struct SourceDiagnosticRelated {
 pub enum SourceDiagnosticRelatedOrigin {
     TypeAnnotation,
     Expression,
+    ImplCandidate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2892,7 +2893,7 @@ fn role_method_candidate_related(
             Some(SourceDiagnosticRelated {
                 message: format!("matching impl method candidate: {label}"),
                 range,
-                origin: None,
+                origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
             })
         })
         .collect()

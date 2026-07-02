@@ -860,6 +860,13 @@ pair
                 .all(|item| item.message.contains("matching impl method candidate")),
             "{diagnostic:?}"
         );
+        assert!(
+            diagnostic
+                .related
+                .iter()
+                .all(|item| item.origin.as_deref() == Some("impl_candidate")),
+            "{diagnostic:?}"
+        );
     }
 
     #[test]

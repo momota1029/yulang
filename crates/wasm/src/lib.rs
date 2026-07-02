@@ -943,6 +943,7 @@ fn diagnostic_origin_code(origin: &yulang::SourceDiagnosticRelatedOrigin) -> Str
     match origin {
         yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation => "type_annotation".to_string(),
         yulang::SourceDiagnosticRelatedOrigin::Expression => "expression".to_string(),
+        yulang::SourceDiagnosticRelatedOrigin::ImplCandidate => "impl_candidate".to_string(),
     }
 }
 

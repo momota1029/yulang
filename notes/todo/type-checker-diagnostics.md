@@ -56,6 +56,10 @@ playground で同じ構造化診断として扱えるようにする。
   source を `yulang` として返す。
 - LSP diagnostics は `SurfaceDiagnostic.related` を `relatedInformation` として返す。
 - playground / wasm diagnostics は `code` と `related` を JSON payload に残す。
+- 2026-07-03 に ambiguous role method の related candidate に
+  `impl-candidate` origin を載せ、CLI contract / wasm playground payload で
+  同じ構造化 origin を固定した。これはまだ specialization oracle bridge 由来だが、
+  dedicated check-stage owner へ移す時も候補 impl の origin 名は維持する。
 
 ## 次の実装単位
 

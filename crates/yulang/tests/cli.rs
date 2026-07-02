@@ -5341,6 +5341,7 @@ fn public_contract_related_origin_name(
     match origin {
         Some(yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation) => "type-annotation",
         Some(yulang::SourceDiagnosticRelatedOrigin::Expression) => "expression",
+        Some(yulang::SourceDiagnosticRelatedOrigin::ImplCandidate) => "impl-candidate",
         None => "none",
     }
 }

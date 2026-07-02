@@ -1118,6 +1118,7 @@ expect_diagnostic_label = "foo"
 expect_diagnostic_start = 97
 expect_diagnostic_end = 100
 expect_diagnostic_related_count = 2
+expect_diagnostic_related_origins = ["impl-candidate", "impl-candidate"]
 contracts = ["stable-core", "diagnostics", "roles"]
 
 [[case]]
