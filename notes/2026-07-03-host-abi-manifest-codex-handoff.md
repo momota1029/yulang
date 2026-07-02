@@ -245,12 +245,18 @@ scripts/release-smoke.sh <binary>
     manifest with `evidence_vm::runtime_host_manifest_operations()` on
     `(act_id, operation_id, path, tier, surface)`, intentionally excluding
     signature per D6.
-  - Validation run so far:
+  - Validation:
     - `cargo fmt --all -- --check`
+    - `cargo check -q -p poly -p infer -p specialize -p evidence-vm -p yulang`
     - `cargo test -q -p parser host -- --test-threads=1`
     - `cargo test -q -p poly host_manifest -- --test-threads=1`
+    - `cargo test -q -p poly` (`48 passed`)
     - `cargo test -q -p infer host_acts -- --test-threads=1`
-    - `cargo check -q -p infer -p yulang`
+    - `cargo test -q -p infer` (`513 passed`)
+    - `cargo test -q -p evidence-vm` (`105 passed`)
     - `cargo test -q -p yulang --test cli compiler_generated_host_manifest_matches_runtime_stage1_table -- --test-threads=1`
-  - No stop condition hit. Full WP acceptance gate still remains before calling
-    WP2 complete.
+    - `cargo test -q -p yulang --test cli -- --test-threads=1` (`115 passed`)
+    - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource tests/yulang/cases.toml`
+      (`57 passed`)
+  - No stop condition hit. WP2 Stage 1 is complete; WP3 still waits for ABI
+    Stage α.
