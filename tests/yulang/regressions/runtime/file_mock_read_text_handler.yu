@@ -1,0 +1,3 @@
+catch std::io::file::read_text "/mock":
+    std::io::file::file::read_at (path, range), k -> k (0, "mock", range)
+    v -> v
