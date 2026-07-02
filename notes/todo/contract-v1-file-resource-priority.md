@@ -34,6 +34,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
         public file-session or host-act boundary that hides resource-local
         state.
    - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
+     - 2026-07-03: added `file_native_meta_file`, so native metadata now has an
+       isolated positive file case covering `file_meta.kind`, size, and
+       `exists` / `is_file` / `is_dir` wrappers.
      - 2026-07-03: added `file_native_meta_missing`, so native metadata now
        covers a missing target through `file_meta.kind` and proves `exists` /
        `is_file` / `is_dir` stay metadata wrappers.

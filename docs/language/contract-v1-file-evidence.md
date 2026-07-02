@@ -88,6 +88,9 @@ public surface:
   a native CLI host case that calls public `file::load`, `file::store`, and
   `file::meta` directly, checks the compact roots, and verifies the backing
   temp file contents after `store`.
+- `tests/yulang/cases.toml` includes `file_native_meta_file`, which proves
+  native `file::meta` and the predicate wrappers report a normal file as
+  `file_kind::file` with the expected byte size.
 - `tests/yulang/cases.toml` includes `file_native_meta_missing`, which proves
   native `file::meta` reports a missing target through `file_meta.kind` and that
   `exists` / `is_file` / `is_dir` are wrappers over that metadata result rather
@@ -274,7 +277,7 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing metadata coverage, and native unscoped
 ambient handler-extent coverage. The latest local full tag run reports
-`contract cases ok: 47` in about `2m52s`.
+`contract cases ok: 48` in about `2m59s`.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

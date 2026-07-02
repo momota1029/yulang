@@ -132,6 +132,26 @@ contracts = [
 ]
 
 [[case]]
+name = "file_native_meta_file"
+file = "regressions/runtime/file_native_meta_file.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(file_kind::file, 5, false, true, true, false)]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "hello", expect_contents = "hello" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "metadata",
+  "host.native",
+]
+
+[[case]]
 name = "file_read_write_at_native_result"
 file = "regressions/runtime/file_read_write_at_native_result.yu"
 kind = "run"
