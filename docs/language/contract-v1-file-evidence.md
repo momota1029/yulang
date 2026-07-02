@@ -94,10 +94,10 @@ Release evidence should run the same tag filter through the packaged binary and
 bundled standard library.
 
 As of 2026-07-02, `scripts/hardening-smoke.sh` and
-`scripts/release-archive-smoke.sh` run the representative
-`file_text_with_commit` case through the release binary surface. This is release
-evidence for normal native scope-exit commit only; rollback, multi-shot branch
-buffers, mock-host parity, and unsupported-host behavior remain open.
+`scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
+through the release binary surface. This is release evidence for native normal
+scope-exit commit and unsupported-host failure only; rollback, multi-shot branch
+buffers, and mock-host parity remain open.
 
 ## Rollback Conditions
 

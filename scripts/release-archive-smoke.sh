@@ -98,6 +98,5 @@ if [[ "$archive_contract_smoke" != "0" ]]; then
     "$repo_root/tests/yulang/cases.toml" >/dev/null
   "$bin" --std-root "$package_root/lib" contract \
     --contract file-resource \
-    --case file_text_with_commit \
     "$repo_root/tests/yulang/cases.toml" >/dev/null
 fi

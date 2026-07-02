@@ -64,7 +64,6 @@ if [[ "$run_contract_runner_smoke" != "0" ]]; then
   run_timeout "$test_timeout" \
     "$bin" --std-root "$repo_root/lib" contract \
     --contract file-resource \
-    --case file_text_with_commit \
     "$repo_root/tests/yulang/cases.toml"
 fi
 
