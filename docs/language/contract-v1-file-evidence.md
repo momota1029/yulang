@@ -262,7 +262,9 @@ bundled standard library.
 As of the Stage 2 native protocol bridge plus native parity evidence on
 2026-07-03, the local checkout passes the filtered `file-resource` subset with
 source mock handlers, native CLI protocol cases, native nondet/nested
-`text_with` parity, and native unscoped ambient handler-extent coverage.
+`text_with` parity, native missing metadata coverage, and native unscoped
+ambient handler-extent coverage. The latest local full tag run reports
+`contract cases ok: 45` in about `2m19s`.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 
