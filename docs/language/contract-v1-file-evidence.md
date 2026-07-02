@@ -4,11 +4,13 @@ This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
-`file-resource` manifest subset has native normal-commit and unsupported-host
-cases. Native rollback on user error and branch-local multi-shot buffers are now
-covered in debug, release, and packaged archive smoke routes. Pure mock
-resource-lifetime behavior remains open. Contract v0 remains closed in
-[contract-v0-evidence.md](contract-v0-evidence.md).
+`file-resource` manifest subset has native normal-commit, rollback,
+branch-local multi-shot buffer, unsupported-host, and public mock-host cases.
+The current pure mock evidence covers public host-act interception plus a
+public managed-ref view through a reusable helper. Full
+`std::io::file::text_with` pure mock parity remains open because the production
+path still uses private snapshot helper operations. Contract v0 remains closed
+in [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
 
@@ -99,10 +101,18 @@ public surface:
   and `write_text` helper paths through source-level `read_at` / `write_at`
   arms while the native host is disabled. This keeps mock-host evidence on both
   read and write directions without making raw snapshot operations public.
+- `tests/yulang/cases.toml` includes `file_mock_public_ref_view_commit`, which
+  proves the inline public managed-ref view shape over pure Yulang state.
+- `tests/yulang/cases.toml` includes `file_mock_text_with_function_commit`,
+  which proves the same public managed-ref view shape through a reusable
+  `text_with_mock(backing, f)` function boundary. This case also fixes the
+  previous no-cache/cached split: normal cached contract runs now observe the
+  same roots as a full build.
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
-  current pure mock blocker: `text_with` relies on private snapshot helper
-  operations that outside source cannot catch, while a public-only local-ref
-  rewrite is now contract-covered through a reusable public function boundary.
+  remaining pure mock blocker: production `text_with` still relies on private
+  snapshot helper operations that outside source cannot catch, while a
+  public-only local-ref rewrite is now contract-covered through a reusable
+  public function boundary.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove pure mock resource-lifetime parity.
@@ -187,8 +197,10 @@ bundled standard library.
 As of 2026-07-02, `scripts/hardening-smoke.sh` and
 `scripts/release-archive-smoke.sh` run the filtered `file-resource` subset
 through the release binary surface. The local release binary passes the current
-native subset including rollback and multi-shot branch buffers. A locally built
-release archive also passes the same subset through bundled std. Mock-host
+subset including native rollback, native multi-shot branch buffers,
+unsupported-host failure, public host-act mocks, and the public
+function-boundary managed-ref mock. A locally built release archive also passes
+the same subset through bundled std. Full production `text_with` mock
 resource-lifetime parity remains open.
 
 ## Rollback Conditions
