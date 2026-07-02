@@ -84,6 +84,27 @@ contents = "start"
 expect_contents = "start scoped"
 
 [[case]]
+name = "file_unsupported_host"
+file = "regressions/runtime/file_unsupported_host.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file is not available in this runtime",
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "host.unsupported",
+]
+
+[[case]]
 name = "error_wrap_fail"
 file = "regressions/runtime/error_wrap_fail.yu"
 kind = "run"

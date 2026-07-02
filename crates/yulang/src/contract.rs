@@ -65,6 +65,7 @@ struct ContractCase {
     name: String,
     file: String,
     kind: String,
+    host: Option<String>,
     root: Option<String>,
     std: Option<String>,
     expect_success: Option<bool>,
@@ -286,6 +287,7 @@ fn validate_contract_manifest(path: &Path, manifest: &ContractManifest) {
             );
         }
         validate_contract_case_tags(path, case);
+        validate_contract_case_host(path, case);
         validate_contract_case_kind_tags(path, case);
         validate_contract_case_shape_tags(path, case);
         validate_contract_case_expectation_shape(path, case);
@@ -318,6 +320,47 @@ fn validate_contract_case_tags(path: &Path, case: &ContractCase) {
                 ),
             );
         }
+    }
+}
+
+fn validate_contract_case_host(path: &Path, case: &ContractCase) {
+    let host = case.host.as_deref().unwrap_or("native");
+    match host {
+        "native" | "unsupported" => {}
+        other => contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` has unsupported host mode `{other}`",
+                case.name
+            ),
+        ),
+    }
+    if host != "native" && case.kind != "run" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only set host mode on run cases",
+                case.name
+            ),
+        );
+    }
+    if host == "unsupported" && !contract_case_has_tag(case, "host.unsupported") {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "unsupported-host contract case `{}` should carry host.unsupported",
+                case.name
+            ),
+        );
+    }
+    if contract_case_has_tag(case, "host.unsupported") && host != "unsupported" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "host.unsupported contract case `{}` should set host = \"unsupported\"",
+                case.name
+            ),
+        );
     }
 }
 
@@ -474,7 +517,9 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
                     ),
                 );
             }
-            if !contract_case_has_tag(case, "resource-lifetime") {
+            if !contract_case_has_tag(case, "host.unsupported")
+                && !contract_case_has_tag(case, "resource-lifetime")
+            {
                 contract_manifest_fail(
                     path,
                     &format!(
@@ -648,6 +693,7 @@ fn run_contract_run_case(options: &ContractOptions, repo_root: &Path, case: &Con
     let materialized = materialize_contract_run_case(case, &source_entry, &root);
     let mut command = contract_child_command(options, case);
     command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    push_contract_host_args(&mut command, case);
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
     }
@@ -818,6 +864,16 @@ fn push_contract_std_args(command: &mut Command, options: &ContractOptions, case
             command.arg("--no-prelude");
         }
         other => contract_fail(case, &format!("unsupported std mode `{other}`")),
+    }
+}
+
+fn push_contract_host_args(command: &mut Command, case: &ContractCase) {
+    match case.host.as_deref().unwrap_or("native") {
+        "native" => {}
+        "unsupported" => {
+            command.arg("--host").arg("unsupported");
+        }
+        other => contract_fail(case, &format!("unsupported host mode `{other}`")),
     }
 }
 

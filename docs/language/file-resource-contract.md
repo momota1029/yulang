@@ -67,6 +67,8 @@ Rules:
   `migration-canary`.
 - A runtime file-resource case declares exactly one host scope:
   `mock-host`, `host.native`, or `host.unsupported`.
+- A `host.unsupported` run case sets `host = "unsupported"` so the manifest
+  runner exercises the public `run --host unsupported` CLI route.
 - Each case must fix one compact observation: runtime output, typed failure,
   public signature, or structured diagnostic payload.
 - Existing `std::io::file` helper canaries stay `migration-canary` until they

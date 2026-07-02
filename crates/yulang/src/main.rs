@@ -200,6 +200,7 @@ enum RunInput {
 struct RunSelection {
     backend: RunBackend,
     backend_explicit: bool,
+    host: RunHostMode,
     print_roots: bool,
 }
 
@@ -209,6 +210,13 @@ enum RunBackend {
     EvidenceVm,
     ControlVm,
     Mono,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum RunHostMode {
+    #[default]
+    Native,
+    Unsupported,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -474,6 +482,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     let (input, selection) = parse_run_args(program, args);
     if let RunInput::Path(path) = &input {
         if let Some(artifact) = read_control_artifact_or_exit(path) {
+            reject_non_native_run_host(program, selection);
             if selection.backend == RunBackend::Mono {
                 eprintln!("control-vm artifact cannot be run with --interpreter");
                 process::exit(2);
@@ -489,6 +498,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
 
     print_run_input_cst_if_requested(options, &input);
     if selection.backend == RunBackend::Mono {
+        reject_non_native_run_host(program, selection);
         if options.no_prelude {
             let output = match input {
                 RunInput::Path(path) => run_route_to_value(yulang::run_mono_from_entry(path)),
@@ -532,6 +542,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     let eval_start = Instant::now();
     match selection.backend {
         RunBackend::ControlVm => {
+            reject_non_native_run_host(program, selection);
             let output = run_built_control_for_cli(build);
             timings.vm_eval = eval_start.elapsed();
             timings.control_validate = output.timings.validate;
@@ -545,7 +556,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
             }
         }
         RunBackend::EvidenceVm => {
-            let output = run_built_evidence_for_cli(build);
+            let output = match selection.host {
+                RunHostMode::Native => run_built_evidence_for_cli(build),
+                RunHostMode::Unsupported => {
+                    run_built_evidence_for_cli_with_host(build, selection.host)
+                }
+            };
             timings.vm_eval = eval_start.elapsed();
             timings.runtime_execute = output.timings.execute;
             timings.root_format = output.timings.root_format;
@@ -556,6 +572,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
             }
         }
         RunBackend::Mono => unreachable!("mono backend returned before control build"),
+    }
+}
+
+fn reject_non_native_run_host(program: &str, selection: RunSelection) {
+    if selection.host != RunHostMode::Native {
+        print_usage_error_and_exit(program, "run --host unsupported requires the evidence VM");
     }
 }
 

@@ -30,7 +30,9 @@ matching `compile error [` or `runtime error [` stderr prefix.
 `standard-api` cases must name a narrower API area such as `result`, `errors`,
 `path`, or `file`. Standard file API cases must also declare a host scope such as
 `host.native` or `host.unsupported`; the broad `host` tag is intentionally not
-part of the manifest taxonomy.
+part of the manifest taxonomy. Unsupported-host run cases set
+`host = "unsupported"` so the manifest runner passes `run --host unsupported`
+through the same CLI route users can reproduce.
 `stable-core` marks the Yulang Contract v0 subset described in
 `docs/language/stable-core.md`. It is not a synonym for "currently implemented":
 do not combine it with `preview`, `migration-canary`, or `compile-error`.

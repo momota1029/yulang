@@ -65,6 +65,19 @@ pub(super) fn parse_run_args(
                     "--evidence-vm",
                 );
             }
+            Some("--host") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(
+                        program,
+                        "run --host requires native or unsupported",
+                    );
+                };
+                selection.host = parse_run_host_mode_or_exit(program, &value);
+            }
+            Some(value) if value.starts_with("--host=") => {
+                let value = value.strip_prefix("--host=").unwrap_or_default();
+                selection.host = parse_run_host_mode_str_or_exit(program, value);
+            }
             Some("-e") | Some("--eval") => {
                 let Some(value) = args.pop_front() else {
                     print_usage_error_and_exit(program, "run -e requires source text");
@@ -138,6 +151,24 @@ fn set_run_backend(program: &str, selection: &mut RunSelection, backend: RunBack
     }
     selection.backend = backend;
     selection.backend_explicit = true;
+}
+
+fn parse_run_host_mode_or_exit(program: &str, value: &OsString) -> RunHostMode {
+    let Some(value) = value.to_str() else {
+        print_usage_error_and_exit(program, "run --host value must be UTF-8");
+    };
+    parse_run_host_mode_str_or_exit(program, value)
+}
+
+fn parse_run_host_mode_str_or_exit(program: &str, value: &str) -> RunHostMode {
+    match value {
+        "native" => RunHostMode::Native,
+        "unsupported" => RunHostMode::Unsupported,
+        _ => print_usage_error_and_exit(
+            program,
+            &format!("unknown run --host value {value:?}; expected native or unsupported"),
+        ),
+    }
 }
 
 pub(super) fn parse_parse_args(
@@ -445,6 +476,13 @@ pub(super) fn run_built_control_for_cli(build: yulang::BuildControlOutput) -> Cl
 pub(super) fn run_built_evidence_for_cli(
     build: yulang::BuildControlOutput,
 ) -> CliEvidenceRunOutput {
+    run_built_evidence_for_cli_with_host(build, RunHostMode::Native)
+}
+
+pub(super) fn run_built_evidence_for_cli_with_host(
+    build: yulang::BuildControlOutput,
+    host: RunHostMode,
+) -> CliEvidenceRunOutput {
     run_control_on_cli_vm_stack(move || {
         let yulang::BuildControlOutput {
             program,
@@ -459,7 +497,13 @@ pub(super) fn run_built_evidence_for_cli(
         let plan_build = plan_start.elapsed();
 
         let run_start = Instant::now();
-        let output = match evidence_vm::run_program_with_plan(&program, &plan) {
+        let run_result = match host {
+            RunHostMode::Native => evidence_vm::run_program_with_plan(&program, &plan),
+            RunHostMode::Unsupported => {
+                evidence_vm::run_program_with_plan_without_native_host_operations(&program, &plan)
+            }
+        };
+        let output = match run_result {
             Ok(output) => output,
             Err(error) => {
                 eprintln!("{}", format_runtime_evidence_run_error(&error));
@@ -1079,7 +1123,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--print-roots] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported>] [--print-roots] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"

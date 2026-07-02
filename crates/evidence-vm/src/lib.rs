@@ -13,7 +13,7 @@ mod runtime;
 pub use runtime::{
     RuntimeEvidenceDisplayContext, RuntimeEvidenceRunError, RuntimeEvidenceRunOutput,
     RuntimeEvidenceRunStats, run_program, run_program_with_plan,
-    run_program_with_plan_deep_profile,
+    run_program_with_plan_deep_profile, run_program_with_plan_without_native_host_operations,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

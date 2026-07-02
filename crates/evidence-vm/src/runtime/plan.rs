@@ -318,7 +318,6 @@ impl RuntimeEvidenceRunContext {
         self.deep_profile
     }
 
-    #[cfg(test)]
     pub(super) fn without_native_host_operations(mut self) -> Self {
         self.native_host_operations_disabled = true;
         self

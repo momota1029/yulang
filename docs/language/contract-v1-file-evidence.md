@@ -4,10 +4,10 @@ This page records evidence for
 [Contract v1: File Resource](file-resource-contract.md).
 
 Status on 2026-07-02: **open**. The contract box and tag policy exist, and the
-`file-resource` manifest subset has its first native normal-commit case.
-Rollback, branch-local multi-shot buffers, pure mock host behavior, unsupported
-host failure, and release archive parity remain open. Contract v0 remains
-closed in [contract-v0-evidence.md](contract-v0-evidence.md).
+`file-resource` manifest subset has native normal-commit and unsupported-host
+cases. Rollback, branch-local multi-shot buffers, pure mock host behavior, and
+release archive parity remain open. Contract v0 remains closed in
+[contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
 
@@ -37,12 +37,15 @@ public surface:
 - The Evidence VM also has a deny path for known native host operations:
   disabling native host operations in the runtime context reports
   `UnsupportedHostCapability` instead of collapsing into a generic escaped
-  effect. There is not yet a public `host.unsupported` manifest case or
-  playground/wasm route for this behavior.
+  effect.
+- `tests/yulang/cases.toml` includes `file_unsupported_host`, a
+  `file-resource` / `host.unsupported` runtime-failure case. It runs through
+  `yulang contract`, passes `run --host unsupported`, and proves that file
+  helpers do not fake success when native host capabilities are unavailable.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove rollback, branch-local buffers,
-unsupported-host failure, pure mock parity, or packaged-release parity.
+pure mock parity, or packaged-release parity.
 
 ## Missing Evidence
 

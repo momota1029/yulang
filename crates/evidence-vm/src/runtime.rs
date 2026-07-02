@@ -7665,6 +7665,14 @@ pub fn run_program_with_plan(
     RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
 }
 
+pub fn run_program_with_plan_without_native_host_operations(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan).without_native_host_operations();
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_deep_profile(
     program: &Program,
     plan: &EvidenceVmPlan,

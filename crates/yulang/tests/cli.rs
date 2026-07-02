@@ -309,6 +309,41 @@ my scoped_after = std::io::file::read_text {scoped}
 }
 
 #[test]
+fn compatible_run_std_file_unsupported_host_reports_capability_error() {
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--host")
+        .arg("unsupported")
+        .arg("--print-roots")
+        .arg("-e")
+        .arg("std::io::file::exists \"/tmp/yulang-unsupported-host\"")
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("runtime error [yulang.unsupported-host-capability]:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("host capability std::io::file::file is not available"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("run roots [false]"), "{stderr}");
+}
+
+#[test]
 fn compatible_run_accepts_eval_source() {
     let output = yulang_command()
         .arg("--no-prelude")
@@ -4038,6 +4073,34 @@ fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
 }
 
 fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
+    let host = case.host.as_deref().unwrap_or("native");
+    assert!(
+        matches!(host, "native" | "unsupported"),
+        "contract manifest case {} has unsupported host mode {host:?}",
+        case.name
+    );
+    if host != "native" {
+        assert_eq!(
+            case.kind, "run",
+            "contract manifest case {} should only set host mode on run cases",
+            case.name
+        );
+    }
+    if host == "unsupported" {
+        assert!(
+            contract_manifest_case_has_tag(case, "host.unsupported"),
+            "unsupported-host contract manifest case {} should carry host.unsupported",
+            case.name
+        );
+    }
+    if contract_manifest_case_has_tag(case, "host.unsupported") {
+        assert_eq!(
+            host, "unsupported",
+            "host.unsupported contract manifest case {} should set host = \"unsupported\"",
+            case.name
+        );
+    }
+
     if contract_manifest_case_has_tag(case, "runtime-error") {
         let is_runtime_failure = contract_manifest_case_has_tag(case, "runtime-failure");
         let is_compile_error = contract_manifest_case_has_tag(case, "compile-error");
@@ -4114,7 +4177,10 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         );
         if contract_manifest_case_has_tag(case, "file") {
             assert!(
-                contract_manifest_case_has_any_tag(case, &["host.native", "host.unsupported"]),
+                contract_manifest_case_has_any_tag(
+                    case,
+                    &["host.native", "host.unsupported", "mock-host"]
+                ),
                 "standard-api file contract manifest case {} should declare host scope",
                 case.name
             );
@@ -4157,11 +4223,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 "file-resource runtime case {} should declare exactly one host scope",
                 case.name
             );
-            assert!(
-                contract_manifest_case_has_tag(case, "resource-lifetime"),
-                "file-resource runtime case {} should declare resource-lifetime",
-                case.name
-            );
+            if !contract_manifest_case_has_tag(case, "host.unsupported") {
+                assert!(
+                    contract_manifest_case_has_tag(case, "resource-lifetime"),
+                    "file-resource runtime case {} should declare resource-lifetime",
+                    case.name
+                );
+            }
         }
     }
     if contract_manifest_case_has_any_tag(case, &["stable-api", "migration-canary"]) {
@@ -4472,6 +4540,7 @@ struct PublicContractCase {
     name: String,
     file: String,
     kind: String,
+    host: Option<String>,
     root: Option<String>,
     std: Option<String>,
     expect_success: Option<bool>,
@@ -4546,6 +4615,7 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
     let mut command = yulang_command();
     push_contract_std_args(&mut command, case);
     command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    push_contract_host_args(&mut command, case);
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
     }
@@ -4713,6 +4783,19 @@ fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
         }
         other => panic!(
             "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    }
+}
+
+fn push_contract_host_args(command: &mut Command, case: &PublicContractCase) {
+    match case.host.as_deref().unwrap_or("native") {
+        "native" => {}
+        "unsupported" => {
+            command.arg("--host").arg("unsupported");
+        }
+        other => panic!(
+            "unsupported host mode `{other}` in contract case {}",
             case.name
         ),
     }
