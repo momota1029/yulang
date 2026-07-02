@@ -1,0 +1,11 @@
+my path = {{directory}}
+
+my meta = std::io::file::meta path
+
+(
+    meta.kind,
+    meta.readonly,
+    std::io::file::exists path,
+    std::io::file::is_file path,
+    std::io::file::is_dir path,
+)

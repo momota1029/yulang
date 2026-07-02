@@ -92,6 +92,9 @@ public surface:
   native `file::meta` reports a missing target through `file_meta.kind` and that
   `exists` / `is_file` / `is_dir` are wrappers over that metadata result rather
   than separate throwing host probes.
+- `tests/yulang/cases.toml` includes `file_native_meta_directory`, which proves
+  the same public metadata and predicate wrappers report native directories as
+  `file_kind::dir` without asserting environment-dependent directory size.
 - `tests/yulang/cases.toml` includes `file_text_with_native_commit`, which
   proves production `text_with` commits through public `load` / `store` under
   the native CLI host.
@@ -271,7 +274,7 @@ As of the Stage 2 native protocol bridge plus native parity evidence on
 source mock handlers, native CLI protocol cases, native nondet/nested
 `text_with` parity, native missing metadata coverage, and native unscoped
 ambient handler-extent coverage. The latest local full tag run reports
-`contract cases ok: 46` in about `2m58s`.
+`contract cases ok: 47` in about `2m52s`.
 Release/archive smoke also passes against the packaged binary and bundled
 standard library for the same `file-resource` subset.
 

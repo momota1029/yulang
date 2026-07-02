@@ -107,6 +107,8 @@ struct ContractTempFile {
     contents: Option<String>,
     #[serde(default)]
     missing: bool,
+    #[serde(default)]
+    directory: bool,
     expect_contents: Option<String>,
 }
 
@@ -710,6 +712,15 @@ fn validate_contract_case_expectation_shape(path: &Path, case: &ContractCase) {
         );
     }
     for temp_file in &case.temp_files {
+        if temp_file.missing && temp_file.directory {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "temp file placeholder `{}` in contract case `{}` should not be both missing and directory",
+                    temp_file.placeholder, case.name
+                ),
+            );
+        }
         if temp_file.missing {
             if temp_file.contents.is_some() || temp_file.expect_contents.is_some() {
                 contract_manifest_fail(
@@ -720,11 +731,21 @@ fn validate_contract_case_expectation_shape(path: &Path, case: &ContractCase) {
                     ),
                 );
             }
+        } else if temp_file.directory {
+            if temp_file.contents.is_some() || temp_file.expect_contents.is_some() {
+                contract_manifest_fail(
+                    path,
+                    &format!(
+                        "directory temp placeholder `{}` in contract case `{}` should not set contents or expect_contents",
+                        temp_file.placeholder, case.name
+                    ),
+                );
+            }
         } else if temp_file.contents.is_none() {
             contract_manifest_fail(
                 path,
                 &format!(
-                    "temp file placeholder `{}` in contract case `{}` should set contents or missing = true",
+                    "temp file placeholder `{}` in contract case `{}` should set contents, missing = true, or directory = true",
                     temp_file.placeholder, case.name
                 ),
             );
@@ -885,8 +906,22 @@ fn materialize_contract_run_case(
                 ),
             );
         }
-        let path = root.join(format!("temp-{index}.txt"));
-        if let Some(contents) = &temp_file.contents {
+        let path = root.join(if temp_file.directory {
+            format!("temp-{index}.dir")
+        } else {
+            format!("temp-{index}.txt")
+        });
+        if temp_file.directory {
+            fs::create_dir_all(&path).unwrap_or_else(|error| {
+                contract_fail(
+                    case,
+                    &format!(
+                        "failed to create temp directory {}: {error}",
+                        path.display()
+                    ),
+                )
+            });
+        } else if let Some(contents) = &temp_file.contents {
             fs::write(&path, contents).unwrap_or_else(|error| {
                 contract_fail(
                     case,

@@ -126,6 +126,7 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_text_with_nested_cross_file
     file_native_protocol_load_store_meta
     file_native_meta_missing
+    file_native_meta_directory
     file_text_with_native_commit
     file_text_with_native_rollback_on_error
     file_text_with_native_undet_last_write_wins

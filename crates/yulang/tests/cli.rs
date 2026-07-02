@@ -4531,6 +4531,12 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 "contract manifest case {} has an empty temp file placeholder",
                 case.name
             );
+            assert!(
+                !(temp_file.missing && temp_file.directory),
+                "temp file placeholder {:?} in contract manifest case {} should not be both missing and directory",
+                temp_file.placeholder,
+                case.name
+            );
             if temp_file.missing {
                 assert!(
                     temp_file.contents.is_none() && temp_file.expect_contents.is_none(),
@@ -4538,10 +4544,17 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                     temp_file.placeholder,
                     case.name
                 );
+            } else if temp_file.directory {
+                assert!(
+                    temp_file.contents.is_none() && temp_file.expect_contents.is_none(),
+                    "directory temp placeholder {:?} in contract manifest case {} should not set contents or expect_contents",
+                    temp_file.placeholder,
+                    case.name
+                );
             } else {
                 assert!(
                     temp_file.contents.is_some(),
-                    "temp file placeholder {:?} in contract manifest case {} should set contents or missing = true",
+                    "temp file placeholder {:?} in contract manifest case {} should set contents, missing = true, or directory = true",
                     temp_file.placeholder,
                     case.name
                 );
@@ -4957,6 +4970,8 @@ struct PublicContractTempFile {
     contents: Option<String>,
     #[serde(default)]
     missing: bool,
+    #[serde(default)]
+    directory: bool,
     expect_contents: Option<String>,
 }
 
@@ -5036,8 +5051,20 @@ fn materialize_contract_run_case(
             temp_file.placeholder,
             source_entry.display()
         );
-        let path = root.join(format!("temp-{index}.txt"));
-        if let Some(contents) = &temp_file.contents {
+        let path = root.join(if temp_file.directory {
+            format!("temp-{index}.dir")
+        } else {
+            format!("temp-{index}.txt")
+        });
+        if temp_file.directory {
+            fs::create_dir_all(&path).unwrap_or_else(|error| {
+                panic!(
+                    "failed to create temp directory {} for contract case {}: {error}",
+                    path.display(),
+                    case.name
+                )
+            });
+        } else if let Some(contents) = &temp_file.contents {
             fs::write(&path, contents).unwrap_or_else(|error| {
                 panic!(
                     "failed to write temp file {} for contract case {}: {error}",

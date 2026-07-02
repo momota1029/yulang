@@ -173,6 +173,26 @@ contracts = [
 ]
 
 [[case]]
+name = "file_native_meta_directory"
+file = "regressions/runtime/file_native_meta_directory.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(file_kind::dir, false, true, false, true)]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{directory}}", directory = true },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "metadata",
+  "host.native",
+]
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"

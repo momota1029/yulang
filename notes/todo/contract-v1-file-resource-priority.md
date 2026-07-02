@@ -37,6 +37,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: added `file_native_meta_missing`, so native metadata now
        covers a missing target through `file_meta.kind` and proves `exists` /
        `is_file` / `is_dir` stay metadata wrappers.
+     - 2026-07-03: added `file_native_meta_directory`, so native metadata also
+       covers directory kind and predicate wrappers without asserting
+       environment-dependent directory size.
      - 2026-07-02: native normal commit / user-error rollback / nondet
        branch-local snapshot は executable contract 化済み。
      - 2026-07-03: added `file_text_with_native_undet_last_write_wins`, so
