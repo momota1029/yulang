@@ -14,6 +14,7 @@ use crate::{
     EvidenceVmKnownStateOperationPayloadProof, EvidenceVmKnownStateOperationRouteProofId,
     EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
     EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmStaticRouteDynamicReason, EvidenceVmStaticRouteResolution,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -51,6 +52,18 @@ pub(super) struct RuntimeEvidenceRunContext {
     known_operation_reject_blocked_count: usize,
     known_operation_reject_delayed_count: usize,
     known_operation_reject_provider_dirty_count: usize,
+    static_route_sites_total: usize,
+    static_route_static_handler: usize,
+    static_route_static_tail_resumptive: usize,
+    static_route_static_abortive: usize,
+    static_route_static_other_arm: usize,
+    static_route_dynamic_open_row: usize,
+    static_route_dynamic_multiple_candidates: usize,
+    static_route_dynamic_hygiene_barrier: usize,
+    static_route_dynamic_provider_env: usize,
+    static_route_dynamic_delayed_boundary: usize,
+    static_route_dynamic_host_escape: usize,
+    static_route_dynamic_unclassified: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: Vec<Option<RuntimeEvidenceProviderEnv>>,
     value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
@@ -63,6 +76,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     known_state_route_proofs: Vec<Option<RuntimeEvidenceKnownStateRouteProof>>,
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
+    static_routes_by_call: Vec<Option<(ExprId, RuntimeEvidenceStaticRouteResolution)>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,6 +97,24 @@ pub(super) struct RuntimeEvidenceKnownStateRouteProof {
     pub(super) handler_id: u32,
     pub(super) role: EvidenceVmKnownOperationRole,
     pub(super) payload: EvidenceVmKnownStateOperationPayloadProof,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RuntimeEvidenceStaticRouteResolution {
+    StaticTail,
+    StaticOther,
+    Dynamic(RuntimeEvidenceStaticRouteDynamicReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RuntimeEvidenceStaticRouteDynamicReason {
+    OpenRow,
+    MultipleCandidates,
+    HygieneBarrier,
+    ProviderEnvDependent,
+    DelayedBoundary,
+    HostEscape,
+    Unclassified,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -163,6 +195,21 @@ impl RuntimeEvidenceRunContext {
         let known_operation_reject_delayed_count = plan.summary.plan_known_operation_reject_delayed;
         let known_operation_reject_provider_dirty_count =
             plan.summary.plan_known_operation_reject_provider_dirty;
+        let static_route_sites_total = plan.summary.static_route_sites_total;
+        let static_route_static_handler = plan.summary.static_route_static_handler;
+        let static_route_static_tail_resumptive = plan.summary.static_route_static_tail_resumptive;
+        let static_route_static_abortive = plan.summary.static_route_static_abortive;
+        let static_route_static_other_arm = plan.summary.static_route_static_other_arm;
+        let static_route_dynamic_open_row = plan.summary.static_route_dynamic_open_row;
+        let static_route_dynamic_multiple_candidates =
+            plan.summary.static_route_dynamic_multiple_candidates;
+        let static_route_dynamic_hygiene_barrier =
+            plan.summary.static_route_dynamic_hygiene_barrier;
+        let static_route_dynamic_provider_env = plan.summary.static_route_dynamic_provider_env;
+        let static_route_dynamic_delayed_boundary =
+            plan.summary.static_route_dynamic_delayed_boundary;
+        let static_route_dynamic_host_escape = plan.summary.static_route_dynamic_host_escape;
+        let static_route_dynamic_unclassified = plan.summary.static_route_dynamic_unclassified;
         let expr_table_len = evidence_context_expr_table_len(plan);
         let value_provider_envs = value_provider_envs_from_plan(plan, expr_table_len);
         let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
@@ -176,6 +223,7 @@ impl RuntimeEvidenceRunContext {
         let known_state_route_proofs = known_state_route_proofs_from_plan(plan);
         let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
+        let static_routes_by_call = static_routes_by_call_from_plan(plan, expr_table_len);
         Self {
             deep_profile: false,
             provider_slots: plan.objects.providers.len(),
@@ -231,6 +279,18 @@ impl RuntimeEvidenceRunContext {
             known_operation_reject_blocked_count,
             known_operation_reject_delayed_count,
             known_operation_reject_provider_dirty_count,
+            static_route_sites_total,
+            static_route_static_handler,
+            static_route_static_tail_resumptive,
+            static_route_static_abortive,
+            static_route_static_other_arm,
+            static_route_dynamic_open_row,
+            static_route_dynamic_multiple_candidates,
+            static_route_dynamic_hygiene_barrier,
+            static_route_dynamic_provider_env,
+            static_route_dynamic_delayed_boundary,
+            static_route_dynamic_host_escape,
+            static_route_dynamic_unclassified,
             effect_routes: Some(effect_routes),
             value_provider_envs,
             value_capture_slots,
@@ -243,6 +303,7 @@ impl RuntimeEvidenceRunContext {
             known_state_route_proofs,
             operation_visibilities,
             operation_provider_lookups,
+            static_routes_by_call,
         }
     }
 
@@ -310,6 +371,19 @@ impl RuntimeEvidenceRunContext {
         stats.plan_known_operation_reject_delayed = self.known_operation_reject_delayed_count;
         stats.plan_known_operation_reject_provider_dirty =
             self.known_operation_reject_provider_dirty_count;
+        stats.static_route_sites_total = self.static_route_sites_total;
+        stats.static_route_static_handler = self.static_route_static_handler;
+        stats.static_route_static_tail_resumptive = self.static_route_static_tail_resumptive;
+        stats.static_route_static_abortive = self.static_route_static_abortive;
+        stats.static_route_static_other_arm = self.static_route_static_other_arm;
+        stats.static_route_dynamic_open_row = self.static_route_dynamic_open_row;
+        stats.static_route_dynamic_multiple_candidates =
+            self.static_route_dynamic_multiple_candidates;
+        stats.static_route_dynamic_hygiene_barrier = self.static_route_dynamic_hygiene_barrier;
+        stats.static_route_dynamic_provider_env = self.static_route_dynamic_provider_env;
+        stats.static_route_dynamic_delayed_boundary = self.static_route_dynamic_delayed_boundary;
+        stats.static_route_dynamic_host_escape = self.static_route_dynamic_host_escape;
+        stats.static_route_dynamic_unclassified = self.static_route_dynamic_unclassified;
     }
 
     pub(super) fn provider_env_for_value(
@@ -404,6 +478,19 @@ impl RuntimeEvidenceRunContext {
             .and_then(Option::as_ref)
             .and_then(|(expected_callee, operation)| {
                 (*expected_callee == callee).then_some(*operation)
+            })
+    }
+
+    pub(super) fn static_route_for_call(
+        &self,
+        apply: ExprId,
+        callee: ExprId,
+    ) -> Option<RuntimeEvidenceStaticRouteResolution> {
+        self.static_routes_by_call
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)
+            .and_then(|(expected_callee, resolution)| {
+                (*expected_callee == callee).then_some(*resolution)
             })
     }
 
@@ -1012,6 +1099,75 @@ fn operation_visibilities_from_plan(
     table
 }
 
+fn static_routes_by_call_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<(ExprId, RuntimeEvidenceStaticRouteResolution)>> {
+    let operation_objects = operation_objects_by_expr(plan);
+    let mut table = empty_expr_table(len);
+    for operation in &plan.operations {
+        let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
+            continue;
+        };
+        let Some(object) = operation_objects.get(&operation.expr) else {
+            table[apply.0 as usize] = Some((
+                callee,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::Unclassified,
+                ),
+            ));
+            continue;
+        };
+        table[apply.0 as usize] = Some((callee, static_route_resolution(object.static_route)));
+    }
+    table
+}
+
+fn static_route_resolution(
+    resolution: EvidenceVmStaticRouteResolution,
+) -> RuntimeEvidenceStaticRouteResolution {
+    match resolution {
+        EvidenceVmStaticRouteResolution::StaticHandler { arm_class } => {
+            if arm_class == EvidenceVmHandlerArmClass::TailResumptive {
+                RuntimeEvidenceStaticRouteResolution::StaticTail
+            } else {
+                RuntimeEvidenceStaticRouteResolution::StaticOther
+            }
+        }
+        EvidenceVmStaticRouteResolution::Dynamic(reason) => {
+            RuntimeEvidenceStaticRouteResolution::Dynamic(static_route_dynamic_reason(reason))
+        }
+    }
+}
+
+fn static_route_dynamic_reason(
+    reason: EvidenceVmStaticRouteDynamicReason,
+) -> RuntimeEvidenceStaticRouteDynamicReason {
+    match reason {
+        EvidenceVmStaticRouteDynamicReason::OpenRow => {
+            RuntimeEvidenceStaticRouteDynamicReason::OpenRow
+        }
+        EvidenceVmStaticRouteDynamicReason::MultipleCandidates => {
+            RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates
+        }
+        EvidenceVmStaticRouteDynamicReason::HygieneBarrier => {
+            RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier
+        }
+        EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent => {
+            RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent
+        }
+        EvidenceVmStaticRouteDynamicReason::DelayedBoundary => {
+            RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary
+        }
+        EvidenceVmStaticRouteDynamicReason::HostEscape => {
+            RuntimeEvidenceStaticRouteDynamicReason::HostEscape
+        }
+        EvidenceVmStaticRouteDynamicReason::Unclassified => {
+            RuntimeEvidenceStaticRouteDynamicReason::Unclassified
+        }
+    }
+}
+
 fn operation_provider_lookups_from_plan(
     plan: &EvidenceVmPlan,
     len: usize,
@@ -1209,6 +1365,9 @@ mod tests {
                         allowed_set_id: crate::EvidenceVmAllowedSetId(0),
                         legacy_guard_bridge: true,
                     },
+                    static_route: EvidenceVmStaticRouteResolution::Dynamic(
+                        EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent,
+                    ),
                 }],
                 values: vec![EvidenceVmValueObjectPlan {
                     id: 0,

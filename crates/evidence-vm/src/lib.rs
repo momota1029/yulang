@@ -77,6 +77,18 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) plan_known_operation_reject_blocked: usize,
     pub(crate) plan_known_operation_reject_delayed: usize,
     pub(crate) plan_known_operation_reject_provider_dirty: usize,
+    pub(crate) static_route_sites_total: usize,
+    pub(crate) static_route_static_handler: usize,
+    pub(crate) static_route_static_tail_resumptive: usize,
+    pub(crate) static_route_static_abortive: usize,
+    pub(crate) static_route_static_other_arm: usize,
+    pub(crate) static_route_dynamic_open_row: usize,
+    pub(crate) static_route_dynamic_multiple_candidates: usize,
+    pub(crate) static_route_dynamic_hygiene_barrier: usize,
+    pub(crate) static_route_dynamic_provider_env: usize,
+    pub(crate) static_route_dynamic_delayed_boundary: usize,
+    pub(crate) static_route_dynamic_host_escape: usize,
+    pub(crate) static_route_dynamic_unclassified: usize,
     pub(crate) evidence_handler_capabilities: usize,
     pub(crate) evidence_allowed_sets: usize,
     pub(crate) evidence_provider_slots: usize,
@@ -299,6 +311,27 @@ pub(crate) struct EvidenceVmOperationObjectPlan {
     pub(crate) candidate_handler: Option<u32>,
     pub(crate) execution: EvidenceVmOperationExecutionPlan,
     pub(crate) visibility: EvidenceVmOperationVisibilityPlan,
+    pub(crate) static_route: EvidenceVmStaticRouteResolution,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmStaticRouteResolution {
+    StaticHandler {
+        arm_class: EvidenceVmHandlerArmClass,
+    },
+    Dynamic(EvidenceVmStaticRouteDynamicReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum EvidenceVmStaticRouteDynamicReason {
+    OpenRow,
+    MultipleCandidates,
+    HygieneBarrier,
+    ProviderEnvDependent,
+    DelayedBoundary,
+    HostEscape,
+    Unclassified,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -718,6 +751,28 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  static_route_sites: total {} static_handler {} tail_resumptive {} abortive {} other_arm {}",
+        summary.static_route_sites_total,
+        summary.static_route_static_handler,
+        summary.static_route_static_tail_resumptive,
+        summary.static_route_static_abortive,
+        summary.static_route_static_other_arm
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
+        "  static_route_dynamic: open_row {} multiple_candidates {} hygiene_barrier {} provider_env {} delayed_boundary {} host_escape {} unclassified {}",
+        summary.static_route_dynamic_open_row,
+        summary.static_route_dynamic_multiple_candidates,
+        summary.static_route_dynamic_hygiene_barrier,
+        summary.static_route_dynamic_provider_env,
+        summary.static_route_dynamic_delayed_boundary,
+        summary.static_route_dynamic_host_escape,
+        summary.static_route_dynamic_unclassified
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -746,6 +801,7 @@ fn summarize_plan(
     objects: &EvidenceVmObjectPlan,
 ) -> EvidenceVmSummary {
     let known_operation_counts = known_operation_counts(operations, objects);
+    let static_route_counts = static_route_counts(operations, objects);
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
         handler_continuation_direct_calls: handlers
@@ -833,6 +889,18 @@ fn summarize_plan(
         plan_known_operation_reject_blocked: known_operation_counts.reject_blocked,
         plan_known_operation_reject_delayed: known_operation_counts.reject_delayed,
         plan_known_operation_reject_provider_dirty: known_operation_counts.reject_provider_dirty,
+        static_route_sites_total: static_route_counts.sites_total,
+        static_route_static_handler: static_route_counts.static_handler,
+        static_route_static_tail_resumptive: static_route_counts.static_tail_resumptive,
+        static_route_static_abortive: static_route_counts.static_abortive,
+        static_route_static_other_arm: static_route_counts.static_other_arm,
+        static_route_dynamic_open_row: static_route_counts.dynamic_open_row,
+        static_route_dynamic_multiple_candidates: static_route_counts.dynamic_multiple_candidates,
+        static_route_dynamic_hygiene_barrier: static_route_counts.dynamic_hygiene_barrier,
+        static_route_dynamic_provider_env: static_route_counts.dynamic_provider_env,
+        static_route_dynamic_delayed_boundary: static_route_counts.dynamic_delayed_boundary,
+        static_route_dynamic_host_escape: static_route_counts.dynamic_host_escape,
+        static_route_dynamic_unclassified: static_route_counts.dynamic_unclassified,
         evidence_handler_capabilities: objects.handler_capabilities.len(),
         evidence_allowed_sets: objects.allowed_sets.len(),
         evidence_provider_slots: objects.providers.len(),
@@ -894,6 +962,101 @@ fn summarize_plan(
         }
     }
     summary
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct EvidenceVmStaticRouteCounts {
+    sites_total: usize,
+    static_handler: usize,
+    static_tail_resumptive: usize,
+    static_abortive: usize,
+    static_other_arm: usize,
+    dynamic_open_row: usize,
+    dynamic_multiple_candidates: usize,
+    dynamic_hygiene_barrier: usize,
+    dynamic_provider_env: usize,
+    dynamic_delayed_boundary: usize,
+    dynamic_host_escape: usize,
+    dynamic_unclassified: usize,
+}
+
+fn static_route_counts(
+    operations: &[EvidenceVmOperationPlan],
+    objects: &EvidenceVmObjectPlan,
+) -> EvidenceVmStaticRouteCounts {
+    let operation_objects = operation_objects_by_expr_from_slice(&objects.operations);
+    let mut counts = EvidenceVmStaticRouteCounts::default();
+    for operation in operations {
+        if !matches!(operation.kind, EvidenceVmOperationKind::Call { .. }) {
+            continue;
+        }
+        counts.sites_total += 1;
+        let resolution = operation_objects
+            .get(&operation.expr)
+            .map(|object| object.static_route)
+            .unwrap_or(EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::Unclassified,
+            ));
+        counts.record(resolution);
+    }
+    counts
+}
+
+fn operation_objects_by_expr_from_slice(
+    objects: &[EvidenceVmOperationObjectPlan],
+) -> HashMap<ExprId, &EvidenceVmOperationObjectPlan> {
+    objects
+        .iter()
+        .map(|object| (object.expr, object))
+        .collect::<HashMap<_, _>>()
+}
+
+impl EvidenceVmStaticRouteCounts {
+    fn record(&mut self, resolution: EvidenceVmStaticRouteResolution) {
+        match resolution {
+            EvidenceVmStaticRouteResolution::StaticHandler { arm_class } => {
+                self.static_handler += 1;
+                match arm_class {
+                    EvidenceVmHandlerArmClass::TailResumptive => {
+                        self.static_tail_resumptive += 1;
+                    }
+                    EvidenceVmHandlerArmClass::Abortive => {
+                        self.static_abortive += 1;
+                    }
+                    EvidenceVmHandlerArmClass::Value
+                    | EvidenceVmHandlerArmClass::OneShotYield
+                    | EvidenceVmHandlerArmClass::MultiShotYield
+                    | EvidenceVmHandlerArmClass::MayEscapeYield
+                    | EvidenceVmHandlerArmClass::Fallback => {
+                        self.static_other_arm += 1;
+                    }
+                }
+            }
+            EvidenceVmStaticRouteResolution::Dynamic(reason) => match reason {
+                EvidenceVmStaticRouteDynamicReason::OpenRow => {
+                    self.dynamic_open_row += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::MultipleCandidates => {
+                    self.dynamic_multiple_candidates += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::HygieneBarrier => {
+                    self.dynamic_hygiene_barrier += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent => {
+                    self.dynamic_provider_env += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::DelayedBoundary => {
+                    self.dynamic_delayed_boundary += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::HostEscape => {
+                    self.dynamic_host_escape += 1;
+                }
+                EvidenceVmStaticRouteDynamicReason::Unclassified => {
+                    self.dynamic_unclassified += 1;
+                }
+            },
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -2561,16 +2724,56 @@ fn build_operation_objects(
             let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
             let visibility =
                 operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
+            let static_route =
+                operation_static_route_resolution(operation, candidate_handler, &handler_by_id);
             Some(EvidenceVmOperationObjectPlan {
                 expr: operation.expr,
                 slot_id,
                 candidate_handler,
                 execution,
                 visibility,
+                static_route,
             })
         })
         .collect::<Vec<_>>();
     (objects, allowed_sets.finish())
+}
+
+fn operation_static_route_resolution(
+    operation: &EvidenceVmOperationPlan,
+    candidate_handler: Option<u32>,
+    handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
+) -> EvidenceVmStaticRouteResolution {
+    match operation.lowering {
+        EvidenceVmOperationLowering::DirectHandlerCall { .. } => candidate_handler
+            .and_then(|handler_id| handler_by_id.get(&handler_id))
+            .map(|handler| EvidenceVmStaticRouteResolution::StaticHandler {
+                arm_class: handler.arm_class,
+            })
+            .unwrap_or(EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::Unclassified,
+            )),
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: true,
+            ..
+        } => EvidenceVmStaticRouteResolution::Dynamic(
+            EvidenceVmStaticRouteDynamicReason::DelayedBoundary,
+        ),
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: false,
+            ..
+        } => EvidenceVmStaticRouteResolution::Dynamic(
+            EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent,
+        ),
+        EvidenceVmOperationLowering::HygieneFallback { .. } => {
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::HygieneBarrier,
+            )
+        }
+        EvidenceVmOperationLowering::GenericFallback => {
+            EvidenceVmStaticRouteResolution::Dynamic(EvidenceVmStaticRouteDynamicReason::HostEscape)
+        }
+    }
 }
 
 #[derive(Default)]

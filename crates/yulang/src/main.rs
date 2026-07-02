@@ -1539,6 +1539,54 @@ fn print_runtime_evidence_phase_timings(
         "  run.runtime_evidence.plan_known_operation_reject_direct_execution_disabled: {}",
         stats.plan_known_operation_reject_direct_execution_disabled
     );
+    eprintln!(
+        "  run.runtime_evidence.static_route_sites_total: {}",
+        stats.static_route_sites_total
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_static_handler: {}",
+        stats.static_route_static_handler
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_static_tail_resumptive: {}",
+        stats.static_route_static_tail_resumptive
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_static_abortive: {}",
+        stats.static_route_static_abortive
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_static_other_arm: {}",
+        stats.static_route_static_other_arm
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_open_row: {}",
+        stats.static_route_dynamic_open_row
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_multiple_candidates: {}",
+        stats.static_route_dynamic_multiple_candidates
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_hygiene_barrier: {}",
+        stats.static_route_dynamic_hygiene_barrier
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_provider_env: {}",
+        stats.static_route_dynamic_provider_env
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_delayed_boundary: {}",
+        stats.static_route_dynamic_delayed_boundary
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_host_escape: {}",
+        stats.static_route_dynamic_host_escape
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_dynamic_unclassified: {}",
+        stats.static_route_dynamic_unclassified
+    );
     eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);
     eprintln!(

@@ -35,6 +35,7 @@ use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceKnownOperationCall, RuntimeEvidenceKnownStateOperationKind,
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
+    RuntimeEvidenceStaticRouteDynamicReason, RuntimeEvidenceStaticRouteResolution,
 };
 pub use stats::RuntimeEvidenceRunStats;
 use text::{
@@ -556,6 +557,7 @@ struct EffectThunkEvidence {
     route_cert: EvidenceRouteCert,
     visibility: Option<RuntimeEvidenceOperationVisibility>,
     known_operation: Option<RuntimeEvidenceKnownOperationCall>,
+    static_route: Option<RuntimeEvidenceStaticRouteResolution>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8326,6 +8328,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             visibility: resolved_route.visibility,
             known_operation: site
                 .and_then(|site| self.context.known_operation_for_call(site, callee)),
+            static_route: site.and_then(|site| self.context.static_route_for_call(site, callee)),
         }
     }
 
@@ -16868,6 +16871,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.record_static_route_runtime_hit(evidence.static_route);
         if let Some(operation) = evidence.known_operation {
             self.record_known_operation_hit(operation);
             if let Some(value) = self.try_eval_known_state_route_direct_get(operation, &payload) {
@@ -16966,6 +16970,51 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.mark_request_with_active_markers(&mut request);
         }
         Ok(EvidenceEvalResult::request(request))
+    }
+
+    fn record_static_route_runtime_hit(
+        &mut self,
+        resolution: Option<RuntimeEvidenceStaticRouteResolution>,
+    ) {
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+        match resolution {
+            Some(RuntimeEvidenceStaticRouteResolution::StaticTail) => {
+                self.stats.static_route_runtime_hits_static_tail += 1;
+            }
+            Some(RuntimeEvidenceStaticRouteResolution::StaticOther) => {
+                self.stats.static_route_runtime_hits_static_other += 1;
+            }
+            Some(RuntimeEvidenceStaticRouteResolution::Dynamic(reason)) => match reason {
+                RuntimeEvidenceStaticRouteDynamicReason::OpenRow => {
+                    self.stats.static_route_runtime_hits_dynamic_open_row += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates => {
+                    self.stats
+                        .static_route_runtime_hits_dynamic_multiple_candidates += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier => {
+                    self.stats.static_route_runtime_hits_dynamic_hygiene_barrier += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent => {
+                    self.stats.static_route_runtime_hits_dynamic_provider_env += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary => {
+                    self.stats
+                        .static_route_runtime_hits_dynamic_delayed_boundary += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::HostEscape => {
+                    self.stats.static_route_runtime_hits_dynamic_host_escape += 1;
+                }
+                RuntimeEvidenceStaticRouteDynamicReason::Unclassified => {
+                    self.stats.static_route_runtime_hits_dynamic_unclassified += 1;
+                }
+            },
+            None => {
+                self.stats.static_route_runtime_hits_dynamic_unclassified += 1;
+            }
+        }
     }
 
     fn try_eval_known_state_route_direct_get(
@@ -23398,6 +23447,7 @@ mod tests {
             route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
             visibility: None,
             known_operation: None,
+            static_route: None,
         };
 
         assert!(runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
@@ -23408,6 +23458,7 @@ mod tests {
                 route_cert: EvidenceRouteCert::None,
                 visibility: None,
                 known_operation: None,
+                static_route: None,
             }
         ));
 
@@ -23653,6 +23704,9 @@ mod tests {
                         allowed_set_id: crate::EvidenceVmAllowedSetId(0),
                         legacy_guard_bridge: true,
                     },
+                    static_route: crate::EvidenceVmStaticRouteResolution::Dynamic(
+                        crate::EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent,
+                    ),
                 }],
                 values: vec![EvidenceVmValueObjectPlan {
                     id: 0,

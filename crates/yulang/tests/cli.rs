@@ -2465,6 +2465,30 @@ fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
         stdout.contains("evidence.plan_direct_effect_routes: 1"),
         "{stdout}"
     );
+    assert!(
+        stdout.contains("evidence.static_route_sites_total: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_static_handler: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_static_tail_resumptive: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_dynamic_unclassified: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.static_route_runtime_hits_static_tail: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.static_route_runtime_hits_dynamic_unclassified: 0"),
+        "{stdout}"
+    );
     assert!(stdout.contains("run roots [true]\n"), "{stdout}");
 }
 
@@ -2501,6 +2525,22 @@ fn debug_runtime_evidence_run_classifies_unused_continuation_as_direct_abortive(
     );
     assert!(
         stdout.contains("evidence.plan_direct_tail_resumptive_effect_routes: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_sites_total: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_static_handler: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_static_abortive: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.static_route_runtime_hits_static_other: 1"),
         "{stdout}"
     );
     assert!(

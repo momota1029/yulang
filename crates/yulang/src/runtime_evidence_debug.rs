@@ -180,6 +180,56 @@ pub(crate) fn print_run_report(
             .plan_known_operation_reject_provider_dirty
     );
     println!(
+        "  evidence.static_route_sites_total: {}",
+        output.evidence_stats.static_route_sites_total
+    );
+    println!(
+        "  evidence.static_route_static_handler: {}",
+        output.evidence_stats.static_route_static_handler
+    );
+    println!(
+        "  evidence.static_route_static_tail_resumptive: {}",
+        output.evidence_stats.static_route_static_tail_resumptive
+    );
+    println!(
+        "  evidence.static_route_static_abortive: {}",
+        output.evidence_stats.static_route_static_abortive
+    );
+    println!(
+        "  evidence.static_route_static_other_arm: {}",
+        output.evidence_stats.static_route_static_other_arm
+    );
+    println!(
+        "  evidence.static_route_dynamic_open_row: {}",
+        output.evidence_stats.static_route_dynamic_open_row
+    );
+    println!(
+        "  evidence.static_route_dynamic_multiple_candidates: {}",
+        output
+            .evidence_stats
+            .static_route_dynamic_multiple_candidates
+    );
+    println!(
+        "  evidence.static_route_dynamic_hygiene_barrier: {}",
+        output.evidence_stats.static_route_dynamic_hygiene_barrier
+    );
+    println!(
+        "  evidence.static_route_dynamic_provider_env: {}",
+        output.evidence_stats.static_route_dynamic_provider_env
+    );
+    println!(
+        "  evidence.static_route_dynamic_delayed_boundary: {}",
+        output.evidence_stats.static_route_dynamic_delayed_boundary
+    );
+    println!(
+        "  evidence.static_route_dynamic_host_escape: {}",
+        output.evidence_stats.static_route_dynamic_host_escape
+    );
+    println!(
+        "  evidence.static_route_dynamic_unclassified: {}",
+        output.evidence_stats.static_route_dynamic_unclassified
+    );
+    println!(
         "  runtime_evidence.provider_env_values: {}",
         output.evidence_stats.runtime_provider_env_values
     );
@@ -3362,6 +3412,56 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .known_operation_route_direct_set_payload_mismatch
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_static_tail: {}",
+        output.evidence_stats.static_route_runtime_hits_static_tail
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_static_other: {}",
+        output.evidence_stats.static_route_runtime_hits_static_other
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_open_row: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_open_row
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_multiple_candidates: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_multiple_candidates
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_hygiene_barrier: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_hygiene_barrier
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_provider_env: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_provider_env
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_delayed_boundary: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_delayed_boundary
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_host_escape: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_host_escape
+    );
+    println!(
+        "  runtime_evidence.static_route_runtime_hits_dynamic_unclassified: {}",
+        output
+            .evidence_stats
+            .static_route_runtime_hits_dynamic_unclassified
     );
     println!(
         "  runtime_evidence.known_operation_reject_no_visibility_hits: {}",
