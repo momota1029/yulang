@@ -56,6 +56,8 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - 2026-07-02: Stage 0 counters and deep-profile runtime-hit counters are
      already wired. Use `scripts/static-route-stage0-profile.sh` to collect the
      representative 4-workload table before deciding whether Stage 1 is allowed.
+     Generic fallback classification now uses the runtime host manifest to keep
+     true host capability escapes separate from non-host unclassified sites.
 
 7. **Later tracks**
    - package / registry。

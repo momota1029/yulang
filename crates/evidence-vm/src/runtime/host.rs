@@ -143,6 +143,10 @@ impl RuntimeHostCapabilityFailure {
     }
 }
 
+pub(crate) fn runtime_host_manifest_has_known_act(path: &[String]) -> bool {
+    RUNTIME_HOST_MANIFEST.act_for_path(path).is_some()
+}
+
 const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
     RuntimeHostOperationSpec {
         act: RuntimeHostAct::ConsoleOut,

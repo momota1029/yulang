@@ -32,6 +32,7 @@ use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
     format_values_with_display_context, format_values_with_labels,
 };
+pub(crate) use host::runtime_host_manifest_has_known_act;
 use host::{
     RuntimeHostOperation, RuntimeHostOperationSpec, RuntimeHostRegistry,
     RuntimeHostRequestResolution,

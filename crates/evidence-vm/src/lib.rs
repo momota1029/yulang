@@ -2771,7 +2771,12 @@ fn operation_static_route_resolution(
             )
         }
         EvidenceVmOperationLowering::GenericFallback => {
-            EvidenceVmStaticRouteResolution::Dynamic(EvidenceVmStaticRouteDynamicReason::HostEscape)
+            let reason = if runtime::runtime_host_manifest_has_known_act(&operation.path) {
+                EvidenceVmStaticRouteDynamicReason::HostEscape
+            } else {
+                EvidenceVmStaticRouteDynamicReason::Unclassified
+            };
+            EvidenceVmStaticRouteResolution::Dynamic(reason)
         }
     }
 }
@@ -4404,6 +4409,40 @@ mod tests {
     }
 
     #[test]
+    fn static_route_classifies_only_known_host_generic_fallbacks_as_host_escape() {
+        let host_path = vec![
+            "std".to_string(),
+            "io".to_string(),
+            "file".to_string(),
+            "file".to_string(),
+            "read_at".to_string(),
+        ];
+        let user_path = vec!["flip".to_string(), "coin".to_string()];
+        let handlers = HashMap::new();
+
+        assert_eq!(
+            operation_static_route_resolution(
+                &generic_fallback_operation(ExprId(10), host_path),
+                None,
+                &handlers
+            ),
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::HostEscape
+            )
+        );
+        assert_eq!(
+            operation_static_route_resolution(
+                &generic_fallback_operation(ExprId(20), user_path),
+                None,
+                &handlers
+            ),
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::Unclassified
+            )
+        );
+    }
+
+    #[test]
     fn object_plan_marks_compiler_known_state_handler_from_certificate() {
         let family = vec!["local".to_string(), "var".to_string()];
         let handler_expr = ExprId(2);
@@ -4496,5 +4535,21 @@ mod tests {
             state.continuation,
             EvidenceVmKnownStateContinuationSemantics::SnapshotFork
         );
+    }
+
+    fn generic_fallback_operation(expr: ExprId, path: Vec<String>) -> EvidenceVmOperationPlan {
+        EvidenceVmOperationPlan {
+            expr,
+            operation_def: None,
+            path: path.clone(),
+            slot: fallback_slot(path),
+            kind: EvidenceVmOperationKind::Call {
+                apply: expr,
+                callee: expr,
+            },
+            lowering: EvidenceVmOperationLowering::GenericFallback,
+            runtime_nodes: Vec::new(),
+            runtime_evidence_refs: 0,
+        }
     }
 }
