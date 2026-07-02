@@ -1716,6 +1716,16 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(stdout.starts_with("runtime host manifest:\n"), "{stdout}");
+    assert_eq!(
+        stdout.matches(" surface=contract\n").count(),
+        6,
+        "debug manifest should expose only console, file protocol, and ambient file_buffer ops as contract surface:\n{stdout}"
+    );
+    assert_eq!(
+        stdout.matches(" surface=raw-compat\n").count(),
+        10,
+        "debug manifest should keep legacy range/raw/snapshot file ops isolated as raw-compat:\n{stdout}"
+    );
     assert!(
         stdout.contains(
             "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write sig=str -> () surface=contract\n"
