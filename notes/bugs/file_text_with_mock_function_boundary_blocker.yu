@@ -1,21 +1,29 @@
--- open (2026-07-02): a pure public-Yulang `text_with_mock` helper can build a
--- managed ref view over a local `$buffer`, but moving the same code behind a
--- function boundary currently loses the callback residual shape.
+-- partially resolved (2026-07-02): a pure public-Yulang `text_with_mock`
+-- helper can build a managed ref view over a local `$buffer`, pass it through a
+-- function boundary, and commit callback assignment at helper exit on the
+-- no-cache route.
 --
 -- The inline shape works and is contract-covered by:
 --   tests/yulang/regressions/runtime/file_mock_public_ref_view_commit.yu
 --
--- This function-shaped reduction still fails with:
+-- Current:
+--   `run --no-cache --host unsupported --print-roots` succeeds with
+--   `run roots [(("start", "start!"), "start!")]`.
 --
---   conflicting type candidates for slot ...:
---     [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
---       vs
---     [&buffer#...:0(std::text::str::str)]
+--   normal cached `run --host unsupported --print-roots` still fails with:
+--
+--     conflicting type candidates for slot ...:
+--       [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
+--         vs
+--       [&buffer#...:0(std::text::str::str)]
+--
+-- Therefore this file is not a passing `tests/yulang/cases.toml` contract case
+-- yet. The cached route must preserve the same callback residual shape first.
 --
 -- Do not solve this by making private `std::io::file` snapshot operations
--- public, or by adding a name/path special case for this helper. The missing
--- rule is a general function-boundary residual rule for callbacks that update a
--- record-shaped public ref view backed by a local resource effect.
+-- public, or by adding a name/path special case for this helper. The remaining
+-- full `std::io::file::text_with` mock blocker is the lack of a mockable public
+-- host-act/session boundary for the private snapshot path.
 
 use std::control::var::*
 

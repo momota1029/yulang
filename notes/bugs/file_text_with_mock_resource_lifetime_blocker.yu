@@ -36,28 +36,46 @@
 --   `d171:"std.control.var.ref"`; with current mutable-binding syntax
 --   (`my $text = ...`) it also runs successfully.
 --
--- Resolved reduction C:
+-- Current side probe C:
 --   `notes/bugs/ref_update_local_buffer_public_probe.yu` constructs a public
 --   `ref` view over a handler-local `$buffer`, then updates it through
---   `r.update`. That now runs successfully.
+--   `r.update`. That direct `.update` method probe still fails with a callback
+--   residual conflict. It is a useful ref.update-specific reduction, but it is
+--   no longer the blocker for function-shaped mock text scopes.
 --
--- Current blocker C:
---   The next reduced file is:
+-- Resolved reduction D:
+--   The function-shaped public mock reduction is:
 --     notes/bugs/file_text_with_mock_function_boundary_blocker.yu
 --   The same public ref-view commit shape works inline and is covered by:
 --     tests/yulang/regressions/runtime/file_mock_public_ref_view_commit.yu
---   Moving it behind a reusable `text_with_mock(backing, f)` function still
---   fails in specialization with:
+--   Moving it behind a reusable `text_with_mock(backing, f)` function now also
+--   runs with `--no-cache`.
+--
+-- Current blocker D:
+--   The same function-shaped reduction still fails through the normal cached
+--   route and through `yulang contract`, with:
 --
 --     conflicting type candidates for slot ...:
 --       [&buffer#...:0(std::text::str::str), std::control::var::ref_update(std::text::str::str)]
 --         vs
 --       [&buffer#...:0(std::text::str::str)]
 --
---   So the remaining blocker is not public name resolution or ref-view
---   construction. It is the reusable function-boundary residual rule for a
---   callback that updates a record-shaped public `ref` value whose update field
---   carries a local var effect.
+--   Therefore it cannot be promoted into `tests/yulang/cases.toml` until the
+--   cached route preserves the same callback residual shape as the no-cache
+--   route.
+--
+-- Remaining blocker C:
+--   The real `std::io::file::text_with` path still uses private snapshot helper
+--   operations. A public handler can catch the initial
+--   `open_text_snapshot_raw`, but `file_snapshot_get` performed through the
+--   callback escapes the same public mock handler:
+--
+--     runtime error [yulang.unhandled-effect]:
+--       unhandled effect request std::io::file::file::file_snapshot_get
+--
+--   So the remaining blocker is not public name resolution, ref-view
+--   construction, or the reusable function boundary. It is the lack of a
+--   mockable public host-act/session boundary for the real file resource path.
 --
 -- Do not solve this by making the raw snapshot operations public. The next
 -- proper fix should give file resources a mockable public host-act/session

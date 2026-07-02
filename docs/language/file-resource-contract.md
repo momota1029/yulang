@@ -99,6 +99,23 @@ Required observations:
 - `file_text_mock_matches_native_shape`: mock and native paths expose the same
   public surface shape.
 
+Current executable mock evidence:
+
+- `file_mock_read_text_handler` and `file_mock_read_write_text_handler` prove
+  that source handlers intercept the public `read_at` / `write_at` host act
+  operations before the native host registry.
+- `file_mock_public_ref_view_commit` proves the inline public ref-view commit
+  shape over pure Yulang state.
+- `notes/bugs/file_text_with_mock_function_boundary_blocker.yu` proves that the
+  same public ref-view shape survives a reusable `text_with_mock(backing, f)`
+  function boundary and callback assignment in the no-cache route. It is not a
+  manifest case yet because the normal cached route still reports a callback
+  residual conflict for that source.
+
+Remaining F1 evidence still needs the real `std::io::file::text_with` surface
+or a public file-session host-act boundary. Do not make private snapshot helper
+operations public only to satisfy the mock cases.
+
 ### F2. Native Host Parity
 
 The native CLI host can initially avoid OS-level locking. It must still match

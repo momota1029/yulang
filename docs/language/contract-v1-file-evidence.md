@@ -102,7 +102,8 @@ public surface:
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   current pure mock blocker: `text_with` relies on private snapshot helper
   operations that outside source cannot catch, while a public-only local-ref
-  rewrite still hits a callback residual conflict.
+  rewrite is now partially executable in the no-cache route but not yet
+  contract-coverable through the normal cached contract runner.
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because they do not yet prove pure mock resource-lifetime parity.
@@ -146,24 +147,31 @@ residuals through callbacks. `notes/bugs/ref_constructor_public_path_blocker.yu`
 records the old fully-qualified constructor attempt. It is not evidence of a
 specialize2 bug: `dump-poly` reports the external
 `std::control::var::ref { ... }` value constructor as unresolved. The corrected
-reduction is `notes/bugs/ref_constructor_short_value_probe.yu`: after importing
-`std::control::var::*`, the short `ref { ... }` constructor resolves to
-`d171:"std.control.var.ref"` in `dump-poly` and runs successfully when written
-with current mutable-binding syntax (`my $text = ...`). The next reduced
-reduction, `notes/bugs/ref_update_local_buffer_public_probe.yu`, also runs: a
-public record-shaped `ref` view over handler-local state can be built and
-updated through `r.update`. The current executable canary for this is
-`file_mock_public_ref_view_commit`, which runs with `--host unsupported` and
-observes inline scope-end commit in pure Yulang state.
+constructor reduction is `notes/bugs/ref_constructor_short_value_probe.yu`:
+after importing `std::control::var::*`, the short `ref { ... }` constructor
+resolves to `d171:"std.control.var.ref"` in `dump-poly` and runs successfully
+when written with current mutable-binding syntax (`my $text = ...`).
 
-Pure mock `text_with` parity still has one narrower blocker:
-`notes/bugs/file_text_with_mock_function_boundary_blocker.yu`. Moving the same
-public ref-view commit shape behind a reusable `text_with_mock(backing, f)`
-function still fails with a callback residual conflict. That narrows the
-remaining blocker to reusable function-boundary residual handling for callbacks
-that update record-shaped public ref views over local resource effects, not to
-constructor name resolution, ref-view construction, or direct public
-`ref.update`.
+The public ref-view function boundary is partially narrowed but not
+contract-coverable yet: `notes/bugs/file_text_with_mock_function_boundary_blocker.yu`
+runs with `--no-cache`, proving that a reusable `text_with_mock(backing, f)`
+helper can pass a public record-shaped `ref` view to a callback and commit
+callback-local assignment at helper exit in the uncached route. The same source
+still fails through the normal cached run/contract route with a callback
+residual conflict, so it cannot enter `tests/yulang/cases.toml` as a passing
+contract case yet.
+
+The real `std::io::file::text_with` path also still uses private snapshot
+helper operations, and a source-level outer handler cannot fully mock that
+private callback path. `open_text_snapshot_raw` can be caught by a local
+handler, but `file_snapshot_get` performed through the callback escapes the
+same public mock handler. Do not solve this by making those raw snapshot
+operations public.
+
+`notes/bugs/ref_update_local_buffer_public_probe.yu` remains a separate
+`.update`-method residual probe: direct `r.update` over a public ref view backed
+by local `$buffer` state still fails, while callback assignment through
+`&text = ...` is executable in the no-cache function-boundary reduction.
 
 ## Acceptance Gate
 

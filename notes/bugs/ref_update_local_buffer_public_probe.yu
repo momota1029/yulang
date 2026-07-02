@@ -1,17 +1,21 @@
--- resolved (2026-07-02): a public `ref { ... }` view over a local `$buffer`
--- can be constructed, read, and updated through the public
--- `std::control::var::ref.update` method.
+-- open (2026-07-02): a public `ref { ... }` view over a local `$buffer`
+-- can be constructed and read, but direct update through the public
+-- `std::control::var::ref.update` method still loses the local `$buffer`
+-- residual shape.
 --
--- This proves that the remaining pure mock `file::text_with` blocker is not
--- local ref-view construction or `ref.update` itself.
+-- This is now a narrower ref.update-specific reduction. It no longer blocks
+-- the function-shaped pure mock text scope: callback assignment through
+-- `&text = ...` is executable in the no-cache route recorded by
+-- `notes/bugs/file_text_with_mock_function_boundary_blocker.yu`.
 --
 -- Expected:
---   `run --print-roots` should produce `run roots ["next"]`.
+--   eventually, `run --print-roots` should produce `run roots ["next"]`.
 --
 -- Current:
---   `run --print-roots` succeeds.
+--   `run --print-roots` fails with a conflicting type candidate over
+--   `&buffer#...` residual shape.
 --
--- The remaining function-boundary blocker is recorded in:
+-- The resolved function-boundary probe is recorded in:
 --   notes/bugs/file_text_with_mock_function_boundary_blocker.yu
 
 use std::control::var::*
