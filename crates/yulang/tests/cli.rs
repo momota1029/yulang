@@ -3884,6 +3884,60 @@ contracts = [
 }
 
 #[test]
+fn contract_command_rejects_unsupported_host_with_non_evidence_backend() {
+    let root = temp_root("contract-rejects-host-backend-mismatch");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let manifest = root.join("cases.toml");
+    fs::write(
+        &manifest,
+        r#"
+[[case]]
+name = "bad_host_backend"
+file = "support/unused.yu"
+kind = "run"
+backend = "control-vm"
+host = "unsupported"
+expect_success = false
+expect_stderr_contains = ["runtime error ["]
+contracts = [
+    "runtime-error",
+    "runtime-failure",
+    "backend.control-vm",
+    "host.unsupported",
+]
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("contract")
+        .arg(&manifest)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    assert!(
+        stderr(&output).contains(
+            "contract case `bad_host_backend` should only combine non-native host mode with backend = \"evidence-vm\""
+        ),
+        "{}",
+        stderr(&output)
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn public_contract_manifest_covers_status_spine_claims() {
     let status_path = repo_file("docs/status.md");
     let status = fs::read_to_string(&status_path)
@@ -4122,6 +4176,12 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert_eq!(
             case.kind, "run",
             "contract manifest case {} should only set backend mode on run cases",
+            case.name
+        );
+    }
+    if case.host.as_deref().unwrap_or("native") != "native" && backend != "evidence-vm" {
+        panic!(
+            "contract manifest case {} should only combine non-native host mode with backend = \"evidence-vm\"",
             case.name
         );
     }

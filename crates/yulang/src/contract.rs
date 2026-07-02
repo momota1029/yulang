@@ -348,6 +348,15 @@ fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
             ),
         );
     }
+    if case.host.as_deref().unwrap_or("native") != "native" && backend != "evidence-vm" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "contract case `{}` should only combine non-native host mode with backend = \"evidence-vm\"",
+                case.name
+            ),
+        );
+    }
     for (tag, expected) in [
         ("backend.evidence-vm", "evidence-vm"),
         ("backend.control-vm", "control-vm"),
