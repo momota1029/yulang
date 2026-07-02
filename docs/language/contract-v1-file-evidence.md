@@ -7,9 +7,9 @@ Status on 2026-07-03: **open, Stage 2 native protocol bridge covered**. The
 contract box and tag policy exist, and the `file-resource` manifest subset now
 covers the public `file::load` / `file::store` / `file::meta` Stage 0 surface,
 the Stage 1 source-mock `text_with` protocol fixtures, and the first native
-registry parity cases over the same public protocol. Legacy raw / snapshot
-operations and integer error-code translation remain a compatibility window,
-not the Contract v1 center. Contract v0 remains closed in
+registry parity cases over the same public protocol. Remaining legacy raw /
+snapshot operations and their integer error-code translation stay a
+compatibility window, not the Contract v1 center. Contract v0 remains closed in
 [contract-v0-evidence.md](contract-v0-evidence.md).
 
 ## Current Evidence
@@ -27,6 +27,10 @@ public surface:
 - The old private `file::meta_raw` integer-code operation has been removed from
   `std::io::file` and from the runtime host manifest. Metadata now enters the
   public surface through `file::meta`.
+- `file::read_at` and `file::write_at` now return typed `result ... io_err`
+  values at the host act boundary. The public wrappers keep their existing
+  throwing surface, but no longer decode integer error codes for range reads
+  and writes.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
@@ -70,6 +74,9 @@ public surface:
   `file::text` reads through the native ambient `file_buffer` act, keeps the
   backing file unchanged during the handler extent, and writes the dirty buffer
   back at successful run completion.
+- `tests/yulang/cases.toml` includes `file_read_write_at_native_result`, which
+  proves native range read/write helpers execute through the typed result host
+  boundary. Exact range slicing semantics remain provisional.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-file-buffer-ambient --target
@@ -173,7 +180,8 @@ effect.
 
 The remaining blockers are Stage 2 host-boundary cleanup items:
 
-- removal of legacy int error-code translation from the public file path;
+- removal of legacy int error-code translation from the remaining public
+  `open_text` / `open_in` compatibility path;
 - replacing native unscoped ambient read/write escaped-effect fallbacks with a
   typed or structured file failure policy;
 - raw/provisional isolation for legacy snapshot operations and range helpers.

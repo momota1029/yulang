@@ -1738,6 +1738,18 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
         "{stdout}"
     );
     assert!(
+        stdout.contains(
+            "  act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(path, range) -> result (str, range) io_err\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.file.file op=write_at tier=sync path=std.io.file.file.write_at sig=(path, range, str) -> result unit io_err\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
         stdout
             .contains("  act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists sig=path -> bool\n"),
         "{stdout}"

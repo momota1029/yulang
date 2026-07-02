@@ -12170,8 +12170,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeHostOperation::FileLoad => self.file_load(spec, payload),
             RuntimeHostOperation::FileStore => self.file_store(spec, payload),
             RuntimeHostOperation::FileMeta => self.file_meta(spec, payload),
-            RuntimeHostOperation::FileReadAt => self.file_read_at(payload),
-            RuntimeHostOperation::FileWriteAt => self.file_write_at(payload),
+            RuntimeHostOperation::FileReadAt => self.file_read_at(spec, payload),
+            RuntimeHostOperation::FileWriteAt => self.file_write_at(spec, payload),
             RuntimeHostOperation::FileOpenTextRaw => self.file_open_text_raw(payload),
             RuntimeHostOperation::FileGet => self.file_get(spec, payload),
             RuntimeHostOperation::FileSet => self.file_set(spec, payload),
@@ -12357,34 +12357,42 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn file_read_at(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let args = runtime_host_tuple(payload, 2)?;
         let path = runtime_host_path(args[0].as_ref())?;
         let range = args[1].clone();
-        let (code, text) = match fs::read_to_string(path) {
-            Ok(text) => (0, text),
-            Err(error) => (runtime_file_error_code(&error), String::new()),
-        };
-        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
-            shared(RuntimeEvidenceValue::Int(code)),
-            shared(RuntimeEvidenceValue::Str(text)),
-            range,
-        ])))
+        match fs::read_to_string(&path) {
+            Ok(text) => self.host_result_ok(
+                spec,
+                shared(RuntimeEvidenceValue::Tuple(vec![
+                    shared(RuntimeEvidenceValue::Str(text)),
+                    range,
+                ])),
+            ),
+            Err(error) => {
+                let error = self.host_io_error(spec, &path, &error)?;
+                self.host_result_err(spec, error)
+            }
+        }
     }
 
     fn file_write_at(
         &self,
+        spec: &RuntimeHostOperationSpec,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let args = runtime_host_tuple(payload, 3)?;
         let path = runtime_host_path(args[0].as_ref())?;
         let text = runtime_host_string(args[2].as_ref())?;
-        let code = match fs::write(path, text) {
-            Ok(()) => 0,
-            Err(error) => runtime_file_error_code(&error),
-        };
-        Ok(shared(RuntimeEvidenceValue::Int(code)))
+        match fs::write(&path, text) {
+            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
+            Err(error) => {
+                let error = self.host_io_error(spec, &path, &error)?;
+                self.host_result_err(spec, error)
+            }
+        }
     }
 
     fn file_open_text_raw(

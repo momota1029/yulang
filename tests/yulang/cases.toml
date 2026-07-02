@@ -132,6 +132,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_read_write_at_native_result"
+file = "regressions/runtime/file_read_write_at_native_result.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"start\", \"next\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "start", expect_contents = "next" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+]
+
+[[case]]
 name = "file_text_with_rollback_on_error"
 file = "regressions/runtime/file_text_with_rollback_on_error.yu"
 kind = "run"

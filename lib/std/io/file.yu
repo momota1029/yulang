@@ -20,8 +20,8 @@ pub act file:
     my file_snapshot_get: file_handle -> str
     my file_snapshot_set: (file_handle, str) -> unit
     my file_snapshot_commit: file_handle -> int
-    pub read_at: (path, range) -> (int, str, range)
-    pub write_at: (path, range, str) -> int
+    pub read_at: (path, range) -> result (str, range) io_err
+    pub write_at: (path, range, str) -> result unit io_err
     pub exists: path -> bool
     pub is_file: path -> bool
     pub is_dir: path -> bool
@@ -53,18 +53,10 @@ pub meta(path: path): file_meta =
     file::meta path
 
 pub read_at(path: path, r: range): (str, range) =
-    my (code, text, valid) = file::read_at (path, r)
-    if std::int::eq code 0:
-        (text, valid)
-    else:
-        (legacy_err_from_code path code).throw
+    unwrap_io (file::read_at (path, r))
 
 pub write_at(path: path, r: range, text: str): unit =
-    my code = file::write_at (path, r, text)
-    if std::int::eq code 0:
-        ()
-    else:
-        (legacy_err_from_code path code).throw
+    unwrap_io (file::write_at (path, r, text))
 
 pub read_text(path: path): str =
     unwrap_io (file::load path)

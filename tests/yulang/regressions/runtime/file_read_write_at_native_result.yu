@@ -1,0 +1,12 @@
+use std::data::range::*
+
+my path = {{file}}
+
+my run() = {
+    my (before, _) = std::io::file::read_at path (full())
+    std::io::file::write_at path (full()) "next"
+    my after = std::io::file::read_text path
+    (before, after)
+}
+
+run()
