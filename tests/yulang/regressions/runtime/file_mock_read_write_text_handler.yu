@@ -1,0 +1,9 @@
+my read = catch std::io::file::read_text "/mock":
+    std::io::file::file::read_at (path, range), k -> k (0, "start", range)
+    v -> v
+
+my write = catch std::io::file::write_text "/mock" (read + "!"):
+    std::io::file::file::write_at (path, range, text), k -> text
+    v -> "unexpected"
+
+(read, write)

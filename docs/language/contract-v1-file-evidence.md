@@ -83,6 +83,11 @@ public surface:
   intercept file host acts before the host registry, even when native host
   capabilities are unavailable. This is mock-host evidence for act routing, not
   resource-lifetime mock evidence.
+- `tests/yulang/cases.toml` also includes
+  `file_mock_read_write_text_handler`, which handles both public `read_text`
+  and `write_text` helper paths through source-level `read_at` / `write_at`
+  arms while the native host is disabled. This keeps mock-host evidence on both
+  read and write directions without making raw snapshot operations public.
 - `notes/bugs/file_text_with_mock_resource_lifetime_blocker.yu` records the
   current pure mock blocker: `text_with` relies on private snapshot helper
   operations that outside source cannot catch, while a public-only local-ref

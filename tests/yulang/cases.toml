@@ -190,6 +190,23 @@ contracts = [
 ]
 
 [[case]]
+name = "file_mock_read_write_text_handler"
+file = "regressions/runtime/file_mock_read_write_text_handler.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(\"start\", \"start!\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "mock-host",
+  "host.unsupported",
+]
+
+[[case]]
 name = "error_wrap_fail"
 file = "regressions/runtime/error_wrap_fail.yu"
 kind = "run"
