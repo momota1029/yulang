@@ -57,7 +57,14 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      already wired. Use `scripts/static-route-stage0-profile.sh` to collect the
      representative 4-workload table before deciding whether Stage 1 is allowed.
      Generic fallback classification now uses the runtime host manifest to keep
-     true host capability escapes separate from non-host unclassified sites.
+     true host capability escapes separate from non-host sites, and then splits
+     non-host generic fallbacks into `ProviderEnvDependent`,
+     `MultipleCandidates`, or remaining `Unclassified` by matching handler
+     object count.
+   - 2026-07-02 representative profile after handler candidate counting:
+     nondet / showcase / `03_for_last` have 0 unclassified runtime hits;
+     `02_refs` still has 2 unclassified runtime hits. Stage 1 remains blocked
+     because static-tail runtime hits are still 0.
 
 7. **Later tracks**
    - package / registry。

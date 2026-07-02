@@ -2771,14 +2771,29 @@ fn operation_static_route_resolution(
             )
         }
         EvidenceVmOperationLowering::GenericFallback => {
+            let matching_handlers = matching_handler_count(handler_by_id, &operation.path);
             let reason = if runtime::runtime_host_manifest_has_known_act(&operation.path) {
                 EvidenceVmStaticRouteDynamicReason::HostEscape
+            } else if matching_handlers > 1 {
+                EvidenceVmStaticRouteDynamicReason::MultipleCandidates
+            } else if matching_handlers == 1 {
+                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
             } else {
                 EvidenceVmStaticRouteDynamicReason::Unclassified
             };
             EvidenceVmStaticRouteResolution::Dynamic(reason)
         }
     }
+}
+
+fn matching_handler_count(
+    handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
+    operation_path: &[String],
+) -> usize {
+    handler_by_id
+        .values()
+        .filter(|handler| handler.path == operation_path)
+        .count()
 }
 
 #[derive(Default)]
@@ -4443,6 +4458,31 @@ mod tests {
     }
 
     #[test]
+    fn static_route_classifies_non_lexical_handler_candidates() {
+        let path = vec!["flip".to_string(), "coin".to_string()];
+        let operation = generic_fallback_operation(ExprId(10), path.clone());
+        let first_handler = handler_object(0, path.clone());
+        let second_handler = handler_object(1, path);
+        let mut one_handler = HashMap::new();
+        one_handler.insert(0, &first_handler);
+        let mut two_handlers = one_handler.clone();
+        two_handlers.insert(1, &second_handler);
+
+        assert_eq!(
+            operation_static_route_resolution(&operation, None, &one_handler),
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
+            )
+        );
+        assert_eq!(
+            operation_static_route_resolution(&operation, None, &two_handlers),
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::MultipleCandidates
+            )
+        );
+    }
+
+    #[test]
     fn object_plan_marks_compiler_known_state_handler_from_certificate() {
         let family = vec!["local".to_string(), "var".to_string()];
         let handler_expr = ExprId(2);
@@ -4550,6 +4590,20 @@ mod tests {
             lowering: EvidenceVmOperationLowering::GenericFallback,
             runtime_nodes: Vec::new(),
             runtime_evidence_refs: 0,
+        }
+    }
+
+    fn handler_object(id: u32, path: Vec<String>) -> EvidenceVmHandlerObjectPlan {
+        EvidenceVmHandlerObjectPlan {
+            id,
+            capability_id: EvidenceVmHandlerCapId(id),
+            handler: ExprId(100 + id),
+            slot_id: id,
+            path,
+            arm_body: ExprId(200 + id),
+            arm_class: EvidenceVmHandlerArmClass::TailResumptive,
+            continuation_use: EvidenceVmContinuationUsePlan::default(),
+            definition_env: Vec::new(),
         }
     }
 }
