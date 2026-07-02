@@ -35,6 +35,11 @@ public surface:
 - `file_buffer` is now ambient-only. It exposes `ambient_get` / `ambient_set`
   for unscoped `file::text` and no longer has scoped `get` / `set` operations,
   reperform transfer arms, or path-matching `same_path` checks.
+- The native runtime host registry now registers
+  `std::io::file::file_buffer.ambient_get` and
+  `std::io::file::file_buffer.ambient_set` as a separate `file_buffer` host act.
+  Unscoped `file::text` uses a handler-extent ambient ledger in the native
+  runtime and flushes it at the end of a successful run.
 - `text_with` is the four-line state-passing protocol:
   load initial text, run a callback `str -> ('a, str)`, store the final text
   only if the callback returns, then return the callback result.
@@ -57,6 +62,11 @@ public surface:
 - `tests/yulang/cases.toml` includes
   `file_text_with_native_rollback_on_error`, which proves a callback abort does
   not reach the protocol `store`, leaving the native backing file unchanged.
+- `tests/yulang/cases.toml` includes
+  `file_text_unscoped_native_handler_extent`, which proves unscoped
+  `file::text` reads through the native ambient `file_buffer` act, keeps the
+  backing file unchanged during the handler extent, and writes the dirty buffer
+  back at successful run completion.
 - `cargo run -q -p yulang -- --std-root lib contract --contract file-resource
   tests/yulang/cases.toml` passes the current file-resource subset.
 - `scripts/package-release.sh --version contract-v1-smoke --target
@@ -135,9 +145,9 @@ public surface:
 
 Those canaries are still `migration-canary` evidence. They do not complete
 Contract v1 because legacy raw / snapshot host operations still carry integer
-error-code translation, unscoped ambient native registration is not closed, and
-packaged release evidence for the refreshed protocol surface still needs to be
-rerun.
+error-code translation, native unscoped ambient read/write failures do not yet
+have a typed file error policy, and packaged release evidence for the refreshed
+protocol surface still needs to be rerun.
 
 ## Missing Evidence
 
@@ -162,8 +172,8 @@ effect.
 The remaining blockers are Stage 2 host-boundary cleanup items:
 
 - removal of legacy int error-code translation from the public file path;
-- keeping `file_buffer::ambient_get` / `ambient_set` registered for unscoped
-  `file::text`;
+- replacing native unscoped ambient read/write escaped-effect fallbacks with a
+  typed or structured file failure policy;
 - release/archive smoke evidence for the new file-resource subset.
 
 Do not solve Stage 2 by restoring scoped `file_buffer` operations, transfer
@@ -187,9 +197,10 @@ Release evidence should run the same tag filter through the packaged binary and
 bundled standard library.
 
 As of the Stage 2 native protocol bridge on 2026-07-03, the local checkout
-passes the filtered `file-resource` subset through `cargo run` with both source
-mock handlers and native CLI protocol cases. Release binary and archive
-evidence must be refreshed for the new native protocol cases.
+passes the filtered `file-resource` subset through `cargo run` with source mock
+handlers, native CLI protocol cases, and the first native unscoped ambient
+handler-extent case. Release binary and archive evidence must be refreshed for
+the new native protocol cases.
 
 ## Rollback Conditions
 

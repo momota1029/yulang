@@ -1,0 +1,12 @@
+use std::control::var::*
+
+my path = {{file}}
+
+my edit = (\&text ->
+    my before = $text
+    &text = before + "!"
+    my backing_during_extent = std::io::file::read_text path
+    (before, $text, backing_during_extent)
+) (std::io::file::text path)
+
+edit

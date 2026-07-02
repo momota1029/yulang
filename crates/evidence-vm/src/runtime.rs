@@ -8174,6 +8174,7 @@ struct RuntimeEvidenceRunner<'a> {
     // commit consumes the branch-local buffer, while abortive exits still roll
     // back by never recording a closed snapshot.
     closed_file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
+    file_ambient_buffers: HashMap<PathBuf, String>,
     next_file_handle: i64,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
@@ -8244,6 +8245,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             file_handles: HashMap::new(),
             file_snapshots: HashMap::new(),
             closed_file_snapshots: HashMap::new(),
+            file_ambient_buffers: HashMap::new(),
             next_file_handle: 0,
             host_registry,
             host_constructors,
@@ -8264,6 +8266,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Root::Expr(expr) => values.push(self.eval_expr(*expr, &mut env)?),
             }
         }
+        self.flush_file_ambient_buffers()?;
         Ok(RuntimeEvidenceRunOutput {
             values: values
                 .into_iter()
@@ -12192,6 +12195,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let path = runtime_host_path(payload)?;
                 Ok(shared(RuntimeEvidenceValue::Bool(path.is_dir())))
             }
+            RuntimeHostOperation::FileBufferAmbientGet => {
+                self.file_buffer_ambient_get(spec, payload)
+            }
+            RuntimeHostOperation::FileBufferAmbientSet => {
+                self.file_buffer_ambient_set(spec, payload)
+            }
         }
     }
 
@@ -12545,6 +12554,48 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             shared(RuntimeEvidenceValue::Int(kind)),
             shared(RuntimeEvidenceValue::Bool(readonly)),
         ])))
+    }
+
+    fn file_buffer_ambient_get(
+        &mut self,
+        spec: &RuntimeHostOperationSpec,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        if let Some(text) = self.file_ambient_buffers.get(&path) {
+            return Ok(shared(RuntimeEvidenceValue::Str(text.clone())));
+        }
+        let text = fs::read_to_string(&path)
+            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))?;
+        self.file_ambient_buffers.insert(path, text.clone());
+        Ok(shared(RuntimeEvidenceValue::Str(text)))
+    }
+
+    fn file_buffer_ambient_set(
+        &mut self,
+        _spec: &RuntimeHostOperationSpec,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 2)?;
+        let path = runtime_host_path(args[0].as_ref())?;
+        let text = runtime_host_string(args[1].as_ref())?;
+        self.file_ambient_buffers.insert(path, text);
+        Ok(shared(RuntimeEvidenceValue::Unit))
+    }
+
+    fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
+        for (path, text) in &self.file_ambient_buffers {
+            fs::write(path, text).map_err(|_| {
+                RuntimeEvidenceRunError::EscapedEffect(vec![
+                    "std".into(),
+                    "io".into(),
+                    "file".into(),
+                    "file_buffer".into(),
+                    "ambient_set".into(),
+                ])
+            })?;
+        }
+        Ok(())
     }
 
     fn eval_expr_result(

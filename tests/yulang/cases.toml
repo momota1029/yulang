@@ -234,6 +234,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_text_unscoped_native_handler_extent"
+file = "regressions/runtime/file_text_unscoped_native_handler_extent.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"start\", \"start!\", \"start\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "start", expect_contents = "start!" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "refs",
+]
+
+[[case]]
 name = "file_text_with_nested_cross_file"
 file = "regressions/runtime/file_text_with_nested_cross_file.yu"
 kind = "run"

@@ -2,6 +2,7 @@
 pub(super) enum RuntimeHostAct {
     ConsoleOut,
     File,
+    FileBuffer,
 }
 
 impl RuntimeHostAct {
@@ -9,6 +10,7 @@ impl RuntimeHostAct {
         match self {
             Self::ConsoleOut => &["std", "io", "console", "out"],
             Self::File => &["std", "io", "file", "file"],
+            Self::FileBuffer => &["std", "io", "file", "file_buffer"],
         }
     }
 }
@@ -38,6 +40,8 @@ pub(super) enum RuntimeHostOperation {
     FileExists,
     FileIsFile,
     FileIsDir,
+    FileBufferAmbientGet,
+    FileBufferAmbientSet,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -178,6 +182,7 @@ impl RuntimeHostAct {
         match self {
             Self::ConsoleOut => "std.io.console.out",
             Self::File => "std.io.file.file",
+            Self::FileBuffer => "std.io.file.file_buffer",
         }
     }
 }
@@ -335,9 +340,29 @@ const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
         path: &["std", "io", "file", "file", "is_dir"],
         operation: RuntimeHostOperation::FileIsDir,
     },
+    RuntimeHostOperationSpec {
+        act: RuntimeHostAct::FileBuffer,
+        operation_id: "ambient_get",
+        tier: RuntimeHostOperationTier::Sync,
+        signature: "path -> str",
+        path: &["std", "io", "file", "file_buffer", "ambient_get"],
+        operation: RuntimeHostOperation::FileBufferAmbientGet,
+    },
+    RuntimeHostOperationSpec {
+        act: RuntimeHostAct::FileBuffer,
+        operation_id: "ambient_set",
+        tier: RuntimeHostOperationTier::Sync,
+        signature: "(path, str) -> unit",
+        path: &["std", "io", "file", "file_buffer", "ambient_set"],
+        operation: RuntimeHostOperation::FileBufferAmbientSet,
+    },
 ];
 
-const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[RuntimeHostAct::ConsoleOut, RuntimeHostAct::File];
+const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[
+    RuntimeHostAct::ConsoleOut,
+    RuntimeHostAct::File,
+    RuntimeHostAct::FileBuffer,
+];
 
 const RUNTIME_HOST_MANIFEST: RuntimeHostManifest =
     RuntimeHostManifest::new(RUNTIME_HOST_OPERATIONS, RUNTIME_HOST_ACTS);
@@ -432,15 +457,21 @@ mod tests {
     fn runtime_host_operation_table_separates_console_and_file_acts() {
         let mut console_ops = 0;
         let mut file_ops = 0;
+        let mut file_buffer_ops = 0;
         for spec in RUNTIME_HOST_OPERATIONS {
             match spec.act {
                 RuntimeHostAct::ConsoleOut => console_ops += 1,
                 RuntimeHostAct::File => file_ops += 1,
+                RuntimeHostAct::FileBuffer => file_buffer_ops += 1,
             }
         }
 
         assert_eq!(console_ops, 1, "console out should have one current op");
         assert_eq!(file_ops, 17, "file act should have current file host ops");
+        assert_eq!(
+            file_buffer_ops, 2,
+            "file buffer act should have current ambient host ops"
+        );
     }
 
     #[test]
@@ -536,6 +567,27 @@ mod tests {
             Some(RuntimeHostRequestResolution::UnsupportedCapability(
                 RuntimeHostCapabilityFailure {
                     act: RuntimeHostAct::File
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn runtime_host_registry_reports_known_file_buffer_unknown_op_as_capability_failure() {
+        let registry = RuntimeHostRegistry::new(true);
+        let path = [
+            "std".into(),
+            "io".into(),
+            "file".into(),
+            "file_buffer".into(),
+            "not_registered".into(),
+        ];
+
+        assert_eq!(
+            registry.resolve(&path),
+            Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act: RuntimeHostAct::FileBuffer
                 }
             ))
         );

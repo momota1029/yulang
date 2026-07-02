@@ -1748,6 +1748,18 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
         ),
         "{stdout}"
     );
+    assert!(
+        stdout.contains(
+            "  act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get sig=path -> str\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.file.file_buffer op=ambient_set tier=sync path=std.io.file.file_buffer.ambient_set sig=(path, str) -> unit\n"
+        ),
+        "{stdout}"
+    );
 }
 
 #[test]

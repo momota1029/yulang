@@ -88,8 +88,10 @@ fi
 host_manifest_output="$(run "$bin" debug host-act-manifest)"
 expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io.console.out.write'
 expected_file_manifest='act=std.io.file.file op=exists tier=sync path=std.io.file.file.exists'
+expected_file_buffer_manifest='act=std.io.file.file_buffer op=ambient_get tier=sync path=std.io.file.file_buffer.ambient_get'
 if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
-  "$host_manifest_output" != *"$expected_file_manifest"* ]]; then
+  "$host_manifest_output" != *"$expected_file_manifest"* ||
+  "$host_manifest_output" != *"$expected_file_buffer_manifest"* ]]; then
   echo "release smoke: unexpected host act manifest output" >&2
   echo "$host_manifest_output" >&2
   exit 1
