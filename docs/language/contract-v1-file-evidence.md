@@ -120,10 +120,13 @@ Pure mock resource-lifetime parity is still blocked. The current native
 for thin helpers; full `text_with` uses private snapshot helper operations.
 Making those raw helpers public would be the wrong fix. The next fix should
 either provide a mockable public host-act/session boundary for file resources or
-make the language-level local ref construction carry the right residuals through
-callbacks. `notes/bugs/ref_constructor_local_var_specialize_conflict.yu`
-records the smaller compiler-only reduction for the local-ref construction
-side.
+provide a documented public language-level ref view shape that carries the right
+residuals through callbacks. `notes/bugs/ref_constructor_public_path_blocker.yu`
+records the current attempted reduction on the local-ref construction side. It
+is not yet evidence of a specialize2 bug: `dump-poly` reports the external
+`std::control::var::ref { ... }` value constructor as unresolved, so the
+downstream `run` conflict must not be used as proof until the public constructor
+shape is corrected or replaced.
 
 ## Acceptance Gate
 

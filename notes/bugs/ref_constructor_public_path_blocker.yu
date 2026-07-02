@@ -1,0 +1,44 @@
+-- open (2026-07-02): user-level `std::control::var::ref { ... }` is not
+-- currently a valid reduced proof for the pure mock `text_with` blocker.
+--
+-- A pure mock `text_with` implementation still wants to create a managed `ref`
+-- view over handler-local state, then pass that ref to the user callback. The
+-- native file implementation avoids this by using private snapshot host
+-- operations, but the mock path should not require exposing those raw helpers.
+--
+-- Expected:
+--   - either there is a documented public constructor form for
+--     `std::control::var::ref`, and this reduction should use it;
+--   - or public source cannot construct that type directly, and the file mock
+--     path needs a different public host-act/session boundary.
+--
+-- Current:
+--   `yulang check` currently succeeds, but `dump-poly` shows the annotated
+--   constructor expression is lowered as `<missing>`:
+--
+--     error: unresolved value name in root expression: std::control::var::ref
+--
+--   `yulang run --print-roots` then fails downstream with:
+--
+--     conflicting type candidates for slot 0: std::text::str::str vs {get: 'open7}
+--
+-- That specialize conflict is not yet a trustworthy compiler-only reduction:
+-- it follows an unresolved value constructor. Do not use this file as proof of
+-- a specialize2 bug until the constructor path is corrected or replaced with a
+-- valid public source shape.
+--
+-- Do not fix the file mock blocker by making `std::io::file` private snapshot
+-- operations public. The missing abstraction is still expected to be either a
+-- mockable public host-act/session boundary or a valid language-level ref view
+-- shape that carries local-var residuals through callbacks.
+
+use std::control::var::*
+
+{
+    my &text = "start"
+    my r: std::control::var::ref _ str = std::control::var::ref {
+        get: \() -> $text,
+        update_effect: \() -> &text = ref_update::update $text
+    }
+    r.get()
+}

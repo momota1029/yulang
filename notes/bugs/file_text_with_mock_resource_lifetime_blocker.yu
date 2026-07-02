@@ -21,15 +21,19 @@
 --
 -- Current blocker B:
 --   rewriting `text_with` only in public Yulang with `read_text` / `write_text`
---   and a local `$text` ref currently leaves a `ref_update` / local var residual
---   conflict when the constructed ref escapes to the callback.
---   The smaller compiler-only reduction is in:
---     notes/bugs/ref_constructor_local_var_specialize_conflict.yu
+--   and a local `$text` ref still needs a public way to construct the managed
+--   `ref` view passed to the callback.
+--   The current attempted reduction is in:
+--     notes/bugs/ref_constructor_public_path_blocker.yu
+--   That reduction is intentionally not treated as a specialize2 proof yet:
+--   `dump-poly` shows `std::control::var::ref` is unresolved as a value
+--   constructor in external source, so the downstream run conflict is not
+--   trustworthy evidence by itself.
 --
 -- Do not solve this by making the raw snapshot operations public. The next
 -- proper fix should give file resources a mockable public host-act/session
--- boundary or make the language-level local ref construction carry the right
--- residuals through callbacks.
+-- boundary or provide a documented public language-level ref view shape that
+-- carries the right residuals through callbacks.
 
 my run(body, backing, buffer) = catch body:
     std::io::file::file::open_text_snapshot_raw path, k -> run (k (0, 0)) backing backing
