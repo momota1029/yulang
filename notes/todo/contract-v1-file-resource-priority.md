@@ -122,6 +122,15 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      catchable, integer error codes should be removed, and dispatch should go
      through the host registry. This is the regular fix for the pure mock
      parity blocker, so priorities 1 and 2 are one implementation track.
+   - 2026-07-03 decision: this priority now has two approved authoritative
+     instruction docs. `notes/design/2026-07-03-host-abi-v0.md` fixes the host
+     implementation ABI (Cranelift-link-first, VM injection as its subset;
+     HostOpFn / BoundaryValue / registration-set API; v0 explicitly unstable).
+     `notes/design/2026-07-03-host-manifest-compiler-production-plan.md`
+     (rev 1, subset of the ABI doc) moves the manifest source of truth from the
+     evidence-vm static table to compiler production keyed by a new
+     `pub host act` modifier. Work order: manifest Stage 1 and ABI Stage α are
+     independent; manifest Stage 2 requires ABI Stage α.
    - 2026-07-03 follow-up: console now has the same public host-act contract
      evidence shape as file for the first routing slice:
      `console_unsupported_host` proves unsupported host denial, and
