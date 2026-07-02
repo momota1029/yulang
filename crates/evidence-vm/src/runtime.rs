@@ -22,6 +22,7 @@ use specialize::mono::{
 mod format;
 mod host;
 mod plan;
+mod scheduler;
 mod stats;
 mod text;
 use crate::{
@@ -47,6 +48,7 @@ use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
     RuntimeEvidenceStaticRouteDynamicReason, RuntimeEvidenceStaticRouteResolution,
 };
+use scheduler::RuntimeHostScheduler;
 pub use stats::RuntimeEvidenceRunStats;
 use text::{
     grapheme_len, string_index, string_index_range, string_line_count, string_line_range,
@@ -8179,6 +8181,7 @@ struct RuntimeEvidenceRunner<'a> {
     closed_file_snapshots: HashMap<i64, RuntimeFileSnapshot>,
     file_ambient_buffers: HashMap<PathBuf, String>,
     next_file_handle: i64,
+    host_scheduler: RuntimeHostScheduler,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
     context: RuntimeEvidenceRunContext,
@@ -8204,6 +8207,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let runtime_exprs = runtime_expr_cache(program);
         let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
+        let host_scheduler = RuntimeHostScheduler::new();
         let host_registry = RuntimeHostRegistry::new(context.native_host_operations_enabled());
         let host_constructors = context.host_constructors().clone();
         let mut stats = evidence.stats();
@@ -8250,6 +8254,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             closed_file_snapshots: HashMap::new(),
             file_ambient_buffers: HashMap::new(),
             next_file_handle: 0,
+            host_scheduler,
             host_registry,
             host_constructors,
             context,
@@ -8270,6 +8275,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
         self.flush_file_ambient_buffers()?;
+        debug_assert!(self.host_scheduler.has_only_root_branch());
         Ok(RuntimeEvidenceRunOutput {
             values: values
                 .into_iter()

@@ -45,6 +45,11 @@ public surface:
   `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
   operations are still all registered as `sync`; the suspend tiers are the
   manifest vocabulary needed before server branches enter the registry.
+- The Evidence VM now owns a root `RuntimeHostScheduler` branch table. It does
+  not execute server operations yet, but unit tests lock the first scheduler
+  rules needed by the structured concurrency decision: suspended child cancel
+  drops the branch, running cancel becomes pending, and parent extent close
+  enqueues child cancels.
 - `tests/yulang/cases.toml` includes `file_meta_kind`, a
   `file-resource` / `metadata` / `mock-host` runtime canary that checks the
   new public `file::meta` operation under `--host unsupported`.
