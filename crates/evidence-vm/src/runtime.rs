@@ -8049,6 +8049,12 @@ fn snapshot_state_handler_frame(
     }
 }
 
+#[derive(Debug)]
+enum RuntimeHostRequestHandling {
+    Handled(EvidenceEvalResult),
+    Unhandled(EvidenceRequest),
+}
+
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
@@ -12040,23 +12046,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if let Some(resolution) = self.host_registry.resolve(request.path.as_ref()) {
-            match resolution {
-                RuntimeHostRequestResolution::Operation(spec) => {
-                    let value =
-                        self.handle_runtime_host_operation(spec, request.payload.as_ref())?;
-                    return self.resume_continuation(request.continuation, value);
-                }
-                RuntimeHostRequestResolution::UnsupportedCapability(failure) => {
-                    return Err(RuntimeEvidenceRunError::UnsupportedHostCapability(
-                        failure.act_path_strings(),
-                    ));
-                }
-            }
+        match self.try_handle_runtime_host_request(request)? {
+            RuntimeHostRequestHandling::Handled(result) => Ok(result),
+            RuntimeHostRequestHandling::Unhandled(request) => Err(
+                RuntimeEvidenceRunError::EscapedEffect(request.path.to_vec()),
+            ),
         }
-        Err(RuntimeEvidenceRunError::EscapedEffect(
-            request.path.to_vec(),
-        ))
+    }
+
+    fn try_handle_runtime_host_request(
+        &mut self,
+        request: EvidenceRequest,
+    ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
+        let Some(resolution) = self.host_registry.resolve(request.path.as_ref()) else {
+            return Ok(RuntimeHostRequestHandling::Unhandled(request));
+        };
+        match resolution {
+            RuntimeHostRequestResolution::Operation(spec) => {
+                let value = self.handle_runtime_host_operation(spec, request.payload.as_ref())?;
+                self.resume_continuation(request.continuation, value)
+                    .map(RuntimeHostRequestHandling::Handled)
+            }
+            RuntimeHostRequestResolution::UnsupportedCapability(failure) => Err(
+                RuntimeEvidenceRunError::UnsupportedHostCapability(failure.act_path_strings()),
+            ),
+        }
     }
 
     fn handle_runtime_host_operation(
@@ -12790,26 +12804,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 _ => break,
             };
-            let Some(resolution) = self.host_registry.resolve(request.path.as_ref()) else {
-                result = Ok(EvidenceEvalResult::request(request));
-                break;
-            };
-            match resolution {
-                RuntimeHostRequestResolution::Operation(spec) => {
-                    let value =
-                        match self.handle_runtime_host_operation(spec, request.payload.as_ref()) {
-                            Ok(value) => value,
-                            Err(err) => {
-                                result = Err(err);
-                                break;
-                            }
-                        };
-                    result = self.resume_continuation(request.continuation, value);
+            match self.try_handle_runtime_host_request(request) {
+                Ok(RuntimeHostRequestHandling::Handled(host_result)) => {
+                    result = Ok(host_result);
                 }
-                RuntimeHostRequestResolution::UnsupportedCapability(failure) => {
-                    result = Err(RuntimeEvidenceRunError::UnsupportedHostCapability(
-                        failure.act_path_strings(),
-                    ));
+                Ok(RuntimeHostRequestHandling::Unhandled(request)) => {
+                    result = Ok(EvidenceEvalResult::request(request));
+                    break;
+                }
+                Err(err) => {
+                    result = Err(err);
                     break;
                 }
             }
