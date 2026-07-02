@@ -1,0 +1,13 @@
+use std::control::nondet::*
+
+my path = {{file}}
+
+my result = (std::io::file::text_with path: \text0 ->
+    my suffix = each [" A", " B"]
+    my final = text0 + suffix
+    ((suffix, final), final)
+).list
+
+my after = std::io::file::read_text path
+
+(result, after)

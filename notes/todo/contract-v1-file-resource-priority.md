@@ -36,6 +36,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
    - native host handler を mock と同じ snapshot transaction 意味論へ寄せる。
      - 2026-07-02: native normal commit / user-error rollback / nondet
        branch-local snapshot は executable contract 化済み。
+     - 2026-07-03: added `file_text_with_native_undet_last_write_wins`, so
+       native `text_with` now has executable nondet branch-local
+       last-write-wins evidence over the public `load` / `store` protocol.
    - unsupported host は fake success せず typed failure または structured diagnostic にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
    - packaged binary + bundled std で file-resource contract を走らせる。

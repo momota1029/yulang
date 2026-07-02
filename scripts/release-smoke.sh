@@ -125,6 +125,7 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_native_protocol_load_store_meta
     file_text_with_native_commit
     file_text_with_native_rollback_on_error
+    file_text_with_native_undet_last_write_wins
     file_unsupported_host
   )
   file_resource_case_args=()

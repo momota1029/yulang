@@ -215,6 +215,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_text_with_native_undet_last_write_wins"
+file = "regressions/runtime/file_text_with_native_undet_last_write_wins.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [([(\" A\", \"start A\"), (\" B\", \"start B\")], \"start B\")]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "start", expect_contents = "start B" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host.native",
+  "std.nondet",
+]
+
+[[case]]
 name = "file_text_with_undet_last_write_wins"
 file = "regressions/runtime/file_text_with_undet_last_write_wins.yu"
 kind = "run"

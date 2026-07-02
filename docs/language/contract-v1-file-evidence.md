@@ -94,6 +94,10 @@ public surface:
   `file_text_with_native_rollback_on_error`, which proves a callback abort does
   not reach the protocol `store`, leaving the native backing file unchanged.
 - `tests/yulang/cases.toml` includes
+  `file_text_with_native_undet_last_write_wins`, which proves native
+  `text_with` follows the same branch-local buffer / arrival-order
+  last-write-wins behavior already covered by the source mock protocol case.
+- `tests/yulang/cases.toml` includes
   `file_text_unscoped_native_handler_extent`, which proves unscoped
   `file::text` reads through the native ambient `file_buffer` act, keeps the
   backing file unchanged during the handler extent, and writes the dirty buffer
@@ -198,7 +202,7 @@ executable `file-resource` cases for:
 | Slice | Required evidence |
 | --- | --- |
 | Mock host | complete for the Stage 1 protocol fixture set |
-| Native host | remaining multi-shot native parity and eventual removal or raw/provisional isolation of legacy snapshot operations |
+| Native host | eventual removal or raw/provisional isolation of legacy snapshot operations |
 | Unsupported host | unsupported capability is a typed failure or structured diagnostic, never fake success |
 | Public signatures | exact types for the resource entrypoints without `#...`, `AllExcept(...)`, `Unknown`, or placeholder-like `Any` |
 
