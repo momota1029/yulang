@@ -40,6 +40,10 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-02: `file_unsupported_host` で structured runtime failure 化済み。
    - packaged binary + bundled std で file-resource contract を走らせる。
      - 2026-07-02: local archive smoke で current `file-resource` subset 通過済み。
+     - 2026-07-03: direct `scripts/release-smoke.sh` now runs a focused
+       representative `file-resource` contract set against the smoke binary and
+       installed std. Full `--contract file-resource` stays in archive/local
+       validation because it is too heavy for the direct smoke loop.
    - 残りの大きな blocker は pure mock resource-lifetime parity。
      - 2026-07-02: この blocker の実装指示書が
        `notes/design/2026-07-02-file-session-boundary-plan.md`（Claude 署名・authoritative）
@@ -74,6 +78,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
 
 4. **Release artifact contract**
    - packaged binary で `stable-core` と file-resource representative contract を通す。
+     - 2026-07-03: direct release smoke covers the representative file-resource
+       set; archive smoke still runs the broader contract tag filters with the
+       bundled std.
    - bundled std と repo std の差で結果が変わらないようにする。
    - `yulang server` startup、Zed discovery、cache status を release smoke へ残す。
 
