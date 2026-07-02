@@ -1,0 +1,1 @@
+std::io::file::write_text "/tmp/yulang-contract-unsupported-write" "blocked"

@@ -567,6 +567,27 @@ contracts = [
 ]
 
 [[case]]
+name = "file_write_text_unsupported_host"
+file = "regressions/runtime/file_write_text_unsupported_host.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file is not available in this runtime",
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "standard-api",
+  "migration-canary",
+  "file",
+  "file-resource",
+  "host.unsupported",
+]
+
+[[case]]
 name = "file_text_unsupported_host"
 file = "regressions/runtime/file_text_unsupported_host.yu"
 kind = "run"
