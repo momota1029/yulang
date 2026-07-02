@@ -1,0 +1,49 @@
+-- open (2026-07-02): `file::text_with` callback reads the managed text ref,
+-- then exits through a user error that is caught by that user's generated
+-- `E::wrap`.
+--
+-- This is a Contract v1 file-resource rollback blocker. The source type-checks,
+-- but specialize2 fails before runtime:
+--
+--   conflicting type candidates for slot 0:
+--     [std::io::file::file, edit_err] vs [edit_err]
+--
+-- Minimal trigger:
+--   - `text_with` is the outer resource lifetime API;
+--   - callback performs a file effect through `$text`;
+--   - callback then performs `edit_err`;
+--   - outer `edit_err::wrap` consumes only `edit_err`.
+--
+-- Removing `$text` makes the program specialize.
+-- Replacing `edit_err::wrap` with `std::io::file::io_err::wrap` also works when
+-- the backing file exists. So this is not a native host bridge problem and not
+-- a simple `E::wrap` problem. It is the cross-effect callback residual shape.
+--
+-- Do not add this to `tests/yulang/cases.toml` until it passes. The contract
+-- manifest must stay executable and should not carry expected-failure
+-- placeholders.
+--
+-- Likely fix area:
+--   `crates/specialize/src/specialize2/type_resolver.rs`
+--   `crates/specialize/src/specialize2/candidate.rs`
+--
+-- Bad fixes:
+--   - special-case `std::io::file`;
+--   - special-case generated `*.wrap`;
+--   - erase the callback residual to make the candidate conflict disappear.
+--
+-- Expected runtime behavior after fixing specialization:
+--   - with an existing backing file containing "start";
+--   - callback reads `$text`, updates no backing state, then throws edit_err;
+--   - `edit_err::wrap` returns `result::err(edit_err::abort)`;
+--   - the backing file remains "start" because scope exit did not complete.
+
+pub error edit_err:
+    abort
+
+my wrapped = edit_err::wrap:
+    std::io::file::text_with "__YULANG_EXISTING_TEXT_FILE__": \&text ->
+        my before = $text
+        edit_err::abort.throw
+
+wrapped
