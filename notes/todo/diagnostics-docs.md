@@ -26,7 +26,9 @@
 - playground の blank / missing diagnostic regression を小さい fixture で追う。
   2026-07-03 に wasm playground payload 側で、先頭空行/コメント後の
   type mismatch primary / related offset が user source offset に残る canary を追加済み。
-  missing diagnostic 側は未着手。
+  同日に incomplete source `my x =` の parser + lowering diagnostics が
+  JSON payload に残る canary も追加済み。role/member/case coverage などの
+  missing diagnostics は detailed type checker 側の TODO に残る。
 
 ## 2026-07-01 weekly target
 

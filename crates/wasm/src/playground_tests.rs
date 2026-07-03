@@ -583,6 +583,36 @@ pair
     }
 
     #[test]
+    fn check_inner_keeps_incomplete_source_diagnostics() {
+        let source = "my x =\n";
+        let output = check_inner(source);
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 2);
+        assert_eq!(output.diagnostics[0].label, None);
+        assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
+        let eof_offset = source.find('\n').unwrap();
+        assert_eq!(output.diagnostics[0].start, eof_offset);
+        assert_eq!(output.diagnostics[0].end, eof_offset);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "syntax error: unexpected end of input"
+        );
+        assert_eq!(output.diagnostics[1].label.as_deref(), Some("x"));
+        assert_eq!(
+            output.diagnostics[1].code.as_deref(),
+            Some("yulang.lowering")
+        );
+        let name_start = source.find('x').unwrap();
+        assert_eq!(output.diagnostics[1].start, name_start);
+        assert_eq!(output.diagnostics[1].end, name_start + "x".len());
+        assert_eq!(
+            output.diagnostics[1].message,
+            "binding `x` is missing a body expression"
+        );
+    }
+
+    #[test]
     fn check_inner_returns_diagnostic_code_and_type_name_range() {
         let output = check_inner(diagnostics_fixture("unresolved_type_name"));
 
