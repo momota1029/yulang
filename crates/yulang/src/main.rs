@@ -924,7 +924,7 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     specialized.runtime_evidence.host_manifest = poly.host_manifest.clone();
     specialized
         .runtime_evidence
-        .attach_static_routes(&poly.arena);
+        .attach_static_routes(&poly.arena, &specialized.program);
     if let Some(timings) = timings.as_deref_mut() {
         timings.specialize = specialize_start.elapsed();
     }
@@ -997,7 +997,9 @@ fn specialize_control_program(
         Err(error) => exit_on_specialize_error(error),
     };
     output.runtime_evidence.host_manifest = poly.host_manifest.clone();
-    output.runtime_evidence.attach_static_routes(&poly.arena);
+    output
+        .runtime_evidence
+        .attach_static_routes(&poly.arena, &output.program);
 
     if let Some((cache, key)) = mono_cache {
         let artifact = yulang::cache::CachedMonoArtifact {

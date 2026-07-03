@@ -1,8 +1,10 @@
 mod tests {
     use crate::{
         RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind,
-        RuntimeEvidenceTaskOwner, boundary_expr, boundary_expr_with_hygiene, hygiene, specialize,
-        specialize_roots, specialize_with_runtime_evidence, specialize2,
+        RuntimeEvidenceStaticRoute, RuntimeEvidenceStaticRouteDynamicReason,
+        RuntimeEvidenceStaticRouteResolution, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
+        boundary_expr, boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
+        specialize_with_runtime_evidence, specialize2,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
@@ -629,6 +631,87 @@ mod tests {
     }
 
     #[test]
+    fn runtime_evidence_static_routes_propagate_single_helper_context() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my ask _ = stop::now()\n\n\
+             catch ask(()):\n\
+             \x20 stop::now(), _ -> 42\n\
+             \x20 v -> v\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("single-context helper should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::StaticHandler { .. }
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
+    fn runtime_evidence_static_routes_mark_helper_multiple_contexts_dynamic() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my ask _ = stop::now()\n\
+             my a = catch ask(()):\n\
+             \x20 stop::now(), _ -> 1\n\
+             \x20 v -> v\n\
+             my b = catch ask(()):\n\
+             \x20 stop::now(), _ -> 2\n\
+             \x20 v -> v\n\n\
+             (a, b)\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("multi-context helper should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
+    fn runtime_evidence_static_routes_do_not_promote_returned_lambda_body() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my make _ = \\_ -> stop::now()\n\
+             my f = catch make(()):\n\
+             \x20 stop::now(), _ -> \\_ -> 1\n\
+             \x20 v -> v\n\n\
+             f(())\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("returned-lambda helper should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::Unclassified
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn specialize2_keeps_unreachable_type_slots_from_forcing_errors() {
         let lowering = lower_source("my const x y = x\nconst(1)\n");
         let arena = &lowering.session.poly;
@@ -808,6 +891,21 @@ mod tests {
             }
         );
         assert_eq!(arg.kind, ExprKind::Lit(Lit::Int(1)));
+    }
+
+    fn static_route_for_family<'a>(
+        surface: &'a RuntimeEvidenceSurface,
+        family: &[&str],
+    ) -> &'a RuntimeEvidenceStaticRoute {
+        let family = family
+            .iter()
+            .map(|part| part.to_string())
+            .collect::<Vec<_>>();
+        surface
+            .static_routes
+            .iter()
+            .find(|route| route.family == family)
+            .expect("static route for family should be recorded")
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {

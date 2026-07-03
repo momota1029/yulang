@@ -399,7 +399,7 @@ pub fn build_control_from_poly_output(
     specialized.runtime_evidence.host_manifest = output.host_manifest.clone();
     specialized
         .runtime_evidence
-        .attach_static_routes(&output.arena);
+        .attach_static_routes(&output.arena, &specialized.program);
     let program = control_vm::lower(&specialized.program).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,

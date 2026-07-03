@@ -1,12 +1,13 @@
 use mono::{EffectFamily, Program, StackWeight, Type};
 use poly::expr as poly_expr;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fmt::Write as _;
 
 use super::{
     EffectSubtractionDemand, SolvedExprType, SolvedTask, TypeGraph, TypeSlot, TypeSlotKind,
-    TypeclassResolution, WeightedSlotEdge, WeightedTypeBound, stack_weight_is_empty,
+    TypeclassResolution, WeightedSlotEdge, WeightedTypeBound, close_resolved_runtime_surface,
+    stack_weight_is_empty,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -36,9 +37,9 @@ impl RuntimeEvidenceSurface {
             known_state_accesses_from_tasks(&known_state_effects, &self.tasks);
     }
 
-    pub fn attach_static_routes(&mut self, arena: &poly_expr::Arena) {
+    pub fn attach_static_routes(&mut self, arena: &poly_expr::Arena, program: &Program) {
         self.static_routes =
-            static_routes_from_tasks(arena, self.host_manifest.as_ref(), &self.tasks);
+            static_routes_from_tasks(arena, program, self.host_manifest.as_ref(), &self.tasks);
     }
 
     pub(super) fn push_solved_task(
@@ -217,15 +218,19 @@ fn known_state_accesses_from_tasks(
 
 fn static_routes_from_tasks(
     arena: &poly_expr::Arena,
+    program: &Program,
     host_manifest: Option<&poly::host_manifest::HostActManifest>,
     tasks: &[RuntimeEvidenceTask],
 ) -> Vec<RuntimeEvidenceStaticRoute> {
-    let mut routes = Vec::new();
-    for task in tasks {
-        let mut classifier = TaskStaticRouteClassifier::new(host_manifest, task);
+    let program_index = StaticRouteProgramIndex::new(program);
+    let mut analyses = Vec::new();
+    for (task_index, task) in tasks.iter().enumerate() {
+        let mut classifier =
+            TaskStaticRouteClassifier::new(arena, &program_index, task_index, task);
         classifier.visit_expr(arena, task_root_expr(task), 0);
-        routes.extend(classifier.finish());
+        analyses.push(classifier.finish());
     }
+    let mut routes = StaticRouteL2Resolver::new(host_manifest, tasks, analyses).finish();
     routes.sort_by_key(|route| (route.operation_expr, route.apply, route.callee));
     routes
 }
@@ -237,18 +242,28 @@ fn task_root_expr(task: &RuntimeEvidenceTask) -> u32 {
     }
 }
 
-struct TaskStaticRouteClassifier<'a> {
-    host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+struct TaskStaticRouteClassifier {
+    task_index: usize,
     operation_calls: BTreeMap<u32, RuntimeEvidenceOperationCallSite>,
+    app_calls: BTreeMap<u32, RuntimeEvidenceAppCallSite>,
     active_handlers: Vec<RuntimeEvidenceActiveHandler>,
     routes: BTreeMap<u32, RuntimeEvidenceStaticRoute>,
+    operation_lambda_depths: BTreeMap<u32, u32>,
+    call_edges: Vec<RuntimeEvidenceCallEdge>,
 }
 
-impl<'a> TaskStaticRouteClassifier<'a> {
+impl TaskStaticRouteClassifier {
     fn new(
-        host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+        arena: &poly_expr::Arena,
+        program_index: &StaticRouteProgramIndex,
+        task_index: usize,
         task: &RuntimeEvidenceTask,
     ) -> Self {
+        let ref_signatures = task
+            .ref_signatures
+            .iter()
+            .map(|signature| (signature.expr, &signature.ty))
+            .collect::<HashMap<_, _>>();
         let operation_calls = task
             .sites
             .iter()
@@ -269,38 +284,74 @@ impl<'a> TaskStaticRouteClassifier<'a> {
                         apply: site.expr,
                         callee: *callee,
                         family: path.clone(),
+                        lambda_depth: None,
+                    },
+                ))
+            })
+            .collect();
+        let app_calls = task
+            .sites
+            .iter()
+            .filter_map(|site| {
+                let RuntimeEvidenceSiteKind::App {
+                    callee,
+                    arg: _,
+                    argument_contract,
+                } = &site.kind
+                else {
+                    return None;
+                };
+                let (head, index) =
+                    call_spine_head_and_arg_index(arena, poly_expr::ExprId(*callee));
+                let callee_instance =
+                    program_index.instance_for_callee(arena, head, &ref_signatures)?;
+                Some((
+                    site.expr,
+                    RuntimeEvidenceAppCallSite {
+                        callee_instance,
+                        applied_lambda_depth: index as u32 + 1,
+                        delayed_boundary: *argument_contract,
                     },
                 ))
             })
             .collect();
         Self {
-            host_manifest,
+            task_index,
             operation_calls,
+            app_calls,
             active_handlers: Vec::new(),
             routes: BTreeMap::new(),
+            operation_lambda_depths: BTreeMap::new(),
+            call_edges: Vec::new(),
         }
     }
 
-    fn finish(mut self) -> Vec<RuntimeEvidenceStaticRoute> {
-        let operations = self.operation_calls.values().cloned().collect::<Vec<_>>();
-        for operation in operations {
-            let resolution = self.dynamic_resolution_for(&operation.family);
-            self.routes
-                .entry(operation.operation_expr)
-                .or_insert_with(|| RuntimeEvidenceStaticRoute {
-                    operation_expr: operation.operation_expr,
-                    apply: operation.apply,
-                    callee: operation.callee,
-                    family: operation.family.clone(),
-                    resolution,
-                });
+    fn finish(self) -> StaticRouteTaskAnalysis {
+        let operations = self
+            .operation_calls
+            .into_values()
+            .map(|mut operation| {
+                operation.lambda_depth = self
+                    .operation_lambda_depths
+                    .get(&operation.operation_expr)
+                    .copied();
+                operation
+            })
+            .collect();
+        StaticRouteTaskAnalysis {
+            owner: self.task_index,
+            operations,
+            l1_routes: self.routes,
+            call_edges: self.call_edges,
         }
-        self.routes.into_values().collect()
     }
 
     fn visit_expr(&mut self, arena: &poly_expr::Arena, expr: u32, lambda_depth: u32) {
         if let Some(operation) = self.operation_calls.get(&expr).cloned() {
             self.record_operation(operation, lambda_depth);
+        }
+        if let Some(app) = self.app_calls.get(&expr).copied() {
+            self.record_call_edge(app, lambda_depth);
         }
 
         match arena.expr(poly_expr::ExprId(expr)) {
@@ -395,23 +446,20 @@ impl<'a> TaskStaticRouteClassifier<'a> {
     }
 
     fn record_operation(&mut self, operation: RuntimeEvidenceOperationCallSite, lambda_depth: u32) {
-        let resolution = self
-            .active_handlers
-            .iter()
-            .rev()
-            .find(|handler| {
-                handler.lambda_depth == lambda_depth
-                    && handler
-                        .handled_paths
-                        .iter()
-                        .any(|path| path == &operation.family)
-            })
-            .map(
-                |handler| RuntimeEvidenceStaticRouteResolution::StaticHandler {
-                    handler_expr: handler.handler_expr,
-                },
-            )
-            .unwrap_or_else(|| self.dynamic_resolution_for(&operation.family));
+        self.operation_lambda_depths
+            .insert(operation.operation_expr, lambda_depth);
+        let Some(handler) = self.active_handlers.iter().rev().find(|handler| {
+            handler.lambda_depth == lambda_depth
+                && handler
+                    .handled_paths
+                    .iter()
+                    .any(|path| path == &operation.family)
+        }) else {
+            return;
+        };
+        let resolution = RuntimeEvidenceStaticRouteResolution::StaticHandler {
+            handler_expr: handler.handler_expr,
+        };
         self.routes.insert(
             operation.operation_expr,
             RuntimeEvidenceStaticRoute {
@@ -424,16 +472,20 @@ impl<'a> TaskStaticRouteClassifier<'a> {
         );
     }
 
-    fn dynamic_resolution_for(&self, family: &[String]) -> RuntimeEvidenceStaticRouteResolution {
-        if host_manifest_has_known_act(self.host_manifest, family) {
-            RuntimeEvidenceStaticRouteResolution::Dynamic(
-                RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
-            )
-        } else {
-            RuntimeEvidenceStaticRouteResolution::Dynamic(
-                RuntimeEvidenceStaticRouteDynamicReason::Unclassified,
-            )
-        }
+    fn record_call_edge(&mut self, app: RuntimeEvidenceAppCallSite, lambda_depth: u32) {
+        self.call_edges.push(RuntimeEvidenceCallEdge {
+            caller_task: self.task_index,
+            callee_instance: app.callee_instance,
+            site_lambda_depth: lambda_depth,
+            applied_lambda_depth: app.applied_lambda_depth,
+            delayed_boundary: app.delayed_boundary,
+            active_handlers: self
+                .active_handlers
+                .iter()
+                .filter(|handler| handler.lambda_depth == lambda_depth)
+                .cloned()
+                .collect(),
+        });
     }
 }
 
@@ -443,6 +495,32 @@ struct RuntimeEvidenceOperationCallSite {
     apply: u32,
     callee: u32,
     family: Vec<String>,
+    lambda_depth: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+struct StaticRouteTaskAnalysis {
+    owner: usize,
+    operations: Vec<RuntimeEvidenceOperationCallSite>,
+    l1_routes: BTreeMap<u32, RuntimeEvidenceStaticRoute>,
+    call_edges: Vec<RuntimeEvidenceCallEdge>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RuntimeEvidenceAppCallSite {
+    callee_instance: u32,
+    applied_lambda_depth: u32,
+    delayed_boundary: bool,
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeEvidenceCallEdge {
+    caller_task: usize,
+    callee_instance: u32,
+    site_lambda_depth: u32,
+    applied_lambda_depth: u32,
+    delayed_boundary: bool,
+    active_handlers: Vec<RuntimeEvidenceActiveHandler>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -450,6 +528,411 @@ struct RuntimeEvidenceActiveHandler {
     handler_expr: u32,
     lambda_depth: u32,
     handled_paths: Vec<Vec<String>>,
+}
+
+struct StaticRouteProgramIndex {
+    instances: Vec<(u32, Type, u32)>,
+}
+
+impl StaticRouteProgramIndex {
+    fn new(program: &Program) -> Self {
+        let instances = program
+            .instances
+            .iter()
+            .map(|instance| match instance.source {
+                mono::InstanceSource::Def(def) => {
+                    (def.0, instance.signature.ty.clone(), instance.id.0)
+                }
+            })
+            .collect();
+        Self { instances }
+    }
+
+    fn instance_for_callee(
+        &self,
+        arena: &poly_expr::Arena,
+        callee: poly_expr::ExprId,
+        ref_signatures: &HashMap<u32, &Type>,
+    ) -> Option<u32> {
+        let poly_expr::Expr::Var(ref_id) = arena.expr(callee) else {
+            return None;
+        };
+        let def = arena.ref_target(*ref_id)?;
+        let Some(poly_expr::Def::Let { body: Some(_), .. }) = arena.defs.get(def) else {
+            return None;
+        };
+        let signature = *ref_signatures.get(&callee.0)?;
+        let signature = close_resolved_runtime_surface(signature.clone(), TypeSlotKind::Value);
+        self.instances
+            .iter()
+            .find(|(instance_def, instance_ty, _)| {
+                *instance_def == def.0 && instance_ty == &signature
+            })
+            .map(|(_, _, instance)| *instance)
+    }
+}
+
+struct StaticRouteL2Resolver<'a> {
+    host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+    analyses: Vec<StaticRouteTaskAnalysis>,
+    instance_tasks: HashMap<u32, usize>,
+    task_sccs: Vec<usize>,
+    scc_tasks: Vec<Vec<usize>>,
+    topo_order: Vec<usize>,
+}
+
+impl<'a> StaticRouteL2Resolver<'a> {
+    fn new(
+        host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+        tasks: &[RuntimeEvidenceTask],
+        analyses: Vec<StaticRouteTaskAnalysis>,
+    ) -> Self {
+        let instance_tasks = tasks
+            .iter()
+            .enumerate()
+            .filter_map(|(task_index, task)| match task.owner {
+                RuntimeEvidenceTaskOwner::InstanceBody { instance, .. } => {
+                    Some((instance, task_index))
+                }
+                RuntimeEvidenceTaskOwner::RootExpr { .. } => None,
+            })
+            .collect::<HashMap<_, _>>();
+        let graph_edges = analyses
+            .iter()
+            .flat_map(|analysis| {
+                analysis.call_edges.iter().filter_map(|edge| {
+                    instance_tasks
+                        .get(&edge.callee_instance)
+                        .copied()
+                        .map(|target| (edge.caller_task, target))
+                })
+            })
+            .collect::<Vec<_>>();
+        let sccs = StaticRouteSccs::new(tasks.len(), &graph_edges);
+        Self {
+            host_manifest,
+            analyses,
+            instance_tasks,
+            task_sccs: sccs.task_sccs,
+            scc_tasks: sccs.scc_tasks,
+            topo_order: sccs.topo_order,
+        }
+    }
+
+    fn finish(self) -> Vec<RuntimeEvidenceStaticRoute> {
+        let contexts = self.propagate_contexts();
+        let mut routes = Vec::new();
+        for analysis in &self.analyses {
+            let task_context = &contexts[self.task_sccs[analysis.owner]];
+            for operation in &analysis.operations {
+                if let Some(route) = analysis.l1_routes.get(&operation.operation_expr) {
+                    routes.push(route.clone());
+                    continue;
+                }
+                let resolution = self.resolve_operation_from_context(task_context, operation);
+                routes.push(RuntimeEvidenceStaticRoute {
+                    operation_expr: operation.operation_expr,
+                    apply: operation.apply,
+                    callee: operation.callee,
+                    family: operation.family.clone(),
+                    resolution,
+                });
+            }
+        }
+        routes
+    }
+
+    fn propagate_contexts(&self) -> Vec<StaticRouteContextMap> {
+        let mut contexts = vec![StaticRouteContextMap::default(); self.scc_tasks.len()];
+        for scc in &self.topo_order {
+            let internal_edges = self.edges_from_scc(*scc);
+            for edge in internal_edges.iter().filter(|edge| {
+                self.instance_tasks
+                    .get(&edge.callee_instance)
+                    .is_some_and(|target| self.task_sccs[*target] == *scc)
+            }) {
+                let edge_context = context_for_edge(&contexts[*scc], edge);
+                contexts[*scc].merge(edge_context);
+            }
+
+            let outgoing_edges = self.edges_from_scc(*scc);
+            for edge in outgoing_edges {
+                let Some(target_task) = self.instance_tasks.get(&edge.callee_instance).copied()
+                else {
+                    continue;
+                };
+                let target_scc = self.task_sccs[target_task];
+                if target_scc == *scc {
+                    continue;
+                }
+                let edge_context = context_for_edge(&contexts[*scc], edge);
+                contexts[target_scc].merge(edge_context);
+            }
+        }
+        contexts
+    }
+
+    fn edges_from_scc(&self, scc: usize) -> Vec<&RuntimeEvidenceCallEdge> {
+        self.scc_tasks[scc]
+            .iter()
+            .flat_map(|task| self.analyses[*task].call_edges.iter())
+            .collect()
+    }
+
+    fn resolve_operation_from_context(
+        &self,
+        context: &StaticRouteContextMap,
+        operation: &RuntimeEvidenceOperationCallSite,
+    ) -> RuntimeEvidenceStaticRouteResolution {
+        let lambda_depth = operation.lambda_depth.unwrap_or(u32::MAX);
+        let handlers = context.handlers_for(&operation.family, lambda_depth);
+        match handlers.as_slice() {
+            [handler_expr] => RuntimeEvidenceStaticRouteResolution::StaticHandler {
+                handler_expr: *handler_expr,
+            },
+            [] => dynamic_static_route_resolution(self.host_manifest, &operation.family),
+            _ => RuntimeEvidenceStaticRouteResolution::Dynamic(
+                RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates,
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct StaticRouteContextMap {
+    by_family: BTreeMap<Vec<String>, BTreeMap<u32, u32>>,
+}
+
+impl StaticRouteContextMap {
+    fn insert(&mut self, family: Vec<String>, handler_expr: u32, max_lambda_depth: u32) {
+        let entry = self.by_family.entry(family).or_default();
+        entry
+            .entry(handler_expr)
+            .and_modify(|existing| *existing = (*existing).max(max_lambda_depth))
+            .or_insert(max_lambda_depth);
+    }
+
+    fn merge(&mut self, other: StaticRouteContextMap) {
+        for (family, handlers) in other.by_family {
+            for (handler_expr, max_lambda_depth) in handlers {
+                self.insert(family.clone(), handler_expr, max_lambda_depth);
+            }
+        }
+    }
+
+    fn handlers_for(&self, family: &[String], lambda_depth: u32) -> Vec<u32> {
+        self.by_family
+            .get(family)
+            .map(|handlers| {
+                handlers
+                    .iter()
+                    .filter_map(|(handler, max_depth)| {
+                        (*max_depth >= lambda_depth).then_some(*handler)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn propagated_at_depth(&self, site_lambda_depth: u32, applied_lambda_depth: u32) -> Self {
+        let mut propagated = Self::default();
+        for (family, handlers) in &self.by_family {
+            for (handler, max_depth) in handlers {
+                if *max_depth >= site_lambda_depth {
+                    propagated.insert(family.clone(), *handler, applied_lambda_depth);
+                }
+            }
+        }
+        propagated
+    }
+}
+
+fn context_for_edge(
+    inherited: &StaticRouteContextMap,
+    edge: &RuntimeEvidenceCallEdge,
+) -> StaticRouteContextMap {
+    if edge.delayed_boundary {
+        return StaticRouteContextMap::default();
+    }
+    let mut context =
+        inherited.propagated_at_depth(edge.site_lambda_depth, edge.applied_lambda_depth);
+    let local = local_handler_context(edge);
+    for family in local.by_family.keys() {
+        context.by_family.remove(family);
+    }
+    context.merge(local);
+    context
+}
+
+fn local_handler_context(edge: &RuntimeEvidenceCallEdge) -> StaticRouteContextMap {
+    let mut context = StaticRouteContextMap::default();
+    let mut seen = BTreeSet::new();
+    for handler in edge.active_handlers.iter().rev() {
+        for family in &handler.handled_paths {
+            if seen.insert(family.clone()) {
+                context.insert(
+                    family.clone(),
+                    handler.handler_expr,
+                    edge.applied_lambda_depth,
+                );
+            }
+        }
+    }
+    context
+}
+
+struct StaticRouteSccs {
+    task_sccs: Vec<usize>,
+    scc_tasks: Vec<Vec<usize>>,
+    topo_order: Vec<usize>,
+}
+
+impl StaticRouteSccs {
+    fn new(task_count: usize, edges: &[(usize, usize)]) -> Self {
+        let tarjan = StaticRouteTarjan::new(task_count, edges).finish();
+        let mut scc_edge_sets = vec![BTreeSet::new(); tarjan.scc_tasks.len()];
+        for (source, target) in edges {
+            let source_scc = tarjan.task_sccs[*source];
+            let target_scc = tarjan.task_sccs[*target];
+            if source_scc != target_scc {
+                scc_edge_sets[source_scc].insert(target_scc);
+            }
+        }
+        let scc_edges = scc_edge_sets
+            .into_iter()
+            .map(|edges| edges.into_iter().collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let topo_order = topo_order_for_sccs(&scc_edges);
+        Self {
+            task_sccs: tarjan.task_sccs,
+            scc_tasks: tarjan.scc_tasks,
+            topo_order,
+        }
+    }
+}
+
+struct StaticRouteTarjan<'a> {
+    edges: &'a [(usize, usize)],
+    next_index: usize,
+    stack: Vec<usize>,
+    on_stack: Vec<bool>,
+    indices: Vec<Option<usize>>,
+    lowlinks: Vec<usize>,
+    task_sccs: Vec<usize>,
+    scc_tasks: Vec<Vec<usize>>,
+}
+
+impl<'a> StaticRouteTarjan<'a> {
+    fn new(task_count: usize, edges: &'a [(usize, usize)]) -> Self {
+        Self {
+            edges,
+            next_index: 0,
+            stack: Vec::new(),
+            on_stack: vec![false; task_count],
+            indices: vec![None; task_count],
+            lowlinks: vec![0; task_count],
+            task_sccs: vec![usize::MAX; task_count],
+            scc_tasks: Vec::new(),
+        }
+    }
+
+    fn finish(mut self) -> StaticRouteTarjanOutput {
+        for task in 0..self.indices.len() {
+            if self.indices[task].is_none() {
+                self.visit(task);
+            }
+        }
+        StaticRouteTarjanOutput {
+            task_sccs: self.task_sccs,
+            scc_tasks: self.scc_tasks,
+        }
+    }
+
+    fn visit(&mut self, task: usize) {
+        let index = self.next_index;
+        self.next_index += 1;
+        self.indices[task] = Some(index);
+        self.lowlinks[task] = index;
+        self.stack.push(task);
+        self.on_stack[task] = true;
+
+        for target in self.targets_for(task) {
+            if self.indices[target].is_none() {
+                self.visit(target);
+                self.lowlinks[task] = self.lowlinks[task].min(self.lowlinks[target]);
+            } else if self.on_stack[target] {
+                self.lowlinks[task] = self.lowlinks[task].min(self.indices[target].unwrap());
+            }
+        }
+
+        if self.lowlinks[task] == self.indices[task].unwrap() {
+            let scc = self.scc_tasks.len();
+            let mut tasks = Vec::new();
+            loop {
+                let member = self.stack.pop().expect("tarjan stack should contain root");
+                self.on_stack[member] = false;
+                self.task_sccs[member] = scc;
+                tasks.push(member);
+                if member == task {
+                    break;
+                }
+            }
+            tasks.sort_unstable();
+            self.scc_tasks.push(tasks);
+        }
+    }
+
+    fn targets_for(&self, task: usize) -> Vec<usize> {
+        self.edges
+            .iter()
+            .filter_map(|(source, target)| (*source == task).then_some(*target))
+            .collect()
+    }
+}
+
+struct StaticRouteTarjanOutput {
+    task_sccs: Vec<usize>,
+    scc_tasks: Vec<Vec<usize>>,
+}
+
+fn topo_order_for_sccs(edges: &[Vec<usize>]) -> Vec<usize> {
+    let mut indegree = vec![0usize; edges.len()];
+    for targets in edges {
+        for target in targets {
+            indegree[*target] += 1;
+        }
+    }
+    let mut queue = indegree
+        .iter()
+        .enumerate()
+        .filter_map(|(scc, degree)| (*degree == 0).then_some(scc))
+        .collect::<VecDeque<_>>();
+    let mut order = Vec::new();
+    while let Some(scc) = queue.pop_front() {
+        order.push(scc);
+        for target in &edges[scc] {
+            indegree[*target] -= 1;
+            if indegree[*target] == 0 {
+                queue.push_back(*target);
+            }
+        }
+    }
+    order
+}
+
+fn dynamic_static_route_resolution(
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    family: &[String],
+) -> RuntimeEvidenceStaticRouteResolution {
+    if host_manifest_has_known_act(host_manifest, family) {
+        RuntimeEvidenceStaticRouteResolution::Dynamic(
+            RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
+        )
+    } else {
+        RuntimeEvidenceStaticRouteResolution::Dynamic(
+            RuntimeEvidenceStaticRouteDynamicReason::Unclassified,
+        )
+    }
 }
 
 fn host_manifest_has_known_act(
