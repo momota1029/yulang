@@ -1826,12 +1826,67 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "time"]
 
 [[case]]
+name = "std_time_nanos_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.nanos"
+expect_type = "int -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_micros_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.micros"
+expect_type = "int -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_millis_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.millis"
+expect_type = "int -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
 name = "std_time_secs_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
 std = "repo"
 module = "std.time"
 symbol = "std.time.secs"
+expect_type = "int -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_mins_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.mins"
+expect_type = "int -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_hours_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.hours"
 expect_type = "int -> std::time::duration"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "time"]

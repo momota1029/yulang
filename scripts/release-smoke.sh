@@ -213,7 +213,12 @@ if [[ "$contract_smoke" != "0" ]]; then
     std_time_clock_now_public_signature
     std_time_instant_add_public_signature
     std_time_instant_sub_public_signature
+    std_time_nanos_public_signature
+    std_time_micros_public_signature
+    std_time_millis_public_signature
     std_time_secs_public_signature
+    std_time_mins_public_signature
+    std_time_hours_public_signature
     std_time_days_public_signature
     std_time_duration_add_public_signature
     std_time_duration_sub_public_signature
