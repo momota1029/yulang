@@ -2781,7 +2781,7 @@ fn build_operation_objects(
             let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
             let visibility =
                 operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
-            let static_route = operation_static_route_resolution(
+            let static_route = static_route_resolution_from_surface(
                 static_routes,
                 operation,
                 candidate_handler,
@@ -2805,7 +2805,7 @@ fn build_operation_objects(
     }
 }
 
-fn operation_static_route_resolution(
+fn static_route_resolution_from_surface(
     static_routes: &StaticRouteIndex<'_>,
     operation: &EvidenceVmOperationPlan,
     candidate_handler: Option<u32>,
@@ -2851,12 +2851,12 @@ fn static_route_for_operation<'a>(
                 .get(&apply)
                 .copied()
                 .filter(|route| route.family == operation.path)
-                .or_else(|| dynamic_static_route_for_operation(static_routes, operation)),
+                .or_else(|| dynamic_static_route_from_surface(static_routes, operation)),
             EvidenceVmOperationKind::Value => None,
         })
 }
 
-fn dynamic_static_route_for_operation<'a>(
+fn dynamic_static_route_from_surface<'a>(
     static_routes: &'a StaticRouteIndex<'a>,
     operation: &EvidenceVmOperationPlan,
 ) -> Option<&'a RuntimeEvidenceStaticRoute> {
