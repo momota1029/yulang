@@ -789,6 +789,30 @@ mod tests {
     }
 
     #[test]
+    fn runtime_evidence_static_routes_mark_unhandled_host_act_escape() {
+        let lowering = lower_source("pub host act stop:\n  our now: () -> int\n\nstop::now()\n");
+        let arena = &lowering.session.poly;
+
+        let mut output = specialize_with_runtime_evidence(arena)
+            .expect("host escape route should specialize with runtime evidence");
+        output.runtime_evidence.host_manifest = Some(single_host_manifest(&["stop"], "now"));
+        output
+            .runtime_evidence
+            .attach_static_routes(arena, &output.program);
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::HostEscape
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn specialize2_keeps_unreachable_type_slots_from_forcing_errors() {
         let lowering = lower_source("my const x y = x\nconst(1)\n");
         let arena = &lowering.session.poly;
@@ -983,6 +1007,33 @@ mod tests {
             .iter()
             .find(|route| route.family == family)
             .expect("static route for family should be recorded")
+    }
+
+    fn single_host_manifest(
+        act_path: &[&str],
+        operation_id: &str,
+    ) -> poly::host_manifest::HostActManifest {
+        let act_id = act_path.join(".");
+        let mut operation_path = act_path
+            .iter()
+            .map(|part| part.to_string())
+            .collect::<Vec<_>>();
+        operation_path.push(operation_id.to_string());
+        poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: act_id.clone(),
+                path: act_path.iter().map(|part| part.to_string()).collect(),
+            }],
+            vec![poly::host_manifest::HostActManifestOperationInput {
+                act_id,
+                operation_id: operation_id.to_string(),
+                path: operation_path,
+                tier: poly::host_manifest::HostOperationTier::Sync,
+                surface: poly::host_manifest::HostOperationSurface::Contract,
+                signature: "placeholder".to_string(),
+            }],
+        )
+        .expect("single host manifest should be valid")
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {
