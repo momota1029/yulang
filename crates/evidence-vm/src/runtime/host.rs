@@ -300,6 +300,33 @@ mod tests {
     }
 
     #[test]
+    fn runtime_host_registry_uses_longest_manifest_act_prefix() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(nested_custom_host_manifest()),
+            Vec::new(),
+        );
+        let path = [
+            "test".into(),
+            "host".into(),
+            "bridge".into(),
+            "missing".into(),
+        ];
+
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
+            panic!("known nested host act with unknown op should report unsupported capability");
+        };
+        assert_eq!(
+            failure,
+            RuntimeHostCapabilityFailure {
+                act_path: vec!["test".into(), "host".into(), "bridge".into()]
+            }
+        );
+    }
+
+    #[test]
     fn runtime_host_registry_uses_generated_manifest_for_custom_host_act_capability() {
         let registry = RuntimeHostRegistry::with_manifest_and_registrations(
             true,
@@ -431,5 +458,39 @@ mod tests {
             }],
         )
         .expect("custom host manifest should be valid")
+    }
+
+    fn nested_custom_host_manifest() -> poly::host_manifest::HostActManifest {
+        poly::host_manifest::HostActManifest::new(
+            vec![
+                poly::host_manifest::HostActManifestAct {
+                    act_id: "test.host".to_string(),
+                    path: vec!["test".into(), "host".into()],
+                },
+                poly::host_manifest::HostActManifestAct {
+                    act_id: "test.host.bridge".to_string(),
+                    path: vec!["test".into(), "host".into(), "bridge".into()],
+                },
+            ],
+            vec![
+                poly::host_manifest::HostActManifestOperationInput {
+                    act_id: "test.host".to_string(),
+                    operation_id: "root".to_string(),
+                    path: vec!["test".into(), "host".into(), "root".into()],
+                    tier: poly::host_manifest::HostOperationTier::Sync,
+                    surface: poly::host_manifest::HostOperationSurface::Contract,
+                    signature: "() -> int".to_string(),
+                },
+                poly::host_manifest::HostActManifestOperationInput {
+                    act_id: "test.host.bridge".to_string(),
+                    operation_id: "call".to_string(),
+                    path: vec!["test".into(), "host".into(), "bridge".into(), "call".into()],
+                    tier: poly::host_manifest::HostOperationTier::Sync,
+                    surface: poly::host_manifest::HostOperationSurface::Contract,
+                    signature: "() -> int".to_string(),
+                },
+            ],
+        )
+        .expect("nested custom host manifest should be valid")
     }
 }
