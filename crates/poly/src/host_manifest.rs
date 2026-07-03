@@ -359,6 +359,87 @@ mod tests {
     }
 
     #[test]
+    fn rejects_duplicate_act_ids() {
+        let mut acts = sample_acts();
+        acts.push(HostActManifestAct {
+            act_id: "std.io.file.file".to_string(),
+            path: vec!["std".into(), "io".into(), "shadow".into(), "file".into()],
+        });
+
+        let err = HostActManifest::new(
+            acts,
+            vec![op(
+                "std.io.file.file",
+                "load",
+                HostOperationSurface::Contract,
+            )],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            HostManifestError::DuplicateAct {
+                act_id: "std.io.file.file".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_operations_for_unknown_acts() {
+        let err = HostActManifest::new(
+            sample_acts(),
+            vec![op(
+                "std.io.net.socket",
+                "connect",
+                HostOperationSurface::Contract,
+            )],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            HostManifestError::UnknownAct {
+                act_id: "std.io.net.socket".to_string(),
+                operation_id: "connect".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_operation_paths() {
+        let mut duplicate_path = op("std.io.file.file", "read", HostOperationSurface::Contract);
+        duplicate_path.path = vec![
+            "std".into(),
+            "io".into(),
+            "file".into(),
+            "file".into(),
+            "load".into(),
+        ];
+
+        let err = HostActManifest::new(
+            sample_acts(),
+            vec![
+                op("std.io.file.file", "load", HostOperationSurface::Contract),
+                duplicate_path,
+            ],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            HostManifestError::DuplicateOperationPath {
+                path: vec![
+                    "std".into(),
+                    "io".into(),
+                    "file".into(),
+                    "file".into(),
+                    "load".into()
+                ]
+            }
+        );
+    }
+
+    #[test]
     fn rejects_operation_paths_outside_act_path() {
         let mut input = op("std.io.file.file", "load", HostOperationSurface::Contract);
         input.path = vec!["std".into(), "io".into(), "other".into(), "load".into()];
