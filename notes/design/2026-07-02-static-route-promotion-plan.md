@@ -3,6 +3,10 @@
 作成日: 2026-07-02
 著者: Claude (Fable 5) — ユーザ承認済み（2026-07-02）。
 状態: **指示書（authoritative）**。実行エージェント（Codex 等）はこの文書に従うこと。
+改訂: Stage 0 の実装位置と分類根拠は
+[2026-07-03-static-route-mono-resolution-plan.md](2026-07-03-static-route-mono-resolution-plan.md)
+により差し替え（納品された evidence-vm 内の lowering 由来分類は退役対象）。
+Stage 1a / 1b / 2・判定表・rollback 条件は本文書のまま有効。
 
 根拠文書: [2026-07-02-speedup-proof-system.md](2026-07-02-speedup-proof-system.md)
 （ユーザ承認済み）。本指示書はその提案 1（静的 route 昇格）と提案 2
