@@ -98,8 +98,12 @@ impl RuntimeGeneratedHostManifestLookup {
                 (
                     operation.path.clone(),
                     RuntimeGeneratedHostOperation {
+                        act_id: operation.act_id,
+                        operation_id: operation.operation_id,
                         act_path,
                         path: operation.path,
+                        column: operation.column,
+                        symbol: operation.symbol,
                         f,
                     },
                 )
@@ -140,7 +144,11 @@ impl RuntimeGeneratedHostManifestLookup {
         };
         Some(RuntimeHostRequestResolution::Operation(
             RuntimeHostResolvedOperation {
+                act_id: operation.act_id.clone(),
+                operation_id: operation.operation_id.clone(),
                 path: operation.path.clone(),
+                column: operation.column,
+                symbol: operation.symbol.clone(),
                 f,
             },
         ))
@@ -155,8 +163,12 @@ impl RuntimeGeneratedHostManifestLookup {
 
 #[derive(Debug, Clone)]
 struct RuntimeGeneratedHostOperation {
+    act_id: String,
+    operation_id: String,
     act_path: Vec<String>,
     path: Vec<String>,
+    column: u32,
+    symbol: String,
     f: Option<HostOpFn>,
 }
 
@@ -209,13 +221,33 @@ pub(super) enum RuntimeHostRequestResolution {
 
 #[derive(Debug, Clone)]
 pub(super) struct RuntimeHostResolvedOperation {
+    act_id: String,
+    operation_id: String,
     path: Vec<String>,
+    column: u32,
+    symbol: String,
     f: HostOpFn,
 }
 
 impl RuntimeHostResolvedOperation {
+    pub(super) fn act_id(&self) -> &str {
+        &self.act_id
+    }
+
+    pub(super) fn operation_id(&self) -> &str {
+        &self.operation_id
+    }
+
     pub(super) fn path_strings(&self) -> Vec<String> {
         self.path.clone()
+    }
+
+    pub(super) fn column(&self) -> u32 {
+        self.column
+    }
+
+    pub(super) fn symbol(&self) -> &str {
+        &self.symbol
     }
 }
 
@@ -269,7 +301,11 @@ mod tests {
         else {
             panic!("enabled host operation should resolve to registered operation");
         };
+        assert_eq!(operation.act_id(), "test.host.bridge");
+        assert_eq!(operation.operation_id(), "call");
         assert_eq!(operation.path_strings(), path.to_vec());
+        assert_eq!(operation.column(), 0);
+        assert_eq!(operation.symbol(), "yu_host_4test4host6bridge_4call");
     }
 
     #[test]
@@ -363,7 +399,11 @@ mod tests {
         else {
             panic!("registered generated host operation should resolve");
         };
+        assert_eq!(operation.act_id(), "test.host.bridge");
+        assert_eq!(operation.operation_id(), "call");
         assert_eq!(operation.path_strings(), path.to_vec());
+        assert_eq!(operation.column(), 0);
+        assert_eq!(operation.symbol(), "yu_host_4test4host6bridge_4call");
     }
 
     #[test]
