@@ -154,6 +154,11 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        emission-free `specialize::role_method_check`, while run/backend paths
        still report the existing role method `SpecializeError` variants.
    - CLI / LSP / playground が同じ `SourceDiagnostic` payload を読む。
+     - 2026-07-03: wasm `run()` lowering failures now pass through the same
+       structured `SourceDiagnostic` conversion as `check()`, with run/check
+       parity coverage and a regression keeping runtime failures on the message
+       diagnostic path (commit 2ee20770). Runtime errors and route errors other
+       than `LoweringDiagnostics` intentionally remain message diagnostics.
    - hover は public projection を出し、内部 evidence や巨大型を漏らさない。
 
 4. **Release artifact contract**
