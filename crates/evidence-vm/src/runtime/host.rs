@@ -107,6 +107,7 @@ impl RuntimeGeneratedHostManifestLookup {
                         operation_id: operation.operation_id,
                         act_path,
                         path: operation.path,
+                        tier: operation.tier,
                         column: operation.column,
                         symbol: operation.symbol,
                         f,
@@ -152,6 +153,7 @@ impl RuntimeGeneratedHostManifestLookup {
                 act_id: operation.act_id.clone(),
                 operation_id: operation.operation_id.clone(),
                 path: operation.path.clone(),
+                tier: operation.tier,
                 column: operation.column,
                 symbol: operation.symbol.clone(),
                 f,
@@ -172,6 +174,7 @@ struct RuntimeGeneratedHostOperation {
     operation_id: String,
     act_path: Vec<String>,
     path: Vec<String>,
+    tier: poly::host_manifest::HostOperationTier,
     column: u32,
     symbol: String,
     f: Option<HostOpFn>,
@@ -229,12 +232,17 @@ pub(super) struct RuntimeHostResolvedOperation {
     act_id: String,
     operation_id: String,
     path: Vec<String>,
+    tier: poly::host_manifest::HostOperationTier,
     column: u32,
     symbol: String,
     f: HostOpFn,
 }
 
 impl RuntimeHostResolvedOperation {
+    pub(super) fn tier(&self) -> poly::host_manifest::HostOperationTier {
+        self.tier
+    }
+
     pub(super) fn path_strings(&self) -> Vec<String> {
         self.path.clone()
     }

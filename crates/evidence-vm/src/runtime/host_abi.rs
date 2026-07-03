@@ -5,6 +5,9 @@
 
 use std::any::Any;
 
+use super::scheduler::RuntimeHostSuspendIssuer;
+pub use super::scheduler::{HostResumeError, HostResumeToken, HostSuspendError};
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoundaryValue {
     Unit,
@@ -47,15 +50,42 @@ pub struct HostOpRegistration {
 
 pub struct HostCtx<'a> {
     state: &'a mut dyn Any,
+    suspend_issuer: Option<RuntimeHostSuspendIssuer>,
 }
 
 impl<'a> HostCtx<'a> {
     pub(crate) fn new(state: &'a mut dyn Any) -> Self {
-        Self { state }
+        Self {
+            state,
+            suspend_issuer: None,
+        }
+    }
+
+    pub(super) fn new_with_suspend_issuer(
+        state: &'a mut dyn Any,
+        suspend_issuer: RuntimeHostSuspendIssuer,
+    ) -> Self {
+        Self {
+            state,
+            suspend_issuer: Some(suspend_issuer),
+        }
     }
 
     pub fn state_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.state.downcast_mut::<T>()
+    }
+
+    pub fn suspend_one_shot(&mut self) -> Result<HostResumeToken, HostSuspendError> {
+        let Some(suspend_issuer) = &mut self.suspend_issuer else {
+            return Err(HostSuspendError::UnsupportedTier);
+        };
+        suspend_issuer.issue_one_shot()
+    }
+
+    pub(crate) fn issued_suspend_token(&self) -> Option<HostResumeToken> {
+        self.suspend_issuer
+            .as_ref()
+            .and_then(RuntimeHostSuspendIssuer::issued_token)
     }
 }
 
@@ -72,5 +102,9 @@ mod tests {
 
         assert_eq!(ctx.state_mut::<String>().unwrap(), "ab");
         assert!(ctx.state_mut::<usize>().is_none());
+        assert!(matches!(
+            ctx.suspend_one_shot(),
+            Err(HostSuspendError::UnsupportedTier)
+        ));
     }
 }

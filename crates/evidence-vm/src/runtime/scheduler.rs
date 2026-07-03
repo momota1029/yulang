@@ -3,7 +3,11 @@
 // The branch/cancel APIs are locked by unit tests now and become live when the
 // in-process server driver starts creating suspended host branches.
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};
+use std::rc::Rc;
+
+use super::host_abi::BoundaryValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct RuntimeHostBranchId(u64);
@@ -22,6 +26,12 @@ pub(super) struct RuntimeHostBranchSpawn {
     resume_ordinal: u64,
 }
 
+impl RuntimeHostBranchSpawn {
+    pub(super) fn child_branch_id(&self) -> RuntimeHostBranchId {
+        self.child_branch_id
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostBranchStatus {
     Running,
@@ -38,20 +48,178 @@ pub(super) enum RuntimeHostCancelReason {
     Timeout,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HostResumeTokenId(u64);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostResumeError {
+    NotSuspended,
+    AlreadyConsumed,
+    Dropped,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostSuspendError {
+    UnsupportedTier,
+    AlreadyIssued,
+}
+
+#[derive(Clone)]
+pub struct HostResumeToken {
+    inner: Rc<RefCell<HostResumeTokenInner>>,
+    queue: RuntimeHostSchedulerQueueHandle,
+}
+
+#[derive(Debug)]
+struct HostResumeTokenInner {
+    id: HostResumeTokenId,
+    branch_id: Option<RuntimeHostBranchId>,
+    status: HostResumeTokenStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HostResumeTokenStatus {
+    Issued,
+    Suspended,
+    Consumed,
+    Dropped,
+}
+
+impl HostResumeToken {
+    pub fn resume(&self, value: BoundaryValue) -> Result<(), HostResumeError> {
+        let (token_id, branch_id) = {
+            let mut inner = self.inner.borrow_mut();
+            match inner.status {
+                HostResumeTokenStatus::Issued => return Err(HostResumeError::NotSuspended),
+                HostResumeTokenStatus::Suspended => {
+                    inner.status = HostResumeTokenStatus::Consumed;
+                    (
+                        inner.id,
+                        inner
+                            .branch_id
+                            .expect("suspended host token must have a branch"),
+                    )
+                }
+                HostResumeTokenStatus::Consumed => return Err(HostResumeError::AlreadyConsumed),
+                HostResumeTokenStatus::Dropped => return Err(HostResumeError::Dropped),
+            }
+        };
+        self.queue.push_back(RuntimeHostSchedulerEvent::Resume {
+            branch_id,
+            token_id,
+            value,
+        });
+        Ok(())
+    }
+
+    pub(super) fn id(&self) -> HostResumeTokenId {
+        self.inner.borrow().id
+    }
+
+    fn new(id: HostResumeTokenId, queue: RuntimeHostSchedulerQueueHandle) -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(HostResumeTokenInner {
+                id,
+                branch_id: None,
+                status: HostResumeTokenStatus::Issued,
+            })),
+            queue,
+        }
+    }
+
+    fn commit_suspended(&self, branch_id: RuntimeHostBranchId) -> bool {
+        let mut inner = self.inner.borrow_mut();
+        if inner.status != HostResumeTokenStatus::Issued {
+            return false;
+        }
+        inner.branch_id = Some(branch_id);
+        inner.status = HostResumeTokenStatus::Suspended;
+        true
+    }
+
+    fn drop_without_resume(&self) {
+        let mut inner = self.inner.borrow_mut();
+        if matches!(
+            inner.status,
+            HostResumeTokenStatus::Issued | HostResumeTokenStatus::Suspended
+        ) {
+            inner.status = HostResumeTokenStatus::Dropped;
+        }
+    }
+
+    #[cfg(test)]
+    fn status(&self) -> HostResumeTokenStatus {
+        self.inner.borrow().status
+    }
+}
+
+impl std::fmt::Debug for HostResumeToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let inner = self.inner.borrow();
+        f.debug_struct("HostResumeToken")
+            .field("id", &inner.id)
+            .field("branch_id", &inner.branch_id)
+            .field("status", &inner.status)
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct RuntimeHostSuspendIssuer {
+    token: HostResumeToken,
+    issued: bool,
+}
+
+impl RuntimeHostSuspendIssuer {
+    pub(super) fn issue_one_shot(&mut self) -> Result<HostResumeToken, HostSuspendError> {
+        if self.issued {
+            return Err(HostSuspendError::AlreadyIssued);
+        }
+        self.issued = true;
+        Ok(self.token.clone())
+    }
+
+    pub(super) fn issued_token(&self) -> Option<HostResumeToken> {
+        self.issued.then(|| self.token.clone())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub(super) enum RuntimeHostSchedulerEvent {
     Cancel {
         branch_id: RuntimeHostBranchId,
         reason: RuntimeHostCancelReason,
     },
+    Resume {
+        branch_id: RuntimeHostBranchId,
+        token_id: HostResumeTokenId,
+        value: BoundaryValue,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
+struct RuntimeHostSchedulerQueueHandle {
+    queue: Rc<RefCell<VecDeque<RuntimeHostSchedulerEvent>>>,
+}
+
+impl RuntimeHostSchedulerQueueHandle {
+    fn push_back(&self, event: RuntimeHostSchedulerEvent) {
+        self.queue.borrow_mut().push_back(event);
+    }
+
+    fn pop_front(&self) -> Option<RuntimeHostSchedulerEvent> {
+        self.queue.borrow_mut().pop_front()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(super) struct RuntimeHostScheduler {
     root_branch: RuntimeHostBranchId,
     next_branch_id: u64,
+    next_resume_token_id: u64,
     branches: BTreeMap<RuntimeHostBranchId, RuntimeHostBranch>,
-    queue: VecDeque<RuntimeHostSchedulerEvent>,
+    one_shot_tokens_by_branch: BTreeMap<RuntimeHostBranchId, HostResumeToken>,
+    queue: RuntimeHostSchedulerQueueHandle,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,9 +248,15 @@ impl RuntimeHostScheduler {
         Self {
             root_branch,
             next_branch_id: 1,
+            next_resume_token_id: 0,
             branches,
-            queue: VecDeque::new(),
+            one_shot_tokens_by_branch: BTreeMap::new(),
+            queue: RuntimeHostSchedulerQueueHandle::default(),
         }
+    }
+
+    pub(super) fn root_branch_id(&self) -> RuntimeHostBranchId {
+        self.root_branch
     }
 
     pub(super) fn has_only_root_branch(&self) -> bool {
@@ -120,6 +294,35 @@ impl RuntimeHostScheduler {
             parent_branch_id: parent,
             resume_ordinal,
         })
+    }
+
+    pub(super) fn one_shot_suspend_issuer(&mut self) -> RuntimeHostSuspendIssuer {
+        let token_id = HostResumeTokenId(self.next_resume_token_id);
+        self.next_resume_token_id += 1;
+        RuntimeHostSuspendIssuer {
+            token: HostResumeToken::new(token_id, self.queue.clone()),
+            issued: false,
+        }
+    }
+
+    pub(super) fn commit_one_shot_suspend(
+        &mut self,
+        parent: RuntimeHostBranchId,
+        token: HostResumeToken,
+    ) -> Option<RuntimeHostBranchSpawn> {
+        let spawn = self.spawn_suspended_child(parent)?;
+        if !token.commit_suspended(spawn.child_branch_id) {
+            self.branches.remove(&spawn.child_branch_id);
+            token.drop_without_resume();
+            return None;
+        }
+        self.one_shot_tokens_by_branch
+            .insert(spawn.child_branch_id, token);
+        Some(spawn)
+    }
+
+    pub(super) fn discard_one_shot_suspend(&mut self, token: HostResumeToken) {
+        token.drop_without_resume();
     }
 
     pub(super) fn resume_suspended_branch(&mut self, branch_id: RuntimeHostBranchId) -> bool {
@@ -182,6 +385,7 @@ impl RuntimeHostScheduler {
             return false;
         }
         self.enqueue_child_cancels(branch_id, RuntimeHostCancelReason::ParentExtentClosed);
+        self.one_shot_tokens_by_branch.remove(&branch_id);
         self.branches.remove(&branch_id);
         true
     }
@@ -192,10 +396,22 @@ impl RuntimeHostScheduler {
             RuntimeHostSchedulerEvent::Cancel { branch_id, .. } => {
                 if let Some(branch) = self.branches.get_mut(&branch_id) {
                     branch.status = match branch.status {
-                        RuntimeHostBranchStatus::Suspended => RuntimeHostBranchStatus::Dropped,
+                        RuntimeHostBranchStatus::Suspended => {
+                            if let Some(token) = self.one_shot_tokens_by_branch.remove(&branch_id) {
+                                token.drop_without_resume();
+                            }
+                            RuntimeHostBranchStatus::Dropped
+                        }
                         RuntimeHostBranchStatus::Running => RuntimeHostBranchStatus::CancelPending,
                         other => other,
                     };
+                }
+            }
+            RuntimeHostSchedulerEvent::Resume { branch_id, .. } => {
+                if let Some(branch) = self.branches.get_mut(&branch_id)
+                    && branch.status == RuntimeHostBranchStatus::Suspended
+                {
+                    branch.status = RuntimeHostBranchStatus::Running;
                 }
             }
         }
