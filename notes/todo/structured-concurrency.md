@@ -55,12 +55,29 @@
 
 1. 決定文書: `notes/design/2026-07-03-structured-concurrency-decisions.md` で完了。
 2. scheduler に branch id / parent id / status を持たせる。
+   - 2026-07-03: `RuntimeHostScheduler` に root / child branch、parent id、
+     `Running` / `Suspended` / `CancelPending` / `Dropped` 状態を追加済み。
+     branch-local operation sequence も unit test で固定済み。
 3. scheduler に cancel(branch_id) を実装。suspend 中の分岐の即時 drop のみ。
+   - 2026-07-03: cancel queue、suspended branch の immediate drop、
+     running branch の `CancelPending`、次 scheduler boundary での drop を unit test
+     で固定済み。direct cancel / parent extent close は live descendant へ cascade する。
+     suspended child を running にする `resume_suspended_branch` も追加済み。
 4. fixture: accept 分岐を suspend 中に cancel → 分岐のファイル編集が
    rollback されている（v1 決定2 の検証と同一機構）。
 5. fixture: parent extent 終了で suspended child branches が drop される。
+   - 2026-07-03: scheduler unit test では parent extent close の child /
+     descendant drop を固定済み。serve / file transaction 統合 fixture は未着手。
 6. fixture: double respond は dynamic failure になる。
 7. 実行中分岐の協調的 drop は次 slice。
+
+残りの実装境界:
+
+- in-process server driver がまだ無いため、accept branch / request resource /
+  respond slot の executable contract は未着手。
+- file managed lens rollback との結合は、server driver が suspended branch を作れるように
+  なってから fixture 化する。
+- double respond は respond slot 型 / runtime representation が入ってから固定する。
 
 ## やってはいけないこと
 
