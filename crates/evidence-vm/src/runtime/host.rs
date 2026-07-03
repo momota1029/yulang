@@ -1,3 +1,7 @@
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use super::{HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHostAct {
     ConsoleOut,
@@ -89,17 +93,29 @@ impl RuntimeHostManifest {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct RuntimeHostRegistry {
     manifest: RuntimeHostManifest,
     native_host_operations_enabled: bool,
+    registrations: &'static [HostOpRegistration],
 }
 
 impl RuntimeHostRegistry {
     pub(super) fn new(native_host_operations_enabled: bool) -> Self {
+        Self::with_registrations(
+            native_host_operations_enabled,
+            super::builtin_host_registrations(),
+        )
+    }
+
+    pub(super) fn with_registrations(
+        native_host_operations_enabled: bool,
+        registrations: Vec<HostOpRegistration>,
+    ) -> Self {
         Self {
             manifest: RUNTIME_HOST_MANIFEST,
             native_host_operations_enabled,
+            registrations: Box::leak(registrations.into_boxed_slice()),
         }
     }
 
@@ -112,7 +128,39 @@ impl RuntimeHostRegistry {
                 RuntimeHostCapabilityFailure { act: spec.act },
             ));
         }
-        Some(RuntimeHostRequestResolution::Operation(spec))
+        let Some(f) = self.registration_for(spec) else {
+            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure { act: spec.act },
+            ));
+        };
+        Some(RuntimeHostRequestResolution::Operation(
+            RuntimeHostResolvedOperation { spec, f },
+        ))
+    }
+
+    pub(super) fn call(
+        &self,
+        operation: RuntimeHostResolvedOperation,
+        ctx: &mut HostCtx<'_>,
+        payload: &super::BoundaryValue,
+    ) -> HostOutcome {
+        catch_unwind(AssertUnwindSafe(|| (operation.f)(ctx, payload))).unwrap_or_else(|_| {
+            HostOutcome::HostError(format!(
+                "host operation {} panicked",
+                operation.spec.path.join("::")
+            ))
+        })
+    }
+
+    fn registration_for(&self, spec: &RuntimeHostOperationSpec) -> Option<HostOpFn> {
+        let act_id = spec.act.manifest_id();
+        self.registrations
+            .iter()
+            .rev()
+            .find(|registration| {
+                registration.act_id == act_id && registration.operation_id == spec.operation_id
+            })
+            .map(|registration| registration.f)
     }
 
     fn resolve_known_act_without_registered_operation(
@@ -126,10 +174,16 @@ impl RuntimeHostRegistry {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub(super) enum RuntimeHostRequestResolution {
-    Operation(&'static RuntimeHostOperationSpec),
+    Operation(RuntimeHostResolvedOperation),
     UnsupportedCapability(RuntimeHostCapabilityFailure),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct RuntimeHostResolvedOperation {
+    pub(super) spec: &'static RuntimeHostOperationSpec,
+    f: HostOpFn,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -544,12 +598,10 @@ mod tests {
         let resolution = registry.resolve(&path);
         let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
 
-        assert_eq!(
-            resolution,
-            Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure { act: spec.act }
-            ))
-        );
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) = resolution else {
+            panic!("disabled host operation should report unsupported capability");
+        };
+        assert_eq!(failure, RuntimeHostCapabilityFailure { act: spec.act });
     }
 
     #[test]
@@ -565,12 +617,13 @@ mod tests {
 
         let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
 
-        assert_eq!(
-            registry.resolve(&path),
-            Some(RuntimeHostRequestResolution::Operation(spec))
-        );
-        assert_eq!(spec.operation, RuntimeHostOperation::FileMeta);
-        assert_eq!(spec.path_strings(), path.to_vec());
+        let Some(RuntimeHostRequestResolution::Operation(operation)) = registry.resolve(&path)
+        else {
+            panic!("enabled host operation should resolve to registered operation");
+        };
+        assert_eq!(operation.spec, spec);
+        assert_eq!(operation.spec.operation, RuntimeHostOperation::FileMeta);
+        assert_eq!(operation.spec.path_strings(), path.to_vec());
     }
 
     #[test]
@@ -584,13 +637,16 @@ mod tests {
             "not_registered".into(),
         ];
 
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
+            panic!("known act with unknown op should report unsupported capability");
+        };
         assert_eq!(
-            registry.resolve(&path),
-            Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure {
-                    act: RuntimeHostAct::File
-                }
-            ))
+            failure,
+            RuntimeHostCapabilityFailure {
+                act: RuntimeHostAct::File
+            }
         );
     }
 
@@ -605,13 +661,16 @@ mod tests {
             "not_registered".into(),
         ];
 
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
+            panic!("known file act with unknown op should report unsupported capability");
+        };
         assert_eq!(
-            registry.resolve(&path),
-            Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure {
-                    act: RuntimeHostAct::File
-                }
-            ))
+            failure,
+            RuntimeHostCapabilityFailure {
+                act: RuntimeHostAct::File
+            }
         );
     }
 
@@ -620,6 +679,6 @@ mod tests {
         let registry = RuntimeHostRegistry::new(false);
         let path = ["std".into(), "unknown".into(), "op".into()];
 
-        assert_eq!(registry.resolve(&path), None);
+        assert!(registry.resolve(&path).is_none());
     }
 }

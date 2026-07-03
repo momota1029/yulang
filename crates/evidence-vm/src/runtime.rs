@@ -21,6 +21,7 @@ use specialize::mono::{
 
 mod format;
 mod host;
+mod host_abi;
 mod plan;
 mod scheduler;
 mod stats;
@@ -38,10 +39,8 @@ pub use host::{
     RuntimeHostManifestOperation, RuntimeHostManifestTier, runtime_host_manifest_operations,
     runtime_host_manifest_tiers,
 };
-use host::{
-    RuntimeHostOperation, RuntimeHostOperationSpec, RuntimeHostRegistry,
-    RuntimeHostRequestResolution,
-};
+use host::{RuntimeHostOperationSpec, RuntimeHostRegistry, RuntimeHostRequestResolution};
+pub use host_abi::{BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceKnownOperationCall, RuntimeEvidenceKnownStateOperationKind,
@@ -129,6 +128,8 @@ impl RuntimeEvidenceDisplayContext {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RuntimeEvidenceHostConstructors {
+    labels_by_def: HashMap<DefId, String>,
+    defs_by_label: HashMap<String, DefId>,
     result_ok: Option<DefId>,
     result_err: Option<DefId>,
     file_meta: Option<DefId>,
@@ -146,7 +147,17 @@ pub struct RuntimeEvidenceHostConstructors {
 
 impl RuntimeEvidenceHostConstructors {
     pub fn from_labels(labels: &poly::dump::DumpLabels) -> Self {
+        let defs_by_label = labels
+            .def_labels()
+            .map(|(def, label)| (label.to_string(), DefId(def.0)))
+            .collect::<HashMap<_, _>>();
+        let labels_by_def = defs_by_label
+            .iter()
+            .map(|(label, def)| (*def, label.clone()))
+            .collect::<HashMap<_, _>>();
         Self {
+            labels_by_def,
+            defs_by_label,
             result_ok: def_with_label(labels, "std.data.result.result.ok"),
             result_err: def_with_label(labels, "std.data.result.result.err"),
             file_meta: def_with_label(labels, "std.io.file.file_meta"),
@@ -162,12 +173,345 @@ impl RuntimeEvidenceHostConstructors {
             io_err_failed: def_with_label(labels, "std.io.file.io_err.failed"),
         }
     }
+
+    fn label_for_def(&self, def: DefId) -> Option<&str> {
+        self.labels_by_def.get(&def).map(String::as_str)
+    }
+
+    fn def_for_label(&self, label: &str) -> Option<DefId> {
+        self.defs_by_label.get(label).copied()
+    }
 }
 
 fn def_with_label(labels: &poly::dump::DumpLabels, expected: &str) -> Option<DefId> {
     labels
         .def_labels()
         .find_map(|(def, label)| (label == expected).then_some(DefId(def.0)))
+}
+
+const RESULT_OK_LABEL: &str = "std.data.result.result.ok";
+const RESULT_ERR_LABEL: &str = "std.data.result.result.err";
+const FILE_META_LABEL: &str = "std.io.file.file_meta";
+const FILE_KIND_MISSING_LABEL: &str = "std.io.file.file_kind.missing";
+const FILE_KIND_DENIED_LABEL: &str = "std.io.file.file_kind.denied";
+const FILE_KIND_FILE_LABEL: &str = "std.io.file.file_kind.file";
+const FILE_KIND_DIR_LABEL: &str = "std.io.file.file_kind.dir";
+const FILE_KIND_SYMLINK_LABEL: &str = "std.io.file.file_kind.symlink";
+const FILE_KIND_OTHER_LABEL: &str = "std.io.file.file_kind.other";
+const IO_ERR_NOT_FOUND_LABEL: &str = "std.io.file.io_err.not_found";
+const IO_ERR_DENIED_LABEL: &str = "std.io.file.io_err.denied";
+const IO_ERR_INVALID_PATH_LABEL: &str = "std.io.file.io_err.invalid_path";
+const IO_ERR_FAILED_LABEL: &str = "std.io.file.io_err.failed";
+const HOST_IO_ERROR_PREFIX: &str = "yulang.host-io-error\0";
+
+pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
+    vec![
+        HostOpRegistration {
+            act_id: "std.io.console.out",
+            operation_id: "write",
+            f: host_console_out_write,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "load",
+            f: host_file_load,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "store",
+            f: host_file_store,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "meta",
+            f: host_file_meta,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "read_at",
+            f: host_file_read_at,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "write_at",
+            f: host_file_write_at,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "ambient_touch",
+            f: host_file_ambient_touch,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "ambient_get",
+            f: host_file_ambient_get,
+        },
+        HostOpRegistration {
+            act_id: "std.io.file.file",
+            operation_id: "ambient_set",
+            f: host_file_ambient_set,
+        },
+    ]
+}
+
+fn host_console_out_write(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let text = match boundary_string(payload) {
+        Ok(text) => text,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    state.stdout.push_str(&text);
+    HostOutcome::Return(BoundaryValue::Unit)
+}
+
+fn host_file_load(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let path = match boundary_path(payload) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    match fs::read_to_string(&path) {
+        Ok(text) => HostOutcome::Return(host_result_ok(BoundaryValue::Str(text))),
+        Err(error) => HostOutcome::Return(host_result_err(host_io_error_value(&path, &error))),
+    }
+}
+
+fn host_file_store(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let args = match boundary_tuple(payload, 2) {
+        Ok(args) => args,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let path = match boundary_path(&args[0]) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let text = match boundary_string(&args[1]) {
+        Ok(text) => text,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    match fs::write(&path, text) {
+        Ok(()) => HostOutcome::Return(host_result_ok(BoundaryValue::Unit)),
+        Err(error) => HostOutcome::Return(host_result_err(host_io_error_value(&path, &error))),
+    }
+}
+
+fn host_file_meta(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let path = match boundary_path(payload) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let (kind, size, readonly) = match fs::symlink_metadata(&path) {
+        Ok(meta) => {
+            let ty = meta.file_type();
+            let kind = if ty.is_file() {
+                FILE_KIND_FILE_LABEL
+            } else if ty.is_dir() {
+                FILE_KIND_DIR_LABEL
+            } else if ty.is_symlink() {
+                FILE_KIND_SYMLINK_LABEL
+            } else {
+                FILE_KIND_OTHER_LABEL
+            };
+            (kind, meta.len() as i64, meta.permissions().readonly())
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            (FILE_KIND_MISSING_LABEL, 0, false)
+        }
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+            (FILE_KIND_DENIED_LABEL, 0, false)
+        }
+        Err(_) => (FILE_KIND_OTHER_LABEL, 0, false),
+    };
+    HostOutcome::Return(BoundaryValue::Constructor {
+        ctor: CtorRef::Label(FILE_META_LABEL.to_string()),
+        payloads: vec![
+            BoundaryValue::Constructor {
+                ctor: CtorRef::Label(kind.to_string()),
+                payloads: Vec::new(),
+            },
+            BoundaryValue::Int(size),
+            BoundaryValue::Bool(readonly),
+        ],
+    })
+}
+
+fn host_file_read_at(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let args = match boundary_tuple(payload, 2) {
+        Ok(args) => args,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let path = match boundary_path(&args[0]) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let range = args[1].clone();
+    match fs::read_to_string(&path) {
+        Ok(text) => HostOutcome::Return(host_result_ok(BoundaryValue::Tuple(vec![
+            BoundaryValue::Str(text),
+            range,
+        ]))),
+        Err(error) => HostOutcome::Return(host_result_err(host_io_error_value(&path, &error))),
+    }
+}
+
+fn host_file_write_at(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let args = match boundary_tuple(payload, 3) {
+        Ok(args) => args,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let path = match boundary_path(&args[0]) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let text = match boundary_string(&args[2]) {
+        Ok(text) => text,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    match fs::write(&path, text) {
+        Ok(()) => HostOutcome::Return(host_result_ok(BoundaryValue::Unit)),
+        Err(error) => HostOutcome::Return(host_result_err(host_io_error_value(&path, &error))),
+    }
+}
+
+fn host_file_ambient_touch(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let path = match boundary_path(payload) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    if state.file_ambient_buffers.contains_key(&path) {
+        return HostOutcome::Return(host_result_ok(BoundaryValue::Unit));
+    }
+    match fs::read_to_string(&path) {
+        Ok(text) => {
+            state.file_ambient_buffers.insert(path, text);
+            HostOutcome::Return(host_result_ok(BoundaryValue::Unit))
+        }
+        Err(error) => HostOutcome::Return(host_result_err(host_io_error_value(&path, &error))),
+    }
+}
+
+fn host_file_ambient_get(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let path = match boundary_path(payload) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    if let Some(text) = state.file_ambient_buffers.get(&path) {
+        return HostOutcome::Return(BoundaryValue::Str(text.clone()));
+    }
+    match fs::read_to_string(&path) {
+        Ok(text) => {
+            state.file_ambient_buffers.insert(path, text.clone());
+            HostOutcome::Return(BoundaryValue::Str(text))
+        }
+        Err(error) => {
+            host_io_host_error(&["std", "io", "file", "file", "ambient_get"], &path, &error)
+        }
+    }
+}
+
+fn host_file_ambient_set(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let args = match boundary_tuple(payload, 2) {
+        Ok(args) => args,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let path = match boundary_path(&args[0]) {
+        Ok(path) => path,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let text = match boundary_string(&args[1]) {
+        Ok(text) => text,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    if !state.file_ambient_buffers.contains_key(&path)
+        && let Err(error) = fs::read_to_string(&path)
+    {
+        return host_io_host_error(&["std", "io", "file", "file", "ambient_set"], &path, &error);
+    }
+    state.file_ambient_buffers.insert(path, text);
+    HostOutcome::Return(BoundaryValue::Unit)
+}
+
+fn builtin_host_state<'a>(
+    ctx: &'a mut HostCtx<'_>,
+) -> Result<&'a mut RuntimeBuiltinHostState, String> {
+    ctx.state_mut::<RuntimeBuiltinHostState>()
+        .ok_or_else(|| "host operation state has unexpected type".to_string())
+}
+
+fn host_result_ok(value: BoundaryValue) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(RESULT_OK_LABEL.to_string()),
+        payloads: vec![value],
+    }
+}
+
+fn host_result_err(value: BoundaryValue) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(RESULT_ERR_LABEL.to_string()),
+        payloads: vec![value],
+    }
+}
+
+fn host_io_error_value(path: &PathBuf, error: &io::Error) -> BoundaryValue {
+    let path_value = BoundaryValue::Str(runtime_path_text(path));
+    let (label, payloads) = match error.kind() {
+        io::ErrorKind::NotFound => (IO_ERR_NOT_FOUND_LABEL, vec![path_value]),
+        io::ErrorKind::PermissionDenied => (IO_ERR_DENIED_LABEL, vec![path_value]),
+        io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
+            (IO_ERR_INVALID_PATH_LABEL, vec![path_value])
+        }
+        _ => (
+            IO_ERR_FAILED_LABEL,
+            vec![path_value, BoundaryValue::Str(error.to_string())],
+        ),
+    };
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(label.to_string()),
+        payloads,
+    }
+}
+
+fn host_io_host_error(operation: &[&str], path: &PathBuf, error: &io::Error) -> HostOutcome {
+    HostOutcome::HostError(format!(
+        "{HOST_IO_ERROR_PREFIX}{}\0{}\0{}",
+        operation.join("."),
+        runtime_path_text(path),
+        host_io_error_kind(error.kind())
+    ))
+}
+
+fn boundary_string(value: &BoundaryValue) -> Result<String, String> {
+    match value {
+        BoundaryValue::Str(value) => Ok(value.clone()),
+        _ => Err("host operation expected string payload".to_string()),
+    }
+}
+
+fn boundary_path(value: &BoundaryValue) -> Result<PathBuf, String> {
+    boundary_string(value).map(PathBuf::from)
+}
+
+fn boundary_tuple(value: &BoundaryValue, len: usize) -> Result<&[BoundaryValue], String> {
+    match value {
+        BoundaryValue::Tuple(values) if values.len() == len => Ok(values.as_slice()),
+        _ => Err(format!(
+            "host operation expected tuple payload of arity {len}"
+        )),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -7657,6 +8001,10 @@ pub enum RuntimeEvidenceRunError {
     UnsupportedPrimitive(PrimitiveOp),
     EscapedEffect(Vec<String>),
     UnsupportedHostCapability(Vec<String>),
+    HostAbiError {
+        operation: Vec<String>,
+        message: String,
+    },
     HostIoError {
         operation: Vec<String>,
         path: String,
@@ -7701,6 +8049,11 @@ impl fmt::Display for RuntimeEvidenceRunError {
                 f,
                 "runtime-evidence-run unsupported host capability: {}",
                 path.join("::")
+            ),
+            Self::HostAbiError { operation, message } => write!(
+                f,
+                "runtime-evidence-run host ABI error: {} failed ({message})",
+                operation.join("::")
             ),
             Self::HostIoError {
                 operation,
@@ -8076,6 +8429,33 @@ enum RuntimeHostRequestHandling {
     Unhandled(EvidenceRequest),
 }
 
+#[derive(Debug, Default)]
+struct RuntimeBuiltinHostState {
+    stdout: String,
+    file_ambient_buffers: HashMap<PathBuf, String>,
+}
+
+impl RuntimeBuiltinHostState {
+    fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
+        for (path, text) in &self.file_ambient_buffers {
+            fs::write(path, text).map_err(|error| {
+                host_io_runtime_error(
+                    vec![
+                        "std".into(),
+                        "io".into(),
+                        "file".into(),
+                        "file".into(),
+                        "ambient_set".into(),
+                    ],
+                    path,
+                    &error,
+                )
+            })?;
+        }
+        Ok(())
+    }
+}
+
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
@@ -8109,8 +8489,7 @@ struct RuntimeEvidenceRunner<'a> {
     marker_delta_plans: Vec<EvidenceMarkerDeltaPlan>,
     provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, EvidenceProviderDeltaId>,
     provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
-    stdout: String,
-    file_ambient_buffers: HashMap<PathBuf, String>,
+    host_state: RuntimeBuiltinHostState,
     host_scheduler: RuntimeHostScheduler,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
@@ -8165,8 +8544,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             marker_delta_plans: Vec::new(),
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
-            stdout: String::new(),
-            file_ambient_buffers: HashMap::new(),
+            host_state: RuntimeBuiltinHostState::default(),
             host_scheduler,
             host_registry,
             host_constructors,
@@ -8187,14 +8565,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Root::Expr(expr) => values.push(self.eval_expr(*expr, &mut env)?),
             }
         }
-        self.flush_file_ambient_buffers()?;
+        self.host_state.flush_file_ambient_buffers()?;
         debug_assert!(self.host_scheduler.has_only_root_branch());
         Ok(RuntimeEvidenceRunOutput {
             values: values
                 .into_iter()
                 .map(|value| value.as_ref().clone())
                 .collect(),
-            stdout: self.stdout.clone(),
+            stdout: self.host_state.stdout.clone(),
             evidence_stats: self.stats,
         })
     }
@@ -12067,8 +12445,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(RuntimeHostRequestHandling::Unhandled(request));
         };
         match resolution {
-            RuntimeHostRequestResolution::Operation(spec) => {
-                let value = self.handle_runtime_host_operation(spec, request.payload.as_ref())?;
+            RuntimeHostRequestResolution::Operation(operation) => {
+                let value =
+                    self.handle_runtime_host_operation(operation, request.payload.as_ref())?;
                 self.resume_continuation(request.continuation, value)
                     .map(RuntimeHostRequestHandling::Handled)
             }
@@ -12080,290 +12459,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn handle_runtime_host_operation(
         &mut self,
-        spec: &'static RuntimeHostOperationSpec,
+        operation: host::RuntimeHostResolvedOperation,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        match spec.operation {
-            RuntimeHostOperation::ConsoleOutWrite => {
-                push_runtime_host_string_payload(payload, &mut self.stdout)
-                    .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))?;
-                Ok(shared(RuntimeEvidenceValue::Unit))
-            }
-            RuntimeHostOperation::FileLoad => self.file_load(spec, payload),
-            RuntimeHostOperation::FileStore => self.file_store(spec, payload),
-            RuntimeHostOperation::FileMeta => self.file_meta(spec, payload),
-            RuntimeHostOperation::FileReadAt => self.file_read_at(spec, payload),
-            RuntimeHostOperation::FileWriteAt => self.file_write_at(spec, payload),
-            RuntimeHostOperation::FileAmbientTouch => self.file_ambient_touch(spec, payload),
-            RuntimeHostOperation::FileAmbientGet => self.file_ambient_get(spec, payload),
-            RuntimeHostOperation::FileAmbientSet => self.file_ambient_set(spec, payload),
-        }
-    }
-
-    fn file_load(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        match fs::read_to_string(&path) {
-            Ok(text) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Str(text))),
-            Err(error) => {
-                let error = self.host_io_error(spec, &path, &error)?;
-                self.host_result_err(spec, error)
-            }
-        }
-    }
-
-    fn file_store(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 2)?;
-        let path = runtime_host_path(args[0].as_ref())?;
-        let text = runtime_host_string(args[1].as_ref())?;
-        match fs::write(&path, text) {
-            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
-            Err(error) => {
-                let error = self.host_io_error(spec, &path, &error)?;
-                self.host_result_err(spec, error)
-            }
-        }
-    }
-
-    fn file_meta(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        let (kind, size, readonly) = match fs::symlink_metadata(&path) {
-            Ok(meta) => {
-                let ty = meta.file_type();
-                let kind = if ty.is_file() {
-                    self.host_constructors.file_kind_file
-                } else if ty.is_dir() {
-                    self.host_constructors.file_kind_dir
-                } else if ty.is_symlink() {
-                    self.host_constructors.file_kind_symlink
-                } else {
-                    self.host_constructors.file_kind_other
-                };
-                (kind, meta.len() as i64, meta.permissions().readonly())
-            }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                (self.host_constructors.file_kind_missing, 0, false)
-            }
-            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
-                (self.host_constructors.file_kind_denied, 0, false)
-            }
-            Err(_) => (self.host_constructors.file_kind_other, 0, false),
-        };
-        let kind = self.host_constructor(spec, kind)?;
-        let record = shared(RuntimeEvidenceValue::Record(vec![
-            RuntimeEvidenceValueField {
-                name: "kind".into(),
-                value: shared(RuntimeEvidenceValue::DataConstructor {
-                    def: kind,
-                    payloads: Vec::new(),
-                }),
-            },
-            RuntimeEvidenceValueField {
-                name: "size".into(),
-                value: shared(RuntimeEvidenceValue::Int(size)),
-            },
-            RuntimeEvidenceValueField {
-                name: "readonly".into(),
-                value: shared(RuntimeEvidenceValue::Bool(readonly)),
-            },
-        ]));
-        let Some(def) = self.host_constructors.file_meta else {
-            return Ok(record);
-        };
-        Ok(shared(RuntimeEvidenceValue::DataConstructor {
-            def,
-            payloads: vec![record],
-        }))
-    }
-
-    fn host_result_ok(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        value: SharedValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let def = self.host_constructor(spec, self.host_constructors.result_ok)?;
-        Ok(shared(RuntimeEvidenceValue::DataConstructor {
-            def,
-            payloads: vec![value],
-        }))
-    }
-
-    fn host_result_err(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        value: SharedValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let def = self.host_constructor(spec, self.host_constructors.result_err)?;
-        Ok(shared(RuntimeEvidenceValue::DataConstructor {
-            def,
-            payloads: vec![value],
-        }))
-    }
-
-    fn host_io_error(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        path: &PathBuf,
-        error: &io::Error,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path_value = shared(RuntimeEvidenceValue::Str(runtime_path_text(path)));
-        let (def, payloads) = match error.kind() {
-            io::ErrorKind::NotFound => (self.host_constructors.io_err_not_found, vec![path_value]),
-            io::ErrorKind::PermissionDenied => {
-                (self.host_constructors.io_err_denied, vec![path_value])
-            }
-            io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
-                (self.host_constructors.io_err_invalid_path, vec![path_value])
-            }
-            _ => {
-                if let Some(def) = self.host_constructors.io_err_failed {
-                    (
-                        Some(def),
-                        vec![
-                            path_value,
-                            shared(RuntimeEvidenceValue::Str(error.to_string())),
-                        ],
-                    )
-                } else {
-                    (self.host_constructors.io_err_invalid_path, vec![path_value])
-                }
-            }
-        };
-        let def = self.host_constructor(spec, def)?;
-        Ok(shared(RuntimeEvidenceValue::DataConstructor {
-            def,
-            payloads,
-        }))
-    }
-
-    fn host_constructor(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        def: Option<DefId>,
-    ) -> Result<DefId, RuntimeEvidenceRunError> {
-        def.ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(spec.path_strings()))
-    }
-
-    fn file_read_at(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 2)?;
-        let path = runtime_host_path(args[0].as_ref())?;
-        let range = args[1].clone();
-        match fs::read_to_string(&path) {
-            Ok(text) => self.host_result_ok(
-                spec,
-                shared(RuntimeEvidenceValue::Tuple(vec![
-                    shared(RuntimeEvidenceValue::Str(text)),
-                    range,
-                ])),
-            ),
-            Err(error) => {
-                let error = self.host_io_error(spec, &path, &error)?;
-                self.host_result_err(spec, error)
-            }
-        }
-    }
-
-    fn file_write_at(
-        &self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 3)?;
-        let path = runtime_host_path(args[0].as_ref())?;
-        let text = runtime_host_string(args[2].as_ref())?;
-        match fs::write(&path, text) {
-            Ok(()) => self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit)),
-            Err(error) => {
-                let error = self.host_io_error(spec, &path, &error)?;
-                self.host_result_err(spec, error)
-            }
-        }
-    }
-
-    fn file_ambient_touch(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        if self.file_ambient_buffers.contains_key(&path) {
-            return self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit));
-        }
-        match fs::read_to_string(&path) {
-            Ok(text) => {
-                self.file_ambient_buffers.insert(path, text);
-                self.host_result_ok(spec, shared(RuntimeEvidenceValue::Unit))
-            }
-            Err(error) => {
-                let error = self.host_io_error(spec, &path, &error)?;
-                self.host_result_err(spec, error)
-            }
-        }
-    }
-
-    fn file_ambient_get(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let path = runtime_host_path(payload)?;
-        if let Some(text) = self.file_ambient_buffers.get(&path) {
-            return Ok(shared(RuntimeEvidenceValue::Str(text.clone())));
-        }
-        let text = fs::read_to_string(&path)
-            .map_err(|error| host_io_runtime_error(spec.path_strings(), &path, &error))?;
-        self.file_ambient_buffers.insert(path, text.clone());
-        Ok(shared(RuntimeEvidenceValue::Str(text)))
-    }
-
-    fn file_ambient_set(
-        &mut self,
-        spec: &RuntimeHostOperationSpec,
-        payload: &RuntimeEvidenceValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let args = runtime_host_tuple(payload, 2)?;
-        let path = runtime_host_path(args[0].as_ref())?;
-        let text = runtime_host_string(args[1].as_ref())?;
-        if !self.file_ambient_buffers.contains_key(&path) {
-            fs::read_to_string(&path)
-                .map_err(|error| host_io_runtime_error(spec.path_strings(), &path, &error))?;
-        }
-        self.file_ambient_buffers.insert(path, text);
-        Ok(shared(RuntimeEvidenceValue::Unit))
-    }
-
-    fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
-        for (path, text) in &self.file_ambient_buffers {
-            fs::write(path, text).map_err(|error| {
-                host_io_runtime_error(
-                    vec![
-                        "std".into(),
-                        "io".into(),
-                        "file".into(),
-                        "file".into(),
-                        "ambient_set".into(),
-                    ],
-                    path,
-                    &error,
-                )
+        let operation_path = operation.spec.path_strings();
+        let boundary_payload = runtime_to_boundary_value(payload, &self.host_constructors)
+            .map_err(|message| RuntimeEvidenceRunError::HostAbiError {
+                operation: operation_path.clone(),
+                message,
             })?;
+        let mut ctx = HostCtx::new(&mut self.host_state);
+        match self
+            .host_registry
+            .call(operation, &mut ctx, &boundary_payload)
+        {
+            HostOutcome::Return(value) => {
+                boundary_to_runtime_value(&value, &self.host_constructors).map_err(|message| {
+                    RuntimeEvidenceRunError::HostAbiError {
+                        operation: operation_path,
+                        message,
+                    }
+                })
+            }
+            HostOutcome::Suspended => Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                "sync host operation suspended",
+            )),
+            HostOutcome::HostError(message) => {
+                Err(runtime_error_from_host_error(operation.spec, message))
+            }
         }
-        Ok(())
     }
 
     fn eval_expr_result(
@@ -19781,18 +19905,178 @@ fn expect_str(value: &SharedValue) -> Result<&str, RuntimeEvidenceRunError> {
     }
 }
 
-fn runtime_host_string(value: &RuntimeEvidenceValue) -> Result<String, RuntimeEvidenceRunError> {
+fn runtime_to_boundary_value(
+    value: &RuntimeEvidenceValue,
+    constructors: &RuntimeEvidenceHostConstructors,
+) -> Result<BoundaryValue, String> {
     match value {
-        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_string(value),
-        RuntimeEvidenceValue::Str(value) => Ok(value.clone()),
-        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
-            "non-string host argument",
-        )),
+        RuntimeEvidenceValue::Marked { value, .. } => {
+            runtime_to_boundary_value(value.as_ref(), constructors)
+        }
+        RuntimeEvidenceValue::Unit => Ok(BoundaryValue::Unit),
+        RuntimeEvidenceValue::Bool(value) => Ok(BoundaryValue::Bool(*value)),
+        RuntimeEvidenceValue::Int(value) => Ok(BoundaryValue::Int(*value)),
+        RuntimeEvidenceValue::Float(value) => Ok(BoundaryValue::Float(*value)),
+        RuntimeEvidenceValue::Str(value) => Ok(BoundaryValue::Str(value.clone())),
+        RuntimeEvidenceValue::Bytes(value) => Ok(BoundaryValue::Bytes(value.clone())),
+        RuntimeEvidenceValue::Tuple(values) => values
+            .iter()
+            .map(|value| runtime_to_boundary_value(value.as_ref(), constructors))
+            .collect::<Result<Vec<_>, _>>()
+            .map(BoundaryValue::Tuple),
+        RuntimeEvidenceValue::DataConstructor { def, payloads } => {
+            let label = constructors
+                .label_for_def(*def)
+                .ok_or_else(|| format!("host ABI cannot encode constructor d{}", def.0))?;
+            let payloads = payloads
+                .iter()
+                .map(|value| runtime_to_boundary_value(value.as_ref(), constructors))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(BoundaryValue::Constructor {
+                ctor: CtorRef::Label(label.to_string()),
+                payloads,
+            })
+        }
+        RuntimeEvidenceValue::BigInt(_) => {
+            Err("host ABI cannot encode big integer values".to_string())
+        }
+        RuntimeEvidenceValue::List(_) => Err("host ABI cannot encode list values".to_string()),
+        RuntimeEvidenceValue::Record(_) => Err("host ABI cannot encode record values".to_string()),
+        RuntimeEvidenceValue::PolyVariant { .. } => {
+            Err("host ABI cannot encode poly-variant values".to_string())
+        }
+        RuntimeEvidenceValue::ConstructorFunction { .. }
+        | RuntimeEvidenceValue::PrimitiveOp { .. }
+        | RuntimeEvidenceValue::FunctionAdapter { .. }
+        | RuntimeEvidenceValue::Closure(_)
+        | RuntimeEvidenceValue::RecursiveClosure { .. }
+        | RuntimeEvidenceValue::EffectOp { .. }
+        | RuntimeEvidenceValue::Continuation(_)
+        | RuntimeEvidenceValue::Thunk(_) => {
+            Err("host ABI cannot encode executable runtime values".to_string())
+        }
     }
 }
 
-fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvidenceRunError> {
-    runtime_host_string(value).map(PathBuf::from)
+fn boundary_to_runtime_value(
+    value: &BoundaryValue,
+    constructors: &RuntimeEvidenceHostConstructors,
+) -> Result<SharedValue, String> {
+    match value {
+        BoundaryValue::Unit => Ok(shared(RuntimeEvidenceValue::Unit)),
+        BoundaryValue::Bool(value) => Ok(shared(RuntimeEvidenceValue::Bool(*value))),
+        BoundaryValue::Int(value) => Ok(shared(RuntimeEvidenceValue::Int(*value))),
+        BoundaryValue::Float(value) => Ok(shared(RuntimeEvidenceValue::Float(*value))),
+        BoundaryValue::Str(value) => Ok(shared(RuntimeEvidenceValue::Str(value.clone()))),
+        BoundaryValue::Bytes(value) => Ok(shared(RuntimeEvidenceValue::Bytes(value.clone()))),
+        BoundaryValue::Tuple(values) => values
+            .iter()
+            .map(|value| boundary_to_runtime_value(value, constructors))
+            .collect::<Result<Vec<_>, _>>()
+            .map(RuntimeEvidenceValue::Tuple)
+            .map(shared),
+        BoundaryValue::Constructor {
+            ctor: CtorRef::Label(label),
+            payloads,
+        } => boundary_constructor_to_runtime(label, payloads, constructors),
+        BoundaryValue::HostHandle { .. } => {
+            Err("host ABI cannot return host handles to the runtime yet".to_string())
+        }
+    }
+}
+
+fn boundary_constructor_to_runtime(
+    label: &str,
+    payloads: &[BoundaryValue],
+    constructors: &RuntimeEvidenceHostConstructors,
+) -> Result<SharedValue, String> {
+    if label == FILE_META_LABEL {
+        return boundary_file_meta_to_runtime(payloads, constructors);
+    }
+    let def = constructors
+        .def_for_label(label)
+        .ok_or_else(|| format!("host ABI returned unknown constructor label `{label}`"))?;
+    let payloads = payloads
+        .iter()
+        .map(|value| boundary_to_runtime_value(value, constructors))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(shared(RuntimeEvidenceValue::DataConstructor {
+        def,
+        payloads,
+    }))
+}
+
+fn boundary_file_meta_to_runtime(
+    payloads: &[BoundaryValue],
+    constructors: &RuntimeEvidenceHostConstructors,
+) -> Result<SharedValue, String> {
+    let [kind, size, readonly] = payloads else {
+        return Err("file_meta host ABI value must have three payloads".to_string());
+    };
+    let kind = boundary_to_runtime_value(kind, constructors)?;
+    let BoundaryValue::Int(size) = size else {
+        return Err("file_meta host ABI size payload must be an int".to_string());
+    };
+    let BoundaryValue::Bool(readonly) = readonly else {
+        return Err("file_meta host ABI readonly payload must be a bool".to_string());
+    };
+    let record = shared(RuntimeEvidenceValue::Record(vec![
+        RuntimeEvidenceValueField {
+            name: "kind".to_string(),
+            value: kind,
+        },
+        RuntimeEvidenceValueField {
+            name: "size".to_string(),
+            value: shared(RuntimeEvidenceValue::Int(*size)),
+        },
+        RuntimeEvidenceValueField {
+            name: "readonly".to_string(),
+            value: shared(RuntimeEvidenceValue::Bool(*readonly)),
+        },
+    ]));
+    if let Some(def) = constructors.def_for_label(FILE_META_LABEL) {
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: vec![record],
+        }))
+    } else {
+        Ok(record)
+    }
+}
+
+fn runtime_error_from_host_error(
+    spec: &'static RuntimeHostOperationSpec,
+    message: String,
+) -> RuntimeEvidenceRunError {
+    parse_host_io_error(&message).unwrap_or_else(|| RuntimeEvidenceRunError::HostAbiError {
+        operation: spec.path_strings(),
+        message,
+    })
+}
+
+fn parse_host_io_error(message: &str) -> Option<RuntimeEvidenceRunError> {
+    let rest = message.strip_prefix(HOST_IO_ERROR_PREFIX)?;
+    let mut parts = rest.split('\0');
+    let operation = parts.next()?;
+    let path = parts.next()?.to_string();
+    let kind = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(RuntimeEvidenceRunError::HostIoError {
+        operation: operation.split('.').map(str::to_string).collect(),
+        path,
+        kind: host_io_error_kind_from_id(kind),
+    })
+}
+
+fn host_io_error_kind_from_id(kind: &str) -> &'static str {
+    match kind {
+        "not_found" => "not_found",
+        "permission_denied" => "permission_denied",
+        "invalid_path" => "invalid_path",
+        _ => "operation_failed",
+    }
 }
 
 fn runtime_path_text(path: &PathBuf) -> String {
@@ -19817,32 +20101,6 @@ fn host_io_error_kind(kind: io::ErrorKind) -> &'static str {
         io::ErrorKind::PermissionDenied => "permission_denied",
         io::ErrorKind::InvalidData | io::ErrorKind::InvalidInput => "invalid_path",
         _ => "operation_failed",
-    }
-}
-
-fn runtime_host_tuple(
-    value: &RuntimeEvidenceValue,
-    len: usize,
-) -> Result<&[SharedValue], RuntimeEvidenceRunError> {
-    match value {
-        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_tuple(value, len),
-        RuntimeEvidenceValue::Tuple(values) if values.len() == len => Ok(values.as_slice()),
-        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
-            "non-tuple host argument",
-        )),
-    }
-}
-
-fn push_runtime_host_string_payload(value: &RuntimeEvidenceValue, out: &mut String) -> Option<()> {
-    match value {
-        RuntimeEvidenceValue::Marked { value, .. } => {
-            push_runtime_host_string_payload(value.as_ref(), out)
-        }
-        RuntimeEvidenceValue::Str(value) => {
-            out.push_str(value);
-            Some(())
-        }
-        _ => None,
     }
 }
 
@@ -20602,6 +20860,7 @@ mod tests {
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
+
     #[test]
     fn runtime_host_operation_denied_by_context_reports_unsupported_capability() {
         let program = Program::default();
@@ -20634,6 +20893,154 @@ mod tests {
                 "file".into()
             ])
         );
+    }
+
+    #[test]
+    fn boundary_value_codec_roundtrips_primitives_tuple_and_constructor_label() {
+        let ctor = DefId(42);
+        let mut constructors = RuntimeEvidenceHostConstructors::default();
+        constructors
+            .labels_by_def
+            .insert(ctor, "test.codec.ctor".to_string());
+        constructors
+            .defs_by_label
+            .insert("test.codec.ctor".to_string(), ctor);
+
+        let value = RuntimeEvidenceValue::Tuple(vec![
+            shared(RuntimeEvidenceValue::Unit),
+            shared(RuntimeEvidenceValue::Bool(true)),
+            shared(RuntimeEvidenceValue::Int(7)),
+            shared(RuntimeEvidenceValue::Float(1.5)),
+            shared(RuntimeEvidenceValue::Str("hello".to_string())),
+            shared(RuntimeEvidenceValue::Bytes(vec![1, 2, 3])),
+            shared(RuntimeEvidenceValue::DataConstructor {
+                def: ctor,
+                payloads: vec![shared(RuntimeEvidenceValue::Str("payload".to_string()))],
+            }),
+        ]);
+
+        let boundary =
+            runtime_to_boundary_value(&value, &constructors).expect("runtime value must encode");
+        assert_eq!(
+            boundary,
+            BoundaryValue::Tuple(vec![
+                BoundaryValue::Unit,
+                BoundaryValue::Bool(true),
+                BoundaryValue::Int(7),
+                BoundaryValue::Float(1.5),
+                BoundaryValue::Str("hello".to_string()),
+                BoundaryValue::Bytes(vec![1, 2, 3]),
+                BoundaryValue::Constructor {
+                    ctor: CtorRef::Label("test.codec.ctor".to_string()),
+                    payloads: vec![BoundaryValue::Str("payload".to_string())],
+                },
+            ])
+        );
+
+        let restored = boundary_to_runtime_value(&boundary, &constructors)
+            .expect("boundary value must decode");
+        assert_eq!(restored.as_ref(), &value);
+    }
+
+    #[test]
+    fn host_abi_registration_can_mock_file_load_without_fs() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_registrations(
+            true,
+            vec![HostOpRegistration {
+                act_id: "std.io.file.file",
+                operation_id: "load",
+                f: mock_file_load_without_fs,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "file".to_string(),
+                "file".to_string(),
+                "load".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Str("virtual.txt".to_string())),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let result = runner
+            .handle_escaped_request(request)
+            .expect("mocked file load should be handled");
+
+        assert_eq!(
+            result,
+            EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Str("mocked".to_string())))
+        );
+        assert_eq!(runner.host_state.stdout, "mock:virtual.txt");
+    }
+
+    #[test]
+    fn host_abi_panicking_registration_reports_structured_failure() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_registrations(
+            true,
+            vec![HostOpRegistration {
+                act_id: "std.io.file.file",
+                operation_id: "load",
+                f: panicking_file_load,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "file".to_string(),
+                "file".to_string(),
+                "load".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Str("virtual.txt".to_string())),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let error = runner
+            .handle_escaped_request(request)
+            .expect_err("panicking host op should become structured failure");
+
+        match error {
+            RuntimeEvidenceRunError::HostAbiError { operation, message } => {
+                assert_eq!(
+                    operation,
+                    vec![
+                        "std".to_string(),
+                        "io".to_string(),
+                        "file".to_string(),
+                        "file".to_string(),
+                        "load".to_string()
+                    ]
+                );
+                assert!(message.contains("panicked"));
+            }
+            other => panic!("expected host ABI error, got {other:?}"),
+        }
+    }
+
+    fn mock_file_load_without_fs(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+        let BoundaryValue::Str(path) = payload else {
+            return HostOutcome::HostError("mock expected string path".to_string());
+        };
+        let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() else {
+            return HostOutcome::HostError("mock expected builtin host state".to_string());
+        };
+        state.stdout.push_str("mock:");
+        state.stdout.push_str(path);
+        HostOutcome::Return(BoundaryValue::Str("mocked".to_string()))
+    }
+
+    fn panicking_file_load(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
+        panic!("host op panic smoke");
     }
 
     #[test]

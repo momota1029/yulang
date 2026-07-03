@@ -11,9 +11,10 @@ use specialize::{
 
 mod runtime;
 pub use runtime::{
+    BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome,
     RuntimeEvidenceDisplayContext, RuntimeEvidenceHostConstructors, RuntimeEvidenceRunError,
     RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, RuntimeHostManifestOperation,
-    RuntimeHostManifestTier, run_program, run_program_with_plan,
+    RuntimeHostManifestTier, builtin_host_registrations, run_program, run_program_with_plan,
     run_program_with_plan_deep_profile, run_program_with_plan_deep_profile_with_labels,
     run_program_with_plan_with_labels, run_program_with_plan_without_native_host_operations,
     run_program_with_plan_without_native_host_operations_with_labels,

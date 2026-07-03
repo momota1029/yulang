@@ -552,6 +552,10 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
             "runtime error [yulang.host-io-error]: host operation {} failed for {path} ({kind})\n  hint: check that the target path exists and that this process has the required file permissions",
             operation.join("::")
         ),
+        evidence_vm::RuntimeEvidenceRunError::HostAbiError { operation, message } => format!(
+            "runtime error [yulang.host-abi-error]: host operation {} failed ({message})\n  hint: this host implementation returned a value outside its ABI contract",
+            operation.join("::")
+        ),
         evidence_vm::RuntimeEvidenceRunError::NotFunction(value) => format!(
             "runtime error [yulang.not-callable]: tried to call a non-function value {value}\n  hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
         ),
