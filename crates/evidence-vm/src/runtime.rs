@@ -35,10 +35,7 @@ use format::{
     format_values_with_display_context, format_values_with_labels,
 };
 pub(crate) use host::runtime_host_manifest_has_known_act;
-pub use host::{
-    RuntimeHostManifestOperation, RuntimeHostManifestTier, runtime_host_manifest_operations,
-    runtime_host_manifest_tiers,
-};
+pub use host::{RuntimeHostManifestTier, runtime_host_manifest_tiers};
 use host::{RuntimeHostRegistry, RuntimeHostRequestResolution};
 pub use host_abi::{BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
 use plan::RuntimeEvidenceProviderGrantPermission;

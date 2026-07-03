@@ -395,32 +395,8 @@ pub(crate) fn runtime_host_manifest_has_known_act(path: &[String]) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RuntimeHostManifestOperation {
-    pub act_id: &'static str,
-    pub operation_id: &'static str,
-    pub tier: &'static str,
-    pub surface: &'static str,
-    pub signature: &'static str,
-    pub path: &'static [&'static str],
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RuntimeHostManifestTier {
     pub id: &'static str,
-}
-
-pub fn runtime_host_manifest_operations() -> Vec<RuntimeHostManifestOperation> {
-    RUNTIME_HOST_OPERATIONS
-        .iter()
-        .map(|spec| RuntimeHostManifestOperation {
-            act_id: spec.act.manifest_id(),
-            operation_id: spec.operation_id,
-            tier: spec.tier.manifest_id(),
-            surface: spec.surface.manifest_id(),
-            signature: spec.signature,
-            path: spec.path,
-        })
-        .collect()
 }
 
 pub fn runtime_host_manifest_tiers() -> Vec<RuntimeHostManifestTier> {
@@ -447,15 +423,6 @@ impl RuntimeHostOperationTier {
             Self::Sync => "sync",
             Self::SuspendOneShot => "suspend-one-shot",
             Self::SuspendMultiShot => "suspend-multi-shot",
-        }
-    }
-}
-
-impl RuntimeHostOperationSurface {
-    fn manifest_id(self) -> &'static str {
-        match self {
-            Self::Contract => "contract",
-            Self::RawCompatibility => "raw-compat",
         }
     }
 }
@@ -711,46 +678,6 @@ mod tests {
             ]),
             "only provisional range helpers should remain isolated as raw-compat"
         );
-    }
-
-    #[test]
-    fn runtime_host_operation_manifest_view_has_stable_act_op_tier_keys() {
-        let entries = runtime_host_manifest_operations();
-        let mut act_op_keys = BTreeSet::new();
-
-        assert_eq!(entries.len(), RUNTIME_HOST_OPERATIONS.len());
-        for entry in entries {
-            assert!(
-                act_op_keys.insert((entry.act_id, entry.operation_id)),
-                "duplicate host manifest operation key {}.{}",
-                entry.act_id,
-                entry.operation_id
-            );
-            assert_eq!(entry.tier, "sync");
-            assert!(
-                matches!(entry.surface, "contract" | "raw-compat"),
-                "host manifest operation {}.{} should expose a known surface",
-                entry.act_id,
-                entry.operation_id
-            );
-            assert!(
-                !entry.signature.is_empty(),
-                "host manifest operation {}.{} should expose a provisional signature",
-                entry.act_id,
-                entry.operation_id
-            );
-            assert!(
-                entry
-                    .path
-                    .iter()
-                    .copied()
-                    .eq(entry.act_id.split('.').chain([entry.operation_id])),
-                "manifest key {}.{} should reconstruct operation path {:?}",
-                entry.act_id,
-                entry.operation_id,
-                entry.path
-            );
-        }
     }
 
     #[test]

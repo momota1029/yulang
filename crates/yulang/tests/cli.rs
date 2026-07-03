@@ -1789,7 +1789,7 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
 }
 
 #[test]
-fn compiler_generated_host_manifest_matches_runtime_stage1_table() {
+fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
     let root = temp_root("compiler-host-manifest-stage1");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
@@ -1816,50 +1816,89 @@ fn compiler_generated_host_manifest_matches_runtime_stage1_table() {
         Some(&manifest)
     );
 
-    let generated = manifest
+    let operation_keys = manifest
         .operations
         .iter()
         .map(|op| {
             (
-                op.act_id.clone(),
-                op.operation_id.clone(),
+                op.act_id.as_str(),
+                op.operation_id.as_str(),
                 op.path.join("."),
-                generated_tier_id(op.tier).to_string(),
-                generated_surface_id(op.surface).to_string(),
             )
         })
         .collect::<BTreeSet<_>>();
-    let runtime = evidence_vm::runtime_host_manifest_operations()
-        .into_iter()
-        .map(|op| {
+    assert_eq!(
+        operation_keys,
+        BTreeSet::from([
             (
-                op.act_id.to_string(),
-                op.operation_id.to_string(),
-                op.path.join("."),
-                op.tier.to_string(),
-                op.surface.to_string(),
-            )
-        })
-        .collect::<BTreeSet<_>>();
+                "std.io.console.out",
+                "write",
+                "std.io.console.out.write".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "ambient_get",
+                "std.io.file.file.ambient_get".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "ambient_set",
+                "std.io.file.file.ambient_set".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "ambient_touch",
+                "std.io.file.file.ambient_touch".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "load",
+                "std.io.file.file.load".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "meta",
+                "std.io.file.file.meta".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "read_at",
+                "std.io.file.file.read_at".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "store",
+                "std.io.file.file.store".to_string()
+            ),
+            (
+                "std.io.file.file",
+                "write_at",
+                "std.io.file.file.write_at".to_string()
+            ),
+        ])
+    );
 
-    assert_eq!(generated, runtime);
+    let raw_compat_paths = manifest
+        .operations
+        .iter()
+        .filter(|op| op.surface == poly::host_manifest::HostOperationSurface::RawCompat)
+        .map(|op| op.path.join("."))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        raw_compat_paths,
+        BTreeSet::from([
+            "std.io.file.file.read_at".to_string(),
+            "std.io.file.file.write_at".to_string(),
+        ])
+    );
+    assert!(
+        manifest
+            .operations
+            .iter()
+            .all(|op| op.tier == poly::host_manifest::HostOperationTier::Sync)
+    );
 
     let _ = fs::remove_dir_all(&root);
-}
-
-fn generated_tier_id(tier: poly::host_manifest::HostOperationTier) -> &'static str {
-    match tier {
-        poly::host_manifest::HostOperationTier::Sync => "sync",
-        poly::host_manifest::HostOperationTier::SuspendOneShot => "suspend-one-shot",
-        poly::host_manifest::HostOperationTier::SuspendMultiShot => "suspend-multi-shot",
-    }
-}
-
-fn generated_surface_id(surface: poly::host_manifest::HostOperationSurface) -> &'static str {
-    match surface {
-        poly::host_manifest::HostOperationSurface::Contract => "contract",
-        poly::host_manifest::HostOperationSurface::RawCompat => "raw-compat",
-    }
 }
 
 #[test]
