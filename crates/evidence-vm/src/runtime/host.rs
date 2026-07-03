@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use super::{HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
@@ -96,7 +97,7 @@ impl RuntimeHostManifest {
 #[derive(Debug, Clone)]
 pub(super) struct RuntimeHostRegistry {
     manifest: RuntimeHostManifest,
-    generated_manifest: Option<poly::host_manifest::HostActManifest>,
+    generated_manifest: Option<RuntimeGeneratedHostManifestLookup>,
     native_host_operations_enabled: bool,
     registrations: &'static [HostOpRegistration],
 }
@@ -135,17 +136,21 @@ impl RuntimeHostRegistry {
         generated_manifest: Option<poly::host_manifest::HostActManifest>,
         registrations: Vec<HostOpRegistration>,
     ) -> Self {
+        let registrations: &'static [HostOpRegistration] =
+            Box::leak(registrations.into_boxed_slice());
+        let generated_manifest = generated_manifest
+            .map(|manifest| RuntimeGeneratedHostManifestLookup::new(manifest, registrations));
         Self {
             manifest: RUNTIME_HOST_MANIFEST,
             generated_manifest,
             native_host_operations_enabled,
-            registrations: Box::leak(registrations.into_boxed_slice()),
+            registrations,
         }
     }
 
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
-        if let Some(manifest) = &self.generated_manifest {
-            return self.resolve_generated_manifest_request(manifest, path);
+        if let Some(lookup) = &self.generated_manifest {
+            return lookup.resolve(path, self.native_host_operations_enabled);
         }
 
         let Some(spec) = self.manifest.operation_spec(path) else {
@@ -183,36 +188,103 @@ impl RuntimeHostRegistry {
         })
     }
 
-    fn resolve_generated_manifest_request(
+    fn registration_for(&self, spec: &RuntimeHostOperationSpec) -> Option<HostOpFn> {
+        host_registration_for(
+            self.registrations,
+            spec.act.manifest_id(),
+            spec.operation_id,
+        )
+    }
+
+    fn resolve_known_act_without_registered_operation(
         &self,
-        manifest: &poly::host_manifest::HostActManifest,
         path: &[String],
     ) -> Option<RuntimeHostRequestResolution> {
-        let Some(act) = manifest.acts.iter().find(|act| path.starts_with(&act.path)) else {
+        let act_path = self
+            .manifest
+            .act_for_path(path)
+            .map(runtime_host_act_path_strings)?;
+        Some(RuntimeHostRequestResolution::UnsupportedCapability(
+            RuntimeHostCapabilityFailure { act_path },
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeGeneratedHostManifestLookup {
+    act_paths: HashSet<Vec<String>>,
+    operations: HashMap<Vec<String>, RuntimeGeneratedHostOperation>,
+}
+
+impl RuntimeGeneratedHostManifestLookup {
+    fn new(
+        manifest: poly::host_manifest::HostActManifest,
+        registrations: &'static [HostOpRegistration],
+    ) -> Self {
+        assert_manifest_act_registrations_have_operations(&manifest, registrations);
+        let act_path_by_id = manifest
+            .acts
+            .iter()
+            .map(|act| (act.act_id.clone(), act.path.clone()))
+            .collect::<HashMap<_, _>>();
+        let act_paths = manifest
+            .acts
+            .iter()
+            .map(|act| act.path.clone())
+            .collect::<HashSet<_>>();
+        let operations = manifest
+            .operations
+            .into_iter()
+            .map(|operation| {
+                let act_path = act_path_by_id
+                    .get(&operation.act_id)
+                    .expect("validated host manifest operation should reference an act")
+                    .clone();
+                let f = host_registration_for(
+                    registrations,
+                    &operation.act_id,
+                    &operation.operation_id,
+                );
+                (
+                    operation.path.clone(),
+                    RuntimeGeneratedHostOperation {
+                        act_path,
+                        path: operation.path,
+                        f,
+                    },
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        Self {
+            act_paths,
+            operations,
+        }
+    }
+
+    fn resolve(
+        &self,
+        path: &[String],
+        native_host_operations_enabled: bool,
+    ) -> Option<RuntimeHostRequestResolution> {
+        let Some(act_path) = self.act_path_for(path) else {
             return None;
         };
-        let Some(operation) = manifest
-            .operations
-            .iter()
-            .find(|operation| operation.path == path)
-        else {
+        let Some(operation) = self.operations.get(path) else {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure {
-                    act_path: act.path.clone(),
-                },
+                RuntimeHostCapabilityFailure { act_path },
             ));
         };
-        if !self.native_host_operations_enabled {
+        if !native_host_operations_enabled {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
                 RuntimeHostCapabilityFailure {
-                    act_path: act.path.clone(),
+                    act_path: operation.act_path.clone(),
                 },
             ));
         }
-        let Some(f) = self.registration_for_manifest_operation(operation) else {
+        let Some(f) = operation.f else {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
                 RuntimeHostCapabilityFailure {
-                    act_path: act.path.clone(),
+                    act_path: operation.act_path.clone(),
                 },
             ));
         };
@@ -224,52 +296,58 @@ impl RuntimeHostRegistry {
         ))
     }
 
-    fn registration_for(&self, spec: &RuntimeHostOperationSpec) -> Option<HostOpFn> {
-        let act_id = spec.act.manifest_id();
-        self.registrations
-            .iter()
+    fn act_path_for(&self, path: &[String]) -> Option<Vec<String>> {
+        (0..=path.len())
             .rev()
-            .find(|registration| {
-                registration.act_id == act_id && registration.operation_id == spec.operation_id
-            })
-            .map(|registration| registration.f)
+            .find_map(|len| self.act_paths.get(&path[..len]).cloned())
     }
+}
 
-    fn registration_for_manifest_operation(
-        &self,
-        operation: &poly::host_manifest::HostActManifestOperation,
-    ) -> Option<HostOpFn> {
-        self.registrations
-            .iter()
-            .rev()
-            .find(|registration| {
-                registration.act_id == operation.act_id
-                    && registration.operation_id == operation.operation_id
-            })
-            .map(|registration| registration.f)
-    }
+#[derive(Debug, Clone)]
+struct RuntimeGeneratedHostOperation {
+    act_path: Vec<String>,
+    path: Vec<String>,
+    f: Option<HostOpFn>,
+}
 
-    fn resolve_known_act_without_registered_operation(
-        &self,
-        path: &[String],
-    ) -> Option<RuntimeHostRequestResolution> {
-        let act_path = self.generated_manifest_act_path(path).or_else(|| {
-            self.manifest
-                .act_for_path(path)
-                .map(runtime_host_act_path_strings)
-        })?;
-        Some(RuntimeHostRequestResolution::UnsupportedCapability(
-            RuntimeHostCapabilityFailure { act_path },
-        ))
-    }
+fn host_registration_for(
+    registrations: &[HostOpRegistration],
+    act_id: &str,
+    operation_id: &str,
+) -> Option<HostOpFn> {
+    registrations
+        .iter()
+        .rev()
+        .find(|registration| {
+            registration.act_id == act_id && registration.operation_id == operation_id
+        })
+        .map(|registration| registration.f)
+}
 
-    fn generated_manifest_act_path(&self, path: &[String]) -> Option<Vec<String>> {
-        self.generated_manifest
-            .as_ref()?
+fn assert_manifest_act_registrations_have_operations(
+    manifest: &poly::host_manifest::HostActManifest,
+    registrations: &[HostOpRegistration],
+) {
+    if cfg!(debug_assertions) {
+        let manifest_act_ids = manifest
             .acts
             .iter()
-            .find(|act| path.starts_with(&act.path))
-            .map(|act| act.path.clone())
+            .map(|act| act.act_id.as_str())
+            .collect::<HashSet<_>>();
+        for registration in registrations {
+            if !manifest_act_ids.contains(registration.act_id) {
+                continue;
+            }
+            debug_assert!(
+                manifest.operations.iter().any(|operation| {
+                    operation.act_id == registration.act_id
+                        && operation.operation_id == registration.operation_id
+                }),
+                "host registration {}.{} has no operation in generated manifest",
+                registration.act_id,
+                registration.operation_id
+            );
+        }
     }
 }
 
@@ -809,11 +887,79 @@ mod tests {
     }
 
     #[test]
+    fn runtime_host_registry_resolves_generated_manifest_registration() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("call")],
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
+
+        let Some(RuntimeHostRequestResolution::Operation(operation)) = registry.resolve(&path)
+        else {
+            panic!("registered generated host operation should resolve");
+        };
+        assert_eq!(operation.path_strings(), path.to_vec());
+    }
+
+    #[test]
+    fn runtime_host_registry_reports_generated_act_unknown_op_as_capability_failure() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("call")],
+        );
+        let path = [
+            "test".into(),
+            "host".into(),
+            "bridge".into(),
+            "missing".into(),
+        ];
+
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
+            panic!("unknown operation under generated host act should be a capability failure");
+        };
+        assert_eq!(
+            failure,
+            RuntimeHostCapabilityFailure {
+                act_path: vec!["test".into(), "host".into(), "bridge".into()]
+            }
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(
+        expected = "host registration test.host.bridge.missing has no operation in generated manifest"
+    )]
+    fn runtime_host_registry_rejects_missing_operation_registration_for_manifest_act() {
+        RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("missing")],
+        );
+    }
+
+    #[test]
     fn runtime_host_registry_leaves_unknown_effects_unresolved() {
         let registry = RuntimeHostRegistry::new(false);
         let path = ["std".into(), "unknown".into(), "op".into()];
 
         assert!(registry.resolve(&path).is_none());
+    }
+
+    fn custom_host_registration(operation_id: &'static str) -> HostOpRegistration {
+        HostOpRegistration {
+            act_id: "test.host.bridge",
+            operation_id,
+            f: custom_host_call,
+        }
+    }
+
+    fn custom_host_call(_: &mut HostCtx<'_>, _: &super::super::BoundaryValue) -> HostOutcome {
+        HostOutcome::Return(super::super::BoundaryValue::Unit)
     }
 
     fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
