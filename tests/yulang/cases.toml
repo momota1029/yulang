@@ -1912,6 +1912,34 @@ contracts = [
 ]
 
 [[case]]
+name = "lambda_my_binder_state_protocol"
+file = "regressions/runtime/lambda_my_binder_state_protocol.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((20, 2), ((\"A!\", \"BA\"), \"A!\", \"BA\"))]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "refs",
+  "host.unsupported",
+]
+
+[[case]]
+name = "file_text_with_commit_lambda_my"
+file = "regressions/runtime/file_text_with_commit_lambda_my.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [((\"start\", \"start scoped\"), \"start scoped\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "refs",
+  "host.unsupported",
+]
+
+[[case]]
 name = "file_text_with_commit_do"
 file = "regressions/runtime/file_text_with_commit_do.yu"
 kind = "run"

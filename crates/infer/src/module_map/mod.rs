@@ -387,7 +387,13 @@ impl Lower {
     ) {
         let mut local_var_index = 0;
         for node in scope.descendants() {
-            if is_local_var_act_pattern_root(&node) {
+            if is_lambda_expr_kind(node.kind()) {
+                let protocol_lambda_names = protocol_lambda_reference_names(&node);
+                for name in protocol_lambda_names {
+                    self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
+                    local_var_index += 1;
+                }
+            } else if is_local_var_act_pattern_root(&node) {
                 for name in pattern_var_act_names(&node) {
                     self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
                     local_var_index += 1;

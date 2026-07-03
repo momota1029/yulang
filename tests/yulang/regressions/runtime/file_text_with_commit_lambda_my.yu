@@ -1,0 +1,17 @@
+use std::control::var::*
+
+-- file_text_with_commit の `\my &text ->` 糖衣版。
+-- `text_with` の state-passing protocol 型と意味論は変えず、callback 表記だけを変える。
+
+my edit() =
+    std::io::file::text_with "/mock" \my &text ->
+        my before = $text
+        &text = before + " scoped"
+        (before, $text)
+
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::load path, k -> run backing: k (result::ok backing)
+    std::io::file::file::store (path, text), k -> run text: k (result::ok ())
+    value -> (value, backing)
+
+run "start": edit()

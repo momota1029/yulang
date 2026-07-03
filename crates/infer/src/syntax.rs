@@ -500,9 +500,96 @@ pub(crate) fn expr_needs_synthetic_owner(expr: &Cst) -> bool {
         (node.kind() == SyntaxKind::Binding && local_var_act_name(&node).is_some())
             || (node.kind() == SyntaxKind::Binding
                 && protocol_do_binding_reference_name(&node).is_some())
+            || (is_lambda_expr_kind(node.kind())
+                && !protocol_lambda_reference_names(&node).is_empty())
             || (node.kind() == SyntaxKind::Pattern && !pattern_var_act_names(&node).is_empty())
             || sub_syntax_label(&node).is_some()
     })
+}
+
+#[derive(Clone)]
+pub(crate) enum LambdaParamSyntax {
+    Pattern(Cst),
+    ProtocolRef(Name),
+}
+
+pub(crate) fn lambda_param_syntaxes(node: &Cst) -> Vec<LambdaParamSyntax> {
+    let mut params = Vec::new();
+    let mut pending_my = false;
+    let mut protocol_after_comma = false;
+    let mut last_was_protocol = false;
+
+    for item in node
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+    {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Arrow => break,
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::My => {
+                pending_my = true;
+                protocol_after_comma = false;
+                last_was_protocol = false;
+            }
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Comma && last_was_protocol => {
+                pending_my = false;
+                protocol_after_comma = true;
+                last_was_protocol = false;
+            }
+            NodeOrToken::Node(pattern) if pattern.kind() == SyntaxKind::Pattern => {
+                let protocol_name = (pending_my || protocol_after_comma)
+                    .then(|| lambda_protocol_pattern_name(&pattern))
+                    .flatten();
+                if let Some(name) = protocol_name {
+                    params.push(LambdaParamSyntax::ProtocolRef(name));
+                    last_was_protocol = true;
+                } else {
+                    params.push(LambdaParamSyntax::Pattern(pattern));
+                    last_was_protocol = false;
+                }
+                pending_my = false;
+                protocol_after_comma = false;
+            }
+            _ => {
+                pending_my = false;
+                protocol_after_comma = false;
+                last_was_protocol = false;
+            }
+        }
+    }
+
+    params
+}
+
+pub(crate) fn protocol_lambda_reference_names(node: &Cst) -> Vec<Name> {
+    if !is_lambda_expr_kind(node.kind()) {
+        return Vec::new();
+    }
+    lambda_param_syntaxes(node)
+        .into_iter()
+        .filter_map(|param| match param {
+            LambdaParamSyntax::ProtocolRef(name) => Some(name),
+            LambdaParamSyntax::Pattern(_) => None,
+        })
+        .collect()
+}
+
+pub(crate) fn is_lambda_expr_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::LambdaExpr | SyntaxKind::SubLambdaExpr | SyntaxKind::RecursiveLambdaExpr
+    )
+}
+
+fn lambda_protocol_pattern_name(pattern: &Cst) -> Option<Name> {
+    if contains_node_kind(pattern, SyntaxKind::ApplyML)
+        || contains_node_kind(pattern, SyntaxKind::ApplyC)
+        || contains_node_kind(pattern, SyntaxKind::TypeAnn)
+    {
+        return None;
+    }
+    let name = pattern_head_binding_name(pattern)?;
+    let raw = name.0.strip_prefix('&')?;
+    (!raw.is_empty()).then_some(name)
 }
 
 pub(crate) struct SubSyntaxParts {

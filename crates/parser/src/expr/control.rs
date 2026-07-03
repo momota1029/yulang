@@ -200,6 +200,29 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
     mut leading: TriviaInfo,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
     loop {
+        if let Some(parsed) = parse_lambda_my_binder(i.rb(), leading)? {
+            match parsed {
+                Either::Left(info) => {
+                    leading = info;
+                    continue;
+                }
+                Either::Right(stop) if stop.kind == SyntaxKind::Arrow => {
+                    i.env.state.sink.lex(&stop);
+                    i.env.state.line_indent = i.env.indent;
+                    let mut body_in = i.rb();
+                    body_in.env.ml_arg = false;
+                    let body = parse_inline_or_indent(body_in, stop.trailing_trivia_info())?;
+                    i.env.state.sink.finish();
+                    return Some(Ok(body));
+                }
+                Either::Right(stop) => {
+                    emit_invalid(i.rb(), stop.clone());
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Right(stop)));
+                }
+            }
+        }
+
         let old_stop = i.env.stop.clone();
         i.env.stop.insert(SyntaxKind::Arrow);
         let nud = scan_pat_nud(leading, i.rb())?;
@@ -247,6 +270,71 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
             }
         }
     }
+}
+
+fn parse_lambda_my_binder<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading: TriviaInfo,
+) -> Option<Option<Either<TriviaInfo, Lex>>> {
+    if !looks_like_lambda_my_binder(i.rb(), leading) {
+        return Some(None);
+    }
+
+    let my = scan_stmt_lex(leading, i.rb())?;
+    i.env.state.sink.lex(&my);
+    let mut next_leading = my.trailing_trivia_info();
+
+    loop {
+        let old_stop = i.env.stop.clone();
+        i.env.stop.insert(SyntaxKind::Arrow);
+        i.env.stop.insert(SyntaxKind::Comma);
+        let nud = scan_pat_nud(next_leading, i.rb())?;
+        let is_ref_pattern = lambda_my_binder_nud_is_ref(&nud);
+        let parsed = if is_ref_pattern {
+            let mut pattern_in = i.rb();
+            pattern_in.env.ml_arg = true;
+            parse_pattern_from_nud(pattern_in, nud)?
+        } else {
+            emit_invalid(i.rb(), nud.lex.clone());
+            Either::Left(nud.lex.trailing_trivia_info())
+        };
+        i.env.stop = old_stop;
+
+        match parsed {
+            Either::Left(info) => return Some(Some(Either::Left(info))),
+            Either::Right(stop) if stop.kind == SyntaxKind::Comma => {
+                i.env.state.sink.lex(&stop);
+                next_leading = stop.trailing_trivia_info();
+            }
+            Either::Right(stop) => return Some(Some(Either::Right(stop))),
+        }
+    }
+}
+
+fn looks_like_lambda_my_binder<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading: TriviaInfo,
+) -> bool {
+    let checkpoint = i.checkpoint();
+    let result = (|| {
+        let my = peek_stmt_lex(leading, i.rb())?;
+        if my.kind != SyntaxKind::My {
+            return Some(false);
+        }
+        let my = scan_stmt_lex(leading, i.rb())?;
+        let nud = scan_pat_nud(my.trailing_trivia_info(), i.rb())?;
+        Some(lambda_my_binder_nud_is_ref(&nud))
+    })()
+    .unwrap_or(false);
+    i.rollback(checkpoint);
+    result
+}
+
+fn lambda_my_binder_nud_is_ref(nud: &Token<crate::pat::scan::PatNudTag>) -> bool {
+    matches!(nud.tag, crate::pat::scan::PatNudTag::Atom)
+        && nud.lex.kind == SyntaxKind::SigilIdent
+        && nud.lex.text.starts_with('&')
+        && nud.lex.text.len() > 1
 }
 
 pub(super) fn parse_if_expr<I: EventInput, S: EventSink>(

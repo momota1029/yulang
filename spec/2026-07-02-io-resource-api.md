@@ -127,17 +127,22 @@ unscoped 形（`file::text p`）の寿命は fs handler の extent
 
 `text_with` は現在の Contract v1 protocol 形では、callback に entry snapshot の
 `str` を渡し、callback が `(結果, final_text)` を返す。callback が値を返した場合だけ
-`store` に到達し、effect abort では write-back しない。将来の `\my &text ->` 糖衣は
-この protocol の表記だけを変える予定であり、型と意味論は変えない。
+`store` に到達し、effect abort では write-back しない。`\my &text ->` 糖衣は
+この protocol の表記だけを変え、型と意味論は変えない。
 
 ### 使用例（規範例。fixture の素材にする）
 
 ```yu
-file::text_with "notes.txt": \text0 ->
+file::text_with "notes.txt" \text0 ->
     my $text = text0
     &text = $text + "\nDONE"
     ((), $text)
 -- callback return = commit。エラー離脱 = rollback（ファイル無傷）
+
+file::text_with "notes.txt" \my &text ->
+    &text = $text + "\nDONE"
+    ()
+-- 上と同じ state-passing protocol の糖衣
 
 my &log = file::text "run.log"
 &log = $log ++ "started\n"

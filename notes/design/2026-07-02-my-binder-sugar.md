@@ -2,11 +2,11 @@
 
 決定日: 2026-07-02
 発案: ユーザ。記録: Claude (Fable 5)。
-状態: **方向決定（authoritative）・文形は実装済み（2026-07-02、Claude 実装）**。
+状態: **方向決定（authoritative）・文形と λ 形は実装済み**。
 file slice（[2026-07-02-file-session-boundary-plan.md](2026-07-02-file-session-boundary-plan.md)）
 の**外**の独立トラック。
 
-## 0. 実装状況（2026-07-02 夜）
+## 0. 実装状況
 
 - **文形 `my &x = f(do)`: 実装済み・検証済み**。parser 変更ゼロ
   （`my &x = f(do)` は既にパースされ、従来は無意味な生ローカル束縛だった。
@@ -23,8 +23,14 @@ file slice（[2026-07-02-file-session-boundary-plan.md](2026-07-02-file-session-
   `file_text_with_commit_do`（手書き protocol 版と同一観測）。
   rollback（abort で backing 無傷）と undet 分岐独立（entry snapshot +
   last-write-wins）も probe で確認済み。
-- **λ形 `\my &x -> body`: 未実装**（parser のパターン走査に `my` を通す
-  変更が必要。文形と同じ継続組み立てを流用できる）。
+- **λ形 `\my &x -> body`: 実装済み・検証済み**（2026-07-03、Codex 実装）。
+  parser は lambda binder 位置でのみ `my` を受け、直後が non-empty `&` sigil
+  pattern の場合だけ protocol binder として扱う。lowering は文形と同じ
+  synthetic var act / `var_ref` / `run` 経路に乗せる。複数 binder
+  `\my &x, &y -> body` は、全 init parameter を先に束縛してから body に
+  var handler を張り、`(body_result, final_x, final_y)` を返す。
+  canary は `lambda_my_binder_state_protocol` と parser の
+  `expr_lambda_my_ref_binder*`。
 - **既知の別問題**: 入れ子 `text_with` × 状態変数の交差は check を通るが
   specialize の slot 衝突で落ちる。糖衣と無関係の既存問題（手書きで再現）。
   [notes/bugs/nested-text-with-state-var-specialize-conflict.md](../bugs/nested-text-with-state-var-specialize-conflict.md)。

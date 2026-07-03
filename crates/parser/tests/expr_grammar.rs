@@ -1381,6 +1381,64 @@ fn expr_lambda_inline() {
 }
 
 #[test]
+fn expr_lambda_my_ref_binder() {
+    let got = parse_expression("\\my &x -> $x");
+    let expected = vec![
+        "(Expr",
+        "  (LambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    My \"my\"",
+        "    (Pattern",
+        "      SigilIdent \"&x\"",
+        "    )",
+        "    Arrow \"->\"",
+        "    (Expr",
+        "      SigilIdent \"$x\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_lambda_my_ref_binder_list() {
+    let got = parse_expression("\\my &x, &y -> ($x, $y)");
+    let expected = vec![
+        "(Expr",
+        "  (LambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    My \"my\"",
+        "    (Pattern",
+        "      SigilIdent \"&x\"",
+        "    )",
+        "    Comma \",\"",
+        "    (Pattern",
+        "      SigilIdent \"&y\"",
+        "    )",
+        "    Arrow \"->\"",
+        "    (Expr",
+        "      (Paren",
+        "        ParenL \"(\"",
+        "        (Expr",
+        "          SigilIdent \"$x\"",
+        "        )",
+        "        (Separator",
+        "          Comma \",\"",
+        "        )",
+        "        (Expr",
+        "          SigilIdent \"$y\"",
+        "        )",
+        "        ParenR \")\"",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_ml_lambda_body_keeps_tail_parsing() {
     let got = parse_expression_with_word_ops("g \\i -> if i == 0: return i");
 

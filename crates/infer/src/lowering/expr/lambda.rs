@@ -10,10 +10,7 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
-        let patterns = node
-            .children()
-            .filter(|child| child.kind() == SyntaxKind::Pattern)
-            .collect::<Vec<_>>();
+        let params = crate::lambda_param_syntaxes(node);
         let Some(body) = node
             .children()
             .filter(|child| {
@@ -26,6 +23,19 @@ impl<'a> ExprLowerer<'a> {
         else {
             return Err(LoweringError::MissingLambdaBody);
         };
+        if params
+            .iter()
+            .any(|param| matches!(param, crate::LambdaParamSyntax::ProtocolRef(_)))
+        {
+            return self.lower_protocol_lambda_params(params.as_slice(), &body, lambda_scope);
+        }
+        let patterns = params
+            .into_iter()
+            .filter_map(|param| match param {
+                crate::LambdaParamSyntax::Pattern(pattern) => Some(pattern),
+                crate::LambdaParamSyntax::ProtocolRef(_) => None,
+            })
+            .collect::<Vec<_>>();
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
@@ -334,6 +344,153 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_protocol_lambda_params(
+        &mut self,
+        params: &[crate::LambdaParamSyntax],
+        body: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let mut references = Vec::new();
+        for param in params {
+            match param {
+                crate::LambdaParamSyntax::ProtocolRef(reference) => {
+                    references.push(reference.clone());
+                }
+                crate::LambdaParamSyntax::Pattern(_) => {
+                    return Err(LoweringError::UnsupportedPatternSyntax {
+                        kind: SyntaxKind::LambdaExpr,
+                    });
+                }
+            }
+        }
+        self.lower_protocol_lambda_param_at(&references, 0, Vec::new(), body, lambda_scope)
+    }
+
+    fn lower_protocol_lambda_param_at(
+        &mut self,
+        references: &[Name],
+        index: usize,
+        mut prepared: Vec<PreparedVarPatternBinding>,
+        body: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let Some(reference_name) = references.get(index) else {
+            return self.lower_protocol_lambda_body(prepared.as_slice(), references, body);
+        };
+        let raw = reference_name
+            .0
+            .strip_prefix('&')
+            .filter(|raw| !raw.is_empty())
+            .ok_or(LoweringError::MissingLocalBindingName)?
+            .to_string();
+        let source = Name(format!("${raw}"));
+        let init_name = Name(format!("#{raw}"));
+        let local_act = self.next_synthetic_var_act(reference_name)?;
+
+        let param_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            init_name.clone(),
+            param_value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        self.mark_lambda_param_as_input(pat);
+
+        prepared.push(PreparedVarPatternBinding {
+            source,
+            init_name,
+            reference_name: reference_name.clone(),
+            local_act,
+        });
+        self.function_frames
+            .push(FunctionPredicateFrame::new(lambda_scope));
+        let previous_level = self.session.infer.enter_child_level();
+        let previous_local_generalize_boundary = self.local_generalize_boundary;
+        self.local_generalize_boundary = previous_level;
+        let body_result = self.lower_protocol_lambda_param_at(
+            references,
+            index + 1,
+            prepared,
+            body,
+            lambda_scope,
+        );
+        self.local_generalize_boundary = previous_local_generalize_boundary;
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("protocol lambda predicate frame should be balanced");
+        let lowered_body = match body_result {
+            Ok(body) => body,
+            Err(error) => {
+                self.locals.truncate(before_locals);
+                return Err(error);
+            }
+        };
+        self.locals.truncate(before_locals);
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            lambda_scope,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
+        let (ret_eff, ret) = self.lambda_output_predicate(&lowered_body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Lambda(pat, lowered_body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_protocol_lambda_body(
+        &mut self,
+        prepared: &[PreparedVarPatternBinding],
+        references: &[Name],
+        body: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let active_var_bindings = self.install_var_pattern_bindings(prepared)?;
+        let body_result = self
+            .lower_lambda_body(body, &LambdaBodyMode::Expr)
+            .and_then(|body| self.protocol_lambda_result_tuple(body, references))
+            .and_then(|body| self.wrap_var_pattern_bindings(active_var_bindings, body));
+        self.locals.truncate(before_locals);
+        body_result
+    }
+
+    fn protocol_lambda_result_tuple(
+        &mut self,
+        body: Computation,
+        references: &[Name],
+    ) -> Result<Computation, LoweringError> {
+        let mut items = Vec::with_capacity(references.len() + 1);
+        items.push(body);
+        for reference in references {
+            let raw = reference
+                .0
+                .strip_prefix('&')
+                .filter(|raw| !raw.is_empty())
+                .ok_or(LoweringError::MissingLocalBindingName)?;
+            items.push(self.lower_sigil_name_at(&format!("${raw}"), None)?);
+        }
+        Ok(self.synthetic_tuple_value(items))
     }
 
     pub(in crate::lowering) fn lower_defined_tail_after_receiver(

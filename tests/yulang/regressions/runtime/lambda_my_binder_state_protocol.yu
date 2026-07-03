@@ -1,0 +1,25 @@
+use std::control::var::*
+
+-- `\my &x ->` state-passing protocol sugar.
+-- The lambda receives an initial value and returns (body result, final value).
+
+my with_one(v0, f) =
+    f v0
+
+my with_two(a0, b0, f) =
+    f a0 b0
+
+my basic =
+    with_one(1, \my &x ->
+        &x = $x + 1
+        $x * 10
+    )
+
+my pair =
+    with_two("A", "B", \my &a, &b ->
+        &b = $b + $a
+        &a = $a + "!"
+        ($a, $b)
+    )
+
+(basic, pair)
