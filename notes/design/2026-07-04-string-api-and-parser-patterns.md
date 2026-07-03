@@ -1,7 +1,7 @@
 # 文字列 API v1 と parser pattern
 
 決定日: 2026-07-04
-状態: **決定済み（Part A は着手可。Part B は Stage P1 着手可、P2 はユーザ確認）**
+状態: **決定済み（Part A は着手可。Part B は Stage P1 実装済み、P2 はユーザ確認）**
 署名: Claude Fable 5
 
 背景: ファイルを文字列として扱える（`file::text` が `ref '[file] str` を返す）
@@ -103,9 +103,11 @@ parser pattern は開いた失敗可能 pattern なので、将来の exhaustive
 - **Stage A（着手可）**: Part A の v1 API + テスト（各関数の正常系・
   空文字列・separator 不在・複数出現。fixture は `stable-api` 相当の
   流儀で）。
-- **Stage P1（着手可）**: Part B の desugar 一般化 + fixture
+- **Stage P1（実装済み）**: Part B の desugar 一般化 + fixture
   （`~"..."` 数本の case、record capture 束縛、fallthrough、
   ネスト record、全消費失敗で次 arm）。
+  （2026-07-04 実装済み、commit 39bc3543。既存 token/word if-chain は
+  一般化 desugar に統合。付随して rule alternation の choice 未起動バグを修正）
 - **Stage P2（ユーザ確認が停止点）**: prefix / rest 束縛の綴り、
   変数 parser 参照、guard との組み合わせ。
 
