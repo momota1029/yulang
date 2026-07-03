@@ -188,6 +188,7 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        as a final safety net (commits 80032176, a1e55e27). Displaying
        stack-weight / subtractability evidence in a prettier public spelling
        (instead of dropping it) is pending a user decision on notation.
+     - 2026-07-04: P2R (user-decided notation) is implemented — public type display now renders stack weights as `@N` boundary ids with `(∅)` / `(∀)` / `[hs]` / `(except [hs])` subtractability and numeric pop parens, eliding the id (and parens for single-symbol marks) when the scheme has a single boundary, e.g. `['c@∅]` and trailing `'e@`; full shapes with floor/filter stay redacted (commits e8b5a330, 6f6c825a).
 
 4. **Release artifact contract**
    - packaged binary で `stable-core` と file-resource representative contract を通す。
