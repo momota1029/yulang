@@ -23,6 +23,7 @@ pub use runtime::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvidenceVmPlan {
+    pub(crate) host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub(crate) summary: EvidenceVmSummary,
     pub(crate) handlers: Vec<EvidenceVmHandlerPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationPlan>,
@@ -636,6 +637,7 @@ fn build_plan_from_evidence(
         &objects,
     );
     EvidenceVmPlan {
+        host_manifest: surface.host_manifest.clone(),
         summary,
         handlers,
         operations,
@@ -1912,8 +1914,13 @@ fn build_object_plan(
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
-    let (operation_objects, allowed_sets) =
-        build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
+    let (operation_objects, allowed_sets) = build_operation_objects(
+        surface.host_manifest.as_ref(),
+        operations,
+        &slot_ids,
+        &handler_index,
+        &handlers,
+    );
     let (known_operations, known_state_operation_route_proofs) =
         build_known_operation_plans(operations, &operation_objects, &known_handlers, surface);
     let providers = build_provider_index(&slot_plans, &handlers);
@@ -2703,6 +2710,7 @@ fn attach_handler_definition_envs(
 }
 
 fn build_operation_objects(
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
     operations: &[EvidenceVmOperationPlan],
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
     handler_index: &HashMap<(ExprId, u32), u32>,
@@ -2729,8 +2737,12 @@ fn build_operation_objects(
             let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
             let visibility =
                 operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
-            let static_route =
-                operation_static_route_resolution(operation, candidate_handler, &handler_by_id);
+            let static_route = operation_static_route_resolution(
+                host_manifest,
+                operation,
+                candidate_handler,
+                &handler_by_id,
+            );
             Some(EvidenceVmOperationObjectPlan {
                 expr: operation.expr,
                 slot_id,
@@ -2745,6 +2757,7 @@ fn build_operation_objects(
 }
 
 fn operation_static_route_resolution(
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
     operation: &EvidenceVmOperationPlan,
     candidate_handler: Option<u32>,
     handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
@@ -2777,7 +2790,7 @@ fn operation_static_route_resolution(
         }
         EvidenceVmOperationLowering::GenericFallback => {
             let matching_handlers = matching_handler_count(handler_by_id, &operation.path);
-            let reason = if runtime::runtime_host_manifest_has_known_act(&operation.path) {
+            let reason = if runtime_host_manifest_has_known_act(host_manifest, &operation.path) {
                 EvidenceVmStaticRouteDynamicReason::HostEscape
             } else if matching_handlers > 1 {
                 EvidenceVmStaticRouteDynamicReason::MultipleCandidates
@@ -2789,6 +2802,19 @@ fn operation_static_route_resolution(
             EvidenceVmStaticRouteResolution::Dynamic(reason)
         }
     }
+}
+
+fn runtime_host_manifest_has_known_act(
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    operation_path: &[String],
+) -> bool {
+    if let Some(host_manifest) = host_manifest {
+        return host_manifest
+            .acts
+            .iter()
+            .any(|act| operation_path.starts_with(&act.path));
+    }
+    runtime::runtime_host_manifest_has_known_act(operation_path)
 }
 
 fn matching_handler_count(
@@ -4466,6 +4492,7 @@ mod tests {
 
         assert_eq!(
             operation_static_route_resolution(
+                None,
                 &generic_fallback_operation(ExprId(10), host_path),
                 None,
                 &handlers
@@ -4476,6 +4503,7 @@ mod tests {
         );
         assert_eq!(
             operation_static_route_resolution(
+                None,
                 &generic_fallback_operation(ExprId(20), user_path),
                 None,
                 &handlers
@@ -4498,13 +4526,13 @@ mod tests {
         two_handlers.insert(1, &second_handler);
 
         assert_eq!(
-            operation_static_route_resolution(&operation, None, &one_handler),
+            operation_static_route_resolution(None, &operation, None, &one_handler),
             EvidenceVmStaticRouteResolution::Dynamic(
                 EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
             )
         );
         assert_eq!(
-            operation_static_route_resolution(&operation, None, &two_handlers),
+            operation_static_route_resolution(None, &operation, None, &two_handlers),
             EvidenceVmStaticRouteResolution::Dynamic(
                 EvidenceVmStaticRouteDynamicReason::MultipleCandidates
             )

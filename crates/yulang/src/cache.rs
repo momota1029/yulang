@@ -21,7 +21,7 @@ use crate::source::{
     source_unit_closure_lowering_loaded_files, source_unit_lowering_loaded_files,
 };
 
-const POLY_CACHE_FORMAT: u32 = 7;
+const POLY_CACHE_FORMAT: u32 = 8;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 8;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
@@ -121,6 +121,7 @@ impl ArtifactCache {
         Ok(Some(CachedPolyArtifact {
             arena: envelope.arena,
             labels: envelope.labels,
+            host_manifest: envelope.host_manifest,
             file_count: envelope.file_count,
             errors: envelope.errors,
         }))
@@ -136,6 +137,7 @@ impl ArtifactCache {
             format: POLY_CACHE_FORMAT,
             arena: &artifact.arena,
             labels: &artifact.labels,
+            host_manifest: &artifact.host_manifest,
             file_count: artifact.file_count,
             errors: &artifact.errors,
         };
@@ -367,6 +369,7 @@ pub struct CachedControlArtifact {
 pub struct CachedPolyArtifact {
     pub arena: poly::expr::Arena,
     pub labels: poly::dump::DumpLabels,
+    pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub file_count: usize,
     pub errors: Vec<String>,
 }
@@ -3385,10 +3388,17 @@ impl fmt::Display for CacheError {
 impl std::error::Error for CacheError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PolyCacheEnvelope<T = poly::expr::Arena, L = poly::dump::DumpLabels, E = Vec<String>> {
+struct PolyCacheEnvelope<
+    T = poly::expr::Arena,
+    L = poly::dump::DumpLabels,
+    H = Option<poly::host_manifest::HostActManifest>,
+    E = Vec<String>,
+> {
     format: u32,
     arena: T,
     labels: L,
+    #[serde(default)]
+    host_manifest: H,
     file_count: usize,
     errors: E,
 }
@@ -3526,7 +3536,7 @@ trait CacheEnvelope {
     fn format(&self) -> u32;
 }
 
-impl<T, L, E> CacheEnvelope for PolyCacheEnvelope<T, L, E> {
+impl<T, L, H, E> CacheEnvelope for PolyCacheEnvelope<T, L, H, E> {
     fn format(&self) -> u32 {
         self.format
     }

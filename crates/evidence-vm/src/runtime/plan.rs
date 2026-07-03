@@ -1360,6 +1360,7 @@ mod tests {
         let slot_id = 7;
         let handler_id = 3;
         let plan = EvidenceVmPlan {
+            host_manifest: None,
             summary: EvidenceVmSummary::default(),
             handlers: Vec::new(),
             operations: vec![crate::EvidenceVmOperationPlan {

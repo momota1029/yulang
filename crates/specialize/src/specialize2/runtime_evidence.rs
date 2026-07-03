@@ -17,6 +17,8 @@ pub struct SpecializeOutput {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceSurface {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     #[serde(default)]
     pub known_state_handlers: Vec<RuntimeEvidenceKnownStateHandler>,
     #[serde(default)]
@@ -183,6 +185,15 @@ fn known_state_accesses_from_tasks(
 pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "runtime evidence tasks [{}]", surface.tasks.len());
+    if let Some(host_manifest) = &surface.host_manifest {
+        let _ = writeln!(
+            out,
+            "host act manifest acts [{}] operations [{}] hash {}",
+            host_manifest.acts.len(),
+            host_manifest.operations.len(),
+            host_manifest.hash.0
+        );
+    }
     if !surface.known_state_handlers.is_empty() {
         let _ = writeln!(
             out,

@@ -24232,6 +24232,7 @@ mod tests {
         provider_family: &[String],
     ) -> RuntimeEvidenceRunner<'a> {
         let plan = EvidenceVmPlan {
+            host_manifest: None,
             summary: EvidenceVmSummary::default(),
             handlers: Vec::new(),
             operations: Vec::new(),
@@ -24266,6 +24267,7 @@ mod tests {
         let value = ExprId(30);
         let slot_id = 7;
         let plan = EvidenceVmPlan {
+            host_manifest: None,
             summary: EvidenceVmSummary::default(),
             handlers: Vec::new(),
             operations: vec![EvidenceVmOperationPlan {

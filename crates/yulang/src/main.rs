@@ -919,7 +919,9 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let specialize_start = Instant::now();
-    let specialized = specialize::specialize_with_runtime_evidence(&poly.arena).map_err(|_| ())?;
+    let mut specialized =
+        specialize::specialize_with_runtime_evidence(&poly.arena).map_err(|_| ())?;
+    specialized.runtime_evidence.host_manifest = poly.host_manifest.clone();
     if let Some(timings) = timings.as_deref_mut() {
         timings.specialize = specialize_start.elapsed();
     }
@@ -987,10 +989,11 @@ fn specialize_control_program(
     mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
 ) -> specialize::SpecializeOutput {
     abort_on_runtime_lowering_errors(&poly.errors);
-    let output = match specialize::specialize_with_runtime_evidence(&poly.arena) {
+    let mut output = match specialize::specialize_with_runtime_evidence(&poly.arena) {
         Ok(output) => output,
         Err(error) => exit_on_specialize_error(error),
     };
+    output.runtime_evidence.host_manifest = poly.host_manifest.clone();
 
     if let Some((cache, key)) = mono_cache {
         let artifact = yulang::cache::CachedMonoArtifact {
@@ -1915,6 +1918,7 @@ fn build_poly_with_cache_timed(
             yulang::BuildPolyOutput {
                 arena: cached.arena,
                 labels: cached.labels,
+                host_manifest: cached.host_manifest,
                 file_count: cached.file_count,
                 errors: cached.errors,
             }
@@ -1965,6 +1969,7 @@ fn build_poly_full_miss_with_cache_timed(
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         labels: poly.labels,
+        host_manifest: poly.host_manifest,
         file_count: poly.file_count,
         errors: poly.errors,
     };
@@ -1974,6 +1979,7 @@ fn build_poly_full_miss_with_cache_timed(
     yulang::BuildPolyOutput {
         arena: artifact.arena,
         labels: artifact.labels,
+        host_manifest: artifact.host_manifest,
         file_count: artifact.file_count,
         errors: artifact.errors,
     }
@@ -2317,6 +2323,7 @@ fn write_poly_artifact_from_output(
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         labels: poly.labels,
+        host_manifest: poly.host_manifest,
         file_count: poly.file_count,
         errors: poly.errors,
     };
@@ -2326,6 +2333,7 @@ fn write_poly_artifact_from_output(
     yulang::BuildPolyOutput {
         arena: artifact.arena,
         labels: artifact.labels,
+        host_manifest: artifact.host_manifest,
         file_count: artifact.file_count,
         errors: artifact.errors,
     }

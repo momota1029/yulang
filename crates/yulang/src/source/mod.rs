@@ -247,10 +247,12 @@ pub fn build_poly_and_compiled_unit_from_collected_sources(
         &lowering,
         errors.clone(),
     );
+    let host_manifest = host_manifest_from_compiled_unit_artifact(&compiled_unit)?;
     Ok(BuildPolyAndCompiledUnitOutput {
         poly: BuildPolyOutput {
             arena: lowering.session.poly,
             labels: lowering.labels,
+            host_manifest: Some(host_manifest),
             file_count: loaded.len(),
             errors,
         },
@@ -264,6 +266,7 @@ pub fn build_poly_from_compiled_unit_artifact(
     BuildPolyOutput {
         arena: artifact.runtime.arena,
         labels: artifact.runtime.labels,
+        host_manifest: None,
         file_count: artifact.manifest.files.len(),
         errors: artifact.errors,
     }
@@ -277,6 +280,7 @@ pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
     Ok(BuildPolyOutput {
         arena: output.lowering.session.poly,
         labels: output.lowering.labels,
+        host_manifest: None,
         file_count: output.file_count,
         errors: output.errors,
     })
@@ -309,6 +313,7 @@ pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sour
         poly: BuildPolyOutput {
             arena: output.lowering.session.poly,
             labels: output.lowering.labels,
+            host_manifest: None,
             file_count: output.file_count,
             errors: output.errors,
         },
@@ -360,13 +365,36 @@ fn lower_compiled_unit_prefix_suffix(
     })
 }
 
+fn host_manifest_from_lowering(
+    lowering: &infer::lowering::BodyLowering,
+) -> Result<poly::host_manifest::HostActManifest, RouteError> {
+    let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
+    let lowering_surface =
+        infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+    let typed = infer::CompiledTypedSurface::from_lowering(lowering, &namespace);
+    infer::host_acts::host_act_manifest_from_compiled(&namespace, &lowering_surface, &typed)
+        .map_err(RouteError::HostActManifest)
+}
+
+fn host_manifest_from_compiled_unit_artifact(
+    artifact: &crate::cache::CachedCompiledUnitArtifact,
+) -> Result<poly::host_manifest::HostActManifest, RouteError> {
+    infer::host_acts::host_act_manifest_from_compiled(
+        &artifact.namespace,
+        &artifact.lowering,
+        &artifact.typed,
+    )
+    .map_err(RouteError::HostActManifest)
+}
+
 /// principal poly artifact から control VM artifact 用 IR を作る。
 pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
 ) -> Result<BuildControlOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let specialized = specialize::specialize_with_runtime_evidence(&output.arena)
+    let mut specialized = specialize::specialize_with_runtime_evidence(&output.arena)
         .map_err(RouteError::Specialize)?;
+    specialized.runtime_evidence.host_manifest = output.host_manifest.clone();
     let program = control_vm::lower(&specialized.program).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,
@@ -1036,9 +1064,11 @@ pub fn build_poly_from_source_text_with_embedded_std(
         .iter()
         .map(format_body_lowering_error)
         .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         labels: lowering.labels,
+        host_manifest: Some(host_manifest),
         file_count,
         errors,
     })
@@ -1054,9 +1084,11 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
         .iter()
         .map(format_body_lowering_error)
         .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         labels: lowering.labels,
+        host_manifest: Some(host_manifest),
         file_count,
         errors,
     })
@@ -1072,9 +1104,11 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
         .iter()
         .map(format_body_lowering_error)
         .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         labels: lowering.labels,
+        host_manifest: Some(host_manifest),
         file_count,
         errors,
     })
@@ -1091,9 +1125,11 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
         .iter()
         .map(format_body_lowering_error)
         .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         labels: lowering.labels,
+        host_manifest: Some(host_manifest),
         file_count,
         errors,
     })
@@ -1358,6 +1394,7 @@ pub struct BuildControlOutput {
 pub struct BuildPolyOutput {
     pub arena: poly::expr::Arena,
     pub labels: poly::dump::DumpLabels,
+    pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
@@ -1545,6 +1582,7 @@ pub enum RouteError {
     },
     SyntaxMerge(sources::CompiledSyntaxMergeError),
     Lower(infer::LoadedFilesError),
+    HostActManifest(infer::host_acts::HostActManifestBuildError),
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
     Control(control_vm::RunError),
@@ -1706,6 +1744,9 @@ impl fmt::Display for RouteError {
                 format_module_path(module_path)
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
+            RouteError::HostActManifest(error) => {
+                write!(f, "failed to build host act manifest: {error:?}")
+            }
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
             RouteError::Control(error) => write!(f, "{error}"),
@@ -3355,9 +3396,11 @@ pub fn build_poly_from_loaded_files(
         .iter()
         .map(format_body_lowering_error)
         .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         labels: lowering.labels,
+        host_manifest: Some(host_manifest),
         file_count: loaded.len(),
         errors,
     })

@@ -1810,6 +1810,11 @@ fn compiler_generated_host_manifest_matches_runtime_stage1_table() {
         &output.compiled_unit.typed,
     )
     .unwrap();
+    let control = yulang::build_control_from_poly_output(&output.poly).unwrap();
+    assert_eq!(
+        control.runtime_evidence.host_manifest.as_ref(),
+        Some(&manifest)
+    );
 
     let generated = manifest
         .operations
