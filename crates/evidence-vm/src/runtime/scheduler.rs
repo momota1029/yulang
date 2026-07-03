@@ -74,7 +74,10 @@ impl RuntimeHostScheduler {
     }
 
     pub(super) fn has_only_root_branch(&self) -> bool {
-        self.branches.len() == 1 && self.branches.contains_key(&self.root_branch)
+        self.branches.len() == 1
+            && self.branches.get(&self.root_branch).is_some_and(|branch| {
+                branch.parent.is_none() && branch.status == RuntimeHostBranchStatus::Running
+            })
     }
 
     pub(super) fn spawn_suspended_child(
@@ -256,6 +259,33 @@ mod tests {
             scheduler.branch_status(scheduler.root_branch),
             Some(RuntimeHostBranchStatus::Running)
         );
+    }
+
+    #[test]
+    fn scheduler_root_only_invariant_requires_running_root() {
+        let mut scheduler = RuntimeHostScheduler::new();
+
+        assert!(scheduler.enqueue_cancel(
+            scheduler.root_branch,
+            RuntimeHostCancelReason::ParentExtentClosed
+        ));
+        let _ = scheduler.process_next_event();
+
+        assert_eq!(
+            scheduler.branch_status(scheduler.root_branch),
+            Some(RuntimeHostBranchStatus::CancelPending)
+        );
+        assert!(!scheduler.has_only_root_branch());
+
+        assert_eq!(
+            scheduler.next_operation_instance(scheduler.root_branch),
+            None
+        );
+        assert_eq!(
+            scheduler.branch_status(scheduler.root_branch),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+        assert!(!scheduler.has_only_root_branch());
     }
 
     #[test]
