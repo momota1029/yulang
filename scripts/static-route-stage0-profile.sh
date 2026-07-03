@@ -5,6 +5,10 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${YULANG:-"$repo_root/target/release/yulang"}"
 std_root="${YULANG_STD_ROOT:-"$repo_root/lib"}"
 timeout_duration="${YULANG_STATIC_ROUTE_STAGE0_TIMEOUT:-240s}"
+cache_args=()
+if [[ "${YULANG_STATIC_ROUTE_STAGE0_USE_CACHE:-0}" != "1" ]]; then
+  cache_args+=(--no-cache)
+fi
 
 if [[ ! -x "$bin" ]]; then
   echo "static route stage0 profile: executable yulang binary not found: $bin" >&2
@@ -23,12 +27,12 @@ run_timeout() {
 print_profile() {
   local source="$1"
   printf '## %s\n' "$source"
-  run_timeout "$bin" --std-root "$std_root" debug evidence-vm-run \
+  run_timeout "$bin" --std-root "$std_root" "${cache_args[@]}" debug evidence-vm-run \
     --compare-control \
     --runtime-evidence-profile-deep \
     "$repo_root/$source" \
     | grep -E \
-      '^(compare\.control:|  evidence\.static_route_|  runtime_evidence\.static_route_runtime_hits_|run roots)'
+      '^(  compare\.control:|  evidence\.static_route_|  runtime_evidence\.static_route_runtime_hits_|run roots)'
   printf '\n'
 }
 
