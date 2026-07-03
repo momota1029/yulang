@@ -84,8 +84,14 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
         ExprLedTag::PathSep => {
             i.env.state.sink.start(SyntaxKind::PathSep);
             i.env.state.sink.lex(&led.lex);
-            let rhs_nud = scan_path_segment_nud(led.lex.trailing_trivia_info(), i.rb())
-                .or_else(|| scan_expr_nud(led.lex.trailing_trivia_info(), i.rb()))?;
+            let rhs_leading = led.lex.trailing_trivia_info();
+            let Some(rhs_nud) = scan_path_segment_nud(rhs_leading, i.rb())
+                .or_else(|| scan_expr_nud(rhs_leading, i.rb()))
+            else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish();
+                return Some(Ok(Either::Left(rhs_leading)));
+            };
             if is_path_segment(&rhs_nud) {
                 i.env.state.sink.lex(&rhs_nud.lex);
             } else {
@@ -113,7 +119,13 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             i.env.state.sink.start(SyntaxKind::ApplyColon);
             i.env.state.sink.lex(&led.lex);
             i.env.state.line_indent = i.env.indent;
-            match parse_apply_colon_rhs(i.rb(), led.lex.trailing_trivia_info())? {
+            let rhs_leading = led.lex.trailing_trivia_info();
+            let Some(parsed) = parse_apply_colon_rhs(i.rb(), rhs_leading) else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish();
+                return Some(Ok(Either::Left(rhs_leading)));
+            };
+            match parsed {
                 Either::Left(next_info) => {
                     i.env.state.sink.finish();
                     return Some(Ok(Either::Left(next_info)));
@@ -133,7 +145,13 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             i.env.state.line_indent = i.env.indent;
             let mut rhs = i.rb();
             rhs.env.ml_arg = false;
-            match parse_inline_or_indent(rhs, led.lex.trailing_trivia_info())? {
+            let rhs_leading = led.lex.trailing_trivia_info();
+            let Some(parsed) = parse_inline_or_indent(rhs, rhs_leading) else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish();
+                return Some(Ok(Either::Left(rhs_leading)));
+            };
+            match parsed {
                 Either::Left(next_info) => {
                     i.env.state.sink.finish();
                     return Some(Ok(Either::Left(next_info)));
@@ -220,7 +238,13 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             } else {
                 i.env.state.sink.lex(&led.lex);
             }
-            match parse_expr_bp(Some(&rbp), led.lex.trailing_trivia_info(), i.rb())? {
+            let rhs_leading = led.lex.trailing_trivia_info();
+            let Some(parsed) = parse_expr_bp(Some(&rbp), rhs_leading, i.rb()) else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish();
+                return Some(Ok(Either::Left(rhs_leading)));
+            };
+            match parsed {
                 Ok(Either::Left(next_info)) => {
                     i.env.state.sink.finish();
                     parse_tail_bp(min_bp, next_info, i)

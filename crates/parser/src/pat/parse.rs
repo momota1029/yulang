@@ -152,7 +152,12 @@ fn parse_tail_bp<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::PathSep);
                 i.env.state.sink.lex(&led.lex);
                 let rhs_leading = led.lex.trailing_trivia_info();
-                let rhs = scan_pat_nud(rhs_leading, i.rb())?;
+                let Some(rhs) = scan_pat_nud(rhs_leading, i.rb()) else {
+                    i.env.state.sink.start(SyntaxKind::InvalidToken);
+                    i.env.state.sink.finish();
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Left(rhs_leading)));
+                };
                 leading_info =
                     if matches!(rhs.tag, PatNudTag::Atom) && rhs.lex.kind == SyntaxKind::Ident {
                         i.env.state.sink.lex(&rhs.lex);
@@ -189,7 +194,13 @@ fn parse_tail_bp<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::TypeAnn);
                 i.env.state.sink.lex(&led.lex);
                 let rhs_leading = led.lex.trailing_trivia_info();
-                match parse_type(rhs_leading, i.rb())? {
+                let Some(parsed) = parse_type(rhs_leading, i.rb()) else {
+                    i.env.state.sink.start(SyntaxKind::InvalidToken);
+                    i.env.state.sink.finish();
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Left(rhs_leading)));
+                };
+                match parsed {
                     Either::Left(info) => {
                         leading_info = info;
                         i.env.state.sink.finish();

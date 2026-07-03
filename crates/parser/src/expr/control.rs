@@ -209,9 +209,14 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
                 Either::Right(stop) if stop.kind == SyntaxKind::Arrow => {
                     i.env.state.sink.lex(&stop);
                     i.env.state.line_indent = i.env.indent;
+                    let body_leading = stop.trailing_trivia_info();
                     let mut body_in = i.rb();
                     body_in.env.ml_arg = false;
-                    let body = parse_inline_or_indent(body_in, stop.trailing_trivia_info())?;
+                    let Some(body) = parse_inline_or_indent(body_in, body_leading) else {
+                        emit_missing_invalid(i.rb());
+                        i.env.state.sink.finish();
+                        return Some(Ok(Either::Left(body_leading)));
+                    };
                     i.env.state.sink.finish();
                     return Some(Ok(body));
                 }
@@ -225,15 +230,25 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
 
         let old_stop = i.env.stop.clone();
         i.env.stop.insert(SyntaxKind::Arrow);
-        let nud = scan_pat_nud(leading, i.rb())?;
+        let Some(nud) = scan_pat_nud(leading, i.rb()) else {
+            i.env.stop = old_stop;
+            emit_missing_invalid(i.rb());
+            i.env.state.sink.finish();
+            return Some(Ok(Either::Left(leading)));
+        };
         let parsed = match nud.tag {
             crate::pat::scan::PatNudTag::Stop if nud.lex.kind == SyntaxKind::Arrow => {
                 i.env.state.sink.lex(&nud.lex);
                 i.env.state.line_indent = i.env.indent;
                 i.env.stop = old_stop;
+                let body_leading = nud.lex.trailing_trivia_info();
                 let mut body_in = i.rb();
                 body_in.env.ml_arg = false;
-                let body = parse_inline_or_indent(body_in, nud.lex.trailing_trivia_info())?;
+                let Some(body) = parse_inline_or_indent(body_in, body_leading) else {
+                    emit_missing_invalid(i.rb());
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Left(body_leading)));
+                };
                 i.env.state.sink.finish();
                 return Some(Ok(body));
             }
@@ -257,9 +272,14 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
             Either::Right(stop) if stop.kind == SyntaxKind::Arrow => {
                 i.env.state.sink.lex(&stop);
                 i.env.state.line_indent = i.env.indent;
+                let body_leading = stop.trailing_trivia_info();
                 let mut body_in = i.rb();
                 body_in.env.ml_arg = false;
-                let body = parse_inline_or_indent(body_in, stop.trailing_trivia_info())?;
+                let Some(body) = parse_inline_or_indent(body_in, body_leading) else {
+                    emit_missing_invalid(i.rb());
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Left(body_leading)));
+                };
                 i.env.state.sink.finish();
                 return Some(Ok(body));
             }
@@ -270,6 +290,11 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
             }
         }
     }
+}
+
+fn emit_missing_invalid<I: EventInput, S: EventSink>(i: In<I, S>) {
+    i.env.state.sink.start(SyntaxKind::InvalidToken);
+    i.env.state.sink.finish();
 }
 
 fn parse_lambda_my_binder<I: EventInput, S: EventSink>(
@@ -408,7 +433,13 @@ fn parse_if_arm<I: EventInput, S: EventSink>(
     let mut cond_in = i.rb();
     cond_in.env.stop.insert(SyntaxKind::Colon);
     cond_in.env.stop.insert(SyntaxKind::BraceL);
-    let cond = parse_expr_bp(None, kw.trailing_trivia_info(), cond_in)?;
+    let cond_leading = kw.trailing_trivia_info();
+    let Some(cond) = parse_expr_bp(None, cond_leading, cond_in) else {
+        emit_missing_invalid(i.rb());
+        i.env.state.sink.finish(); // Cond
+        i.env.state.sink.finish(); // IfArm
+        return Some(Either::Left(cond_leading));
+    };
     let stop = match cond {
         Ok(Either::Right(stop)) => stop,
         Ok(Either::Left(info)) => {
@@ -429,7 +460,13 @@ fn parse_if_arm<I: EventInput, S: EventSink>(
         SyntaxKind::Colon => {
             i.env.state.sink.lex(&stop);
             i.env.state.line_indent = i.env.indent;
-            parse_inline_or_indent(i.rb(), stop.trailing_trivia_info())?
+            let body_leading = stop.trailing_trivia_info();
+            let Some(body) = parse_inline_or_indent(i.rb(), body_leading) else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish(); // IfArm
+                return Some(Either::Left(body_leading));
+            };
+            body
         }
         SyntaxKind::BraceL => {
             delimited(i.rb(), SyntaxKind::BraceGroup, SyntaxKind::BraceR, stop).map(Either::Left)?
@@ -450,12 +487,23 @@ fn parse_else_arm<I: EventInput, S: EventSink>(
 ) -> Option<Either<TriviaInfo, Lex>> {
     i.env.state.sink.start(SyntaxKind::ElseArm);
     i.env.state.sink.lex(&else_lex);
-    let nud = scan_expr_nud(else_lex.trailing_trivia_info(), i.rb())?;
+    let body_leading = else_lex.trailing_trivia_info();
+    let Some(nud) = scan_expr_nud(body_leading, i.rb()) else {
+        emit_missing_invalid(i.rb());
+        i.env.state.sink.finish();
+        return Some(Either::Left(body_leading));
+    };
     let result = match nud.tag {
         ExprNudTag::Stop if nud.lex.kind == SyntaxKind::Colon => {
             i.env.state.sink.lex(&nud.lex);
             i.env.state.line_indent = i.env.indent;
-            parse_inline_or_indent(i.rb(), nud.lex.trailing_trivia_info())?
+            let body_leading = nud.lex.trailing_trivia_info();
+            let Some(body) = parse_inline_or_indent(i.rb(), body_leading) else {
+                emit_missing_invalid(i.rb());
+                i.env.state.sink.finish();
+                return Some(Either::Left(body_leading));
+            };
+            body
         }
         ExprNudTag::OpenBrace => {
             delimited(i.rb(), SyntaxKind::BraceGroup, SyntaxKind::BraceR, nud.lex)
@@ -542,7 +590,13 @@ fn parse_case_like_expr<I: EventInput, S: EventSink>(
     let target = parse_expr(target_leading, i.rb());
     i.env.stop = old_stop;
 
-    let stop_lex = match target? {
+    let Some(target) = target else {
+        emit_missing_invalid(i.rb());
+        i.env.state.sink.finish();
+        return Some(Ok(Either::Left(target_leading)));
+    };
+
+    let stop_lex = match target {
         Either::Right(stop) => stop,
         Either::Left(info) => {
             i.env.state.sink.finish();
@@ -777,6 +831,7 @@ fn parse_arm<I: EventInput, S: EventSink>(
     let pat_result = match parse_pattern(leading_info, i.rb()) {
         Some(result) => result,
         None => {
+            emit_missing_invalid(i.rb());
             i.env.state.sink.finish();
             return Some(Either::Left(leading_info));
         }

@@ -55,7 +55,13 @@ fn parse_type_from_nud<I: EventInput, S: EventSink>(
             i.env.state.sink.start(SyntaxKind::TypeEffectRow);
             i.env.state.sink.lex(&nud.lex); // '
             let bracket_leading = nud.lex.trailing_trivia_info();
-            let bracket_nud = scan_typ_nud(bracket_leading, i.rb())?;
+            let Some(bracket_nud) = scan_typ_nud(bracket_leading, i.rb()) else {
+                i.env.state.sink.start(SyntaxKind::InvalidToken);
+                i.env.state.sink.finish();
+                i.env.state.sink.finish(); // TypeEffectRow
+                i.env.state.sink.finish(); // TypeExpr
+                return Some(Either::Left(bracket_leading));
+            };
             let next_info = match bracket_nud.tag {
                 TypNudTag::OpenBracket => delimited(
                     i.rb(),
@@ -75,7 +81,12 @@ fn parse_type_from_nud<I: EventInput, S: EventSink>(
             i.env.state.sink.start(SyntaxKind::TypeExpr);
             let leading_info =
                 delimited(i.rb(), SyntaxKind::TypeRow, SyntaxKind::BracketR, nud.lex)?;
-            let nud = scan_typ_nud(leading_info, i.rb())?;
+            let Some(nud) = scan_typ_nud(leading_info, i.rb()) else {
+                i.env.state.sink.start(SyntaxKind::InvalidToken);
+                i.env.state.sink.finish();
+                i.env.state.sink.finish();
+                return Some(Either::Left(leading_info));
+            };
             match nud.tag {
                 TypNudTag::Stop => {
                     i.env.state.sink.finish();
@@ -109,7 +120,13 @@ fn parse_type_from_nud<I: EventInput, S: EventSink>(
                     i.env.state.sink.start(SyntaxKind::TypeEffectRow);
                     i.env.state.sink.lex(&nud.lex);
                     let bracket_leading = nud.lex.trailing_trivia_info();
-                    let bracket_nud = scan_typ_nud(bracket_leading, i.rb())?;
+                    let Some(bracket_nud) = scan_typ_nud(bracket_leading, i.rb()) else {
+                        i.env.state.sink.start(SyntaxKind::InvalidToken);
+                        i.env.state.sink.finish();
+                        i.env.state.sink.finish(); // TypeEffectRow
+                        i.env.state.sink.finish(); // TypeExpr
+                        return Some(Either::Left(bracket_leading));
+                    };
                     let next_info = match bracket_nud.tag {
                         TypNudTag::OpenBracket => delimited(
                             i.rb(),
@@ -195,7 +212,12 @@ fn parse_tail<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::TypeArrow);
                 i.env.state.sink.lex(&led.lex);
                 let rhs_leading_info = led.lex.trailing_trivia_info();
-                let rhs_nud = scan_typ_nud(rhs_leading_info, i.rb())?;
+                let Some(rhs_nud) = scan_typ_nud(rhs_leading_info, i.rb()) else {
+                    i.env.state.sink.start(SyntaxKind::InvalidToken);
+                    i.env.state.sink.finish();
+                    i.env.state.sink.finish();
+                    return Some(Either::Left(rhs_leading_info));
+                };
                 let rhs_stop = parse_type_from_nud(i.rb(), rhs_nud)?;
                 i.env.state.sink.finish();
                 return Some(rhs_stop);
@@ -204,7 +226,12 @@ fn parse_tail<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::PathSep);
                 i.env.state.sink.lex(&led.lex);
                 let rhs_leading_info = led.lex.trailing_trivia_info();
-                let next_nud = scan_typ_nud(rhs_leading_info, i.rb())?;
+                let Some(next_nud) = scan_typ_nud(rhs_leading_info, i.rb()) else {
+                    i.env.state.sink.start(SyntaxKind::InvalidToken);
+                    i.env.state.sink.finish();
+                    i.env.state.sink.finish();
+                    return Some(Either::Left(rhs_leading_info));
+                };
                 leading_info = match next_nud.tag {
                     TypNudTag::Stop => {
                         i.env.state.sink.start(SyntaxKind::InvalidToken);
@@ -267,7 +294,12 @@ fn parse_tail<I: EventInput, S: EventSink>(
                     TypLedTag::Arrow => {
                         i.env.state.sink.lex(&after_row.lex);
                         let rhs_leading_info = after_row.lex.trailing_trivia_info();
-                        let rhs_nud = scan_typ_nud(rhs_leading_info, i.rb())?;
+                        let Some(rhs_nud) = scan_typ_nud(rhs_leading_info, i.rb()) else {
+                            i.env.state.sink.start(SyntaxKind::InvalidToken);
+                            i.env.state.sink.finish();
+                            i.env.state.sink.finish();
+                            return Some(Either::Left(rhs_leading_info));
+                        };
                         let rhs_stop = parse_type_from_nud(i.rb(), rhs_nud)?;
                         i.env.state.sink.finish();
                         return Some(rhs_stop);

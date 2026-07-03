@@ -261,7 +261,13 @@ fn parse_rule_body_tail<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::PathSep);
                 i.env.state.sink.lex(&led.lex);
                 // `::` の後に ident を期待
-                let rhs_nud = scan_rule_body_nud(led.lex.trailing_trivia_info(), i.rb())?;
+                let rhs_leading = led.lex.trailing_trivia_info();
+                let Some(rhs_nud) = scan_rule_body_nud(rhs_leading, i.rb()) else {
+                    i.env.state.sink.start(SyntaxKind::InvalidToken);
+                    i.env.state.sink.finish();
+                    i.env.state.sink.finish(); // PathSep
+                    return Some(Either::Left(rhs_leading));
+                };
                 if matches!(rhs_nud.tag, RuleNudTag::Atom) && rhs_nud.lex.kind == SyntaxKind::Ident
                 {
                     i.env.state.sink.lex(&rhs_nud.lex);

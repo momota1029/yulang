@@ -44,9 +44,21 @@ pub fn parse_string<I: EventInput, S: EventSink>(
                 i.env.state.sink.start(SyntaxKind::StringInterp);
                 i.env.state.sink.push(tok.kind, tok.text.as_ref());
 
+                let fmt_start = i.input.checkpoint();
                 let chk = from_fn(|i: In<I, S>| Some(i.input.checkpoint()));
-                let (start, ((), ((end, _), text))) =
-                    i.run((chk, many_till(any.skip(), (chk, item('{')).with_seq())))?;
+                let Some((start, ((), ((end, _), text)))) =
+                    i.run((chk, many_till(any.skip(), (chk, item('{')).with_seq())))
+                else {
+                    let fmt_end = i.input.checkpoint();
+                    let fmt = I::seq(fmt_start, fmt_end);
+                    if !fmt.as_ref().is_empty() {
+                        i.env
+                            .state
+                            .sink
+                            .push(SyntaxKind::StringInterpFormatText, fmt.as_ref());
+                    }
+                    return Some(finish_unterminated_string_interp(i));
+                };
                 let fmt = I::seq(start, end);
                 if !fmt.as_ref().is_empty() {
                     i.env
@@ -62,7 +74,9 @@ pub fn parse_string<I: EventInput, S: EventSink>(
                     .run(scan_trivia)
                     .map(|trivia| trivia.info())
                     .unwrap_or(TriviaInfo::None);
-                let mut stop_lex = parse_string_interp_body(i.rb(), leading_info)?;
+                let Some(mut stop_lex) = parse_string_interp_body(i.rb(), leading_info) else {
+                    return Some(finish_unterminated_string_interp(i));
+                };
                 let trailing_text: String = stop_lex
                     .trailing_trivia
                     .parts()
@@ -89,23 +103,35 @@ pub fn parse_string<I: EventInput, S: EventSink>(
                         .state
                         .sink
                         .push(SyntaxKind::StringEscapeUnicodeStart, text.as_ref());
-                    let (_, text) =
-                        i.with_seq(one_of(|c: char| c.is_ascii_hexdigit()).many1_skip())?;
-                    i.env
-                        .state
-                        .sink
-                        .push(SyntaxKind::StringEscapeUnicodeHex, text.as_ref());
-                    let (_, text) = i.run(item('}').with_seq())?;
-                    i.env
-                        .state
-                        .sink
-                        .push(SyntaxKind::StringEscapeUnicodeEnd, text.as_ref());
-                } else {
-                    let (_, text) = i.run(any.with_seq())?;
+                    if let Some((_, text)) = i.maybe(
+                        one_of(|c: char| c.is_ascii_hexdigit())
+                            .many1_skip()
+                            .with_seq(),
+                    )? {
+                        i.env
+                            .state
+                            .sink
+                            .push(SyntaxKind::StringEscapeUnicodeHex, text.as_ref());
+                    } else {
+                        emit_missing_invalid(i.rb());
+                        continue;
+                    }
+                    if let Some((_, text)) = i.maybe(item('}').with_seq())? {
+                        i.env
+                            .state
+                            .sink
+                            .push(SyntaxKind::StringEscapeUnicodeEnd, text.as_ref());
+                    } else {
+                        emit_missing_invalid(i.rb());
+                        continue;
+                    }
+                } else if let Some((_, text)) = i.maybe(any.with_seq())? {
                     i.env
                         .state
                         .sink
                         .push(SyntaxKind::StringEscapeSimple, text.as_ref());
+                } else {
+                    return Some(finish_unterminated_string(i));
                 }
             }
             StrNud::End(trailing_trivia) => {
@@ -115,8 +141,29 @@ pub fn parse_string<I: EventInput, S: EventSink>(
                 i.env.state.sink.finish();
                 return Some(info);
             }
+            StrNud::Unterminated => {
+                return Some(finish_unterminated_string(i));
+            }
         }
     }
+}
+
+fn finish_unterminated_string<I: EventInput, S: EventSink>(mut i: In<I, S>) -> TriviaInfo {
+    emit_missing_invalid(i.rb());
+    i.env.state.sink.finish(); // StringLit
+    TriviaInfo::None
+}
+
+fn finish_unterminated_string_interp<I: EventInput, S: EventSink>(mut i: In<I, S>) -> TriviaInfo {
+    emit_missing_invalid(i.rb());
+    i.env.state.sink.finish(); // StringInterp
+    i.env.state.sink.finish(); // StringLit
+    TriviaInfo::None
+}
+
+fn emit_missing_invalid<I: EventInput, S: EventSink>(i: In<I, S>) {
+    i.env.state.sink.start(SyntaxKind::InvalidToken);
+    i.env.state.sink.finish();
 }
 
 fn parse_string_interp_body<I: EventInput, S: EventSink>(

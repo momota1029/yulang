@@ -91,7 +91,19 @@ fn compute_with_root_and_highlights_from_raw(
     for node_or_token in root.descendants_with_tokens() {
         let token = match node_or_token {
             NodeOrToken::Token(t) => t,
-            NodeOrToken::Node(_) => continue,
+            NodeOrToken::Node(node) => {
+                if let Some(recovery) = empty_invalid_recovery_fragment(&node) {
+                    let start = usize::from(recovery.text_range().start());
+                    let fragment = recovery.text().to_string();
+                    raw.extend(recovery_lexical_tokens(
+                        source,
+                        &fragment,
+                        line_starts,
+                        start,
+                    ));
+                }
+                continue;
+            }
         };
 
         let kind = token.kind();
@@ -723,6 +735,23 @@ fn classify_ident(
     }
 
     // Default: don't emit (let base theme color apply)
+    None
+}
+
+fn empty_invalid_recovery_fragment(
+    node: &SyntaxNode<YulangLanguage>,
+) -> Option<SyntaxNode<YulangLanguage>> {
+    if node.kind() != SyntaxKind::InvalidToken {
+        return None;
+    }
+    let range = node.text_range();
+    if range.start() != range.end() {
+        return None;
+    }
+    let parent = node.parent()?;
+    if parent.kind() == SyntaxKind::PathSep {
+        return parent.parent();
+    }
     None
 }
 

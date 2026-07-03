@@ -119,8 +119,13 @@ pub trait IndentListMachine<I: EventInput, S: EventSink> {
                 _ => {}
             }
 
+            let before_index = i.index();
             let (next_info, stop) = self.parse_item(i.rb(), info, block_indent)?;
+            let made_progress = i.index() != before_index || stop.is_some() || next_info != info;
             info = next_info;
+            if !made_progress {
+                break;
+            }
             if let Some(stop) = stop {
                 let next = stop.trailing_trivia_info();
                 if self.is_item_separator(stop.kind) {

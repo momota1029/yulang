@@ -21,6 +21,7 @@ pub enum StrNud {
     Escape,
     Interp,
     End(Trivia),
+    Unterminated,
 }
 
 // ─────────────────────────────────────────────
@@ -75,7 +76,17 @@ pub fn scan_string_nud<I: EventInput, S: EventSink>(
     });
 
     let start = i.input.checkpoint();
-    let ((), (end, ((kind, tag), tag_text))) = i.many_till(any.skip(), token)?;
+    let Some(((), (end, ((kind, tag), tag_text)))) = i.many_till(any.skip(), token) else {
+        let end = i.input.checkpoint();
+        return Some((
+            Box::from(I::seq(start, end).as_ref()),
+            BareToken {
+                kind: SyntaxKind::InvalidToken,
+                tag: StrNud::Unterminated,
+                text: Box::from(""),
+            },
+        ));
+    };
     Some((
         Box::from(I::seq(start, end).as_ref()),
         BareToken {

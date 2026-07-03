@@ -192,7 +192,12 @@ pub(crate) fn parse_indent_stmt_block<I: EventInput, S: EventSink>(
             _ => {}
         }
 
-        match super::parse_statement(leading_info, i.rb())? {
+        let Some(parsed) = super::parse_statement(leading_info, i.rb()) else {
+            emit_missing_invalid(i.rb());
+            break;
+        };
+
+        match parsed {
             Either::Left(next) => leading_info = next,
             Either::Right(stop) if stop.kind == SyntaxKind::Semicolon => {
                 i.env.state.sink.start(SyntaxKind::Separator);
