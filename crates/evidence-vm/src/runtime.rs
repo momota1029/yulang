@@ -34,7 +34,6 @@ use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
     format_values_with_display_context, format_values_with_labels,
 };
-pub use host::{RuntimeHostManifestTier, runtime_host_manifest_tiers};
 use host::{RuntimeHostRegistry, RuntimeHostRequestResolution};
 pub use host_abi::{BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
 use plan::RuntimeEvidenceProviderGrantPermission;
@@ -20864,15 +20863,24 @@ mod tests {
         let program = Program::default();
         let context = RuntimeEvidenceRunContext::default().without_native_host_operations();
         let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            false,
+            Some(file_load_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.file.file",
+                operation_id: "load",
+                f: mock_file_load_without_fs,
+            }],
+        );
         let request = EvidenceRequest {
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
                 "file".to_string(),
                 "file".to_string(),
-                "exists".to_string(),
+                "load".to_string(),
             ]),
-            payload: shared(RuntimeEvidenceValue::Unit),
+            payload: shared(RuntimeEvidenceValue::Str("virtual.txt".to_string())),
             route: EvidenceEffectRoute::Unhandled,
             hygiene: EvidenceSignalHygiene::new(),
             continuation: EvidenceContinuation::identity(),
@@ -20944,8 +20952,9 @@ mod tests {
     fn host_abi_registration_can_mock_file_load_without_fs() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
-        runner.host_registry = RuntimeHostRegistry::with_registrations(
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
             true,
+            Some(file_load_host_manifest()),
             vec![HostOpRegistration {
                 act_id: "std.io.file.file",
                 operation_id: "load",
@@ -21017,8 +21026,9 @@ mod tests {
     fn host_abi_panicking_registration_reports_structured_failure() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
-        runner.host_registry = RuntimeHostRegistry::with_registrations(
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
             true,
+            Some(file_load_host_manifest()),
             vec![HostOpRegistration {
                 act_id: "std.io.file.file",
                 operation_id: "load",
@@ -21084,22 +21094,54 @@ mod tests {
         panic!("host op panic smoke");
     }
 
+    fn file_load_host_manifest() -> poly::host_manifest::HostActManifest {
+        single_operation_host_manifest(
+            "std.io.file.file",
+            &["std", "io", "file", "file"],
+            "load",
+            "path -> result str io_err",
+        )
+    }
+
     fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
+        single_operation_host_manifest(
+            "test.host.bridge",
+            &["test", "host", "bridge"],
+            "call",
+            "() -> int",
+        )
+    }
+
+    fn single_operation_host_manifest(
+        act_id: &str,
+        act_path: &[&str],
+        operation_id: &str,
+        signature: &str,
+    ) -> poly::host_manifest::HostActManifest {
+        let act_path = act_path
+            .iter()
+            .map(|part| (*part).to_string())
+            .collect::<Vec<_>>();
+        let operation_path = act_path
+            .iter()
+            .cloned()
+            .chain([operation_id.to_string()])
+            .collect();
         poly::host_manifest::HostActManifest::new(
             vec![poly::host_manifest::HostActManifestAct {
-                act_id: "test.host.bridge".to_string(),
-                path: vec!["test".into(), "host".into(), "bridge".into()],
+                act_id: act_id.to_string(),
+                path: act_path,
             }],
             vec![poly::host_manifest::HostActManifestOperationInput {
-                act_id: "test.host.bridge".to_string(),
-                operation_id: "call".to_string(),
-                path: vec!["test".into(), "host".into(), "bridge".into(), "call".into()],
+                act_id: act_id.to_string(),
+                operation_id: operation_id.to_string(),
+                path: operation_path,
                 tier: poly::host_manifest::HostOperationTier::Sync,
                 surface: poly::host_manifest::HostOperationSurface::Contract,
-                signature: "() -> int".to_string(),
+                signature: signature.to_string(),
             }],
         )
-        .expect("custom host manifest should be valid")
+        .expect("single operation host manifest should be valid")
     }
 
     #[test]

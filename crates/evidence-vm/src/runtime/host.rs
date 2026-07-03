@@ -3,113 +3,16 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use super::{HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RuntimeHostAct {
-    ConsoleOut,
-    File,
-}
-
-impl RuntimeHostAct {
-    pub(super) fn path(self) -> &'static [&'static str] {
-        match self {
-            Self::ConsoleOut => &["std", "io", "console", "out"],
-            Self::File => &["std", "io", "file", "file"],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RuntimeHostOperationTier {
-    Sync,
-    SuspendOneShot,
-    SuspendMultiShot,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RuntimeHostOperationSurface {
-    Contract,
-    RawCompatibility,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RuntimeHostOperation {
-    ConsoleOutWrite,
-    FileLoad,
-    FileStore,
-    FileMeta,
-    FileReadAt,
-    FileWriteAt,
-    FileAmbientTouch,
-    FileAmbientGet,
-    FileAmbientSet,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RuntimeHostOperationSpec {
-    pub(super) act: RuntimeHostAct,
-    operation_id: &'static str,
-    tier: RuntimeHostOperationTier,
-    surface: RuntimeHostOperationSurface,
-    signature: &'static str,
-    path: &'static [&'static str],
-    pub(super) operation: RuntimeHostOperation,
-}
-
-impl RuntimeHostOperationSpec {
-    pub(super) fn path_strings(&self) -> Vec<String> {
-        self.path.iter().map(|part| (*part).to_string()).collect()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RuntimeHostManifest {
-    operations: &'static [RuntimeHostOperationSpec],
-    acts: &'static [RuntimeHostAct],
-}
-
-impl RuntimeHostManifest {
-    const fn new(
-        operations: &'static [RuntimeHostOperationSpec],
-        acts: &'static [RuntimeHostAct],
-    ) -> Self {
-        Self { operations, acts }
-    }
-
-    fn operation_spec(self, path: &[String]) -> Option<&'static RuntimeHostOperationSpec> {
-        self.operations
-            .iter()
-            .find(|spec| runtime_host_path_matches(path, spec.path))
-            .inspect(|spec| {
-                debug_assert_eq!(spec.tier, RuntimeHostOperationTier::Sync);
-                debug_assert!(spec.path.starts_with(spec.act.path()));
-                debug_assert_eq!(spec.path.last().copied(), Some(spec.operation_id));
-            })
-    }
-
-    fn act_for_path(self, path: &[String]) -> Option<RuntimeHostAct> {
-        self.acts
-            .iter()
-            .copied()
-            .find(|act| runtime_host_path_starts_with(path, act.path()))
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(super) struct RuntimeHostRegistry {
-    manifest: RuntimeHostManifest,
     generated_manifest: Option<RuntimeGeneratedHostManifestLookup>,
     native_host_operations_enabled: bool,
-    registrations: &'static [HostOpRegistration],
 }
 
 impl RuntimeHostRegistry {
     #[cfg(test)]
     pub(super) fn new(native_host_operations_enabled: bool) -> Self {
-        Self::with_manifest_and_registrations(
-            native_host_operations_enabled,
-            None,
-            super::builtin_host_registrations(),
-        )
+        Self::with_manifest_and_registrations(native_host_operations_enabled, None, Vec::new())
     }
 
     pub(super) fn with_manifest(
@@ -123,14 +26,6 @@ impl RuntimeHostRegistry {
         )
     }
 
-    #[cfg(test)]
-    pub(super) fn with_registrations(
-        native_host_operations_enabled: bool,
-        registrations: Vec<HostOpRegistration>,
-    ) -> Self {
-        Self::with_manifest_and_registrations(native_host_operations_enabled, None, registrations)
-    }
-
     pub(super) fn with_manifest_and_registrations(
         native_host_operations_enabled: bool,
         generated_manifest: Option<poly::host_manifest::HostActManifest>,
@@ -141,37 +36,15 @@ impl RuntimeHostRegistry {
         let generated_manifest = generated_manifest
             .map(|manifest| RuntimeGeneratedHostManifestLookup::new(manifest, registrations));
         Self {
-            manifest: RUNTIME_HOST_MANIFEST,
             generated_manifest,
             native_host_operations_enabled,
-            registrations,
         }
     }
 
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
-        if let Some(lookup) = &self.generated_manifest {
-            return lookup.resolve(path, self.native_host_operations_enabled);
-        }
-
-        let Some(spec) = self.manifest.operation_spec(path) else {
-            return self.resolve_known_act_without_registered_operation(path);
-        };
-        if !self.native_host_operations_enabled {
-            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure::from_runtime_act(spec.act),
-            ));
-        }
-        let Some(f) = self.registration_for(spec) else {
-            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure::from_runtime_act(spec.act),
-            ));
-        };
-        Some(RuntimeHostRequestResolution::Operation(
-            RuntimeHostResolvedOperation {
-                path: spec.path_strings(),
-                f,
-            },
-        ))
+        self.generated_manifest
+            .as_ref()?
+            .resolve(path, self.native_host_operations_enabled)
     }
 
     pub(super) fn call(
@@ -186,27 +59,6 @@ impl RuntimeHostRegistry {
                 operation.path.join("::")
             ))
         })
-    }
-
-    fn registration_for(&self, spec: &RuntimeHostOperationSpec) -> Option<HostOpFn> {
-        host_registration_for(
-            self.registrations,
-            spec.act.manifest_id(),
-            spec.operation_id,
-        )
-    }
-
-    fn resolve_known_act_without_registered_operation(
-        &self,
-        path: &[String],
-    ) -> Option<RuntimeHostRequestResolution> {
-        let act_path = self
-            .manifest
-            .act_for_path(path)
-            .map(runtime_host_act_path_strings)?;
-        Some(RuntimeHostRequestResolution::UnsupportedCapability(
-            RuntimeHostCapabilityFailure { act_path },
-        ))
     }
 }
 
@@ -375,360 +227,45 @@ pub(super) struct RuntimeHostCapabilityFailure {
 }
 
 impl RuntimeHostCapabilityFailure {
-    fn from_runtime_act(act: RuntimeHostAct) -> Self {
-        Self {
-            act_path: runtime_host_act_path_strings(act),
-        }
-    }
-
     pub(super) fn act_path_strings(self) -> Vec<String> {
         self.act_path
     }
 }
 
-fn runtime_host_act_path_strings(act: RuntimeHostAct) -> Vec<String> {
-    act.path().iter().map(|part| (*part).to_string()).collect()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RuntimeHostManifestTier {
-    pub id: &'static str,
-}
-
-pub fn runtime_host_manifest_tiers() -> Vec<RuntimeHostManifestTier> {
-    RUNTIME_HOST_OPERATION_TIERS
-        .iter()
-        .map(|tier| RuntimeHostManifestTier {
-            id: tier.manifest_id(),
-        })
-        .collect()
-}
-
-impl RuntimeHostAct {
-    fn manifest_id(self) -> &'static str {
-        match self {
-            Self::ConsoleOut => "std.io.console.out",
-            Self::File => "std.io.file.file",
-        }
-    }
-}
-
-impl RuntimeHostOperationTier {
-    fn manifest_id(self) -> &'static str {
-        match self {
-            Self::Sync => "sync",
-            Self::SuspendOneShot => "suspend-one-shot",
-            Self::SuspendMultiShot => "suspend-multi-shot",
-        }
-    }
-}
-
-const RUNTIME_HOST_OPERATION_TIERS: &[RuntimeHostOperationTier] = &[
-    RuntimeHostOperationTier::Sync,
-    RuntimeHostOperationTier::SuspendOneShot,
-    RuntimeHostOperationTier::SuspendMultiShot,
-];
-
-const RUNTIME_HOST_OPERATIONS: &[RuntimeHostOperationSpec] = &[
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::ConsoleOut,
-        operation_id: "write",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "str -> ()",
-        path: &["std", "io", "console", "out", "write"],
-        operation: RuntimeHostOperation::ConsoleOutWrite,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "load",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "path -> result str io_err",
-        path: &["std", "io", "file", "file", "load"],
-        operation: RuntimeHostOperation::FileLoad,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "store",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "(path, str) -> result unit io_err",
-        path: &["std", "io", "file", "file", "store"],
-        operation: RuntimeHostOperation::FileStore,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "meta",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "path -> file_meta",
-        path: &["std", "io", "file", "file", "meta"],
-        operation: RuntimeHostOperation::FileMeta,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "read_at",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "(path, range) -> result (str, range) io_err",
-        path: &["std", "io", "file", "file", "read_at"],
-        operation: RuntimeHostOperation::FileReadAt,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "write_at",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::RawCompatibility,
-        signature: "(path, range, str) -> result unit io_err",
-        path: &["std", "io", "file", "file", "write_at"],
-        operation: RuntimeHostOperation::FileWriteAt,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "ambient_touch",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "path -> result unit io_err",
-        path: &["std", "io", "file", "file", "ambient_touch"],
-        operation: RuntimeHostOperation::FileAmbientTouch,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "ambient_get",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "path -> str",
-        path: &["std", "io", "file", "file", "ambient_get"],
-        operation: RuntimeHostOperation::FileAmbientGet,
-    },
-    RuntimeHostOperationSpec {
-        act: RuntimeHostAct::File,
-        operation_id: "ambient_set",
-        tier: RuntimeHostOperationTier::Sync,
-        surface: RuntimeHostOperationSurface::Contract,
-        signature: "(path, str) -> unit",
-        path: &["std", "io", "file", "file", "ambient_set"],
-        operation: RuntimeHostOperation::FileAmbientSet,
-    },
-];
-
-const RUNTIME_HOST_ACTS: &[RuntimeHostAct] = &[RuntimeHostAct::ConsoleOut, RuntimeHostAct::File];
-
-const RUNTIME_HOST_MANIFEST: RuntimeHostManifest =
-    RuntimeHostManifest::new(RUNTIME_HOST_OPERATIONS, RUNTIME_HOST_ACTS);
-
-#[cfg(test)]
-fn runtime_host_operation_spec(path: &[String]) -> Option<&'static RuntimeHostOperationSpec> {
-    RUNTIME_HOST_MANIFEST.operation_spec(path)
-}
-
-#[cfg(test)]
-fn runtime_host_operation(path: &[String]) -> Option<RuntimeHostOperation> {
-    runtime_host_operation_spec(path).map(|spec| spec.operation)
-}
-
-fn runtime_host_path_matches(path: &[String], expected: &[&str]) -> bool {
-    path.iter().map(String::as_str).eq(expected.iter().copied())
-}
-
-fn runtime_host_path_starts_with(path: &[String], expected_prefix: &[&str]) -> bool {
-    path.iter()
-        .map(String::as_str)
-        .zip(expected_prefix.iter().copied())
-        .all(|(actual, expected)| actual == expected)
-        && path.len() >= expected_prefix.len()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn runtime_host_operation_table_resolves_current_console_and_file_ops() {
-        for spec in RUNTIME_HOST_OPERATIONS {
-            let path = spec
-                .path
-                .iter()
-                .map(|part| (*part).to_string())
-                .collect::<Vec<_>>();
-            assert_eq!(runtime_host_operation(&path), Some(spec.operation));
-        }
-        assert_eq!(
-            runtime_host_operation(&[
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into(),
-                "unknown".into()
-            ]),
-            None
-        );
-    }
-
-    #[test]
-    fn runtime_host_operation_table_has_unique_paths() {
-        let mut paths = BTreeSet::new();
-        for spec in RUNTIME_HOST_OPERATIONS {
-            assert!(
-                paths.insert(spec.path),
-                "duplicate runtime host operation path {:?}",
-                spec.path
-            );
-        }
-    }
-
-    #[test]
-    fn runtime_host_operation_table_carries_act_and_sync_tier_metadata() {
-        for spec in RUNTIME_HOST_OPERATIONS {
-            assert_eq!(
-                spec.tier,
-                RuntimeHostOperationTier::Sync,
-                "current host operation {:?} should stay sync until a suspend tier is explicit",
-                spec.operation
-            );
-            assert!(
-                spec.path.starts_with(spec.act.path()),
-                "host operation {:?} path {:?} should live under act {:?}",
-                spec.operation,
-                spec.path,
-                spec.act
-            );
-            assert_eq!(
-                spec.path.last().copied(),
-                Some(spec.operation_id),
-                "host operation {:?} should expose its manifest operation id as the final path segment",
-                spec.operation
-            );
-        }
-    }
-
-    #[test]
-    fn runtime_host_operation_table_separates_console_and_file_acts() {
-        let mut console_ops = 0;
-        let mut file_ops = 0;
-        for spec in RUNTIME_HOST_OPERATIONS {
-            match spec.act {
-                RuntimeHostAct::ConsoleOut => console_ops += 1,
-                RuntimeHostAct::File => file_ops += 1,
-            }
-        }
-
-        assert_eq!(console_ops, 1, "console out should have one current op");
-        assert_eq!(file_ops, 8, "file act should have current file host ops");
-    }
-
-    #[test]
-    fn runtime_host_operation_table_separates_contract_and_raw_surfaces() {
-        let mut contract_ops = 0;
-        let mut raw_compat_ops = 0;
-        for spec in RUNTIME_HOST_OPERATIONS {
-            match spec.surface {
-                RuntimeHostOperationSurface::Contract => contract_ops += 1,
-                RuntimeHostOperationSurface::RawCompatibility => raw_compat_ops += 1,
-            }
-        }
-
-        assert_eq!(
-            contract_ops, 7,
-            "contract host ops should cover console plus file protocol and ambient ops"
-        );
-        assert_eq!(
-            raw_compat_ops, 2,
-            "only provisional range helpers should stay isolated from the contract surface"
-        );
-    }
-
-    #[test]
-    fn runtime_host_operation_surface_sets_are_explicit() {
-        let contract_paths = RUNTIME_HOST_OPERATIONS
-            .iter()
-            .filter(|spec| spec.surface == RuntimeHostOperationSurface::Contract)
-            .map(|spec| spec.path.join("."))
-            .collect::<BTreeSet<_>>();
-        let raw_compat_paths = RUNTIME_HOST_OPERATIONS
-            .iter()
-            .filter(|spec| spec.surface == RuntimeHostOperationSurface::RawCompatibility)
-            .map(|spec| spec.path.join("."))
-            .collect::<BTreeSet<_>>();
-
-        assert_eq!(
-            contract_paths,
-            BTreeSet::from([
-                "std.io.console.out.write".to_string(),
-                "std.io.file.file.ambient_get".to_string(),
-                "std.io.file.file.ambient_set".to_string(),
-                "std.io.file.file.ambient_touch".to_string(),
-                "std.io.file.file.load".to_string(),
-                "std.io.file.file.meta".to_string(),
-                "std.io.file.file.store".to_string(),
-            ]),
-            "only the protocol and ambient file ops should be contract surface"
-        );
-        assert_eq!(
-            raw_compat_paths,
-            BTreeSet::from([
-                "std.io.file.file.read_at".to_string(),
-                "std.io.file.file.write_at".to_string(),
-            ]),
-            "only provisional range helpers should remain isolated as raw-compat"
-        );
-    }
-
-    #[test]
-    fn runtime_host_manifest_exposes_suspend_tiers_before_server_ops() {
-        let tiers = runtime_host_manifest_tiers()
-            .into_iter()
-            .map(|tier| tier.id)
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            tiers,
-            ["sync", "suspend-one-shot", "suspend-multi-shot"],
-            "host act manifest should expose the suspend tiers required by server resources"
-        );
-        assert!(
-            RUNTIME_HOST_OPERATIONS
-                .iter()
-                .all(|spec| spec.tier == RuntimeHostOperationTier::Sync),
-            "registered operations should stay sync until the scheduler branch table lands"
-        );
-    }
 
     #[test]
     fn runtime_host_registry_reports_unsupported_capability_before_operation() {
-        let registry = RuntimeHostRegistry::new(false);
-        let path = [
-            "std".into(),
-            "io".into(),
-            "file".into(),
-            "file".into(),
-            "meta".into(),
-        ];
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            false,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("call")],
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
 
-        let resolution = registry.resolve(&path);
-        let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
-
-        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) = resolution else {
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
             panic!("disabled host operation should report unsupported capability");
         };
         assert_eq!(
             failure,
-            RuntimeHostCapabilityFailure::from_runtime_act(spec.act)
+            RuntimeHostCapabilityFailure {
+                act_path: vec!["test".into(), "host".into(), "bridge".into()]
+            }
         );
     }
 
     #[test]
     fn runtime_host_registry_resolves_to_operation_spec_when_enabled() {
-        let registry = RuntimeHostRegistry::new(true);
-        let path = [
-            "std".into(),
-            "io".into(),
-            "file".into(),
-            "file".into(),
-            "meta".into(),
-        ];
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("call")],
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
 
         let Some(RuntimeHostRequestResolution::Operation(operation)) = registry.resolve(&path)
         else {
@@ -739,37 +276,16 @@ mod tests {
 
     #[test]
     fn runtime_host_registry_reports_known_act_unknown_op_as_capability_failure() {
-        let registry = RuntimeHostRegistry::new(true);
-        let path = [
-            "std".into(),
-            "io".into(),
-            "file".into(),
-            "file".into(),
-            "not_registered".into(),
-        ];
-
-        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
-            registry.resolve(&path)
-        else {
-            panic!("known act with unknown op should report unsupported capability");
-        };
-        assert_eq!(
-            failure,
-            RuntimeHostCapabilityFailure {
-                act_path: vec!["std".into(), "io".into(), "file".into(), "file".into()]
-            }
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![custom_host_registration("call")],
         );
-    }
-
-    #[test]
-    fn runtime_host_registry_reports_known_file_unknown_op_as_capability_failure() {
-        let registry = RuntimeHostRegistry::new(true);
         let path = [
-            "std".into(),
-            "io".into(),
-            "file".into(),
-            "file".into(),
-            "not_registered".into(),
+            "test".into(),
+            "host".into(),
+            "bridge".into(),
+            "missing".into(),
         ];
 
         let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
@@ -780,7 +296,7 @@ mod tests {
         assert_eq!(
             failure,
             RuntimeHostCapabilityFailure {
-                act_path: vec!["std".into(), "io".into(), "file".into(), "file".into()]
+                act_path: vec!["test".into(), "host".into(), "bridge".into()]
             }
         );
     }
@@ -823,33 +339,6 @@ mod tests {
             panic!("registered generated host operation should resolve");
         };
         assert_eq!(operation.path_strings(), path.to_vec());
-    }
-
-    #[test]
-    fn runtime_host_registry_reports_generated_act_unknown_op_as_capability_failure() {
-        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
-            true,
-            Some(custom_host_manifest()),
-            vec![custom_host_registration("call")],
-        );
-        let path = [
-            "test".into(),
-            "host".into(),
-            "bridge".into(),
-            "missing".into(),
-        ];
-
-        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
-            registry.resolve(&path)
-        else {
-            panic!("unknown operation under generated host act should be a capability failure");
-        };
-        assert_eq!(
-            failure,
-            RuntimeHostCapabilityFailure {
-                act_path: vec!["test".into(), "host".into(), "bridge".into()]
-            }
-        );
     }
 
     #[cfg(debug_assertions)]

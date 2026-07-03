@@ -13,11 +13,11 @@ mod runtime;
 pub use runtime::{
     BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome,
     RuntimeEvidenceDisplayContext, RuntimeEvidenceHostConstructors, RuntimeEvidenceRunError,
-    RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, RuntimeHostManifestTier,
-    builtin_host_registrations, run_program, run_program_with_plan,
-    run_program_with_plan_deep_profile, run_program_with_plan_deep_profile_with_labels,
-    run_program_with_plan_with_labels, run_program_with_plan_without_native_host_operations,
-    run_program_with_plan_without_native_host_operations_with_labels, runtime_host_manifest_tiers,
+    RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, builtin_host_registrations, run_program,
+    run_program_with_plan, run_program_with_plan_deep_profile,
+    run_program_with_plan_deep_profile_with_labels, run_program_with_plan_with_labels,
+    run_program_with_plan_without_native_host_operations,
+    run_program_with_plan_without_native_host_operations_with_labels,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -4485,12 +4485,27 @@ mod tests {
             "file".to_string(),
             "read_at".to_string(),
         ];
+        let host_manifest = poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: "std.io.file.file".to_string(),
+                path: vec!["std".into(), "io".into(), "file".into(), "file".into()],
+            }],
+            vec![poly::host_manifest::HostActManifestOperationInput {
+                act_id: "std.io.file.file".to_string(),
+                operation_id: "read_at".to_string(),
+                path: host_path.clone(),
+                tier: poly::host_manifest::HostOperationTier::Sync,
+                surface: poly::host_manifest::HostOperationSurface::RawCompat,
+                signature: "(path, range) -> result (str, range) io_err".to_string(),
+            }],
+        )
+        .expect("test host manifest should be valid");
         let user_path = vec!["flip".to_string(), "coin".to_string()];
         let handlers = HashMap::new();
 
         assert_eq!(
             operation_static_route_resolution(
-                None,
+                Some(&host_manifest),
                 &generic_fallback_operation(ExprId(10), host_path),
                 None,
                 &handlers
@@ -4501,7 +4516,7 @@ mod tests {
         );
         assert_eq!(
             operation_static_route_resolution(
-                None,
+                Some(&host_manifest),
                 &generic_fallback_operation(ExprId(20), user_path),
                 None,
                 &handlers

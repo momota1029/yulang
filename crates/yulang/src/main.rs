@@ -3004,9 +3004,17 @@ fn run_host_act_manifest(program: &str, options: &GlobalOptions, args: VecDeque<
         );
     }
     println!("runtime host tiers:");
-    for tier in evidence_vm::runtime_host_manifest_tiers() {
-        println!("  tier={}", tier.id);
+    for tier in supported_host_operation_tiers() {
+        println!("  tier={}", generated_host_operation_tier_id(tier));
     }
+}
+
+fn supported_host_operation_tiers() -> [poly::host_manifest::HostOperationTier; 3] {
+    [
+        poly::host_manifest::HostOperationTier::Sync,
+        poly::host_manifest::HostOperationTier::SuspendOneShot,
+        poly::host_manifest::HostOperationTier::SuspendMultiShot,
+    ]
 }
 
 fn generated_host_operation_tier_id(tier: poly::host_manifest::HostOperationTier) -> &'static str {
