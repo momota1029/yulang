@@ -260,3 +260,35 @@ scripts/release-smoke.sh <binary>
       (`57 passed`)
   - No stop condition hit. WP2 Stage 1 is complete; WP3 still waits for ABI
     Stage α.
+- 2026-07-03 / WP3 Stage 2 complete:
+  - Carried compiler-generated host manifests into `EvidenceVmPlan`,
+    `RuntimeEvidenceRunContext`, and `RuntimeHostRegistry`.
+  - Switched runtime host resolution to the generated manifest lookup plus
+    `HostOpRegistration` binding. Unknown manifest acts remain escaped effects;
+    unknown / unregistered / disabled operations under manifest acts remain
+    unsupported host capabilities.
+  - Switched static route host classification to the plan manifest only.
+  - Switched `debug host-act-manifest` to compiler-generated manifest output
+    and removed the public static runtime operation manifest view.
+  - Removed the static runtime host operation table from evidence-vm:
+    `RUNTIME_HOST_MANIFEST`, `RUNTIME_HOST_OPERATIONS`, `RUNTIME_HOST_ACTS`,
+    path constants, handwritten signatures, `RuntimeHostOperation`, and the
+    Stage 1 equivalence test are gone.
+  - Runtime unit tests now use hand-built manifest fixtures for host ABI and
+    registry cases.
+  - Validation:
+    - `cargo fmt --all -- --check`
+    - `cargo check -q -p poly -p infer -p specialize -p evidence-vm -p yulang`
+      (`0m0.077s`)
+    - `cargo test -q -p poly` (`48 passed`, `0m0.231s`)
+    - `cargo test -q -p infer` (`514 passed`, `0m5.395s`)
+    - `cargo test -q -p evidence-vm -- --test-threads=1`
+      (`104 passed`, `0m0.247s`)
+    - `cargo test -q -p yulang --test cli -- --test-threads=1`
+      (`115 passed`, `3m0.036s`)
+    - `cargo run -q -p yulang -- --std-root lib contract --contract
+      file-resource tests/yulang/cases.toml` (`57 passed`, `3m24.052s`)
+    - `scripts/release-smoke.sh target/debug/yulang` (`release smoke ok`,
+      `1m56.020s`)
+  - No stop condition hit. WP3 Stage 2 is complete. Stage 3 constructor type
+    table work was not started.
