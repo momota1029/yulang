@@ -80,6 +80,55 @@ for key in name version target stdlib stdlib_source_hash cache_schema poly_cache
   fi
 done
 
+manifest_value() {
+  local key="$1"
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      print substr($0, length(key) + 2)
+      found = 1
+    }
+    END {
+      if (!found) {
+        exit 1
+      }
+    }
+  ' "$manifest"
+}
+
+require_manifest_value() {
+  local key="$1"
+  local expected="$2"
+  local actual
+  actual="$(manifest_value "$key")"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "release archive smoke: manifest $key expected $expected, got $actual" >&2
+    exit 1
+  fi
+}
+
+require_manifest_pattern() {
+  local key="$1"
+  local pattern="$2"
+  local actual
+  actual="$(manifest_value "$key")"
+  if [[ ! "$actual" =~ $pattern ]]; then
+    echo "release archive smoke: manifest $key has invalid value: $actual" >&2
+    exit 1
+  fi
+}
+
+require_manifest_value name yulang
+require_manifest_value contract_runner 1
+require_manifest_pattern version '^.+$'
+require_manifest_pattern target '^.+$'
+require_manifest_pattern stdlib '^.+$'
+require_manifest_pattern stdlib_source_hash '^[0-9a-f]{64}$'
+require_manifest_pattern cache_schema '^[0-9]+$'
+require_manifest_pattern poly_cache_format '^[0-9]+$'
+require_manifest_pattern control_cache_format '^[0-9]+$'
+require_manifest_pattern compiled_unit_cache_format '^[0-9]+$'
+require_manifest_pattern realm_resolution_cache_format '^[0-9]+$'
+
 if [[ "$bin" != *.exe ]]; then
   chmod 755 "$bin"
 fi
