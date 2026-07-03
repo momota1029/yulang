@@ -2807,13 +2807,12 @@ fn runtime_host_manifest_has_known_act(
     host_manifest: Option<&poly::host_manifest::HostActManifest>,
     operation_path: &[String],
 ) -> bool {
-    if let Some(host_manifest) = host_manifest {
-        return host_manifest
+    host_manifest.is_some_and(|host_manifest| {
+        host_manifest
             .acts
             .iter()
-            .any(|act| operation_path.starts_with(&act.path));
-    }
-    runtime::runtime_host_manifest_has_known_act(operation_path)
+            .any(|act| operation_path.starts_with(&act.path))
+    })
 }
 
 fn matching_handler_count(

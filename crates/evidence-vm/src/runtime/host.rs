@@ -390,10 +390,6 @@ fn runtime_host_act_path_strings(act: RuntimeHostAct) -> Vec<String> {
     act.path().iter().map(|part| (*part).to_string()).collect()
 }
 
-pub(crate) fn runtime_host_manifest_has_known_act(path: &[String]) -> bool {
-    RUNTIME_HOST_MANIFEST.act_for_path(path).is_some()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RuntimeHostManifestTier {
     pub id: &'static str,
