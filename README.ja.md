@@ -54,7 +54,7 @@ release build の CLI を使う場合は、OS ごとの binary archive を入れ
 embedded standard library が入っていて、初回にユーザー library directory へ配置されます。
 
 ```bash
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.6
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.7
 ```
 
 installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
@@ -71,7 +71,7 @@ Windows では PowerShell installer を使います。
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.6
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.7
 ```
 
 PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
@@ -110,10 +110,26 @@ cargo build -p yulang
 say "Hello, World"
 ```
 
-`run` は現行 control VM を通じてプログラムを実行し、`say` / `println` のように
-プログラム側が出した出力だけを表示します。途中の root 値も覗きたいときは
-`--print-roots` を付けます。control VM ではなく mono runtime で動かしたい場合は
-`--interpreter` を付けます。
+`run` は現在、default では evidence VM を通じてプログラムを実行し、
+`say` / `println` のようにプログラム側が出した出力だけを表示します。
+途中の root 値も覗きたいときは `--print-roots` を付けます。
+古い control VM route を明示的に使いたい場合は `--control-vm`、
+mono runtime で動かしたい場合は `--interpreter` を付けます。
+
+一行だけ試す場合は、`-e`、明示的な stdin `-`、または pipe も使えます。
+
+```bash
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | yulang run --print-roots
+echo "(each 1..3 + each 1..3).list.say" | yulang run
+```
+
+runtime route は、compiled-unit `.yucu`、principal `.yuir` poly artifact、
+`.yuvm` VM artifact をユーザー cache root に保存します。`yulang cache path`、
+`yulang cache stats`、`yulang cache clear` で確認・削除できます。一度だけ cache
+を避けたい場合は `--no-cache` を使います。`--runtime-phase-timings` を付けると、
+`run.cache` に `compiled-unit-hit`、`std-prefix-hit`、`source-unit-prefix-hit` など、
+今回使われた route が表示されます。
 
 型検査と public type の表示だけ行う場合は `check` を使います。
 
@@ -176,9 +192,33 @@ Zed 用 extension は [yulang-zed/](yulang-zed) にあります。extension は 
 
 ## 実行 backend
 
-Yulang は現在、specialize 後の mono IR を読む mono runtime と、そこから軽量表現へ
-落とした control VM で実行されます。以前は Cranelift/MMTk ベースの native backend も
-旧実装側で試していましたが、現在は退役済みです。
+Yulang には現在、3 つの runtime surface があります。
+
+- mono runtime: 単純な interpreter / oracle path。
+- evidence VM: default の `run` が使う実行経路。
+- control VM: `run --control-vm` で使える fallback / debug route。
+
+browser playground の run path も wasm crate 経由で evidence VM を使います。
+`check` や dump 系の tool は通常の frontend pipeline を共有します。
+
+evidence VM は、runtime 作業で使っている effect-heavy な example では一番速い route です。
+挙動は control VM と比較できます。
+
+```bash
+target/release/yulang --std-root lib debug evidence-vm-run --compare-control bench/nondet_20_discard.yu
+target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
+```
+
+最新の release binary では、direct recursion が最速 baseline のままですが、
+std library の `for` loop と nondeterministic search は、どちらも effect runtime を
+通ったうえで同じ桁に入っています。
+
+evidence VM は、証明済みの direct-tail handler path では permission-native な
+handler visibility を使い、generic request machinery を fallback surface として残します。
+default 切替は段階的に行っています。control VM は `--control-vm` でまだ使えます。
+
+以前は Cranelift/MMTk ベースの native backend も旧実装側で試していましたが、
+現在は退役済みです。
 
 当時の実験ログや、そこから派生した optimizer の方針はこのあたりに残しています。
 
