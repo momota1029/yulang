@@ -4439,6 +4439,20 @@ fn public_contract_manifest_covers_status_spine_claims() {
             "native file API host scope",
             &["standard-api", "file", "host.native"],
         ),
+        StatusSpineManifestRequirement::new("time API", &["standard-api", "time"]),
+        StatusSpineManifestRequirement::new(
+            "time host act native scope",
+            &["time", "host-act", "host.native"],
+        ),
+        StatusSpineManifestRequirement::new(
+            "time host act unsupported scope",
+            &["time", "host-act", "host.unsupported"],
+        ),
+        StatusSpineManifestRequirement::new(
+            "time host act mock scope",
+            &["time", "host-act", "mock-host"],
+        ),
+        StatusSpineManifestRequirement::new("host act contract", &["host-act"]),
     ] {
         assert!(
             contract_manifest_has_case_with_tags(&cases, requirement.tags),
