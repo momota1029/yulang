@@ -1,22 +1,19 @@
 # Yulang
 
-Yulang は、代数的 effect と handler をふつうの制御構文として使えるようにする
-実験的なプログラミング言語です。
+**制御フローが型システムから見える。それでいて、スクリプトの気軽さで書ける言語。**
 
-見た目は小さな式指向のスクリプト言語に近く、method 呼び出し、compact な block
-記法、struct、enum、role、ユーザー定義 operator、loop、early return、参照を持ちます。
-特徴的なのは、通常なら言語コアに固定されがちな制御の多くを、effect、handler、
-role、標準ライブラリの組み合わせとして扱う点です。
+Yulang は、代数的 effect と全域の型推論を土台にした式指向の言語です。
+ふつうの言語ならコアに溶接されているもの — early return、loop、可変状態、
+例外、さらには非決定性の探索まで — を、型の付いたただの effect として扱い、
+その大部分を標準ライブラリで定義しています。この設計から同時に二つのものが
+手に入ります。ふつうは持てない制御フローと、「それがどこで使われているか」を
+正確に教えてくれるコンパイラです。
 
-現在の Yulang は alpha 段階の研究言語です。現行実装は `yulang` pipeline にあり、
-構文、型表示、effect semantics、runtime IR、標準ライブラリ API はまだ変わります。
-
+**[ブラウザですぐ試せます](https://yulang.momota.pw/)** — インストール不要。
 English: [README.md](README.md)
 
-## 最初の例
-
 ```yulang
-// 非決定性で探索: 15 未満のピタゴラス数の組
+// 15 未満のピタゴラス数をすべて — ただの式
 {
     my a = each 1..15
     my b = each a..15
@@ -26,145 +23,237 @@ English: [README.md](README.md)
 }.list  // => [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
 ```
 
-`each` は非決定性の値を返し、`guard:` は条件を満たさない枝を切り、
-`.list` は探索結果を具体的なリストに畳みます。block 全体は `undet`
-effect を持つただの式で、構文として特別扱いされている部分はありません。
+`each` は要素を一つ選び、`guard:` は条件を満たさない枝を刈り、`.list` は
+すべての結果を集めます。マクロでもクエリ DSL でもありません。この block は
+`undet` effect を持つただの式で、型システムは他の型と同じようにそれを追跡します。
 
-同じ仕組みで、比較を「いくつもの選択肢」へ持ち上げることもできます。
+Yulang は alpha 段階の研究言語です。構文、型表示、effect semantics、
+ライブラリ API はまだ変わります。それでも「入れて一晩遊ぶ」段階にはすでに
+届いていて、このページの残りは、その一晩が何に値するかを見せるためにあります。
+
+## 面白さ: effect はふつうのコード
+
+effect の呼び出しは、見た目はふつうの関数呼び出しです。それを effect たらしめて
+いるのは、*スタックの上にいる誰かがその意味を決める*という一点です。
 
 ```yulang
-// junction は比較を選択肢の組すべてに広げる
+act flip:
+    our coin: () -> bool
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
+// => [111, 11, 101, 1, 110, 10, 100, 0]
+```
+
+この handler は継続 `k` を二回呼びます — 一度は `true` で、もう一度は `false` で。
+だから直線的に書いたコードの一回の実行が、8 本の経路をすべて探索します。
+これを多くの言語で書こうとするとプログラムを手で CPS 変換することになりますが、
+ここでは 8 行です。そして型に現れる `[flip]` が、どのコードがコインを投げられる
+のかを正確に示します。
+
+標準ライブラリ自身も、同じ仕組みの上に自分の機能を組み立てています。
+
+- `sub:` + `return` — early return は関数に溶接されたキーワードではなく、
+  ライブラリの effect
+- `for` と `last` / `next` / `redo` — loop は `Fold` role と loop effect に
+  展開される
+- `my $x` / `&x = v` — 可変参照は局所的な `var` effect にコンパイルされる
+- `all` / `any` — `if` の条件が、多数の値をまとめて量化できる:
+
+```yulang
 if all [1, 2, 3] < any [3, 4, 5]:
     "every left dominated"
 else:
     "no"
 ```
 
-`all` と `any` は非決定性の値を作る標準ライブラリ関数です。lowering が
-`junction::junction` を挿入し、左右のすべての組を試したうえで周囲の
-`if` には `bool` が渡ります。
+Raku の junction をご存じなら、まさにあれです — ただしここでは `all` と `any` は
+非決定性の値を作るただのライブラリ関数で、左右のすべての組を試し終えたうえで、
+外側の `if` には本物の `bool` が渡ります。
 
-可変状態、early return、loop、effectful な条件式も、同じ考え方で扱います。
-見た目はふつうの制御構文に寄せつつ、内部では型付き effect と小さなライブラリに
-分けて表現します。
+## 保証: 型がすべてを語る
+
+すべての式は、値の型と *effect row* の両方を持ちます。失敗しうる、状態を変えうる、
+探索しうる関数は、型にそう書いてあります — そして row が空なら、できません。
+
+```yulang
+pub error fs_err:
+    not_found str
+    denied str
+
+our read_config(path: str): [fs_err] str =
+    if path == "/etc/app.conf": "port = 8080"
+    else: fail fs_err::not_found path
+```
+
+エラーは具体的な型を持つ代数的 effect で、名前を挙げて処理します。
+
+```yulang
+catch read_config "/missing":
+    fs_err::not_found p, _ -> "(missing) %{p}"
+    fs_err::denied p, _ -> "(denied) %{p}"
+    value -> value
+// => "(missing) /missing"
+```
+
+これが実際にもたらすもの:
+
+- **見えない例外がない。** `anyhow` 流の、型を消した catch-all は意図的に
+  ありません。すべてのエラーは effect row の中で具体的な型を保つので、
+  どのエラーがどこで生まれ、どこで処理されるかが型だけから読めます。
+  より広いエラー族は明示的に組み立て（`error io_err: fs from fs_err`）、
+  effect を値として閉じたいときは一呼び出しです（`fs_err::wrap` が
+  `result` を返します）。
+- **状態は漏れない。** `my $x` は、その束縛のスコープに閉じた読み書きの口を
+  開きます。ヒープのセルではなく effect なので、スコープの外へ参照が逃げると
+  「たまに壊れるバグ」ではなく型エラーになります。
+- **不意の暗黙変換がない。** 暗黙変換は宣言した場所にだけ存在します:
+  `cast(x: user_id): int = x.raw`。
+- **handler は書いたとおりのスコープで働く。** effect の伝播は静的にスコープ
+  され、handler hygiene がライブラリの handler に「渡していない operation」を
+  横取りさせません。規則の詳細は
+  [type-theory notes](web/docs/ja/reference/type-theory.md) にあります。
+
+そして、型を書く機会はほとんどありません。推論は Simple-sub 系で、subtyping、
+構造的な record / tuple、effect row、role 制約まで含めて推論します。
+
+```yulang
+our twice x = x + x
+// 推論結果: twice : Add<α> => α -> α
+```
+
+`+` は `int` に固定されていません。`twice` は `Add` role の実装を持つ任意の型で
+動きます — そしてそれを、コンパイラが自分で突き止めます。
+
+## 日常遣い: それでいて軽い
+
+ここまでの仕組みは、頼まない限り姿を見せません。ふだんの Yulang は、
+コンパクトなスクリプト言語のように読めます。
+
+```yulang
+say "Hello, World"
+```
+
+メソッドは型の宣言のすぐ隣に付き、チェーンできます。
+
+```yulang
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2  // => 25
+```
+
+デフォルト値付きの record パターンは、そのまま名前付きオプショナル引数に
+なります。
+
+```yulang
+my area {width = 1, height = 2} = width * height
+
+area { width: 3 }   // => 6
+area {}             // => 2
+```
+
+symbol を使えば、enum を宣言せずにタグ付きの選択肢が書けます。payload の型は
+タグごとに別でかまいません。
+
+```yulang
+my describe x = case x:
+    :hello name -> "Hello, " + name
+    :bye n -> "Bye %{n}"
+// describe : :{ hello str, bye int } -> str
+```
+
+CLI はワンライナーとパイプに向いています。
+
+```bash
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "(each 1..3 + each 1..3).list.say" | yulang run
+```
+
+性能も「研究プロトタイプの罠」ではなく「日常のスクリプトなら十分」の域に
+あります。warm cache なら、effect を多用する `examples/showcase.yu` が
+default の evidence VM で 25ms 前後で実行され、標準ライブラリの `for` loop と
+非決定性探索は、どちらも effect runtime を通ったうえで、直接再帰から一桁以内に
+収まります。
 
 ## すぐ試す
 
-release build の CLI を使う場合は、OS ごとの binary archive を入れます。binary には
-embedded standard library が入っていて、初回にユーザー library directory へ配置されます。
+いちばん速いのはブラウザの playground です:
+**https://yulang.momota.pw/** — WebAssembly にコンパイルされた本物の
+コンパイラと evidence VM が動きます。
+
+Linux / macOS に CLI を入れる場合（binary は標準ライブラリを同梱していて、
+初回に `~/.yulang` 以下へ配置します）:
 
 ```bash
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.7
 ```
 
-installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
-反映には terminal の再起動が必要です。自分で `PATH` を管理したい場合は
-`--no-modify-path` を付けます。
+installer は `~/.yulang/bin` が `PATH` に無ければ shell profile へ追加します
+（不要なら `--no-modify-path`）。terminal を開き直すか、今の terminal では
+`~/.yulang/bin/yulang` を直接呼んでください。
 
-今開いている terminal でそのまま動かす場合は、install 先を直接指定します。
-
-```bash
-~/.yulang/bin/yulang run examples/06_undet_once.yu
-```
-
-Windows では PowerShell installer を使います。
+Windows では:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.7
 ```
 
-PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
-不要な場合は `-NoModifyPath` を付けます。
+ファイルの実行と型検査:
 
-release install を消す場合は uninstaller を使います。
+```bash
+yulang run examples/06_undet_once.yu
+yulang check examples/08_types.yu
+```
+
+`run` は evidence VM でプログラムを実行し、`say` / `println` のように
+プログラム側が出した出力だけを表示します。実験中に top-level 式の値も
+覗きたいときは `--print-roots` を付けます。コンパイル成果物はユーザー cache
+に保存されます（`yulang cache path|stats|clear`、一度だけ避けるなら
+`--no-cache`）。cache の構成は [docs/cache.md](docs/cache.md) にあります。
+別 checkout の標準ライブラリを使う場合は `YULANG_STD=/path/to/lib/std` を
+指定します。
+
+release install を消す場合:
 
 ```bash
 curl -fsSL https://yulang.momota.pw/uninstall.sh | sh
 ```
-
-Windows では次の形です。
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-開発 checkout で CLI を使う場合は、`yulang` を build します。ユーザー cache に標準ライブラリを
-置きたい場合は `install std` も使えます。
+repository の checkout から使う場合:
 
 ```bash
 cargo build -p yulang
-./target/debug/yulang install std
-```
-
-ファイルを実行します。
-
-```bash
 ./target/debug/yulang run examples/06_undet_once.yu
-```
-
-最小の完全な program は、`say` でユーザー向け文字列を出す形です。
-
-```yulang
-say "Hello, World"
-```
-
-`run` は現在、default では evidence VM を通じてプログラムを実行し、
-`say` / `println` のようにプログラム側が出した出力だけを表示します。
-途中の root 値も覗きたいときは `--print-roots` を付けます。
-古い control VM route を明示的に使いたい場合は `--control-vm`、
-mono runtime で動かしたい場合は `--interpreter` を付けます。
-
-一行だけ試す場合は、`-e`、明示的な stdin `-`、または pipe も使えます。
-
-```bash
-yulang run -e "(each 1..20 + each 1..20).list.say"
-echo "1 + 2" | yulang run --print-roots
-echo "(each 1..3 + each 1..3).list.say" | yulang run
-```
-
-runtime route は、compiled-unit `.yucu`、principal `.yuir` poly artifact、
-`.yuvm` VM artifact をユーザー cache root に保存します。`yulang cache path`、
-`yulang cache stats`、`yulang cache clear` で確認・削除できます。一度だけ cache
-を避けたい場合は `--no-cache` を使います。`--runtime-phase-timings` を付けると、
-`run.cache` に `compiled-unit-hit`、`std-prefix-hit`、`source-unit-prefix-hit` など、
-今回使われた route が表示されます。
-
-型検査と public type の表示だけ行う場合は `check` を使います。
-
-```bash
-./target/debug/yulang check examples/08_types.yu
-```
-
-標準ライブラリは通常 `~/.yulang/lib/yulang-0.1.4/std` に入ります。
-`yulang run`、`yulang check`、`yulang server` は、`YULANG_STD` や近くの
-`lib/std` が見つからない場合、同梱標準ライブラリを初回に自動で配置します。
-
-別 checkout の標準ライブラリを使いたい場合は `YULANG_STD` を指定します。
-
-```bash
-export YULANG_STD=/path/to/yulang/lib/std
 ```
 
 ## 次に読むもの
 
-- [docs/language/overview.ja.md](docs/language/overview.ja.md):
-  日本語の言語概要。
-- [docs/language/overview.md](docs/language/overview.md):
-  英語の言語概要。
-- [docs/status.md](docs/status.md):
-  parser、型推論、runtime、archive 済み surface ごとの対応状況。
+- [web/docs/ja/guide/tour.md](web/docs/ja/guide/tour.md): ガイド付きツアー。
+  例はすべて playground でそのまま動きます。
+- [docs/language/overview.ja.md](docs/language/overview.ja.md): 言語概要
+  （[English](docs/language/overview.md)）。
 - [web/docs/ja/reference/type-theory.md](web/docs/ja/reference/type-theory.md):
-  effect row、handler hygiene、hidden handler evidence の公開仕様側の説明。
-- [docs/hidden-effect-evidence.ja.md](docs/hidden-effect-evidence.ja.md):
-  hidden effect evidence の実装メモ。
-- [examples/](examples):
-  実行できる小さなサンプル集。
-- [lib/std/](lib/std):
-  Yulang で書かれた標準ライブラリ。
+  effect row、handler hygiene、hidden handler evidence。
+- [docs/status.md](docs/status.md): 推論・runtime・diagnostics・release
+  artifact にわたる対応状況と公開契約。
+- [examples/](examples): 実行できる example 集。[lib/std/](lib/std):
+  Yulang 自身で書かれた標準ライブラリ。
 
-まず動かすなら、このあたりの example が読みやすいです。
+まず動かすなら、このあたりが読みやすいです。
 
 - `examples/showcase.yu`: 構文とライブラリの広めの tour。
 - `examples/06_undet_once.yu`: ライブラリ effect による非決定性。
@@ -172,102 +261,77 @@ export YULANG_STD=/path/to/yulang/lib/std
 - `examples/04_sub_return.yu`: `sub:` による局所 early return。
 - `examples/11_attached_impl.yu`: role implementation の attached form。
 
-## Language Server
+`rule { ... }` や `~"..."` のような parser-combinator まわりの糖衣構文は
+実験段階です。言語の方向性を試すには使えますが、互換性の約束はありません。
 
-language server は `yulang server` で起動します。
+## Tooling
 
-```bash
-./target/debug/yulang server
-```
+`yulang server` で language server が起動します（semantic tokens、
+full-document sync、現行 lowering diagnostics）。Zed 対応は
+[yulang-zed/](yulang-zed) にあり、extension は install 済み binary から
+`yulang server` を起動するので、release archive とエディタ統合が同じ実行
+ファイルを共有します。この repository 内の source copy は、別 repository の
+`momota1029/yulang-zed` と同期して管理する対象です。
 
-現在の主な機能は次の通りです。
+## 内部構成
 
-- semantic token
-- full-document sync
-- 現行 lowering diagnostic
-
-Zed 用 extension は [yulang-zed/](yulang-zed) にあります。extension は install 済み
-`yulang` binary から `yulang server` を起動します。この repository 内の source copy は、
-別 repository の `momota1029/yulang-zed` と同期して管理する対象です。
-
-## 実行 backend
-
-Yulang には現在、3 つの runtime surface があります。
-
-- mono runtime: 単純な interpreter / oracle path。
-- evidence VM: default の `run` が使う実行経路。
-- control VM: `run --control-vm` で使える fallback / debug route。
-
-browser playground の run path も wasm crate 経由で evidence VM を使います。
-`check` や dump 系の tool は通常の frontend pipeline を共有します。
-
-evidence VM は、runtime 作業で使っている effect-heavy な example では一番速い route です。
-挙動は control VM と比較できます。
+Yulang には現在 3 つの runtime surface があります。evidence VM（default の
+`run` 経路で、effect の重いプログラムでは最速）、control VM（`run
+--control-vm` で使える fallback 経路）、mono runtime（oracle として残している
+単純な interpreter、`run --interpreter`）です。ブラウザ playground は wasm
+crate 経由で evidence VM を使います。evidence VM は control VM と突き合わせて
+検査できます。
 
 ```bash
-target/release/yulang --std-root lib debug evidence-vm-run --compare-control bench/nondet_20_discard.yu
 target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
 ```
 
-最新の release binary では、direct recursion が最速 baseline のままですが、
-std library の `for` loop と nondeterministic search は、どちらも effect runtime を
-通ったうえで同じ桁に入っています。
-
-evidence VM は、証明済みの direct-tail handler path では permission-native な
-handler visibility を使い、generic request machinery を fallback surface として残します。
-default 切替は段階的に行っています。control VM は `--control-vm` でまだ使えます。
-
-以前は Cranelift/MMTk ベースの native backend も旧実装側で試していましたが、
-現在は退役済みです。
-
-当時の実験ログや、そこから派生した optimizer の方針はこのあたりに残しています。
-
-- [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  封印した opt-in native subset の release-gate メモ。
-- [docs/native-backend.md](docs/native-backend.md):
-  native backend の対応範囲と当時の制限のアーカイブ。
-- [archive/notes/design/cps-optimization-pass-plan.md](archive/notes/design/cps-optimization-pass-plan.md):
-  CPS optimizer と代数的 effect の rewrite 計画。
+evidence VM は、証明済みの direct-tail handler 経路では permission-native な
+handler visibility を使い、generic request machinery を fallback surface として
+残しています。以前 旧実装で試した Cranelift/MMTk native backend は退役済みで、
+メモは [docs/native-backend.md](docs/native-backend.md) と
+[docs/native-experimental-release.md](docs/native-experimental-release.md) に
+残っています。
 
 ## 開発
 
-代表的な Rust test suite を走らせる例です。
+代表的な Rust test suite:
 
 ```bash
 cargo test -p sources -p infer -p poly -p specialize -p yulang
 ```
 
-inline program も実行できます。
+release 相当の変更を push する前には、ローカルの release gate を回します。
+formatting、test suite、release build、hardening smoke、docs build までを
+まとめて確認します（環境変数による切り替えは script 本体を参照）。
 
 ```bash
-printf '1\n' >/tmp/yulang-main.yu
-./target/debug/yulang run --print-roots /tmp/yulang-main.yu
+scripts/release-gate.sh
 ```
 
-## Repository Layout
+公開契約の manifest は `tests/yulang/cases.toml` にあり、公開 `yulang` CLI の
+テストから検査されます。
 
-- `crates/yulang`: 現行 CLI と language server の入口。
-- `crates/sources`: source collection、CST input、std install support、realm freeze。
+Repository layout:
+
+- `crates/yulang`: CLI と language server の入口。
+- `crates/sources`: source collection、CST input、std install、realm freeze。
 - `crates/infer`: CST → `poly` lowering と型推論。
 - `crates/poly`: 推論済み polymorphic program 表現。
 - `crates/specialize`: principal monomorphization。
-- `crates/mono`: monomorphic IR。
-- `crates/mono-runtime`: oracle-style mono interpreter。
-- `crates/control-vm`: 軽量 control VM IR と runtime。
+- `crates/mono` / `crates/mono-runtime`: monomorphic IR と oracle interpreter。
+- `crates/control-vm` / `crates/evidence-vm`: 2 つの VM runtime。
 - `crates/parser`: parser と syntax tree。
-- `crates/list-tree`: 共有 persistent list 実装。
-- `archive/crates`: 旧 `yulang` 実装。workspace 外の参照用 code。
-- `examples`: 現在の実装で動く example。
 - `lib/std`: Yulang で書かれた標準ライブラリ。
-- `web/playground`: legacy Vite based browser playground source。現行 workspace の build 対象ではない。
-- `web/docs`: reference documentation。
-- `notes`: bug、refactor、作業メモ。
+- `examples`, `web/`, `docs/`, `notes/`: example、playground / docs の
+  source、ドキュメント、作業メモ。
+- `archive/crates`: 旧実装。参照専用。
 
 ## Status
 
-Yulang は pre-release research software です。構文、型表示、runtime IR、runtime、
-標準ライブラリには互換性の約束がありません。
-今の対応状況は [docs/status.md](docs/status.md) にあります。
+Yulang は pre-release の研究言語です。構文、型表示、runtime IR、VM、
+標準ライブラリには互換性の約束がありません。今の対応状況は
+[docs/status.md](docs/status.md) にあります。
 
 ## License
 

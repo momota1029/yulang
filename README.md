@@ -1,24 +1,20 @@
 # Yulang
 
-Yulang is an experimental programming language that makes algebraic effects
-and handlers feel like ordinary control flow.
+**Control flow your type system can actually see — in a language that still
+feels like a script.**
 
-The surface looks like a small expression-oriented scripting language: it has
-method syntax, compact block notation, structs, enums, roles, user-defined
-operators, loops, early return, and references. The unusual part is that many
-features usually fixed in the core language are expressed through effects,
-handlers, roles, and standard-library code.
+Yulang is an expression-oriented language built on algebraic effects and full
+type inference. The things most languages weld into the core — early return,
+loops, mutable state, exceptions, even nondeterministic search — are ordinary
+typed effects here, mostly defined in the standard library. That buys you two
+things at once: control flow you normally can't have, and a compiler that
+tells you exactly where any of it is being used.
 
-Yulang is alpha-stage research software. The current implementation lives in
-the `yulang` pipeline; syntax, type display, effect semantics, runtime IR,
-and library APIs may still change.
-
+**[Try it in your browser](https://yulang.momota.pw/)** — no install needed.
 Japanese: [README.ja.md](README.ja.md)
 
-## A First Look
-
 ```yulang
-// nondeterministic search: every Pythagorean triple under 15
+// every Pythagorean triple under 15 — an ordinary expression
 {
     my a = each 1..15
     my b = each a..15
@@ -28,58 +24,205 @@ Japanese: [README.ja.md](README.ja.md)
 }.list  // => [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
 ```
 
-`each` returns a nondeterministic value, `guard:` prunes branches where the
-condition fails, and `.list` reifies the search into a concrete list. The
-block is an ordinary expression with the `undet` effect; nothing in this
-syntax is special-cased.
+`each` picks one element, `guard:` prunes failing branches, and `.list`
+collects every result. No macro, no query DSL: the block is a plain expression
+carrying the `undet` effect, and the type system tracks it like any other.
 
-The same shape lifts over comparisons:
+Yulang is alpha-stage research software — syntax, type display, effect
+semantics, and library APIs may still change. It is, however, already at the
+"install it and play for an evening" stage, and the rest of this page tries to
+show why that evening is worth it.
+
+## The fun part: effects are ordinary code
+
+An effect call looks like a normal function call. What makes it an effect is
+that *somebody up the stack decides what it means*:
 
 ```yulang
-// junction lifts a comparison over many choices at once
+act flip:
+    our coin: () -> bool
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
+// => [111, 11, 101, 1, 110, 10, 100, 0]
+```
+
+The handler calls the continuation `k` twice — once with `true`, once with
+`false` — so a single run of straight-line code explores all eight paths.
+Writing this in most languages means CPS-transforming your program by hand;
+here it is eight lines, and the `[flip]` in the type says exactly which code
+can flip coins.
+
+The standard library builds its own features from the same machinery:
+
+- `sub:` + `return` — early return is a library effect, not a keyword welded
+  into functions;
+- `for` with `last` / `next` / `redo` — loops lower to the `Fold` role plus
+  loop effects;
+- `my $x` / `&x = v` — mutable references compile to a local `var` effect;
+- `all` / `any` — an `if` condition can quantify over many values at once:
+
+```yulang
 if all [1, 2, 3] < any [3, 4, 5]:
     "every left dominated"
 else:
     "no"
 ```
 
-`all` and `any` are library functions that produce nondeterministic values.
-Lowering inserts `junction::junction` so the surrounding `if` receives a real
-`bool` after every left/right pair has been considered.
+If you have met Raku's junctions: yes, that — except here `all` and `any` are
+plain library functions producing nondeterministic values, and the surrounding
+`if` receives a real `bool` once every left/right pair has been considered.
 
-Mutable state, early return, loops, and effectful conditions use the same
-basic idea: familiar notation on the surface, typed effects and small library
-abstractions underneath.
+## The safety part: types tell the whole truth
+
+Every expression has a value type *and* an effect row. If a function can
+fail, mutate, or search, its type says so — and if the row is empty, it can't.
+
+```yulang
+pub error fs_err:
+    not_found str
+    denied str
+
+our read_config(path: str): [fs_err] str =
+    if path == "/etc/app.conf": "port = 8080"
+    else: fail fs_err::not_found path
+```
+
+Errors are algebraic effects with concrete types, and you handle them by
+naming them:
+
+```yulang
+catch read_config "/missing":
+    fs_err::not_found p, _ -> "(missing) %{p}"
+    fs_err::denied p, _ -> "(denied) %{p}"
+    value -> value
+// => "(missing) /missing"
+```
+
+What this buys you in practice:
+
+- **No invisible exceptions.** There is deliberately no `anyhow`-style
+  type-erased catch-all. Every error keeps its concrete type in the effect
+  row, so the origin and the handler of each error are readable from types
+  alone. Wider error families are built explicitly (`error io_err: fs from
+  fs_err`), and closing an error effect into a plain `result` value is one
+  call (`fs_err::wrap`).
+- **State cannot leak.** `my $x` opens a read/write port scoped to its
+  binder. Because it is an effect, not a heap cell, a reference escaping its
+  scope is a type error rather than a heisenbug.
+- **No surprise conversions.** Implicit conversions exist only where you
+  declare them: `cast(x: user_id): int = x.raw`.
+- **Handlers are scoped by the program you wrote.** Effect propagation is
+  statically scoped, and handler hygiene keeps library handlers from
+  capturing operations they were never given. The
+  [type-theory notes](web/docs/reference/type-theory.md) spell out the rules.
+
+And you rarely write a type. Inference is Simple-sub-inspired, with subtyping,
+structural records and tuples, effect rows, and role constraints:
+
+```yulang
+our twice x = x + x
+// inferred: twice : Add<α> => α -> α
+```
+
+`+` is not welded to `int`. `twice` works for any type with an `Add` role
+implementation — and the compiler figured that out by itself.
+
+## The everyday part: it stays light
+
+All of that machinery is invisible until you ask for it. Day-to-day Yulang
+reads like a compact script language:
+
+```yulang
+say "Hello, World"
+```
+
+Methods attach right where the type is declared, and chain:
+
+```yulang
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2  // => 25
+```
+
+Record patterns with defaults give you named optional arguments for free:
+
+```yulang
+my area {width = 1, height = 2} = width * height
+
+area { width: 3 }   // => 6
+area {}             // => 2
+```
+
+Symbols give you tagged unions without declaring an enum, and each payload
+keeps its own type:
+
+```yulang
+my describe x = case x:
+    :hello name -> "Hello, " + name
+    :bye n -> "Bye %{n}"
+// describe : :{ hello str, bye int } -> str
+```
+
+The CLI is comfortable for one-liners and pipes:
+
+```bash
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "(each 1..3 + each 1..3).list.say" | yulang run
+```
+
+And performance is in "fine for daily scripting" territory rather than a
+research-prototype trap: with a warm cache, the effect-heavy
+`examples/showcase.yu` executes in roughly 25 ms on the default evidence VM,
+and std-library `for` loops and nondeterministic search stay within an order
+of magnitude of direct recursion even though both run through the full
+effect machinery.
 
 ## Try It
 
-To use the CLI from a release build, install the binary archive for your OS
-and let the binary place the embedded standard library in the user library
-directory:
+The fastest route is the browser playground at
+**https://yulang.momota.pw/** — it runs the real compiler and evidence VM
+compiled to WebAssembly.
+
+To install the CLI on Linux or macOS (the binary embeds the standard library
+and places it under `~/.yulang` on first use):
 
 ```bash
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.7
 ```
 
-The installer adds `~/.yulang/bin` to your shell profile when it is not already
-on `PATH`; restart the terminal before running `yulang`. Pass
-`--no-modify-path` if you want to manage `PATH` yourself.
+The installer adds `~/.yulang/bin` to your shell profile when it is not
+already on `PATH` (pass `--no-modify-path` to skip that); restart the
+terminal, or call `~/.yulang/bin/yulang` directly in the current one.
 
-In the current terminal, use the installed binary path directly:
-
-```bash
-~/.yulang/bin/yulang run examples/06_undet_once.yu
-```
-
-On Windows, download and run the PowerShell installer:
+On Windows:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.7
 ```
 
-The PowerShell installer adds the install `bin` directory to the user `PATH`.
-Pass `-NoModifyPath` to skip that update.
+Then run a file, or type-check it:
+
+```bash
+yulang run examples/06_undet_once.yu
+yulang check examples/08_types.yu
+```
+
+`run` executes through the evidence VM and prints only program output such as
+`say` / `println`; add `--print-roots` to also see the values of top-level
+expressions while experimenting. Compiled artifacts are cached under the user
+cache root (`yulang cache path|stats|clear`, `--no-cache` to bypass once);
+[docs/cache.md](docs/cache.md) describes the cache architecture. To use a
+different standard-library checkout, set `YULANG_STD=/path/to/lib/std`.
 
 To uninstall a release install:
 
@@ -87,118 +230,30 @@ To uninstall a release install:
 curl -fsSL https://yulang.momota.pw/uninstall.sh | sh
 ```
 
-On Windows:
-
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-For development, build `yulang` and install the embedded standard library when
-you want a user cache copy:
+From a repository checkout:
 
 ```bash
 cargo build -p yulang
-./target/debug/yulang install std
-```
-
-Run a file:
-
-```bash
 ./target/debug/yulang run examples/06_undet_once.yu
 ```
 
-The smallest complete program prints a user-facing string with `say`:
+## Learn More
 
-```yulang
-say "Hello, World"
-```
-
-For one-line experiments, `run` can also read source from `-e`, explicit stdin
-with `-`, or an implicit pipe:
-
-```bash
-yulang run -e "(each 1..20 + each 1..20).list.say"
-echo "1 + 2" | yulang run --print-roots
-echo "(each 1..3 + each 1..3).list.say" | yulang run
-```
-
-`run` currently executes the program through the evidence VM and only prints
-output produced by the program itself, such as `say` / `println`. To inspect
-root expression values while experimenting, add `--print-roots`. To force the
-older control VM route, pass `--control-vm`. To run through the mono runtime
-instead, pass `--interpreter`.
-The runtime route caches compiled-unit `.yucu` artifacts, principal
-`.yuir` poly artifacts, and `.yuvm` VM artifacts under the user cache root;
-use `yulang cache path`, `yulang cache stats`, and `yulang cache clear` to
-inspect or clear it, or pass `--no-cache` to bypass cache read/write for one
-command. Local source sets can also reuse cached compiled source-unit prefixes
-when only a suffix of the module tree changed. When `--runtime-phase-timings` is
-enabled, `run.cache` reports the route used for the current run, such as
-`control-hit`, `poly-hit`, `compiled-unit-hit`, `std-prefix-hit`,
-`source-unit-prefix-hit`, `merged-source-unit-prefix-hit`, or `full-miss`.
-See [docs/cache.md](docs/cache.md) for the current cache architecture.
-
-Check a file:
-
-```bash
-./target/debug/yulang check examples/08_types.yu
-```
-
-The standard library is normally installed to
-`~/.yulang/lib/yulang-0.1.4/std`. `yulang run`, `yulang check`, and
-`yulang server` can also install the embedded standard library automatically
-on first use when neither `YULANG_STD` nor a nearby `lib/std` is available.
-
-To use a different standard-library checkout:
-
-```bash
-export YULANG_STD=/path/to/yulang/lib/std
-```
-
-Before pushing a release-like change, run the local release gate:
-
-```bash
-scripts/release-gate.sh
-```
-
-It runs formatting, parser / core `infer` / `yulang` tests, the release binary
-build, hardening smoke tests, source-unit cache smoke, and the docs build. Set
-`YULANG_RELEASE_GATE_WEB_BUILD=1` when the full playground/docs web bundle
-should be rebuilt too.
-The public contract manifest lives at `tests/yulang/cases.toml`; the hardening
-gate runs it through the public `yulang` CLI tests. The hardening gate also
-enables the `release-smoke.sh` `yulang server` startup check by default; set
-`YULANG_HARDENING_RELEASE_SERVER_SMOKE=0` only for focused local runs where the
-language-server process check is not relevant. Release archive smoke enables
-the same server startup check by default; set
-`YULANG_RELEASE_ARCHIVE_SMOKE_SERVER=0` to skip it while inspecting an archive
-locally.
-
-Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
-`~"..."` are experimental. They are useful for trying the direction of the
-language, but their public API and diagnostics are not a compatibility promise.
-
-## Where To Read Next
-
-- [docs/language/overview.md](docs/language/overview.md):
-  the main language overview.
-- [docs/language/overview.ja.md](docs/language/overview.ja.md):
-  Japanese language overview.
-- [docs/status.md](docs/status.md):
-  support status and the public contract spine across inference, runtime,
-  diagnostics, release artifacts, and archived surfaces.
-- [docs/cache.md](docs/cache.md):
-  compiled-unit, poly, VM, and source-unit cache routes.
+- [web/docs/guide/tour.md](web/docs/guide/tour.md): a guided tour — every
+  example runs in the playground as-is.
+- [docs/language/overview.md](docs/language/overview.md): the main language
+  overview ([Japanese](docs/language/overview.ja.md)).
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
-  public reference for effect rows, handler hygiene, and hidden handler
-  evidence.
-- [docs/hidden-effect-evidence.ja.md](docs/hidden-effect-evidence.ja.md):
-  implementation notes for hidden effect evidence.
-- [examples/](examples):
-  runnable Yulang examples.
-- [lib/std/](lib/std):
-  the standard library written in Yulang.
+  effect rows, handler hygiene, and hidden handler evidence.
+- [docs/status.md](docs/status.md): support status and the public contract
+  spine across inference, runtime, diagnostics, and release artifacts.
+- [examples/](examples): runnable examples; [lib/std/](lib/std): the standard
+  library, itself written in Yulang.
 
 Good first examples:
 
@@ -208,123 +263,72 @@ Good first examples:
 - `examples/04_sub_return.yu`: local early return through `sub:`.
 - `examples/11_attached_impl.yu`: attached role implementations.
 
-## Language Server
+Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
+`~"..."` are experimental: useful for trying the direction of the language,
+but not a compatibility promise.
 
-Start the language server with:
+## Tooling
 
-```bash
-./target/debug/yulang server
-```
+`yulang server` starts the language server (semantic tokens, full-document
+sync, current lowering diagnostics). Zed support lives in
+[yulang-zed/](yulang-zed); the extension launches `yulang server` from the
+installed binary, so the release archive and the editor integration share one
+executable. The source copy here is kept in sync with the separate
+`momota1029/yulang-zed` extension repository.
 
-Current language-server support includes:
+## Under the Hood
 
-- semantic tokens;
-- full-document sync;
-- current lowering diagnostics.
-
-Zed support lives in [yulang-zed/](yulang-zed). The extension starts the
-language server through the installed `yulang` binary as `yulang server`, so
-the release archive and the editor integration use the same executable. The
-source copy in this repository is the version to keep in sync with the
-separate `momota1029/yulang-zed` extension repository.
-
-## Execution Backend
-
-Yulang currently has three runtime surfaces:
-
-- the mono runtime, kept as a simple interpreter and oracle path;
-- the evidence VM, used by the default `run` command;
-- the control VM, kept as a fallback route with `run --control-vm`.
-
-The browser playground run path also uses the evidence VM through the wasm
-crate, while `check` / dump tools still share the normal frontend pipeline.
-
-The evidence VM is the fastest route for the effect-heavy examples used during
-runtime work. It can still be checked against the control VM with:
+Yulang currently has three runtime surfaces: the evidence VM (the default
+`run` route, and the fastest on effect-heavy programs), the control VM (a
+fallback route via `run --control-vm`), and the mono runtime (a simple
+interpreter kept as an oracle, via `run --interpreter`). The browser
+playground uses the evidence VM through the wasm crate. The evidence VM can
+be checked against the control VM:
 
 ```bash
-target/release/yulang --std-root lib debug evidence-vm-run --compare-control bench/nondet_20_discard.yu
 target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
 ```
 
-Recent release measurements with a warm source-key cache:
-
-| Program | Backend | Runtime execute | Total before compare / run total | Check |
-| --- | --- | ---: | ---: | --- |
-| `bench/nondet_20_discard.yu` | default evidence VM | 10.3-11.8ms | 12.8-14.2ms | default `run` / `compare.control: match` |
-| `bench/nondet_20_discard.yu` | control VM | 23.3-24.5ms | 27.3-28.4ms | `run --control-vm` |
-| `examples/showcase.yu` | default evidence VM | 24.1-26.6ms | 28.6-31.2ms | default `run` / `compare.control: match` |
-| `examples/showcase.yu` | control VM | 48.5-51.5ms | 60.7-65.6ms | `run --control-vm` |
-
-Loop/effect microbenchmarks are more informative when read side by side. These
-numbers come from the same release binary, using
-`debug runtime-evidence-run --compare-control --no-cache`. The table reports
-only `timing.runtime_evidence_execute` over 20 samples, so frontend and
-formatting time are excluded:
-
-| Program | Shape | Median runtime execute | Sample range | Median vs recursive |
-| --- | --- | ---: | ---: | ---: |
-| `bench/loop_recursive_sum_20_discard.yu` | direct recursive 20x20 sum | 1.5ms | 1.4-3.8ms | 1.0x |
-| `bench/loop_for_sum_ref_20_discard.yu` | std `for` loop with mutable sum | 7.5ms | 7.0-8.3ms | 5.0x |
-| `bench/nondet_20_discard.yu` | `(each 1..20 + each 1..20).list` discard | 10.4ms | 9.4-11.1ms | 6.9x |
-
-Direct recursion is expected to be the fastest baseline. The useful comparison
-here is that the std-library `for` loop and nondeterministic search are now in
-the same order of magnitude once both go through the effect-runtime machinery.
-
 The evidence VM uses permission-native handler visibility for certified
-direct-tail handler paths and leaves the generic request machinery as the
-fallback surface. The default switch is intentionally staged: the control VM
-remains available through `--control-vm` while evidence VM coverage and
-diagnostics are hardened.
-
-An earlier Cranelift/MMTk native backend was explored in the old implementation
-and has been retired.
-
-Background notes on the experiment and the optimizer plans that grew out of
-it still live in:
-
-- [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  release-gate notes for the retired opt-in native subset.
-- [docs/native-backend.md](docs/native-backend.md):
-  archived native backend support notes and historical limits.
-- [archive/notes/design/cps-optimization-pass-plan.md](archive/notes/design/cps-optimization-pass-plan.md):
-  CPS optimizer and algebraic-effect rewrite plan.
+direct-tail handler paths and keeps the generic request machinery as the
+fallback surface. An earlier Cranelift/MMTk native backend was explored in the
+old implementation and retired; notes remain in
+[docs/native-backend.md](docs/native-backend.md) and
+[docs/native-experimental-release.md](docs/native-experimental-release.md).
 
 ## Development
 
-Run representative Rust test suites:
+Run the representative Rust test suites:
 
 ```bash
 cargo test -p sources -p infer -p poly -p specialize -p yulang
 ```
 
-Run an inline Yulang program:
+Before pushing a release-like change, run the local release gate — it covers
+formatting, the test suites, the release build, hardening smoke tests, and the
+docs build (see the script for its environment switches):
 
 ```bash
-printf '1\n' >/tmp/yulang-main.yu
-./target/debug/yulang run --print-roots /tmp/yulang-main.yu
+scripts/release-gate.sh
 ```
 
-## Repository Layout
+The public contract manifest lives at `tests/yulang/cases.toml` and is
+exercised through the public `yulang` CLI tests.
 
-- `crates/yulang`: current CLI and language-server entry point.
-- `crates/sources`: source collection, CST input, std install support, and realm freeze.
+Repository layout:
+
+- `crates/yulang`: CLI and language-server entry point.
+- `crates/sources`: source collection, CST input, std install, realm freeze.
 - `crates/infer`: CST → `poly` lowering and type inference.
 - `crates/poly`: inferred polymorphic program representation.
 - `crates/specialize`: principal monomorphization.
-- `crates/mono`: monomorphic IR.
-- `crates/mono-runtime`: oracle-style mono interpreter.
-- `crates/control-vm`: lightweight control VM IR and runtime.
-- `crates/evidence-vm`: evidence-passing runtime plan and runner.
+- `crates/mono` / `crates/mono-runtime`: monomorphic IR and oracle interpreter.
+- `crates/control-vm` / `crates/evidence-vm`: the two VM runtimes.
 - `crates/parser`: parser and syntax tree support.
-- `crates/list-tree`: shared persistent list implementation.
-- `archive/crates`: old `yulang` implementation, retained as reference-only code outside the workspace.
-- `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
-- `web/playground`: Vite-based browser playground sources.
-- `web/docs`: reference documentation.
-- `notes`: bug, refactor, and progress notes.
+- `examples`, `web/`, `docs/`, `notes/`: examples, playground/docs sources,
+  documentation, and working notes.
+- `archive/crates`: the old implementation, reference-only.
 
 ## Status
 
