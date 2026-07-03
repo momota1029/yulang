@@ -260,6 +260,20 @@ scripts/release-smoke.sh <binary>
       (`57 passed`)
   - No stop condition hit. WP2 Stage 1 is complete; WP3 still waits for ABI
     Stage α.
+- 2026-07-03 / WP2 Stage 1 drift hardening:
+  - `infer::host_acts` now rejects raw-compat overrides that do not correspond
+    to a declared host operation, matching the Stage 1 requirement that override
+    drift is an error instead of a silent contract fallback.
+  - Added the `UnknownRawCompatOverride` build error and unit coverage for both
+    matching and missing overrides.
+  - Validation:
+    - `cargo fmt --check`
+    - `cargo test -q -p infer host_acts -- --test-threads=1` (`3 passed`)
+    - `cargo test -q -p yulang --test cli compiler_generated_host_manifest -- --test-threads=1`
+      (`1 passed`)
+    - `cargo test -q -p infer -- --test-threads=1` (`515 passed`)
+    - `cargo check -q -p infer -p yulang`
+  - No stop condition hit.
 - 2026-07-03 / WP3 Stage 2 complete:
   - Carried compiler-generated host manifests into `EvidenceVmPlan`,
     `RuntimeEvidenceRunContext`, and `RuntimeHostRegistry`.

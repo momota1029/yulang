@@ -40,6 +40,10 @@ pub enum HostActManifestBuildError {
         act_id: String,
         operation_id: String,
     },
+    UnknownRawCompatOverride {
+        act_id: String,
+        operation_id: String,
+    },
     Manifest(HostManifestError),
 }
 
@@ -69,12 +73,14 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
     let type_arena = typed.types.to_type_arena();
 
     let mut operations = Vec::new();
+    let mut declared_host_ops = BTreeSet::new();
     for op in &lowering.act_operations {
         let Some(act) = host_acts.get(&op.type_symbol) else {
             continue;
         };
         let operation_id = op.name.clone();
         let raw_key = (act.act_id.clone(), operation_id.clone());
+        declared_host_ops.insert(raw_key.clone());
         let surface = if raw_compat.contains(&raw_key) {
             HostOperationSurface::RawCompat
         } else {
@@ -101,6 +107,13 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
             tier: HostOperationTier::Sync,
             surface,
             signature: format_scheme(&type_arena, scheme),
+        });
+    }
+
+    for (act_id, operation_id) in raw_compat.difference(&declared_host_ops) {
+        return Err(HostActManifestBuildError::UnknownRawCompatOverride {
+            act_id: act_id.clone(),
+            operation_id: operation_id.clone(),
         });
     }
 
@@ -174,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_raw_compat_overrides_to_matching_operations_only() {
+    fn applies_raw_compat_overrides_to_matching_operations() {
         let namespace = namespace_with_types(vec![type_symbol(0, &["test", "host", "file"], true)]);
         let typed = typed_with_unit_schemes([10]);
         let ok_lowering =
@@ -190,17 +203,27 @@ mod tests {
             manifest.operations[0].surface,
             HostOperationSurface::RawCompat
         );
+    }
 
-        let manifest = host_act_manifest_from_compiled_with_raw_compat_overrides(
+    #[test]
+    fn rejects_raw_compat_overrides_without_matching_host_operation() {
+        let namespace = namespace_with_types(vec![type_symbol(0, &["test", "host", "file"], true)]);
+        let typed = typed_with_unit_schemes([10]);
+        let lowering = lowering_with_ops(vec![act_op(0, &["test", "host", "file"], "read_at", 10)]);
+
+        let err = host_act_manifest_from_compiled_with_raw_compat_overrides(
             &namespace,
-            &ok_lowering,
+            &lowering,
             &typed,
             &[("test.host.file", "write_at")],
         )
-        .unwrap();
+        .unwrap_err();
         assert_eq!(
-            manifest.operations[0].surface,
-            HostOperationSurface::Contract
+            err,
+            HostActManifestBuildError::UnknownRawCompatOverride {
+                act_id: "test.host.file".to_string(),
+                operation_id: "write_at".to_string(),
+            }
         );
     }
 
