@@ -1,6 +1,117 @@
 use super::*;
 
 impl<'a> TaskSolver<'a> {
+    pub(super) fn finish_role_method_check(
+        mut self,
+    ) -> Result<RoleMethodCheckTask, SpecializeError> {
+        self.graph.solve_role_demands()?;
+        let solution = self.graph.solve_slots()?;
+        let mut resolver = TypeResolver::new(&self.graph, &solution);
+        let ref_signatures = self
+            .ref_uses
+            .iter()
+            .map(|use_| {
+                let ty = match self
+                    .exprs
+                    .get(&use_.expr)
+                    .and_then(|ty| ty.consumer.as_ref())
+                {
+                    Some(consumer) => {
+                        self.resolve_signature_type(&mut resolver, consumer, TypeSlotKind::Value)?
+                    }
+                    None => {
+                        self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
+                    }
+                };
+                Ok((use_.expr, ty))
+            })
+            .collect::<Result<HashMap<_, _>, SpecializeError>>()?;
+        let select_signatures = self
+            .select_uses
+            .iter()
+            .map(|use_| {
+                let ty = match self
+                    .exprs
+                    .get(&use_.expr)
+                    .and_then(|ty| ty.consumer.as_ref())
+                {
+                    Some(consumer) => self.resolve_signature_type_with_context(
+                        &mut resolver,
+                        &use_.ty,
+                        consumer,
+                        TypeSlotKind::Value,
+                    )?,
+                    None => {
+                        self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
+                    }
+                };
+                Ok((use_.expr, ty))
+            })
+            .collect::<Result<HashMap<_, _>, SpecializeError>>()?;
+        let mut typeclass_resolutions = HashMap::new();
+        let mut outcomes = Vec::new();
+        for use_ in &self.typeclass_uses {
+            let signature = match self
+                .exprs
+                .get(&use_.expr)
+                .and_then(|ty| ty.consumer.as_ref())
+            {
+                Some(consumer) => self.resolve_signature_type_with_context(
+                    &mut resolver,
+                    &use_.method_ty,
+                    consumer,
+                    TypeSlotKind::Value,
+                )?,
+                None => self.resolve_signature_type(
+                    &mut resolver,
+                    &use_.method_ty,
+                    TypeSlotKind::Value,
+                )?,
+            };
+            let Some(select) = select_id_for_typeclass_expr(self.arena, use_.expr) else {
+                continue;
+            };
+            let resolution = match self.resolve_typeclass_method(use_.member, &signature)? {
+                TypeclassMethodResolution::Resolved(def) => {
+                    typeclass_resolutions.insert(
+                        use_.expr,
+                        TypeclassResolution {
+                            implementation: def,
+                            signature: signature.clone(),
+                        },
+                    );
+                    RoleMethodCheckResolution::Resolved(def)
+                }
+                TypeclassMethodResolution::DefaultBody => {
+                    typeclass_resolutions.insert(
+                        use_.expr,
+                        TypeclassResolution {
+                            implementation: use_.member,
+                            signature: signature.clone(),
+                        },
+                    );
+                    RoleMethodCheckResolution::DefaultBody
+                }
+                TypeclassMethodResolution::Unresolved => RoleMethodCheckResolution::Unresolved,
+                TypeclassMethodResolution::Ambiguous(candidates) => {
+                    RoleMethodCheckResolution::Ambiguous(candidates)
+                }
+            };
+            outcomes.push(RoleMethodCheckOutcome {
+                select,
+                member: use_.member,
+                receiver: signature,
+                resolution,
+            });
+        }
+        Ok(RoleMethodCheckTask {
+            outcomes,
+            ref_signatures,
+            select_signatures,
+            typeclass_resolutions,
+        })
+    }
+
     pub(super) fn finish(mut self) -> Result<SolvedTask, SpecializeError> {
         self.graph.solve_role_demands()?;
         let solution = self.graph.solve_slots()?;
@@ -294,6 +405,32 @@ impl<'a> TaskSolver<'a> {
         member: poly_expr::DefId,
         signature: &Type,
     ) -> Result<poly_expr::DefId, SpecializeError> {
+        match self.resolve_typeclass_method(member, signature)? {
+            TypeclassMethodResolution::Resolved(implementation) => Ok(implementation),
+            TypeclassMethodResolution::DefaultBody => Ok(member),
+            TypeclassMethodResolution::Unresolved => {
+                Err(SpecializeError::UnresolvedTypeclassMethod {
+                    expr: expr.0,
+                    member: convert_def(member),
+                    receiver: signature.clone(),
+                })
+            }
+            TypeclassMethodResolution::Ambiguous(candidates) => {
+                Err(SpecializeError::AmbiguousTypeclassMethod {
+                    expr: expr.0,
+                    member: convert_def(member),
+                    receiver: signature.clone(),
+                    candidates: candidates.into_iter().map(convert_def).collect(),
+                })
+            }
+        }
+    }
+
+    pub(super) fn resolve_typeclass_method(
+        &self,
+        member: poly_expr::DefId,
+        signature: &Type,
+    ) -> Result<TypeclassMethodResolution, SpecializeError> {
         let Some(poly_expr::Def::Let {
             body,
             scheme: Some(scheme),
@@ -333,19 +470,12 @@ impl<'a> TaskSolver<'a> {
             }
         }
         match implementations.as_slice() {
-            [implementation] => Ok(*implementation),
-            [] if body.is_some() && matched_candidate_count > 0 => Ok(member),
-            [] => Err(SpecializeError::UnresolvedTypeclassMethod {
-                expr: expr.0,
-                member: convert_def(member),
-                receiver: signature.clone(),
-            }),
-            _ => Err(SpecializeError::AmbiguousTypeclassMethod {
-                expr: expr.0,
-                member: convert_def(member),
-                receiver: signature.clone(),
-                candidates: implementations.into_iter().map(convert_def).collect(),
-            }),
+            [implementation] => Ok(TypeclassMethodResolution::Resolved(*implementation)),
+            [] if body.is_some() && matched_candidate_count > 0 => {
+                Ok(TypeclassMethodResolution::DefaultBody)
+            }
+            [] => Ok(TypeclassMethodResolution::Unresolved),
+            _ => Ok(TypeclassMethodResolution::Ambiguous(implementations)),
         }
     }
 
@@ -589,4 +719,14 @@ fn collect_type_slot_refs(ty: &Type, out: &mut Vec<u32>) {
         }
         Type::Any | Type::Never => {}
     }
+}
+
+fn select_id_for_typeclass_expr(
+    arena: &poly_expr::Arena,
+    expr: poly_expr::ExprId,
+) -> Option<poly_expr::SelectId> {
+    let poly_expr::Expr::Select(_, select) = arena.expr(expr) else {
+        return None;
+    };
+    Some(*select)
 }

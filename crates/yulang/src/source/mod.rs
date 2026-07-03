@@ -2815,49 +2815,33 @@ fn source_diagnostics_for_check(
 ) -> Vec<SourceDiagnostic> {
     let mut out = source_diagnostics_from_check(check, diagnostics);
     if check.lowering.errors.is_empty() {
-        out.extend(role_method_diagnostics_from_specialize(check));
+        out.extend(role_method_diagnostics_from_check(check));
     }
     out
 }
 
-fn role_method_diagnostics_from_specialize(
+fn role_method_diagnostics_from_check(
     check: &infer::check::PolyCheckOutput,
 ) -> Vec<SourceDiagnostic> {
-    // Role impl satisfaction currently belongs to specialization. Keep check/LSP
-    // on the same oracle and only bridge source payload for role method failures.
-    if !check.lowering.session.poly.selects().iter().any(|select| {
-        matches!(
-            select.resolution,
-            Some(poly::expr::SelectResolution::TypeclassMethod { .. })
-        )
-    }) {
-        return Vec::new();
-    }
-    match specialize::specialize(&check.lowering.session.poly) {
-        Ok(_) => Vec::new(),
-        Err(error) => source_diagnostic_from_role_method_specialize_error(check, &error)
-            .into_iter()
-            .collect(),
-    }
+    specialize::role_method_check(&check.lowering.session.poly)
+        .into_iter()
+        .filter_map(|outcome| source_diagnostic_from_role_method_check_outcome(check, outcome))
+        .collect()
 }
 
-fn source_diagnostic_from_role_method_specialize_error(
+fn source_diagnostic_from_role_method_check_outcome(
     check: &infer::check::PolyCheckOutput,
-    error: &specialize::SpecializeError,
+    outcome: specialize::RoleMethodCheckOutcome,
 ) -> Option<SourceDiagnostic> {
-    match error {
-        specialize::SpecializeError::UnresolvedTypeclassMethod {
-            expr,
-            receiver,
-            ..
-        } => Some(SourceDiagnostic {
+    match outcome.resolution {
+        specialize::RoleMethodCheckResolution::Unresolved => Some(SourceDiagnostic {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.unresolved-method".to_string()),
-            label: role_method_diagnostic_label(check, *expr),
-            range: role_method_expr_source_range(check, *expr),
+            label: role_method_diagnostic_label(check, outcome.select),
+            range: role_method_select_source_range(check, outcome.select),
             message: format!(
                 "no role implementation satisfies this method call for receiver {}",
-                specialize::mono::dump::dump_type(receiver)
+                specialize::mono::dump::dump_type(&outcome.receiver)
             ),
             hint: Some(
                 "add or import an impl for the receiver type, or call a method supported by that value"
@@ -2865,46 +2849,30 @@ fn source_diagnostic_from_role_method_specialize_error(
             ),
             related: Vec::new(),
         }),
-        specialize::SpecializeError::AmbiguousTypeclassMethod {
-            expr,
-            receiver,
-            candidates,
-            ..
-        } => Some(SourceDiagnostic {
+        specialize::RoleMethodCheckResolution::Ambiguous(candidates) => Some(SourceDiagnostic {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.ambiguous-method".to_string()),
-            label: role_method_diagnostic_label(check, *expr),
-            range: role_method_expr_source_range(check, *expr),
+            label: role_method_diagnostic_label(check, outcome.select),
+            range: role_method_select_source_range(check, outcome.select),
             message: format!(
                 "more than one role implementation satisfies this method call for receiver {}",
-                specialize::mono::dump::dump_type(receiver)
+                specialize::mono::dump::dump_type(&outcome.receiver)
             ),
             hint: Some(
                 "make the receiver type more specific or keep only one matching impl in scope"
                     .to_string(),
             ),
-            related: role_method_candidate_related(check, candidates),
+            related: role_method_candidate_related(check, &candidates),
         }),
-        _ => None,
+        specialize::RoleMethodCheckResolution::Resolved(_)
+        | specialize::RoleMethodCheckResolution::DefaultBody => None,
     }
 }
 
-fn role_method_expr_select(
+fn role_method_select_source_range(
     check: &infer::check::PolyCheckOutput,
-    expr: u32,
-) -> Option<poly::expr::SelectId> {
-    let expr = check.lowering.session.poly.exprs().get(expr as usize)?;
-    match expr {
-        poly::expr::Expr::Select(_, select) => Some(*select),
-        _ => None,
-    }
-}
-
-fn role_method_expr_source_range(
-    check: &infer::check::PolyCheckOutput,
-    expr: u32,
+    select: poly::expr::SelectId,
 ) -> Option<SourceRange> {
-    let select = role_method_expr_select(check, expr)?;
     check
         .lowering
         .session
@@ -2915,25 +2883,23 @@ fn role_method_expr_source_range(
 
 fn role_method_diagnostic_label(
     check: &infer::check::PolyCheckOutput,
-    expr: u32,
+    select: poly::expr::SelectId,
 ) -> Option<String> {
-    let select = role_method_expr_select(check, expr)?;
     Some(check.lowering.session.poly.select(select).name.clone())
 }
 
 fn role_method_candidate_related(
     check: &infer::check::PolyCheckOutput,
-    candidates: &[specialize::mono::DefId],
+    candidates: &[poly::expr::DefId],
 ) -> Vec<SourceDiagnosticRelated> {
     candidates
         .iter()
         .filter_map(|candidate| {
-            let def = poly::expr::DefId(candidate.0);
-            let range = check.lowering.modules.def_source_range(def)?;
+            let range = check.lowering.modules.def_source_range(*candidate)?;
             let label = check
                 .lowering
                 .labels
-                .def_label(def)
+                .def_label(*candidate)
                 .map(str::to_string)
                 .unwrap_or_else(|| format!("d{}", candidate.0));
             Some(SourceDiagnosticRelated {

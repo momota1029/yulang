@@ -14,6 +14,16 @@ impl<'a> TaskSolver<'a> {
         solver.finish()
     }
 
+    pub(super) fn check_root_expr_role_methods(
+        arena: &'a poly_expr::Arena,
+        expr: poly_expr::ExprId,
+    ) -> Result<RoleMethodCheckTask, SpecializeError> {
+        let mut solver = Self::new(arena);
+        solver.required_exprs.insert(expr);
+        solver.expr(expr)?;
+        solver.finish_role_method_check()
+    }
+
     pub(super) fn solve_def_body(
         arena: &'a poly_expr::Arena,
         _def: poly_expr::DefId,
@@ -26,6 +36,27 @@ impl<'a> TaskSolver<'a> {
         solver.consume_expr(body, signature.clone())?;
         solver.graph.constrain_subtype(actual, signature)?;
         solver.finish()
+    }
+
+    pub(super) fn check_def_body_signature_role_methods(
+        arena: &'a poly_expr::Arena,
+        body: poly_expr::ExprId,
+        signature: Type,
+    ) -> Result<RoleMethodCheckTask, SpecializeError> {
+        let mut solver = Self::new(arena);
+        solver.required_exprs.insert(body);
+        solver.check_def_body_with_signature(body, signature)
+    }
+
+    fn check_def_body_with_signature(
+        mut self,
+        body: poly_expr::ExprId,
+        signature: Type,
+    ) -> Result<RoleMethodCheckTask, SpecializeError> {
+        let actual = self.expr_with_signature(body, signature.clone())?;
+        self.consume_expr(body, signature.clone())?;
+        self.graph.constrain_subtype(actual, signature)?;
+        self.finish_role_method_check()
     }
 
     pub(super) fn solve_computed_def_signature(

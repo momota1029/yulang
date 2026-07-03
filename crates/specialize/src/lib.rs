@@ -43,6 +43,22 @@ pub use specialize2::{
     RuntimeEvidenceWeightedTypeBound, SpecializeOutput, format_runtime_evidence_surface,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleMethodCheckOutcome {
+    pub select: poly_expr::SelectId,
+    pub member: poly_expr::DefId,
+    pub receiver: Type,
+    pub resolution: RoleMethodCheckResolution,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RoleMethodCheckResolution {
+    Resolved(poly_expr::DefId),
+    DefaultBody,
+    Unresolved,
+    Ambiguous(Vec<poly_expr::DefId>),
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Specializer {
     instances: Vec<Option<Instance>>,
@@ -69,6 +85,10 @@ pub fn specialize_with_runtime_evidence(
 
 pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     specialize2::specialize(arena)
+}
+
+pub fn role_method_check(arena: &poly_expr::Arena) -> Vec<RoleMethodCheckOutcome> {
+    specialize2::role_method_check(arena)
 }
 
 pub fn specialize_roots(

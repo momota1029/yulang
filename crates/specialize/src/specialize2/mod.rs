@@ -15,15 +15,17 @@ use mono::{
 use poly::expr as poly_expr;
 
 use crate::{
-    ExprTypeRole, SpecializeError, UnsatisfiedSubtypeOrigin, convert_def, convert_def_spread,
-    convert_lit, convert_primitive_op, convert_vis, def_kind, equivalent_boundary_types, hygiene,
-    lit_type, primitive_context, roles, std_types, types,
+    ExprTypeRole, RoleMethodCheckOutcome, RoleMethodCheckResolution, SpecializeError,
+    UnsatisfiedSubtypeOrigin, convert_def, convert_def_spread, convert_lit, convert_primitive_op,
+    convert_vis, def_kind, equivalent_boundary_types, hygiene, lit_type, primitive_context, roles,
+    std_types, types,
 };
 
 mod candidate;
 mod effect;
 mod emit;
 mod marker;
+mod role_method_check;
 mod runtime_evidence;
 mod runtime_shape;
 mod task_solver;
@@ -59,6 +61,10 @@ pub(crate) fn specialize_with_runtime_evidence(
 
 pub(crate) fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     Specializer2::new().specialize(arena)
+}
+
+pub(crate) fn role_method_check(arena: &poly_expr::Arena) -> Vec<RoleMethodCheckOutcome> {
+    RoleMethodChecker::new().check(arena)
 }
 
 #[derive(Default)]
@@ -173,6 +179,26 @@ struct SolvedExprType {
 struct TypeclassResolution {
     implementation: poly_expr::DefId,
     signature: Type,
+}
+
+enum TypeclassMethodResolution {
+    Resolved(poly_expr::DefId),
+    DefaultBody,
+    Unresolved,
+    Ambiguous(Vec<poly_expr::DefId>),
+}
+
+#[derive(Default)]
+struct RoleMethodChecker {
+    outcomes: Vec<RoleMethodCheckOutcome>,
+    checked_instances: HashSet<InstanceKey>,
+}
+
+struct RoleMethodCheckTask {
+    outcomes: Vec<RoleMethodCheckOutcome>,
+    ref_signatures: HashMap<poly_expr::ExprId, Type>,
+    select_signatures: HashMap<poly_expr::ExprId, Type>,
+    typeclass_resolutions: HashMap<poly_expr::ExprId, TypeclassResolution>,
 }
 
 struct LocalLetBindingType {
