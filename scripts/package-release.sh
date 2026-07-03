@@ -97,8 +97,8 @@ else
   exit 1
 fi
 
-stdlib_source_hash="$(
-  "$python_bin" - "$repo_root/lib" <<'PY'
+hash_std_sources() {
+  "$python_bin" - "$1" <<'PY'
 import hashlib
 import pathlib
 import sys
@@ -115,7 +115,9 @@ for path in sorted(paths, key=lambda item: item.as_posix()):
     digest.update(b"\0")
 print(digest.hexdigest())
 PY
-)"
+}
+
+stdlib_source_hash="$(hash_std_sources "$repo_root/lib")"
 
 cache_schema="$(
   sed -n 's/^const CACHE_SCHEMA_VERSION: u32 = \([0-9][0-9]*\);$/\1/p' \
@@ -165,6 +167,14 @@ if [[ "$target" != *windows* ]]; then
 fi
 
 "$stage/bin/$bin_name" --std-root "$stage/lib" install std >/dev/null 2>&1
+stdlib_bundle_hash="$(hash_std_sources "$stage/lib")"
+if [[ "$stdlib_bundle_hash" != "$stdlib_source_hash" ]]; then
+  echo "package-release: bundled std hash does not match source std hash" >&2
+  echo "source:  $stdlib_source_hash" >&2
+  echo "bundled: $stdlib_bundle_hash" >&2
+  echo "package-release: rebuild the release binary before packaging" >&2
+  exit 1
+fi
 
 cp "$repo_root/README.md" "$stage/README.md"
 cp "$repo_root/README.ja.md" "$stage/README.ja.md"
