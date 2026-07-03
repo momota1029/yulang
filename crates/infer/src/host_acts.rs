@@ -40,10 +40,6 @@ pub enum HostActManifestBuildError {
         act_id: String,
         operation_id: String,
     },
-    RawCompatOverrideMissing {
-        act_id: String,
-        operation_id: String,
-    },
     Manifest(HostManifestError),
 }
 
@@ -69,7 +65,6 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
         .collect::<Vec<_>>();
 
     let raw_compat = raw_compat_set(raw_compat_overrides);
-    let mut seen_raw_compat = BTreeSet::new();
     let typed_index = CompiledTypedIndex::new(typed);
     let type_arena = typed.types.to_type_arena();
 
@@ -81,7 +76,6 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
         let operation_id = op.name.clone();
         let raw_key = (act.act_id.clone(), operation_id.clone());
         let surface = if raw_compat.contains(&raw_key) {
-            seen_raw_compat.insert(raw_key);
             HostOperationSurface::RawCompat
         } else {
             HostOperationSurface::Contract
@@ -108,15 +102,6 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
             surface,
             signature: format_scheme(&type_arena, scheme),
         });
-    }
-
-    for (act_id, operation_id) in raw_compat {
-        if !seen_raw_compat.contains(&(act_id.clone(), operation_id.clone())) {
-            return Err(HostActManifestBuildError::RawCompatOverrideMissing {
-                act_id,
-                operation_id,
-            });
-        }
     }
 
     HostActManifest::new(acts, operations).map_err(Into::into)
@@ -189,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_raw_compat_overrides_and_rejects_drift() {
+    fn applies_raw_compat_overrides_to_matching_operations_only() {
         let namespace = namespace_with_types(vec![type_symbol(0, &["test", "host", "file"], true)]);
         let typed = typed_with_unit_schemes([10]);
         let ok_lowering =
@@ -206,19 +191,16 @@ mod tests {
             HostOperationSurface::RawCompat
         );
 
-        let err = host_act_manifest_from_compiled_with_raw_compat_overrides(
+        let manifest = host_act_manifest_from_compiled_with_raw_compat_overrides(
             &namespace,
             &ok_lowering,
             &typed,
             &[("test.host.file", "write_at")],
         )
-        .unwrap_err();
+        .unwrap();
         assert_eq!(
-            err,
-            HostActManifestBuildError::RawCompatOverrideMissing {
-                act_id: "test.host.file".to_string(),
-                operation_id: "write_at".to_string(),
-            }
+            manifest.operations[0].surface,
+            HostOperationSurface::Contract
         );
     }
 

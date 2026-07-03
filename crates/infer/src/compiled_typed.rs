@@ -131,7 +131,7 @@ impl CompiledTypedSurface {
         }
         values.sort_by_key(|value| value.symbol);
         Self {
-            types: CompiledTypeArena::from_type_arena(lowering.session.infer.constraints().types()),
+            types: CompiledTypeArena::from_type_arena(&lowering.session.poly.typ),
             values,
         }
     }
@@ -720,7 +720,9 @@ fn path_from_strings(path: &[String]) -> Path {
 mod tests {
     use sources::SourceFile;
 
-    use crate::lowering::lower_loaded_files;
+    use crate::lowering::{
+        lower_loaded_files, lower_loaded_files_prefix, lower_loaded_files_with_prefix,
+    };
 
     use super::*;
 
@@ -808,8 +810,42 @@ mod tests {
         let restored_types = typed.types.to_type_arena();
         assert_eq!(
             restored_types.node_len(),
-            lowering.session.infer.constraints().types().node_len()
+            lowering.session.poly.typ.node_len()
         );
+    }
+
+    #[test]
+    fn typed_surface_from_prefixed_lowering_formats_prefix_and_suffix_schemes() {
+        let prefix_loaded = sources::load(vec![
+            source(&[], "mod prefix;\npub use prefix::*\n"),
+            source(&["prefix"], "pub id x = x\n"),
+        ]);
+        let prefix = lower_loaded_files_prefix(&prefix_loaded).unwrap();
+        let suffix_loaded = sources::load(vec![source(&[], "pub y = id 1\n")]);
+
+        let lowering = lower_loaded_files_with_prefix(&prefix, &suffix_loaded).unwrap();
+        assert_eq!(lowering.errors, Vec::new());
+
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let typed = CompiledTypedSurface::from_lowering(&lowering, &namespace);
+        let index = CompiledTypedIndex::new(&typed);
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace);
+        let root = Vec::<String>::new();
+        let id_symbol = namespace_index.exported_value_symbol(&root, "id").unwrap();
+        let y_symbol = namespace_index.exported_value_symbol(&root, "y").unwrap();
+        let restored_types = typed.types.to_type_arena();
+
+        let id_type = poly::dump::format_scheme(
+            &restored_types,
+            index.value_scheme(id_symbol).expect("prefix id scheme"),
+        );
+        let y_type = poly::dump::format_scheme(
+            &restored_types,
+            index.value_scheme(y_symbol).expect("suffix y scheme"),
+        );
+
+        assert!(!id_type.is_empty());
+        assert_eq!(y_type, "int");
     }
 
     #[test]
