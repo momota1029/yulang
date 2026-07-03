@@ -19,12 +19,19 @@ type Diagnostic = {
     start: number;
     end: number;
     related: DiagnosticRelated[];
+    label?: string;
 };
+
+type DiagnosticRelatedOrigin =
+    | "type_annotation"
+    | "expression"
+    | "impl_candidate";
 
 type DiagnosticRelated = {
     message: string;
     start: number;
     end: number;
+    origin?: DiagnosticRelatedOrigin;
 };
 
 type RunOutput = {
@@ -773,8 +780,9 @@ function renderRunOutput(): void {
         result.textContent = formatRunOutput(output);
         types.textContent = formatTypes(output.types);
     } else {
+        const source = sourceInput.value;
         result.textContent = output.diagnostics
-            .map(formatDiagnostic)
+            .map((diagnostic) => formatDiagnostic(diagnostic, source))
             .join("\n");
         types.textContent = "";
     }
@@ -1143,16 +1151,110 @@ function reportColorizeFallback(error: unknown): void {
     console.warn("Yulang colorizer failed; rendering plain source", error);
 }
 
-function formatDiagnostic(diagnostic: Diagnostic): string {
+function formatDiagnostic(diagnostic: Diagnostic, source: string): string {
     const code = diagnostic.code ? ` [${diagnostic.code}]` : "";
+    const message = diagnostic.label
+        ? `${diagnostic.label}: ${diagnostic.message}`
+        : diagnostic.message;
     const hint = diagnostic.hint ? `\n  hint: ${diagnostic.hint}` : "";
     const related =
         diagnostic.related.length === 0
             ? ""
             : diagnostic.related
-                  .map((item) => `\n  - ${item.message}`)
+                  .map((item) => `\n  - ${formatRelatedDiagnostic(item, source)}`)
                   .join("");
-    return `${diagnostic.severity}${code}: ${diagnostic.message}${hint}${related}`;
+    return `${diagnostic.severity}${code}: ${message}${hint}${related}`;
+}
+
+function formatRelatedDiagnostic(
+    related: DiagnosticRelated,
+    source: string,
+): string {
+    const origin = related.origin
+        ? `; ${formatRelatedOrigin(related.origin)}`
+        : "";
+    const range = formatSourceRange(related.start, related.end, source);
+    return `${related.message} (${range}${origin})`;
+}
+
+function formatRelatedOrigin(origin: DiagnosticRelatedOrigin): string {
+    switch (origin) {
+        case "type_annotation":
+            return "type annotation";
+        case "expression":
+            return "expression";
+        case "impl_candidate":
+            return "impl candidate";
+    }
+}
+
+type SourcePosition = {
+    line: number;
+    column: number;
+};
+
+function formatSourceRange(start: number, end: number, source: string): string {
+    const startPosition = sourcePositionAtByteOffset(source, start);
+    const endPosition = sourcePositionAtByteOffset(source, end);
+    if (
+        startPosition.line === endPosition.line &&
+        startPosition.column === endPosition.column
+    ) {
+        return `line ${startPosition.line}:${startPosition.column}`;
+    }
+    if (startPosition.line === endPosition.line) {
+        return `line ${startPosition.line}:${startPosition.column}-${endPosition.column}`;
+    }
+    return `line ${startPosition.line}:${startPosition.column}-line ${endPosition.line}:${endPosition.column}`;
+}
+
+function sourcePositionAtByteOffset(
+    source: string,
+    targetOffset: number,
+): SourcePosition {
+    const clampedTargetOffset = clampSourceByteOffset(targetOffset);
+    let byteOffset = 0;
+    let line = 1;
+    let column = 1;
+    for (let index = 0; index < source.length; ) {
+        const codePoint = source.codePointAt(index);
+        if (codePoint === undefined) {
+            break;
+        }
+        const byteLength = utf8ByteLengthOfCodePoint(codePoint);
+        if (byteOffset + byteLength > clampedTargetOffset) {
+            break;
+        }
+        byteOffset += byteLength;
+        index += codePoint > 0xffff ? 2 : 1;
+        if (codePoint === 0x0a) {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    return { line, column };
+}
+
+function clampSourceByteOffset(offset: number): number {
+    if (!Number.isFinite(offset)) {
+        return 0;
+    }
+    return Math.max(0, offset);
+}
+
+function utf8ByteLengthOfCodePoint(codePoint: number): number {
+    if (codePoint <= 0x7f) {
+        return 1;
+    }
+    if (codePoint <= 0x7ff) {
+        return 2;
+    }
+    if (codePoint <= 0xffff) {
+        return 3;
+    }
+    return 4;
 }
 
 function resolveInitialLang(): Lang {
