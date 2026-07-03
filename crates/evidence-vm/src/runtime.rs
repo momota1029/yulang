@@ -21199,6 +21199,53 @@ mod tests {
         );
     }
 
+    #[test]
+    fn host_abi_registration_cannot_return_host_handle_yet() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "test.host.bridge",
+                operation_id: "call",
+                f: host_handle_returning_call,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "test".to_string(),
+                "host".to_string(),
+                "bridge".to_string(),
+                "call".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let error = runner
+            .handle_escaped_request(request)
+            .expect_err("host handles are reserved until host-resource layout is wired");
+
+        match error {
+            RuntimeEvidenceRunError::HostAbiError { operation, message } => {
+                assert_eq!(
+                    operation,
+                    vec![
+                        "test".to_string(),
+                        "host".to_string(),
+                        "bridge".to_string(),
+                        "call".to_string()
+                    ]
+                );
+                assert!(message.contains("cannot return host handles"));
+            }
+            other => panic!("expected host ABI error, got {other:?}"),
+        }
+    }
+
     fn mock_file_load_without_fs(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
         let BoundaryValue::Str(path) = payload else {
             return HostOutcome::HostError("mock expected string path".to_string());
@@ -21220,6 +21267,13 @@ mod tests {
 
     fn suspending_host_call(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
         HostOutcome::Suspended
+    }
+
+    fn host_handle_returning_call(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
+        HostOutcome::Return(BoundaryValue::HostHandle {
+            type_id: 1,
+            handle: 42,
+        })
     }
 
     fn panicking_file_load(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
