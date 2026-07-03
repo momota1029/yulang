@@ -210,12 +210,20 @@ The columns trace a value through the pipeline:
   through the unified `file`
   act, so ambient `text` does not fake success under `--host unsupported`;
   native `file::text` missing-path creation reports typed `io_err::not_found`,
-  while direct out-of-protocol `file::ambient_get` still reports structured
-  `yulang.host-io-error` as specified by the Stage 2 closeout decision.
+  while direct out-of-protocol `file::ambient_get` / `file::ambient_set` still
+  report structured `yulang.host-io-error` as specified by the Stage 2
+  closeout decision.
   resource lifetime semantics are specified: `_with` resources close at
   continuation end, unscoped resources close at the provider handler extent,
   managed lens commits only on normal scope exit, aborted branches roll back,
   and first-slice lock release may stay tied to handler discharge.
+- `std::time` now provides public `instant { epoch_nanos }` and
+  `duration { nanos }` values, `Eq` / `Ord` impls, named instant/duration
+  arithmetic helpers, duration unit constructors (`nanos` through `days`), and
+  the `std::time::clock.now` host act. `instant.show` formats RFC 3339 UTC and
+  `instant.debug` / `duration.debug` keep structural output. `clock.now` is a
+  wall-clock host operation, not a monotonic timer; performance timing should
+  continue to use runtime instrumentation rather than `instant`.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path

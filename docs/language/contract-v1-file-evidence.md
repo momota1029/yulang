@@ -106,6 +106,11 @@ public surface:
 - `tests/yulang/cases.toml` includes `file_native_meta_modified`, which proves
   native `file::meta` exposes a file modification time as `opt instant` while
   missing targets keep `modified = nil`.
+- `tests/yulang/cases.toml` includes
+  `file_ambient_get_untouched_missing_host_io_error` and
+  `file_ambient_set_untouched_missing_host_io_error`, which pin the Stage 2
+  rule that direct out-of-protocol ambient ledger access reports structured
+  `yulang.host-io-error` rather than typed `io_err`.
 - `tests/yulang/cases.toml` includes `file_native_meta_missing`, which proves
   native `file::meta` reports a missing target through `file_meta.kind` and that
   `exists` / `is_file` / `is_dir` are wrappers over that metadata result rather
