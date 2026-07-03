@@ -60,6 +60,9 @@ playground で同じ構造化診断として扱えるようにする。
   `impl-candidate` origin を載せ、CLI contract / wasm playground payload で
   同じ構造化 origin を固定した。これはまだ specialization oracle bridge 由来だが、
   dedicated check-stage owner へ移す時も候補 impl の origin 名は維持する。
+- 2026-07-03 に role/method unresolved / ambiguous 診断は check-stage owner へ移った。
+  source 側は emission なしの `specialize::role_method_check` を読み、run 経路は従来どおり
+  `SpecializeError::{UnresolvedTypeclassMethod, AmbiguousTypeclassMethod}` を返す非対称を維持する。
 
 ## 次の実装単位
 

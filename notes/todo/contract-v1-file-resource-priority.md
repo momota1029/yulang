@@ -150,6 +150,9 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。
+     - 2026-07-03: owner migration complete. Source diagnostics now read
+       emission-free `specialize::role_method_check`, while run/backend paths
+       still report the existing role method `SpecializeError` variants.
    - CLI / LSP / playground が同じ `SourceDiagnostic` payload を読む。
    - hover は public projection を出し、内部 evidence や巨大型を漏らさない。
 
