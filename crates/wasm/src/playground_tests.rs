@@ -21,6 +21,15 @@ mod tests {
         on_test_stack(move || run_inner(&source))
     }
 
+    fn assert_public_type_display_has_no_private_markers(ty: &str, context: &str) {
+        for marker in ["#", "AllExcept", "stack(", "<:", "\""] {
+            assert!(
+                !ty.contains(marker),
+                "private type marker {marker:?} escaped into {context}:\n{ty}"
+            );
+        }
+    }
+
     fn diagnostics_fixture(name: &str) -> &'static str {
         match name {
             "type_annotation_mismatch" => include_str!(
@@ -533,6 +542,35 @@ pair
         assert!(output.ok, "{output:?}");
         let xs = output.types.iter().find(|item| item.name == "xs");
         assert_eq!(xs.map(|item| item.ty.as_str()), Some("list int"));
+    }
+
+    #[test]
+    fn run_inner_exported_types_do_not_leak_private_markers() {
+        clear_std_cache();
+        let output = run_inner(
+            "\
+pub apply f x = f x
+pub twice f x = f (f x)
+
+pub compose1(f, g: _ -> [_] _, x) = f g(x)
+pub compose2(f, g, x) = f g(x)
+
+1
+",
+        );
+
+        assert!(output.ok, "{output:?}");
+        assert!(
+            output.types.iter().any(|item| item.name == "twice"),
+            "{:?}",
+            output.types
+        );
+        for item in &output.types {
+            assert_public_type_display_has_no_private_markers(
+                &item.ty,
+                &format!("wasm exported type {}", item.name),
+            );
+        }
     }
 
     #[test]

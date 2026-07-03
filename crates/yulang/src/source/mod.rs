@@ -2666,11 +2666,12 @@ impl<'a> HoverFormatContext<'a> {
     }
 
     fn format_scheme(&self, scheme: &poly::types::Scheme) -> String {
-        poly::dump::format_scheme_with_path_rewriter(
+        poly::dump::format_scheme_public_with_path_rewriter(
             &self.check.lowering.session.poly.typ,
             scheme,
             &|path| self.rewrite_type_path(path),
         )
+        .text
     }
 
     fn format_value_type(&self, value: poly::types::TypeVar) -> String {

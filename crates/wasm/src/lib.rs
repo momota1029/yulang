@@ -459,9 +459,11 @@ fn exported_type_result(
         .def_label(def)
         .map(str::to_string)
         .unwrap_or_else(|| format!("d{}", def.0));
-    let ty = poly::dump::format_scheme_with_path_rewriter(&poly.arena.typ, scheme, &|path| {
-        display.rewrite_type_path(path)
-    });
+    let ty =
+        poly::dump::format_scheme_public_with_path_rewriter(&poly.arena.typ, scheme, &|path| {
+            display.rewrite_type_path(path)
+        })
+        .text;
     Some(TypeResult { name, ty })
 }
 

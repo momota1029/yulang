@@ -1575,6 +1575,22 @@ fn dump_poly_fixture_public_type_display_order_signatures() {
 }
 
 #[test]
+fn public_type_projection_matches_dump_public_signature_for_contract_type() {
+    let entry = write_main(
+        "public-type-projection-dump-parity",
+        "pub id x = x\npub answer = id 42\nanswer\n",
+    );
+    let dump = dump_poly_from_entry(&entry).unwrap();
+    let build = build_poly_from_sources(collect_local_sources(&entry).unwrap()).unwrap();
+    let scheme = public_scheme_for_symbol(&build, "id");
+
+    let public = poly::dump::format_scheme_public(&build.arena.typ, scheme);
+
+    assert_eq!(public.text, dump_public_signature_type(&dump, "id"));
+    assert_eq!(public.redactions, 0);
+}
+
+#[test]
 fn dump_poly_fixture_sub_return_callback_public_signature_keeps_callback_effect() {
     let entry = write_fixture_with_fake_std(
         "dump-poly-sub-return-callback-public-signature",
@@ -2759,6 +2775,21 @@ fn hover_entry_source_shortens_prelude_visible_selected_method_type_paths() {
         "expected hover type to omit absolute opt path, got {:?}",
         hover.contents
     );
+}
+
+#[test]
+fn hover_entry_source_public_def_type_does_not_leak_private_markers() {
+    let source = yulang_fixture("regressions/effect/public_type_display_order_signatures.yu");
+    let hover = hover_entry_source("main.yu", &source, source.find("twice").unwrap())
+        .unwrap()
+        .unwrap();
+
+    assert!(
+        hover.contents.starts_with("twice: "),
+        "expected hover to show twice def type, got {:?}",
+        hover.contents
+    );
+    assert_public_type_display_has_no_private_markers(&hover.contents, "hover public def type");
 }
 
 #[test]

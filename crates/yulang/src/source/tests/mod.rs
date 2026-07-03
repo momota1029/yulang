@@ -292,6 +292,42 @@ fn assert_public_signature_type_has_no_private_stack_evidence(ty: &str, context:
     );
 }
 
+fn assert_public_type_display_has_no_private_markers(ty: &str, context: &str) {
+    assert_public_signature_type_has_no_private_stack_evidence(ty, context);
+    for marker in ["stack(", "<:", "\""] {
+        assert!(
+            !ty.contains(marker),
+            "private type marker {marker:?} escaped into {context}:\n{ty}"
+        );
+    }
+}
+
+fn public_scheme_for_symbol<'a>(
+    output: &'a BuildPolyOutput,
+    symbol: &str,
+) -> &'a poly::types::Scheme {
+    output
+        .arena
+        .defs
+        .iter()
+        .find_map(|(id, def)| {
+            let label = output.labels.def_label(id)?;
+            if label != symbol && !label.ends_with(&format!(".{symbol}")) {
+                return None;
+            }
+            let poly::expr::Def::Let {
+                vis,
+                scheme: Some(scheme),
+                ..
+            } = def
+            else {
+                return None;
+            };
+            matches!(vis, poly::expr::Vis::Pub | poly::expr::Vis::Our).then_some(scheme)
+        })
+        .unwrap_or_else(|| panic!("public symbol {symbol:?} should have a scheme"))
+}
+
 fn assert_mono_dump_contains(output: &DumpMonoOutput, expected: &str) {
     assert!(
         output.text.contains(expected),
