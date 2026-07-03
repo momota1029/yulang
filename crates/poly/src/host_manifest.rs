@@ -318,6 +318,28 @@ mod tests {
     }
 
     #[test]
+    fn mangled_host_symbols_distinguish_ambiguous_segments() {
+        let samples = [
+            ("a.bc", "d"),
+            ("ab.c", "d"),
+            ("a.b_c", "d"),
+            ("a_b.c", "d"),
+            ("a.b", "c_d"),
+            ("a.b_c", "d1"),
+        ];
+
+        let mut seen = std::collections::BTreeSet::new();
+        for (act_id, operation_id) in samples {
+            let symbol = mangle_host_symbol(act_id, operation_id);
+            assert!(
+                seen.insert(symbol.clone()),
+                "duplicate symbol {symbol} for {act_id}.{operation_id}"
+            );
+        }
+        assert_eq!(seen.len(), samples.len());
+    }
+
+    #[test]
     fn rejects_duplicate_operation_keys() {
         let err = HostActManifest::new(
             sample_acts(),
