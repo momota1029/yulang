@@ -23,6 +23,27 @@ pub duration_add(x: duration, y: duration): duration =
 pub duration_sub(x: duration, y: duration): duration =
     duration { nanos: std::int::sub x.nanos y.nanos }
 
+pub nanos(count: int): duration =
+    duration { nanos: count }
+
+pub micros(count: int): duration =
+    nanos (std::int::mul count 1000)
+
+pub millis(count: int): duration =
+    micros (std::int::mul count 1000)
+
+pub secs(count: int): duration =
+    millis (std::int::mul count 1000)
+
+pub mins(count: int): duration =
+    secs (std::int::mul count 60)
+
+pub hours(count: int): duration =
+    mins (std::int::mul count 60)
+
+pub days(count: int): duration =
+    hours (std::int::mul count 24)
+
 impl instant: Eq:
     our x.eq y = std::int::eq x.epoch_nanos y.epoch_nanos
 

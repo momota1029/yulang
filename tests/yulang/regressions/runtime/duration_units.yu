@@ -1,0 +1,12 @@
+my combined = std::time::days 1 + std::time::hours 2 + std::time::mins 3 + std::time::secs 4
+
+(
+    (std::time::nanos 5).nanos,
+    (std::time::micros 2).nanos,
+    (std::time::millis 3).nanos,
+    (std::time::secs 4).nanos,
+    (std::time::mins 5).nanos,
+    (std::time::hours 6).nanos,
+    (std::time::days 1).nanos,
+    combined.nanos,
+)
