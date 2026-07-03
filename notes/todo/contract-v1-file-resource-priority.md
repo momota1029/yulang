@@ -160,6 +160,16 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        diagnostic path (commit 2ee20770). Runtime errors and route errors other
        than `LoweringDiagnostics` intentionally remain message diagnostics.
    - hover は public projection を出し、内部 evidence や巨大型を漏らさない。
+     - 2026-07-03: Stage 1 of
+       `notes/design/2026-07-03-hover-public-type-projection.md` is
+       implemented: `poly::dump::format_scheme_public(_with_path_rewriter)`
+       with a Public style that drops solver stack/subtractability markers and
+       redacts internal names / centerless bounds as `…` with a redaction
+       counter. LSP hover def path and wasm exported types now use it, with
+       dump-parity and leak-canary tests (commits 736dcfd7, 64980b9d).
+     - 2026-07-03: Stage 2 (structural truncation numbers, hover local/select
+       paths, LSP char-cap replacement) is gated on user review per the design
+       doc.
 
 4. **Release artifact contract**
    - packaged binary で `stable-core` と file-resource representative contract を通す。
