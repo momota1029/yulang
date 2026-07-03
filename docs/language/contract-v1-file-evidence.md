@@ -98,8 +98,10 @@ public surface:
 - `tests/yulang/cases.toml` also includes `file_text_with_commit_lambda_my`,
   which proves `file::text_with` accepts the `\my &text ->` callback sugar
   without changing the protocol type or commit semantics. The companion
-  `lambda_my_binder_state_protocol` case covers the pure state-passing sugar
-  without file effects.
+  `lambda_my_binder_state_protocol` case covers the pure state-passing lambda
+  sugar without file effects. The `do_binding_state_protocol` and
+  `file_text_with_commit_do` cases keep the statement-side `my &x = ... do`
+  sugar in the same `protocol-sugar` contract slice.
 - Rollback and multi-shot evidence now run through `--host unsupported` source
   handlers over public `file::load` / `file::store`; they no longer depend on
   native temp files or legacy snapshot operations.
@@ -204,9 +206,9 @@ public surface:
   `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
-- `scripts/release-smoke.sh` also runs focused `\my &x` state-protocol sugar
-  cases, including the pure binder protocol and `file::text_with` lambda sugar
-  commit fixture.
+- `scripts/release-smoke.sh` also runs focused state-protocol sugar cases:
+  pure `my &x = ... do`, pure `\my &x ->`, and both `file::text_with` commit
+  fixtures.
 - `scripts/release-smoke.sh` also runs a focused `host-act` contract set for
   console: unsupported-host denial, source-handler mock routing, and exact
   public signature projection. This keeps release binaries from proving only the
@@ -357,10 +359,10 @@ missing/file/directory metadata coverage, native typed operation-failure
 coverage, integrated `file::ambient_*` handler-extent coverage, typed
 missing-path `file::text` creation, and structured out-of-protocol
 `file::ambient_get` / `file::ambient_set` failure coverage. The latest local
-full tag run reports `contract cases ok: 59`, and the focused release smoke now
+full tag run reports `contract cases ok: 61`, and the focused release smoke now
 also includes console host-act denial, mock routing, public-signature canaries,
-the integrated ambient file act cases, and focused `\my &x` protocol-sugar
-cases. Release/archive smoke also passes against the packaged binary and
+the integrated ambient file act cases, and focused state-protocol sugar cases.
+Release/archive smoke also passes against the packaged binary and
 bundled standard library for the same `file-resource` subset.
 
 ## Rollback Conditions

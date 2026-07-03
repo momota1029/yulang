@@ -2219,6 +2219,8 @@ contracts = [
   "runtime",
   "refs",
   "host.unsupported",
+  "protocol-sugar",
+  "do-binding",
 ]
 
 [[case]]
@@ -2233,6 +2235,8 @@ contracts = [
   "runtime",
   "refs",
   "host.unsupported",
+  "protocol-sugar",
+  "lambda-my",
 ]
 
 [[case]]
@@ -2245,8 +2249,14 @@ expect_stdout = "run roots [((\"start\", \"start scoped\"), \"start scoped\")]\n
 expect_stderr = ""
 contracts = [
   "runtime",
+  "standard-api",
+  "stable-api",
+  "file",
+  "file-resource",
   "refs",
   "host.unsupported",
+  "protocol-sugar",
+  "lambda-my",
 ]
 
 [[case]]
@@ -2259,6 +2269,12 @@ expect_stdout = "run roots [((\"start\", \"start scoped\"), \"start scoped\")]\n
 expect_stderr = ""
 contracts = [
   "runtime",
+  "standard-api",
+  "stable-api",
+  "file",
+  "file-resource",
   "refs",
   "host.unsupported",
+  "protocol-sugar",
+  "do-binding",
 ]

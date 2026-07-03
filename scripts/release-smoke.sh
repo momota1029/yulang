@@ -162,22 +162,24 @@ if [[ "$contract_smoke" != "0" ]]; then
     exit 1
   fi
 
-  lambda_my_cases=(
+  protocol_sugar_cases=(
+    do_binding_state_protocol
     lambda_my_binder_state_protocol
+    file_text_with_commit_do
     file_text_with_commit_lambda_my
   )
-  lambda_my_case_args=()
-  for case_name in "${lambda_my_cases[@]}"; do
-    lambda_my_case_args+=(--case "$case_name")
+  protocol_sugar_case_args=()
+  for case_name in "${protocol_sugar_cases[@]}"; do
+    protocol_sugar_case_args+=(--case "$case_name")
   done
-  lambda_my_output="$(run_with_timeout "$contract_timeout_duration" \
+  protocol_sugar_output="$(run_with_timeout "$contract_timeout_duration" \
     "$bin" --std-root "$std_root" contract \
-    "${lambda_my_case_args[@]}" \
+    "${protocol_sugar_case_args[@]}" \
     "$contract_cases_manifest")"
-  expected_lambda_my_output="contract cases ok: ${#lambda_my_cases[@]}"
-  if [[ "$lambda_my_output" != "$expected_lambda_my_output" ]]; then
-    echo "release smoke: unexpected lambda-my contract output" >&2
-    echo "$lambda_my_output" >&2
+  expected_protocol_sugar_output="contract cases ok: ${#protocol_sugar_cases[@]}"
+  if [[ "$protocol_sugar_output" != "$expected_protocol_sugar_output" ]]; then
+    echo "release smoke: unexpected protocol-sugar contract output" >&2
+    echo "$protocol_sugar_output" >&2
     exit 1
   fi
 
