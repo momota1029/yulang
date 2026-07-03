@@ -1,0 +1,12 @@
+my file_meta = std::io::file::meta {{file}}
+my missing_meta = std::io::file::meta {{missing_file}}
+
+my file_has_modified = case file_meta.modified:
+    std::data::opt::opt::just t -> t.epoch_nanos > 0
+    std::data::opt::opt::nil -> false
+
+my missing_has_nil_modified = case missing_meta.modified:
+    std::data::opt::opt::nil -> true
+    std::data::opt::opt::just _ -> false
+
+(file_has_modified, missing_has_nil_modified)

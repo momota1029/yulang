@@ -111,6 +111,38 @@ contracts = [
 ]
 
 [[case]]
+name = "instant_duration_core"
+file = "regressions/runtime/instant_duration_core.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(5, 15, 10, true, true)]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host.unsupported",
+]
+
+[[case]]
+name = "clock_now_native"
+file = "regressions/runtime/clock_now_native.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [true]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host-act",
+  "host.native",
+]
+
+[[case]]
 name = "file_native_protocol_load_store_meta"
 file = "regressions/runtime/file_native_protocol_load_store_meta.yu"
 kind = "run"
@@ -148,6 +180,28 @@ contracts = [
   "file",
   "file-resource",
   "metadata",
+  "host.native",
+]
+
+[[case]]
+name = "file_native_meta_modified"
+file = "regressions/runtime/file_native_meta_modified.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(true, true)]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "hello", expect_contents = "hello" },
+  { placeholder = "{{missing_file}}", missing = true },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "file",
+  "file-resource",
+  "metadata",
+  "time",
   "host.native",
 ]
 
@@ -1591,6 +1645,28 @@ symbol = "std.io.console.out.write"
 expect_type = "std::text::str::str -> [std::io::console::out] ()"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "console", "host-act", "host.native"]
+
+[[case]]
+name = "std_time_clock_now_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time.clock"
+symbol = "std.time.clock.now"
+expect_type = "() -> [std::time::clock] std::time::instant"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time", "host-act", "host.native"]
+
+[[case]]
+name = "std_time_instant_since_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.instant_since"
+expect_type = "std::time::instant -> std::time::instant -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
 
 [[case]]
 name = "std_file_read_at_public_signature"

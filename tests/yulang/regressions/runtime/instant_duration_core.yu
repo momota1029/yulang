@@ -1,0 +1,12 @@
+my earlier = std::time::instant { epoch_nanos: 10 }
+my later = std::time::instant { epoch_nanos: 15 }
+my delta = std::time::instant_since later earlier
+my shorter = std::time::duration { nanos: 2 }
+
+(
+    delta.nanos,
+    (std::time::instant_add earlier delta).epoch_nanos,
+    (std::time::instant_sub later delta).epoch_nanos,
+    earlier < later,
+    (delta + shorter).nanos == 7,
+)

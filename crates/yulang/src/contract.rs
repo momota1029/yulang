@@ -554,7 +554,7 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
                 ),
             );
         }
-        if !contract_case_has_any_tag(case, &["result", "errors", "path", "file"]) {
+        if !contract_case_has_any_tag(case, &["result", "errors", "path", "time", "file"]) {
             contract_manifest_fail(
                 path,
                 &format!(
@@ -830,6 +830,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "std.ref"
             | "sub-return"
             | "syntax"
+            | "time"
             | "typechecker"
             | "typed-failure"
             | "types"

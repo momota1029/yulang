@@ -1711,6 +1711,8 @@ fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
 #[test]
 fn debug_host_act_manifest_prints_runtime_registry_view() {
     let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
         .arg("debug")
         .arg("host-act-manifest")
         .output()
@@ -1721,8 +1723,8 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert!(stdout.starts_with("compiler host manifest:\n"), "{stdout}");
     assert_eq!(
         stdout.matches(" surface=contract column=").count(),
-        7,
-        "debug manifest should expose only console and file protocol/ambient ops as contract surface:\n{stdout}"
+        8,
+        "debug manifest should expose console, file protocol/ambient, and clock ops as contract surface:\n{stdout}"
     );
     assert_eq!(
         stdout.matches(" surface=raw-compat column=").count(),
@@ -1732,6 +1734,12 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert!(
         stdout.contains(
             "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write sig=std::text::str::str -> [std::io::console::out] () surface=contract column=0\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=9\n"
         ),
         "{stdout}"
     );
@@ -1875,6 +1883,7 @@ fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
                 "write_at",
                 "std.io.file.file.write_at".to_string()
             ),
+            ("std.time.clock", "now", "std.time.clock.now".to_string()),
         ])
     );
 
@@ -3265,6 +3274,7 @@ fn install_std_writes_explicit_std_root() {
     assert_eq!(stderr(&output), format!("{}\n", std_root.display()));
     assert!(std_root.join("std.yu").is_file());
     assert!(std_root.join("std").join("prelude.yu").is_file());
+    assert!(std_root.join("std").join("time.yu").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -4479,6 +4489,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "std.ref"
             | "sub-return"
             | "syntax"
+            | "time"
             | "typechecker"
             | "typed-failure"
             | "types"
@@ -4678,7 +4689,7 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
         assert!(
-            contract_manifest_case_has_any_tag(case, &["result", "errors", "path", "file"]),
+            contract_manifest_case_has_any_tag(case, &["result", "errors", "path", "time", "file"]),
             "standard-api contract manifest case {} should include a narrower API area tag",
             case.name
         );

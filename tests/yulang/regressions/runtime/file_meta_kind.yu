@@ -1,6 +1,11 @@
 my file_meta = catch (std::io::file::meta "/mock-file"):
     std::io::file::file::meta path, k ->
-        k (std::io::file::file_meta { kind: std::io::file::file_kind::file, size: 5, readonly: false })
+        k (std::io::file::file_meta {
+            kind: std::io::file::file_kind::file,
+            size: 5,
+            readonly: false,
+            modified: std::data::opt::opt::nil,
+        })
     value -> value
 
 file_meta.kind

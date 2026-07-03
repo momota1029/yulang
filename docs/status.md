@@ -178,7 +178,8 @@ The columns trace a value through the pipeline:
   reports missing/denied/other through `file_meta.kind` instead of throwing.
   `exists`, `is_file`, and `is_dir` are pure wrappers over `meta.kind`, not
   separate host operations.
-  `meta` currently returns a first `file_meta { kind, size, readonly }` canary;
+  `meta` currently returns `file_meta { kind, size, readonly, modified }`,
+  with `modified` represented as `opt std::time::instant`;
   public `file::load`, `file::store`, and `file::meta` are directly covered by
   native CLI contract cases, including file, missing-target, and directory
   metadata cases that keep `exists`, `is_file`, and `is_dir` as metadata wrappers.

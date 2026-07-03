@@ -186,6 +186,9 @@ fn def_with_label(labels: &poly::dump::DumpLabels, expected: &str) -> Option<Def
 
 const RESULT_OK_LABEL: &str = "std.data.result.result.ok";
 const RESULT_ERR_LABEL: &str = "std.data.result.result.err";
+const OPT_NIL_LABEL: &str = "std.data.opt.opt.nil";
+const OPT_JUST_LABEL: &str = "std.data.opt.opt.just";
+const INSTANT_LABEL: &str = "std.time.instant";
 const FILE_META_LABEL: &str = "std.io.file.file_meta";
 const FILE_KIND_MISSING_LABEL: &str = "std.io.file.file_kind.missing";
 const FILE_KIND_DENIED_LABEL: &str = "std.io.file.file_kind.denied";
@@ -246,6 +249,11 @@ pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
             operation_id: "ambient_set",
             f: host_file_ambient_set,
         },
+        HostOpRegistration {
+            act_id: "std.time.clock",
+            operation_id: "now",
+            f: host_clock_now,
+        },
     ]
 }
 
@@ -297,7 +305,7 @@ fn host_file_meta(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
         Ok(path) => path,
         Err(error) => return HostOutcome::HostError(error),
     };
-    let (kind, size, readonly) = match fs::symlink_metadata(&path) {
+    let (kind, size, readonly, modified) = match fs::symlink_metadata(&path) {
         Ok(meta) => {
             let ty = meta.file_type();
             let kind = if ty.is_file() {
@@ -309,15 +317,25 @@ fn host_file_meta(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
             } else {
                 FILE_KIND_OTHER_LABEL
             };
-            (kind, meta.len() as i64, meta.permissions().readonly())
+            (
+                kind,
+                meta.len() as i64,
+                meta.permissions().readonly(),
+                meta.modified()
+                    .ok()
+                    .and_then(system_time_epoch_nanos)
+                    .map(host_instant)
+                    .map(host_opt_just)
+                    .unwrap_or_else(host_opt_nil),
+            )
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            (FILE_KIND_MISSING_LABEL, 0, false)
+            (FILE_KIND_MISSING_LABEL, 0, false, host_opt_nil())
         }
         Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
-            (FILE_KIND_DENIED_LABEL, 0, false)
+            (FILE_KIND_DENIED_LABEL, 0, false, host_opt_nil())
         }
-        Err(_) => (FILE_KIND_OTHER_LABEL, 0, false),
+        Err(_) => (FILE_KIND_OTHER_LABEL, 0, false, host_opt_nil()),
     };
     HostOutcome::Return(BoundaryValue::Constructor {
         ctor: CtorRef::Label(FILE_META_LABEL.to_string()),
@@ -328,8 +346,48 @@ fn host_file_meta(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
             },
             BoundaryValue::Int(size),
             BoundaryValue::Bool(readonly),
+            modified,
         ],
     })
+}
+
+fn host_clock_now(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
+    let Some(epoch_nanos) = system_time_epoch_nanos(std::time::SystemTime::now()) else {
+        return HostOutcome::HostError("clock::now value is outside instant range".to_string());
+    };
+    HostOutcome::Return(host_instant(epoch_nanos))
+}
+
+fn host_opt_nil() -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(OPT_NIL_LABEL.to_string()),
+        payloads: Vec::new(),
+    }
+}
+
+fn host_opt_just(value: BoundaryValue) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(OPT_JUST_LABEL.to_string()),
+        payloads: vec![value],
+    }
+}
+
+fn host_instant(epoch_nanos: i64) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(INSTANT_LABEL.to_string()),
+        payloads: vec![BoundaryValue::Int(epoch_nanos)],
+    }
+}
+
+fn system_time_epoch_nanos(time: std::time::SystemTime) -> Option<i64> {
+    match time.duration_since(std::time::UNIX_EPOCH) {
+        Ok(duration) => duration_nanos_i64(duration),
+        Err(error) => duration_nanos_i64(error.duration()).and_then(i64::checked_neg),
+    }
+}
+
+fn duration_nanos_i64(duration: std::time::Duration) -> Option<i64> {
+    i64::try_from(duration.as_nanos()).ok()
 }
 
 fn host_file_read_at(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
@@ -19992,6 +20050,9 @@ fn boundary_constructor_to_runtime(
     if label == FILE_META_LABEL {
         return boundary_file_meta_to_runtime(payloads, constructors);
     }
+    if label == INSTANT_LABEL {
+        return boundary_instant_to_runtime(payloads, constructors);
+    }
     let def = constructors
         .def_for_label(label)
         .ok_or_else(|| format!("host ABI returned unknown constructor label `{label}`"))?;
@@ -20009,8 +20070,8 @@ fn boundary_file_meta_to_runtime(
     payloads: &[BoundaryValue],
     constructors: &RuntimeEvidenceHostConstructors,
 ) -> Result<SharedValue, String> {
-    let [kind, size, readonly] = payloads else {
-        return Err("file_meta host ABI value must have three payloads".to_string());
+    let [kind, size, readonly, modified] = payloads else {
+        return Err("file_meta host ABI value must have four payloads".to_string());
     };
     let kind = boundary_to_runtime_value(kind, constructors)?;
     let BoundaryValue::Int(size) = size else {
@@ -20019,6 +20080,7 @@ fn boundary_file_meta_to_runtime(
     let BoundaryValue::Bool(readonly) = readonly else {
         return Err("file_meta host ABI readonly payload must be a bool".to_string());
     };
+    let modified = boundary_to_runtime_value(modified, constructors)?;
     let record = shared(RuntimeEvidenceValue::Record(vec![
         RuntimeEvidenceValueField {
             name: "kind".to_string(),
@@ -20032,8 +20094,38 @@ fn boundary_file_meta_to_runtime(
             name: "readonly".to_string(),
             value: shared(RuntimeEvidenceValue::Bool(*readonly)),
         },
+        RuntimeEvidenceValueField {
+            name: "modified".to_string(),
+            value: modified,
+        },
     ]));
     if let Some(def) = constructors.def_for_label(FILE_META_LABEL) {
+        Ok(shared(RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: vec![record],
+        }))
+    } else {
+        Ok(record)
+    }
+}
+
+fn boundary_instant_to_runtime(
+    payloads: &[BoundaryValue],
+    constructors: &RuntimeEvidenceHostConstructors,
+) -> Result<SharedValue, String> {
+    let [epoch_nanos] = payloads else {
+        return Err("instant host ABI value must have one payload".to_string());
+    };
+    let BoundaryValue::Int(epoch_nanos) = epoch_nanos else {
+        return Err("instant host ABI epoch_nanos payload must be an int".to_string());
+    };
+    let record = shared(RuntimeEvidenceValue::Record(vec![
+        RuntimeEvidenceValueField {
+            name: "epoch_nanos".to_string(),
+            value: shared(RuntimeEvidenceValue::Int(*epoch_nanos)),
+        },
+    ]));
+    if let Some(def) = constructors.def_for_label(INSTANT_LABEL) {
         Ok(shared(RuntimeEvidenceValue::DataConstructor {
             def,
             payloads: vec![record],

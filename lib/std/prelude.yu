@@ -34,3 +34,4 @@ pub use std::control::var::*
 pub use std::control::junction::*
 pub use std::control::flow::LoopLabel
 pub use std::io::*
+pub use std::time::*

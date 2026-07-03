@@ -93,15 +93,17 @@ if [[ "$ref_loop_output" != "run roots [100]" ]]; then
   exit 1
 fi
 
-host_manifest_output="$(run "$bin" debug host-act-manifest)"
+host_manifest_output="$(run "$bin" --std-root "$std_root" debug host-act-manifest)"
 expected_console_manifest='act=std.io.console.out op=write tier=sync path=std.io.console.out.write'
 expected_file_manifest='act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta'
 expected_file_ambient_manifest='act=std.io.file.file op=ambient_touch tier=sync path=std.io.file.file.ambient_touch'
+expected_clock_manifest='act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=9'
 expected_file_range_raw_surface='act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(std::text::path::path, std::data::range::range) -> [std::io::file::file] std::data::result::result (std::text::str::str, std::data::range::range) std::io::file::io_err surface=raw-compat column=6'
 expected_suspend_multi_tier='tier=suspend-multi-shot'
 if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
   "$host_manifest_output" != *"$expected_file_manifest"* ||
   "$host_manifest_output" != *"$expected_file_ambient_manifest"* ||
+  "$host_manifest_output" != *"$expected_clock_manifest"* ||
   "$host_manifest_output" != *"$expected_file_range_raw_surface"* ||
   "$host_manifest_output" != *"$expected_suspend_multi_tier"* ]]; then
   echo "release smoke: unexpected host act manifest output" >&2

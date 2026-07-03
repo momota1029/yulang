@@ -1,12 +1,14 @@
 use std::control::throw::Throw
 use std::data::range::*
 use std::data::result::*
+use std::data::opt::*
 use std::text::path::*
 use std::control::var::*
+use std::time::*
 
 pub enum file_kind = missing | denied | file | dir | symlink | other
 
-pub struct file_meta { kind: file_kind, size: int, readonly: bool }
+pub struct file_meta { kind: file_kind, size: int, readonly: bool, modified: opt instant }
 
 pub host act file:
     pub load: path -> result str io_err

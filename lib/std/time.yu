@@ -1,0 +1,49 @@
+use std::core::cmp::*
+use std::num::*
+
+pub struct instant { epoch_nanos: int }
+pub struct duration { nanos: int }
+
+pub host act clock:
+    pub now: () -> instant
+
+pub instant_add(t: instant, delta: duration): instant =
+    instant { epoch_nanos: std::int::add t.epoch_nanos delta.nanos }
+
+pub instant_sub(t: instant, delta: duration): instant =
+    instant { epoch_nanos: std::int::sub t.epoch_nanos delta.nanos }
+
+pub instant_since(later: instant, earlier: instant): duration =
+    duration { nanos: std::int::sub later.epoch_nanos earlier.epoch_nanos }
+
+pub duration_add(x: duration, y: duration): duration =
+    duration { nanos: std::int::add x.nanos y.nanos }
+
+pub duration_sub(x: duration, y: duration): duration =
+    duration { nanos: std::int::sub x.nanos y.nanos }
+
+impl instant: Eq:
+    our x.eq y = std::int::eq x.epoch_nanos y.epoch_nanos
+
+impl instant: Ord:
+    our x.lt y = std::int::lt x.epoch_nanos y.epoch_nanos
+    our x.le y = std::int::le x.epoch_nanos y.epoch_nanos
+    our x.gt y = std::int::gt x.epoch_nanos y.epoch_nanos
+    our x.ge y = std::int::ge x.epoch_nanos y.epoch_nanos
+
+impl duration: Eq:
+    our x.eq y = std::int::eq x.nanos y.nanos
+
+impl duration: Ord:
+    our x.lt y = std::int::lt x.nanos y.nanos
+    our x.le y = std::int::le x.nanos y.nanos
+    our x.gt y = std::int::gt x.nanos y.nanos
+    our x.ge y = std::int::ge x.nanos y.nanos
+
+impl duration: Add:
+    our x.add y = duration_add x y
+
+impl duration: Sub:
+    our x.sub y = duration_sub x y
+
+pub use clock::*

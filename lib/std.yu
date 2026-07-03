@@ -7,4 +7,5 @@ pub mod data;
 pub mod text;
 pub mod control;
 pub mod io;
+pub mod time;
 pub mod prelude;

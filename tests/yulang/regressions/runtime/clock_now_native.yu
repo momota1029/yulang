@@ -1,0 +1,1 @@
+(std::time::clock::now()).epoch_nanos > 0

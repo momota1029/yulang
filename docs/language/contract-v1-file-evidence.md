@@ -26,7 +26,7 @@ public surface:
   `file::load` / `file::store` result operations. Source mock handlers can
   intercept those operations under `--host unsupported`, and the native CLI
   host executes the same public operations through the runtime host registry.
-- `file_meta { kind, size, readonly }` is now the public metadata shape, and
+- `file_meta { kind, size, readonly, modified }` is now the public metadata shape, and
   the public `file::meta` operation has native registry coverage. `exists`,
   `is_file`, and `is_dir` are pure Yulang wrappers over `meta.kind`; they no
   longer occupy separate host operations.
@@ -52,8 +52,9 @@ public surface:
   after Stage A are `read_at` and `write_at`.
 - `debug host-act-manifest` also exposes the supported host operation tier ids:
   `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
-  operations are still all registered as `sync`; the suspend tiers are the
-  manifest vocabulary needed before server branches enter the registry.
+  operations and `std::time::clock::now` are still all registered as `sync`;
+  the suspend tiers are the manifest vocabulary needed before server branches
+  enter the registry.
 - The Evidence VM now owns a root `RuntimeHostScheduler` branch table. It does
   not execute server operations yet, but unit tests lock the first scheduler
   rules needed by the structured concurrency decision: suspended child cancel
@@ -102,6 +103,9 @@ public surface:
 - `tests/yulang/cases.toml` includes `file_native_meta_file`, which proves
   native `file::meta` and the predicate wrappers report a normal file as
   `file_kind::file` with the expected byte size.
+- `tests/yulang/cases.toml` includes `file_native_meta_modified`, which proves
+  native `file::meta` exposes a file modification time as `opt instant` while
+  missing targets keep `modified = nil`.
 - `tests/yulang/cases.toml` includes `file_native_meta_missing`, which proves
   native `file::meta` reports a missing target through `file_meta.kind` and that
   `exists` / `is_file` / `is_dir` are wrappers over that metadata result rather
