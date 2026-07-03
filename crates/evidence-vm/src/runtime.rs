@@ -21163,6 +21163,42 @@ mod tests {
         }
     }
 
+    #[test]
+    fn host_abi_sync_registration_cannot_suspend() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "test.host.bridge",
+                operation_id: "call",
+                f: suspending_host_call,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "test".to_string(),
+                "host".to_string(),
+                "bridge".to_string(),
+                "call".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let error = runner
+            .handle_escaped_request(request)
+            .expect_err("sync host op should not suspend before suspend tiers are wired");
+
+        assert_eq!(
+            error,
+            RuntimeEvidenceRunError::UnsupportedExpr("sync host operation suspended")
+        );
+    }
+
     fn mock_file_load_without_fs(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
         let BoundaryValue::Str(path) = payload else {
             return HostOutcome::HostError("mock expected string path".to_string());
@@ -21180,6 +21216,10 @@ mod tests {
             return HostOutcome::HostError(format!("custom host expected unit, got {payload:?}"));
         }
         HostOutcome::Return(BoundaryValue::Int(42))
+    }
+
+    fn suspending_host_call(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
+        HostOutcome::Suspended
     }
 
     fn panicking_file_load(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
