@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${1:-"$repo_root/target/debug/yulang"}"
 timeout_duration="${YULANG_SMOKE_TIMEOUT:-30s}"
-file_resource_contract_smoke="${YULANG_SMOKE_FILE_RESOURCE_CONTRACT:-1}"
+contract_smoke="${YULANG_SMOKE_CONTRACTS:-${YULANG_SMOKE_FILE_RESOURCE_CONTRACT:-1}}"
 contract_timeout_duration="${YULANG_SMOKE_CONTRACT_TIMEOUT:-${YULANG_SMOKE_FILE_RESOURCE_TIMEOUT:-180s}}"
 
 if [[ ! -x "$bin" ]]; then
@@ -111,7 +111,7 @@ if [[ "$host_manifest_output" != *"$expected_console_manifest"* ||
   exit 1
 fi
 
-if [[ "$file_resource_contract_smoke" != "0" ]]; then
+if [[ "$contract_smoke" != "0" ]]; then
   contract_cases_manifest="$repo_root/tests/yulang/cases.toml"
   if [[ ! -f "$contract_cases_manifest" ]]; then
     echo "release smoke: contract manifest not found: $contract_cases_manifest" >&2
