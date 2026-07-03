@@ -138,6 +138,15 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      `std::io::console::out.write` before the host registry when native host
      operations are disabled. `std_console_out_write_public_signature` also
      fixes the console host-act public type boundary.
+   - 2026-07-03 closeout: ABI Stage α and manifest Stage 2 are implemented for
+     the current VM subset. `HostOpFn` / `BoundaryValue` / registration-set
+     dispatch are in evidence-vm, std host manifests are compiler-produced from
+     `pub host act`, and registry resolution uses plan manifest × registrations
+     instead of the removed static runtime table. `std::time::clock.now` is on
+     the same host-act path with native / unsupported / mock contract canaries.
+     Remaining work in this priority is new host surfaces (server / random),
+     suspend-tier execution, band-provided implementations, and Native ABI FFI
+     beyond the VM subset.
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。

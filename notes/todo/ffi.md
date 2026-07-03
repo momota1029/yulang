@@ -1,7 +1,9 @@
 # FFI TODO
 
-Yulang にはまだ FFI がない。
-これは短期の public API ではないが、将来的には必須の機能として扱う。
+Yulang の一般 Native ABI FFI はまだ無い。
+一方で、2026-07-03 時点で host capability FFI の最初の実装境界として
+host 実装 ABI v0 と compiler-produced host manifest / registry が入った。
+これは短期の public API そのものではないが、将来的には必須の機能として扱う。
 
 理由は二つある。
 
@@ -45,6 +47,21 @@ FFI は少なくとも二層に分けて考える。
 
 この層は、sandbox policy、diagnostics、capability deny を扱う。
 最初に安定させるべきなのはこちら。
+
+2026-07-03 実装状態:
+
+- `notes/design/2026-07-03-host-abi-v0.md` が host 実装 ABI v0 の正本。
+  `HostOpFn` / `BoundaryValue` / `HostCtx` / `HostOutcome` /
+  `HostOpRegistration` を evidence-vm に導入済み。
+- `notes/design/2026-07-03-host-manifest-compiler-production-plan.md` に従い、
+  `pub host act` 宣言から compiler-produced host manifest を生成し、runtime
+  registry は plan manifest × registration set を解決する形になった。
+- 現在 registry に載っている public host surface は file / console / clock。
+  file と console は unsupported-host / source handler mock / native host route の
+  contract canary を持つ。clock は wall-clock `now` の native / unsupported /
+  source mock canary を持つ。
+- 未着手: server / socket、random、band 単位の外部実装注入、Native ABI FFI
+  としての dylib / C ABI / static link、suspend tier の実行経路。
 
 ### Native ABI FFI
 
