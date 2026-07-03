@@ -91,6 +91,10 @@ Diagnostics の最初の slice:
   structured `SourceDiagnostic` payload の diagnostic count / severity / code / label /
   related count / related origin も固定できるようになった。現行 public diagnostics
   fixtures はこの manifest 経路で payload も見る。
+- 2026-07-03 に、release binary + repo std の filtered manifest run
+  `yulang contract --contract diagnostics tests/yulang/cases.toml` は
+  `contract cases ok: 21` で通過した。以後 diagnostics の追加はこの tag
+  を広げる形で行い、check cases では structured payload も固定する。
 
 API 固定の最初の slice:
 
