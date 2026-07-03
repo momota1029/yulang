@@ -58,6 +58,9 @@ release artifact
     fixture、native `text_with` commit / rollback / nondet / nested session、native
     file metadata file / missing / directory、native typed operation failure、unsupported
     host file / meta / ambient failure、native ambient host I/O error を含む。
+    Direct release smoke also runs focused `\my &x` state-protocol sugar cases:
+    the pure state-passing binder fixture and the `file::text_with` lambda sugar
+    commit fixture.
     The same direct smoke now also runs focused `host-act` canaries for console
     and focused `time` canaries for pure instant/duration operations,
     `clock.now` native/unsupported/mock behavior, and time public signatures.
