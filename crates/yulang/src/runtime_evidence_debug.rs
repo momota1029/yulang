@@ -230,6 +230,10 @@ pub(crate) fn print_run_report(
         output.evidence_stats.static_route_dynamic_unclassified
     );
     println!(
+        "  evidence.static_route_mono_join_failures: {}",
+        output.evidence_stats.static_route_mono_join_failures
+    );
+    println!(
         "  runtime_evidence.provider_env_values: {}",
         output.evidence_stats.runtime_provider_env_values
     );

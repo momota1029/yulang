@@ -52,6 +52,7 @@ pub struct RuntimeEvidenceRunStats {
     pub static_route_dynamic_delayed_boundary: usize,
     pub static_route_dynamic_host_escape: usize,
     pub static_route_dynamic_unclassified: usize,
+    pub static_route_mono_join_failures: usize,
     pub static_route_runtime_hits_static_tail: usize,
     pub static_route_runtime_hits_static_other: usize,
     pub static_route_runtime_hits_dynamic_open_row: usize,

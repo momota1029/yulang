@@ -66,6 +66,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     static_route_dynamic_delayed_boundary: usize,
     static_route_dynamic_host_escape: usize,
     static_route_dynamic_unclassified: usize,
+    static_route_mono_join_failures: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: Vec<Option<RuntimeEvidenceProviderEnv>>,
     value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
@@ -214,6 +215,7 @@ impl RuntimeEvidenceRunContext {
             plan.summary.static_route_dynamic_delayed_boundary;
         let static_route_dynamic_host_escape = plan.summary.static_route_dynamic_host_escape;
         let static_route_dynamic_unclassified = plan.summary.static_route_dynamic_unclassified;
+        let static_route_mono_join_failures = plan.summary.static_route_mono_join_failures;
         let expr_table_len = evidence_context_expr_table_len(plan);
         let value_provider_envs = value_provider_envs_from_plan(plan, expr_table_len);
         let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
@@ -296,6 +298,7 @@ impl RuntimeEvidenceRunContext {
             static_route_dynamic_delayed_boundary,
             static_route_dynamic_host_escape,
             static_route_dynamic_unclassified,
+            static_route_mono_join_failures,
             effect_routes: Some(effect_routes),
             value_provider_envs,
             value_capture_slots,
@@ -416,6 +419,7 @@ impl RuntimeEvidenceRunContext {
         stats.static_route_dynamic_delayed_boundary = self.static_route_dynamic_delayed_boundary;
         stats.static_route_dynamic_host_escape = self.static_route_dynamic_host_escape;
         stats.static_route_dynamic_unclassified = self.static_route_dynamic_unclassified;
+        stats.static_route_mono_join_failures = self.static_route_mono_join_failures;
     }
 
     pub(super) fn provider_env_for_value(

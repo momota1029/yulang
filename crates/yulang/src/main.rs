@@ -922,6 +922,9 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     let mut specialized =
         specialize::specialize_with_runtime_evidence(&poly.arena).map_err(|_| ())?;
     specialized.runtime_evidence.host_manifest = poly.host_manifest.clone();
+    specialized
+        .runtime_evidence
+        .attach_static_routes(&poly.arena);
     if let Some(timings) = timings.as_deref_mut() {
         timings.specialize = specialize_start.elapsed();
     }
@@ -994,6 +997,7 @@ fn specialize_control_program(
         Err(error) => exit_on_specialize_error(error),
     };
     output.runtime_evidence.host_manifest = poly.host_manifest.clone();
+    output.runtime_evidence.attach_static_routes(&poly.arena);
 
     if let Some((cache, key)) = mono_cache {
         let artifact = yulang::cache::CachedMonoArtifact {
@@ -1667,6 +1671,10 @@ fn print_runtime_evidence_phase_timings(
     eprintln!(
         "  run.runtime_evidence.static_route_dynamic_unclassified: {}",
         stats.static_route_dynamic_unclassified
+    );
+    eprintln!(
+        "  run.runtime_evidence.static_route_mono_join_failures: {}",
+        stats.static_route_mono_join_failures
     );
     eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);

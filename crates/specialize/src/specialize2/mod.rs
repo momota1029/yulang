@@ -42,11 +42,12 @@ pub use runtime_evidence::{
     RuntimeEvidenceKnownStateHandlerSource, RuntimeEvidenceNode, RuntimeEvidenceNodeEvidenceRef,
     RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual, RuntimeEvidenceSite,
     RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
-    RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
-    RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
-    RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,
-    RuntimeEvidenceWeightedSlotEdge, RuntimeEvidenceWeightedTypeBound, SpecializeOutput,
-    format_runtime_evidence_surface,
+    RuntimeEvidenceStackWeight, RuntimeEvidenceStaticRoute,
+    RuntimeEvidenceStaticRouteDynamicReason, RuntimeEvidenceStaticRouteResolution,
+    RuntimeEvidenceSurface, RuntimeEvidenceTask, RuntimeEvidenceTaskOwner,
+    RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep,
+    RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution, RuntimeEvidenceWeightedSlotEdge,
+    RuntimeEvidenceWeightedTypeBound, SpecializeOutput, format_runtime_evidence_surface,
 };
 use runtime_shape::*;
 

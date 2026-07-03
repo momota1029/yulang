@@ -397,6 +397,9 @@ pub fn build_control_from_poly_output(
     let mut specialized = specialize::specialize_with_runtime_evidence(&output.arena)
         .map_err(RouteError::Specialize)?;
     specialized.runtime_evidence.host_manifest = output.host_manifest.clone();
+    specialized
+        .runtime_evidence
+        .attach_static_routes(&output.arena);
     let program = control_vm::lower(&specialized.program).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,

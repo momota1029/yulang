@@ -6,7 +6,9 @@ use control_vm::{
     Pat, Program, RecordSpread, Root, SelectResolution, Stmt,
 };
 use specialize::{
-    RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
+    RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceStaticRoute,
+    RuntimeEvidenceStaticRouteDynamicReason, RuntimeEvidenceStaticRouteResolution,
+    RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
 };
 
 mod runtime;
@@ -94,6 +96,7 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) static_route_dynamic_delayed_boundary: usize,
     pub(crate) static_route_dynamic_host_escape: usize,
     pub(crate) static_route_dynamic_unclassified: usize,
+    pub(crate) static_route_mono_join_failures: usize,
     pub(crate) evidence_handler_capabilities: usize,
     pub(crate) evidence_allowed_sets: usize,
     pub(crate) evidence_provider_slots: usize,
@@ -257,6 +260,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) calls: Vec<EvidenceVmCallObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
+    pub(crate) static_route_mono_join_failures: usize,
     pub(crate) known_handlers: Vec<EvidenceVmKnownHandlerPlan>,
     pub(crate) known_operations: Vec<EvidenceVmKnownOperationPlan>,
     pub(crate) known_state_operation_route_proofs: Vec<EvidenceVmKnownStateOperationRouteProof>,
@@ -779,6 +783,12 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  static_route_mono_join_failures: {}",
+        summary.static_route_mono_join_failures
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -907,6 +917,7 @@ fn summarize_plan(
         static_route_dynamic_delayed_boundary: static_route_counts.dynamic_delayed_boundary,
         static_route_dynamic_host_escape: static_route_counts.dynamic_host_escape,
         static_route_dynamic_unclassified: static_route_counts.dynamic_unclassified,
+        static_route_mono_join_failures: objects.static_route_mono_join_failures,
         evidence_handler_capabilities: objects.handler_capabilities.len(),
         evidence_allowed_sets: objects.allowed_sets.len(),
         evidence_provider_slots: objects.providers.len(),
@@ -1913,13 +1924,16 @@ fn build_object_plan(
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
-    let (operation_objects, allowed_sets) = build_operation_objects(
-        surface.host_manifest.as_ref(),
+    let operation_output = build_operation_objects(
+        &static_route_index(surface),
         operations,
         &slot_ids,
         &handler_index,
         &handlers,
     );
+    let operation_objects = operation_output.operations;
+    let static_route_mono_join_failures = operation_output.static_route_mono_join_failures;
+    let allowed_sets = operation_output.allowed_sets;
     let (known_operations, known_state_operation_route_proofs) =
         build_known_operation_plans(operations, &operation_objects, &known_handlers, surface);
     let providers = build_provider_index(&slot_plans, &handlers);
@@ -1931,6 +1945,7 @@ fn build_object_plan(
         calls: call_objects,
         handlers,
         operations: operation_objects,
+        static_route_mono_join_failures,
         known_handlers,
         known_operations,
         known_state_operation_route_proofs,
@@ -2708,21 +2723,35 @@ fn attach_handler_definition_envs(
     }
 }
 
+fn static_route_index(
+    surface: &RuntimeEvidenceSurface,
+) -> HashMap<ExprId, &RuntimeEvidenceStaticRoute> {
+    surface
+        .static_routes
+        .iter()
+        .map(|route| (ExprId(route.operation_expr), route))
+        .collect()
+}
+
+struct EvidenceVmOperationObjectOutput {
+    operations: Vec<EvidenceVmOperationObjectPlan>,
+    allowed_sets: Vec<EvidenceVmAllowedSetPlan>,
+    static_route_mono_join_failures: usize,
+}
+
 fn build_operation_objects(
-    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    static_routes: &HashMap<ExprId, &RuntimeEvidenceStaticRoute>,
     operations: &[EvidenceVmOperationPlan],
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
     handler_index: &HashMap<(ExprId, u32), u32>,
     handlers: &[EvidenceVmHandlerObjectPlan],
-) -> (
-    Vec<EvidenceVmOperationObjectPlan>,
-    Vec<EvidenceVmAllowedSetPlan>,
-) {
+) -> EvidenceVmOperationObjectOutput {
     let handler_by_id = handlers
         .iter()
         .map(|handler| (handler.id, handler))
         .collect::<HashMap<_, _>>();
     let mut allowed_sets = EvidenceVmAllowedSetInterner::new();
+    let mut static_route_mono_join_failures = 0usize;
     let objects = operations
         .iter()
         .filter_map(|operation| {
@@ -2737,10 +2766,11 @@ fn build_operation_objects(
             let visibility =
                 operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
             let static_route = operation_static_route_resolution(
-                host_manifest,
+                static_routes,
                 operation,
                 candidate_handler,
                 &handler_by_id,
+                &mut static_route_mono_join_failures,
             );
             Some(EvidenceVmOperationObjectPlan {
                 expr: operation.expr,
@@ -2752,77 +2782,87 @@ fn build_operation_objects(
             })
         })
         .collect::<Vec<_>>();
-    (objects, allowed_sets.finish())
+    EvidenceVmOperationObjectOutput {
+        operations: objects,
+        allowed_sets: allowed_sets.finish(),
+        static_route_mono_join_failures,
+    }
 }
 
 fn operation_static_route_resolution(
-    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    static_routes: &HashMap<ExprId, &RuntimeEvidenceStaticRoute>,
     operation: &EvidenceVmOperationPlan,
     candidate_handler: Option<u32>,
     handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
+    static_route_mono_join_failures: &mut usize,
 ) -> EvidenceVmStaticRouteResolution {
-    match operation.lowering {
-        EvidenceVmOperationLowering::DirectHandlerCall { .. } => candidate_handler
+    let Some(route) = static_route_for_operation(static_routes, operation) else {
+        return EvidenceVmStaticRouteResolution::Dynamic(
+            EvidenceVmStaticRouteDynamicReason::Unclassified,
+        );
+    };
+    match &route.resolution {
+        RuntimeEvidenceStaticRouteResolution::StaticHandler { .. } => candidate_handler
             .and_then(|handler_id| handler_by_id.get(&handler_id))
+            .filter(|handler| handler.path == operation.path)
             .map(|handler| EvidenceVmStaticRouteResolution::StaticHandler {
                 arm_class: handler.arm_class,
             })
-            .unwrap_or(EvidenceVmStaticRouteResolution::Dynamic(
-                EvidenceVmStaticRouteDynamicReason::Unclassified,
-            )),
-        EvidenceVmOperationLowering::LexicalHandlerCandidate {
-            delayed_boundary: true,
-            ..
-        } => EvidenceVmStaticRouteResolution::Dynamic(
-            EvidenceVmStaticRouteDynamicReason::DelayedBoundary,
-        ),
-        EvidenceVmOperationLowering::LexicalHandlerCandidate {
-            delayed_boundary: false,
-            ..
-        } => EvidenceVmStaticRouteResolution::Dynamic(
-            EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent,
-        ),
-        EvidenceVmOperationLowering::HygieneFallback { .. } => {
-            EvidenceVmStaticRouteResolution::Dynamic(
-                EvidenceVmStaticRouteDynamicReason::HygieneBarrier,
-            )
-        }
-        EvidenceVmOperationLowering::GenericFallback => {
-            let matching_handlers = matching_handler_count(handler_by_id, &operation.path);
-            let reason = if runtime_host_manifest_has_known_act(host_manifest, &operation.path) {
-                EvidenceVmStaticRouteDynamicReason::HostEscape
-            } else if matching_handlers > 1 {
-                EvidenceVmStaticRouteDynamicReason::MultipleCandidates
-            } else if matching_handlers == 1 {
-                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
-            } else {
-                EvidenceVmStaticRouteDynamicReason::Unclassified
-            };
-            EvidenceVmStaticRouteResolution::Dynamic(reason)
+            .unwrap_or_else(|| {
+                *static_route_mono_join_failures += 1;
+                EvidenceVmStaticRouteResolution::Dynamic(
+                    EvidenceVmStaticRouteDynamicReason::Unclassified,
+                )
+            }),
+        RuntimeEvidenceStaticRouteResolution::Dynamic(reason) => {
+            EvidenceVmStaticRouteResolution::Dynamic(static_route_dynamic_reason(*reason))
         }
     }
 }
 
-fn runtime_host_manifest_has_known_act(
-    host_manifest: Option<&poly::host_manifest::HostActManifest>,
-    operation_path: &[String],
-) -> bool {
-    host_manifest.is_some_and(|host_manifest| {
-        host_manifest
-            .acts
-            .iter()
-            .any(|act| operation_path.starts_with(&act.path))
-    })
+fn static_route_for_operation<'a>(
+    static_routes: &'a HashMap<ExprId, &'a RuntimeEvidenceStaticRoute>,
+    operation: &EvidenceVmOperationPlan,
+) -> Option<&'a RuntimeEvidenceStaticRoute> {
+    static_routes
+        .get(&operation.expr)
+        .copied()
+        .filter(|route| route.family == operation.path)
+        .or_else(|| match operation.kind {
+            EvidenceVmOperationKind::Call { apply, .. } => static_routes
+                .get(&apply)
+                .copied()
+                .filter(|route| route.family == operation.path),
+            EvidenceVmOperationKind::Value => None,
+        })
 }
 
-fn matching_handler_count(
-    handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
-    operation_path: &[String],
-) -> usize {
-    handler_by_id
-        .values()
-        .filter(|handler| handler.path == operation_path)
-        .count()
+fn static_route_dynamic_reason(
+    reason: RuntimeEvidenceStaticRouteDynamicReason,
+) -> EvidenceVmStaticRouteDynamicReason {
+    match reason {
+        RuntimeEvidenceStaticRouteDynamicReason::OpenRow => {
+            EvidenceVmStaticRouteDynamicReason::OpenRow
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates => {
+            EvidenceVmStaticRouteDynamicReason::MultipleCandidates
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier => {
+            EvidenceVmStaticRouteDynamicReason::HygieneBarrier
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent => {
+            EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary => {
+            EvidenceVmStaticRouteDynamicReason::DelayedBoundary
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::HostEscape => {
+            EvidenceVmStaticRouteDynamicReason::HostEscape
+        }
+        RuntimeEvidenceStaticRouteDynamicReason::Unclassified => {
+            EvidenceVmStaticRouteDynamicReason::Unclassified
+        }
+    }
 }
 
 #[derive(Default)]
@@ -4477,79 +4517,119 @@ mod tests {
     }
 
     #[test]
-    fn static_route_classifies_only_known_host_generic_fallbacks_as_host_escape() {
-        let host_path = vec![
-            "std".to_string(),
-            "io".to_string(),
-            "file".to_string(),
-            "file".to_string(),
-            "read_at".to_string(),
-        ];
-        let host_manifest = poly::host_manifest::HostActManifest::new(
-            vec![poly::host_manifest::HostActManifestAct {
-                act_id: "std.io.file.file".to_string(),
-                path: vec!["std".into(), "io".into(), "file".into(), "file".into()],
+    fn static_route_consumes_surface_dynamic_reason() {
+        let path = vec!["flip".to_string(), "coin".to_string()];
+        let operation = generic_fallback_operation(ExprId(10), path.clone());
+        let surface = RuntimeEvidenceSurface {
+            static_routes: vec![specialize::RuntimeEvidenceStaticRoute {
+                operation_expr: 10,
+                apply: 10,
+                callee: 10,
+                family: path,
+                resolution: specialize::RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    specialize::RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
+                ),
             }],
-            vec![poly::host_manifest::HostActManifestOperationInput {
-                act_id: "std.io.file.file".to_string(),
-                operation_id: "read_at".to_string(),
-                path: host_path.clone(),
-                tier: poly::host_manifest::HostOperationTier::Sync,
-                surface: poly::host_manifest::HostOperationSurface::RawCompat,
-                signature: "(path, range) -> result (str, range) io_err".to_string(),
-            }],
-        )
-        .expect("test host manifest should be valid");
-        let user_path = vec!["flip".to_string(), "coin".to_string()];
-        let handlers = HashMap::new();
-
+            ..RuntimeEvidenceSurface::default()
+        };
+        let objects = build_object_plan(&Program::default(), &surface, &[], &[operation], &[], &[]);
         assert_eq!(
-            operation_static_route_resolution(
-                Some(&host_manifest),
-                &generic_fallback_operation(ExprId(10), host_path),
-                None,
-                &handlers
-            ),
+            objects.operations[0].static_route,
             EvidenceVmStaticRouteResolution::Dynamic(
                 EvidenceVmStaticRouteDynamicReason::HostEscape
-            )
-        );
-        assert_eq!(
-            operation_static_route_resolution(
-                Some(&host_manifest),
-                &generic_fallback_operation(ExprId(20), user_path),
-                None,
-                &handlers
-            ),
-            EvidenceVmStaticRouteResolution::Dynamic(
-                EvidenceVmStaticRouteDynamicReason::Unclassified
             )
         );
     }
 
     #[test]
-    fn static_route_classifies_non_lexical_handler_candidates() {
+    fn static_route_joins_surface_apply_to_candidate_handler_arm_class() {
+        let path = vec!["flip".to_string(), "coin".to_string()];
+        let poly_handler_expr = ExprId(19);
+        let control_handler_expr = ExprId(20);
+        let callee_expr = ExprId(10);
+        let apply_expr = ExprId(11);
+        let handler = EvidenceVmHandlerPlan {
+            expr: control_handler_expr,
+            body: ExprId(21),
+            arms: vec![EvidenceVmHandlerArmPlan {
+                path: Some(path.clone()),
+                resumptive: true,
+                guarded: false,
+                classification: EvidenceVmHandlerArmClass::TailResumptive,
+                continuation_use: EvidenceVmContinuationUsePlan::default(),
+                body: ExprId(22),
+            }],
+        };
+        let operation = EvidenceVmOperationPlan {
+            expr: callee_expr,
+            operation_def: None,
+            path: path.clone(),
+            slot: positive_slot(path.clone()),
+            kind: EvidenceVmOperationKind::Call {
+                apply: apply_expr,
+                callee: callee_expr,
+            },
+            lowering: EvidenceVmOperationLowering::DirectHandlerCall {
+                handler: control_handler_expr,
+                resumptive: true,
+                handler_known: true,
+            },
+            runtime_nodes: Vec::new(),
+            runtime_evidence_refs: 0,
+        };
+        let surface = RuntimeEvidenceSurface {
+            static_routes: vec![specialize::RuntimeEvidenceStaticRoute {
+                operation_expr: apply_expr.0,
+                apply: apply_expr.0,
+                callee: callee_expr.0,
+                family: path,
+                resolution: specialize::RuntimeEvidenceStaticRouteResolution::StaticHandler {
+                    handler_expr: poly_handler_expr.0,
+                },
+            }],
+            ..RuntimeEvidenceSurface::default()
+        };
+        let objects = build_object_plan(
+            &Program::default(),
+            &surface,
+            &[handler],
+            &[operation],
+            &[],
+            &[],
+        );
+        assert_eq!(
+            objects.operations[0].static_route,
+            EvidenceVmStaticRouteResolution::StaticHandler {
+                arm_class: EvidenceVmHandlerArmClass::TailResumptive,
+            }
+        );
+        assert_eq!(objects.static_route_mono_join_failures, 0);
+    }
+
+    #[test]
+    fn static_route_join_failure_falls_back_to_unclassified() {
         let path = vec!["flip".to_string(), "coin".to_string()];
         let operation = generic_fallback_operation(ExprId(10), path.clone());
-        let first_handler = handler_object(0, path.clone());
-        let second_handler = handler_object(1, path);
-        let mut one_handler = HashMap::new();
-        one_handler.insert(0, &first_handler);
-        let mut two_handlers = one_handler.clone();
-        two_handlers.insert(1, &second_handler);
-
+        let surface = RuntimeEvidenceSurface {
+            static_routes: vec![specialize::RuntimeEvidenceStaticRoute {
+                operation_expr: 10,
+                apply: 10,
+                callee: 10,
+                family: path,
+                resolution: specialize::RuntimeEvidenceStaticRouteResolution::StaticHandler {
+                    handler_expr: 99,
+                },
+            }],
+            ..RuntimeEvidenceSurface::default()
+        };
+        let objects = build_object_plan(&Program::default(), &surface, &[], &[operation], &[], &[]);
         assert_eq!(
-            operation_static_route_resolution(None, &operation, None, &one_handler),
+            objects.operations[0].static_route,
             EvidenceVmStaticRouteResolution::Dynamic(
-                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
+                EvidenceVmStaticRouteDynamicReason::Unclassified
             )
         );
-        assert_eq!(
-            operation_static_route_resolution(None, &operation, None, &two_handlers),
-            EvidenceVmStaticRouteResolution::Dynamic(
-                EvidenceVmStaticRouteDynamicReason::MultipleCandidates
-            )
-        );
+        assert_eq!(objects.static_route_mono_join_failures, 1);
     }
 
     #[test]
@@ -4660,20 +4740,6 @@ mod tests {
             lowering: EvidenceVmOperationLowering::GenericFallback,
             runtime_nodes: Vec::new(),
             runtime_evidence_refs: 0,
-        }
-    }
-
-    fn handler_object(id: u32, path: Vec<String>) -> EvidenceVmHandlerObjectPlan {
-        EvidenceVmHandlerObjectPlan {
-            id,
-            capability_id: EvidenceVmHandlerCapId(id),
-            handler: ExprId(100 + id),
-            slot_id: id,
-            path,
-            arm_body: ExprId(200 + id),
-            arm_class: EvidenceVmHandlerArmClass::TailResumptive,
-            continuation_use: EvidenceVmContinuationUsePlan::default(),
-            definition_env: Vec::new(),
         }
     }
 }

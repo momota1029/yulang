@@ -1,7 +1,7 @@
 use mono::{EffectFamily, Program, StackWeight, Type};
 use poly::expr as poly_expr;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 use super::{
@@ -20,6 +20,8 @@ pub struct RuntimeEvidenceSurface {
     #[serde(default)]
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     #[serde(default)]
+    pub static_routes: Vec<RuntimeEvidenceStaticRoute>,
+    #[serde(default)]
     pub known_state_handlers: Vec<RuntimeEvidenceKnownStateHandler>,
     #[serde(default)]
     pub known_state_accesses: Vec<RuntimeEvidenceKnownStateAccess>,
@@ -34,6 +36,11 @@ impl RuntimeEvidenceSurface {
             known_state_accesses_from_tasks(&known_state_effects, &self.tasks);
     }
 
+    pub fn attach_static_routes(&mut self, arena: &poly_expr::Arena) {
+        self.static_routes =
+            static_routes_from_tasks(arena, self.host_manifest.as_ref(), &self.tasks);
+    }
+
     pub(super) fn push_solved_task(
         &mut self,
         arena: &poly_expr::Arena,
@@ -43,6 +50,32 @@ impl RuntimeEvidenceSurface {
         self.tasks
             .push(RuntimeEvidenceTask::from_solved(arena, owner, solved));
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceStaticRoute {
+    pub operation_expr: u32,
+    pub apply: u32,
+    pub callee: u32,
+    pub family: Vec<String>,
+    pub resolution: RuntimeEvidenceStaticRouteResolution,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceStaticRouteResolution {
+    StaticHandler { handler_expr: u32 },
+    Dynamic(RuntimeEvidenceStaticRouteDynamicReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceStaticRouteDynamicReason {
+    OpenRow,
+    MultipleCandidates,
+    HygieneBarrier,
+    ProviderEnvDependent,
+    DelayedBoundary,
+    HostEscape,
+    Unclassified,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -182,6 +215,255 @@ fn known_state_accesses_from_tasks(
     accesses
 }
 
+fn static_routes_from_tasks(
+    arena: &poly_expr::Arena,
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    tasks: &[RuntimeEvidenceTask],
+) -> Vec<RuntimeEvidenceStaticRoute> {
+    let mut routes = Vec::new();
+    for task in tasks {
+        let mut classifier = TaskStaticRouteClassifier::new(host_manifest, task);
+        classifier.visit_expr(arena, task_root_expr(task), 0);
+        routes.extend(classifier.finish());
+    }
+    routes.sort_by_key(|route| (route.operation_expr, route.apply, route.callee));
+    routes
+}
+
+fn task_root_expr(task: &RuntimeEvidenceTask) -> u32 {
+    match task.owner {
+        RuntimeEvidenceTaskOwner::RootExpr { expr, .. } => expr,
+        RuntimeEvidenceTaskOwner::InstanceBody { body, .. } => body,
+    }
+}
+
+struct TaskStaticRouteClassifier<'a> {
+    host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+    operation_calls: BTreeMap<u32, RuntimeEvidenceOperationCallSite>,
+    active_handlers: Vec<RuntimeEvidenceActiveHandler>,
+    routes: BTreeMap<u32, RuntimeEvidenceStaticRoute>,
+}
+
+impl<'a> TaskStaticRouteClassifier<'a> {
+    fn new(
+        host_manifest: Option<&'a poly::host_manifest::HostActManifest>,
+        task: &RuntimeEvidenceTask,
+    ) -> Self {
+        let operation_calls = task
+            .sites
+            .iter()
+            .filter_map(|site| {
+                let RuntimeEvidenceSiteKind::OperationCall {
+                    callee,
+                    arg: _,
+                    def: _,
+                    path,
+                } = &site.kind
+                else {
+                    return None;
+                };
+                Some((
+                    site.expr,
+                    RuntimeEvidenceOperationCallSite {
+                        operation_expr: site.expr,
+                        apply: site.expr,
+                        callee: *callee,
+                        family: path.clone(),
+                    },
+                ))
+            })
+            .collect();
+        Self {
+            host_manifest,
+            operation_calls,
+            active_handlers: Vec::new(),
+            routes: BTreeMap::new(),
+        }
+    }
+
+    fn finish(mut self) -> Vec<RuntimeEvidenceStaticRoute> {
+        let operations = self.operation_calls.values().cloned().collect::<Vec<_>>();
+        for operation in operations {
+            let resolution = self.dynamic_resolution_for(&operation.family);
+            self.routes
+                .entry(operation.operation_expr)
+                .or_insert_with(|| RuntimeEvidenceStaticRoute {
+                    operation_expr: operation.operation_expr,
+                    apply: operation.apply,
+                    callee: operation.callee,
+                    family: operation.family.clone(),
+                    resolution,
+                });
+        }
+        self.routes.into_values().collect()
+    }
+
+    fn visit_expr(&mut self, arena: &poly_expr::Arena, expr: u32, lambda_depth: u32) {
+        if let Some(operation) = self.operation_calls.get(&expr).cloned() {
+            self.record_operation(operation, lambda_depth);
+        }
+
+        match arena.expr(poly_expr::ExprId(expr)) {
+            poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => {
+            }
+            poly_expr::Expr::App(callee, arg) | poly_expr::Expr::RefSet(callee, arg) => {
+                self.visit_expr(arena, callee.0, lambda_depth);
+                self.visit_expr(arena, arg.0, lambda_depth);
+            }
+            poly_expr::Expr::Lambda(_, body) => {
+                self.visit_expr(arena, body.0, lambda_depth + 1);
+            }
+            poly_expr::Expr::Tuple(items) => {
+                for item in items {
+                    self.visit_expr(arena, item.0, lambda_depth);
+                }
+            }
+            poly_expr::Expr::Record { fields, spread } => {
+                for (_, value) in fields {
+                    self.visit_expr(arena, value.0, lambda_depth);
+                }
+                match spread {
+                    poly_expr::RecordSpread::Head(expr) | poly_expr::RecordSpread::Tail(expr) => {
+                        self.visit_expr(arena, expr.0, lambda_depth);
+                    }
+                    poly_expr::RecordSpread::None => {}
+                }
+            }
+            poly_expr::Expr::PolyVariant(_, payloads) => {
+                for payload in payloads {
+                    self.visit_expr(arena, payload.0, lambda_depth);
+                }
+            }
+            poly_expr::Expr::Select(base, _) => {
+                self.visit_expr(arena, base.0, lambda_depth);
+            }
+            poly_expr::Expr::Case(scrutinee, arms) => {
+                self.visit_expr(arena, scrutinee.0, lambda_depth);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(arena, guard.0, lambda_depth);
+                    }
+                    self.visit_expr(arena, arm.body.0, lambda_depth);
+                }
+            }
+            poly_expr::Expr::Catch(body, arms) => {
+                let handled_paths = arms
+                    .iter()
+                    .filter_map(|arm| {
+                        arm.operation
+                            .as_ref()
+                            .map(|operation| operation.path.clone())
+                    })
+                    .collect::<Vec<_>>();
+                self.active_handlers.push(RuntimeEvidenceActiveHandler {
+                    handler_expr: expr,
+                    lambda_depth,
+                    handled_paths,
+                });
+                self.visit_expr(arena, body.0, lambda_depth);
+                self.active_handlers.pop();
+
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(arena, guard.0, lambda_depth);
+                    }
+                    self.visit_expr(arena, arm.body.0, lambda_depth);
+                }
+            }
+            poly_expr::Expr::Block(stmts, tail) => {
+                for stmt in stmts {
+                    self.visit_stmt(arena, stmt, lambda_depth);
+                }
+                if let Some(tail) = tail {
+                    self.visit_expr(arena, tail.0, lambda_depth);
+                }
+            }
+        }
+    }
+
+    fn visit_stmt(&mut self, arena: &poly_expr::Arena, stmt: &poly_expr::Stmt, lambda_depth: u32) {
+        match stmt {
+            poly_expr::Stmt::Let(_, _, expr) | poly_expr::Stmt::Expr(expr) => {
+                self.visit_expr(arena, expr.0, lambda_depth);
+            }
+            poly_expr::Stmt::Module(_, stmts) => {
+                for stmt in stmts {
+                    self.visit_stmt(arena, stmt, lambda_depth);
+                }
+            }
+        }
+    }
+
+    fn record_operation(&mut self, operation: RuntimeEvidenceOperationCallSite, lambda_depth: u32) {
+        let resolution = self
+            .active_handlers
+            .iter()
+            .rev()
+            .find(|handler| {
+                handler.lambda_depth == lambda_depth
+                    && handler
+                        .handled_paths
+                        .iter()
+                        .any(|path| path == &operation.family)
+            })
+            .map(
+                |handler| RuntimeEvidenceStaticRouteResolution::StaticHandler {
+                    handler_expr: handler.handler_expr,
+                },
+            )
+            .unwrap_or_else(|| self.dynamic_resolution_for(&operation.family));
+        self.routes.insert(
+            operation.operation_expr,
+            RuntimeEvidenceStaticRoute {
+                operation_expr: operation.operation_expr,
+                apply: operation.apply,
+                callee: operation.callee,
+                family: operation.family,
+                resolution,
+            },
+        );
+    }
+
+    fn dynamic_resolution_for(&self, family: &[String]) -> RuntimeEvidenceStaticRouteResolution {
+        if host_manifest_has_known_act(self.host_manifest, family) {
+            RuntimeEvidenceStaticRouteResolution::Dynamic(
+                RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
+            )
+        } else {
+            RuntimeEvidenceStaticRouteResolution::Dynamic(
+                RuntimeEvidenceStaticRouteDynamicReason::Unclassified,
+            )
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceOperationCallSite {
+    operation_expr: u32,
+    apply: u32,
+    callee: u32,
+    family: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceActiveHandler {
+    handler_expr: u32,
+    lambda_depth: u32,
+    handled_paths: Vec<Vec<String>>,
+}
+
+fn host_manifest_has_known_act(
+    host_manifest: Option<&poly::host_manifest::HostActManifest>,
+    operation_path: &[String],
+) -> bool {
+    host_manifest.is_some_and(|host_manifest| {
+        host_manifest
+            .acts
+            .iter()
+            .any(|act| operation_path.starts_with(&act.path))
+    })
+}
+
 pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "runtime evidence tasks [{}]", surface.tasks.len());
@@ -228,6 +510,20 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
                 access.arg,
                 access.operation_def,
                 format_known_state_access_role(access.role)
+            );
+        }
+    }
+    if !surface.static_routes.is_empty() {
+        let _ = writeln!(out, "static routes [{}]", surface.static_routes.len());
+        for route in &surface.static_routes {
+            let _ = writeln!(
+                out,
+                "  e{} apply e{} callee e{} {} -> {}",
+                route.operation_expr,
+                route.apply,
+                route.callee,
+                route.family.join("::"),
+                format_static_route_resolution(&route.resolution)
             );
         }
     }
@@ -328,6 +624,31 @@ fn format_known_state_access_role(role: RuntimeEvidenceKnownStateAccessRole) -> 
     match role {
         RuntimeEvidenceKnownStateAccessRole::StateGet => "state-get",
         RuntimeEvidenceKnownStateAccessRole::StateSet => "state-set",
+    }
+}
+
+fn format_static_route_resolution(resolution: &RuntimeEvidenceStaticRouteResolution) -> String {
+    match resolution {
+        RuntimeEvidenceStaticRouteResolution::StaticHandler { handler_expr } => {
+            format!("static-handler e{handler_expr}")
+        }
+        RuntimeEvidenceStaticRouteResolution::Dynamic(reason) => {
+            format!("dynamic-{}", format_static_route_dynamic_reason(*reason))
+        }
+    }
+}
+
+fn format_static_route_dynamic_reason(
+    reason: RuntimeEvidenceStaticRouteDynamicReason,
+) -> &'static str {
+    match reason {
+        RuntimeEvidenceStaticRouteDynamicReason::OpenRow => "open-row",
+        RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates => "multiple-candidates",
+        RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier => "hygiene-barrier",
+        RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent => "provider-env",
+        RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary => "delayed-boundary",
+        RuntimeEvidenceStaticRouteDynamicReason::HostEscape => "host-escape",
+        RuntimeEvidenceStaticRouteDynamicReason::Unclassified => "unclassified",
     }
 }
 
