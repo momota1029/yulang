@@ -160,21 +160,23 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      first slice は scheduler branch id / parent id、cancel queue、suspend 中 branch
      の immediate drop から始める。
 
-6. **Static route Stage 0, then conditional Stage 1**
-   - `notes/design/2026-07-02-static-route-promotion-plan.md` に従い、まず被覆率計測だけ行う。
+6. **Static route Stage M1, then conditional Stage 1**
+   - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
+     Stage M1 再計測で被覆率を判定する。
    - Stage 1 は Stage 0 の hits と Stage 1a shadow mismatch 0 が揃った場合だけ。
-   - 2026-07-02: Stage 0 counters and deep-profile runtime-hit counters are
-     already wired. Use `scripts/static-route-stage0-profile.sh` to collect the
-     representative 4-workload table before deciding whether Stage 1 is allowed.
-     Generic fallback classification now uses the runtime host manifest to keep
-     true host capability escapes separate from non-host sites, and then splits
-     non-host generic fallbacks into `ProviderEnvDependent`,
-     `MultipleCandidates`, or remaining `Unclassified` by matching handler
-     object count.
-   - 2026-07-02 representative profile after handler candidate counting:
-     nondet / showcase / `03_for_last` have 0 unclassified runtime hits;
-     `02_refs` still has 2 unclassified runtime hits. Stage 1 remains blocked
-     because static-tail runtime hits are still 0.
+   - 2026-07-03: Stage M0 moved the classification source of truth to
+     specialize / mono and Evidence VM now consumes `RuntimeEvidenceSurface`
+     routes. `scripts/static-route-stage0-profile.sh` was rerun as the Stage M1
+     profile on the representative 4-workload set. All four compare-control
+     checks matched and `static_route_mono_join_failures` stayed 0, but
+     `static_route_static_tail` and runtime static-tail hits were still 0
+     everywhere:
+     nondet `3/3 provider_env` with 861 provider-env runtime hits; showcase
+     `11 provider_env + 2 hygiene` with 2457 provider-env and 7 hygiene runtime
+     hits; `03_for_last` `7/7 provider_env` with 2 provider-env runtime hits;
+     `02_refs` `8/8 provider_env` with 10 provider-env runtime hits.
+     Stage 1 remains blocked. Do not loosen the classifier to improve these
+     numbers.
    - 2026-07-02 Claude Fable decision: evidence VM micro-optimizations stay
      frozen until the mono-time proof emission translation work starts.
 

@@ -347,7 +347,7 @@ missing/file/directory metadata coverage, native typed operation-failure
 coverage, integrated `file::ambient_*` handler-extent coverage, typed
 missing-path `file::text` creation, and structured out-of-protocol
 `file::ambient_get` failure coverage. The latest local full tag run reports
-`contract cases ok: 57`, and the focused release smoke now also includes
+`contract cases ok: 59`, and the focused release smoke now also includes
 console host-act denial, mock routing, public-signature canaries, and the
 integrated ambient file act cases. Release/archive smoke also passes against
 the packaged binary and bundled standard library for the same `file-resource`
