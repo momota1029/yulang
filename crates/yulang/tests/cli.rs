@@ -1786,6 +1786,17 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(stdout.starts_with("compiler host manifest:\n"), "{stdout}");
+    let hash_line = stdout
+        .lines()
+        .nth(1)
+        .expect("debug manifest should print a manifest hash line");
+    let hash = hash_line
+        .strip_prefix("  hash=")
+        .expect("debug manifest should expose hash= on the second line");
+    assert!(
+        hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "debug manifest hash should be fixed-width hex: {hash_line:?}"
+    );
     assert_eq!(
         stdout.matches(" surface=contract column=").count(),
         8,
@@ -1798,58 +1809,58 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write sig=std::text::str::str -> [std::io::console::out] () surface=contract column=0\n"
+            "  act=std.io.console.out op=write tier=sync path=std.io.console.out.write sig=std::text::str::str -> [std::io::console::out] () surface=contract column=0 symbol=yu_host_3std2io7console3out_5write\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=9\n"
+            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=9 symbol=yu_host_3std4time5clock_3now\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout
-            .contains("  act=std.io.file.file op=load tier=sync path=std.io.file.file.load sig=std::text::path::path -> [std::io::file::file] std::data::result::result std::text::str::str std::io::file::io_err surface=contract column=4\n"),
+            .contains("  act=std.io.file.file op=load tier=sync path=std.io.file.file.load sig=std::text::path::path -> [std::io::file::file] std::data::result::result std::text::str::str std::io::file::io_err surface=contract column=4 symbol=yu_host_3std2io4file4file_4load\n"),
         "{stdout}"
     );
     assert!(
         stdout
-            .contains("  act=std.io.file.file op=store tier=sync path=std.io.file.file.store sig=(std::text::path::path, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=contract column=7\n"),
+            .contains("  act=std.io.file.file op=store tier=sync path=std.io.file.file.store sig=(std::text::path::path, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=contract column=7 symbol=yu_host_3std2io4file4file_5store\n"),
         "{stdout}"
     );
     assert!(
         stdout
-            .contains("  act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta sig=std::text::path::path -> [std::io::file::file] std::io::file::file_meta surface=contract column=5\n"),
+            .contains("  act=std.io.file.file op=meta tier=sync path=std.io.file.file.meta sig=std::text::path::path -> [std::io::file::file] std::io::file::file_meta surface=contract column=5 symbol=yu_host_3std2io4file4file_4meta\n"),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(std::text::path::path, std::data::range::range) -> [std::io::file::file] std::data::result::result (std::text::str::str, std::data::range::range) std::io::file::io_err surface=raw-compat column=6\n"
+            "  act=std.io.file.file op=read_at tier=sync path=std.io.file.file.read_at sig=(std::text::path::path, std::data::range::range) -> [std::io::file::file] std::data::result::result (std::text::str::str, std::data::range::range) std::io::file::io_err surface=raw-compat column=6 symbol=yu_host_3std2io4file4file_7read_at\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=write_at tier=sync path=std.io.file.file.write_at sig=(std::text::path::path, std::data::range::range, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=raw-compat column=8\n"
+            "  act=std.io.file.file op=write_at tier=sync path=std.io.file.file.write_at sig=(std::text::path::path, std::data::range::range, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=raw-compat column=8 symbol=yu_host_3std2io4file4file_8write_at\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=ambient_touch tier=sync path=std.io.file.file.ambient_touch sig=std::text::path::path -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=contract column=3\n"
+            "  act=std.io.file.file op=ambient_touch tier=sync path=std.io.file.file.ambient_touch sig=std::text::path::path -> [std::io::file::file] std::data::result::result () std::io::file::io_err surface=contract column=3 symbol=yu_host_3std2io4file4file_13ambient_touch\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=ambient_get tier=sync path=std.io.file.file.ambient_get sig=std::text::path::path -> [std::io::file::file] std::text::str::str surface=contract column=1\n"
+            "  act=std.io.file.file op=ambient_get tier=sync path=std.io.file.file.ambient_get sig=std::text::path::path -> [std::io::file::file] std::text::str::str surface=contract column=1 symbol=yu_host_3std2io4file4file_11ambient_get\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.file.file op=ambient_set tier=sync path=std.io.file.file.ambient_set sig=(std::text::path::path, std::text::str::str) -> [std::io::file::file] () surface=contract column=2\n"
+            "  act=std.io.file.file op=ambient_set tier=sync path=std.io.file.file.ambient_set sig=(std::text::path::path, std::text::str::str) -> [std::io::file::file] () surface=contract column=2 symbol=yu_host_3std2io4file4file_11ambient_set\n"
         ),
         "{stdout}"
     );

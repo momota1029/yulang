@@ -203,9 +203,10 @@ The columns trace a value through the pipeline:
   state-var capture are executable manifest cases, and source mock handlers
   cover commit, rollback, branch-local buffers, and nested cross-file sessions
   under `--host unsupported`. The compiler-produced host manifest now exposes
-  `surface=contract|raw-compat` and replay `column` values, and Stage A of the
-  Contract v1 Stage 2 closeout leaves only the provisional range helpers on
-  `raw-compat`. This still leaves directory listing, portable metadata
+  `surface=contract|raw-compat`, replay `column` values, deterministic
+  `symbol` names, and a manifest `hash`; Stage A of the Contract v1 Stage 2
+  closeout leaves only the provisional range helpers on `raw-compat`. This
+  still leaves directory listing, portable metadata
   expansion, and lock release provisional. Unsupported host coverage now goes
   through the unified `file`
   act, so ambient `text` does not fake success under `--host unsupported`;

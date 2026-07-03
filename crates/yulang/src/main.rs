@@ -2999,18 +2999,20 @@ fn run_host_act_manifest(program: &str, options: &GlobalOptions, args: VecDeque<
     };
 
     println!("compiler host manifest:");
+    println!("  hash={:016x}", manifest.hash.0);
     for operation in manifest.operations {
         let tier = generated_host_operation_tier_id(operation.tier);
         let surface = generated_host_operation_surface_id(operation.surface);
         println!(
-            "  act={} op={} tier={} path={} sig={} surface={} column={}",
+            "  act={} op={} tier={} path={} sig={} surface={} column={} symbol={}",
             operation.act_id,
             operation.operation_id,
             tier,
             operation.path.join("."),
             operation.signature,
             surface,
-            operation.column
+            operation.column,
+            operation.symbol
         );
     }
     println!("runtime host tiers:");

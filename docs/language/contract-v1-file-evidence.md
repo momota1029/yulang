@@ -47,9 +47,10 @@ public surface:
   `lib/std/io/file.yu` and from the compiler-produced host manifest. Their public helper
   entrypoints `open_text`, `open`, and `open_in` are retired with them.
 - `debug host-act-manifest` now prints the compiler-produced host manifest with
-  `surface` and `column` fields. Current operations are separated into
-  `contract` and `raw-compat`, and the only file `raw-compat` operations left
-  after Stage A are `read_at` and `write_at`.
+  `surface`, `column`, deterministic `symbol`, and manifest `hash` fields.
+  Current operations are separated into `contract` and `raw-compat`, and the
+  only file `raw-compat` operations left after Stage A are `read_at` and
+  `write_at`.
 - `debug host-act-manifest` also exposes the supported host operation tier ids:
   `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
   operations and `std::time::clock::now` are still all registered as `sync`;
@@ -190,9 +191,10 @@ public surface:
   request semantics while making the future lowering-produced host manifest a
   single replacement boundary.
 - `yulang debug host-act-manifest` compiles std and prints the
-  compiler-produced host manifest: stable act id, operation id, sync tier,
-  reconstructed path, compiler-printed signature, surface, and replay column.
-  This makes the declaration-derived host surface observable outside unit tests.
+  compiler-produced host manifest: stable manifest hash, act id, operation id,
+  sync tier, reconstructed path, compiler-printed signature, surface, replay
+  column, and deterministic host symbol. This makes the declaration-derived
+  host surface observable outside unit tests.
 - `scripts/release-smoke.sh` now checks representative console/file manifest
   lines, so release and archive smokes cover the debug manifest surface through
   the packaged binary path. It also checks that the suspend multi-shot tier is
