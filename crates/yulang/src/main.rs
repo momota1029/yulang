@@ -2936,7 +2936,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         print_usage_and_exit(program);
     };
     match op.to_str() {
-        Some("host-act-manifest") => run_host_act_manifest(program, args),
+        Some("host-act-manifest") => run_host_act_manifest(program, options, args),
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
@@ -2970,26 +2970,59 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
     }
 }
 
-fn run_host_act_manifest(program: &str, args: VecDeque<OsString>) {
+fn run_host_act_manifest(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     if !args.is_empty() {
         print_usage_error_and_exit(program, "debug host-act-manifest does not take arguments");
     }
 
-    println!("runtime host manifest:");
-    for operation in evidence_vm::runtime_host_manifest_operations() {
+    let files = run_route_to_value(yulang::collect_local_source_text_with_std_options(
+        PathBuf::from("host-act-manifest.yu"),
+        "1\n".to_string(),
+        &options.std_source_options(),
+    ));
+    let output = run_route_to_value(yulang::build_poly_and_compiled_unit_from_collected_sources(
+        files,
+    ));
+    let Some(manifest) = output.poly.host_manifest else {
+        eprintln!("failed to build compiler host manifest");
+        process::exit(1);
+    };
+
+    println!("compiler host manifest:");
+    for operation in manifest.operations {
+        let tier = generated_host_operation_tier_id(operation.tier);
+        let surface = generated_host_operation_surface_id(operation.surface);
         println!(
-            "  act={} op={} tier={} path={} sig={} surface={}",
+            "  act={} op={} tier={} path={} sig={} surface={} column={}",
             operation.act_id,
             operation.operation_id,
-            operation.tier,
+            tier,
             operation.path.join("."),
             operation.signature,
-            operation.surface
+            surface,
+            operation.column
         );
     }
     println!("runtime host tiers:");
     for tier in evidence_vm::runtime_host_manifest_tiers() {
         println!("  tier={}", tier.id);
+    }
+}
+
+fn generated_host_operation_tier_id(tier: poly::host_manifest::HostOperationTier) -> &'static str {
+    match tier {
+        poly::host_manifest::HostOperationTier::Sync => "sync",
+        poly::host_manifest::HostOperationTier::SuspendOneShot => "suspend-one-shot",
+        poly::host_manifest::HostOperationTier::SuspendMultiShot => "suspend-multi-shot",
+    }
+}
+
+fn generated_host_operation_surface_id(
+    surface: poly::host_manifest::HostOperationSurface,
+) -> &'static str {
+    match surface {
+        poly::host_manifest::HostOperationSurface::Contract => "contract",
+        poly::host_manifest::HostOperationSurface::RawCompat => "raw-compat",
     }
 }
 

@@ -44,11 +44,12 @@ public surface:
 - `file::open_text_raw`, `file::open_text_snapshot_raw`, `file::file_get`,
   `file::file_set`, `file::file_flush`, `file::file_snapshot_get`,
   `file::file_snapshot_set`, and `file::file_snapshot_commit` are retired from
-  `lib/std/io/file.yu` and from the runtime host manifest. Their public helper
+  `lib/std/io/file.yu` and from the compiler-produced host manifest. Their public helper
   entrypoints `open_text`, `open`, and `open_in` are retired with them.
-- `debug host-act-manifest` now exposes a `surface` column. Current operations
-  are separated into `contract` and `raw-compat`, and the only file
-  `raw-compat` operations left after Stage A are `read_at` and `write_at`.
+- `debug host-act-manifest` now prints the compiler-produced host manifest with
+  `surface` and `column` fields. Current operations are separated into
+  `contract` and `raw-compat`, and the only file `raw-compat` operations left
+  after Stage A are `read_at` and `write_at`.
 - `debug host-act-manifest` also exposes the supported host operation tier ids:
   `sync`, `suspend-one-shot`, and `suspend-multi-shot`. Current console/file
   operations are still all registered as `sync`; the suspend tiers are the
@@ -170,12 +171,10 @@ public surface:
   owner for the current static operation table. This keeps the existing escaped
   request semantics while making the future lowering-produced host manifest a
   single replacement boundary.
-- `yulang debug host-act-manifest` prints the current runtime host manifest
-  view from the release binary: stable act id, operation id, sync tier,
-  reconstructed path, and provisional argument/result signature for console/file
-  operations. This is still the interim
-  runtime manifest, not compiler-generated `host act` lowering output, but it
-  makes the current registry surface observable outside unit tests.
+- `yulang debug host-act-manifest` compiles std and prints the
+  compiler-produced host manifest: stable act id, operation id, sync tier,
+  reconstructed path, compiler-printed signature, surface, and replay column.
+  This makes the declaration-derived host surface observable outside unit tests.
 - `scripts/release-smoke.sh` now checks representative console/file manifest
   lines, so release and archive smokes cover the debug manifest surface through
   the packaged binary path. It also checks that the suspend multi-shot tier is
