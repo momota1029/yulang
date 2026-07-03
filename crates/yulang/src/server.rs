@@ -398,8 +398,27 @@ fn diagnostic_hover_for_analysis(
 ) -> Option<Hover> {
     diagnostics_for_analysis(path, source, analysis)
         .into_iter()
-        .find(|diagnostic| position_is_in_lsp_range(position, diagnostic.range))
-        .map(lsp_hover_for_diagnostic)
+        .find_map(|diagnostic| {
+            let hover_range = diagnostic_hover_range_at_position(&diagnostic, position)?;
+            Some(lsp_hover_for_diagnostic_at_range(diagnostic, hover_range))
+        })
+}
+
+fn diagnostic_hover_range_at_position(
+    diagnostic: &Diagnostic,
+    position: Position,
+) -> Option<Range> {
+    if position_is_in_lsp_range(position, diagnostic.range) {
+        return Some(diagnostic.range);
+    }
+    diagnostic
+        .related_information
+        .as_ref()?
+        .iter()
+        .find_map(|related| {
+            let range = related.location.range;
+            position_is_in_lsp_range(position, range).then_some(range)
+        })
 }
 
 fn definition_for_analysis(
@@ -499,7 +518,7 @@ fn lsp_hover_source_contents(contents: &str) -> String {
     out
 }
 
-fn lsp_hover_for_diagnostic(diagnostic: Diagnostic) -> Hover {
+fn lsp_hover_for_diagnostic_at_range(diagnostic: Diagnostic, range: Range) -> Hover {
     let mut value = String::new();
     if let Some(code) = diagnostic.code.as_ref().and_then(diagnostic_code_string) {
         value.push_str("**");
@@ -518,7 +537,7 @@ fn lsp_hover_for_diagnostic(diagnostic: Diagnostic) -> Hover {
             kind: MarkupKind::Markdown,
             value,
         }),
-        range: Some(diagnostic.range),
+        range: Some(range),
     }
 }
 
@@ -2064,6 +2083,69 @@ my got = make(1).norm2
                 end: Position {
                     line: 0,
                     character: 4
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.type-mismatch"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains("type mismatch"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("expected type comes from this type annotation: bool"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("actual type comes from this expression: int"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_diagnostic_summary_at_related_range() {
+        let root = temp_root("hover-diagnostic-related-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: bool = 1\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 0,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 0,
+                    character: 6
+                },
+                end: Position {
+                    line: 0,
+                    character: 10
                 },
             })
         );
