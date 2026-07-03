@@ -129,6 +129,39 @@ require_manifest_pattern control_cache_format '^[0-9]+$'
 require_manifest_pattern compiled_unit_cache_format '^[0-9]+$'
 require_manifest_pattern realm_resolution_cache_format '^[0-9]+$'
 
+python_bin=""
+if command -v python3 >/dev/null 2>&1; then
+  python_bin="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_bin="python"
+else
+  echo "release archive smoke: python3 or python is required to verify bundled std hash" >&2
+  exit 1
+fi
+
+hash_std_sources() {
+  "$python_bin" - "$1" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+paths = [root / "std.yu"]
+paths.extend(sorted((root / "std").rglob("*.yu")))
+digest = hashlib.sha256()
+for path in sorted(paths, key=lambda item: item.as_posix()):
+    rel = path.relative_to(root).as_posix()
+    digest.update(rel.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+}
+
+bundled_std_hash="$(hash_std_sources "$package_root/lib")"
+require_manifest_value stdlib_source_hash "$bundled_std_hash"
+
 if [[ "$bin" != *.exe ]]; then
   chmod 755 "$bin"
 fi
