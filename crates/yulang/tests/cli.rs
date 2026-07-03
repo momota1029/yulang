@@ -337,6 +337,41 @@ fn compatible_run_std_file_unsupported_host_reports_capability_error() {
 }
 
 #[test]
+fn compatible_run_custom_host_act_without_registration_reports_capability_error() {
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg("-e")
+        .arg("pub host act stop:\n  our now: () -> int\n\nstop::now()\n")
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("runtime error [yulang.unsupported-host-capability]:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("host capability stop is not available"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("runtime error [yulang.unhandled-effect]"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_run_accepts_eval_source() {
     let output = yulang_command()
         .arg("--no-prelude")

@@ -274,6 +274,23 @@ scripts/release-smoke.sh <binary>
     - `cargo test -q -p infer -- --test-threads=1` (`515 passed`)
     - `cargo check -q -p infer -p yulang`
   - No stop condition hit.
+- 2026-07-03 / WP2 Stage 1 no-prelude drift follow-up:
+  - Narrowed raw-compat override drift checking to host acts present in the
+    compiled namespace. This preserves `--no-prelude` custom host-act programs
+    while still rejecting missing `read_at` / `write_at` when the std file host
+    act is present.
+  - Added a CLI canary proving an unregistered user-declared `pub host act stop`
+    reports `yulang.unsupported-host-capability` for `stop` rather than falling
+    through as an unhandled effect.
+  - Validation:
+    - `cargo fmt --check`
+    - `cargo test -q -p infer host_acts -- --test-threads=1` (`4 passed`)
+    - `cargo test -q -p yulang --test cli compatible_run_custom_host_act_without_registration_reports_capability_error -- --test-threads=1`
+      (`1 passed`)
+    - `cargo test -q -p infer -- --test-threads=1` (`516 passed`)
+    - `timeout 720s cargo test -q -p yulang --test cli -- --test-threads=1`
+      (`118 passed`)
+  - No stop condition hit.
 - 2026-07-03 / WP3 Stage 2 complete:
   - Carried compiler-generated host manifests into `EvidenceVmPlan`,
     `RuntimeEvidenceRunContext`, and `RuntimeHostRegistry`.

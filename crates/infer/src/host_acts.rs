@@ -60,6 +60,10 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
     raw_compat_overrides: &[(&str, &str)],
 ) -> Result<HostActManifest, HostActManifestBuildError> {
     let host_acts = host_act_map(namespace);
+    let host_act_ids = host_acts
+        .values()
+        .map(|act| act.act_id.clone())
+        .collect::<BTreeSet<_>>();
     let acts = host_acts
         .values()
         .map(|act| HostActManifestAct {
@@ -110,11 +114,15 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
         });
     }
 
-    for (act_id, operation_id) in raw_compat.difference(&declared_host_ops) {
-        return Err(HostActManifestBuildError::UnknownRawCompatOverride {
-            act_id: act_id.clone(),
-            operation_id: operation_id.clone(),
-        });
+    for (act_id, operation_id) in &raw_compat {
+        if host_act_ids.contains(act_id)
+            && !declared_host_ops.contains(&(act_id.clone(), operation_id.clone()))
+        {
+            return Err(HostActManifestBuildError::UnknownRawCompatOverride {
+                act_id: act_id.clone(),
+                operation_id: operation_id.clone(),
+            });
+        }
     }
 
     HostActManifest::new(acts, operations).map_err(Into::into)
@@ -224,6 +232,27 @@ mod tests {
                 act_id: "test.host.file".to_string(),
                 operation_id: "write_at".to_string(),
             }
+        );
+    }
+
+    #[test]
+    fn ignores_raw_compat_overrides_for_absent_host_acts() {
+        let namespace =
+            namespace_with_types(vec![type_symbol(0, &["test", "host", "bridge"], true)]);
+        let typed = typed_with_unit_schemes([10]);
+        let lowering = lowering_with_ops(vec![act_op(0, &["test", "host", "bridge"], "call", 10)]);
+
+        let manifest = host_act_manifest_from_compiled_with_raw_compat_overrides(
+            &namespace,
+            &lowering,
+            &typed,
+            &[("std.io.file.file", "read_at")],
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.operations[0].surface,
+            HostOperationSurface::Contract
         );
     }
 
