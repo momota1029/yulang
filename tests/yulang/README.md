@@ -30,7 +30,7 @@ failure has structured `SourceDiagnostic` coverage. These cases should assert a
 matching `compile error [` or `runtime error [` stderr prefix.
 `public-example` cases must point at `examples/` from the repo root; and
 `standard-api` cases must name a narrower API area such as `result`, `errors`,
-`path`, `time`, or `file`. Standard file API cases must also declare a host scope
+`path`, `str`, `time`, or `file`. Standard file API cases must also declare a host scope
 such as `host.native` or `host.unsupported`; the broad `host` tag is
 intentionally not part of the manifest taxonomy. Unsupported-host run cases set
 `host = "unsupported"` so the manifest runner passes `run --host unsupported`

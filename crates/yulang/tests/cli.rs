@@ -4715,6 +4715,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "stable-core"
             | "stable-api"
             | "standard-api"
+            | "str"
             | "std.flow"
             | "std.nondet"
             | "std.parse"
@@ -4921,7 +4922,10 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
         assert!(
-            contract_manifest_case_has_any_tag(case, &["result", "errors", "path", "time", "file"]),
+            contract_manifest_case_has_any_tag(
+                case,
+                &["result", "errors", "path", "time", "file", "str"]
+            ),
             "standard-api contract manifest case {} should include a narrower API area tag",
             case.name
         );

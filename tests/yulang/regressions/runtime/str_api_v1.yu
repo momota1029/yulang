@@ -1,0 +1,85 @@
+my range_pair(value: opt range): (int, int) = case value:
+    just (range::within (bound::included start, bound::excluded end)) -> (start, end)
+    _ -> (-1, -1)
+
+my split_once_pair(value: opt (str, str)): (str, str) = case value:
+    just pair -> pair
+    nil -> ("<none>", "<none>")
+
+my find_cases = (
+    range_pair (std::text::str::find "abcabc" "bc"),
+    range_pair (std::text::str::find "abc" ""),
+    range_pair (std::text::str::find "" "x"),
+    range_pair ("abcabc".find "ca")
+)
+
+my boundary_cases = (
+    std::text::str::contains "abc" "b",
+    std::text::str::contains "abc" "",
+    std::text::str::contains "" "a",
+    "abc".starts_with "ab",
+    "abc".starts_with "",
+    "abc".starts_with "bc",
+    "abc".ends_with "bc",
+    "abc".ends_with "",
+    "abc".ends_with "ab"
+)
+
+my split_cases = (
+    std::text::str::split "a,b,c" ",",
+    std::text::str::split "" ",",
+    std::text::str::split "abc" ",",
+    std::text::str::split "a,,b," ",",
+    std::text::str::split "abc" ""
+)
+
+my split_once_cases = (
+    split_once_pair (std::text::str::split_once "a=b=c" "="),
+    split_once_pair (std::text::str::split_once "abc" "="),
+    split_once_pair (std::text::str::split_once "" ","),
+    split_once_pair ("abc".split_once "")
+)
+
+my join_cases = (
+    std::text::str::join ["a", "b", "c"] ",",
+    std::text::str::join [] ",",
+    std::text::str::join [""] ",",
+    ["a", "b"].join "-"
+)
+
+my trim_cases = (
+    std::text::str::trim " \talpha\n",
+    std::text::str::trim_start " \talpha ",
+    std::text::str::trim_end " alpha \n",
+    std::text::str::trim "",
+    std::text::str::trim " \n\t"
+)
+
+my repeat_cases = (
+    "ha".repeat 3,
+    std::text::str::repeat "x" 0,
+    std::text::str::repeat "x" -2,
+    std::text::str::repeat "" 3
+)
+
+my to_int_cases = (
+    std::text::str::to_int "123",
+    std::text::str::to_int "-42",
+    std::text::str::to_int "+7",
+    std::text::str::to_int "001",
+    std::text::str::to_int "",
+    std::text::str::to_int "-",
+    std::text::str::to_int "12x",
+    std::text::str::to_int " 1"
+)
+
+my method_cases = (
+    "abc".contains "b",
+    "a,b".split ",",
+    " alpha ".trim,
+    " alpha".trim_start,
+    "alpha ".trim_end,
+    "7".to_int
+)
+
+(find_cases, boundary_cases, split_cases, split_once_cases, join_cases, trim_cases, repeat_cases, to_int_cases, method_cases)
