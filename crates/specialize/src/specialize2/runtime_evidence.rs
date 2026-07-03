@@ -251,6 +251,7 @@ struct TaskStaticRouteClassifier {
     active_handlers: Vec<RuntimeEvidenceActiveHandler>,
     routes: BTreeMap<u32, RuntimeEvidenceStaticRoute>,
     operation_lambda_depths: BTreeMap<u32, u32>,
+    operation_hygiene_barriers: BTreeMap<u32, bool>,
     call_edges: Vec<RuntimeEvidenceCallEdge>,
 }
 
@@ -300,6 +301,7 @@ impl TaskStaticRouteClassifier {
                             .get(&site.expr)
                             .copied()
                             .unwrap_or(false),
+                        hygiene_barrier: false,
                     },
                 ))
             })
@@ -337,6 +339,7 @@ impl TaskStaticRouteClassifier {
             active_handlers: Vec::new(),
             routes: BTreeMap::new(),
             operation_lambda_depths: BTreeMap::new(),
+            operation_hygiene_barriers: BTreeMap::new(),
             call_edges: Vec::new(),
         }
     }
@@ -346,10 +349,16 @@ impl TaskStaticRouteClassifier {
             .operation_calls
             .into_values()
             .map(|mut operation| {
-                operation.lambda_depth = self
+                let lambda_depth = self
                     .operation_lambda_depths
                     .get(&operation.operation_expr)
                     .copied();
+                operation.hygiene_barrier = self
+                    .operation_hygiene_barriers
+                    .get(&operation.operation_expr)
+                    .copied()
+                    .unwrap_or(false);
+                operation.lambda_depth = lambda_depth;
                 operation
             })
             .collect();
@@ -362,8 +371,23 @@ impl TaskStaticRouteClassifier {
     }
 
     fn visit_expr(&mut self, arena: &poly_expr::Arena, expr: u32, lambda_depth: u32) {
+        self.visit_expr_with_context(
+            arena,
+            expr,
+            lambda_depth,
+            StaticRouteVisitContext::default(),
+        );
+    }
+
+    fn visit_expr_with_context(
+        &mut self,
+        arena: &poly_expr::Arena,
+        expr: u32,
+        lambda_depth: u32,
+        context: StaticRouteVisitContext,
+    ) {
         if let Some(operation) = self.operation_calls.get(&expr).cloned() {
-            self.record_operation(operation, lambda_depth);
+            self.record_operation(operation, lambda_depth, context.hygiene_boundary);
         }
         if let Some(app) = self.app_calls.get(&expr).copied() {
             self.record_call_edge(app, lambda_depth);
@@ -373,43 +397,48 @@ impl TaskStaticRouteClassifier {
             poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => {
             }
             poly_expr::Expr::App(callee, arg) | poly_expr::Expr::RefSet(callee, arg) => {
-                self.visit_expr(arena, callee.0, lambda_depth);
-                self.visit_expr(arena, arg.0, lambda_depth);
+                self.visit_expr_with_context(arena, callee.0, lambda_depth, context);
+                self.visit_expr_with_context(arena, arg.0, lambda_depth, context.in_app_argument());
             }
             poly_expr::Expr::Lambda(_, body) => {
-                self.visit_expr(arena, body.0, lambda_depth + 1);
+                self.visit_expr_with_context(
+                    arena,
+                    body.0,
+                    lambda_depth + 1,
+                    context.enter_lambda(),
+                );
             }
             poly_expr::Expr::Tuple(items) => {
                 for item in items {
-                    self.visit_expr(arena, item.0, lambda_depth);
+                    self.visit_expr_with_context(arena, item.0, lambda_depth, context);
                 }
             }
             poly_expr::Expr::Record { fields, spread } => {
                 for (_, value) in fields {
-                    self.visit_expr(arena, value.0, lambda_depth);
+                    self.visit_expr_with_context(arena, value.0, lambda_depth, context);
                 }
                 match spread {
                     poly_expr::RecordSpread::Head(expr) | poly_expr::RecordSpread::Tail(expr) => {
-                        self.visit_expr(arena, expr.0, lambda_depth);
+                        self.visit_expr_with_context(arena, expr.0, lambda_depth, context);
                     }
                     poly_expr::RecordSpread::None => {}
                 }
             }
             poly_expr::Expr::PolyVariant(_, payloads) => {
                 for payload in payloads {
-                    self.visit_expr(arena, payload.0, lambda_depth);
+                    self.visit_expr_with_context(arena, payload.0, lambda_depth, context);
                 }
             }
             poly_expr::Expr::Select(base, _) => {
-                self.visit_expr(arena, base.0, lambda_depth);
+                self.visit_expr_with_context(arena, base.0, lambda_depth, context);
             }
             poly_expr::Expr::Case(scrutinee, arms) => {
-                self.visit_expr(arena, scrutinee.0, lambda_depth);
+                self.visit_expr_with_context(arena, scrutinee.0, lambda_depth, context);
                 for arm in arms {
                     if let Some(guard) = arm.guard {
-                        self.visit_expr(arena, guard.0, lambda_depth);
+                        self.visit_expr_with_context(arena, guard.0, lambda_depth, context);
                     }
-                    self.visit_expr(arena, arm.body.0, lambda_depth);
+                    self.visit_expr_with_context(arena, arm.body.0, lambda_depth, context);
                 }
             }
             poly_expr::Expr::Catch(body, arms) => {
@@ -426,43 +455,56 @@ impl TaskStaticRouteClassifier {
                     lambda_depth,
                     handled_paths,
                 });
-                self.visit_expr(arena, body.0, lambda_depth);
+                self.visit_expr_with_context(arena, body.0, lambda_depth, context);
                 self.active_handlers.pop();
 
                 for arm in arms {
                     if let Some(guard) = arm.guard {
-                        self.visit_expr(arena, guard.0, lambda_depth);
+                        self.visit_expr_with_context(arena, guard.0, lambda_depth, context);
                     }
-                    self.visit_expr(arena, arm.body.0, lambda_depth);
+                    self.visit_expr_with_context(arena, arm.body.0, lambda_depth, context);
                 }
             }
             poly_expr::Expr::Block(stmts, tail) => {
                 for stmt in stmts {
-                    self.visit_stmt(arena, stmt, lambda_depth);
+                    self.visit_stmt_with_context(arena, stmt, lambda_depth, context);
                 }
                 if let Some(tail) = tail {
-                    self.visit_expr(arena, tail.0, lambda_depth);
+                    self.visit_expr_with_context(arena, tail.0, lambda_depth, context);
                 }
             }
         }
     }
 
-    fn visit_stmt(&mut self, arena: &poly_expr::Arena, stmt: &poly_expr::Stmt, lambda_depth: u32) {
+    fn visit_stmt_with_context(
+        &mut self,
+        arena: &poly_expr::Arena,
+        stmt: &poly_expr::Stmt,
+        lambda_depth: u32,
+        context: StaticRouteVisitContext,
+    ) {
         match stmt {
             poly_expr::Stmt::Let(_, _, expr) | poly_expr::Stmt::Expr(expr) => {
-                self.visit_expr(arena, expr.0, lambda_depth);
+                self.visit_expr_with_context(arena, expr.0, lambda_depth, context);
             }
             poly_expr::Stmt::Module(_, stmts) => {
                 for stmt in stmts {
-                    self.visit_stmt(arena, stmt, lambda_depth);
+                    self.visit_stmt_with_context(arena, stmt, lambda_depth, context);
                 }
             }
         }
     }
 
-    fn record_operation(&mut self, operation: RuntimeEvidenceOperationCallSite, lambda_depth: u32) {
+    fn record_operation(
+        &mut self,
+        operation: RuntimeEvidenceOperationCallSite,
+        lambda_depth: u32,
+        hygiene_boundary: bool,
+    ) {
         self.operation_lambda_depths
             .insert(operation.operation_expr, lambda_depth);
+        self.operation_hygiene_barriers
+            .insert(operation.operation_expr, hygiene_boundary);
         let Some(handler) = self.active_handlers.iter().rev().find(|handler| {
             handler.lambda_depth == lambda_depth
                 && handler
@@ -505,6 +547,31 @@ impl TaskStaticRouteClassifier {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct StaticRouteVisitContext {
+    hygiene_boundary: bool,
+    app_argument_context: bool,
+}
+
+impl StaticRouteVisitContext {
+    fn in_app_argument(self) -> Self {
+        Self {
+            app_argument_context: true,
+            ..self
+        }
+    }
+
+    fn enter_lambda(self) -> Self {
+        Self {
+            // A lambda flowing through an application argument is a callback-shaped boundary:
+            // this stage has only direct callee edges, so catch context cannot be inherited
+            // through the callback invocation site.
+            hygiene_boundary: self.hygiene_boundary || self.app_argument_context,
+            app_argument_context: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceOperationCallSite {
     operation_expr: u32,
@@ -514,6 +581,7 @@ struct RuntimeEvidenceOperationCallSite {
     family: Vec<String>,
     lambda_depth: Option<u32>,
     provider_env_dependent: bool,
+    hygiene_barrier: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -950,6 +1018,10 @@ fn dynamic_static_route_resolution(
     } else if operation.provider_env_dependent {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
             RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent,
+        )
+    } else if operation.hygiene_barrier {
+        RuntimeEvidenceStaticRouteResolution::Dynamic(
+            RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier,
         )
     } else {
         RuntimeEvidenceStaticRouteResolution::Dynamic(

@@ -712,6 +712,32 @@ mod tests {
     }
 
     #[test]
+    fn runtime_evidence_static_routes_mark_callback_lambda_body_hygiene_barrier() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my invoke f = f(())\n\n\
+             catch invoke(\\_ -> stop::now()):\n\
+             \x20 stop::now(), _ -> 1\n\
+             \x20 v -> v\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("callback-lambda helper should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::HygieneBarrier
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn runtime_evidence_static_routes_mark_slot_backed_operation_provider_env_dependent() {
         let lowering = lower_source(
             "act stop:\n  our now: () -> int\n\n\
