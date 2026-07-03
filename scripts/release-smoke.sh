@@ -209,7 +209,9 @@ if [[ "$contract_smoke" != "0" ]]; then
 
   diagnostics_cases=(
     type_annotation_mismatch
+    unresolved_value_name
     missing_local_binding_body
+    catch_missing_arm_body
     unhandled_nondet_effect_error
   )
   diagnostics_case_args=()
