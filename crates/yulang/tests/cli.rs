@@ -1467,6 +1467,36 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
 }
 
 #[test]
+fn debug_evidence_vm_plan_prints_host_escape_static_route() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan-host-escape-static-route",
+        "pub host act stop:\n  our now: () -> int\n\nstop::now()\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "static_route_dynamic: open_row 0 multiple_candidates 0 hygiene_barrier 0 provider_env 0 delayed_boundary 0 host_escape 1 unclassified 0"
+        ),
+        "host escape should be counted in the static route summary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("static_route dynamic-host-escape"),
+        "operation evidence objects should expose host escape routes:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
     let entry = write_entry(
         "debug-evidence-vm-plan-local-var-known-state",

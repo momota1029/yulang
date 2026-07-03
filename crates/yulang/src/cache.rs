@@ -4175,6 +4175,7 @@ mod tests {
             known_state_handlers: Vec::new(),
             known_state_accesses: Vec::new(),
             host_manifest: None,
+            static_routes: Vec::new(),
             tasks: vec![specialize::RuntimeEvidenceTask {
                 owner: specialize::RuntimeEvidenceTaskOwner::RootExpr {
                     root_index: 0,
