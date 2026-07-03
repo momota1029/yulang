@@ -58,6 +58,12 @@ release artifact
     fixture、native `text_with` commit / rollback / nondet / nested session、native
     file metadata file / missing / directory、native typed operation failure、unsupported
     host file / meta / ambient failure、native ambient host I/O error を含む。
+    The same direct smoke now also runs focused `host-act` canaries for console
+    and focused `time` canaries for pure instant/duration operations,
+    `clock.now` native/unsupported/mock behavior, and time public signatures.
+    `YULANG_SMOKE_CONTRACTS=0` disables these contract blocks, and
+    `YULANG_SMOKE_CONTRACT_TIMEOUT` controls their timeout
+    (`YULANG_SMOKE_FILE_RESOURCE_*` remains as the legacy alias).
 - archive smoke script:
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
