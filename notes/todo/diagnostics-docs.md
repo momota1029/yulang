@@ -27,8 +27,10 @@
   2026-07-03 に wasm playground payload 側で、先頭空行/コメント後の
   type mismatch primary / related offset が user source offset に残る canary を追加済み。
   同日に incomplete source `my x =` の parser + lowering diagnostics が
-  JSON payload に残る canary も追加済み。role/member/case coverage などの
-  missing diagnostics は detailed type checker 側の TODO に残る。
+  JSON payload に残る canary も追加済み。後続で body-level missing binding は
+  generic `yulang.lowering` ではなく `yulang.missing-local-binding-body` code と
+  hint を CLI / LSP / playground payload で固定した。role/member/case coverage
+  などの missing diagnostics は detailed type checker 側の TODO に残る。
 
 ## 2026-07-01 weekly target
 

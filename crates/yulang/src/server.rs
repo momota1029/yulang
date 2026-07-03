@@ -1659,7 +1659,13 @@ my got = make(1).norm2
                 .contains("x: binding `x` is missing a body expression"),
             "{diagnostics:?}"
         );
-        assert_diagnostic_code(&diagnostics[1], "yulang.lowering");
+        assert!(
+            diagnostics[1]
+                .message
+                .contains("hint: write a body expression after `=`"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[1], "yulang.missing-local-binding-body");
     }
 
     #[test]

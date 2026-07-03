@@ -1125,6 +1125,49 @@ fn public_diagnostics_check_reports_trailing_operator_syntax() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_missing_local_binding_body() {
+    let entry = write_entry("diagnostics-missing-local-binding-body", "my x =\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.syntax]: syntax error: unexpected end of input\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  error [yulang.missing-local-binding-body]: x: binding `x` is missing a body expression\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    hint: write a body expression after `=`\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    --> line 1, column 4\n    1 | my x =\n      |    ^\n"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("check-poly\n"), "{stdout}");
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains("  x: binding `x` is missing a body expression\n"),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_diagnostics_check_reports_catch_missing_arm_body() {
     let entry = repo_yulang_fixture("regressions/diagnostics/catch_missing_arm_body.yu");
 

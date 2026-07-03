@@ -601,7 +601,7 @@ pair
         assert_eq!(output.diagnostics[1].label.as_deref(), Some("x"));
         assert_eq!(
             output.diagnostics[1].code.as_deref(),
-            Some("yulang.lowering")
+            Some("yulang.missing-local-binding-body")
         );
         let name_start = source.find('x').unwrap();
         assert_eq!(output.diagnostics[1].start, name_start);
@@ -609,6 +609,10 @@ pair
         assert_eq!(
             output.diagnostics[1].message,
             "binding `x` is missing a body expression"
+        );
+        assert_eq!(
+            output.diagnostics[1].hint.as_deref(),
+            Some("write a body expression after `=`")
         );
     }
 

@@ -2950,9 +2950,11 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_code(error),
         infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
+        infer::lowering::BodyLoweringError::MissingBody { .. } => {
+            Some("yulang.missing-local-binding-body")
+        }
         infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
         | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
-        | infer::lowering::BodyLoweringError::MissingBody { .. }
         | infer::lowering::BodyLoweringError::NonLetDef { .. } => Some("yulang.lowering"),
     }
 }
@@ -3111,6 +3113,9 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
     match error {
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_hint(error),
+        infer::lowering::BodyLoweringError::MissingBody { .. } => {
+            Some("write a body expression after `=`".to_string())
+        }
         _ => None,
     }
 }
