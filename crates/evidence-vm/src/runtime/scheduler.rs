@@ -81,7 +81,7 @@ impl RuntimeHostScheduler {
         &mut self,
         parent: RuntimeHostBranchId,
     ) -> Option<RuntimeHostBranchId> {
-        if !self.branch_is_live(parent) {
+        if !self.branch_can_continue_at_scheduler_boundary(parent) {
             return None;
         }
         let branch_id = RuntimeHostBranchId(self.next_branch_id);
@@ -101,10 +101,10 @@ impl RuntimeHostScheduler {
         &mut self,
         branch_id: RuntimeHostBranchId,
     ) -> Option<RuntimeHostOperationInstanceId> {
-        let branch = self.branches.get_mut(&branch_id)?;
-        if !branch.status.is_live() {
+        if !self.branch_can_continue_at_scheduler_boundary(branch_id) {
             return None;
         }
+        let branch = self.branches.get_mut(&branch_id)?;
         let instance = RuntimeHostOperationInstanceId {
             branch_id,
             seq: branch.next_operation_seq,
@@ -167,6 +167,23 @@ impl RuntimeHostScheduler {
         self.branches
             .get(&branch_id)
             .is_some_and(|branch| branch.status.is_live())
+    }
+
+    fn branch_can_continue_at_scheduler_boundary(
+        &mut self,
+        branch_id: RuntimeHostBranchId,
+    ) -> bool {
+        let Some(branch) = self.branches.get_mut(&branch_id) else {
+            return false;
+        };
+        match branch.status {
+            RuntimeHostBranchStatus::Running | RuntimeHostBranchStatus::Suspended => true,
+            RuntimeHostBranchStatus::CancelPending => {
+                branch.status = RuntimeHostBranchStatus::Dropped;
+                false
+            }
+            RuntimeHostBranchStatus::Dropped | RuntimeHostBranchStatus::Completed => false,
+        }
     }
 
     fn push_cancel(&mut self, branch_id: RuntimeHostBranchId, reason: RuntimeHostCancelReason) {
@@ -257,6 +274,40 @@ mod tests {
         assert_eq!(
             scheduler.branch_status(scheduler.root_branch),
             Some(RuntimeHostBranchStatus::CancelPending)
+        );
+    }
+
+    #[test]
+    fn scheduler_drops_cancel_pending_branch_at_operation_boundary() {
+        let mut scheduler = RuntimeHostScheduler::new();
+
+        assert!(scheduler.enqueue_cancel(
+            scheduler.root_branch,
+            RuntimeHostCancelReason::ParentExtentClosed
+        ));
+        let _ = scheduler.process_next_event();
+
+        assert_eq!(
+            scheduler.next_operation_instance(scheduler.root_branch),
+            None
+        );
+        assert_eq!(
+            scheduler.branch_status(scheduler.root_branch),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn scheduler_does_not_spawn_children_from_cancel_pending_branch() {
+        let mut scheduler = RuntimeHostScheduler::new();
+
+        assert!(scheduler.enqueue_cancel(scheduler.root_branch, RuntimeHostCancelReason::Timeout));
+        let _ = scheduler.process_next_event();
+
+        assert_eq!(scheduler.spawn_suspended_child(scheduler.root_branch), None);
+        assert_eq!(
+            scheduler.branch_status(scheduler.root_branch),
+            Some(RuntimeHostBranchStatus::Dropped)
         );
     }
 
