@@ -1606,6 +1606,63 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn diagnostics_keep_incomplete_source_parser_and_lowering_errors() {
+        let root = temp_root("incomplete-source-diagnostics");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x =\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 2, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 6
+                },
+                end: Position {
+                    line: 0,
+                    character: 6
+                },
+            }
+        );
+        assert!(
+            diagnostics[0].message.contains("unexpected end of input"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.syntax");
+        assert_eq!(
+            diagnostics[1].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            }
+        );
+        assert!(
+            diagnostics[1]
+                .message
+                .contains("x: binding `x` is missing a body expression"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[1], "yulang.lowering");
+    }
+
+    #[test]
     fn diagnostics_use_missing_index_argument_range() {
         let source = diagnostics_fixture("missing_index_argument");
         let diagnostics = diagnostics_for_source(
