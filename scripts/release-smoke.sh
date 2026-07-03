@@ -207,6 +207,27 @@ if [[ "$contract_smoke" != "0" ]]; then
     exit 1
   fi
 
+  diagnostics_cases=(
+    type_annotation_mismatch
+    missing_local_binding_body
+    unhandled_nondet_effect_error
+  )
+  diagnostics_case_args=()
+  for case_name in "${diagnostics_cases[@]}"; do
+    diagnostics_case_args+=(--case "$case_name")
+  done
+  diagnostics_output="$(run_with_timeout "$contract_timeout_duration" \
+    "$bin" --std-root "$std_root" contract \
+    --contract diagnostics \
+    "${diagnostics_case_args[@]}" \
+    "$contract_cases_manifest")"
+  expected_diagnostics_output="contract cases ok: ${#diagnostics_cases[@]}"
+  if [[ "$diagnostics_output" != "$expected_diagnostics_output" ]]; then
+    echo "release smoke: unexpected diagnostics contract output" >&2
+    echo "$diagnostics_output" >&2
+    exit 1
+  fi
+
   time_cases=(
     instant_duration_core
     instant_duration_debug

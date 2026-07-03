@@ -62,6 +62,8 @@ release artifact
     `my &x = ... do`, pure `\my &x ->`, and both `file::text_with` commit
     fixtures.
     The same direct smoke now also runs focused `host-act` canaries for console
+    and focused `diagnostics` canaries for type mismatch, missing local binding
+    body, and unhandled effect reporting,
     and focused `time` canaries for pure instant/duration operations,
     `clock.now` native/unsupported/mock behavior, and time public signatures.
     `YULANG_SMOKE_CONTRACTS=0` disables these contract blocks, and
