@@ -6,6 +6,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             arena,
             namer,
             path_rewriter: None,
+            style: TypeFormatStyle::Debug,
+            redactions: 0,
         }
     }
 
@@ -18,10 +20,48 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             arena,
             namer,
             path_rewriter: Some(path_rewriter),
+            style: TypeFormatStyle::Debug,
+            redactions: 0,
+        }
+    }
+
+    pub(super) fn new_public(arena: &'a TypeArena, namer: TypeVarNamer) -> Self {
+        Self {
+            arena,
+            namer,
+            path_rewriter: None,
+            style: TypeFormatStyle::Public,
+            redactions: 0,
+        }
+    }
+
+    pub(super) fn new_public_with_path_rewriter(
+        arena: &'a TypeArena,
+        namer: TypeVarNamer,
+        path_rewriter: PathRewriter<'paths>,
+    ) -> Self {
+        Self {
+            arena,
+            namer,
+            path_rewriter: Some(path_rewriter),
+            style: TypeFormatStyle::Public,
+            redactions: 0,
         }
     }
 
     pub(super) fn format_scheme(mut self, scheme: &Scheme) -> String {
+        self.format_scheme_text(scheme)
+    }
+
+    pub(super) fn format_scheme_public(mut self, scheme: &Scheme) -> PublicTypeDisplay {
+        let text = self.format_scheme_text(scheme);
+        PublicTypeDisplay {
+            text,
+            redactions: self.redactions,
+        }
+    }
+
+    fn format_scheme_text(&mut self, scheme: &Scheme) -> String {
         let mut body = self.pos(scheme.predicate, Context::Free);
         let mut predicates = Vec::new();
         predicates.extend(
@@ -177,6 +217,9 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             }
             Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
             Pos::Stack { inner, weight } => {
+                if self.style == TypeFormatStyle::Public {
+                    return self.render_pos(*inner);
+                }
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_pos(*inner);
                 }
@@ -189,6 +232,9 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 }
             }
             Pos::NonSubtract(pos, weight) => {
+                if self.style == TypeFormatStyle::Public {
+                    return self.render_pos(*pos);
+                }
                 let inner = self.render_pos(*pos);
                 if let Some(rendered) = self.render_stack_postfix(inner.clone(), weight) {
                     rendered
@@ -227,6 +273,9 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             }
             Neg::Row(items, tail) => Rendered::atom(format!("'{}", self.neg_row(items, *tail))),
             Neg::Stack { inner, weight } => {
+                if self.style == TypeFormatStyle::Public {
+                    return self.render_neg(*inner);
+                }
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_neg(*inner);
                 }
@@ -416,7 +465,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     ) -> String {
         format!(
             "{}{}: {}",
-            surface_name(&field.name),
+            self.surface_name(&field.name),
             if field.optional { "?" } else { "" },
             format(self, field.value)
         )
@@ -458,14 +507,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             .iter()
             .map(|(name, payloads)| {
                 if payloads.is_empty() {
-                    surface_name(name)
+                    self.surface_name(name)
                 } else {
                     let payloads = payloads
                         .iter()
                         .map(|payload| format(self, *payload))
                         .collect::<Vec<_>>()
                         .join(" ");
-                    format!("{} {payloads}", surface_name(name))
+                    format!("{} {payloads}", self.surface_name(name))
                 }
             })
             .collect::<Vec<_>>()
@@ -498,20 +547,45 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             .unwrap_or_else(|| path.to_vec())
     }
 
-    fn path_name(&self, path: &[String]) -> String {
+    fn path_name(&mut self, path: &[String]) -> String {
         self.rewritten_path(path)
             .iter()
-            .map(|segment| surface_name(segment))
+            .map(|segment| self.surface_name(segment))
             .collect::<Vec<_>>()
             .join("::")
     }
 
-    fn subtractability_path_name(&self, path: &[String]) -> String {
+    fn subtractability_path_name(&mut self, path: &[String]) -> String {
         self.rewritten_path(path)
             .iter()
-            .map(|segment| subtractability_surface_name(segment))
+            .map(|segment| self.subtractability_surface_name(segment))
             .collect::<Vec<_>>()
             .join("::")
+    }
+
+    fn surface_name(&mut self, name: &str) -> String {
+        match self.style {
+            TypeFormatStyle::Debug => surface_name(name),
+            TypeFormatStyle::Public if public_name_needs_redaction(name, false) => self.redact(),
+            TypeFormatStyle::Public => name.to_string(),
+        }
+    }
+
+    fn subtractability_surface_name(&mut self, name: &str) -> String {
+        match self.style {
+            TypeFormatStyle::Debug => subtractability_surface_name(name),
+            TypeFormatStyle::Public if public_name_needs_redaction(name, true) => self.redact(),
+            TypeFormatStyle::Public => name.to_string(),
+        }
+    }
+
+    fn redact(&mut self) -> String {
+        self.redactions = self.redactions.saturating_add(1);
+        PUBLIC_REDACTION.to_string()
+    }
+
+    fn redacted_rendered(&mut self) -> Rendered {
+        Rendered::atom(self.redact())
     }
 
     pub(super) fn neg_row_inline(&mut self, id: NegId) -> Option<String> {
@@ -741,6 +815,9 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         }
         if lower_parts.is_empty() {
             return Rendered::intersection(join_rendered_text(&upper_parts, " & "));
+        }
+        if self.style == TypeFormatStyle::Public {
+            return self.redacted_rendered();
         }
         Rendered {
             text: format!(

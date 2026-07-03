@@ -13,9 +13,19 @@ use crate::types::{
 
 mod formatter;
 
+const PUBLIC_REDACTION: &str = "…";
+
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
 pub fn format_scheme(arena: &TypeArena, scheme: &Scheme) -> String {
     TypeFormatter::new(arena, TypeVarNamer::new()).format_scheme(scheme)
+}
+
+/// 公開表示用に scheme を整形する。
+///
+/// debug dump 専用の solver marker は落とし、公開面に届いた内部名や sandwich bounds は
+/// `…` に置き換えて `redactions` に数える。
+pub fn format_scheme_public(arena: &TypeArena, scheme: &Scheme) -> PublicTypeDisplay {
+    TypeFormatter::new_public(arena, TypeVarNamer::new()).format_scheme_public(scheme)
 }
 
 /// 型 path を呼び出し側の表示 context で短縮しながら scheme を返す。
@@ -29,6 +39,16 @@ pub fn format_scheme_with_path_rewriter(
 ) -> String {
     TypeFormatter::new_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
         .format_scheme(scheme)
+}
+
+/// 型 path を呼び出し側の表示 context で短縮しながら、公開表示用に scheme を整形する。
+pub fn format_scheme_public_with_path_rewriter(
+    arena: &TypeArena,
+    scheme: &Scheme,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> PublicTypeDisplay {
+    TypeFormatter::new_public_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
+        .format_scheme_public(scheme)
 }
 
 /// 正側型を短い構文風表記で返す。
@@ -162,10 +182,24 @@ impl Rendered {
 
 type PathRewriter<'a> = &'a dyn Fn(&[String]) -> Vec<String>;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicTypeDisplay {
+    pub text: String,
+    pub redactions: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TypeFormatStyle {
+    Debug,
+    Public,
+}
+
 struct TypeFormatter<'a, 'paths> {
     arena: &'a TypeArena,
     namer: TypeVarNamer,
     path_rewriter: Option<PathRewriter<'paths>>,
+    style: TypeFormatStyle,
+    redactions: u32,
 }
 
 impl<'a, 'paths> TypeFormatter<'a, 'paths> {}
@@ -317,6 +351,10 @@ fn subtractability_surface_name(name: &str) -> String {
     }
 }
 
+fn public_name_needs_redaction(name: &str, allow_sigil: bool) -> bool {
+    name.contains('#') || !(is_plain_name(name) || allow_sigil && is_sigil_name(name))
+}
+
 fn is_plain_name(name: &str) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
@@ -422,6 +460,44 @@ mod tests {
         let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(99))));
 
         assert_eq!(format_pos(&arena, weighted), "'a#0");
+    }
+
+    #[test]
+    fn public_scheme_drops_stack_markers_without_redaction() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let predicate = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(99))));
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: vec![SubtractId(99)],
+            predicate,
+        };
+
+        let public = format_scheme_public(&arena, &scheme);
+
+        assert_eq!(public.text, "'a");
+        assert_eq!(public.redactions, 0);
+    }
+
+    #[test]
+    fn public_scheme_redacts_debug_quoted_names() {
+        let mut arena = TypeArena::new();
+        let predicate = arena.alloc_pos(Pos::Con(vec!["std".into(), "#internal".into()], vec![]));
+        let scheme = Scheme {
+            quantifiers: Vec::new(),
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        let public = format_scheme_public(&arena, &scheme);
+
+        assert_eq!(public.text, "std::…");
+        assert_eq!(public.redactions, 1);
     }
 
     #[test]
@@ -772,6 +848,27 @@ mod tests {
         let bounds = arena.alloc_neu(Neu::Bounds(lower, upper));
 
         assert_eq!(format_neu(&arena, bounds), "int | 'a & str");
+    }
+
+    #[test]
+    fn public_scheme_redacts_centerless_sandwich_bounds() {
+        let mut arena = TypeArena::new();
+        let lower = arena.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let upper = arena.alloc_neg(Neg::Con(vec!["str".into()], Vec::new()));
+        let bounds = arena.alloc_neu(Neu::Bounds(lower, upper));
+        let predicate = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![bounds]));
+        let scheme = Scheme {
+            quantifiers: Vec::new(),
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        let public = format_scheme_public(&arena, &scheme);
+
+        assert_eq!(public.text, "box …");
+        assert_eq!(public.redactions, 1);
     }
 
     #[test]
