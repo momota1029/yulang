@@ -182,6 +182,34 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     echo "$host_act_output" >&2
     exit 1
   fi
+
+  time_cases=(
+    instant_duration_core
+    instant_duration_debug
+    instant_display_rfc3339
+    duration_units
+    clock_now_native
+    clock_now_unsupported_host
+    clock_mock_now_handler
+    std_time_clock_now_public_signature
+    std_time_secs_public_signature
+    std_time_days_public_signature
+  )
+  time_case_args=()
+  for case_name in "${time_cases[@]}"; do
+    time_case_args+=(--case "$case_name")
+  done
+  time_output="$(run_with_timeout "$file_resource_timeout_duration" \
+    "$bin" --std-root "$std_root" contract \
+    --contract time \
+    "${time_case_args[@]}" \
+    "$contract_cases_manifest")"
+  expected_time_output="contract cases ok: ${#time_cases[@]}"
+  if [[ "$time_output" != "$expected_time_output" ]]; then
+    echo "release smoke: unexpected time contract output" >&2
+    echo "$time_output" >&2
+    exit 1
+  fi
 fi
 
 cache_path="$(run "$bin" cache path)"
