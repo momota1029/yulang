@@ -93,27 +93,51 @@ impl RuntimeHostManifest {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct RuntimeHostRegistry {
     manifest: RuntimeHostManifest,
+    generated_manifest: Option<poly::host_manifest::HostActManifest>,
     native_host_operations_enabled: bool,
     registrations: &'static [HostOpRegistration],
 }
 
 impl RuntimeHostRegistry {
+    #[cfg(test)]
     pub(super) fn new(native_host_operations_enabled: bool) -> Self {
-        Self::with_registrations(
+        Self::with_manifest_and_registrations(
             native_host_operations_enabled,
+            None,
             super::builtin_host_registrations(),
         )
     }
 
+    pub(super) fn with_manifest(
+        native_host_operations_enabled: bool,
+        manifest: Option<poly::host_manifest::HostActManifest>,
+    ) -> Self {
+        Self::with_manifest_and_registrations(
+            native_host_operations_enabled,
+            manifest,
+            super::builtin_host_registrations(),
+        )
+    }
+
+    #[cfg(test)]
     pub(super) fn with_registrations(
         native_host_operations_enabled: bool,
         registrations: Vec<HostOpRegistration>,
     ) -> Self {
+        Self::with_manifest_and_registrations(native_host_operations_enabled, None, registrations)
+    }
+
+    pub(super) fn with_manifest_and_registrations(
+        native_host_operations_enabled: bool,
+        generated_manifest: Option<poly::host_manifest::HostActManifest>,
+        registrations: Vec<HostOpRegistration>,
+    ) -> Self {
         Self {
             manifest: RUNTIME_HOST_MANIFEST,
+            generated_manifest,
             native_host_operations_enabled,
             registrations: Box::leak(registrations.into_boxed_slice()),
         }
@@ -125,12 +149,12 @@ impl RuntimeHostRegistry {
         };
         if !self.native_host_operations_enabled {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure { act: spec.act },
+                RuntimeHostCapabilityFailure::from_runtime_act(spec.act),
             ));
         }
         let Some(f) = self.registration_for(spec) else {
             return Some(RuntimeHostRequestResolution::UnsupportedCapability(
-                RuntimeHostCapabilityFailure { act: spec.act },
+                RuntimeHostCapabilityFailure::from_runtime_act(spec.act),
             ));
         };
         Some(RuntimeHostRequestResolution::Operation(
@@ -167,14 +191,27 @@ impl RuntimeHostRegistry {
         &self,
         path: &[String],
     ) -> Option<RuntimeHostRequestResolution> {
-        let act = self.manifest.act_for_path(path)?;
+        let act_path = self.generated_manifest_act_path(path).or_else(|| {
+            self.manifest
+                .act_for_path(path)
+                .map(runtime_host_act_path_strings)
+        })?;
         Some(RuntimeHostRequestResolution::UnsupportedCapability(
-            RuntimeHostCapabilityFailure { act },
+            RuntimeHostCapabilityFailure { act_path },
         ))
+    }
+
+    fn generated_manifest_act_path(&self, path: &[String]) -> Option<Vec<String>> {
+        self.generated_manifest
+            .as_ref()?
+            .acts
+            .iter()
+            .find(|act| path.starts_with(&act.path))
+            .map(|act| act.path.clone())
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) enum RuntimeHostRequestResolution {
     Operation(RuntimeHostResolvedOperation),
     UnsupportedCapability(RuntimeHostCapabilityFailure),
@@ -186,19 +223,25 @@ pub(super) struct RuntimeHostResolvedOperation {
     f: HostOpFn,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RuntimeHostCapabilityFailure {
-    act: RuntimeHostAct,
+    act_path: Vec<String>,
 }
 
 impl RuntimeHostCapabilityFailure {
-    pub(super) fn act_path_strings(self) -> Vec<String> {
-        self.act
-            .path()
-            .iter()
-            .map(|part| (*part).to_string())
-            .collect()
+    fn from_runtime_act(act: RuntimeHostAct) -> Self {
+        Self {
+            act_path: runtime_host_act_path_strings(act),
+        }
     }
+
+    pub(super) fn act_path_strings(self) -> Vec<String> {
+        self.act_path
+    }
+}
+
+fn runtime_host_act_path_strings(act: RuntimeHostAct) -> Vec<String> {
+    act.path().iter().map(|part| (*part).to_string()).collect()
 }
 
 pub(crate) fn runtime_host_manifest_has_known_act(path: &[String]) -> bool {
@@ -601,7 +644,10 @@ mod tests {
         let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) = resolution else {
             panic!("disabled host operation should report unsupported capability");
         };
-        assert_eq!(failure, RuntimeHostCapabilityFailure { act: spec.act });
+        assert_eq!(
+            failure,
+            RuntimeHostCapabilityFailure::from_runtime_act(spec.act)
+        );
     }
 
     #[test]
@@ -645,7 +691,7 @@ mod tests {
         assert_eq!(
             failure,
             RuntimeHostCapabilityFailure {
-                act: RuntimeHostAct::File
+                act_path: vec!["std".into(), "io".into(), "file".into(), "file".into()]
             }
         );
     }
@@ -669,7 +715,31 @@ mod tests {
         assert_eq!(
             failure,
             RuntimeHostCapabilityFailure {
-                act: RuntimeHostAct::File
+                act_path: vec!["std".into(), "io".into(), "file".into(), "file".into()]
+            }
+        );
+    }
+
+    #[test]
+    fn runtime_host_registry_uses_generated_manifest_for_custom_host_act_capability() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            Vec::new(),
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
+
+        let Some(RuntimeHostRequestResolution::UnsupportedCapability(failure)) =
+            registry.resolve(&path)
+        else {
+            panic!(
+                "manifest host act without a runtime registration should be a capability failure"
+            );
+        };
+        assert_eq!(
+            failure,
+            RuntimeHostCapabilityFailure {
+                act_path: vec!["test".into(), "host".into(), "bridge".into()]
             }
         );
     }
@@ -680,5 +750,23 @@ mod tests {
         let path = ["std".into(), "unknown".into(), "op".into()];
 
         assert!(registry.resolve(&path).is_none());
+    }
+
+    fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
+        poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: "test.host.bridge".to_string(),
+                path: vec!["test".into(), "host".into(), "bridge".into()],
+            }],
+            vec![poly::host_manifest::HostActManifestOperationInput {
+                act_id: "test.host.bridge".to_string(),
+                operation_id: "call".to_string(),
+                path: vec!["test".into(), "host".into(), "bridge".into(), "call".into()],
+                tier: poly::host_manifest::HostOperationTier::Sync,
+                surface: poly::host_manifest::HostOperationSurface::Contract,
+                signature: "() -> int".to_string(),
+            }],
+        )
+        .expect("custom host manifest should be valid")
     }
 }

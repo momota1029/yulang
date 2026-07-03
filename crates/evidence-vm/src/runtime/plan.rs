@@ -79,6 +79,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
     static_routes_by_call: Vec<Option<(ExprId, RuntimeEvidenceStaticRouteResolution)>>,
+    host_manifest: Option<poly::host_manifest::HostActManifest>,
     host_constructors: RuntimeEvidenceHostConstructors,
 }
 
@@ -308,6 +309,7 @@ impl RuntimeEvidenceRunContext {
             operation_visibilities,
             operation_provider_lookups,
             static_routes_by_call,
+            host_manifest: plan.host_manifest.clone(),
             host_constructors: RuntimeEvidenceHostConstructors::default(),
         }
     }
@@ -340,6 +342,10 @@ impl RuntimeEvidenceRunContext {
 
     pub(super) fn native_host_operations_enabled(&self) -> bool {
         !self.native_host_operations_disabled
+    }
+
+    pub(super) fn host_manifest(&self) -> Option<&poly::host_manifest::HostActManifest> {
+        self.host_manifest.as_ref()
     }
 
     pub(super) fn apply_to_evidence(&mut self, evidence: &mut ControlEvidenceIndex) {

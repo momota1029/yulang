@@ -8505,7 +8505,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
         let host_scheduler = RuntimeHostScheduler::new();
-        let host_registry = RuntimeHostRegistry::new(context.native_host_operations_enabled());
+        let host_registry = RuntimeHostRegistry::with_manifest(
+            context.native_host_operations_enabled(),
+            context.host_manifest().cloned(),
+        );
         let host_constructors = context.host_constructors().clone();
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);

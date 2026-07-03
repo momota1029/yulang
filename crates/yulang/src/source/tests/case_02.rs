@@ -247,6 +247,38 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
 }
 
 #[test]
+fn compiled_unit_prefix_host_manifest_reaches_runtime_capability_boundary() {
+    let prefix_files = vec![
+        collected("prefix.yu", &[], "mod dep;\n"),
+        collected(
+            "dep.yu",
+            &["dep"],
+            "pub host act bridge:\n  pub call: () -> int\n",
+        ),
+    ];
+    let prefix = build_poly_and_compiled_unit_from_collected_sources(prefix_files)
+        .unwrap()
+        .compiled_unit;
+    let suffix_files = vec![collected("main.yu", &[], "use dep::*\nbridge::call()\n")];
+
+    let output =
+        build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files).unwrap();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let build = build_control_from_poly_output(&output).unwrap();
+    let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
+    let error =
+        evidence_vm::run_program_with_plan_with_labels(&build.program, &plan, &build.labels)
+            .expect_err("unregistered generated host operation should fail at capability boundary");
+
+    match error {
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability(path) => {
+            assert_eq!(path, vec!["dep".to_string(), "bridge".to_string()]);
+        }
+        other => panic!("expected unsupported host capability, got {other:?}"),
+    }
+}
+
+#[test]
 fn build_poly_from_non_root_source_unit_prefix_lowers_source_suffix() {
     let files = vec![
         collected("main.yu", &[], "mod a;\nuse a::*\nx\n"),
