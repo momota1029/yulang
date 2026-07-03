@@ -255,11 +255,13 @@ The columns trace a value through the pipeline:
 - The global package workflow is still experimental. Remote providers,
   version-family solving, `yulang.lock`, and registry/git source policies are
   not stable user workflows yet.
-- Full diagnostics polish is still in progress. Parser, type, catch syntax, and
-  role/method specialization failures now have structured CLI/LSP/playground
-  payload coverage for the focused manifest cases. Role/method diagnostics use
-  the specialization oracle as a narrow `SourceDiagnostic` bridge until role impl
-  satisfaction has a dedicated check-stage owner.
+- Full diagnostics polish is still in progress. Parser, type, catch syntax,
+  role/method specialization failures, and focused runtime failures now have
+  manifest coverage. Check-stage cases carry structured CLI/LSP/playground
+  payloads; runtime-failure cases pin the user-facing code and hint text.
+  Role/method diagnostics use the specialization oracle as a narrow
+  `SourceDiagnostic` bridge until role impl satisfaction has a dedicated
+  check-stage owner.
 
 ## Reporting gaps
 

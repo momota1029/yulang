@@ -93,8 +93,12 @@ Diagnostics の最初の slice:
   fixtures はこの manifest 経路で payload も見る。
 - 2026-07-03 に、release binary + repo std の filtered manifest run
   `yulang contract --contract diagnostics tests/yulang/cases.toml` は
-  `contract cases ok: 21` で通過した。以後 diagnostics の追加はこの tag
-  を広げる形で行い、check cases では structured payload も固定する。
+  `contract cases ok: 21` で通過した。同日後続 slice で runtime-failure の
+  代表ケースも `diagnostics` tag に含め、`not-callable` / `not-record` /
+  `pattern-mismatch` / `unhandled-effect` / backend unsupported runtime feature
+  の user-facing code と hint を同じ filtered manifest で固定するようにした。
+  現在の filtered manifest run は `contract cases ok: 27`。以後 diagnostics の
+  追加はこの tag を広げる形で行い、check cases では structured payload も固定する。
 
 API 固定の最初の slice:
 

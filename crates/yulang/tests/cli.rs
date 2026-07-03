@@ -4430,6 +4430,19 @@ fn public_contract_manifest_covers_status_spine_claims() {
         ManifestTagRequirement::new("public examples", &["public-example"]),
         ManifestTagRequirement::new("runtime error behavior", &["runtime-error"]),
         ManifestTagRequirement::new("diagnostics", &["diagnostics"]),
+        ManifestTagRequirement::new("runtime diagnostics", &["diagnostics", "runtime-failure"]),
+        ManifestTagRequirement::new(
+            "runtime call diagnostics",
+            &["diagnostics", "runtime-failure", "calls"],
+        ),
+        ManifestTagRequirement::new(
+            "runtime effect diagnostics",
+            &["diagnostics", "runtime-failure", "effects"],
+        ),
+        ManifestTagRequirement::new(
+            "runtime pattern diagnostics",
+            &["diagnostics", "runtime-failure", "patterns"],
+        ),
         ManifestTagRequirement::new("diagnostics syntax", &["diagnostics", "syntax"]),
         ManifestTagRequirement::new("diagnostics names", &["diagnostics", "names"]),
         ManifestTagRequirement::new("diagnostics typechecker", &["diagnostics", "typechecker"]),
