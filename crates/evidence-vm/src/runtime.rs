@@ -39,7 +39,7 @@ pub use host::{
     RuntimeHostManifestOperation, RuntimeHostManifestTier, runtime_host_manifest_operations,
     runtime_host_manifest_tiers,
 };
-use host::{RuntimeHostOperationSpec, RuntimeHostRegistry, RuntimeHostRequestResolution};
+use host::{RuntimeHostRegistry, RuntimeHostRequestResolution};
 pub use host_abi::{BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
@@ -12465,7 +12465,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         operation: host::RuntimeHostResolvedOperation,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let operation_path = operation.spec.path_strings();
+        let operation_path = operation.path_strings();
         let boundary_payload = runtime_to_boundary_value(payload, &self.host_constructors)
             .map_err(|message| RuntimeEvidenceRunError::HostAbiError {
                 operation: operation_path.clone(),
@@ -12487,9 +12487,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             HostOutcome::Suspended => Err(RuntimeEvidenceRunError::UnsupportedExpr(
                 "sync host operation suspended",
             )),
-            HostOutcome::HostError(message) => {
-                Err(runtime_error_from_host_error(operation.spec, message))
-            }
+            HostOutcome::HostError(message) => Err(runtime_error_from_host_error(
+                operation_path.clone(),
+                message,
+            )),
         }
     }
 
@@ -20048,13 +20049,11 @@ fn boundary_file_meta_to_runtime(
 }
 
 fn runtime_error_from_host_error(
-    spec: &'static RuntimeHostOperationSpec,
+    operation: Vec<String>,
     message: String,
 ) -> RuntimeEvidenceRunError {
-    parse_host_io_error(&message).unwrap_or_else(|| RuntimeEvidenceRunError::HostAbiError {
-        operation: spec.path_strings(),
-        message,
-    })
+    parse_host_io_error(&message)
+        .unwrap_or_else(|| RuntimeEvidenceRunError::HostAbiError { operation, message })
 }
 
 fn parse_host_io_error(message: &str) -> Option<RuntimeEvidenceRunError> {
@@ -20983,6 +20982,42 @@ mod tests {
     }
 
     #[test]
+    fn host_abi_registration_can_serve_custom_manifest_act() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "test.host.bridge",
+                operation_id: "call",
+                f: custom_host_call,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "test".to_string(),
+                "host".to_string(),
+                "bridge".to_string(),
+                "call".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let result = runner
+            .handle_escaped_request(request)
+            .expect("custom manifest host op should be handled");
+
+        assert_eq!(
+            result,
+            EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Int(42)))
+        );
+    }
+
+    #[test]
     fn host_abi_panicking_registration_reports_structured_failure() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -21042,8 +21077,33 @@ mod tests {
         HostOutcome::Return(BoundaryValue::Str("mocked".to_string()))
     }
 
+    fn custom_host_call(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+        if !matches!(payload, BoundaryValue::Unit) {
+            return HostOutcome::HostError(format!("custom host expected unit, got {payload:?}"));
+        }
+        HostOutcome::Return(BoundaryValue::Int(42))
+    }
+
     fn panicking_file_load(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
         panic!("host op panic smoke");
+    }
+
+    fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
+        poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: "test.host.bridge".to_string(),
+                path: vec!["test".into(), "host".into(), "bridge".into()],
+            }],
+            vec![poly::host_manifest::HostActManifestOperationInput {
+                act_id: "test.host.bridge".to_string(),
+                operation_id: "call".to_string(),
+                path: vec!["test".into(), "host".into(), "bridge".into(), "call".into()],
+                tier: poly::host_manifest::HostOperationTier::Sync,
+                surface: poly::host_manifest::HostOperationSurface::Contract,
+                signature: "() -> int".to_string(),
+            }],
+        )
+        .expect("custom host manifest should be valid")
     }
 
     #[test]

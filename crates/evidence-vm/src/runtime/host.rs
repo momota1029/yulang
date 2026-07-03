@@ -55,7 +55,7 @@ pub(super) struct RuntimeHostOperationSpec {
 }
 
 impl RuntimeHostOperationSpec {
-    pub(super) fn path_strings(self) -> Vec<String> {
+    pub(super) fn path_strings(&self) -> Vec<String> {
         self.path.iter().map(|part| (*part).to_string()).collect()
     }
 }
@@ -144,6 +144,10 @@ impl RuntimeHostRegistry {
     }
 
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeHostRequestResolution> {
+        if let Some(manifest) = &self.generated_manifest {
+            return self.resolve_generated_manifest_request(manifest, path);
+        }
+
         let Some(spec) = self.manifest.operation_spec(path) else {
             return self.resolve_known_act_without_registered_operation(path);
         };
@@ -158,7 +162,10 @@ impl RuntimeHostRegistry {
             ));
         };
         Some(RuntimeHostRequestResolution::Operation(
-            RuntimeHostResolvedOperation { spec, f },
+            RuntimeHostResolvedOperation {
+                path: spec.path_strings(),
+                f,
+            },
         ))
     }
 
@@ -171,9 +178,50 @@ impl RuntimeHostRegistry {
         catch_unwind(AssertUnwindSafe(|| (operation.f)(ctx, payload))).unwrap_or_else(|_| {
             HostOutcome::HostError(format!(
                 "host operation {} panicked",
-                operation.spec.path.join("::")
+                operation.path.join("::")
             ))
         })
+    }
+
+    fn resolve_generated_manifest_request(
+        &self,
+        manifest: &poly::host_manifest::HostActManifest,
+        path: &[String],
+    ) -> Option<RuntimeHostRequestResolution> {
+        let Some(act) = manifest.acts.iter().find(|act| path.starts_with(&act.path)) else {
+            return None;
+        };
+        let Some(operation) = manifest
+            .operations
+            .iter()
+            .find(|operation| operation.path == path)
+        else {
+            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act_path: act.path.clone(),
+                },
+            ));
+        };
+        if !self.native_host_operations_enabled {
+            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act_path: act.path.clone(),
+                },
+            ));
+        }
+        let Some(f) = self.registration_for_manifest_operation(operation) else {
+            return Some(RuntimeHostRequestResolution::UnsupportedCapability(
+                RuntimeHostCapabilityFailure {
+                    act_path: act.path.clone(),
+                },
+            ));
+        };
+        Some(RuntimeHostRequestResolution::Operation(
+            RuntimeHostResolvedOperation {
+                path: operation.path.clone(),
+                f,
+            },
+        ))
     }
 
     fn registration_for(&self, spec: &RuntimeHostOperationSpec) -> Option<HostOpFn> {
@@ -183,6 +231,20 @@ impl RuntimeHostRegistry {
             .rev()
             .find(|registration| {
                 registration.act_id == act_id && registration.operation_id == spec.operation_id
+            })
+            .map(|registration| registration.f)
+    }
+
+    fn registration_for_manifest_operation(
+        &self,
+        operation: &poly::host_manifest::HostActManifestOperation,
+    ) -> Option<HostOpFn> {
+        self.registrations
+            .iter()
+            .rev()
+            .find(|registration| {
+                registration.act_id == operation.act_id
+                    && registration.operation_id == operation.operation_id
             })
             .map(|registration| registration.f)
     }
@@ -217,10 +279,16 @@ pub(super) enum RuntimeHostRequestResolution {
     UnsupportedCapability(RuntimeHostCapabilityFailure),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct RuntimeHostResolvedOperation {
-    pub(super) spec: &'static RuntimeHostOperationSpec,
+    path: Vec<String>,
     f: HostOpFn,
+}
+
+impl RuntimeHostResolvedOperation {
+    pub(super) fn path_strings(&self) -> Vec<String> {
+        self.path.clone()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -661,15 +729,11 @@ mod tests {
             "meta".into(),
         ];
 
-        let spec = runtime_host_operation_spec(&path).expect("file meta op should be registered");
-
         let Some(RuntimeHostRequestResolution::Operation(operation)) = registry.resolve(&path)
         else {
             panic!("enabled host operation should resolve to registered operation");
         };
-        assert_eq!(operation.spec, spec);
-        assert_eq!(operation.spec.operation, RuntimeHostOperation::FileMeta);
-        assert_eq!(operation.spec.path_strings(), path.to_vec());
+        assert_eq!(operation.path_strings(), path.to_vec());
     }
 
     #[test]
