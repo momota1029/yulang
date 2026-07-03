@@ -547,6 +547,42 @@ pair
     }
 
     #[test]
+    fn check_inner_keeps_diagnostic_offsets_after_leading_trivia() {
+        let source = "\n// keep playground diagnostics on the user source line\nmy x: int = true\n";
+        let output = check_inner(source);
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.label.as_deref(), Some("x"));
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
+        let label_start = source.find("x:").unwrap();
+        assert_eq!(diagnostic.start, label_start);
+        assert_eq!(diagnostic.end, label_start + "x".len());
+        assert_eq!(diagnostic.message, "type mismatch: bool is not int");
+        assert_eq!(diagnostic.related.len(), 2);
+        let annotation_start = source.find("int").unwrap();
+        assert_eq!(
+            diagnostic.related[0].message,
+            "expected type comes from this type annotation: int"
+        );
+        assert_eq!(
+            diagnostic.related[0].origin.as_deref(),
+            Some("type_annotation")
+        );
+        assert_eq!(diagnostic.related[0].start, annotation_start);
+        assert_eq!(diagnostic.related[0].end, annotation_start + "int".len());
+        let expression_start = source.find("true").unwrap();
+        assert_eq!(
+            diagnostic.related[1].message,
+            "actual type comes from this expression: bool"
+        );
+        assert_eq!(diagnostic.related[1].origin.as_deref(), Some("expression"));
+        assert_eq!(diagnostic.related[1].start, expression_start);
+        assert_eq!(diagnostic.related[1].end, expression_start + "true".len());
+    }
+
+    #[test]
     fn check_inner_returns_diagnostic_code_and_type_name_range() {
         let output = check_inner(diagnostics_fixture("unresolved_type_name"));
 
