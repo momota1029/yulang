@@ -405,6 +405,18 @@ mod tests {
     }
 
     #[test]
+    fn runtime_host_registry_ignores_registrations_for_absent_manifest_acts() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(unrelated_host_manifest()),
+            vec![custom_host_registration("call")],
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
+
+        assert!(registry.resolve(&path).is_none());
+    }
+
+    #[test]
     fn runtime_host_registry_leaves_unknown_effects_unresolved() {
         let registry = RuntimeHostRegistry::new(false);
         let path = ["std".into(), "unknown".into(), "op".into()];
@@ -492,5 +504,28 @@ mod tests {
             ],
         )
         .expect("nested custom host manifest should be valid")
+    }
+
+    fn unrelated_host_manifest() -> poly::host_manifest::HostActManifest {
+        poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: "other.host.bridge".to_string(),
+                path: vec!["other".into(), "host".into(), "bridge".into()],
+            }],
+            vec![poly::host_manifest::HostActManifestOperationInput {
+                act_id: "other.host.bridge".to_string(),
+                operation_id: "call".to_string(),
+                path: vec![
+                    "other".into(),
+                    "host".into(),
+                    "bridge".into(),
+                    "call".into(),
+                ],
+                tier: poly::host_manifest::HostOperationTier::Sync,
+                surface: poly::host_manifest::HostOperationSurface::Contract,
+                signature: "() -> int".to_string(),
+            }],
+        )
+        .expect("unrelated custom host manifest should be valid")
     }
 }
