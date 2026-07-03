@@ -333,6 +333,12 @@ fn compatible_run_std_file_unsupported_host_reports_capability_error() {
         stderr.contains("host capability std::io::file::file is not available"),
         "{stderr}"
     );
+    assert!(
+        stderr.contains(
+            "hint: use a host that grants this capability or handle the capability with a mock effect handler"
+        ),
+        "{stderr}"
+    );
     assert!(!stderr.contains("run roots [false]"), "{stderr}");
 }
 
@@ -363,6 +369,12 @@ fn compatible_run_custom_host_act_without_registration_reports_capability_error(
     );
     assert!(
         stderr.contains("host capability stop is not available"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: use a host that grants this capability or handle the capability with a mock effect handler"
+        ),
         "{stderr}"
     );
     assert!(

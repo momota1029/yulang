@@ -200,6 +200,7 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "runtime error [yulang.unsupported-host-capability]: host capability std::time::clock is not available in this runtime",
+  "hint: use a host that grants this capability or handle the capability with a mock effect handler",
 ]
 contracts = [
   "runtime-error",
@@ -672,6 +673,7 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file is not available in this runtime",
+  "hint: use a host that grants this capability or handle the capability with a mock effect handler",
 ]
 contracts = [
   "runtime-error",
@@ -780,6 +782,7 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "runtime error [yulang.unsupported-host-capability]: host capability std::io::console::out is not available in this runtime",
+  "hint: use a host that grants this capability or handle the capability with a mock effect handler",
 ]
 contracts = [
   "runtime-error",
