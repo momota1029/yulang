@@ -147,7 +147,7 @@ fn parse_rule_item<I: EventInput, S: EventSink>(
         RuleNudTag::Stop => {
             return Some(Either::Right(nud.lex));
         }
-        RuleNudTag::Atom => {
+        RuleNudTag::Atom | RuleNudTag::Rest => {
             i.env.state.sink.start(SyntaxKind::Expr);
             i.env.state.sink.lex(&nud.lex);
             let trailing = parse_rule_body_tail(nud.lex.trailing_trivia_info(), i.rb())?;

@@ -508,7 +508,7 @@ impl<'a> ExprLowerer<'a> {
         result_effect: TypeVar,
         rule_locals_start: usize,
     ) -> Result<Computation, LoweringError> {
-        let capture_stmts = self.lower_rule_case_capture_stmts(rule, parsed_value)?;
+        let capture_stmt = self.lower_rule_case_capture_stmt(rule, parsed_value)?;
         let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCaseArmBody {
             source_range: first_token_source_range(arm, SyntaxKind::Arrow)
                 .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
@@ -522,33 +522,61 @@ impl<'a> ExprLowerer<'a> {
             body = self.lower_bool_case(condition, body, fallback, result_value, result_effect);
         }
 
-        for stmt in capture_stmts.into_iter().rev() {
+        if let Some(stmt) = capture_stmt {
             body = self.prepend_block(stmt, body);
         }
         self.locals.truncate(rule_locals_start);
         Ok(body)
     }
 
-    fn lower_rule_case_capture_stmts(
+    fn lower_rule_case_capture_stmt(
         &mut self,
         rule: &Cst,
         parsed_value: Computation,
-    ) -> Result<Vec<LoweredLocalStmt>, LoweringError> {
-        let mut stmts = Vec::new();
-        for name in rule_case_capture_names(rule)? {
-            let captured = self.lower_synthetic_selection(parsed_value, name.0.clone());
+    ) -> Result<Option<LoweredLocalStmt>, LoweringError> {
+        let names = rule_case_capture_names(rule)?;
+        if names.is_empty() {
+            return Ok(None);
+        }
+
+        let mut fields = Vec::new();
+        let mut pos_fields = Vec::new();
+        let mut neg_fields = Vec::new();
+        for name in names {
+            let field_value = self.fresh_type_var();
             let pat = self.bind_pattern_local(
-                name,
-                captured.value,
+                name.clone(),
+                field_value,
                 None,
                 LocalCallReturnEffect::Annotated,
             );
-            stmts.push(LoweredLocalStmt {
-                stmt: Stmt::Let(Vis::My, pat, captured.expr),
-                effect: captured.effect,
+            pos_fields.push(RecordField {
+                name: name.0.clone(),
+                value: self.alloc_pos(Pos::Var(field_value)),
+                optional: false,
+            });
+            neg_fields.push(RecordField {
+                name: name.0.clone(),
+                value: self.alloc_neg(Neg::Var(field_value)),
+                optional: false,
+            });
+            fields.push(poly::expr::RecordPatField {
+                name: name.0,
+                pat,
+                default: None,
             });
         }
-        Ok(stmts)
+        self.constrain_lower(parsed_value.value, Pos::Record(pos_fields));
+        self.constrain_upper(parsed_value.value, Neg::Record(neg_fields));
+
+        let pat = self.session.poly.add_pat(Pat::Record {
+            fields,
+            spread: RecordSpread::None,
+        });
+        Ok(Some(LoweredLocalStmt {
+            stmt: Stmt::Let(Vis::My, pat, parsed_value.expr),
+            effect: parsed_value.effect,
+        }))
     }
 
     fn lower_std_result_pattern(

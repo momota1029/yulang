@@ -17,6 +17,9 @@ pub enum LoweringError {
         kind: SyntaxKind,
         source_range: SourceRange,
     },
+    RuleRestMustBeLast {
+        source_range: SourceRange,
+    },
     UnresolvedName {
         name: Name,
         source_range: Option<SourceRange>,

@@ -2626,6 +2626,41 @@ fn expr_rule_body_capture() {
 }
 
 #[test]
+fn expr_rule_body_rest() {
+    let got = parse_expression("rule { cmd = word rest = .. }");
+    let expected = vec![
+        "(Expr",
+        "  (RuleExpr",
+        "    Rule \"rule\"",
+        "    (BraceGroup",
+        "      BraceL \"{\"",
+        "      (Expr",
+        "        Ident \"cmd\"",
+        "        (RuleCapture",
+        "          Equal \"=\"",
+        "          (Expr",
+        "            Ident \"word\"",
+        "          )",
+        "        )",
+        "      )",
+        "      (Expr",
+        "        Ident \"rest\"",
+        "        (RuleCapture",
+        "          Equal \"=\"",
+        "          (Expr",
+        "            DotDot \"..\"",
+        "          )",
+        "        )",
+        "      )",
+        "      BraceR \"}\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_rule_body_alternation() {
     // rule { a b* | c+ d } — | で alternation
     let got = parse_expression("rule { a b* | c+ d }");
@@ -2687,6 +2722,38 @@ fn expr_rule_lit_interp_capture() {
         "      RuleLitCloseBrace \"}\"",
         "    )",
         "    RuleLitText \"/posts\"",
+        "    RuleLitEnd \"\\\"\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_rule_lit_interp_rest_capture() {
+    let got = parse_expression("~\":cmd {r = ..}\"");
+    let expected = vec![
+        "(Expr",
+        "  (RuleLit",
+        "    RuleLitStart \"~\\\"\"",
+        "    (RuleLazyCapture",
+        "      RuleLitColon \":\"",
+        "      RuleLitText \"cmd\"",
+        "    )",
+        "    RuleLitText \" \"",
+        "    (RuleLitInterp",
+        "      RuleLitOpenBrace \"{\"",
+        "      (Expr",
+        "        Ident \"r\"",
+        "        (RuleCapture",
+        "          Equal \"=\"",
+        "          (Expr",
+        "            DotDot \"..\"",
+        "          )",
+        "        )",
+        "      )",
+        "      RuleLitCloseBrace \"}\"",
+        "    )",
         "    RuleLitEnd \"\\\"\"",
         "  )",
         ")",

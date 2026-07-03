@@ -10,6 +10,20 @@ my record_single(source: str): str = case source:
     rule { id = word } -> "single:" + id
     _ -> "single-none"
 
+my lazy_capture(source: str): str = case source:
+    ~"hello :name" -> "lazy:" + name
+    _ -> "lazy-none"
+
+my custom_parser(): [parse char str_error (int, int) (str, int, int)] str = word()
+
+my interpolation_capture(source: str): str = case source:
+    ~"{x = custom_parser}" -> "interp:" + x
+    _ -> "interp-none"
+
+my bare_parser_capture(source: str): str = case source:
+    rule { x = custom_parser } -> "bare:" + x
+    _ -> "bare-none"
+
 my record_multi(source: str): str = case source:
     rule { first = word "-" second = word } -> first + "/" + second
     _ -> "multi-none"
@@ -17,6 +31,28 @@ my record_multi(source: str): str = case source:
 my nested_record(source: str): str = case source:
     rule { pair = (left = word ":" right = word) } -> pair.left + "/" + pair.right
     _ -> "nested-none"
+
+my guard_case(source: str): str = case source:
+    rule { id = word } if std::text::str::starts_with id "A" -> "guard:" + id
+    rule { id = word } -> "unguarded:" + id
+    _ -> "guard-none"
+
+my dot_guard_case(source: str): str = case source:
+    rule { id = word } if id.starts_with "A" -> "dot-guard:" + id
+    rule { id = word } -> "dot-unguarded:" + id
+    _ -> "dot-guard-none"
+
+my rest_bound(source: str): str = case source:
+    rule { cmd = word " " rest = .. } -> cmd + ":" + rest
+    _ -> "rest-bound-none"
+
+my rest_discard(source: str): str = case source:
+    rule { cmd = word " " .. } -> "rest-discard:" + cmd
+    _ -> "rest-discard-none"
+
+my rest_lit_capture(source: str): str = case source:
+    ~":cmd {r = ..}" -> cmd + ":" + r
+    _ -> "rest-lit-none"
 
 my mixed_pattern(source: str): str = case source:
     ~"kw" -> "mixed-parser"
@@ -30,9 +66,20 @@ my mixed_pattern(source: str): str = case source:
     token_case "zzz",
     record_single "alpha",
     record_single "alpha!",
+    lazy_capture "hello Alice",
+    lazy_capture "hello ",
+    interpolation_capture "bravo",
+    bare_parser_capture "charlie",
     record_multi "alpha-beta",
     record_multi "alpha-beta!",
     nested_record "left:right",
+    guard_case "Alpha",
+    guard_case "beta",
+    dot_guard_case "Alpha",
+    dot_guard_case "beta",
+    rest_bound "run alpha beta",
+    rest_discard "run alpha beta",
+    rest_lit_capture "run alpha beta",
     mixed_pattern "kw",
     mixed_pattern "lit",
     mixed_pattern "free"

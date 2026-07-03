@@ -212,6 +212,11 @@ pub token(expected: str)(): [parse char 'err 'pos 'snap] unit =
     else:
         parse::fail: ParseError::expected(expected, parse::pos())
 
+pub rest(): [parse char 'err (int, int) (str, int, int)] str =
+    my (input, _, _) = parse::snapshot()
+    parse::advance input.len
+    input
+
 pub optional(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] opt 'a = choice(\() -> just (p()), \() -> nil)()
 
 pub many(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] list 'a =

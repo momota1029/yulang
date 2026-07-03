@@ -620,3 +620,32 @@ fn pat_rule_expr_simple() {
     ];
     assert_eq!(got, expected);
 }
+
+#[test]
+fn pat_rule_expr_rest() {
+    let got = parse_pat("rule { cmd = word .. }");
+    let expected = vec![
+        "(Pattern",
+        "  (RuleExpr",
+        "    Rule \"rule\"",
+        "    (BraceGroup",
+        "      BraceL \"{\"",
+        "      (Expr",
+        "        Ident \"cmd\"",
+        "        (RuleCapture",
+        "          Equal \"=\"",
+        "          (Expr",
+        "            Ident \"word\"",
+        "          )",
+        "        )",
+        "      )",
+        "      (Expr",
+        "        DotDot \"..\"",
+        "      )",
+        "      BraceR \"}\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}

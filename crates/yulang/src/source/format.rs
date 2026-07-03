@@ -2544,6 +2544,9 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
                 "rule lazy quantifier `{quantifier}` is not supported; rule uses PEG-style greedy repetition"
             )
         }
+        infer::lowering::LoweringError::RuleRestMustBeLast { .. } => {
+            "`..` must be the final item in a rule branch".to_string()
+        }
         infer::lowering::LoweringError::UnresolvedName { name, .. } => {
             format!("unresolved value name: {}", name.0)
         }

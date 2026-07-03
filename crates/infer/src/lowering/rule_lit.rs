@@ -66,6 +66,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         parts: Vec<RuleLitPart>,
     ) -> Result<Computation, LoweringError> {
+        validate_rule_lit_rest_position(&parts)?;
         let mut stmts = Vec::new();
         let mut fields = Vec::new();
         for part in parts {
@@ -153,6 +154,7 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_rule_sequence(&mut self, items: Vec<Cst>) -> Result<RuleLowered, LoweringError> {
+        validate_rule_rest_position(&items)?;
         let mut stmts = Vec::new();
         let mut fields = Vec::new();
         let mut value = None;
@@ -208,6 +210,13 @@ impl<'a> ExprLowerer<'a> {
     fn lower_rule_item(&mut self, node: &Cst) -> Result<RuleParserItem, LoweringError> {
         if let Some(quant) = rule_quant(node) {
             return self.lower_rule_quant(node, quant);
+        }
+
+        if rule_expr_is_rest(node) {
+            return Ok(RuleParserItem {
+                parser: self.rule_rest_parser()?,
+                semantic: RuleSemantic::Unit,
+            });
         }
 
         if let Some(text) = plain_string_expr_text(node)? {
@@ -298,6 +307,10 @@ impl<'a> ExprLowerer<'a> {
 
     fn rule_word_parser(&mut self) -> Result<Computation, LoweringError> {
         self.std_parse_ref("word")
+    }
+
+    fn rule_rest_parser(&mut self) -> Result<Computation, LoweringError> {
+        self.std_parse_ref("rest")
     }
 
     fn run_rule_parser(&mut self, parser: Computation) -> Computation {
@@ -423,6 +436,62 @@ fn push_unique_name(names: &mut Vec<Name>, name: Name) {
     if !names.iter().any(|existing| existing == &name) {
         names.push(name);
     }
+}
+
+fn validate_rule_lit_rest_position(parts: &[RuleLitPart]) -> Result<(), LoweringError> {
+    for (index, part) in parts.iter().enumerate() {
+        let Some(source_range) = rule_lit_part_rest_range(part) else {
+            continue;
+        };
+        if parts[index + 1..]
+            .iter()
+            .any(|part| !matches!(part, RuleLitPart::Token(text) if text.is_empty()))
+        {
+            return Err(LoweringError::RuleRestMustBeLast { source_range });
+        }
+    }
+    Ok(())
+}
+
+fn validate_rule_rest_position(items: &[Cst]) -> Result<(), LoweringError> {
+    for (index, item) in items.iter().enumerate() {
+        let Some(source_range) = rule_item_rest_range(item) else {
+            continue;
+        };
+        if index + 1 != items.len() {
+            return Err(LoweringError::RuleRestMustBeLast { source_range });
+        }
+    }
+    Ok(())
+}
+
+fn rule_lit_part_rest_range(part: &RuleLitPart) -> Option<SourceRange> {
+    match part {
+        RuleLitPart::Parser(parser) => rule_item_rest_range(parser),
+        RuleLitPart::CaptureParser { parser, .. } => rule_item_rest_range(parser),
+        RuleLitPart::Token(_) | RuleLitPart::CaptureWord(_) => None,
+    }
+}
+
+fn rule_item_rest_range(item: &Cst) -> Option<SourceRange> {
+    if rule_expr_is_rest(item) {
+        return rest_source_range(item);
+    }
+    let (_, parser) = rule_expr_capture(item)?;
+    rest_source_range(&parser)
+}
+
+fn rest_source_range(node: &Cst) -> Option<SourceRange> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::DotDot)
+        .map(|token| crate::token_source_range(&token))
+}
+
+fn rule_expr_is_rest(node: &Cst) -> bool {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|token| token.kind() == SyntaxKind::DotDot)
 }
 
 fn plain_rule_lit_text(node: &Cst) -> Option<String> {

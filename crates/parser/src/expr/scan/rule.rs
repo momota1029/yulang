@@ -153,6 +153,11 @@ fn rule_keyword_kind(text: &str) -> Option<SyntaxKind> {
     }
 }
 
+fn scan_rule_rest<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<(SyntaxKind, Box<str>)> {
+    let (kind, text) = i.run(tag("..").to(SyntaxKind::DotDot).with_seq())?;
+    Some((kind, text.as_ref().into()))
+}
+
 // ─────────────────────────────────────────────
 // rule { } ボディスキャナ
 // ─────────────────────────────────────────────
@@ -161,6 +166,7 @@ fn rule_keyword_kind(text: &str) -> Option<SyntaxKind> {
 #[derive(Debug, Clone)]
 pub enum RuleNudTag {
     Atom,
+    Rest,
     StringStart,
     OpenParen,
     OpenBracket,
@@ -200,6 +206,7 @@ pub fn scan_rule_body_nud<I: EventInput, S: EventSink>(
         let (tag, (kind, text)) = i.choice((
             (value(RuleNudTag::Atom), scan_sigil_ident),
             (value(RuleNudTag::Atom), scan_number),
+            (value(RuleNudTag::Rest), scan_rule_rest),
             scan_rule_ident_or_keyword.map(|(kind, text)| match kind {
                 SyntaxKind::Ident => (RuleNudTag::Atom, (kind, text)),
                 _ => (RuleNudTag::Stop, (kind, text)),

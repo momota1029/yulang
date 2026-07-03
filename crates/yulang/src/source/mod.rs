@@ -2976,6 +2976,9 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
             Some("yulang.unsupported-rule-lazy-quantifier")
         }
+        infer::lowering::LoweringError::RuleRestMustBeLast { .. } => {
+            Some("yulang.rule-rest-position")
+        }
         infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {
             Some("yulang.missing-catch-scrutinee")
         }
@@ -3096,6 +3099,9 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
             Some("use greedy `*` or `+`, then handle optional matching explicitly".to_string())
         }
+        infer::lowering::LoweringError::RuleRestMustBeLast { .. } => {
+            Some("move `..` to the end of this rule branch".to_string())
+        }
         infer::lowering::LoweringError::UnresolvedName { name, .. } => Some(format!(
             "define `{}` before this use, or import the module that provides it",
             name.0
@@ -3194,7 +3200,8 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { source_range, .. } => {
             *source_range
         }
-        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. } => {
+        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. }
+        | infer::lowering::LoweringError::RuleRestMustBeLast { source_range } => {
             Some(*source_range)
         }
         infer::lowering::LoweringError::MissingCaseScrutinee { source_range }

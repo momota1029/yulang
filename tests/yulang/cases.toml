@@ -84,7 +84,7 @@ name = "parser_pattern_case"
 file = "regressions/runtime/parser_pattern_case.yu"
 kind = "run"
 std = "repo"
-expect_stdout = "run roots [(\"token-let\", \"token-fn\", \"token-letx\", \"token-other\", \"single:alpha\", \"single-none\", \"alpha/beta\", \"multi-none\", \"left/right\", \"mixed-parser\", \"mixed-literal\", \"mixed-bind:free\")]\n"
+expect_stdout = "run roots [(\"token-let\", \"token-fn\", \"token-letx\", \"token-other\", \"single:alpha\", \"single-none\", \"lazy:Alice\", \"lazy-none\", \"interp:bravo\", \"bare:charlie\", \"alpha/beta\", \"multi-none\", \"left/right\", \"guard:Alpha\", \"unguarded:beta\", \"dot-guard:Alpha\", \"dot-unguarded:beta\", \"run:alpha beta\", \"rest-discard:run\", \"run:alpha beta\", \"mixed-parser\", \"mixed-literal\", \"mixed-bind:free\")]\n"
 expect_stderr = ""
 contracts = ["runtime", "parser-dsl", "std.parse", "patterns"]
 
