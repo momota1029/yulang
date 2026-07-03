@@ -58,6 +58,8 @@ pub struct RuntimeEvidenceStaticRoute {
     pub operation_expr: u32,
     pub apply: u32,
     pub callee: u32,
+    #[serde(default)]
+    pub operation_def: u32,
     pub family: Vec<String>,
     pub resolution: RuntimeEvidenceStaticRouteResolution,
 }
@@ -264,6 +266,14 @@ impl TaskStaticRouteClassifier {
             .iter()
             .map(|signature| (signature.expr, &signature.ty))
             .collect::<HashMap<_, _>>();
+        let slot_backed_operations = task
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                matches!(node.kind, RuntimeEvidenceNodeKind::OperationCall { .. })
+                    .then_some((node.expr, !node.slots.is_empty()))
+            })
+            .collect::<HashMap<_, _>>();
         let operation_calls = task
             .sites
             .iter()
@@ -271,7 +281,7 @@ impl TaskStaticRouteClassifier {
                 let RuntimeEvidenceSiteKind::OperationCall {
                     callee,
                     arg: _,
-                    def: _,
+                    def,
                     path,
                 } = &site.kind
                 else {
@@ -283,8 +293,13 @@ impl TaskStaticRouteClassifier {
                         operation_expr: site.expr,
                         apply: site.expr,
                         callee: *callee,
+                        operation_def: *def,
                         family: path.clone(),
                         lambda_depth: None,
+                        provider_env_dependent: slot_backed_operations
+                            .get(&site.expr)
+                            .copied()
+                            .unwrap_or(false),
                     },
                 ))
             })
@@ -466,6 +481,7 @@ impl TaskStaticRouteClassifier {
                 operation_expr: operation.operation_expr,
                 apply: operation.apply,
                 callee: operation.callee,
+                operation_def: operation.operation_def,
                 family: operation.family,
                 resolution,
             },
@@ -494,8 +510,10 @@ struct RuntimeEvidenceOperationCallSite {
     operation_expr: u32,
     apply: u32,
     callee: u32,
+    operation_def: u32,
     family: Vec<String>,
     lambda_depth: Option<u32>,
+    provider_env_dependent: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -634,6 +652,7 @@ impl<'a> StaticRouteL2Resolver<'a> {
                     operation_expr: operation.operation_expr,
                     apply: operation.apply,
                     callee: operation.callee,
+                    operation_def: operation.operation_def,
                     family: operation.family.clone(),
                     resolution,
                 });
@@ -690,7 +709,7 @@ impl<'a> StaticRouteL2Resolver<'a> {
             [handler_expr] => RuntimeEvidenceStaticRouteResolution::StaticHandler {
                 handler_expr: *handler_expr,
             },
-            [] => dynamic_static_route_resolution(self.host_manifest, &operation.family),
+            [] => dynamic_static_route_resolution(self.host_manifest, operation),
             _ => RuntimeEvidenceStaticRouteResolution::Dynamic(
                 RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates,
             ),
@@ -922,11 +941,15 @@ fn topo_order_for_sccs(edges: &[Vec<usize>]) -> Vec<usize> {
 
 fn dynamic_static_route_resolution(
     host_manifest: Option<&poly::host_manifest::HostActManifest>,
-    family: &[String],
+    operation: &RuntimeEvidenceOperationCallSite,
 ) -> RuntimeEvidenceStaticRouteResolution {
-    if host_manifest_has_known_act(host_manifest, family) {
+    if host_manifest_has_known_act(host_manifest, &operation.family) {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
             RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
+        )
+    } else if operation.provider_env_dependent {
+        RuntimeEvidenceStaticRouteResolution::Dynamic(
+            RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent,
         )
     } else {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
@@ -1001,10 +1024,11 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
         for route in &surface.static_routes {
             let _ = writeln!(
                 out,
-                "  e{} apply e{} callee e{} {} -> {}",
+                "  e{} apply e{} callee e{} d{} {} -> {}",
                 route.operation_expr,
                 route.apply,
                 route.callee,
+                route.operation_def,
                 route.family.join("::"),
                 format_static_route_resolution(&route.resolution)
             );

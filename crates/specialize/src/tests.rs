@@ -712,6 +712,30 @@ mod tests {
     }
 
     #[test]
+    fn runtime_evidence_static_routes_mark_slot_backed_operation_provider_env_dependent() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my use_action action = action\n\
+             use_action(stop::now())\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("slot-backed operation should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn specialize2_keeps_unreachable_type_slots_from_forcing_errors() {
         let lowering = lower_source("my const x y = x\nconst(1)\n");
         let arena = &lowering.session.poly;

@@ -2723,14 +2723,30 @@ fn attach_handler_definition_envs(
     }
 }
 
-fn static_route_index(
-    surface: &RuntimeEvidenceSurface,
-) -> HashMap<ExprId, &RuntimeEvidenceStaticRoute> {
-    surface
-        .static_routes
-        .iter()
-        .map(|route| (ExprId(route.operation_expr), route))
-        .collect()
+struct StaticRouteIndex<'a> {
+    by_expr: HashMap<ExprId, &'a RuntimeEvidenceStaticRoute>,
+    dynamic_by_operation: HashMap<(u32, Vec<String>), Vec<&'a RuntimeEvidenceStaticRoute>>,
+}
+
+fn static_route_index(surface: &RuntimeEvidenceSurface) -> StaticRouteIndex<'_> {
+    let mut by_expr = HashMap::new();
+    let mut dynamic_by_operation = HashMap::new();
+    for route in &surface.static_routes {
+        by_expr.insert(ExprId(route.operation_expr), route);
+        if matches!(
+            route.resolution,
+            RuntimeEvidenceStaticRouteResolution::Dynamic(_)
+        ) {
+            dynamic_by_operation
+                .entry((route.operation_def, route.family.clone()))
+                .or_insert_with(Vec::new)
+                .push(route);
+        }
+    }
+    StaticRouteIndex {
+        by_expr,
+        dynamic_by_operation,
+    }
 }
 
 struct EvidenceVmOperationObjectOutput {
@@ -2740,7 +2756,7 @@ struct EvidenceVmOperationObjectOutput {
 }
 
 fn build_operation_objects(
-    static_routes: &HashMap<ExprId, &RuntimeEvidenceStaticRoute>,
+    static_routes: &StaticRouteIndex<'_>,
     operations: &[EvidenceVmOperationPlan],
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
     handler_index: &HashMap<(ExprId, u32), u32>,
@@ -2790,7 +2806,7 @@ fn build_operation_objects(
 }
 
 fn operation_static_route_resolution(
-    static_routes: &HashMap<ExprId, &RuntimeEvidenceStaticRoute>,
+    static_routes: &StaticRouteIndex<'_>,
     operation: &EvidenceVmOperationPlan,
     candidate_handler: Option<u32>,
     handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
@@ -2821,20 +2837,50 @@ fn operation_static_route_resolution(
 }
 
 fn static_route_for_operation<'a>(
-    static_routes: &'a HashMap<ExprId, &'a RuntimeEvidenceStaticRoute>,
+    static_routes: &'a StaticRouteIndex<'a>,
     operation: &EvidenceVmOperationPlan,
 ) -> Option<&'a RuntimeEvidenceStaticRoute> {
     static_routes
+        .by_expr
         .get(&operation.expr)
         .copied()
         .filter(|route| route.family == operation.path)
         .or_else(|| match operation.kind {
             EvidenceVmOperationKind::Call { apply, .. } => static_routes
+                .by_expr
                 .get(&apply)
                 .copied()
-                .filter(|route| route.family == operation.path),
+                .filter(|route| route.family == operation.path)
+                .or_else(|| dynamic_static_route_for_operation(static_routes, operation)),
             EvidenceVmOperationKind::Value => None,
         })
+}
+
+fn dynamic_static_route_for_operation<'a>(
+    static_routes: &'a StaticRouteIndex<'a>,
+    operation: &EvidenceVmOperationPlan,
+) -> Option<&'a RuntimeEvidenceStaticRoute> {
+    let operation_def = operation.operation_def?.0;
+    let routes = static_routes
+        .dynamic_by_operation
+        .get(&(operation_def, operation.path.clone()))?;
+    let mut reason = None;
+    let mut route = None;
+    for candidate in routes {
+        let RuntimeEvidenceStaticRouteResolution::Dynamic(candidate_reason) = candidate.resolution
+        else {
+            continue;
+        };
+        match reason {
+            Some(reason) if reason != candidate_reason => return None,
+            Some(_) => {}
+            None => {
+                reason = Some(candidate_reason);
+                route = Some(*candidate);
+            }
+        }
+    }
+    route
 }
 
 fn static_route_dynamic_reason(
@@ -4525,6 +4571,7 @@ mod tests {
                 operation_expr: 10,
                 apply: 10,
                 callee: 10,
+                operation_def: 7,
                 family: path,
                 resolution: specialize::RuntimeEvidenceStaticRouteResolution::Dynamic(
                     specialize::RuntimeEvidenceStaticRouteDynamicReason::HostEscape,
@@ -4537,6 +4584,44 @@ mod tests {
             objects.operations[0].static_route,
             EvidenceVmStaticRouteResolution::Dynamic(
                 EvidenceVmStaticRouteDynamicReason::HostEscape
+            )
+        );
+    }
+
+    #[test]
+    fn static_route_joins_dynamic_surface_by_operation_def_when_expr_ids_shift() {
+        let path = vec!["flip".to_string(), "coin".to_string()];
+        let operation = EvidenceVmOperationPlan {
+            expr: ExprId(10),
+            operation_def: Some(DefId(7)),
+            path: path.clone(),
+            slot: fallback_slot(path.clone()),
+            kind: EvidenceVmOperationKind::Call {
+                apply: ExprId(11),
+                callee: ExprId(10),
+            },
+            lowering: EvidenceVmOperationLowering::GenericFallback,
+            runtime_nodes: Vec::new(),
+            runtime_evidence_refs: 0,
+        };
+        let surface = RuntimeEvidenceSurface {
+            static_routes: vec![specialize::RuntimeEvidenceStaticRoute {
+                operation_expr: 30,
+                apply: 30,
+                callee: 29,
+                operation_def: 7,
+                family: path,
+                resolution: specialize::RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    specialize::RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent,
+                ),
+            }],
+            ..RuntimeEvidenceSurface::default()
+        };
+        let objects = build_object_plan(&Program::default(), &surface, &[], &[operation], &[], &[]);
+        assert_eq!(
+            objects.operations[0].static_route,
+            EvidenceVmStaticRouteResolution::Dynamic(
+                EvidenceVmStaticRouteDynamicReason::ProviderEnvDependent
             )
         );
     }
@@ -4582,6 +4667,7 @@ mod tests {
                 operation_expr: apply_expr.0,
                 apply: apply_expr.0,
                 callee: callee_expr.0,
+                operation_def: 7,
                 family: path,
                 resolution: specialize::RuntimeEvidenceStaticRouteResolution::StaticHandler {
                     handler_expr: poly_handler_expr.0,
@@ -4615,6 +4701,7 @@ mod tests {
                 operation_expr: 10,
                 apply: 10,
                 callee: 10,
+                operation_def: 7,
                 family: path,
                 resolution: specialize::RuntimeEvidenceStaticRouteResolution::StaticHandler {
                     handler_expr: 99,
