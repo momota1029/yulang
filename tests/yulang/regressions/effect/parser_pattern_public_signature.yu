@@ -1,0 +1,6 @@
+use std::text::parse::*
+
+pub classify_parser_pattern(source: str): str = case source:
+    rule { id = word } -> id
+    ~"fallback" -> "fallback"
+    _ -> "other"

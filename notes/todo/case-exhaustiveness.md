@@ -21,6 +21,8 @@ Simple-sub の構造的部分型の下で完全な網羅性検査は難しく、
    （enum / error / act operation payload / struct）が確定している。
 2. 上界側に構造的な穴（record 型との合流など）がない。
 3. arm に guard がない（guard 付き arm は「覆う」と数えない）。
+   parser pattern（`~"..."` / `rule { ... }`）も失敗可能なので、guard 付き arm と同じく
+   「覆う」と数えない。
 
 条件を満たさない case は検査対象外とし、**何も言わない**
 （「検査できない」を警告にしない。ノイズになる）。

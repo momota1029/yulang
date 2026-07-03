@@ -555,7 +555,15 @@ fn rule_expr_alternation_uses_text_parse_choice() {
         }
         _ => panic!("expected rule expr lambda"),
     };
-    let (partial, _right) = match output.session.poly.expr(body) {
+    let (parser, unit) = match output.session.poly.expr(body) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected choice parser invocation"),
+    };
+    assert!(matches!(
+        output.session.poly.expr(unit),
+        Expr::Lit(Lit::Unit)
+    ));
+    let (partial, _right) = match output.session.poly.expr(parser) {
         Expr::App(callee, arg) => (*callee, *arg),
         _ => panic!("expected choice second application"),
     };

@@ -614,6 +614,41 @@ impl<'a> ExprLowerer<'a> {
         Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
     }
 
+    pub(in crate::lowering) fn lower_constructor_pattern_from_lowered_payloads(
+        &mut self,
+        path: Vec<Name>,
+        payloads: Vec<LoweredPatternPayload>,
+        value: TypeVar,
+    ) -> Result<PatId, LoweringError> {
+        let constructor_value = self.fresh_type_var();
+        let target = self.modules.value_path_at(self.module, &path, self.site);
+        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
+
+        if let Some(target) = target
+            && let Some(constructor) = self.modules.constructor_by_def(target).cloned()
+        {
+            return self.lower_declared_constructor_pattern_from_lowered_payloads(
+                reference,
+                constructor,
+                payloads,
+                value,
+            );
+        }
+
+        let mut payload_pats = Vec::with_capacity(payloads.len());
+        let mut applied_value = constructor_value;
+        for payload in payloads {
+            payload_pats.push(payload.pat);
+            let next_value = self.fresh_type_var();
+            self.constrain_pattern_constructor_step(applied_value, payload.value, next_value);
+            applied_value = next_value;
+        }
+
+        self.subtype_var_to_var(applied_value, value);
+        self.subtype_var_to_var(value, applied_value);
+        Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
+    }
+
     fn lower_declared_constructor_pattern(
         &mut self,
         reference: RefId,
@@ -674,6 +709,69 @@ impl<'a> ExprLowerer<'a> {
                 self.lower_pattern(&payload, arg.value(), None, call_return_effect)
             })
             .collect::<Result<Vec<_>, _>>()?;
+        Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
+    }
+
+    fn lower_declared_constructor_pattern_from_lowered_payloads(
+        &mut self,
+        reference: RefId,
+        constructor: ConstructorDecl,
+        payloads: Vec<LoweredPatternPayload>,
+        value: TypeVar,
+    ) -> Result<PatId, LoweringError> {
+        let owner = self.modules.type_decl_by_id(constructor.owner).ok_or(
+            LoweringError::UnsupportedPatternSyntax {
+                kind: SyntaxKind::Pattern,
+            },
+        )?;
+        let owner_arg_vars = constructor
+            .type_vars
+            .iter()
+            .map(|_| self.fresh_type_var())
+            .collect::<Vec<_>>();
+        let signature_builder = NegSignatureBuilder::with_self_alias(
+            self.modules,
+            constructor.module,
+            owner.order,
+            SignatureSelfAlias {
+                owner: constructor.owner,
+                type_vars: constructor.type_vars.clone(),
+            },
+        );
+        let signature_vars = constructor
+            .type_vars
+            .iter()
+            .cloned()
+            .zip(owner_arg_vars.iter().copied())
+            .collect::<FxHashMap<_, _>>();
+        let payload =
+            build_constructor_payload_signatures(constructor.payload.clone(), &signature_builder)?;
+        let args =
+            prepare_constructor_pattern_args(&mut self.session.infer, payload, &signature_vars);
+        if args.len() != payloads.len() {
+            return Err(LoweringError::UnsupportedPatternSyntax {
+                kind: SyntaxKind::Pattern,
+            });
+        }
+
+        connect_constructor_pattern_arg_signatures(
+            &mut self.session.infer,
+            self.modules,
+            signature_vars,
+            &args,
+        )?;
+        constrain_constructor_arg_shapes(&mut self.session.infer, &args);
+        self.constrain_constructor_pattern_owner(value, &owner, &owner_arg_vars);
+
+        let payload_pats = payloads
+            .into_iter()
+            .zip(args)
+            .map(|(payload, arg)| {
+                self.subtype_var_to_var(payload.value, arg.value());
+                self.subtype_var_to_var(arg.value(), payload.value);
+                payload.pat
+            })
+            .collect::<Vec<_>>();
         Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
     }
 
@@ -818,6 +916,11 @@ struct LoweredRecordPatternField {
     pat: PatId,
     default: Option<ExprId>,
     optional: bool,
+}
+
+pub(in crate::lowering) struct LoweredPatternPayload {
+    pub(in crate::lowering) pat: PatId,
+    pub(in crate::lowering) value: TypeVar,
 }
 
 pub(super) fn single_pattern_item(node: &Cst) -> Result<PatternItem, LoweringError> {

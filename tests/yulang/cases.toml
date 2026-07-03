@@ -80,6 +80,15 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "stable-api", "str"]
 
 [[case]]
+name = "parser_pattern_case"
+file = "regressions/runtime/parser_pattern_case.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"token-let\", \"token-fn\", \"token-letx\", \"token-other\", \"single:alpha\", \"single-none\", \"alpha/beta\", \"multi-none\", \"left/right\", \"mixed-parser\", \"mixed-literal\", \"mixed-bind:free\")]\n"
+expect_stderr = ""
+contracts = ["runtime", "parser-dsl", "std.parse", "patterns"]
+
+[[case]]
 name = "file_text_with_commit"
 file = "regressions/runtime/file_text_with_commit.yu"
 kind = "run"
@@ -2309,6 +2318,16 @@ symbol = "std.text.parse.choice"
 expect_type = "(() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["stable-core", "public-signature", "std.parse", "effect-hygiene"]
+
+[[case]]
+name = "parser_pattern_public_signature"
+file = "regressions/effect/parser_pattern_public_signature.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "classify_parser_pattern"
+expect_type = "std::text::str::str -> std::text::str::str"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "parser-dsl", "std.parse", "effect-hygiene"]
 
 [[case]]
 name = "std_flow_for_in_public_signature"

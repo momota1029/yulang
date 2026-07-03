@@ -13,15 +13,6 @@ enum RuleLitPart {
     CaptureParser { name: Name, parser: Cst },
 }
 
-pub(in crate::lowering) enum RuleCasePart {
-    Token(String),
-    CaptureWord(Name),
-}
-
-pub(in crate::lowering) struct RuleCaseBranch {
-    pub(in crate::lowering) parts: Vec<RuleCasePart>,
-}
-
 struct RuleParserItem {
     parser: Computation,
     semantic: RuleSemantic,
@@ -149,7 +140,8 @@ impl<'a> ExprLowerer<'a> {
             let left_parser = self.thunk_computation(left.expr);
             let right_parser = self.thunk_computation(right.expr);
             let partial = self.make_app(choice, left_parser);
-            let expr = self.make_app(partial, right_parser);
+            let parser = self.make_app(partial, right_parser);
+            let expr = self.run_rule_parser(parser);
             let semantic =
                 if left.semantic == RuleSemantic::Unit && right.semantic == RuleSemantic::Unit {
                     RuleSemantic::Unit
@@ -388,60 +380,49 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-pub(in crate::lowering) fn rule_lit_case_branches(
-    node: &Cst,
-) -> Result<Vec<RuleCaseBranch>, LoweringError> {
-    let parts = rule_lit_parts(node)?
-        .into_iter()
-        .map(|part| match part {
-            RuleLitPart::Token(text) => Ok(RuleCasePart::Token(text)),
-            RuleLitPart::CaptureWord(name) => Ok(RuleCasePart::CaptureWord(name)),
-            RuleLitPart::CaptureParser { name, parser } if rule_case_parser_is_word(&parser) => {
-                Ok(RuleCasePart::CaptureWord(name))
-            }
-            RuleLitPart::Parser(_) | RuleLitPart::CaptureParser { .. } => {
-                Err(LoweringError::UnsupportedSyntax {
-                    kind: SyntaxKind::RuleLitInterp,
-                })
-            }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(vec![RuleCaseBranch { parts }])
+pub(in crate::lowering) fn rule_case_capture_names(node: &Cst) -> Result<Vec<Name>, LoweringError> {
+    match node.kind() {
+        SyntaxKind::RuleLit => rule_lit_capture_names(node),
+        SyntaxKind::RuleExpr => rule_expr_capture_names(node),
+        kind => Err(LoweringError::UnsupportedSyntax { kind }),
+    }
 }
 
-pub(in crate::lowering) fn rule_expr_case_branches(
-    node: &Cst,
-) -> Result<Vec<RuleCaseBranch>, LoweringError> {
+fn rule_lit_capture_names(node: &Cst) -> Result<Vec<Name>, LoweringError> {
+    let mut names = Vec::new();
+    for part in rule_lit_parts(node)? {
+        match part {
+            RuleLitPart::CaptureWord(name) | RuleLitPart::CaptureParser { name, .. } => {
+                push_unique_name(&mut names, name);
+            }
+            RuleLitPart::Token(_) | RuleLitPart::Parser(_) => {}
+        }
+    }
+    Ok(names)
+}
+
+fn rule_expr_capture_names(node: &Cst) -> Result<Vec<Name>, LoweringError> {
     let group = node
         .children()
         .find(|child| child.kind() == SyntaxKind::BraceGroup)
         .ok_or(LoweringError::UnsupportedSyntax {
             kind: SyntaxKind::RuleExpr,
         })?;
-    rule_branches(&group)
-        .into_iter()
-        .map(|items| rule_expr_case_branch(items).map(|parts| RuleCaseBranch { parts }))
-        .collect()
+    let mut names = Vec::new();
+    for branch in rule_branches(&group) {
+        for item in branch {
+            if let Some((name, _)) = rule_expr_capture(&item) {
+                push_unique_name(&mut names, name);
+            }
+        }
+    }
+    Ok(names)
 }
 
-fn rule_expr_case_branch(items: Vec<Cst>) -> Result<Vec<RuleCasePart>, LoweringError> {
-    items
-        .iter()
-        .map(|item| {
-            if let Some((name, parser)) = rule_expr_capture(item) {
-                if rule_case_parser_is_word(&parser) {
-                    return Ok(RuleCasePart::CaptureWord(name));
-                }
-                return Err(LoweringError::UnsupportedSyntax {
-                    kind: SyntaxKind::RuleCapture,
-                });
-            }
-            if let Some(text) = plain_string_expr_text(item)? {
-                return Ok(RuleCasePart::Token(text));
-            }
-            Err(LoweringError::UnsupportedSyntax { kind: item.kind() })
-        })
-        .collect()
+fn push_unique_name(names: &mut Vec<Name>, name: Name) {
+    if !names.iter().any(|existing| existing == &name) {
+        names.push(name);
+    }
 }
 
 fn plain_rule_lit_text(node: &Cst) -> Option<String> {
@@ -505,19 +486,6 @@ fn rule_lit_parts(node: &Cst) -> Result<Vec<RuleLitPart>, LoweringError> {
         }
     }
     Ok(parts)
-}
-
-fn rule_case_parser_is_word(node: &Cst) -> bool {
-    // Case rule patterns direct-match only the rule DSL's word capture spelling.
-    // Arbitrary parser interpolation stays on the parser-combinator path.
-    let items = node
-        .children_with_tokens()
-        .filter(|item| !item_is_trivia(item))
-        .collect::<Vec<_>>();
-    let [NodeOrToken::Token(token)] = items.as_slice() else {
-        return false;
-    };
-    token.kind() == SyntaxKind::Ident && token.text() == "word"
 }
 
 fn single_rule_lit_interp_expr(node: &Cst) -> Option<Cst> {

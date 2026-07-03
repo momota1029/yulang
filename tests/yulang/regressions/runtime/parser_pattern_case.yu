@@ -1,0 +1,39 @@
+use std::text::parse::*
+
+my token_case(source: str): str = case source:
+    ~"let" -> "token-let"
+    ~"fn" -> "token-fn"
+    ~"letx" -> "token-letx"
+    _ -> "token-other"
+
+my record_single(source: str): str = case source:
+    rule { id = word } -> "single:" + id
+    _ -> "single-none"
+
+my record_multi(source: str): str = case source:
+    rule { first = word "-" second = word } -> first + "/" + second
+    _ -> "multi-none"
+
+my nested_record(source: str): str = case source:
+    rule { pair = (left = word ":" right = word) } -> pair.left + "/" + pair.right
+    _ -> "nested-none"
+
+my mixed_pattern(source: str): str = case source:
+    ~"kw" -> "mixed-parser"
+    "lit" -> "mixed-literal"
+    value -> "mixed-bind:" + value
+
+(
+    token_case "let",
+    token_case "fn",
+    token_case "letx",
+    token_case "zzz",
+    record_single "alpha",
+    record_single "alpha!",
+    record_multi "alpha-beta",
+    record_multi "alpha-beta!",
+    nested_record "left:right",
+    mixed_pattern "kw",
+    mixed_pattern "lit",
+    mixed_pattern "free"
+)

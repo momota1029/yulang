@@ -56,12 +56,6 @@ pub(crate) fn text_str_value(name: &str) -> Vec<String> {
     path
 }
 
-pub(crate) fn int_value(name: &str) -> Vec<String> {
-    let mut path = path(&["std", "int"]);
-    path.push(name.to_string());
-    path
-}
-
 pub(crate) fn core_fmt_value(name: &str) -> Vec<String> {
     let mut path = path(&["std", "core", "fmt"]);
     path.push(name.to_string());
@@ -88,6 +82,12 @@ pub(crate) fn core_fmt_format_sign_value(name: &str) -> Vec<String> {
 
 pub(crate) fn data_opt_value(name: &str) -> Vec<String> {
     let mut path = path(&["std", "data", "opt", "opt"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn data_result_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "data", "result", "result"]);
     path.push(name.to_string());
     path
 }
