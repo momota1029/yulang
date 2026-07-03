@@ -108,7 +108,7 @@ run_timeout "$test_timeout" \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
-  cargo test -q -p wasm check_inner_returns_ \
+  cargo test -q -p wasm check_inner \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
