@@ -4422,6 +4422,17 @@ fn public_contract_manifest_covers_status_spine_claims() {
         StatusSpineManifestRequirement::new("public examples", &["public-example"]),
         StatusSpineManifestRequirement::new("runtime error behavior", &["runtime-error"]),
         StatusSpineManifestRequirement::new("diagnostics", &["diagnostics"]),
+        StatusSpineManifestRequirement::new("diagnostics syntax", &["diagnostics", "syntax"]),
+        StatusSpineManifestRequirement::new("diagnostics names", &["diagnostics", "names"]),
+        StatusSpineManifestRequirement::new(
+            "diagnostics typechecker",
+            &["diagnostics", "typechecker"],
+        ),
+        StatusSpineManifestRequirement::new(
+            "diagnostics related ranges",
+            &["diagnostics", "related-ranges"],
+        ),
+        StatusSpineManifestRequirement::new("diagnostics roles", &["diagnostics", "roles"]),
         StatusSpineManifestRequirement::new("standard API", &["standard-api"]),
         StatusSpineManifestRequirement::new("stable standard API", &["standard-api", "stable-api"]),
         StatusSpineManifestRequirement::new(
