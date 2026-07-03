@@ -153,6 +153,15 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      branches reject late resumes as `Dropped`, and double resume is
      `AlreadyConsumed`; multi-shot stays a reserved explicit-unimplemented tier
      (commit c9196ba0).
+   - 2026-07-04: multi-shot tier execution is implemented — a multi-shot token
+     accepts repeated `resume(BoundaryValue)`, each resume spawns a structured
+     child branch (parent = the suspended branch) through the scheduler queue,
+     `close()` rejects later resumes as `Closed`, parent cancel/drop rejects as
+     `Dropped`, and child cancels ride the existing cancel queue without
+     affecting siblings (commit 2adf2afd). Remaining before the in-process
+     server driver: the `server` host act with tiered manifest entries,
+     request resource / respond one-shot slots, and the driver loop with
+     fixtures.
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。
