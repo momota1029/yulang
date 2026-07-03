@@ -469,10 +469,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 incoming: upper,
             })?,
             (Some(lower), None) => Some(lower),
-            // Upper-only effect slots are still open residuals inside the solver.
-            // Output/signature surfaces close unresolved effect leaves to pure when
-            // the slot actually escapes a task boundary.
-            (None, Some(_)) if slot_data.kind == TypeSlotKind::Effect => None,
+            (None, Some(_)) if slot_data.kind == TypeSlotKind::Effect => Some(Type::pure_effect()),
             (None, Some(upper)) => Some(upper),
             (None, None) => None,
         };
@@ -799,11 +796,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let left = self.resolve_partial_candidate(left, true)?;
                 let right = self.resolve_partial_candidate(right, true)?;
                 match (left, right) {
-                    (Some(left), Some(right)) => Ok(Some(self.join_partial_union(
-                        left,
-                        right,
-                        allow_unresolved_leaf,
-                    )?)),
+                    (Some(left), Some(right)) => Ok(Some(self.join_explicit_union(left, right)?)),
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
                 }
@@ -812,11 +805,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let left = self.resolve_partial_candidate(left, true)?;
                 let right = self.resolve_partial_candidate(right, true)?;
                 match (left, right) {
-                    (Some(left), Some(right)) => Ok(Some(self.meet_partial_intersection(
-                        left,
-                        right,
-                        allow_unresolved_leaf,
-                    )?)),
+                    (Some(left), Some(right)) => {
+                        Ok(Some(self.meet_explicit_intersection(left, right)?))
+                    }
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
                 }
@@ -851,45 +842,59 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
         let mut resolved = self.resolve_partial_candidates(items)?;
         if let Some(raw_tail) = tail {
             let tail = self
-                .resolve_partial_candidate(&raw_tail, true)?
+                .resolve_effect_tail_candidate(&raw_tail)?
                 .unwrap_or(raw_tail);
             resolved.push(tail);
         }
         Ok(Some(types::simplify_type(Type::EffectRow(resolved))))
     }
 
-    fn join_partial_union(
-        &self,
-        left: Type,
-        right: Type,
-        allow_unresolved_leaf: bool,
-    ) -> Result<Type, SpecializeError> {
-        if allow_unresolved_leaf
-            && (type_contains_open_var(&left) || type_contains_open_var(&right))
-        {
-            return Ok(types::simplify_type(Type::Union(
-                Box::new(left),
-                Box::new(right),
-            )));
+    fn resolve_effect_tail_candidate(
+        &mut self,
+        tail: &Type,
+    ) -> Result<Option<Type>, SpecializeError> {
+        match tail {
+            Type::OpenVar(slot) if self.effect_slot_is_upper_only(*slot) => {
+                Ok(Some(Type::OpenVar(*slot)))
+            }
+            Type::Union(left, right) => {
+                let left = self.resolve_effect_tail_candidate(left)?;
+                let right = self.resolve_effect_tail_candidate(right)?;
+                match (left, right) {
+                    (Some(left), Some(right)) => Ok(Some(types::simplify_type(Type::Union(
+                        Box::new(left),
+                        Box::new(right),
+                    )))),
+                    (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
+                    (None, None) => Ok(None),
+                }
+            }
+            Type::Intersection(left, right) => {
+                let left = self.resolve_effect_tail_candidate(left)?;
+                let right = self.resolve_effect_tail_candidate(right)?;
+                match (left, right) {
+                    (Some(left), Some(right)) => Ok(Some(types::simplify_type(
+                        Type::Intersection(Box::new(left), Box::new(right)),
+                    ))),
+                    (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
+                    (None, None) => Ok(None),
+                }
+            }
+            Type::Stack { inner, weight } => {
+                let Some(inner) = self.resolve_effect_tail_candidate(inner)? else {
+                    return Ok(Some(tail.clone()));
+                };
+                Ok(Some(types::simplify_stack_type(inner, weight.clone())))
+            }
+            _ => self.resolve_partial_candidate(tail, true),
         }
-        self.join_explicit_union(left, right)
     }
 
-    fn meet_partial_intersection(
-        &self,
-        left: Type,
-        right: Type,
-        allow_unresolved_leaf: bool,
-    ) -> Result<Type, SpecializeError> {
-        if allow_unresolved_leaf
-            && (type_contains_open_var(&left) || type_contains_open_var(&right))
-        {
-            return Ok(types::simplify_type(Type::Intersection(
-                Box::new(left),
-                Box::new(right),
-            )));
-        }
-        self.meet_explicit_intersection(left, right)
+    fn effect_slot_is_upper_only(&self, slot: u32) -> bool {
+        self.graph
+            .slots
+            .get(slot as usize)
+            .is_some_and(|slot| slot.kind == TypeSlotKind::Effect && slot.lower.is_empty())
     }
 
     fn join_explicit_union(&self, left: Type, right: Type) -> Result<Type, SpecializeError> {
