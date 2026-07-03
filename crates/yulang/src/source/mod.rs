@@ -276,11 +276,12 @@ pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
     prefix: crate::cache::CachedCompiledUnitArtifact,
     suffix: Vec<CollectedSource>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    let host_manifest = host_manifest_from_compiled_unit_artifact(&prefix).ok();
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
     Ok(BuildPolyOutput {
         arena: output.lowering.session.poly,
         labels: output.lowering.labels,
-        host_manifest: None,
+        host_manifest,
         file_count: output.file_count,
         errors: output.errors,
     })
@@ -296,6 +297,7 @@ pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sour
     files: Vec<CollectedSource>,
     suffix: Vec<CollectedSource>,
 ) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
+    let host_manifest = host_manifest_from_compiled_unit_artifact(&prefix).ok();
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
     debug_assert_eq!(output.file_count, files.len());
     let suffix_syntax = sources::CompiledSyntaxSurface::from_loaded_files(&output.loaded);
@@ -313,7 +315,7 @@ pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sour
         poly: BuildPolyOutput {
             arena: output.lowering.session.poly,
             labels: output.lowering.labels,
-            host_manifest: None,
+            host_manifest,
             file_count: output.file_count,
             errors: output.errors,
         },
