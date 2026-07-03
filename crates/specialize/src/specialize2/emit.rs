@@ -55,7 +55,7 @@ impl Specializer2 {
         }
         let mut runtime_evidence = self.runtime_evidence;
         runtime_evidence.attach_known_state_handlers(arena);
-        runtime_evidence.attach_static_routes(arena, &program);
+        runtime_evidence.attach_static_route_profile(arena, &program);
         Ok(SpecializeOutput {
             program,
             runtime_evidence,

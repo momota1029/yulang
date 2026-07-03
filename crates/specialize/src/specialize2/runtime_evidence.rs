@@ -37,9 +37,13 @@ impl RuntimeEvidenceSurface {
             known_state_accesses_from_tasks(&known_state_effects, &self.tasks);
     }
 
-    pub fn attach_static_routes(&mut self, arena: &poly_expr::Arena, program: &Program) {
+    pub fn attach_static_route_profile(&mut self, arena: &poly_expr::Arena, program: &Program) {
         self.static_routes =
             static_routes_from_tasks(arena, program, self.host_manifest.as_ref(), &self.tasks);
+    }
+
+    pub fn attach_static_routes(&mut self, arena: &poly_expr::Arena, program: &Program) {
+        self.attach_static_route_profile(arena, program);
     }
 
     pub(super) fn push_solved_task(

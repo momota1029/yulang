@@ -798,7 +798,7 @@ mod tests {
         output.runtime_evidence.host_manifest = Some(single_host_manifest(&["stop"], "now"));
         output
             .runtime_evidence
-            .attach_static_routes(arena, &output.program);
+            .attach_static_route_profile(arena, &output.program);
         let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
 
         assert!(
