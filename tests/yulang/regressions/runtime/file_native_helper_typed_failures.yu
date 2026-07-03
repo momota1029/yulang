@@ -15,7 +15,8 @@ my write_result = std::io::file::io_err::wrap:
 
 my write_failure = case write_result:
     result::err err -> case err:
-        std::io::file::io_err::failed (_, _) -> "write-failed"
+        std::io::file::io_err::denied _ -> "write-typed-failure"
+        std::io::file::io_err::failed (_, _) -> "write-typed-failure"
         _ -> "write-other-error"
     result::ok _ -> "write-ok"
 
