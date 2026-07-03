@@ -105,7 +105,8 @@ Diagnostics の最初の slice:
   `pattern-mismatch` / `unhandled-effect` / backend unsupported runtime feature
   の user-facing code と hint を同じ filtered manifest で固定するようにした。
   後続で unsupported-host capability failure の clock / file / console 代表ケースも
-  同じ tag に含めた。現在の filtered manifest run は `contract cases ok: 30`。
+  同じ tag に含めた。後続で missing local binding body の専用 code/hint
+  case も加えた。現在の filtered manifest run は `contract cases ok: 31`。
   以後 diagnostics の追加はこの tag を広げる形で行い、check cases では
   structured payload も固定する。
 

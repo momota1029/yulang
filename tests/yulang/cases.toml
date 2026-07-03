@@ -1470,6 +1470,25 @@ expect_diagnostic_related_count = 0
 contracts = ["stable-core", "diagnostics", "bindings"]
 
 [[case]]
+name = "missing_local_binding_body"
+file = "regressions/diagnostics/missing_local_binding_body.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-local-binding-body]: x: binding `x` is missing a body expression",
+  "hint: write a body expression after `=`",
+]
+expect_diagnostic_code = "yulang.missing-local-binding-body"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_label = "x"
+expect_diagnostic_start = 3
+expect_diagnostic_end = 4
+expect_diagnostic_related_count = 0
+contracts = ["stable-core", "diagnostics", "bindings"]
+
+[[case]]
 name = "rule_lazy_quantifier"
 file = "regressions/diagnostics/rule_lazy_quantifier.yu"
 kind = "check"
