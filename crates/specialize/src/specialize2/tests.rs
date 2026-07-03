@@ -163,6 +163,83 @@ fn effect_row_candidate_merges_single_effect_item() {
 }
 
 #[test]
+fn partial_effect_row_resolution_preserves_unresolved_union_tail() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let left_tail = graph.fresh_effect();
+    let right_tail = graph.fresh_effect();
+    let tail = types::simplify_type(Type::Union(
+        Box::new(left_tail.clone()),
+        Box::new(right_tail.clone()),
+    ));
+    let row = Type::EffectRow(vec![tail]);
+    let solution = Solution {
+        slots: vec![SlotSolution::Unknown; graph.slots.len()],
+    };
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(
+        resolver.resolve_partial_candidate(&row, true).unwrap(),
+        Some(row)
+    );
+}
+
+#[test]
+fn effect_row_union_tail_refines_open_upper() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let left_tail = graph.fresh_effect();
+    let right_tail = graph.fresh_effect();
+    let local = con(&["&buffer#1:0"], vec![str_type()]);
+    let lower = Type::EffectRow(vec![local.clone()]);
+    let upper = Type::EffectRow(vec![types::simplify_type(Type::Union(
+        Box::new(left_tail),
+        Box::new(right_tail),
+    ))]);
+
+    assert_eq!(
+        refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+        Some(Type::EffectRow(vec![local]))
+    );
+}
+
+#[test]
+fn effect_row_bounded_intersection_tail_refines_matching_item() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let tail = graph.fresh_effect();
+    let local = con(&["&buffer#1:0"], vec![str_type()]);
+    let lower = Type::EffectRow(vec![local.clone()]);
+    let upper = Type::EffectRow(vec![types::simplify_type(Type::Intersection(
+        Box::new(tail),
+        Box::new(Type::EffectRow(vec![local.clone()])),
+    ))]);
+
+    assert_eq!(
+        refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+        Some(Type::EffectRow(vec![local]))
+    );
+}
+
+#[test]
+fn effect_row_bounded_intersection_tail_rejects_pure_bound() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let tail = graph.fresh_effect();
+    let local = con(&["&buffer#1:0"], vec![str_type()]);
+    let lower = Type::EffectRow(vec![local]);
+    let upper = Type::EffectRow(vec![types::simplify_type(Type::Intersection(
+        Box::new(tail),
+        Box::new(Type::pure_effect()),
+    ))]);
+
+    assert_eq!(
+        refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+        None
+    );
+}
+
+#[test]
 fn tuple_candidates_refine_open_items_from_concrete_tuple() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);

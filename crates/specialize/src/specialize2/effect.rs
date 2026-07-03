@@ -172,7 +172,7 @@ pub(super) fn refine_effect_lower_with_upper(
         return Ok(None);
     }
     let mut refined = Vec::with_capacity(lower_items.len());
-    let upper_has_tail = upper_tail.is_some();
+    let upper_tail = upper_tail.as_ref();
     for lower_item in &lower_items {
         match upper_items
             .iter()
@@ -184,7 +184,11 @@ pub(super) fn refine_effect_lower_with_upper(
                 upper_item.clone(),
                 CandidateMerge::Meet,
             )?),
-            None if upper_has_tail => refined.push(lower_item.clone()),
+            None if upper_tail
+                .is_some_and(|tail| effect_tail_may_accept_item(graph, tail, lower_item)) =>
+            {
+                refined.push(lower_item.clone())
+            }
             None => return Ok(None),
         }
     }
@@ -242,6 +246,10 @@ fn effect_tail_reaches_item(
             effect_tail_reaches_item(graph, left, target, visited)
                 || effect_tail_reaches_item(graph, right, target, visited)
         }
+        Type::Union(left, right) => {
+            effect_tail_reaches_item(graph, left, target, visited)
+                || effect_tail_reaches_item(graph, right, target, visited)
+        }
         Type::Stack { inner, .. } => effect_tail_reaches_item(graph, inner, target, visited),
         _ => false,
     }
@@ -263,6 +271,90 @@ fn effect_candidate_reaches_item(
         || tail
             .as_ref()
             .is_some_and(|tail| effect_tail_reaches_item(graph, tail, target, visited))
+}
+
+fn effect_tail_may_accept_item(graph: &TypeGraph<'_>, tail: &Type, target: &Type) -> bool {
+    let mut visited = HashSet::new();
+    effect_tail_may_accept_item_inner(graph, tail, target, &mut visited)
+}
+
+fn effect_tail_may_accept_item_inner(
+    graph: &TypeGraph<'_>,
+    tail: &Type,
+    target: &Type,
+    visited: &mut HashSet<u32>,
+) -> bool {
+    match tail {
+        Type::OpenVar(slot) => {
+            if !visited.insert(*slot) {
+                return true;
+            }
+            let Some(slot) = graph.slots.get(*slot as usize) else {
+                return false;
+            };
+            slot.upper
+                .iter()
+                .all(|upper| effect_candidate_may_accept_item(graph, upper, target, visited))
+        }
+        Type::EffectRow(_) => effect_candidate_may_accept_item(graph, tail, target, visited),
+        Type::Intersection(left, right) => {
+            let mut left_visited = visited.clone();
+            let mut right_visited = visited.clone();
+            effect_tail_may_accept_item_inner(graph, left, target, &mut left_visited)
+                && effect_tail_may_accept_item_inner(graph, right, target, &mut right_visited)
+        }
+        Type::Union(left, right) => {
+            let mut left_visited = visited.clone();
+            let mut right_visited = visited.clone();
+            effect_tail_may_accept_item_inner(graph, left, target, &mut left_visited)
+                || effect_tail_may_accept_item_inner(graph, right, target, &mut right_visited)
+        }
+        Type::Stack { inner, weight } => {
+            stack_weight_allows_effect_item(weight, target)
+                && effect_tail_may_accept_item_inner(graph, inner, target, visited)
+        }
+        Type::Con { .. } => same_effect_row_family(tail, target),
+        ty if ty.is_pure_effect() => false,
+        _ => false,
+    }
+}
+
+fn effect_candidate_may_accept_item(
+    graph: &TypeGraph<'_>,
+    candidate: &Type,
+    target: &Type,
+    visited: &mut HashSet<u32>,
+) -> bool {
+    match candidate {
+        Type::Intersection(left, right) => {
+            let mut left_visited = visited.clone();
+            let mut right_visited = visited.clone();
+            effect_candidate_may_accept_item(graph, left, target, &mut left_visited)
+                && effect_candidate_may_accept_item(graph, right, target, &mut right_visited)
+        }
+        Type::Union(left, right) => {
+            let mut left_visited = visited.clone();
+            let mut right_visited = visited.clone();
+            effect_candidate_may_accept_item(graph, left, target, &mut left_visited)
+                || effect_candidate_may_accept_item(graph, right, target, &mut right_visited)
+        }
+        Type::Stack { inner, weight } => {
+            stack_weight_allows_effect_item(weight, target)
+                && effect_candidate_may_accept_item(graph, inner, target, visited)
+        }
+        _ => {
+            let Some(items) = effect_candidate_items(candidate.clone()) else {
+                return false;
+            };
+            let (items, tail) = split_effect_candidate_tail_owned(graph, items);
+            items
+                .iter()
+                .any(|item| same_effect_row_family(item, target))
+                || tail.as_ref().is_some_and(|tail| {
+                    effect_tail_may_accept_item_inner(graph, tail, target, visited)
+                })
+        }
+    }
 }
 
 pub(super) fn effect_row_item_candidate_subtype(
@@ -364,7 +456,11 @@ pub(super) fn type_is_effect_tail_candidate(graph: &TypeGraph<'_>, ty: &Type) ->
             .is_some_and(|tail| type_is_effect_tail_candidate(graph, tail)),
         Type::Intersection(left, right) => {
             type_is_effect_tail_candidate(graph, left)
-                && type_is_effect_tail_candidate(graph, right)
+                || type_is_effect_tail_candidate(graph, right)
+        }
+        Type::Union(left, right) => {
+            type_is_effect_tail_candidate(graph, left)
+                || type_is_effect_tail_candidate(graph, right)
         }
         Type::Stack { inner, .. } => type_is_effect_tail_candidate(graph, inner),
         _ => false,

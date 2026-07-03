@@ -9,7 +9,9 @@ impl<'a> TaskSolver<'a> {
         // Monomorphization only needs concrete types at emitted boundaries and at
         // recursive demand edges. Slots that are not reachable from those uses may
         // stay undetermined; they are solver-local evidence, not mono output.
-        for (expr, ty) in &self.exprs {
+        let mut expr_entries = self.exprs.iter().collect::<Vec<_>>();
+        expr_entries.sort_by_key(|(expr, _)| expr.0);
+        for (expr, ty) in expr_entries {
             let actual_slots = type_slot_refs(&ty.actual);
             let consumer_slots = ty.consumer.as_ref().map(type_slot_refs).unwrap_or_default();
             let Some(actual) = self.resolve_expr_actual(&mut resolver, *expr, ty)? else {
