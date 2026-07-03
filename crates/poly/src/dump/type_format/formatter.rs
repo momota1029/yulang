@@ -8,6 +8,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             path_rewriter: None,
             style: TypeFormatStyle::Debug,
             redactions: 0,
+            truncations: 0,
+            public_budget: PublicTypeBudget::default(),
         }
     }
 
@@ -22,6 +24,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             path_rewriter: Some(path_rewriter),
             style: TypeFormatStyle::Debug,
             redactions: 0,
+            truncations: 0,
+            public_budget: PublicTypeBudget::default(),
         }
     }
 
@@ -32,6 +36,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             path_rewriter: None,
             style: TypeFormatStyle::Public,
             redactions: 0,
+            truncations: 0,
+            public_budget: PublicTypeBudget::default(),
         }
     }
 
@@ -46,6 +52,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             path_rewriter: Some(path_rewriter),
             style: TypeFormatStyle::Public,
             redactions: 0,
+            truncations: 0,
+            public_budget: PublicTypeBudget::default(),
         }
     }
 
@@ -58,18 +66,31 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         PublicTypeDisplay {
             text,
             redactions: self.redactions,
+            truncations: self.truncations,
+        }
+    }
+
+    pub(super) fn format_neg_public(mut self, id: NegId) -> PublicTypeDisplay {
+        let text = self.neg(id, Context::Free);
+        PublicTypeDisplay {
+            text,
+            redactions: self.redactions,
+            truncations: self.truncations,
         }
     }
 
     fn format_scheme_text(&mut self, scheme: &Scheme) -> String {
         let mut body = self.pos(scheme.predicate, Context::Free);
+        self.charge_public_text(&body);
         let mut predicates = Vec::new();
-        predicates.extend(
-            scheme
-                .role_predicates
-                .iter()
-                .map(|predicate| self.role_predicate(predicate)),
-        );
+        for predicate in &scheme.role_predicates {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_string_sequence_truncation(&mut predicates, ", ");
+                break;
+            }
+            let rendered = self.role_predicate(predicate);
+            self.push_public_string_sequence_part(&mut predicates, rendered, ", ");
+        }
         if !predicates.is_empty() {
             let facts = predicates.join(", ");
             body.push_str(" where ");
@@ -190,6 +211,15 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn render_pos(&mut self, id: PosId) -> Rendered {
+        if let Some(rendered) = self.enter_public_subtree() {
+            return rendered;
+        }
+        let rendered = self.render_pos_node(id);
+        self.exit_public_subtree();
+        rendered
+    }
+
+    fn render_pos_node(&mut self, id: PosId) -> Rendered {
         match self.arena.pos(id) {
             Pos::Bot => Rendered::atom("never"),
             Pos::Var(var) => Rendered::atom(self.namer.name(*var)),
@@ -251,6 +281,15 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn render_neg(&mut self, id: NegId) -> Rendered {
+        if let Some(rendered) = self.enter_public_subtree() {
+            return rendered;
+        }
+        let rendered = self.render_neg_node(id);
+        self.exit_public_subtree();
+        rendered
+    }
+
+    fn render_neg_node(&mut self, id: NegId) -> Rendered {
         match self.arena.neg(id) {
             Neg::Top => Rendered::atom("any"),
             Neg::Bot => Rendered::atom("never"),
@@ -295,6 +334,15 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn render_neu(&mut self, id: NeuId) -> Rendered {
+        if let Some(rendered) = self.enter_public_subtree() {
+            return rendered;
+        }
+        let rendered = self.render_neu_node(id);
+        self.exit_public_subtree();
+        rendered
+    }
+
+    fn render_neu_node(&mut self, id: NeuId) -> Rendered {
         match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
                 let center = self.bounds_center(*lower, *upper);
@@ -335,6 +383,15 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         id: NeuId,
         polarity: NeuPolarity,
     ) -> Rendered {
+        if let Some(rendered) = self.enter_public_subtree() {
+            return rendered;
+        }
+        let rendered = self.render_neu_with_polarity_node(id, polarity);
+        self.exit_public_subtree();
+        rendered
+    }
+
+    fn render_neu_with_polarity_node(&mut self, id: NeuId, polarity: NeuPolarity) -> Rendered {
         match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
                 let center = self.bounds_center(*lower, *upper);
@@ -384,10 +441,16 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             return Rendered::atom(name);
         }
 
-        let args = args
-            .iter()
-            .map(|arg| self.render_neu_with_polarity(*arg, polarity))
-            .collect::<Vec<_>>();
+        let mut rendered_args = Vec::new();
+        for arg in args {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_rendered_sequence_truncation(&mut rendered_args, ", ");
+                break;
+            }
+            let rendered = self.render_neu_with_polarity(*arg, polarity);
+            self.push_public_rendered_sequence_part(&mut rendered_args, rendered, ", ");
+        }
+        let args = rendered_args;
         if args.iter().any(|arg| arg.has_bare_space) {
             let args = args
                 .into_iter()
@@ -450,11 +513,16 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         fields: &[RecordField<Id>],
         mut format: impl FnMut(&mut Self, Id) -> String,
     ) -> String {
-        let fields = fields
-            .iter()
-            .map(|field| self.record_field(field, &mut format))
-            .collect::<Vec<_>>()
-            .join(", ");
+        let mut fields_text = Vec::new();
+        for field in fields {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_string_sequence_truncation(&mut fields_text, ", ");
+                break;
+            }
+            let rendered = self.record_field(field, &mut format);
+            self.push_public_string_sequence_part(&mut fields_text, rendered, ", ");
+        }
+        let fields = fields_text.join(", ");
         format!("{{{fields}}}")
     }
 
@@ -476,11 +544,26 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         fields: &[RecordField<PosId>],
         tail: PosId,
     ) -> String {
-        let mut items = fields
-            .iter()
-            .map(|field| self.record_field(field, &mut |this, id| this.pos(id, Context::Free)))
-            .collect::<Vec<_>>();
-        items.push(format!("..{}", self.pos(tail, Context::Free)));
+        let mut items = Vec::new();
+        let mut sequence_truncated = false;
+        for field in fields {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_string_sequence_truncation(&mut items, ", ");
+                sequence_truncated = true;
+                break;
+            }
+            let rendered = self.record_field(field, &mut |this, id| this.pos(id, Context::Free));
+            self.push_public_string_sequence_part(&mut items, rendered, ", ");
+        }
+        if sequence_truncated {
+            return format!("{{{}}}", items.join(", "));
+        }
+        if !self.should_truncate_public_sequence_tail() {
+            let rendered = format!("..{}", self.pos(tail, Context::Free));
+            self.push_public_string_sequence_part(&mut items, rendered, ", ");
+        } else {
+            self.push_public_string_sequence_truncation(&mut items, ", ");
+        }
         format!("{{{}}}", items.join(", "))
     }
 
@@ -489,12 +572,26 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         tail: PosId,
         fields: &[RecordField<PosId>],
     ) -> String {
-        let mut items = vec![format!("..{}", self.pos(tail, Context::Free))];
-        items.extend(
-            fields
-                .iter()
-                .map(|field| self.record_field(field, &mut |this, id| this.pos(id, Context::Free))),
-        );
+        let mut items = Vec::new();
+        let tail_truncated = if self.should_truncate_public_sequence_tail() {
+            self.push_public_string_sequence_truncation(&mut items, ", ");
+            true
+        } else {
+            let rendered = format!("..{}", self.pos(tail, Context::Free));
+            self.push_public_string_sequence_part(&mut items, rendered, ", ");
+            false
+        };
+        if !tail_truncated {
+            for field in fields {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_string_sequence_truncation(&mut items, ", ");
+                    break;
+                }
+                let rendered =
+                    self.record_field(field, &mut |this, id| this.pos(id, Context::Free));
+                self.push_public_string_sequence_part(&mut items, rendered, ", ");
+            }
+        }
         format!("{{{}}}", items.join(", "))
     }
 
@@ -503,22 +600,29 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         items: &[(String, Vec<Id>)],
         mut format: impl FnMut(&mut Self, Id) -> String,
     ) -> String {
-        let items = items
-            .iter()
-            .map(|(name, payloads)| {
-                if payloads.is_empty() {
-                    self.surface_name(name)
-                } else {
-                    let payloads = payloads
-                        .iter()
-                        .map(|payload| format(self, *payload))
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    format!("{} {payloads}", self.surface_name(name))
+        let mut item_texts = Vec::new();
+        for (name, payloads) in items {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_string_sequence_truncation(&mut item_texts, ", ");
+                break;
+            }
+            let rendered = if payloads.is_empty() {
+                self.surface_name(name)
+            } else {
+                let mut payload_texts = Vec::new();
+                for payload in payloads {
+                    if self.should_truncate_public_sequence_tail() {
+                        self.push_public_string_sequence_truncation(&mut payload_texts, " ");
+                        break;
+                    }
+                    let rendered = format(self, *payload);
+                    self.push_public_string_sequence_part(&mut payload_texts, rendered, " ");
                 }
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+                format!("{} {}", self.surface_name(name), payload_texts.join(" "))
+            };
+            self.push_public_string_sequence_part(&mut item_texts, rendered, ", ");
+        }
+        let items = item_texts.join(", ");
         format!(":{{{items}}}")
     }
 
@@ -531,12 +635,16 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             [] => "()".to_string(),
             [only] => format!("({},)", format(self, *only)),
             _ => {
-                let items = items
-                    .iter()
-                    .map(|item| format(self, *item))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("({items})")
+                let mut item_texts = Vec::new();
+                for item in items {
+                    if self.should_truncate_public_sequence_tail() {
+                        self.push_public_string_sequence_truncation(&mut item_texts, ", ");
+                        break;
+                    }
+                    let rendered = format(self, *item);
+                    self.push_public_string_sequence_part(&mut item_texts, rendered, ", ");
+                }
+                format!("({})", item_texts.join(", "))
             }
         }
     }
@@ -586,6 +694,99 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
 
     fn redacted_rendered(&mut self) -> Rendered {
         Rendered::atom(self.redact())
+    }
+
+    fn enter_public_subtree(&mut self) -> Option<Rendered> {
+        if self.style != TypeFormatStyle::Public {
+            return None;
+        }
+        if self.public_budget.depth > PUBLIC_MAX_RENDER_DEPTH
+            || self.public_budget.rendered_chars > PUBLIC_MAX_RENDERED_CHARS
+        {
+            return Some(self.public_truncation_rendered());
+        }
+        self.public_budget.depth += 1;
+        None
+    }
+
+    fn exit_public_subtree(&mut self) {
+        if self.style == TypeFormatStyle::Public {
+            self.public_budget.depth = self.public_budget.depth.saturating_sub(1);
+        }
+    }
+
+    fn should_truncate_public_sequence_tail(&self) -> bool {
+        self.style == TypeFormatStyle::Public
+            && self.public_budget.rendered_chars > PUBLIC_MAX_RENDERED_CHARS
+    }
+
+    fn public_truncation_text(&mut self) -> String {
+        self.truncations = self.truncations.saturating_add(1);
+        PUBLIC_REDACTION.to_string()
+    }
+
+    fn public_truncation_rendered(&mut self) -> Rendered {
+        let rendered = Rendered::atom(self.public_truncation_text());
+        self.charge_public_text(&rendered.text);
+        rendered
+    }
+
+    fn push_public_string_sequence_part(
+        &mut self,
+        parts: &mut Vec<String>,
+        part: String,
+        separator: &str,
+    ) {
+        if !parts.is_empty() {
+            self.charge_public_text(separator);
+        }
+        self.charge_public_text(&part);
+        parts.push(part);
+    }
+
+    fn push_public_string_sequence_truncation(&mut self, parts: &mut Vec<String>, separator: &str) {
+        if parts.last().is_some_and(|part| part == PUBLIC_REDACTION) {
+            return;
+        }
+        let part = self.public_truncation_text();
+        self.push_public_string_sequence_part(parts, part, separator);
+    }
+
+    fn push_public_rendered_sequence_part(
+        &mut self,
+        parts: &mut Vec<Rendered>,
+        part: Rendered,
+        separator: &str,
+    ) {
+        if !parts.is_empty() {
+            self.charge_public_text(separator);
+        }
+        self.charge_public_text(&part.text);
+        parts.push(part);
+    }
+
+    fn push_public_rendered_sequence_truncation(
+        &mut self,
+        parts: &mut Vec<Rendered>,
+        separator: &str,
+    ) {
+        if parts
+            .last()
+            .is_some_and(|part| part.text == PUBLIC_REDACTION)
+        {
+            return;
+        }
+        let part = Rendered::atom(self.public_truncation_text());
+        self.push_public_rendered_sequence_part(parts, part, separator);
+    }
+
+    fn charge_public_text(&mut self, text: &str) {
+        if self.style == TypeFormatStyle::Public {
+            self.public_budget.rendered_chars = self
+                .public_budget
+                .rendered_chars
+                .saturating_add(text.chars().count());
+        }
     }
 
     pub(super) fn neg_row_inline(&mut self, id: NegId) -> Option<String> {
@@ -638,12 +839,17 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         items: &[NegId],
         tail: NegId,
     ) -> Option<Rendered> {
-        let items = items
-            .iter()
-            .map(|item| self.render_neg(*item))
-            .collect::<Vec<_>>();
-        let item_has_bare_space = items.iter().any(|item| item.has_bare_space);
-        let item_texts = items
+        let mut rendered_items = Vec::new();
+        for item in items {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_rendered_sequence_truncation(&mut rendered_items, ", ");
+                break;
+            }
+            let rendered = self.render_neg(*item);
+            self.push_public_rendered_sequence_part(&mut rendered_items, rendered, ", ");
+        }
+        let item_has_bare_space = rendered_items.iter().any(|item| item.has_bare_space);
+        let item_texts = rendered_items
             .into_iter()
             .map(|item| item.in_context(Context::Free))
             .collect::<Vec<_>>();
@@ -689,26 +895,44 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         let mut tails = Vec::new();
         for part in parts {
             match part {
-                PosRowPart::Item(item) => items.push(item),
+                PosRowPart::Item(item) => {
+                    if self.should_truncate_public_sequence_tail() {
+                        self.push_public_string_sequence_truncation(&mut items, ", ");
+                        break;
+                    }
+                    self.push_public_string_sequence_part(&mut items, item, ", ");
+                }
                 PosRowPart::Tail(tail) => tails.push(tail),
             }
         }
-        items.extend(tails);
+        for tail in tails {
+            if self.should_truncate_public_sequence_tail() {
+                self.push_public_string_sequence_truncation(&mut items, ", ");
+                break;
+            }
+            self.push_public_string_sequence_part(&mut items, tail, ", ");
+        }
         Some(items.join(", "))
     }
 
     pub(super) fn pos_row_items(&mut self, items: &[PosId]) -> String {
-        let items = items
-            .iter()
-            .flat_map(|item| self.collect_pos_row_parts(*item))
-            .map(|part| match part {
-                PosRowPart::Item(item) | PosRowPart::Tail(item) => item,
-            })
-            .collect::<Vec<_>>();
-        if items.is_empty() {
+        let mut rendered_items = Vec::new();
+        'outer: for item in items {
+            for part in self.collect_pos_row_parts(*item) {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_string_sequence_truncation(&mut rendered_items, ", ");
+                    break 'outer;
+                }
+                let rendered = match part {
+                    PosRowPart::Item(item) | PosRowPart::Tail(item) => item,
+                };
+                self.push_public_string_sequence_part(&mut rendered_items, rendered, ", ");
+            }
+        }
+        if rendered_items.is_empty() {
             "[]".to_string()
         } else {
-            format!("[{}]", items.join(", "))
+            format!("[{}]", rendered_items.join(", "))
         }
     }
 
@@ -740,12 +964,19 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn push_pos_union(&mut self, id: PosId, out: &mut Vec<String>) {
+        if self.should_truncate_public_sequence_tail() {
+            self.push_public_string_sequence_truncation(out, " | ");
+            return;
+        }
         match self.arena.pos(id) {
             Pos::Union(left, right) => {
                 self.push_pos_union(*left, out);
                 self.push_pos_union(*right, out);
             }
-            _ => out.push(self.pos(id, Context::FunctionArg)),
+            _ => {
+                let rendered = self.pos(id, Context::FunctionArg);
+                self.push_public_string_sequence_part(out, rendered, " | ");
+            }
         }
     }
 
@@ -757,12 +988,19 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn push_neg_intersection(&mut self, id: NegId, out: &mut Vec<String>) {
+        if self.should_truncate_public_sequence_tail() {
+            self.push_public_string_sequence_truncation(out, " & ");
+            return;
+        }
         match self.arena.neg(id) {
             Neg::Intersection(left, right) => {
                 self.push_neg_intersection(*left, out);
                 self.push_neg_intersection(*right, out);
             }
-            _ => out.push(self.neg(id, Context::FunctionArg)),
+            _ => {
+                let rendered = self.neg(id, Context::FunctionArg);
+                self.push_public_string_sequence_part(out, rendered, " & ");
+            }
         }
     }
 
@@ -885,7 +1123,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 self.bounds_lower_parts(right, var, out);
             }
             Pos::Bot => {}
-            _ => out.push(self.render_pos(id).into_context(Context::FunctionArg)),
+            _ => {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_rendered_sequence_truncation(out, " | ");
+                } else {
+                    let rendered = self.render_pos(id).into_context(Context::FunctionArg);
+                    self.push_public_rendered_sequence_part(out, rendered, " | ");
+                }
+            }
         }
     }
 
@@ -900,7 +1145,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 self.bounds_upper_parts(right, var, out);
             }
             Neg::Top => {}
-            _ => out.push(self.render_neg(id).into_context(Context::FunctionArg)),
+            _ => {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_rendered_sequence_truncation(out, " & ");
+                } else {
+                    let rendered = self.render_neg(id).into_context(Context::FunctionArg);
+                    self.push_public_rendered_sequence_part(out, rendered, " & ");
+                }
+            }
         }
     }
 
@@ -912,7 +1164,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 self.bounds_lower_parts_without_center(right, out);
             }
             Pos::Bot => {}
-            _ => out.push(self.render_pos(id).into_context(Context::FunctionArg)),
+            _ => {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_rendered_sequence_truncation(out, " | ");
+                } else {
+                    let rendered = self.render_pos(id).into_context(Context::FunctionArg);
+                    self.push_public_rendered_sequence_part(out, rendered, " | ");
+                }
+            }
         }
     }
 
@@ -924,7 +1183,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 self.bounds_upper_parts_without_center(right, out);
             }
             Neg::Top => {}
-            _ => out.push(self.render_neg(id).into_context(Context::FunctionArg)),
+            _ => {
+                if self.should_truncate_public_sequence_tail() {
+                    self.push_public_rendered_sequence_truncation(out, " & ");
+                } else {
+                    let rendered = self.render_neg(id).into_context(Context::FunctionArg);
+                    self.push_public_rendered_sequence_part(out, rendered, " & ");
+                }
+            }
         }
     }
 

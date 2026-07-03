@@ -18,9 +18,9 @@ mod surface;
 mod type_format;
 mod type_raw;
 pub use self::type_format::{
-    PublicTypeDisplay, format_neg, format_neg_with_path_rewriter, format_neu, format_pos,
-    format_scheme, format_scheme_public, format_scheme_public_with_path_rewriter,
-    format_scheme_with_path_rewriter,
+    PublicTypeDisplay, format_neg, format_neg_public_with_path_rewriter,
+    format_neg_with_path_rewriter, format_neu, format_pos, format_scheme, format_scheme_public,
+    format_scheme_public_with_path_rewriter, format_scheme_with_path_rewriter,
 };
 pub use self::type_raw::{dump_neg_raw, dump_neu_raw, dump_pos_raw, dump_scheme_raw};
 

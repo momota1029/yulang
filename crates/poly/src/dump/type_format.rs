@@ -14,6 +14,8 @@ use crate::types::{
 mod formatter;
 
 const PUBLIC_REDACTION: &str = "…";
+const PUBLIC_MAX_RENDER_DEPTH: usize = 10;
+const PUBLIC_MAX_RENDERED_CHARS: usize = 600;
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
 pub fn format_scheme(arena: &TypeArena, scheme: &Scheme) -> String {
@@ -69,6 +71,16 @@ pub fn format_neg_with_path_rewriter(
 ) -> String {
     TypeFormatter::new_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
         .neg(id, Context::Free)
+}
+
+/// 型 path を短縮しながら、負側型を公開表示用に返す。
+pub fn format_neg_public_with_path_rewriter(
+    arena: &TypeArena,
+    id: NegId,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> PublicTypeDisplay {
+    TypeFormatter::new_public_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
+        .format_neg_public(id)
 }
 
 /// 中立型を短い構文風表記で返す。
@@ -186,6 +198,7 @@ type PathRewriter<'a> = &'a dyn Fn(&[String]) -> Vec<String>;
 pub struct PublicTypeDisplay {
     pub text: String,
     pub redactions: u32,
+    pub truncations: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,9 +213,17 @@ struct TypeFormatter<'a, 'paths> {
     path_rewriter: Option<PathRewriter<'paths>>,
     style: TypeFormatStyle,
     redactions: u32,
+    truncations: u32,
+    public_budget: PublicTypeBudget,
 }
 
 impl<'a, 'paths> TypeFormatter<'a, 'paths> {}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct PublicTypeBudget {
+    depth: usize,
+    rendered_chars: usize,
+}
 
 fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
     match arena.pos(id) {
@@ -480,6 +501,7 @@ mod tests {
 
         assert_eq!(public.text, "'a");
         assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
     }
 
     #[test]
@@ -498,6 +520,7 @@ mod tests {
 
         assert_eq!(public.text, "std::…");
         assert_eq!(public.redactions, 1);
+        assert_eq!(public.truncations, 0);
     }
 
     #[test]
@@ -869,6 +892,74 @@ mod tests {
 
         assert_eq!(public.text, "box …");
         assert_eq!(public.redactions, 1);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_truncates_over_depth_budget() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let mut current = plain_neu(&mut arena, a);
+        for depth in 0..12 {
+            current = arena.alloc_neu(Neu::Con(vec![format!("nest{depth}")], vec![current]));
+        }
+        let predicate = arena.alloc_pos(Pos::Con(vec!["root".into()], vec![current]));
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        let public = format_scheme_public(&arena, &scheme);
+
+        assert!(format_scheme(&arena, &scheme).contains("nest0 'a"));
+        assert!(public.text.contains("nest2 …"), "{:?}", public.text);
+        assert!(!public.text.contains("nest1 "), "{:?}", public.text);
+        assert!(!public.text.contains("nest1("), "{:?}", public.text);
+        assert!(!public.text.contains("nest0"), "{:?}", public.text);
+        assert_eq!(public.text.matches(PUBLIC_REDACTION).count(), 1);
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 1);
+    }
+
+    #[test]
+    fn public_scheme_truncates_sibling_tail_over_length_budget() {
+        let mut arena = TypeArena::new();
+        let int = arena.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let fields = (0..80)
+            .map(|index| RecordField {
+                name: format!("field_{index:03}_wide_name"),
+                optional: false,
+                value: int,
+            })
+            .collect::<Vec<_>>();
+        let predicate = arena.alloc_pos(Pos::Record(fields));
+        let scheme = Scheme {
+            quantifiers: Vec::new(),
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        let public = format_scheme_public(&arena, &scheme);
+
+        assert!(format_scheme(&arena, &scheme).contains("field_079_wide_name"));
+        assert!(public.text.contains(PUBLIC_REDACTION), "{:?}", public.text);
+        assert!(
+            !public.text.contains("field_079_wide_name"),
+            "{:?}",
+            public.text
+        );
+        assert!(
+            public.text.chars().count() <= PUBLIC_MAX_RENDERED_CHARS + 80,
+            "{:?}",
+            public.text
+        );
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 1);
     }
 
     #[test]
