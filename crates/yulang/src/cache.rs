@@ -23,7 +23,7 @@ use crate::source::{
 
 const POLY_CACHE_FORMAT: u32 = 8;
 const MONO_CACHE_FORMAT: u32 = 1;
-const CONTROL_CACHE_FORMAT: u32 = 8;
+const CONTROL_CACHE_FORMAT: u32 = 9;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 const SOURCE_KEY_INDEX_CACHE_FORMAT: u32 = 1;
@@ -4174,6 +4174,7 @@ mod tests {
         specialize::RuntimeEvidenceSurface {
             known_state_handlers: Vec::new(),
             known_state_accesses: Vec::new(),
+            host_manifest: None,
             tasks: vec![specialize::RuntimeEvidenceTask {
                 owner: specialize::RuntimeEvidenceTaskOwner::RootExpr {
                     root_index: 0,
@@ -4212,6 +4213,7 @@ mod tests {
         let artifact = CachedPolyArtifact {
             arena: poly::expr::Arena::new(),
             labels: poly::dump::DumpLabels::new(),
+            host_manifest: None,
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
         };

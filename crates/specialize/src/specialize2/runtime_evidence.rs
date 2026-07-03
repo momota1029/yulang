@@ -17,7 +17,7 @@ pub struct SpecializeOutput {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceSurface {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     #[serde(default)]
     pub known_state_handlers: Vec<RuntimeEvidenceKnownStateHandler>,
