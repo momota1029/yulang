@@ -159,6 +159,16 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
        parity coverage and a regression keeping runtime failures on the message
        diagnostic path (commit 2ee20770). Runtime errors and route errors other
        than `LoweringDiagnostics` intentionally remain message diagnostics.
+     - 2026-07-04: the playground web UI now renders the structured payload:
+       label prefix, hint, and related information with line:column ranges and
+       origin decoration (commit d624757e).
+   - LSP / editor robustness: 2026-07-04 fixed parser EOF recovery panics
+     (unterminated string, trailing `::`, and similar EOF paths) with
+     prefix-totality tests, so mid-edit sources no longer kill diagnostics /
+     semantic tokens (commit eda03d12). Semantic tokens also keep a lexical
+     fallback under parse recovery (commit bbb71c17), and yulang-zed now ships
+     a thicker tree-sitter baseline with `"semantic_tokens": "combined"`
+     guidance (submodule commit 892054a).
    - hover は public projection を出し、内部 evidence や巨大型を漏らさない。
      - 2026-07-03: Stage 1 of
        `notes/design/2026-07-03-hover-public-type-projection.md` is
@@ -170,6 +180,14 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      - 2026-07-03: Stage 2 (structural truncation numbers, hover local/select
        paths, LSP char-cap replacement) is gated on user review per the design
        doc.
+     - 2026-07-04: Stage 2 of the hover public projection is implemented except
+       the marker-spelling revision: Public style now has structural
+       truncation budgets (depth 10 / 600 rendered chars, `…` with a separate
+       truncations counter), hover local-arg and record/select use-site types
+       go through the public projection, and the LSP 1200-char cap remains only
+       as a final safety net (commits 80032176, a1e55e27). Displaying
+       stack-weight / subtractability evidence in a prettier public spelling
+       (instead of dropping it) is pending a user decision on notation.
 
 4. **Release artifact contract**
    - packaged binary で `stable-core` と file-resource representative contract を通す。
