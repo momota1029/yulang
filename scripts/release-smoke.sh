@@ -143,6 +143,7 @@ if [[ "$file_resource_contract_smoke" != "0" ]]; then
     file_text_unsupported_host
     file_text_native_missing_typed_io_err
     file_ambient_get_untouched_missing_host_io_error
+    file_ambient_set_untouched_missing_host_io_error
     file_text_mock_ambient_typed_not_found
   )
   file_resource_case_args=()
