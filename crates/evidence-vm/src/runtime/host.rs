@@ -31,10 +31,8 @@ impl RuntimeHostRegistry {
         generated_manifest: Option<poly::host_manifest::HostActManifest>,
         registrations: Vec<HostOpRegistration>,
     ) -> Self {
-        let registrations: &'static [HostOpRegistration] =
-            Box::leak(registrations.into_boxed_slice());
         let generated_manifest = generated_manifest
-            .map(|manifest| RuntimeGeneratedHostManifestLookup::new(manifest, registrations));
+            .map(|manifest| RuntimeGeneratedHostManifestLookup::new(manifest, &registrations));
         Self {
             generated_manifest,
             native_host_operations_enabled,
@@ -71,7 +69,7 @@ struct RuntimeGeneratedHostManifestLookup {
 impl RuntimeGeneratedHostManifestLookup {
     fn new(
         manifest: poly::host_manifest::HostActManifest,
-        registrations: &'static [HostOpRegistration],
+        registrations: &[HostOpRegistration],
     ) -> Self {
         assert_manifest_act_registrations_have_operations(&manifest, registrations);
         let act_path_by_id = manifest
