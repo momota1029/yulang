@@ -143,6 +143,22 @@ contracts = [
 ]
 
 [[case]]
+name = "instant_display_rfc3339"
+file = "regressions/runtime/instant_display_rfc3339.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(\"1970-01-01T00:00:00Z\", \"2000-02-29T00:00:00Z\", \"1900-03-01T00:00:00Z\", \"2026-07-02T12:34:56.789Z\", \"1969-12-31T23:59:59.999999999Z\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host.unsupported",
+]
+
+[[case]]
 name = "duration_units"
 file = "regressions/runtime/duration_units.yu"
 kind = "run"

@@ -1,0 +1,7 @@
+my epoch = std::time::instant { epoch_nanos: 0 }
+my leap_day = std::time::instant { epoch_nanos: 951782400000000000 }
+my century = std::time::instant { epoch_nanos: -2203891200000000000 }
+my sample = std::time::instant { epoch_nanos: 1782995696789000000 }
+my before_epoch = std::time::instant { epoch_nanos: -1 }
+
+(epoch.show, leap_day.show, century.show, sample.show, before_epoch.show)

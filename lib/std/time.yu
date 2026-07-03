@@ -1,5 +1,6 @@
 use std::core::cmp::*
 use std::core::fmt::*
+use std::core::ops::*
 use std::num::*
 
 pub struct instant { epoch_nanos: int }
@@ -44,6 +45,77 @@ pub hours(count: int): duration =
 pub days(count: int): duration =
     hours (std::int::mul count 24)
 
+my floor_div(x: int, y: int): int =
+    my q = x div y
+    my r = x mod y
+    if r < 0: q - 1 else: q
+
+my floor_mod(x: int, y: int): int =
+    x - (floor_div(x, y) * y)
+
+my civil_from_epoch_days(days_since_epoch: int): (int, int, int) =
+    my z = days_since_epoch + 719468
+    my era = floor_div(z, 146097)
+    my doe = z - (era * 146097)
+    my yoe = (doe - (doe div 1460) + (doe div 36524) - (doe div 146096)) div 365
+    my year = yoe + (era * 400)
+    my doy = doe - ((365 * yoe) + (yoe div 4) - (yoe div 100))
+    my mp = ((5 * doy) + 2) div 153
+    my day = doy - (((153 * mp) + 2) div 5) + 1
+    my month = mp + (if mp < 10: 3 else: -9)
+    (if month <= 2: year + 1 else: year, month, day)
+
+my pad2(n: int): str =
+    if n < 10: "0" + std::int::to_string n else: std::int::to_string n
+
+my pad3(n: int): str =
+    if n < 10:
+        "00" + std::int::to_string n
+    else:
+        if n < 100: "0" + std::int::to_string n else: std::int::to_string n
+
+my pad4(n: int): str =
+    if n < 10:
+        "000" + std::int::to_string n
+    else:
+        if n < 100:
+            "00" + std::int::to_string n
+        else:
+            if n < 1000: "0" + std::int::to_string n else: std::int::to_string n
+
+my pad9(n: int): str =
+    pad3(n div 1000000) + pad3((n div 1000) mod 1000) + pad3(n mod 1000)
+
+my trim_trailing_zeros(text: str): str =
+    my len = std::text::str::len text
+    if len <= 0:
+        text
+    else:
+        my end = len - 1
+        if std::text::str::index_range_raw text end len == "0":
+            trim_trailing_zeros (std::text::str::index_range_raw text 0 end)
+        else:
+            text
+
+my fraction_text(nanos_in_second: int): str =
+    if nanos_in_second == 0:
+        ""
+    else:
+        "." + trim_trailing_zeros (pad9 nanos_in_second)
+
+my instant_rfc3339_utc(x: instant): str =
+    my seconds = floor_div(x.epoch_nanos, 1000000000)
+    my nanos_in_second = floor_mod(x.epoch_nanos, 1000000000)
+    my days = floor_div(seconds, 86400)
+    my second_of_day = floor_mod(seconds, 86400)
+    my (year, month, day) = civil_from_epoch_days days
+    my hour = second_of_day div 3600
+    my minute = (second_of_day mod 3600) div 60
+    my second = second_of_day mod 60
+    my date = pad4 year + "-" + pad2 month + "-" + pad2 day
+    my clock = pad2 hour + ":" + pad2 minute + ":" + pad2 second
+    date + "T" + clock + fraction_text(nanos_in_second) + "Z"
+
 impl instant: Eq:
     our x.eq y = std::int::eq x.epoch_nanos y.epoch_nanos
 
@@ -67,6 +139,9 @@ impl instant: Debug:
 
 impl duration: Debug:
     our x.debug = "duration { nanos: " + std::int::to_string x.nanos + " }"
+
+impl instant: Display:
+    our x.show = instant_rfc3339_utc x
 
 impl duration: Add:
     our x.add y = duration_add x y
