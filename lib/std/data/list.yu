@@ -12,6 +12,7 @@ pub type list 'a with:
     pub xs.map f = std::data::list::map xs f
     pub xs.filter pred = std::data::list::filter xs pred
     pub xs.splice r ys = std::data::list::splice xs r ys
+    pub xs.join separator = std::text::str::join xs separator
     pub xs.is_empty = std::data::list::is_empty xs
     pub xs.first = std::data::list::first xs
     pub xs.last = std::data::list::last xs

@@ -1,6 +1,7 @@
 use std::core::ops::*
 use std::data::opt::*
 use std::data::index::*
+use std::data::list::*
 use std::data::fold::*
 use std::data::range::*
 use std::control::var::*
@@ -72,8 +73,19 @@ impl (ref_lines 'e): Fold:
 
 pub type str with:
     pub s.splice r insert = std::text::str::splice s r insert
+    pub s.find needle = std::text::str::find s needle
+    pub s.contains needle = std::text::str::contains s needle
+    pub s.starts_with prefix = std::text::str::starts_with s prefix
+    pub s.ends_with suffix = std::text::str::ends_with s suffix
+    pub s.split separator = std::text::str::split s separator
+    pub s.split_once separator = std::text::str::split_once s separator
     pub s.replace_once from to = std::text::str::replace_once s from to
     pub s.replace from to = std::text::str::replace_all s from to
+    pub s.trim = std::text::str::trim s
+    pub s.trim_start = std::text::str::trim_start s
+    pub s.trim_end = std::text::str::trim_end s
+    pub s.repeat count = std::text::str::repeat s count
+    pub s.to_int = std::text::str::to_int s
     pub s.len = std::text::str::len s
     pub s.is_empty = std::text::str::is_empty s
     pub s.lines: lines = str_line_view s
@@ -106,6 +118,156 @@ my find_at(source: str, needle: str, start: int): opt int =
             else:
                 nil
         loop start
+
+pub find(source: str, needle: str): opt range =
+    case find_at(source, needle, 0):
+        just i -> just (range i (std::int::add i (std::text::str::len needle)))
+        nil -> nil
+
+pub contains(source: str, needle: str): bool =
+    case find_at(source, needle, 0):
+        just _ -> true
+        nil -> false
+
+pub starts_with(source: str, prefix: str): bool =
+    starts_with_at(source, prefix, 0)
+
+pub ends_with(source: str, suffix: str): bool =
+    my source_len = std::text::str::len source
+    my suffix_len = std::text::str::len suffix
+    if std::int::le suffix_len source_len:
+        starts_with_at(source, suffix, std::int::sub source_len suffix_len)
+    else:
+        false
+
+pub split(source: str, separator: str): list str =
+    if std::int::eq (std::text::str::len separator) 0:
+        [source]
+    else:
+        my loop(start: int, out: list str): list str =
+            case find_at(source, separator, start):
+                just i ->
+                    my piece = std::text::str::index_range_raw source start i
+                    loop(
+                        std::int::add i (std::text::str::len separator),
+                        std::data::list::cons(piece, out))
+                nil ->
+                    std::data::list::rev:
+                        std::data::list::cons
+                            (std::text::str::index_range_raw source start (std::text::str::len source))
+                            out
+        loop(0, [])
+
+pub split_once(source: str, separator: str): opt (str, str) =
+    case find_at(source, separator, 0):
+        just i ->
+            just
+                (std::text::str::index_range_raw source 0 i,
+                 std::text::str::index_range_raw
+                    source
+                    (std::int::add i (std::text::str::len separator))
+                    (std::text::str::len source))
+        nil -> nil
+
+my join_tail(parts: list str, separator: str, out: str): str =
+    case std::data::list::uncons parts:
+        nil -> out
+        just (part, rest) ->
+            join_tail(rest, separator, std::text::str::concat (std::text::str::concat out separator) part)
+
+pub join(parts: list str, separator: str): str =
+    case std::data::list::uncons parts:
+        nil -> ""
+        just (head, tail) -> join_tail(tail, separator, head)
+
+my trim_start_index(source: str, i: int): int =
+    if std::int::lt i (std::text::str::len source):
+        if std::text::char::is_whitespace (std::text::str::index_raw source i):
+            trim_start_index(source, std::int::add i 1)
+        else:
+            i
+    else:
+        i
+
+my trim_end_index(source: str, end: int): int =
+    if std::int::gt end 0:
+        my previous = std::int::sub end 1
+        if std::text::char::is_whitespace (std::text::str::index_raw source previous):
+            trim_end_index(source, previous)
+        else:
+            end
+    else:
+        end
+
+pub trim_start(source: str): str =
+    std::text::str::index_range_raw
+        source
+        (trim_start_index(source, 0))
+        (std::text::str::len source)
+
+pub trim_end(source: str): str =
+    std::text::str::index_range_raw source 0 (trim_end_index(source, std::text::str::len source))
+
+pub trim(source: str): str =
+    my start = trim_start_index(source, 0)
+    my end = trim_end_index(source, std::text::str::len source)
+    if std::int::le start end:
+        std::text::str::index_range_raw source start end
+    else:
+        ""
+
+pub repeat(source: str, count: int): str =
+    my loop(i: int, out: str): str =
+        if std::int::lt i count:
+            loop(std::int::add i 1, std::text::str::concat out source)
+        else:
+            out
+    if std::int::le count 0:
+        ""
+    else:
+        loop(0, "")
+
+my digit_value(item: char): opt int =
+    case std::text::char::to_string item:
+        "0" -> just 0
+        "1" -> just 1
+        "2" -> just 2
+        "3" -> just 3
+        "4" -> just 4
+        "5" -> just 5
+        "6" -> just 6
+        "7" -> just 7
+        "8" -> just 8
+        "9" -> just 9
+        _ -> nil
+
+my parse_unsigned_int(source: str, start: int, i: int, acc: int): opt int =
+    if std::int::lt i (std::text::str::len source):
+        case digit_value(std::text::str::index_raw source i):
+            just digit ->
+                parse_unsigned_int(
+                    source,
+                    start,
+                    std::int::add i 1,
+                    std::int::add (std::int::mul acc 10) digit)
+            nil -> nil
+    else:
+        if std::int::eq i start:
+            nil
+        else:
+            just acc
+
+pub to_int(source: str): opt int =
+    if std::int::eq (std::text::str::len source) 0:
+        nil
+    else:
+        case std::text::char::to_string (std::text::str::index_raw source 0):
+            "-" ->
+                case parse_unsigned_int(source, 1, 1, 0):
+                    just value -> just (std::int::sub 0 value)
+                    nil -> nil
+            "+" -> parse_unsigned_int(source, 1, 1, 0)
+            _ -> parse_unsigned_int(source, 0, 0, 0)
 
 pub replace_once(source: str, from: str, to: str): str =
     if std::int::eq (std::text::str::len from) 0:
