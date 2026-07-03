@@ -1,0 +1,13 @@
+use std::control::var::*
+
+my path = {{file}}
+
+(\&doc ->
+    my count = std::text::str::line_count $doc
+    for i in 0..count:
+        my r = std::text::str::line_range $doc i
+        my line = std::text::str::index_range $doc r
+        if line.starts_with "todo:":
+            &doc[r] = line.replace_once "todo:" "done:"
+    ("after-for", $doc).say
+) (std::io::file::text path)

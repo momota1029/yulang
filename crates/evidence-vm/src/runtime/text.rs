@@ -37,8 +37,13 @@ pub(super) fn string_line_count(text: &str) -> usize {
 }
 
 pub(super) fn string_line_range(text: &str, line: usize) -> Option<(usize, usize)> {
-    if line >= string_line_count(text) {
+    let line_count = string_line_count(text);
+    if line > line_count {
         return None;
+    }
+    let len = grapheme_len(text);
+    if line == line_count {
+        return Some((len, len));
     }
     let mut starts = vec![0usize];
     for (index, grapheme) in UnicodeSegmentation::graphemes(text, true).enumerate() {
@@ -47,9 +52,6 @@ pub(super) fn string_line_range(text: &str, line: usize) -> Option<(usize, usize
         }
     }
     let start = *starts.get(line)?;
-    let end = starts
-        .get(line + 1)
-        .copied()
-        .unwrap_or_else(|| grapheme_len(text));
+    let end = starts.get(line + 1).copied().unwrap_or(len);
     Some((start, end))
 }

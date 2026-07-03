@@ -991,6 +991,9 @@ fn apply_primitive(
         PrimitiveOp::StringLineRange => {
             let text = expect_str(&args[0])?;
             let index = value_index(&args[1])?;
+            if index == text.line_count() {
+                return range_value(context, op, text.len(), text.len());
+            }
             let next = index
                 .checked_add(1)
                 .ok_or_else(|| RuntimeError::UnsupportedBoundary {
