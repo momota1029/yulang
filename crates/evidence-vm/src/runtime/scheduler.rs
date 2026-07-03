@@ -100,6 +100,17 @@ impl RuntimeHostScheduler {
         Some(branch_id)
     }
 
+    pub(super) fn resume_suspended_branch(&mut self, branch_id: RuntimeHostBranchId) -> bool {
+        let Some(branch) = self.branches.get_mut(&branch_id) else {
+            return false;
+        };
+        if branch.status != RuntimeHostBranchStatus::Suspended {
+            return false;
+        }
+        branch.status = RuntimeHostBranchStatus::Running;
+        true
+    }
+
     pub(super) fn next_operation_instance(
         &mut self,
         branch_id: RuntimeHostBranchId,
@@ -323,6 +334,48 @@ mod tests {
             scheduler.branch_status(scheduler.root_branch),
             Some(RuntimeHostBranchStatus::CancelPending)
         );
+    }
+
+    #[test]
+    fn scheduler_resumes_child_branch_before_running_cancel() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+
+        assert!(scheduler.resume_suspended_branch(child));
+        assert_eq!(
+            scheduler.branch_status(child),
+            Some(RuntimeHostBranchStatus::Running)
+        );
+        assert!(scheduler.enqueue_cancel(child, RuntimeHostCancelReason::HostDisconnected));
+        let _ = scheduler.process_next_event();
+
+        assert_eq!(
+            scheduler.branch_status(child),
+            Some(RuntimeHostBranchStatus::CancelPending)
+        );
+        assert_eq!(scheduler.next_operation_instance(child), None);
+        assert_eq!(
+            scheduler.branch_status(child),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn scheduler_only_resumes_suspended_branches() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+
+        assert!(!scheduler.resume_suspended_branch(scheduler.root_branch));
+        assert!(scheduler.resume_suspended_branch(child));
+        assert!(!scheduler.resume_suspended_branch(child));
+        assert!(scheduler.enqueue_cancel(child, RuntimeHostCancelReason::HostDisconnected));
+        let _ = scheduler.process_next_event();
+
+        assert!(!scheduler.resume_suspended_branch(child));
     }
 
     #[test]
