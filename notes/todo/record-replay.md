@@ -33,6 +33,19 @@
 - これは record/replay を実装しなくても registry 実装時に入れておく。
   後付けは全 host act の再配線になる。
 
+2026-07-03 現在、前提の一部は実装済み:
+
+- compiler-produced host manifest は `hash`、operation `column`、決定的
+  `symbol` を公開し、`debug host-act-manifest` と release smoke で固定している。
+- Evidence VM scheduler の operation instance は
+  `branch_id` / `parent_branch_id` / 分岐内 `seq` を持つ。
+- suspended child spawn record は `parent_branch_id` / `child_branch_id` /
+  parent-local `resume_ordinal` を返す。
+
+これは record / replay 実行モードの実装ではない。次の実装では、この識別子を
+runtime host registry の全 perform 経路で発行し、記録ファイル / replay host /
+wire codec へ接続する。
+
 静的 route 昇格（notes/design/2026-07-02-static-route-promotion-plan.md）で
 cert 検査を消した direct call についても、record モードでは列番号の発行だけは
 残す必要がある。**direct call の高速化と記録可能性はトレードオフになるので、
@@ -65,6 +78,10 @@ branch: { parent_branch_id, parent_seq }   -- 分岐の系譜
 ## First slice
 
 1. registry 実装（FFI 指示書の実装順 2）に列番号と分岐 id を含める。
+   - 2026-07-03: host manifest 側の `hash` / `column` / `symbol` と、
+     scheduler 側の branch-local operation instance id は unit / CLI /
+     release smoke で固定済み。未着手なのは、runtime host registry の全
+     perform 経路での発行、record mode、replay host、記録フォーマット。
 2. record モード: console + file だけを対象に、CLI `yulang run --record out.yrec`。
 3. replay モード: `yulang run --replay out.yrec`（host act 全 deny + replay host）。
 4. fixture: 乱数と時刻を使う小プログラムを record → replay で stdout 完全一致。
