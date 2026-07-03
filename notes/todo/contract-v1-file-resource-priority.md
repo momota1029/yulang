@@ -147,6 +147,12 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      Remaining work in this priority is new host surfaces (server / random),
      suspend-tier execution, band-provided implementations, and Native ABI FFI
      beyond the VM subset.
+   - 2026-07-04: suspend one-shot tier execution is wired:
+     `HostCtx::suspend_one_shot()` returns an opaque `HostResumeToken`, resume
+     goes through the scheduler event queue (no host re-entry), cancelled
+     branches reject late resumes as `Dropped`, and double resume is
+     `AlreadyConsumed`; multi-shot stays a reserved explicit-unimplemented tier
+     (commit c9196ba0).
 
 3. **Diagnostics + LSP / playground parity**
    - role/method diagnostic を specialization oracle bridge から dedicated check-stage owner へ寄せる。
@@ -205,6 +211,12 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      `notes/design/2026-07-03-structured-concurrency-decisions.md` に追加した。
      first slice は scheduler branch id / parent id、cancel queue、suspend 中 branch
      の immediate drop から始める。
+   - 2026-07-04: the structured-concurrency first slice (branch ids / parent
+     lineage, cancel queue with descendant cascade, immediate drop of suspended
+     branches) was found already implemented in the Evidence VM scheduler from
+     the record-replay identifier work; remaining for the driver are the server
+     host act with tiered manifest entries, request/respond one-shot slots,
+     multi-shot accept, and the in-process driver loop.
 
 6. **Static route Stage M1, then conditional Stage 1**
    - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
