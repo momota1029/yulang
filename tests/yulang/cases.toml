@@ -204,6 +204,7 @@ expect_stderr_contains = [
 contracts = [
   "runtime-error",
   "runtime-failure",
+  "diagnostics",
   "standard-api",
   "stable-api",
   "time",
@@ -675,6 +676,7 @@ expect_stderr_contains = [
 contracts = [
   "runtime-error",
   "runtime-failure",
+  "diagnostics",
   "standard-api",
   "stable-api",
   "file",
@@ -782,6 +784,7 @@ expect_stderr_contains = [
 contracts = [
   "runtime-error",
   "runtime-failure",
+  "diagnostics",
   "host-act",
   "host.unsupported",
   "console",

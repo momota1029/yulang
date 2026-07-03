@@ -258,7 +258,8 @@ The columns trace a value through the pipeline:
 - Full diagnostics polish is still in progress. Parser, type, catch syntax,
   role/method specialization failures, and focused runtime failures now have
   manifest coverage. Check-stage cases carry structured CLI/LSP/playground
-  payloads; runtime-failure cases pin the user-facing code and hint text.
+  payloads; runtime-failure cases pin the user-facing code and hint text,
+  including representative unsupported-host capability failures.
   Role/method diagnostics use the specialization oracle as a narrow
   `SourceDiagnostic` bridge until role impl satisfaction has a dedicated
   check-stage owner.

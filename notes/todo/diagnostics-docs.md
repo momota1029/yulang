@@ -97,8 +97,10 @@ Diagnostics の最初の slice:
   代表ケースも `diagnostics` tag に含め、`not-callable` / `not-record` /
   `pattern-mismatch` / `unhandled-effect` / backend unsupported runtime feature
   の user-facing code と hint を同じ filtered manifest で固定するようにした。
-  現在の filtered manifest run は `contract cases ok: 27`。以後 diagnostics の
-  追加はこの tag を広げる形で行い、check cases では structured payload も固定する。
+  後続で unsupported-host capability failure の clock / file / console 代表ケースも
+  同じ tag に含めた。現在の filtered manifest run は `contract cases ok: 30`。
+  以後 diagnostics の追加はこの tag を広げる形で行い、check cases では
+  structured payload も固定する。
 
 API 固定の最初の slice:
 

@@ -4443,6 +4443,22 @@ fn public_contract_manifest_covers_status_spine_claims() {
             "runtime pattern diagnostics",
             &["diagnostics", "runtime-failure", "patterns"],
         ),
+        ManifestTagRequirement::new(
+            "unsupported host diagnostics",
+            &["diagnostics", "runtime-failure", "host.unsupported"],
+        ),
+        ManifestTagRequirement::new(
+            "time unsupported host diagnostics",
+            &["diagnostics", "host.unsupported", "time"],
+        ),
+        ManifestTagRequirement::new(
+            "file unsupported host diagnostics",
+            &["diagnostics", "host.unsupported", "file-resource"],
+        ),
+        ManifestTagRequirement::new(
+            "console unsupported host diagnostics",
+            &["diagnostics", "host.unsupported", "console"],
+        ),
         ManifestTagRequirement::new("diagnostics syntax", &["diagnostics", "syntax"]),
         ManifestTagRequirement::new("diagnostics names", &["diagnostics", "names"]),
         ManifestTagRequirement::new("diagnostics typechecker", &["diagnostics", "typechecker"]),
