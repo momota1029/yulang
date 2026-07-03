@@ -211,8 +211,12 @@ if [[ "$contract_smoke" != "0" ]]; then
     clock_now_unsupported_host
     clock_mock_now_handler
     std_time_clock_now_public_signature
+    std_time_instant_add_public_signature
+    std_time_instant_sub_public_signature
     std_time_secs_public_signature
     std_time_days_public_signature
+    std_time_duration_add_public_signature
+    std_time_duration_sub_public_signature
   )
   time_case_args=()
   for case_name in "${time_cases[@]}"; do

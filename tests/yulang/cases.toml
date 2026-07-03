@@ -1782,6 +1782,50 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "time"]
 
 [[case]]
+name = "std_time_instant_add_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.instant_add"
+expect_type = "std::time::instant -> std::time::duration -> std::time::instant"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_instant_sub_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.instant_sub"
+expect_type = "std::time::instant -> std::time::duration -> std::time::instant"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_duration_add_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.duration_add"
+expect_type = "std::time::duration -> std::time::duration -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
+name = "std_time_duration_sub_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.time"
+symbol = "std.time.duration_sub"
+expect_type = "std::time::duration -> std::time::duration -> std::time::duration"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "time"]
+
+[[case]]
 name = "std_time_secs_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
