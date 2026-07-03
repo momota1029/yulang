@@ -140,6 +140,15 @@ impl RuntimeHostScheduler {
         children.len()
     }
 
+    pub(super) fn complete_branch(&mut self, branch_id: RuntimeHostBranchId) -> bool {
+        if branch_id == self.root_branch || !self.branch_can_complete_normally(branch_id) {
+            return false;
+        }
+        self.enqueue_child_cancels(branch_id, RuntimeHostCancelReason::ParentExtentClosed);
+        self.branches.remove(&branch_id);
+        true
+    }
+
     pub(super) fn process_next_event(&mut self) -> Option<RuntimeHostSchedulerEvent> {
         let event = self.queue.pop_front()?;
         match event {
@@ -167,6 +176,15 @@ impl RuntimeHostScheduler {
         self.branches
             .get(&branch_id)
             .is_some_and(|branch| branch.status.is_live())
+    }
+
+    fn branch_can_complete_normally(&self, branch_id: RuntimeHostBranchId) -> bool {
+        self.branches.get(&branch_id).is_some_and(|branch| {
+            matches!(
+                branch.status,
+                RuntimeHostBranchStatus::Running | RuntimeHostBranchStatus::Suspended
+            )
+        })
     }
 
     fn branch_can_continue_at_scheduler_boundary(
@@ -412,6 +430,45 @@ mod tests {
         assert_eq!(
             scheduler.branch_status(child),
             Some(RuntimeHostBranchStatus::Dropped)
+        );
+        assert_eq!(
+            scheduler.branch_status(grandchild),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn scheduler_removes_completed_child_branch() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+
+        assert!(scheduler.complete_branch(child));
+
+        assert_eq!(scheduler.branch_status(child), None);
+        assert!(scheduler.has_only_root_branch());
+    }
+
+    #[test]
+    fn scheduler_completion_cancels_descendants_before_removing_branch() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+        let grandchild = scheduler
+            .spawn_suspended_child(child)
+            .expect("live child branch should accept child branches");
+
+        assert!(scheduler.complete_branch(child));
+
+        assert_eq!(scheduler.branch_status(child), None);
+        assert_eq!(
+            scheduler.process_next_event(),
+            Some(RuntimeHostSchedulerEvent::Cancel {
+                branch_id: grandchild,
+                reason: RuntimeHostCancelReason::ParentExtentClosed,
+            })
         );
         assert_eq!(
             scheduler.branch_status(grandchild),
