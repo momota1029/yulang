@@ -41,6 +41,8 @@
   `branch_id` / `parent_branch_id` / 分岐内 `seq` を持つ。
 - suspended child spawn record は `parent_branch_id` / `child_branch_id` /
   parent-local `resume_ordinal` を返す。
+- runtime host registry の resolved operation は manifest 由来の
+  `act_id` / `operation_id` / `column` / `symbol` を保持する。
 
 これは record / replay 実行モードの実装ではない。次の実装では、この識別子を
 runtime host registry の全 perform 経路で発行し、記録ファイル / replay host /
@@ -80,8 +82,9 @@ branch: { parent_branch_id, parent_seq }   -- 分岐の系譜
 1. registry 実装（FFI 指示書の実装順 2）に列番号と分岐 id を含める。
    - 2026-07-03: host manifest 側の `hash` / `column` / `symbol` と、
      scheduler 側の branch-local operation instance id は unit / CLI /
-     release smoke で固定済み。未着手なのは、runtime host registry の全
-     perform 経路での発行、record mode、replay host、記録フォーマット。
+     release smoke で固定済み。resolved runtime host operation も manifest
+     identity を持つ。未着手なのは、runtime host registry の全 perform 経路での
+     instance 発行、record mode、replay host、記録フォーマット。
 2. record モード: console + file だけを対象に、CLI `yulang run --record out.yrec`。
 3. replay モード: `yulang run --replay out.yrec`（host act 全 deny + replay host）。
 4. fixture: 乱数と時刻を使う小プログラムを record → replay で stdout 完全一致。

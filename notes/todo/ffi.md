@@ -60,6 +60,10 @@ FFI は少なくとも二層に分けて考える。
   file と console は unsupported-host / source handler mock / native host route の
   contract canary を持つ。clock は wall-clock `now` の native / unsupported /
   source mock canary を持つ。
+- Resolved runtime host operations retain their manifest `act_id` /
+  `operation_id` / replay `column` / deterministic `symbol`. A panicking host
+  implementation reports a structured Host ABI failure that includes `column`
+  and `symbol`.
 - 未着手: server / socket、random、band 単位の外部実装注入、Native ABI FFI
   としての dylib / C ABI / static link、suspend tier の実行経路。
 
