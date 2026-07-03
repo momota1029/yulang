@@ -8489,8 +8489,15 @@ enum RuntimeHostRequestHandling {
 #[derive(Debug, Clone)]
 struct RuntimeSuspendedHostContinuation {
     branch_id: RuntimeHostBranchId,
+    kind: RuntimeSuspendedHostContinuationKind,
     operation: Vec<String>,
     continuation: EvidenceContinuation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeSuspendedHostContinuationKind {
+    OneShot,
+    MultiShot,
 }
 
 #[derive(Debug, Default)]
@@ -8557,6 +8564,7 @@ struct RuntimeEvidenceRunner<'a> {
     provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
     host_state: RuntimeBuiltinHostState,
     host_scheduler: RuntimeHostScheduler,
+    current_host_branch: RuntimeHostBranchId,
     suspended_host_continuations: HashMap<HostResumeTokenId, RuntimeSuspendedHostContinuation>,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
@@ -8615,6 +8623,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
             host_state: RuntimeBuiltinHostState::default(),
+            current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
             suspended_host_continuations: HashMap::new(),
             host_registry,
@@ -8646,6 +8655,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             stdout: self.host_state.stdout.clone(),
             evidence_stats: self.stats,
         })
+    }
+
+    fn current_host_branch_id(&self) -> RuntimeHostBranchId {
+        self.current_host_branch
+    }
+
+    fn with_current_host_branch<T>(
+        &mut self,
+        branch_id: RuntimeHostBranchId,
+        run: impl FnOnce(&mut Self) -> Result<T, RuntimeEvidenceRunError>,
+    ) -> Result<T, RuntimeEvidenceRunError> {
+        let previous = self.current_host_branch;
+        self.current_host_branch = branch_id;
+        let result = run(self);
+        self.current_host_branch = previous;
+        result
     }
 
     fn static_case_arms(&self, expr: ExprId) -> Rc<[control_vm::CaseArm]> {
@@ -12532,9 +12557,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.handle_runtime_host_one_shot_operation(operation, request)
                 }
                 poly::host_manifest::HostOperationTier::SuspendMultiShot => {
-                    Err(RuntimeEvidenceRunError::UnsupportedExpr(
-                        "suspend multi-shot host operation is not implemented",
-                    ))
+                    self.handle_runtime_host_multi_shot_operation(operation, request)
                 }
             },
             RuntimeHostRequestResolution::UnsupportedCapability(failure) => Err(
@@ -12607,7 +12630,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             .to_string(),
                     });
                 };
-                let parent = self.host_scheduler.root_branch_id();
+                let parent = self.current_host_branch_id();
                 let Some(spawn) = self
                     .host_scheduler
                     .commit_one_shot_suspend(parent, token.clone())
@@ -12622,6 +12645,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     token.id(),
                     RuntimeSuspendedHostContinuation {
                         branch_id: spawn.child_branch_id(),
+                        kind: RuntimeSuspendedHostContinuationKind::OneShot,
                         operation: operation_path,
                         continuation: request.continuation,
                     },
@@ -12647,6 +12671,78 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn handle_runtime_host_multi_shot_operation(
+        &mut self,
+        operation: host::RuntimeHostResolvedOperation,
+        request: EvidenceRequest,
+    ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
+        let operation_path = operation.path_strings();
+        let boundary_payload =
+            runtime_to_boundary_value(request.payload.as_ref(), &self.host_constructors).map_err(
+                |message| RuntimeEvidenceRunError::HostAbiError {
+                    operation: operation_path.clone(),
+                    message,
+                },
+            )?;
+        let suspend_issuer = self.host_scheduler.multi_shot_suspend_issuer();
+        let mut ctx = HostCtx::new_with_suspend_issuer(&mut self.host_state, suspend_issuer);
+        let outcome = self
+            .host_registry
+            .call(operation, &mut ctx, &boundary_payload);
+        let issued_token = ctx.issued_suspend_token();
+        drop(ctx);
+
+        match outcome {
+            HostOutcome::Suspended => {
+                let Some(token) = issued_token else {
+                    return Err(RuntimeEvidenceRunError::HostAbiError {
+                        operation: operation_path,
+                        message: "suspend multi-shot host operation did not request a resume token"
+                            .to_string(),
+                    });
+                };
+                let parent = self.current_host_branch_id();
+                if !self
+                    .host_scheduler
+                    .commit_multi_shot_suspend(parent, token.clone())
+                {
+                    return Err(RuntimeEvidenceRunError::HostAbiError {
+                        operation: operation_path,
+                        message:
+                            "suspend multi-shot host operation could not park its parent branch"
+                                .to_string(),
+                    });
+                }
+                self.suspended_host_continuations.insert(
+                    token.id(),
+                    RuntimeSuspendedHostContinuation {
+                        branch_id: parent,
+                        kind: RuntimeSuspendedHostContinuationKind::MultiShot,
+                        operation: operation_path,
+                        continuation: request.continuation,
+                    },
+                );
+                Ok(RuntimeHostRequestHandling::Suspended)
+            }
+            HostOutcome::Return(_) => {
+                if let Some(token) = issued_token {
+                    self.host_scheduler.discard_multi_shot_suspend(token);
+                }
+                Err(RuntimeEvidenceRunError::HostAbiError {
+                    operation: operation_path,
+                    message: "suspend multi-shot host operation returned without suspending"
+                        .to_string(),
+                })
+            }
+            HostOutcome::HostError(message) => {
+                if let Some(token) = issued_token {
+                    self.host_scheduler.discard_multi_shot_suspend(token);
+                }
+                Err(runtime_error_from_host_error(operation_path, message))
+            }
+        }
+    }
+
     fn process_next_host_scheduler_event(
         &mut self,
     ) -> Result<Option<EvidenceEvalResult>, RuntimeEvidenceRunError> {
@@ -12656,6 +12752,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match event {
             scheduler::RuntimeHostSchedulerEvent::Cancel { branch_id, .. } => {
                 self.drop_suspended_host_continuation_for_branch(branch_id);
+                Ok(None)
+            }
+            scheduler::RuntimeHostSchedulerEvent::Close {
+                branch_id,
+                token_id,
+            } => {
+                if self
+                    .suspended_host_continuations
+                    .get(&token_id)
+                    .is_some_and(|suspended| suspended.branch_id == branch_id)
+                {
+                    self.suspended_host_continuations.remove(&token_id);
+                }
                 Ok(None)
             }
             scheduler::RuntimeHostSchedulerEvent::Resume {
@@ -12668,27 +12777,67 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 {
                     return Ok(None);
                 }
-                let Some(suspended) = self.suspended_host_continuations.remove(&token_id) else {
+                let Some((operation, continuation, remove_after_resume)) =
+                    self.host_resume_continuation(token_id, branch_id)?
+                else {
                     return Ok(None);
                 };
-                if suspended.branch_id != branch_id {
-                    return Err(RuntimeEvidenceRunError::HostAbiError {
-                        operation: suspended.operation,
-                        message: "host resume token branch did not match suspended continuation"
-                            .to_string(),
-                    });
+                if remove_after_resume {
+                    self.suspended_host_continuations.remove(&token_id);
                 }
                 let value = boundary_to_runtime_value(&value, &self.host_constructors).map_err(
                     |message| RuntimeEvidenceRunError::HostAbiError {
-                        operation: suspended.operation.clone(),
+                        operation: operation.clone(),
                         message,
                     },
                 )?;
-                let result = self.resume_continuation(suspended.continuation, value)?;
+                let result = self.with_current_host_branch(branch_id, |runner| {
+                    runner.resume_continuation(continuation, value)
+                })?;
                 if matches!(result, EvidenceEvalResult::Value(_)) {
                     let _ = self.host_scheduler.complete_branch(branch_id);
                 }
                 Ok(Some(result))
+            }
+        }
+    }
+
+    fn host_resume_continuation(
+        &self,
+        token_id: HostResumeTokenId,
+        branch_id: RuntimeHostBranchId,
+    ) -> Result<Option<(Vec<String>, EvidenceContinuation, bool)>, RuntimeEvidenceRunError> {
+        let Some(suspended) = self.suspended_host_continuations.get(&token_id) else {
+            return Ok(None);
+        };
+        match suspended.kind {
+            RuntimeSuspendedHostContinuationKind::OneShot => {
+                if suspended.branch_id != branch_id {
+                    return Err(RuntimeEvidenceRunError::HostAbiError {
+                        operation: suspended.operation.clone(),
+                        message: "host resume token branch did not match suspended continuation"
+                            .to_string(),
+                    });
+                }
+                Ok(Some((
+                    suspended.operation.clone(),
+                    suspended.continuation.clone(),
+                    true,
+                )))
+            }
+            RuntimeSuspendedHostContinuationKind::MultiShot => {
+                if self.host_scheduler.branch_parent(branch_id) != Some(suspended.branch_id) {
+                    return Err(RuntimeEvidenceRunError::HostAbiError {
+                        operation: suspended.operation.clone(),
+                        message: "multi-shot host resume child did not belong to suspended parent"
+                            .to_string(),
+                    });
+                }
+                Ok(Some((
+                    suspended.operation.clone(),
+                    suspended.continuation.clone(),
+                    false,
+                )))
             }
         }
     }
@@ -21477,29 +21626,172 @@ mod tests {
     }
 
     #[test]
-    fn host_abi_suspend_multi_shot_is_reserved_but_unimplemented() {
+    fn host_abi_suspend_multi_shot_resumes_three_child_branches() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
-        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
-            true,
-            Some(suspend_multi_shot_host_manifest()),
-            vec![HostOpRegistration {
-                act_id: "test.host.bridge",
-                operation_id: "call",
-                f: custom_host_call,
-            }],
-        );
-        let request = custom_host_request();
+        install_multi_shot_host(&mut runner);
 
-        let error = runner
-            .handle_escaped_request(request)
-            .expect_err("multi-shot suspend is only reserved in this slice");
+        let token = start_multi_shot_suspend(&mut runner);
+
+        for value in [1, 2, 3] {
+            assert_eq!(token.resume(BoundaryValue::Int(value)), Ok(()));
+            let result = runner
+                .process_next_host_scheduler_event()
+                .expect("queued multi-shot resume should be processed")
+                .expect("queued multi-shot resume should produce a resumed result");
+            assert_eq!(
+                result,
+                EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Int(value)))
+            );
+        }
+
+        assert_eq!(runner.suspended_host_continuations.len(), 1);
+        assert!(runner.host_scheduler.has_only_root_branch());
+
+        assert_eq!(token.close(), Ok(()));
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("queued close should be processed")
+                .is_none()
+        );
+        assert!(runner.suspended_host_continuations.is_empty());
+    }
+
+    #[test]
+    fn host_abi_suspend_multi_shot_parent_cancel_rejects_resume_and_cascades_children() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_multi_shot_host(&mut runner);
+
+        let token = start_multi_shot_suspend(&mut runner);
+        let parent = runner.host_scheduler.root_branch_id();
+        let first = spawn_multi_shot_child_without_running(&mut runner, &token, 1);
+        let second = spawn_multi_shot_child_without_running(&mut runner, &token, 2);
+
+        assert_eq!(runner.host_scheduler.branch_parent(first), Some(parent));
+        assert_eq!(runner.host_scheduler.branch_parent(second), Some(parent));
+        assert_eq!(runner.host_scheduler.branch_resume_ordinal(first), Some(0));
+        assert_eq!(runner.host_scheduler.branch_resume_ordinal(second), Some(1));
+        assert!(runner.host_scheduler.enqueue_cancel(
+            parent,
+            scheduler::RuntimeHostCancelReason::ParentExtentClosed,
+        ));
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("parent cancel should be processed")
+                .is_none()
+        );
 
         assert_eq!(
-            error,
-            RuntimeEvidenceRunError::UnsupportedExpr(
-                "suspend multi-shot host operation is not implemented"
-            )
+            token.resume(BoundaryValue::Int(3)),
+            Err(HostResumeError::Dropped)
+        );
+        assert!(runner.suspended_host_continuations.is_empty());
+
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("first child cancel should be processed")
+                .is_none()
+        );
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("second child cancel should be processed")
+                .is_none()
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(first),
+            Some(scheduler::RuntimeHostBranchStatus::CancelPending)
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(second),
+            Some(scheduler::RuntimeHostBranchStatus::CancelPending)
+        );
+        assert_eq!(runner.host_scheduler.next_operation_instance(first), None);
+        assert_eq!(runner.host_scheduler.next_operation_instance(second), None);
+        assert_eq!(
+            runner.host_scheduler.branch_status(first),
+            Some(scheduler::RuntimeHostBranchStatus::Dropped)
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(second),
+            Some(scheduler::RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn host_abi_suspend_multi_shot_close_rejects_later_resume() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_multi_shot_host(&mut runner);
+
+        let token = start_multi_shot_suspend(&mut runner);
+
+        assert_eq!(token.close(), Ok(()));
+        assert_eq!(
+            token.resume(BoundaryValue::Int(1)),
+            Err(HostResumeError::Closed)
+        );
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("queued close should be processed")
+                .is_none()
+        );
+        assert!(runner.suspended_host_continuations.is_empty());
+    }
+
+    #[test]
+    fn host_abi_suspend_multi_shot_child_cancel_does_not_affect_sibling_or_parent() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_multi_shot_host(&mut runner);
+
+        let token = start_multi_shot_suspend(&mut runner);
+        let parent = runner.host_scheduler.root_branch_id();
+        let first = spawn_multi_shot_child_without_running(&mut runner, &token, 1);
+        let second = spawn_multi_shot_child_without_running(&mut runner, &token, 2);
+
+        assert!(
+            runner
+                .host_scheduler
+                .enqueue_cancel(first, scheduler::RuntimeHostCancelReason::HostDisconnected,)
+        );
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("child cancel should be processed")
+                .is_none()
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(first),
+            Some(scheduler::RuntimeHostBranchStatus::CancelPending)
+        );
+        assert_eq!(runner.host_scheduler.next_operation_instance(first), None);
+        assert_eq!(
+            runner.host_scheduler.branch_status(first),
+            Some(scheduler::RuntimeHostBranchStatus::Dropped)
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(second),
+            Some(scheduler::RuntimeHostBranchStatus::Running)
+        );
+        assert_eq!(
+            runner.host_scheduler.branch_status(parent),
+            Some(scheduler::RuntimeHostBranchStatus::Running)
+        );
+
+        assert_eq!(token.resume(BoundaryValue::Int(3)), Ok(()));
+        let result = runner
+            .process_next_host_scheduler_event()
+            .expect("sibling-independent resume should be processed")
+            .expect("sibling-independent resume should produce a result");
+        assert_eq!(
+            result,
+            EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Int(3)))
         );
     }
 
@@ -21595,6 +21887,30 @@ mod tests {
         HostOutcome::Suspended
     }
 
+    fn multi_shot_suspending_host_call(
+        ctx: &mut HostCtx<'_>,
+        payload: &BoundaryValue,
+    ) -> HostOutcome {
+        if !matches!(payload, BoundaryValue::Unit) {
+            return HostOutcome::HostError(format!(
+                "multi-shot host expected unit, got {payload:?}"
+            ));
+        }
+        let token = match ctx.suspend_multi_shot() {
+            Ok(token) => token,
+            Err(error) => {
+                return HostOutcome::HostError(format!(
+                    "multi-shot host failed to issue token: {error:?}"
+                ));
+            }
+        };
+        let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() else {
+            return HostOutcome::HostError("multi-shot host expected builtin state".to_string());
+        };
+        state.test_resume_tokens.push(token);
+        HostOutcome::Suspended
+    }
+
     fn host_handle_returning_call(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
         HostOutcome::Return(BoundaryValue::HostHandle {
             type_id: 1,
@@ -21642,6 +21958,43 @@ mod tests {
             "() -> int",
             poly::host_manifest::HostOperationTier::SuspendMultiShot,
         )
+    }
+
+    fn install_multi_shot_host(runner: &mut RuntimeEvidenceRunner<'_>) {
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(suspend_multi_shot_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "test.host.bridge",
+                operation_id: "call",
+                f: multi_shot_suspending_host_call,
+            }],
+        );
+    }
+
+    fn start_multi_shot_suspend(runner: &mut RuntimeEvidenceRunner<'_>) -> HostResumeToken {
+        let handling = runner
+            .try_handle_runtime_host_request(custom_host_request())
+            .expect("multi-shot host op should suspend without runtime error");
+        assert!(matches!(handling, RuntimeHostRequestHandling::Suspended));
+        assert_eq!(runner.host_state.test_resume_tokens.len(), 1);
+        runner.host_state.test_resume_tokens[0].clone()
+    }
+
+    fn spawn_multi_shot_child_without_running(
+        runner: &mut RuntimeEvidenceRunner<'_>,
+        token: &HostResumeToken,
+        value: i64,
+    ) -> RuntimeHostBranchId {
+        assert_eq!(token.resume(BoundaryValue::Int(value)), Ok(()));
+        match runner
+            .host_scheduler
+            .process_next_event()
+            .expect("multi-shot resume should produce a scheduler event")
+        {
+            scheduler::RuntimeHostSchedulerEvent::Resume { branch_id, .. } => branch_id,
+            other => panic!("expected multi-shot resume event, got {other:?}"),
+        }
     }
 
     fn custom_host_request() -> EvidenceRequest {

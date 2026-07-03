@@ -82,6 +82,13 @@ impl<'a> HostCtx<'a> {
         suspend_issuer.issue_one_shot()
     }
 
+    pub fn suspend_multi_shot(&mut self) -> Result<HostResumeToken, HostSuspendError> {
+        let Some(suspend_issuer) = &mut self.suspend_issuer else {
+            return Err(HostSuspendError::UnsupportedTier);
+        };
+        suspend_issuer.issue_multi_shot()
+    }
+
     pub(crate) fn issued_suspend_token(&self) -> Option<HostResumeToken> {
         self.suspend_issuer
             .as_ref()
@@ -104,6 +111,10 @@ mod tests {
         assert!(ctx.state_mut::<usize>().is_none());
         assert!(matches!(
             ctx.suspend_one_shot(),
+            Err(HostSuspendError::UnsupportedTier)
+        ));
+        assert!(matches!(
+            ctx.suspend_multi_shot(),
             Err(HostSuspendError::UnsupportedTier)
         ));
     }
