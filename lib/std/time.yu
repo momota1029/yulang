@@ -1,4 +1,5 @@
 use std::core::cmp::*
+use std::core::fmt::*
 use std::num::*
 
 pub struct instant { epoch_nanos: int }
@@ -39,6 +40,12 @@ impl duration: Ord:
     our x.le y = std::int::le x.nanos y.nanos
     our x.gt y = std::int::gt x.nanos y.nanos
     our x.ge y = std::int::ge x.nanos y.nanos
+
+impl instant: Debug:
+    our x.debug = "instant { epoch_nanos: " + std::int::to_string x.epoch_nanos + " }"
+
+impl duration: Debug:
+    our x.debug = "duration { nanos: " + std::int::to_string x.nanos + " }"
 
 impl duration: Add:
     our x.add y = duration_add x y

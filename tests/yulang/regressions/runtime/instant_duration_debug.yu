@@ -1,0 +1,4 @@
+my t = std::time::instant { epoch_nanos: 42 }
+my d = std::time::duration { nanos: -7 }
+
+(t.debug, d.debug, (std::data::opt::opt::just t).debug)

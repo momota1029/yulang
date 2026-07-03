@@ -127,6 +127,22 @@ contracts = [
 ]
 
 [[case]]
+name = "instant_duration_debug"
+file = "regressions/runtime/instant_duration_debug.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [(\"instant { epoch_nanos: 42 }\", \"duration { nanos: -7 }\", \"just instant { epoch_nanos: 42 }\")]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host.unsupported",
+]
+
+[[case]]
 name = "clock_now_native"
 file = "regressions/runtime/clock_now_native.yu"
 kind = "run"
