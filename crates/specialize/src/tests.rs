@@ -738,6 +738,33 @@ mod tests {
     }
 
     #[test]
+    fn runtime_evidence_static_routes_mark_thunk_argument_delayed_boundary() {
+        let lowering = lower_source(
+            "act stop:\n  our now: () -> int\n\n\
+             my action() = stop::now()\n\n\
+             my run(x: [_] int): int = catch x:\n\
+             \x20 stop::now(), _ -> 1\n\
+             \x20 v -> v\n\n\
+             run action()\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("thunk-argument helper should specialize with runtime evidence");
+        let route = static_route_for_family(&output.runtime_evidence, &["stop", "now"]);
+
+        assert!(
+            matches!(
+                &route.resolution,
+                RuntimeEvidenceStaticRouteResolution::Dynamic(
+                    RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary
+                )
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn runtime_evidence_static_routes_mark_slot_backed_operation_provider_env_dependent() {
         let lowering = lower_source(
             "act stop:\n  our now: () -> int\n\n\

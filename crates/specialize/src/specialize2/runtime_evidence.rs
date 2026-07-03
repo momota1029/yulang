@@ -390,7 +390,7 @@ impl TaskStaticRouteClassifier {
             self.record_operation(operation, lambda_depth, context.hygiene_boundary);
         }
         if let Some(app) = self.app_calls.get(&expr).copied() {
-            self.record_call_edge(app, lambda_depth);
+            self.record_call_edge(app, lambda_depth, context.delays_direct_call());
         }
 
         match arena.expr(poly_expr::ExprId(expr)) {
@@ -530,13 +530,18 @@ impl TaskStaticRouteClassifier {
         );
     }
 
-    fn record_call_edge(&mut self, app: RuntimeEvidenceAppCallSite, lambda_depth: u32) {
+    fn record_call_edge(
+        &mut self,
+        app: RuntimeEvidenceAppCallSite,
+        lambda_depth: u32,
+        context_delayed_boundary: bool,
+    ) {
         self.call_edges.push(RuntimeEvidenceCallEdge {
             caller_task: self.task_index,
             callee_instance: app.callee_instance,
             site_lambda_depth: lambda_depth,
             applied_lambda_depth: app.applied_lambda_depth,
-            delayed_boundary: app.delayed_boundary,
+            delayed_boundary: app.delayed_boundary || context_delayed_boundary,
             active_handlers: self
                 .active_handlers
                 .iter()
@@ -569,6 +574,10 @@ impl StaticRouteVisitContext {
             hygiene_boundary: self.hygiene_boundary || self.app_argument_context,
             app_argument_context: false,
         }
+    }
+
+    fn delays_direct_call(self) -> bool {
+        self.hygiene_boundary || self.app_argument_context
     }
 }
 
@@ -707,15 +716,22 @@ impl<'a> StaticRouteL2Resolver<'a> {
 
     fn finish(self) -> Vec<RuntimeEvidenceStaticRoute> {
         let contexts = self.propagate_contexts();
+        let delayed_boundaries = self.delayed_boundary_sccs();
         let mut routes = Vec::new();
         for analysis in &self.analyses {
-            let task_context = &contexts[self.task_sccs[analysis.owner]];
+            let task_scc = self.task_sccs[analysis.owner];
+            let task_context = &contexts[task_scc];
+            let task_delayed_boundary = delayed_boundaries[task_scc];
             for operation in &analysis.operations {
                 if let Some(route) = analysis.l1_routes.get(&operation.operation_expr) {
                     routes.push(route.clone());
                     continue;
                 }
-                let resolution = self.resolve_operation_from_context(task_context, operation);
+                let resolution = self.resolve_operation_from_context(
+                    task_context,
+                    operation,
+                    task_delayed_boundary,
+                );
                 routes.push(RuntimeEvidenceStaticRoute {
                     operation_expr: operation.operation_expr,
                     apply: operation.apply,
@@ -727,6 +743,24 @@ impl<'a> StaticRouteL2Resolver<'a> {
             }
         }
         routes
+    }
+
+    fn delayed_boundary_sccs(&self) -> Vec<bool> {
+        let mut delayed = vec![false; self.scc_tasks.len()];
+        for analysis in &self.analyses {
+            for edge in analysis
+                .call_edges
+                .iter()
+                .filter(|edge| edge.delayed_boundary)
+            {
+                let Some(target_task) = self.instance_tasks.get(&edge.callee_instance).copied()
+                else {
+                    continue;
+                };
+                delayed[self.task_sccs[target_task]] = true;
+            }
+        }
+        delayed
     }
 
     fn propagate_contexts(&self) -> Vec<StaticRouteContextMap> {
@@ -770,14 +804,18 @@ impl<'a> StaticRouteL2Resolver<'a> {
         &self,
         context: &StaticRouteContextMap,
         operation: &RuntimeEvidenceOperationCallSite,
+        delayed_boundary: bool,
     ) -> RuntimeEvidenceStaticRouteResolution {
+        if delayed_boundary {
+            return dynamic_static_route_resolution(self.host_manifest, operation, true);
+        }
         let lambda_depth = operation.lambda_depth.unwrap_or(u32::MAX);
         let handlers = context.handlers_for(&operation.family, lambda_depth);
         match handlers.as_slice() {
             [handler_expr] => RuntimeEvidenceStaticRouteResolution::StaticHandler {
                 handler_expr: *handler_expr,
             },
-            [] => dynamic_static_route_resolution(self.host_manifest, operation),
+            [] => dynamic_static_route_resolution(self.host_manifest, operation, false),
             _ => RuntimeEvidenceStaticRouteResolution::Dynamic(
                 RuntimeEvidenceStaticRouteDynamicReason::MultipleCandidates,
             ),
@@ -1010,6 +1048,7 @@ fn topo_order_for_sccs(edges: &[Vec<usize>]) -> Vec<usize> {
 fn dynamic_static_route_resolution(
     host_manifest: Option<&poly::host_manifest::HostActManifest>,
     operation: &RuntimeEvidenceOperationCallSite,
+    delayed_boundary: bool,
 ) -> RuntimeEvidenceStaticRouteResolution {
     if host_manifest_has_known_act(host_manifest, &operation.family) {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
@@ -1018,6 +1057,10 @@ fn dynamic_static_route_resolution(
     } else if operation.provider_env_dependent {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
             RuntimeEvidenceStaticRouteDynamicReason::ProviderEnvDependent,
+        )
+    } else if delayed_boundary {
+        RuntimeEvidenceStaticRouteResolution::Dynamic(
+            RuntimeEvidenceStaticRouteDynamicReason::DelayedBoundary,
         )
     } else if operation.hygiene_barrier {
         RuntimeEvidenceStaticRouteResolution::Dynamic(
