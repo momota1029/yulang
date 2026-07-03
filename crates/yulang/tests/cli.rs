@@ -2718,6 +2718,54 @@ fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_classifies_thunk_argument_as_delayed_boundary() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-delayed-boundary",
+        "act stop:\n  our now: () -> int\n\n\
+         my action() = stop::now()\n\n\
+         my run(x: [_] int): int = catch x:\n\
+         \x20 stop::now(), _ -> 1\n\
+         \x20 v -> v\n\n\
+         run action()\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("evidence.static_route_sites_total: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_dynamic_delayed_boundary: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.static_route_dynamic_unclassified: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.static_route_runtime_hits_dynamic_delayed_boundary: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.static_route_runtime_hits_dynamic_unclassified: 0"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run roots [1]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_classifies_unused_continuation_as_direct_abortive() {
     let entry = write_entry(
         "debug-runtime-evidence-run-direct-abortive-handler",
