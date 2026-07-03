@@ -2237,6 +2237,64 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn hover_for_source_reports_diagnostic_summary_at_related_range_after_leading_trivia() {
+        let root = temp_root("hover-diagnostic-related-leading-trivia");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "\n// keep hover on the related user diagnostic line\nmy x: bool = 1\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 2,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 2,
+                    character: 6
+                },
+                end: Position {
+                    line: 2,
+                    character: 10
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.type-mismatch"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("expected type comes from this type annotation: bool"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("actual type comes from this expression: int"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
     fn hover_for_source_reports_catch_diagnostic_summary() {
         let root = temp_root("hover-catch-diagnostic-summary");
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
