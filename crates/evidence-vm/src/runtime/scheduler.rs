@@ -131,13 +131,7 @@ impl RuntimeHostScheduler {
         parent: RuntimeHostBranchId,
         reason: RuntimeHostCancelReason,
     ) -> usize {
-        let children = self
-            .branches
-            .iter()
-            .filter_map(|(branch_id, branch)| {
-                (branch.parent == Some(parent) && branch.status.is_live()).then_some(*branch_id)
-            })
-            .collect::<Vec<_>>();
+        let children = self.live_descendants(parent);
         for child in &children {
             self.queue.push_back(RuntimeHostSchedulerEvent::Cancel {
                 branch_id: *child,
@@ -174,6 +168,33 @@ impl RuntimeHostScheduler {
         self.branches
             .get(&branch_id)
             .is_some_and(|branch| branch.status.is_live())
+    }
+
+    fn live_descendants(&self, parent: RuntimeHostBranchId) -> Vec<RuntimeHostBranchId> {
+        let mut children_by_parent = BTreeMap::new();
+        for (branch_id, branch) in &self.branches {
+            if let Some(parent) = branch.parent {
+                children_by_parent
+                    .entry(parent)
+                    .or_insert_with(Vec::new)
+                    .push((*branch_id, branch.status));
+            }
+        }
+
+        let mut live_descendants = Vec::new();
+        let mut frontier = VecDeque::from([parent]);
+        while let Some(parent) = frontier.pop_front() {
+            let Some(children) = children_by_parent.get(&parent) else {
+                continue;
+            };
+            for (child, status) in children {
+                frontier.push_back(*child);
+                if status.is_live() {
+                    live_descendants.push(*child);
+                }
+            }
+        }
+        live_descendants
     }
 }
 
@@ -261,6 +282,48 @@ mod tests {
         );
         assert_eq!(
             scheduler.branch_status(second),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+    }
+
+    #[test]
+    fn scheduler_enqueues_descendant_cancels_for_parent_extent_close() {
+        let mut scheduler = RuntimeHostScheduler::new();
+        let child = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept child branches");
+        let grandchild = scheduler
+            .spawn_suspended_child(child)
+            .expect("live child branch should accept child branches");
+
+        assert_eq!(
+            scheduler.enqueue_child_cancels(
+                scheduler.root_branch,
+                RuntimeHostCancelReason::ParentExtentClosed,
+            ),
+            2
+        );
+        assert_eq!(
+            scheduler.process_next_event(),
+            Some(RuntimeHostSchedulerEvent::Cancel {
+                branch_id: child,
+                reason: RuntimeHostCancelReason::ParentExtentClosed,
+            })
+        );
+        assert_eq!(
+            scheduler.process_next_event(),
+            Some(RuntimeHostSchedulerEvent::Cancel {
+                branch_id: grandchild,
+                reason: RuntimeHostCancelReason::ParentExtentClosed,
+            })
+        );
+
+        assert_eq!(
+            scheduler.branch_status(child),
+            Some(RuntimeHostBranchStatus::Dropped)
+        );
+        assert_eq!(
+            scheduler.branch_status(grandchild),
             Some(RuntimeHostBranchStatus::Dropped)
         );
     }
