@@ -218,7 +218,7 @@ name = "file_native_protocol_typed_failures"
 file = "regressions/runtime/file_native_protocol_typed_failures.yu"
 kind = "run"
 std = "repo"
-expect_stdout = "run roots [(\"load-not-found\", \"store-failed\")]\n"
+expect_stdout = "run roots [(\"load-not-found\", \"store-typed-failure\")]\n"
 expect_stderr = ""
 temp_files = [
   { placeholder = "{{missing_file}}", missing = true },

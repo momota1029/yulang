@@ -9,7 +9,8 @@ my load_failure = case std::io::file::file::load missing:
 
 my store_failure = case std::io::file::file::store (directory, "blocked"):
     result::err err -> case err:
-        std::io::file::io_err::failed (_, _) -> "store-failed"
+        std::io::file::io_err::denied _ -> "store-typed-failure"
+        std::io::file::io_err::failed (_, _) -> "store-typed-failure"
         _ -> "store-other-error"
     result::ok _ -> "store-ok"
 
