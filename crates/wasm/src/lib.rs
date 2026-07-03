@@ -211,11 +211,8 @@ pub fn run_inner(source: &str) -> RunOutput {
 pub fn check_inner(source: &str) -> CheckOutput {
     match yulang::check_poly_from_source_text_with_embedded_std(PLAYGROUND_ENTRY, source) {
         Ok(output) => {
-            let diagnostics = output
-                .diagnostics
-                .iter()
-                .map(|diagnostic| Diagnostic::from_source_diagnostic(diagnostic, source.len()))
-                .collect::<Vec<_>>();
+            let diagnostics =
+                diagnostics_from_source_diagnostics(&output.diagnostics, source.len());
             CheckOutput {
                 ok: diagnostics.is_empty(),
                 file_count: output.file_count,
@@ -273,6 +270,9 @@ fn run_with_embedded_std_fallback(
     match run_evidence_from_source_text_with_embedded_std(source) {
         Ok(output) => RunOutput::from_runtime_output(output, source, true),
         Err(std_error) => {
+            if let Some(output) = run_output_from_lowering_diagnostics(source, &std_error) {
+                return output;
+            }
             let message = match no_std_error {
                 Some(no_std_error) => format!(
                     "{std_error}\n\nwithout embedded std, the earlier error was: {no_std_error}"
@@ -282,6 +282,25 @@ fn run_with_embedded_std_fallback(
             RunOutput::from_error(message, source.len())
         }
     }
+}
+
+fn run_output_from_lowering_diagnostics(
+    source: &str,
+    error: &WasmRuntimeError,
+) -> Option<RunOutput> {
+    if !matches!(
+        error,
+        WasmRuntimeError::Route(yulang::RouteError::LoweringDiagnostics { .. })
+    ) {
+        return None;
+    }
+
+    let output =
+        yulang::check_poly_from_source_text_with_embedded_std(PLAYGROUND_ENTRY, source).ok()?;
+    if output.diagnostics.is_empty() {
+        return None;
+    }
+    Some(RunOutput::from_check_output(output, source))
 }
 
 fn run_evidence_from_source_text_without_std(
@@ -804,6 +823,30 @@ pub struct EmbeddedStdArtifactsOutput {
 }
 
 impl RunOutput {
+    fn from_check_output(output: yulang::CheckPolyOutput, source: &str) -> Self {
+        let diagnostics = diagnostics_from_source_diagnostics(&output.diagnostics, source.len());
+        let errors = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect();
+        Self {
+            ok: diagnostics.is_empty(),
+            file_count: output.file_count,
+            text: output.text,
+            results: Vec::new(),
+            stdout: String::new(),
+            types: Vec::new(),
+            timings: Some(RunTimings {
+                vm_continuation_steps: 0,
+                source_cache_hits: 0,
+                source_cache_misses: 1,
+                used_embedded_std: true,
+            }),
+            diagnostics,
+            errors,
+        }
+    }
+
     fn from_runtime_output(
         output: WasmRuntimeOutput,
         source: &str,
@@ -893,6 +936,16 @@ impl DumpOutput {
             errors: vec![message],
         }
     }
+}
+
+fn diagnostics_from_source_diagnostics(
+    diagnostics: &[yulang::SourceDiagnostic],
+    source_len: usize,
+) -> Vec<Diagnostic> {
+    diagnostics
+        .iter()
+        .map(|diagnostic| Diagnostic::from_source_diagnostic(diagnostic, source_len))
+        .collect()
 }
 
 impl Diagnostic {

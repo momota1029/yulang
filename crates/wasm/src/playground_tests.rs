@@ -77,8 +77,38 @@ mod tests {
             "ambiguous_method_error" => {
                 include_str!("../../../tests/yulang/regressions/runtime/ambiguous_method_error.yu")
             }
+            "not_callable_error" => {
+                include_str!("../../../tests/yulang/regressions/runtime/not_callable_error.yu")
+            }
             _ => panic!("unknown diagnostics fixture: {name}"),
         }
+    }
+
+    fn assert_type_annotation_mismatch_diagnostic(diagnostic: &Diagnostic) {
+        assert_eq!(diagnostic.label.as_deref(), Some("x"));
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
+        assert_eq!(diagnostic.start, 3);
+        assert_eq!(diagnostic.end, 4);
+        assert_eq!(diagnostic.message, "type mismatch: bool is not int");
+        assert_eq!(diagnostic.hint, None);
+        assert_eq!(diagnostic.related.len(), 2);
+        assert_eq!(
+            diagnostic.related[0].message,
+            "expected type comes from this type annotation: int"
+        );
+        assert_eq!(
+            diagnostic.related[0].origin.as_deref(),
+            Some("type_annotation")
+        );
+        assert_eq!(diagnostic.related[0].start, 6);
+        assert_eq!(diagnostic.related[0].end, 9);
+        assert_eq!(
+            diagnostic.related[1].message,
+            "actual type comes from this expression: bool"
+        );
+        assert_eq!(diagnostic.related[1].origin.as_deref(), Some("expression"));
+        assert_eq!(diagnostic.related[1].start, 12);
+        assert_eq!(diagnostic.related[1].end, 16);
     }
 
     #[test]
@@ -503,6 +533,55 @@ pair
         assert!(output.ok, "{output:?}");
         let xs = output.types.iter().find(|item| item.name == "xs");
         assert_eq!(xs.map(|item| item.ty.as_str()), Some("list int"));
+    }
+
+    #[test]
+    fn run_inner_returns_structured_lowering_diagnostic() {
+        clear_std_cache();
+        let output = run_inner(diagnostics_fixture("type_annotation_mismatch"));
+
+        assert!(!output.ok, "{output:?}");
+        assert!(output.results.is_empty(), "{output:?}");
+        assert!(output.stdout.is_empty(), "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_type_annotation_mismatch_diagnostic(&output.diagnostics[0]);
+        assert_eq!(output.errors, vec!["type mismatch: bool is not int"]);
+    }
+
+    #[test]
+    fn run_inner_lowering_diagnostics_match_check_inner() {
+        clear_std_cache();
+        let source = "\n// keep playground diagnostics on the user source line\nmy x: int = true\n";
+        let run_output = run_inner(source);
+        let check_output = check_inner(source);
+
+        assert!(!run_output.ok, "{run_output:?}");
+        assert!(!check_output.ok, "{check_output:?}");
+        assert_eq!(run_output.diagnostics, check_output.diagnostics);
+    }
+
+    #[test]
+    fn run_inner_runtime_error_stays_message_diagnostic() {
+        clear_std_cache();
+        let source = diagnostics_fixture("not_callable_error");
+        let output = run_inner(source);
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.code, None);
+        assert_eq!(diagnostic.label, None);
+        assert_eq!(diagnostic.hint, None);
+        assert_eq!(diagnostic.start, 0);
+        assert_eq!(diagnostic.end, source.len());
+        assert!(diagnostic.related.is_empty(), "{diagnostic:?}");
+        assert!(
+            diagnostic
+                .message
+                .contains("runtime-evidence-run not a function: 1"),
+            "{diagnostic:?}"
+        );
+        assert_eq!(output.errors, vec![diagnostic.message.clone()]);
     }
 
     #[test]
