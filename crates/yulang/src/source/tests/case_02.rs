@@ -2793,6 +2793,63 @@ fn hover_entry_source_public_def_type_does_not_leak_private_markers() {
 }
 
 #[test]
+fn hover_entry_source_local_arg_type_does_not_leak_private_markers() {
+    let source = yulang_fixture("regressions/effect/public_type_display_order_signatures.yu");
+    let arg_offset = source.find("f x").unwrap();
+    let hover = hover_entry_source("main.yu", &source, arg_offset)
+        .unwrap()
+        .unwrap();
+
+    assert!(
+        hover.contents.starts_with("f: "),
+        "expected hover to show local arg type, got {:?}",
+        hover.contents
+    );
+    assert_public_type_display_has_no_private_markers(&hover.contents, "hover local arg type");
+}
+
+#[test]
+fn hover_entry_source_record_select_type_does_not_leak_private_markers() {
+    let source = "my r = { f: \\x -> x }\nmy got = r.f\n";
+    let field_offset = source.rfind(".f").unwrap() + 1;
+    let hover = hover_entry_source("main.yu", source, field_offset)
+        .unwrap()
+        .unwrap();
+
+    assert!(
+        hover.contents.starts_with("f: "),
+        "expected hover to show selected record field type, got {:?}",
+        hover.contents
+    );
+    assert_public_type_display_has_no_private_markers(&hover.contents, "hover record select type");
+}
+
+#[test]
+fn hover_entry_source_large_record_type_is_structurally_truncated() {
+    let fields = (0..90)
+        .map(|index| format!("field_{index:03}_wide_name: {index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let source = format!("my wide = {{{fields}}}\nwide\n");
+    let hover = hover_entry_source("main.yu", &source, source.find("wide").unwrap())
+        .unwrap()
+        .unwrap();
+
+    assert!(
+        hover.contents.contains('…'),
+        "expected large hover type to contain structural truncation, got {:?}",
+        hover.contents
+    );
+    assert!(
+        hover.contents.chars().count() <= 700,
+        "expected large hover type to stay near the public formatter budget, got {} chars:\n{}",
+        hover.contents.chars().count(),
+        hover.contents
+    );
+    assert_public_type_display_has_no_private_markers(&hover.contents, "large hover record type");
+}
+
+#[test]
 fn hover_entry_source_does_not_show_synthetic_var_act_copy_locals() {
     let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
     let source = "role Pick 'container 'key:\n\
@@ -2885,6 +2942,10 @@ fn hover_entry_source_reports_attached_role_method_selection_type() {
         !hover.contents.contains('#'),
         "expected hover not to expose hidden method labels, got {:?}",
         hover.contents
+    );
+    assert_public_type_display_has_no_private_markers(
+        &hover.contents,
+        "hover selected method type",
     );
 }
 

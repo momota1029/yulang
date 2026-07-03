@@ -508,6 +508,7 @@ fn lsp_hover_for_source_hover(
 
 fn lsp_hover_source_contents(contents: &str) -> String {
     let mut chars = contents.chars();
+    // Public type formatting truncates structurally first; this cap is the final LSP payload guard.
     let mut out = chars
         .by_ref()
         .take(LSP_HOVER_CONTENT_CHAR_LIMIT)

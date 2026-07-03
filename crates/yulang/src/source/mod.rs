@@ -2552,20 +2552,8 @@ fn hover_for_local_def(
     let local = check.lowering.session.local_defs.get(def)?;
     let label = format_context.format_value_label(label, def);
     let ty = match local.role {
-        infer::uses::LocalDefRole::Input => {
-            infer::check::format_inferred_input_type_with_path_rewriter(
-                &check.lowering,
-                local.value,
-                &|path| format_context.rewrite_type_path(path),
-            )
-        }
-        infer::uses::LocalDefRole::Value => {
-            infer::check::format_inferred_value_type_with_path_rewriter(
-                &check.lowering,
-                local.value,
-                &|path| format_context.rewrite_type_path(path),
-            )
-        }
+        infer::uses::LocalDefRole::Input => format_context.format_input_type(local.value),
+        infer::uses::LocalDefRole::Value => format_context.format_value_type(local.value),
     };
     Some(SourceHover {
         range,
@@ -2675,11 +2663,21 @@ impl<'a> HoverFormatContext<'a> {
     }
 
     fn format_value_type(&self, value: poly::types::TypeVar) -> String {
-        infer::check::format_inferred_value_type_with_path_rewriter(
+        infer::check::format_inferred_value_type_public_with_path_rewriter(
             &self.check.lowering,
             value,
             &|path| self.rewrite_type_path(path),
         )
+        .text
+    }
+
+    fn format_input_type(&self, value: poly::types::TypeVar) -> String {
+        infer::check::format_inferred_input_type_public_with_path_rewriter(
+            &self.check.lowering,
+            value,
+            &|path| self.rewrite_type_path(path),
+        )
+        .text
     }
 
     fn rewrite_type_path(&self, path: &[String]) -> Vec<String> {

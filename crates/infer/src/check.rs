@@ -155,6 +155,25 @@ pub fn format_inferred_value_type_with_path_rewriter(
     poly::dump::format_scheme_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
 }
 
+pub fn format_inferred_value_type_public_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> poly::dump::PublicTypeDisplay {
+    let machine = lowering.session.infer.constraints();
+    let generalized = crate::generalize::generalize_type_var_with_boundaries(
+        machine,
+        value,
+        TypeLevel::root(),
+        TypeLevel::root().child(),
+        &FxHashSet::default(),
+    );
+    let mut types = lowering.session.poly.typ.clone();
+    let finalized =
+        crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
+    poly::dump::format_scheme_public_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
+}
+
 pub fn format_inferred_input_type_with_path_rewriter(
     lowering: &BodyLowering,
     value: TypeVar,
@@ -165,6 +184,18 @@ pub fn format_inferred_input_type_with_path_rewriter(
     let mut types = lowering.session.poly.typ.clone();
     let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
     poly::dump::format_neg_with_path_rewriter(&types, ty, path_rewriter)
+}
+
+pub fn format_inferred_input_type_public_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> poly::dump::PublicTypeDisplay {
+    let machine = lowering.session.infer.constraints();
+    let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
+    let mut types = lowering.session.poly.typ.clone();
+    let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
+    poly::dump::format_neg_public_with_path_rewriter(&types, ty, path_rewriter)
 }
 
 pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
