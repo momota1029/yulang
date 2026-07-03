@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use parser::lex::SyntaxKind;
 use parser::op::{OpTable, standard_op_table};
@@ -50,10 +51,24 @@ pub fn compute_with_op_table_and_highlights(
     op_table: Option<OpTable>,
     highlights: Option<&ResolvedHighlightInfo>,
 ) -> Vec<u32> {
-    let green =
-        parser::parse_module_to_green_with_ops(source, op_table.unwrap_or_else(standard_op_table));
+    let line_starts = compute_line_starts(source);
+    let mut raw = stable_lexical_tokens(source, &line_starts);
+    // Semantic token requests must stay total over edit fragments even when
+    // parser recovery temporarily leaves the green builder unbalanced.
+    let parsed = catch_unwind(AssertUnwindSafe(|| {
+        parser::parse_module_to_green_with_ops(source, op_table.unwrap_or_else(standard_op_table))
+    }));
+    let green = match parsed {
+        Ok(green) => green,
+        Err(_) => {
+            raw.extend(recovery_lexical_tokens(source, source, &line_starts, 0));
+            raw.sort_unstable();
+            raw.dedup();
+            return encode(&raw);
+        }
+    };
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
-    compute_with_root_and_highlights(source, &root, highlights)
+    compute_with_root_and_highlights_from_raw(source, &root, highlights, &line_starts, raw)
 }
 
 pub fn compute_with_root_and_highlights(
@@ -62,10 +77,17 @@ pub fn compute_with_root_and_highlights(
     highlights: Option<&ResolvedHighlightInfo>,
 ) -> Vec<u32> {
     let line_starts = compute_line_starts(source);
+    let raw = stable_lexical_tokens(source, &line_starts);
+    compute_with_root_and_highlights_from_raw(source, root, highlights, &line_starts, raw)
+}
 
-    let mut raw: Vec<(u32, u32, u32, u32)> = Vec::new(); // (line, col, len, type)
-    raw.extend(lexical_tokens(source, &line_starts));
-
+fn compute_with_root_and_highlights_from_raw(
+    source: &str,
+    root: &SyntaxNode<YulangLanguage>,
+    highlights: Option<&ResolvedHighlightInfo>,
+    line_starts: &[usize],
+    mut raw: Vec<(u32, u32, u32, u32)>,
+) -> Vec<u32> {
     for node_or_token in root.descendants_with_tokens() {
         let token = match node_or_token {
             NodeOrToken::Token(t) => t,
@@ -119,6 +141,7 @@ pub fn compute_with_root_and_highlights(
             SyntaxKind::Colon => Some((start, text.len(), COLON)),
             SyntaxKind::ColonColon => Some((start, text.len(), DELIMITER)),
             SyntaxKind::Equal => Some((start, text.len(), DELIMITER)),
+            SyntaxKind::DocComment => Some((start, text.len(), COMMENT)),
             SyntaxKind::DotField => {
                 // ".field" - highlight just the name after the dot.
                 let name_start = start + 1;
@@ -144,6 +167,11 @@ pub fn compute_with_root_and_highlights(
         if let Some((tok_start, tok_len, tok_type)) = classified {
             let (line, col) = byte_to_pos(source, &line_starts, tok_start);
             raw.push((line, col, utf16_len(text, tok_len), tok_type));
+        } else if token
+            .parent()
+            .is_some_and(|parent| parent.kind() == SyntaxKind::InvalidToken)
+        {
+            raw.extend(recovery_lexical_tokens(source, text, line_starts, start));
         }
     }
 
@@ -192,7 +220,7 @@ impl ResolvedHighlightInfo {
     }
 }
 
-fn lexical_tokens(source: &str, line_starts: &[usize]) -> Vec<(u32, u32, u32, u32)> {
+fn stable_lexical_tokens(source: &str, line_starts: &[usize]) -> Vec<(u32, u32, u32, u32)> {
     let bytes = source.as_bytes();
     let mut tokens = Vec::new();
     let mut pos = 0;
@@ -239,6 +267,300 @@ fn lexical_tokens(source: &str, line_starts: &[usize]) -> Vec<(u32, u32, u32, u3
     }
 
     tokens
+}
+
+fn recovery_lexical_tokens(
+    full_source: &str,
+    fragment: &str,
+    line_starts: &[usize],
+    base_offset: usize,
+) -> Vec<(u32, u32, u32, u32)> {
+    let bytes = fragment.as_bytes();
+    let mut tokens = Vec::new();
+    let mut pos = 0;
+
+    while pos < bytes.len() {
+        if bytes[pos].is_ascii_whitespace() {
+            pos += 1;
+            continue;
+        }
+
+        if bytes[pos] == b'/' && bytes.get(pos + 1) == Some(&b'/') {
+            let start = pos;
+            pos += 2;
+            while pos < bytes.len() && bytes[pos] != b'\n' {
+                pos += 1;
+            }
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                COMMENT,
+            );
+            continue;
+        }
+
+        if bytes[pos] == b'/' && bytes.get(pos + 1) == Some(&b'*') {
+            let start = pos;
+            pos += 2;
+            while pos + 1 < bytes.len() {
+                if bytes[pos] == b'*' && bytes[pos + 1] == b'/' {
+                    pos += 2;
+                    break;
+                }
+                pos += 1;
+            }
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                COMMENT,
+            );
+            continue;
+        }
+
+        if bytes[pos] == b'-' && bytes.get(pos + 1) == Some(&b'-') {
+            let start = pos;
+            pos += 2;
+            while pos < bytes.len() && bytes[pos] != b'\n' {
+                pos += 1;
+            }
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                COMMENT,
+            );
+            continue;
+        }
+
+        if bytes[pos] == b'"' {
+            let start = pos;
+            pos = scan_string_end(bytes, pos + 1);
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                STRING,
+            );
+            continue;
+        }
+
+        if bytes[pos] == b'~' && bytes.get(pos + 1) == Some(&b'"') {
+            let start = pos;
+            pos = scan_string_end(bytes, pos + 2);
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                STRING,
+            );
+            continue;
+        }
+
+        if bytes[pos] == b'\'' && bytes.get(pos + 1).is_some_and(|b| is_ident_start(*b)) {
+            let start = pos;
+            pos += 2;
+            while pos < bytes.len() && is_ident_continue(bytes[pos]) {
+                pos += 1;
+            }
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                TYPE_PARAMETER,
+            );
+            continue;
+        }
+
+        if bytes[pos].is_ascii_digit() {
+            let start = pos;
+            pos = scan_number_end(bytes, pos);
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                NUMBER,
+            );
+            continue;
+        }
+
+        if is_ident_start(bytes[pos]) {
+            let start = pos;
+            pos += 1;
+            while pos < bytes.len() && is_ident_continue(bytes[pos]) {
+                pos += 1;
+            }
+            let text = &fragment[start..pos];
+            if let Some(token_type) = recovery_word_type(text) {
+                push_source_token(
+                    full_source,
+                    line_starts,
+                    &mut tokens,
+                    base_offset + start,
+                    base_offset + pos,
+                    token_type,
+                );
+            } else if touches_path_separator(bytes, start, pos) {
+                push_source_token(
+                    full_source,
+                    line_starts,
+                    &mut tokens,
+                    base_offset + start,
+                    base_offset + pos,
+                    NAMESPACE,
+                );
+            }
+            continue;
+        }
+
+        if bytes[pos] == b':' && bytes.get(pos + 1) == Some(&b':') {
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + pos,
+                base_offset + pos + 2,
+                DELIMITER,
+            );
+            pos += 2;
+            continue;
+        }
+
+        if bytes[pos] == b':' {
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + pos,
+                base_offset + pos + 1,
+                COLON,
+            );
+            pos += 1;
+            continue;
+        }
+
+        if bytes[pos] == b'=' {
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + pos,
+                base_offset + pos + 1,
+                DELIMITER,
+            );
+            pos += 1;
+            continue;
+        }
+
+        if matches!(
+            bytes[pos],
+            b'+' | b'-' | b'*' | b'/' | b'<' | b'>' | b'|' | b'\\'
+        ) {
+            let start = pos;
+            pos += 1;
+            while pos < bytes.len()
+                && matches!(
+                    bytes[pos],
+                    b'+' | b'-' | b'*' | b'/' | b'<' | b'>' | b'|' | b'\\'
+                )
+            {
+                pos += 1;
+            }
+            push_source_token(
+                full_source,
+                line_starts,
+                &mut tokens,
+                base_offset + start,
+                base_offset + pos,
+                OPERATOR,
+            );
+            continue;
+        }
+
+        pos += 1;
+    }
+
+    tokens
+}
+
+fn scan_string_end(bytes: &[u8], mut pos: usize) -> usize {
+    while pos < bytes.len() {
+        match bytes[pos] {
+            b'\\' => pos = (pos + 2).min(bytes.len()),
+            b'"' => {
+                pos += 1;
+                break;
+            }
+            _ => pos += 1,
+        }
+    }
+    pos
+}
+
+fn scan_number_end(bytes: &[u8], mut pos: usize) -> usize {
+    while pos < bytes.len() && (bytes[pos].is_ascii_digit() || bytes[pos] == b'_') {
+        pos += 1;
+    }
+    if bytes.get(pos) == Some(&b'.') && bytes.get(pos + 1).is_some_and(u8::is_ascii_digit) {
+        pos += 1;
+        while pos < bytes.len() && (bytes[pos].is_ascii_digit() || bytes[pos] == b'_') {
+            pos += 1;
+        }
+    }
+    if matches!(bytes.get(pos), Some(b'e' | b'E')) {
+        let exp = pos;
+        pos += 1;
+        if matches!(bytes.get(pos), Some(b'+' | b'-')) {
+            pos += 1;
+        }
+        let digits = pos;
+        while pos < bytes.len() && bytes[pos].is_ascii_digit() {
+            pos += 1;
+        }
+        if digits == pos {
+            pos = exp;
+        }
+    }
+    pos
+}
+
+fn is_ident_start(byte: u8) -> bool {
+    byte == b'_' || byte.is_ascii_alphabetic()
+}
+
+fn is_ident_continue(byte: u8) -> bool {
+    byte == b'_' || byte.is_ascii_alphanumeric()
+}
+
+fn recovery_word_type(text: &str) -> Option<u32> {
+    match text {
+        "sub" => Some(FUNCTION),
+        "do" | "if" | "else" | "elsif" | "case" | "catch" | "my" | "our" | "pub" | "use"
+        | "type" | "struct" | "enum" | "error" | "role" | "impl" | "cast" | "act" | "mod"
+        | "as" | "for" | "in" | "with" | "where" | "via" | "mark" | "rule" | "prefix" | "infix"
+        | "suffix" | "nullfix" | "lazy" => Some(KEYWORD),
+        _ => None,
+    }
+}
+
+fn touches_path_separator(bytes: &[u8], start: usize, end: usize) -> bool {
+    (start >= 2 && bytes.get(start - 2..start) == Some(b"::"))
+        || bytes.get(end..end + 2) == Some(b"::")
 }
 
 fn push_source_token(

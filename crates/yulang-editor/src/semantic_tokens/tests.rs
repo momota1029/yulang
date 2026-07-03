@@ -304,6 +304,63 @@ mod tests {
         assert!(!chunks.iter().any(|c| c[2] == 2 && c[3] == OPERATOR));
     }
 
+    #[test]
+    fn incomplete_call_keeps_keyword_and_call_name_tokens() {
+        let source = "my x = f(";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "my", KEYWORD);
+        assert_token(source, &decoded, "f", FUNCTION);
+    }
+
+    #[test]
+    fn open_struct_decl_keeps_keyword_and_type_name_tokens() {
+        let source = "struct point {";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "struct", KEYWORD);
+        assert_token(source, &decoded, "point", TYPE);
+    }
+
+    #[test]
+    fn missing_bracket_keeps_keyword_and_number_tokens() {
+        let source = "my xs = [1, 2";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "my", KEYWORD);
+        assert_token(source, &decoded, "1", NUMBER);
+        assert_token(source, &decoded, "2", NUMBER);
+    }
+
+    #[test]
+    fn trailing_dot_keeps_previous_field_token() {
+        let source = "my x = foo.bar.";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "my", KEYWORD);
+        assert_token(source, &decoded, "bar", FUNCTION);
+    }
+
+    #[test]
+    fn unterminated_string_keeps_lexical_tokens() {
+        let source = "my message = \"unterminated";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "my", KEYWORD);
+        assert_token(source, &decoded, "\"unterminated", STRING);
+    }
+
+    #[test]
+    fn trailing_path_separator_keeps_lexical_path_tokens() {
+        let source = "my y = std::foo::";
+        let decoded = decode_tokens(&compute(source));
+
+        assert_token(source, &decoded, "my", KEYWORD);
+        assert_token(source, &decoded, "std", NAMESPACE);
+        assert_token(source, &decoded, "foo", NAMESPACE);
+        assert_token(source, &decoded, "::", DELIMITER);
+    }
+
     fn decode_tokens(encoded: &[u32]) -> Vec<(u32, u32, u32, u32)> {
         let mut line = 0;
         let mut col = 0;
@@ -319,5 +376,18 @@ mod tests {
                 (line, col, chunk[2], chunk[3])
             })
             .collect()
+    }
+
+    fn assert_token(source: &str, decoded: &[(u32, u32, u32, u32)], needle: &str, kind: u32) {
+        let start = source
+            .find(needle)
+            .unwrap_or_else(|| panic!("test source should contain {needle:?}"));
+        let line_starts = compute_line_starts(source);
+        let (line, col) = byte_to_pos(source, &line_starts, start);
+        let len = needle.encode_utf16().count() as u32;
+        assert!(
+            decoded.contains(&(line, col, len, kind)),
+            "expected token {needle:?} at ({line}, {col}) len {len} kind {kind}; got: {decoded:?}"
+        );
     }
 }
