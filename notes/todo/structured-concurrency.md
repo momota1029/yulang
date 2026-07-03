@@ -57,7 +57,10 @@
 2. scheduler に branch id / parent id / status を持たせる。
    - 2026-07-03: `RuntimeHostScheduler` に root / child branch、parent id、
      `Running` / `Suspended` / `CancelPending` / `Dropped` 状態を追加済み。
-     branch-local operation sequence も unit test で固定済み。
+     child spawn は `parent_branch_id` / `child_branch_id` / parent-local
+     `resume_ordinal` を返し、operation instance も parent id と
+     branch-local sequence を持つ。record/replay 用の識別子 shape は
+     unit test で固定済み。
 3. scheduler に cancel(branch_id) を実装。suspend 中の分岐の即時 drop のみ。
    - 2026-07-03: cancel queue、suspended branch の immediate drop、
      running branch の `CancelPending`、次 scheduler boundary での drop を unit test
