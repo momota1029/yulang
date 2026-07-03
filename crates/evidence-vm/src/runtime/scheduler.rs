@@ -11,7 +11,15 @@ pub(super) struct RuntimeHostBranchId(u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeHostOperationInstanceId {
     branch_id: RuntimeHostBranchId,
+    parent_branch_id: Option<RuntimeHostBranchId>,
     seq: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeHostBranchSpawn {
+    child_branch_id: RuntimeHostBranchId,
+    parent_branch_id: RuntimeHostBranchId,
+    resume_ordinal: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,8 +57,10 @@ pub(super) struct RuntimeHostScheduler {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeHostBranch {
     parent: Option<RuntimeHostBranchId>,
+    parent_resume_ordinal: Option<u64>,
     status: RuntimeHostBranchStatus,
     next_operation_seq: u64,
+    next_child_resume_ordinal: u64,
 }
 
 impl RuntimeHostScheduler {
@@ -61,8 +71,10 @@ impl RuntimeHostScheduler {
             root_branch,
             RuntimeHostBranch {
                 parent: None,
+                parent_resume_ordinal: None,
                 status: RuntimeHostBranchStatus::Running,
                 next_operation_seq: 0,
+                next_child_resume_ordinal: 0,
             },
         );
         Self {
@@ -83,21 +95,31 @@ impl RuntimeHostScheduler {
     pub(super) fn spawn_suspended_child(
         &mut self,
         parent: RuntimeHostBranchId,
-    ) -> Option<RuntimeHostBranchId> {
+    ) -> Option<RuntimeHostBranchSpawn> {
         if !self.branch_can_continue_at_scheduler_boundary(parent) {
             return None;
         }
-        let branch_id = RuntimeHostBranchId(self.next_branch_id);
+        let parent_branch = self.branches.get_mut(&parent)?;
+        let resume_ordinal = parent_branch.next_child_resume_ordinal;
+        parent_branch.next_child_resume_ordinal += 1;
+
+        let child_branch_id = RuntimeHostBranchId(self.next_branch_id);
         self.next_branch_id += 1;
         self.branches.insert(
-            branch_id,
+            child_branch_id,
             RuntimeHostBranch {
                 parent: Some(parent),
+                parent_resume_ordinal: Some(resume_ordinal),
                 status: RuntimeHostBranchStatus::Suspended,
                 next_operation_seq: 0,
+                next_child_resume_ordinal: 0,
             },
         );
-        Some(branch_id)
+        Some(RuntimeHostBranchSpawn {
+            child_branch_id,
+            parent_branch_id: parent,
+            resume_ordinal,
+        })
     }
 
     pub(super) fn resume_suspended_branch(&mut self, branch_id: RuntimeHostBranchId) -> bool {
@@ -121,6 +143,7 @@ impl RuntimeHostScheduler {
         let branch = self.branches.get_mut(&branch_id)?;
         let instance = RuntimeHostOperationInstanceId {
             branch_id,
+            parent_branch_id: branch.parent,
             seq: branch.next_operation_seq,
         };
         branch.next_operation_seq += 1;
@@ -184,6 +207,21 @@ impl RuntimeHostScheduler {
         branch_id: RuntimeHostBranchId,
     ) -> Option<RuntimeHostBranchStatus> {
         self.branches.get(&branch_id).map(|branch| branch.status)
+    }
+
+    pub(super) fn branch_parent(
+        &self,
+        branch_id: RuntimeHostBranchId,
+    ) -> Option<RuntimeHostBranchId> {
+        self.branches
+            .get(&branch_id)
+            .and_then(|branch| branch.parent)
+    }
+
+    pub(super) fn branch_resume_ordinal(&self, branch_id: RuntimeHostBranchId) -> Option<u64> {
+        self.branches
+            .get(&branch_id)
+            .and_then(|branch| branch.parent_resume_ordinal)
     }
 
     fn branch_is_live(&self, branch_id: RuntimeHostBranchId) -> bool {
@@ -304,7 +342,8 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let branch = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.enqueue_cancel(branch, RuntimeHostCancelReason::HostDisconnected));
         assert_eq!(
@@ -341,7 +380,8 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.resume_suspended_branch(child));
         assert_eq!(
@@ -367,7 +407,8 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert!(!scheduler.resume_suspended_branch(scheduler.root_branch));
         assert!(scheduler.resume_suspended_branch(child));
@@ -417,10 +458,12 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let first = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept first child");
+            .expect("root branch should accept first child")
+            .child_branch_id;
         let second = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept second child");
+            .expect("root branch should accept second child")
+            .child_branch_id;
 
         assert_eq!(
             scheduler.enqueue_child_cancels(
@@ -447,10 +490,12 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
         let grandchild = scheduler
             .spawn_suspended_child(child)
-            .expect("live child branch should accept child branches");
+            .expect("live child branch should accept child branches")
+            .child_branch_id;
 
         assert_eq!(
             scheduler.enqueue_child_cancels(
@@ -489,10 +534,12 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
         let grandchild = scheduler
             .spawn_suspended_child(child)
-            .expect("live child branch should accept child branches");
+            .expect("live child branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.enqueue_cancel(child, RuntimeHostCancelReason::HostDisconnected));
         assert_eq!(
@@ -525,7 +572,8 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.complete_branch(child));
 
@@ -538,10 +586,12 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
         let grandchild = scheduler
             .spawn_suspended_child(child)
-            .expect("live child branch should accept child branches");
+            .expect("live child branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.complete_branch(child));
 
@@ -564,12 +614,14 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert_eq!(
             scheduler.next_operation_instance(scheduler.root_branch),
             Some(RuntimeHostOperationInstanceId {
                 branch_id: scheduler.root_branch,
+                parent_branch_id: None,
                 seq: 0,
             })
         );
@@ -577,6 +629,7 @@ mod tests {
             scheduler.next_operation_instance(scheduler.root_branch),
             Some(RuntimeHostOperationInstanceId {
                 branch_id: scheduler.root_branch,
+                parent_branch_id: None,
                 seq: 1,
             })
         );
@@ -584,8 +637,65 @@ mod tests {
             scheduler.next_operation_instance(child),
             Some(RuntimeHostOperationInstanceId {
                 branch_id: child,
+                parent_branch_id: Some(scheduler.root_branch),
                 seq: 0,
             })
+        );
+    }
+
+    #[test]
+    fn scheduler_records_child_resume_identity() {
+        let mut scheduler = RuntimeHostScheduler::new();
+
+        let first = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept first child");
+        let second = scheduler
+            .spawn_suspended_child(scheduler.root_branch)
+            .expect("root branch should accept second child");
+        let grandchild = scheduler
+            .spawn_suspended_child(first.child_branch_id)
+            .expect("live child branch should accept child branches");
+
+        assert_eq!(
+            first,
+            RuntimeHostBranchSpawn {
+                child_branch_id: first.child_branch_id,
+                parent_branch_id: scheduler.root_branch,
+                resume_ordinal: 0,
+            }
+        );
+        assert_eq!(
+            second,
+            RuntimeHostBranchSpawn {
+                child_branch_id: second.child_branch_id,
+                parent_branch_id: scheduler.root_branch,
+                resume_ordinal: 1,
+            }
+        );
+        assert_eq!(
+            grandchild,
+            RuntimeHostBranchSpawn {
+                child_branch_id: grandchild.child_branch_id,
+                parent_branch_id: first.child_branch_id,
+                resume_ordinal: 0,
+            }
+        );
+        assert_eq!(
+            scheduler.branch_parent(first.child_branch_id),
+            Some(scheduler.root_branch)
+        );
+        assert_eq!(
+            scheduler.branch_resume_ordinal(first.child_branch_id),
+            Some(0)
+        );
+        assert_eq!(
+            scheduler.branch_parent(grandchild.child_branch_id),
+            Some(first.child_branch_id)
+        );
+        assert_eq!(
+            scheduler.branch_resume_ordinal(grandchild.child_branch_id),
+            Some(0)
         );
     }
 
@@ -594,7 +704,8 @@ mod tests {
         let mut scheduler = RuntimeHostScheduler::new();
         let child = scheduler
             .spawn_suspended_child(scheduler.root_branch)
-            .expect("root branch should accept child branches");
+            .expect("root branch should accept child branches")
+            .child_branch_id;
 
         assert!(scheduler.enqueue_cancel(child, RuntimeHostCancelReason::ParentExtentClosed));
         let _ = scheduler.process_next_event();
