@@ -143,6 +143,45 @@ contracts = [
 ]
 
 [[case]]
+name = "clock_now_unsupported_host"
+file = "regressions/runtime/clock_now_unsupported_host.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-host-capability]: host capability std::time::clock is not available in this runtime",
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host-act",
+  "host.unsupported",
+]
+
+[[case]]
+name = "clock_mock_now_handler"
+file = "regressions/runtime/clock_mock_now_handler.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_stdout = "run roots [123]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "time",
+  "host-act",
+  "mock-host",
+  "host.unsupported",
+]
+
+[[case]]
 name = "file_native_protocol_load_store_meta"
 file = "regressions/runtime/file_native_protocol_load_store_meta.yu"
 kind = "run"

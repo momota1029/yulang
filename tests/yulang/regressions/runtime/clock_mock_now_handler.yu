@@ -1,0 +1,8 @@
+my action() =
+    std::time::clock::now()
+
+my run(x: [_] _) = catch x:
+    std::time::clock::now(), k -> k (std::time::instant { epoch_nanos: 123 })
+    value -> value
+
+(run action()).epoch_nanos
