@@ -114,7 +114,7 @@ Stage 1a shadow mismatch 0 が揃った時だけ行う。
 
 ## 現在地（2026-07-03）: Contract v1 follow-up
 
-Contract v1 の closeout は `docs/language/contract-v0-evidence.md` /
+Contract v1 の closeout は `docs/language/contract-v1-file-evidence.md` /
 `notes/todo/contract-v1-file-resource-priority.md` / `tests/yulang/cases.toml`
 で現状証拠を固定済み。次の主戦場は file-resource の追加ではなく、
 host resource surface と diagnostics / server driver の残りを小さく閉じること。
