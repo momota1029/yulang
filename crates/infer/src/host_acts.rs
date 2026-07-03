@@ -236,6 +236,54 @@ mod tests {
     }
 
     #[test]
+    fn rejects_host_operations_without_compiled_signature_scheme() {
+        let namespace = namespace_with_types(vec![type_symbol(0, &["test", "host", "file"], true)]);
+        let typed = typed_with_unit_schemes([]);
+        let lowering = lowering_with_ops(vec![act_op(0, &["test", "host", "file"], "load", 10)]);
+
+        let err = host_act_manifest_from_compiled_with_raw_compat_overrides(
+            &namespace,
+            &lowering,
+            &typed,
+            &[],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            HostActManifestBuildError::MissingHostOperationScheme {
+                act_id: "test.host.file".to_string(),
+                operation_id: "load".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_host_operations_without_value_symbol() {
+        let namespace = namespace_with_types(vec![type_symbol(0, &["test", "host", "file"], true)]);
+        let typed = typed_with_unit_schemes([10]);
+        let mut op = act_op(0, &["test", "host", "file"], "load", 10);
+        op.value_symbol = None;
+        let lowering = lowering_with_ops(vec![op]);
+
+        let err = host_act_manifest_from_compiled_with_raw_compat_overrides(
+            &namespace,
+            &lowering,
+            &typed,
+            &[],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            HostActManifestBuildError::MissingHostOperationScheme {
+                act_id: "test.host.file".to_string(),
+                operation_id: "load".to_string(),
+            }
+        );
+    }
+
+    #[test]
     fn ignores_raw_compat_overrides_for_absent_host_acts() {
         let namespace =
             namespace_with_types(vec![type_symbol(0, &["test", "host", "bridge"], true)]);
