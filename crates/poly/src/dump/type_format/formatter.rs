@@ -10,6 +10,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             redactions: 0,
             truncations: 0,
             public_budget: PublicTypeBudget::default(),
+            public_stack_boundary_count: 0,
         }
     }
 
@@ -26,6 +27,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             redactions: 0,
             truncations: 0,
             public_budget: PublicTypeBudget::default(),
+            public_stack_boundary_count: 0,
         }
     }
 
@@ -38,6 +40,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             redactions: 0,
             truncations: 0,
             public_budget: PublicTypeBudget::default(),
+            public_stack_boundary_count: 0,
         }
     }
 
@@ -54,6 +57,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             redactions: 0,
             truncations: 0,
             public_budget: PublicTypeBudget::default(),
+            public_stack_boundary_count: 0,
         }
     }
 
@@ -62,6 +66,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn format_scheme_public(mut self, scheme: &Scheme) -> PublicTypeDisplay {
+        self.public_stack_boundary_count =
+            PublicStackBoundaryScanner::new(self.arena).count_scheme(scheme);
         let text = self.format_scheme_text(scheme);
         PublicTypeDisplay {
             text,
@@ -71,6 +77,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     }
 
     pub(super) fn format_neg_public(mut self, id: NegId) -> PublicTypeDisplay {
+        self.public_stack_boundary_count =
+            PublicStackBoundaryScanner::new(self.arena).count_neg(id);
         let text = self.neg(id, Context::Free);
         PublicTypeDisplay {
             text,
@@ -248,7 +256,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
             Pos::Stack { inner, weight } => {
                 if self.style == TypeFormatStyle::Public {
-                    return self.render_pos(*inner);
+                    let inner = self.render_pos(*inner);
+                    return self.render_public_stack_postfix(inner, weight);
                 }
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_pos(*inner);
@@ -263,7 +272,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             }
             Pos::NonSubtract(pos, weight) => {
                 if self.style == TypeFormatStyle::Public {
-                    return self.render_pos(*pos);
+                    let inner = self.render_pos(*pos);
+                    return self.render_public_stack_postfix(inner, weight);
                 }
                 let inner = self.render_pos(*pos);
                 if let Some(rendered) = self.render_stack_postfix(inner.clone(), weight) {
@@ -313,7 +323,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             Neg::Row(items, tail) => Rendered::atom(format!("'{}", self.neg_row(items, *tail))),
             Neg::Stack { inner, weight } => {
                 if self.style == TypeFormatStyle::Public {
-                    return self.render_neg(*inner);
+                    let inner = self.render_neg(*inner);
+                    return self.render_public_stack_postfix(inner, weight);
                 }
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_neg(*inner);
@@ -1300,6 +1311,21 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         Some(Rendered::atom(format!("{inner}{suffix}")))
     }
 
+    fn render_public_stack_postfix(&mut self, inner: Rendered, weight: &StackWeight) -> Rendered {
+        match self.public_stack_weight_suffix(weight) {
+            PublicStackSuffix::Empty => inner,
+            PublicStackSuffix::Rendered(suffix) => {
+                let inner = self.postfix_inner(inner);
+                Rendered::atom(format!("{inner}{suffix}"))
+            }
+            PublicStackSuffix::Redacted => {
+                let inner = self.postfix_inner(inner);
+                let redaction = self.redact();
+                Rendered::atom(format!("{inner}{redaction}"))
+            }
+        }
+    }
+
     fn postfix_inner(&self, inner: Rendered) -> String {
         if inner.prec == Prec::Atom && !inner.has_bare_space {
             inner.text
@@ -1337,6 +1363,74 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             suffix.push_str(&format!("[{stack}]"));
         }
         Some(suffix)
+    }
+
+    fn public_stack_weight_suffix(&mut self, weight: &StackWeight) -> PublicStackSuffix {
+        if weight.is_empty() || is_hidden_quantifier_stack(weight) {
+            return PublicStackSuffix::Empty;
+        }
+        if weight.has_filter() {
+            return PublicStackSuffix::Redacted;
+        }
+        let [entry] = weight.entries() else {
+            return PublicStackSuffix::Redacted;
+        };
+        if !entry.floor.is_empty() || entry.pops == u32::MAX {
+            return PublicStackSuffix::Redacted;
+        }
+        if entry.pops == 0 && entry.stack.is_empty() {
+            return PublicStackSuffix::Empty;
+        }
+
+        let mut suffix = "@".to_string();
+        if self.public_stack_boundary_count != 1 {
+            suffix.push_str(&self.namer.subtract_id(entry.id).to_string());
+        }
+        if entry.pops > 0 && !(entry.pops == 1 && entry.stack.is_empty()) {
+            suffix.push_str(&format!("({})", entry.pops));
+        }
+        for subtractability in &entry.stack {
+            suffix.push_str(&self.public_stack_subtractability(subtractability));
+        }
+        PublicStackSuffix::Rendered(suffix)
+    }
+
+    fn public_stack_subtractability(&mut self, subtractability: &Subtractability) -> String {
+        let omit_id = self.public_stack_boundary_count == 1;
+        match subtractability {
+            Subtractability::Empty if omit_id => "∅".to_string(),
+            Subtractability::Empty => "(∅)".to_string(),
+            Subtractability::All if omit_id => "∀".to_string(),
+            Subtractability::All => "(∀)".to_string(),
+            Subtractability::Set(path, args) => {
+                format!("[{}]", self.public_subtractability_head(path, args))
+            }
+            Subtractability::SetMany(families) => {
+                format!("[{}]", self.public_subtractability_heads(families))
+            }
+            Subtractability::AllExcept(path, args) => {
+                format!(
+                    "(except [{}])",
+                    self.public_subtractability_head(path, args)
+                )
+            }
+            Subtractability::AllExceptMany(families) => {
+                format!("(except [{}])", self.public_subtractability_heads(families))
+            }
+        }
+    }
+
+    fn public_subtractability_heads(&mut self, families: &[(Vec<String>, Vec<NeuId>)]) -> String {
+        families
+            .iter()
+            .map(|(path, args)| self.public_subtractability_head(path, args))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    fn public_subtractability_head(&mut self, path: &[String], args: &[NeuId]) -> String {
+        self.render_subtractability_con(path, args)
+            .in_context(Context::Free)
     }
 
     pub(super) fn stack_subtractability(&mut self, subtractability: &Subtractability) -> String {

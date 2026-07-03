@@ -565,6 +565,21 @@ pub compose2(f, g, x) = f g(x)
             "{:?}",
             output.types
         );
+        let exported_type = |name: &str| {
+            output
+                .types
+                .iter()
+                .find(|item| item.name == name)
+                .map(|item| item.ty.as_str())
+        };
+        assert_eq!(
+            exported_type("twice"),
+            Some("(('a | 'b) ['c@∅] -> ['c@∅ & 'd@∅] 'b & 'e) -> 'a -> ['d] 'e@")
+        );
+        assert_eq!(
+            exported_type("compose2"),
+            Some("('a ['b@∅] -> ['c] 'd) -> ('e -> ['b@∅] 'a) -> 'e -> ['c@] 'd@")
+        );
         for item in &output.types {
             assert_public_type_display_has_no_private_markers(
                 &item.ty,

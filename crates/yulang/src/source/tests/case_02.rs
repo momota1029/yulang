@@ -2789,6 +2789,13 @@ fn hover_entry_source_public_def_type_does_not_leak_private_markers() {
         "expected hover to show twice def type, got {:?}",
         hover.contents
     );
+    assert_eq!(
+        hover.contents,
+        concat!(
+            "twice: ",
+            "(('a | 'b) ['c@∅] -> ['c@∅ & 'd@∅] 'b & 'e) -> 'a -> ['d] 'e@"
+        )
+    );
     assert_public_type_display_has_no_private_markers(&hover.contents, "hover public def type");
 }
 

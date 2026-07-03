@@ -4,7 +4,7 @@
 //! polarity や sandwich bound のような内部情報もあるため、完全に surface syntax へ
 //! 潰しきれない node は短い internal marker を残す。
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
@@ -215,6 +215,7 @@ struct TypeFormatter<'a, 'paths> {
     redactions: u32,
     truncations: u32,
     public_budget: PublicTypeBudget,
+    public_stack_boundary_count: usize,
 }
 
 impl<'a, 'paths> TypeFormatter<'a, 'paths> {}
@@ -223,6 +224,255 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {}
 struct PublicTypeBudget {
     depth: usize,
     rendered_chars: usize,
+}
+
+enum PublicStackSuffix {
+    Empty,
+    Rendered(String),
+    Redacted,
+}
+
+struct PublicStackBoundaryScanner<'a> {
+    arena: &'a TypeArena,
+    ids: FxHashSet<SubtractId>,
+    seen_pos: FxHashSet<PosId>,
+    seen_neg: FxHashSet<NegId>,
+    seen_neu: FxHashSet<NeuId>,
+}
+
+impl<'a> PublicStackBoundaryScanner<'a> {
+    fn new(arena: &'a TypeArena) -> Self {
+        Self {
+            arena,
+            ids: FxHashSet::default(),
+            seen_pos: FxHashSet::default(),
+            seen_neg: FxHashSet::default(),
+            seen_neu: FxHashSet::default(),
+        }
+    }
+
+    fn count_scheme(mut self, scheme: &Scheme) -> usize {
+        self.pos(scheme.predicate);
+        for predicate in &scheme.role_predicates {
+            for input in &predicate.inputs {
+                self.role_arg(*input);
+            }
+            for associated in &predicate.associated {
+                self.neu(associated.value);
+            }
+        }
+        self.ids.len()
+    }
+
+    fn count_neg(mut self, id: NegId) -> usize {
+        self.neg(id);
+        self.ids.len()
+    }
+
+    fn role_arg(&mut self, arg: RolePredicateArg) {
+        match arg {
+            RolePredicateArg::Covariant(id) => self.pos(id),
+            RolePredicateArg::Contravariant(id) => self.neg(id),
+            RolePredicateArg::Invariant(id) => self.neu(id),
+        }
+    }
+
+    fn pos(&mut self, id: PosId) {
+        if !self.seen_pos.insert(id) {
+            return;
+        }
+        match self.arena.pos(id) {
+            Pos::Bot | Pos::Var(_) => {}
+            Pos::Con(_, args) => {
+                for arg in args {
+                    self.neu(*arg);
+                }
+            }
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.neg(*arg);
+                self.neg(*arg_eff);
+                self.pos(*ret_eff);
+                self.pos(*ret);
+            }
+            Pos::Record(fields) => {
+                for field in fields {
+                    self.pos(field.value);
+                }
+            }
+            Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { tail, fields } => {
+                self.pos(*tail);
+                for field in fields {
+                    self.pos(field.value);
+                }
+            }
+            Pos::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.pos(*payload);
+                    }
+                }
+            }
+            Pos::Tuple(items) | Pos::Row(items) => {
+                for item in items {
+                    self.pos(*item);
+                }
+            }
+            Pos::Stack { inner, weight } => {
+                self.stack_weight(weight);
+                self.pos(*inner);
+            }
+            Pos::NonSubtract(inner, weight) => {
+                self.stack_weight(weight);
+                self.pos(*inner);
+            }
+            Pos::Union(left, right) => {
+                self.pos(*left);
+                self.pos(*right);
+            }
+        }
+    }
+
+    fn neg(&mut self, id: NegId) {
+        if !self.seen_neg.insert(id) {
+            return;
+        }
+        match self.arena.neg(id) {
+            Neg::Top | Neg::Bot | Neg::Var(_) => {}
+            Neg::Con(_, args) => {
+                for arg in args {
+                    self.neu(*arg);
+                }
+            }
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.pos(*arg);
+                self.pos(*arg_eff);
+                self.neg(*ret_eff);
+                self.neg(*ret);
+            }
+            Neg::Record(fields) => {
+                for field in fields {
+                    self.neg(field.value);
+                }
+            }
+            Neg::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.neg(*payload);
+                    }
+                }
+            }
+            Neg::Tuple(items) => {
+                for item in items {
+                    self.neg(*item);
+                }
+            }
+            Neg::Row(items, tail) => {
+                for item in items {
+                    self.neg(*item);
+                }
+                self.neg(*tail);
+            }
+            Neg::Stack { inner, weight } => {
+                self.stack_weight(weight);
+                self.neg(*inner);
+            }
+            Neg::Intersection(left, right) => {
+                self.neg(*left);
+                self.neg(*right);
+            }
+        }
+    }
+
+    fn neu(&mut self, id: NeuId) {
+        if !self.seen_neu.insert(id) {
+            return;
+        }
+        match self.arena.neu(id) {
+            Neu::Bounds(lower, upper) => {
+                self.pos(*lower);
+                self.neg(*upper);
+            }
+            Neu::Con(_, args) => {
+                for arg in args {
+                    self.neu(*arg);
+                }
+            }
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.neu(*arg);
+                self.neu(*arg_eff);
+                self.neu(*ret_eff);
+                self.neu(*ret);
+            }
+            Neu::Record(fields) => {
+                for field in fields {
+                    self.neu(field.value);
+                }
+            }
+            Neu::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.neu(*payload);
+                    }
+                }
+            }
+            Neu::Tuple(items) => {
+                for item in items {
+                    self.neu(*item);
+                }
+            }
+        }
+    }
+
+    fn stack_weight(&mut self, weight: &StackWeight) {
+        if is_hidden_quantifier_stack(weight) {
+            return;
+        }
+        if weight.has_filter() {
+            self.subtractability(weight.filter_set());
+        }
+        for entry in weight.entries() {
+            self.ids.insert(entry.id);
+            for subtractability in &entry.floor {
+                self.subtractability(subtractability);
+            }
+            for subtractability in &entry.stack {
+                self.subtractability(subtractability);
+            }
+        }
+    }
+
+    fn subtractability(&mut self, subtractability: &Subtractability) {
+        match subtractability {
+            Subtractability::Empty | Subtractability::All => {}
+            Subtractability::Set(_, args) | Subtractability::AllExcept(_, args) => {
+                for arg in args {
+                    self.neu(*arg);
+                }
+            }
+            Subtractability::SetMany(families) | Subtractability::AllExceptMany(families) => {
+                for (_, args) in families {
+                    for arg in args {
+                        self.neu(*arg);
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
@@ -409,7 +659,7 @@ fn letter_name(mut index: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::SubtractId;
+    use crate::types::{SubtractId, Subtractability};
 
     #[test]
     fn formats_surface_like_function_with_rows_and_ml_application() {
@@ -484,24 +734,124 @@ mod tests {
     }
 
     #[test]
-    fn public_scheme_drops_stack_markers_without_redaction() {
+    fn public_scheme_renders_bare_pop_one_stack_weight_without_redaction() {
+        let public = public_display_for_weight(StackWeight::pop(SubtractId(99)));
+
+        assert_eq!(public.text, "'a@");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_omits_single_boundary_id_for_empty_subtractability() {
+        let public =
+            public_display_for_weight(StackWeight::push(SubtractId(99), Subtractability::Empty));
+
+        assert_eq!(public.text, "'a@∅");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_omits_single_boundary_id_for_all_subtractability() {
+        let public =
+            public_display_for_weight(StackWeight::push(SubtractId(99), Subtractability::All));
+
+        assert_eq!(public.text, "'a@∀");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_keeps_brackets_for_set_subtractability() {
+        let public = public_display_for_weight(StackWeight::push(
+            SubtractId(99),
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        ));
+
+        assert_eq!(public.text, "'a@[io]");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_keeps_except_form_for_all_except_subtractability() {
+        let public = public_display_for_weight(StackWeight::push(
+            SubtractId(99),
+            Subtractability::AllExcept(vec!["io".into()], Vec::new()),
+        ));
+
+        assert_eq!(public.text, "'a@(except [io])");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_renders_pop_count_with_numeric_parens() {
+        let public = public_display_for_weight(StackWeight::pops(SubtractId(99), 2));
+
+        assert_eq!(public.text, "'a@(2)");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_renders_multiple_boundary_ids_by_occurrence_order() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
+        let b = TypeVar(1);
+        let first_id = SubtractId(99);
+        let second_id = SubtractId(12);
         let pos_a = arena.alloc_pos(Pos::Var(a));
-        let predicate = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(99))));
+        let pos_b = arena.alloc_pos(Pos::Var(b));
+        let first = arena.alloc_pos(Pos::NonSubtract(
+            pos_a,
+            StackWeight::push(first_id, Subtractability::Empty),
+        ));
+        let second = arena.alloc_pos(Pos::NonSubtract(
+            pos_b,
+            StackWeight::push(second_id, Subtractability::Empty),
+        ));
+        let predicate = arena.alloc_pos(Pos::Union(first, second));
         let scheme = Scheme {
-            quantifiers: vec![a],
+            quantifiers: vec![a, b],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
-            stack_quantifiers: vec![SubtractId(99)],
+            stack_quantifiers: vec![second_id, first_id],
             predicate,
         };
 
         let public = format_scheme_public(&arena, &scheme);
 
+        assert_eq!(public.text, "'a@0(∅) | 'b@1(∅)");
+        assert_eq!(public.redactions, 0);
+        assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_hides_quantifier_stack_sentinel() {
+        let public = public_display_for_weight(StackWeight::pops(SubtractId(99), u32::MAX));
+
         assert_eq!(public.text, "'a");
         assert_eq!(public.redactions, 0);
         assert_eq!(public.truncations, 0);
+    }
+
+    #[test]
+    fn public_scheme_redacts_full_stack_weight_shapes() {
+        let cases = [
+            StackWeight::filter(Subtractability::Empty),
+            StackWeight::floor(SubtractId(99), Subtractability::Empty),
+            StackWeight::push(SubtractId(99), Subtractability::Empty)
+                .compose(&StackWeight::push(SubtractId(12), Subtractability::All)),
+        ];
+
+        for weight in cases {
+            let public = public_display_for_weight(weight);
+            assert_eq!(public.text, "'a…");
+            assert_eq!(public.redactions, 1);
+            assert_eq!(public.truncations, 0);
+        }
     }
 
     #[test]
@@ -1003,6 +1353,21 @@ mod tests {
         });
 
         assert_eq!(format_pos(&arena, stacked), "('a -> 'a)#0[All]");
+    }
+
+    fn public_display_for_weight(weight: StackWeight) -> PublicTypeDisplay {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let predicate = arena.alloc_pos(Pos::NonSubtract(pos_a, weight));
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: vec![SubtractId(99)],
+            predicate,
+        };
+        format_scheme_public(&arena, &scheme)
     }
 
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {
