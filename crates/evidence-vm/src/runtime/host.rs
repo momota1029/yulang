@@ -339,6 +339,31 @@ mod tests {
         assert_eq!(operation.path_strings(), path.to_vec());
     }
 
+    #[test]
+    fn runtime_host_registry_prefers_later_registration_for_same_operation() {
+        let registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(custom_host_manifest()),
+            vec![
+                custom_host_registration_with("call", first_custom_host_call),
+                custom_host_registration_with("call", second_custom_host_call),
+            ],
+        );
+        let path = ["test".into(), "host".into(), "bridge".into(), "call".into()];
+
+        let Some(RuntimeHostRequestResolution::Operation(operation)) = registry.resolve(&path)
+        else {
+            panic!("registered generated host operation should resolve");
+        };
+        let mut state = ();
+        let mut ctx = HostCtx::new(&mut state);
+
+        assert_eq!(
+            registry.call(operation, &mut ctx, &super::super::BoundaryValue::Unit),
+            HostOutcome::Return(super::super::BoundaryValue::Int(2))
+        );
+    }
+
     #[cfg(debug_assertions)]
     #[test]
     #[should_panic(
@@ -361,15 +386,33 @@ mod tests {
     }
 
     fn custom_host_registration(operation_id: &'static str) -> HostOpRegistration {
+        custom_host_registration_with(operation_id, custom_host_call)
+    }
+
+    fn custom_host_registration_with(
+        operation_id: &'static str,
+        f: HostOpFn,
+    ) -> HostOpRegistration {
         HostOpRegistration {
             act_id: "test.host.bridge",
             operation_id,
-            f: custom_host_call,
+            f,
         }
     }
 
     fn custom_host_call(_: &mut HostCtx<'_>, _: &super::super::BoundaryValue) -> HostOutcome {
         HostOutcome::Return(super::super::BoundaryValue::Unit)
+    }
+
+    fn first_custom_host_call(_: &mut HostCtx<'_>, _: &super::super::BoundaryValue) -> HostOutcome {
+        HostOutcome::Return(super::super::BoundaryValue::Int(1))
+    }
+
+    fn second_custom_host_call(
+        _: &mut HostCtx<'_>,
+        _: &super::super::BoundaryValue,
+    ) -> HostOutcome {
+        HostOutcome::Return(super::super::BoundaryValue::Int(2))
     }
 
     fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
