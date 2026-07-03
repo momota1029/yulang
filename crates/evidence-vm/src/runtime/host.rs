@@ -51,10 +51,15 @@ impl RuntimeHostRegistry {
         ctx: &mut HostCtx<'_>,
         payload: &super::BoundaryValue,
     ) -> HostOutcome {
-        catch_unwind(AssertUnwindSafe(|| (operation.f)(ctx, payload))).unwrap_or_else(|_| {
+        let f = operation.f;
+        catch_unwind(AssertUnwindSafe(|| f(ctx, payload))).unwrap_or_else(|_| {
             HostOutcome::HostError(format!(
-                "host operation {} panicked",
-                operation.path.join("::")
+                "host operation {} panicked (act={} op={} column={} symbol={})",
+                operation.path.join("::"),
+                operation.act_id,
+                operation.operation_id,
+                operation.column,
+                operation.symbol
             ))
         })
     }
@@ -230,24 +235,8 @@ pub(super) struct RuntimeHostResolvedOperation {
 }
 
 impl RuntimeHostResolvedOperation {
-    pub(super) fn act_id(&self) -> &str {
-        &self.act_id
-    }
-
-    pub(super) fn operation_id(&self) -> &str {
-        &self.operation_id
-    }
-
     pub(super) fn path_strings(&self) -> Vec<String> {
         self.path.clone()
-    }
-
-    pub(super) fn column(&self) -> u32 {
-        self.column
-    }
-
-    pub(super) fn symbol(&self) -> &str {
-        &self.symbol
     }
 }
 
@@ -301,11 +290,11 @@ mod tests {
         else {
             panic!("enabled host operation should resolve to registered operation");
         };
-        assert_eq!(operation.act_id(), "test.host.bridge");
-        assert_eq!(operation.operation_id(), "call");
+        assert_eq!(operation.act_id, "test.host.bridge");
+        assert_eq!(operation.operation_id, "call");
         assert_eq!(operation.path_strings(), path.to_vec());
-        assert_eq!(operation.column(), 0);
-        assert_eq!(operation.symbol(), "yu_host_4test4host6bridge_4call");
+        assert_eq!(operation.column, 0);
+        assert_eq!(operation.symbol, "yu_host_4test4host6bridge_4call");
     }
 
     #[test]
@@ -399,11 +388,11 @@ mod tests {
         else {
             panic!("registered generated host operation should resolve");
         };
-        assert_eq!(operation.act_id(), "test.host.bridge");
-        assert_eq!(operation.operation_id(), "call");
+        assert_eq!(operation.act_id, "test.host.bridge");
+        assert_eq!(operation.operation_id, "call");
         assert_eq!(operation.path_strings(), path.to_vec());
-        assert_eq!(operation.column(), 0);
-        assert_eq!(operation.symbol(), "yu_host_4test4host6bridge_4call");
+        assert_eq!(operation.column, 0);
+        assert_eq!(operation.symbol, "yu_host_4test4host6bridge_4call");
     }
 
     #[test]

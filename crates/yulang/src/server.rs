@@ -1243,6 +1243,75 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn diagnostics_survive_leading_blank_and_comment_trivia() {
+        let root = temp_root("diagnostic-leading-trivia");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "\n// keep the diagnostic after leading trivia\nmy x: bool = 1\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        let diagnostic = &diagnostics[0];
+        assert_eq!(
+            diagnostic.range,
+            Range {
+                start: Position {
+                    line: 2,
+                    character: 3
+                },
+                end: Position {
+                    line: 2,
+                    character: 4
+                },
+            }
+        );
+        assert!(
+            diagnostic.message.contains("type mismatch"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(diagnostic, "yulang.type-mismatch");
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("type mismatch should keep related ranges after leading trivia");
+        assert_eq!(related.len(), 2, "{related:?}");
+        assert_eq!(
+            related[0].location.range,
+            Range {
+                start: Position {
+                    line: 2,
+                    character: 6
+                },
+                end: Position {
+                    line: 2,
+                    character: 10
+                },
+            }
+        );
+        assert_eq!(
+            related[1].location.range,
+            Range {
+                start: Position {
+                    line: 2,
+                    character: 13
+                },
+                end: Position {
+                    line: 2,
+                    character: 14
+                },
+            }
+        );
+    }
+
+    #[test]
     fn diagnostics_use_unresolved_name_range() {
         let root = temp_root("unresolved-name-range");
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();

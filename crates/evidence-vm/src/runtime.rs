@@ -21158,6 +21158,8 @@ mod tests {
                     ]
                 );
                 assert!(message.contains("panicked"));
+                assert!(message.contains("column=0"));
+                assert!(message.contains("symbol=yu_host_3std2io4file4file_4load"));
             }
             other => panic!("expected host ABI error, got {other:?}"),
         }
