@@ -4414,67 +4414,61 @@ fn public_contract_manifest_covers_status_spine_claims() {
 
     let cases = public_contract_manifest_cases();
     for requirement in [
-        StatusSpineManifestRequirement::new("public signatures", &["public-signature"]),
-        StatusSpineManifestRequirement::new("stable core", &["stable-core"]),
-        StatusSpineManifestRequirement::new("stable core runtime", &["stable-core", "runtime"]),
-        StatusSpineManifestRequirement::new(
-            "stable core diagnostics",
-            &["stable-core", "diagnostics"],
-        ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new("public signatures", &["public-signature"]),
+        ManifestTagRequirement::new("stable core", &["stable-core"]),
+        ManifestTagRequirement::new("stable core runtime", &["stable-core", "runtime"]),
+        ManifestTagRequirement::new("stable core diagnostics", &["stable-core", "diagnostics"]),
+        ManifestTagRequirement::new(
             "stable core public signatures",
             &["stable-core", "public-signature"],
         ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new(
             "stable core public examples",
             &["stable-core", "public-example"],
         ),
-        StatusSpineManifestRequirement::new("runtime behavior", &["runtime"]),
-        StatusSpineManifestRequirement::new("public examples", &["public-example"]),
-        StatusSpineManifestRequirement::new("runtime error behavior", &["runtime-error"]),
-        StatusSpineManifestRequirement::new("diagnostics", &["diagnostics"]),
-        StatusSpineManifestRequirement::new("diagnostics syntax", &["diagnostics", "syntax"]),
-        StatusSpineManifestRequirement::new("diagnostics names", &["diagnostics", "names"]),
-        StatusSpineManifestRequirement::new(
-            "diagnostics typechecker",
-            &["diagnostics", "typechecker"],
-        ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new("runtime behavior", &["runtime"]),
+        ManifestTagRequirement::new("public examples", &["public-example"]),
+        ManifestTagRequirement::new("runtime error behavior", &["runtime-error"]),
+        ManifestTagRequirement::new("diagnostics", &["diagnostics"]),
+        ManifestTagRequirement::new("diagnostics syntax", &["diagnostics", "syntax"]),
+        ManifestTagRequirement::new("diagnostics names", &["diagnostics", "names"]),
+        ManifestTagRequirement::new("diagnostics typechecker", &["diagnostics", "typechecker"]),
+        ManifestTagRequirement::new(
             "diagnostics related ranges",
             &["diagnostics", "related-ranges"],
         ),
-        StatusSpineManifestRequirement::new("diagnostics roles", &["diagnostics", "roles"]),
-        StatusSpineManifestRequirement::new("standard API", &["standard-api"]),
-        StatusSpineManifestRequirement::new("stable standard API", &["standard-api", "stable-api"]),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new("diagnostics roles", &["diagnostics", "roles"]),
+        ManifestTagRequirement::new("standard API", &["standard-api"]),
+        ManifestTagRequirement::new("stable standard API", &["standard-api", "stable-api"]),
+        ManifestTagRequirement::new(
             "stable core standard API",
             &["stable-core", "standard-api", "stable-api"],
         ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new(
             "standard API migration canary",
             &["standard-api", "migration-canary"],
         ),
-        StatusSpineManifestRequirement::new("result API", &["standard-api", "result"]),
-        StatusSpineManifestRequirement::new("error API", &["standard-api", "errors"]),
-        StatusSpineManifestRequirement::new("path API", &["standard-api", "path"]),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new("result API", &["standard-api", "result"]),
+        ManifestTagRequirement::new("error API", &["standard-api", "errors"]),
+        ManifestTagRequirement::new("path API", &["standard-api", "path"]),
+        ManifestTagRequirement::new(
             "native file API host scope",
             &["standard-api", "file", "host.native"],
         ),
-        StatusSpineManifestRequirement::new("time API", &["standard-api", "time"]),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new("time API", &["standard-api", "time"]),
+        ManifestTagRequirement::new(
             "time host act native scope",
             &["time", "host-act", "host.native"],
         ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new(
             "time host act unsupported scope",
             &["time", "host-act", "host.unsupported"],
         ),
-        StatusSpineManifestRequirement::new(
+        ManifestTagRequirement::new(
             "time host act mock scope",
             &["time", "host-act", "mock-host"],
         ),
-        StatusSpineManifestRequirement::new("host act contract", &["host-act"]),
+        ManifestTagRequirement::new("host act contract", &["host-act"]),
     ] {
         assert!(
             contract_manifest_has_case_with_tags(&cases, requirement.tags),
@@ -4485,12 +4479,62 @@ fn public_contract_manifest_covers_status_spine_claims() {
     }
 }
 
-struct StatusSpineManifestRequirement<'a> {
+#[test]
+fn public_contract_manifest_covers_contract_v1_file_evidence_claims() {
+    let evidence_path = repo_file("docs/language/contract-v1-file-evidence.md");
+    let evidence = fs::read_to_string(&evidence_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", evidence_path.display()));
+    for claim in [
+        "file-resource",
+        "protocol-sugar",
+        "lambda_my_binder_state_protocol",
+        "do_binding_state_protocol",
+        "raw-compat",
+        "typed-failure",
+    ] {
+        assert!(
+            evidence.contains(claim),
+            "contract-v1-file-evidence.md should keep evidence claim {claim:?}"
+        );
+    }
+
+    let cases = public_contract_manifest_cases();
+    for requirement in [
+        ManifestTagRequirement::new("file resource", &["file-resource"]),
+        ManifestTagRequirement::new(
+            "file lambda protocol sugar",
+            &["file-resource", "protocol-sugar", "lambda-my"],
+        ),
+        ManifestTagRequirement::new(
+            "file do-binding protocol sugar",
+            &["file-resource", "protocol-sugar", "do-binding"],
+        ),
+        ManifestTagRequirement::new(
+            "pure lambda protocol sugar",
+            &["runtime", "refs", "protocol-sugar", "lambda-my"],
+        ),
+        ManifestTagRequirement::new(
+            "pure do-binding protocol sugar",
+            &["runtime", "refs", "protocol-sugar", "do-binding"],
+        ),
+        ManifestTagRequirement::new("file raw compat", &["file-resource", "raw-compat"]),
+        ManifestTagRequirement::new("file typed failure", &["file-resource", "typed-failure"]),
+    ] {
+        assert!(
+            contract_manifest_has_case_with_tags(&cases, requirement.tags),
+            "contract-v1-file-evidence.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
+            requirement.label,
+            requirement.tags
+        );
+    }
+}
+
+struct ManifestTagRequirement<'a> {
     label: &'a str,
     tags: &'a [&'a str],
 }
 
-impl<'a> StatusSpineManifestRequirement<'a> {
+impl<'a> ManifestTagRequirement<'a> {
     fn new(label: &'a str, tags: &'a [&'a str]) -> Self {
         Self { label, tags }
     }
