@@ -267,6 +267,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../../../lib/std/text/char.yu"),
     },
     EmbeddedStdFile {
+        relative_path: "std/text/config.yu",
+        source: include_str!("../../../lib/std/text/config.yu"),
+    },
+    EmbeddedStdFile {
         relative_path: "std/text/parse.yu",
         source: include_str!("../../../lib/std/text/parse.yu"),
     },

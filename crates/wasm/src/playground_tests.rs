@@ -30,6 +30,25 @@ mod tests {
         }
     }
 
+    fn playground_showcase_source(en_label: &str) -> &'static str {
+        const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
+        let label_marker = format!("en: \"{en_label}\"");
+        let label_start = PLAYGROUND_MAIN_TS
+            .find(&label_marker)
+            .unwrap_or_else(|| panic!("missing playground showcase label: {en_label}"));
+        let source_marker = "source: `";
+        let source_start = label_start
+            + PLAYGROUND_MAIN_TS[label_start..]
+                .find(source_marker)
+                .unwrap_or_else(|| panic!("missing source for playground showcase: {en_label}"))
+            + source_marker.len();
+        let source_rest = &PLAYGROUND_MAIN_TS[source_start..];
+        let source_end = source_rest.find("\n`,").unwrap_or_else(|| {
+            panic!("missing source terminator for playground showcase: {en_label}")
+        });
+        &source_rest[..source_end + 1]
+    }
+
     const PARSER_PATTERN_SHOWCASE: &str = r#"use std::text::parse::*
 
 my route = \line -> case line:
@@ -274,6 +293,16 @@ point { x: 3, y: 4 } .norm2 + 1.12
             "GET color\nSET color = deep-blue\nuser alice\nunknown\n"
         );
         assert_eq!(output.text, "run roots [(), (), (), ()]\n");
+    }
+
+    #[test]
+    fn run_inner_runs_config_showcase_from_playground_source() {
+        clear_std_cache();
+        let output = run_inner_on_test_stack(playground_showcase_source("Config"));
+
+        assert!(output.ok, "{output:?}");
+        assert!(output.stdout.contains("8080"), "{output:?}");
+        assert!(output.stdout.contains("api"), "{output:?}");
     }
 
     #[test]
