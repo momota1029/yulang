@@ -2203,12 +2203,67 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
 
 [[case]]
+name = "std_str_ref_replace_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.replace!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
+name = "std_str_ref_replace_all_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.replace_all!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
+name = "std_str_ref_splice_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.splice!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> std::data::range::range -> std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
 name = "std_str_ref_trim_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"
 std = "repo"
 module = "std.text.str.str"
 symbol = "std.text.str.str.trim!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
+name = "std_str_ref_trim_start_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.trim_start!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
+name = "std_str_ref_trim_end_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.trim_end!"
 expect_type = "std::control::var::ref 'a std::text::str::str -> ['a] ()"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
