@@ -242,6 +242,16 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      c3719344). Deferred: unscoped one-line `net::serve 8080` (needs a
      resolver/prelude module-alias slice), `l.requests` / `serve_with`,
      connect-side `conn` forms, real sockets / HTTP / cancel surface.
+   - 2026-07-04: the unscoped one-line form works. A prelude glob collision
+     (direct child module `net` vs same-named companion act module
+     `std::io::net::net` re-exported through `std::io`) was hijacking the
+     `net::` path prefix; glob import views now keep direct child modules as
+     the path-prefix surface (commit 256a4c59). `my req = net::serve 8080` runs
+     end-to-end against `--host mock-server` without any `use`, with
+     scoped/unscoped fixtures (commit f7a4b01d). With parser patterns landed the
+     same day, request routing in `case` arms is now expressible. Remaining:
+     `l.requests` / `serve_with`, connect-side `conn` forms, real sockets /
+     HTTP adapter / cancel surface.
 
 6. **Static route Stage M1, then conditional Stage 1**
    - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
