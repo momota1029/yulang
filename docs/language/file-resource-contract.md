@@ -172,6 +172,34 @@ The contract is complete only when representative `file-resource` cases run
 through a packaged binary with bundled std, not only through a development
 checkout.
 
+### F5. Unscoped Ambient Ref Line Editing
+
+Scoped managed lenses and unscoped ambient refs intentionally differ under
+multi-shot branching.
+
+The scoped managed lens rule from the core promise remains branch-local:
+scope entry creates a snapshot buffer, each branch edits its own buffer, and
+normal branch exit commits that buffer in arrival order. This is the
+transactional `_with` resource model.
+
+Unscoped `file::text` is different. The ambient ref is supplied by the handler
+extent. Within that extent, unscoped refs such as `&doc.lines.each` share the
+handler-extent ambient buffer across branches. This is the intended semantics
+for the nondet line-editing idiom:
+
+```text
+my &doc = file::text path
+(&doc.lines.each).replace_once "todo:" "done:"
+```
+
+The branch work is still structured by `nondet.each`, but each branch reads and
+updates the same handler-extent buffer through `ambient_get` / `ambient_set`.
+The final flush remains tied to successful handler-extent completion.
+
+The current executable evidence for this line-editing idiom is native-only.
+Cross-host parity for source mocks or unsupported-host diagnostics is a future
+slice and is not claimed by this section.
+
 ## Out Of Scope
 
 These are not part of Contract v1 File Resource:
