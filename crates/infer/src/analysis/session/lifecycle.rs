@@ -257,6 +257,11 @@ impl AnalysisSession {
                         self.enqueue(AnalysisWork::ProbeSelect(select));
                     }
                 }
+                ConstraintEvent::UpperBoundAdded { var, .. } => {
+                    for select in self.selections.pending_for_upper_bound(var) {
+                        self.enqueue(AnalysisWork::ProbeSelect(select));
+                    }
+                }
                 ConstraintEvent::NominalCastNeeded {
                     lower,
                     upper,
@@ -275,7 +280,6 @@ impl AnalysisSession {
                     self.diagnostics
                         .push(AnalysisDiagnostic::EffectFilterViolation { effect, filter });
                 }
-                ConstraintEvent::UpperBoundAdded { .. } => {}
             }
         }
         let elapsed = start.elapsed();
@@ -314,6 +318,9 @@ impl AnalysisSession {
                 .iter()
                 .filter_map(|(select_id, use_site)| {
                     if !self.scc.selection_fallback_ready(use_site.parent) {
+                        return None;
+                    }
+                    if self.selections.has_unprobed_receiver_upper(select_id) {
                         return None;
                     }
                     let name = self.poly.select(select_id).name.clone();

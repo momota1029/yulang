@@ -26,6 +26,15 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "records", "defaults"]
 
 [[case]]
+name = "record_field_named_like_str_method"
+file = "regressions/runtime/record_field_named_like_str_method.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"record-field\", true)]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "records", "standard-api", "stable-api", "str"]
+
+[[case]]
 name = "attached_impl_pick"
 file = "regressions/runtime/attached_impl_pick.yu"
 kind = "run"
@@ -619,6 +628,31 @@ contracts = [
 [[case]]
 name = "file_value_lines_each_guard_replace_native"
 file = "regressions/runtime/file_value_lines_each_guard_replace_native.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(touched, [done: one\n, done: two], after, keep\ndone: one\nskip\ndone: two)\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "keep\ntodo: one\nskip\ntodo: two", expect_contents = "keep\ndone: one\nskip\ndone: two" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+  "std.nondet",
+  "refs",
+]
+
+[[case]]
+name = "file_value_lines_each_dot_method_lambda_native"
+file = "regressions/runtime/file_value_lines_each_dot_method_lambda_native.yu"
 kind = "run"
 std = "repo"
 print_roots = false

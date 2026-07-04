@@ -74,6 +74,7 @@ impl AnalysisSession {
         let Some(use_site) = self.selections.get(select_id).copied() else {
             return;
         };
+        self.selections.mark_receiver_uppers_probed(select_id);
         let name = self.poly.select(select_id).name.clone();
         let receiver_effect = self.infer.alloc_pos(Pos::Var(use_site.receiver_effect));
         let target = self
@@ -389,6 +390,7 @@ impl AnalysisSession {
                 (bound.pos, weighted_paths)
             })
             .collect::<Vec<_>>();
+        let lowers_is_empty = lowers.is_empty();
         for (lower, weighted_paths) in lowers {
             if let Some(target) = self.effect_method_for_paths(select_id, &weighted_paths, name) {
                 return Some(target);
@@ -397,7 +399,103 @@ impl AnalysisSession {
                 return Some(target);
             }
         }
+        if lowers_is_empty {
+            let uppers = self
+                .infer
+                .constraints()
+                .bounds()
+                .of(var)?
+                .uppers()
+                .iter()
+                .map(|bound| bound.neg)
+                .collect::<Vec<_>>();
+            return self.probe_select_upper_bounds(select_id, &uppers, name, visited);
+        }
         None
+    }
+
+    fn probe_select_upper_bounds(
+        &mut self,
+        select_id: SelectId,
+        uppers: &[NegId],
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+    ) -> Option<SelectionTarget> {
+        let [upper] = uppers else {
+            return None;
+        };
+        let mut targets = Vec::new();
+        self.collect_select_upper_targets(select_id, *upper, name, visited, &mut targets);
+        match targets.as_slice() {
+            [target] => Some(target.clone()),
+            [] | [_, ..] => None,
+        }
+    }
+
+    fn collect_select_upper_targets(
+        &mut self,
+        select_id: SelectId,
+        upper: NegId,
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+        out: &mut Vec<SelectionTarget>,
+    ) {
+        match self.infer.constraints().types().neg(upper).clone() {
+            Neg::Var(var) => {
+                if let Some(target) = self.probe_select_var(select_id, var, name, visited) {
+                    if !out.contains(&target) {
+                        out.push(target);
+                    }
+                }
+            }
+            Neg::Con(path, args) if crate::std_paths::is_control_var_ref_type(&path) => {
+                if let Some(target) = self.value_method_for_receiver(select_id, &path, name) {
+                    if !out.contains(&target) {
+                        out.push(target);
+                    }
+                    return;
+                }
+                let Some(payload) = self.ref_payload_probe(&args) else {
+                    return;
+                };
+                if let Some(var) = payload.var {
+                    self.selections.watch_ref_payload(var, select_id);
+                }
+                if let Some(target) = self
+                    .probe_ref_select_pos(select_id, payload.lower, name, visited)
+                    .or_else(|| {
+                        payload.var.and_then(|var| {
+                            self.probe_ref_select_var(select_id, var, name, visited)
+                        })
+                    })
+                {
+                    if !out.contains(&target) {
+                        out.push(target);
+                    }
+                }
+            }
+            Neg::Con(path, _) => {
+                if let Some(target) = self.value_method_for_receiver(select_id, &path, name) {
+                    if !out.contains(&target) {
+                        out.push(target);
+                    }
+                }
+            }
+            Neg::Intersection(left, right) => {
+                self.collect_select_upper_targets(select_id, left, name, visited, out);
+                self.collect_select_upper_targets(select_id, right, name, visited, out);
+            }
+            Neg::Stack { inner, .. } => {
+                self.collect_select_upper_targets(select_id, inner, name, visited, out);
+            }
+            Neg::Top
+            | Neg::Bot
+            | Neg::Fun { .. }
+            | Neg::Record(_)
+            | Neg::PolyVariant(_)
+            | Neg::Tuple(_)
+            | Neg::Row(_, _) => {}
+        }
     }
 
     pub(super) fn probe_select_pos(

@@ -6,7 +6,7 @@
 
 use poly::expr::{DefId, RefId, SelectId};
 use poly::types::TypeVar;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{ModuleId, SourceSpan};
 
@@ -131,8 +131,8 @@ pub struct RefUse {
 /// `poly::expr::Select.resolution` に書き戻されるため、ここでは解決後の use-site を保持しない。
 ///
 /// dot selection は、`method_value` の関数上界に入っている receiver の下界、
-/// `ref '[e] a` の payload `a` の下界、receiver effect の row/subtract fact が増えた時に
-/// 解ける場合がある。
+/// receiver の上界、`ref '[e] a` の payload `a` の下界、receiver effect の
+/// row/subtract fact が増えた時に解ける場合がある。
 pub struct SelectionUseTable {
     uses: FxHashMap<SelectId, SelectionUse>,
     source_spans: FxHashMap<SelectId, SourceSpan>,
@@ -140,6 +140,8 @@ pub struct SelectionUseTable {
     pending_by_receiver: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_ref_payload: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_effect: FxHashMap<TypeVar, Vec<SelectId>>,
+    receiver_upper_reprobe_pending: FxHashSet<(SelectId, TypeVar)>,
+    receiver_upper_reprobe_done: FxHashSet<(SelectId, TypeVar)>,
 }
 
 impl SelectionUseTable {
@@ -178,7 +180,9 @@ impl SelectionUseTable {
     }
 
     pub fn remove(&mut self, id: SelectId) -> Option<SelectionUse> {
-        self.uses.remove(&id)
+        let removed = self.uses.remove(&id);
+        self.clear_receiver_upper_tracking(id);
+        removed
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (SelectId, &SelectionUse)> {
@@ -219,11 +223,58 @@ impl SelectionUseTable {
         pending
     }
 
+    pub fn pending_for_upper_bound(&mut self, var: TypeVar) -> Vec<SelectId> {
+        let Some(selects) = self.pending_by_receiver.get(&var) else {
+            return Vec::new();
+        };
+        let mut pending = Vec::new();
+        for select in selects {
+            if !self.uses.contains_key(select) {
+                continue;
+            }
+            let key = (*select, var);
+            if self.receiver_upper_reprobe_done.contains(&key)
+                || self.receiver_upper_reprobe_pending.contains(&key)
+            {
+                continue;
+            }
+            self.receiver_upper_reprobe_pending.insert(key);
+            push_unique(&mut pending, *select);
+        }
+        pending
+    }
+
+    pub fn mark_receiver_uppers_probed(&mut self, select: SelectId) {
+        let probed = self
+            .receiver_upper_reprobe_pending
+            .iter()
+            .filter(|(pending_select, _)| *pending_select == select)
+            .copied()
+            .collect::<Vec<_>>();
+        for key in probed {
+            self.receiver_upper_reprobe_pending.remove(&key);
+            self.receiver_upper_reprobe_done.insert(key);
+        }
+    }
+
+    pub fn has_unprobed_receiver_upper(&self, select: SelectId) -> bool {
+        self.receiver_upper_reprobe_pending
+            .iter()
+            .any(|(pending_select, _)| *pending_select == select)
+    }
+
     pub fn pending_for_effect_fact(&self, var: TypeVar) -> Vec<SelectId> {
         self.pending_by_effect
             .get(&var)
             .cloned()
             .unwrap_or_default()
+    }
+
+    fn clear_receiver_upper_tracking(&mut self, select: SelectId) {
+        self.receiver_upper_reprobe_pending
+            .retain(|(pending_select, _)| *pending_select != select);
+        self.receiver_upper_reprobe_done
+            .retain(|(pending_select, _)| *pending_select != select);
     }
 }
 

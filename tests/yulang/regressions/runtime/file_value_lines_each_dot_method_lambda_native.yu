@@ -1,0 +1,17 @@
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+my path = {{file}}
+
+my &doc = std::io::file::text path
+
+my edit_line = \line ->
+    guard (line.starts_with "todo:")
+    my rewritten = line.replace_once "todo:" "done:"
+    &doc = $doc.replace_once line rewritten
+    rewritten
+
+my touched = (edit_line $doc.lines.each).list
+
+("touched", touched, "after", $doc).say

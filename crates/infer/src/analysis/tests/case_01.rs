@@ -34,6 +34,48 @@ fn lower_bound_events_route_receiver_and_ref_payload_select_watchers() {
     );
 }
 
+#[test]
+fn upper_bound_events_route_receiver_select_watchers_once() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let select = session.poly.add_select("display");
+    let watched = TypeVar(2);
+    session.selections.insert(
+        select,
+        SelectionUse {
+            parent: DefId(1),
+            method_value: TypeVar(3),
+            selected_value: TypeVar(4),
+            receiver_value: watched,
+            receiver_effect: TypeVar(5),
+            local_method_scope: None,
+            recursive_self_value: None,
+        },
+    );
+    session.selections.watch_receiver(watched, select);
+
+    let lower = session.infer.alloc_pos(Pos::Var(watched));
+    let upper = session
+        .infer
+        .alloc_neg(Neg::Con(vec!["int".into()], Vec::new()));
+    session.infer.subtype(lower, upper);
+    session.route_constraint_events();
+
+    assert_eq!(
+        session.work().iter().cloned().collect::<Vec<_>>(),
+        vec![AnalysisWork::ProbeSelect(select)]
+    );
+
+    session.drain_work();
+    let lower = session.infer.alloc_pos(Pos::Var(watched));
+    let upper = session
+        .infer
+        .alloc_neg(Neg::Con(vec!["float".into()], Vec::new()));
+    session.infer.subtype(lower, upper);
+    session.route_constraint_events();
+
+    assert!(session.work().is_empty());
+}
+
 fn register_test_selection_use(
     session: &mut AnalysisSession,
     select: SelectId,
@@ -273,6 +315,42 @@ fn method_registration_probes_existing_receiver_lower_bounds() {
     assert_eq!(session.poly.select(select).resolution, None);
 
     session.register_value_type_method(vec!["int".to_string()], "display", method);
+    session.drain_work();
+
+    assert_eq!(
+        session.poly.select(select).resolution,
+        Some(SelectResolution::Method { def: method })
+    );
+}
+
+#[test]
+fn method_selection_uses_single_receiver_upper_when_lower_is_empty() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let select = session.poly.add_select("display");
+    let parent = DefId(1);
+    let method = DefId(2);
+    let receiver = TypeVar(3);
+    let method_value = TypeVar(4);
+    let receiver_effect = TypeVar(5);
+    let result = TypeVar(6);
+    let result_effect = TypeVar(7);
+    register_test_selection_use(
+        &mut session,
+        select,
+        parent,
+        method_value,
+        receiver,
+        receiver_effect,
+        result,
+        result_effect,
+    );
+    session.register_value_type_method(vec!["int".to_string()], "display", method);
+    let lower = session.infer.alloc_pos(Pos::Var(receiver));
+    let upper = session
+        .infer
+        .alloc_neg(Neg::Con(vec!["int".into()], Vec::new()));
+    session.infer.subtype(lower, upper);
+
     session.drain_work();
 
     assert_eq!(
