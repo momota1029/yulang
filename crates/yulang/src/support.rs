@@ -1003,7 +1003,7 @@ pub(super) fn print_check_poly_output(output: &yulang::CheckPolyOutput) {
     print!("{}", output.text);
 }
 
-fn print_check_diagnostics_summary(
+pub(super) fn print_check_diagnostics_summary(
     diagnostics: &[yulang::SourceDiagnostic],
     source: Option<&yulang::CheckDiagnosticSource>,
 ) {

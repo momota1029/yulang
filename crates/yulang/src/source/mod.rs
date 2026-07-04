@@ -1234,6 +1234,12 @@ pub struct CheckPolyOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseDiagnosticsOutput {
+    pub diagnostics: Vec<SourceDiagnostic>,
+    pub diagnostic_source: Option<CheckDiagnosticSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckDiagnosticSource {
     pub source: String,
     pub range_offset: usize,
@@ -1837,6 +1843,16 @@ fn check_poly_from_loaded_files(
         diagnostics,
         diagnostic_source,
     })
+}
+
+pub fn parse_diagnostics_from_collected_sources(
+    files: &[CollectedSource],
+) -> ParseDiagnosticsOutput {
+    let loaded = load_collected_sources(files.to_vec());
+    ParseDiagnosticsOutput {
+        diagnostics: parser_diagnostics_from_loaded(&loaded),
+        diagnostic_source: check_diagnostic_source(&loaded),
+    }
 }
 
 fn check_diagnostic_source(loaded: &[sources::LoadedFile]) -> Option<CheckDiagnosticSource> {

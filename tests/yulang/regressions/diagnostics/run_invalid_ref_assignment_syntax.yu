@@ -1,0 +1,6 @@
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+my &doc = std::io::file::text "/tmp/yulang-run-invalid-ref-assignment.txt"
+&(&doc.lines.each) = "done: fixed"

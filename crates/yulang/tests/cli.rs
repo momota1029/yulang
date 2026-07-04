@@ -1125,6 +1125,42 @@ fn public_diagnostics_check_reports_trailing_operator_syntax() {
 }
 
 #[test]
+fn compatible_run_rejects_syntax_diagnostics_before_execution() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/run_invalid_ref_assignment_syntax.yu");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("diagnostics:\n  error [yulang.syntax]: syntax error: unexpected token\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "    --> line 6, column 1\n    6 | &(&doc.lines.each) = \"done: fixed\"\n      | ^\n"
+        ),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("run roots"), "{stdout}");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_diagnostics_check_reports_missing_local_binding_body() {
     let entry = write_entry("diagnostics-missing-local-binding-body", "my x =\n");
 

@@ -499,21 +499,15 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     print_run_input_cst_if_requested(options, &input);
     if selection.backend == RunBackend::Mono {
         reject_non_native_run_host(program, selection);
-        if options.no_prelude {
-            let output = match input {
-                RunInput::Path(path) => run_route_to_value(yulang::run_mono_from_entry(path)),
-                RunInput::Source { path, source } => {
-                    let files = run_route_to_value(yulang::collect_local_source_text(path, source));
-                    run_mono_with_optional_cache(files, options.use_cache)
-                }
-            };
-            run_mono_printer(selection.print_roots)(&output);
+        let files = if options.no_prelude {
+            collect_bare_run_input_sources_or_exit(input, options)
         } else {
             let source_options = options.std_source_options();
-            let files = collect_std_run_input_sources_or_exit(input, &source_options);
-            let output = run_mono_with_optional_cache(files, options.use_cache);
-            run_mono_printer(selection.print_roots)(&output);
-        }
+            collect_std_run_input_sources_or_exit(input, &source_options)
+        };
+        abort_run_on_parse_diagnostics(&files);
+        let output = run_mono_with_optional_cache(files, options.use_cache);
+        run_mono_printer(selection.print_roots)(&output);
         return;
     }
 
@@ -531,6 +525,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
                 RunInput::Source { path, source },
                 options,
             );
+            abort_run_on_parse_diagnostics(&files);
             timings.collect = collect_start.elapsed();
             build_control_with_optional_cache_timed(
                 files,
@@ -579,6 +574,15 @@ fn reject_non_native_run_host(program: &str, selection: RunSelection) {
     if selection.host != RunHostMode::Native {
         print_usage_error_and_exit(program, "run --host unsupported requires the evidence VM");
     }
+}
+
+fn abort_run_on_parse_diagnostics(files: &[yulang::CollectedSource]) {
+    let output = yulang::parse_diagnostics_from_collected_sources(files);
+    if output.diagnostics.is_empty() {
+        return;
+    }
+    print_check_diagnostics_summary(&output.diagnostics, output.diagnostic_source.as_ref());
+    process::exit(1);
 }
 
 fn print_run_input_cst_if_requested(options: &GlobalOptions, input: &RunInput) {
@@ -690,17 +694,19 @@ fn build_control_path_with_optional_source_key_cache(
     mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildControlOutput {
     let collect_start = Instant::now();
-    if options.use_cache {
-        if let Some(output) =
-            read_control_from_source_key_index(path, options, timings.as_deref_mut())
-        {
-            return output;
-        }
-    }
+    let cached = options
+        .use_cache
+        .then(|| read_control_from_source_key_index(path, options, timings.as_deref_mut()))
+        .flatten();
 
     let files = collect_control_sources_or_exit(path, options);
     if let Some(timings) = timings.as_deref_mut() {
         timings.collect = collect_start.elapsed();
+    }
+    abort_run_on_parse_diagnostics(&files);
+
+    if let Some(output) = cached {
+        return output;
     }
 
     if !options.use_cache {
