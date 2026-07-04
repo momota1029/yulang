@@ -107,6 +107,15 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "stable-api", "str"]
 
 [[case]]
+name = "str_method_local_binding"
+file = "regressions/runtime/str_method_local_binding.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(opt::just(8080), (\"key\", \"value\"), \"alpha\")]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "stable-api", "str"]
+
+[[case]]
 name = "parser_pattern_case"
 file = "regressions/runtime/parser_pattern_case.yu"
 kind = "run"

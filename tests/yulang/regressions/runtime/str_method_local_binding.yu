@@ -1,0 +1,21 @@
+my split_once_pair(value: opt (str, str)): (str, str) = case value:
+    just pair -> pair
+    nil -> ("<none>", "<none>")
+
+my parse_port(line: str): opt int =
+    my clean = line.trim
+    clean.to_int
+
+my split_key_value(line: str): opt (str, str) =
+    my clean = line.trim
+    clean.split_once "="
+
+my trim_again(line: str): str =
+    my clean = line.trim
+    clean.trim
+
+(
+    parse_port " 8080 ",
+    split_once_pair (split_key_value " key=value "),
+    trim_again "  alpha  "
+)
