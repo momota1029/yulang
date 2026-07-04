@@ -624,8 +624,24 @@ impl<'a> ExprLowerer<'a> {
         fetch: BindingFetch,
     ) {
         // Local schemes are used immediately by later statements in the same block, so they must
-        // see the closure of subtype constraints emitted while lowering the RHS.
+        // see the closure of method selections and subtype constraints emitted while lowering the
+        // RHS.
+        self.session.drain_selection_work_for_parent(self.parent);
         self.session.infer.constraints_mut().drain();
+        if self
+            .session
+            .selections
+            .iter()
+            .any(|(_, use_site)| use_site.parent == self.parent && use_site.selected_value == value)
+        {
+            // A local scheme is a snapshot. If method selections owned by this definition are
+            // still producing this value, later statements must keep sharing the live slot instead
+            // of reading a generalized copy that lacks the method result constraints.
+            if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
+                local.scheme = None;
+            }
+            return;
+        }
         let mut non_generic = self.local_non_generic_vars(def, value);
         if fetch.runs_computation() {
             non_generic.insert(value);

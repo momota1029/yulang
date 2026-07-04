@@ -309,65 +309,168 @@ impl AnalysisSession {
         trace.finish(self.work.len());
     }
 
+    /// Settle method-selection work for one owner without finalizing unrelated definitions.
+    pub(crate) fn drain_selection_work_for_parent(&mut self, parent: DefId) {
+        loop {
+            self.route_constraint_events();
+            let mut deferred = VecDeque::new();
+            let mut progressed = false;
+            let pending = self.work.len();
+            for _ in 0..pending {
+                let Some(work) = self.work.pop_front() else {
+                    break;
+                };
+                if self.selection_settle_work_matches_parent(&work, parent) {
+                    let timing_kind = AnalysisWorkTimingKind::from_work(&work);
+                    let start = Instant::now();
+                    self.apply_work(work);
+                    self.timing
+                        .record_work(timing_kind, start.elapsed(), self.work.len());
+                    self.route_scc_events();
+                    progressed = true;
+                } else {
+                    deferred.push_back(work);
+                }
+            }
+            deferred.append(&mut self.work);
+            self.work = deferred;
+            if !progressed {
+                break;
+            }
+        }
+    }
+
+    fn selection_settle_work_matches_parent(&self, work: &AnalysisWork, parent: DefId) -> bool {
+        match work {
+            AnalysisWork::ResolveRef(ref_id) => self
+                .refs
+                .get(*ref_id)
+                .is_some_and(|use_site| use_site.parent == parent),
+            AnalysisWork::ApplyRefResolution { ref_id, .. } => self
+                .refs
+                .get(*ref_id)
+                .is_some_and(|use_site| use_site.parent == parent),
+            AnalysisWork::ProbeSelect(select_id) => self
+                .selection_parent(*select_id)
+                .is_some_and(|selection_parent| selection_parent == parent),
+            AnalysisWork::ApplySelectionResolution { select_id, target } => {
+                if !self
+                    .selection_parent(*select_id)
+                    .is_some_and(|selection_parent| selection_parent == parent)
+                {
+                    return false;
+                }
+                match target {
+                    SelectionTarget::RecordField => false,
+                    SelectionTarget::Method { def } | SelectionTarget::EffectMethod { def } => {
+                        self.scc.is_quantified(*def)
+                    }
+                    SelectionTarget::TypeclassMethod { member } => self.scc.is_quantified(*member),
+                }
+            }
+            AnalysisWork::Scc(SccInput::RegisterDef { def, .. })
+            | AnalysisWork::Scc(SccInput::DefFetchRecorded { def, .. }) => *def == parent,
+            AnalysisWork::Scc(SccInput::UseResolved {
+                parent: use_parent, ..
+            })
+            | AnalysisWork::Scc(SccInput::MethodDependencyAdded { parent: use_parent })
+            | AnalysisWork::Scc(SccInput::MethodDependencyResolved { parent: use_parent }) => {
+                *use_parent == parent
+            }
+            AnalysisWork::Scc(SccInput::DefFinished { .. })
+            | AnalysisWork::Scc(SccInput::DependencyAdded { .. }) => false,
+        }
+    }
+
+    fn selection_parent(&self, select_id: SelectId) -> Option<DefId> {
+        self.selections
+            .get(select_id)
+            .map(|use_site| use_site.parent)
+    }
+
     /// Resolve still-unresolved selections as record fields once their SCC is ready.
     pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
         loop {
             self.drain_work();
-            let mut ready = self
-                .selections
-                .iter()
-                .filter_map(|(select_id, use_site)| {
-                    if !self.scc.selection_fallback_ready(use_site.parent) {
-                        return None;
-                    }
-                    if self.selections.has_unprobed_receiver_upper(select_id) {
-                        return None;
-                    }
-                    let name = self.poly.select(select_id).name.clone();
-                    let target = self
-                        .role_method_for_select(select_id, &name)
-                        .unwrap_or(SelectionTarget::RecordField);
-                    Some((select_id, target))
-                })
-                .collect::<Vec<_>>();
-            ready.sort_by_key(|(select_id, _)| select_id.0);
-            let Some((select_id, target)) = ready.first().cloned() else {
+            if self.enqueue_ready_structured_selection_resolutions() {
+                continue;
+            }
+
+            self.enqueue_unresolved_selection_probes();
+            self.drain_work();
+            if self.enqueue_ready_structured_selection_resolutions() {
+                continue;
+            }
+
+            let record_fields = self.ready_record_field_selections();
+            if record_fields.is_empty() {
                 break;
-            };
-            // Role-method fallback can instantiate the receiver effect for later
-            // selections in the same parent. Only batch record fields after those
-            // structured method candidates have had a chance to add constraints.
-            if matches!(target, SelectionTarget::RecordField)
-                && let Some((select_id, target)) = ready
-                    .iter()
-                    .find(|(_, target)| !matches!(target, SelectionTarget::RecordField))
-                    .cloned()
-            {
-                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
-                continue;
             }
-            if matches!(target, SelectionTarget::RecordField) {
-                let record_fields = ready
-                    .into_iter()
-                    .map(|(select_id, _)| select_id)
-                    .collect::<Vec<_>>();
-                self.apply_record_field_selection_batch(record_fields);
-                continue;
-            }
-            if self.fallback_target_can_batch(&target) {
-                let batch = ready
-                    .into_iter()
-                    .filter(|(_, target)| self.fallback_target_can_batch(target))
-                    .collect::<Vec<_>>();
-                for (select_id, target) in batch {
-                    self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
-                }
-            } else {
-                // Unquantified role-method fallback can introduce an SCC edge. Keep those
-                // one-by-one so the next readiness decision sees the updated graph.
-                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
-            }
+            self.apply_record_field_selection_batch(record_fields);
         }
+    }
+
+    fn enqueue_ready_structured_selection_resolutions(&mut self) -> bool {
+        let ready = self.ready_structured_selection_resolutions();
+        let Some((select_id, target)) = ready.first().cloned() else {
+            return false;
+        };
+        if self.fallback_target_can_batch(&target) {
+            let batch = ready
+                .into_iter()
+                .filter(|(_, target)| self.fallback_target_can_batch(target))
+                .collect::<Vec<_>>();
+            for (select_id, target) in batch {
+                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+            }
+        } else {
+            // Unquantified role-method fallback can introduce an SCC edge. Keep those
+            // one-by-one so the next readiness decision sees the updated graph.
+            self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+        }
+        true
+    }
+
+    fn ready_structured_selection_resolutions(&self) -> Vec<(SelectId, SelectionTarget)> {
+        let mut ready = self
+            .selections
+            .iter()
+            .filter_map(|(select_id, use_site)| {
+                if !self.scc.selection_fallback_ready(use_site.parent) {
+                    return None;
+                }
+                if self.selections.has_unprobed_receiver_upper(select_id) {
+                    return None;
+                }
+                let name = self.poly.select(select_id).name.clone();
+                let target = self.role_method_for_select(select_id, &name)?;
+                Some((select_id, target))
+            })
+            .collect::<Vec<_>>();
+        ready.sort_by_key(|(select_id, _)| select_id.0);
+        ready
+    }
+
+    fn ready_record_field_selections(&self) -> Vec<SelectId> {
+        let mut ready = self
+            .selections
+            .iter()
+            .filter_map(|(select_id, use_site)| {
+                if !self.scc.selection_fallback_ready(use_site.parent) {
+                    return None;
+                }
+                if self.selections.has_unprobed_receiver_upper(select_id) {
+                    return None;
+                }
+                let name = self.poly.select(select_id).name.clone();
+                if self.role_method_for_select(select_id, &name).is_some() {
+                    return None;
+                }
+                Some(select_id)
+            })
+            .collect::<Vec<_>>();
+        ready.sort_by_key(|select_id| select_id.0);
+        ready
     }
 
     fn fallback_target_can_batch(&self, target: &SelectionTarget) -> bool {
