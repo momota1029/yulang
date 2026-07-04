@@ -69,7 +69,7 @@ pub(super) fn parse_run_args(
                 let Some(value) = args.pop_front() else {
                     print_usage_error_and_exit(
                         program,
-                        "run --host requires native or unsupported",
+                        "run --host requires native, unsupported, or mock-server",
                     );
                 };
                 selection.host = parse_run_host_mode_or_exit(program, &value);
@@ -164,9 +164,12 @@ fn parse_run_host_mode_str_or_exit(program: &str, value: &str) -> RunHostMode {
     match value {
         "native" => RunHostMode::Native,
         "unsupported" => RunHostMode::Unsupported,
+        "mock-server" => RunHostMode::MockServer,
         _ => print_usage_error_and_exit(
             program,
-            &format!("unknown run --host value {value:?}; expected native or unsupported"),
+            &format!(
+                "unknown run --host value {value:?}; expected native, unsupported, or mock-server"
+            ),
         ),
     }
 }
@@ -503,6 +506,11 @@ pub(super) fn run_built_evidence_for_cli_with_host(
             }
             RunHostMode::Unsupported => {
                 evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(
+                    &program, &plan, &labels,
+                )
+            }
+            RunHostMode::MockServer => {
+                evidence_vm::run_program_with_plan_with_in_process_server_host_with_labels(
                     &program, &plan, &labels,
                 )
             }
@@ -1139,7 +1147,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported>] [--print-roots] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"

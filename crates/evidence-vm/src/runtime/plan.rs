@@ -22,6 +22,7 @@ use crate::{
 pub(super) struct RuntimeEvidenceRunContext {
     deep_profile: bool,
     native_host_operations_disabled: bool,
+    in_process_server_host_enabled: bool,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -233,6 +234,7 @@ impl RuntimeEvidenceRunContext {
         Self {
             deep_profile: false,
             native_host_operations_disabled: false,
+            in_process_server_host_enabled: false,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -329,6 +331,15 @@ impl RuntimeEvidenceRunContext {
     pub(super) fn without_native_host_operations(mut self) -> Self {
         self.native_host_operations_disabled = true;
         self
+    }
+
+    pub(super) fn with_in_process_server_host(mut self) -> Self {
+        self.in_process_server_host_enabled = true;
+        self
+    }
+
+    pub(super) fn in_process_server_host_enabled(&self) -> bool {
+        self.in_process_server_host_enabled
     }
 
     pub(super) fn with_host_constructors(

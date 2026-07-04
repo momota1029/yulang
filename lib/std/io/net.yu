@@ -20,6 +20,9 @@ pub error net_err:
     timeout
     failed str
 
+pub host act net:
+    pub listen: int -> result listener net_err
+
 pub host act server:
     pub suspend_multi_shot accept: listener -> request
     pub respond: (respond_slot, bytes) -> result unit net_err
@@ -28,7 +31,17 @@ my unwrap_net(result) = case result:
     result::ok value -> value
     result::err err -> err.throw
 
+pub listen(port: int): [net, net_err] listener =
+    unwrap_net (net::listen port)
+
+pub serve(port: int): [net, server, net_err] request =
+    my listener = listen port
+    server::accept listener
+
+pub type listener with:
+    pub l.accept(): [server] request =
+        server::accept l
+
 pub type request with:
     pub req.respond(res: bytes): [server, net_err] unit =
         unwrap_net (server::respond (req.slot, res))
-

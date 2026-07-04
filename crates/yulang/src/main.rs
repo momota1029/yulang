@@ -217,6 +217,7 @@ enum RunHostMode {
     #[default]
     Native,
     Unsupported,
+    MockServer,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -553,7 +554,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         RunBackend::EvidenceVm => {
             let output = match selection.host {
                 RunHostMode::Native => run_built_evidence_for_cli(build),
-                RunHostMode::Unsupported => {
+                RunHostMode::Unsupported | RunHostMode::MockServer => {
                     run_built_evidence_for_cli_with_host(build, selection.host)
                 }
             };

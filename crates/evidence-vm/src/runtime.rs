@@ -1,5 +1,5 @@
 use std::cell::OnceCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -203,7 +203,12 @@ const IO_ERR_NOT_FOUND_LABEL: &str = "std.io.file.io_err.not_found";
 const IO_ERR_DENIED_LABEL: &str = "std.io.file.io_err.denied";
 const IO_ERR_INVALID_PATH_LABEL: &str = "std.io.file.io_err.invalid_path";
 const IO_ERR_FAILED_LABEL: &str = "std.io.file.io_err.failed";
+const NET_ERR_CLOSED_LABEL: &str = "std.io.net.net_err.closed";
 const HOST_IO_ERROR_PREFIX: &str = "yulang.host-io-error\0";
+const IN_PROCESS_SERVER_LISTENER_TYPE_ID: u32 = 1;
+const IN_PROCESS_SERVER_REQUEST_META_TYPE_ID: u32 = 2;
+const IN_PROCESS_SERVER_RESPOND_SLOT_TYPE_ID: u32 = 3;
+const IN_PROCESS_SERVER_REQUEST_LABEL: &str = "std.io.net.request";
 
 pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
     vec![
@@ -258,6 +263,28 @@ pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
             f: host_clock_now,
         },
     ]
+}
+
+fn in_process_server_host_registrations() -> Vec<HostOpRegistration> {
+    let mut registrations = builtin_host_registrations();
+    registrations.extend([
+        HostOpRegistration {
+            act_id: "std.io.net.net",
+            operation_id: "listen",
+            f: host_in_process_server_listen,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.server",
+            operation_id: "accept",
+            f: host_in_process_server_accept,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.server",
+            operation_id: "respond",
+            f: host_in_process_server_respond,
+        },
+    ]);
+    registrations
 }
 
 fn host_console_out_write(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
@@ -499,6 +526,136 @@ fn host_file_ambient_set(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> Host
     }
     state.file_ambient_buffers.insert(path, text);
     HostOutcome::Return(BoundaryValue::Unit)
+}
+
+fn host_in_process_server_listen(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let BoundaryValue::Int(port) = payload else {
+        return HostOutcome::HostError("in-process server listen expected int port".to_string());
+    };
+    if *port < 0 {
+        return HostOutcome::Return(host_result_err(net_err_failed(format!(
+            "invalid port {port}"
+        ))));
+    }
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let Some(server) = state.in_process_server.as_mut() else {
+        return HostOutcome::HostError("in-process server host is not enabled".to_string());
+    };
+    HostOutcome::Return(host_result_ok(BoundaryValue::HostHandle {
+        type_id: IN_PROCESS_SERVER_LISTENER_TYPE_ID,
+        handle: server.listener_handle(),
+    }))
+}
+
+fn host_in_process_server_accept(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    match payload {
+        BoundaryValue::HostHandle { type_id, .. }
+            if *type_id == IN_PROCESS_SERVER_LISTENER_TYPE_ID => {}
+        other => {
+            return HostOutcome::HostError(format!(
+                "in-process server accept expected listener handle, got {other:?}"
+            ));
+        }
+    }
+    let token = match ctx.suspend_multi_shot() {
+        Ok(token) => token,
+        Err(error) => {
+            return HostOutcome::HostError(format!(
+                "in-process server accept failed to issue token: {error:?}"
+            ));
+        }
+    };
+    #[cfg(test)]
+    if let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() {
+        state.test_server_accept_token = Some(token.clone());
+    }
+    drop(token);
+    HostOutcome::Suspended
+}
+
+fn host_in_process_server_respond(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let parts = match boundary_tuple(payload, 2) {
+        Ok(parts) => parts,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let slot = match &parts[0] {
+        BoundaryValue::HostHandle { type_id, handle }
+            if *type_id == IN_PROCESS_SERVER_RESPOND_SLOT_TYPE_ID =>
+        {
+            *handle
+        }
+        other => {
+            return HostOutcome::HostError(format!(
+                "in-process server respond expected respond slot handle, got {other:?}"
+            ));
+        }
+    };
+    let bytes = match &parts[1] {
+        BoundaryValue::Bytes(bytes) => bytes.clone(),
+        other => {
+            return HostOutcome::HostError(format!(
+                "in-process server respond expected bytes response, got {other:?}"
+            ));
+        }
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let Some(server) = state.in_process_server.as_mut() else {
+        return HostOutcome::HostError("in-process server host is not enabled".to_string());
+    };
+    if !server.responded_slots.insert(slot) {
+        return HostOutcome::Return(host_result_err(net_err_closed()));
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    state
+        .stdout
+        .push_str(&format!("mock-server respond {slot}: {text}\n"));
+    HostOutcome::Return(host_result_ok(BoundaryValue::Unit))
+}
+
+fn in_process_server_request(slot: u64, payload: Vec<u8>) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(IN_PROCESS_SERVER_REQUEST_LABEL.to_string()),
+        payloads: vec![BoundaryValue::Record(vec![
+            BoundaryField {
+                name: "meta".to_string(),
+                value: BoundaryValue::HostHandle {
+                    type_id: IN_PROCESS_SERVER_REQUEST_META_TYPE_ID,
+                    handle: slot,
+                },
+            },
+            BoundaryField {
+                name: "payload".to_string(),
+                value: BoundaryValue::Bytes(payload),
+            },
+            BoundaryField {
+                name: "slot".to_string(),
+                value: BoundaryValue::HostHandle {
+                    type_id: IN_PROCESS_SERVER_RESPOND_SLOT_TYPE_ID,
+                    handle: slot,
+                },
+            },
+        ])],
+    }
+}
+
+fn net_err_closed() -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(NET_ERR_CLOSED_LABEL.to_string()),
+        payloads: Vec::new(),
+    }
+}
+
+fn net_err_failed(message: String) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label("std.io.net.net_err.failed".to_string()),
+        payloads: vec![BoundaryValue::Str(message)],
+    }
 }
 
 fn builtin_host_state<'a>(
@@ -8176,6 +8333,17 @@ pub fn run_program_with_plan_without_native_host_operations_with_labels(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_with_in_process_server_host_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_in_process_server_host()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_deep_profile(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -8508,6 +8676,7 @@ enum RuntimeSuspendedHostContinuationKind {
 struct RuntimeBuiltinHostState {
     stdout: String,
     file_ambient_buffers: HashMap<PathBuf, String>,
+    in_process_server: Option<RuntimeInProcessServerHost>,
     #[cfg(test)]
     test_resume_tokens: Vec<HostResumeToken>,
     #[cfg(test)]
@@ -8519,6 +8688,14 @@ struct RuntimeBuiltinHostState {
 }
 
 impl RuntimeBuiltinHostState {
+    fn new(in_process_server_host_enabled: bool) -> Self {
+        Self {
+            in_process_server: in_process_server_host_enabled
+                .then(RuntimeInProcessServerHost::default),
+            ..Self::default()
+        }
+    }
+
     fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
         for (path, text) in &self.file_ambient_buffers {
             fs::write(path, text).map_err(|error| {
@@ -8535,6 +8712,86 @@ impl RuntimeBuiltinHostState {
                 )
             })?;
         }
+        Ok(())
+    }
+
+    fn enqueue_in_process_server_accept_events(
+        &mut self,
+        operation: &[String],
+        token: &HostResumeToken,
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        if !is_in_process_server_accept_operation(operation) {
+            return Ok(());
+        }
+        let Some(server) = self.in_process_server.as_mut() else {
+            return Ok(());
+        };
+        server.enqueue_accept_events(token)
+    }
+}
+
+fn is_in_process_server_accept_operation(operation: &[String]) -> bool {
+    operation == ["std", "io", "net", "server", "accept"].map(str::to_string)
+}
+
+#[derive(Debug)]
+struct RuntimeInProcessServerHost {
+    next_listener_handle: u64,
+    next_respond_slot: u64,
+    pending_payloads: VecDeque<Vec<u8>>,
+    responded_slots: HashSet<u64>,
+}
+
+impl Default for RuntimeInProcessServerHost {
+    fn default() -> Self {
+        Self {
+            next_listener_handle: 1,
+            next_respond_slot: 1,
+            pending_payloads: VecDeque::from([b"first".to_vec(), b"second".to_vec()]),
+            responded_slots: HashSet::new(),
+        }
+    }
+}
+
+impl RuntimeInProcessServerHost {
+    fn listener_handle(&mut self) -> u64 {
+        let handle = self.next_listener_handle;
+        self.next_listener_handle += 1;
+        handle
+    }
+
+    fn enqueue_accept_events(
+        &mut self,
+        token: &HostResumeToken,
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        while let Some(payload) = self.pending_payloads.pop_front() {
+            let slot = self.next_respond_slot;
+            self.next_respond_slot += 1;
+            token
+                .resume(in_process_server_request(slot, payload))
+                .map_err(|error| RuntimeEvidenceRunError::HostAbiError {
+                    operation: vec![
+                        "std".into(),
+                        "io".into(),
+                        "net".into(),
+                        "server".into(),
+                        "accept".into(),
+                    ],
+                    message: format!("in-process server failed to enqueue request: {error:?}"),
+                })?;
+        }
+        token
+            .close()
+            .map_err(|error| RuntimeEvidenceRunError::HostAbiError {
+                operation: vec![
+                    "std".into(),
+                    "io".into(),
+                    "net".into(),
+                    "server".into(),
+                    "accept".into(),
+                ],
+                message: format!("in-process server failed to close accept stream: {error:?}"),
+            })?;
         Ok(())
     }
 }
@@ -8590,10 +8847,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
         let host_scheduler = RuntimeHostScheduler::new();
-        let host_registry = RuntimeHostRegistry::with_manifest(
-            context.native_host_operations_enabled(),
-            context.host_manifest().cloned(),
-        );
+        let host_registry = if context.in_process_server_host_enabled() {
+            RuntimeHostRegistry::with_manifest_and_registrations(
+                context.native_host_operations_enabled(),
+                context.host_manifest().cloned(),
+                in_process_server_host_registrations(),
+            )
+        } else {
+            RuntimeHostRegistry::with_manifest(
+                context.native_host_operations_enabled(),
+                context.host_manifest().cloned(),
+            )
+        };
         let host_constructors = context.host_constructors().clone();
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
@@ -8632,7 +8897,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             marker_delta_plans: Vec::new(),
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
-            host_state: RuntimeBuiltinHostState::default(),
+            host_state: RuntimeBuiltinHostState::new(context.in_process_server_host_enabled()),
             current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
             suspended_host_continuations: HashMap::new(),
@@ -8654,6 +8919,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 Root::Expr(expr) => values.push(self.eval_expr(*expr, &mut env)?),
             }
+            self.drain_host_scheduler_values(&mut values)?;
         }
         self.host_state.flush_file_ambient_buffers()?;
         debug_assert!(self.host_scheduler.has_only_root_branch());
@@ -12509,7 +12775,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         expr: ExprId,
         env: &mut Env,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let mut result = self.eval_expr_result(expr, env)?;
+        let result = self.eval_expr_result(expr, env)?;
+        self.resolve_eval_result(result)
+    }
+
+    fn resolve_eval_result(
+        &mut self,
+        mut result: EvidenceEvalResult,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         loop {
             match result {
                 EvidenceEvalResult::Value(value) => return Ok(value),
@@ -12529,6 +12802,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
         }
+    }
+
+    fn drain_host_scheduler_values(
+        &mut self,
+        values: &mut Vec<SharedValue>,
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        while self.host_scheduler.has_pending_events() {
+            if let Some(result) = self.process_next_host_scheduler_event()? {
+                values.push(self.resolve_eval_result(result)?);
+            }
+        }
+        Ok(())
     }
 
     fn handle_escaped_request(
@@ -12732,6 +13017,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         continuation: request.continuation,
                     },
                 );
+                let operation = self
+                    .suspended_host_continuations
+                    .get(&token.id())
+                    .expect("multi-shot continuation was just inserted")
+                    .operation
+                    .clone();
+                self.host_state
+                    .enqueue_in_process_server_accept_events(&operation, &token)?;
                 Ok(RuntimeHostRequestHandling::Suspended)
             }
             HostOutcome::Return(_) => {
@@ -12802,7 +13095,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     },
                 )?;
                 let result = self.with_current_host_branch(branch_id, |runner| {
-                    runner.resume_continuation(continuation, value)
+                    let result = runner.resume_continuation(continuation, value)?;
+                    runner
+                        .resolve_eval_result(result)
+                        .map(EvidenceEvalResult::Value)
                 })?;
                 if matches!(result, EvidenceEvalResult::Value(_)) {
                     let _ = self.host_scheduler.complete_branch(branch_id);

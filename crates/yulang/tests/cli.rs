@@ -1890,8 +1890,8 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert_eq!(
         stdout.matches(" surface=contract column=").count(),
-        10,
-        "debug manifest should expose console, file protocol/ambient, server, and clock ops as contract surface:\n{stdout}"
+        11,
+        "debug manifest should expose console, file protocol/ambient, net/server, and clock ops as contract surface:\n{stdout}"
     );
     assert_eq!(
         stdout.matches(" surface=raw-compat column=").count(),
@@ -1906,7 +1906,7 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=11 symbol=yu_host_3std4time5clock_3now\n"
+            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=12 symbol=yu_host_3std4time5clock_3now\n"
         ),
         "{stdout}"
     );
@@ -1957,13 +1957,19 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.io.net.server op=accept tier=suspend-multi-shot path=std.io.net.server.accept sig=std::io::net::listener -> [std::io::net::server] std::io::net::request surface=contract column=9 symbol=yu_host_3std2io3net6server_6accept\n"
+            "  act=std.io.net.net op=listen tier=sync path=std.io.net.net.listen sig=int -> [std::io::net::net] std::data::result::result std::io::net::listener std::io::net::net_err surface=contract column=9 symbol=yu_host_3std2io3net3net_6listen\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.net.server op=respond tier=sync path=std.io.net.server.respond sig=(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err surface=contract column=10 symbol=yu_host_3std2io3net6server_7respond\n"
+            "  act=std.io.net.server op=accept tier=suspend-multi-shot path=std.io.net.server.accept sig=std::io::net::listener -> [std::io::net::server] std::io::net::request surface=contract column=10 symbol=yu_host_3std2io3net6server_6accept\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.net.server op=respond tier=sync path=std.io.net.server.respond sig=(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err surface=contract column=11 symbol=yu_host_3std2io3net6server_7respond\n"
         ),
         "{stdout}"
     );
@@ -2061,6 +2067,11 @@ fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
                 "std.io.file.file",
                 "write_at",
                 "std.io.file.file.write_at".to_string()
+            ),
+            (
+                "std.io.net.net",
+                "listen",
+                "std.io.net.net.listen".to_string()
             ),
             (
                 "std.io.net.server",
@@ -4751,6 +4762,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "from"
             | "handler-syntax"
             | "host-act"
+            | "host.mock-server"
             | "host.native"
             | "host.unsupported"
             | "junction"
@@ -4895,7 +4907,7 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
 
     let host = case.host.as_deref().unwrap_or("native");
     assert!(
-        matches!(host, "native" | "unsupported"),
+        matches!(host, "native" | "unsupported" | "mock-server"),
         "contract manifest case {} has unsupported host mode {host:?}",
         case.name
     );
@@ -4917,6 +4929,20 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert_eq!(
             host, "unsupported",
             "host.unsupported contract manifest case {} should set host = \"unsupported\"",
+            case.name
+        );
+    }
+    if host == "mock-server" {
+        assert!(
+            contract_manifest_case_has_tag(case, "host.mock-server"),
+            "mock-server contract manifest case {} should carry host.mock-server",
+            case.name
+        );
+    }
+    if contract_manifest_case_has_tag(case, "host.mock-server") {
+        assert_eq!(
+            host, "mock-server",
+            "host.mock-server contract manifest case {} should set host = \"mock-server\"",
             case.name
         );
     }
@@ -5728,6 +5754,9 @@ fn push_contract_host_args(command: &mut Command, case: &PublicContractCase) {
         "native" => {}
         "unsupported" => {
             command.arg("--host").arg("unsupported");
+        }
+        "mock-server" => {
+            command.arg("--host").arg("mock-server");
         }
         other => panic!(
             "unsupported host mode `{other}` in contract case {}",

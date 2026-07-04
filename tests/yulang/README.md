@@ -31,10 +31,12 @@ matching `compile error [` or `runtime error [` stderr prefix.
 `public-example` cases must point at `examples/` from the repo root; and
 `standard-api` cases must name a narrower API area such as `result`, `errors`,
 `path`, `str`, `time`, or `file`. Standard file API cases must also declare a host scope
-such as `host.native` or `host.unsupported`; the broad `host` tag is
-intentionally not part of the manifest taxonomy. Unsupported-host run cases set
-`host = "unsupported"` so the manifest runner passes `run --host unsupported`
-through the same CLI route users can reproduce.
+such as `host.native`, `host.unsupported`, or `host.mock-server`; the broad
+`host` tag is intentionally not part of the manifest taxonomy. Unsupported-host
+run cases set `host = "unsupported"` so the manifest runner passes
+`run --host unsupported` through the same CLI route users can reproduce.
+Server mock-host run cases set `host = "mock-server"` so the manifest runner
+uses the in-process request driver instead of a real socket adapter.
 Run cases may also set `backend = "control-vm"` or `backend = "interpreter"`
 to pin backend-specific runtime behavior. Such cases must carry the matching
 `backend.control-vm` or `backend.interpreter` tag. The default backend is the
@@ -54,11 +56,11 @@ observe the non-throwing metadata shape. Use `host-act` when a case proves
 the public host act protocol itself, including source handlers intercepting host
 act operations before the native host registry or native operation failures
 becoming typed domain values instead of integer-code bridges.
-Runtime cases should declare a host scope: `host.native`, `host.unsupported`, or
-`mock-host` plus `host.unsupported` when the mock handler is intentionally run
-with native host capabilities disabled. A `mock-host` / `resource-lifetime`
-case may also use pure Yulang state to prove the public managed-ref view shape
-before the reusable host-backed helper is available.
+Runtime cases should declare a host scope: `host.native`, `host.unsupported`,
+`host.mock-server`, or `mock-host` plus the matching host tag when the mock
+handler or in-process host is intentionally selected. A `mock-host` /
+`resource-lifetime` case may also use pure Yulang state to prove the public
+managed-ref view shape before the reusable host-backed helper is available.
 Contract v1 file protocol-center cases are `stable-api`: public
 `load`/`store`/`meta`, `text_with`, ambient `text`, typed file failures,
 unsupported-host denial, source mock routing, and their exact public

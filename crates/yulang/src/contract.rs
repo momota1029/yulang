@@ -415,7 +415,7 @@ fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
 fn validate_contract_case_host(path: &Path, case: &ContractCase) {
     let host = case.host.as_deref().unwrap_or("native");
     match host {
-        "native" | "unsupported" => {}
+        "native" | "unsupported" | "mock-server" => {}
         other => contract_manifest_fail(
             path,
             &format!(
@@ -447,6 +447,24 @@ fn validate_contract_case_host(path: &Path, case: &ContractCase) {
             path,
             &format!(
                 "host.unsupported contract case `{}` should set host = \"unsupported\"",
+                case.name
+            ),
+        );
+    }
+    if host == "mock-server" && !contract_case_has_tag(case, "host.mock-server") {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "mock-server contract case `{}` should carry host.mock-server",
+                case.name
+            ),
+        );
+    }
+    if contract_case_has_tag(case, "host.mock-server") && host != "mock-server" {
+        contract_manifest_fail(
+            path,
+            &format!(
+                "host.mock-server contract case `{}` should set host = \"mock-server\"",
                 case.name
             ),
         );
@@ -799,6 +817,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "from"
             | "handler-syntax"
             | "host-act"
+            | "host.mock-server"
             | "host.native"
             | "host.unsupported"
             | "junction"
@@ -1080,6 +1099,9 @@ fn push_contract_host_args(command: &mut Command, case: &ContractCase) {
         "native" => {}
         "unsupported" => {
             command.arg("--host").arg("unsupported");
+        }
+        "mock-server" => {
+            command.arg("--host").arg("mock-server");
         }
         other => contract_fail(case, &format!("unsupported host mode `{other}`")),
     }

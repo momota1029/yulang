@@ -298,6 +298,10 @@ impl RuntimeHostSchedulerQueueHandle {
     fn pop_front(&self) -> Option<RuntimeHostSchedulerQueuedEvent> {
         self.queue.borrow_mut().pop_front()
     }
+
+    fn is_empty(&self) -> bool {
+        self.queue.borrow().is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -572,6 +576,10 @@ impl RuntimeHostScheduler {
             }
         }
         None
+    }
+
+    pub(super) fn has_pending_events(&self) -> bool {
+        !self.queue.is_empty()
     }
 
     fn apply_cancel(&mut self, branch_id: RuntimeHostBranchId) {
