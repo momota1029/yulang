@@ -290,22 +290,62 @@ enum TypeSlotKind {
     Effect,
 }
 
-fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
-    if slot_kind != TypeSlotKind::Effect || matches!(ty, Type::EffectRow(_) | Type::Stack { .. }) {
-        return ty;
+fn effect_slot_candidate(graph: &TypeGraph<'_>, slot_kind: TypeSlotKind, ty: Type) -> Option<Type> {
+    if slot_kind != TypeSlotKind::Effect {
+        return Some(ty);
     }
-    if ty.is_pure_effect() {
-        return Type::pure_effect();
-    }
-    Type::EffectRow(vec![ty])
+    normalize_effect_candidate(graph, ty)
 }
 
-fn effect_candidate_items(ty: Type) -> Option<Vec<Type>> {
+fn effect_candidate_items(graph: &TypeGraph<'_>, ty: Type) -> Option<Vec<Type>> {
     match ty {
-        Type::EffectRow(items) => Some(items),
+        Type::EffectRow(items) => normalize_effect_row_candidate(graph, items),
         ty if ty.is_pure_effect() => Some(Vec::new()),
-        ty @ Type::Con { .. } => Some(vec![ty]),
+        Type::Con { path, args } if graph.is_effect_family_path(&path) => {
+            Some(vec![Type::Con { path, args }])
+        }
         _ => None,
+    }
+}
+
+fn normalize_effect_candidate(graph: &TypeGraph<'_>, ty: Type) -> Option<Type> {
+    match ty {
+        Type::EffectRow(items) => normalize_effect_row_candidate(graph, items).map(Type::EffectRow),
+        Type::Stack { .. } | Type::Any => Some(ty),
+        ty if ty.is_pure_effect() => Some(Type::pure_effect()),
+        Type::Con { path, args } if graph.is_effect_family_path(&path) => {
+            Some(Type::EffectRow(vec![Type::Con { path, args }]))
+        }
+        ty if type_is_effect_tail_candidate(graph, &ty) => Some(Type::EffectRow(vec![ty])),
+        _ => None,
+    }
+}
+
+fn normalize_effect_row_candidate(graph: &TypeGraph<'_>, items: Vec<Type>) -> Option<Vec<Type>> {
+    if items.is_empty() {
+        return Some(Vec::new());
+    }
+    let mut out = Vec::new();
+    for item in items {
+        push_normalized_effect_item(graph, item, &mut out);
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+fn push_normalized_effect_item(graph: &TypeGraph<'_>, item: Type, out: &mut Vec<Type>) {
+    match item {
+        Type::EffectRow(items) => {
+            for item in items {
+                push_normalized_effect_item(graph, item, out);
+            }
+        }
+        item if item.is_pure_effect() => {}
+        Type::Con { path, args } if graph.is_effect_family_path(&path) => {
+            out.push(Type::Con { path, args });
+        }
+        item if type_is_effect_tail_candidate(graph, &item) => out.push(item),
+        Type::Any => out.push(Type::Any),
+        _ => {}
     }
 }
 

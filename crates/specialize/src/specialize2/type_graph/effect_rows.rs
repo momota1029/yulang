@@ -227,7 +227,7 @@ impl<'a> TypeGraph<'a> {
         };
         slot.lower
             .iter()
-            .any(|tail_lower| effect_lower_candidates_overlap(lower, tail_lower))
+            .any(|tail_lower| effect_lower_candidates_overlap(self, lower, tail_lower))
     }
 
     pub(in crate::specialize2) fn residual_effect_after_consuming_handled(

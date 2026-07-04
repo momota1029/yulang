@@ -651,6 +651,30 @@ contracts = [
 ]
 
 [[case]]
+name = "file_ref_lines_index_chain_native"
+file = "regressions/runtime/file_ref_lines_index_chain_native.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(first, todo: one\n)\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "todo: one\nkeep", expect_contents = "todo: one\nkeep" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+  "refs",
+]
+
+[[case]]
 name = "file_value_lines_each_dot_method_lambda_native"
 file = "regressions/runtime/file_value_lines_each_dot_method_lambda_native.yu"
 kind = "run"

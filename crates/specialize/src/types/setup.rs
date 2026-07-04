@@ -8,6 +8,7 @@ impl<'a> SchemeMaterializer<'a> {
             quantifiers: scheme.quantifiers.iter().copied().collect(),
             substitution: HashMap::new(),
             kinds: HashMap::new(),
+            default_kinds: HashMap::new(),
             track_unquantified: false,
             track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
@@ -31,6 +32,7 @@ impl<'a> SchemeMaterializer<'a> {
             quantifiers: scheme.quantifiers.iter().copied().collect(),
             substitution: HashMap::new(),
             kinds: HashMap::new(),
+            default_kinds: HashMap::new(),
             track_unquantified: true,
             track_empty_bounds: true,
             empty_bound_kinds: Vec::new(),
@@ -54,6 +56,7 @@ impl<'a> SchemeMaterializer<'a> {
             quantifiers: scheme.quantifiers.iter().copied().collect(),
             substitution: HashMap::new(),
             kinds: HashMap::new(),
+            default_kinds: HashMap::new(),
             track_unquantified: true,
             track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
@@ -101,11 +104,7 @@ impl<'a> SchemeMaterializer<'a> {
             if self.substitution.contains_key(quantifier) {
                 continue;
             }
-            let kind = self
-                .kinds
-                .get(quantifier)
-                .copied()
-                .unwrap_or(QuantifierKind::Value);
+            let kind = self.kind_for(*quantifier).unwrap_or(QuantifierKind::Value);
             self.substitution.insert(*quantifier, kind.default_type());
         }
     }
@@ -131,9 +130,8 @@ impl<'a> SchemeMaterializer<'a> {
                 return Ok(());
             }
             if self
-                .kinds
-                .get(&var)
-                .is_some_and(|kind| *kind == QuantifierKind::Effect)
+                .kind_for(var)
+                .is_some_and(|kind| kind == QuantifierKind::Effect)
             {
                 let merged = merge_effect_substitution(existing.clone(), ty);
                 self.substitution.insert(var, merged);
@@ -165,6 +163,31 @@ impl<'a> SchemeMaterializer<'a> {
             .or_insert(incoming);
     }
 
+    pub(super) fn record_default_kind(&mut self, var: TypeVar, context: TypeContext) {
+        if !self.track_unquantified && !self.quantifiers.contains(&var) {
+            return;
+        }
+        if self.kinds.contains_key(&var) {
+            return;
+        }
+        let incoming = QuantifierKind::from_context(context);
+        self.default_kinds
+            .entry(var)
+            .and_modify(|kind| {
+                if incoming == QuantifierKind::Value {
+                    *kind = QuantifierKind::Value;
+                }
+            })
+            .or_insert(incoming);
+    }
+
+    pub(super) fn kind_for(&self, var: TypeVar) -> Option<QuantifierKind> {
+        self.kinds
+            .get(&var)
+            .copied()
+            .or_else(|| self.default_kinds.get(&var).copied())
+    }
+
     pub(super) fn record_inline_bound_kind(&mut self, id: NeuId, context: TypeContext) {
         if !self.inline_bound_kinds.contains_key(&id) {
             self.inline_bound_order.push(id);
@@ -184,16 +207,15 @@ impl<'a> SchemeMaterializer<'a> {
         &mut self,
         fresh: &mut impl FnMut(SchemeQuantifierKind) -> Type,
     ) {
-        let vars = self.kinds.keys().copied().collect::<Vec<_>>();
+        let mut vars = self.kinds.keys().copied().collect::<Vec<_>>();
+        vars.extend(self.default_kinds.keys().copied());
+        vars.sort_by_key(|var| var.0);
+        vars.dedup();
         for var in vars {
             if self.substitution.contains_key(&var) {
                 continue;
             }
-            let kind = self
-                .kinds
-                .get(&var)
-                .copied()
-                .unwrap_or(QuantifierKind::Value);
+            let kind = self.kind_for(var).unwrap_or(QuantifierKind::Value);
             self.substitution.insert(var, fresh(kind.into()));
         }
     }

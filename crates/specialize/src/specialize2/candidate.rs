@@ -22,8 +22,8 @@ pub(super) fn join_type_candidates(
             return merge_effect_row_candidates(graph, left, right, CandidateMerge::Join);
         }
         (Type::EffectRow(_), _) | (_, Type::EffectRow(_)) => {
-            let left_items = effect_candidate_items(left.clone());
-            let right_items = effect_candidate_items(right.clone());
+            let left_items = effect_candidate_items(graph, left.clone());
+            let right_items = effect_candidate_items(graph, right.clone());
             if let (Some(left), Some(right)) = (left_items, right_items) {
                 return merge_effect_row_candidates(graph, left, right, CandidateMerge::Join);
             }
@@ -132,8 +132,8 @@ pub(super) fn meet_type_candidates(
             return merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet);
         }
         (Type::EffectRow(_), _) | (_, Type::EffectRow(_)) => {
-            let left_items = effect_candidate_items(left.clone());
-            let right_items = effect_candidate_items(right.clone());
+            let left_items = effect_candidate_items(graph, left.clone());
+            let right_items = effect_candidate_items(graph, right.clone());
             if let (Some(left), Some(right)) = (left_items, right_items) {
                 return merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet);
             }

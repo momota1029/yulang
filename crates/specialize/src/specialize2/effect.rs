@@ -261,7 +261,7 @@ fn effect_candidate_reaches_item(
     target: &Type,
     visited: &mut HashSet<u32>,
 ) -> bool {
-    let Some(items) = effect_candidate_items(candidate.clone()) else {
+    let Some(items) = effect_candidate_items(graph, candidate.clone()) else {
         return false;
     };
     let (items, tail) = split_effect_candidate_tail_owned(graph, items);
@@ -343,7 +343,7 @@ fn effect_candidate_may_accept_item(
                 && effect_candidate_may_accept_item(graph, inner, target, visited)
         }
         _ => {
-            let Some(items) = effect_candidate_items(candidate.clone()) else {
+            let Some(items) = effect_candidate_items(graph, candidate.clone()) else {
                 return false;
             };
             let (items, tail) = split_effect_candidate_tail_owned(graph, items);
@@ -565,11 +565,15 @@ pub(super) fn residual_effect_after_consuming_handled_candidate(
     effect_row_from_parts(residual_items, actual_tail)
 }
 
-pub(super) fn effect_lower_candidates_overlap(left: &Type, right: &Type) -> bool {
-    let Some(left_items) = effect_candidate_items(left.clone()) else {
+pub(super) fn effect_lower_candidates_overlap(
+    graph: &TypeGraph<'_>,
+    left: &Type,
+    right: &Type,
+) -> bool {
+    let Some(left_items) = effect_candidate_items(graph, left.clone()) else {
         return left == right;
     };
-    let Some(right_items) = effect_candidate_items(right.clone()) else {
+    let Some(right_items) = effect_candidate_items(graph, right.clone()) else {
         return left == right;
     };
     left_items.iter().any(|left| {

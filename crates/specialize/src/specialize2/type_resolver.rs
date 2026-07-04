@@ -369,7 +369,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(bound) = self.resolve_weight_inert_bound_candidate(bound)? else {
                 continue;
             };
-            let bound = effect_slot_candidate(slot_data.kind, bound);
+            let Some(bound) = effect_slot_candidate(self.graph, slot_data.kind, bound) else {
+                continue;
+            };
             lower = Some(match lower {
                 Some(existing) => join_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -380,7 +382,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(bound) = self.resolve_weight_inert_bound_candidate(bound)? else {
                 continue;
             };
-            let bound = effect_slot_candidate(slot_data.kind, bound);
+            let Some(bound) = effect_slot_candidate(self.graph, slot_data.kind, bound) else {
+                continue;
+            };
             upper = Some(match upper {
                 Some(existing) => meet_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -397,7 +401,10 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(predecessor) = self.try_slot_solution(*predecessor)? else {
                 continue;
             };
-            let predecessor = effect_slot_candidate(slot_data.kind, predecessor);
+            let Some(predecessor) = effect_slot_candidate(self.graph, slot_data.kind, predecessor)
+            else {
+                continue;
+            };
             lower = Some(match lower {
                 Some(existing) => join_type_candidates(self.graph, existing, predecessor)?,
                 None => predecessor,
@@ -407,7 +414,10 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(successor) = self.try_slot_solution(*successor)? else {
                 continue;
             };
-            let successor = effect_slot_candidate(slot_data.kind, successor);
+            let Some(successor) = effect_slot_candidate(self.graph, slot_data.kind, successor)
+            else {
+                continue;
+            };
             upper = Some(match upper {
                 Some(existing) => meet_type_candidates(self.graph, existing, successor)?,
                 None => successor,
@@ -435,6 +445,10 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                     refine_effect_lower_with_upper(self.graph, &lower, &upper)?
                 {
                     Some(refined)
+                } else if self
+                    .effect_lower_items_covered_by_upper_bounds(&lower, &slot_data.upper)?
+                {
+                    Some(lower)
                 } else if effect_rows_have_same_families(self.graph, &lower, &upper) {
                     Some(meet_type_candidates(self.graph, lower, upper)?)
                 } else {
@@ -646,7 +660,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             if candidate_has_unresolved_stack(self.graph, slot_kind, &bound) {
                 continue;
             }
-            let bound = effect_slot_candidate(slot_kind, bound);
+            let Some(bound) = effect_slot_candidate(self.graph, slot_kind, bound) else {
+                continue;
+            };
             out = Some(match out {
                 Some(existing) => join_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -668,13 +684,57 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             if candidate_has_unresolved_stack(self.graph, slot_kind, &bound) {
                 continue;
             }
-            let bound = effect_slot_candidate(slot_kind, bound);
+            let Some(bound) = effect_slot_candidate(self.graph, slot_kind, bound) else {
+                continue;
+            };
             out = Some(match out {
                 Some(existing) => meet_type_candidates(self.graph, existing, bound)?,
                 None => bound,
             });
         }
         Ok(out)
+    }
+
+    fn effect_lower_items_covered_by_upper_bounds(
+        &mut self,
+        lower: &Type,
+        upper_bounds: &[Type],
+    ) -> Result<bool, SpecializeError> {
+        let Type::EffectRow(lower_items) = lower else {
+            return Ok(false);
+        };
+        let (lower_items, lower_tail) =
+            split_effect_candidate_tail_owned(self.graph, lower_items.clone());
+        if lower_items.is_empty() || lower_tail.is_some() {
+            return Ok(false);
+        }
+
+        let mut saw_upper_candidate = false;
+        for upper in upper_bounds {
+            let Some(upper) = self.resolve_candidate(upper)? else {
+                continue;
+            };
+            let Some(upper_items) = effect_candidate_items(self.graph, upper) else {
+                continue;
+            };
+            let (upper_items, upper_tail) =
+                split_effect_candidate_tail_owned(self.graph, upper_items);
+            if upper_items.is_empty() && upper_tail.is_none() {
+                return Ok(false);
+            }
+            saw_upper_candidate = true;
+            if upper_tail.is_some() {
+                continue;
+            }
+            if !lower_items.iter().all(|lower_item| {
+                upper_items.iter().any(|upper_item| {
+                    effect_candidate_contains_family(self.graph, upper_item, lower_item)
+                })
+            }) {
+                return Ok(false);
+            }
+        }
+        Ok(saw_upper_candidate)
     }
 
     pub(super) fn resolve_candidate(&mut self, ty: &Type) -> Result<Option<Type>, SpecializeError> {
@@ -915,5 +975,71 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             )),
             Err(error) => Err(error),
         }
+    }
+}
+
+fn effect_candidate_contains_family(
+    graph: &TypeGraph<'_>,
+    candidate: &Type,
+    target: &Type,
+) -> bool {
+    let mut visited = HashSet::new();
+    effect_candidate_contains_family_inner(graph, candidate, target, &mut visited)
+}
+
+fn effect_candidate_contains_family_inner(
+    graph: &TypeGraph<'_>,
+    candidate: &Type,
+    target: &Type,
+    visited: &mut HashSet<u32>,
+) -> bool {
+    if same_effect_row_family(candidate, target) {
+        return true;
+    }
+    match candidate {
+        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => args
+            .iter()
+            .any(|arg| effect_candidate_contains_family_inner(graph, arg, target, visited)),
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            effect_candidate_contains_family_inner(graph, arg, target, visited)
+                || effect_candidate_contains_family_inner(graph, arg_effect, target, visited)
+                || effect_candidate_contains_family_inner(graph, ret_effect, target, visited)
+                || effect_candidate_contains_family_inner(graph, ret, target, visited)
+        }
+        Type::Thunk { effect, value } => {
+            effect_candidate_contains_family_inner(graph, effect, target, visited)
+                || effect_candidate_contains_family_inner(graph, value, target, visited)
+        }
+        Type::Record(fields) => fields.iter().any(|field| {
+            effect_candidate_contains_family_inner(graph, &field.value, target, visited)
+        }),
+        Type::PolyVariant(variants) => variants.iter().any(|variant| {
+            variant.payloads.iter().any(|payload| {
+                effect_candidate_contains_family_inner(graph, payload, target, visited)
+            })
+        }),
+        Type::Stack { inner, .. } => {
+            effect_candidate_contains_family_inner(graph, inner, target, visited)
+        }
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            effect_candidate_contains_family_inner(graph, left, target, visited)
+                || effect_candidate_contains_family_inner(graph, right, target, visited)
+        }
+        Type::OpenVar(slot) => {
+            if !visited.insert(*slot) {
+                return false;
+            }
+            graph.slots.get(*slot as usize).is_some_and(|slot| {
+                slot.lower.iter().chain(slot.upper.iter()).any(|bound| {
+                    effect_candidate_contains_family_inner(graph, bound, target, visited)
+                })
+            })
+        }
+        Type::Any | Type::Never => false,
     }
 }

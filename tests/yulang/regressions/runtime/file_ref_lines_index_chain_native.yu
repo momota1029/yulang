@@ -1,0 +1,10 @@
+use std::control::var::*
+use std::text::str::*
+
+my path = {{file}}
+
+my &doc = std::io::file::text path
+
+my first = (&doc.lines).index 0
+
+("first", first.get()).say

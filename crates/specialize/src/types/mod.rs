@@ -65,9 +65,7 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     materializer.collect_scheme_kinds(scheme);
     for quantifier in &scheme.quantifiers {
         let kind = materializer
-            .kinds
-            .get(quantifier)
-            .copied()
+            .kind_for(*quantifier)
             .unwrap_or(QuantifierKind::Value);
         materializer
             .substitution
@@ -94,9 +92,7 @@ pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
     materializer.collect_scheme_kinds(scheme);
     for quantifier in &scheme.quantifiers {
         let kind = materializer
-            .kinds
-            .get(quantifier)
-            .copied()
+            .kind_for(*quantifier)
             .unwrap_or(QuantifierKind::Value);
         materializer
             .substitution
@@ -131,9 +127,7 @@ pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
             continue;
         }
         let kind = materializer
-            .kinds
-            .get(quantifier)
-            .copied()
+            .kind_for(*quantifier)
             .unwrap_or(QuantifierKind::Value);
         materializer
             .substitution
@@ -338,6 +332,7 @@ struct SchemeMaterializer<'a> {
     quantifiers: HashSet<TypeVar>,
     substitution: HashMap<TypeVar, Type>,
     kinds: HashMap<TypeVar, QuantifierKind>,
+    default_kinds: HashMap<TypeVar, QuantifierKind>,
     track_unquantified: bool,
     track_empty_bounds: bool,
     empty_bound_kinds: Vec<TypeContext>,
@@ -352,8 +347,80 @@ struct SchemeMaterializer<'a> {
 #[cfg(test)]
 mod tests {
     use mono::Type;
+    use poly::expr as poly_expr;
+    use poly::types::{Neg, Neu, Pos, Scheme, TypeArena, TypeVar};
 
-    use super::simplify_type;
+    use super::{
+        SchemeQuantifierKind, instantiate_principal_scheme_for_inference_with_fresh_and_roles,
+        simplify_type,
+    };
+
+    #[test]
+    fn nominal_arg_default_value_kind_loses_to_structural_ref_effect_kind() {
+        let mut arena = poly_expr::Arena::new();
+        let effect_var = TypeVar(0);
+        let effect = bounds_var(&mut arena.typ, effect_var);
+        let str_ty = con_neu(&mut arena.typ, &["str"]);
+        let lines = arena.typ.alloc_pos(Pos::Con(
+            path(&["std", "text", "str", "ref_lines"]),
+            vec![effect],
+        ));
+        let source = arena
+            .typ
+            .alloc_pos(Pos::Con(ref_path(), vec![effect, str_ty]));
+        let predicate = arena.typ.alloc_pos(Pos::Tuple(vec![lines, source]));
+        let scheme = scheme(predicate, effect_var);
+
+        let instantiated = instantiate_principal_scheme_for_inference_with_fresh_and_roles(
+            &arena,
+            poly_expr::DefId(0),
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+
+        assert_eq!(
+            instantiated.ty,
+            Type::Tuple(vec![
+                Type::Con {
+                    path: path(&["std", "text", "str", "ref_lines"]),
+                    args: vec![Type::OpenVar(200)],
+                },
+                Type::Con {
+                    path: ref_path(),
+                    args: vec![Type::OpenVar(200), str_type()],
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn nominal_arg_default_kind_stays_value_without_structural_effect_use() {
+        let mut arena = poly_expr::Arena::new();
+        let value_var = TypeVar(0);
+        let value = bounds_var(&mut arena.typ, value_var);
+        let predicate = arena.typ.alloc_pos(Pos::Con(
+            path(&["std", "text", "str", "ref_lines"]),
+            vec![value],
+        ));
+        let scheme = scheme(predicate, value_var);
+
+        let instantiated = instantiate_principal_scheme_for_inference_with_fresh_and_roles(
+            &arena,
+            poly_expr::DefId(0),
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+
+        assert_eq!(
+            instantiated.ty,
+            Type::Con {
+                path: path(&["std", "text", "str", "ref_lines"]),
+                args: vec![Type::OpenVar(100)],
+            }
+        );
+    }
 
     #[test]
     fn effect_row_intersection_deduplicates_repeated_family() {
@@ -421,5 +488,47 @@ mod tests {
             path: vec![name.to_string()],
             args: Vec::new(),
         }
+    }
+
+    fn fresh_for_kind(kind: SchemeQuantifierKind) -> Type {
+        match kind {
+            SchemeQuantifierKind::Value => Type::OpenVar(100),
+            SchemeQuantifierKind::Effect => Type::OpenVar(200),
+        }
+    }
+
+    fn scheme(predicate: poly::types::PosId, quantifier: TypeVar) -> Scheme {
+        Scheme {
+            quantifiers: vec![quantifier],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        }
+    }
+
+    fn bounds_var(typ: &mut TypeArena, var: TypeVar) -> poly::types::NeuId {
+        let lower = typ.alloc_pos(Pos::Var(var));
+        let upper = typ.alloc_neg(Neg::Var(var));
+        typ.alloc_neu(Neu::Bounds(lower, upper))
+    }
+
+    fn con_neu(typ: &mut TypeArena, names: &[&str]) -> poly::types::NeuId {
+        typ.alloc_neu(Neu::Con(path(names), Vec::new()))
+    }
+
+    fn str_type() -> Type {
+        Type::Con {
+            path: path(&["str"]),
+            args: Vec::new(),
+        }
+    }
+
+    fn ref_path() -> Vec<String> {
+        path(&["std", "control", "var", "ref"])
+    }
+
+    fn path(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_string()).collect()
     }
 }

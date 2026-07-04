@@ -169,7 +169,59 @@ impl<'a> SchemeMaterializer<'a> {
 
     pub(super) fn collect_con_arg_kinds(&mut self, path: &[String], args: &[NeuId]) {
         for (index, arg) in args.iter().enumerate() {
-            self.collect_neu_kind(*arg, con_arg_context(path, index));
+            let context = con_arg_context(path, index);
+            if context == TypeContext::Effect {
+                self.collect_neu_kind(*arg, context);
+            } else {
+                self.collect_nominal_arg_kind(*arg, context);
+            }
+        }
+    }
+
+    pub(super) fn collect_nominal_arg_kind(&mut self, id: NeuId, context: TypeContext) {
+        match self.arena.neu(id) {
+            Neu::Bounds(lower, upper) => {
+                self.collect_pos_default_kind(*lower, context);
+                self.collect_neg_default_kind(*upper, context);
+            }
+            Neu::Con(path, args) => self.collect_con_arg_kinds(path, args),
+            _ => self.collect_neu_kind(id, context),
+        }
+    }
+
+    pub(super) fn collect_pos_default_kind(&mut self, id: PosId, context: TypeContext) {
+        match self.arena.pos(id) {
+            Pos::Var(var) => self.record_default_kind(*var, context),
+            Pos::Con(path, args) => self.collect_con_arg_kinds(path, args),
+            Pos::Stack { inner, weight } => {
+                self.collect_pos_default_kind(*inner, context);
+                self.collect_stack_weight_kinds(weight);
+            }
+            Pos::NonSubtract(inner, weight) => {
+                self.collect_pos_default_kind(*inner, context);
+                self.collect_stack_weight_kinds(weight);
+            }
+            Pos::Union(left, right) => {
+                self.collect_pos_default_kind(*left, context);
+                self.collect_pos_default_kind(*right, context);
+            }
+            _ => self.collect_pos_kind(id, context),
+        }
+    }
+
+    pub(super) fn collect_neg_default_kind(&mut self, id: NegId, context: TypeContext) {
+        match self.arena.neg(id) {
+            Neg::Var(var) => self.record_default_kind(*var, context),
+            Neg::Con(path, args) => self.collect_con_arg_kinds(path, args),
+            Neg::Stack { inner, weight } => {
+                self.collect_neg_default_kind(*inner, context);
+                self.collect_stack_weight_kinds(weight);
+            }
+            Neg::Intersection(left, right) => {
+                self.collect_neg_default_kind(*left, context);
+                self.collect_neg_default_kind(*right, context);
+            }
+            _ => self.collect_neg_kind(id, context),
         }
     }
 

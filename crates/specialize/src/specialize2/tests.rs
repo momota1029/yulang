@@ -46,7 +46,7 @@ fn same_path_lower_candidates_unify_invariant_arguments() {
 
 #[test]
 fn function_lower_candidates_do_not_unify_ret_effects_invariantly() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[&["handled"]]);
     let mut graph = TypeGraph::new(&arena);
     let callback = graph.fresh_value();
     let effect = graph.fresh_effect();
@@ -147,7 +147,7 @@ fn effect_row_candidates_merge_same_family_arguments() {
 
 #[test]
 fn effect_row_candidate_merges_single_effect_item() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[&["effect", "item"]]);
     let graph = TypeGraph::new(&arena);
     let item = con(&["effect", "item"], vec![int_type()]);
     let row = Type::EffectRow(vec![item.clone()]);
@@ -205,7 +205,7 @@ fn effect_row_union_tail_refines_open_upper() {
 
 #[test]
 fn effect_row_bounded_intersection_tail_refines_matching_item() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[&["&buffer#1:0"]]);
     let mut graph = TypeGraph::new(&arena);
     let tail = graph.fresh_effect();
     let local = con(&["&buffer#1:0"], vec![str_type()]);
@@ -518,8 +518,78 @@ fn effect_row_item_payload_candidates_keep_union_and_intersection() {
 }
 
 #[test]
+fn effect_slot_keeps_lower_row_when_upper_meet_collapses_to_empty() {
+    let arena = arena_with_effect_families(&[
+        &["std", "io", "file", "file"],
+        &["std", "control", "nondet", "nondet"],
+        &["std", "control", "flow", "sub"],
+    ]);
+    let mut graph = TypeGraph::new(&arena);
+    let slot = graph.fresh_effect();
+    let file = con(&["std", "io", "file", "file"], Vec::new());
+    let nondet = con(&["std", "control", "nondet", "nondet"], Vec::new());
+    let flow = con(
+        &["std", "control", "flow", "sub"],
+        vec![con(
+            &["std", "control", "var", "ref"],
+            vec![Type::EffectRow(vec![file.clone()]), str_type()],
+        )],
+    );
+
+    graph
+        .constrain_subtype(Type::EffectRow(vec![file.clone()]), slot.clone())
+        .unwrap();
+    graph
+        .constrain_subtype(slot.clone(), Type::EffectRow(vec![file.clone()]))
+        .unwrap();
+    graph
+        .constrain_subtype(slot.clone(), Type::EffectRow(vec![nondet, flow]))
+        .unwrap();
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(
+        resolver.resolve(&slot).unwrap(),
+        Type::EffectRow(vec![file])
+    );
+}
+
+#[test]
+fn effect_slot_keeps_lower_row_covered_by_nested_upper_payload() {
+    let arena = arena_with_effect_families(&[
+        &["std", "io", "file", "file"],
+        &["std", "control", "nondet", "nondet"],
+        &["std", "control", "flow", "sub"],
+    ]);
+    let mut graph = TypeGraph::new(&arena);
+    let slot = graph.fresh_effect();
+    let file = con(&["std", "io", "file", "file"], Vec::new());
+    let nondet = con(&["std", "control", "nondet", "nondet"], Vec::new());
+    let flow = con(
+        &["std", "control", "flow", "sub"],
+        vec![con(
+            &["std", "control", "var", "ref"],
+            vec![Type::EffectRow(vec![file.clone()]), str_type()],
+        )],
+    );
+    let lower = Type::EffectRow(vec![file.clone(), nondet.clone(), flow.clone()]);
+    let upper = Type::EffectRow(vec![nondet, flow.clone()]);
+
+    graph
+        .constrain_subtype(lower.clone(), slot.clone())
+        .unwrap();
+    graph.constrain_subtype(slot.clone(), upper).unwrap();
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(resolver.resolve(&slot).unwrap(), lower);
+}
+
+#[test]
 fn effect_slot_lower_rows_do_not_force_same_family_payloads_exact() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[&["std", "control", "var", "ref_update"]]);
     let mut graph = TypeGraph::new(&arena);
     let effect = graph.fresh_effect();
     let list_int = list_type(int_type());
@@ -571,7 +641,12 @@ fn effect_row_lower_with_tail_refines_to_closed_upper() {
 
 #[test]
 fn effect_row_recursive_tail_refines_to_finite_closed_row() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[
+        &["std", "io", "file", "file"],
+        &["std", "io", "file", "io_err"],
+        &["&state"],
+        &["&other"],
+    ]);
     let mut graph = TypeGraph::new(&arena);
     let tail = graph.fresh_effect();
     let residual = graph.fresh_effect();
@@ -773,7 +848,7 @@ fn function_slot_upper_candidates_meet_arg_effects() {
 
 #[test]
 fn function_subtyping_compares_split_runtime_return_shapes() {
-    let arena = poly_expr::Arena::new();
+    let arena = arena_with_effect_families(&[&["effect"]]);
     let mut graph = TypeGraph::new(&arena);
     let effect = graph.fresh_effect();
     let effect_item = con(&["effect"], Vec::new());
@@ -828,6 +903,22 @@ fn variant(name: &str, payloads: Vec<Type>) -> TypeVariant {
         name: name.into(),
         payloads,
     }
+}
+
+fn arena_with_effect_families(families: &[&[&str]]) -> poly_expr::Arena {
+    let mut arena = poly_expr::Arena::new();
+    for (index, family) in families.iter().enumerate() {
+        let mut operation = family
+            .iter()
+            .map(|segment| (*segment).to_string())
+            .collect::<Vec<_>>();
+        operation.push("op".into());
+        arena.effect_operations.insert(
+            poly_expr::DefId(index as u32),
+            poly_expr::EffectOperation { path: operation },
+        );
+    }
+    arena
 }
 
 fn assert_unsatisfied_subtype(error: SpecializeError, lower: Type, upper: Type) {

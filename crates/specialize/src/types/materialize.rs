@@ -530,9 +530,7 @@ impl<'a> SchemeMaterializer<'a> {
 
     pub(super) fn materialize_type_var(&self, var: TypeVar) -> Type {
         self.substitution.get(&var).cloned().unwrap_or_else(|| {
-            self.kinds
-                .get(&var)
-                .copied()
+            self.kind_for(var)
                 .unwrap_or(QuantifierKind::Value)
                 .default_type()
         })

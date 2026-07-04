@@ -163,7 +163,9 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
-        let lower = effect_slot_candidate(self.slots[index].kind, lower);
+        let Some(lower) = effect_slot_candidate(self, self.slots[index].kind, lower) else {
+            return Ok(());
+        };
         if self.slots[index].lower.contains(&lower) {
             return Ok(());
         }
@@ -216,7 +218,9 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
-        let lower = effect_slot_candidate(self.slots[index].kind, lower);
+        let Some(lower) = effect_slot_candidate(self, self.slots[index].kind, lower) else {
+            return Ok(());
+        };
         let bound = WeightedTypeBound {
             ty: lower.clone(),
             lower_weight,
@@ -371,7 +375,9 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
-        let upper = effect_slot_candidate(self.slots[index].kind, upper);
+        let Some(upper) = effect_slot_candidate(self, self.slots[index].kind, upper) else {
+            return Ok(());
+        };
         let bound = WeightedTypeBound {
             ty: upper.clone(),
             lower_weight,
@@ -428,7 +434,9 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
-        let upper = effect_slot_candidate(self.slots[index].kind, upper);
+        let Some(upper) = effect_slot_candidate(self, self.slots[index].kind, upper) else {
+            return Ok(());
+        };
         if self.slots[index].upper.contains(&upper) {
             return Ok(());
         }
