@@ -42,7 +42,8 @@ mock-server first slice である。
 
 まだ executable stable contract ではないもの:
 
-- native socket adapter の success / failure shape。
+- native socket adapter の success / failure shape（alpha startup slice の現状 policy は
+  `docs/language/server-resource-contract.md` の `Native Socket Startup Slice` を参照）。
 - wasm / playground / sandboxed host の unsupported-host typed failure。
 - wire codec / serialization API。
 - cancellation、backpressure、timeout、connection close の failure shape。

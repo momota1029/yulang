@@ -70,3 +70,21 @@ The runtime cases all run with `host = "mock-server"`. Native socket behavior
 and unsupported-host denial are not covered by this evidence. The important
 negative rule still applies: future host slices must report real capability or
 domain failures and must not fake success to make server examples pass.
+
+## Native Socket Startup Slice
+
+Native TCP startup is covered separately from the `server-resource` manifest
+count by this Rust CLI integration test:
+
+```text
+compatible_run_native_tcp_server_echoes_two_connections
+```
+
+The test starts `yulang run --host native`, binds `net::listen 0`, reads the
+actual `listener.port` from stdout, connects with `TcpStream`, sends bytes,
+shuts down the write half, and verifies that the response bytes match. It then
+connects a second time to exercise the same multi-shot accept token.
+
+This is alpha evidence only. It does not stabilize natural server shutdown,
+timeouts, backpressure, or the exact typed shape of native socket bind/read/write
+failures.

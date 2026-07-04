@@ -15,6 +15,12 @@ The current contract is the **mock-server first slice**. It proves the resource
 shape through the public CLI and in-process request driver. It does not yet
 claim native socket adapter behavior or unsupported-host failure behavior.
 
+The native socket startup slice is an alpha adapter smoke layered on top of the
+same resource shape. It is intentionally narrower than the stable
+`server-resource` manifest contract and exists to prove that `--host native`
+can park `server.accept`, wait for external TCP input, and resume the handler
+without a background thread.
+
 Unsupported hosts must not fake success. That rule is part of the server
 resource direction, but executable denial cases for native/unsupported hosts are
 a later slice.
@@ -66,6 +72,35 @@ untyped host failure.
 The mock-server driver currently emits two request resumes and records compact
 response output. That is the first executable adapter, not the final network
 adapter.
+
+## Native Socket Startup Slice
+
+The native TCP adapter is currently alpha and unstable. Its executable evidence
+is the Rust CLI integration test
+`compatible_run_native_tcp_server_echoes_two_connections`.
+
+Current raw TCP policy:
+
+- `net.listen 0` binds `127.0.0.1:0` and exposes the actual port through
+  `listener.port`.
+- `server.accept` is pumped by the CLI evidence runtime when the scheduler queue
+  is empty and a native listener has an active multi-shot accept token.
+- The pump stays single-threaded. It polls nonblocking listeners and
+  connections, then sleeps briefly when no event is ready.
+- A connection becomes a request only after the client shuts down its write half
+  and the adapter reads EOF. All received bytes become `request.payload`.
+- `request.meta` is adapter-owned opaque metadata; the core contract does not
+  interpret it.
+- `server.respond` writes the response bytes to the TCP stream and closes it.
+  A second response to the same slot returns typed `net_err::closed`.
+
+Still not contracted for the native adapter:
+
+- natural process shutdown for long-lived servers;
+- socket timeout semantics;
+- backpressure and large response write policy;
+- stable success/failure shape for bind, accept, read, or write errors;
+- unsupported-host denial coverage for native server operations.
 
 ## Manifest Tags
 
