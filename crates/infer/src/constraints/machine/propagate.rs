@@ -400,7 +400,8 @@ impl ConstraintMachine {
     ) {
         let mut remaining_upper_items = upper_items;
         let mut variable_items = Vec::new();
-        let mut lower_tail_items = Vec::new();
+        let mut row_tail_items = Vec::new();
+        let mut direct_tail_items = Vec::new();
         for item in items {
             if matches!(self.types.pos(item), Pos::Var(_)) {
                 variable_items.push(item);
@@ -413,10 +414,16 @@ impl ConstraintMachine {
             {
                 let upper = remaining_upper_items.remove(index);
                 self.enqueue_row_item_match(item, upper, weights.clone());
+            } else if self.pos_is_effect_marker_row_item(item) {
+                row_tail_items.push(item);
             } else {
-                lower_tail_items.push(item);
+                direct_tail_items.push(item);
                 self.enqueue_subtype(item, weights.clone(), upper_tail);
             }
+        }
+
+        if let Some(lower_tail) = self.pos_row_from_pos_items(row_tail_items.clone()) {
+            self.enqueue_subtype(lower_tail, weights.clone(), upper_tail);
         }
 
         for item in variable_items {
@@ -439,7 +446,36 @@ impl ConstraintMachine {
             self.enqueue_subtype(item, weights.clone(), upper);
         }
 
-        self.enqueue_upper_tail_to_lower_row_tail(upper_tail, lower_tail_items, weights);
+        self.enqueue_upper_tail_to_lower_row_tail(upper_tail, row_tail_items, weights.clone());
+        self.enqueue_upper_tail_to_direct_tail(upper_tail, direct_tail_items, weights);
+    }
+
+    fn pos_row_from_pos_items(&mut self, items: Vec<PosId>) -> Option<PosId> {
+        (!items.is_empty()).then(|| self.alloc_pos(Pos::Row(items)))
+    }
+
+    fn pos_is_effect_marker_row_item(&self, item: PosId) -> bool {
+        match self.types.pos(item) {
+            Pos::Con(path, args) => args.is_empty() && self.effect_family_paths.contains(path),
+            Pos::Row(items) => items
+                .iter()
+                .all(|item| self.pos_is_effect_marker_row_item(*item)),
+            Pos::Stack { inner, .. } | Pos::NonSubtract(inner, _) => {
+                self.pos_is_effect_marker_row_item(*inner)
+            }
+            Pos::Union(left, right) => {
+                self.pos_is_effect_marker_row_item(*left)
+                    && self.pos_is_effect_marker_row_item(*right)
+            }
+            Pos::Var(_)
+            | Pos::Bot
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_) => false,
+        }
     }
 
     pub(in crate::constraints) fn row_items_can_match(&self, lower: PosId, upper: NegId) -> bool {
@@ -520,7 +556,23 @@ impl ConstraintMachine {
         self.enqueue_subtype(tail, weights, lower_tail);
     }
 
-    pub(in crate::constraints) fn neg_row_from_pos_items(
+    pub(in crate::constraints) fn enqueue_upper_tail_to_direct_tail(
+        &mut self,
+        upper_tail: NegId,
+        direct_tail_items: Vec<PosId>,
+        weights: ConstraintWeights,
+    ) {
+        let Neg::Var(tail_var) = self.types.neg(upper_tail).clone() else {
+            return;
+        };
+        let Some(lower_tail) = self.neg_direct_tail_from_pos_items(direct_tail_items) else {
+            return;
+        };
+        let tail = self.alloc_pos(Pos::Var(tail_var));
+        self.enqueue_subtype(tail, weights, lower_tail);
+    }
+
+    pub(in crate::constraints) fn neg_direct_tail_from_pos_items(
         &mut self,
         items: Vec<PosId>,
     ) -> Option<NegId> {
@@ -536,6 +588,21 @@ impl ConstraintMachine {
                 Some(self.alloc_neg(Neg::Row(neg_items, tail)))
             }
         }
+    }
+
+    pub(in crate::constraints) fn neg_row_from_pos_items(
+        &mut self,
+        items: Vec<PosId>,
+    ) -> Option<NegId> {
+        if items.is_empty() {
+            return None;
+        }
+        let neg_items = items
+            .into_iter()
+            .map(|item| self.neg_row_item_from_pos(item))
+            .collect::<Option<Vec<_>>>()?;
+        let tail = self.alloc_neg(Neg::Bot);
+        Some(self.alloc_neg(Neg::Row(neg_items, tail)))
     }
 
     pub(in crate::constraints) fn neg_row_item_from_pos(&mut self, item: PosId) -> Option<NegId> {

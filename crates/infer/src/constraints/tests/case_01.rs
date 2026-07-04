@@ -1018,6 +1018,8 @@ fn variant_payloads_propagate_matching_tag_constraints() {
 #[test]
 fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms() {
     let mut machine = ConstraintMachine::new();
+    machine.register_effect_family_path(vec!["io".into()]);
+    machine.register_effect_family_path(vec!["fs".into()]);
     let io_pos = machine.alloc_pos(Pos::Con(vec!["io".into()], vec![]));
     let io_neg = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
     let fs_pos = machine.alloc_pos(Pos::Con(vec!["fs".into()], vec![]));
@@ -1028,11 +1030,17 @@ fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
-        lower: fs_pos,
-        upper: upper_tail,
-        weights: ConstraintWeights::empty(),
-    }));
+    let tail_bounds = machine.bounds().of(TypeVar(1)).expect("upper tail bounds");
+    assert!(
+        tail_bounds.lowers().iter().any(|lower| {
+            lower.weights.is_empty()
+                && matches!(
+                    machine.types().pos(lower.pos),
+                    Pos::Row(items) if items == &[fs_pos]
+                )
+        }),
+        "unmatched concrete row item should flow into the tail as a row: {tail_bounds:?}"
+    );
     assert!(machine.seen.contains(&SubtypeConstraint {
         lower: row_var,
         upper: upper_tail,
@@ -1049,6 +1057,38 @@ fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms
         upper: upper_tail,
         weights: ConstraintWeights::empty(),
     }));
+}
+
+#[test]
+fn row_items_keep_non_effect_atoms_direct_for_tail_residuals() {
+    let mut machine = ConstraintMachine::new();
+    let unit = machine.alloc_pos(Pos::Con(vec!["unit".into()], vec![]));
+    let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(0)));
+    let lower = machine.alloc_pos(Pos::Row(vec![unit]));
+    let upper = machine.alloc_neg(Neg::Row(vec![], upper_tail));
+
+    machine.subtype(lower, upper);
+
+    let tail_bounds = machine.bounds().of(TypeVar(0)).expect("upper tail bounds");
+    assert!(
+        tail_bounds.lowers().iter().any(|lower| {
+            lower.weights.is_empty()
+                && matches!(
+                    machine.types().pos(lower.pos),
+                    Pos::Con(path, _) if path == &vec!["unit".to_string()]
+                )
+        }),
+        "non-effect atoms should stay direct tail candidates: {tail_bounds:?}"
+    );
+    assert!(
+        !tail_bounds.lowers().iter().any(|lower| {
+            matches!(
+                machine.types().pos(lower.pos),
+                Pos::Row(items) if items == &[unit]
+            )
+        }),
+        "non-effect atoms must not be wrapped as effect rows: {tail_bounds:?}"
+    );
 }
 
 #[test]

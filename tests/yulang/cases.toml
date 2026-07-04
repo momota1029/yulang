@@ -2277,7 +2277,7 @@ kind = "public-signature"
 std = "repo"
 module = "std.io.file"
 symbol = "std.io.file.text"
-expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref(std::io::file::file | '[std::io::file::file] <: '[std::io::file::file], std::text::str::str)"
+expect_type = "std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref '[std::io::file::file] std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "file", "file-resource", "host-act", "host.native", "refs"]
 
