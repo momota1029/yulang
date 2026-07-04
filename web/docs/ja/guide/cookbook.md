@@ -111,6 +111,80 @@ case io_err::wrap: read_text "data.txt":
 
 [std::io::file](../reference/std/fs)
 
+## 設定ファイル・行編集・ログ集計
+
+日常の小さい text 処理は
+[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) に置いている。
+
+設定ファイルは method-form の文字列 API で読み、`=` の左右を trim してから
+`port` を数値化する。
+
+```yulang
+my parse_setting(clean: str): opt (str, str) = case clean.split_once "=":
+    just (key, value) -> just (key.trim, value.trim)
+    nil -> nil
+
+my read_config(path: str): (int, list (str, str), int, int) =
+    my $port = 0
+    my $entries = []
+    for line in (std::io::file::read_text path).split "\n":
+        my clean = line.trim
+        if clean.starts_with "#":
+            ()
+        else:
+            case parse_setting clean:
+                just (key, value) ->
+                    if key == "port":
+                        case value.to_int:
+                            just parsed -> &port = parsed
+                            nil -> ()
+                    &entries = $entries + [(key, value)]
+                nil -> ()
+    ($port, $entries, 0, 0)
+```
+
+全体:
+[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu)。
+
+file を durable な text ref として開くと、行単位の編集をそのまま書ける。例では
+先に `/tmp` へ copy を作るので、何度実行しても tracked sample は汚れない。
+
+```yulang
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+std::io::file::write_text path (std::io::file::read_text source)
+
+my &doc = std::io::file::text path
+((&doc.lines.each).update \line ->
+    line.replace_once "todo:" "done:"
+).list
+
+$doc.say
+```
+
+全体:
+[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu)。
+
+parser pattern は小さい log 集計にも合う。GET payload を capture し、guard で
+`/api` だけに絞り、captured milliseconds を `int` に変換する。
+
+```yulang
+use std::text::parse::*
+
+my api_ms(line: str): opt int = case line:
+    ~"GET {rest = ..}" if rest.starts_with "/api" -> case rest.split_once " took ":
+        just (_, tail) -> case tail.split_once " ms":
+            just (ms, _) -> ms.to_int
+            nil -> nil
+        nil -> nil
+    _ -> nil
+```
+
+全体:
+[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu)。
+
 ## オプショナル引数を作る
 
 ```yulang

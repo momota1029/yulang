@@ -22,6 +22,21 @@ yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
 
+Config/file/text cookbook examples:
+
+- `examples/config-file-text/config_read.yu` — read a mixed-spacing `.conf` file and parse the port.
+  ```bash
+  yulang run examples/config-file-text/config_read.yu
+  ```
+- `examples/config-file-text/file_edit.yu` — edit todo lines through a durable text ref copy.
+  ```bash
+  yulang run examples/config-file-text/file_edit.yu
+  ```
+- `examples/config-file-text/log_stats.yu` — summarize access-log lines with parser-pattern captures.
+  ```bash
+  yulang run examples/config-file-text/log_stats.yu
+  ```
+
 Effect-inference notes and small `dump-poly` inputs live under
 `examples/effect-hygiene/`.
 

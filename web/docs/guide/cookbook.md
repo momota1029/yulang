@@ -122,6 +122,81 @@ case io_err::wrap: read_text "data.txt":
 
 [std::io::file](../reference/std/fs)
 
+## Config files, file edits, and log stats
+
+The config/file/text examples show everyday scripting tasks with small source
+files under
+[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text).
+
+Read a simple config file with method-form string APIs, trimming both sides of
+`=` before converting the port:
+
+```yulang
+my parse_setting(clean: str): opt (str, str) = case clean.split_once "=":
+    just (key, value) -> just (key.trim, value.trim)
+    nil -> nil
+
+my read_config(path: str): (int, list (str, str), int, int) =
+    my $port = 0
+    my $entries = []
+    for line in (std::io::file::read_text path).split "\n":
+        my clean = line.trim
+        if clean.starts_with "#":
+            ()
+        else:
+            case parse_setting clean:
+                just (key, value) ->
+                    if key == "port":
+                        case value.to_int:
+                            just parsed -> &port = parsed
+                            nil -> ()
+                    &entries = $entries + [(key, value)]
+                nil -> ()
+    ($port, $entries, 0, 0)
+```
+
+Full example:
+[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu).
+
+For durable line edits, open the file as a text ref and update line views. The
+example writes a temp copy first, so reruns do not dirty the tracked sample:
+
+```yulang
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+std::io::file::write_text path (std::io::file::read_text source)
+
+my &doc = std::io::file::text path
+((&doc.lines.each).update \line ->
+    line.replace_once "todo:" "done:"
+).list
+
+$doc.say
+```
+
+Full example:
+[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu).
+
+Parser patterns also work well for small log summaries. Capture the GET payload,
+filter `/api` paths with a guard, and parse the captured milliseconds:
+
+```yulang
+use std::text::parse::*
+
+my api_ms(line: str): opt int = case line:
+    ~"GET {rest = ..}" if rest.starts_with "/api" -> case rest.split_once " took ":
+        just (_, tail) -> case tail.split_once " ms":
+            just (ms, _) -> ms.to_int
+            nil -> nil
+        nil -> nil
+    _ -> nil
+```
+
+Full example:
+[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu).
+
 ## Set up optional arguments
 
 ```yulang

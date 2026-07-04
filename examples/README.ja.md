@@ -22,6 +22,21 @@ yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
 
+config/file/text の cookbook example:
+
+- `examples/config-file-text/config_read.yu` — spacing の揺れた `.conf` を読み、port を parse する。
+  ```bash
+  yulang run examples/config-file-text/config_read.yu
+  ```
+- `examples/config-file-text/file_edit.yu` — durable な text ref の copy を通して todo 行を編集する。
+  ```bash
+  yulang run examples/config-file-text/file_edit.yu
+  ```
+- `examples/config-file-text/log_stats.yu` — parser pattern capture で access log を集計する。
+  ```bash
+  yulang run examples/config-file-text/log_stats.yu
+  ```
+
 effect inference の説明用の小さい `dump-poly` 入力は
 `examples/effect-hygiene/` に置いています。
 

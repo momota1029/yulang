@@ -345,6 +345,28 @@ my route = \\line -> case line:
 `,
     },
     {
+        label: { ja: "設定ファイル", en: "Config" },
+        source: `// Parse a small config string and keep conversions explicit.
+
+my source = "# sample config
+port   =   8080
+
+[service]
+name=api
+workers = 4
+"
+
+my c = std::text::config::parse source
+
+my port = case c.get "" "port":
+    just text -> text.to_int
+    nil -> nil
+
+("port", port).say
+("service", c.get "service" "name").say
+`,
+    },
+    {
         label: { ja: "データとメソッド", en: "Data & Methods" },
         source: `// Struct methods live next to the data they extend.
 

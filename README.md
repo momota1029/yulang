@@ -186,6 +186,8 @@ and std-library `for` loops and nondeterministic search stay within an order
 of magnitude of direct recursion even though both run through the full
 effect machinery.
 
+The everyday chores — read a config, patch a file, sum a log — write like a quick script and type-check like a real program. See [examples/config-file-text/](examples/config-file-text) for the cookbook.
+
 ## Try It
 
 The fastest route is the browser playground at
@@ -258,6 +260,8 @@ cargo build -p yulang
 Good first examples:
 
 - `examples/showcase.yu`: broad syntax and library tour.
+- `examples/config-file-text/config_read.yu`: config parsing with typed values.
+- `examples/config-file-text/file_edit.yu`: durable text-file line editing.
 - `examples/06_undet_once.yu`: nondeterminism through library effects.
 - `examples/10_effect_handler.yu`: algebraic effect handlers.
 - `examples/04_sub_return.yu`: local early return through `sub:`.
