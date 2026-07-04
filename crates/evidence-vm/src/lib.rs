@@ -2252,7 +2252,7 @@ fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Optio
         else {
             continue;
         };
-        if *inner != handler {
+        if compiler_state_handler_root_expr(program, *inner) != handler {
             continue;
         }
         match found {
@@ -2262,6 +2262,13 @@ fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Optio
         }
     }
     found
+}
+
+fn compiler_state_handler_root_expr(program: &Program, expr: ExprId) -> ExprId {
+    match program.exprs.get(expr.0 as usize) {
+        Some(Expr::MakeThunk { body, .. }) => *body,
+        _ => expr,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

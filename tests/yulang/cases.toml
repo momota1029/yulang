@@ -98,6 +98,16 @@ expect_stderr = ""
 contracts = ["runtime", "refs", "std.ref", "std.flow"]
 
 [[case]]
+name = "block_ref_loop_console_20000"
+file = "regressions/runtime/block_ref_loop_console_20000.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(pure, 20000)\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow", "console"]
+
+[[case]]
 name = "result_api"
 file = "regressions/runtime/result_api.yu"
 kind = "run"

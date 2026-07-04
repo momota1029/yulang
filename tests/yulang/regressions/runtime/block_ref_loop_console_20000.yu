@@ -1,0 +1,6 @@
+{
+    my $sum = 0
+    for i in 0..<20000:
+        &sum = $sum + 1
+    ("pure", $sum).say
+}
