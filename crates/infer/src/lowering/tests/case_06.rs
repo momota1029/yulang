@@ -44,6 +44,155 @@ fn lower_loaded_files_with_prefix_preserves_cached_child_module_defs() {
 }
 
 #[test]
+fn glob_import_exposes_child_module_as_value_type_and_act_path_prefix() {
+    let loaded = sources::load(vec![
+        source_file(&[], "mod io;\nuse io::*\nmy req = net::serve\n"),
+        source_file(&["io"], "pub mod net;\n"),
+        source_file(
+            &["io", "net"],
+            "pub type request\npub act server:\n  pub accept: () -> request\npub serve = server::accept ()\n",
+        ),
+    ]);
+
+    let output = lower_loaded_files(&loaded).unwrap();
+    let root = output.modules.root_id();
+    let site = ModuleOrder::from_index(u32::MAX);
+
+    assert_eq!(output.errors, Vec::new());
+    assert!(
+        output
+            .modules
+            .value_path_at(root, &[Name("net".into()), Name("serve".into())], site)
+            .is_some()
+    );
+    assert!(
+        output
+            .modules
+            .type_path_at(root, &[Name("net".into()), Name("request".into())], site)
+            .is_some()
+    );
+    let operations = output.modules.act_operation_decls_at(
+        root,
+        &[Name("net".into()), Name("server".into())],
+        site,
+    );
+    let [accept] = operations.as_slice() else {
+        panic!("expected one imported net::server operation");
+    };
+    assert_eq!(accept.name, Name("accept".into()));
+}
+
+#[test]
+fn glob_import_child_module_beats_reexported_same_name_companion_module() {
+    let loaded = sources::load(vec![
+        source_file(&[], "mod io;\nuse io::*\nmy listener = net::listen 8080\n"),
+        source_file(&["io"], "pub mod net;\n"),
+        source_file(
+            &["io", "net"],
+            "pub type listener\npub act net:\n  pub listen: int -> listener\npub listen(port: int): listener = net::listen port\npub use net::*\n",
+        ),
+    ]);
+
+    let output = lower_loaded_files(&loaded).unwrap();
+    let root = output.modules.root_id();
+    let site = ModuleOrder::from_index(u32::MAX);
+    let resolved = output
+        .modules
+        .value_path_at(root, &[Name("net".into()), Name("listen".into())], site)
+        .expect("net::listen should resolve through imported child module");
+    let high_level = output
+        .modules
+        .value_path_at(
+            root,
+            &[Name("io".into()), Name("net".into()), Name("listen".into())],
+            site,
+        )
+        .expect("io::net::listen should resolve");
+
+    assert_eq!(output.errors, Vec::new());
+    assert_eq!(resolved, high_level);
+}
+
+#[test]
+fn prelude_glob_reexport_exposes_child_module_path_prefix() {
+    let loaded = sources::load(vec![
+        source_file(
+            &[],
+            "mod std;\nuse std::prelude::*\nmy listener = net::listen 8080\n",
+        ),
+        source_file(&["std"], "pub mod io;\npub mod prelude;\n"),
+        source_file(&["std", "io"], "pub mod net;\npub use std::io::net::*\n"),
+        source_file(
+            &["std", "io", "net"],
+            "pub type listener\npub act net:\n  pub listen: int -> listener\npub listen(port: int): listener = net::listen port\npub use net::*\n",
+        ),
+        source_file(&["std", "prelude"], "pub use std::io::*\n"),
+    ]);
+
+    let output = lower_loaded_files(&loaded).unwrap();
+    let root = output.modules.root_id();
+    let site = ModuleOrder::from_index(u32::MAX);
+    let resolved = output
+        .modules
+        .value_path_at(root, &[Name("net".into()), Name("listen".into())], site)
+        .expect("net::listen should resolve through the prelude re-export");
+    let high_level = output
+        .modules
+        .value_path_at(
+            root,
+            &[
+                Name("std".into()),
+                Name("io".into()),
+                Name("net".into()),
+                Name("listen".into()),
+            ],
+            site,
+        )
+        .expect("std::io::net::listen should resolve");
+
+    assert_eq!(output.errors, Vec::new());
+    assert_eq!(resolved, high_level);
+}
+
+#[test]
+fn local_module_wins_over_glob_imported_module_alias() {
+    let loaded = sources::load(vec![
+        source_file(
+            &[],
+            "mod io;\nuse io::*\nmod net:\n  pub serve = 2\nmy req = net::serve\n",
+        ),
+        source_file(&["io"], "pub mod net;\n"),
+        source_file(&["io", "net"], "pub serve = 1\n"),
+    ]);
+
+    let output = lower_loaded_files(&loaded).unwrap();
+    let root = output.modules.root_id();
+    let local_net = output
+        .modules
+        .module_at(root, &Name("net".into()), ModuleOrder::from_index(u32::MAX))
+        .expect("local net module");
+    let local_serve = output
+        .modules
+        .value_at(
+            local_net,
+            &Name("serve".into()),
+            ModuleOrder::from_index(u32::MAX),
+        )
+        .expect("local net::serve");
+    let resolved = output
+        .modules
+        .value_path_at(
+            root,
+            &[Name("net".into()), Name("serve".into())],
+            ModuleOrder::from_index(u32::MAX),
+        )
+        .expect("net::serve should resolve");
+
+    assert_eq!(output.errors, Vec::new());
+    assert_eq!(resolved, local_serve);
+}
+
+#[test]
 fn catch_effect_arm_binds_payload_and_continuation_locals() {
     let root = parse("my run = 1\nmy f = catch run:\n  eff x, k -> k x\n  value -> value\n");
     let lower = lower_module_map(&root);

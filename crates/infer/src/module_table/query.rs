@@ -105,7 +105,12 @@ impl ModuleTable {
                         },
                     );
                 }
-                for decl in self.module_module_imports_for_import(target, visibility) {
+                let direct_modules = self.module_module_imports_for_import(target, visibility);
+                let direct_module_names = direct_modules
+                    .iter()
+                    .map(|decl| decl.name.clone())
+                    .collect::<FxHashSet<_>>();
+                for decl in direct_modules {
                     self.push_import_module(
                         module,
                         decl.name.clone(),
@@ -183,6 +188,11 @@ impl ModuleTable {
                     })
                     .collect::<Vec<_>>();
                 for (name, modules) in reexported_modules {
+                    // A glob's declared child module is its path-prefix surface. Same-named
+                    // companion modules re-exported from that child must not replace it.
+                    if direct_module_names.contains(&name) {
+                        continue;
+                    }
                     for found in modules {
                         self.push_import_module(
                             module,
