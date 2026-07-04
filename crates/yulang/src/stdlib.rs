@@ -283,3 +283,94 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../../../lib/std/text/str.yu"),
     },
 ];
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+    use std::path::Path;
+
+    use super::*;
+
+    // Keep this explicit. An exception here means the file intentionally exists
+    // in lib/std but must not ship in the embedded std package.
+    const ALLOWED_UNEMBEDDED: &[&str] = &[];
+
+    #[test]
+    fn embedded_std_files_match_lib_std_sources() {
+        let lib_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+        let disk_files = std_source_files_on_disk(&lib_root);
+        let allowed_unembedded = ALLOWED_UNEMBEDDED
+            .iter()
+            .map(|path| path.to_string())
+            .collect::<BTreeSet<_>>();
+        let embedded_files = embedded_std_files()
+            .iter()
+            .map(|file| file.relative_path.to_string())
+            .collect::<BTreeSet<_>>();
+
+        let missing = disk_files
+            .difference(&embedded_files)
+            .filter(|path| !allowed_unembedded.contains(*path))
+            .cloned()
+            .collect::<Vec<_>>();
+        let stale = embedded_files
+            .difference(&disk_files)
+            .cloned()
+            .collect::<Vec<_>>();
+        let unused_exceptions = allowed_unembedded
+            .difference(&disk_files)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert!(
+            missing.is_empty() && stale.is_empty() && unused_exceptions.is_empty(),
+            "embedded std file list is out of sync\nmissing from EMBEDDED_STD_FILES: {missing:#?}\nstale embedded entries: {stale:#?}\nunused ALLOWED_UNEMBEDDED entries: {unused_exceptions:#?}"
+        );
+    }
+
+    fn std_source_files_on_disk(lib_root: &Path) -> BTreeSet<String> {
+        let mut files = BTreeSet::new();
+        collect_std_source_file(lib_root, &lib_root.join("std.yu"), &mut files);
+        collect_std_source_files_under(lib_root, &lib_root.join("std"), &mut files);
+        files
+    }
+
+    fn collect_std_source_files_under(lib_root: &Path, dir: &Path, files: &mut BTreeSet<String>) {
+        let mut entries = std::fs::read_dir(dir)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", dir.display()))
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap_or_else(|error| panic!("failed to read entry in {}: {error}", dir.display()));
+        entries.sort_by_key(|entry| entry.path());
+
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_std_source_files_under(lib_root, &path, files);
+            } else {
+                collect_std_source_file(lib_root, &path, files);
+            }
+        }
+    }
+
+    fn collect_std_source_file(lib_root: &Path, path: &Path, files: &mut BTreeSet<String>) {
+        if path.extension().and_then(|extension| extension.to_str()) != Some("yu") {
+            return;
+        }
+        let relative = normalize_relative_std_path(lib_root, path);
+        assert!(
+            files.insert(relative.clone()),
+            "duplicate std source file: {relative}"
+        );
+    }
+
+    fn normalize_relative_std_path(lib_root: &Path, path: &Path) -> String {
+        let relative = path
+            .strip_prefix(lib_root)
+            .unwrap_or_else(|error| panic!("failed to relativize {}: {error}", path.display()));
+        relative
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    }
+}
