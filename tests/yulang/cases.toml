@@ -2871,6 +2871,16 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "parser-dsl", "std.parse", "patterns", "effect-hygiene"]
 
 [[case]]
+name = "parser_pattern_rest_public_signature"
+file = "regressions/effect/parser_pattern_public_signature.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "classify_parser_pattern_rest"
+expect_type = "std::text::str::str -> std::text::str::str where 'a: std::text::parse::ParseError(item = 'b, pos = 'c)"
+deny_type_contains = ["#", "AllExcept", "[std::text::parse::parse"]
+contracts = ["public-signature", "parser-dsl", "std.parse", "patterns", "effect-hygiene"]
+
+[[case]]
 name = "std_flow_for_in_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"

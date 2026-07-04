@@ -390,11 +390,9 @@ impl<'a> ExprLowerer<'a> {
         self.locals.truncate(rule_locals_start);
 
         let parser = self.lower_rule_case_parser(rule)?;
-        let unit = self.unit_expr();
-        let parser = self.make_app(parser, unit);
-        // Parser patterns need full consumption; run_prefix_str keeps the parser
+        // Parser patterns need full consumption. read_prefix keeps the parser
         // effect handled while leaving the residual input available for that check.
-        let result = self.run_prefix_str(input, parser)?;
+        let result = self.read_prefix_str(input, parser)?;
         let lowered = self.lower_rule_case_result(
             arm,
             rule,
@@ -416,17 +414,13 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
-    fn run_prefix_str(
+    fn read_prefix_str(
         &mut self,
         input: Computation,
         parser: Computation,
     ) -> Result<Computation, LoweringError> {
-        let run = self.lower_std_value_ref(crate::std_paths::text_parse_value("run_prefix_str"))?;
-        let line = self.int_value(1);
-        let column = self.int_value(1);
-        let call = self.make_app(run, input);
-        let call = self.make_app(call, line);
-        let call = self.make_app(call, column);
+        let read = self.lower_std_value_ref(crate::std_paths::text_parse_value("read_prefix"))?;
+        let call = self.make_app(read, input);
         Ok(self.make_app(call, parser))
     }
 

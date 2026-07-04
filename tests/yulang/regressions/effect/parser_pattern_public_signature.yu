@@ -4,3 +4,7 @@ pub classify_parser_pattern(source: str): str = case source:
     rule { id = word } -> id
     ~"fallback" -> "fallback"
     _ -> "other"
+
+pub classify_parser_pattern_rest(source: str): str = case source:
+    ~"GET {rest = ..}" -> rest
+    _ -> "other"
