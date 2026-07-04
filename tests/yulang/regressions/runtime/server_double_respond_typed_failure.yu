@@ -1,0 +1,9 @@
+{
+    my req = std::io::net::serve 8080
+    my first = std::io::net::server::respond (req.slot, req.payload)
+    my second = std::io::net::server::respond (req.slot, req.payload)
+
+    case (first, second):
+        (result::ok (), result::err net_err::closed) -> "typed:" + req.payload.to_utf8_lossy
+        _ -> "unexpected"
+}
