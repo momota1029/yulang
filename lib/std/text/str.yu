@@ -27,6 +27,18 @@ pub type lines with:
 pub type ref_lines 'e with:
     struct self:
         source: ref 'e str
+    pub ls.index i = ref {
+        get: \() ->
+            my line_range = std::text::str::line_range (ls.source.get()) i
+            std::text::str::index_range (ls.source.get()) line_range
+        update_effect: \() ->
+            my loop(x: [_] _) = catch x:
+                ref_update::update old, k ->
+                    my line_range = std::text::str::line_range old i
+                    my new_item = ref_update::update (std::text::str::index_range old line_range)
+                    loop(k(std::text::str::splice old line_range new_item))
+            loop:ls.source.update_effect()
+    }
 
 pub str_line_view(source: str): lines =
     lines { source: source }
@@ -47,8 +59,12 @@ impl (ref_lines 'e): Index int:
             my line_range = std::text::str::line_range (ls.source.get()) i
             std::text::str::index_range (ls.source.get()) line_range
         update_effect: \() ->
-            my line_range = std::text::str::line_range (ls.source.get()) i
-            (ls.source[line_range]).update_effect()
+            my loop(x: [_] _) = catch x:
+                ref_update::update old, k ->
+                    my line_range = std::text::str::line_range old i
+                    my new_item = ref_update::update (std::text::str::index_range old line_range)
+                    loop(k(std::text::str::splice old line_range new_item))
+            loop:ls.source.update_effect()
     }
 
 my fold_lines(ls: lines, i: int, end: int, acc, f) =

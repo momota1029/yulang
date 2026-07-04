@@ -1,0 +1,11 @@
+use std::control::var::*
+use std::text::str::*
+
+my path = {{file}}
+
+(\&doc ->
+    my lines = std::text::str::line_view &doc
+    (lines.index 1).update: \line ->
+        line.replace_once "todo:" "done:"
+    ("after-line-view", $doc).say
+) (std::io::file::text path)

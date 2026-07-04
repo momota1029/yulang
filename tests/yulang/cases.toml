@@ -359,6 +359,30 @@ contracts = [
 ]
 
 [[case]]
+name = "file_line_view_ref_update_native"
+file = "regressions/runtime/file_line_view_ref_update_native.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(after-line-view, keep\ndone: one\nskip)\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "keep\ntodo: one\nskip", expect_contents = "keep\ndone: one\nskip" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+  "refs",
+]
+
+[[case]]
 name = "file_native_meta_missing"
 file = "regressions/runtime/file_native_meta_missing.yu"
 kind = "run"
