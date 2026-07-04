@@ -1550,6 +1550,19 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "runtime-failure", "diagnostics", "std.nondet", "effects"]
 
 [[case]]
+name = "run_invalid_ref_assignment_syntax"
+file = "regressions/diagnostics/run_invalid_ref_assignment_syntax.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout_contains = [
+  "diagnostics:\n  error [yulang.syntax]: syntax error: unexpected token",
+  "    --> line 6, column 1\n    6 | &(&doc.lines.each) = \"done: fixed\"\n      | ^",
+]
+expect_stderr = ""
+contracts = ["runtime", "diagnostics", "syntax", "refs"]
+
+[[case]]
 name = "not_callable_error"
 file = "regressions/runtime/not_callable_error.yu"
 kind = "run"
