@@ -1533,6 +1533,39 @@ expect_stderr = ""
 contracts = ["public-example", "runtime", "console"]
 
 [[case]]
+name = "example_config_read"
+file = "examples/config-file-text/config_read.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(config, (8080, [(port, 8080), (name, cookbook), (workers, 4)], 2, 2))\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "standard-api", "stable-api", "str", "std.parse", "file", "file-resource", "host-act", "host.native"]
+
+[[case]]
+name = "example_file_edit"
+file = "examples/config-file-text/file_edit.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(edited copy, /tmp/yulang-cookbook-todo.txt, [(), (), (), ()])\ndone: write config reader\nkeep: review notes\ndone: ship example slice\n\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "standard-api", "stable-api", "str", "file", "file-resource", "resource-lifetime", "host.native", "std.nondet", "refs"]
+
+[[case]]
+name = "example_log_stats"
+file = "examples/config-file-text/log_stats.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(api log stats, (3, 120, 72))\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "standard-api", "stable-api", "str", "std.parse", "file", "file-resource", "host-act", "host.native"]
+
+[[case]]
 name = "example_showcase"
 file = "examples/showcase.yu"
 root = "repo"

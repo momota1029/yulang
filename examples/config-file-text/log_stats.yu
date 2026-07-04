@@ -1,0 +1,25 @@
+-- Summarize GET access-log lines for /api paths.
+-- Parser-pattern capture gets the GET payload; method APIs split and parse ms.
+-- Run: cargo run -q -p yulang -- --std-root lib --no-cache run examples/config-file-text/log_stats.yu
+
+use std::text::parse::*
+
+my api_ms(line: str): opt int = case line:
+    ~"GET {rest = ..}" if rest.starts_with "/api" -> case rest.split_once " took ":
+        just (_, tail) -> case tail.split_once " ms":
+            just (ms, _) -> ms.to_int
+            nil -> nil
+        nil -> nil
+    _ -> nil
+
+my add_sample(stats: (int, int, int), line: str): (int, int, int) = case (stats, api_ms line):
+    ((count, total, max_ms), just ms) ->
+        my next_max = if ms > max_ms: ms else: max_ms
+        (count + 1, total + ms, next_max)
+    (stats, nil) -> stats
+
+my stats: (int, int, int) =
+    (std::io::file::read_text "examples/config-file-text/access.txt").split "\n"
+        .fold (0, 0, 0) add_sample
+
+("api log stats", stats).say

@@ -1,0 +1,3 @@
+todo: write config reader
+keep: review notes
+todo: ship example slice

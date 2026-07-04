@@ -1,0 +1,6 @@
+GET /api/users took 41 ms
+GET /assets/app.css took 5 ms
+POST /api/users took 18 ms
+GET /api/orders took 72 ms
+GET /api/health took 7 ms
+GET /api/bad took slow ms

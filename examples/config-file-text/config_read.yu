@@ -1,0 +1,37 @@
+-- Read a tiny .conf file, skip comments/blanks, and collect key/value pairs.
+-- The port setting is parsed as an int with method-form string APIs.
+-- Run: cargo run -q -p yulang -- --std-root lib --no-cache run examples/config-file-text/config_read.yu
+
+use std::text::parse::*
+
+my parse_setting(clean: str): opt (str, str) = case clean.split_once " = ":
+    just pair -> just pair
+    nil -> nil
+
+my is_comment(clean: str): bool = case clean:
+    ~"# {comment = ..}" -> true
+    _ -> false
+
+my read_config(path: str): (int, list (str, str), int, int) =
+    my $port = 0
+    my $entries = []
+    my $comments = 0
+    my $blanks = 0
+    for line in (std::io::file::read_text path).split "\n":
+        my clean = line.trim
+        if clean == "":
+            &blanks = $blanks + 1
+        else if is_comment clean:
+            &comments = $comments + 1
+        else:
+            case parse_setting clean:
+                just (key, value) ->
+                    if key == "port":
+                        case value.to_int:
+                            just parsed -> &port = parsed
+                            nil -> ()
+                    &entries = $entries + [(key, value)]
+                nil -> ()
+    ($port, $entries, $comments, $blanks)
+
+("config", read_config "examples/config-file-text/sample.conf").say
