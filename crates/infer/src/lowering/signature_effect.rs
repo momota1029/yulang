@@ -117,6 +117,12 @@ impl<'a> SignatureLowerer<'a> {
         {
             return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
         }
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.signature_var(tail);
+            return Ok(self.alloc_pos(Pos::Var(tail)));
+        }
 
         let mut items = Vec::with_capacity(row.items.len() + usize::from(row.tail.is_some()));
         for atom in &row.items {
@@ -172,7 +178,7 @@ impl<'a> SignatureLowerer<'a> {
         Ok(self.wrap_neg_with_stack(effect, &StackWeight::filter(filter)))
     }
 
-    fn lower_data_effect_row_neg(
+    pub(super) fn lower_data_effect_row_neg(
         &mut self,
         row: &SignatureEffectRow,
     ) -> Result<NegId, SignatureConstraintError> {
@@ -182,6 +188,12 @@ impl<'a> SignatureLowerer<'a> {
             .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
         {
             return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+        }
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.signature_var(tail);
+            return Ok(self.alloc_neg(Neg::Var(tail)));
         }
 
         let items = row
@@ -265,12 +277,13 @@ impl<'a> SignatureLowerer<'a> {
                     .collect(),
             ),
         };
-        // The data-function tail carries private stack evidence internally. Only the erased
-        // ordinary row content flows to the public type parameter; do not add the public tail to
-        // the field row itself, or payload/function boundaries lose the marker-producing gap.
+        // The data-function tail carries private stack evidence internally. The public type
+        // parameter denotes the residual row itself, so the erased private tail flows to it as a
+        // row rather than as a naked effect item.
         self.infer
             .declared_subtract_fact(private.tail, private.subtract, subtractability.clone());
-        let private_lower = self.alloc_pos(Pos::Var(private.tail));
+        let private_tail = self.alloc_pos(Pos::Var(private.tail));
+        let private_lower = self.alloc_pos(Pos::Row(vec![private_tail]));
         let public_upper = self.alloc_neg(Neg::Var(public_tail));
         self.infer.subtype(private_lower, public_upper);
         Ok((

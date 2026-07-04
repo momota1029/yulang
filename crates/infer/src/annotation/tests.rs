@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn effect_row_type_argument_lowers_as_effect_tail() {
+    fn effect_row_type_argument_lowers_as_effect_row() {
         let root = parse("type io\ntype Box\nmy site: Box '[io] = 1\n");
         let lower = crate::lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -364,20 +364,33 @@ mod tests {
         let Neu::Bounds(lower, upper) = types.neu(*arg) else {
             panic!("expected invariant type argument bounds");
         };
-        assert!(
-            matches!(types.pos(*lower), Pos::Con(path, args) if path == &expected && args.is_empty()),
-            "effect row argument lower should expose the row item as the effect tail type, got {:?}",
-            types.pos(*lower)
-        );
-        let Neg::Stack { inner, weight } = types.neg(*upper) else {
+        let Pos::Row(lower_items) = types.pos(*lower) else {
             panic!(
-                "effect row argument upper should be subtractable, got {:?}",
+                "effect row argument lower should preserve the row wrapper, got {:?}",
+                types.pos(*lower)
+            );
+        };
+        assert!(
+            lower_items
+                .iter()
+                .any(|item| matches!(types.pos(*item), Pos::Con(path, args) if path == &expected && args.is_empty())),
+            "effect row argument lower should include the row item, got {:?}",
+            lower_items
+        );
+        let Neg::Row(upper_items, tail) = types.neg(*upper) else {
+            panic!(
+                "effect row argument upper should preserve the row wrapper, got {:?}",
                 types.neg(*upper)
             );
         };
-        assert!(matches!(types.neg(*inner), Neg::Var(_)));
-        let entry = single_stack_entry(weight);
-        assert!(weight_has_set_path(weight, entry.id, &expected));
+        assert!(
+            upper_items
+                .iter()
+                .any(|item| matches!(types.neg(*item), Neg::Con(path, args) if path == &expected && args.is_empty())),
+            "effect row argument upper should include the row item, got {:?}",
+            upper_items
+        );
+        assert!(matches!(types.neg(*tail), Neg::Top));
     }
 
     #[test]

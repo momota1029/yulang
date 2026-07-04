@@ -636,8 +636,13 @@ impl<'a> SignatureLowerer<'a> {
         &mut self,
         signature: &SignatureType,
     ) -> Result<NeuId, SignatureConstraintError> {
-        let lower = self.lower_pos(signature)?;
-        let upper = self.lower_neg(signature)?;
+        let (lower, upper) = match signature {
+            SignatureType::EffectRow(row) => (
+                self.lower_data_effect_row_pos(row)?,
+                self.lower_data_effect_row_neg(row)?,
+            ),
+            _ => (self.lower_pos(signature)?, self.lower_neg(signature)?),
+        };
         Ok(self.alloc_neu(Neu::Bounds(lower, upper)))
     }
 

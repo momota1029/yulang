@@ -693,25 +693,6 @@ impl<'a> AnnConstraintLowerer<'a> {
         Ok(self.alloc_neg(Neg::Row(items, tail)))
     }
 
-    fn lower_subtractable_effect_row_neg(
-        &mut self,
-        row: &AnnEffectRow,
-    ) -> Result<NegId, AnnConstraintError> {
-        if row.items.is_empty()
-            && let Some(tail) = &row.tail
-        {
-            let tail = self.annotation_var(tail);
-            return Ok(self.alloc_neg(Neg::Var(tail)));
-        }
-
-        let effect = self.infer.fresh_type_var();
-        self.connect_effect_tail_exact(effect, row)?;
-        let stack = self.effect_row_stack(row)?;
-        self.register_stack_facts(effect, &stack.weight);
-        let effect = self.alloc_neg(Neg::Var(effect));
-        Ok(self.wrap_neg_with_stack(effect, &stack.weight))
-    }
-
     fn lower_effect_atom_pos(&mut self, atom: &AnnEffectAtom) -> Result<PosId, AnnConstraintError> {
         match atom {
             AnnEffectAtom::Type(ty) => self.lower_value_bounds(ty).map(|bounds| bounds.pos),
@@ -748,31 +729,12 @@ impl<'a> AnnConstraintLowerer<'a> {
     ) -> Result<AnnValueBounds, AnnConstraintError> {
         match ann {
             AnnType::EffectRow(row) => Ok(AnnValueBounds {
-                pos: self.lower_effect_row_tail_pos(row)?,
-                neg: self.lower_subtractable_effect_row_neg(row)?,
+                pos: self.lower_effect_row_pos(row)?,
+                neg: self.lower_effect_row_neg(row)?,
                 output_subtracts: Vec::new(),
             }),
             _ => self.lower_value_bounds(ann),
         }
-    }
-
-    fn lower_effect_row_tail_pos(
-        &mut self,
-        row: &AnnEffectRow,
-    ) -> Result<PosId, AnnConstraintError> {
-        if effect_row_has_wildcard(row) {
-            return Err(AnnConstraintError::WildcardEffectRowInTypePosition);
-        }
-        let mut items = row
-            .items
-            .iter()
-            .map(|atom| self.lower_effect_atom_pos(atom))
-            .collect::<Result<Vec<_>, _>>()?;
-        if let Some(tail) = &row.tail {
-            let tail = self.annotation_var(tail);
-            items.push(self.alloc_pos(Pos::Var(tail)));
-        }
-        Ok(self.union_pos(items))
     }
 
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
@@ -876,25 +838,6 @@ impl<'a> AnnConstraintLowerer<'a> {
             inner: neg,
             weight: weight.clone(),
         })
-    }
-
-    fn union_pos(&mut self, input: Vec<PosId>) -> PosId {
-        let mut parts = Vec::new();
-        for part in input {
-            if matches!(self.infer.constraints().types().pos(part), Pos::Bot)
-                || parts.contains(&part)
-            {
-                continue;
-            }
-            parts.push(part);
-        }
-        let Some(first) = parts.first().copied() else {
-            return self.alloc_pos(Pos::Bot);
-        };
-        parts
-            .into_iter()
-            .skip(1)
-            .fold(first, |acc, part| self.alloc_pos(Pos::Union(acc, part)))
     }
 
     fn alloc_pos(&mut self, pos: Pos) -> PosId {
