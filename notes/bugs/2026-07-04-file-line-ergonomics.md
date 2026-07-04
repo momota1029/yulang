@@ -237,6 +237,31 @@ row join として lower row を保持する。これで `(&doc.lines).index 0` 
   - `effect_slot_keeps_lower_row_when_upper_meet_collapses_to_empty`
   - `effect_slot_keeps_lower_row_covered_by_nested_upper_payload`
 
+### 2026-07-04 closure: last wall fixed
+
+Fixed in 9d10af50.
+
+The final runtime `unhandled nondet::branch` was continuation marker hygiene in the
+Evidence VM. `continuation_*_add_id_marker` masked `guard_own_path` but left
+`carry_after_frame` set, so the file marker rode along as a foreign carried guard and blocked
+the nondet handler boundary. Trace shape before the fix: `carried=[2@3] blocked=true`.
+After the fix: `carried=[] blocked=false`.
+
+The full idiom now runs natively:
+
+```yu
+my touched = ((&doc.lines.each).update \line ->
+    line.replace_once "todo:" "done:"
+).list
+```
+
+Regression fixture: `file_ref_lines_each_update_chain_native`.
+
+Without `.list`, the `branch` is correctly reported as unhandled. All D1-D4 plus the two
+downstream walls, specialize2 row join and marker hygiene, are now closed. The only remaining
+open item in this note is the parallel-run flakiness of `source::tests`; that is test
+infrastructure, not language behavior.
+
 ## 回避形
 
 - 単一の既知行なら `my r = std::text::str::line_range $doc 1; &doc[r] = "BETA\n"` は動く。
