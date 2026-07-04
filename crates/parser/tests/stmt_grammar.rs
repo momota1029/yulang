@@ -1020,6 +1020,46 @@ fn stmt_host_act_decl_is_contextual_modifier() {
 }
 
 #[test]
+fn stmt_host_act_operation_tier_is_contextual_modifier() {
+    let got = parse_stmt_once(
+        "pub host act server:\n  pub suspend_multi_shot accept: listener -> request",
+    );
+    let expected = vec![
+        "(ActDecl",
+        "  Pub \"pub\"",
+        "  Keyword \"host\"",
+        "  Act \"act\"",
+        "  Ident \"server\"",
+        "  Colon \":\"",
+        "  (IndentBlock",
+        "    (Binding",
+        "      (BindingHeader",
+        "        Pub \"pub\"",
+        "        Keyword \"suspend_multi_shot\"",
+        "        (Pattern",
+        "          Ident \"accept\"",
+        "          (TypeAnn",
+        "            Colon \":\"",
+        "            (TypeExpr",
+        "              Ident \"listener\"",
+        "              (TypeArrow",
+        "                Arrow \"->\"",
+        "                (TypeExpr",
+        "                  Ident \"request\"",
+        "                )",
+        "              )",
+        "            )",
+        "          )",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_host_identifier_binding_still_allowed() {
     let got = parse_stmt_once("my host = 1");
     assert!(got.iter().any(|line| line == "(Binding"));

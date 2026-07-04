@@ -36,8 +36,8 @@ use format::{
 };
 use host::{RuntimeHostRegistry, RuntimeHostRequestResolution};
 pub use host_abi::{
-    BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome, HostResumeError,
-    HostResumeToken, HostSuspendError,
+    BoundaryField, BoundaryValue, CtorRef, HostCtx, HostOpFn, HostOpRegistration, HostOutcome,
+    HostResumeError, HostResumeToken, HostSuspendError,
 };
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
@@ -589,6 +589,10 @@ enum RuntimeEvidenceValue {
     DataConstructor {
         def: DefId,
         payloads: Vec<SharedValue>,
+    },
+    HostHandle {
+        type_id: u32,
+        handle: u64,
     },
     ConstructorFunction {
         def: DefId,
@@ -8506,6 +8510,12 @@ struct RuntimeBuiltinHostState {
     file_ambient_buffers: HashMap<PathBuf, String>,
     #[cfg(test)]
     test_resume_tokens: Vec<HostResumeToken>,
+    #[cfg(test)]
+    test_server_accept_token: Option<HostResumeToken>,
+    #[cfg(test)]
+    test_server_responded_slots: HashSet<u64>,
+    #[cfg(test)]
+    test_server_responses: Vec<(u64, Vec<u8>)>,
 }
 
 impl RuntimeBuiltinHostState {
@@ -19945,6 +19955,16 @@ fn runtime_values_equivalent(left: &RuntimeEvidenceValue, right: &RuntimeEvidenc
         (RuntimeEvidenceValue::Bytes(left), RuntimeEvidenceValue::Bytes(right)) => left == right,
         (RuntimeEvidenceValue::Bool(left), RuntimeEvidenceValue::Bool(right)) => left == right,
         (RuntimeEvidenceValue::Unit, RuntimeEvidenceValue::Unit) => true,
+        (
+            RuntimeEvidenceValue::HostHandle {
+                type_id: left_type,
+                handle: left_handle,
+            },
+            RuntimeEvidenceValue::HostHandle {
+                type_id: right_type,
+                handle: right_handle,
+            },
+        ) => left_type == right_type && left_handle == right_handle,
         (RuntimeEvidenceValue::Tuple(left), RuntimeEvidenceValue::Tuple(right)) => {
             runtime_value_slices_equivalent(left, right)
         }
@@ -20276,11 +20296,25 @@ fn runtime_to_boundary_value(
         RuntimeEvidenceValue::Float(value) => Ok(BoundaryValue::Float(*value)),
         RuntimeEvidenceValue::Str(value) => Ok(BoundaryValue::Str(value.clone())),
         RuntimeEvidenceValue::Bytes(value) => Ok(BoundaryValue::Bytes(value.clone())),
+        RuntimeEvidenceValue::HostHandle { type_id, handle } => Ok(BoundaryValue::HostHandle {
+            type_id: *type_id,
+            handle: *handle,
+        }),
         RuntimeEvidenceValue::Tuple(values) => values
             .iter()
             .map(|value| runtime_to_boundary_value(value.as_ref(), constructors))
             .collect::<Result<Vec<_>, _>>()
             .map(BoundaryValue::Tuple),
+        RuntimeEvidenceValue::Record(fields) => fields
+            .iter()
+            .map(|field| {
+                Ok(BoundaryField {
+                    name: field.name.clone(),
+                    value: runtime_to_boundary_value(field.value.as_ref(), constructors)?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()
+            .map(BoundaryValue::Record),
         RuntimeEvidenceValue::DataConstructor { def, payloads } => {
             let label = constructors
                 .label_for_def(*def)
@@ -20298,7 +20332,6 @@ fn runtime_to_boundary_value(
             Err("host ABI cannot encode big integer values".to_string())
         }
         RuntimeEvidenceValue::List(_) => Err("host ABI cannot encode list values".to_string()),
-        RuntimeEvidenceValue::Record(_) => Err("host ABI cannot encode record values".to_string()),
         RuntimeEvidenceValue::PolyVariant { .. } => {
             Err("host ABI cannot encode poly-variant values".to_string())
         }
@@ -20332,12 +20365,26 @@ fn boundary_to_runtime_value(
             .collect::<Result<Vec<_>, _>>()
             .map(RuntimeEvidenceValue::Tuple)
             .map(shared),
+        BoundaryValue::Record(fields) => fields
+            .iter()
+            .map(|field| {
+                Ok(RuntimeEvidenceValueField {
+                    name: field.name.clone(),
+                    value: boundary_to_runtime_value(&field.value, constructors)?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()
+            .map(RuntimeEvidenceValue::Record)
+            .map(shared),
         BoundaryValue::Constructor {
             ctor: CtorRef::Label(label),
             payloads,
         } => boundary_constructor_to_runtime(label, payloads, constructors),
-        BoundaryValue::HostHandle { .. } => {
-            Err("host ABI cannot return host handles to the runtime yet".to_string())
+        BoundaryValue::HostHandle { type_id, handle } => {
+            Ok(shared(RuntimeEvidenceValue::HostHandle {
+                type_id: *type_id,
+                handle: *handle,
+            }))
         }
     }
 }
@@ -21096,6 +21143,7 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::Str(_)
         | RuntimeEvidenceValue::Bytes(_)
         | RuntimeEvidenceValue::Bool(_)
+        | RuntimeEvidenceValue::HostHandle { .. }
         | RuntimeEvidenceValue::Unit => false,
     }
 }
@@ -21311,6 +21359,12 @@ mod tests {
             shared(RuntimeEvidenceValue::Float(1.5)),
             shared(RuntimeEvidenceValue::Str("hello".to_string())),
             shared(RuntimeEvidenceValue::Bytes(vec![1, 2, 3])),
+            shared(RuntimeEvidenceValue::Record(vec![
+                RuntimeEvidenceValueField {
+                    name: "field".to_string(),
+                    value: shared(RuntimeEvidenceValue::Int(9)),
+                },
+            ])),
             shared(RuntimeEvidenceValue::DataConstructor {
                 def: ctor,
                 payloads: vec![shared(RuntimeEvidenceValue::Str("payload".to_string()))],
@@ -21328,6 +21382,10 @@ mod tests {
                 BoundaryValue::Float(1.5),
                 BoundaryValue::Str("hello".to_string()),
                 BoundaryValue::Bytes(vec![1, 2, 3]),
+                BoundaryValue::Record(vec![BoundaryField {
+                    name: "field".to_string(),
+                    value: BoundaryValue::Int(9),
+                }]),
                 BoundaryValue::Constructor {
                     ctor: CtorRef::Label("test.codec.ctor".to_string()),
                     payloads: vec![BoundaryValue::Str("payload".to_string())],
@@ -21796,7 +21854,114 @@ mod tests {
     }
 
     #[test]
-    fn host_abi_registration_cannot_return_host_handle_yet() {
+    fn server_fake_accept_resumes_two_connection_child_branches() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_fake_server_host(&mut runner);
+
+        let handling = runner
+            .try_handle_runtime_host_request(fake_server_accept_request())
+            .expect("server accept should suspend without runtime error");
+        assert!(matches!(handling, RuntimeHostRequestHandling::Suspended));
+        let token = runner
+            .host_state
+            .test_server_accept_token
+            .clone()
+            .expect("fake server should keep the multi-shot accept token");
+        let parent = runner.host_scheduler.root_branch_id();
+
+        assert_eq!(
+            token.resume(fake_server_boundary_request(10, b"first")),
+            Ok(())
+        );
+        let first = process_fake_server_resume(&mut runner);
+        assert_eq!(runner.host_scheduler.branch_parent(first.branch_id), None);
+        assert_eq!(first.parent_branch_id, parent);
+        assert_eq!(first.resume_ordinal, 0);
+        assert_request_payload_and_slot(first.value.as_ref(), b"first", 10);
+
+        assert_eq!(
+            token.resume(fake_server_boundary_request(20, b"second")),
+            Ok(())
+        );
+        let second = process_fake_server_resume(&mut runner);
+        assert_eq!(second.parent_branch_id, parent);
+        assert_eq!(second.resume_ordinal, 1);
+        assert_ne!(first.branch_id, second.branch_id);
+        assert_request_payload_and_slot(second.value.as_ref(), b"second", 20);
+
+        assert_eq!(token.close(), Ok(()));
+        assert!(
+            runner
+                .process_next_host_scheduler_event()
+                .expect("queued accept close should be processed")
+                .is_none()
+        );
+        assert!(runner.suspended_host_continuations.is_empty());
+    }
+
+    #[test]
+    fn server_fake_request_slot_responds_once() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_fake_server_host(&mut runner);
+        let request = fake_server_runtime_request(&runner.host_constructors, 33, b"body");
+        let slot = record_field(request.as_ref(), "slot").expect("request should carry slot");
+
+        let result = runner
+            .handle_escaped_request(fake_server_respond_request(slot.clone(), b"ok"))
+            .expect("first respond should be handled");
+
+        assert!(matches!(result, EvidenceEvalResult::Value(_)));
+        assert_eq!(
+            runner.host_state.test_server_responses,
+            vec![(33, b"ok".to_vec())]
+        );
+        assert_eq!(
+            runner.host_state.test_server_responded_slots,
+            HashSet::from([33])
+        );
+    }
+
+    #[test]
+    fn server_fake_double_respond_is_structured_failure() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_fake_server_host(&mut runner);
+        let request = fake_server_runtime_request(&runner.host_constructors, 44, b"body");
+        let slot = record_field(request.as_ref(), "slot").expect("request should carry slot");
+
+        runner
+            .handle_escaped_request(fake_server_respond_request(slot.clone(), b"first"))
+            .expect("first respond should be handled");
+        let error = runner
+            .handle_escaped_request(fake_server_respond_request(slot, b"second"))
+            .expect_err("second respond must not fake success");
+
+        match error {
+            RuntimeEvidenceRunError::HostAbiError { operation, message } => {
+                assert_eq!(
+                    operation,
+                    vec![
+                        "std".to_string(),
+                        "io".to_string(),
+                        "net".to_string(),
+                        "server".to_string(),
+                        "respond".to_string()
+                    ]
+                );
+                assert!(message.contains("respond slot 44 already consumed"));
+            }
+            other => panic!("expected structured host ABI failure, got {other:?}"),
+        }
+        assert_eq!(
+            runner.host_state.test_server_responses,
+            vec![(44, b"first".to_vec())]
+        );
+    }
+
+    #[test]
+    fn host_abi_registration_can_return_and_reencode_host_handle() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
@@ -21821,24 +21986,290 @@ mod tests {
             continuation: EvidenceContinuation::identity(),
         };
 
-        let error = runner
+        let result = runner
             .handle_escaped_request(request)
-            .expect_err("host handles are reserved until host-resource layout is wired");
+            .expect("host handles should be runtime values after host-resource layout is wired");
 
-        match error {
-            RuntimeEvidenceRunError::HostAbiError { operation, message } => {
-                assert_eq!(
-                    operation,
-                    vec![
-                        "test".to_string(),
-                        "host".to_string(),
-                        "bridge".to_string(),
-                        "call".to_string()
-                    ]
-                );
-                assert!(message.contains("cannot return host handles"));
+        let EvidenceEvalResult::Value(value) = result else {
+            panic!("expected host handle value, got {result:?}");
+        };
+        assert_eq!(
+            value.as_ref(),
+            &RuntimeEvidenceValue::HostHandle {
+                type_id: 1,
+                handle: 42,
             }
-            other => panic!("expected host ABI error, got {other:?}"),
+        );
+        assert_eq!(
+            runtime_to_boundary_value(value.as_ref(), &runner.host_constructors),
+            Ok(BoundaryValue::HostHandle {
+                type_id: 1,
+                handle: 42,
+            })
+        );
+    }
+
+    #[derive(Debug)]
+    struct FakeServerResume {
+        branch_id: RuntimeHostBranchId,
+        parent_branch_id: RuntimeHostBranchId,
+        resume_ordinal: u64,
+        value: SharedValue,
+    }
+
+    const FAKE_LISTENER_TYPE_ID: u32 = 1;
+    const FAKE_REQUEST_META_TYPE_ID: u32 = 2;
+    const FAKE_RESPOND_SLOT_TYPE_ID: u32 = 3;
+    const FAKE_REQUEST_DEF: DefId = DefId(100);
+    const FAKE_RESULT_OK_DEF: DefId = DefId(101);
+    const FAKE_SERVER_REQUEST_LABEL: &str = "std.io.net.request";
+
+    fn install_fake_server_host(runner: &mut RuntimeEvidenceRunner<'_>) {
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(fake_server_host_manifest()),
+            vec![
+                HostOpRegistration {
+                    act_id: "std.io.net.server",
+                    operation_id: "accept",
+                    f: fake_server_accept,
+                },
+                HostOpRegistration {
+                    act_id: "std.io.net.server",
+                    operation_id: "respond",
+                    f: fake_server_respond,
+                },
+            ],
+        );
+        runner
+            .host_constructors
+            .labels_by_def
+            .insert(FAKE_REQUEST_DEF, FAKE_SERVER_REQUEST_LABEL.to_string());
+        runner
+            .host_constructors
+            .defs_by_label
+            .insert(FAKE_SERVER_REQUEST_LABEL.to_string(), FAKE_REQUEST_DEF);
+        runner
+            .host_constructors
+            .labels_by_def
+            .insert(FAKE_RESULT_OK_DEF, RESULT_OK_LABEL.to_string());
+        runner
+            .host_constructors
+            .defs_by_label
+            .insert(RESULT_OK_LABEL.to_string(), FAKE_RESULT_OK_DEF);
+    }
+
+    fn fake_server_accept(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+        match payload {
+            BoundaryValue::HostHandle { type_id, .. } if *type_id == FAKE_LISTENER_TYPE_ID => {}
+            other => {
+                return HostOutcome::HostError(format!(
+                    "fake server accept expected listener handle, got {other:?}"
+                ));
+            }
+        }
+        let token = match ctx.suspend_multi_shot() {
+            Ok(token) => token,
+            Err(error) => {
+                return HostOutcome::HostError(format!(
+                    "fake server accept failed to issue token: {error:?}"
+                ));
+            }
+        };
+        let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() else {
+            return HostOutcome::HostError("fake server expected builtin host state".to_string());
+        };
+        state.test_server_accept_token = Some(token);
+        HostOutcome::Suspended
+    }
+
+    fn fake_server_respond(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+        let parts = match boundary_tuple(payload, 2) {
+            Ok(parts) => parts,
+            Err(error) => return HostOutcome::HostError(error),
+        };
+        let slot = match &parts[0] {
+            BoundaryValue::HostHandle { type_id, handle }
+                if *type_id == FAKE_RESPOND_SLOT_TYPE_ID =>
+            {
+                *handle
+            }
+            other => {
+                return HostOutcome::HostError(format!(
+                    "fake server respond expected respond slot handle, got {other:?}"
+                ));
+            }
+        };
+        let bytes = match &parts[1] {
+            BoundaryValue::Bytes(bytes) => bytes.clone(),
+            other => {
+                return HostOutcome::HostError(format!(
+                    "fake server respond expected bytes response, got {other:?}"
+                ));
+            }
+        };
+        let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() else {
+            return HostOutcome::HostError("fake server expected builtin host state".to_string());
+        };
+        if !state.test_server_responded_slots.insert(slot) {
+            return HostOutcome::HostError(format!("respond slot {slot} already consumed"));
+        }
+        state.test_server_responses.push((slot, bytes));
+        HostOutcome::Return(boundary_result_ok_unit())
+    }
+
+    fn process_fake_server_resume(runner: &mut RuntimeEvidenceRunner<'_>) -> FakeServerResume {
+        let event = runner
+            .host_scheduler
+            .process_next_event()
+            .expect("fake server connection should enqueue a resume");
+        let scheduler::RuntimeHostSchedulerEvent::Resume {
+            branch_id,
+            token_id,
+            value,
+        } = event
+        else {
+            panic!("expected fake server resume event, got {event:?}");
+        };
+        let parent_branch_id = runner
+            .host_scheduler
+            .branch_parent(branch_id)
+            .expect("fake server resume should spawn a child branch");
+        let resume_ordinal = runner
+            .host_scheduler
+            .branch_resume_ordinal(branch_id)
+            .expect("fake server child branch should carry a resume ordinal");
+        let Some((operation, continuation, remove_after_resume)) = runner
+            .host_resume_continuation(token_id, branch_id)
+            .expect("fake server continuation lookup should not fail")
+        else {
+            panic!("fake server resume should have a suspended continuation");
+        };
+        assert_eq!(
+            operation,
+            vec![
+                "std".to_string(),
+                "io".to_string(),
+                "net".to_string(),
+                "server".to_string(),
+                "accept".to_string()
+            ]
+        );
+        assert!(!remove_after_resume);
+        let value = boundary_to_runtime_value(&value, &runner.host_constructors)
+            .expect("fake server request should decode");
+        let result = runner
+            .with_current_host_branch(branch_id, |runner| {
+                runner.resume_continuation(continuation, value)
+            })
+            .expect("fake server continuation should resume");
+        let EvidenceEvalResult::Value(value) = result else {
+            panic!("fake server identity continuation should produce a value");
+        };
+        let _ = runner.host_scheduler.complete_branch(branch_id);
+        FakeServerResume {
+            branch_id,
+            parent_branch_id,
+            resume_ordinal,
+            value,
+        }
+    }
+
+    fn fake_server_accept_request() -> EvidenceRequest {
+        EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "net".to_string(),
+                "server".to_string(),
+                "accept".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::HostHandle {
+                type_id: FAKE_LISTENER_TYPE_ID,
+                handle: 8080,
+            }),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        }
+    }
+
+    fn fake_server_respond_request(slot: SharedValue, response: &[u8]) -> EvidenceRequest {
+        EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "net".to_string(),
+                "server".to_string(),
+                "respond".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Tuple(vec![
+                slot,
+                shared(RuntimeEvidenceValue::Bytes(response.to_vec())),
+            ])),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        }
+    }
+
+    fn fake_server_runtime_request(
+        constructors: &RuntimeEvidenceHostConstructors,
+        slot: u64,
+        payload: &[u8],
+    ) -> SharedValue {
+        boundary_to_runtime_value(&fake_server_boundary_request(slot, payload), constructors)
+            .expect("fake server request should decode")
+    }
+
+    fn fake_server_boundary_request(slot: u64, payload: &[u8]) -> BoundaryValue {
+        BoundaryValue::Constructor {
+            ctor: CtorRef::Label(FAKE_SERVER_REQUEST_LABEL.to_string()),
+            payloads: vec![BoundaryValue::Record(vec![
+                BoundaryField {
+                    name: "meta".to_string(),
+                    value: BoundaryValue::HostHandle {
+                        type_id: FAKE_REQUEST_META_TYPE_ID,
+                        handle: slot,
+                    },
+                },
+                BoundaryField {
+                    name: "payload".to_string(),
+                    value: BoundaryValue::Bytes(payload.to_vec()),
+                },
+                BoundaryField {
+                    name: "slot".to_string(),
+                    value: BoundaryValue::HostHandle {
+                        type_id: FAKE_RESPOND_SLOT_TYPE_ID,
+                        handle: slot,
+                    },
+                },
+            ])],
+        }
+    }
+
+    fn assert_request_payload_and_slot(value: &RuntimeEvidenceValue, payload: &[u8], slot: u64) {
+        assert_eq!(
+            record_field(value, "payload")
+                .expect("request should carry payload")
+                .as_ref(),
+            &RuntimeEvidenceValue::Bytes(payload.to_vec())
+        );
+        assert_eq!(
+            record_field(value, "slot")
+                .expect("request should carry slot")
+                .as_ref(),
+            &RuntimeEvidenceValue::HostHandle {
+                type_id: FAKE_RESPOND_SLOT_TYPE_ID,
+                handle: slot,
+            }
+        );
+    }
+
+    fn boundary_result_ok_unit() -> BoundaryValue {
+        BoundaryValue::Constructor {
+            ctor: CtorRef::Label(RESULT_OK_LABEL.to_string()),
+            payloads: vec![BoundaryValue::Unit],
         }
     }
 
@@ -21958,6 +22389,48 @@ mod tests {
             "() -> int",
             poly::host_manifest::HostOperationTier::SuspendMultiShot,
         )
+    }
+
+    fn fake_server_host_manifest() -> poly::host_manifest::HostActManifest {
+        let act_path = vec![
+            "std".to_string(),
+            "io".to_string(),
+            "net".to_string(),
+            "server".to_string(),
+        ];
+        poly::host_manifest::HostActManifest::new(
+            vec![poly::host_manifest::HostActManifestAct {
+                act_id: "std.io.net.server".to_string(),
+                path: act_path.clone(),
+            }],
+            vec![
+                poly::host_manifest::HostActManifestOperationInput {
+                    act_id: "std.io.net.server".to_string(),
+                    operation_id: "accept".to_string(),
+                    path: act_path
+                        .iter()
+                        .cloned()
+                        .chain(["accept".to_string()])
+                        .collect(),
+                    tier: poly::host_manifest::HostOperationTier::SuspendMultiShot,
+                    surface: poly::host_manifest::HostOperationSurface::Contract,
+                    signature: "listener -> request".to_string(),
+                },
+                poly::host_manifest::HostActManifestOperationInput {
+                    act_id: "std.io.net.server".to_string(),
+                    operation_id: "respond".to_string(),
+                    path: act_path
+                        .iter()
+                        .cloned()
+                        .chain(["respond".to_string()])
+                        .collect(),
+                    tier: poly::host_manifest::HostOperationTier::Sync,
+                    surface: poly::host_manifest::HostOperationSurface::Contract,
+                    signature: "(respond_slot, bytes) -> result unit net_err".to_string(),
+                },
+            ],
+        )
+        .expect("fake server host manifest should be valid")
     }
 
     fn install_multi_shot_host(runner: &mut RuntimeEvidenceRunner<'_>) {

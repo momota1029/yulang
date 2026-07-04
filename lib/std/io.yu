@@ -1,5 +1,7 @@
 pub mod console;
 pub mod file;
+pub mod net;
 
 pub use std::io::console::*
 pub use std::io::file::*
+pub use std::io::net::*

@@ -17,6 +17,7 @@ pub enum BoundaryValue {
     Str(String),
     Bytes(Vec<u8>),
     Tuple(Vec<BoundaryValue>),
+    Record(Vec<BoundaryField>),
     Constructor {
         ctor: CtorRef,
         payloads: Vec<BoundaryValue>,
@@ -25,6 +26,12 @@ pub enum BoundaryValue {
         type_id: u32,
         handle: u64,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoundaryField {
+    pub name: String,
+    pub value: BoundaryValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

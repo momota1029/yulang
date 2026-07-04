@@ -86,7 +86,13 @@ pub struct CompiledLoweringActOperationSignature {
     pub value_symbol: Option<u32>,
     pub value_path: Option<Vec<String>>,
     pub name: String,
+    #[serde(default = "default_host_operation_tier")]
+    pub tier: poly::host_manifest::HostOperationTier,
     pub signature: Option<CompiledSignatureType>,
+}
+
+fn default_host_operation_tier() -> poly::host_manifest::HostOperationTier {
+    poly::host_manifest::HostOperationTier::Sync
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -270,6 +276,7 @@ impl CompiledLoweringSurface {
                                 value_symbol: value.as_ref().map(|value| value.unit_id),
                                 value_path: value.map(|value| value.path),
                                 name: op.name.0.clone(),
+                                tier: op.tier,
                                 signature: compile_act_operation_signature(
                                     modules,
                                     &decl,
@@ -467,6 +474,7 @@ impl CompiledLoweringSurface {
                 && let Some(op) = ops.iter_mut().find(|op| op.name.0 == entry.name)
             {
                 op.signature = signature;
+                op.tier = entry.tier;
             }
         }
 

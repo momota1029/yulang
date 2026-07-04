@@ -31,7 +31,7 @@ pub(super) fn parse_binding_stmt<I: EventInput, S: EventSink>(
         return Some(Either::Left(after_head));
     };
 
-    parse_binding_from_nud_inner(i, head_kw, nud)
+    parse_binding_from_nud_inner(i, head_kw, None, nud)
 }
 
 /// `scan_pat_nud` 済みの nud を受け取って Binding をパースする。
@@ -41,17 +41,30 @@ pub(super) fn parse_binding_stmt_from_nud<I: EventInput, S: EventSink>(
     head_kw: Lex,
     nud: Token<PatNudTag>,
 ) -> Option<Either<TriviaInfo, Lex>> {
-    parse_binding_from_nud_inner(i, head_kw, nud)
+    parse_binding_from_nud_inner(i, head_kw, None, nud)
+}
+
+pub(super) fn parse_binding_stmt_from_nud_with_header_modifier<I: EventInput, S: EventSink>(
+    i: In<I, S>,
+    head_kw: Lex,
+    header_modifier: Lex,
+    nud: Token<PatNudTag>,
+) -> Option<Either<TriviaInfo, Lex>> {
+    parse_binding_from_nud_inner(i, head_kw, Some(header_modifier), nud)
 }
 
 fn parse_binding_from_nud_inner<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     head_kw: Lex,
+    header_modifier: Option<Lex>,
     nud: Token<PatNudTag>,
 ) -> Option<Either<TriviaInfo, Lex>> {
     i.env.state.sink.start(SyntaxKind::Binding);
     i.env.state.sink.start(SyntaxKind::BindingHeader);
     i.env.state.sink.lex(&head_kw);
+    if let Some(header_modifier) = header_modifier {
+        i.env.state.sink.lex(&header_modifier);
+    }
 
     // nud が Equal stop なら直接 Equal 処理へ（pat なし）
     if matches!(nud.tag, PatNudTag::Stop) && nud.lex.kind == SyntaxKind::Equal {

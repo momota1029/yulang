@@ -1075,9 +1075,32 @@ fn act_operation_signatures_from_body_filtered(
             Some(ActOperationSig {
                 name: binding_name(&binding)?,
                 signature: binding_type_expr(&binding).map(StoredSignature::source),
+                tier: binding_host_operation_tier(&binding),
             })
         })
         .collect()
+}
+
+fn binding_host_operation_tier(binding: &Cst) -> poly::host_manifest::HostOperationTier {
+    let Some(header) = child_node(binding, SyntaxKind::BindingHeader) else {
+        return poly::host_manifest::HostOperationTier::Sync;
+    };
+    header
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find_map(|token| {
+            if token.kind() != SyntaxKind::Keyword {
+                return None;
+            }
+            match token.text() {
+                "suspend_one_shot" => Some(poly::host_manifest::HostOperationTier::SuspendOneShot),
+                "suspend_multi_shot" => {
+                    Some(poly::host_manifest::HostOperationTier::SuspendMultiShot)
+                }
+                _ => None,
+            }
+        })
+        .unwrap_or(poly::host_manifest::HostOperationTier::Sync)
 }
 
 pub(crate) fn act_copy_source_exports_child(node: &Cst) -> bool {

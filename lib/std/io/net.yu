@@ -1,0 +1,34 @@
+use std::control::throw::Throw
+use std::data::result::*
+use std::text::bytes::*
+
+pub type listener
+pub type request_meta
+pub type respond_slot
+
+pub struct request {
+    meta: request_meta,
+    payload: bytes,
+    slot: respond_slot,
+}
+
+pub error net_err:
+    unreachable str
+    refused str
+    already_bound str
+    closed
+    timeout
+    failed str
+
+pub host act server:
+    pub suspend_multi_shot accept: listener -> request
+    pub respond: (respond_slot, bytes) -> result unit net_err
+
+my unwrap_net(result) = case result:
+    result::ok value -> value
+    result::err err -> err.throw
+
+pub type request with:
+    pub req.respond(res: bytes): [server, net_err] unit =
+        unwrap_net (server::respond (req.slot, res))
+

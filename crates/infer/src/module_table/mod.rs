@@ -648,6 +648,7 @@ impl ModuleTable {
                 effect: effect.clone(),
                 name: op.name,
                 signature: op.signature,
+                tier: op.tier,
             })
             .collect()
     }
@@ -659,11 +660,18 @@ impl ModuleTable {
             .get(&op.effect)
             .and_then(|ops| ops.iter().find(|sig| sig.name == op.name))
             .and_then(|sig| sig.signature.clone());
+        let tier = self
+            .act_ops
+            .get(&op.effect)
+            .and_then(|ops| ops.iter().find(|sig| sig.name == op.name))
+            .map(|sig| sig.tier)
+            .unwrap_or(poly::host_manifest::HostOperationTier::Sync);
         Some(ActOperationDecl {
             effect,
             name: op.name.clone(),
             def: Some(def),
             signature,
+            tier,
         })
     }
     pub fn lexical_type_at(

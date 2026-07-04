@@ -554,7 +554,10 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
                 ),
             );
         }
-        if !contract_case_has_any_tag(case, &["result", "errors", "path", "time", "file", "str"]) {
+        if !contract_case_has_any_tag(
+            case,
+            &["result", "errors", "path", "time", "file", "str", "network"],
+        ) {
             contract_manifest_fail(
                 path,
                 &format!(
@@ -805,6 +808,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "migration-canary"
             | "mock-host"
             | "names"
+            | "network"
             | "parser-dsl"
             | "path"
             | "patterns"
@@ -823,6 +827,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime"
             | "runtime-error"
             | "runtime-failure"
+            | "server"
             | "showcase"
             | "stable-core"
             | "stable-api"

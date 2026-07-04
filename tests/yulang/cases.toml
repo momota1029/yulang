@@ -2028,6 +2028,28 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "time", "host-act", "host.native"]
 
 [[case]]
+name = "std_io_net_server_accept_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.net.server"
+symbol = "std.io.net.server.accept"
+expect_type = "std::io::net::listener -> [std::io::net::server] std::io::net::request"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+
+[[case]]
+name = "std_io_net_server_respond_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.io.net.server"
+symbol = "std.io.net.server.respond"
+expect_type = "(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+
+[[case]]
 name = "std_time_instant_since_public_signature"
 file = "support/empty.yu"
 kind = "public-signature"

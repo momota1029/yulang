@@ -288,12 +288,14 @@ pub struct ActOperationDecl {
     pub name: Name,
     pub def: Option<DefId>,
     pub signature: Option<StoredSignature>,
+    pub tier: poly::host_manifest::HostOperationTier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActOperationSig {
     name: Name,
     signature: Option<StoredSignature>,
+    tier: poly::host_manifest::HostOperationTier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

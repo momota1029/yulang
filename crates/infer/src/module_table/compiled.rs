@@ -338,6 +338,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         &self.modules,
                         &entry.signature,
                     ),
+                    tier: entry.tier,
                 });
             if let Some(source_def) = entry.source_def {
                 let def = self.runtime_import.map_def(source_def);

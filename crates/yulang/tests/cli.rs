@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -1854,8 +1854,8 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert_eq!(
         stdout.matches(" surface=contract column=").count(),
-        8,
-        "debug manifest should expose console, file protocol/ambient, and clock ops as contract surface:\n{stdout}"
+        10,
+        "debug manifest should expose console, file protocol/ambient, server, and clock ops as contract surface:\n{stdout}"
     );
     assert_eq!(
         stdout.matches(" surface=raw-compat column=").count(),
@@ -1870,7 +1870,7 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=9 symbol=yu_host_3std4time5clock_3now\n"
+            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=11 symbol=yu_host_3std4time5clock_3now\n"
         ),
         "{stdout}"
     );
@@ -1916,6 +1916,18 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     assert!(
         stdout.contains(
             "  act=std.io.file.file op=ambient_set tier=sync path=std.io.file.file.ambient_set sig=(std::text::path::path, std::text::str::str) -> [std::io::file::file] () surface=contract column=2 symbol=yu_host_3std2io4file4file_11ambient_set\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.net.server op=accept tier=suspend-multi-shot path=std.io.net.server.accept sig=std::io::net::listener -> [std::io::net::server] std::io::net::request surface=contract column=9 symbol=yu_host_3std2io3net6server_6accept\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.net.server op=respond tier=sync path=std.io.net.server.respond sig=(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err surface=contract column=10 symbol=yu_host_3std2io3net6server_7respond\n"
         ),
         "{stdout}"
     );
@@ -2014,6 +2026,16 @@ fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
                 "write_at",
                 "std.io.file.file.write_at".to_string()
             ),
+            (
+                "std.io.net.server",
+                "accept",
+                "std.io.net.server.accept".to_string()
+            ),
+            (
+                "std.io.net.server",
+                "respond",
+                "std.io.net.server.respond".to_string()
+            ),
             ("std.time.clock", "now", "std.time.clock.now".to_string()),
         ])
     );
@@ -2031,11 +2053,20 @@ fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
             "std.io.file.file.write_at".to_string(),
         ])
     );
+    let tiers = manifest
+        .operations
+        .iter()
+        .map(|op| (op.path.join("."), op.tier))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(
+        tiers.get("std.io.net.server.accept"),
+        Some(&poly::host_manifest::HostOperationTier::SuspendMultiShot)
+    );
     assert!(
-        manifest
-            .operations
+        tiers
             .iter()
-            .all(|op| op.tier == poly::host_manifest::HostOperationTier::Sync)
+            .filter(|(path, _)| path.as_str() != "std.io.net.server.accept")
+            .all(|(_, tier)| *tier == poly::host_manifest::HostOperationTier::Sync)
     );
 
     let _ = fs::remove_dir_all(&root);
@@ -4693,6 +4724,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "migration-canary"
             | "mock-host"
             | "names"
+            | "network"
             | "parser-dsl"
             | "path"
             | "patterns"
@@ -4711,6 +4743,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime"
             | "runtime-error"
             | "runtime-failure"
+            | "server"
             | "showcase"
             | "stable-core"
             | "stable-api"
@@ -4924,7 +4957,7 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert!(
             contract_manifest_case_has_any_tag(
                 case,
-                &["result", "errors", "path", "time", "file", "str"]
+                &["result", "errors", "path", "time", "file", "str", "network"]
             ),
             "standard-api contract manifest case {} should include a narrower API area tag",
             case.name

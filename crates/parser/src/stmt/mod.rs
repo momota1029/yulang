@@ -9,7 +9,7 @@ use crate::lex::{Lex, SyntaxKind, TriviaInfo};
 use crate::mark::parse::{parse_doc_body_pub, parse_inline};
 use crate::mark::scan::{BlockNudTag, MarkNudTag};
 use crate::parse::emit_invalid;
-use crate::pat::scan::{scan_pat_nud, scan_visibility_pat_nud};
+use crate::pat::scan::{PatNudTag, scan_pat_nud, scan_visibility_pat_nud};
 use crate::scan::trivia::scan_trivia;
 use crate::sink::EventSink;
 
@@ -170,6 +170,23 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
         return act_decl::parse_act_decl(i, Some(vis_kw), Some(host), act_kw);
     }
 
+    if contextual_host_operation_tier_modifier(&nud.lex) {
+        let checkpoint = i.checkpoint();
+        if let Some(operation_nud) =
+            scan_contextual_host_operation_after_tier(nud.lex.trailing_trivia_info(), i.rb())
+        {
+            let mut tier = nud.lex;
+            tier.kind = SyntaxKind::Keyword;
+            return binding::parse_binding_stmt_from_nud_with_header_modifier(
+                i,
+                vis_kw,
+                tier,
+                operation_nud,
+            );
+        }
+        i.rollback(checkpoint);
+    }
+
     // stop トークンなら decl kw か Equal かで早期 dispatch
     use crate::pat::scan::PatNudTag;
     if matches!(nud.tag, PatNudTag::Stop) {
@@ -200,6 +217,27 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
 
 fn contextual_host_act_modifier(lex: &Lex) -> bool {
     lex.kind == SyntaxKind::Ident && lex.text.as_ref() == "host"
+}
+
+fn contextual_host_operation_tier_modifier(lex: &Lex) -> bool {
+    lex.kind == SyntaxKind::Ident
+        && matches!(lex.text.as_ref(), "suspend_one_shot" | "suspend_multi_shot")
+}
+
+fn scan_contextual_host_operation_after_tier<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> Option<crate::lex::Token<PatNudTag>> {
+    if matches!(leading_info, TriviaInfo::Newline { .. } | TriviaInfo::None) {
+        return None;
+    }
+    let nud = scan_visibility_pat_nud(leading_info, i)?;
+    if matches!(nud.tag, PatNudTag::Atom)
+        && matches!(nud.lex.kind, SyntaxKind::Ident | SyntaxKind::SigilIdent)
+    {
+        return Some(nud);
+    }
+    None
 }
 
 fn scan_contextual_host_act<I: EventInput, S: EventSink>(

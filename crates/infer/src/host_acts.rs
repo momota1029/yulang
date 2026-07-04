@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use poly::dump::format_scheme;
 use poly::host_manifest::{
     HostActManifest, HostActManifestAct, HostActManifestOperationInput, HostManifestError,
-    HostOperationSurface, HostOperationTier,
+    HostOperationSurface,
 };
 
 use crate::{
@@ -108,7 +108,7 @@ fn host_act_manifest_from_compiled_with_raw_compat_overrides(
             act_id: act.act_id.clone(),
             operation_id: op.name.clone(),
             path,
-            tier: HostOperationTier::Sync,
+            tier: op.tier,
             surface,
             signature: format_scheme(&type_arena, scheme),
         });
@@ -165,6 +165,7 @@ mod tests {
         CompiledLoweringActOperationSignature, CompiledNamespaceTypeSymbol, CompiledTypeArena,
         CompiledTypedValueScheme,
     };
+    use poly::host_manifest::HostOperationTier;
     use poly::types::{Pos, Scheme, TypeArena};
 
     #[test]
@@ -210,6 +211,29 @@ mod tests {
         assert_eq!(
             manifest.operations[0].surface,
             HostOperationSurface::RawCompat
+        );
+    }
+
+    #[test]
+    fn preserves_declared_host_operation_tier() {
+        let namespace =
+            namespace_with_types(vec![type_symbol(0, &["test", "host", "server"], true)]);
+        let typed = typed_with_unit_schemes([10]);
+        let mut accept = act_op(0, &["test", "host", "server"], "accept", 10);
+        accept.tier = HostOperationTier::SuspendMultiShot;
+        let lowering = lowering_with_ops(vec![accept]);
+
+        let manifest = host_act_manifest_from_compiled_with_raw_compat_overrides(
+            &namespace,
+            &lowering,
+            &typed,
+            &[],
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.operations[0].tier,
+            HostOperationTier::SuspendMultiShot
         );
     }
 
@@ -346,6 +370,7 @@ mod tests {
             value_symbol: Some(value_symbol),
             value_path: None,
             name: name.to_string(),
+            tier: HostOperationTier::Sync,
             signature: None,
         }
     }

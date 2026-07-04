@@ -77,6 +77,9 @@ fn format_value_in_context(
         RuntimeEvidenceValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         RuntimeEvidenceValue::Bool(value) => value.to_string(),
         RuntimeEvidenceValue::Unit => "()".to_string(),
+        RuntimeEvidenceValue::HostHandle { type_id, handle } => {
+            format!("<host-handle type={type_id} handle={handle}>")
+        }
         RuntimeEvidenceValue::Tuple(values) => {
             format_delimited("(", ")", values, labels, display, constructor_syntax)
         }

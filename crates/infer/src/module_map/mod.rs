@@ -554,6 +554,7 @@ impl Lower {
                             .map(|variant| ActOperationSig {
                                 name: variant.name.clone(),
                                 signature: None,
+                                tier: poly::host_manifest::HostOperationTier::Sync,
                             })
                             .collect(),
                     );
