@@ -193,7 +193,7 @@ Linux / macOS に CLI を入れる場合（binary は標準ライブラリを同
 初回に `~/.yulang` 以下へ配置します）:
 
 ```bash
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.7
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.8
 ```
 
 installer は `~/.yulang/bin` が `PATH` に無ければ shell profile へ追加します
@@ -204,7 +204,7 @@ Windows では:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.7
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.8
 ```
 
 ファイルの実行と型検査:

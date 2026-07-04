@@ -10,7 +10,7 @@ Install the release archive for your OS. The binary contains the embedded
 standard library and writes it to the user library directory on first use:
 
 ```sh
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.6
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.8
 ```
 
 The shell installer adds `~/.yulang/bin` to the relevant shell profile if it is
@@ -21,7 +21,7 @@ On Windows:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.6
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.8
 ```
 
 The PowerShell installer adds the install `bin` directory to the user `PATH`.
