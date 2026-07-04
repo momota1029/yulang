@@ -1096,6 +1096,55 @@ fn run_control_source_text_with_embedded_std_replaces_strings() {
 }
 
 #[test]
+fn check_poly_source_text_with_embedded_std_resolves_ref_lines_each_update_chain() {
+    let output = check_poly_from_source_text_with_embedded_std(
+        "playground.yu",
+        r#"
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+my path = "/tmp/yulang-source-ref-lines-each-update-chain.txt"
+
+my &doc = std::io::file::text path
+
+(&doc.lines.each).update \line ->
+    line.replace_once "todo:" "done:"
+"#,
+    )
+    .unwrap();
+
+    assert_check_contains(&output, "check-poly-embedded-std\n");
+    assert_check_contains(&output, "  lowering errors: 0\n");
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_resolves_value_lines_each_replace_once_chain() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        r#"
+use std::control::nondet::*
+use std::text::str::*
+
+my doc = "keep
+todo: one
+skip
+todo: two"
+
+((doc.lines.each).replace_once "todo:" "done:").list
+"#,
+    )
+    .unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [[\"keep\\n\", \"done: one\\n\", \"skip\\n\", \"done: two\"]]\n"
+    );
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_edits_parse_matches() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",

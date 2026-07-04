@@ -372,7 +372,10 @@ impl AnalysisSession {
 
     fn fallback_target_can_batch(&self, target: &SelectionTarget) -> bool {
         match target {
-            SelectionTarget::RecordField => true,
+            // Record fallback adds receiver shape constraints. Keep it out of
+            // method fallback batches so freshly selected methods can finish
+            // instantiating receiver bounds before record projection is chosen.
+            SelectionTarget::RecordField => false,
             SelectionTarget::TypeclassMethod { member } => self.scc.is_quantified(*member),
             SelectionTarget::Method { .. } | SelectionTarget::EffectMethod { .. } => false,
         }

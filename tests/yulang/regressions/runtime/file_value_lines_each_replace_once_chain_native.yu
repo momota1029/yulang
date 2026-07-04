@@ -1,0 +1,11 @@
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+my path = {{file}}
+
+my &doc = std::io::file::text path
+
+my touched = (($doc.lines.each).replace_once "todo:" "done:").list
+
+("touched", touched).say
