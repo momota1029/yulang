@@ -150,6 +150,62 @@ use std::control::nondet::*
 (each [1, 2]).list.say
 ```
 
+## 2026-07-04 chain diagnosis
+
+本来の書き味である `&doc.lines.each` 系の one-liner chain を、helper extraction なしで
+直接試した。過去の lambda / helper 形だけの失敗とは別に、chain そのものでは
+次の 4 系統の原因が分かれた。
+
+### D3 fixed: effect row が naked effect へ崩れていた
+
+修正: 2976bb07, 56df359d。
+
+`ref '[file] str` のような effect row を invariant な型コンストラクタ引数へ
+lower すると、内部 scheme で `ref(file, str)` のような naked effect として
+保存される経路があった。さらに、payload なし effect marker が row tail へ流れるときも
+`[file]` ではなく裸の `file` として流れていた。
+
+`std_file_text_public_signature` は spec/2026-07-02-io-resource-api.md §1 の綴りに合わせ、
+`ref '[std::io::file::file] str` を pin する。古い golden は naked bug 形を
+固定していたものだった。
+
+### D4 fixed: parse diagnostics のある run が無言成功していた
+
+修正: 3e1d1e08。
+
+`&(expr)` は現状では `InvalidToken` として lex されるが、module body lowering が
+それを捨てていたため、`run` が root なしで exit 0 になる経路があった。
+`run` は parse diagnostics を持つ source を診断つき exit 1 で拒否するようになった。
+
+`&(expr) = ...` を「computed ref への代入」として本物の構文にするかどうかは、
+別途ユーザ判断が必要な言語設計項目。
+
+### D1 / D2 open: selection probe が var-only lower-bound link を追わない
+
+`(&doc.lines.each).update \line -> ...` と
+`($doc.lines.each).replace_once "todo:" "done:"` は未解決。
+
+receiver は trace 上では ground に見えるが、selection 時点では
+`lowers=[Var(...)]` の形で、具体の `ref(file, str)` / `str` は 1 hop 先にある。
+現在の selection probe は var→var の lower-bound link を dereference しない。
+また eb8e0a7c の upper-bound probe は「lowers が空、かつ upper が 1 個だけ」の場合に
+しか発火しないため、この case には効かない。
+
+提案中の修正は、probe が var-only lower bound を chain-wise に 1 hop ずつ追うこと。
+fixpoint にはしない。未解決 link が残る間は record fallback を保留する。
+これはユーザ review 待ちで、まだ実装しない。
+
+### New finding: check 後の run が specialize2 で落ちる
+
+D3 修正後、`(&doc.lines).index 0` と `.get()` chain は `check` を通る。
+ただし `run` は specialize2 で次の別 conflict に当たる:
+
+```text
+conflicting type candidates for slot 11: [std::io::file::file] vs []
+```
+
+これは D3 の `file vs [file]` とは別の downstream row conflict として調査が必要。
+
 ## 回避形
 
 - 単一の既知行なら `my r = std::text::str::line_range $doc 1; &doc[r] = "BETA\n"` は動く。
