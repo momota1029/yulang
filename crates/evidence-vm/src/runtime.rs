@@ -20682,7 +20682,11 @@ fn function_call_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> EvidenceValu
 fn continuation_call_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> EvidenceValueMarker {
     let depth = marker.depth.saturating_sub(1);
     let guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
-    if depth == marker.depth && guard_own_path == marker.guard_own_path && marker.guard_foreign_path
+    let carry_after_frame = continuation_marker_carry_after_frame(marker, guard_own_path);
+    if depth == marker.depth
+        && guard_own_path == marker.guard_own_path
+        && carry_after_frame == marker.carry_after_frame
+        && marker.guard_foreign_path
     {
         return EvidenceValueMarker::AddId(marker.clone());
     }
@@ -20690,18 +20694,32 @@ fn continuation_call_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> Evidence
     out.depth = depth;
     out.guard_own_path = guard_own_path;
     out.guard_foreign_path = true;
+    out.carry_after_frame = carry_after_frame;
     EvidenceValueMarker::AddId(Rc::new(out))
 }
 
 fn continuation_resume_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> EvidenceValueMarker {
     let guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
-    if guard_own_path == marker.guard_own_path && marker.guard_foreign_path {
+    let carry_after_frame = continuation_marker_carry_after_frame(marker, guard_own_path);
+    if guard_own_path == marker.guard_own_path
+        && carry_after_frame == marker.carry_after_frame
+        && marker.guard_foreign_path
+    {
         return EvidenceValueMarker::AddId(marker.clone());
     }
     let mut out = marker.as_ref().clone();
     out.guard_own_path = guard_own_path;
     out.guard_foreign_path = true;
+    out.carry_after_frame = carry_after_frame;
     EvidenceValueMarker::AddId(Rc::new(out))
+}
+
+fn continuation_marker_carry_after_frame(
+    marker: &EvidenceAddIdMarker,
+    guard_own_path: bool,
+) -> bool {
+    // carry_after_frame only has meaning for the own-path guard it carries across a frame close.
+    marker.carry_after_frame && guard_own_path
 }
 
 fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceValueMarker> {
@@ -25488,6 +25506,33 @@ mod tests {
         assert_eq!(runner.stats.resume_marker_plan_active_add_id_ops, 1);
         assert_eq!(runner.stats.resume_marker_plan_enter_ops_total, 3);
         assert_eq!(runner.stats.resume_marker_plan_to_legacy_push_pop, 1);
+    }
+
+    #[test]
+    fn continuation_markers_clear_carry_after_frame_when_own_path_is_masked() {
+        let marker = Rc::new(EvidenceAddIdMarker {
+            id: EvidenceGuardId(1),
+            path: shared_path(&permission_test_path()),
+            depth: 0,
+            guard_own_path: true,
+            guard_foreign_path: false,
+            carry_after_frame: true,
+            preserve_own_on_resume: false,
+        });
+
+        let EvidenceValueMarker::AddId(resume) = continuation_resume_add_id_marker(&marker) else {
+            panic!("resume transform should keep AddId marker shape");
+        };
+        assert!(!resume.guard_own_path);
+        assert!(resume.guard_foreign_path);
+        assert!(!resume.carry_after_frame);
+
+        let EvidenceValueMarker::AddId(call) = continuation_call_add_id_marker(&marker) else {
+            panic!("call transform should keep AddId marker shape");
+        };
+        assert!(!call.guard_own_path);
+        assert!(call.guard_foreign_path);
+        assert!(!call.carry_after_frame);
     }
 
     #[test]
