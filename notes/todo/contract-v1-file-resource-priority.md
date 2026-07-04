@@ -226,6 +226,15 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      the record-replay identifier work; remaining for the driver are the server
      host act with tiered manifest entries, request/respond one-shot slots,
      multi-shot accept, and the in-process driver loop.
+   - 2026-07-04: the first server slice is landed — compiler-produced host
+     manifests carry operation tiers, `std::io::net` declares the server act
+     per the io-resource spec (`accept` = suspend multi-shot returning
+     `request` with meta / payload / respond slot, `respond` = one-shot slot
+     consumption returning `result () net_err`), and a test-only in-process
+     fake server host fixes accept resume fan-out, request delivery, single
+     respond, and double-respond structured failure (commit a5d631e2).
+     `net::serve` (including the unscoped one-line form), real sockets, and
+     the full driver loop remain.
 
 6. **Static route Stage M1, then conditional Stage 1**
    - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
