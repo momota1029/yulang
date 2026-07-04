@@ -1,16 +1,13 @@
--- Read a tiny .conf file, skip comments/blanks, and collect key/value pairs.
+-- Read a tiny .conf file, skip comments/blanks, and collect trimmed key/value pairs.
 -- The port setting is parsed as an int with method-form string APIs.
 -- Run: cargo run -q -p yulang -- --std-root lib --no-cache run examples/config-file-text/config_read.yu
 
-use std::text::parse::*
+my trim_setting(pair: (str, str)): (str, str) = case pair:
+    (key, value) -> (key.trim, value.trim)
 
-my parse_setting(clean: str): opt (str, str) = case clean.split_once " = ":
-    just pair -> just pair
+my parse_setting(clean: str): opt (str, str) = case clean.split_once "=":
+    just pair -> just (trim_setting pair)
     nil -> nil
-
-my is_comment(clean: str): bool = case clean:
-    ~"# {comment = ..}" -> true
-    _ -> false
 
 my read_config(path: str): (int, list (str, str), int, int) =
     my $port = 0
@@ -21,7 +18,7 @@ my read_config(path: str): (int, list (str, str), int, int) =
         my clean = line.trim
         if clean == "":
             &blanks = $blanks + 1
-        else if is_comment clean:
+        else if clean.starts_with "#":
             &comments = $comments + 1
         else:
             case parse_setting clean:
