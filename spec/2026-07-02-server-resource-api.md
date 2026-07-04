@@ -24,29 +24,33 @@ Yulang の effect / continuation / resource lifetime に沿った host event ses
 
 ## Current executable slice
 
-2026-07-02 時点で executable contract になっている server 関連の面は、
-標準 server API ではなく release artifact と language-server process である。
+2026-07-04 時点で executable contract になっている server 関連の面は、
+mock-server first slice である。
 
 現在守るもの:
 
-- released `yulang` binary は bundled std を使って `yulang server` を起動できる。
-- `scripts/release-smoke.sh` は opt-in で `yulang server` startup を確認できる。
-- `scripts/hardening-smoke.sh` は release smoke 経由で server startup を既定で確認する。
-- LSP diagnostics / hover / definition は compiler の structured output を薄く公開する。
+- compiler-produced host manifest は `std::io::net::net.listen` を `sync`、
+  `std::io::net::server.accept` を `suspend-multi-shot`、
+  `std::io::net::server.respond` を `sync` tier として出力する。
+- `tests/yulang/cases.toml` の `server-resource` tag は、mock-server driver
+  経由の compact runtime behavior と public signature を executable contract として固定する。
+- `std::io::net::serve` と `std::io::net::listen`、および unscoped
+  `net::serve` / `net::listen` spelling は manifest case で観測される。
+- request / response resource の current exact type は public signature
+  case で観測される。
+- `server.respond` の二重消費は typed failure `net_err::closed` として観測される。
 
 まだ executable stable contract ではないもの:
 
-- `std::server` module。
-- `server::serve` / `server::open` / `server.accept` の surface spelling。
-- request / response resource の exact type。
+- native socket adapter の success / failure shape。
+- wasm / playground / sandboxed host の unsupported-host typed failure。
 - wire codec / serialization API。
 - cancellation、backpressure、timeout、connection close の failure shape。
-- HTTP / WebSocket / stdin / test-driver adapters。
-- wasm / playground / sandboxed host の unsupported-host typed failure。
+- HTTP / WebSocket / stdin / stdout adapters。
 
-このため、server API の `.yu` fixture はまだ `tests/yulang/cases.toml` に入れない。
-manifest に入れるのは、native CLI または unsupported host で挙動を compact に観測できる
-first slice ができた時点に限る。
+server API の `.yu` fixture は、compact に観測できる current slice だけを
+`tests/yulang/cases.toml` に入れる。host が未実装の surface を fake success で
+manifest に入れない。
 
 ## Center shape
 

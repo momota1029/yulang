@@ -847,6 +847,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime-error"
             | "runtime-failure"
             | "server"
+            | "server-resource"
             | "showcase"
             | "stable-core"
             | "stable-api"

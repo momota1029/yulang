@@ -126,12 +126,13 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "stable-api",
-  "network",
-  "server",
-  "host-act",
-  "mock-host",
-  "host.mock-server",
+	  "stable-api",
+	  "network",
+	  "server",
+	  "server-resource",
+	  "host-act",
+	  "mock-host",
+	  "host.mock-server",
 ]
 
 [[case]]
@@ -145,12 +146,13 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "stable-api",
-  "network",
-  "server",
-  "host-act",
-  "mock-host",
-  "host.mock-server",
+	  "stable-api",
+	  "network",
+	  "server",
+	  "server-resource",
+	  "host-act",
+	  "mock-host",
+	  "host.mock-server",
 ]
 
 [[case]]
@@ -164,12 +166,13 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "stable-api",
-  "network",
-  "server",
-  "host-act",
-  "mock-host",
-  "host.mock-server",
+	  "stable-api",
+	  "network",
+	  "server",
+	  "server-resource",
+	  "host-act",
+	  "mock-host",
+	  "host.mock-server",
 ]
 
 [[case]]
@@ -183,12 +186,13 @@ expect_stderr = ""
 contracts = [
   "runtime",
   "standard-api",
-  "stable-api",
-  "network",
-  "server",
-  "host-act",
-  "mock-host",
-  "host.mock-server",
+	  "stable-api",
+	  "network",
+	  "server",
+	  "server-resource",
+	  "host-act",
+	  "mock-host",
+	  "host.mock-server",
   "typed-failure",
 ]
 
@@ -2351,7 +2355,7 @@ module = "std.io.net.server"
 symbol = "std.io.net.server.accept"
 expect_type = "std::io::net::listener -> [std::io::net::server] std::io::net::request"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "server-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_io_net_server_respond_public_signature"
@@ -2362,7 +2366,7 @@ module = "std.io.net.server"
 symbol = "std.io.net.server.respond"
 expect_type = "(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "server-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_io_net_net_listen_public_signature"
@@ -2373,7 +2377,7 @@ module = "std.io.net.net"
 symbol = "std.io.net.net.listen"
 expect_type = "int -> [std::io::net::net] std::data::result::result std::io::net::listener std::io::net::net_err"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "server-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_io_net_listen_public_signature"
@@ -2384,7 +2388,7 @@ module = "std.io.net"
 symbol = "std.io.net.listen"
 expect_type = "int -> [std::io::net::net, std::io::net::net_err] std::io::net::listener"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "server-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_io_net_serve_public_signature"
@@ -2395,7 +2399,7 @@ module = "std.io.net"
 symbol = "std.io.net.serve"
 expect_type = "int -> [std::io::net::net, std::io::net::net_err, std::io::net::server] std::io::net::request"
 deny_type_contains = ["#", "AllExcept"]
-contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "host-act", "host.native"]
+contracts = ["public-signature", "standard-api", "stable-api", "network", "server", "server-resource", "host-act", "host.native"]
 
 [[case]]
 name = "std_time_instant_since_public_signature"

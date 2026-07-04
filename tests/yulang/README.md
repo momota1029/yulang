@@ -68,6 +68,13 @@ signatures. Use `raw-compat` for current executable coverage of provisional
 range helpers that are intentionally isolated from the Contract v1 protocol
 center and should not be mistaken for the final session API; `raw-compat` file
 cases remain `migration-canary`.
+`server-resource` is the Contract v1 mock-server first slice, not part of
+Contract v0. Server resource cases should also carry `standard-api`,
+`stable-api`, `network`, and `server`. Runtime cases use `host = "mock-server"`
+plus `mock-host` / `host.mock-server`; public-signature cases currently use
+`host.native` because they project the declared host act surface. Native socket
+behavior and unsupported-host denial are future server-resource slices, so do
+not tag fake-success placeholders as contract evidence.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower

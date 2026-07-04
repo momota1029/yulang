@@ -4533,11 +4533,13 @@ fn public_contract_manifest_covers_status_spine_claims() {
         "Diagnostics",
         "Release artifacts",
         "Standard API surface",
+        "Server Resource Contract",
         "Yulang Contract v0",
         "stable-core",
         "std::data::result",
         "std::text::path",
         "std::io::file",
+        "std::io::net",
     ] {
         assert!(
             status.contains(claim),
@@ -4631,10 +4633,65 @@ fn public_contract_manifest_covers_status_spine_claims() {
             &["time", "host-act", "mock-host"],
         ),
         ManifestTagRequirement::new("host act contract", &["host-act"]),
+        ManifestTagRequirement::new("server resource", &["server-resource"]),
+        ManifestTagRequirement::new(
+            "server resource mock host",
+            &["server-resource", "host.mock-server"],
+        ),
+        ManifestTagRequirement::new(
+            "server resource typed failure",
+            &["server-resource", "typed-failure"],
+        ),
+        ManifestTagRequirement::new(
+            "server resource public signatures",
+            &["server-resource", "public-signature"],
+        ),
     ] {
         assert!(
             contract_manifest_has_case_with_tags(&cases, requirement.tags),
             "docs/status.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
+            requirement.label,
+            requirement.tags
+        );
+    }
+}
+
+#[test]
+fn public_contract_manifest_covers_contract_v1_server_evidence_claims() {
+    let evidence_path = repo_file("docs/language/contract-v1-server-evidence.md");
+    let evidence = fs::read_to_string(&evidence_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", evidence_path.display()));
+    for claim in [
+        "server-resource",
+        "mock-server first slice",
+        "server_double_respond_typed_failure",
+        "std_io_net_serve_public_signature",
+    ] {
+        assert!(
+            evidence.contains(claim),
+            "contract-v1-server-evidence.md should keep evidence claim {claim:?}"
+        );
+    }
+
+    let cases = public_contract_manifest_cases();
+    for requirement in [
+        ManifestTagRequirement::new("server resource", &["server-resource"]),
+        ManifestTagRequirement::new(
+            "server resource mock host",
+            &["server-resource", "host.mock-server"],
+        ),
+        ManifestTagRequirement::new(
+            "server resource typed failure",
+            &["server-resource", "typed-failure"],
+        ),
+        ManifestTagRequirement::new(
+            "server resource public signatures",
+            &["server-resource", "public-signature"],
+        ),
+    ] {
+        assert!(
+            contract_manifest_has_case_with_tags(&cases, requirement.tags),
+            "contract-v1-server-evidence.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
             requirement.label,
             requirement.tags
         );
@@ -4792,6 +4849,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime-error"
             | "runtime-failure"
             | "server"
+            | "server-resource"
             | "showcase"
             | "stable-core"
             | "stable-api"
