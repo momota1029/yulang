@@ -10,26 +10,26 @@ use std::text::str::str
 -- unstable: One parsed section and its ordered key/value entries.
 pub struct section { name: str, entries: list (str, str) }
 
--- unstable: A parsed config document. Use `.entries` for the raw section data.
+-- unstable: A parsed config document. Use `.sections` for the raw section data.
 pub type config with:
     struct self:
-        sections: list section
+        sections_: list section
 
     -- unstable: Look up a key inside a section; duplicate keys are last-wins.
     pub c.get section_name key = std::text::config::get c section_name key
 
     -- unstable: Raw escape hatch for the parsed sections and ordered entries.
-    pub c.entries = std::text::config::sections c
+    pub c.sections = std::text::config::sections c
 
 my empty_section(name: str): section =
     section { name: name, entries: [] }
 
 my empty(): config =
-    config { sections: [empty_section ""] }
+    config { sections_: [empty_section ""] }
 
 -- unstable: Return the raw ordered sections and entries.
 pub sections(c: config): list section =
-    c.sections
+    c.sections_
 
 my ensure_section_list(sections: list section, name: str): list section = case sections:
     [] -> [empty_section name]
@@ -37,7 +37,7 @@ my ensure_section_list(sections: list section, name: str): list section = case s
     [head, ..tail] -> [head, ..ensure_section_list(tail, name)]
 
 my ensure_section(c: config, name: str): config =
-    config { sections: ensure_section_list(c.sections, name) }
+    config { sections_: ensure_section_list(c.sections_, name) }
 
 my put_entry_list(sections: list section, section_name: str, entry: (str, str)): list section = case sections:
     [] -> [section { name: section_name, entries: [entry] }]
@@ -46,7 +46,7 @@ my put_entry_list(sections: list section, section_name: str, entry: (str, str)):
     [head, ..tail] -> [head, ..put_entry_list(tail, section_name, entry)]
 
 my put_entry(c: config, section_name: str, entry: (str, str)): config =
-    config { sections: put_entry_list(c.sections, section_name, entry) }
+    config { sections_: put_entry_list(c.sections_, section_name, entry) }
 
 my header_name(clean: str): opt str =
     if clean.starts_with "[" and clean.ends_with "]":
@@ -91,7 +91,7 @@ my get_section_rev(sections: list section, section_name: str, key: str): opt str
 
 -- unstable: Look up a key inside a section; entries before any header use section "".
 pub get(c: config, section_name: str, key: str): opt str =
-    get_section_rev(std::data::list::rev c.sections, section_name, key)
+    get_section_rev(std::data::list::rev c.sections_, section_name, key)
 
 -- unstable: Read a file and parse it as this simple config format.
 pub load(path: str): [std::io::file::file, std::io::file::io_err] config =

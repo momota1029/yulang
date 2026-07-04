@@ -18,5 +18,5 @@ my c = std::text::config::parse source
     c.get "" "port",
     c.get "db" "port",
     c.get "db" "host",
-    c.entries.map section_view
+    c.sections.map section_view
 )
