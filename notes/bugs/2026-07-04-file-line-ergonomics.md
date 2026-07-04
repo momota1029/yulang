@@ -2,8 +2,19 @@
 
 日付: 2026-07-04。発見: Codex（native host で `/tmp` 実ファイルを使った
 `file::text` / `lines` 実験中）。
-状態: **open**。file resource の意味論そのものではなく、行単位編集の書き味と
-method / runtime availability の詰まり。
+状態: **fixed**。file resource の意味論そのものではなく、行単位編集の書き味と
+method / runtime availability の詰まりとして見つかったもの。
+
+## 背景訂正
+
+ユーザの言う `each` は foreach ではなく `std::control::nondet::each` のこと。
+目標 idiom は、`file::text` で得た unscoped ref から `$doc.lines.each` で 1 行を
+非決定に取り出し、`std::control::nondet::guard` 相当で絞り、当たった分岐が
+行を書き換える形である。
+
+ambient buffer は nondet 分岐間で順に共有・蓄積され、`file::text` の extent 終端で
+backing file へ commit されることを期待する。これは「副作用目的の foreach を
+`each` という名前で追加するか」という話ではない。
 
 確認コマンド:
 
@@ -121,9 +132,7 @@ conflicting type candidates for slot 3: {list: 'open1} vs int
 `Fold` role に `container.each` があるなら、少なくとも
 `(each [1, 2]).list` と同じ意味で `([1, 2].each).list` が動く。
 
-なお、現行 `each` は foreach ではなく nondet choice である。
-「副作用目的の foreach としての `each`」を足すかどうか、またその名前を
-`each` にするかは user 判断待ち。
+なお、ここで扱う `each` は `std::control::nondet::each` であり、foreach ではない。
 
 ### 再現
 

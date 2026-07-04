@@ -617,6 +617,31 @@ contracts = [
 ]
 
 [[case]]
+name = "file_value_lines_each_guard_replace_native"
+file = "regressions/runtime/file_value_lines_each_guard_replace_native.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(touched, [done: one\n, done: two], after, keep\ndone: one\nskip\ndone: two)\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "keep\ntodo: one\nskip\ntodo: two", expect_contents = "keep\ndone: one\nskip\ndone: two" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+  "std.nondet",
+  "refs",
+]
+
+[[case]]
 name = "file_text_unscoped_native_handler_extent"
 file = "regressions/runtime/file_text_unscoped_native_handler_extent.yu"
 kind = "run"
