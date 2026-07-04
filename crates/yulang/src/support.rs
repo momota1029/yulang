@@ -502,7 +502,9 @@ pub(super) fn run_built_evidence_for_cli_with_host(
         let run_start = Instant::now();
         let run_result = match host {
             RunHostMode::Native => {
-                evidence_vm::run_program_with_plan_with_labels(&program, &plan, &labels)
+                evidence_vm::run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
+                    &program, &plan, &labels,
+                )
             }
             RunHostMode::Unsupported => {
                 evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(

@@ -19,7 +19,9 @@ pub use runtime::{
     RuntimeEvidenceRunStats, builtin_host_registrations, run_program, run_program_with_plan,
     run_program_with_plan_deep_profile, run_program_with_plan_deep_profile_with_labels,
     run_program_with_plan_with_in_process_server_host_with_labels,
-    run_program_with_plan_with_labels, run_program_with_plan_without_native_host_operations,
+    run_program_with_plan_with_labels,
+    run_program_with_plan_with_labels_flushing_stdout_on_external_wait,
+    run_program_with_plan_without_native_host_operations,
     run_program_with_plan_without_native_host_operations_with_labels,
 };
 

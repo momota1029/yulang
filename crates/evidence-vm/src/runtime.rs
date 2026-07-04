@@ -2,10 +2,13 @@ use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Read, Write};
 use std::mem;
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::OnceLock;
+use std::time::Duration;
 
 use control_vm::{
     Block, ControlEffectEvidence, ControlEffectUseKind, ControlEvidenceProgram,
@@ -208,7 +211,19 @@ const HOST_IO_ERROR_PREFIX: &str = "yulang.host-io-error\0";
 const IN_PROCESS_SERVER_LISTENER_TYPE_ID: u32 = 1;
 const IN_PROCESS_SERVER_REQUEST_META_TYPE_ID: u32 = 2;
 const IN_PROCESS_SERVER_RESPOND_SLOT_TYPE_ID: u32 = 3;
+const NATIVE_TCP_LISTENER_TYPE_ID: u32 = 4;
+const NATIVE_TCP_REQUEST_META_TYPE_ID: u32 = 5;
+const NATIVE_TCP_RESPOND_SLOT_TYPE_ID: u32 = 6;
 const IN_PROCESS_SERVER_REQUEST_LABEL: &str = "std.io.net.request";
+const NATIVE_TCP_POLL_SLEEP: Duration = Duration::from_millis(5);
+const NATIVE_TCP_READ_BUFFER_SIZE: usize = 8 * 1024;
+static YULANG_NET_TRACE_ENABLED: OnceLock<bool> = OnceLock::new();
+
+fn net_trace(args: fmt::Arguments<'_>) {
+    if *YULANG_NET_TRACE_ENABLED.get_or_init(|| std::env::var_os("YULANG_NET_TRACE").is_some()) {
+        eprintln!("[yulang-net] {args}");
+    }
+}
 
 pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
     vec![
@@ -262,6 +277,26 @@ pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
             operation_id: "now",
             f: host_clock_now,
         },
+        HostOpRegistration {
+            act_id: "std.io.net.net",
+            operation_id: "listen",
+            f: host_native_tcp_listen,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.net",
+            operation_id: "port",
+            f: host_native_tcp_port,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.server",
+            operation_id: "accept",
+            f: host_native_tcp_accept,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.server",
+            operation_id: "respond",
+            f: host_native_tcp_respond,
+        },
     ]
 }
 
@@ -272,6 +307,11 @@ fn in_process_server_host_registrations() -> Vec<HostOpRegistration> {
             act_id: "std.io.net.net",
             operation_id: "listen",
             f: host_in_process_server_listen,
+        },
+        HostOpRegistration {
+            act_id: "std.io.net.net",
+            operation_id: "port",
+            f: host_in_process_server_port,
         },
         HostOpRegistration {
             act_id: "std.io.net.server",
@@ -296,7 +336,7 @@ fn host_console_out_write(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> Hos
         Ok(state) => state,
         Err(error) => return HostOutcome::HostError(error),
     };
-    state.stdout.push_str(&text);
+    state.push_stdout(&text);
     HostOutcome::Return(BoundaryValue::Unit)
 }
 
@@ -386,6 +426,112 @@ fn host_clock_now(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
         return HostOutcome::HostError("clock::now value is outside instant range".to_string());
     };
     HostOutcome::Return(host_instant(epoch_nanos))
+}
+
+fn host_native_tcp_listen(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let port = match boundary_tcp_port(payload, "native tcp listen") {
+        Ok(port) => port,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    net_trace(format_args!("listen requested port={port}"));
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    match state.native_tcp_server.listen(port) {
+        Ok(listener) => HostOutcome::Return(host_result_ok(listener)),
+        Err(error) => HostOutcome::Return(host_result_err(net_err_from_listen_error(port, error))),
+    }
+}
+
+fn host_native_tcp_port(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let handle = match boundary_host_handle(payload, NATIVE_TCP_LISTENER_TYPE_ID, "native tcp port")
+    {
+        Ok(handle) => handle,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let Some(port) = state.native_tcp_server.listener_port(handle) else {
+        return HostOutcome::HostError(format!(
+            "native tcp port expected live listener handle {handle}"
+        ));
+    };
+    net_trace(format_args!("listener port handle={handle} port={port}"));
+    HostOutcome::Return(BoundaryValue::Int(i64::from(port)))
+}
+
+fn host_native_tcp_accept(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let handle =
+        match boundary_host_handle(payload, NATIVE_TCP_LISTENER_TYPE_ID, "native tcp accept") {
+            Ok(handle) => handle,
+            Err(error) => return HostOutcome::HostError(error),
+        };
+    net_trace(format_args!("accept requested listener={handle}"));
+    let token = match ctx.suspend_multi_shot() {
+        Ok(token) => token,
+        Err(error) => {
+            return HostOutcome::HostError(format!(
+                "native tcp accept failed to issue token: {error:?}"
+            ));
+        }
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    if let Err(error) = state
+        .native_tcp_server
+        .set_accept_token(handle, token.clone())
+    {
+        return HostOutcome::HostError(error);
+    }
+    net_trace(format_args!(
+        "accept suspended listener={handle} token={:?}",
+        token.id()
+    ));
+    drop(token);
+    HostOutcome::Suspended
+}
+
+fn host_native_tcp_respond(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let parts = match boundary_tuple(payload, 2) {
+        Ok(parts) => parts,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let slot = match boundary_host_handle(
+        &parts[0],
+        NATIVE_TCP_RESPOND_SLOT_TYPE_ID,
+        "native tcp respond",
+    ) {
+        Ok(slot) => slot,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let bytes = match &parts[1] {
+        BoundaryValue::Bytes(bytes) => bytes.clone(),
+        other => {
+            return HostOutcome::HostError(format!(
+                "native tcp respond expected bytes response, got {other:?}"
+            ));
+        }
+    };
+    net_trace(format_args!(
+        "respond requested slot={slot} bytes={}",
+        bytes.len()
+    ));
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    match state.native_tcp_server.respond(slot, &bytes) {
+        NativeTcpRespondResult::Ok => HostOutcome::Return(host_result_ok(BoundaryValue::Unit)),
+        NativeTcpRespondResult::Closed => HostOutcome::Return(host_result_err(net_err_closed())),
+        NativeTcpRespondResult::Failed(error) => {
+            HostOutcome::Return(host_result_err(net_err_failed(error.to_string())))
+        }
+    }
 }
 
 fn host_opt_nil() -> BoundaryValue {
@@ -546,8 +692,32 @@ fn host_in_process_server_listen(ctx: &mut HostCtx<'_>, payload: &BoundaryValue)
     };
     HostOutcome::Return(host_result_ok(BoundaryValue::HostHandle {
         type_id: IN_PROCESS_SERVER_LISTENER_TYPE_ID,
-        handle: server.listener_handle(),
+        handle: server.listener_handle(*port),
     }))
+}
+
+fn host_in_process_server_port(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+    let handle = match boundary_host_handle(
+        payload,
+        IN_PROCESS_SERVER_LISTENER_TYPE_ID,
+        "in-process server port",
+    ) {
+        Ok(handle) => handle,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let state = match builtin_host_state(ctx) {
+        Ok(state) => state,
+        Err(error) => return HostOutcome::HostError(error),
+    };
+    let Some(server) = state.in_process_server.as_mut() else {
+        return HostOutcome::HostError("in-process server host is not enabled".to_string());
+    };
+    let Some(port) = server.listener_port(handle) else {
+        return HostOutcome::HostError(format!(
+            "in-process server port expected live listener handle {handle}"
+        ));
+    };
+    HostOutcome::Return(BoundaryValue::Int(port))
 }
 
 fn host_in_process_server_accept(ctx: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
@@ -612,9 +782,7 @@ fn host_in_process_server_respond(ctx: &mut HostCtx<'_>, payload: &BoundaryValue
         return HostOutcome::Return(host_result_err(net_err_closed()));
     }
     let text = String::from_utf8_lossy(&bytes);
-    state
-        .stdout
-        .push_str(&format!("mock-server respond {slot}: {text}\n"));
+    state.push_stdout(&format!("mock-server respond {slot}: {text}\n"));
     HostOutcome::Return(host_result_ok(BoundaryValue::Unit))
 }
 
@@ -651,10 +819,26 @@ fn net_err_closed() -> BoundaryValue {
     }
 }
 
+fn net_err_already_bound(message: String) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label("std.io.net.net_err.already_bound".to_string()),
+        payloads: vec![BoundaryValue::Str(message)],
+    }
+}
+
 fn net_err_failed(message: String) -> BoundaryValue {
     BoundaryValue::Constructor {
         ctor: CtorRef::Label("std.io.net.net_err.failed".to_string()),
         payloads: vec![BoundaryValue::Str(message)],
+    }
+}
+
+fn net_err_from_listen_error(port: u16, error: io::Error) -> BoundaryValue {
+    let address = format!("127.0.0.1:{port}");
+    if error.kind() == io::ErrorKind::AddrInUse {
+        net_err_already_bound(address)
+    } else {
+        net_err_failed(format!("listen {address}: {error}"))
     }
 }
 
@@ -716,6 +900,28 @@ fn boundary_string(value: &BoundaryValue) -> Result<String, String> {
 
 fn boundary_path(value: &BoundaryValue) -> Result<PathBuf, String> {
     boundary_string(value).map(PathBuf::from)
+}
+
+fn boundary_host_handle(
+    value: &BoundaryValue,
+    expected_type_id: u32,
+    label: &str,
+) -> Result<u64, String> {
+    match value {
+        BoundaryValue::HostHandle { type_id, handle } if *type_id == expected_type_id => {
+            Ok(*handle)
+        }
+        other => Err(format!(
+            "{label} expected host handle type {expected_type_id}, got {other:?}"
+        )),
+    }
+}
+
+fn boundary_tcp_port(value: &BoundaryValue, label: &str) -> Result<u16, String> {
+    let BoundaryValue::Int(port) = value else {
+        return Err(format!("{label} expected int port"));
+    };
+    u16::try_from(*port).map_err(|_| format!("{label} port out of range: {port}"))
 }
 
 fn boundary_tuple(value: &BoundaryValue, len: usize) -> Result<&[BoundaryValue], String> {
@@ -8314,6 +8520,17 @@ pub fn run_program_with_plan_with_labels(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_stdout_flush_on_external_wait()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_without_native_host_operations(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -8675,7 +8892,10 @@ enum RuntimeSuspendedHostContinuationKind {
 #[derive(Debug, Default)]
 struct RuntimeBuiltinHostState {
     stdout: String,
+    stdout_flushed_len: usize,
+    flush_stdout_on_external_wait: bool,
     file_ambient_buffers: HashMap<PathBuf, String>,
+    native_tcp_server: RuntimeNativeTcpServerHost,
     in_process_server: Option<RuntimeInProcessServerHost>,
     #[cfg(test)]
     test_resume_tokens: Vec<HostResumeToken>,
@@ -8688,12 +8908,44 @@ struct RuntimeBuiltinHostState {
 }
 
 impl RuntimeBuiltinHostState {
-    fn new(in_process_server_host_enabled: bool) -> Self {
+    fn new(in_process_server_host_enabled: bool, flush_stdout_on_external_wait: bool) -> Self {
         Self {
+            flush_stdout_on_external_wait,
             in_process_server: in_process_server_host_enabled
                 .then(RuntimeInProcessServerHost::default),
             ..Self::default()
         }
+    }
+
+    fn push_stdout(&mut self, text: &str) {
+        self.stdout.push_str(text);
+    }
+
+    fn unflushed_stdout(&self) -> String {
+        self.stdout
+            .get(self.stdout_flushed_len..)
+            .unwrap_or_default()
+            .to_string()
+    }
+
+    fn flush_stdout_for_external_wait(&mut self) -> Result<(), RuntimeEvidenceRunError> {
+        if !self.flush_stdout_on_external_wait || self.stdout_flushed_len == self.stdout.len() {
+            return Ok(());
+        }
+        let pending = self
+            .stdout
+            .get(self.stdout_flushed_len..)
+            .unwrap_or_default();
+        let mut stdout = io::stdout().lock();
+        stdout
+            .write_all(pending.as_bytes())
+            .and_then(|()| stdout.flush())
+            .map_err(|error| RuntimeEvidenceRunError::HostAbiError {
+                operation: vec!["std".into(), "io".into(), "console".into(), "out".into()],
+                message: format!("failed to flush stdout before external host wait: {error}"),
+            })?;
+        self.stdout_flushed_len = self.stdout.len();
+        Ok(())
     }
 
     fn flush_file_ambient_buffers(&self) -> Result<(), RuntimeEvidenceRunError> {
@@ -8728,15 +8980,375 @@ impl RuntimeBuiltinHostState {
         };
         server.enqueue_accept_events(token)
     }
+
+    fn pump_external_host_events(
+        &mut self,
+    ) -> Result<RuntimeHostPumpStatus, RuntimeEvidenceRunError> {
+        self.native_tcp_server.poll()
+    }
 }
 
 fn is_in_process_server_accept_operation(operation: &[String]) -> bool {
     operation == ["std", "io", "net", "server", "accept"].map(str::to_string)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeHostPumpStatus {
+    NoActivePumps,
+    Waiting,
+    Enqueued,
+}
+
+#[derive(Debug, Default)]
+struct RuntimeNativeTcpServerHost {
+    next_listener_handle: u64,
+    next_connection_handle: u64,
+    next_respond_slot: u64,
+    listeners: HashMap<u64, RuntimeNativeTcpListener>,
+    connections: HashMap<u64, RuntimeNativeTcpConnection>,
+    respond_slots: HashMap<u64, RuntimeNativeTcpRespondSlot>,
+}
+
+#[derive(Debug)]
+struct RuntimeNativeTcpListener {
+    listener: TcpListener,
+    local_port: u16,
+    accept_token: Option<HostResumeToken>,
+}
+
+#[derive(Debug)]
+struct RuntimeNativeTcpConnection {
+    stream: TcpStream,
+    payload: Vec<u8>,
+    accept_token: HostResumeToken,
+}
+
+#[derive(Debug)]
+struct RuntimeNativeTcpRespondSlot {
+    stream: TcpStream,
+}
+
+#[derive(Debug)]
+enum NativeTcpRespondResult {
+    Ok,
+    Closed,
+    Failed(io::Error),
+}
+
+impl RuntimeNativeTcpServerHost {
+    fn listen(&mut self, port: u16) -> Result<BoundaryValue, io::Error> {
+        let listener = TcpListener::bind(("127.0.0.1", port))?;
+        listener.set_nonblocking(true)?;
+        let local_port = listener.local_addr()?.port();
+        let handle = self.next_listener_handle();
+        net_trace(format_args!(
+            "listen ok listener={handle} local_port={local_port}"
+        ));
+        self.listeners.insert(
+            handle,
+            RuntimeNativeTcpListener {
+                listener,
+                local_port,
+                accept_token: None,
+            },
+        );
+        Ok(BoundaryValue::HostHandle {
+            type_id: NATIVE_TCP_LISTENER_TYPE_ID,
+            handle,
+        })
+    }
+
+    fn listener_port(&self, handle: u64) -> Option<u16> {
+        self.listeners
+            .get(&handle)
+            .map(|listener| listener.local_port)
+    }
+
+    fn set_accept_token(&mut self, handle: u64, token: HostResumeToken) -> Result<(), String> {
+        let Some(listener) = self.listeners.get_mut(&handle) else {
+            return Err(format!(
+                "native tcp accept expected live listener handle {handle}"
+            ));
+        };
+        if listener.accept_token.is_some() {
+            return Err(format!(
+                "native tcp listener handle {handle} already has an active accept"
+            ));
+        }
+        listener.accept_token = Some(token);
+        net_trace(format_args!("accept token installed listener={handle}"));
+        Ok(())
+    }
+
+    fn respond(&mut self, slot: u64, bytes: &[u8]) -> NativeTcpRespondResult {
+        let Some(mut respond_slot) = self.respond_slots.remove(&slot) else {
+            net_trace(format_args!("respond closed slot={slot}"));
+            return NativeTcpRespondResult::Closed;
+        };
+        if let Err(error) = respond_slot.stream.set_nonblocking(false) {
+            net_trace(format_args!(
+                "respond set blocking failed slot={slot} error={error}"
+            ));
+            return NativeTcpRespondResult::Failed(error);
+        }
+        if let Err(error) = respond_slot.stream.write_all(bytes) {
+            let _ = respond_slot.stream.shutdown(Shutdown::Both);
+            net_trace(format_args!(
+                "respond write failed slot={slot} bytes={} error={error}",
+                bytes.len()
+            ));
+            return NativeTcpRespondResult::Failed(error);
+        }
+        let _ = respond_slot.stream.shutdown(Shutdown::Both);
+        net_trace(format_args!(
+            "respond write close ok slot={slot} bytes={}",
+            bytes.len()
+        ));
+        NativeTcpRespondResult::Ok
+    }
+
+    fn poll(&mut self) -> Result<RuntimeHostPumpStatus, RuntimeEvidenceRunError> {
+        if !self.has_active_accept() {
+            net_trace(format_args!("pump poll no-active"));
+            return Ok(RuntimeHostPumpStatus::NoActivePumps);
+        }
+        net_trace(format_args!(
+            "pump poll start listeners={} connections={} respond_slots={}",
+            self.listeners.len(),
+            self.connections.len(),
+            self.respond_slots.len()
+        ));
+        self.accept_ready_connections()?;
+        let enqueued = self.poll_connections()?;
+        if enqueued > 0 {
+            net_trace(format_args!("pump poll enqueued count={enqueued}"));
+            Ok(RuntimeHostPumpStatus::Enqueued)
+        } else {
+            net_trace(format_args!("pump poll waiting"));
+            Ok(RuntimeHostPumpStatus::Waiting)
+        }
+    }
+
+    fn has_active_accept(&self) -> bool {
+        self.listeners
+            .values()
+            .any(|listener| listener.accept_token.is_some())
+    }
+
+    fn accept_ready_connections(&mut self) -> Result<(), RuntimeEvidenceRunError> {
+        let listener_handles = self.listeners.keys().copied().collect::<Vec<_>>();
+        for listener_handle in listener_handles {
+            loop {
+                let accepted = {
+                    let Some(listener) = self.listeners.get_mut(&listener_handle) else {
+                        break;
+                    };
+                    let Some(token) = listener.accept_token.clone() else {
+                        break;
+                    };
+                    match listener.listener.accept() {
+                        Ok((stream, peer)) => {
+                            net_trace(format_args!(
+                                "accept ok listener={listener_handle} peer={peer}"
+                            ));
+                            Some((stream, token))
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            net_trace(format_args!(
+                                "accept would-block listener={listener_handle}"
+                            ));
+                            None
+                        }
+                        Err(error) => {
+                            net_trace(format_args!(
+                                "accept error listener={listener_handle} error={error}"
+                            ));
+                            return Err(RuntimeEvidenceRunError::HostAbiError {
+                                operation: native_tcp_accept_operation(),
+                                message: format!("native tcp accept failed: {error}"),
+                            });
+                        }
+                    }
+                };
+                let Some((stream, token)) = accepted else {
+                    break;
+                };
+                stream.set_nonblocking(true).map_err(|error| {
+                    RuntimeEvidenceRunError::HostAbiError {
+                        operation: native_tcp_accept_operation(),
+                        message: format!("native tcp accepted stream setup failed: {error}"),
+                    }
+                })?;
+                let handle = self.next_connection_handle();
+                net_trace(format_args!(
+                    "connection tracking listener={listener_handle} conn={handle}"
+                ));
+                self.connections.insert(
+                    handle,
+                    RuntimeNativeTcpConnection {
+                        stream,
+                        payload: Vec::new(),
+                        accept_token: token,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn poll_connections(&mut self) -> Result<usize, RuntimeEvidenceRunError> {
+        let handles = self.connections.keys().copied().collect::<Vec<_>>();
+        let mut completed = Vec::new();
+        for handle in handles {
+            let Some(connection) = self.connections.get_mut(&handle) else {
+                continue;
+            };
+            match poll_native_tcp_connection(connection) {
+                Ok(NativeTcpConnectionPoll::Pending) => {}
+                Ok(NativeTcpConnectionPoll::Complete) => {
+                    net_trace(format_args!(
+                        "connection complete conn={handle} bytes={}",
+                        connection.payload.len()
+                    ));
+                    completed.push(handle)
+                }
+                Err(error) => {
+                    self.connections.remove(&handle);
+                    net_trace(format_args!(
+                        "connection read error conn={handle} error={error}"
+                    ));
+                    return Err(RuntimeEvidenceRunError::HostAbiError {
+                        operation: native_tcp_accept_operation(),
+                        message: format!("native tcp read failed: {error}"),
+                    });
+                }
+            }
+        }
+        let mut enqueued = 0;
+        for handle in completed {
+            let Some(connection) = self.connections.remove(&handle) else {
+                continue;
+            };
+            let slot = self.next_respond_slot();
+            let payload_len = connection.payload.len();
+            self.respond_slots.insert(
+                slot,
+                RuntimeNativeTcpRespondSlot {
+                    stream: connection.stream,
+                },
+            );
+            net_trace(format_args!(
+                "resume enqueue start conn={handle} slot={slot} bytes={payload_len}"
+            ));
+            connection
+                .accept_token
+                .resume(native_tcp_request(handle, slot, connection.payload))
+                .map_err(|error| RuntimeEvidenceRunError::HostAbiError {
+                    operation: native_tcp_accept_operation(),
+                    message: format!("native tcp failed to enqueue request: {error:?}"),
+                })?;
+            net_trace(format_args!(
+                "resume enqueue ok conn={handle} slot={slot} bytes={payload_len}"
+            ));
+            enqueued += 1;
+        }
+        Ok(enqueued)
+    }
+
+    fn next_listener_handle(&mut self) -> u64 {
+        self.next_listener_handle += 1;
+        self.next_listener_handle
+    }
+
+    fn next_connection_handle(&mut self) -> u64 {
+        self.next_connection_handle += 1;
+        self.next_connection_handle
+    }
+
+    fn next_respond_slot(&mut self) -> u64 {
+        self.next_respond_slot += 1;
+        self.next_respond_slot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeTcpConnectionPoll {
+    Pending,
+    Complete,
+}
+
+fn poll_native_tcp_connection(
+    connection: &mut RuntimeNativeTcpConnection,
+) -> Result<NativeTcpConnectionPoll, io::Error> {
+    let mut buffer = [0_u8; NATIVE_TCP_READ_BUFFER_SIZE];
+    loop {
+        match connection.stream.read(&mut buffer) {
+            Ok(0) => {
+                net_trace(format_args!(
+                    "read eof buffered_bytes={}",
+                    connection.payload.len()
+                ));
+                return Ok(NativeTcpConnectionPoll::Complete);
+            }
+            Ok(n) => {
+                connection.payload.extend_from_slice(&buffer[..n]);
+                net_trace(format_args!(
+                    "read progress bytes={n} buffered_bytes={}",
+                    connection.payload.len()
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                net_trace(format_args!(
+                    "read would-block buffered_bytes={}",
+                    connection.payload.len()
+                ));
+                return Ok(NativeTcpConnectionPoll::Pending);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn native_tcp_request(meta_handle: u64, slot: u64, payload: Vec<u8>) -> BoundaryValue {
+    BoundaryValue::Constructor {
+        ctor: CtorRef::Label(IN_PROCESS_SERVER_REQUEST_LABEL.to_string()),
+        payloads: vec![BoundaryValue::Record(vec![
+            BoundaryField {
+                name: "meta".to_string(),
+                value: BoundaryValue::HostHandle {
+                    type_id: NATIVE_TCP_REQUEST_META_TYPE_ID,
+                    handle: meta_handle,
+                },
+            },
+            BoundaryField {
+                name: "payload".to_string(),
+                value: BoundaryValue::Bytes(payload),
+            },
+            BoundaryField {
+                name: "slot".to_string(),
+                value: BoundaryValue::HostHandle {
+                    type_id: NATIVE_TCP_RESPOND_SLOT_TYPE_ID,
+                    handle: slot,
+                },
+            },
+        ])],
+    }
+}
+
+fn native_tcp_accept_operation() -> Vec<String> {
+    vec![
+        "std".into(),
+        "io".into(),
+        "net".into(),
+        "server".into(),
+        "accept".into(),
+    ]
+}
+
 #[derive(Debug)]
 struct RuntimeInProcessServerHost {
     next_listener_handle: u64,
+    listener_ports: HashMap<u64, i64>,
     next_respond_slot: u64,
     pending_payloads: VecDeque<Vec<u8>>,
     responded_slots: HashSet<u64>,
@@ -8746,6 +9358,7 @@ impl Default for RuntimeInProcessServerHost {
     fn default() -> Self {
         Self {
             next_listener_handle: 1,
+            listener_ports: HashMap::new(),
             next_respond_slot: 1,
             pending_payloads: VecDeque::from([b"first".to_vec(), b"second".to_vec()]),
             responded_slots: HashSet::new(),
@@ -8754,10 +9367,15 @@ impl Default for RuntimeInProcessServerHost {
 }
 
 impl RuntimeInProcessServerHost {
-    fn listener_handle(&mut self) -> u64 {
+    fn listener_handle(&mut self, port: i64) -> u64 {
         let handle = self.next_listener_handle;
         self.next_listener_handle += 1;
+        self.listener_ports.insert(handle, port);
         handle
+    }
+
+    fn listener_port(&self, handle: u64) -> Option<i64> {
+        self.listener_ports.get(&handle).copied()
     }
 
     fn enqueue_accept_events(
@@ -8897,7 +9515,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             marker_delta_plans: Vec::new(),
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
-            host_state: RuntimeBuiltinHostState::new(context.in_process_server_host_enabled()),
+            host_state: RuntimeBuiltinHostState::new(
+                context.in_process_server_host_enabled(),
+                context.flush_stdout_on_external_wait(),
+            ),
             current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
             suspended_host_continuations: HashMap::new(),
@@ -8928,7 +9549,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 .into_iter()
                 .map(|value| value.as_ref().clone())
                 .collect(),
-            stdout: self.host_state.stdout.clone(),
+            stdout: self.host_state.unflushed_stdout(),
             evidence_stats: self.stats,
         })
     }
@@ -12808,9 +13429,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         values: &mut Vec<SharedValue>,
     ) -> Result<(), RuntimeEvidenceRunError> {
-        while self.host_scheduler.has_pending_events() {
-            if let Some(result) = self.process_next_host_scheduler_event()? {
-                values.push(self.resolve_eval_result(result)?);
+        loop {
+            while self.host_scheduler.has_pending_events() {
+                if let Some(result) = self.process_next_host_scheduler_event()? {
+                    values.push(self.resolve_eval_result(result)?);
+                }
+            }
+            if !self.pump_external_host_events_until_scheduler_work()? {
+                break;
             }
         }
         Ok(())
@@ -12823,13 +13449,49 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.try_handle_runtime_host_request(request)? {
             RuntimeHostRequestHandling::Handled(result) => Ok(result),
             RuntimeHostRequestHandling::Suspended => {
-                self.process_next_host_scheduler_event()?.ok_or(
+                self.process_or_wait_for_next_host_scheduler_value()?.ok_or(
                     RuntimeEvidenceRunError::UnsupportedExpr("suspend host operation parked"),
                 )
             }
             RuntimeHostRequestHandling::Unhandled(request) => Err(
                 RuntimeEvidenceRunError::EscapedEffect(request.path.to_vec()),
             ),
+        }
+    }
+
+    fn process_or_wait_for_next_host_scheduler_value(
+        &mut self,
+    ) -> Result<Option<EvidenceEvalResult>, RuntimeEvidenceRunError> {
+        loop {
+            while self.host_scheduler.has_pending_events() {
+                if let Some(result) = self.process_next_host_scheduler_event()? {
+                    return Ok(Some(result));
+                }
+            }
+            if !self.pump_external_host_events_until_scheduler_work()? {
+                return Ok(None);
+            }
+        }
+    }
+
+    fn pump_external_host_events_until_scheduler_work(
+        &mut self,
+    ) -> Result<bool, RuntimeEvidenceRunError> {
+        match self.host_state.pump_external_host_events()? {
+            RuntimeHostPumpStatus::NoActivePumps => {
+                net_trace(format_args!("pump hook no-active"));
+                Ok(false)
+            }
+            RuntimeHostPumpStatus::Enqueued => {
+                net_trace(format_args!("pump hook enqueued scheduler-work"));
+                Ok(true)
+            }
+            RuntimeHostPumpStatus::Waiting => {
+                net_trace(format_args!("pump hook waiting sleep"));
+                self.host_state.flush_stdout_for_external_wait()?;
+                std::thread::sleep(NATIVE_TCP_POLL_SLEEP);
+                Ok(true)
+            }
         }
     }
 
@@ -13075,14 +13737,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 token_id,
                 value,
             } => {
+                net_trace(format_args!(
+                    "scheduler resume event branch={branch_id:?} token={token_id:?}"
+                ));
                 if self.host_scheduler.branch_status(branch_id)
                     != Some(scheduler::RuntimeHostBranchStatus::Running)
                 {
+                    net_trace(format_args!(
+                        "scheduler resume skipped branch={branch_id:?} status={:?}",
+                        self.host_scheduler.branch_status(branch_id)
+                    ));
                     return Ok(None);
                 }
                 let Some((operation, continuation, remove_after_resume)) =
                     self.host_resume_continuation(token_id, branch_id)?
                 else {
+                    net_trace(format_args!(
+                        "scheduler resume missing continuation branch={branch_id:?} token={token_id:?}"
+                    ));
                     return Ok(None);
                 };
                 if remove_after_resume {
@@ -13100,6 +13772,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         .resolve_eval_result(result)
                         .map(EvidenceEvalResult::Value)
                 })?;
+                let result_kind = match &result {
+                    EvidenceEvalResult::Value(_) => "value",
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(_)) => {
+                        "request"
+                    }
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(_)) => {
+                        "direct-abortive"
+                    }
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(_)) => {
+                        "direct-tail-resumptive"
+                    }
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(_)) => {
+                        "routed-yield"
+                    }
+                };
+                net_trace(format_args!(
+                    "scheduler resume branch result branch={branch_id:?} kind={result_kind}"
+                ));
                 if matches!(result, EvidenceEvalResult::Value(_)) {
                     let _ = self.host_scheduler.complete_branch(branch_id);
                 }
@@ -22594,8 +23284,8 @@ mod tests {
         let Some(state) = ctx.state_mut::<RuntimeBuiltinHostState>() else {
             return HostOutcome::HostError("mock expected builtin host state".to_string());
         };
-        state.stdout.push_str("mock:");
-        state.stdout.push_str(path);
+        state.push_stdout("mock:");
+        state.push_stdout(path);
         HostOutcome::Return(BoundaryValue::Str("mocked".to_string()))
     }
 

@@ -1,8 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 use serde::Deserialize;
 
@@ -429,6 +433,72 @@ fn compatible_run_print_roots_keeps_console_stdout_before_roots() {
 
     assert_success(&output);
     assert_eq!(stdout(&output), "Hello\nrun roots [(), 3]\n");
+}
+
+#[test]
+fn compatible_run_native_tcp_server_echoes_two_connections() {
+    if !localhost_tcp_bind_available() {
+        eprintln!("skipping native TCP server echo test: localhost bind is not available");
+        return;
+    }
+
+    let entry = write_entry(
+        "run-native-tcp-server-echo",
+        "\
+{
+    my listener = net::listen 0
+    say listener.port
+    my req = listener.accept()
+    req.respond req.payload
+}
+",
+    );
+
+    let mut child = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--host")
+        .arg("native")
+        .arg(&entry)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let (port_rx, stdout_reader) =
+        read_first_child_stdout_line(child.stdout.take().expect("child stdout should be piped"));
+    let stderr_reader =
+        read_child_pipe_to_string(child.stderr.take().expect("child stderr should be piped"));
+
+    let port_line = match port_rx.recv_timeout(Duration::from_secs(10)) {
+        Ok(line) => line,
+        Err(error) => {
+            kill_child(&mut child);
+            let stdout_text = stdout_reader.join().unwrap();
+            let stderr_text = stderr_reader.join().unwrap();
+            panic!(
+                "native tcp server did not print a port before timeout: {error}\nstdout:\n{stdout_text}\nstderr:\n{stderr_text}"
+            );
+        }
+    };
+    let port = port_line.trim().parse::<u16>().unwrap_or_else(|error| {
+        panic!("native tcp server printed invalid port {port_line:?}: {error}")
+    });
+
+    assert_native_tcp_echo(port, b"alpha");
+    assert_native_tcp_echo(port, b"second");
+
+    kill_child(&mut child);
+    let stdout_text = stdout_reader.join().unwrap();
+    let stderr_text = stderr_reader.join().unwrap();
+    assert!(
+        stdout_text.starts_with(&port_line),
+        "stdout reader should retain the port line:\n{stdout_text}"
+    );
+    assert_eq!(stderr_text, "");
 }
 
 #[test]
@@ -1890,8 +1960,8 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert_eq!(
         stdout.matches(" surface=contract column=").count(),
-        11,
-        "debug manifest should expose console, file protocol/ambient, net/server, and clock ops as contract surface:\n{stdout}"
+        12,
+        "debug manifest should expose console, file protocol/ambient, net/server, listener port, and clock ops as contract surface:\n{stdout}"
     );
     assert_eq!(
         stdout.matches(" surface=raw-compat column=").count(),
@@ -1906,7 +1976,7 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=12 symbol=yu_host_3std4time5clock_3now\n"
+            "  act=std.time.clock op=now tier=sync path=std.time.clock.now sig=() -> [std::time::clock] std::time::instant surface=contract column=13 symbol=yu_host_3std4time5clock_3now\n"
         ),
         "{stdout}"
     );
@@ -1963,13 +2033,19 @@ fn debug_host_act_manifest_prints_runtime_registry_view() {
     );
     assert!(
         stdout.contains(
-            "  act=std.io.net.server op=accept tier=suspend-multi-shot path=std.io.net.server.accept sig=std::io::net::listener -> [std::io::net::server] std::io::net::request surface=contract column=10 symbol=yu_host_3std2io3net6server_6accept\n"
+            "  act=std.io.net.net op=port tier=sync path=std.io.net.net.port sig=std::io::net::listener -> [std::io::net::net] int surface=contract column=10 symbol=yu_host_3std2io3net3net_4port\n"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "  act=std.io.net.server op=respond tier=sync path=std.io.net.server.respond sig=(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err surface=contract column=11 symbol=yu_host_3std2io3net6server_7respond\n"
+            "  act=std.io.net.server op=accept tier=suspend-multi-shot path=std.io.net.server.accept sig=std::io::net::listener -> [std::io::net::server] std::io::net::request surface=contract column=11 symbol=yu_host_3std2io3net6server_6accept\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "  act=std.io.net.server op=respond tier=sync path=std.io.net.server.respond sig=(std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err surface=contract column=12 symbol=yu_host_3std2io3net6server_7respond\n"
         ),
         "{stdout}"
     );
@@ -2073,6 +2149,7 @@ fn compiler_generated_host_manifest_reaches_runtime_evidence_surface() {
                 "listen",
                 "std.io.net.net.listen".to_string()
             ),
+            ("std.io.net.net", "port", "std.io.net.net.port".to_string()),
             (
                 "std.io.net.server",
                 "accept",
@@ -3483,6 +3560,7 @@ fn install_std_writes_explicit_std_root() {
     assert_eq!(stderr(&output), format!("{}\n", std_root.display()));
     assert!(std_root.join("std.yu").is_file());
     assert!(std_root.join("std").join("prelude.yu").is_file());
+    assert!(std_root.join("std").join("io").join("net.yu").is_file());
     assert!(std_root.join("std").join("time.yu").is_file());
     let _ = fs::remove_dir_all(&root);
 }
@@ -5476,6 +5554,74 @@ fn yulang_command_with_stdin<const N: usize>(args: [&str; N], stdin: &str) -> Ou
         .write_all(stdin.as_bytes())
         .unwrap();
     child.wait_with_output().unwrap()
+}
+
+fn read_first_child_stdout_line(
+    stdout: std::process::ChildStdout,
+) -> (mpsc::Receiver<String>, thread::JoinHandle<String>) {
+    let (tx, rx) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        let mut first_line = String::new();
+        let read_result = reader.read_line(&mut first_line);
+        if read_result.is_ok() {
+            let _ = tx.send(first_line.clone());
+        } else {
+            let _ = tx.send(String::new());
+        }
+        let mut rest = String::new();
+        let _ = reader.read_to_string(&mut rest);
+        first_line.push_str(&rest);
+        first_line
+    });
+    (rx, handle)
+}
+
+fn read_child_pipe_to_string<R>(mut pipe: R) -> thread::JoinHandle<String>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut text = String::new();
+        let _ = pipe.read_to_string(&mut text);
+        text
+    })
+}
+
+fn assert_native_tcp_echo(port: u16, payload: &[u8]) {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap_or_else(|error| {
+        panic!("failed to connect to native tcp server on port {port}: {error}")
+    });
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    stream
+        .set_write_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    stream.write_all(payload).unwrap();
+    stream.shutdown(Shutdown::Write).unwrap();
+
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).unwrap();
+    assert_eq!(response, payload);
+}
+
+fn localhost_tcp_bind_available() -> bool {
+    TcpListener::bind(("127.0.0.1", 0)).is_ok()
+}
+
+fn kill_child(child: &mut Child) {
+    match child.try_wait() {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
 }
 
 fn write_fixture(name: &str, source: &str) -> (PathBuf, PathBuf) {

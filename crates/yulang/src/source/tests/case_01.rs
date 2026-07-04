@@ -122,6 +122,27 @@ fn dump_mono_without_std_forces_effectful_root_expression() {
 }
 
 #[test]
+fn dump_mono_without_std_forces_effectful_block_tail() {
+    let root = temp_root("dump-mono-effectful-block-tail");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "act out:\n  our say: int -> unit\n{\n  my x = 1\n  out::say(x)\n}\n",
+    )
+    .unwrap();
+
+    let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+    assert_eq!(output.file_count, 1);
+    assert_mono_dump_contains(&output, "mono roots [{ my ");
+    assert_mono_dump_contains(
+        &output,
+        "; force-thunk[thunk[[out], unit] => unit ! [out]]((<effect-op out::say>",
+    );
+}
+
+#[test]
 fn dump_mono_without_std_passes_argument_effect_through_pure_function() {
     let root = temp_root("dump-mono-pure-function-argument-effect");
     let _ = fs::remove_dir_all(&root);

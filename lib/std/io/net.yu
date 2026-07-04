@@ -22,6 +22,7 @@ pub error net_err:
 
 pub host act net:
     pub listen: int -> result listener net_err
+    pub port: listener -> int
 
 pub host act server:
     pub suspend_multi_shot accept: listener -> request
@@ -41,6 +42,8 @@ pub serve(port: int): [net, server, net_err] request =
 pub type listener with:
     pub l.accept(): [server] request =
         server::accept l
+    pub l.port: [net] int =
+        net::port l
 
 pub type request with:
     pub req.respond(res: bytes): [server, net_err] unit =

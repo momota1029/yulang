@@ -28,7 +28,10 @@ impl Specializer2 {
                         },
                         &solved,
                     );
-                    let expr = self.emit_expr_typed(arena, &solved, expr_id)?;
+                    self.force_block_tail_exprs.insert(expr_id);
+                    let expr = self.emit_expr_typed(arena, &solved, expr_id);
+                    self.force_block_tail_exprs.remove(&expr_id);
+                    let expr = expr?;
                     Root::Expr(force_emitted_expr_if_thunk(
                         solved.actual_type_of(expr_id),
                         expr,
@@ -266,7 +269,7 @@ impl Specializer2 {
                     .collect::<Result<Vec<_>, _>>()?,
             },
             PolyExpr::Block(stmts, tail) => {
-                ExprKind::Block(self.emit_block(arena, solved, stmts, *tail)?)
+                ExprKind::Block(self.emit_block(arena, solved, expr, stmts, *tail)?)
             }
         };
         let expr_out = Expr::new(kind);
@@ -512,16 +515,37 @@ impl Specializer2 {
         &mut self,
         arena: &poly_expr::Arena,
         solved: &SolvedTask,
+        block: poly_expr::ExprId,
         stmts: &[poly_expr::Stmt],
         tail: Option<poly_expr::ExprId>,
     ) -> Result<Block, SpecializeError> {
         let mut scoped_defs = Vec::new();
         let stmts = self.emit_stmts(arena, solved, stmts, &mut scoped_defs)?;
-        let tail = self.emit_optional_expr(arena, solved, tail)?.map(Box::new);
+        let tail = match (self.force_block_tail_exprs.contains(&block), tail) {
+            (true, Some(tail)) => Some(Box::new(self.emit_forced_block_tail(arena, solved, tail)?)),
+            (_, tail) => self.emit_optional_expr(arena, solved, tail)?.map(Box::new),
+        };
         for def in scoped_defs {
             self.pop_local_def(def);
         }
         Ok(Block { stmts, tail })
+    }
+
+    fn emit_forced_block_tail(
+        &mut self,
+        arena: &poly_expr::Arena,
+        solved: &SolvedTask,
+        tail: poly_expr::ExprId,
+    ) -> Result<Expr, SpecializeError> {
+        if matches!(arena.expr(tail), poly_expr::Expr::Block(_, _)) {
+            self.force_block_tail_exprs.insert(tail);
+            let expr = self.emit_expr_typed(arena, solved, tail);
+            self.force_block_tail_exprs.remove(&tail);
+            return Ok(expr?.expr);
+        }
+        let actual = solved.actual_type_of(tail).cloned();
+        let tail = self.emit_expr_without_boundary(arena, solved, tail)?;
+        Ok(force_emitted_expr_if_thunk(actual.as_ref(), tail))
     }
 
     pub(super) fn emit_stmts(

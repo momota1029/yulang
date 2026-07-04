@@ -23,6 +23,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     deep_profile: bool,
     native_host_operations_disabled: bool,
     in_process_server_host_enabled: bool,
+    flush_stdout_on_external_wait: bool,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -235,6 +236,7 @@ impl RuntimeEvidenceRunContext {
             deep_profile: false,
             native_host_operations_disabled: false,
             in_process_server_host_enabled: false,
+            flush_stdout_on_external_wait: false,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -340,6 +342,15 @@ impl RuntimeEvidenceRunContext {
 
     pub(super) fn in_process_server_host_enabled(&self) -> bool {
         self.in_process_server_host_enabled
+    }
+
+    pub(super) fn with_stdout_flush_on_external_wait(mut self) -> Self {
+        self.flush_stdout_on_external_wait = true;
+        self
+    }
+
+    pub(super) fn flush_stdout_on_external_wait(&self) -> bool {
+        self.flush_stdout_on_external_wait
     }
 
     pub(super) fn with_host_constructors(

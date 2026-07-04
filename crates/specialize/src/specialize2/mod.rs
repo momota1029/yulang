@@ -73,6 +73,7 @@ struct Specializer2 {
     instance_by_key: HashMap<InstanceKey, InstanceId>,
     active_instance_signatures: HashMap<InstanceId, Type>,
     local_defs: HashMap<poly_expr::DefId, usize>,
+    force_block_tail_exprs: HashSet<poly_expr::ExprId>,
     runtime_evidence: RuntimeEvidenceSurface,
 }
 
