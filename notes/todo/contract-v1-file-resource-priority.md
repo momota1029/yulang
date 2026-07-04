@@ -252,6 +252,17 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      same day, request routing in `case` arms is now expressible. Remaining:
      `l.requests` / `serve_with`, connect-side `conn` forms, real sockets /
      HTTP adapter / cancel surface.
+   - 2026-07-04: the native TCP startup slice is landed — `--host native`
+     registers `net.listen` / `net.port` / `server.accept` / `server.respond`,
+     a single-thread nonblocking event pump runs before the parked error while
+     suspends are pending, and the raw-TCP alpha policy (read to client EOF as
+     payload, respond writes and closes, explicitly unstable) is contracted
+     with a real-socket CLI echo test over two connections (commits 6d235422,
+     255a7942, 74eaf1fa). Fixing the first real-socket run also uncovered that
+     runtime root block tails were not forced, so a trailing effectful call like
+     `req.respond req.payload` never executed; specialize2 now forces root
+     tails. Remaining: natural termination policy, timeouts/backpressure, HTTP
+     adapter, `l.requests` / `serve_with`, connect side.
 
 6. **Static route Stage M1, then conditional Stage 1**
    - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
