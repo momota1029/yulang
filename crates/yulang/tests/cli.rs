@@ -4693,6 +4693,7 @@ fn public_contract_manifest_covers_status_spine_claims() {
         ManifestTagRequirement::new("result API", &["standard-api", "result"]),
         ManifestTagRequirement::new("error API", &["standard-api", "errors"]),
         ManifestTagRequirement::new("path API", &["standard-api", "path"]),
+        ManifestTagRequirement::new("config API", &["standard-api", "config"]),
         ManifestTagRequirement::new(
             "native file API host scope",
             &["standard-api", "file", "host.native"],
@@ -4770,6 +4771,39 @@ fn public_contract_manifest_covers_contract_v1_server_evidence_claims() {
         assert!(
             contract_manifest_has_case_with_tags(&cases, requirement.tags),
             "contract-v1-server-evidence.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
+            requirement.label,
+            requirement.tags
+        );
+    }
+}
+
+#[test]
+fn public_contract_manifest_covers_contract_v1_config_evidence_claims() {
+    let evidence_path = repo_file("docs/language/contract-v1-config-evidence.md");
+    let evidence = fs::read_to_string(&evidence_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", evidence_path.display()));
+    for claim in [
+        "std::text::config",
+        "config_parse_basic",
+        "config_missing_lookup",
+        "config_load_native",
+        "c.sections",
+    ] {
+        assert!(
+            evidence.contains(claim),
+            "contract-v1-config-evidence.md should keep evidence claim {claim:?}"
+        );
+    }
+
+    let cases = public_contract_manifest_cases();
+    for requirement in [
+        ManifestTagRequirement::new("config API", &["standard-api", "config"]),
+        ManifestTagRequirement::new("config preview", &["config", "preview"]),
+        ManifestTagRequirement::new("config native load", &["config", "file", "host.native"]),
+    ] {
+        assert!(
+            contract_manifest_has_case_with_tags(&cases, requirement.tags),
+            "contract-v1-config-evidence.md claims {}, but tests/yulang/cases.toml has no case tagged {:?}",
             requirement.label,
             requirement.tags
         );
@@ -4881,6 +4915,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "calls"
             | "casts"
             | "compile-error"
+            | "config"
             | "console"
             | "data-position-effect"
             | "deep-handler"
@@ -5155,7 +5190,9 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
         assert!(
             contract_manifest_case_has_any_tag(
                 case,
-                &["result", "errors", "path", "time", "file", "str", "network"]
+                &[
+                    "result", "errors", "path", "time", "file", "str", "config", "network",
+                ]
             ),
             "standard-api contract manifest case {} should include a narrower API area tag",
             case.name

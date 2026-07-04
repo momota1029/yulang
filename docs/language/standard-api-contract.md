@@ -11,6 +11,8 @@ that shape into a long-term compatibility promise.
 
 [`contract-v1-standard-api-evidence.md`](contract-v1-standard-api-evidence.md)
 records the current evidence for these slices.
+[`contract-v1-config-evidence.md`](contract-v1-config-evidence.md) records the
+unstable `std::text::config` preview slice.
 
 ## String API v1
 
@@ -46,8 +48,8 @@ Standard API cases use these contract tags:
 
 - `standard-api` for the public standard library surface;
 - exactly one of `stable-api` or `migration-canary`;
-- a narrower API area tag such as `str`, `result`, `path`, `time`, `file`, or
-  `network`;
+- a narrower API area tag such as `str`, `config`, `result`, `path`, `time`,
+  `file`, or `network`;
 - `public-signature` for exact exported type projection;
 - `runtime` for compact runtime behavior.
 

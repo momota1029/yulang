@@ -574,7 +574,9 @@ fn validate_contract_case_shape_tags(path: &Path, case: &ContractCase) {
         }
         if !contract_case_has_any_tag(
             case,
-            &["result", "errors", "path", "time", "file", "str", "network"],
+            &[
+                "result", "errors", "path", "time", "file", "str", "config", "network",
+            ],
         ) {
             contract_manifest_fail(
                 path,
@@ -801,6 +803,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "calls"
             | "casts"
             | "compile-error"
+            | "config"
             | "console"
             | "data-position-effect"
             | "deep-handler"

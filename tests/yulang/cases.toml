@@ -122,7 +122,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(opt::just(\"8080\"), opt::just(\"5433\"), opt::just(\"localhost\"), [(\"\", [(\"port\", \"8080\"), (\"name\", \"cookbook\")]), (\"db\", [(\"host\", \"localhost\"), (\"port\", \"5432\"), (\"port\", \"5433\")])])]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "migration-canary", "preview", "str"]
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "config"]
 
 [[case]]
 name = "config_missing_lookup"
@@ -131,7 +131,7 @@ kind = "run"
 std = "repo"
 expect_stdout = "run roots [(opt::nil, opt::nil)]\n"
 expect_stderr = ""
-contracts = ["runtime", "standard-api", "migration-canary", "preview", "str"]
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "config"]
 
 [[case]]
 name = "config_load_native"
@@ -143,7 +143,7 @@ expect_stderr = ""
 temp_files = [
   { placeholder = "{{file}}", contents = "port = 8080\n[service]\nname=api\nworkers   =   4\n" },
 ]
-contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "file", "file-resource", "host-act", "host.native"]
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "config", "file", "host-act", "host.native"]
 
 [[case]]
 name = "parser_pattern_case"
