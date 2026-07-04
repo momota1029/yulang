@@ -8,6 +8,15 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "std.nondet", "deep-handler"]
 
 [[case]]
+name = "nondet_each_method_list"
+file = "regressions/runtime/nondet_each_method_list.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [[1, 2]]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "std.nondet", "deep-handler"]
+
+[[case]]
 name = "optional_record_defaults"
 file = "regressions/runtime/optional_record_defaults.yu"
 kind = "run"

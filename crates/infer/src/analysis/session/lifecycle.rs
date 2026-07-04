@@ -324,19 +324,29 @@ impl AnalysisSession {
                 })
                 .collect::<Vec<_>>();
             ready.sort_by_key(|(select_id, _)| select_id.0);
-            let record_fields = ready
-                .iter()
-                .filter_map(|(select_id, target)| {
-                    matches!(target, SelectionTarget::RecordField).then_some(*select_id)
-                })
-                .collect::<Vec<_>>();
-            if !record_fields.is_empty() {
-                self.apply_record_field_selection_batch(record_fields);
-                continue;
-            }
             let Some((select_id, target)) = ready.first().cloned() else {
                 break;
             };
+            // Role-method fallback can instantiate the receiver effect for later
+            // selections in the same parent. Only batch record fields after those
+            // structured method candidates have had a chance to add constraints.
+            if matches!(target, SelectionTarget::RecordField)
+                && let Some((select_id, target)) = ready
+                    .iter()
+                    .find(|(_, target)| !matches!(target, SelectionTarget::RecordField))
+                    .cloned()
+            {
+                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+                continue;
+            }
+            if matches!(target, SelectionTarget::RecordField) {
+                let record_fields = ready
+                    .into_iter()
+                    .map(|(select_id, _)| select_id)
+                    .collect::<Vec<_>>();
+                self.apply_record_field_selection_batch(record_fields);
+                continue;
+            }
             if self.fallback_target_can_batch(&target) {
                 let batch = ready
                     .into_iter()
