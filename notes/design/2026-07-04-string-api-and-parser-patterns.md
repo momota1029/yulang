@@ -58,6 +58,10 @@ v1 で追加する public API（`lib/std/text/str.yu`）:
 新 API は `str` module（と method）にのみ足す。prelude への昇格は
 ユーザの好みの領域なので、まとめて別途判断する。
 
+2026-07-04 追補: `ref '['e] str` の変異 method 族（replace_once / replace /
+replace_all / splice / trim 系、いずれも `r.update` への一行糖衣）を追加
+（commit 1ed3b61a）。`(&doc.lines.each.replace_once "todo:" "done:").list` が動く。
+
 ## Part B: parser pattern（`rule` / `~"..."` を pattern に）
 
 ### 決定 P1: 意味論

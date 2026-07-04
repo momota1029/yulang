@@ -235,6 +235,13 @@ unsupported host で同じ意味論を持って動く状態を目標にする。
      respond, and double-respond structured failure (commit a5d631e2).
      `net::serve` (including the unscoped one-line form), real sockets, and
      the full driver loop remain.
+   - 2026-07-04: `net.listen` / `serve` / `listener.accept` are implemented
+     with a `--host mock-server` in-process driver; Yulang-level fixtures cover
+     two synthetic requests responded through structured child branches and a
+     double-respond typed `net_err::closed` failure (commits b79de22f,
+     c3719344). Deferred: unscoped one-line `net::serve 8080` (needs a
+     resolver/prelude module-alias slice), `l.requests` / `serve_with`,
+     connect-side `conn` forms, real sockets / HTTP / cancel surface.
 
 6. **Static route Stage M1, then conditional Stage 1**
    - `notes/design/2026-07-03-static-route-mono-resolution-plan.md` に従い、mono 側分類器の
