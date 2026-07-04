@@ -66,6 +66,27 @@ Feels like Python keyword arguments with defaults, Ruby hash splats, or
 TypeScript's `function f({a = 1} = {})`. The types are inferred — no
 annotations needed.
 
+## Parser patterns
+
+Parser patterns let a `case` arm match and capture pieces of a string directly.
+`~"..."` is the compact form; `rule { ... }` gives the same matcher room for
+guards and named parser pieces.
+
+```yulang
+use std::text::parse::*
+
+my route = \line -> case line:
+    ~"get :key" -> "GET " + key
+    ~"set :key {v = ..}" -> "SET " + key + " = " + v
+    rule { id = word } if id.starts_with "a" -> "user " + id
+    _ -> "unknown"
+
+(route "get color").say
+(route "set color deep-blue").say
+(route "alice").say
+(route "???").say
+```
+
 ## Mutable bindings and references
 
 `my $x = ...` introduces a mutable binding. `$x` reads, `&x = v` writes:

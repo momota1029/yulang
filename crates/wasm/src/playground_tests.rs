@@ -30,6 +30,20 @@ mod tests {
         }
     }
 
+    const PARSER_PATTERN_SHOWCASE: &str = r#"use std::text::parse::*
+
+my route = \line -> case line:
+    ~"get :key" -> "GET " + key
+    ~"set :key {v = ..}" -> "SET " + key + " = " + v
+    rule { id = word } if id.starts_with "a" -> "user " + id
+    _ -> "unknown"
+
+(route "get color").say
+(route "set color deep-blue").say
+(route "alice").say
+(route "???").say
+"#;
+
     fn diagnostics_fixture(name: &str) -> &'static str {
         match name {
             "type_annotation_mismatch" => include_str!(
@@ -247,6 +261,19 @@ point { x: 3, y: 4 } .norm2 + 1.12
             Some("[2, 6, 4]")
         );
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
+    }
+
+    #[test]
+    fn run_inner_runs_parser_pattern_showcase() {
+        clear_std_cache();
+        let output = run_inner_on_test_stack(PARSER_PATTERN_SHOWCASE);
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output.stdout,
+            "GET color\nSET color = deep-blue\nuser alice\nunknown\n"
+        );
+        assert_eq!(output.text, "run roots [(), (), (), ()]\n");
     }
 
     #[test]

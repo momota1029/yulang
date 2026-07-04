@@ -58,6 +58,27 @@ f { a: 10 }      // (10, 11, 12)
 
 Python のキーワード引数 + default、Ruby のハッシュ展開、TypeScript の `function f({a = 1} = {})` に近い使い心地です。型はちゃんと推論されるので、注釈は要りません。
 
+## Parser pattern
+
+parser pattern は、`case` の arm で文字列を直接 match して、その場で部分文字列を
+capture できます。`~"..."` は短い形、`rule { ... }` は guard や名前付き parser
+piece を置きたいときの形です。
+
+```yulang
+use std::text::parse::*
+
+my route = \line -> case line:
+    ~"get :key" -> "GET " + key
+    ~"set :key {v = ..}" -> "SET " + key + " = " + v
+    rule { id = word } if id.starts_with "a" -> "user " + id
+    _ -> "unknown"
+
+(route "get color").say
+(route "set color deep-blue").say
+(route "alice").say
+(route "???").say
+```
+
 ## 可変 binding と参照
 
 `my $x = ...` は可変 binding を作ります。`$x` は読み取り、`&x = v` は書き込みです。

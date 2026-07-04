@@ -327,6 +327,24 @@ all_paths:
 `,
     },
     {
+        label: { ja: "文字列マッチ", en: "String Match" },
+        source: `// Parser patterns turn strings into structured branches.
+
+use std::text::parse::*
+
+my route = \\line -> case line:
+    ~"get :key" -> "GET " + key
+    ~"set :key {v = ..}" -> "SET " + key + " = " + v
+    rule { id = word } if id.starts_with "a" -> "user " + id
+    _ -> "unknown"
+
+(route "get color").say
+(route "set color deep-blue").say
+(route "alice").say
+(route "???").say
+`,
+    },
+    {
         label: { ja: "データとメソッド", en: "Data & Methods" },
         source: `// Struct methods live next to the data they extend.
 
