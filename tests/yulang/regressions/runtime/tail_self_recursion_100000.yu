@@ -1,0 +1,7 @@
+my loop(i: int, end: int, acc: int): int =
+    if i < end:
+        loop(i + 1, end, acc + i)
+    else:
+        acc
+
+loop(0, 100000, 0)

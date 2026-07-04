@@ -5516,6 +5516,12 @@ enum EvidenceEvalResult {
     Effect(EvidenceEffectSignal),
 }
 
+enum EvidenceTailEvalStep {
+    Result(EvidenceEvalResult),
+    ContinueSameEnv(ExprId),
+    ContinueOwnedEnv { expr: ExprId, env: Env },
+}
+
 impl EvidenceEvalResult {
     fn request(request: EvidenceRequest) -> Self {
         Self::Effect(EvidenceEffectSignal::from_request(request))
@@ -9538,7 +9544,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Root::EvalInstance(instance) => {
                     let _ = self.eval_instance(*instance)?;
                 }
-                Root::Expr(expr) => values.push(self.eval_expr(*expr, &mut env)?),
+                Root::Expr(expr) => values.push(self.eval_tail_expr(*expr, &mut env)?),
             }
             self.drain_host_scheduler_values(&mut values)?;
         }
@@ -13384,7 +13390,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
 
         let mut env = Env::new();
-        let value = self.eval_expr(control_instance.entry, &mut env);
+        let value = self.eval_tail_expr(control_instance.entry, &mut env);
         self.evaluating_instances.remove(&instance);
         let value = value?;
         self.instances.insert(instance, value.clone());
@@ -13397,6 +13403,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &mut Env,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         let result = self.eval_expr_result(expr, env)?;
+        self.resolve_eval_result(result)
+    }
+
+    fn eval_tail_expr(
+        &mut self,
+        expr: ExprId,
+        env: &mut Env,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let result = self.eval_tail_expr_result(expr, env)?;
         self.resolve_eval_result(result)
     }
 
@@ -14143,6 +14158,104 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn eval_tail_expr_result(
+        &mut self,
+        expr: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut current_expr = expr;
+        let mut owned_env: Option<Env> = None;
+        loop {
+            let step = {
+                let current_env = match owned_env.as_mut() {
+                    Some(env) => env,
+                    None => env,
+                };
+                match self.runtime_exprs[current_expr.0 as usize].clone() {
+                    RuntimeEvidenceExpr::Block { stmts, tail } => {
+                        self.stats.expr_evals += 1;
+                        self.eval_block_parts_tail_step(
+                            &stmts,
+                            tail,
+                            current_env,
+                            shared(RuntimeEvidenceValue::Unit),
+                        )?
+                    }
+                    RuntimeEvidenceExpr::Case { expr, scrutinee } => {
+                        self.stats.expr_evals += 1;
+                        let arms = self.static_case_arms(expr);
+                        match self.eval_expr_result(scrutinee, current_env)? {
+                            EvidenceEvalResult::Value(scrutinee) => {
+                                self.eval_case_scrutinee_tail_step(scrutinee, arms, current_env)?
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(
+                                request,
+                            )) => {
+                                let env = self.clone_env(current_env);
+                                EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
+                                    self.append_request_continuation(
+                                        request,
+                                        EvidenceContinuation::case_scrutinee(
+                                            arms,
+                                            env,
+                                            EvidenceContinuation::identity(),
+                                        ),
+                                    ),
+                                ))
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(
+                                call,
+                            )) => EvidenceTailEvalStep::Result(
+                                EvidenceEvalResult::direct_abortive(call),
+                            ),
+                            EvidenceEvalResult::Effect(
+                                EvidenceEffectSignal::DirectTailResumptive(call),
+                            ) => {
+                                let env = self.clone_env(current_env);
+                                EvidenceTailEvalStep::Result(self.continue_result(
+                                    EvidenceEvalResult::direct_tail_resumptive(call),
+                                    EvidenceContinuation::case_scrutinee(
+                                        arms,
+                                        env,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                )?)
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                                let env = self.clone_env(current_env);
+                                EvidenceTailEvalStep::Result(self.continue_result(
+                                    EvidenceEvalResult::routed_yield(call),
+                                    EvidenceContinuation::case_scrutinee(
+                                        arms,
+                                        env,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                )?)
+                            }
+                        }
+                    }
+                    RuntimeEvidenceExpr::Apply { site, callee, arg } => {
+                        self.stats.expr_evals += 1;
+                        self.eval_tail_apply_result(Some(site), callee, arg, current_env)?
+                    }
+                    _ => EvidenceTailEvalStep::Result(
+                        self.eval_expr_result(current_expr, current_env)?,
+                    ),
+                }
+            };
+            match step {
+                EvidenceTailEvalStep::Result(result) => return Ok(result),
+                EvidenceTailEvalStep::ContinueSameEnv(expr) => {
+                    current_expr = expr;
+                }
+                EvidenceTailEvalStep::ContinueOwnedEnv { expr, env } => {
+                    current_expr = expr;
+                    owned_env = Some(env);
+                }
+            }
+        }
+    }
+
     fn force_thunk_value_result(
         &mut self,
         thunk: SharedValue,
@@ -14426,6 +14539,61 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn eval_tail_apply_result(
+        &mut self,
+        site: Option<ExprId>,
+        callee_expr: ExprId,
+        arg_expr: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
+        match self.eval_expr_result(callee_expr, env)? {
+            EvidenceEvalResult::Value(callee) => {
+                self.eval_tail_apply_arg_result(site, callee, arg_expr, env)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
+                    self.append_request_continuation(
+                        request,
+                        EvidenceContinuation::apply_callee(
+                            site,
+                            arg_expr,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => Ok(
+                EvidenceTailEvalStep::Result(EvidenceEvalResult::direct_abortive(call)),
+            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::routed_yield(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+        }
+    }
+
     fn eval_force_effect_call_result(
         &mut self,
         target_value_is_thunk: bool,
@@ -14554,6 +14722,102 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
                 ),
         }
+    }
+
+    fn eval_tail_apply_arg_result(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg_expr: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
+        if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
+            return self.tail_apply_scoped_value_step(site, callee, arg);
+        }
+        let mut arg_env = self.clone_env(env);
+        match self.eval_expr_result(arg_expr, &mut arg_env)? {
+            EvidenceEvalResult::Value(arg) => self.tail_apply_scoped_value_step(site, callee, arg),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
+                    self.append_request_continuation(
+                        request,
+                        EvidenceContinuation::apply_arg(
+                            site,
+                            callee,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => Ok(
+                EvidenceTailEvalStep::Result(EvidenceEvalResult::direct_abortive(call)),
+            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                )?))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::routed_yield(call),
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                )?))
+            }
+        }
+    }
+
+    fn tail_apply_scoped_value_step(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg: SharedValue,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
+        if self.tail_apply_can_enter_plain_closure() {
+            match callee.as_ref() {
+                RuntimeEvidenceValue::Closure(closure) if closure.provider_env.is_empty() => {
+                    self.stats.apply_value_calls += 1;
+                    let mut env = self.clone_env(&closure.env);
+                    self.bind_pat(&closure.param, arg, &mut env)?;
+                    return Ok(EvidenceTailEvalStep::ContinueOwnedEnv {
+                        expr: closure.body,
+                        env,
+                    });
+                }
+                RuntimeEvidenceValue::RecursiveClosure { def, closure }
+                    if closure.provider_env.is_empty() =>
+                {
+                    self.stats.apply_value_calls += 1;
+                    let mut env = self.clone_env(&closure.env);
+                    env.insert_slot(
+                        EnvSlot::from(*def),
+                        shared(RuntimeEvidenceValue::RecursiveClosure {
+                            def: *def,
+                            closure: closure.clone(),
+                        }),
+                    );
+                    self.bind_pat(&closure.param, arg, &mut env)?;
+                    return Ok(EvidenceTailEvalStep::ContinueOwnedEnv {
+                        expr: closure.body,
+                        env,
+                    });
+                }
+                _ => {}
+            }
+        }
+        self.apply_scoped_value_result(site, callee, arg)
+            .map(EvidenceTailEvalStep::Result)
+    }
+
+    fn tail_apply_can_enter_plain_closure(&self) -> bool {
+        self.active_frames.is_empty()
+            && self.active_handler_frames.is_empty()
+            && self.active_add_ids.is_empty()
+            && self.active_marker_plans.is_empty()
+            && self.active_provider_envs.is_empty()
+            && self.active_provider_handlers.is_empty()
+            && self.active_state_handler_frames.is_empty()
+            && self.host_scheduler.has_only_root_branch()
     }
 
     fn eval_ref_set_result(
@@ -20169,6 +20433,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: &[control_vm::CaseArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match self.eval_case_result_step(scrutinee, arms, env, false)? {
+            EvidenceTailEvalStep::Result(result) => Ok(result),
+            EvidenceTailEvalStep::ContinueSameEnv(_)
+            | EvidenceTailEvalStep::ContinueOwnedEnv { .. } => {
+                unreachable!("non-tail case evaluation must not produce a tail step")
+            }
+        }
+    }
+
+    fn eval_case_result_step(
+        &mut self,
+        scrutinee: SharedValue,
+        arms: &[control_vm::CaseArm],
+        env: &Env,
+        tail_position: bool,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
         for arm in arms {
             if lit_pat_mismatches_value(&arm.pat, scrutinee.as_ref()) {
                 continue;
@@ -20180,9 +20460,68 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
                 continue;
             }
-            return self.eval_expr_result(arm.body, &mut arm_env);
+            if tail_position {
+                return Ok(EvidenceTailEvalStep::ContinueOwnedEnv {
+                    expr: arm.body,
+                    env: arm_env,
+                });
+            }
+            return self
+                .eval_expr_result(arm.body, &mut arm_env)
+                .map(EvidenceTailEvalStep::Result);
         }
         Err(RuntimeEvidenceRunError::PatternMismatch)
+    }
+
+    fn eval_case_scrutinee_tail_step(
+        &mut self,
+        scrutinee: SharedValue,
+        arms: Rc<[control_vm::CaseArm]>,
+        env: &Env,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
+        match self.force_value_if_thunk_result(scrutinee)? {
+            EvidenceEvalResult::Value(scrutinee) => {
+                self.eval_case_result_step(scrutinee, &arms, env, true)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
+                    self.append_request_continuation(
+                        request,
+                        EvidenceContinuation::case_scrutinee(
+                            arms,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => Ok(
+                EvidenceTailEvalStep::Result(EvidenceEvalResult::direct_abortive(call)),
+            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                let env = self.clone_env(env);
+                Ok(EvidenceTailEvalStep::Result(self.continue_result(
+                    EvidenceEvalResult::routed_yield(call),
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+        }
     }
 
     fn eval_case_scrutinee_result(
@@ -20252,8 +20591,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         stmts: &[Stmt],
         tail: Option<ExprId>,
         env: &mut Env,
-        mut last: SharedValue,
+        last: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match self.eval_block_parts_step(stmts, tail, env, last, false)? {
+            EvidenceTailEvalStep::Result(result) => Ok(result),
+            EvidenceTailEvalStep::ContinueSameEnv(_)
+            | EvidenceTailEvalStep::ContinueOwnedEnv { .. } => {
+                unreachable!("non-tail block evaluation must not produce a tail step")
+            }
+        }
+    }
+
+    fn eval_block_parts_tail_step(
+        &mut self,
+        stmts: &[Stmt],
+        tail: Option<ExprId>,
+        env: &mut Env,
+        last: SharedValue,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
+        self.eval_block_parts_step(stmts, tail, env, last, true)
+    }
+
+    fn eval_block_parts_step(
+        &mut self,
+        stmts: &[Stmt],
+        tail: Option<ExprId>,
+        env: &mut Env,
+        mut last: SharedValue,
+        tail_position: bool,
+    ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
         for (index, stmt) in stmts.iter().enumerate() {
             let rest = &stmts[index + 1..];
             match stmt {
@@ -20264,7 +20630,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
                         let env = self.clone_env(env);
-                        return Ok(EvidenceEvalResult::request(
+                        return Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
                             self.append_request_continuation(
                                 request,
                                 EvidenceContinuation::block_stmt(
@@ -20276,16 +20642,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     EvidenceContinuation::identity(),
                                 ),
                             ),
-                        ));
+                        )));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                        return Ok(EvidenceEvalResult::direct_abortive(call));
+                        return Ok(EvidenceTailEvalStep::Result(
+                            EvidenceEvalResult::direct_abortive(call),
+                        ));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(
                         call,
                     )) => {
                         let env = self.clone_env(env);
-                        return self.continue_result(
+                        return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                             EvidenceEvalResult::direct_tail_resumptive(call),
                             EvidenceContinuation::block_stmt(
                                 EvidenceBlockResume::Let(pat.clone()),
@@ -20295,11 +20663,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 last,
                                 EvidenceContinuation::identity(),
                             ),
-                        );
+                        )?));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
                         let env = self.clone_env(env);
-                        return self.continue_result(
+                        return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                             EvidenceEvalResult::routed_yield(call),
                             EvidenceContinuation::block_stmt(
                                 EvidenceBlockResume::Let(pat.clone()),
@@ -20309,14 +20677,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 last,
                                 EvidenceContinuation::identity(),
                             ),
-                        );
+                        )?));
                     }
                 },
                 Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
                     EvidenceEvalResult::Value(value) => last = value,
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
                         let env = self.clone_env(env);
-                        return Ok(EvidenceEvalResult::request(
+                        return Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
                             self.append_request_continuation(
                                 request,
                                 EvidenceContinuation::block_stmt(
@@ -20328,16 +20696,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     EvidenceContinuation::identity(),
                                 ),
                             ),
-                        ));
+                        )));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                        return Ok(EvidenceEvalResult::direct_abortive(call));
+                        return Ok(EvidenceTailEvalStep::Result(
+                            EvidenceEvalResult::direct_abortive(call),
+                        ));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(
                         call,
                     )) => {
                         let env = self.clone_env(env);
-                        return self.continue_result(
+                        return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                             EvidenceEvalResult::direct_tail_resumptive(call),
                             EvidenceContinuation::block_stmt(
                                 EvidenceBlockResume::Expr,
@@ -20347,11 +20717,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 last,
                                 EvidenceContinuation::identity(),
                             ),
-                        );
+                        )?));
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
                         let env = self.clone_env(env);
-                        return self.continue_result(
+                        return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                             EvidenceEvalResult::routed_yield(call),
                             EvidenceContinuation::block_stmt(
                                 EvidenceBlockResume::Expr,
@@ -20361,7 +20731,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 last,
                                 EvidenceContinuation::identity(),
                             ),
-                        );
+                        )?));
                     }
                 },
                 Stmt::Module(_, module_stmts) => {
@@ -20375,7 +20745,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             request,
                         )) => {
                             let env = self.clone_env(env);
-                            return Ok(EvidenceEvalResult::request(
+                            return Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::request(
                                 self.append_request_continuation(
                                     request,
                                     EvidenceContinuation::block_stmt(
@@ -20387,16 +20757,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                         EvidenceContinuation::identity(),
                                     ),
                                 ),
-                            ));
+                            )));
                         }
                         EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                            return Ok(EvidenceEvalResult::direct_abortive(call));
+                            return Ok(EvidenceTailEvalStep::Result(
+                                EvidenceEvalResult::direct_abortive(call),
+                            ));
                         }
                         EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(
                             call,
                         )) => {
                             let env = self.clone_env(env);
-                            return self.continue_result(
+                            return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                                 EvidenceEvalResult::direct_tail_resumptive(call),
                                 EvidenceContinuation::block_stmt(
                                     EvidenceBlockResume::Expr,
@@ -20406,11 +20778,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     last,
                                     EvidenceContinuation::identity(),
                                 ),
-                            );
+                            )?));
                         }
                         EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
                             let env = self.clone_env(env);
-                            return self.continue_result(
+                            return Ok(EvidenceTailEvalStep::Result(self.continue_result(
                                 EvidenceEvalResult::routed_yield(call),
                                 EvidenceContinuation::block_stmt(
                                     EvidenceBlockResume::Expr,
@@ -20420,16 +20792,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     last,
                                     EvidenceContinuation::identity(),
                                 ),
-                            );
+                            )?));
                         }
                     }
                 }
             }
         }
         if let Some(tail) = tail {
-            self.eval_expr_result(tail, env)
+            if tail_position {
+                Ok(EvidenceTailEvalStep::ContinueSameEnv(tail))
+            } else {
+                self.eval_expr_result(tail, env)
+                    .map(EvidenceTailEvalStep::Result)
+            }
         } else {
-            Ok(EvidenceEvalResult::Value(last))
+            Ok(EvidenceTailEvalStep::Result(EvidenceEvalResult::Value(
+                last,
+            )))
         }
     }
 

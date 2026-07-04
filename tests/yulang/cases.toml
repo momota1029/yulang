@@ -71,6 +71,33 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "stable-api", "str", "refs"]
 
 [[case]]
+name = "tail_self_recursion_100000"
+file = "regressions/runtime/tail_self_recursion_100000.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [4999950000]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "std.flow"]
+
+[[case]]
+name = "range_fold_tail_100000"
+file = "regressions/runtime/range_fold_tail_100000.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [4999950000]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "std.flow"]
+
+[[case]]
+name = "for_ref_tail_residual_4000"
+file = "regressions/runtime/for_ref_tail_residual_4000.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [7998000]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow"]
+
+[[case]]
 name = "result_api"
 file = "regressions/runtime/result_api.yu"
 kind = "run"
