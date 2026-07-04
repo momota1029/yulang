@@ -628,7 +628,7 @@ Use `--infer` to inspect public inferred types.
 
 ## What Is Still Experimental
 
-The current implementation contains some parser-level features that are not yet full language features. In particular, rule and mark syntax can be parsed, but it is not currently meaningful as ordinary Yulang expressions.
+The current implementation contains some parser-level features that are not yet full language features. The case-arm parser pattern subset is executable and contract-covered for literal parser patterns, capture record binding, guards, terminal `..`, and interpolation references. The broader rule and mark DSL remains preview surface and is not yet meaningful as a general ordinary-expression language.
 
 There are also runtime-lowering and monomorphization limitations. Some examples infer successfully but do not currently run in the dirty development workspace because residual polymorphic runtime IR remains.
 

@@ -159,8 +159,9 @@ The columns trace a value through the pipeline:
 
 | Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
-| `rule { … }` parser DSL              |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
-| `~"..."` mark / capture syntax       |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
+| Parser pattern P1/P2 subset (`case` arms) | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| `rule { … }` parser DSL outside that subset | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ |
+| `~"..."` mark / capture syntax outside that subset | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ |
 | Parser combinator surface API        |  ✅   |  ⚠️   |   △    |     △      |   ❌   |  ⚠️  |
 
 ## Known limitations

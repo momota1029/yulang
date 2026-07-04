@@ -73,6 +73,44 @@ The `ref_str_mutating_methods_local` runtime case proves the same public
 receiver method path works over a local ref-shaped buffer for replace, trim, and
 splice behavior.
 
+## Parser Pattern P1/P2
+
+The parser pattern contract is limited to case-arm patterns. It does not close
+the full parser DSL as an ordinary expression language.
+
+Current `parser-dsl` / `patterns` manifest coverage:
+
+| kind | count | contract role |
+| --- | ---: | --- |
+| `run` | 1 | case-arm parser pattern behavior |
+| `check` | 2 | malformed parser pattern diagnostics |
+| `public-signature` | 1 | effect-hygiene public projection for a parser-pattern helper |
+| total | 4 | Parser Pattern P1/P2 executable slice |
+
+The conformance command is:
+
+```bash
+cargo run -q -p yulang -- --std-root lib contract --contract parser-dsl --contract patterns tests/yulang/cases.toml
+```
+
+Last recorded local validation on 2026-07-04:
+
+```text
+contract cases ok: 4
+```
+
+The closed subset covers:
+
+- literal parser patterns in `case` arms;
+- capture record binding from parser results;
+- guards over captured fields;
+- terminal rest `..` capture or discard;
+- interpolation references inside rule literals.
+
+The malformed subset covers non-terminal `..` and unsupported lazy quantifiers
+such as `*?`. Full parser-expression execution, adapters, and the rest of the
+parser DSL remain preview surface outside this slice.
+
 ## Closed Slice
 
 The String API v1 slice is closed for the functions and ref methods listed on
