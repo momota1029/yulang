@@ -100,6 +100,13 @@ pub type str with:
     pub s.trim = std::text::str::trim s
     pub s.trim_start = std::text::str::trim_start s
     pub s.trim_end = std::text::str::trim_end s
+    pub &r.replace_once pattern replacement = (&r).update \s -> std::text::str::replace_once s pattern replacement
+    pub &r.replace pattern replacement = (&r).update \s -> std::text::str::replace s pattern replacement
+    pub &r.replace_all pattern replacement = (&r).update \s -> std::text::str::replace_all s pattern replacement
+    pub &r.splice range replacement = (&r).update \s -> std::text::str::splice s range replacement
+    pub &r.trim = (&r).update \s -> std::text::str::trim s
+    pub &r.trim_start = (&r).update \s -> std::text::str::trim_start s
+    pub &r.trim_end = (&r).update \s -> std::text::str::trim_end s
     pub s.repeat count = std::text::str::repeat s count
     pub s.to_int = std::text::str::to_int s
     pub s.len = std::text::str::len s

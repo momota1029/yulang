@@ -1,0 +1,26 @@
+use std::control::var::*
+use std::data::range::*
+use std::text::str::*
+
+my replace_and_trim(backing) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    r.replace_once "todo:" "done:"
+    r.trim
+    r.get()
+}
+
+my splice_range(backing) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    r.splice (range 5 9) "done"
+    r.get()
+}
+
+(replace_and_trim "  todo: one  ", splice_range "keep todo tail")

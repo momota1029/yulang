@@ -62,6 +62,15 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "refs", "update"]
 
 [[case]]
+name = "ref_str_mutating_methods_local"
+file = "regressions/runtime/ref_str_mutating_methods_local.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"done: one\", \"keep done tail\")]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
 name = "result_api"
 file = "regressions/runtime/result_api.yu"
 kind = "run"
@@ -677,6 +686,31 @@ contracts = [
 [[case]]
 name = "file_ref_lines_each_update_chain_native"
 file = "regressions/runtime/file_ref_lines_each_update_chain_native.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "(touched, [(), (), (), ()], after, keep\ndone: one\nskip\ndone: two)\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "keep\ntodo: one\nskip\ntodo: two", expect_contents = "keep\ndone: one\nskip\ndone: two" },
+]
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "resource-lifetime",
+  "host-act",
+  "host.native",
+  "std.nondet",
+  "refs",
+]
+
+[[case]]
+name = "file_ref_lines_each_replace_once_method_native"
+file = "regressions/runtime/file_ref_lines_each_replace_once_method_native.yu"
 kind = "run"
 std = "repo"
 print_roots = false
@@ -2079,6 +2113,28 @@ symbol = "std.text.str.repeat"
 expect_type = "std::text::str::str -> int -> std::text::str::str"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "stable-api", "str"]
+
+[[case]]
+name = "std_str_ref_replace_once_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.replace_once!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
+
+[[case]]
+name = "std_str_ref_trim_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.str.str"
+symbol = "std.text.str.str.trim!"
+expect_type = "std::control::var::ref 'a std::text::str::str -> ['a] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "stable-api", "str", "refs"]
 
 [[case]]
 name = "std_str_to_int_public_signature"

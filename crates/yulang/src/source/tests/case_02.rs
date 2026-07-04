@@ -1685,6 +1685,38 @@ fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
 
 #[cfg(unix)]
 #[test]
+fn dump_poly_std_str_ref_mutating_method_public_signatures_are_clean() {
+    let entry = write_main_with_std("dump-poly-std-str-ref-mutating-public-type", "1\n");
+    let output = dump_poly_from_entry_with_std_in_module(entry, "std.text.str.str").unwrap();
+
+    let replace_once_ty = assert_public_signature_type_hides_stack_evidence(
+        &output,
+        "std.text.str.str.replace_once!",
+    );
+    assert_eq!(
+        replace_once_ty,
+        "std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] ()",
+        "ref str replace_once should expose only the receiver residual effect"
+    );
+    assert!(
+        !replace_once_ty.contains("std::control::var::ref_update"),
+        "ref str replace_once should not expose ref_update handler evidence:\n{replace_once_ty}"
+    );
+
+    let trim_ty =
+        assert_public_signature_type_hides_stack_evidence(&output, "std.text.str.str.trim!");
+    assert_eq!(
+        trim_ty, "std::control::var::ref 'a std::text::str::str -> ['a] ()",
+        "ref str trim should expose only the receiver residual effect"
+    );
+    assert!(
+        !trim_ty.contains("std::control::var::ref_update"),
+        "ref str trim should not expose ref_update handler evidence:\n{trim_ty}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn dump_poly_std_parse_choice_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-parse-choice-public-type", "1\n");
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.text.parse").unwrap();
