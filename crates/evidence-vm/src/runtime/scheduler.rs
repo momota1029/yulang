@@ -361,6 +361,25 @@ impl RuntimeHostScheduler {
             })
     }
 
+    pub(super) fn branch_count(&self) -> usize {
+        self.branches.len()
+    }
+
+    pub(super) fn one_shot_token_count(&self) -> usize {
+        self.one_shot_tokens_by_branch.len()
+    }
+
+    pub(super) fn multi_shot_parent_count(&self) -> usize {
+        self.multi_shot_tokens_by_parent.len()
+    }
+
+    pub(super) fn multi_shot_token_count(&self) -> usize {
+        self.multi_shot_tokens_by_parent
+            .values()
+            .map(BTreeMap::len)
+            .sum()
+    }
+
     pub(super) fn spawn_suspended_child(
         &mut self,
         parent: RuntimeHostBranchId,

@@ -486,6 +486,14 @@ pub(super) fn run_built_evidence_for_cli_with_host(
     build: yulang::BuildControlOutput,
     host: RunHostMode,
 ) -> CliEvidenceRunOutput {
+    run_built_evidence_for_cli_with_host_profile(build, host, false)
+}
+
+pub(super) fn run_built_evidence_for_cli_with_host_profile(
+    build: yulang::BuildControlOutput,
+    host: RunHostMode,
+    deep_profile: bool,
+) -> CliEvidenceRunOutput {
     run_control_on_cli_vm_stack(move || {
         let yulang::BuildControlOutput {
             program,
@@ -502,19 +510,46 @@ pub(super) fn run_built_evidence_for_cli_with_host(
         let run_start = Instant::now();
         let run_result = match host {
             RunHostMode::Native => {
-                evidence_vm::run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
-                    &program, &plan, &labels,
-                )
+                if deep_profile {
+                    evidence_vm::run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else {
+                    evidence_vm::run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
+                        &program, &plan, &labels,
+                    )
+                }
             }
             RunHostMode::Unsupported => {
-                evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(
-                    &program, &plan, &labels,
-                )
+                if deep_profile {
+                    evidence_vm::run_program_with_plan_deep_profile_without_native_host_operations_with_labels(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else {
+                    evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(
+                        &program, &plan, &labels,
+                    )
+                }
             }
             RunHostMode::MockServer => {
-                evidence_vm::run_program_with_plan_with_in_process_server_host_with_labels(
-                    &program, &plan, &labels,
-                )
+                if deep_profile {
+                    evidence_vm::run_program_with_plan_deep_profile_with_in_process_server_host_with_labels(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else {
+                    evidence_vm::run_program_with_plan_with_in_process_server_host_with_labels(
+                        &program, &plan, &labels,
+                    )
+                }
             }
         };
         let output = match run_result {

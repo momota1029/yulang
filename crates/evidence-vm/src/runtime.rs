@@ -1669,6 +1669,96 @@ impl EvidenceContinuationShapeProfile {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceContinuationLiveGauge {
+    frames: usize,
+    max_depth: usize,
+    then_frames: usize,
+    state_frames: usize,
+    force_frames: usize,
+    apply_frames: usize,
+    adapter_frames: usize,
+    case_frames: usize,
+    catch_frames: usize,
+    scope_frames: usize,
+    marker_frames: usize,
+    provider_env_frames: usize,
+    aggregate_frames: usize,
+    select_frames: usize,
+    block_frames: usize,
+    ref_set_frames: usize,
+}
+
+impl EvidenceContinuationLiveGauge {
+    fn record(&mut self, frame: &EvidenceContinuationFrame, depth: usize) {
+        self.frames += 1;
+        self.max_depth = self.max_depth.max(depth);
+        match frame {
+            EvidenceContinuationFrame::Then { .. } => {
+                self.then_frames += 1;
+            }
+            EvidenceContinuationFrame::StateFrames { .. } => {
+                self.state_frames += 1;
+            }
+            EvidenceContinuationFrame::ForceThunk { .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { .. } => {
+                self.force_frames += 1;
+            }
+            EvidenceContinuationFrame::ApplyCallee { .. }
+            | EvidenceContinuationFrame::ApplyArg { .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { .. } => {
+                self.apply_frames += 1;
+            }
+            EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::WrapThunkValue { .. }
+            | EvidenceContinuationFrame::ApplyAdapterArg { .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { .. } => {
+                self.adapter_frames += 1;
+            }
+            EvidenceContinuationFrame::CaseScrutinee { .. } => {
+                self.case_frames += 1;
+            }
+            EvidenceContinuationFrame::CatchBody { .. }
+            | EvidenceContinuationFrame::CatchForeignBoundarySegment { .. } => {
+                self.catch_frames += 1;
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { .. } => {
+                self.scope_frames += 1;
+            }
+            EvidenceContinuationFrame::MarkerFrame { .. } => {
+                self.marker_frames += 1;
+            }
+            EvidenceContinuationFrame::ProviderEnv { .. } => {
+                self.provider_env_frames += 1;
+            }
+            EvidenceContinuationFrame::TupleItems { .. }
+            | EvidenceContinuationFrame::RecordSpread { .. }
+            | EvidenceContinuationFrame::RecordFields { .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { .. } => {
+                self.aggregate_frames += 1;
+            }
+            EvidenceContinuationFrame::SelectBase { .. } => {
+                self.select_frames += 1;
+            }
+            EvidenceContinuationFrame::BlockStmt { .. } => {
+                self.block_frames += 1;
+            }
+            EvidenceContinuationFrame::RefSetReference { .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { .. }
+            | EvidenceContinuationFrame::RefSetValue { .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { .. }
+            | EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { .. } => {
+                self.ref_set_frames += 1;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct EvidenceDirectTailSegmentProfile {
     eval_frames: usize,
     then_frames: usize,
@@ -6177,6 +6267,19 @@ impl EvidenceContinuation {
         self.shape_profile_at(0)
     }
 
+    fn live_gauge(&self) -> EvidenceContinuationLiveGauge {
+        let mut gauge = EvidenceContinuationLiveGauge::default();
+        let mut stack = vec![(self, 0)];
+        while let Some((continuation, depth)) = stack.pop() {
+            let Some(frame) = continuation.frame() else {
+                continue;
+            };
+            gauge.record(frame, depth);
+            frame.push_live_gauge_children(depth + 1, &mut stack);
+        }
+        gauge
+    }
+
     fn direct_tail_segment_profile(&self) -> EvidenceDirectTailSegmentProfile {
         let Some(frame) = self.frame() else {
             return EvidenceDirectTailSegmentProfile::default();
@@ -6345,6 +6448,58 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn push_live_gauge_children<'a>(
+        &'a self,
+        depth: usize,
+        stack: &mut Vec<(&'a EvidenceContinuation, usize)>,
+    ) {
+        match self {
+            EvidenceContinuationFrame::Then { first, second } => {
+                stack.push((first, depth));
+                stack.push((second, depth));
+            }
+            EvidenceContinuationFrame::StateFrames { inner, .. } => {
+                stack.push((inner, depth));
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                stack.push((scope, depth));
+                stack.push((next, depth));
+            }
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::CatchBody { next, .. }
+            | EvidenceContinuationFrame::CatchForeignBoundarySegment { next, .. }
+            | EvidenceContinuationFrame::MarkerFrame { next, .. }
+            | EvidenceContinuationFrame::ProviderEnv { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetHandleResult { next, .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { next, .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
+                stack.push((next, depth));
+            }
+        }
+    }
+
     fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
         match (self, routed_yield_handler) {
             (Self::StateFrames { inner, .. }, _) => {
@@ -8537,6 +8692,19 @@ pub fn run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .with_stdout_flush_on_external_wait()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_without_native_host_operations(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -8556,12 +8724,38 @@ pub fn run_program_with_plan_without_native_host_operations_with_labels(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_deep_profile_without_native_host_operations_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .without_native_host_operations()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_with_in_process_server_host_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
     labels: &poly::dump::DumpLabels,
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_in_process_server_host()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_deep_profile_with_in_process_server_host_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
         .with_in_process_server_host()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
@@ -9538,6 +9732,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn run(&mut self) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
         let mut values = Vec::new();
         let mut env = Env::new();
+        self.record_env_gauge(&env);
+        self.record_runtime_live_gauges();
         for root in &self.program.roots {
             match root {
                 Root::Instance(instance) => values.push(self.eval_instance(*instance)?),
@@ -9596,11 +9792,138 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         expr_id_preserves_env(expr, &self.env_preserving_exprs)
     }
 
+    fn record_env_gauge(&mut self, env: &Env) {
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+        self.stats.max_env_depth = self.stats.max_env_depth.max(env.len());
+    }
+
+    fn record_runtime_live_gauges(&mut self) {
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+        self.stats.max_active_frames_len = self
+            .stats
+            .max_active_frames_len
+            .max(self.active_frames.len());
+        self.stats.max_active_handler_frames_len = self
+            .stats
+            .max_active_handler_frames_len
+            .max(self.active_handler_frames.len());
+        self.stats.max_active_add_ids_len = self
+            .stats
+            .max_active_add_ids_len
+            .max(self.active_add_ids.len());
+        self.stats.max_active_marker_plans_len = self
+            .stats
+            .max_active_marker_plans_len
+            .max(self.active_marker_plans.len());
+        self.stats.max_active_provider_envs_len = self
+            .stats
+            .max_active_provider_envs_len
+            .max(self.active_provider_envs.len());
+        self.stats.max_active_provider_handlers_len = self
+            .stats
+            .max_active_provider_handlers_len
+            .max(self.active_provider_handlers.len());
+        self.stats.max_active_state_handler_frames_len = self
+            .stats
+            .max_active_state_handler_frames_len
+            .max(self.active_state_handler_frames.len());
+        self.stats.max_host_scheduler_branches = self
+            .stats
+            .max_host_scheduler_branches
+            .max(self.host_scheduler.branch_count());
+        self.stats.max_host_scheduler_one_shot_tokens = self
+            .stats
+            .max_host_scheduler_one_shot_tokens
+            .max(self.host_scheduler.one_shot_token_count());
+        self.stats.max_host_scheduler_multi_shot_parents = self
+            .stats
+            .max_host_scheduler_multi_shot_parents
+            .max(self.host_scheduler.multi_shot_parent_count());
+        self.stats.max_host_scheduler_multi_shot_tokens = self
+            .stats
+            .max_host_scheduler_multi_shot_tokens
+            .max(self.host_scheduler.multi_shot_token_count());
+        self.stats.max_suspended_host_continuations = self
+            .stats
+            .max_suspended_host_continuations
+            .max(self.suspended_host_continuations.len());
+    }
+
+    fn record_continuation_gauge(&mut self, continuation: &EvidenceContinuation) {
+        if !self.should_collect_runtime_breakdown_stats() || continuation.is_identity() {
+            return;
+        }
+        let gauge = continuation.live_gauge();
+        self.stats.max_continuation_frames = self.stats.max_continuation_frames.max(gauge.frames);
+        self.stats.max_continuation_depth = self.stats.max_continuation_depth.max(gauge.max_depth);
+        self.stats.max_continuation_then_frames = self
+            .stats
+            .max_continuation_then_frames
+            .max(gauge.then_frames);
+        self.stats.max_continuation_state_frames = self
+            .stats
+            .max_continuation_state_frames
+            .max(gauge.state_frames);
+        self.stats.max_continuation_force_frames = self
+            .stats
+            .max_continuation_force_frames
+            .max(gauge.force_frames);
+        self.stats.max_continuation_apply_frames = self
+            .stats
+            .max_continuation_apply_frames
+            .max(gauge.apply_frames);
+        self.stats.max_continuation_adapter_frames = self
+            .stats
+            .max_continuation_adapter_frames
+            .max(gauge.adapter_frames);
+        self.stats.max_continuation_case_frames = self
+            .stats
+            .max_continuation_case_frames
+            .max(gauge.case_frames);
+        self.stats.max_continuation_catch_frames = self
+            .stats
+            .max_continuation_catch_frames
+            .max(gauge.catch_frames);
+        self.stats.max_continuation_scope_frames = self
+            .stats
+            .max_continuation_scope_frames
+            .max(gauge.scope_frames);
+        self.stats.max_continuation_marker_frames = self
+            .stats
+            .max_continuation_marker_frames
+            .max(gauge.marker_frames);
+        self.stats.max_continuation_provider_env_frames = self
+            .stats
+            .max_continuation_provider_env_frames
+            .max(gauge.provider_env_frames);
+        self.stats.max_continuation_aggregate_frames = self
+            .stats
+            .max_continuation_aggregate_frames
+            .max(gauge.aggregate_frames);
+        self.stats.max_continuation_select_frames = self
+            .stats
+            .max_continuation_select_frames
+            .max(gauge.select_frames);
+        self.stats.max_continuation_block_frames = self
+            .stats
+            .max_continuation_block_frames
+            .max(gauge.block_frames);
+        self.stats.max_continuation_ref_set_frames = self
+            .stats
+            .max_continuation_ref_set_frames
+            .max(gauge.ref_set_frames);
+    }
+
     fn clone_env(&mut self, env: &Env) -> Env {
         self.stats.env_clones += 1;
         if self.should_collect_runtime_breakdown_stats() {
             self.stats.env_entries_cloned += env.len();
         }
+        self.record_env_gauge(env);
         env.clone()
     }
 
@@ -9641,6 +9964,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let len = self.active_provider_envs.len();
         let frame = self.provider_frame(provider_env);
         self.active_provider_envs.push(frame);
+        self.record_runtime_live_gauges();
         let result = run(self);
         let frame = self
             .active_provider_envs
@@ -10157,7 +10481,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if request.route.is_direct_abortive() {
             return request;
         }
-        request.append_continuation(tail, &mut self.stats)
+        self.record_continuation_gauge(&request.continuation);
+        self.record_continuation_gauge(&tail);
+        let request = request.append_continuation(tail, &mut self.stats);
+        self.record_continuation_gauge(&request.continuation);
+        request
     }
 
     fn append_direct_tail_continuation(
@@ -10165,6 +10493,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         mut call: EvidenceDirectTailResumptive,
         tail: EvidenceContinuation,
     ) -> EvidenceDirectTailResumptive {
+        self.record_continuation_gauge(&call.continuation);
+        self.record_continuation_gauge(&tail);
         if !tail.is_identity()
             && let Some(blocker) = call.continuation.append_scope_blocker_info()
         {
@@ -10195,6 +10525,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     first: call.continuation,
                     second: tail,
                 }));
+            self.record_continuation_gauge(&call.continuation);
             return call;
         }
         record_continuation_append(
@@ -10206,6 +10537,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             &mut self.stats,
             EvidenceContinuationAppendSource::DirectTail,
         );
+        self.record_continuation_gauge(&call.continuation);
         call
     }
 
@@ -10802,6 +11134,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceValueMarker::AddId(_) => {}
             }
         }
+        self.record_runtime_live_gauges();
     }
 
     fn pop_marker_frame(
@@ -10829,6 +11162,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.active_marker_plan_pushes += 1;
         self.active_marker_plans
             .push(EvidenceActiveMarkerPlan::new(markers));
+        self.record_runtime_live_gauges();
     }
 
     fn entry_frame_len_for_marker(&self, id: EvidenceGuardId) -> usize {
@@ -13864,6 +14198,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.expr_evals += 1;
+        self.record_env_gauge(env);
+        self.record_runtime_live_gauges();
         match &self.runtime_exprs[expr.0 as usize] {
             RuntimeEvidenceExpr::Value(value) => {
                 return Ok(EvidenceEvalResult::Value(value.clone()));
@@ -14174,6 +14510,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 match self.runtime_exprs[current_expr.0 as usize].clone() {
                     RuntimeEvidenceExpr::Block { stmts, tail } => {
                         self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
                         self.eval_block_parts_tail_step(
                             &stmts,
                             tail,
@@ -14183,6 +14521,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     RuntimeEvidenceExpr::Case { expr, scrutinee } => {
                         self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
                         let arms = self.static_case_arms(expr);
                         match self.eval_expr_result(scrutinee, current_env)? {
                             EvidenceEvalResult::Value(scrutinee) => {
@@ -14236,6 +14576,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     RuntimeEvidenceExpr::Apply { site, callee, arg } => {
                         self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
                         self.eval_tail_apply_result(Some(site), callee, arg, current_env)?
                     }
                     _ => EvidenceTailEvalStep::Result(
@@ -15887,6 +16229,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: EvidenceContinuation,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.record_runtime_live_gauges();
+        self.record_continuation_gauge(&continuation);
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::Value(value));
         }
@@ -16479,6 +16823,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             let active_frame = self.provider_frame(provider_env.clone());
             self.active_provider_envs.push(active_frame.clone());
+            self.record_runtime_live_gauges();
             Some(active_frame)
         };
         EvidenceScopeInstructionActiveScope::Provider(EvidenceScopeInstructionActiveProvider {
@@ -16796,6 +17141,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let provider_env = frame.provider_env.clone();
         let active_frame = self.provider_frame(provider_env);
         self.active_provider_envs.push(active_frame);
+        self.record_runtime_live_gauges();
         let result = self.resume_scope_local_plan(child, value);
         let active_frame = self
             .active_provider_envs
@@ -17331,6 +17677,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         result: EvidenceEvalResult,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.record_runtime_live_gauges();
+        self.record_continuation_gauge(&continuation);
         if continuation.is_identity() {
             return Ok(result);
         }
@@ -19127,6 +19475,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.push_known_state_frame_for_catch(catch_expr, env);
         self.active_provider_handlers
             .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
+        self.record_runtime_live_gauges();
         let body_result = if self.expr_preserves_env(body) {
             self.stats.catch_body_env_clone_elided += 1;
             self.eval_expr_result(body, env)
@@ -19164,6 +19513,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 frame_id,
                 state_scope_id,
             });
+        self.record_runtime_live_gauges();
     }
 
     fn pop_known_state_frames(&mut self, len: usize) {
@@ -19228,6 +19578,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     state_scope_id: snapshot.state_scope_id,
                 });
         }
+        self.record_runtime_live_gauges();
         self.stats.known_state_frame_forks += snapshots.len();
         self.stats.known_state_frame_resume_entries += snapshots.len();
     }

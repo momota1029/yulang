@@ -552,10 +552,14 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
             }
         }
         RunBackend::EvidenceVm => {
-            let output = match selection.host {
-                RunHostMode::Native => run_built_evidence_for_cli(build),
-                RunHostMode::Unsupported | RunHostMode::MockServer => {
-                    run_built_evidence_for_cli_with_host(build, selection.host)
+            let output = if options.runtime_phase_timings {
+                run_built_evidence_for_cli_with_host_profile(build, selection.host, true)
+            } else {
+                match selection.host {
+                    RunHostMode::Native => run_built_evidence_for_cli(build),
+                    RunHostMode::Unsupported | RunHostMode::MockServer => {
+                        run_built_evidence_for_cli_with_host(build, selection.host)
+                    }
                 }
             };
             timings.vm_eval = eval_start.elapsed();
@@ -1687,6 +1691,246 @@ fn print_runtime_evidence_phase_timings(
     );
     eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);
+    eprintln!(
+        "  run.runtime_evidence.max_env_depth: {}",
+        stats.max_env_depth
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_frames: {}",
+        stats.max_continuation_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_depth: {}",
+        stats.max_continuation_depth
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_then_frames: {}",
+        stats.max_continuation_then_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_state_frames: {}",
+        stats.max_continuation_state_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_force_frames: {}",
+        stats.max_continuation_force_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_apply_frames: {}",
+        stats.max_continuation_apply_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_adapter_frames: {}",
+        stats.max_continuation_adapter_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_case_frames: {}",
+        stats.max_continuation_case_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_catch_frames: {}",
+        stats.max_continuation_catch_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_scope_frames: {}",
+        stats.max_continuation_scope_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_marker_frames: {}",
+        stats.max_continuation_marker_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_provider_env_frames: {}",
+        stats.max_continuation_provider_env_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_aggregate_frames: {}",
+        stats.max_continuation_aggregate_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_select_frames: {}",
+        stats.max_continuation_select_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_block_frames: {}",
+        stats.max_continuation_block_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_continuation_ref_set_frames: {}",
+        stats.max_continuation_ref_set_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_frames_len: {}",
+        stats.max_active_frames_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_handler_frames_len: {}",
+        stats.max_active_handler_frames_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_add_ids_len: {}",
+        stats.max_active_add_ids_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_marker_plans_len: {}",
+        stats.max_active_marker_plans_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_provider_envs_len: {}",
+        stats.max_active_provider_envs_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_provider_handlers_len: {}",
+        stats.max_active_provider_handlers_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_active_state_handler_frames_len: {}",
+        stats.max_active_state_handler_frames_len
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_host_scheduler_branches: {}",
+        stats.max_host_scheduler_branches
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_host_scheduler_one_shot_tokens: {}",
+        stats.max_host_scheduler_one_shot_tokens
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_host_scheduler_multi_shot_parents: {}",
+        stats.max_host_scheduler_multi_shot_parents
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_host_scheduler_multi_shot_tokens: {}",
+        stats.max_host_scheduler_multi_shot_tokens
+    );
+    eprintln!(
+        "  run.runtime_evidence.max_suspended_host_continuations: {}",
+        stats.max_suspended_host_continuations
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_appends: {}",
+        stats.continuation_appends
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_owned_tail_appends: {}",
+        stats.continuation_owned_tail_appends
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_append_steps: {}",
+        stats.continuation_append_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_resume_steps: {}",
+        stats.continuation_resume_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_resume_then_steps: {}",
+        stats.continuation_resume_then_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_resume_apply_steps: {}",
+        stats.continuation_resume_apply_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_resume_block_steps: {}",
+        stats.continuation_resume_block_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.continuation_resume_ref_set_steps: {}",
+        stats.continuation_resume_ref_set_steps
+    );
+    eprintln!(
+        "  run.runtime_evidence.marker_frame_entries: {}",
+        stats.marker_frame_entries
+    );
+    eprintln!(
+        "  run.runtime_evidence.marker_frame_markers: {}",
+        stats.marker_frame_markers
+    );
+    eprintln!(
+        "  run.runtime_evidence.marker_frame_active_add_id_markers: {}",
+        stats.marker_frame_active_add_id_markers
+    );
+    eprintln!(
+        "  run.runtime_evidence.resume_marker_plan_enter_ops_total: {}",
+        stats.resume_marker_plan_enter_ops_total
+    );
+    eprintln!(
+        "  run.runtime_evidence.resume_marker_plan_active_add_id_ops: {}",
+        stats.resume_marker_plan_active_add_id_ops
+    );
+    eprintln!(
+        "  run.runtime_evidence.resume_marker_plan_to_legacy_push_pop: {}",
+        stats.resume_marker_plan_to_legacy_push_pop
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_marker_plan_pushes: {}",
+        stats.active_marker_plan_pushes
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_marker_plan_dedupes: {}",
+        stats.active_marker_plan_dedupes
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_scans: {}",
+        stats.active_add_id_scans
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_path_candidates: {}",
+        stats.active_add_id_path_candidates
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_path_rejects: {}",
+        stats.active_add_id_path_rejects
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_entry_except_rejects: {}",
+        stats.active_add_id_entry_except_rejects
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_already_carried_rejects: {}",
+        stats.active_add_id_already_carried_rejects
+    );
+    eprintln!(
+        "  run.runtime_evidence.active_add_id_hits: {}",
+        stats.active_add_id_hits
+    );
+    eprintln!(
+        "  run.runtime_evidence.permission_visibility_guard_mask: {}",
+        stats.permission_visibility_guard_mask
+    );
+    eprintln!(
+        "  run.runtime_evidence.provider_add_id_shortcut_attempts: {}",
+        stats.provider_add_id_shortcut_attempts
+    );
+    eprintln!(
+        "  run.runtime_evidence.provider_add_id_shortcut_used: {}",
+        stats.provider_add_id_shortcut_used
+    );
+    eprintln!(
+        "  run.runtime_evidence.provider_add_id_shortcut_fallback_carry_after_frame: {}",
+        stats.provider_add_id_shortcut_fallback_carry_after_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.resume_marker_provider_pair_close_reject_carry_after_frame: {}",
+        stats.resume_marker_provider_pair_close_reject_carry_after_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.resume_marker_provider_prefix_boundary_reject_carry_after_frame: {}",
+        stats.resume_marker_provider_prefix_boundary_reject_carry_after_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.provider_env_foreign_boundary_reject_carry_after_frame: {}",
+        stats.provider_env_foreign_boundary_reject_carry_after_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.provider_env_foreign_miss_boundary_reject_carry_after_frame: {}",
+        stats.provider_env_foreign_miss_boundary_reject_carry_after_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.marked_force_carry_after_frame_markers: {}",
+        stats.marked_force_carry_after_frame_markers
+    );
     eprintln!(
         "  run.runtime_evidence.known_state_direct_gets: {}",
         stats.known_state_direct_gets
