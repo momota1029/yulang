@@ -1,0 +1,6 @@
+{
+    my listener = net::listen 8080
+    my req = listener.accept()
+    req.respond req.payload
+    req.payload.to_utf8_lossy
+}

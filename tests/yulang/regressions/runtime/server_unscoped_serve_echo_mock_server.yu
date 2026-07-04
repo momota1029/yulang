@@ -1,0 +1,5 @@
+{
+    my req = net::serve 8080
+    req.respond req.payload
+    req.payload.to_utf8_lossy
+}

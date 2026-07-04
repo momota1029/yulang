@@ -135,6 +135,44 @@ contracts = [
 ]
 
 [[case]]
+name = "server_unscoped_serve_echo_mock_server"
+file = "regressions/runtime/server_unscoped_serve_echo_mock_server.yu"
+kind = "run"
+std = "repo"
+host = "mock-server"
+expect_stdout = "mock-server respond 1: first\nmock-server respond 2: second\nrun roots [\"first\", \"second\"]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "network",
+  "server",
+  "host-act",
+  "mock-host",
+  "host.mock-server",
+]
+
+[[case]]
+name = "server_unscoped_listen_accept_echo_mock_server"
+file = "regressions/runtime/server_unscoped_listen_accept_echo_mock_server.yu"
+kind = "run"
+std = "repo"
+host = "mock-server"
+expect_stdout = "mock-server respond 1: first\nmock-server respond 2: second\nrun roots [\"first\", \"second\"]\n"
+expect_stderr = ""
+contracts = [
+  "runtime",
+  "standard-api",
+  "stable-api",
+  "network",
+  "server",
+  "host-act",
+  "mock-host",
+  "host.mock-server",
+]
+
+[[case]]
 name = "server_double_respond_typed_failure"
 file = "regressions/runtime/server_double_respond_typed_failure.yu"
 kind = "run"
