@@ -116,6 +116,36 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "stable-api", "str"]
 
 [[case]]
+name = "config_parse_basic"
+file = "regressions/runtime/config_parse_basic.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(opt::just(\"8080\"), opt::just(\"5433\"), opt::just(\"localhost\"), [(\"\", [(\"port\", \"8080\"), (\"name\", \"cookbook\")]), (\"db\", [(\"host\", \"localhost\"), (\"port\", \"5432\"), (\"port\", \"5433\")])])]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str"]
+
+[[case]]
+name = "config_missing_lookup"
+file = "regressions/runtime/config_missing_lookup.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(opt::nil, opt::nil)]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str"]
+
+[[case]]
+name = "config_load_native"
+file = "regressions/runtime/config_load_native.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(opt::just(\"8080\"), opt::just(\"api\"), opt::just(\"4\"))]\n"
+expect_stderr = ""
+temp_files = [
+  { placeholder = "{{file}}", contents = "port = 8080\n[service]\nname=api\nworkers   =   4\n" },
+]
+contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "file", "file-resource", "host-act", "host.native"]
+
+[[case]]
 name = "parser_pattern_case"
 file = "regressions/runtime/parser_pattern_case.yu"
 kind = "run"

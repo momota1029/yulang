@@ -1,0 +1,8 @@
+my c = std::text::config::parse "[server]
+host=localhost
+"
+
+(
+    c.get "server" "missing",
+    c.get "missing" "host"
+)

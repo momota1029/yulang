@@ -1,5 +1,6 @@
 pub mod bytes;
 pub mod char;
+pub mod config;
 pub mod parse;
 pub mod path;
 pub mod str;

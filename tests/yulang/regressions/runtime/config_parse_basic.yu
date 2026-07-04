@@ -1,0 +1,22 @@
+my section_view(s: std::text::config::section): (str, list (str, str)) =
+    (s.name, s.entries)
+
+my source = "#top comment
+port=8080
+name = cookbook
+
+[db]
+host = localhost
+port = 5432
+port=5433
+ignored line
+"
+
+my c = std::text::config::parse source
+
+(
+    c.get "" "port",
+    c.get "db" "port",
+    c.get "db" "host",
+    c.entries.map section_view
+)

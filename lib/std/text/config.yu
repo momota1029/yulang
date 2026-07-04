@@ -1,0 +1,98 @@
+-- unstable: small honest key/value config parser for everyday text files.
+-- This is deliberately not an INI dialect and makes no dialect-compliance promise.
+-- Malformed non-empty lines are ignored for now; warning collection is a future item.
+
+use std::core::ops::*
+use std::data::list::*
+use std::data::opt::*
+use std::text::str::str
+
+-- unstable: One parsed section and its ordered key/value entries.
+pub struct section { name: str, entries: list (str, str) }
+
+-- unstable: A parsed config document. Use `.entries` for the raw section data.
+pub type config with:
+    struct self:
+        sections: list section
+
+    -- unstable: Look up a key inside a section; duplicate keys are last-wins.
+    pub c.get section_name key = std::text::config::get c section_name key
+
+    -- unstable: Raw escape hatch for the parsed sections and ordered entries.
+    pub c.entries = std::text::config::sections c
+
+my empty_section(name: str): section =
+    section { name: name, entries: [] }
+
+my empty(): config =
+    config { sections: [empty_section ""] }
+
+-- unstable: Return the raw ordered sections and entries.
+pub sections(c: config): list section =
+    c.sections
+
+my ensure_section_list(sections: list section, name: str): list section = case sections:
+    [] -> [empty_section name]
+    [head, ..tail] if head.name == name -> sections
+    [head, ..tail] -> [head, ..ensure_section_list(tail, name)]
+
+my ensure_section(c: config, name: str): config =
+    config { sections: ensure_section_list(c.sections, name) }
+
+my put_entry_list(sections: list section, section_name: str, entry: (str, str)): list section = case sections:
+    [] -> [section { name: section_name, entries: [entry] }]
+    [head, ..tail] if head.name == section_name ->
+        [section { name: head.name, entries: head.entries + [entry] }, ..tail]
+    [head, ..tail] -> [head, ..put_entry_list(tail, section_name, entry)]
+
+my put_entry(c: config, section_name: str, entry: (str, str)): config =
+    config { sections: put_entry_list(c.sections, section_name, entry) }
+
+my header_name(clean: str): opt str =
+    if clean.starts_with "[" and clean.ends_with "]":
+        just (std::text::str::index_range_raw clean 1 (clean.len - 1)).trim
+    else:
+        nil
+
+my trim_entry(pair: (str, str)): (str, str) = case pair:
+    (key, value) -> (key.trim, value.trim)
+
+my parse_line(state: (config, str), line: str): (config, str) = case state:
+    (cfg, current_section) ->
+        my clean = line.trim
+        if clean == "":
+            state
+        else if clean.starts_with "#":
+            state
+        else:
+            case header_name clean:
+                just name -> (ensure_section(cfg, name), name)
+                nil -> case clean.split_once "=":
+                    just pair -> (put_entry(cfg, current_section, trim_entry pair), current_section)
+                    nil -> state
+
+-- unstable: Parse source text into a config. This function is total and never fails.
+pub parse(source: str): config =
+    my (cfg, _) = (source.split "\n").fold (empty(), "") parse_line
+    cfg
+
+my get_entry_rev(entries: list (str, str), key: str): opt str = case entries:
+    [] -> nil
+    [(candidate, value), ..rest] if candidate == key -> just value
+    [_, ..rest] -> get_entry_rev(rest, key)
+
+my get_entry(entries: list (str, str), key: str): opt str =
+    get_entry_rev(std::data::list::rev entries, key)
+
+my get_section_rev(sections: list section, section_name: str, key: str): opt str = case sections:
+    [] -> nil
+    [head, ..rest] if head.name == section_name -> get_entry(head.entries, key)
+    [_, ..rest] -> get_section_rev(rest, section_name, key)
+
+-- unstable: Look up a key inside a section; entries before any header use section "".
+pub get(c: config, section_name: str, key: str): opt str =
+    get_section_rev(std::data::list::rev c.sections, section_name, key)
+
+-- unstable: Read a file and parse it as this simple config format.
+pub load(path: str): [std::io::file::file, std::io::file::io_err] config =
+    parse (std::io::file::read_text path)
