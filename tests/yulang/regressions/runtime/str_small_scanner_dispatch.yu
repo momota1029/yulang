@@ -1,0 +1,30 @@
+use std::data::result::*
+use std::text::parse::*
+
+my word_len(source: str): (int, int) = case read_prefix(source, word):
+    result::ok found -> (found.value.len, found.rest.len)
+    result::err _ -> (-1, -1)
+
+my split_cases = (
+    std::text::str::split "" "\n",
+    std::text::str::split "x" "\n",
+    std::text::str::split "\n" "\n",
+    std::text::str::split "é" "\n",
+    std::text::str::split "a\nb" "\n"
+)
+
+my word_prefix_cases = (
+    std::text::str::word_prefix_at "" 0,
+    std::text::str::word_prefix_at "a!" 0,
+    std::text::str::word_prefix_at "α!" 0,
+    std::text::str::word_prefix_at "##abc!" 2
+)
+
+my parse_word_cases = (
+    word_len "",
+    word_len "a!",
+    word_len "α!",
+    word_len "a_7!"
+)
+
+(split_cases, word_prefix_cases, parse_word_cases)
