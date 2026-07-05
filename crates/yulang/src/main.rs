@@ -2094,6 +2094,10 @@ fn print_runtime_evidence_phase_timings(
         stats.marked_force_reentry_same_identity_safe
     );
     eprintln!(
+        "  run.runtime_evidence.marked_force_reentry_fused: {}",
+        stats.marked_force_reentry_fused
+    );
+    eprintln!(
         "  run.runtime_evidence.marked_force_reentry_same_identity_unsafe_materialized: {}",
         stats.marked_force_reentry_same_identity_unsafe_materialized
     );

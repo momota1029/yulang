@@ -4765,8 +4765,14 @@ struct EvidenceActiveMarkerFrameScope {
 #[derive(Debug, Clone)]
 struct MarkedForceReentryFrame {
     markers: Rc<[EvidenceValueMarker]>,
-    continuation_capture_generation: u64,
     saw_reentry: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MarkedForceReentryShadowHit {
+    SameIdentitySafe,
+    SameIdentityUnsafeMaterialized,
+    DifferentIdentity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -5847,6 +5853,13 @@ enum EvidenceEvalResult {
 
 enum EvidenceTailEvalStep {
     Result(EvidenceEvalResult),
+    ContinueSameEnv(ExprId),
+    ContinueOwnedEnv { expr: ExprId, env: Env },
+}
+
+enum MarkedForceTailStep {
+    Result(EvidenceEvalResult),
+    Reenter(SharedValue),
     ContinueSameEnv(ExprId),
     ContinueOwnedEnv { expr: ExprId, env: Env },
 }
@@ -10100,9 +10113,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         continuation: &EvidenceContinuation,
     ) {
-        if !self.marked_force_reentry_shadow_enabled() {
-            return;
-        }
         let active_markers = self
             .active_marker_frame_scopes
             .iter()
@@ -15725,37 +15735,54 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.context.deep_profile_enabled()
     }
 
+    fn record_marked_force_reentry_shadow_hit(
+        &mut self,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Option<MarkedForceReentryShadowHit> {
+        if !self.marked_force_reentry_shadow_enabled() || markers.is_empty() {
+            return None;
+        }
+        self.marked_force_reentry_stack
+            .len()
+            .checked_sub(1)
+            .map(|parent_index| {
+                let same_identity = {
+                    let parent = &self.marked_force_reentry_stack[parent_index];
+                    Rc::ptr_eq(&parent.markers, markers)
+                };
+                let materialized = if same_identity {
+                    let parent_markers = self.marked_force_reentry_stack[parent_index]
+                        .markers
+                        .clone();
+                    self.marker_identity_was_materialized(&parent_markers)
+                } else {
+                    false
+                };
+                self.marked_force_reentry_stack[parent_index].saw_reentry = true;
+                if same_identity {
+                    if materialized {
+                        self.stats
+                            .marked_force_reentry_same_identity_unsafe_materialized += 1;
+                        MarkedForceReentryShadowHit::SameIdentityUnsafeMaterialized
+                    } else {
+                        self.stats.marked_force_reentry_same_identity_safe += 1;
+                        MarkedForceReentryShadowHit::SameIdentitySafe
+                    }
+                } else {
+                    self.stats.marked_force_reentry_different_identity += 1;
+                    MarkedForceReentryShadowHit::DifferentIdentity
+                }
+            })
+    }
+
     fn push_marked_force_reentry_shadow(&mut self, markers: &Rc<[EvidenceValueMarker]>) -> bool {
         if !self.marked_force_reentry_shadow_enabled() || markers.is_empty() {
             return false;
         }
-        if let Some(parent_index) = self.marked_force_reentry_stack.len().checked_sub(1) {
-            let same_identity = {
-                let parent = &self.marked_force_reentry_stack[parent_index];
-                Rc::ptr_eq(&parent.markers, markers)
-            };
-            let materialized = same_identity && {
-                let parent = &self.marked_force_reentry_stack[parent_index];
-                self.continuation_capture_generation != parent.continuation_capture_generation
-                    || self.materialized_continuation_resume_depth > 0
-                    || self.marker_identity_was_materialized(&parent.markers)
-            };
-            self.marked_force_reentry_stack[parent_index].saw_reentry = true;
-            if same_identity {
-                if materialized {
-                    self.stats
-                        .marked_force_reentry_same_identity_unsafe_materialized += 1;
-                } else {
-                    self.stats.marked_force_reentry_same_identity_safe += 1;
-                }
-            } else {
-                self.stats.marked_force_reentry_different_identity += 1;
-            }
-        }
+        self.record_marked_force_reentry_shadow_hit(markers);
         self.marked_force_reentry_stack
             .push(MarkedForceReentryFrame {
                 markers: markers.clone(),
-                continuation_capture_generation: self.continuation_capture_generation,
                 saw_reentry: false,
             });
         true
@@ -15771,6 +15798,388 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
         if !frame.saw_reentry {
             self.stats.marked_force_no_reentry += 1;
+        }
+    }
+
+    fn marked_force_can_fuse_tail_reentry(
+        &self,
+        current_markers: &Rc<[EvidenceValueMarker]>,
+        reentry_markers: &Rc<[EvidenceValueMarker]>,
+    ) -> bool {
+        !current_markers.is_empty()
+            && Rc::ptr_eq(current_markers, reentry_markers)
+            && !self.marker_identity_was_materialized(current_markers)
+    }
+
+    fn eval_marked_force_tail_expr_result(
+        &mut self,
+        expr: ExprId,
+        env: &mut Env,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        let mut current_expr = expr;
+        let mut owned_env: Option<Env> = None;
+        loop {
+            let step = {
+                let current_env = match owned_env.as_mut() {
+                    Some(env) => env,
+                    None => env,
+                };
+                match self.runtime_exprs[current_expr.0 as usize].clone() {
+                    RuntimeEvidenceExpr::Block { stmts, tail } => {
+                        self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
+                        match self.eval_block_parts_tail_step(
+                            &stmts,
+                            tail,
+                            current_env,
+                            shared(RuntimeEvidenceValue::Unit),
+                        )? {
+                            EvidenceTailEvalStep::Result(result) => {
+                                MarkedForceTailStep::Result(result)
+                            }
+                            EvidenceTailEvalStep::ContinueSameEnv(expr) => {
+                                MarkedForceTailStep::ContinueSameEnv(expr)
+                            }
+                            EvidenceTailEvalStep::ContinueOwnedEnv { expr, env } => {
+                                MarkedForceTailStep::ContinueOwnedEnv { expr, env }
+                            }
+                        }
+                    }
+                    RuntimeEvidenceExpr::Case { expr, scrutinee } => {
+                        self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
+                        let arms = self.static_case_arms(expr);
+                        match self.eval_expr_result(scrutinee, current_env)? {
+                            EvidenceEvalResult::Value(scrutinee) => {
+                                match self.eval_case_scrutinee_tail_step(
+                                    scrutinee,
+                                    arms,
+                                    current_env,
+                                )? {
+                                    EvidenceTailEvalStep::Result(result) => {
+                                        MarkedForceTailStep::Result(result)
+                                    }
+                                    EvidenceTailEvalStep::ContinueSameEnv(expr) => {
+                                        MarkedForceTailStep::ContinueSameEnv(expr)
+                                    }
+                                    EvidenceTailEvalStep::ContinueOwnedEnv { expr, env } => {
+                                        MarkedForceTailStep::ContinueOwnedEnv { expr, env }
+                                    }
+                                }
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(
+                                request,
+                            )) => {
+                                let env = self.clone_env(current_env);
+                                MarkedForceTailStep::Result(EvidenceEvalResult::request(
+                                    self.append_request_continuation(
+                                        request,
+                                        EvidenceContinuation::case_scrutinee(
+                                            arms,
+                                            env,
+                                            EvidenceContinuation::identity(),
+                                        ),
+                                    ),
+                                ))
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(
+                                call,
+                            )) => MarkedForceTailStep::Result(EvidenceEvalResult::direct_abortive(
+                                call,
+                            )),
+                            EvidenceEvalResult::Effect(
+                                EvidenceEffectSignal::DirectTailResumptive(call),
+                            ) => {
+                                let env = self.clone_env(current_env);
+                                MarkedForceTailStep::Result(self.continue_result(
+                                    EvidenceEvalResult::direct_tail_resumptive(call),
+                                    EvidenceContinuation::case_scrutinee(
+                                        arms,
+                                        env,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                )?)
+                            }
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                                let env = self.clone_env(current_env);
+                                MarkedForceTailStep::Result(self.continue_result(
+                                    EvidenceEvalResult::routed_yield(call),
+                                    EvidenceContinuation::case_scrutinee(
+                                        arms,
+                                        env,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                )?)
+                            }
+                        }
+                    }
+                    RuntimeEvidenceExpr::Apply { site, callee, arg } => {
+                        self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
+                        self.eval_marked_force_tail_apply_result(
+                            Some(site),
+                            callee,
+                            arg,
+                            current_env,
+                            markers,
+                        )?
+                    }
+                    RuntimeEvidenceExpr::ForceThunk {
+                        target_value_is_thunk,
+                        thunk,
+                    } => {
+                        self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
+                        match self.eval_expr_result(thunk, current_env)? {
+                            EvidenceEvalResult::Value(thunk) => self
+                                .force_thunk_value_marked_force_tail_step(
+                                    thunk,
+                                    target_value_is_thunk,
+                                    markers,
+                                )?,
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(
+                                request,
+                            )) => MarkedForceTailStep::Result(EvidenceEvalResult::request(
+                                self.append_request_continuation(
+                                    request,
+                                    EvidenceContinuation::force_thunk(
+                                        target_value_is_thunk,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                ),
+                            )),
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(
+                                call,
+                            )) => MarkedForceTailStep::Result(EvidenceEvalResult::direct_abortive(
+                                call,
+                            )),
+                            EvidenceEvalResult::Effect(
+                                EvidenceEffectSignal::DirectTailResumptive(call),
+                            ) => MarkedForceTailStep::Result(self.continue_result(
+                                EvidenceEvalResult::direct_tail_resumptive(call),
+                                EvidenceContinuation::force_thunk(
+                                    target_value_is_thunk,
+                                    EvidenceContinuation::identity(),
+                                ),
+                            )?),
+                            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                                MarkedForceTailStep::Result(self.continue_result(
+                                    EvidenceEvalResult::routed_yield(call),
+                                    EvidenceContinuation::force_thunk(
+                                        target_value_is_thunk,
+                                        EvidenceContinuation::identity(),
+                                    ),
+                                )?)
+                            }
+                        }
+                    }
+                    RuntimeEvidenceExpr::Alias(expr) => {
+                        self.stats.expr_evals += 1;
+                        self.record_env_gauge(current_env);
+                        self.record_runtime_live_gauges();
+                        MarkedForceTailStep::ContinueSameEnv(expr)
+                    }
+                    _ => MarkedForceTailStep::Result(
+                        self.eval_expr_result(current_expr, current_env)?,
+                    ),
+                }
+            };
+            match step {
+                MarkedForceTailStep::Result(result) => {
+                    return Ok(MarkedForceTailStep::Result(result));
+                }
+                MarkedForceTailStep::Reenter(value) => {
+                    return Ok(MarkedForceTailStep::Reenter(value));
+                }
+                MarkedForceTailStep::ContinueSameEnv(expr) => {
+                    current_expr = expr;
+                }
+                MarkedForceTailStep::ContinueOwnedEnv { expr, env } => {
+                    current_expr = expr;
+                    owned_env = Some(env);
+                }
+            }
+        }
+    }
+
+    fn eval_marked_force_tail_apply_result(
+        &mut self,
+        site: Option<ExprId>,
+        callee_expr: ExprId,
+        arg_expr: ExprId,
+        env: &mut Env,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        match self.eval_expr_result(callee_expr, env)? {
+            EvidenceEvalResult::Value(callee) => {
+                self.eval_marked_force_tail_apply_arg_result(site, callee, arg_expr, env, markers)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                let env = self.clone_env(env);
+                Ok(MarkedForceTailStep::Result(EvidenceEvalResult::request(
+                    self.append_request_continuation(
+                        request,
+                        EvidenceContinuation::apply_callee(
+                            site,
+                            arg_expr,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => Ok(
+                MarkedForceTailStep::Result(EvidenceEvalResult::direct_abortive(call)),
+            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                let env = self.clone_env(env);
+                Ok(MarkedForceTailStep::Result(self.continue_result(
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                let env = self.clone_env(env);
+                Ok(MarkedForceTailStep::Result(self.continue_result(
+                    EvidenceEvalResult::routed_yield(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )?))
+            }
+        }
+    }
+
+    fn eval_marked_force_tail_apply_arg_result(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg_expr: ExprId,
+        env: &mut Env,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
+            return self.marked_force_tail_apply_scoped_value_step(site, callee, arg, markers);
+        }
+        let mut arg_env = self.clone_env(env);
+        match self.eval_expr_result(arg_expr, &mut arg_env)? {
+            EvidenceEvalResult::Value(arg) => {
+                self.marked_force_tail_apply_scoped_value_step(site, callee, arg, markers)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                Ok(MarkedForceTailStep::Result(EvidenceEvalResult::request(
+                    self.append_request_continuation(
+                        request,
+                        EvidenceContinuation::apply_arg(
+                            site,
+                            callee,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => Ok(
+                MarkedForceTailStep::Result(EvidenceEvalResult::direct_abortive(call)),
+            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                Ok(MarkedForceTailStep::Result(self.continue_result(
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                )?))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                Ok(MarkedForceTailStep::Result(self.continue_result(
+                    EvidenceEvalResult::routed_yield(call),
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                )?))
+            }
+        }
+    }
+
+    fn marked_force_tail_apply_scoped_value_step(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg: SharedValue,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        let boundary = self.active_function_call_boundary(EvidenceMarkerFrameSource::ScopedApply);
+        match boundary {
+            Err(
+                EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan
+                | EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers,
+            ) => self.marked_force_tail_apply_value_step(site, callee, arg, markers),
+            Ok(boundary) => match callee.as_ref() {
+                RuntimeEvidenceValue::Marked { .. } => {
+                    let callee =
+                        mark_runtime_value_unchecked_shared(callee, boundary.markers.clone());
+                    self.marked_force_tail_apply_value_step(site, callee, arg, markers)
+                }
+                callee_value if callee_apply_closes_without_frame(callee_value) => {
+                    let result = self.apply_value_result(site, callee, arg)?;
+                    self.close_call_boundary_without_frame(result, &boundary)
+                        .map(MarkedForceTailStep::Result)
+                }
+                _ => self
+                    .with_call_boundary(boundary, |runner| {
+                        runner.apply_value_result(site, callee, arg)
+                    })
+                    .map(MarkedForceTailStep::Result),
+            },
+        }
+    }
+
+    fn marked_force_tail_apply_value_step(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg: SharedValue,
+        _markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        match callee.as_ref() {
+            RuntimeEvidenceValue::Closure(closure) if closure.provider_env.is_empty() => {
+                self.stats.apply_value_calls += 1;
+                let mut env = self.clone_env(&closure.env);
+                self.bind_pat(&closure.param, arg, &mut env)?;
+                Ok(MarkedForceTailStep::ContinueOwnedEnv {
+                    expr: closure.body,
+                    env,
+                })
+            }
+            RuntimeEvidenceValue::RecursiveClosure { def, closure }
+                if closure.provider_env.is_empty() =>
+            {
+                self.stats.apply_value_calls += 1;
+                let mut env = self.clone_env(&closure.env);
+                env.insert_slot(
+                    EnvSlot::from(*def),
+                    shared(RuntimeEvidenceValue::RecursiveClosure {
+                        def: *def,
+                        closure: closure.clone(),
+                    }),
+                );
+                self.bind_pat(&closure.param, arg, &mut env)?;
+                Ok(MarkedForceTailStep::ContinueOwnedEnv {
+                    expr: closure.body,
+                    env,
+                })
+            }
+            _ => self
+                .apply_scoped_value_result(site, callee, arg)
+                .map(MarkedForceTailStep::Result),
         }
     }
 
@@ -20714,23 +21123,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             },
             RuntimeEvidenceValue::Marked { value, markers } => {
-                if let RuntimeEvidenceValue::Thunk(thunk) = value.as_ref()
-                    && let RuntimeEvidenceThunk::Effect {
-                        payload, evidence, ..
-                    } = thunk.as_ref()
-                    && let Some(value) =
-                        self.try_known_state_perform_short_circuit_value(payload, *evidence)
-                {
-                    self.stats.thunk_force_effect += 1;
-                    return Ok(EvidenceEvalResult::Value(value));
-                }
-                if let Some((value, markers)) =
-                    marked_force_value_thunk(value.as_ref(), markers.clone())
-                {
-                    self.stats.marked_force_value_fast_paths += 1;
-                    return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
-                        value, markers,
-                    )));
+                if let Some(result) = self.try_marked_force_fast_path(value, markers) {
+                    return Ok(result);
                 }
                 if self.should_collect_runtime_breakdown_stats() {
                     let marker_summary = marked_force_marker_summary(&markers);
@@ -20745,10 +21139,188 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     markers.clone(),
                     true,
                     None,
-                    |runner| runner.force_thunk_result(value.clone()),
+                    |runner| runner.force_marked_value_tail_loop(value.clone(), markers.clone()),
                 );
                 self.pop_marked_force_reentry_shadow(reentry_shadow);
                 result
+            }
+            value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
+        }
+    }
+
+    fn try_marked_force_fast_path(
+        &mut self,
+        value: &SharedValue,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Option<EvidenceEvalResult> {
+        if let RuntimeEvidenceValue::Thunk(thunk) = value.as_ref()
+            && let RuntimeEvidenceThunk::Effect {
+                payload, evidence, ..
+            } = thunk.as_ref()
+            && let Some(value) =
+                self.try_known_state_perform_short_circuit_value(payload, *evidence)
+        {
+            self.stats.thunk_force_effect += 1;
+            return Some(EvidenceEvalResult::Value(value));
+        }
+        if let Some((value, markers)) = marked_force_value_thunk(value.as_ref(), markers.clone()) {
+            self.stats.marked_force_value_fast_paths += 1;
+            return Some(EvidenceEvalResult::Value(mark_runtime_value_shared(
+                value, markers,
+            )));
+        }
+        None
+    }
+
+    fn force_marked_value_tail_loop(
+        &mut self,
+        value: SharedValue,
+        markers: Rc<[EvidenceValueMarker]>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut current = value;
+        loop {
+            match self.force_thunk_marked_force_tail_step(current, &markers)? {
+                MarkedForceTailStep::Result(result) => return Ok(result),
+                MarkedForceTailStep::Reenter(value) => {
+                    self.stats.marked_force_reentry_fused += 1;
+                    current = value;
+                }
+                MarkedForceTailStep::ContinueSameEnv(_)
+                | MarkedForceTailStep::ContinueOwnedEnv { .. } => {
+                    unreachable!("force step must not return expression tail continuation")
+                }
+            }
+        }
+    }
+
+    fn force_thunk_value_marked_force_tail_step(
+        &mut self,
+        thunk: SharedValue,
+        target_value_is_thunk: bool,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        if !target_value_is_thunk
+            && let Some(result) = self.try_force_continuation_apply_expr(thunk.as_ref())?
+        {
+            return self.finish_force_thunk_marked_force_tail_step(
+                result,
+                target_value_is_thunk,
+                markers,
+            );
+        }
+        let result = self.force_thunk_marked_force_tail_step(thunk, markers)?;
+        match result {
+            MarkedForceTailStep::Result(result) => self.finish_force_thunk_marked_force_tail_step(
+                result,
+                target_value_is_thunk,
+                markers,
+            ),
+            MarkedForceTailStep::Reenter(value) => Ok(MarkedForceTailStep::Reenter(value)),
+            MarkedForceTailStep::ContinueSameEnv(_)
+            | MarkedForceTailStep::ContinueOwnedEnv { .. } => {
+                unreachable!("force step must not return expression tail continuation")
+            }
+        }
+    }
+
+    fn finish_force_thunk_marked_force_tail_step(
+        &mut self,
+        result: EvidenceEvalResult,
+        target_value_is_thunk: bool,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        if target_value_is_thunk {
+            return Ok(MarkedForceTailStep::Result(result));
+        }
+        match result {
+            EvidenceEvalResult::Value(value) => {
+                self.force_value_if_thunk_marked_force_tail_step(value, markers)
+            }
+            result => self
+                .continue_result(
+                    result,
+                    EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+                )
+                .map(MarkedForceTailStep::Result),
+        }
+    }
+
+    fn force_value_if_thunk_marked_force_tail_step(
+        &mut self,
+        value: SharedValue,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        if runtime_value_is_thunk_like(value.as_ref()) {
+            self.force_thunk_marked_force_tail_step(value, markers)
+        } else {
+            Ok(MarkedForceTailStep::Result(EvidenceEvalResult::Value(
+                value,
+            )))
+        }
+    }
+
+    fn force_thunk_marked_force_tail_step(
+        &mut self,
+        thunk: SharedValue,
+        markers: &Rc<[EvidenceValueMarker]>,
+    ) -> Result<MarkedForceTailStep, RuntimeEvidenceRunError> {
+        self.stats.thunk_forces += 1;
+        match thunk.as_ref() {
+            RuntimeEvidenceValue::Thunk(thunk_value) => match thunk_value.as_ref() {
+                RuntimeEvidenceThunk::Expr {
+                    body,
+                    env,
+                    provider_env,
+                    ..
+                } => {
+                    self.stats.thunk_force_expr += 1;
+                    let body = *body;
+                    if provider_env.is_empty() {
+                        let mut env = self.clone_env(env);
+                        return self.eval_marked_force_tail_expr_result(body, &mut env, markers);
+                    }
+                    let result = self.force_thunk_result(thunk)?;
+                    Ok(MarkedForceTailStep::Result(result))
+                }
+                RuntimeEvidenceThunk::Effect {
+                    path,
+                    payload,
+                    route,
+                    evidence,
+                } => {
+                    self.stats.thunk_force_effect += 1;
+                    if let Some(value) =
+                        self.try_known_state_perform_short_circuit_value(payload, *evidence)
+                    {
+                        return Ok(MarkedForceTailStep::Result(EvidenceEvalResult::Value(
+                            value,
+                        )));
+                    }
+                    self.force_effect_result(path.clone(), payload.clone(), *route, *evidence)
+                        .map(MarkedForceTailStep::Result)
+                }
+                RuntimeEvidenceThunk::Value(value) => Ok(MarkedForceTailStep::Result(
+                    EvidenceEvalResult::Value(value.clone()),
+                )),
+                RuntimeEvidenceThunk::Continuation { .. }
+                | RuntimeEvidenceThunk::Adapter { .. } => {
+                    let result = self.force_thunk_result(thunk)?;
+                    Ok(MarkedForceTailStep::Result(result))
+                }
+            },
+            RuntimeEvidenceValue::Marked {
+                value,
+                markers: next,
+            } => {
+                if let Some(result) = self.try_marked_force_fast_path(value, next) {
+                    return Ok(MarkedForceTailStep::Result(result));
+                }
+                if self.marked_force_can_fuse_tail_reentry(markers, next) {
+                    self.record_marked_force_reentry_shadow_hit(next);
+                    return Ok(MarkedForceTailStep::Reenter(value.clone()));
+                }
+                let result = self.force_thunk_result(thunk)?;
+                Ok(MarkedForceTailStep::Result(result))
             }
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }

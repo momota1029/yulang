@@ -4110,6 +4110,10 @@ pub(crate) fn print_run_report(
             .marked_force_reentry_same_identity_safe
     );
     println!(
+        "  runtime_evidence.marked_force_reentry_fused: {}",
+        output.evidence_stats.marked_force_reentry_fused
+    );
+    println!(
         "  runtime_evidence.marked_force_reentry_same_identity_unsafe_materialized: {}",
         output
             .evidence_stats

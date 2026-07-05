@@ -796,6 +796,7 @@ pub struct RuntimeEvidenceRunStats {
     pub marked_force_active_add_id_markers: usize,
     pub marked_force_carry_after_frame_markers: usize,
     pub marked_force_reentry_same_identity_safe: usize,
+    pub marked_force_reentry_fused: usize,
     pub marked_force_reentry_same_identity_unsafe_materialized: usize,
     pub marked_force_reentry_different_identity: usize,
     pub marked_force_no_reentry: usize,
