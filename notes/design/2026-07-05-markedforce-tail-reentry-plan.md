@@ -61,6 +61,25 @@ closure の中身が論理的に末尾呼び出しで終わっていても（`fo
   - 門番 fixture: 既存の `file_ref_lines_each_update_chain_native` / `do_binding_state_protocol` / `file_text_with_commit_do` / `debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_resume` ＋ 本日追加の 3 canary（`for_ref_tail_known_state_4096` 等）。
   - 受け入れ: 平坦 for+ref が N=65,536 / 1,048,576 で overflow せず、時間が N に線形。
 
+## 追記（2026-07-05、Claude 署名）: F1 shadow 実装と「Rc identity 単独では不十分」の確定
+
+- **Stage F1 landed**（`cb42c0da Add MarkedForce reentry shadow counters`）。deep-profile flag 配下、flag-off は counter 全ゼロ・release timing 回帰なし（N=4096 で 96.2ms、従来レンジ内）。
+- ref 系・no-ref for 系ともに `marked_force_reentry_same_identity` が支配的で N に比例——再入融合の対象は実在し支配的と確認。
+- **しかし `bench/nondet_20_discard.yu` でも `same_identity=861`** が発生。最小例 `each 1..1` で切り分けたところ、`same_identity=3` の中に **`k(true)` と `k(false)` という論理的に別の nondet 分岐**が同一の continuation marker Rc を共有しているケースが含まれると確認された（`.list` が `merge k(true).list k(false).list` で同じ `k` を 2 回 resume するため）。
+- **結論: Rc identity 単独は安全条件として不十分**。設計ノート本文の安全条件 2（「retire 対象 scope に対して継続が実体化/escape していないこと」）は必須であり省略できない。
+- 好材料: `record_continuation_materialized()` という機構が既存で、`.list` が `k` を束縛する瞬間に発火することを確認済み。この機構を使えば nondet の unsafe ヒットを弾き、ref-loop/fold の safe ヒットのみ通せる見込み。
+- **次の一手（F1 精緻化、まだ shadow のまま）**: `same_identity` を「継続実体化なし＝safe」「継続実体化あり＝unsafe」に分割 counter 化し、ref/fold/no-ref-for が全て safe 側、nondet が unsafe 側に落ちることを確認してから F2（実際の frame 使い回し）に進む。
+
+## 追記2（2026-07-05、Claude 署名）: F1 精緻化の結果、当初の危険仮説は事実誤認と判明
+
+- **F1 精緻化 landed**（`bbfd002b Split MarkedForce reentry shadow counters`）。継続実体化チェック（`record_continuation_materialized` による `continuation_capture_generation` 監視）を追加。ref/fold/no-ref-for は 100% safe、`bench/nondet_20_discard.yu` は `861 / 0 / 21 / 441`——**unsafe が実測ゼロ**という、追記1の予想（nondet に unsafe 分布があるはず）と矛盾する結果が出た。
+- 矛盾を推測で済ませず、`each 1..1` 最小例で個別ヒットまで遡って再調査。結果、**追記1の危険仮説自体が事実誤認**と判明:
+  - `each 1..1` の 3 件の `same_identity` ヒットは、いずれも `k(true)`/`k(false)` 分岐 resume より**前**に起きる、branch 条件評価・junction wrapper 内の同一分岐上の force であり、continuation 実体化はその後（全 MarkedForce shadow frame が pop され stack が空になった後）に起きる。
+  - `k(true)`/`k(false)` の resume は `EvidenceContinuationFrame::MarkerFrame`/`resume_marker_frame` という**別経路**を通り、**異なる marker identity**を持つ。親 MarkedForce frame が active な状態で `force_thunk_result` の `Marked` 分岐に再入することはない——ゆえにこの経路は `same_identity` としてカウントされることが構造的にない。
+  - 結論: `each 1..1` については、追記1で懸念した「`k(true)`/`k(false)` が同一 marker Rc を共有し same_identity として誤ってカウントされる」という危険シナリオは**発生しない**。F1 の safety signal は不健全ではなかった。
+- **ただし一般化はしない**——この結論は `each 1..1` という最小例で確認された事実であり、`bench/nondet_20_discard.yu` 全体（861 件）や他の nondet 形状すべてで cross-branch fusion が起きないことを網羅的に証明したわけではない。F2 着手前に、より広い nondet ワークロードでの確認が望ましい。
+- **現在地**: F1（shadow、精緻化込み）は committed・green・挙動変更ゼロ確認済み。F2（実行）着手前に、(a) より広い nondet 網羅確認を追加するか、(b) 現状の証拠で十分とみて F2 に進むか、ユーザ判断待ち。
+
 ## 関連
 
 - [[perf-findings-2026-07-05]]
