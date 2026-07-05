@@ -114,6 +114,33 @@ Stage ES-0（build_plan の各サブパス計測＋重複歩行検出、commit `
 
 **未解決の難所（実装前に必ず解く）**: 素朴に「同じ ExprId なら結果を使い回す」というメモ化は**不健全**な可能性が高い。route classification は現在の `EvidenceContext`（handler stack の形＋callback/delayed boundary の深さ）に依存するため、同じ式でも呼ばれる文脈が違えば正しい分類結果も変わりうる。ES-1 実装前に、**どこまでを cache key に含めれば健全か**（handler stack 全体か、その一部の shape か、boundary depth か）を精査する専用の調査が必要——ここを雑にやると「静かに間違った evidence が使われる」という、今日一日通して警戒してきた種類のバグになる。
 
+## 追記3（2026-07-05 夜、Claude 署名）: 健全な cache key 設計確定——ES-1 実装へ
+
+### Part A（同一呼び出しの二経路）: 完全重複ではないと確定、一本化は不健全
+
+`Expr::Apply` の callee が `InstanceRef` の場合の二経路（(i) `visit_instance_entry` 経由の「値としての」歩行、(ii) `visit_known_callee_entry` 経由の「今すぐ呼ばれる」歩行）は、**意図的に異なる文脈で同じ lambda 本体を解析している**。(i) は delayed boundary を追加してから歩く、(ii) は追加しない——同じ本体内の effect operation が、(i) では `Blocked{delayed_boundary:true}`、(ii) では `Direct` になりうる、という**正当な使い分け**。単純に一本化するのは不健全と確定。この経路は今回のメモ化設計の対象にしない。
+
+### Part B（cross-call-site メモ化）: 健全な粗視化を発見
+
+`EvidenceContext`（evidence_ir.rs:1033）は `handlers: Vec<EvidenceHandlerFrame>` / `callback_boundary_depth` / `delayed_boundary_depth` を持つ。結果に影響する読み出しは実質2箇所のみ:
+- `record_effect → classify_route(path, context)`——`context.handlers` を内側から走査
+- `record_fallback`——`context.has_handler()`（`!handlers.is_empty()`）のみ参照
+
+callback/delayed の深さそのものは、**handler stack が空である限り出力に一切影響しない**（`classify_route` は走査対象がなく、`has_handler()` も自明に false）。
+
+今回のスキャナのホットケース（`word_prefix_ascii_or_slow_end → word_prefix_ascii_chunk →(fold内)→ word_prefix_ascii_step` 等）を実測したところ、**観測された「複数の文脈」は全て `handlers=0`（空）で、differ していたのは callback/delayed depth のカウンタ値だけ**だった。
+
+**確定した健全な cache key 設計**:
+- `handlers` が空のときは、callback/delayed depth の値に関わらず単一の `NoHandlers` キーとして扱ってよい（証明済み、ヒューリスティックではない: 上記の依存解析により、この場合これらの値は出力に一切影響しないため）。
+- `handlers` が非空のときは、保守的にフルコンテキスト（handler stack 全体＋各フレームの handled path／resumptive flag／entry 時の depth＋現在の depth）をキーにする。
+- **cycle guard との整合**: `active_exprs`/`active_instances` はキャッシュキーではなく、現在進行中の再帰スタックガード。ターゲットが現在 active（=完了前）なら、たとえキャッシュに完了済み結果があっても cycle fallback を優先しなければならない——キャッシュは「完了済みの結果」のみを保持・返却し、active な対象への参照は従来どおり cycle guard 経路を通すこと。
+
+「更に広い粗視化（body ごとの effect-path summary で handler ありのケースも圧縮する等）」は今回のアルゴリズム解析だけでは健全性を証明できておらず、別の設計課題として保留する。今回実装するのは上記の「NoHandlers 粗視化＋非空時はフルコンテキスト」のみ。
+
+### 次の一手: ES-1 実装
+
+上記のキー設計で `ControlEvidenceProgram::from_program` に完了済み結果のメモ化を追加する。検証は「evidence 出力がバイト単位で完全一致すること」を主軸に、対象は今回の scanner ケースだけでなく既存の contract suite 全体・named canary 全て。
+
 ## 未決の設計論点（着手前にユーザ確認したい点）
 
 1. Stage ES-0/ES-1（計測＋共有メモ化）から始めることに同意するか。静的 route 昇格の成否を待たずに独立着手できる点が利点。
