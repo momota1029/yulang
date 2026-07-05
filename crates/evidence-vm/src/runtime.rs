@@ -4765,7 +4765,42 @@ struct EvidenceActiveMarkerFrameScope {
 #[derive(Debug, Clone)]
 struct MarkedForceReentryFrame {
     markers: Rc<[EvidenceValueMarker]>,
+    continuation_capture_generation: u64,
     saw_reentry: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct MarkerSetIdentity {
+    data_ptr: usize,
+    len: usize,
+}
+
+impl MarkerSetIdentity {
+    fn from_markers(markers: &Rc<[EvidenceValueMarker]>) -> Option<Self> {
+        if markers.is_empty() {
+            return None;
+        }
+        Some(Self {
+            data_ptr: markers.as_ptr() as usize,
+            len: markers.len(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ContinuationIdentity {
+    frame_ptr: usize,
+}
+
+impl ContinuationIdentity {
+    fn from_continuation(continuation: &EvidenceContinuation) -> Option<Self> {
+        match continuation {
+            EvidenceContinuation::Identity => None,
+            EvidenceContinuation::Frame(frame) => Some(Self {
+                frame_ptr: Rc::as_ptr(frame) as usize,
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -5922,6 +5957,12 @@ impl EvidenceContinuation {
         }
     }
 
+    fn for_each_marker_frame_markers(&self, record: &mut impl FnMut(&Rc<[EvidenceValueMarker]>)) {
+        if let Some(frame) = self.frame() {
+            frame.for_each_marker_frame_markers(record);
+        }
+    }
+
     fn force_thunk(target_value_is_thunk: bool, next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::ForceThunk {
             target_value_is_thunk,
@@ -6668,6 +6709,31 @@ fn force_thunk_continuation_parts(
 }
 
 impl EvidenceContinuationFrame {
+    fn for_each_marker_frame_markers(&self, record: &mut impl FnMut(&Rc<[EvidenceValueMarker]>)) {
+        match self {
+            EvidenceContinuationFrame::Then { first, second } => {
+                first.for_each_marker_frame_markers(record);
+                second.for_each_marker_frame_markers(record);
+            }
+            EvidenceContinuationFrame::StateFrames { inner, .. } => {
+                inner.for_each_marker_frame_markers(record);
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                scope.for_each_marker_frame_markers(record);
+                next.for_each_marker_frame_markers(record);
+            }
+            EvidenceContinuationFrame::MarkerFrame { markers, next, .. } => {
+                record(markers);
+                next.for_each_marker_frame_markers(record);
+            }
+            _ => {
+                if let Some(next) = self.tail_ref() {
+                    next.for_each_marker_frame_markers(record);
+                }
+            }
+        }
+    }
+
     fn push_live_gauge_children<'a>(
         &'a self,
         depth: usize,
@@ -9857,6 +9923,11 @@ struct RuntimeEvidenceRunner<'a> {
     next_active_marker_frame_id: u64,
     active_marker_frame_scopes: Vec<EvidenceActiveMarkerFrameScope>,
     marked_force_reentry_stack: Vec<MarkedForceReentryFrame>,
+    materialized_marker_identities: HashSet<MarkerSetIdentity>,
+    materialized_marker_identity_roots: Vec<Rc<[EvidenceValueMarker]>>,
+    materialized_continuation_identities: HashSet<ContinuationIdentity>,
+    materialized_continuation_identity_roots: Vec<EvidenceContinuation>,
+    materialized_continuation_resume_depth: usize,
     tail_invariant_base_profiles: HashMap<TailInvariantBaseProfileKey, TailInvariantBaseProfile>,
     tail_invariant_base_at_tail_shadow_retired_markers: HashSet<EvidenceActiveMarkerFrameId>,
     tail_invariant_base_at_resume_shadow_retired_markers: HashSet<EvidenceActiveMarkerFrameId>,
@@ -9932,6 +10003,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             next_active_marker_frame_id: 0,
             active_marker_frame_scopes: Vec::new(),
             marked_force_reentry_stack: Vec::new(),
+            materialized_marker_identities: HashSet::new(),
+            materialized_marker_identity_roots: Vec::new(),
+            materialized_continuation_identities: HashSet::new(),
+            materialized_continuation_identity_roots: Vec::new(),
+            materialized_continuation_resume_depth: 0,
             tail_invariant_base_profiles: HashMap::new(),
             tail_invariant_base_at_tail_shadow_retired_markers: HashSet::new(),
             tail_invariant_base_at_resume_shadow_retired_markers: HashSet::new(),
@@ -9994,8 +10070,65 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.current_host_branch
     }
 
-    fn record_continuation_materialized(&mut self) {
+    fn record_continuation_materialized(&mut self, continuation: &EvidenceContinuation) {
         self.continuation_capture_generation = self.continuation_capture_generation.wrapping_add(1);
+        self.record_materialized_continuation_identity(continuation);
+        self.record_materialized_continuation_marker_identities(continuation);
+    }
+
+    fn record_materialized_continuation_identity(&mut self, continuation: &EvidenceContinuation) {
+        if !self.marked_force_reentry_shadow_enabled() {
+            return;
+        }
+        let Some(identity) = ContinuationIdentity::from_continuation(continuation) else {
+            return;
+        };
+        if self.materialized_continuation_identities.insert(identity) {
+            self.materialized_continuation_identity_roots
+                .push(continuation.clone());
+        }
+    }
+
+    fn continuation_identity_was_materialized(&self, continuation: &EvidenceContinuation) -> bool {
+        ContinuationIdentity::from_continuation(continuation).is_some_and(|identity| {
+            self.materialized_continuation_identities
+                .contains(&identity)
+        })
+    }
+
+    fn record_materialized_continuation_marker_identities(
+        &mut self,
+        continuation: &EvidenceContinuation,
+    ) {
+        if !self.marked_force_reentry_shadow_enabled() {
+            return;
+        }
+        let active_markers = self
+            .active_marker_frame_scopes
+            .iter()
+            .map(|scope| scope.markers.clone())
+            .collect::<Vec<_>>();
+        for markers in active_markers {
+            self.record_materialized_marker_identity(&markers);
+        }
+        continuation.for_each_marker_frame_markers(&mut |markers| {
+            self.record_materialized_marker_identity(markers);
+        });
+    }
+
+    fn record_materialized_marker_identity(&mut self, markers: &Rc<[EvidenceValueMarker]>) {
+        let Some(identity) = MarkerSetIdentity::from_markers(markers) else {
+            return;
+        };
+        if self.materialized_marker_identities.insert(identity) {
+            self.materialized_marker_identity_roots
+                .push(markers.clone());
+        }
+    }
+
+    fn marker_identity_was_materialized(&self, markers: &Rc<[EvidenceValueMarker]>) -> bool {
+        MarkerSetIdentity::from_markers(markers)
+            .is_some_and(|identity| self.materialized_marker_identities.contains(&identity))
     }
 
     fn with_current_host_branch<T>(
@@ -14252,7 +14385,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             .to_string(),
                     });
                 };
-                self.record_continuation_materialized();
+                self.record_continuation_materialized(&request.continuation);
                 self.suspended_host_continuations.insert(
                     token.id(),
                     RuntimeSuspendedHostContinuation {
@@ -14325,7 +14458,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 .to_string(),
                     });
                 }
-                self.record_continuation_materialized();
+                self.record_continuation_materialized(&request.continuation);
                 self.suspended_host_continuations.insert(
                     token.id(),
                     RuntimeSuspendedHostContinuation {
@@ -15596,10 +15729,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.marked_force_reentry_shadow_enabled() || markers.is_empty() {
             return false;
         }
-        if let Some(parent) = self.marked_force_reentry_stack.last_mut() {
-            parent.saw_reentry = true;
-            if Rc::ptr_eq(&parent.markers, markers) {
-                self.stats.marked_force_reentry_same_identity += 1;
+        if let Some(parent_index) = self.marked_force_reentry_stack.len().checked_sub(1) {
+            let same_identity = {
+                let parent = &self.marked_force_reentry_stack[parent_index];
+                Rc::ptr_eq(&parent.markers, markers)
+            };
+            let materialized = same_identity && {
+                let parent = &self.marked_force_reentry_stack[parent_index];
+                self.continuation_capture_generation != parent.continuation_capture_generation
+                    || self.materialized_continuation_resume_depth > 0
+                    || self.marker_identity_was_materialized(&parent.markers)
+            };
+            self.marked_force_reentry_stack[parent_index].saw_reentry = true;
+            if same_identity {
+                if materialized {
+                    self.stats
+                        .marked_force_reentry_same_identity_unsafe_materialized += 1;
+                } else {
+                    self.stats.marked_force_reentry_same_identity_safe += 1;
+                }
             } else {
                 self.stats.marked_force_reentry_different_identity += 1;
             }
@@ -15607,6 +15755,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.marked_force_reentry_stack
             .push(MarkedForceReentryFrame {
                 markers: markers.clone(),
+                continuation_capture_generation: self.continuation_capture_generation,
                 saw_reentry: false,
             });
         true
@@ -20515,7 +20664,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
                     self.stats.thunk_force_continuation += 1;
                     self.stats.resume_pack_thunks_forced += 1;
-                    let result = self.resume_continuation(continuation.clone(), arg.clone())?;
+                    let materialized_resume = self.marked_force_reentry_shadow_enabled()
+                        && self.continuation_identity_was_materialized(continuation);
+                    if materialized_resume {
+                        self.materialized_continuation_resume_depth += 1;
+                    }
+                    let result = self.resume_continuation(continuation.clone(), arg.clone());
+                    if materialized_resume {
+                        self.materialized_continuation_resume_depth = self
+                            .materialized_continuation_resume_depth
+                            .saturating_sub(1);
+                    }
+                    let result = result?;
                     match result {
                         EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
                         result => self.continue_result(
@@ -21753,7 +21913,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         "abortive continuation binding",
                     ));
                 }
-                self.record_continuation_materialized();
+                self.record_continuation_materialized(&request.continuation);
                 if !self.bind_pat_matches(
                     continuation_pat,
                     shared(RuntimeEvidenceValue::Continuation(
@@ -21820,7 +21980,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if let Some(continuation_pat) = &arm.continuation
                 && {
                     self.stats.direct_tail_segment_materialized_continuations += 1;
-                    self.record_continuation_materialized();
+                    self.record_continuation_materialized(&call.continuation);
                     self.record_direct_tail_segment_shadow(&call);
                     !self.bind_pat_matches(
                         continuation_pat,

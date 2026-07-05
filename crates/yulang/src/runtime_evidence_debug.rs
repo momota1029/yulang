@@ -4104,8 +4104,16 @@ pub(crate) fn print_run_report(
         output.evidence_stats.marked_force_carry_after_frame_markers
     );
     println!(
-        "  runtime_evidence.marked_force_reentry_same_identity: {}",
-        output.evidence_stats.marked_force_reentry_same_identity
+        "  runtime_evidence.marked_force_reentry_same_identity_safe: {}",
+        output
+            .evidence_stats
+            .marked_force_reentry_same_identity_safe
+    );
+    println!(
+        "  runtime_evidence.marked_force_reentry_same_identity_unsafe_materialized: {}",
+        output
+            .evidence_stats
+            .marked_force_reentry_same_identity_unsafe_materialized
     );
     println!(
         "  runtime_evidence.marked_force_reentry_different_identity: {}",
