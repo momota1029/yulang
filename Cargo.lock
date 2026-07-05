@@ -100,7 +100,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "control-vm"
+name = "control-ir"
 version = "0.1.0"
 dependencies = [
  "infer",
@@ -212,7 +212,7 @@ dependencies = [
 name = "evidence-vm"
 version = "0.1.0"
 dependencies = [
- "control-vm",
+ "control-ir",
  "list-tree",
  "poly",
  "smallvec",
@@ -1374,7 +1374,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "chasa",
- "control-vm",
+ "control-ir",
  "either",
  "evidence-vm",
  "im",

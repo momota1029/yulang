@@ -1,4 +1,4 @@
-use control_vm::DefId;
+use control_ir::DefId;
 
 use list_tree::ListTree;
 
@@ -268,7 +268,7 @@ fn shorten_constructor_label(label: &str) -> String {
 mod tests {
     use std::rc::Rc;
 
-    use control_vm::DefId;
+    use control_ir::DefId;
 
     use super::*;
 

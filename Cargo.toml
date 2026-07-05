@@ -5,7 +5,7 @@ members = [
   "crates/mono",
   "crates/mono-runtime",
   "crates/specialize",
-  "crates/control-vm",
+  "crates/control-ir",
   "crates/evidence-vm",
   "crates/list-tree",
   "crates/text-tree",

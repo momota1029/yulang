@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-control-vm = { path = "../control-vm" }
+control-ir = { path = "../control-ir" }
 list-tree = { path = "../list-tree" }
 poly = { path = "../poly" }
 smallvec = "1.13.2"

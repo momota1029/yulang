@@ -613,7 +613,7 @@ fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
 }
 
 #[test]
-fn compatible_run_control_vm_reports_unsupported_runtime_feature_hint() {
+fn compatible_run_control_ir_reports_unsupported_runtime_feature_hint() {
     let entry = write_entry("run-control-not-callable", "my x = 1 2\nx\n");
 
     let output = yulang_command()
@@ -1378,7 +1378,7 @@ fn compatible_global_cst_and_timing_flags_are_accepted() {
 }
 
 #[test]
-fn compatible_build_writes_control_vm_artifact_and_run_loads_it() {
+fn compatible_build_writes_control_ir_artifact_and_run_loads_it() {
     let entry = write_entry("build-artifact", "1\n");
     let artifact = entry.with_extension("yuir");
 
@@ -1932,7 +1932,7 @@ fn debug_evidence_vm_plan_classifies_direct_multi_shot_resume() {
 }
 
 #[test]
-fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
+fn debug_runtime_evidence_run_matches_control_ir_on_pure_lambda_subset() {
     let entry = write_entry("debug-runtime-evidence-run", "my id x = x\nid 3\n");
 
     let output = yulang_command()
@@ -1954,7 +1954,7 @@ fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
 }
 
 #[test]
-fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
+fn debug_evidence_vm_run_alias_matches_control_ir_on_pure_lambda_subset() {
     let entry = write_entry("debug-evidence-vm-run", "my id x = x\nid 3\n");
 
     let output = yulang_command()
@@ -2315,7 +2315,7 @@ fn debug_evidence_vm_run_captures_provider_env_on_closure_value() {
 }
 
 #[test]
-fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
+fn debug_runtime_evidence_run_matches_control_ir_on_std_int_primitives() {
     let entry = write_entry(
         "debug-runtime-evidence-run-std-int",
         "1 + 2\nmy add1 x = x + 1\nadd1 3\n",
@@ -2366,7 +2366,7 @@ fn debug_runtime_evidence_run_reads_struct_record_payload_fields() {
 }
 
 #[test]
-fn debug_runtime_evidence_run_matches_control_vm_on_record_pattern_defaults() {
+fn debug_runtime_evidence_run_matches_control_ir_on_record_pattern_defaults() {
     let entry = write_entry(
         "debug-runtime-evidence-run-record-pattern-defaults",
         "my area({width = 1, height = 2}) = width * height\n\
@@ -2499,7 +2499,7 @@ fn debug_runtime_evidence_run_evaluates_list_view_raw() {
 }
 
 #[test]
-fn debug_runtime_evidence_run_matches_control_vm_on_text_and_bytes_primitives() {
+fn debug_runtime_evidence_run_matches_control_ir_on_text_and_bytes_primitives() {
     let entry = write_entry(
         "debug-runtime-evidence-run-text-bytes",
         "std::text::str::index_raw \"aβc\" 1\n\
@@ -3772,7 +3772,7 @@ fn compatible_dump_mono_writes_exact_mono_cache_artifact() {
 }
 
 #[test]
-fn compatible_build_populates_control_vm_cache_unless_disabled() {
+fn compatible_build_populates_control_ir_cache_unless_disabled() {
     let entry = write_entry("build-control-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
     let cache_root = root.join("cache-root");
@@ -3814,7 +3814,7 @@ fn compatible_build_populates_control_vm_cache_unless_disabled() {
 }
 
 #[test]
-fn compatible_run_populates_control_vm_cache() {
+fn compatible_run_populates_control_ir_cache() {
     let entry = write_entry("run-control-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
     let cache_root = root.join("cache-root");

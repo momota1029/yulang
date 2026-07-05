@@ -408,7 +408,7 @@ pub(super) fn print_cst_if_requested(options: &GlobalOptions, path: &PathBuf) {
     print!("{}", cst_view::format_module_cst(&source));
 }
 
-pub(super) fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_vm::Program> {
+pub(super) fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_ir::Program> {
     let source = match fs::read_to_string(path) {
         Ok(source) => source,
         Err(_) => return None,
@@ -429,7 +429,7 @@ pub(super) struct CliControlRunOutput {
     pub text: String,
     pub stdout: String,
     pub errors: Vec<String>,
-    pub stats: control_vm::RuntimeStats,
+    pub stats: control_ir::RuntimeStats,
     pub timings: yulang::ControlRunTimings,
 }
 
@@ -656,9 +656,9 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
     }
 }
 
-pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bool) {
+pub(super) fn run_control_artifact(program: control_ir::Program, print_roots: bool) {
     let text = run_control_on_cli_vm_stack(move || {
-        let values = match control_vm::run_program(&program) {
+        let values = match control_ir::run_program(&program) {
             Ok(values) => values,
             Err(error) => {
                 eprintln!("{}", format_control_run_error(&error));
@@ -668,7 +668,7 @@ pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bo
         if print_roots {
             Some(format!(
                 "run roots {}\n",
-                control_vm::format_values(&values)
+                control_ir::format_values(&values)
             ))
         } else {
             None
@@ -862,68 +862,68 @@ pub(super) fn format_mono_runtime_error(error: &mono_runtime::RuntimeError) -> S
     }
 }
 
-pub(super) fn format_control_run_error(error: &control_vm::RunError) -> String {
+pub(super) fn format_control_run_error(error: &control_ir::RunError) -> String {
     match error {
-        control_vm::RunError::Runtime(error) => format_control_runtime_error(error),
-        control_vm::RunError::Lower(_) | control_vm::RunError::Validate(_) => {
+        control_ir::RunError::Runtime(error) => format_control_runtime_error(error),
+        control_ir::RunError::Lower(_) | control_ir::RunError::Validate(_) => {
             format_unsupported_runtime_feature_error(&error.to_string())
         }
     }
 }
 
-fn format_control_runtime_error(error: &control_vm::RuntimeError) -> String {
+fn format_control_runtime_error(error: &control_ir::RuntimeError) -> String {
     match error {
-        control_vm::RuntimeError::UnhandledEffect { path } => {
+        control_ir::RuntimeError::UnhandledEffect { path } => {
             format_unhandled_effect_runtime_error(path)
         }
-        control_vm::RuntimeError::NotFunction { value } => {
+        control_ir::RuntimeError::NotFunction { value } => {
             format_not_callable_runtime_error(&format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedRecord { value } => {
+        control_ir::RuntimeError::ExpectedRecord { value } => {
             format_not_record_runtime_error(&format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::MissingRecordField { name } => {
+        control_ir::RuntimeError::MissingRecordField { name } => {
             format_missing_field_runtime_error(name)
         }
-        control_vm::RuntimeError::PatternMismatch | control_vm::RuntimeError::NoMatchingCase => {
+        control_ir::RuntimeError::PatternMismatch | control_ir::RuntimeError::NoMatchingCase => {
             format_pattern_mismatch_runtime_error()
         }
-        control_vm::RuntimeError::NonBoolGuard { value } => {
+        control_ir::RuntimeError::NonBoolGuard { value } => {
             format_non_bool_guard_runtime_error(&format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedInt { value } => {
+        control_ir::RuntimeError::ExpectedInt { value } => {
             format_expected_runtime_type_error("int", &format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedFloat { value } => {
+        control_ir::RuntimeError::ExpectedFloat { value } => {
             format_expected_runtime_type_error("float", &format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedBool { value } => {
+        control_ir::RuntimeError::ExpectedBool { value } => {
             format_expected_runtime_type_error("bool", &format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedList { value } => {
+        control_ir::RuntimeError::ExpectedList { value } => {
             format_expected_runtime_type_error("list", &format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::ExpectedBytes { value } => {
+        control_ir::RuntimeError::ExpectedBytes { value } => {
             format_expected_runtime_type_error("bytes", &format_control_runtime_value(value))
         }
-        control_vm::RuntimeError::UnsupportedExpr { feature }
-        | control_vm::RuntimeError::UnsupportedPattern { feature }
-        | control_vm::RuntimeError::UnsupportedBoundary { feature } => {
+        control_ir::RuntimeError::UnsupportedExpr { feature }
+        | control_ir::RuntimeError::UnsupportedPattern { feature }
+        | control_ir::RuntimeError::UnsupportedBoundary { feature } => {
             format_unsupported_runtime_feature_error(feature)
         }
-        control_vm::RuntimeError::MissingPrimitiveContext { op }
-        | control_vm::RuntimeError::UnsupportedPrimitive { op } => format!(
+        control_ir::RuntimeError::MissingPrimitiveContext { op }
+        | control_ir::RuntimeError::UnsupportedPrimitive { op } => format!(
             "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
         ),
-        control_vm::RuntimeError::MissingExpr { .. }
-        | control_vm::RuntimeError::ExpectedFunctionType
-        | control_vm::RuntimeError::NotThunk { .. }
-        | control_vm::RuntimeError::MissingInstance { .. }
-        | control_vm::RuntimeError::MismatchedInstanceSlot { .. }
-        | control_vm::RuntimeError::RecursiveInstance { .. }
-        | control_vm::RuntimeError::UnboundLocal { .. }
-        | control_vm::RuntimeError::MissingContinuation { .. }
-        | control_vm::RuntimeError::UnresolvedSelect { .. } => {
+        control_ir::RuntimeError::MissingExpr { .. }
+        | control_ir::RuntimeError::ExpectedFunctionType
+        | control_ir::RuntimeError::NotThunk { .. }
+        | control_ir::RuntimeError::MissingInstance { .. }
+        | control_ir::RuntimeError::MismatchedInstanceSlot { .. }
+        | control_ir::RuntimeError::RecursiveInstance { .. }
+        | control_ir::RuntimeError::UnboundLocal { .. }
+        | control_ir::RuntimeError::MissingContinuation { .. }
+        | control_ir::RuntimeError::UnresolvedSelect { .. } => {
             format_internal_runtime_error(&error.to_string())
         }
     }
@@ -990,8 +990,8 @@ fn format_mono_runtime_value(value: &mono_runtime::Value) -> String {
         .to_string()
 }
 
-fn format_control_runtime_value(value: &control_vm::Value) -> String {
-    let text = control_vm::format_values(std::slice::from_ref(value));
+fn format_control_runtime_value(value: &control_ir::Value) -> String {
+    let text = control_ir::format_values(std::slice::from_ref(value));
     text.strip_prefix('[')
         .and_then(|text| text.strip_suffix(']'))
         .unwrap_or(text.as_str())

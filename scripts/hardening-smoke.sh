@@ -116,7 +116,7 @@ run_timeout "$test_timeout" \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
-  cargo test -q -p control-vm routes_foreign_thunk_effect_past_inner_handler_like_oracle \
+  cargo test -q -p control-ir routes_foreign_thunk_effect_past_inner_handler_like_oracle \
   -- --test-threads=1
 
 if [[ "$run_public_examples" != "0" ]]; then

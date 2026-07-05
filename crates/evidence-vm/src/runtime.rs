@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use control_vm::{
+use control_ir::{
     Block, ControlEffectEvidence, ControlEffectUseKind, ControlEvidenceProgram,
     ControlEvidenceRoute, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root,
     SelectResolution, Stmt,
@@ -1047,7 +1047,7 @@ enum RuntimeEvidenceExpr {
     },
     Tuple(Rc<[ExprId]>),
     Record {
-        fields: Rc<[control_vm::RecordField]>,
+        fields: Rc<[control_ir::RecordField]>,
         spread: RecordSpread<ExprId>,
     },
     PolyVariant {
@@ -1174,13 +1174,13 @@ enum EvidenceContinuationFrame {
         next: EvidenceContinuation,
     },
     CaseScrutinee {
-        arms: Rc<[control_vm::CaseArm]>,
+        arms: Rc<[control_ir::CaseArm]>,
         env: Env,
         next: EvidenceContinuation,
     },
     CatchBody {
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: Env,
         next: EvidenceContinuation,
     },
@@ -1213,13 +1213,13 @@ enum EvidenceContinuationFrame {
         next: EvidenceContinuation,
     },
     RecordSpread {
-        fields: Rc<[control_vm::RecordField]>,
+        fields: Rc<[control_ir::RecordField]>,
         env: Env,
         next: EvidenceContinuation,
     },
     RecordFields {
         values: Vec<RuntimeEvidenceValueField>,
-        rest: Rc<[control_vm::RecordField]>,
+        rest: Rc<[control_ir::RecordField]>,
         env: Env,
         next: EvidenceContinuation,
     },
@@ -2480,7 +2480,7 @@ enum EvidenceEvalDeltaFramePlan {
         target_ret: Type,
     },
     CaseScrutinee {
-        arms: Rc<[control_vm::CaseArm]>,
+        arms: Rc<[control_ir::CaseArm]>,
         env: Env,
     },
     TupleItems {
@@ -2489,12 +2489,12 @@ enum EvidenceEvalDeltaFramePlan {
         env: Env,
     },
     RecordSpread {
-        fields: Rc<[control_vm::RecordField]>,
+        fields: Rc<[control_ir::RecordField]>,
         env: Env,
     },
     RecordFields {
         values: Vec<RuntimeEvidenceValueField>,
-        rest: Rc<[control_vm::RecordField]>,
+        rest: Rc<[control_ir::RecordField]>,
         env: Env,
     },
     PolyVariantPayloads {
@@ -2954,7 +2954,7 @@ struct EvidenceRequestDeltaPlan {
 struct EvidenceRequestDeltaFramePlan {
     kind: EvidenceRequestDeltaFrameKind,
     catch_expr: ExprId,
-    arms: Rc<[control_vm::CatchArm]>,
+    arms: Rc<[control_ir::CatchArm]>,
     env: Env,
 }
 
@@ -2969,7 +2969,7 @@ enum EvidenceRequestDeltaFrameKind {
 struct EvidenceCatchBoundaryDeltaPlan {
     mode: EvidenceCatchBoundaryMode,
     catch_expr: ExprId,
-    arms: Rc<[control_vm::CatchArm]>,
+    arms: Rc<[control_ir::CatchArm]>,
     env: Env,
 }
 
@@ -3022,7 +3022,7 @@ enum EvidenceCatchBoundarySignalClass {
 impl EvidenceCatchBoundaryDeltaPlan {
     fn foreign_pass_through(
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: Env,
     ) -> Self {
         Self {
@@ -6066,7 +6066,7 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn case_scrutinee(arms: Rc<[control_vm::CaseArm]>, env: Env, next: Self) -> Self {
+    fn case_scrutinee(arms: Rc<[control_ir::CaseArm]>, env: Env, next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::CaseScrutinee {
             arms,
             env,
@@ -6076,7 +6076,7 @@ impl EvidenceContinuation {
 
     fn catch_body(
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: Env,
         next: Self,
     ) -> Self {
@@ -6203,7 +6203,7 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn record_spread(fields: Rc<[control_vm::RecordField]>, env: Env, next: Self) -> Self {
+    fn record_spread(fields: Rc<[control_ir::RecordField]>, env: Env, next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::RecordSpread {
             fields,
             env,
@@ -6213,7 +6213,7 @@ impl EvidenceContinuation {
 
     fn record_fields(
         values: Vec<RuntimeEvidenceValueField>,
-        rest: Rc<[control_vm::RecordField]>,
+        rest: Rc<[control_ir::RecordField]>,
         env: Env,
         next: Self,
     ) -> Self {
@@ -9217,8 +9217,8 @@ fn forced_effect_call_parts(
 fn static_arm_caches(
     program: &Program,
 ) -> (
-    Vec<Option<Rc<[control_vm::CaseArm]>>>,
-    Vec<Option<Rc<[control_vm::CatchArm]>>>,
+    Vec<Option<Rc<[control_ir::CaseArm]>>>,
+    Vec<Option<Rc<[control_ir::CatchArm]>>>,
 ) {
     let mut case_arms = Vec::with_capacity(program.exprs.len());
     let mut catch_arms = Vec::with_capacity(program.exprs.len());
@@ -9918,8 +9918,8 @@ struct RuntimeEvidenceRunner<'a> {
     evidence: ControlEvidenceIndex,
     runtime_exprs: Vec<RuntimeEvidenceExpr>,
     env_preserving_exprs: Vec<bool>,
-    case_arms: Vec<Option<Rc<[control_vm::CaseArm]>>>,
-    catch_arms: Vec<Option<Rc<[control_vm::CatchArm]>>>,
+    case_arms: Vec<Option<Rc<[control_ir::CaseArm]>>>,
+    catch_arms: Vec<Option<Rc<[control_ir::CatchArm]>>>,
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
     next_guard_id: u32,
@@ -10153,7 +10153,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         result
     }
 
-    fn static_case_arms(&self, expr: ExprId) -> Rc<[control_vm::CaseArm]> {
+    fn static_case_arms(&self, expr: ExprId) -> Rc<[control_ir::CaseArm]> {
         self.case_arms
             .get(expr.0 as usize)
             .and_then(|arms| arms.as_ref())
@@ -10161,7 +10161,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .expect("case expression must have cached case arms")
     }
 
-    fn static_catch_arms(&self, expr: ExprId) -> Rc<[control_vm::CatchArm]> {
+    fn static_catch_arms(&self, expr: ExprId) -> Rc<[control_ir::CatchArm]> {
         self.catch_arms
             .get(expr.0 as usize)
             .and_then(|arms| arms.as_ref())
@@ -17083,7 +17083,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn eval_record_result(
         &mut self,
-        fields: &[control_vm::RecordField],
+        fields: &[control_ir::RecordField],
         spread: &RecordSpread<ExprId>,
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
@@ -17142,7 +17142,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_record_fields_result(
         &mut self,
         mut values: Vec<RuntimeEvidenceValueField>,
-        fields: &[control_vm::RecordField],
+        fields: &[control_ir::RecordField],
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for (index, field) in fields.iter().enumerate() {
@@ -21474,7 +21474,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn continue_catch_body_result(
         &mut self,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
         result: EvidenceEvalResult,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
@@ -21517,7 +21517,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn continue_catch_body_signal(
         &mut self,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
         signal: EvidenceEffectSignal,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
@@ -21576,7 +21576,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn continue_catch_body_request(
         &mut self,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
@@ -21639,7 +21639,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn try_eval_known_state_operation(
         &mut self,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
         request: &EvidenceRequest,
         resumptive: bool,
@@ -21725,7 +21725,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         catch_expr: ExprId,
         request: &EvidenceRequest,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> Option<bool> {
         let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&request.hygiene);
         self.record_permission_visibility_stats(&request.hygiene);
@@ -21743,7 +21743,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn operation_arm_visible(
         &self,
         request_path: &[String],
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> Option<bool> {
         arms.iter().find_map(|arm| {
             let operation_path = arm.operation_path.as_ref()?;
@@ -21755,7 +21755,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &self,
         request_path: &[String],
         exposure: EvidenceGuardBoundaryExposure<'_>,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> Option<bool> {
         arms.iter().find_map(|arm| {
             let operation_path = arm.operation_path.as_ref()?;
@@ -21783,7 +21783,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         catch_expr: ExprId,
         call: &EvidenceDirectTailResumptive,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> Option<bool> {
         self.record_permission_visibility_stats(&call.hygiene);
         if let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) {
@@ -21905,7 +21905,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         catch_expr: ExprId,
         request_path: &[String],
         hygiene: &EvidenceSignalHygiene,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         legacy_visible: Option<bool>,
     ) {
         let Some(shadow_kind) = hygiene.permission_shadow_kind() else {
@@ -21958,7 +21958,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         catch_expr: ExprId,
         request_path: &[String],
         hygiene: &EvidenceSignalHygiene,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> EvidencePermissionVisibleDecision {
         let Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission)) =
             hygiene.permission_shadow_kind()
@@ -21982,7 +21982,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         catch_expr: ExprId,
         request_path: &[String],
         visibility: RuntimeEvidenceOperationVisibility,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> Option<bool> {
         let arm_resumptive = arms.iter().find_map(|arm| {
             let operation_path = arm.operation_path.as_ref()?;
@@ -21999,7 +21999,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request_path: &[String],
         hygiene: &EvidenceSignalHygiene,
         permission: RuntimeEvidenceProviderGrantPermission,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> EvidencePermissionVisibleResult {
         if !self
             .context
@@ -22020,7 +22020,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         catch_expr: ExprId,
         request_path: &[String],
         permission: RuntimeEvidenceProviderGrantPermission,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
     ) -> EvidencePermissionVisibleResult {
         if !self
             .context
@@ -22108,7 +22108,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         hygiene: &EvidenceSignalHygiene,
         request_path: &[String],
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         shortcut_visible: Option<bool>,
     ) {
         let Some(full_scan) = hygiene.provider_add_id_shortcut_full_scan() else {
@@ -22410,7 +22410,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn defer_catch_body(
         &mut self,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
         request: EvidenceRequest,
     ) -> EvidenceRequest {
@@ -22438,7 +22438,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_value_arm(
         &mut self,
         value: SharedValue,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
@@ -22468,7 +22468,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
         resumptive: bool,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
@@ -22507,7 +22507,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_direct_abortive_arm(
         &mut self,
         call: EvidenceDirectAbortive,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
@@ -22538,7 +22538,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_direct_tail_resumptive_arm(
         &mut self,
         call: EvidenceDirectTailResumptive,
-        arms: &[control_vm::CatchArm],
+        arms: &[control_ir::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
@@ -22577,7 +22577,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         call: EvidenceRoutedYield,
         catch_expr: ExprId,
-        arms: Rc<[control_vm::CatchArm]>,
+        arms: Rc<[control_ir::CatchArm]>,
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         let mut request = call.into_request();
@@ -22666,7 +22666,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_case_result(
         &mut self,
         scrutinee: SharedValue,
-        arms: &[control_vm::CaseArm],
+        arms: &[control_ir::CaseArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match self.eval_case_result_step(scrutinee, arms, env, false)? {
@@ -22681,7 +22681,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_case_result_step(
         &mut self,
         scrutinee: SharedValue,
-        arms: &[control_vm::CaseArm],
+        arms: &[control_ir::CaseArm],
         env: &Env,
         tail_position: bool,
     ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
@@ -22712,7 +22712,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_case_scrutinee_tail_step(
         &mut self,
         scrutinee: SharedValue,
-        arms: Rc<[control_vm::CaseArm]>,
+        arms: Rc<[control_ir::CaseArm]>,
         env: &Env,
     ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
         match self.force_value_if_thunk_result(scrutinee)? {
@@ -22763,7 +22763,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_case_scrutinee_result(
         &mut self,
         scrutinee: SharedValue,
-        arms: Rc<[control_vm::CaseArm]>,
+        arms: Rc<[control_ir::CaseArm]>,
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match self.force_value_if_thunk_result(scrutinee)? {
@@ -24547,11 +24547,11 @@ fn active_add_id_match_kind(
     }
 }
 
-fn shared_case_arms(arms: &[control_vm::CaseArm]) -> Rc<[control_vm::CaseArm]> {
+fn shared_case_arms(arms: &[control_ir::CaseArm]) -> Rc<[control_ir::CaseArm]> {
     Rc::from(arms.to_vec().into_boxed_slice())
 }
 
-fn shared_catch_arms(arms: &[control_vm::CatchArm]) -> Rc<[control_vm::CatchArm]> {
+fn shared_catch_arms(arms: &[control_ir::CatchArm]) -> Rc<[control_ir::CatchArm]> {
     Rc::from(arms.to_vec().into_boxed_slice())
 }
 
@@ -24563,7 +24563,7 @@ fn shared_path(path: &[String]) -> Rc<[String]> {
     Rc::from(path.to_vec().into_boxed_slice())
 }
 
-fn shared_record_fields(fields: &[control_vm::RecordField]) -> Rc<[control_vm::RecordField]> {
+fn shared_record_fields(fields: &[control_ir::RecordField]) -> Rc<[control_ir::RecordField]> {
     Rc::from(fields.to_vec().into_boxed_slice())
 }
 
@@ -28590,7 +28590,7 @@ mod tests {
                 shared(RuntimeEvidenceValue::Unit),
                 EvidenceContinuation::record_fields(
                     Vec::new(),
-                    Rc::from(Vec::<control_vm::RecordField>::new().into_boxed_slice()),
+                    Rc::from(Vec::<control_ir::RecordField>::new().into_boxed_slice()),
                     Env::new(),
                     EvidenceContinuation::identity(),
                 ),
@@ -29216,8 +29216,8 @@ mod tests {
         hygiene
     }
 
-    fn permission_test_arm(resumptive: bool) -> control_vm::CatchArm {
-        control_vm::CatchArm {
+    fn permission_test_arm(resumptive: bool) -> control_ir::CatchArm {
+        control_ir::CatchArm {
             operation_path: Some(permission_test_path()),
             pat: Pat::Wild,
             continuation: resumptive.then_some(Pat::Wild),
@@ -29226,7 +29226,7 @@ mod tests {
         }
     }
 
-    fn empty_catch_arms() -> Rc<[control_vm::CatchArm]> {
+    fn empty_catch_arms() -> Rc<[control_ir::CatchArm]> {
         Vec::new().into()
     }
 

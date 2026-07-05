@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
-use control_vm::{
+use control_ir::{
     Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, DefId, Expr, ExprId,
     Pat, Program, RecordSpread, Root, SelectResolution, Stmt,
 };
@@ -2250,7 +2250,7 @@ fn effect_op_path(program: &Program, expr: ExprId) -> Option<&[String]> {
     }
 }
 
-fn instance_ref(program: &Program, expr: ExprId) -> Option<control_vm::InstanceId> {
+fn instance_ref(program: &Program, expr: ExprId) -> Option<control_ir::InstanceId> {
     match control_expr(program, expr)? {
         Expr::InstanceRef(instance) => Some(*instance),
         _ => None,
@@ -3649,7 +3649,7 @@ fn analyze_handler_arm(
     program: &Program,
     handler_expr: ExprId,
     arm_index: usize,
-    arm: &control_vm::ControlHandlerArmEvidence,
+    arm: &control_ir::ControlHandlerArmEvidence,
     profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> HandlerArmAnalysis {
     profiler.record_body_walk(EvidenceVmPlanWalkPass::HandlerPlans, arm.body);
@@ -3668,7 +3668,7 @@ fn analyze_handler_arm(
         return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::MayEscapeYield);
     };
     let Some(continuation) = continuation_def(continuation_pat) else {
-        return if matches!(continuation_pat, control_vm::Pat::Wild) {
+        return if matches!(continuation_pat, control_ir::Pat::Wild) {
             HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Abortive)
         } else {
             HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::MayEscapeYield)
@@ -3699,16 +3699,16 @@ fn source_handler_arm(
     program: &Program,
     handler_expr: ExprId,
     arm_index: usize,
-) -> Option<&control_vm::CatchArm> {
+) -> Option<&control_ir::CatchArm> {
     let Expr::Catch { arms, .. } = control_expr(program, handler_expr)? else {
         return None;
     };
     arms.get(arm_index)
 }
 
-fn continuation_def(pat: &control_vm::Pat) -> Option<DefId> {
+fn continuation_def(pat: &control_ir::Pat) -> Option<DefId> {
     match pat {
-        control_vm::Pat::Var(def) | control_vm::Pat::As(_, def) => Some(*def),
+        control_ir::Pat::Var(def) | control_ir::Pat::As(_, def) => Some(*def),
         _ => None,
     }
 }

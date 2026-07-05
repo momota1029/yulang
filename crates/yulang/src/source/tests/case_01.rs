@@ -268,7 +268,7 @@ fn run_control_without_std_evaluates_computed_top_level_binding_without_result()
     assert_eq!(mono.values, Vec::<mono_runtime::Value>::new());
     assert_eq!(mono.text, "run roots []\n");
     assert_eq!(control.file_count, 1);
-    assert_eq!(control.values, Vec::<control_vm::Value>::new());
+    assert_eq!(control.values, Vec::<control_ir::Value>::new());
     assert_eq!(control.text, mono.text);
 }
 
@@ -420,7 +420,7 @@ fn run_control_without_std_runs_apply_colon_block_argument() {
     let output = run_control_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.file_count, 1);
-    assert_eq!(output.values, vec![control_vm::Value::Int(1)]);
+    assert_eq!(output.values, vec![control_ir::Value::Int(1)]);
     assert_eq!(output.text, "run roots [1]\n");
 }
 
@@ -815,7 +815,7 @@ fn run_control_without_std_keeps_stack_handler_hygiene() {
     let output = run_control_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.file_count, 1);
-    assert_eq!(output.values, vec![control_vm::Value::Int(0)]);
+    assert_eq!(output.values, vec![control_ir::Value::Int(0)]);
     assert_eq!(output.text, "run roots [0]\n");
 }
 

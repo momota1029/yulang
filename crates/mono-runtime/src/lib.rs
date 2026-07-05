@@ -1,7 +1,7 @@
 //! `mono::Program` をそのまま読む oracle runtime。
 //!
 //! この crate は control VM の前に `specialize -> mono` 契約を検証するための実行器である。
-//! 最適化や軽量 control 表現への lowering は `control-vm` 側で扱う。
+//! 最適化や軽量 control 表現への lowering は `control-ir` 側で扱う。
 
 #![forbid(unsafe_code)]
 

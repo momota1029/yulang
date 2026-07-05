@@ -400,7 +400,7 @@ pub fn build_control_from_poly_output(
     specialized
         .runtime_evidence
         .attach_static_route_profile(&output.arena, &specialized.program);
-    let program = control_vm::lower(&specialized.program).map_err(RouteError::ControlLower)?;
+    let program = control_ir::lower(&specialized.program).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,
         runtime_evidence: specialized.runtime_evidence,
@@ -412,7 +412,7 @@ pub fn build_control_from_poly_output(
 
 /// すでに lower 済みの control VM program を実行し、通常の route output に包む。
 pub fn run_built_control_program(
-    program: &control_vm::Program,
+    program: &control_ir::Program,
     file_count: usize,
     errors: Vec<String>,
 ) -> Result<RunControlOutput, RouteError> {
@@ -420,7 +420,7 @@ pub fn run_built_control_program(
 }
 
 pub fn run_built_control_program_with_labels(
-    program: &control_vm::Program,
+    program: &control_ir::Program,
     file_count: usize,
     errors: Vec<String>,
     labels: Option<&poly::dump::DumpLabels>,
@@ -428,7 +428,7 @@ pub fn run_built_control_program_with_labels(
     reject_runtime_lowering_errors(&errors)?;
     let mut stdout = String::new();
     let (values, stats, runtime_timings) =
-        control_vm::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
+        control_ir::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
             handle_control_host_effect(path, payload, &mut stdout)
         })
         .map_err(RouteError::Control)?;
@@ -453,23 +453,23 @@ pub fn run_built_control_program_with_labels(
 
 fn handle_control_host_effect(
     path: &[String],
-    payload: &control_vm::Value,
+    payload: &control_ir::Value,
     stdout: &mut String,
-) -> Option<control_vm::Value> {
+) -> Option<control_ir::Value> {
     if path == ["std", "io", "console", "out", "write"] {
         push_control_host_string_payload(payload, stdout)?;
-        return Some(control_vm::Value::Unit);
+        return Some(control_ir::Value::Unit);
     }
     None
 }
 
-fn push_control_host_string_payload(value: &control_vm::Value, out: &mut String) -> Option<()> {
+fn push_control_host_string_payload(value: &control_ir::Value, out: &mut String) -> Option<()> {
     match value {
-        control_vm::Value::Str(value) => {
+        control_ir::Value::Str(value) => {
             value.push_to_string(out);
             Some(())
         }
-        control_vm::Value::Marked { value, .. } => push_control_host_string_payload(value, out),
+        control_ir::Value::Marked { value, .. } => push_control_host_string_payload(value, out),
         _ => None,
     }
 }
@@ -1227,9 +1227,9 @@ pub struct RunControlOutput {
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
     pub errors: Vec<String>,
-    pub values: Vec<control_vm::Value>,
+    pub values: Vec<control_ir::Value>,
     pub stdout: String,
-    pub stats: control_vm::RuntimeStats,
+    pub stats: control_ir::RuntimeStats,
     pub timings: ControlRunTimings,
 }
 
@@ -1410,7 +1410,7 @@ pub enum SourceDiagnosticSeverity {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BuildControlOutput {
-    pub program: control_vm::Program,
+    pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
@@ -1612,8 +1612,8 @@ pub enum RouteError {
     HostActManifest(infer::host_acts::HostActManifestBuildError),
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
-    Control(control_vm::RunError),
-    ControlLower(control_vm::LowerError),
+    Control(control_ir::RunError),
+    ControlLower(control_ir::LowerError),
 }
 
 impl fmt::Display for RouteError {

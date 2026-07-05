@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bincode = "1"
 chasa = "0.5.0"
-control-vm = { path = "../control-vm" }
+control-ir = { path = "../control-ir" }
 either = "1.13.0"
 evidence-vm = { path = "../evidence-vm" }
 im = "15.1.0"

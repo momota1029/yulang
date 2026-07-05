@@ -908,7 +908,7 @@ fn build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let control_lower_start = Instant::now();
-    let program = match control_vm::lower(&specialized.program) {
+    let program = match control_ir::lower(&specialized.program) {
         Ok(program) => program,
         Err(error) => {
             eprintln!("{error}");
@@ -949,7 +949,7 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let control_lower_start = Instant::now();
-    let program = control_vm::lower(&specialized.program).map_err(|_| ())?;
+    let program = control_ir::lower(&specialized.program).map_err(|_| ())?;
     if let Some(timings) = timings.as_deref_mut() {
         timings.control_lower = control_lower_start.elapsed();
     }
@@ -1059,7 +1059,7 @@ fn record_runtime_build_cache(
     }
 }
 
-fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm::RuntimeStats) {
+fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_ir::RuntimeStats) {
     eprintln!("runtime timing:");
     eprintln!("  run.backend: control-vm");
     eprintln!("  run.cache: {}", timing.build_cache.as_str());
@@ -2926,8 +2926,8 @@ fn dump_control_evidence_with_optional_cache(
     use_cache: bool,
 ) -> yulang::DumpMonoOutput {
     let output = build_control_with_optional_cache(files, use_cache);
-    let evidence = control_vm::ControlEvidenceProgram::from_program(&output.program);
-    let mut text = control_vm::format_control_evidence_program(&evidence);
+    let evidence = control_ir::ControlEvidenceProgram::from_program(&output.program);
+    let mut text = control_ir::format_control_evidence_program(&evidence);
     text.push('\n');
     text.push_str(&specialize::format_runtime_evidence_surface(
         &output.runtime_evidence,

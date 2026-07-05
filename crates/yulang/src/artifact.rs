@@ -2,7 +2,7 @@ use std::fmt;
 
 const CONTROL_VM_MAGIC: &str = "YULANG-CONTROL-VM 1\n";
 
-pub fn encode_control_program(program: &control_vm::Program) -> Result<String, ArtifactError> {
+pub fn encode_control_program(program: &control_ir::Program) -> Result<String, ArtifactError> {
     let mut out = String::from(CONTROL_VM_MAGIC);
     let json = serde_json::to_string(program).map_err(ArtifactError::Encode)?;
     out.push_str(&json);
@@ -10,7 +10,7 @@ pub fn encode_control_program(program: &control_vm::Program) -> Result<String, A
     Ok(out)
 }
 
-pub fn decode_control_program(source: &str) -> Result<Option<control_vm::Program>, ArtifactError> {
+pub fn decode_control_program(source: &str) -> Result<Option<control_ir::Program>, ArtifactError> {
     let Some(json) = source.strip_prefix(CONTROL_VM_MAGIC) else {
         return Ok(None);
     };

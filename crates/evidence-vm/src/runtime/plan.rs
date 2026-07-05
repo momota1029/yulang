@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use control_vm::{DefId, ExprId};
+use control_ir::{DefId, ExprId};
 use smallvec::{SmallVec, smallvec};
 
 use super::{

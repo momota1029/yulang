@@ -359,7 +359,7 @@ impl ArtifactCache {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CachedControlArtifact {
-    pub program: control_vm::Program,
+    pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
@@ -3413,7 +3413,7 @@ struct MonoCacheEnvelope<T = specialize::mono::Program, E = Vec<String>> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ControlCacheEnvelope<
-    T = control_vm::Program,
+    T = control_ir::Program,
     R = specialize::RuntimeEvidenceSurface,
     L = poly::dump::DumpLabels,
     E = Vec<String>,
@@ -4150,7 +4150,7 @@ mod tests {
         let cache = ArtifactCache::new(&root);
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedControlArtifact {
-            program: control_vm::Program::default(),
+            program: control_ir::Program::default(),
             runtime_evidence: nonempty_runtime_evidence_surface(),
             labels: poly::dump::DumpLabels::new(),
             file_count: 1,
