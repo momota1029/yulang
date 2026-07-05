@@ -3812,6 +3812,32 @@ pub(crate) fn print_run_report(
         output.evidence_stats.marker_frame_marked_force_entries
     );
     println!(
+        "  runtime_evidence.tail_invariant_base_would_loop: {}",
+        output.evidence_stats.tail_invariant_base_would_loop
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_continuation_captured: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_continuation_captured
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_carried_guard: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_carried_guard
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other: {}",
+        output.evidence_stats.tail_invariant_base_rejected_other
+    );
+    println!(
         "  runtime_evidence.resume_marker_plan_empty: {}",
         output.evidence_stats.resume_marker_plan_empty
     );

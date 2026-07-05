@@ -3895,6 +3895,7 @@ enum EvidenceScopeInstructionActiveScope {
 
 #[derive(Debug)]
 struct EvidenceScopeInstructionActiveMarker {
+    shadow_scope_id: Option<EvidenceActiveMarkerFrameId>,
     markers: Rc<[EvidenceValueMarker]>,
     activate_add_ids: bool,
     handler_path: Option<Vec<String>>,
@@ -4737,6 +4738,61 @@ impl EvidenceActiveMarkerPlan {
             .get_or_init(|| markers_for_function_call_shared(&self.markers))
             .clone()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceActiveMarkerFrameId(u64);
+
+#[derive(Debug, Clone)]
+struct EvidenceActiveMarkerFrameScope {
+    id: EvidenceActiveMarkerFrameId,
+    source: EvidenceMarkerFrameSource,
+    markers: Rc<[EvidenceValueMarker]>,
+    activate_add_ids: bool,
+    handler_path: Option<Vec<String>>,
+    frame_len: usize,
+    handler_frame_len: usize,
+    add_id_len: usize,
+    plan_len: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct TailClosureIdentity {
+    def: Option<DefId>,
+    closure_ptr: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TailInvariantBaseIdentity {
+    frames: Vec<EvidenceGuardId>,
+    handler_frames: Vec<(usize, EvidenceGuardId)>,
+    add_ids: Vec<(EvidenceGuardId, usize, usize)>,
+    marker_plans: Vec<(usize, usize)>,
+    provider_envs: Vec<EvidenceProviderScopeId>,
+    provider_handlers: Vec<u32>,
+    state_handler_frames: Vec<(RuntimeStateFrameId, RuntimeStateScopeId)>,
+    host_branch: RuntimeHostBranchId,
+}
+
+#[derive(Debug, Clone)]
+struct TailInvariantBaseProfile {
+    identity: TailInvariantBaseIdentity,
+    continuation_capture_generation: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TailInvariantMarkerExclusion {
+    candidate_id: EvidenceActiveMarkerFrameId,
+    frame_len: usize,
+    handler_frame_len: usize,
+    add_id_len: usize,
+    plan_len: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TailInvariantMarkerReject {
+    CarriedGuard,
+    Other,
 }
 
 #[cfg(debug_assertions)]
@@ -9634,6 +9690,11 @@ struct RuntimeEvidenceRunner<'a> {
     #[cfg(debug_assertions)]
     active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
+    next_active_marker_frame_id: u64,
+    active_marker_frame_scopes: Vec<EvidenceActiveMarkerFrameScope>,
+    tail_invariant_base_profiles: HashMap<TailClosureIdentity, TailInvariantBaseProfile>,
+    tail_invariant_base_shadow_retired_markers: HashSet<EvidenceActiveMarkerFrameId>,
+    continuation_capture_generation: u64,
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
     active_state_handler_frames: Vec<RuntimeStateHandlerFrame>,
@@ -9702,6 +9763,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             #[cfg(debug_assertions)]
             active_add_id_index: ActiveAddIdIndex::default(),
             active_marker_plans: Vec::new(),
+            next_active_marker_frame_id: 0,
+            active_marker_frame_scopes: Vec::new(),
+            tail_invariant_base_profiles: HashMap::new(),
+            tail_invariant_base_shadow_retired_markers: HashSet::new(),
+            continuation_capture_generation: 0,
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
             active_state_handler_frames: Vec::new(),
@@ -9758,6 +9824,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn current_host_branch_id(&self) -> RuntimeHostBranchId {
         self.current_host_branch
+    }
+
+    fn record_continuation_materialized(&mut self) {
+        self.continuation_capture_generation = self.continuation_capture_generation.wrapping_add(1);
     }
 
     fn with_current_host_branch<T>(
@@ -10645,6 +10715,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         id
     }
 
+    fn fresh_active_marker_frame_id(&mut self) -> EvidenceActiveMarkerFrameId {
+        let id = EvidenceActiveMarkerFrameId(self.next_active_marker_frame_id);
+        self.next_active_marker_frame_id += 1;
+        id
+    }
+
     fn fresh_state_frame_id(&mut self) -> RuntimeStateFrameId {
         let id = RuntimeStateFrameId(self.next_state_frame_id);
         self.next_state_frame_id += 1;
@@ -10719,6 +10795,43 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.close_marked_result(result, boundary.markers.as_ref())
     }
 
+    fn push_active_marker_frame_scope(
+        &mut self,
+        source: EvidenceMarkerFrameSource,
+        markers: Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+        frame_len: usize,
+        handler_frame_len: usize,
+        add_id_len: usize,
+        plan_len: usize,
+    ) -> EvidenceActiveMarkerFrameId {
+        let id = self.fresh_active_marker_frame_id();
+        self.active_marker_frame_scopes
+            .push(EvidenceActiveMarkerFrameScope {
+                id,
+                source,
+                markers,
+                activate_add_ids,
+                handler_path,
+                frame_len,
+                handler_frame_len,
+                add_id_len,
+                plan_len,
+            });
+        id
+    }
+
+    fn pop_active_marker_frame_scope(&mut self, id: EvidenceActiveMarkerFrameId) {
+        let Some(scope) = self.active_marker_frame_scopes.pop() else {
+            debug_assert!(false, "active marker frame shadow stack underflow");
+            return;
+        };
+        debug_assert_eq!(scope.id, id);
+        self.tail_invariant_base_shadow_retired_markers
+            .remove(&scope.id);
+    }
+
     fn with_marker_frame(
         &mut self,
         source: EvidenceMarkerFrameSource,
@@ -10736,6 +10849,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
+        let marker_scope_id = self.push_active_marker_frame_scope(
+            source,
+            markers.clone(),
+            activate_add_ids,
+            handler_path.clone(),
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        );
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         self.push_active_marker_plan(markers.clone());
         let result = run(self);
@@ -10753,6 +10876,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+        self.pop_active_marker_frame_scope(marker_scope_id);
 
         self.close_marker_frame_result(
             result?,
@@ -10802,6 +10926,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
+        let marker_scope_id = self.push_active_marker_frame_scope(
+            EvidenceMarkerFrameSource::ContinuationResume,
+            markers.clone(),
+            activate_add_ids,
+            handler_path.clone(),
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        );
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         self.push_active_marker_plan(markers.clone());
         let result = self.resume_continuation(next, value);
@@ -10823,6 +10957,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+        self.pop_active_marker_frame_scope(marker_scope_id);
 
         self.close_marker_frame_result(
             result?,
@@ -13947,6 +14082,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             .to_string(),
                     });
                 };
+                self.record_continuation_materialized();
                 self.suspended_host_continuations.insert(
                     token.id(),
                     RuntimeSuspendedHostContinuation {
@@ -14019,6 +14155,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 .to_string(),
                     });
                 }
+                self.record_continuation_materialized();
                 self.suspended_host_continuations.insert(
                     token.id(),
                     RuntimeSuspendedHostContinuation {
@@ -15115,7 +15252,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
-        if self.tail_apply_can_enter_plain_closure() {
+        let can_enter_plain_tail_loop = self.tail_apply_can_enter_plain_closure();
+        if !can_enter_plain_tail_loop {
+            self.record_tail_invariant_base_shadow(callee.as_ref());
+        }
+        if can_enter_plain_tail_loop {
             match callee.as_ref() {
                 RuntimeEvidenceValue::Closure(closure) if closure.provider_env.is_empty() => {
                     self.stats.apply_value_calls += 1;
@@ -15160,6 +15301,188 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             && self.active_provider_handlers.is_empty()
             && self.active_state_handler_frames.is_empty()
             && self.host_scheduler.has_only_root_branch()
+    }
+
+    fn tail_apply_plain_closure_identity(
+        &self,
+        callee: &RuntimeEvidenceValue,
+    ) -> Option<TailClosureIdentity> {
+        match callee {
+            RuntimeEvidenceValue::Closure(closure) if closure.provider_env.is_empty() => {
+                Some(TailClosureIdentity {
+                    def: None,
+                    closure_ptr: Rc::as_ptr(closure) as usize,
+                })
+            }
+            RuntimeEvidenceValue::RecursiveClosure { def, closure }
+                if closure.provider_env.is_empty() =>
+            {
+                Some(TailClosureIdentity {
+                    def: Some(*def),
+                    closure_ptr: Rc::as_ptr(closure) as usize,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn record_tail_invariant_base_shadow(&mut self, callee: &RuntimeEvidenceValue) {
+        let Some(closure_identity) = self.tail_apply_plain_closure_identity(callee) else {
+            return;
+        };
+        let exclusion = match self.tail_invariant_marker_exclusion() {
+            Ok(exclusion) => exclusion,
+            Err(TailInvariantMarkerReject::CarriedGuard) => {
+                self.stats.tail_invariant_base_rejected_carried_guard += 1;
+                return;
+            }
+            Err(TailInvariantMarkerReject::Other) => {
+                self.stats.tail_invariant_base_rejected_other += 1;
+                return;
+            }
+        };
+        let identity = self.tail_invariant_base_identity(exclusion);
+        let profile = self
+            .tail_invariant_base_profiles
+            .get(&closure_identity)
+            .cloned();
+        match profile {
+            None => {
+                self.tail_invariant_base_profiles.insert(
+                    closure_identity,
+                    TailInvariantBaseProfile {
+                        identity,
+                        continuation_capture_generation: self.continuation_capture_generation,
+                    },
+                );
+                self.stats.tail_invariant_base_would_loop += 1;
+                self.tail_invariant_base_shadow_retired_markers
+                    .insert(exclusion.candidate_id);
+            }
+            Some(profile) => {
+                if self.continuation_capture_generation != profile.continuation_capture_generation {
+                    self.stats
+                        .tail_invariant_base_rejected_continuation_captured += 1;
+                } else if identity != profile.identity {
+                    self.stats.tail_invariant_base_rejected_identity_mismatch += 1;
+                } else {
+                    self.stats.tail_invariant_base_would_loop += 1;
+                    self.tail_invariant_base_shadow_retired_markers
+                        .insert(exclusion.candidate_id);
+                }
+            }
+        }
+    }
+
+    fn tail_invariant_marker_exclusion(
+        &self,
+    ) -> Result<TailInvariantMarkerExclusion, TailInvariantMarkerReject> {
+        let Some(scope) = self.active_marker_frame_scopes.last() else {
+            return Err(TailInvariantMarkerReject::Other);
+        };
+        if !matches!(
+            scope.source,
+            EvidenceMarkerFrameSource::ContinuationResume | EvidenceMarkerFrameSource::MarkedForce
+        ) {
+            return Err(TailInvariantMarkerReject::Other);
+        }
+        if scope.handler_path.is_some() {
+            return Err(TailInvariantMarkerReject::Other);
+        }
+        let mut has_active_add_id = false;
+        for marker in scope.markers.iter() {
+            let EvidenceValueMarker::AddId(marker) = marker else {
+                continue;
+            };
+            if !scope.activate_add_ids || marker.depth != 0 {
+                continue;
+            }
+            has_active_add_id = true;
+            if marker.carry_after_frame {
+                return Err(TailInvariantMarkerReject::CarriedGuard);
+            }
+        }
+        if !has_active_add_id {
+            return Err(TailInvariantMarkerReject::Other);
+        }
+
+        let mut frame_len = self.active_frames.len();
+        let mut handler_frame_len = self.active_handler_frames.len();
+        let mut add_id_len = self.active_add_ids.len();
+        let mut plan_len = self.active_marker_plans.len();
+        let mut saw_candidate = false;
+        for active_scope in self.active_marker_frame_scopes.iter().rev() {
+            let exclude = active_scope.id == scope.id
+                || self
+                    .tail_invariant_base_shadow_retired_markers
+                    .contains(&active_scope.id);
+            if !exclude {
+                break;
+            }
+            frame_len = frame_len.min(active_scope.frame_len);
+            handler_frame_len = handler_frame_len.min(active_scope.handler_frame_len);
+            add_id_len = add_id_len.min(active_scope.add_id_len);
+            plan_len = plan_len.min(active_scope.plan_len);
+            saw_candidate |= active_scope.id == scope.id;
+        }
+        if !saw_candidate {
+            return Err(TailInvariantMarkerReject::Other);
+        }
+        Ok(TailInvariantMarkerExclusion {
+            candidate_id: scope.id,
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        })
+    }
+
+    fn tail_invariant_base_identity(
+        &self,
+        exclusion: TailInvariantMarkerExclusion,
+    ) -> TailInvariantBaseIdentity {
+        let frame_len = exclusion.frame_len.min(self.active_frames.len());
+        let handler_frame_len = exclusion
+            .handler_frame_len
+            .min(self.active_handler_frames.len());
+        let add_id_len = exclusion.add_id_len.min(self.active_add_ids.len());
+        let plan_len = exclusion.plan_len.min(self.active_marker_plans.len());
+        TailInvariantBaseIdentity {
+            frames: self.active_frames[..frame_len]
+                .iter()
+                .map(|frame| frame.id)
+                .collect(),
+            handler_frames: self.active_handler_frames[..handler_frame_len]
+                .iter()
+                .map(|frame| (frame.frame_index, frame.id))
+                .collect(),
+            add_ids: self.active_add_ids[..add_id_len]
+                .iter()
+                .map(|marker| {
+                    (
+                        marker.marker.id,
+                        marker.entry_frame_len,
+                        Rc::as_ptr(&marker.marker) as usize,
+                    )
+                })
+                .collect(),
+            marker_plans: self.active_marker_plans[..plan_len]
+                .iter()
+                .map(|plan| (plan.markers.as_ref().as_ptr() as usize, plan.markers.len()))
+                .collect(),
+            provider_envs: self
+                .active_provider_envs
+                .iter()
+                .map(|frame| frame.scope_id)
+                .collect(),
+            provider_handlers: self.active_provider_handlers.clone(),
+            state_handler_frames: self
+                .active_state_handler_frames
+                .iter()
+                .map(|frame| (frame.frame_id, frame.state_scope_id))
+                .collect(),
+            host_branch: self.current_host_branch_id(),
+        }
     }
 
     fn eval_ref_set_result(
@@ -16288,6 +16611,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ApplyArg { site, callee, next } => {
+                if next.is_identity() && !self.tail_apply_can_enter_plain_closure() {
+                    self.record_tail_invariant_base_shadow(callee.as_ref());
+                }
                 let result = self.apply_scoped_value_result(site, callee, value)?;
                 self.continue_result(result, next)
             }
@@ -16791,17 +17117,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
-        if !markers.is_empty() {
+        let shadow_scope_id = if !markers.is_empty() {
             self.record_marker_frame_entry(
                 EvidenceMarkerFrameSource::ContinuationResume,
                 &markers,
                 frame.activate_add_ids,
                 handler_path.is_some(),
             );
+            let shadow_scope_id = self.push_active_marker_frame_scope(
+                EvidenceMarkerFrameSource::ContinuationResume,
+                markers.clone(),
+                frame.activate_add_ids,
+                handler_path.clone(),
+                frame_len,
+                handler_frame_len,
+                add_id_len,
+                plan_len,
+            );
             self.push_marker_frame(&markers, frame.activate_add_ids, handler_path.clone());
             self.push_active_marker_plan(markers.clone());
-        }
+            Some(shadow_scope_id)
+        } else {
+            None
+        };
         EvidenceScopeInstructionActiveScope::Marker(EvidenceScopeInstructionActiveMarker {
+            shadow_scope_id,
             markers,
             activate_add_ids: frame.activate_add_ids,
             handler_path,
@@ -16909,6 +17249,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     scope.add_id_len,
                     scope.plan_len,
                 );
+                if let Some(shadow_scope_id) = scope.shadow_scope_id {
+                    self.pop_active_marker_frame_scope(shadow_scope_id);
+                }
                 self.close_marker_frame_result(
                     result,
                     scope.markers,
@@ -17100,6 +17443,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
+        let marker_scope_id = self.push_active_marker_frame_scope(
+            EvidenceMarkerFrameSource::ContinuationResume,
+            markers.clone(),
+            frame.activate_add_ids,
+            handler_path.clone(),
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        );
         self.push_marker_frame(&markers, frame.activate_add_ids, handler_path.clone());
         self.push_active_marker_plan(markers.clone());
         let result = self.resume_scope_local_plan(child, value);
@@ -17117,6 +17470,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+        self.pop_active_marker_frame_scope(marker_scope_id);
 
         self.close_marker_frame_result(
             result?,
@@ -20602,6 +20956,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         "abortive continuation binding",
                     ));
                 }
+                self.record_continuation_materialized();
                 if !self.bind_pat_matches(
                     continuation_pat,
                     shared(RuntimeEvidenceValue::Continuation(
@@ -20668,6 +21023,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if let Some(continuation_pat) = &arm.continuation
                 && {
                     self.stats.direct_tail_segment_materialized_continuations += 1;
+                    self.record_continuation_materialized();
                     self.record_direct_tail_segment_shadow(&call);
                     !self.bind_pat_matches(
                         continuation_pat,

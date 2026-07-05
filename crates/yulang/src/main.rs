@@ -1852,6 +1852,26 @@ fn print_runtime_evidence_phase_timings(
         stats.marker_frame_active_add_id_markers
     );
     eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_would_loop: {}",
+        stats.tail_invariant_base_would_loop
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_continuation_captured: {}",
+        stats.tail_invariant_base_rejected_continuation_captured
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_carried_guard: {}",
+        stats.tail_invariant_base_rejected_carried_guard
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other: {}",
+        stats.tail_invariant_base_rejected_other
+    );
+    eprintln!(
         "  run.runtime_evidence.resume_marker_plan_enter_ops_total: {}",
         stats.resume_marker_plan_enter_ops_total
     );
