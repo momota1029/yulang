@@ -126,6 +126,38 @@ my route = \line -> case line:
         }
     }
 
+    #[test]
+    fn playground_worker_keeps_session_after_continuation_runs() {
+        const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
+        const RUN_WORKER_TS: &str = include_str!("../../../web/playground/src/run-worker.ts");
+
+        let retry_tail = PLAYGROUND_MAIN_TS
+            .split_once("async function requestRunWithWorkerRetry")
+            .expect("playground should keep worker retry entrypoint")
+            .1;
+        let retry_body = retry_tail
+            .split_once("\n}\n\nasync function requestRunOrError")
+            .expect("playground worker retry body should stay locally testable")
+            .0;
+
+        assert_eq!(
+            retry_body.matches("resetRunWorker(").count(),
+            1,
+            "worker retry should reset only after trap-like failures, not after successful continuation runs:\n{retry_body}"
+        );
+        assert!(
+            !retry_body.contains("vm_continuation_steps")
+                && !retry_body.contains("resetWorkerAfterContinuationRun"),
+            "successful continuation runs should not trigger worker recycling:\n{retry_body}"
+        );
+        assert!(
+            !RUN_WORKER_TS.contains("clear_std_cache")
+                && !RUN_WORKER_TS.contains("cache_cleared")
+                && !RUN_WORKER_TS.contains("last_run_cleared_cache"),
+            "run-worker should not clear wasm caches after continuation-heavy runs"
+        );
+    }
+
     fn assert_type_annotation_mismatch_diagnostic(diagnostic: &Diagnostic) {
         assert_eq!(diagnostic.label.as_deref(), Some("x"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
