@@ -324,7 +324,15 @@ impl RuntimeEvidenceBenchSummary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceRunArgs {
     path: PathBuf,
+    compare_mono: bool,
     runtime_evidence_profile_deep: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CliMonoRunOutput {
+    text: String,
+    stdout: String,
+    errors: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -2432,6 +2440,63 @@ fn run_mono_with_optional_cache(
     }
 }
 
+fn run_mono_compare_for_path(path: &PathBuf, options: &GlobalOptions) -> CliMonoRunOutput {
+    let files = collect_control_sources_or_exit(path, options);
+    abort_run_on_parse_diagnostics(&files);
+    let mono_cache = mono_cache_for_files(&files, options.use_cache);
+    let output = build_poly_with_optional_cache(files, options.use_cache);
+    let program = specialize_mono_program(
+        &output,
+        mono_cache.as_ref().map(|(cache, key)| (cache, *key)),
+    );
+    run_mono_program_for_cli_compare(&program, &output.labels, output.errors)
+}
+
+fn run_mono_program_for_cli_compare(
+    program: &specialize::mono::Program,
+    labels: &poly::dump::DumpLabels,
+    errors: Vec<String>,
+) -> CliMonoRunOutput {
+    let mut stdout = String::new();
+    let values = match mono_runtime::run_program_with_host(program, |path, payload| {
+        handle_mono_host_effect(path, payload, &mut stdout)
+    }) {
+        Ok(values) => values,
+        Err(error) => {
+            eprintln!("{}", format_mono_runtime_error(&error));
+            process::exit(1);
+        }
+    };
+    CliMonoRunOutput {
+        text: yulang::format_run_mono_values_with_labels(&values, Some(labels)),
+        stdout,
+        errors,
+    }
+}
+
+fn handle_mono_host_effect(
+    path: &[String],
+    payload: &mono_runtime::Value,
+    stdout: &mut String,
+) -> Option<mono_runtime::Value> {
+    if path == ["std", "io", "console", "out", "write"] {
+        push_mono_host_string_payload(payload, stdout)?;
+        return Some(mono_runtime::Value::Unit);
+    }
+    None
+}
+
+fn push_mono_host_string_payload(value: &mono_runtime::Value, out: &mut String) -> Option<()> {
+    match value {
+        mono_runtime::Value::Str(value) => {
+            value.push_to_string(out);
+            Some(())
+        }
+        mono_runtime::Value::Marked { value, .. } => push_mono_host_string_payload(value, out),
+        _ => None,
+    }
+}
+
 fn mono_cache_for_files(
     files: &[yulang::CollectedSource],
     use_cache: bool,
@@ -2857,6 +2922,29 @@ fn run_runtime_evidence_run(
 
     runtime_evidence_debug::print_run_report(&summary, &output, &timings, &build_timings);
 
+    if args.compare_mono {
+        let mono = run_mono_compare_for_path(&args.path, options);
+        if !mono.errors.is_empty() {
+            for error in &mono.errors {
+                eprintln!("error: {error}");
+            }
+            process::exit(1);
+        }
+        if output.stdout != mono.stdout {
+            eprintln!("{debug_command} compare-mono stdout mismatch");
+            eprintln!("expected stdout:\n{}", mono.stdout);
+            eprintln!("actual stdout:\n{}", output.stdout);
+            process::exit(1);
+        }
+        if roots_text != mono.text {
+            eprintln!("{debug_command} compare-mono mismatch");
+            eprintln!("expected:\n{}", mono.text);
+            eprintln!("actual:\n{roots_text}");
+            process::exit(1);
+        }
+        println!("  compare.mono: match");
+    }
+
     print!("{}", output.stdout);
     print!("{roots_text}");
 }
@@ -2867,10 +2955,12 @@ fn parse_runtime_evidence_run_args(
     mut args: VecDeque<OsString>,
 ) -> RuntimeEvidenceRunArgs {
     let mut path = None;
+    let mut compare_mono = false;
     let mut runtime_evidence_profile_deep = false;
 
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
+            Some("--compare-mono") => compare_mono = true,
             Some("--runtime-evidence-profile-deep") => runtime_evidence_profile_deep = true,
             Some(value) if value.starts_with("--") => {
                 print_usage_error_and_exit(
@@ -2895,6 +2985,7 @@ fn parse_runtime_evidence_run_args(
     };
     RuntimeEvidenceRunArgs {
         path,
+        compare_mono,
         runtime_evidence_profile_deep,
     }
 }
