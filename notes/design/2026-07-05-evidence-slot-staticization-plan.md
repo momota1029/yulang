@@ -100,6 +100,20 @@ Stage ES-0（build_plan の各サブパス計測＋重複歩行検出、commit `
 
 **次の一手**: `ControlEvidenceProgram::from_program` 単体を対象にした集中調査（ES-0b）——この関数がなぜ IR サイズ+17〜21%に対して約26倍もコストが増えるのかを specific に調べる。redundancy ratio が変わらないことから、build_plan 外側の重複ではなく、**この関数内部**に別の増幅機構（内部での重複歩行、closure/branch 密度に対する非線形コストなど）がある可能性が高い。ES-1（共有メモ化の実装）は、この内部機構が判明してから、対象を絞って再設計する。
 
+## 追記2（2026-07-05 夜、Claude 署名）: ES-0b で真因確定——メモ化ゼロの callgraph 展開
+
+`ControlEvidenceProgram::from_program`（crates/control-vm/src/evidence_ir.rs:31）は、handler-passing backend 向けの static evidence（instance entry・stack/type evidence・catch-handler arm shape・effect operation route・function-adapter hygiene・delayed lambda/thunk boundary・fallback site）を構築する。アルゴリズムは単純な一回歩行ではなく、**既知の呼び出し/instance 参照に出会うたびに callee 本体を再帰的に展開する**形。`active_exprs`/`active_instances` は**サイクル検出のガードのみで、結果のメモ化ではない**。
+
+**確定した機構**: `Expr::Apply` の callee が `InstanceRef` のとき、(1) `visit_expr_id(callee) → InstanceRef → visit_instance_entry` で本体を歩き、(2) 別途 `visit_known_call_site → visit_known_instance_call_site → visit_known_callee_entry` で**同じ本体をもう一度**歩く（evidence_ir.rs:476/524/641/675/702/791）。呼び出し文脈をキーにした再利用が一切ないため、小さいヘルパー関数が連鎖して呼び合う構造（今回のスキャナ書き直しがまさにこれ: `word_prefix_at → word_prefix_ascii_or_slow_end → word_prefix_ascii_chunk →（fold内）→ word_prefix_ascii_step`、さらに slow path 側も同型の連鎖）では、呼び出し経路の掛け算でコストが指数的に近い形で膨張する。
+
+**実測（String Match）**: expr 訪問回数 355,442（baseline）→12,276,082（bloated）、ユニーク式は1,460→2,271（1.55倍）。**再訪問倍率が 243倍→5,405倍**（22倍化）——IR サイズの伸び（+20.7%）から大きく乖離。片方の展開経路だけ無効化する ablation で 39.7ms→9.5ms/14.1ms、両方無効化で 436μs（フロア）まで落ちる、という切り分けで機構は確定と言ってよい。
+
+**重要な副次発見**: `ControlEvidenceProgram::from_program` は `ControlEvidenceIndex::new`（runtime.rs:8793）からも呼ばれており、**同じ高コストな計算が runtime 経路でも別途発生しうる**——build_plan 時点の一回だけではない可能性。要追加確認。
+
+**base line ですら 243 倍の重複がある**——現状「安く見える」のは今のコードベースの呼び出し連鎖がまだ浅いからにすぎず、今後スタイルとしてヘルパー関数を増やす stdlib 変更は同種の爆発を踏みうる時限爆弾。これは speedup-proof-system.md が指摘する「Koka なら静的に証明する内容を動的に再生している」構造そのものであり（build_plan の最初のサブパスとして呼ばれる: lib.rs:786）、evidence slot 静的化の射程内。
+
+**未解決の難所（実装前に必ず解く）**: 素朴に「同じ ExprId なら結果を使い回す」というメモ化は**不健全**な可能性が高い。route classification は現在の `EvidenceContext`（handler stack の形＋callback/delayed boundary の深さ）に依存するため、同じ式でも呼ばれる文脈が違えば正しい分類結果も変わりうる。ES-1 実装前に、**どこまでを cache key に含めれば健全か**（handler stack 全体か、その一部の shape か、boundary depth か）を精査する専用の調査が必要——ここを雑にやると「静かに間違った evidence が使われる」という、今日一日通して警戒してきた種類のバグになる。
+
 ## 未決の設計論点（着手前にユーザ確認したい点）
 
 1. Stage ES-0/ES-1（計測＋共有メモ化）から始めることに同意するか。静的 route 昇格の成否を待たずに独立着手できる点が利点。
