@@ -3,6 +3,7 @@ use std::data::opt::*
 use std::core::ops::*
 use std::text::char::*
 use std::text::str::str
+use std::text::bytes::bytes
 use std::control::var::*
 use std::data::result::*
 
@@ -50,15 +51,44 @@ pub struct prefix_result 'a { value: 'a, rest: str }
 pub struct match_result 'a { value: 'a, start: int, end: int, text: str }
 
 my advance_position(input: str, count: int, line: int, column: int): (int, int) =
-    my loop(i: int, line: int, column: int): (int, int) =
-        if i < count:
-            my item = std::text::str::index_raw input i
-            case item.to_string:
-                "\r" | "\r\n" | "\n" -> loop(i + 1, line + 1, 1)
-                _ -> loop(i + 1, line, column + 1)
-        else:
-            (line, column)
-    loop(0, line, column)
+    my data = std::text::str::to_bytes input
+    if std::text::bytes::len data == input.len:
+        advance_position_ascii_chunks(data, count, 0, line, column)
+    else:
+        advance_position_slow_chunks(input, count, 0, line, column)
+
+my advance_position_ascii_chunks(data: bytes, count: int, i: int, line: int, column: int): (int, int) =
+    if i < count:
+        my chunk_end = if i + 1024 < count: i + 1024 else: count
+        case advance_position_ascii_loop(data, chunk_end, i, line, column):
+            (line, column) -> advance_position_ascii_chunks(data, count, chunk_end, line, column)
+    else:
+        (line, column)
+
+my advance_position_ascii_loop(data: bytes, count: int, i: int, line: int, column: int): (int, int) =
+    if i < count:
+        case std::text::bytes::index_raw data i:
+            10 | 13 -> advance_position_ascii_loop(data, count, i + 1, line + 1, 1)
+            _ -> advance_position_ascii_loop(data, count, i + 1, line, column + 1)
+    else:
+        (line, column)
+
+my advance_position_slow_chunks(input: str, count: int, i: int, line: int, column: int): (int, int) =
+    if i < count:
+        my chunk_end = if i + 1024 < count: i + 1024 else: count
+        case advance_position_slow_loop(input, chunk_end, i, line, column):
+            (line, column) -> advance_position_slow_chunks(input, count, chunk_end, line, column)
+    else:
+        (line, column)
+
+my advance_position_slow_loop(input: str, count: int, i: int, line: int, column: int): (int, int) =
+    if i < count:
+        my item = std::text::str::index_raw input i
+        case item.to_string:
+            "\r" | "\r\n" | "\n" -> advance_position_slow_loop(input, count, i + 1, line + 1, 1)
+            _ -> advance_position_slow_loop(input, count, i + 1, line, column + 1)
+    else:
+        (line, column)
 
 pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
     catch parser:
@@ -77,8 +107,9 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
         parse::snapshot(), k -> run_str input line column k((input, line, column))
         parse::restore (input, line, column), k -> run_str input line column k()
         parse::advance count, k ->
-            my end = if count < input.len: count else: input.len
-            my rest = std::text::str::index_range_raw input end input.len
+            my input_len = input.len
+            my end = if count < input_len: count else: input_len
+            my rest = std::text::str::index_range_raw input end input_len
             my (line, column) = advance_position(input, end, line, column)
             run_str rest line column k()
         v -> result::ok v
@@ -100,8 +131,9 @@ pub run_prefix_str(input: str, line: int, column: int, parser: [parse char str_e
         parse::snapshot(), k -> run_prefix_str input line column k((input, line, column))
         parse::restore (input, line, column), k -> run_prefix_str input line column k()
         parse::advance count, k ->
-            my end = if count < input.len: count else: input.len
-            my rest = std::text::str::index_range_raw input end input.len
+            my input_len = input.len
+            my end = if count < input_len: count else: input_len
+            my rest = std::text::str::index_range_raw input end input_len
             my (line, column) = advance_position(input, end, line, column)
             run_prefix_str rest line column k()
         v -> result::ok(prefix_result { value: v, rest: input })

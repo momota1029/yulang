@@ -120,27 +120,38 @@ pub type str with:
 
 pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
 
-my starts_with_at(source: str, needle: str, start: int): bool =
-    my end = std::int::add start (std::text::str::len needle)
-    if std::int::le end (std::text::str::len source):
+my starts_with_at_len(source: str, source_len: int, needle: str, needle_len: int, start: int): bool =
+    my end = std::int::add start needle_len
+    if std::int::le end source_len:
         std::text::str::index_range_raw source start end == needle
     else:
         false
 
-my find_at(source: str, needle: str, start: int): opt int =
-    if std::int::eq (std::text::str::len needle) 0:
+my starts_with_at(source: str, needle: str, start: int): bool =
+    starts_with_at_len(
+        source,
+        std::text::str::len source,
+        needle,
+        std::text::str::len needle,
+        start)
+
+my find_at_len(source: str, source_len: int, needle: str, needle_len: int, start: int): opt int =
+    if std::int::eq needle_len 0:
         just start
     else:
-        my limit = std::int::sub (std::text::str::len source) (std::text::str::len needle)
-        my loop(i: int): opt int =
-            if std::int::le i limit:
-                if starts_with_at(source, needle, i):
-                    just i
-                else:
-                    loop(std::int::add i 1)
-            else:
-                nil
-        loop start
+        find_at_loop(source, source_len, needle, needle_len, std::int::sub source_len needle_len, start)
+
+my find_at_loop(source: str, source_len: int, needle: str, needle_len: int, limit: int, i: int): opt int =
+    if std::int::le i limit:
+        if starts_with_at_len(source, source_len, needle, needle_len, i):
+            just i
+        else:
+            find_at_loop(source, source_len, needle, needle_len, limit, std::int::add i 1)
+    else:
+        nil
+
+my find_at(source: str, needle: str, start: int): opt int =
+    find_at_len(source, std::text::str::len source, needle, std::text::str::len needle, start)
 
 pub find(source: str, needle: str): opt range =
     case find_at(source, needle, 0):
@@ -164,32 +175,85 @@ pub ends_with(source: str, suffix: str): bool =
         false
 
 pub split(source: str, separator: str): list str =
-    if std::int::eq (std::text::str::len separator) 0:
+    my source_len = std::text::str::len source
+    my separator_len = std::text::str::len separator
+    if std::int::eq separator_len 0:
         [source]
+    else if separator == "\n":
+        case split_newline_bytes(source):
+            just parts -> parts
+            nil -> split_generic(source, source_len, separator, separator_len)
     else:
-        my loop(start: int, out: list str): list str =
-            case find_at(source, separator, start):
-                just i ->
-                    my piece = std::text::str::index_range_raw source start i
-                    loop(
-                        std::int::add i (std::text::str::len separator),
-                        std::data::list::cons(piece, out))
-                nil ->
-                    std::data::list::rev:
-                        std::data::list::cons
-                            (std::text::str::index_range_raw source start (std::text::str::len source))
-                            out
-        loop(0, [])
+        split_generic(source, source_len, separator, separator_len)
+
+my split_generic(source: str, source_len: int, separator: str, separator_len: int): list str =
+    split_generic_loop(source, source_len, separator, separator_len, 0, [])
+
+my split_generic_loop(source: str, source_len: int, separator: str, separator_len: int, start: int, out: list str): list str =
+    case find_at_len(source, source_len, separator, separator_len, start):
+        just i ->
+            my piece = std::text::str::index_range_raw source start i
+            split_generic_loop(
+                source,
+                source_len,
+                separator,
+                separator_len,
+                std::int::add i separator_len,
+                std::data::list::cons(piece, out))
+        nil ->
+            std::data::list::rev:
+                std::data::list::cons
+                    (std::text::str::index_range_raw source start source_len)
+                    out
+
+my split_newline_bytes(source: str): opt (list str) =
+    my data = std::text::str::to_bytes source
+    my end = std::text::bytes::len data
+    my chunk_count = std::int::div (end + 1023) 1024
+    my scan = (0..<chunk_count).fold (0, [], true): \state chunk ->
+        split_newline_bytes_chunk(data, end, state, chunk)
+    case scan:
+        (start, out, true) ->
+            just:
+                std::data::list::rev:
+                    std::data::list::cons
+                        (std::text::bytes::to_utf8_lossy:
+                            std::text::bytes::index_range data (std::data::range::range start end))
+                        out
+        _ -> nil
+
+my split_newline_bytes_chunk(data: bytes, end: int, state: (int, list str, bool), chunk: int): (int, list str, bool) =
+    case state:
+        (_, _, false) -> state
+        _ ->
+            my i = chunk * 1024
+            my chunk_end = if i + 1024 < end: i + 1024 else: end
+            (std::data::range::range i chunk_end).fold state: \state j ->
+                split_newline_bytes_step(data, state, j)
+
+my split_newline_bytes_step(data: bytes, state: (int, list str, bool), i: int): (int, list str, bool) = case state:
+    (start, out, true) ->
+        case std::text::bytes::index_raw data i:
+            10 ->
+                my piece =
+                    std::text::bytes::to_utf8_lossy:
+                        std::text::bytes::index_range data (std::data::range::range start i)
+                (i + 1, std::data::list::cons(piece, out), true)
+            13 -> (start, out, false)
+            _ -> state
+    _ -> state
 
 pub split_once(source: str, separator: str): opt (str, str) =
-    case find_at(source, separator, 0):
+    my source_len = std::text::str::len source
+    my separator_len = std::text::str::len separator
+    case find_at_len(source, source_len, separator, separator_len, 0):
         just i ->
             just
                 (std::text::str::index_range_raw source 0 i,
                  std::text::str::index_range_raw
                     source
-                    (std::int::add i (std::text::str::len separator))
-                    (std::text::str::len source))
+                    (std::int::add i separator_len)
+                    source_len)
         nil -> nil
 
 my join_tail(parts: list str, separator: str, out: str): str =
@@ -329,16 +393,74 @@ pub replace_all(source: str, from: str, to: str): str =
         loop(0, "")
 
 pub word_prefix_at(source: str, start: int): str =
-    my loop(i: int): str =
-        if i < std::text::str::len source:
-            my item = std::text::str::index_raw source i
-            if std::text::char::is_word item:
-                loop(i + 1)
-            else:
-                std::text::str::index_range_raw source start i
+    my source_len = std::text::str::len source
+    my end =
+        if start == 0:
+            word_prefix_ascii_or_slow_end(source, source_len)
         else:
-            std::text::str::index_range_raw source start i
-    loop start
+            word_prefix_slow_end(source, source_len, start)
+    std::text::str::index_range_raw source start end
+
+my word_prefix_ascii_or_slow_end(source: str, source_len: int): int =
+    my data = std::text::str::to_bytes source
+    my data_len = std::text::bytes::len data
+    my chunk_count = std::int::div (data_len + 1023) 1024
+    my scan = (0..<chunk_count).fold (0, 0): \state chunk ->
+        word_prefix_ascii_chunk(data, data_len, state, chunk)
+    case scan:
+        (end, 2) -> word_prefix_slow_end(source, source_len, end)
+        (end, _) -> end
+
+my word_prefix_ascii_chunk(data: bytes, data_len: int, state: (int, int), chunk: int): (int, int) =
+    case state:
+        (_, 0) ->
+            my i = chunk * 1024
+            my chunk_end = if i + 1024 < data_len: i + 1024 else: data_len
+            (std::data::range::range i chunk_end).fold state: \state j ->
+                word_prefix_ascii_step(data, state, j)
+        _ -> state
+
+my word_prefix_ascii_step(data: bytes, state: (int, int), i: int): (int, int) = case state:
+    (end, 0) ->
+        my byte = std::text::bytes::index_raw data i
+        if ascii_word_byte byte:
+            (i + 1, 0)
+        else if byte < 128:
+            (i, 1)
+        else:
+            (i, 2)
+    _ -> state
+
+my ascii_word_byte(byte: int): bool =
+    byte == 95
+        or (48 <= byte and byte <= 57)
+        or (65 <= byte and byte <= 90)
+        or (97 <= byte and byte <= 122)
+
+my word_prefix_slow_end(source: str, source_len: int, i: int): int =
+    my count = source_len - i
+    my chunk_count = std::int::div (count + 1023) 1024
+    my scan = (0..<chunk_count).fold (i, true): \state chunk ->
+        word_prefix_slow_chunk(source, source_len, state, i, chunk)
+    case scan:
+        (end, _) -> end
+
+my word_prefix_slow_chunk(source: str, source_len: int, state: (int, bool), start: int, chunk: int): (int, bool) =
+    case state:
+        (_, true) ->
+            my i = start + chunk * 1024
+            my chunk_end = if i + 1024 < source_len: i + 1024 else: source_len
+            (std::data::range::range i chunk_end).fold state: \state index ->
+                word_prefix_slow_step(source, state, index)
+        _ -> state
+
+my word_prefix_slow_step(source: str, state: (int, bool), i: int): (int, bool) = case state:
+    (end, true) ->
+        if std::text::char::is_word (std::text::str::index_raw source i):
+            (i + 1, true)
+        else:
+            (i, false)
+    _ -> state
 
 impl str: Index int:
     type value = char
