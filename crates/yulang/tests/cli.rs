@@ -1512,6 +1512,46 @@ fn compatible_dump_control_evidence_prints_runtime_source_sites() {
 }
 
 #[test]
+fn compatible_dump_control_evidence_memoizes_repeated_known_callees() {
+    let entry = write_entry(
+        "dump-control-evidence-cache-stats",
+        "my id x = x\n(id 1, id 2, id 3)\n",
+    );
+
+    let output = yulang_command()
+        .env("YULANG_CONTROL_EVIDENCE_CACHE_STATS", "1")
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("dump")
+        .arg("--control-evidence")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stderr = stderr(&output);
+    assert!(stderr.contains("control_evidence_cache_stats:"), "{stderr}");
+    assert_cache_stat_has_hits(&stderr, "instance_entry");
+    assert_cache_stat_has_hits(&stderr, "known_callee");
+}
+
+fn assert_cache_stat_has_hits(stderr: &str, label: &str) {
+    let line = stderr
+        .lines()
+        .find(|line| line.trim_start().starts_with(label))
+        .unwrap_or_else(|| panic!("missing {label} cache stats line:\n{stderr}"));
+    let hits = line
+        .split_whitespace()
+        .find_map(|part| part.strip_prefix("hits="))
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or_else(|| panic!("missing hits count in {label} cache stats line: {line}"));
+    assert!(
+        hits > 0,
+        "{label} cache should hit repeated known-callee walks:\n{stderr}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_bench_prints_timing_and_size_metrics() {
     let entry = write_entry(
         "debug-runtime-evidence-bench",
