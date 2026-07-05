@@ -15322,12 +15322,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     closure_ptr: Rc::as_ptr(closure) as usize,
                 })
             }
+            RuntimeEvidenceValue::Marked { value, .. } => {
+                self.tail_apply_plain_closure_identity(value.as_ref())
+            }
+            RuntimeEvidenceValue::Thunk(thunk) => match thunk.as_ref() {
+                RuntimeEvidenceThunk::Value(value) => {
+                    self.tail_apply_plain_closure_identity(value.as_ref())
+                }
+                RuntimeEvidenceThunk::Expr { .. }
+                | RuntimeEvidenceThunk::Effect { .. }
+                | RuntimeEvidenceThunk::Continuation { .. }
+                | RuntimeEvidenceThunk::Adapter { .. } => None,
+            },
             _ => None,
         }
     }
 
     fn record_tail_invariant_base_shadow(&mut self, callee: &RuntimeEvidenceValue) {
         let Some(closure_identity) = self.tail_apply_plain_closure_identity(callee) else {
+            self.stats.tail_invariant_base_rejected_other += 1;
             return;
         };
         let exclusion = match self.tail_invariant_marker_exclusion() {
