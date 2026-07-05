@@ -116,6 +116,42 @@ expect_stderr = ""
 contracts = ["runtime", "refs", "std.ref", "std.flow"]
 
 [[case]]
+name = "marked_force_for_ref_tail_65536"
+file = "regressions/runtime/marked_force_for_ref_tail_65536.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [2147516416]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow"]
+
+[[case]]
+name = "marked_force_range_fold_ref_tail_65536"
+file = "regressions/runtime/marked_force_range_fold_ref_tail_65536.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [2147516416]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow"]
+
+[[case]]
+name = "marked_force_for_no_ref_tail_65536"
+file = "regressions/runtime/marked_force_for_no_ref_tail_65536.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [()]\n"
+expect_stderr = ""
+contracts = ["runtime", "std.flow"]
+
+[[case]]
+name = "marked_force_nondet_materialized_tail_reentry"
+file = "regressions/runtime/marked_force_nondet_materialized_tail_reentry.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [()]\n"
+expect_stderr = ""
+contracts = ["runtime", "std.nondet", "deep-handler", "std.flow"]
+
+[[case]]
 name = "state_ref_nondet_resume_shared_state"
 file = "regressions/runtime/state_ref_nondet_resume_shared_state.yu"
 kind = "run"

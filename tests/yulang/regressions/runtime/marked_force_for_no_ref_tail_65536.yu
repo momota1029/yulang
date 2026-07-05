@@ -1,0 +1,7 @@
+use std::prelude::*
+
+{
+    for i in 1..65536:
+        i
+    ()
+}

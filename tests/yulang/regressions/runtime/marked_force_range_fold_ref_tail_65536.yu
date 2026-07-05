@@ -1,0 +1,8 @@
+use std::prelude::*
+
+{
+    my $total = 0
+    (1..65536).fold (): \() i ->
+        &total = $total + i
+    $total
+}

@@ -1,0 +1,8 @@
+use std::prelude::*
+
+{
+    my $total = 0
+    for i in 1..65536:
+        &total = $total + i
+    $total
+}

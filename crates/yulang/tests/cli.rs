@@ -2907,6 +2907,80 @@ fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_re
 }
 
 #[test]
+fn debug_runtime_evidence_run_marked_force_tail_reentry_matches_control() {
+    let cases = [
+        (
+            "debug-runtime-evidence-run-marked-force-for-ref",
+            "use std::control::var::*\n\n\
+             {\n\
+             \x20 my $sum = 0\n\
+             \x20 for i in 0..<64:\n\
+             \x20\x20 &sum = $sum + i\n\
+             \x20 $sum\n\
+             }\n",
+            "run roots [2016]\n",
+        ),
+        (
+            "debug-runtime-evidence-run-marked-force-fold-ref",
+            "use std::control::var::*\n\n\
+             {\n\
+             \x20 my $sum = 0\n\
+             \x20 (0..<64).fold (): \\_ i ->\n\
+             \x20\x20 &sum = $sum + i\n\
+             \x20 $sum\n\
+             }\n",
+            "run roots [2016]\n",
+        ),
+        (
+            "debug-runtime-evidence-run-marked-force-for-no-ref",
+            "{\n\
+             \x20 for i in 0..<64:\n\
+             \x20\x20 i\n\
+             \x20 ()\n\
+             }\n",
+            "run roots [()]\n",
+        ),
+    ];
+
+    for (name, source, expected_roots) in cases {
+        let entry = write_entry(name, source);
+        let output = yulang_command()
+            .arg("--std-root")
+            .arg(repo_lib_root())
+            .arg("--no-cache")
+            .arg("debug")
+            .arg("runtime-evidence-run")
+            .arg("--compare-control")
+            .arg(&entry)
+            .output()
+            .unwrap();
+
+        assert_success(&output);
+        let stdout = stdout(&output);
+        assert!(stdout.contains("compare.control: match"), "{stdout}");
+        assert!(stdout.contains(expected_roots), "{stdout}");
+    }
+
+    let adversarial =
+        repo_yulang_fixture("regressions/runtime/marked_force_nondet_materialized_tail_reentry.yu");
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&adversarial)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [()]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_handles_console_stdout_host_effect() {
     let entry = write_entry(
         "debug-runtime-evidence-run-console-stdout",

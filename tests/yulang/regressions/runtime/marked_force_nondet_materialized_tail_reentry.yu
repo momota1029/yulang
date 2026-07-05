@@ -1,0 +1,10 @@
+use std::control::nondet::*
+
+{
+    my xs = ({
+        my outer = each 1..8
+        (0..<10).fold outer: \acc i ->
+            if branch() { acc + i } else { acc }
+    }).list
+    ()
+}
