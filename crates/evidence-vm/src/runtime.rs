@@ -4819,7 +4819,11 @@ struct TailInvariantMarkerExclusion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TailInvariantMarkerReject {
     CarriedGuard,
-    Other,
+    NoActiveMarkerScope,
+    UnsupportedMarkerSource,
+    HandlerPath,
+    NoActiveAddId,
+    NoCandidateMarkerScope,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -4837,11 +4841,94 @@ struct TailInvariantBaseProfileKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TailInvariantBaseOutcome {
     WouldLoop,
-    IdentityMismatch,
+    IdentityMismatch(TailInvariantBaseIdentityMismatchReason),
     ContinuationCaptured,
     CarriedGuard,
     AdapterEnv,
-    Other,
+    Other(TailInvariantBaseOtherReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TailInvariantBaseIdentityMismatchReason {
+    Frames,
+    HandlerFrames,
+    AddIds,
+    MarkerPlans,
+    ProviderEnvs,
+    ProviderHandlers,
+    StateHandlerFrames,
+    HostBranch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TailInvariantBaseOtherReason {
+    CalleeNotClosure,
+    NoActiveMarkerScope,
+    UnsupportedMarkerSource,
+    HandlerPath,
+    NoActiveAddId,
+    NoCandidateMarkerScope,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TailUnderlyingClosureKind {
+    Plain,
+    Recursive,
+}
+
+impl TailClosureIdentity {
+    fn underlying_kind(&self) -> TailUnderlyingClosureKind {
+        if self.closure.def.is_some() {
+            TailUnderlyingClosureKind::Recursive
+        } else {
+            TailUnderlyingClosureKind::Plain
+        }
+    }
+}
+
+impl TailInvariantBaseIdentityMismatchReason {
+    fn from_identity_diff(
+        current: &TailInvariantBaseIdentity,
+        baseline: &TailInvariantBaseIdentity,
+    ) -> Self {
+        if current.frames != baseline.frames {
+            return Self::Frames;
+        }
+        if current.handler_frames != baseline.handler_frames {
+            return Self::HandlerFrames;
+        }
+        if current.add_ids != baseline.add_ids {
+            return Self::AddIds;
+        }
+        if current.marker_plans != baseline.marker_plans {
+            return Self::MarkerPlans;
+        }
+        if current.provider_envs != baseline.provider_envs {
+            return Self::ProviderEnvs;
+        }
+        if current.provider_handlers != baseline.provider_handlers {
+            return Self::ProviderHandlers;
+        }
+        if current.state_handler_frames != baseline.state_handler_frames {
+            return Self::StateHandlerFrames;
+        }
+        Self::HostBranch
+    }
+}
+
+impl TailInvariantBaseOtherReason {
+    fn from_marker_reject(reject: TailInvariantMarkerReject) -> Option<Self> {
+        match reject {
+            TailInvariantMarkerReject::CarriedGuard => None,
+            TailInvariantMarkerReject::NoActiveMarkerScope => Some(Self::NoActiveMarkerScope),
+            TailInvariantMarkerReject::UnsupportedMarkerSource => {
+                Some(Self::UnsupportedMarkerSource)
+            }
+            TailInvariantMarkerReject::HandlerPath => Some(Self::HandlerPath),
+            TailInvariantMarkerReject::NoActiveAddId => Some(Self::NoActiveAddId),
+            TailInvariantMarkerReject::NoCandidateMarkerScope => Some(Self::NoCandidateMarkerScope),
+        }
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -15306,7 +15393,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arg: SharedValue,
     ) -> Result<EvidenceTailEvalStep, RuntimeEvidenceRunError> {
         let can_enter_plain_tail_loop = self.tail_apply_can_enter_plain_closure();
-        if !can_enter_plain_tail_loop {
+        if self.tail_invariant_base_shadow_enabled() && !can_enter_plain_tail_loop {
             self.record_tail_invariant_base_shadow(TailInvariantBaseSite::Tail, callee.as_ref());
         }
         if can_enter_plain_tail_loop {
@@ -15354,6 +15441,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             && self.active_provider_handlers.is_empty()
             && self.active_state_handler_frames.is_empty()
             && self.host_scheduler.has_only_root_branch()
+    }
+
+    fn tail_invariant_base_shadow_enabled(&self) -> bool {
+        self.context.deep_profile_enabled()
     }
 
     fn tail_apply_plain_closure_identity(
@@ -15448,21 +15539,38 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return;
             }
             Err(TailClosureIdentityReject::Other) => {
-                self.record_tail_invariant_base_outcome(site, TailInvariantBaseOutcome::Other);
+                self.record_tail_invariant_base_outcome(
+                    site,
+                    TailInvariantBaseOutcome::Other(TailInvariantBaseOtherReason::CalleeNotClosure),
+                );
                 return;
             }
         };
+        let closure_kind = closure_identity.underlying_kind();
         let exclusion = match self.tail_invariant_marker_exclusion(site) {
             Ok(exclusion) => exclusion,
             Err(TailInvariantMarkerReject::CarriedGuard) => {
-                self.record_tail_invariant_base_outcome(
+                self.record_tail_invariant_base_closure_outcome(
                     site,
+                    closure_kind,
                     TailInvariantBaseOutcome::CarriedGuard,
                 );
                 return;
             }
-            Err(TailInvariantMarkerReject::Other) => {
-                self.record_tail_invariant_base_outcome(site, TailInvariantBaseOutcome::Other);
+            Err(reject) => {
+                let Some(reason) = TailInvariantBaseOtherReason::from_marker_reject(reject) else {
+                    self.record_tail_invariant_base_closure_outcome(
+                        site,
+                        closure_kind,
+                        TailInvariantBaseOutcome::CarriedGuard,
+                    );
+                    return;
+                };
+                self.record_tail_invariant_base_closure_outcome(
+                    site,
+                    closure_kind,
+                    TailInvariantBaseOutcome::Other(reason),
+                );
                 return;
             }
         };
@@ -15481,24 +15589,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         continuation_capture_generation: self.continuation_capture_generation,
                     },
                 );
-                self.record_tail_invariant_base_outcome(site, TailInvariantBaseOutcome::WouldLoop);
+                self.record_tail_invariant_base_closure_outcome(
+                    site,
+                    closure_kind,
+                    TailInvariantBaseOutcome::WouldLoop,
+                );
                 self.tail_invariant_base_shadow_retired_markers_mut(site)
                     .insert(exclusion.candidate_id);
             }
             Some(profile) => {
                 if self.continuation_capture_generation != profile.continuation_capture_generation {
-                    self.record_tail_invariant_base_outcome(
+                    self.record_tail_invariant_base_closure_outcome(
                         site,
+                        closure_kind,
                         TailInvariantBaseOutcome::ContinuationCaptured,
                     );
                 } else if identity != profile.identity {
-                    self.record_tail_invariant_base_outcome(
+                    let reason = TailInvariantBaseIdentityMismatchReason::from_identity_diff(
+                        &identity,
+                        &profile.identity,
+                    );
+                    self.record_tail_invariant_base_closure_outcome(
                         site,
-                        TailInvariantBaseOutcome::IdentityMismatch,
+                        closure_kind,
+                        TailInvariantBaseOutcome::IdentityMismatch(reason),
                     );
                 } else {
-                    self.record_tail_invariant_base_outcome(
+                    self.record_tail_invariant_base_closure_outcome(
                         site,
+                        closure_kind,
                         TailInvariantBaseOutcome::WouldLoop,
                     );
                     self.tail_invariant_base_shadow_retired_markers_mut(site)
@@ -15512,10 +15631,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &self,
         callee: &RuntimeEvidenceValue,
     ) -> bool {
-        match self.tail_apply_plain_closure_identity(callee) {
-            Ok(identity) => identity.closure.def.is_some(),
-            Err(TailClosureIdentityReject::AdapterEnv | TailClosureIdentityReject::Other) => false,
-        }
+        self.tail_apply_plain_closure_identity(callee).is_ok()
     }
 
     fn record_tail_invariant_base_outcome(
@@ -15527,8 +15643,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             TailInvariantBaseOutcome::WouldLoop => {
                 self.stats.tail_invariant_base_would_loop += 1;
             }
-            TailInvariantBaseOutcome::IdentityMismatch => {
+            TailInvariantBaseOutcome::IdentityMismatch(reason) => {
                 self.stats.tail_invariant_base_rejected_identity_mismatch += 1;
+                self.record_tail_invariant_base_identity_mismatch_reason(reason);
             }
             TailInvariantBaseOutcome::ContinuationCaptured => {
                 self.stats
@@ -15540,8 +15657,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             TailInvariantBaseOutcome::AdapterEnv => {
                 self.stats.tail_invariant_base_rejected_adapter_env += 1;
             }
-            TailInvariantBaseOutcome::Other => {
+            TailInvariantBaseOutcome::Other(reason) => {
                 self.stats.tail_invariant_base_rejected_other += 1;
+                self.record_tail_invariant_base_other_reason(reason);
             }
         }
 
@@ -15549,7 +15667,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::WouldLoop) => {
                 self.stats.tail_invariant_base_at_tail_would_loop += 1;
             }
-            (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::IdentityMismatch) => {
+            (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::IdentityMismatch(_)) => {
                 self.stats
                     .tail_invariant_base_at_tail_rejected_identity_mismatch += 1;
             }
@@ -15564,13 +15682,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::AdapterEnv) => {
                 self.stats.tail_invariant_base_at_tail_rejected_adapter_env += 1;
             }
-            (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::Other) => {
+            (TailInvariantBaseSite::Tail, TailInvariantBaseOutcome::Other(_)) => {
                 self.stats.tail_invariant_base_at_tail_rejected_other += 1;
             }
             (TailInvariantBaseSite::Resume, TailInvariantBaseOutcome::WouldLoop) => {
                 self.stats.tail_invariant_base_at_resume_would_loop += 1;
             }
-            (TailInvariantBaseSite::Resume, TailInvariantBaseOutcome::IdentityMismatch) => {
+            (TailInvariantBaseSite::Resume, TailInvariantBaseOutcome::IdentityMismatch(_)) => {
                 self.stats
                     .tail_invariant_base_at_resume_rejected_identity_mismatch += 1;
             }
@@ -15586,8 +15704,128 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats
                     .tail_invariant_base_at_resume_rejected_adapter_env += 1;
             }
-            (TailInvariantBaseSite::Resume, TailInvariantBaseOutcome::Other) => {
+            (TailInvariantBaseSite::Resume, TailInvariantBaseOutcome::Other(_)) => {
                 self.stats.tail_invariant_base_at_resume_rejected_other += 1;
+            }
+        }
+    }
+
+    fn record_tail_invariant_base_closure_outcome(
+        &mut self,
+        site: TailInvariantBaseSite,
+        closure_kind: TailUnderlyingClosureKind,
+        outcome: TailInvariantBaseOutcome,
+    ) {
+        self.record_tail_invariant_base_outcome(site, outcome);
+        self.record_tail_invariant_base_closure_kind_outcome(site, closure_kind, outcome);
+    }
+
+    fn record_tail_invariant_base_closure_kind_outcome(
+        &mut self,
+        site: TailInvariantBaseSite,
+        closure_kind: TailUnderlyingClosureKind,
+        outcome: TailInvariantBaseOutcome,
+    ) {
+        if site != TailInvariantBaseSite::Resume {
+            return;
+        }
+        match (closure_kind, outcome) {
+            (TailUnderlyingClosureKind::Plain, TailInvariantBaseOutcome::WouldLoop) => {
+                self.stats.tail_invariant_base_at_resume_plain_would_loop += 1;
+            }
+            (TailUnderlyingClosureKind::Plain, TailInvariantBaseOutcome::IdentityMismatch(_)) => {
+                self.stats
+                    .tail_invariant_base_at_resume_plain_rejected_identity_mismatch += 1;
+            }
+            (TailUnderlyingClosureKind::Plain, TailInvariantBaseOutcome::Other(_)) => {
+                self.stats
+                    .tail_invariant_base_at_resume_plain_rejected_other += 1;
+            }
+            (TailUnderlyingClosureKind::Recursive, TailInvariantBaseOutcome::WouldLoop) => {
+                self.stats
+                    .tail_invariant_base_at_resume_recursive_would_loop += 1;
+            }
+            (
+                TailUnderlyingClosureKind::Recursive,
+                TailInvariantBaseOutcome::IdentityMismatch(_),
+            ) => {
+                self.stats
+                    .tail_invariant_base_at_resume_recursive_rejected_identity_mismatch += 1;
+            }
+            (TailUnderlyingClosureKind::Recursive, TailInvariantBaseOutcome::Other(_)) => {
+                self.stats
+                    .tail_invariant_base_at_resume_recursive_rejected_other += 1;
+            }
+            (_, TailInvariantBaseOutcome::ContinuationCaptured)
+            | (_, TailInvariantBaseOutcome::CarriedGuard)
+            | (_, TailInvariantBaseOutcome::AdapterEnv) => {}
+        }
+    }
+
+    fn record_tail_invariant_base_identity_mismatch_reason(
+        &mut self,
+        reason: TailInvariantBaseIdentityMismatchReason,
+    ) {
+        match reason {
+            TailInvariantBaseIdentityMismatchReason::Frames => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_frames += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::HandlerFrames => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_handler_frames += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::AddIds => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_add_ids += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::MarkerPlans => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_marker_plans += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::ProviderEnvs => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_provider_envs += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::ProviderHandlers => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_provider_handlers += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::StateHandlerFrames => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_state_handler_frames += 1;
+            }
+            TailInvariantBaseIdentityMismatchReason::HostBranch => {
+                self.stats
+                    .tail_invariant_base_rejected_identity_mismatch_host_branch += 1;
+            }
+        }
+    }
+
+    fn record_tail_invariant_base_other_reason(&mut self, reason: TailInvariantBaseOtherReason) {
+        match reason {
+            TailInvariantBaseOtherReason::CalleeNotClosure => {
+                self.stats
+                    .tail_invariant_base_rejected_other_callee_not_closure += 1;
+            }
+            TailInvariantBaseOtherReason::NoActiveMarkerScope => {
+                self.stats
+                    .tail_invariant_base_rejected_other_no_active_marker_scope += 1;
+            }
+            TailInvariantBaseOtherReason::UnsupportedMarkerSource => {
+                self.stats
+                    .tail_invariant_base_rejected_other_unsupported_marker_source += 1;
+            }
+            TailInvariantBaseOtherReason::HandlerPath => {
+                self.stats.tail_invariant_base_rejected_other_handler_path += 1;
+            }
+            TailInvariantBaseOtherReason::NoActiveAddId => {
+                self.stats
+                    .tail_invariant_base_rejected_other_no_active_add_id += 1;
+            }
+            TailInvariantBaseOtherReason::NoCandidateMarkerScope => {
+                self.stats
+                    .tail_invariant_base_rejected_other_no_candidate_marker_scope += 1;
             }
         }
     }
@@ -15597,16 +15835,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         site: TailInvariantBaseSite,
     ) -> Result<TailInvariantMarkerExclusion, TailInvariantMarkerReject> {
         let Some(scope) = self.active_marker_frame_scopes.last() else {
-            return Err(TailInvariantMarkerReject::Other);
+            return Err(TailInvariantMarkerReject::NoActiveMarkerScope);
         };
         if !matches!(
             scope.source,
             EvidenceMarkerFrameSource::ContinuationResume | EvidenceMarkerFrameSource::MarkedForce
         ) {
-            return Err(TailInvariantMarkerReject::Other);
+            return Err(TailInvariantMarkerReject::UnsupportedMarkerSource);
         }
         if scope.handler_path.is_some() {
-            return Err(TailInvariantMarkerReject::Other);
+            return Err(TailInvariantMarkerReject::HandlerPath);
         }
         let mut has_active_add_id = false;
         for marker in scope.markers.iter() {
@@ -15622,7 +15860,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
         if !has_active_add_id {
-            return Err(TailInvariantMarkerReject::Other);
+            return Err(TailInvariantMarkerReject::NoActiveAddId);
         }
 
         let mut frame_len = self.active_frames.len();
@@ -15643,7 +15881,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             saw_candidate |= active_scope.id == scope.id;
         }
         if !saw_candidate {
-            return Err(TailInvariantMarkerReject::Other);
+            return Err(TailInvariantMarkerReject::NoCandidateMarkerScope);
         }
         Ok(TailInvariantMarkerExclusion {
             candidate_id: scope.id,
@@ -16268,7 +16506,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if !self.tail_apply_can_enter_plain_closure()
+        if self.tail_invariant_base_shadow_enabled()
+            && !self.tail_apply_can_enter_plain_closure()
             && self.should_observe_tail_invariant_base_resume_apply(callee.as_ref())
         {
             self.record_tail_invariant_base_shadow(TailInvariantBaseSite::Resume, callee.as_ref());

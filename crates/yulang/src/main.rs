@@ -202,6 +202,7 @@ struct RunSelection {
     backend_explicit: bool,
     host: RunHostMode,
     print_roots: bool,
+    runtime_evidence_profile_deep: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -552,8 +553,13 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
             }
         }
         RunBackend::EvidenceVm => {
-            let output = if options.runtime_phase_timings {
-                run_built_evidence_for_cli_with_host_profile(build, selection.host, true)
+            let output = if options.runtime_phase_timings || selection.runtime_evidence_profile_deep
+            {
+                run_built_evidence_for_cli_with_host_profile(
+                    build,
+                    selection.host,
+                    selection.runtime_evidence_profile_deep,
+                )
             } else {
                 match selection.host {
                     RunHostMode::Native => run_built_evidence_for_cli(build),
@@ -1876,6 +1882,62 @@ fn print_runtime_evidence_phase_timings(
         stats.tail_invariant_base_rejected_other
     );
     eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_frames: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_handler_frames: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_handler_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_add_ids: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_add_ids
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_marker_plans: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_marker_plans
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_provider_envs: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_provider_envs
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_provider_handlers: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_provider_handlers
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_state_handler_frames: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_state_handler_frames
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_identity_mismatch_host_branch: {}",
+        stats.tail_invariant_base_rejected_identity_mismatch_host_branch
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_callee_not_closure: {}",
+        stats.tail_invariant_base_rejected_other_callee_not_closure
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_no_active_marker_scope: {}",
+        stats.tail_invariant_base_rejected_other_no_active_marker_scope
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_unsupported_marker_source: {}",
+        stats.tail_invariant_base_rejected_other_unsupported_marker_source
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_handler_path: {}",
+        stats.tail_invariant_base_rejected_other_handler_path
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_no_active_add_id: {}",
+        stats.tail_invariant_base_rejected_other_no_active_add_id
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_rejected_other_no_candidate_marker_scope: {}",
+        stats.tail_invariant_base_rejected_other_no_candidate_marker_scope
+    );
+    eprintln!(
         "  run.runtime_evidence.tail_invariant_base_at_tail_would_loop: {}",
         stats.tail_invariant_base_at_tail_would_loop
     );
@@ -1922,6 +1984,30 @@ fn print_runtime_evidence_phase_timings(
     eprintln!(
         "  run.runtime_evidence.tail_invariant_base_at_resume_rejected_other: {}",
         stats.tail_invariant_base_at_resume_rejected_other
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_plain_would_loop: {}",
+        stats.tail_invariant_base_at_resume_plain_would_loop
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_plain_rejected_identity_mismatch: {}",
+        stats.tail_invariant_base_at_resume_plain_rejected_identity_mismatch
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_plain_rejected_other: {}",
+        stats.tail_invariant_base_at_resume_plain_rejected_other
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_recursive_would_loop: {}",
+        stats.tail_invariant_base_at_resume_recursive_would_loop
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_recursive_rejected_identity_mismatch: {}",
+        stats.tail_invariant_base_at_resume_recursive_rejected_identity_mismatch
+    );
+    eprintln!(
+        "  run.runtime_evidence.tail_invariant_base_at_resume_recursive_rejected_other: {}",
+        stats.tail_invariant_base_at_resume_recursive_rejected_other
     );
     eprintln!(
         "  run.runtime_evidence.resume_marker_plan_enter_ops_total: {}",

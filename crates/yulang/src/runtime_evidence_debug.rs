@@ -3844,6 +3844,90 @@ pub(crate) fn print_run_report(
         output.evidence_stats.tail_invariant_base_rejected_other
     );
     println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_frames: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_frames
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_handler_frames: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_handler_frames
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_add_ids: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_add_ids
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_marker_plans: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_marker_plans
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_provider_envs: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_provider_envs
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_provider_handlers: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_provider_handlers
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_state_handler_frames: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_state_handler_frames
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_identity_mismatch_host_branch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_identity_mismatch_host_branch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_callee_not_closure: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_callee_not_closure
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_no_active_marker_scope: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_no_active_marker_scope
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_unsupported_marker_source: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_unsupported_marker_source
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_handler_path: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_handler_path
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_no_active_add_id: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_no_active_add_id
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_rejected_other_no_candidate_marker_scope: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_other_no_candidate_marker_scope
+    );
+    println!(
         "  runtime_evidence.tail_invariant_base_at_tail_would_loop: {}",
         output.evidence_stats.tail_invariant_base_at_tail_would_loop
     );
@@ -3912,6 +3996,42 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .tail_invariant_base_at_resume_rejected_other
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_plain_would_loop: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_plain_would_loop
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_plain_rejected_identity_mismatch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_plain_rejected_identity_mismatch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_plain_rejected_other: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_plain_rejected_other
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_recursive_would_loop: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_recursive_would_loop
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_recursive_rejected_identity_mismatch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_recursive_rejected_identity_mismatch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_recursive_rejected_other: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_recursive_rejected_other
     );
     println!(
         "  runtime_evidence.resume_marker_plan_empty: {}",

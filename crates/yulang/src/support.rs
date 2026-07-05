@@ -46,6 +46,9 @@ pub(super) fn parse_run_args(
             Some("--print-roots") => {
                 selection.print_roots = true;
             }
+            Some("--runtime-evidence-profile-deep") => {
+                selection.runtime_evidence_profile_deep = true;
+            }
             Some("--interpreter") => {
                 set_run_backend(program, &mut selection, RunBackend::Mono, "--interpreter");
             }
@@ -1184,7 +1187,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [--runtime-evidence-profile-deep] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"
