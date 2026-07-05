@@ -1,9 +1,23 @@
-# MarkedForce 同一マーカー再入融合 計画（2026-07-05、Claude 署名・ユーザ承認済み）
+# MarkedForce 同一マーカー再入融合 計画（2026-07-05、Claude 署名・F2 まで landed・push 済み）
 
-状態: 承認済み（2026-07-05、ユーザ「全部大丈夫なので進めてください」）。確定した決定:
+状態: **F2（実行）まで landed**（commits 9ba94c4e / 373b61ac、push 済み・origin/main = 373b61ac）。確定した決定:
 1. 「同一マーカー再入融合」の方向性を採用する。
 2. トランポリン化は **MarkedForce 専用の小さいループ**として置く（既存 38ce176c tail loop とは合流させない——仕組みを混ぜると invariant-base 同様の深い罠を再び踏みやすいため）。
 3. **Stage F1（shadow・挙動変更なし）を先行**し、再入一致率の分布を確認してから F2（実行）へ。
+
+## 追記4（2026-07-05 夜、Claude 署名）: F2 landed——平坦 for/state ループの overflow 根治
+
+ユーザ承認（「進みましょう！」）を受けて F2 を実装。安全ゲートは追記3で確定したとおり **`Rc::ptr_eq`（marker identity 一致）AND `marker_identity_was_materialized() == false`（per-marker 履歴、世代差分の近似は不使用）**を毎反復再チェックする形で実装（`marked_force_can_fuse_tail_reentry`）。機構は静的 peek ではなく `MarkedForceTailStep`（`Result` / `Reenter` / `ContinueSameEnv` / `ContinueOwnedEnv`）を返すトランポリンとして実装（`force_marked_value_tail_loop`）——frame は一度だけ push、safety gate が成立する限りループで使い回し、不成立になった時点で通常の再帰 push にフォールバック。
+
+**成果（release 実測）**:
+- 平坦 `for`+ref・明示 `fold`+ref・no-ref `for` の全形状で **N=1,048,576 が overflow せず完走**（本日ずっと倒れていたサイズ）。for+ref: 16.165s、fold+ref: 8.369s、no-ref for: 12.783s。
+- N=65,536 の deep-profile gauge: `max_active_frames_len=13`、`max_active_add_ids_len=21`——**N に対して定数**（以前は N に比例して成長）。`fused=65537` が反復のほぼ全数で融合が実際に効いたことを示す。
+- スケーリングはおよそ線形（65,536→1,048,576 で比率どおり）。ただし反復単価は純粋 fold（~2.9μs/iter）よりまだ高め（for+ref ~15.4μs、fold+ref ~8.0μs、no-ref for ~12.2μs）——**stack/frame 成長は根治したが、VM オーバーヘッドそのものは別の課題として残る**。
+- 決定的 adversarial 形状（追記3の入れ子 each、unsafe_materialized=21 を生む形）を **正しさの回帰 fixture** として追加（`marked_force_nondet_materialized_tail_reentry.yu`）——flag-off/deep-profile 両方で `compare.control: match`、かつ 21 件は正しく融合されず（`fused=2` のみ）通常経路にフォールバックしたことを確認。
+- 既存 named canary（`file_ref_lines_each_update_chain_native` / `do_binding_state_protocol` / `file_text_with_commit_do` / `debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_resume`）は無改変で green。release contract（refs 47 / std.nondet 18 / file 73）も green。
+- Claude 検品済み: 既存テストは無改変（新規テスト追加のみ、cli.rs diff で確認）、Codex は push せず待機（fetch+status で確認）。Claude が push 実施（`b7c1c72b..373b61ac`）。
+
+**残課題**: 反復単価の VM オーバーヘッド縮小（fold との差）は本ノートのスコープ外——別途の性能課題として扱う。
 
 ## 背景
 
