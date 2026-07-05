@@ -199,11 +199,6 @@ pub fn run_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<RunMonoOutput, R
     run_mono_from_sources(collect_local_sources(entry)?)
 }
 
-/// entry file から local module file を読み、control VM で root を実行する。
-pub fn run_control_from_entry(entry: impl AsRef<FsPath>) -> Result<RunControlOutput, RouteError> {
-    run_control_from_sources(collect_local_sources(entry)?)
-}
-
 /// entry file から local module file を読み、control VM artifact 用 IR を作る。
 pub fn build_control_from_entry(
     entry: impl AsRef<FsPath>,
@@ -410,70 +405,6 @@ pub fn build_control_from_poly_output(
     })
 }
 
-/// すでに lower 済みの control VM program を実行し、通常の route output に包む。
-pub fn run_built_control_program(
-    program: &control_ir::Program,
-    file_count: usize,
-    errors: Vec<String>,
-) -> Result<RunControlOutput, RouteError> {
-    run_built_control_program_with_labels(program, file_count, errors, None)
-}
-
-pub fn run_built_control_program_with_labels(
-    program: &control_ir::Program,
-    file_count: usize,
-    errors: Vec<String>,
-    labels: Option<&poly::dump::DumpLabels>,
-) -> Result<RunControlOutput, RouteError> {
-    reject_runtime_lowering_errors(&errors)?;
-    let mut stdout = String::new();
-    let (values, stats, runtime_timings) =
-        control_ir::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
-            handle_control_host_effect(path, payload, &mut stdout)
-        })
-        .map_err(RouteError::Control)?;
-    let format_start = Instant::now();
-    let text = format_run_control_values_with_labels(&values, labels);
-    let root_format = format_start.elapsed();
-    Ok(RunControlOutput {
-        text,
-        file_count,
-        errors,
-        values,
-        stdout,
-        stats,
-        timings: ControlRunTimings {
-            validate: runtime_timings.validate,
-            init: runtime_timings.init,
-            execute: runtime_timings.execute,
-            root_format,
-        },
-    })
-}
-
-fn handle_control_host_effect(
-    path: &[String],
-    payload: &control_ir::Value,
-    stdout: &mut String,
-) -> Option<control_ir::Value> {
-    if path == ["std", "io", "console", "out", "write"] {
-        push_control_host_string_payload(payload, stdout)?;
-        return Some(control_ir::Value::Unit);
-    }
-    None
-}
-
-fn push_control_host_string_payload(value: &control_ir::Value, out: &mut String) -> Option<()> {
-    match value {
-        control_ir::Value::Str(value) => {
-            value.push_to_string(out);
-            Some(())
-        }
-        control_ir::Value::Marked { value, .. } => push_control_host_string_payload(value, out),
-        _ => None,
-    }
-}
-
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
@@ -537,20 +468,6 @@ pub fn run_mono_from_entry_with_std_options(
     options: &StdSourceOptions,
 ) -> Result<RunMonoOutput, RouteError> {
     run_mono_from_sources(collect_local_sources_with_std_options(entry, options)?)
-}
-
-/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで control VM を実行する。
-pub fn run_control_from_entry_with_std(
-    entry: impl AsRef<FsPath>,
-) -> Result<RunControlOutput, RouteError> {
-    run_control_from_entry_with_std_options(entry, &StdSourceOptions::default())
-}
-
-pub fn run_control_from_entry_with_std_options(
-    entry: impl AsRef<FsPath>,
-    options: &StdSourceOptions,
-) -> Result<RunControlOutput, RouteError> {
-    run_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、control VM artifact 用 IR を作る。
@@ -1172,19 +1089,6 @@ pub fn build_control_from_source_text_with_embedded_playground_std(
     build_control_from_poly_output(&output)
 }
 
-pub fn run_control_from_source_text_with_embedded_std(
-    entry: impl AsRef<FsPath>,
-    source: impl Into<String>,
-) -> Result<RunControlOutput, RouteError> {
-    let output = build_control_from_source_text_with_embedded_std(entry, source)?;
-    run_built_control_program_with_labels(
-        &output.program,
-        output.file_count,
-        output.errors.clone(),
-        Some(&output.labels),
-    )
-}
-
 /// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
 pub fn find_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
     for ancestor in base.ancestors() {
@@ -1219,26 +1123,6 @@ pub struct RunMonoOutput {
     /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
     pub errors: Vec<String>,
     pub values: Vec<mono_runtime::Value>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct RunControlOutput {
-    pub text: String,
-    pub file_count: usize,
-    /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
-    pub errors: Vec<String>,
-    pub values: Vec<control_ir::Value>,
-    pub stdout: String,
-    pub stats: control_ir::RuntimeStats,
-    pub timings: ControlRunTimings,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct ControlRunTimings {
-    pub validate: Duration,
-    pub init: Duration,
-    pub execute: Duration,
-    pub root_format: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1612,7 +1496,6 @@ pub enum RouteError {
     HostActManifest(infer::host_acts::HostActManifestBuildError),
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
-    Control(control_ir::RunError),
     ControlLower(control_ir::LowerError),
 }
 
@@ -1776,7 +1659,6 @@ impl fmt::Display for RouteError {
             }
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
-            RouteError::Control(error) => write!(f, "{error}"),
             RouteError::ControlLower(error) => write!(f, "{error}"),
         }
     }
@@ -3344,16 +3226,6 @@ fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, R
         errors: output.errors,
         values,
     })
-}
-
-fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOutput, RouteError> {
-    let output = build_control_from_sources(files)?;
-    run_built_control_program_with_labels(
-        &output.program,
-        output.file_count,
-        output.errors.clone(),
-        Some(&output.labels),
-    )
 }
 
 fn build_control_from_sources(

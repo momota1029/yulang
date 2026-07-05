@@ -73,10 +73,6 @@ if [[ "$run_contract_runner_smoke" != "0" ]]; then
     "$bin" --std-root "$repo_root/lib" contract \
     --contract backend.interpreter \
     "$repo_root/tests/yulang/cases.toml"
-  run_timeout "$test_timeout" \
-    "$bin" --std-root "$repo_root/lib" contract \
-    --contract backend.control-vm \
-    "$repo_root/tests/yulang/cases.toml"
 fi
 
 run_timeout "$test_timeout" \
@@ -113,10 +109,6 @@ run_timeout "$test_timeout" \
 
 run_timeout "$test_timeout" \
   cargo test -q -p wasm check_inner \
-  -- --test-threads=1
-
-run_timeout "$test_timeout" \
-  cargo test -q -p control-ir routes_foreign_thunk_effect_past_inner_handler_like_oracle \
   -- --test-threads=1
 
 if [[ "$run_public_examples" != "0" ]]; then

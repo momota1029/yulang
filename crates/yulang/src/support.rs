@@ -52,14 +52,6 @@ pub(super) fn parse_run_args(
             Some("--interpreter") => {
                 set_run_backend(program, &mut selection, RunBackend::Mono, "--interpreter");
             }
-            Some("--control-vm") => {
-                set_run_backend(
-                    program,
-                    &mut selection,
-                    RunBackend::ControlVm,
-                    "--control-vm",
-                );
-            }
             Some("--evidence-vm") => {
                 set_run_backend(
                     program,
@@ -120,32 +112,6 @@ pub(super) fn parse_run_args(
         (None, None) => print_usage_and_exit(program),
     };
     (input, selection)
-}
-
-pub(super) fn parse_run_path_args(
-    program: &str,
-    mut args: VecDeque<OsString>,
-) -> (PathBuf, RunSelection) {
-    let mut path = None;
-    let mut selection = RunSelection::default();
-    while let Some(arg) = args.pop_front() {
-        match arg.to_str() {
-            Some("--print-roots") => {
-                selection.print_roots = true;
-            }
-            Some("--interpreter") => {
-                set_run_backend(program, &mut selection, RunBackend::Mono, "--interpreter");
-            }
-            Some(flag) if flag.starts_with("--") => {
-                print_usage_error_and_exit(program, &format!("unsupported run option {flag}"));
-            }
-            _ => set_single_path(program, &mut path, arg),
-        }
-    }
-    let Some(path) = path else {
-        print_usage_and_exit(program);
-    };
-    (path, selection)
 }
 
 fn set_run_backend(program: &str, selection: &mut RunSelection, backend: RunBackend, flag: &str) {
@@ -408,31 +374,6 @@ pub(super) fn print_cst_if_requested(options: &GlobalOptions, path: &PathBuf) {
     print!("{}", cst_view::format_module_cst(&source));
 }
 
-pub(super) fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_ir::Program> {
-    let source = match fs::read_to_string(path) {
-        Ok(source) => source,
-        Err(_) => return None,
-    };
-    match yulang::artifact::decode_control_program(&source) {
-        Ok(program) => program,
-        Err(error) => {
-            eprintln!(
-                "failed to read control-vm artifact {}: {error}",
-                path.display()
-            );
-            process::exit(1);
-        }
-    }
-}
-
-pub(super) struct CliControlRunOutput {
-    pub text: String,
-    pub stdout: String,
-    pub errors: Vec<String>,
-    pub stats: control_ir::RuntimeStats,
-    pub timings: yulang::ControlRunTimings,
-}
-
 pub(super) struct CliEvidenceRunOutput {
     pub text: String,
     pub stdout: String,
@@ -447,37 +388,6 @@ pub(super) struct CliEvidenceRunTimings {
     pub plan_profile: evidence_vm::EvidenceVmPlanBuildProfile,
     pub execute: Duration,
     pub root_format: Duration,
-}
-
-impl From<yulang::RunControlOutput> for CliControlRunOutput {
-    fn from(output: yulang::RunControlOutput) -> Self {
-        Self {
-            text: output.text,
-            stdout: output.stdout,
-            errors: output.errors,
-            stats: output.stats,
-            timings: output.timings,
-        }
-    }
-}
-
-pub(super) fn run_built_control_for_cli(build: yulang::BuildControlOutput) -> CliControlRunOutput {
-    run_control_on_cli_vm_stack(move || {
-        let yulang::BuildControlOutput {
-            program,
-            runtime_evidence: _,
-            labels,
-            file_count,
-            errors,
-        } = build;
-        run_route_to_value(yulang::run_built_control_program_with_labels(
-            &program,
-            file_count,
-            errors,
-            Some(&labels),
-        ))
-        .into()
-    })
 }
 
 pub(super) fn run_built_evidence_for_cli(
@@ -507,7 +417,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
     deep_profile: bool,
     plan_profile_enabled: bool,
 ) -> CliEvidenceRunOutput {
-    run_control_on_cli_vm_stack(move || {
+    run_runtime_on_cli_stack(move || {
         let yulang::BuildControlOutput {
             program,
             runtime_evidence,
@@ -641,7 +551,7 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
             "runtime error [yulang.runtime-internal]: expected a delayed computation, got {value}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
         evidence_vm::RuntimeEvidenceRunError::UnsupportedExpr(feature) => format!(
-            "runtime error [yulang.unsupported-runtime-feature]: unsupported expression in runtime: {feature}\n  hint: try the control VM oracle or reduce this source to a smaller report"
+            "runtime error [yulang.unsupported-runtime-feature]: unsupported expression in runtime: {feature}\n  hint: try the interpreter oracle or reduce this source to a smaller report"
         ),
         evidence_vm::RuntimeEvidenceRunError::UnsupportedPrimitive(op) => format!(
             "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
@@ -656,42 +566,19 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
     }
 }
 
-pub(super) fn run_control_artifact(program: control_ir::Program, print_roots: bool) {
-    let text = run_control_on_cli_vm_stack(move || {
-        let values = match control_ir::run_program(&program) {
-            Ok(values) => values,
-            Err(error) => {
-                eprintln!("{}", format_control_run_error(&error));
-                process::exit(1);
-            }
-        };
-        if print_roots {
-            Some(format!(
-                "run roots {}\n",
-                control_ir::format_values(&values)
-            ))
-        } else {
-            None
-        }
-    });
-    if let Some(text) = text {
-        print!("{text}");
-    }
-}
-
 // The VM runtimes still have recursive eval/apply paths. CLI execution isolates
 // those paths on a dedicated stack until the runtimes are fully trampolined.
-const CONTROL_VM_CLI_STACK_SIZE: usize = 256 * 1024 * 1024;
+const RUNTIME_CLI_STACK_SIZE: usize = 256 * 1024 * 1024;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
+fn run_runtime_on_cli_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
     std::thread::scope(|scope| {
         let handle = std::thread::Builder::new()
-            .name("yulang-control-vm".to_string())
-            .stack_size(CONTROL_VM_CLI_STACK_SIZE)
+            .name("yulang-runtime".to_string())
+            .stack_size(RUNTIME_CLI_STACK_SIZE)
             .spawn_scoped(scope, run)
             .unwrap_or_else(|error| {
-                eprintln!("failed to start control-vm runner thread: {error}");
+                eprintln!("failed to start runtime thread: {error}");
                 process::exit(1);
             });
         match handle.join() {
@@ -702,7 +589,7 @@ fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
+fn run_runtime_on_cli_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
     run()
 }
 
@@ -801,7 +688,6 @@ pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
             )
         }
         yulang::RouteError::Runtime(error) => format_mono_runtime_error(error),
-        yulang::RouteError::Control(error) => format_control_run_error(error),
         _ => error.to_string(),
     }
 }
@@ -862,73 +748,6 @@ pub(super) fn format_mono_runtime_error(error: &mono_runtime::RuntimeError) -> S
     }
 }
 
-pub(super) fn format_control_run_error(error: &control_ir::RunError) -> String {
-    match error {
-        control_ir::RunError::Runtime(error) => format_control_runtime_error(error),
-        control_ir::RunError::Lower(_) | control_ir::RunError::Validate(_) => {
-            format_unsupported_runtime_feature_error(&error.to_string())
-        }
-    }
-}
-
-fn format_control_runtime_error(error: &control_ir::RuntimeError) -> String {
-    match error {
-        control_ir::RuntimeError::UnhandledEffect { path } => {
-            format_unhandled_effect_runtime_error(path)
-        }
-        control_ir::RuntimeError::NotFunction { value } => {
-            format_not_callable_runtime_error(&format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedRecord { value } => {
-            format_not_record_runtime_error(&format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::MissingRecordField { name } => {
-            format_missing_field_runtime_error(name)
-        }
-        control_ir::RuntimeError::PatternMismatch | control_ir::RuntimeError::NoMatchingCase => {
-            format_pattern_mismatch_runtime_error()
-        }
-        control_ir::RuntimeError::NonBoolGuard { value } => {
-            format_non_bool_guard_runtime_error(&format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedInt { value } => {
-            format_expected_runtime_type_error("int", &format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedFloat { value } => {
-            format_expected_runtime_type_error("float", &format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedBool { value } => {
-            format_expected_runtime_type_error("bool", &format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedList { value } => {
-            format_expected_runtime_type_error("list", &format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::ExpectedBytes { value } => {
-            format_expected_runtime_type_error("bytes", &format_control_runtime_value(value))
-        }
-        control_ir::RuntimeError::UnsupportedExpr { feature }
-        | control_ir::RuntimeError::UnsupportedPattern { feature }
-        | control_ir::RuntimeError::UnsupportedBoundary { feature } => {
-            format_unsupported_runtime_feature_error(feature)
-        }
-        control_ir::RuntimeError::MissingPrimitiveContext { op }
-        | control_ir::RuntimeError::UnsupportedPrimitive { op } => format!(
-            "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
-        ),
-        control_ir::RuntimeError::MissingExpr { .. }
-        | control_ir::RuntimeError::ExpectedFunctionType
-        | control_ir::RuntimeError::NotThunk { .. }
-        | control_ir::RuntimeError::MissingInstance { .. }
-        | control_ir::RuntimeError::MismatchedInstanceSlot { .. }
-        | control_ir::RuntimeError::RecursiveInstance { .. }
-        | control_ir::RuntimeError::UnboundLocal { .. }
-        | control_ir::RuntimeError::MissingContinuation { .. }
-        | control_ir::RuntimeError::UnresolvedSelect { .. } => {
-            format_internal_runtime_error(&error.to_string())
-        }
-    }
-}
-
 fn format_unhandled_effect_runtime_error(path: &[String]) -> String {
     format!(
         "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
@@ -972,7 +791,7 @@ fn format_expected_runtime_type_error(expected: &str, actual: &str) -> String {
 
 fn format_unsupported_runtime_feature_error(feature: &str) -> String {
     format!(
-        "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature: {feature}\n  hint: try the control VM oracle or reduce this source to a smaller report"
+        "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature: {feature}\n  hint: try the interpreter oracle or reduce this source to a smaller report"
     )
 }
 
@@ -987,14 +806,6 @@ fn format_mono_runtime_value(value: &mono_runtime::Value) -> String {
     text.strip_prefix("run roots [")
         .and_then(|text| text.strip_suffix("]\n"))
         .unwrap_or(text.trim())
-        .to_string()
-}
-
-fn format_control_runtime_value(value: &control_ir::Value) -> String {
-    let text = control_ir::format_values(std::slice::from_ref(value));
-    text.strip_prefix('[')
-        .and_then(|text| text.strip_suffix(']'))
-        .unwrap_or(text.as_str())
         .to_string()
 }
 
@@ -1014,27 +825,6 @@ pub(super) fn print_dump_mono_output(output: &yulang::DumpMonoOutput) {
 
 pub(super) fn print_run_mono_output(output: &yulang::RunMonoOutput) {
     print!("{}", output.text);
-    for error in &output.errors {
-        eprintln!("error: {error}");
-    }
-}
-
-pub(super) fn print_cli_control_run_output(output: &CliControlRunOutput) {
-    print!("{}", output.stdout);
-    print!("{}", output.text);
-    for error in &output.errors {
-        eprintln!("error: {error}");
-    }
-}
-
-pub(super) fn print_cli_control_run_output_with_roots(
-    output: &CliControlRunOutput,
-    print_roots: bool,
-) {
-    print!("{}", output.stdout);
-    if print_roots {
-        print!("{}", output.text);
-    }
     for error in &output.errors {
         eprintln!("error: {error}");
     }
@@ -1205,7 +995,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [--runtime-evidence-profile-deep] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [--runtime-evidence-profile-deep] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"
@@ -1217,17 +1007,15 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} realm install [path] [--version <version>]");
     eprintln!("       {program} [--std-root <path>] server");
     eprintln!(
-        "       {program} debug <host-act-manifest|control-vm|control-vm-emit|control-vm-load|runtime-evidence-bench|runtime-evidence-run|evidence-vm-plan|evidence-vm-run> ..."
+        "       {program} debug <host-act-manifest|runtime-evidence-bench|runtime-evidence-run|evidence-vm-plan|evidence-vm-run> ..."
     );
     eprintln!("       {program} dump-poly <path>");
     eprintln!("       {program} dump-poly-raw <path>");
     eprintln!("       {program} dump-mono <path>");
     eprintln!("       {program} run-mono <path>");
-    eprintln!("       {program} run-control <path>");
     eprintln!("       {program} [--std-root <path>] dump-poly-std <path>");
     eprintln!("       {program} [--std-root <path>] dump-mono-std <path>");
     eprintln!("       {program} [--std-root <path>] run-mono-std <path>");
-    eprintln!("       {program} [--std-root <path>] run-control-std <path>");
     eprintln!("       {program} [--std-root <path>] check-poly-std <path>");
     eprintln!("       {program} [--std-root <path>] check-poly-std-in <path> <module>");
     eprintln!("       {program} [--std-root <path>] dump-poly-std-in <path> <module>");

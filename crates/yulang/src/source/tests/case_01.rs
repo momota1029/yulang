@@ -255,21 +255,20 @@ fn dump_mono_without_std_runs_computed_top_level_binding() {
 }
 
 #[test]
-fn run_control_without_std_evaluates_computed_top_level_binding_without_result() {
-    let root = temp_root("run-control-computed-binding-no-result");
+fn run_evidence_without_std_evaluates_computed_top_level_binding_without_result() {
+    let root = temp_root("run-evidence-computed-binding-no-result");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("main.yu"), "my id x = x\nmy a = id(1)\n").unwrap();
 
     let mono = run_mono_from_entry(root.join("main.yu")).unwrap();
-    let control = run_control_from_entry(root.join("main.yu")).unwrap();
+    let evidence = run_evidence_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(mono.file_count, 1);
     assert_eq!(mono.values, Vec::<mono_runtime::Value>::new());
     assert_eq!(mono.text, "run roots []\n");
-    assert_eq!(control.file_count, 1);
-    assert_eq!(control.values, Vec::<control_ir::Value>::new());
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.file_count, 1);
+    assert_eq!(evidence.text, mono.text);
 }
 
 #[test]
@@ -411,21 +410,20 @@ fn run_mono_without_std_runs_apply_colon_block_argument() {
 }
 
 #[test]
-fn run_control_without_std_runs_apply_colon_block_argument() {
-    let root = temp_root("run-control-apply-colon-block-arg");
+fn run_evidence_without_std_runs_apply_colon_block_argument() {
+    let root = temp_root("run-evidence-apply-colon-block-arg");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("main.yu"), "my id x = x\nid:\n  my x = 1\n  x\n").unwrap();
 
-    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+    let output = run_evidence_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.file_count, 1);
-    assert_eq!(output.values, vec![control_ir::Value::Int(1)]);
     assert_eq!(output.text, "run roots [1]\n");
 }
 
 #[test]
-fn run_without_std_matches_control_on_record_case_and_handler_smoke() {
+fn run_without_std_matches_evidence_on_record_case_and_handler_smoke() {
     let entry = write_main(
         "run-record-case-handler-smoke",
         "case { width: 1, height: 2 }:\n\
@@ -442,24 +440,24 @@ fn run_without_std_matches_control_on_record_case_and_handler_smoke() {
     );
 
     let mono = run_mono_from_entry(&entry).unwrap();
-    let control = run_control_from_entry(&entry).unwrap();
+    let evidence = run_evidence_from_entry(&entry).unwrap();
 
     assert_eq!(mono.text, "run roots [2, 1]\n");
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.text, mono.text);
 }
 
 #[test]
-fn run_without_std_matches_control_on_struct_field_projection() {
+fn run_without_std_matches_evidence_on_struct_field_projection() {
     let entry = write_main(
         "run-struct-field-projection",
         "struct User { age: int }\nUser({ age: 1 }).age\n",
     );
 
     let mono = run_mono_from_entry(&entry).unwrap();
-    let control = run_control_from_entry(&entry).unwrap();
+    let evidence = run_evidence_from_entry(&entry).unwrap();
 
     assert_eq!(mono.text, "run roots [1]\n");
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.text, mono.text);
 }
 
 #[test]
@@ -476,15 +474,15 @@ fn run_without_std_resolves_receiverless_role_method_path() {
     );
 
     let mono = run_mono_from_entry(&entry).unwrap();
-    let control = run_control_from_entry(entry).unwrap();
+    let evidence = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(mono.text, "run roots [4]\n");
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.text, mono.text);
 }
 
 #[cfg(unix)]
 #[test]
-fn run_with_std_matches_control_on_core_smoke_suite() {
+fn run_with_std_matches_evidence_on_core_smoke_suite() {
     let entry = write_main_with_std(
         "run-std-core-smoke-suite",
         "1 + 2 * 3\n\
@@ -498,16 +496,16 @@ fn run_with_std_matches_control_on_core_smoke_suite() {
              1\n",
     );
     let mono = run_mono_from_entry_with_std(&entry).unwrap();
-    let control_text = run_with_vm_test_stack({
+    let evidence_text = run_with_vm_test_stack({
         let entry = entry.clone();
-        move || run_control_from_entry_with_std(entry).unwrap().text
+        move || run_evidence_from_entry_with_std(entry).unwrap().text
     });
 
     assert_eq!(
         mono.text,
         "run roots [7, [4, 3], \"sum=3\", \"hex=ff\", \"debug=[1, 2]\", \"pad=0007\", 1]\n"
     );
-    assert_eq!(control_text, mono.text);
+    assert_eq!(evidence_text, mono.text);
 }
 
 #[cfg(unix)]
@@ -520,10 +518,10 @@ fn run_with_std_runs_list_view_raw_node() {
     fs::write(root.join("main.yu"), "std::data::list::view_raw [1, 2]\n").unwrap();
 
     let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
-    let control = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
+    let evidence = run_evidence_from_entry_with_std(root.join("main.yu")).unwrap();
 
     assert!(mono.text.contains("([1], [2])"), "{}", mono.text);
-    assert!(control.text.contains("([1], [2])"), "{}", control.text);
+    assert!(evidence.text.contains("([1], [2])"), "{}", evidence.text);
 }
 
 #[cfg(unix)]
@@ -551,13 +549,13 @@ fn run_with_std_handles_composed_nested_effect_contracts() {
              \x20 a + b + c\n",
     );
 
-    let control_text = run_with_vm_test_stack({
+    let evidence_text = run_with_vm_test_stack({
         let entry = entry.clone();
-        move || run_control_from_entry_with_std(entry).unwrap().text
+        move || run_evidence_from_entry_with_std(entry).unwrap().text
     });
 
     assert_eq!(
-        control_text,
+        evidence_text,
         "run roots [[[111, 11, 101, 1, 110, 10, 100, 0], [222, 22, 202, 2, 220, 20, 200, 0]]]\n"
     );
 }
@@ -619,8 +617,8 @@ fn run_mono_with_std_collects_nondet_each_list() {
 
 #[cfg(unix)]
 #[test]
-fn run_control_with_std_collects_nondet_each_list() {
-    let root = temp_root("run-control-std-nondet-each-list");
+fn run_evidence_with_std_collects_nondet_each_list() {
+    let root = temp_root("run-evidence-std-nondet-each-list");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     symlink_repo_lib(&root);
@@ -630,7 +628,7 @@ fn run_control_with_std_collects_nondet_each_list() {
     )
     .unwrap();
 
-    let output = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
+    let output = run_evidence_from_entry_with_std(root.join("main.yu")).unwrap();
 
     assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
 }
@@ -649,19 +647,19 @@ fn run_with_std_collects_nondet_sum_list_benchmark() {
     .unwrap();
 
     let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
-    let control_text = run_with_vm_test_stack({
+    let evidence_text = run_with_vm_test_stack({
         let entry = root.join("main.yu");
-        move || run_control_from_entry_with_std(entry).unwrap().text
+        move || run_evidence_from_entry_with_std(entry).unwrap().text
     });
 
     assert_eq!(mono.text, "run roots [[2, 3, 3, 4, 4, 5]]\n");
-    assert_eq!(control_text, mono.text);
+    assert_eq!(evidence_text, mono.text);
 }
 
 #[cfg(unix)]
 #[test]
 fn run_with_std_handles_effectful_thunk_returned_from_function() {
-    let (mono, control) = run_with_std_main(
+    let (mono, evidence) = run_with_std_main(
         "run-std-effectful-function-thunk-handler",
         "pub act out:\n\
              \x20 pub say: str -> ()\n\n\
@@ -678,7 +676,7 @@ fn run_with_std_handles_effectful_thunk_returned_from_function() {
     );
 
     assert_eq!(mono.text, "run roots [(9, \"3\\n6\\n\")]\n");
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.text, mono.text);
 }
 
 #[cfg(unix)]
@@ -708,7 +706,7 @@ fn dump_mono_with_std_specializes_nondet_sum_list_say_benchmark() {
 
 #[cfg(unix)]
 #[test]
-fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
+fn run_with_std_nondet_sum_list_say_handles_evidence_stdout() {
     let root = temp_root("run-std-nondet-sum-list-say-control-stdout");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
@@ -720,11 +718,11 @@ fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
     .unwrap();
 
     let mono = run_mono_from_entry_with_std(root.join("main.yu"));
-    let control = run_with_vm_test_stack({
+    let evidence = run_with_vm_test_stack({
         let entry = root.join("main.yu");
         move || {
-            let output = run_control_from_entry_with_std(entry)
-                .expect("control VM route should handle console out");
+            let output = run_evidence_from_entry_with_std(entry)
+                .expect("evidence VM route should handle console out");
             (output.stdout, output.text)
         }
     });
@@ -735,8 +733,8 @@ fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
         }
         other => panic!("expected mono unhandled out effect, got {other:?}"),
     }
-    assert_eq!(control.0, "[2, 3, 3, 4, 4, 5]\n");
-    assert_eq!(control.1, "run roots [()]\n");
+    assert_eq!(evidence.0, "[2, 3, 3, 4, 4, 5]\n");
+    assert_eq!(evidence.1, "run roots [()]\n");
 }
 
 #[test]
@@ -792,8 +790,8 @@ fn run_mono_without_std_keeps_stack_handler_hygiene() {
 }
 
 #[test]
-fn run_control_without_std_keeps_stack_handler_hygiene() {
-    let root = temp_root("run-control-stack-handler-hygiene");
+fn run_evidence_without_std_keeps_stack_handler_hygiene() {
+    let root = temp_root("run-evidence-stack-handler-hygiene");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     fs::write(
@@ -812,10 +810,9 @@ fn run_control_without_std_keeps_stack_handler_hygiene() {
     )
     .unwrap();
 
-    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+    let output = run_evidence_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.file_count, 1);
-    assert_eq!(output.values, vec![control_ir::Value::Int(0)]);
     assert_eq!(output.text, "run roots [0]\n");
 }
 
@@ -961,35 +958,35 @@ fn dump_mono_without_std_specializes_record_select_from_case_local() {
 }
 
 #[test]
-fn run_control_without_std_applies_record_pattern_default() {
+fn run_evidence_without_std_applies_record_pattern_default() {
     let entry = write_main(
-        "run-control-record-pattern-default",
+        "run-evidence-record-pattern-default",
         "my f({x = 1}) = x\nf {}\nf {x: 2}\n",
     );
 
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [1, 2]\n");
 }
 
 #[test]
-fn run_control_without_std_record_pattern_default_reads_earlier_field() {
+fn run_evidence_without_std_record_pattern_default_reads_earlier_field() {
     let entry = write_main(
-        "run-control-record-pattern-default-previous-field",
+        "run-evidence-record-pattern-default-previous-field",
         "my f({x = 1, y = x}) = y\nf {x: 3}\nf {}\n",
     );
 
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [3, 1]\n");
 }
 
 #[test]
-fn run_control_without_std_record_pattern_default_handles_effect() {
+fn run_evidence_without_std_record_pattern_default_handles_effect() {
     let entry = write_main(
-        "run-control-record-pattern-default-effect",
+        "run-evidence-record-pattern-default-effect",
         "act signal:\n\
              \x20 our ping: () -> int\n\n\
              my f({x = signal::ping()}): int = x\n\n\
@@ -999,11 +996,11 @@ fn run_control_without_std_record_pattern_default_handles_effect() {
     );
 
     let mono = run_mono_from_entry(&entry).unwrap();
-    let control = run_control_from_entry(entry).unwrap();
+    let evidence = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(mono.file_count, 1);
     assert_eq!(mono.values, vec![mono_runtime::Value::Int(7)]);
     assert_eq!(mono.text, "run roots [7]\n");
-    assert_eq!(control.file_count, 1);
-    assert_eq!(control.text, mono.text);
+    assert_eq!(evidence.file_count, 1);
+    assert_eq!(evidence.text, mono.text);
 }

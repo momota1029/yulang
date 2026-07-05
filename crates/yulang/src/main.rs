@@ -68,12 +68,6 @@ fn main() {
             let output = run_mono_with_optional_cache(files, options.use_cache);
             print_run_mono_output(&output);
         }
-        Some("run-control") => {
-            let path = require_one_path(&program, args);
-            let build = run_route_to_value(yulang::build_control_from_entry(path));
-            let output = run_built_control_for_cli(build);
-            print_cli_control_run_output(&output);
-        }
         Some("dump-poly-std") => {
             let path = require_one_path(&program, args);
             let files = collect_std_sources_or_exit(&path, &options);
@@ -91,13 +85,6 @@ fn main() {
             let files = collect_std_sources_or_exit(&path, &options);
             let output = run_mono_with_optional_cache(files, options.use_cache);
             print_run_mono_output(&output);
-        }
-        Some("run-control-std") => {
-            let path = require_one_path(&program, args);
-            let files = collect_std_sources_or_exit(&path, &options);
-            let build = build_control_with_optional_cache(files, options.use_cache);
-            let output = run_built_control_for_cli(build);
-            print_cli_control_run_output(&output);
         }
         Some("check-poly-std") => {
             let path = require_one_path(&program, args);
@@ -209,7 +196,6 @@ struct RunSelection {
 enum RunBackend {
     #[default]
     EvidenceVm,
-    ControlVm,
     Mono,
 }
 
@@ -229,8 +215,6 @@ struct RuntimePhaseTimings {
     specialize: Duration,
     control_lower: Duration,
     vm_eval: Duration,
-    control_validate: Duration,
-    runtime_init: Duration,
     runtime_execute: Duration,
     root_format: Duration,
     total: Duration,
@@ -340,7 +324,6 @@ impl RuntimeEvidenceBenchSummary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceRunArgs {
     path: PathBuf,
-    compare_control: bool,
     runtime_evidence_profile_deep: bool,
 }
 
@@ -467,10 +450,10 @@ fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<O
         }
     };
     let out = out.unwrap_or_else(|| default_artifact_path(&path));
-    ensure_parent_dir_or_exit(&out, "control-vm artifact");
+    ensure_parent_dir_or_exit(&out, "control-ir artifact");
     if let Err(error) = fs::write(&out, artifact) {
         eprintln!(
-            "failed to write control-vm artifact {}: {error}",
+            "failed to write control-ir artifact {}: {error}",
             out.display()
         );
         process::exit(1);
@@ -483,22 +466,6 @@ fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<O
 
 fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let (input, selection) = parse_run_args(program, args);
-    if let RunInput::Path(path) = &input {
-        if let Some(artifact) = read_control_artifact_or_exit(path) {
-            reject_non_native_run_host(program, selection);
-            if selection.backend == RunBackend::Mono {
-                eprintln!("control-vm artifact cannot be run with --interpreter");
-                process::exit(2);
-            }
-            if selection.backend == RunBackend::EvidenceVm && selection.backend_explicit {
-                eprintln!("control-vm artifact cannot be run with --evidence-vm");
-                process::exit(2);
-            }
-            run_control_artifact(artifact, selection.print_roots);
-            return;
-        }
-    }
-
     print_run_input_cst_if_requested(options, &input);
     if selection.backend == RunBackend::Mono {
         reject_non_native_run_host(program, selection);
@@ -539,20 +506,6 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     };
     let eval_start = Instant::now();
     match selection.backend {
-        RunBackend::ControlVm => {
-            reject_non_native_run_host(program, selection);
-            let output = run_built_control_for_cli(build);
-            timings.vm_eval = eval_start.elapsed();
-            timings.control_validate = output.timings.validate;
-            timings.runtime_init = output.timings.init;
-            timings.runtime_execute = output.timings.execute;
-            timings.root_format = output.timings.root_format;
-            timings.total = total_start.elapsed();
-            print_cli_control_run_output_with_roots(&output, selection.print_roots);
-            if options.runtime_phase_timings {
-                print_runtime_phase_timings(&timings, &output.stats);
-            }
-        }
         RunBackend::EvidenceVm => {
             let output = if options.runtime_phase_timings || selection.runtime_evidence_profile_deep
             {
@@ -1057,504 +1010,6 @@ fn record_runtime_build_cache(
     if let Some(timings) = timings.as_deref_mut() {
         timings.build_cache = kind;
     }
-}
-
-fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_ir::RuntimeStats) {
-    eprintln!("runtime timing:");
-    eprintln!("  run.backend: control-vm");
-    eprintln!("  run.cache: {}", timing.build_cache.as_str());
-    eprintln!("  run.collect: {}", format_duration(timing.collect));
-    eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
-    eprintln!("  run.specialize: {}", format_duration(timing.specialize));
-    eprintln!(
-        "  run.control_lower: {}",
-        format_duration(timing.control_lower)
-    );
-    eprintln!("  run.vm_eval: {}", format_duration(timing.vm_eval));
-    eprintln!(
-        "  run.control_validate: {}",
-        format_duration(timing.control_validate)
-    );
-    eprintln!(
-        "  run.runtime_init: {}",
-        format_duration(timing.runtime_init)
-    );
-    eprintln!(
-        "  run.runtime_execute: {}",
-        format_duration(timing.runtime_execute)
-    );
-    eprintln!("  run.root_format: {}", format_duration(timing.root_format));
-    eprintln!("  run.total: {}", format_duration(timing.total));
-    eprintln!("runtime stats:");
-    eprintln!("  run.control_effect_ops: {}", stats.control_effect_ops);
-    eprintln!(
-        "  run.control_effect_op_families: {}",
-        stats.control_effect_op_families
-    );
-    eprintln!(
-        "  run.control_effect_ops_with_handler_arm: {}",
-        stats.control_effect_ops_with_handler_arm
-    );
-    eprintln!(
-        "  run.control_effect_ops_without_handler_arm: {}",
-        stats.control_effect_ops_without_handler_arm
-    );
-    eprintln!(
-        "  run.control_marker_frames: {}",
-        stats.control_marker_frames
-    );
-    eprintln!(
-        "  run.control_marker_frame_families: {}",
-        stats.control_marker_frame_families
-    );
-    eprintln!("  run.control_catches: {}", stats.control_catches);
-    eprintln!("  run.control_handler_arms: {}", stats.control_handler_arms);
-    eprintln!(
-        "  run.control_handler_arm_families: {}",
-        stats.control_handler_arm_families
-    );
-    eprintln!("  run.control_value_arms: {}", stats.control_value_arms);
-    eprintln!(
-        "  run.control_continuation_arms: {}",
-        stats.control_continuation_arms
-    );
-    eprintln!(
-        "  run.control_function_adapters: {}",
-        stats.control_function_adapters
-    );
-    eprintln!("  run.control_ref_sets: {}", stats.control_ref_sets);
-    eprintln!(
-        "  run.control_scoped_effect_op_visits: {}",
-        stats.control_scoped_effect_op_visits
-    );
-    eprintln!(
-        "  run.control_scoped_unique_effect_ops: {}",
-        stats.control_scoped_unique_effect_ops
-    );
-    eprintln!(
-        "  run.control_scoped_unvisited_effect_ops: {}",
-        stats.control_scoped_unvisited_effect_ops
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_with_nearest_handler: {}",
-        stats.control_scoped_effect_ops_with_nearest_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_without_nearest_handler: {}",
-        stats.control_scoped_effect_ops_without_nearest_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_with_direct_handler_candidate: {}",
-        stats.control_scoped_effect_ops_with_direct_handler_candidate
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_blocked_by_callback_boundary: {}",
-        stats.control_scoped_effect_ops_blocked_by_callback_boundary
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_blocked_by_delayed_boundary: {}",
-        stats.control_scoped_effect_ops_blocked_by_delayed_boundary
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_with_resumptive_handler: {}",
-        stats.control_scoped_effect_ops_with_resumptive_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_ops_with_abortive_handler: {}",
-        stats.control_scoped_effect_ops_with_abortive_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites: {}",
-        stats.control_scoped_effect_call_sites
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_with_nearest_handler: {}",
-        stats.control_scoped_effect_call_sites_with_nearest_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_without_nearest_handler: {}",
-        stats.control_scoped_effect_call_sites_without_nearest_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_with_direct_handler_candidate: {}",
-        stats.control_scoped_effect_call_sites_with_direct_handler_candidate
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_blocked_by_callback_boundary: {}",
-        stats.control_scoped_effect_call_sites_blocked_by_callback_boundary
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_blocked_by_delayed_boundary: {}",
-        stats.control_scoped_effect_call_sites_blocked_by_delayed_boundary
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_with_resumptive_handler: {}",
-        stats.control_scoped_effect_call_sites_with_resumptive_handler
-    );
-    eprintln!(
-        "  run.control_scoped_effect_call_sites_with_abortive_handler: {}",
-        stats.control_scoped_effect_call_sites_with_abortive_handler
-    );
-    eprintln!(
-        "  run.control_scoped_known_function_call_sites: {}",
-        stats.control_scoped_known_function_call_sites
-    );
-    eprintln!(
-        "  run.control_scoped_known_instance_call_sites: {}",
-        stats.control_scoped_known_instance_call_sites
-    );
-    eprintln!(
-        "  run.control_scoped_dynamic_call_sites: {}",
-        stats.control_scoped_dynamic_call_sites
-    );
-    eprintln!(
-        "  run.control_scoped_dynamic_call_sites_under_handler: {}",
-        stats.control_scoped_dynamic_call_sites_under_handler
-    );
-    eprintln!(
-        "  run.control_scoped_known_thunk_force_sites: {}",
-        stats.control_scoped_known_thunk_force_sites
-    );
-    eprintln!(
-        "  run.control_scoped_dynamic_force_sites: {}",
-        stats.control_scoped_dynamic_force_sites
-    );
-    eprintln!(
-        "  run.control_scoped_dynamic_force_sites_under_handler: {}",
-        stats.control_scoped_dynamic_force_sites_under_handler
-    );
-    eprintln!(
-        "  run.control_scoped_callback_boundaries: {}",
-        stats.control_scoped_callback_boundaries
-    );
-    eprintln!(
-        "  run.control_scoped_delayed_boundaries: {}",
-        stats.control_scoped_delayed_boundaries
-    );
-    eprintln!(
-        "  run.control_scoped_max_handler_depth: {}",
-        stats.control_scoped_max_handler_depth
-    );
-    eprintln!(
-        "  run.control_scoped_missing_instance_refs: {}",
-        stats.control_scoped_missing_instance_refs
-    );
-    eprintln!(
-        "  run.control_scoped_cycle_instance_refs: {}",
-        stats.control_scoped_cycle_instance_refs
-    );
-    eprintln!(
-        "  run.control_scoped_missing_expr_refs: {}",
-        stats.control_scoped_missing_expr_refs
-    );
-    eprintln!(
-        "  run.control_scoped_cycle_expr_refs: {}",
-        stats.control_scoped_cycle_expr_refs
-    );
-    eprintln!("  run.expr_evals: {}", stats.expr_evals);
-    eprintln!("  run.expr_clones: {}", stats.expr_clones);
-    eprintln!("  run.env_lookups: {}", stats.env_lookups);
-    eprintln!("  run.env_lookup_hits: {}", stats.env_lookup_hits);
-    eprintln!("  run.env_lookup_misses: {}", stats.env_lookup_misses);
-    eprintln!("  run.env_lookup_steps: {}", stats.env_lookup_steps);
-    eprintln!("  run.env_inserts: {}", stats.env_inserts);
-    eprintln!("  run.env_cow_clones: {}", stats.env_cow_clones);
-    eprintln!(
-        "  run.env_cow_entries_copied: {}",
-        stats.env_cow_entries_copied
-    );
-    eprintln!("  run.env_max_size: {}", stats.env_max_size);
-    eprintln!("  run.apply_value: {}", stats.apply_value_calls);
-    eprintln!("  run.apply_marked: {}", stats.apply_marked_calls);
-    eprintln!("  run.apply_primitive: {}", stats.apply_primitive_calls);
-    eprintln!("  run.apply_constructor: {}", stats.apply_constructor_calls);
-    eprintln!("  run.apply_closure: {}", stats.apply_closure_calls);
-    eprintln!(
-        "  run.apply_recursive_closure: {}",
-        stats.apply_recursive_closure_calls
-    );
-    eprintln!("  run.apply_adapter: {}", stats.apply_adapter_calls);
-    eprintln!(
-        "  run.apply_forced_thunk: {}",
-        stats.apply_forced_thunk_calls
-    );
-    eprintln!("  run.apply_effect_op: {}", stats.apply_effect_op_calls);
-    eprintln!(
-        "  run.apply_continuation: {}",
-        stats.apply_continuation_calls
-    );
-    eprintln!(
-        "  run.primitive_zero_arity: {}",
-        stats.primitive_zero_arity_calls
-    );
-    eprintln!("  run.primitive_apply: {}", stats.primitive_apply_calls);
-    eprintln!("  run.primitive_partial: {}", stats.primitive_apply_partial);
-    eprintln!(
-        "  run.primitive_complete: {}",
-        stats.primitive_apply_complete
-    );
-    eprintln!("  run.force_thunk: {}", stats.force_thunk_calls);
-    eprintln!("  run.force_marked: {}", stats.force_marked_calls);
-    eprintln!("  run.force_expr: {}", stats.force_expr_calls);
-    eprintln!("  run.force_value: {}", stats.force_value_calls);
-    eprintln!("  run.force_effect: {}", stats.force_effect_calls);
-    eprintln!(
-        "  run.force_continuation: {}",
-        stats.force_continuation_calls
-    );
-    eprintln!("  run.force_adapter: {}", stats.force_adapter_calls);
-    eprintln!("  run.effect_requests: {}", stats.effect_requests);
-    eprintln!("  run.host_requests: {}", stats.host_requests);
-    eprintln!("  run.catch_matches: {}", stats.catch_request_matches);
-    eprintln!("  run.marked_value_calls: {}", stats.marked_value_calls);
-    eprintln!(
-        "  run.marked_values_created: {}",
-        stats.marked_values_created
-    );
-    eprintln!("  run.marked_values_reused: {}", stats.marked_values_reused);
-    eprintln!(
-        "  run.marked_values_skipped_empty: {}",
-        stats.marked_values_skipped_empty
-    );
-    eprintln!(
-        "  run.marked_values_skipped_pure: {}",
-        stats.marked_values_skipped_pure
-    );
-    eprintln!("  run.continuations: {}", stats.continuations_stored);
-    eprintln!(
-        "  run.continuation_invocations: {}",
-        stats.continuation_invocations
-    );
-    eprintln!(
-        "  run.continuation_capture_clones: {}",
-        stats.continuation_capture_clones
-    );
-    eprintln!(
-        "  run.continuation_invoke_clones: {}",
-        stats.continuation_invoke_clones
-    );
-    eprintln!(
-        "  run.continuation_frames_observed: {}",
-        stats.continuation_frames_observed
-    );
-    eprintln!(
-        "  run.continuation_marker_scopes_observed: {}",
-        stats.continuation_marker_scopes_observed
-    );
-    eprintln!(
-        "  run.continuation_frames_cloned: {}",
-        stats.continuation_frames_cloned
-    );
-    eprintln!(
-        "  run.continuation_marker_scopes_cloned: {}",
-        stats.continuation_marker_scopes_cloned
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_clones: {}",
-        stats.shared_frame_unwrap_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_apply_clones: {}",
-        stats.shared_frame_unwrap_apply_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_direct_clones: {}",
-        stats.shared_frame_unwrap_direct_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_data_clones: {}",
-        stats.shared_frame_unwrap_data_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_case_clones: {}",
-        stats.shared_frame_unwrap_case_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_catch_clones: {}",
-        stats.shared_frame_unwrap_catch_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_block_clones: {}",
-        stats.shared_frame_unwrap_block_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_bind_clones: {}",
-        stats.shared_frame_unwrap_bind_clones
-    );
-    eprintln!(
-        "  run.shared_frame_unwrap_refset_clones: {}",
-        stats.shared_frame_unwrap_refset_clones
-    );
-    eprintln!("  run.frame_allocs: {}", stats.frame_allocs);
-    eprintln!(
-        "  run.max_continuation_frames: {}",
-        stats.max_continuation_frames
-    );
-    eprintln!("  run.request_resume_steps: {}", stats.request_resume_steps);
-    eprintln!("  run.continue_value: {}", stats.continue_with_values);
-    eprintln!("  run.continue_request: {}", stats.continue_with_requests);
-    eprintln!("  run.continue_bind_value: {}", stats.continue_bind_values);
-    eprintln!(
-        "  run.continue_bind_request: {}",
-        stats.continue_bind_requests
-    );
-    eprintln!(
-        "  run.continue_bind_result_value: {}",
-        stats.continue_bind_result_values
-    );
-    eprintln!(
-        "  run.continue_bind_result_request: {}",
-        stats.continue_bind_result_requests
-    );
-    eprintln!(
-        "  run.continue_value_bind_value: {}",
-        stats.continue_value_bind_values
-    );
-    eprintln!(
-        "  run.continue_value_bind_request: {}",
-        stats.continue_value_bind_requests
-    );
-    eprintln!("  run.marker_frame_calls: {}", stats.marker_frame_calls);
-    eprintln!("  run.marker_frame_empty: {}", stats.marker_frame_empty);
-    eprintln!("  run.marker_frame_pushes: {}", stats.marker_frame_pushes);
-    eprintln!(
-        "  run.marker_frame_marker_entries: {}",
-        stats.marker_frame_marker_entries
-    );
-    eprintln!(
-        "  run.marker_frame_frame_entries: {}",
-        stats.marker_frame_frame_entries
-    );
-    eprintln!(
-        "  run.marker_frame_add_id_entries: {}",
-        stats.marker_frame_add_id_entries
-    );
-    eprintln!(
-        "  run.marker_frame_active_add_id_entries: {}",
-        stats.marker_frame_active_add_id_entries
-    );
-    eprintln!("  run.marker_plan_pushes: {}", stats.marker_plan_pushes);
-    eprintln!(
-        "  run.marker_plan_reused_parent: {}",
-        stats.marker_plan_reused_parent
-    );
-    eprintln!(
-        "  run.marker_frame_value_closes: {}",
-        stats.marker_frame_value_closes
-    );
-    eprintln!(
-        "  run.marker_frame_request_closes: {}",
-        stats.marker_frame_request_closes
-    );
-    eprintln!(
-        "  run.marker_frame_resume_steps: {}",
-        stats.marker_frame_resume_steps
-    );
-    eprintln!(
-        "  run.marker_scope_frame_touches: {}",
-        stats.marker_scope_frame_touches
-    );
-    eprintln!(
-        "  run.marker_scope_consume_calls: {}",
-        stats.marker_scope_consume_calls
-    );
-    eprintln!(
-        "  run.marker_scope_consume_nonempty_calls: {}",
-        stats.marker_scope_consume_nonempty_calls
-    );
-    eprintln!(
-        "  run.marker_scope_consume_touches: {}",
-        stats.marker_scope_consume_touches
-    );
-    eprintln!(
-        "  run.marker_scope_close_calls: {}",
-        stats.marker_scope_close_calls
-    );
-    eprintln!(
-        "  run.marker_scope_close_pops: {}",
-        stats.marker_scope_close_pops
-    );
-    eprintln!(
-        "  run.marker_scope_request_closes: {}",
-        stats.marker_scope_request_closes
-    );
-    eprintln!(
-        "  run.marker_scope_extend_touches: {}",
-        stats.marker_scope_extend_touches
-    );
-    eprintln!(
-        "  run.marker_scope_request_close_touches: {}",
-        stats.marker_scope_request_close_touches
-    );
-    eprintln!(
-        "  run.marker_scope_max_depth: {}",
-        stats.marker_scope_max_depth
-    );
-    eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
-    eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);
-    eprintln!("  run.instance_misses: {}", stats.instance_cache_misses);
-    eprintln!("  run.path_prefix_checks: {}", stats.path_prefix_checks);
-    eprintln!("  run.path_prefix_segments: {}", stats.path_prefix_segments);
-    eprintln!("  run.path_eq_checks: {}", stats.path_eq_checks);
-    eprintln!("  run.path_eq_segments: {}", stats.path_eq_segments);
-    eprintln!("  run.active_add_scans: {}", stats.active_add_id_scans);
-    eprintln!(
-        "  run.active_add_path_candidates: {}",
-        stats.active_add_id_path_candidates
-    );
-    eprintln!(
-        "  run.active_add_skipped_own_path: {}",
-        stats.active_add_id_skipped_own_path
-    );
-    eprintln!(
-        "  run.active_add_skipped_foreign_path: {}",
-        stats.active_add_id_skipped_foreign_path
-    );
-    eprintln!(
-        "  run.active_add_skipped_disabled_path: {}",
-        stats.active_add_id_skipped_disabled_path
-    );
-    eprintln!(
-        "  run.active_add_skipped_entry_except: {}",
-        stats.active_add_id_skipped_entry_except
-    );
-    eprintln!(
-        "  run.active_add_skipped_carried_duplicate: {}",
-        stats.active_add_id_skipped_carried_duplicate
-    );
-    eprintln!(
-        "  run.active_add_applied_direct: {}",
-        stats.active_add_id_applied_direct
-    );
-    eprintln!(
-        "  run.active_add_applied_carried: {}",
-        stats.active_add_id_applied_carried
-    );
-    eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
-    eprintln!(
-        "  run.scope_state_shadow_checks: {}",
-        stats.scope_state_shadow_checks
-    );
-    eprintln!(
-        "  run.scope_state_shadow_active_add_markers: {}",
-        stats.scope_state_shadow_active_add_markers
-    );
-    eprintln!(
-        "  run.scope_state_shadow_path_candidates: {}",
-        stats.scope_state_shadow_path_candidates
-    );
-    eprintln!(
-        "  run.scope_state_shadow_all_path_candidates: {}",
-        stats.scope_state_shadow_all_path_candidates
-    );
-    eprintln!(
-        "  run.scope_state_shadow_own_path_candidates: {}",
-        stats.scope_state_shadow_own_path_candidates
-    );
-    eprintln!(
-        "  run.scope_state_shadow_foreign_path_candidates: {}",
-        stats.scope_state_shadow_foreign_path_candidates
-    );
 }
 
 fn print_runtime_evidence_phase_timings(
@@ -3072,7 +2527,7 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
 
 fn print_cache_stats(root: &PathBuf) -> io::Result<()> {
     println!("cache: {}", root.display());
-    for stage in ["control-vm", "mono", "poly", "compiled-unit"] {
+    for stage in ["control-ir", "mono", "poly", "compiled-unit"] {
         println!("{stage}: {}", cache_stage_file_count(root, stage)?);
     }
     println!("realm-resolution: {}", realm_resolution_file_count(root)?);
@@ -3402,29 +2857,6 @@ fn run_runtime_evidence_run(
 
     runtime_evidence_debug::print_run_report(&summary, &output, &timings, &build_timings);
 
-    if args.compare_control {
-        let control = run_built_control_for_cli(build);
-        if !control.errors.is_empty() {
-            for error in &control.errors {
-                eprintln!("error: {error}");
-            }
-            process::exit(1);
-        }
-        if output.stdout != control.stdout {
-            eprintln!("{debug_command} compare-control stdout mismatch");
-            eprintln!("expected stdout:\n{}", control.stdout);
-            eprintln!("actual stdout:\n{}", output.stdout);
-            process::exit(1);
-        }
-        if roots_text != control.text {
-            eprintln!("{debug_command} compare-control mismatch");
-            eprintln!("expected:\n{}", control.text);
-            eprintln!("actual:\n{roots_text}");
-            process::exit(1);
-        }
-        println!("  compare.control: match");
-    }
-
     print!("{}", output.stdout);
     print!("{roots_text}");
 }
@@ -3435,12 +2867,10 @@ fn parse_runtime_evidence_run_args(
     mut args: VecDeque<OsString>,
 ) -> RuntimeEvidenceRunArgs {
     let mut path = None;
-    let mut compare_control = false;
     let mut runtime_evidence_profile_deep = false;
 
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
-            Some("--compare-control") => compare_control = true,
             Some("--runtime-evidence-profile-deep") => runtime_evidence_profile_deep = true,
             Some(value) if value.starts_with("--") => {
                 print_usage_error_and_exit(
@@ -3465,7 +2895,6 @@ fn parse_runtime_evidence_run_args(
     };
     RuntimeEvidenceRunArgs {
         path,
-        compare_control,
         runtime_evidence_profile_deep,
     }
 }
@@ -3476,8 +2905,6 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
     };
     match op.to_str() {
         Some("host-act-manifest") => run_host_act_manifest(program, options, args),
-        Some("control-vm") => run_compatible_run(program, options, args),
-        Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
         Some("runtime-evidence-run") => {
             run_runtime_evidence_run(program, "runtime-evidence-run", options, args)
@@ -3490,20 +2917,6 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
             let files = collect_control_sources_or_exit(&path, options);
             let output = dump_evidence_vm_plan_with_optional_cache(files, options.use_cache);
             print_dump_mono_output(&output);
-        }
-        Some("control-vm-load") => {
-            let (path, selection) = parse_run_path_args(program, args);
-            if selection.backend == RunBackend::Mono {
-                print_usage_error_and_exit(
-                    program,
-                    "debug control-vm-load does not take --interpreter",
-                );
-            }
-            let Some(artifact) = read_control_artifact_or_exit(&path) else {
-                eprintln!("{} is not a yulang control-vm artifact", path.display());
-                process::exit(1);
-            };
-            run_control_artifact(artifact, selection.print_roots);
         }
         _ => print_usage_and_exit(program),
     }

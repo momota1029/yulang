@@ -28,11 +28,10 @@ print_profile() {
   local source="$1"
   printf '## %s\n' "$source"
   run_timeout "$bin" --std-root "$std_root" "${cache_args[@]}" debug evidence-vm-run \
-    --compare-control \
     --runtime-evidence-profile-deep \
     "$repo_root/$source" \
     | grep -E \
-      '^(  compare\.control:|  evidence\.static_route_|  runtime_evidence\.static_route_runtime_hits_|run roots)'
+      '^(  evidence\.static_route_|  runtime_evidence\.static_route_runtime_hits_|run roots)'
   printf '\n'
 }
 

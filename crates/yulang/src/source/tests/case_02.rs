@@ -241,7 +241,7 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     assert_eq!(output.file_count, 4);
     let build = build_control_from_poly_output(&output).unwrap();
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [7]\n");
 }
@@ -298,7 +298,7 @@ fn build_poly_from_non_root_source_unit_prefix_lowers_source_suffix() {
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     assert_eq!(output.file_count, 3);
     let build = build_control_from_poly_output(&output).unwrap();
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [7]\n");
 }
@@ -483,9 +483,9 @@ fn source_unit_lowering_source_files_synthesize_parent_modules() {
 
 #[cfg(unix)]
 #[test]
-fn run_control_with_std_specializes_attached_role_impl_methods() {
+fn run_evidence_with_std_specializes_attached_role_impl_methods() {
     let entry = write_main_with_std(
-        "run-control-std-attached-role-impl-methods",
+        "run-evidence-std-attached-role-impl-methods",
         "role Pick 'container 'key:\n\
              \x20 type value\n\
              \x20 our container.pick: 'key -> value\n\
@@ -504,7 +504,7 @@ fn run_control_with_std_specializes_attached_role_impl_methods() {
              (p.pick 0, p.pick true)\n",
     );
 
-    let output = run_control_from_entry_with_std(entry).unwrap();
+    let output = run_evidence_from_entry_with_std(entry).unwrap();
 
     assert_eq!(output.text, "run roots [(10, false)]\n");
     assert_eq!(output.errors, Vec::<String>::new());
@@ -833,29 +833,29 @@ fn collect_source_text_with_embedded_std_imports_prelude_ops_before_root_parse()
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_arithmetic() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_arithmetic() {
     let build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", "1 + 2\n")
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [3]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_mixed_numeric_add() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_mixed_numeric_add() {
     let build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", "1 + 1.2\n")
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [2.2]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_formats_frac_roots() {
+fn run_evidence_source_text_with_embedded_playground_std_formats_frac_roots() {
     let source = "\
 std::num::frac::new 3 2
 std::num::frac::new 4 2
@@ -864,13 +864,13 @@ std::num::frac::new 4 2
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [3/2, 2]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_struct_method_example() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_struct_method_example() {
     let source = "\
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
@@ -881,13 +881,13 @@ point { x: 3, y: 4 } .norm2 + 1.12
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [26.12]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_local_change_example() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_local_change_example() {
     let source = "\
 {
     my $total = 0
@@ -900,31 +900,31 @@ fn run_control_source_text_with_embedded_playground_std_runs_local_change_exampl
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [15]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_list_update_example() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_list_update_example() {
     let source = yulang_fixture("regressions/runtime/list_update.yu");
     let build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", &source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [[2, 6, 4]]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_junction_prelude_example() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_junction_prelude_example() {
     let source = "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n";
     let build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [1]\n");
 }
@@ -937,20 +937,20 @@ fn typed_playground_std_prefix_matches_loaded_route_for_list_update() {
     let loaded_poly = build_poly_from_loaded_files(loaded).unwrap();
     let loaded_build = build_control_from_poly_output(&loaded_poly).unwrap();
     assert!(loaded_build.errors.is_empty(), "{:?}", loaded_build.errors);
-    let loaded_output = run_built_control_on_vm_test_stack(loaded_build);
+    let loaded_output = run_built_evidence_on_vm_test_stack(loaded_build);
 
     let cached_build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", &source)
             .unwrap();
     assert!(cached_build.errors.is_empty(), "{:?}", cached_build.errors);
-    let cached_output = run_built_control_on_vm_test_stack(cached_build);
+    let cached_output = run_built_evidence_on_vm_test_stack(cached_build);
 
     assert_eq!(cached_output.0, loaded_output.0);
     assert_eq!(cached_output.1, loaded_output.1);
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_sub_return_example() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_sub_return_example() {
     let source = "\
 my first_over limit = sub:
     for x in 0..: if x * x > limit: return x
@@ -962,13 +962,13 @@ first_over 40
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [7]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_nondet_range_guard() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_nondet_range_guard() {
     let source = "\
 {
     my a = each 1..15
@@ -982,7 +982,7 @@ fn run_control_source_text_with_embedded_playground_std_runs_nondet_range_guard(
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -991,7 +991,7 @@ fn run_control_source_text_with_embedded_playground_std_runs_nondet_range_guard(
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_nondet_once_range() {
+fn run_evidence_source_text_with_embedded_playground_std_runs_nondet_once_range() {
     let source = "\
 {
     my a = each 1..
@@ -1007,13 +1007,13 @@ fn run_control_source_text_with_embedded_playground_std_runs_nondet_once_range()
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [opt::just((3, 4, 5))]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_replaces_strings() {
+fn run_evidence_source_text_with_embedded_playground_std_replaces_strings() {
     let build = build_control_from_source_text_with_embedded_playground_std(
         "playground.yu",
         r#"("a-b-a".replace_once "a" "x", "a-b-a".replace "a" "x")"#,
@@ -1021,15 +1021,15 @@ fn run_control_source_text_with_embedded_playground_std_replaces_strings() {
     .unwrap();
     assert!(build.file_count < embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [(\"x-b-a\", \"x-b-x\")]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_root_expression() {
+fn run_evidence_source_text_with_embedded_std_runs_root_expression() {
     let output =
-        run_control_from_source_text_with_embedded_std("playground.yu", "1 + 2\n").unwrap();
+        run_evidence_from_source_text_with_embedded_std("playground.yu", "1 + 2\n").unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [3]\n");
@@ -1058,7 +1058,7 @@ fn embedded_std_compiled_unit_artifact_persists_to_user_cache() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
+fn run_evidence_source_text_with_embedded_std_runs_parse_word_to_end() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "use std::text::parse::*\n(run_str(\"abc\", 1, 1, word()), run_str(\"abc!\", 1, 1, word()))\n",
@@ -1066,7 +1066,7 @@ fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1075,7 +1075,7 @@ fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_user_error_fail_wrap() {
+fn run_evidence_source_text_with_embedded_std_runs_user_error_fail_wrap() {
     let source = "\
 error small_err:
   nope int
@@ -1086,7 +1086,7 @@ my boom n = fail (small_err::nope n)
 ";
     let build = build_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1095,7 +1095,7 @@ my boom n = fail (small_err::nope n)
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_replaces_strings() {
+fn run_evidence_source_text_with_embedded_std_replaces_strings() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1110,7 +1110,7 @@ fn run_control_source_text_with_embedded_std_replaces_strings() {
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1142,7 +1142,7 @@ my &doc = std::io::file::text path
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_resolves_value_lines_each_replace_once_chain() {
+fn run_evidence_source_text_with_embedded_std_resolves_value_lines_each_replace_once_chain() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         r#"
@@ -1159,7 +1159,7 @@ todo: two"
     )
     .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1168,7 +1168,7 @@ todo: two"
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_edits_parse_matches() {
+fn run_evidence_source_text_with_embedded_std_edits_parse_matches() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1188,13 +1188,13 @@ template
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [\"hello Yulang from world!\"]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_replaces_plain_rule_literals() {
+fn run_evidence_source_text_with_embedded_std_replaces_plain_rule_literals() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1206,13 +1206,13 @@ replace(\"hello hello\", ~\"hello\", \"hi\")
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [\"hi hi\"]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_edits_capture_rule_literals() {
+fn run_evidence_source_text_with_embedded_std_edits_capture_rule_literals() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1224,13 +1224,13 @@ edit(\"users/alice/posts users/bob/posts\", ~\"users/:name/posts\", \\{name} -> 
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [\"alice bob\"]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_edits_capture_rule_literal_once() {
+fn run_evidence_source_text_with_embedded_std_edits_capture_rule_literal_once() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1242,7 +1242,7 @@ edit_once(\"port = 3000\\nport = 4000\", ~\"port = :value\", \\{value} -> \"port
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [\"port = 8080\\nport = 4000\"]\n");
 }
@@ -1269,7 +1269,7 @@ edit(\"users/alice/posts users/bob/posts\", ~\"users/:name/posts\", \\{name} -> 
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_sequences_word_with_suffix() {
+fn run_evidence_source_text_with_embedded_std_sequences_word_with_suffix() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1287,13 +1287,13 @@ run_str(\"users/alice/posts\", 1, 1, route())
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [result::ok(\"alice\")]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_choice_recovers_from_parse_fail() {
+fn run_evidence_source_text_with_embedded_std_choice_recovers_from_parse_fail() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1307,13 +1307,13 @@ run_str(\"abc\", 1, 1, choice(\\() -> fail_now(), \\() -> \"fallback\", ()))
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(output.0, "run roots [result::ok(\"fallback\")]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_repeats_parser_until_delimiter() {
+fn run_evidence_source_text_with_embedded_std_repeats_parser_until_delimiter() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1329,7 +1329,7 @@ use std::text::parse::*
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1338,7 +1338,7 @@ use std::text::parse::*
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_repeats_parser_until_eof() {
+fn run_evidence_source_text_with_embedded_std_repeats_parser_until_eof() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1353,7 +1353,7 @@ use std::text::parse::*
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1362,7 +1362,7 @@ use std::text::parse::*
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_matches_rule_literals_in_case() {
+fn run_evidence_source_text_with_embedded_std_matches_rule_literals_in_case() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1394,7 +1394,7 @@ my literal_leftover = case \"hello!\":
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1403,7 +1403,7 @@ my literal_leftover = case \"hello!\":
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_matches_rule_exprs_in_case() {
+fn run_evidence_source_text_with_embedded_std_matches_rule_exprs_in_case() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -1447,7 +1447,7 @@ my alt_after_partial = case \"users/bob/comments\":
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_on_vm_test_stack(build);
+    let output = run_built_evidence_on_vm_test_stack(build);
 
     assert_eq!(
         output.0,
@@ -1458,19 +1458,19 @@ my alt_after_partial = case \"users/bob/comments\":
 #[cfg(unix)]
 #[test]
 fn run_with_std_formats_frac_roots() {
-    let (mono, control) = run_with_std_main(
+    let (mono, evidence) = run_with_std_main(
         "run-std-frac-roots",
         "std::num::frac::new 3 2\nstd::num::frac::new 4 2\n",
     );
 
     assert_eq!(mono.text, "run roots [3/2, 2]\n");
-    assert_eq!(control.text, "run roots [3/2, 2]\n");
+    assert_eq!(evidence.text, "run roots [3/2, 2]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_imports_prelude_reexports() {
+fn run_evidence_source_text_with_embedded_std_imports_prelude_reexports() {
     let output =
-        run_control_from_source_text_with_embedded_std("playground.yu", "each(1..3).list\n")
+        run_evidence_from_source_text_with_embedded_std("playground.yu", "each(1..3).list\n")
             .unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
@@ -1478,9 +1478,9 @@ fn run_control_source_text_with_embedded_std_imports_prelude_reexports() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_junction_tour_example() {
+fn run_evidence_source_text_with_embedded_std_runs_junction_tour_example() {
     let output = run_with_vm_test_stack(|| {
-        let output = run_control_from_source_text_with_embedded_std(
+        let output = run_evidence_from_source_text_with_embedded_std(
             "playground.yu",
             "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
         )
@@ -1493,9 +1493,9 @@ fn run_control_source_text_with_embedded_std_runs_junction_tour_example() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_keeps_std_instances_unmarked_between_roots() {
+fn run_evidence_source_text_with_embedded_std_keeps_std_instances_unmarked_between_roots() {
     let output = run_with_vm_test_stack(|| {
-        let output = run_control_from_source_text_with_embedded_std(
+        let output = run_evidence_from_source_text_with_embedded_std(
             "playground.yu",
             "{\n  my a = each 1..3\n  a\n}.list\nif all [1, 2, 3] < any [3, 4, 5]:\n  1\nelse:\n  0\n",
         )
@@ -1508,8 +1508,8 @@ fn run_control_source_text_with_embedded_std_keeps_std_instances_unmarked_betwee
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_forces_effectful_block_let() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_forces_effectful_block_let() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "{\n  my a = each 1..3\n  (a, 1)\n}.list\n",
     )
@@ -1520,9 +1520,9 @@ fn run_control_source_text_with_embedded_std_forces_effectful_block_let() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_nondet_triples() {
+fn run_evidence_source_text_with_embedded_std_runs_nondet_triples() {
     let output = run_with_vm_test_stack(|| {
-        let output = run_control_from_source_text_with_embedded_std(
+        let output = run_evidence_from_source_text_with_embedded_std(
             "playground.yu",
             "{\n  my a = each 1..15\n  my b = each a..15\n  my c = each b..15\n  guard: a * a + b * b == c * c\n  (a, b, c)\n}.list\n",
         )
@@ -1538,9 +1538,9 @@ fn run_control_source_text_with_embedded_std_runs_nondet_triples() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
+fn run_evidence_source_text_with_embedded_std_runs_nondet_once_triple() {
     let output = run_with_vm_test_stack(|| {
-        let output = run_control_from_source_text_with_embedded_std(
+        let output = run_evidence_from_source_text_with_embedded_std(
             "playground.yu",
             "({\n  my a = each 1..\n  my b = each a<..\n  my c = each b<..\n  guard: a * a + b * b == c * c\n  (a, b, c)\n} .once).show\n",
         )
@@ -1808,16 +1808,16 @@ fn dump_poly_public_contract_spine_modules_hide_private_stack_evidence() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
+fn run_evidence_source_text_with_embedded_std_runs_poly_variant_list() {
     let output =
-        run_control_from_source_text_with_embedded_std("playground.yu", "[:a, :b]\n").unwrap();
+        run_evidence_from_source_text_with_embedded_std("playground.yu", "[:a, :b]\n").unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [[a, b]]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_indexes_strings_by_grapheme_cluster() {
+fn run_evidence_source_text_with_embedded_std_indexes_strings_by_grapheme_cluster() {
     let source = "\
 my s = \"e\u{301}🇯🇵👨‍👩‍👧‍👦!\"
 (
@@ -1827,7 +1827,7 @@ my s = \"e\u{301}🇯🇵👨‍👩‍👧‍👦!\"
     std::text::str::splice_raw s 1 3 \"X\"
 )
 ";
-    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+    let output = run_evidence_from_source_text_with_embedded_std("playground.yu", source).unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(
@@ -1837,7 +1837,7 @@ my s = \"e\u{301}🇯🇵👨‍👩‍👧‍👦!\"
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_indexes_string_lines_by_range() {
+fn run_evidence_source_text_with_embedded_std_indexes_string_lines_by_range() {
     let source = "\
 my s = \"a👨‍👩‍👧‍👦\\nβ\\n\"
 (
@@ -1845,14 +1845,14 @@ my s = \"a👨‍👩‍👧‍👦\\nβ\\n\"
     std::text::str::index_range s (std::text::str::line_range s 1)
 )
 ";
-    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+    let output = run_evidence_from_source_text_with_embedded_std("playground.yu", source).unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [(3, \"β\\n\")]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_roundtrips_string_bytes() {
+fn run_evidence_source_text_with_embedded_std_roundtrips_string_bytes() {
     let source = "\
 my b = std::text::str::to_bytes \"hé\"
 my e = std::text::str::to_bytes \"é\"
@@ -1865,15 +1865,15 @@ my slice = std::text::bytes::index_range b (std::data::range::range 1 3)
     std::text::bytes::to_utf8_lossy (std::text::bytes::concat (std::text::str::to_bytes \"h\") e)
 )
 ";
-    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+    let output = run_evidence_from_source_text_with_embedded_std("playground.yu", source).unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [(3, 104, \"é\", true, \"hé\")]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_reuses_record_default_function() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_reuses_record_default_function() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "my f({x = 1}) = x\n[f {}, f {x: 2}]\n",
     )
@@ -1884,35 +1884,35 @@ fn run_control_source_text_with_embedded_std_reuses_record_default_function() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_record_default_accepts_float_field() {
+fn run_evidence_source_text_with_embedded_std_record_default_accepts_float_field() {
     let source = "\
 our box {width = 1, height = width} =
     width * height
 
 box {width: 1.2}
 ";
-    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+    let output = run_evidence_from_source_text_with_embedded_std("playground.yu", source).unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [1.44]\n");
 }
 
 #[test]
-fn run_control_fixture_lowers_sub_syntax_return() {
+fn run_evidence_fixture_lowers_sub_syntax_return() {
     let entry = write_source_with_fake_std(
-        "run-control-sub-syntax-return",
+        "run-evidence-sub-syntax-return",
         "support/fake_std/control_flow_io.yu",
         "sub:\n  return 1\n",
     );
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [1]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_lowers_labeled_sub_syntax_return() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_lowers_labeled_sub_syntax_return() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "my x = sub 'outer:\n  'outer.return 1\nx\n",
     )
@@ -1923,8 +1923,8 @@ fn run_control_source_text_with_embedded_std_lowers_labeled_sub_syntax_return() 
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_lowers_root_labeled_sub_syntax_return() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_lowers_root_labeled_sub_syntax_return() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "sub 'outer:\n  'outer.return 1\n",
     )
@@ -1935,21 +1935,21 @@ fn run_control_source_text_with_embedded_std_lowers_root_labeled_sub_syntax_retu
 }
 
 #[test]
-fn run_control_fixture_lowers_sub_lambda_return() {
+fn run_evidence_fixture_lowers_sub_lambda_return() {
     let entry = write_source_with_fake_std(
-        "run-control-sub-lambda-return",
+        "run-evidence-sub-lambda-return",
         "support/fake_std/control_flow_io.yu",
         "my f = \\sub x -> return x\nf 7\n",
     );
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [7]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_lowers_labeled_sub_lambda_return() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_lowers_labeled_sub_lambda_return() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "my f = \\sub 'out x -> 'out.return x\nf 7\n",
     )
@@ -1960,8 +1960,8 @@ fn run_control_source_text_with_embedded_std_lowers_labeled_sub_lambda_return() 
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_labeled_sub_lambda_handles_inner_return() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_labeled_sub_lambda_handles_inner_return() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "sub 'outer:\n  my f = \\sub 'inner x -> 'inner.return x\n  f 7\n",
     )
@@ -1972,8 +1972,8 @@ fn run_control_source_text_with_embedded_std_labeled_sub_lambda_handles_inner_re
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_labeled_sub_lambda_lets_outer_return_escape() {
-    let output = run_control_from_source_text_with_embedded_std(
+fn run_evidence_source_text_with_embedded_std_labeled_sub_lambda_lets_outer_return_escape() {
+    let output = run_evidence_from_source_text_with_embedded_std(
         "playground.yu",
         "sub 'outer:\n  my f = \\sub 'inner x -> 'outer.return x\n  f 7\n  'outer.return 1\n",
     )
@@ -1984,35 +1984,35 @@ fn run_control_source_text_with_embedded_std_labeled_sub_lambda_lets_outer_retur
 }
 
 #[test]
-fn run_control_fixture_keeps_sub_syntax_hygiene() {
+fn run_evidence_fixture_keeps_sub_syntax_hygiene() {
     let entry = write_source_with_fake_std(
-        "run-control-sub-syntax-hygiene",
+        "run-evidence-sub-syntax-hygiene",
         "support/fake_std/control_flow_io.yu",
         "our g h = sub:\n  h 0\n  return 1\n\nsub:\n  g \\i -> return i\n  return 2\n",
     );
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [0]\n");
 }
 
 #[test]
-fn run_control_fixture_keeps_sub_return_through_for_callback_if() {
+fn run_evidence_fixture_keeps_sub_return_through_for_callback_if() {
     let entry = write_fixture_with_fake_std(
-        "run-control-sub-return-through-for-callback",
+        "run-evidence-sub-return-through-for-callback",
         "support/fake_std/control_flow_io.yu",
         "regressions/effect/sub_return_through_for_callback.yu",
     );
-    let output = run_control_from_entry(entry).unwrap();
+    let output = run_evidence_from_entry(entry).unwrap();
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [0]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_keeps_repeated_callback_hygiene() {
+fn run_evidence_source_text_with_embedded_std_keeps_repeated_callback_hygiene() {
     let output = run_with_vm_test_stack(|| {
-        let output = run_control_from_source_text_with_embedded_std(
+        let output = run_evidence_from_source_text_with_embedded_std(
             "playground.yu",
             "pub act tick:\n\
              \x20 pub ping: () -> ()\n\
@@ -3485,7 +3485,7 @@ fn current_realm_entry_band_alias_resolves_to_root_module() {
     )
     .unwrap();
 
-    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+    let output = run_evidence_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.text, "run roots [7]\n");
 }
@@ -3502,7 +3502,7 @@ fn current_band_use_in_entry_band_resolves_from_root_module() {
     .unwrap();
     fs::write(root.join("main").join("inner.yu"), "our value = 9\n").unwrap();
 
-    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+    let output = run_evidence_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.text, "run roots [9]\n");
 }
@@ -3615,7 +3615,7 @@ version = "1.0.0"
     let (output, files) = crate::stdlib::with_test_user_lib_root(&lib_root, || {
         install_local_realm(&realm_root, None).unwrap();
         (
-            run_control_from_entry(&main_path).unwrap(),
+            run_evidence_from_entry(&main_path).unwrap(),
             collect_local_sources(&main_path).unwrap(),
         )
     });
@@ -3833,7 +3833,7 @@ fn current_realm_cross_band_cycle_is_rejected() {
 }
 
 #[test]
-fn run_control_rejects_lowering_errors_in_current_realm_dependency() {
+fn run_evidence_rejects_lowering_errors_in_current_realm_dependency() {
     let root = temp_root("realm-use-dependency-lowering-error");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("helper")).unwrap();
@@ -3845,7 +3845,7 @@ fn run_control_rejects_lowering_errors_in_current_realm_dependency() {
     .unwrap();
     fs::write(root.join("helper").join("inner.yu"), "our bonus = 2\n").unwrap();
 
-    let err = run_control_from_entry(root.join("main.yu")).unwrap_err();
+    let err = run_evidence_from_entry(root.join("main.yu")).unwrap_err();
 
     assert!(matches!(
         err,

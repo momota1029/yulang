@@ -79,7 +79,7 @@ impl ArtifactCache {
     }
 
     pub fn control_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
-        self.artifact_dir("control-vm")
+        self.artifact_dir("control-ir")
             .join(format!("{}.yuvm", key.to_hex()))
     }
 

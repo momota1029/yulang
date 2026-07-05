@@ -350,7 +350,7 @@ fn validate_contract_case_tags(path: &Path, case: &ContractCase) {
 fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
     let backend = case.backend.as_deref().unwrap_or("evidence-vm");
     match backend {
-        "evidence-vm" | "control-vm" | "interpreter" => {}
+        "evidence-vm" | "interpreter" => {}
         other => contract_manifest_fail(
             path,
             &format!(
@@ -379,7 +379,6 @@ fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
     }
     for (tag, expected) in [
         ("backend.evidence-vm", "evidence-vm"),
-        ("backend.control-vm", "control-vm"),
         ("backend.interpreter", "interpreter"),
     ] {
         if contract_case_has_tag(case, tag) && backend != expected {
@@ -391,15 +390,6 @@ fn validate_contract_case_backend(path: &Path, case: &ContractCase) {
                 ),
             );
         }
-    }
-    if backend == "control-vm" && !contract_case_has_tag(case, "backend.control-vm") {
-        contract_manifest_fail(
-            path,
-            &format!(
-                "control-vm contract case `{}` should carry backend.control-vm",
-                case.name
-            ),
-        );
     }
     if backend == "interpreter" && !contract_case_has_tag(case, "backend.interpreter") {
         contract_manifest_fail(
@@ -794,7 +784,6 @@ fn is_known_contract_tag(tag: &str) -> bool {
     matches!(
         tag,
         "attached-impl"
-            | "backend.control-vm"
             | "backend.evidence-vm"
             | "backend.interpreter"
             | "bindings"
@@ -1088,9 +1077,6 @@ fn push_contract_std_args(command: &mut Command, options: &ContractOptions, case
 fn push_contract_backend_args(command: &mut Command, case: &ContractCase) {
     match case.backend.as_deref().unwrap_or("evidence-vm") {
         "evidence-vm" => {}
-        "control-vm" => {
-            command.arg("--control-vm");
-        }
         "interpreter" => {
             command.arg("--interpreter");
         }

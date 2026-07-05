@@ -184,7 +184,4 @@ if [[ "$archive_contract_smoke" != "0" ]]; then
   "$bin" --std-root "$package_root/lib" contract \
     --contract backend.interpreter \
     "$repo_root/tests/yulang/cases.toml" >/dev/null
-  "$bin" --std-root "$package_root/lib" contract \
-    --contract backend.control-vm \
-    "$repo_root/tests/yulang/cases.toml" >/dev/null
 fi

@@ -58,11 +58,11 @@ fn write_main_with_std(name: &str, source: &str) -> PathBuf {
 }
 
 #[cfg(unix)]
-fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, RunControlOutput) {
+fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, EvidenceTestOutput) {
     let entry = write_main_with_std(name, source);
     let mono = run_mono_from_entry_with_std(&entry).unwrap();
-    let control = run_control_from_entry_with_std(&entry).unwrap();
-    (mono, control)
+    let evidence = run_evidence_from_entry_with_std(&entry).unwrap();
+    (mono, evidence)
 }
 
 fn run_with_vm_test_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 'static) -> T {
@@ -74,16 +74,63 @@ fn run_with_vm_test_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 's
         .unwrap()
 }
 
-fn run_built_control_on_vm_test_stack(build: BuildControlOutput) -> (String, String) {
+fn run_built_evidence_on_vm_test_stack(build: BuildControlOutput) -> (String, String) {
     run_with_vm_test_stack(move || {
-        let output = run_built_control_program_with_labels(
-            &build.program,
-            build.file_count,
-            build.errors,
-            Some(&build.labels),
-        )
-        .expect("control VM program should run");
+        let output = run_built_evidence_output(build).expect("evidence VM program should run");
         (output.text, output.stdout)
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceTestOutput {
+    text: String,
+    file_count: usize,
+    errors: Vec<String>,
+    stdout: String,
+}
+
+fn run_evidence_from_entry(entry: impl AsRef<FsPath>) -> Result<EvidenceTestOutput, RouteError> {
+    run_built_evidence_output(build_control_from_entry(entry)?)
+}
+
+#[cfg(unix)]
+fn run_evidence_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<EvidenceTestOutput, RouteError> {
+    run_evidence_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+#[cfg(unix)]
+fn run_evidence_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<EvidenceTestOutput, RouteError> {
+    run_built_evidence_output(build_control_from_entry_with_std_options(entry, options)?)
+}
+
+fn run_evidence_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<EvidenceTestOutput, RouteError> {
+    run_built_evidence_output(build_control_from_source_text_with_embedded_std(
+        entry, source,
+    )?)
+}
+
+fn run_built_evidence_output(build: BuildControlOutput) -> Result<EvidenceTestOutput, RouteError> {
+    reject_runtime_lowering_errors(&build.errors)?;
+    let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
+    let output = evidence_vm::run_program_with_plan_with_labels(
+        &build.program,
+        &plan,
+        &build.labels,
+    )
+    .expect("evidence VM program should run");
+    Ok(EvidenceTestOutput {
+        text: output.roots_text_with_labels(Some(&build.labels)),
+        file_count: build.file_count,
+        errors: build.errors,
+        stdout: output.stdout,
     })
 }
 

@@ -606,86 +606,7 @@ fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
     );
     assert!(
         stderr
-            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
-        "{stderr}"
-    );
-    assert!(!stderr.contains("value is not a function"), "{stderr}");
-}
-
-#[test]
-fn compatible_run_control_ir_reports_unsupported_runtime_feature_hint() {
-    let entry = write_entry("run-control-not-callable", "my x = 1 2\nx\n");
-
-    let output = yulang_command()
-        .arg("--no-prelude")
-        .arg("--no-cache")
-        .arg("run")
-        .arg("--control-vm")
-        .arg("--print-roots")
-        .arg(&entry)
-        .output()
-        .unwrap();
-
-    assert!(
-        !output.status.success(),
-        "status: {}\nstdout:\n{}\nstderr:\n{}",
-        output.status,
-        stdout(&output),
-        stderr(&output)
-    );
-    assert_eq!(stdout(&output), "");
-    let stderr = stderr(&output);
-    assert!(
-        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
-        "{stderr}"
-    );
-    assert!(
-        stderr
-            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
-        "{stderr}"
-    );
-    assert!(!stderr.contains("value is not a function"), "{stderr}");
-}
-
-#[test]
-fn compatible_run_control_artifact_reports_unsupported_runtime_feature_hint() {
-    let entry = write_entry("run-control-artifact-not-callable", "my x = 1 2\nx\n");
-    let artifact = entry.with_extension("yuir");
-
-    let build_output = yulang_command()
-        .arg("--no-prelude")
-        .arg("--no-cache")
-        .arg("build")
-        .arg("--out")
-        .arg(&artifact)
-        .arg(&entry)
-        .output()
-        .unwrap();
-    assert_success(&build_output);
-
-    let output = yulang_command()
-        .arg("run")
-        .arg("--print-roots")
-        .arg(&artifact)
-        .output()
-        .unwrap();
-
-    assert!(
-        !output.status.success(),
-        "status: {}\nstdout:\n{}\nstderr:\n{}",
-        output.status,
-        stdout(&output),
-        stderr(&output)
-    );
-    assert_eq!(stdout(&output), "");
-    let stderr = stderr(&output);
-    assert!(
-        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
-        "{stderr}"
-    );
-    assert!(
-        stderr
-            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
+            .contains("hint: try the interpreter oracle or reduce this source to a smaller report"),
         "{stderr}"
     );
     assert!(!stderr.contains("value is not a function"), "{stderr}");
@@ -1378,7 +1299,7 @@ fn compatible_global_cst_and_timing_flags_are_accepted() {
 }
 
 #[test]
-fn compatible_build_writes_control_ir_artifact_and_run_loads_it() {
+fn compatible_build_writes_control_ir_artifact() {
     let entry = write_entry("build-artifact", "1\n");
     let artifact = entry.with_extension("yuir");
 
@@ -1397,28 +1318,9 @@ fn compatible_build_writes_control_ir_artifact_and_run_loads_it() {
     );
     let artifact_source = fs::read_to_string(&artifact).unwrap();
     assert!(
-        artifact_source.starts_with("YULANG-CONTROL-VM 1\n"),
+        artifact_source.starts_with("YULANG-CONTROL-IR 1\n"),
         "{artifact_source}"
     );
-
-    let run_output = yulang_command()
-        .arg("run")
-        .arg("--print-roots")
-        .arg(&artifact)
-        .output()
-        .unwrap();
-    assert_success(&run_output);
-    assert_eq!(stdout(&run_output), "run roots [1]\n");
-
-    let debug_output = yulang_command()
-        .arg("debug")
-        .arg("control-vm-load")
-        .arg("--print-roots")
-        .arg(&artifact)
-        .output()
-        .unwrap();
-    assert_success(&debug_output);
-    assert_eq!(stdout(&debug_output), "run roots [1]\n");
 }
 
 #[test]
@@ -3685,13 +3587,13 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     let cache_root = root.join("cache-root");
     fs::create_dir_all(&cache_root).unwrap();
     fs::write(cache_root.join("entry"), "cached").unwrap();
-    fs::create_dir_all(cache_root.join("artifacts").join("control-vm")).unwrap();
+    fs::create_dir_all(cache_root.join("artifacts").join("control-ir")).unwrap();
     fs::create_dir_all(cache_root.join("artifacts").join("poly")).unwrap();
     fs::create_dir_all(cache_root.join("artifacts").join("compiled-unit")).unwrap();
     fs::write(
         cache_root
             .join("artifacts")
-            .join("control-vm")
+            .join("control-ir")
             .join("one.yuvm"),
         "",
     )
@@ -3726,7 +3628,7 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     assert_eq!(
         stdout(&stats_output),
         format!(
-            "cache: {}\ncontrol-vm: 1\nmono: 0\npoly: 2\ncompiled-unit: 0\nrealm-resolution: 0\n",
+            "cache: {}\ncontrol-ir: 1\nmono: 0\npoly: 2\ncompiled-unit: 0\nrealm-resolution: 0\n",
             cache_root.display()
         )
     );
@@ -3815,7 +3717,7 @@ fn compatible_build_populates_control_ir_cache_unless_disabled() {
 
 #[test]
 fn compatible_run_populates_control_ir_cache() {
-    let entry = write_entry("run-control-cache", "1\n");
+    let entry = write_entry("run-evidence-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
     let cache_root = root.join("cache-root");
 
@@ -3870,7 +3772,7 @@ fn compatible_runtime_phase_timings_report_cache_route() {
     assert_cache_route_any(&output, &["source-key-control-hit", "control-hit"]);
     assert_run_backend(&output, "evidence-vm");
 
-    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "control-ir");
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
         .arg("--no-prelude")
@@ -3885,7 +3787,7 @@ fn compatible_runtime_phase_timings_report_cache_route() {
     assert_cache_route(&output, "poly-hit");
     assert_run_backend(&output, "evidence-vm");
 
-    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "control-ir");
     remove_cache_stage(&cache_root, "poly");
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4066,7 +3968,7 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
 
-    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "control-ir");
     remove_cache_stage(&cache_root, "poly");
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4152,7 +4054,7 @@ identity = "test/editable-realm-band"
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
 
-    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "control-ir");
     remove_cache_stage(&cache_root, "poly");
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4263,7 +4165,7 @@ fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
 
-    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "control-ir");
     remove_cache_stage(&cache_root, "poly");
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4693,14 +4595,14 @@ fn contract_command_rejects_unsupported_host_with_non_evidence_backend() {
 name = "bad_host_backend"
 file = "support/unused.yu"
 kind = "run"
-backend = "control-vm"
+backend = "interpreter"
 host = "unsupported"
 expect_success = false
 expect_stderr_contains = ["runtime error ["]
 contracts = [
     "runtime-error",
     "runtime-failure",
-    "backend.control-vm",
+    "backend.interpreter",
     "host.unsupported",
 ]
 "#,
@@ -5040,7 +4942,6 @@ fn is_known_contract_tag(tag: &str) -> bool {
     matches!(
         tag,
         "attached-impl"
-            | "backend.control-vm"
             | "backend.evidence-vm"
             | "backend.interpreter"
             | "bindings"
@@ -5165,7 +5066,7 @@ fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
 fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
     let backend = case.backend.as_deref().unwrap_or("evidence-vm");
     assert!(
-        matches!(backend, "evidence-vm" | "control-vm" | "interpreter"),
+        matches!(backend, "evidence-vm" | "interpreter"),
         "contract manifest case {} has unsupported backend mode {backend:?}",
         case.name
     );
@@ -5184,7 +5085,6 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
     }
     for (tag, expected) in [
         ("backend.evidence-vm", "evidence-vm"),
-        ("backend.control-vm", "control-vm"),
         ("backend.interpreter", "interpreter"),
     ] {
         if contract_manifest_case_has_tag(case, tag) {
@@ -5194,13 +5094,6 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 case.name, case.backend
             );
         }
-    }
-    if backend == "control-vm" {
-        assert!(
-            contract_manifest_case_has_tag(case, "backend.control-vm"),
-            "control-vm contract manifest case {} should carry backend.control-vm",
-            case.name
-        );
     }
     if backend == "interpreter" {
         assert!(
@@ -6111,9 +6004,6 @@ fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
 fn push_contract_backend_args(command: &mut Command, case: &PublicContractCase) {
     match case.backend.as_deref().unwrap_or("evidence-vm") {
         "evidence-vm" => {}
-        "control-vm" => {
-            command.arg("--control-vm");
-        }
         "interpreter" => {
             command.arg("--interpreter");
         }
@@ -6397,7 +6287,7 @@ fn temp_root(name: &str) -> PathBuf {
 }
 
 fn control_cache_file_count(root: &Path) -> usize {
-    artifact_cache_file_count(root, "control-vm")
+    artifact_cache_file_count(root, "control-ir")
 }
 
 fn poly_cache_file_count(root: &Path) -> usize {

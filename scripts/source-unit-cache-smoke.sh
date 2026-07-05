@@ -83,7 +83,7 @@ YULANG
     exit 1
   fi
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   third_log="$tmp/independent-third.stderr"
   third_output="$(
     YULANG_CACHE_DIR="$cache_root" \
@@ -161,7 +161,7 @@ YULANG
     exit 1
   fi
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   third_log="$tmp/dependency-third.stderr"
   third_output="$(
     YULANG_CACHE_DIR="$cache_root" \
@@ -252,7 +252,7 @@ YULANG
     exit 1
   fi
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   third_log="$tmp/editable-realm-band-third.stderr"
   third_output="$(
     YULANG_CACHE_DIR="$cache_root" \
@@ -306,7 +306,7 @@ my wants_box(x: deps::Box) = x.value
 wants_box 2
 YULANG
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   second_log="$tmp/struct-cast-second.stderr"
   second_output="$(
     YULANG_CACHE_DIR="$cache_root" \
@@ -369,7 +369,7 @@ my keep v = v
 keep (handle: use_it \() -> signal::ping())
 YULANG
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   second_log="$tmp/effect-contract-second.stderr"
   second_output="$(
     YULANG_CACHE_DIR="$cache_root" \
@@ -427,7 +427,7 @@ my keep v = v
 keep 2.display
 YULANG
 
-  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  rm -rf "$cache_root/artifacts/control-ir" "$cache_root/artifacts/poly"
   second_log="$tmp/role-impl-second.stderr"
   second_output="$(
     YULANG_CACHE_DIR="$cache_root" \
