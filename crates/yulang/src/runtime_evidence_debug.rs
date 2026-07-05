@@ -4104,6 +4104,20 @@ pub(crate) fn print_run_report(
         output.evidence_stats.marked_force_carry_after_frame_markers
     );
     println!(
+        "  runtime_evidence.marked_force_reentry_same_identity: {}",
+        output.evidence_stats.marked_force_reentry_same_identity
+    );
+    println!(
+        "  runtime_evidence.marked_force_reentry_different_identity: {}",
+        output
+            .evidence_stats
+            .marked_force_reentry_different_identity
+    );
+    println!(
+        "  runtime_evidence.marked_force_no_reentry: {}",
+        output.evidence_stats.marked_force_no_reentry
+    );
+    println!(
         "  runtime_evidence.active_marker_plan_pushes: {}",
         output.evidence_stats.active_marker_plan_pushes
     );

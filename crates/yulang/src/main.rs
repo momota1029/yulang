@@ -2090,6 +2090,18 @@ fn print_runtime_evidence_phase_timings(
         stats.marked_force_carry_after_frame_markers
     );
     eprintln!(
+        "  run.runtime_evidence.marked_force_reentry_same_identity: {}",
+        stats.marked_force_reentry_same_identity
+    );
+    eprintln!(
+        "  run.runtime_evidence.marked_force_reentry_different_identity: {}",
+        stats.marked_force_reentry_different_identity
+    );
+    eprintln!(
+        "  run.runtime_evidence.marked_force_no_reentry: {}",
+        stats.marked_force_no_reentry
+    );
+    eprintln!(
         "  run.runtime_evidence.known_state_direct_gets: {}",
         stats.known_state_direct_gets
     );

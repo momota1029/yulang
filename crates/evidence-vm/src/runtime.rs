@@ -4762,6 +4762,12 @@ struct EvidenceActiveMarkerFrameScope {
     plan_len: usize,
 }
 
+#[derive(Debug, Clone)]
+struct MarkedForceReentryFrame {
+    markers: Rc<[EvidenceValueMarker]>,
+    saw_reentry: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TailClosureIdentity {
     wrappers: Vec<TailClosureWrapperIdentity>,
@@ -9850,6 +9856,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     next_active_marker_frame_id: u64,
     active_marker_frame_scopes: Vec<EvidenceActiveMarkerFrameScope>,
+    marked_force_reentry_stack: Vec<MarkedForceReentryFrame>,
     tail_invariant_base_profiles: HashMap<TailInvariantBaseProfileKey, TailInvariantBaseProfile>,
     tail_invariant_base_at_tail_shadow_retired_markers: HashSet<EvidenceActiveMarkerFrameId>,
     tail_invariant_base_at_resume_shadow_retired_markers: HashSet<EvidenceActiveMarkerFrameId>,
@@ -9924,6 +9931,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_marker_plans: Vec::new(),
             next_active_marker_frame_id: 0,
             active_marker_frame_scopes: Vec::new(),
+            marked_force_reentry_stack: Vec::new(),
             tail_invariant_base_profiles: HashMap::new(),
             tail_invariant_base_at_tail_shadow_retired_markers: HashSet::new(),
             tail_invariant_base_at_resume_shadow_retired_markers: HashSet::new(),
@@ -15580,6 +15588,43 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.context.deep_profile_enabled()
     }
 
+    fn marked_force_reentry_shadow_enabled(&self) -> bool {
+        self.context.deep_profile_enabled()
+    }
+
+    fn push_marked_force_reentry_shadow(&mut self, markers: &Rc<[EvidenceValueMarker]>) -> bool {
+        if !self.marked_force_reentry_shadow_enabled() || markers.is_empty() {
+            return false;
+        }
+        if let Some(parent) = self.marked_force_reentry_stack.last_mut() {
+            parent.saw_reentry = true;
+            if Rc::ptr_eq(&parent.markers, markers) {
+                self.stats.marked_force_reentry_same_identity += 1;
+            } else {
+                self.stats.marked_force_reentry_different_identity += 1;
+            }
+        }
+        self.marked_force_reentry_stack
+            .push(MarkedForceReentryFrame {
+                markers: markers.clone(),
+                saw_reentry: false,
+            });
+        true
+    }
+
+    fn pop_marked_force_reentry_shadow(&mut self, active: bool) {
+        if !active {
+            return;
+        }
+        let Some(frame) = self.marked_force_reentry_stack.pop() else {
+            debug_assert!(false, "marked force reentry shadow stack underflow");
+            return;
+        };
+        if !frame.saw_reentry {
+            self.stats.marked_force_no_reentry += 1;
+        }
+    }
+
     fn tail_apply_plain_closure_identity(
         &self,
         callee: &RuntimeEvidenceValue,
@@ -20534,13 +20579,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         marker_summary.carry_after_frame;
                     self.record_marked_force_fallback(value.as_ref());
                 }
-                self.with_marker_frame(
+                let reentry_shadow = self.push_marked_force_reentry_shadow(markers);
+                let result = self.with_marker_frame(
                     EvidenceMarkerFrameSource::MarkedForce,
                     markers.clone(),
                     true,
                     None,
                     |runner| runner.force_thunk_result(value.clone()),
-                )
+                );
+                self.pop_marked_force_reentry_shadow(reentry_shadow);
+                result
             }
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }
