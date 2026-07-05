@@ -1,7 +1,0 @@
-pub mod core;
-pub mod num;
-pub mod data;
-pub mod text;
-pub mod control;
-pub mod io;
-pub mod prelude;
