@@ -178,6 +178,8 @@ pub struct RuntimeEvidenceRunStats {
     pub forced_effect_call_fusions: usize,
     pub known_state_direct_gets: usize,
     pub known_state_direct_sets: usize,
+    pub known_state_perform_short_circuit_gets: usize,
+    pub known_state_perform_short_circuit_sets: usize,
     pub known_state_direct_missing_state: usize,
     pub known_state_direct_non_resumptive: usize,
     pub known_state_frame_entries: usize,

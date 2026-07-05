@@ -3202,6 +3202,14 @@ pub(crate) fn print_run_report(
         output.evidence_stats.known_state_direct_sets
     );
     println!(
+        "  runtime_evidence.known_state_perform_short_circuit_gets: {}",
+        output.evidence_stats.known_state_perform_short_circuit_gets
+    );
+    println!(
+        "  runtime_evidence.known_state_perform_short_circuit_sets: {}",
+        output.evidence_stats.known_state_perform_short_circuit_sets
+    );
+    println!(
         "  runtime_evidence.known_state_direct_missing_state: {}",
         output.evidence_stats.known_state_direct_missing_state
     );

@@ -2098,6 +2098,14 @@ fn print_runtime_evidence_phase_timings(
         stats.known_state_direct_sets
     );
     eprintln!(
+        "  run.runtime_evidence.known_state_perform_short_circuit_gets: {}",
+        stats.known_state_perform_short_circuit_gets
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_perform_short_circuit_sets: {}",
+        stats.known_state_perform_short_circuit_sets
+    );
+    eprintln!(
         "  run.runtime_evidence.known_state_direct_missing_state: {}",
         stats.known_state_direct_missing_state
     );
