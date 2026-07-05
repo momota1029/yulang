@@ -1,10 +1,6 @@
 /// <reference lib="webworker" />
 
-import init, {
-  clear_std_cache,
-  run,
-  warm_std_cache,
-} from "./wasm/wasm.js";
+import init, { run, warm_std_cache } from "./wasm/wasm.js";
 
 type RunWorkerRequest =
   | {
@@ -51,7 +47,6 @@ let handledRequests = 0;
 let lastStarted: WorkerRequestTrace | undefined;
 let lastCompleted: WorkerRequestTrace | undefined;
 let lastRunUsedContinuations = false;
-let lastRunClearedCache = false;
 let resolveWasmReady: (value: unknown) => void;
 let rejectWasmReady: (reason?: unknown) => void;
 const wasmReady = new Promise<unknown>((resolve, reject) => {
@@ -67,7 +62,6 @@ type WorkerRequestTrace = {
   source_chars?: number;
   ok?: boolean;
   continuation_steps?: number;
-  cache_cleared?: boolean;
 };
 
 type WorkerDebugContext = {
@@ -76,7 +70,6 @@ type WorkerDebugContext = {
   last_started?: WorkerRequestTrace;
   last_completed?: WorkerRequestTrace;
   last_run_used_continuations: boolean;
-  last_run_cleared_cache: boolean;
 };
 
 workerSelf.addEventListener(
@@ -116,12 +109,7 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
       const output = run(request.source);
       const continuationSteps = continuationStepsOf(output);
       trace.continuation_steps = continuationSteps;
-      trace.cache_cleared = continuationSteps > 0;
       lastRunUsedContinuations = continuationSteps > 0;
-      lastRunClearedCache = continuationSteps > 0;
-      if (continuationSteps > 0) {
-        clear_std_cache();
-      }
       markCompleted(trace, true);
       postResponse({
         id: request.id,
@@ -172,7 +160,6 @@ function debugContext(): WorkerDebugContext {
     last_started: lastStarted,
     last_completed: lastCompleted,
     last_run_used_continuations: lastRunUsedContinuations,
-    last_run_cleared_cache: lastRunClearedCache,
   };
 }
 

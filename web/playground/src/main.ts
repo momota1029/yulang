@@ -112,7 +112,6 @@ type WorkerRequestTrace = {
     source_chars?: number;
     ok?: boolean;
     continuation_steps?: number;
-    cache_cleared?: boolean;
 };
 
 type WorkerDebugContext = {
@@ -121,7 +120,6 @@ type WorkerDebugContext = {
     last_started?: WorkerRequestTrace;
     last_completed?: WorkerRequestTrace;
     last_run_used_continuations: boolean;
-    last_run_cleared_cache: boolean;
 };
 
 type RunWorkerErrorResponse<Kind extends RunWorkerRequest["kind"]> = {
@@ -902,7 +900,6 @@ async function requestRunWithWorkerRetry(
 ): Promise<RunResponse> {
     const first = await requestRunOrError(source, generation);
     if (first.ok) {
-        resetWorkerAfterContinuationRun(first.output);
         return first;
     }
     if (!shouldRetryInFreshWorker(first.message)) {
@@ -911,9 +908,6 @@ async function requestRunWithWorkerRetry(
     logWorkerRunFailure(first);
     resetRunWorker(`Yulang worker trapped: ${first.message}`);
     const retry = await requestRunOrError(source, generation);
-    if (retry.ok) {
-        resetWorkerAfterContinuationRun(retry.output);
-    }
     return retry;
 }
 
@@ -1034,13 +1028,6 @@ function logWorkerRunFailure(response: RunWorkerErrorResponse<"run">): void {
         context: response.context,
         stack: response.stack,
     });
-}
-
-function resetWorkerAfterContinuationRun(output: RunOutput): void {
-    if ((output.timings?.vm_continuation_steps ?? 0) === 0) {
-        return;
-    }
-    resetRunWorker("Yulang worker recycled after continuation-heavy run");
 }
 
 function shouldRetryInFreshWorker(message: string): boolean {
