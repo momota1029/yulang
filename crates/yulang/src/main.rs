@@ -350,6 +350,7 @@ struct RuntimeEvidenceRunTimings {
     control_build_total: Duration,
     evidence_summary: Duration,
     evidence_plan_build: Duration,
+    evidence_plan_profile: evidence_vm::EvidenceVmPlanBuildProfile,
     runtime_evidence_execute: Duration,
     root_format: Duration,
     total_before_compare: Duration,
@@ -555,10 +556,11 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         RunBackend::EvidenceVm => {
             let output = if options.runtime_phase_timings || selection.runtime_evidence_profile_deep
             {
-                run_built_evidence_for_cli_with_host_profile(
+                run_built_evidence_for_cli_with_host_profile_and_plan_profile(
                     build,
                     selection.host,
                     selection.runtime_evidence_profile_deep,
+                    options.runtime_phase_timings,
                 )
             } else {
                 match selection.host {
@@ -1574,6 +1576,7 @@ fn print_runtime_evidence_phase_timings(
         "  run.evidence_plan_build: {}",
         format_duration(evidence_timing.plan_build)
     );
+    print_evidence_plan_build_profile_stderr(&evidence_timing.plan_profile);
     eprintln!("  run.vm_eval: {}", format_duration(timing.vm_eval));
     eprintln!(
         "  run.runtime_execute: {}",
@@ -2317,6 +2320,93 @@ fn print_runtime_evidence_phase_timings(
         "  run.runtime_evidence.list_merge_calls: {}",
         stats.list_merge_calls
     );
+}
+
+fn print_evidence_plan_build_profile_stderr(profile: &evidence_vm::EvidenceVmPlanBuildProfile) {
+    for line in format_evidence_plan_build_profile_lines("run.evidence_plan_build", profile) {
+        eprintln!("{line}");
+    }
+}
+
+fn format_evidence_plan_build_profile_lines(
+    prefix: &str,
+    profile: &evidence_vm::EvidenceVmPlanBuildProfile,
+) -> Vec<String> {
+    [
+        (
+            "control_evidence",
+            format_duration(profile.control_evidence),
+        ),
+        (
+            "runtime_node_index",
+            format_duration(profile.runtime_node_index),
+        ),
+        (
+            "lexical_handler_index",
+            format_duration(profile.lexical_handler_index),
+        ),
+        ("handler_plans", format_duration(profile.handler_plans)),
+        ("operation_plans", format_duration(profile.operation_plans)),
+        ("function_plans", format_duration(profile.function_plans)),
+        ("call_plans", format_duration(profile.call_plans)),
+        ("value_env_plans", format_duration(profile.value_env_plans)),
+        ("object_plan", format_duration(profile.object_plan)),
+        ("object_slots", format_duration(profile.object_slots)),
+        ("handler_objects", format_duration(profile.handler_objects)),
+        (
+            "handler_capabilities",
+            format_duration(profile.handler_capabilities),
+        ),
+        (
+            "known_handler_join",
+            format_duration(profile.known_handler_join),
+        ),
+        (
+            "function_objects",
+            format_duration(profile.function_objects),
+        ),
+        (
+            "lexical_handler_envs",
+            format_duration(profile.lexical_handler_envs),
+        ),
+        ("value_objects", format_duration(profile.value_objects)),
+        ("call_objects", format_duration(profile.call_objects)),
+        (
+            "static_route_index",
+            format_duration(profile.static_route_index),
+        ),
+        (
+            "operation_objects",
+            format_duration(profile.operation_objects),
+        ),
+        (
+            "static_route_join",
+            format_duration(profile.static_route_join),
+        ),
+        (
+            "known_operation_join",
+            format_duration(profile.known_operation_join),
+        ),
+        ("provider_index", format_duration(profile.provider_index)),
+        ("summary", format_duration(profile.summary)),
+        ("walk_unique_bodies", profile.walk_unique_bodies.to_string()),
+        ("walk_operations", profile.walk_operations.to_string()),
+        (
+            "walk_redundant_rewalks",
+            profile.walk_redundant_rewalks.to_string(),
+        ),
+        (
+            "walk_redundant_bodies",
+            profile.walk_redundant_bodies.to_string(),
+        ),
+        (
+            "walk_redundancy_ratio",
+            format!("{:.2}", profile.walk_redundancy_ratio()),
+        ),
+    ]
+    .into_iter()
+    .map(|(name, value)| format!("  {prefix}.{name}: {value}"))
+    .collect()
 }
 
 fn format_duration(duration: Duration) -> String {
@@ -3287,8 +3377,10 @@ fn run_runtime_evidence_run(
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
     timings.evidence_summary = summary_start.elapsed();
     let plan_start = Instant::now();
-    let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
+    let (plan, plan_profile) =
+        evidence_vm::build_plan_with_profile(&build.program, &build.runtime_evidence);
     timings.evidence_plan_build = plan_start.elapsed();
+    timings.evidence_plan_profile = plan_profile;
     let run_start = Instant::now();
     let output = match evidence_vm::run_program_with_plan_deep_profile_with_labels(
         &build.program,

@@ -444,6 +444,7 @@ pub(super) struct CliEvidenceRunOutput {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(super) struct CliEvidenceRunTimings {
     pub plan_build: Duration,
+    pub plan_profile: evidence_vm::EvidenceVmPlanBuildProfile,
     pub execute: Duration,
     pub root_format: Duration,
 }
@@ -497,6 +498,15 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile(
     host: RunHostMode,
     deep_profile: bool,
 ) -> CliEvidenceRunOutput {
+    run_built_evidence_for_cli_with_host_profile_and_plan_profile(build, host, deep_profile, false)
+}
+
+pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
+    build: yulang::BuildControlOutput,
+    host: RunHostMode,
+    deep_profile: bool,
+    plan_profile_enabled: bool,
+) -> CliEvidenceRunOutput {
     run_control_on_cli_vm_stack(move || {
         let yulang::BuildControlOutput {
             program,
@@ -507,7 +517,14 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile(
         } = build;
 
         let plan_start = Instant::now();
-        let plan = evidence_vm::build_plan(&program, &runtime_evidence);
+        let (plan, plan_profile) = if plan_profile_enabled {
+            evidence_vm::build_plan_with_profile(&program, &runtime_evidence)
+        } else {
+            (
+                evidence_vm::build_plan(&program, &runtime_evidence),
+                evidence_vm::EvidenceVmPlanBuildProfile::default(),
+            )
+        };
         let plan_build = plan_start.elapsed();
 
         let run_start = Instant::now();
@@ -575,6 +592,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile(
             stats: output.evidence_stats,
             timings: CliEvidenceRunTimings {
                 plan_build,
+                plan_profile,
                 execute,
                 root_format,
             },

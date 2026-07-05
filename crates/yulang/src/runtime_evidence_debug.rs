@@ -4,6 +4,7 @@
 
 use crate::{
     RuntimeEvidenceBenchSummary, RuntimeEvidenceRunTimings, RuntimePhaseTimings, format_duration,
+    format_evidence_plan_build_profile_lines,
 };
 
 pub(crate) fn print_run_report(
@@ -4228,6 +4229,7 @@ fn print_runtime_evidence_run_timings(
         "  timing.evidence_plan_build: {}",
         format_duration(timings.evidence_plan_build)
     );
+    print_plan_build_profile(timings);
     println!(
         "  timing.runtime_evidence_execute: {}",
         format_duration(timings.runtime_evidence_execute)
@@ -4240,4 +4242,13 @@ fn print_runtime_evidence_run_timings(
         "  timing.total_before_compare: {}",
         format_duration(timings.total_before_compare)
     );
+}
+
+fn print_plan_build_profile(timings: &RuntimeEvidenceRunTimings) {
+    for line in format_evidence_plan_build_profile_lines(
+        "timing.evidence_plan_build",
+        &timings.evidence_plan_profile,
+    ) {
+        println!("{line}");
+    }
 }

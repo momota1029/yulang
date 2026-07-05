@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
+use std::time::{Duration, Instant};
 
 use control_vm::{
     Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, DefId, Expr, ExprId,
@@ -116,6 +117,223 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) runtime_tasks: usize,
     pub(crate) runtime_nodes: usize,
     pub(crate) runtime_evidence_refs: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct EvidenceVmPlanBuildProfile {
+    pub control_evidence: Duration,
+    pub runtime_node_index: Duration,
+    pub lexical_handler_index: Duration,
+    pub handler_plans: Duration,
+    pub operation_plans: Duration,
+    pub function_plans: Duration,
+    pub call_plans: Duration,
+    pub value_env_plans: Duration,
+    pub object_plan: Duration,
+    pub object_slots: Duration,
+    pub handler_objects: Duration,
+    pub handler_capabilities: Duration,
+    pub known_handler_join: Duration,
+    pub function_objects: Duration,
+    pub lexical_handler_envs: Duration,
+    pub value_objects: Duration,
+    pub call_objects: Duration,
+    pub static_route_index: Duration,
+    pub operation_objects: Duration,
+    pub static_route_join: Duration,
+    pub known_operation_join: Duration,
+    pub provider_index: Duration,
+    pub summary: Duration,
+    pub walk_unique_bodies: usize,
+    pub walk_operations: usize,
+    pub walk_redundant_rewalks: usize,
+    pub walk_redundant_bodies: usize,
+}
+
+impl EvidenceVmPlanBuildProfile {
+    pub fn walk_redundancy_ratio(self) -> f64 {
+        if self.walk_unique_bodies == 0 {
+            0.0
+        } else {
+            self.walk_operations as f64 / self.walk_unique_bodies as f64
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceVmPlanBuildProfileSlot {
+    ControlEvidence,
+    RuntimeNodeIndex,
+    LexicalHandlerIndex,
+    HandlerPlans,
+    OperationPlans,
+    FunctionPlans,
+    CallPlans,
+    ValueEnvPlans,
+    ObjectPlan,
+    ObjectSlots,
+    HandlerObjects,
+    HandlerCapabilities,
+    KnownHandlerJoin,
+    FunctionObjects,
+    LexicalHandlerEnvs,
+    ValueObjects,
+    CallObjects,
+    StaticRouteIndex,
+    OperationObjects,
+    StaticRouteJoin,
+    KnownOperationJoin,
+    ProviderIndex,
+    Summary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum EvidenceVmPlanWalkPass {
+    ControlEvidence,
+    EvidenceCallPlans,
+    ValueEnvPlans,
+    LexicalHandlerIndex,
+    LexicalHandlerEnvs,
+    HandlerPlans,
+}
+
+#[derive(Debug, Default)]
+struct EvidenceVmPlanBuildProfiler {
+    enabled: bool,
+    profile: EvidenceVmPlanBuildProfile,
+    body_walks: BTreeMap<u32, BTreeSet<EvidenceVmPlanWalkPass>>,
+}
+
+impl EvidenceVmPlanBuildProfiler {
+    fn disabled() -> Self {
+        Self {
+            enabled: false,
+            profile: EvidenceVmPlanBuildProfile::default(),
+            body_walks: BTreeMap::new(),
+        }
+    }
+
+    fn enabled() -> Self {
+        Self {
+            enabled: true,
+            profile: EvidenceVmPlanBuildProfile::default(),
+            body_walks: BTreeMap::new(),
+        }
+    }
+
+    fn time<T>(
+        &mut self,
+        slot: EvidenceVmPlanBuildProfileSlot,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        if !self.enabled {
+            return f(self);
+        }
+        let start = Instant::now();
+        let output = f(self);
+        self.add_duration(slot, start.elapsed());
+        output
+    }
+
+    fn record_body_walk(&mut self, pass: EvidenceVmPlanWalkPass, body: ExprId) {
+        if !self.enabled {
+            return;
+        }
+        self.body_walks.entry(body.0).or_default().insert(pass);
+    }
+
+    fn finish(mut self) -> EvidenceVmPlanBuildProfile {
+        if self.enabled {
+            self.profile.walk_unique_bodies = self.body_walks.len();
+            self.profile.walk_operations =
+                self.body_walks.values().map(BTreeSet::len).sum::<usize>();
+            self.profile.walk_redundant_rewalks = self
+                .body_walks
+                .values()
+                .map(|passes| passes.len().saturating_sub(1))
+                .sum();
+            self.profile.walk_redundant_bodies = self
+                .body_walks
+                .values()
+                .filter(|passes| passes.len() > 1)
+                .count();
+        }
+        self.profile
+    }
+
+    fn add_duration(&mut self, slot: EvidenceVmPlanBuildProfileSlot, duration: Duration) {
+        match slot {
+            EvidenceVmPlanBuildProfileSlot::ControlEvidence => {
+                self.profile.control_evidence += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::RuntimeNodeIndex => {
+                self.profile.runtime_node_index += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::LexicalHandlerIndex => {
+                self.profile.lexical_handler_index += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::HandlerPlans => {
+                self.profile.handler_plans += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::OperationPlans => {
+                self.profile.operation_plans += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::FunctionPlans => {
+                self.profile.function_plans += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::CallPlans => {
+                self.profile.call_plans += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::ValueEnvPlans => {
+                self.profile.value_env_plans += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::ObjectPlan => {
+                self.profile.object_plan += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::ObjectSlots => {
+                self.profile.object_slots += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::HandlerObjects => {
+                self.profile.handler_objects += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::HandlerCapabilities => {
+                self.profile.handler_capabilities += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::KnownHandlerJoin => {
+                self.profile.known_handler_join += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::FunctionObjects => {
+                self.profile.function_objects += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::LexicalHandlerEnvs => {
+                self.profile.lexical_handler_envs += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::ValueObjects => {
+                self.profile.value_objects += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::CallObjects => {
+                self.profile.call_objects += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::StaticRouteIndex => {
+                self.profile.static_route_index += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::OperationObjects => {
+                self.profile.operation_objects += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::StaticRouteJoin => {
+                self.profile.static_route_join += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::KnownOperationJoin => {
+                self.profile.known_operation_join += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::ProviderIndex => {
+                self.profile.provider_index += duration;
+            }
+            EvidenceVmPlanBuildProfileSlot::Summary => {
+                self.profile.summary += duration;
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -552,100 +770,143 @@ pub(crate) enum EvidenceVmValueEnvKind {
 }
 
 pub fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
-    let control = ControlEvidenceProgram::from_program(program);
-    build_plan_from_evidence(program, &control, surface)
+    let mut profiler = EvidenceVmPlanBuildProfiler::disabled();
+    build_plan_profiled(program, surface, &mut profiler)
+}
+
+pub fn build_plan_with_profile(
+    program: &Program,
+    surface: &RuntimeEvidenceSurface,
+) -> (EvidenceVmPlan, EvidenceVmPlanBuildProfile) {
+    let mut profiler = EvidenceVmPlanBuildProfiler::enabled();
+    let plan = build_plan_profiled(program, surface, &mut profiler);
+    (plan, profiler.finish())
+}
+
+fn build_plan_profiled(
+    program: &Program,
+    surface: &RuntimeEvidenceSurface,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
+) -> EvidenceVmPlan {
+    record_control_evidence_body_walks(program, surface, profiler);
+    let control = profiler.time(EvidenceVmPlanBuildProfileSlot::ControlEvidence, |_| {
+        ControlEvidenceProgram::from_program(program)
+    });
+    build_plan_from_evidence(program, &control, surface, profiler)
 }
 
 fn build_plan_from_evidence(
     program: &Program,
     control: &ControlEvidenceProgram,
     surface: &RuntimeEvidenceSurface,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> EvidenceVmPlan {
-    let runtime_nodes = RuntimeNodeIndex::new(surface);
-    let lexical_handlers = LexicalHandlerIndex::new(program, control);
+    let runtime_nodes = profiler.time(EvidenceVmPlanBuildProfileSlot::RuntimeNodeIndex, |_| {
+        RuntimeNodeIndex::new(surface)
+    });
+    let lexical_handlers = profiler.time(
+        EvidenceVmPlanBuildProfileSlot::LexicalHandlerIndex,
+        |profiler| LexicalHandlerIndex::new(program, control, profiler),
+    );
     let handler_exprs = control
         .handlers
         .iter()
         .map(|handler| handler.expr)
         .collect::<HashSet<_>>();
 
-    let handlers = control
-        .handlers
-        .iter()
-        .map(|handler| EvidenceVmHandlerPlan {
-            expr: handler.expr,
-            body: handler.body,
-            arms: handler
-                .arms
-                .iter()
-                .enumerate()
-                .map(|(index, arm)| {
-                    let analysis = analyze_handler_arm(program, handler.expr, index, arm);
-                    EvidenceVmHandlerArmPlan {
-                        path: arm.operation_path.clone(),
-                        resumptive: arm.resumptive,
-                        guarded: arm.guarded,
-                        classification: analysis.classification,
-                        continuation_use: analysis.continuation_use,
-                        body: arm.body,
-                    }
-                })
-                .collect(),
-        })
-        .collect::<Vec<_>>();
-
-    let operations = control
-        .effects
-        .iter()
-        .map(|effect| {
-            let nodes = runtime_nodes.nodes_for_expr(effect.expr.0);
-            let lowering = operation_lowering(
-                effect.expr,
-                &effect.route,
-                &handler_exprs,
-                &lexical_handlers,
-            );
-            EvidenceVmOperationPlan {
-                expr: effect.expr,
-                operation_def: effect.def,
-                path: effect.path.clone(),
-                slot: slot_for_operation_lowering(&effect.path, &lowering),
-                kind: operation_kind(effect.kind),
-                lowering,
-                runtime_evidence_refs: nodes
+    let handlers = profiler.time(EvidenceVmPlanBuildProfileSlot::HandlerPlans, |profiler| {
+        control
+            .handlers
+            .iter()
+            .map(|handler| EvidenceVmHandlerPlan {
+                expr: handler.expr,
+                body: handler.body,
+                arms: handler
+                    .arms
                     .iter()
-                    .map(|node| node.evidence_refs.len())
-                    .sum::<usize>(),
-                runtime_nodes: nodes.iter().map(|node| node.id).collect(),
-            }
-        })
-        .collect::<Vec<_>>();
+                    .enumerate()
+                    .map(|(index, arm)| {
+                        let analysis =
+                            analyze_handler_arm(program, handler.expr, index, arm, profiler);
+                        EvidenceVmHandlerArmPlan {
+                            path: arm.operation_path.clone(),
+                            resumptive: arm.resumptive,
+                            guarded: arm.guarded,
+                            classification: analysis.classification,
+                            continuation_use: analysis.continuation_use,
+                            body: arm.body,
+                        }
+                    })
+                    .collect(),
+            })
+            .collect::<Vec<_>>()
+    });
 
-    let mut functions = surface
-        .tasks
-        .iter()
-        .map(|task| function_plan(control, task))
-        .collect::<Vec<_>>();
-    attach_evidence_call_plans(program, &mut functions);
-    let values = collect_value_env_plans(program, control);
-    let objects = build_object_plan(
-        program,
-        surface,
-        &handlers,
-        &operations,
-        &functions,
-        &values,
-    );
+    let operations = profiler.time(EvidenceVmPlanBuildProfileSlot::OperationPlans, |_| {
+        control
+            .effects
+            .iter()
+            .map(|effect| {
+                let nodes = runtime_nodes.nodes_for_expr(effect.expr.0);
+                let lowering = operation_lowering(
+                    effect.expr,
+                    &effect.route,
+                    &handler_exprs,
+                    &lexical_handlers,
+                );
+                EvidenceVmOperationPlan {
+                    expr: effect.expr,
+                    operation_def: effect.def,
+                    path: effect.path.clone(),
+                    slot: slot_for_operation_lowering(&effect.path, &lowering),
+                    kind: operation_kind(effect.kind),
+                    lowering,
+                    runtime_evidence_refs: nodes
+                        .iter()
+                        .map(|node| node.evidence_refs.len())
+                        .sum::<usize>(),
+                    runtime_nodes: nodes.iter().map(|node| node.id).collect(),
+                }
+            })
+            .collect::<Vec<_>>()
+    });
 
-    let summary = summarize_plan(
-        control,
-        surface,
-        &handlers,
-        &operations,
-        &functions,
-        &values,
-        &objects,
-    );
+    let mut functions = profiler.time(EvidenceVmPlanBuildProfileSlot::FunctionPlans, |_| {
+        surface
+            .tasks
+            .iter()
+            .map(|task| function_plan(control, task))
+            .collect::<Vec<_>>()
+    });
+    profiler.time(EvidenceVmPlanBuildProfileSlot::CallPlans, |profiler| {
+        attach_evidence_call_plans(program, &mut functions, profiler);
+    });
+    let values = profiler.time(EvidenceVmPlanBuildProfileSlot::ValueEnvPlans, |profiler| {
+        collect_value_env_plans(program, control, profiler)
+    });
+    let objects = profiler.time(EvidenceVmPlanBuildProfileSlot::ObjectPlan, |profiler| {
+        build_object_plan_profiled(
+            program,
+            surface,
+            &handlers,
+            &operations,
+            &functions,
+            &values,
+            profiler,
+        )
+    });
+
+    let summary = profiler.time(EvidenceVmPlanBuildProfileSlot::Summary, |_| {
+        summarize_plan(
+            control,
+            surface,
+            &handlers,
+            &operations,
+            &functions,
+            &values,
+            &objects,
+        )
+    });
     EvidenceVmPlan {
         host_manifest: surface.host_manifest.clone(),
         summary,
@@ -654,6 +915,39 @@ fn build_plan_from_evidence(
         functions,
         values,
         objects,
+    }
+}
+
+fn record_control_evidence_body_walks(
+    program: &Program,
+    surface: &RuntimeEvidenceSurface,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
+) {
+    if !profiler.enabled {
+        return;
+    }
+    for task in &surface.tasks {
+        match task.owner {
+            RuntimeEvidenceTaskOwner::RootExpr { expr, .. } => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::ControlEvidence, ExprId(expr))
+            }
+            RuntimeEvidenceTaskOwner::InstanceBody { body, .. } => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::ControlEvidence, ExprId(body))
+            }
+        }
+    }
+    for root in &program.roots {
+        match root {
+            Root::Instance(instance) | Root::EvalInstance(instance) => {
+                if let Some(instance) = program.instances.get(instance.0 as usize) {
+                    profiler
+                        .record_body_walk(EvidenceVmPlanWalkPass::ControlEvidence, instance.entry);
+                }
+            }
+            Root::Expr(expr) => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::ControlEvidence, *expr);
+            }
+        }
     }
 }
 
@@ -1265,7 +1559,11 @@ fn function_plan(
     }
 }
 
-fn attach_evidence_call_plans(program: &Program, functions: &mut [EvidenceVmFunctionPlan]) {
+fn attach_evidence_call_plans(
+    program: &Program,
+    functions: &mut [EvidenceVmFunctionPlan],
+    profiler: &mut EvidenceVmPlanBuildProfiler,
+) {
     let requirements_by_instance = functions
         .iter()
         .filter_map(|function| {
@@ -1284,12 +1582,14 @@ fn attach_evidence_call_plans(program: &Program, functions: &mut [EvidenceVmFunc
             continue;
         };
         let mut visited = HashSet::new();
+        profiler.record_body_walk(EvidenceVmPlanWalkPass::EvidenceCallPlans, ExprId(body));
         collect_evidence_arg_calls(
             program,
             ExprId(body),
             &requirements_by_instance,
             &mut visited,
             &mut function.calls_needing_evidence,
+            profiler,
         );
     }
 }
@@ -1307,6 +1607,7 @@ fn collect_evidence_arg_calls(
     requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) {
     if !visited.insert(expr) {
         return;
@@ -1325,16 +1626,56 @@ fn collect_evidence_arg_calls(
                     required_evidence_slots: required_evidence_slots.clone(),
                 });
             }
-            collect_evidence_arg_calls(program, *callee, requirements_by_instance, visited, out);
-            collect_evidence_arg_calls(program, *arg, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(
+                program,
+                *callee,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
+            collect_evidence_arg_calls(
+                program,
+                *arg,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
         }
         Expr::Coerce { expr, .. }
         | Expr::ForceThunk { thunk: expr, .. }
-        | Expr::FunctionAdapter { function: expr, .. }
-        | Expr::MarkerFrame { body: expr, .. }
-        | Expr::MakeThunk { body: expr, .. }
-        | Expr::Lambda { body: expr, .. } => {
-            collect_evidence_arg_calls(program, *expr, requirements_by_instance, visited, out);
+        | Expr::MarkerFrame { body: expr, .. } => {
+            collect_evidence_arg_calls(
+                program,
+                *expr,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
+        }
+        Expr::FunctionAdapter { function, .. } => {
+            profiler.record_body_walk(EvidenceVmPlanWalkPass::EvidenceCallPlans, *function);
+            collect_evidence_arg_calls(
+                program,
+                *function,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
+        }
+        Expr::MakeThunk { body, .. } | Expr::Lambda { body, .. } => {
+            profiler.record_body_walk(EvidenceVmPlanWalkPass::EvidenceCallPlans, *body);
+            collect_evidence_arg_calls(
+                program,
+                *body,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
         }
         Expr::Select {
             base, resolution, ..
@@ -1348,15 +1689,43 @@ fn collect_evidence_arg_calls(
                     required_evidence_slots: required_evidence_slots.clone(),
                 });
             }
-            collect_evidence_arg_calls(program, *base, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(
+                program,
+                *base,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
         }
         Expr::RefSet { reference, value } => {
-            collect_evidence_arg_calls(program, *reference, requirements_by_instance, visited, out);
-            collect_evidence_arg_calls(program, *value, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(
+                program,
+                *reference,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
+            collect_evidence_arg_calls(
+                program,
+                *value,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
         }
         Expr::Tuple(items) => {
             for item in items {
-                collect_evidence_arg_calls(program, *item, requirements_by_instance, visited, out);
+                collect_evidence_arg_calls(
+                    program,
+                    *item,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                    profiler,
+                );
             }
         }
         Expr::Record { fields, spread } => {
@@ -1367,6 +1736,7 @@ fn collect_evidence_arg_calls(
                     requirements_by_instance,
                     visited,
                     out,
+                    profiler,
                 );
             }
             match spread {
@@ -1378,6 +1748,7 @@ fn collect_evidence_arg_calls(
                         requirements_by_instance,
                         visited,
                         out,
+                        profiler,
                     );
                 }
             }
@@ -1390,11 +1761,19 @@ fn collect_evidence_arg_calls(
                     requirements_by_instance,
                     visited,
                     out,
+                    profiler,
                 );
             }
         }
         Expr::Case { scrutinee, arms } => {
-            collect_evidence_arg_calls(program, *scrutinee, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(
+                program,
+                *scrutinee,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
             for arm in arms {
                 if let Some(guard) = arm.guard {
                     collect_evidence_arg_calls(
@@ -1403,6 +1782,7 @@ fn collect_evidence_arg_calls(
                         requirements_by_instance,
                         visited,
                         out,
+                        profiler,
                     );
                 }
                 collect_evidence_arg_calls(
@@ -1411,11 +1791,20 @@ fn collect_evidence_arg_calls(
                     requirements_by_instance,
                     visited,
                     out,
+                    profiler,
                 );
             }
         }
         Expr::Catch { body, arms } => {
-            collect_evidence_arg_calls(program, *body, requirements_by_instance, visited, out);
+            profiler.record_body_walk(EvidenceVmPlanWalkPass::EvidenceCallPlans, *body);
+            collect_evidence_arg_calls(
+                program,
+                *body,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
             for arm in arms {
                 if let Some(guard) = arm.guard {
                     collect_evidence_arg_calls(
@@ -1424,14 +1813,17 @@ fn collect_evidence_arg_calls(
                         requirements_by_instance,
                         visited,
                         out,
+                        profiler,
                     );
                 }
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::EvidenceCallPlans, arm.body);
                 collect_evidence_arg_calls(
                     program,
                     arm.body,
                     requirements_by_instance,
                     visited,
                     out,
+                    profiler,
                 );
             }
         }
@@ -1442,6 +1834,7 @@ fn collect_evidence_arg_calls(
                 requirements_by_instance,
                 visited,
                 out,
+                profiler,
             );
         }
         Expr::Lit(_)
@@ -1459,12 +1852,27 @@ fn collect_block_evidence_arg_calls(
     requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) {
     for stmt in &block.stmts {
-        collect_stmt_evidence_arg_calls(program, stmt, requirements_by_instance, visited, out);
+        collect_stmt_evidence_arg_calls(
+            program,
+            stmt,
+            requirements_by_instance,
+            visited,
+            out,
+            profiler,
+        );
     }
     if let Some(tail) = block.tail {
-        collect_evidence_arg_calls(program, tail, requirements_by_instance, visited, out);
+        collect_evidence_arg_calls(
+            program,
+            tail,
+            requirements_by_instance,
+            visited,
+            out,
+            profiler,
+        );
     }
 }
 
@@ -1474,10 +1882,18 @@ fn collect_stmt_evidence_arg_calls(
     requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) {
     match stmt {
         Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
-            collect_evidence_arg_calls(program, *expr, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(
+                program,
+                *expr,
+                requirements_by_instance,
+                visited,
+                out,
+                profiler,
+            );
         }
         Stmt::Module(_, stmts) => {
             for stmt in stmts {
@@ -1487,6 +1903,7 @@ fn collect_stmt_evidence_arg_calls(
                     requirements_by_instance,
                     visited,
                     out,
+                    profiler,
                 );
             }
         }
@@ -1496,6 +1913,7 @@ fn collect_stmt_evidence_arg_calls(
 fn collect_value_env_plans(
     program: &Program,
     control: &ControlEvidenceProgram,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> Vec<EvidenceVmValueEnvPlan> {
     let adapters = control
         .adapters
@@ -1507,7 +1925,12 @@ fn collect_value_env_plans(
         let id = ExprId(index as u32);
         match expr {
             Expr::Lambda { body, .. } => {
-                let captured_evidence = requirements_in_expr(program, *body);
+                let captured_evidence = requirements_in_expr(
+                    program,
+                    *body,
+                    profiler,
+                    EvidenceVmPlanWalkPass::ValueEnvPlans,
+                );
                 if captured_evidence.is_empty() {
                     continue;
                 }
@@ -1519,7 +1942,12 @@ fn collect_value_env_plans(
                 });
             }
             Expr::MakeThunk { body, .. } => {
-                let captured_evidence = requirements_in_expr(program, *body);
+                let captured_evidence = requirements_in_expr(
+                    program,
+                    *body,
+                    profiler,
+                    EvidenceVmPlanWalkPass::ValueEnvPlans,
+                );
                 if captured_evidence.is_empty() {
                     continue;
                 }
@@ -1532,7 +1960,7 @@ fn collect_value_env_plans(
             }
             Expr::FunctionAdapter { function, .. } => {
                 let adapter = adapters.get(&id).copied();
-                let captured_evidence = requirements_for_value_expr(program, *function);
+                let captured_evidence = requirements_for_value_expr(program, *function, profiler);
                 let kind = EvidenceVmValueEnvKind::FunctionAdapter {
                     function: *function,
                     creates_callback_boundary: adapter
@@ -1578,38 +2006,56 @@ fn value_env_kind_has_boundary(kind: &EvidenceVmValueEnvKind) -> bool {
 fn requirements_for_value_expr(
     program: &Program,
     expr: ExprId,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> Vec<EvidenceVmEvidenceRequirement> {
     let mut active = HashSet::new();
-    requirements_for_value_expr_inner(program, expr, &mut active)
+    requirements_for_value_expr_inner(program, expr, &mut active, profiler)
 }
 
 fn requirements_for_value_expr_inner(
     program: &Program,
     expr: ExprId,
     active: &mut HashSet<ExprId>,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> Vec<EvidenceVmEvidenceRequirement> {
     if !active.insert(expr) {
         return Vec::new();
     }
     let requirements = match control_expr(program, expr) {
         Some(Expr::Lambda { body, .. }) | Some(Expr::MakeThunk { body, .. }) => {
-            requirements_in_expr(program, *body)
+            requirements_in_expr(
+                program,
+                *body,
+                profiler,
+                EvidenceVmPlanWalkPass::ValueEnvPlans,
+            )
         }
         Some(Expr::FunctionAdapter { function, .. }) => {
-            requirements_for_value_expr_inner(program, *function, active)
+            requirements_for_value_expr_inner(program, *function, active, profiler)
         }
         Some(Expr::Coerce { expr, .. })
         | Some(Expr::MarkerFrame { body: expr, .. })
         | Some(Expr::Select { base: expr, .. }) => {
-            requirements_for_value_expr_inner(program, *expr, active)
+            requirements_for_value_expr_inner(program, *expr, active, profiler)
         }
-        Some(_) | None => requirements_in_expr(program, expr),
+        Some(_) | None => requirements_in_expr(
+            program,
+            expr,
+            profiler,
+            EvidenceVmPlanWalkPass::ValueEnvPlans,
+        ),
     };
     active.remove(&expr);
     requirements
 }
 
-fn requirements_in_expr(program: &Program, root: ExprId) -> Vec<EvidenceVmEvidenceRequirement> {
+fn requirements_in_expr(
+    program: &Program,
+    root: ExprId,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
+    pass: EvidenceVmPlanWalkPass,
+) -> Vec<EvidenceVmEvidenceRequirement> {
+    profiler.record_body_walk(pass, root);
     let mut collector = RequirementCollector::default();
     let mut context = RequirementContext::default();
     let mut active = HashSet::new();
@@ -1896,6 +2342,7 @@ fn value_env_signature(captures: &[EvidenceVmEvidenceRequirement]) -> EvidenceVm
     }
 }
 
+#[cfg(test)]
 fn build_object_plan(
     program: &Program,
     surface: &RuntimeEvidenceSurface,
@@ -1904,7 +2351,30 @@ fn build_object_plan(
     functions: &[EvidenceVmFunctionPlan],
     values: &[EvidenceVmValueEnvPlan],
 ) -> EvidenceVmObjectPlan {
-    let slots = collect_object_slots(handlers, operations, functions, values);
+    let mut profiler = EvidenceVmPlanBuildProfiler::disabled();
+    build_object_plan_profiled(
+        program,
+        surface,
+        handlers,
+        operations,
+        functions,
+        values,
+        &mut profiler,
+    )
+}
+
+fn build_object_plan_profiled(
+    program: &Program,
+    surface: &RuntimeEvidenceSurface,
+    handlers: &[EvidenceVmHandlerPlan],
+    operations: &[EvidenceVmOperationPlan],
+    functions: &[EvidenceVmFunctionPlan],
+    values: &[EvidenceVmValueEnvPlan],
+    profiler: &mut EvidenceVmPlanBuildProfiler,
+) -> EvidenceVmObjectPlan {
+    let slots = profiler.time(EvidenceVmPlanBuildProfileSlot::ObjectSlots, |_| {
+        collect_object_slots(handlers, operations, functions, values)
+    });
     let slot_ids = slots
         .iter()
         .enumerate()
@@ -1919,31 +2389,60 @@ fn build_object_plan(
         })
         .collect::<Vec<_>>();
 
-    let mut handlers = build_handler_objects(handlers, &slot_ids);
-    let handler_capabilities = build_handler_capabilities(&handlers);
-    let known_handlers = build_known_handler_plans(program, &handlers, surface);
-    let function_objects = build_function_objects(functions, &slot_ids);
-    let lexical_envs = build_lexical_handler_envs(program, values, &slot_plans, &handlers);
+    let mut handlers = profiler.time(EvidenceVmPlanBuildProfileSlot::HandlerObjects, |_| {
+        build_handler_objects(handlers, &slot_ids)
+    });
+    let handler_capabilities = profiler
+        .time(EvidenceVmPlanBuildProfileSlot::HandlerCapabilities, |_| {
+            build_handler_capabilities(&handlers)
+        });
+    let known_handlers = profiler.time(EvidenceVmPlanBuildProfileSlot::KnownHandlerJoin, |_| {
+        build_known_handler_plans(program, &handlers, surface)
+    });
+    let function_objects = profiler.time(EvidenceVmPlanBuildProfileSlot::FunctionObjects, |_| {
+        build_function_objects(functions, &slot_ids)
+    });
+    let lexical_envs = profiler.time(
+        EvidenceVmPlanBuildProfileSlot::LexicalHandlerEnvs,
+        |profiler| build_lexical_handler_envs(program, values, &slot_plans, &handlers, profiler),
+    );
     attach_handler_definition_envs(&lexical_envs.handler_definition_envs, &mut handlers);
-    let value_objects = build_value_objects(values, &slot_ids, &lexical_envs.value_provider_envs);
-    let call_objects = build_call_objects(functions, &slot_ids);
+    let value_objects = profiler.time(EvidenceVmPlanBuildProfileSlot::ValueObjects, |_| {
+        build_value_objects(values, &slot_ids, &lexical_envs.value_provider_envs)
+    });
+    let call_objects = profiler.time(EvidenceVmPlanBuildProfileSlot::CallObjects, |_| {
+        build_call_objects(functions, &slot_ids)
+    });
     let handler_index = handlers
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
-    let operation_output = build_operation_objects(
-        &static_route_index(surface),
-        operations,
-        &slot_ids,
-        &handler_index,
-        &handlers,
+    let static_routes = profiler.time(EvidenceVmPlanBuildProfileSlot::StaticRouteIndex, |_| {
+        static_route_index(surface)
+    });
+    let operation_output = profiler.time(
+        EvidenceVmPlanBuildProfileSlot::OperationObjects,
+        |profiler| {
+            build_operation_objects(
+                &static_routes,
+                operations,
+                &slot_ids,
+                &handler_index,
+                &handlers,
+                profiler,
+            )
+        },
     );
     let operation_objects = operation_output.operations;
     let static_route_mono_join_failures = operation_output.static_route_mono_join_failures;
     let allowed_sets = operation_output.allowed_sets;
-    let (known_operations, known_state_operation_route_proofs) =
-        build_known_operation_plans(operations, &operation_objects, &known_handlers, surface);
-    let providers = build_provider_index(&slot_plans, &handlers);
+    let (known_operations, known_state_operation_route_proofs) = profiler
+        .time(EvidenceVmPlanBuildProfileSlot::KnownOperationJoin, |_| {
+            build_known_operation_plans(operations, &operation_objects, &known_handlers, surface)
+        });
+    let providers = profiler.time(EvidenceVmPlanBuildProfileSlot::ProviderIndex, |_| {
+        build_provider_index(&slot_plans, &handlers)
+    });
 
     EvidenceVmObjectPlan {
         slots: slot_plans,
@@ -2427,6 +2926,7 @@ fn build_lexical_handler_envs(
     values: &[EvidenceVmValueEnvPlan],
     slots: &[EvidenceVmSlotPlan],
     handlers: &[EvidenceVmHandlerObjectPlan],
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> EvidenceVmLexicalHandlerEnvPlan {
     let capture_slots = values
         .iter()
@@ -2457,6 +2957,7 @@ fn build_lexical_handler_envs(
         handlers_by_id,
         value_providers: HashMap::new(),
         handler_definition_envs: HashMap::new(),
+        profiler,
     };
     collector.collect_program(program);
     collector.finish()
@@ -2469,22 +2970,33 @@ struct LexicalHandlerEnvCollector<'a> {
     handlers_by_id: HashMap<u32, &'a EvidenceVmHandlerObjectPlan>,
     value_providers: HashMap<ExprId, BTreeMap<u32, BTreeSet<u32>>>,
     handler_definition_envs: HashMap<u32, Vec<u32>>,
+    profiler: &'a mut EvidenceVmPlanBuildProfiler,
 }
 
 impl LexicalHandlerEnvCollector<'_> {
     fn collect_program(&mut self, program: &Program) {
         let mut active_handlers = Vec::new();
         for instance in &program.instances {
+            self.profiler
+                .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, instance.entry);
             self.visit_expr(program, instance.entry, &mut active_handlers);
         }
         for root in &program.roots {
             match root {
                 Root::Instance(instance) | Root::EvalInstance(instance) => {
                     if let Some(instance) = program.instances.get(instance.0 as usize) {
+                        self.profiler.record_body_walk(
+                            EvidenceVmPlanWalkPass::LexicalHandlerEnvs,
+                            instance.entry,
+                        );
                         self.visit_expr(program, instance.entry, &mut active_handlers);
                     }
                 }
-                Root::Expr(expr) => self.visit_expr(program, *expr, &mut active_handlers),
+                Root::Expr(expr) => {
+                    self.profiler
+                        .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, *expr);
+                    self.visit_expr(program, *expr, &mut active_handlers);
+                }
             }
         }
     }
@@ -2529,12 +3041,16 @@ impl LexicalHandlerEnvCollector<'_> {
 
                 let start = active_handlers.len();
                 active_handlers.extend(handler_ids);
+                self.profiler
+                    .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, *body);
                 self.visit_expr(program, *body, active_handlers);
                 active_handlers.truncate(start);
                 for arm in arms {
                     if let Some(guard) = arm.guard {
                         self.visit_expr(program, guard, active_handlers);
                     }
+                    self.profiler
+                        .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, arm.body);
                     self.visit_expr(program, arm.body, active_handlers);
                 }
             }
@@ -2544,12 +3060,19 @@ impl LexicalHandlerEnvCollector<'_> {
             }
             Expr::Coerce { expr, .. }
             | Expr::ForceThunk { thunk: expr, .. }
-            | Expr::FunctionAdapter { function: expr, .. }
-            | Expr::MakeThunk { body: expr, .. }
-            | Expr::Lambda { body: expr, .. }
             | Expr::MarkerFrame { body: expr, .. }
             | Expr::Select { base: expr, .. } => {
                 self.visit_expr(program, *expr, active_handlers);
+            }
+            Expr::FunctionAdapter { function, .. } => {
+                self.profiler
+                    .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, *function);
+                self.visit_expr(program, *function, active_handlers);
+            }
+            Expr::MakeThunk { body, .. } | Expr::Lambda { body, .. } => {
+                self.profiler
+                    .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerEnvs, *body);
+                self.visit_expr(program, *body, active_handlers);
             }
             Expr::RefSet { reference, value } => {
                 self.visit_expr(program, *reference, active_handlers);
@@ -2775,6 +3298,7 @@ fn build_operation_objects(
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
     handler_index: &HashMap<(ExprId, u32), u32>,
     handlers: &[EvidenceVmHandlerObjectPlan],
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> EvidenceVmOperationObjectOutput {
     let handler_by_id = handlers
         .iter()
@@ -2795,13 +3319,16 @@ fn build_operation_objects(
             let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
             let visibility =
                 operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
-            let static_route = static_route_resolution_from_surface(
-                static_routes,
-                operation,
-                candidate_handler,
-                &handler_by_id,
-                &mut static_route_mono_join_failures,
-            );
+            let static_route =
+                profiler.time(EvidenceVmPlanBuildProfileSlot::StaticRouteJoin, |_| {
+                    static_route_resolution_from_surface(
+                        static_routes,
+                        operation,
+                        candidate_handler,
+                        &handler_by_id,
+                        &mut static_route_mono_join_failures,
+                    )
+                });
             Some(EvidenceVmOperationObjectPlan {
                 expr: operation.expr,
                 slot_id,
@@ -3123,7 +3650,9 @@ fn analyze_handler_arm(
     handler_expr: ExprId,
     arm_index: usize,
     arm: &control_vm::ControlHandlerArmEvidence,
+    profiler: &mut EvidenceVmPlanBuildProfiler,
 ) -> HandlerArmAnalysis {
+    profiler.record_body_walk(EvidenceVmPlanWalkPass::HandlerPlans, arm.body);
     if arm.operation_path.is_none() {
         return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Value);
     }
@@ -4278,7 +4807,11 @@ struct LexicalHandlerIndex {
 }
 
 impl LexicalHandlerIndex {
-    fn new(program: &Program, control: &ControlEvidenceProgram) -> Self {
+    fn new(
+        program: &Program,
+        control: &ControlEvidenceProgram,
+        profiler: &mut EvidenceVmPlanBuildProfiler,
+    ) -> Self {
         let handler_arms = control
             .handlers
             .iter()
@@ -4301,11 +4834,21 @@ impl LexicalHandlerIndex {
         for root in &program.roots {
             match root {
                 Root::Instance(_) | Root::EvalInstance(_) => {}
-                Root::Expr(expr) => index.visit_expr(*expr, program, &handler_arms, &mut context),
+                Root::Expr(expr) => {
+                    profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *expr);
+                    index.visit_expr(*expr, program, &handler_arms, &mut context, profiler);
+                }
             }
         }
         for instance in &program.instances {
-            index.visit_expr(instance.entry, program, &handler_arms, &mut context);
+            profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, instance.entry);
+            index.visit_expr(
+                instance.entry,
+                program,
+                &handler_arms,
+                &mut context,
+                profiler,
+            );
         }
         index
     }
@@ -4320,6 +4863,7 @@ impl LexicalHandlerIndex {
         program: &Program,
         handler_arms: &HashMap<ExprId, Vec<(Vec<String>, bool)>>,
         context: &mut LexicalHandlerContext,
+        profiler: &mut EvidenceVmPlanBuildProfiler,
     ) {
         let Some(expr) = control_expr(program, id) else {
             return;
@@ -4332,14 +4876,18 @@ impl LexicalHandlerIndex {
             }
             Expr::Coerce { expr, .. }
             | Expr::ForceThunk { thunk: expr, .. }
-            | Expr::FunctionAdapter { function: expr, .. }
             | Expr::MarkerFrame { body: expr, .. }
             | Expr::Select { base: expr, .. } => {
-                self.visit_expr(*expr, program, handler_arms, context);
+                self.visit_expr(*expr, program, handler_arms, context, profiler);
+            }
+            Expr::FunctionAdapter { function, .. } => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *function);
+                self.visit_expr(*function, program, handler_arms, context, profiler);
             }
             Expr::MakeThunk { body, .. } => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *body);
                 context.with_delayed_boundary(true, |context| {
-                    self.visit_expr(*body, program, handler_arms, context);
+                    self.visit_expr(*body, program, handler_arms, context, profiler);
                 });
             }
             Expr::Apply { callee, arg }
@@ -4347,42 +4895,43 @@ impl LexicalHandlerIndex {
                 reference: callee,
                 value: arg,
             } => {
-                self.visit_expr(*callee, program, handler_arms, context);
-                self.visit_expr(*arg, program, handler_arms, context);
+                self.visit_expr(*callee, program, handler_arms, context, profiler);
+                self.visit_expr(*arg, program, handler_arms, context, profiler);
             }
             Expr::Lambda { body, .. } => {
+                profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *body);
                 context.with_delayed_boundary(true, |context| {
-                    self.visit_expr(*body, program, handler_arms, context);
+                    self.visit_expr(*body, program, handler_arms, context, profiler);
                 });
             }
             Expr::Tuple(items) => {
                 for item in items {
-                    self.visit_expr(*item, program, handler_arms, context);
+                    self.visit_expr(*item, program, handler_arms, context, profiler);
                 }
             }
             Expr::Record { fields, spread } => {
                 for field in fields {
-                    self.visit_expr(field.value, program, handler_arms, context);
+                    self.visit_expr(field.value, program, handler_arms, context, profiler);
                 }
                 match spread {
                     RecordSpread::None => {}
                     RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
-                        self.visit_expr(*expr, program, handler_arms, context);
+                        self.visit_expr(*expr, program, handler_arms, context, profiler);
                     }
                 }
             }
             Expr::PolyVariant { payloads, .. } => {
                 for payload in payloads {
-                    self.visit_expr(*payload, program, handler_arms, context);
+                    self.visit_expr(*payload, program, handler_arms, context, profiler);
                 }
             }
             Expr::Case { scrutinee, arms } => {
-                self.visit_expr(*scrutinee, program, handler_arms, context);
+                self.visit_expr(*scrutinee, program, handler_arms, context, profiler);
                 for arm in arms {
                     if let Some(guard) = arm.guard {
-                        self.visit_expr(guard, program, handler_arms, context);
+                        self.visit_expr(guard, program, handler_arms, context, profiler);
                     }
-                    self.visit_expr(arm.body, program, handler_arms, context);
+                    self.visit_expr(arm.body, program, handler_arms, context, profiler);
                 }
             }
             Expr::Catch { body, arms } => {
@@ -4394,19 +4943,23 @@ impl LexicalHandlerIndex {
                 });
                 if let Some(frame) = pushed {
                     context.handlers.push(frame);
-                    self.visit_expr(*body, program, handler_arms, context);
+                    profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *body);
+                    self.visit_expr(*body, program, handler_arms, context, profiler);
                     context.handlers.pop();
                 } else {
-                    self.visit_expr(*body, program, handler_arms, context);
+                    profiler.record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, *body);
+                    self.visit_expr(*body, program, handler_arms, context, profiler);
                 }
                 for arm in arms {
                     if let Some(guard) = arm.guard {
-                        self.visit_expr(guard, program, handler_arms, context);
+                        self.visit_expr(guard, program, handler_arms, context, profiler);
                     }
-                    self.visit_expr(arm.body, program, handler_arms, context);
+                    profiler
+                        .record_body_walk(EvidenceVmPlanWalkPass::LexicalHandlerIndex, arm.body);
+                    self.visit_expr(arm.body, program, handler_arms, context, profiler);
                 }
             }
-            Expr::Block(block) => self.visit_block(block, program, handler_arms, context),
+            Expr::Block(block) => self.visit_block(block, program, handler_arms, context, profiler),
             Expr::Lit(_)
             | Expr::PrimitiveOp { .. }
             | Expr::Constructor { .. }
@@ -4421,12 +4974,13 @@ impl LexicalHandlerIndex {
         program: &Program,
         handler_arms: &HashMap<ExprId, Vec<(Vec<String>, bool)>>,
         context: &mut LexicalHandlerContext,
+        profiler: &mut EvidenceVmPlanBuildProfiler,
     ) {
         for stmt in &block.stmts {
-            self.visit_stmt(stmt, program, handler_arms, context);
+            self.visit_stmt(stmt, program, handler_arms, context, profiler);
         }
         if let Some(tail) = block.tail {
-            self.visit_expr(tail, program, handler_arms, context);
+            self.visit_expr(tail, program, handler_arms, context, profiler);
         }
     }
 
@@ -4436,14 +4990,15 @@ impl LexicalHandlerIndex {
         program: &Program,
         handler_arms: &HashMap<ExprId, Vec<(Vec<String>, bool)>>,
         context: &mut LexicalHandlerContext,
+        profiler: &mut EvidenceVmPlanBuildProfiler,
     ) {
         match stmt {
             Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
-                self.visit_expr(*expr, program, handler_arms, context);
+                self.visit_expr(*expr, program, handler_arms, context, profiler);
             }
             Stmt::Module(_, stmts) => {
                 for stmt in stmts {
-                    self.visit_stmt(stmt, program, handler_arms, context);
+                    self.visit_stmt(stmt, program, handler_arms, context, profiler);
                 }
             }
         }
