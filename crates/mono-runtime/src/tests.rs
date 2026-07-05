@@ -3,7 +3,7 @@ use mono::{
     InstanceSource, Lit, Pat, Program, Root, SelectResolution, Signature, Stmt, Type, Vis,
 };
 
-use super::{Value, run_program};
+use super::{Value, run_program, run_program_with_host};
 
 #[test]
 fn runs_literal_root() {
@@ -144,6 +144,25 @@ fn catches_matching_effect_request() {
     };
 
     assert_eq!(run_program(&program), Ok(vec![Value::Int(1)]));
+}
+
+#[test]
+fn host_handler_resumes_escaped_effect_request() {
+    let program = Program {
+        roots: vec![Root::Expr(effect_call(
+            path(&["host", "answer"]),
+            ExprKind::Lit(Lit::Unit),
+        ))],
+        instances: Vec::new(),
+    };
+
+    let values = run_program_with_host(&program, |path, payload| {
+        assert_eq!(path, ["host".to_string(), "answer".to_string()]);
+        assert_eq!(payload, &Value::Unit);
+        Some(Value::Int(42))
+    });
+
+    assert_eq!(values, Ok(vec![Value::Int(42)]));
 }
 
 #[test]

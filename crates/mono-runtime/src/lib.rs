@@ -26,6 +26,16 @@ pub fn run_program(program: &mono::Program) -> Result<Vec<Value>, RuntimeError> 
     Runtime::new(program).run()
 }
 
+pub fn run_program_with_host<F>(
+    program: &mono::Program,
+    mut host: F,
+) -> Result<Vec<Value>, RuntimeError>
+where
+    F: FnMut(&[String], &Value) -> Option<Value>,
+{
+    Runtime::new(program).run_with_host(&mut host)
+}
+
 type RuntimeResult<'a> = Result<EvalResult<'a>, RuntimeError>;
 type Continuation<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> RuntimeResult<'a> + 'a>;
 type BindResult<'a> = Result<BindEvalResult<'a>, RuntimeError>;

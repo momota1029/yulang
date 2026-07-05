@@ -17,6 +17,13 @@ impl<'a> Runtime<'a> {
     }
 
     pub fn run(&mut self) -> Result<Vec<Value>, RuntimeError> {
+        self.run_with_host(&mut |_, _| None)
+    }
+
+    pub fn run_with_host<F>(&mut self, host: &mut F) -> Result<Vec<Value>, RuntimeError>
+    where
+        F: FnMut(&[String], &Value) -> Option<Value>,
+    {
         let mut results = Vec::new();
         let mut env = CapturedEnv::default();
         for root in &self.program.roots {
@@ -25,18 +32,33 @@ impl<'a> Runtime<'a> {
                 Root::EvalInstance(instance) => EvalResult::Value(self.eval_instance(*instance)?),
                 Root::Expr(expr) => self.eval_expr(expr, &mut env)?,
             };
-            match result {
-                EvalResult::Value(value) => {
-                    if !matches!(root, Root::EvalInstance(_)) {
-                        results.push(value);
-                    }
-                }
-                EvalResult::Request(request) => {
-                    return Err(RuntimeError::UnhandledEffect { path: request.path });
-                }
+            let value = self.resolve_host_requests(result, host)?;
+            if !matches!(root, Root::EvalInstance(_)) {
+                results.push(value);
             }
         }
         Ok(results)
+    }
+
+    fn resolve_host_requests<F>(
+        &mut self,
+        mut result: EvalResult<'a>,
+        host: &mut F,
+    ) -> Result<Value, RuntimeError>
+    where
+        F: FnMut(&[String], &Value) -> Option<Value>,
+    {
+        loop {
+            match result {
+                EvalResult::Value(value) => return Ok(value),
+                EvalResult::Request(request) => {
+                    let Some(value) = host(&request.path, &request.payload) else {
+                        return Err(RuntimeError::UnhandledEffect { path: request.path });
+                    };
+                    result = (request.resume)(self, value)?;
+                }
+            }
+        }
     }
 
     pub(super) fn eval_instance(&mut self, instance: InstanceId) -> Result<Value, RuntimeError> {
