@@ -174,15 +174,20 @@ pub ends_with(source: str, suffix: str): bool =
     else:
         false
 
+my split_newline_byte_scan_min = 2
+
 pub split(source: str, separator: str): list str =
     my source_len = std::text::str::len source
     my separator_len = std::text::str::len separator
     if std::int::eq separator_len 0:
         [source]
     else if separator == "\n":
-        case split_newline_bytes(source):
-            just parts -> parts
-            nil -> split_generic(source, source_len, separator, separator_len)
+        if source_len < split_newline_byte_scan_min:
+            split_generic(source, source_len, separator, separator_len)
+        else:
+            case split_newline_bytes(source):
+                just parts -> parts
+                nil -> split_generic(source, source_len, separator, separator_len)
     else:
         split_generic(source, source_len, separator, separator_len)
 
@@ -392,14 +397,28 @@ pub replace_all(source: str, from: str, to: str): str =
                         (std::text::str::index_range_raw source start (std::text::str::len source))
         loop(0, "")
 
+my word_prefix_small_scan_limit = 512
+
 pub word_prefix_at(source: str, start: int): str =
     my source_len = std::text::str::len source
-    my end =
-        if start == 0:
+    my remaining = source_len - start
+    if remaining <= word_prefix_small_scan_limit:
+        my loop(i: int): str =
+            if i < source_len:
+                my item = std::text::str::index_raw source i
+                if std::text::char::is_word item:
+                    loop(i + 1)
+                else:
+                    std::text::str::index_range_raw source start i
+            else:
+                std::text::str::index_range_raw source start i
+        loop start
+    else:
+        my end = if start == 0:
             word_prefix_ascii_or_slow_end(source, source_len)
         else:
             word_prefix_slow_end(source, source_len, start)
-    std::text::str::index_range_raw source start end
+        std::text::str::index_range_raw source start end
 
 my word_prefix_ascii_or_slow_end(source: str, source_len: int): int =
     my data = std::text::str::to_bytes source
