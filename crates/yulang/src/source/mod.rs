@@ -986,6 +986,10 @@ pub fn collect_source_text_with_embedded_playground_std(
     ))
 }
 
+pub fn source_text_needs_full_embedded_std_for_playground(source: &str) -> bool {
+    std_sources::source_text_needs_full_embedded_std_for_playground(source)
+}
+
 pub fn load_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: String,

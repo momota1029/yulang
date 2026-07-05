@@ -285,11 +285,13 @@ fn run_with_embedded_std_fallback(
     source: &str,
     no_std_error: Option<WasmRuntimeError>,
 ) -> RunOutput {
-    match run_evidence_from_source_text_with_playground_std(source) {
-        Ok(output) if output.errors.is_empty() => {
-            return RunOutput::from_runtime_output(output, source, true);
+    if !yulang::source_text_needs_full_embedded_std_for_playground(source) {
+        match run_evidence_from_source_text_with_playground_std(source) {
+            Ok(output) if output.errors.is_empty() => {
+                return RunOutput::from_runtime_output(output, source, true);
+            }
+            Ok(_) | Err(_) => {}
         }
-        Ok(_) | Err(_) => {}
     }
 
     match run_evidence_from_source_text_with_embedded_std(source) {

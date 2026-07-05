@@ -122,6 +122,108 @@ pub(super) fn embedded_playground_std_sources_with_root(
     files
 }
 
+pub(super) fn source_text_needs_full_embedded_std_for_playground(source: &str) -> bool {
+    let cst = parser::parse_module_to_green(source);
+    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
+    let mut paths = Vec::new();
+    collect_use_decl_paths(&root, &mut paths);
+    collect_qualified_std_paths(&root, &mut paths);
+    paths.iter().any(std_path_requires_full_embedded_std)
+}
+
+type SourceCst = rowan::SyntaxNode<parser::sink::YulangLanguage>;
+type SourceCstItem =
+    rowan::NodeOrToken<SourceCst, rowan::SyntaxToken<parser::sink::YulangLanguage>>;
+
+fn collect_use_decl_paths(node: &SourceCst, paths: &mut Vec<Path>) {
+    if node.kind() == parser::lex::SyntaxKind::UseDecl {
+        for import in sources::use_imports(node) {
+            let path = match import {
+                sources::UseImport::Alias { path, .. } => path,
+                sources::UseImport::Glob { prefix, .. } => prefix,
+            };
+            if path.starts_with_std() {
+                paths.push(path);
+            }
+        }
+    }
+    for child in node.children() {
+        collect_use_decl_paths(&child, paths);
+    }
+}
+
+fn collect_qualified_std_paths(node: &SourceCst, paths: &mut Vec<Path>) {
+    let items = node.children_with_tokens().collect::<Vec<_>>();
+    for index in 0..items.len() {
+        if let Some(path) = std_path_from_items(&items[index..]) {
+            paths.push(path);
+        }
+    }
+    for child in node.children() {
+        collect_qualified_std_paths(&child, paths);
+    }
+}
+
+fn std_path_from_items(items: &[SourceCstItem]) -> Option<Path> {
+    let Some(rowan::NodeOrToken::Token(head)) = items.first() else {
+        return None;
+    };
+    if head.kind() != parser::lex::SyntaxKind::Ident || head.text() != "std" {
+        return None;
+    }
+
+    let mut segments = vec![Name("std".to_string())];
+    for item in &items[1..] {
+        let rowan::NodeOrToken::Node(path_sep) = item else {
+            break;
+        };
+        if path_sep.kind() != parser::lex::SyntaxKind::PathSep {
+            break;
+        }
+        let Some(name) = path_sep_name(path_sep) else {
+            break;
+        };
+        segments.push(name);
+    }
+    (segments.len() > 1).then_some(Path { segments })
+}
+
+fn path_sep_name(node: &SourceCst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == parser::lex::SyntaxKind::Ident)
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn std_path_requires_full_embedded_std(path: &Path) -> bool {
+    if !path.starts_with_std() {
+        return false;
+    }
+    (1..=path.segments.len()).any(|len| {
+        let module = Path {
+            segments: path.segments[..len].to_vec(),
+        };
+        embedded_std_contains_module_path(&module)
+            && !crate::playground_std::embedded_playground_std_contains_module_path(&module)
+    })
+}
+
+fn embedded_std_contains_module_path(path: &Path) -> bool {
+    embedded_std_files()
+        .iter()
+        .any(|file| embedded_std_module_path(file.relative_path) == *path)
+}
+
+trait StdPathExt {
+    fn starts_with_std(&self) -> bool;
+}
+
+impl StdPathExt for Path {
+    fn starts_with_std(&self) -> bool {
+        self.segments.first().map(|name| name.0.as_str()) == Some("std")
+    }
+}
+
 pub(super) fn embedded_playground_std_loaded_with_root(
     _entry: &FsPath,
     source: String,

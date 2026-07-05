@@ -541,6 +541,8 @@ point { x: 3, y: 4 } .norm2
 
         let cases = [
             ("1 + 2\n", "run roots [3]\n"),
+            (playground_showcase_source("Config"), "run roots [(), ()]\n"),
+            (PARSER_PATTERN_SHOWCASE, "run roots [(), (), (), ()]\n"),
             ("each(1..3).list\n", "run roots [[1, 2, 3]]\n"),
             (
                 "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",

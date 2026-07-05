@@ -24,6 +24,12 @@ pub(crate) fn embedded_playground_std_sources() -> Vec<CollectedSource> {
         .collect()
 }
 
+pub(crate) fn embedded_playground_std_contains_module_path(path: &Path) -> bool {
+    PLAYGROUND_STD_FILES
+        .iter()
+        .any(|file| module_path(file.relative_path) == *path)
+}
+
 struct PlaygroundStdFile {
     relative_path: &'static str,
     source: &'static str,

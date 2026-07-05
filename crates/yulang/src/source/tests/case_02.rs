@@ -791,6 +791,29 @@ fn collect_source_text_with_embedded_playground_std_uses_compact_package() {
 }
 
 #[test]
+fn source_text_needs_full_embedded_std_for_playground_detects_full_only_std_modules() {
+    assert!(source_text_needs_full_embedded_std_for_playground(
+        "use std::text::parse::*\nword()\n"
+    ));
+    assert!(source_text_needs_full_embedded_std_for_playground(
+        "std::text::config::parse \"x = 1\"\n"
+    ));
+    assert!(source_text_needs_full_embedded_std_for_playground(
+        "use std::io::file::*\n1\n"
+    ));
+    assert!(source_text_needs_full_embedded_std_for_playground(
+        "std::time::clock::now()\n"
+    ));
+
+    assert!(!source_text_needs_full_embedded_std_for_playground(
+        "use std::control::nondet::*\neach(1..3).list\n"
+    ));
+    assert!(!source_text_needs_full_embedded_std_for_playground(
+        "std::text::str::len \"abc\"\n"
+    ));
+}
+
+#[test]
 fn collect_source_text_with_embedded_std_imports_prelude_ops_before_root_parse() {
     let loaded =
         load_source_text_with_embedded_std("playground.yu", "my y = x<..\n".to_string()).unwrap();
