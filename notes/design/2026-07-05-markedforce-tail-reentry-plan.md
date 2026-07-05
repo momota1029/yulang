@@ -1,0 +1,69 @@
+# MarkedForce 同一マーカー再入融合 計画（2026-07-05、Claude 署名・ユーザ承認済み）
+
+状態: 承認済み（2026-07-05、ユーザ「全部大丈夫なので進めてください」）。確定した決定:
+1. 「同一マーカー再入融合」の方向性を採用する。
+2. トランポリン化は **MarkedForce 専用の小さいループ**として置く（既存 38ce176c tail loop とは合流させない——仕組みを混ぜると invariant-base 同様の深い罠を再び踏みやすいため）。
+3. **Stage F1（shadow・挙動変更なし）を先行**し、再入一致率の分布を確認してから F2（実行）へ。
+
+## 背景
+
+Stage S（ba618206〜a18afa41、push 済み）で state get/set の perform-site 短絡が landed し、継続生成は全ループ形状でゼロになった。しかし平坦ループ（`for i in 1..N: &total = $total + i`、明示 `fold`+ref、no-ref `for` すら）は依然 N≈65,536 で stack overflow する。同日の顕微鏡トレースで、残る唯一の蓄積源は **MarkedForce frame**（反復あたり frame 1 + add_id 2）と確定した:
+
+- ref 系: `&total#1:0` の marked callback thunk force
+- no-ref for 系: `std::control::flow::loop::last` の force
+
+いずれも同一の Rust コード経路を反復ごとに通る: `force_thunk_result` の `Marked` 分岐（runtime.rs:20511）が
+`with_marker_frame(EvidenceMarkerFrameSource::MarkedForce, markers.clone(), true, None, |runner| runner.force_thunk_result(value.clone()))`（runtime.rs:20537）
+で包まれる。
+
+## 真因（本日の追加調査で確定）
+
+`with_marker_frame` は「push → closure 実行 → pop」という形:
+- push: `push_marker_frame`（runtime.rs:11397）が `active_frames` と depth-0 の `active_add_ids` を積む。呼び出しは runtime.rs:11010/11024。
+- closure 実行: runtime.rs:11026。
+- pop: `pop_marker_frame`（runtime.rs:11437）が `active_frames` / `active_handler_frames` / `active_add_ids` / `active_marker_plans` を切り詰める。呼び出しは runtime.rs:11040。
+
+closure の中身が論理的に末尾呼び出しで終わっていても（`fold_ints` は自身を末尾再帰——定義 lib/std/data/range.yu:51、再帰呼び出し range.yu:53 `fold_ints(f, i + 1, end, f acc i)`、no-ref for 経路は range.yu:67）、その再帰呼び出しは**`with_marker_frame` という Rust 関数本体の末尾位置ではない**。pop は closure が return してから走る設計だから、closure の中でさらに一段深い `fold_ints` 呼び出しが同じ `MarkedForce` を経由すれば、その pop は「もっと深い pop が先に済むまで」保留される。bookkeeping の Vec と実 Rust コールスタックの両方が、反復ごとに一段ずつ積み増す。
+
+これは「tail loop の入場条件が空を要求する」という表層の話ではない——invariant-base 提案（notes/design/2026-07-05-tail-loop-invariant-base.md）が踏んだ罠はここにある。**with_marker_frame 自体の形が、内側にどんな末尾呼び出しがあっても Rust レベルで非末尾再帰にする**という、一段深いところに真因がある。だから「frame を末尾位置で退役する」だけでは届かない。今朝の invariant-base T2 試作で frame 退役後も identity_mismatch が残った理由も、これで説明がつく——退役しても `with_marker_frame` の Rust スタックフレーム自体は closure の return を待ち続けている。
+
+本日確認した補足事実（file:line）:
+- pop は Rust closure の return に厳密に紐付く。事前 peek 機構は存在しない。`try_force_continuation_apply_expr`（runtime.rs:14917）と `runtime_expr_cache` の force-effect fusion（runtime.rs:9054）は別目的の特定パターン専用で、marker frame の pop タイミングには関与しない。tail-invariant shadow（runtime.rs:15966）は計測専用で pop はしない。
+- tail loop 入場ゲート（runtime.rs:15568）は `active_frames` / `active_handler_frames` / `active_add_ids` / `active_marker_plans` / `active_provider_envs` / `active_provider_handlers` / `active_state_handler_frames` / `host_scheduler.has_only_root_branch()` を要求。`MarkedForce` は `handler_path = None` を渡すため `active_handler_frames` は増えないが、`active_frames`・`active_add_ids`・`active_marker_plans` は増える。
+- 9d10af50 の hygiene 分類を超える新規ハザードは見つからなかった。この `MarkedForce` では `handler_path = None` のため `handler_boundary_for_request_parts` は早期 return（runtime.rs:13870）。force return 後・次の末尾呼び出し前に意味のある marker 状態を読む箇所は他に見当たらない。
+
+## 提案の方向: 「退役」ではなく「同一マーカー再入の融合」
+
+一般化した tail loop 入場条件ではなく、**MarkedForce という construct 自体を対象にした特化融合**を提案する。
+
+- ある `MarkedForce` が forcing 中に、その評価が末尾位置で**同一 identity の marker 集合**を持つ別の `MarkedForce` を再度開始しようとしたら——それは意味的に「同じスコープの次の反復」であって「新しい入れ子スコープ」ではない。
+- この場合、新しい push を行わず、既存の frame/add_id/plan を**そのまま使い回す**。pop は「次の反復が同一 identity の `MarkedForce` を作らなかった」時点まで一回だけ遅延する。
+- 実行系としては、`force_thunk_result` の中の「同一 identity 再入」を Rust 関数呼び出しではなくトランポリンのループへ変換する必要がある——`with_marker_frame` 自体をループ対応の形に作り替える。
+
+同一性判定は `markers` の実体（Rc/ポインタ identity）で行う。invariant-base の「同一性一致」原則をここでも踏襲するが、対象を「全 active stack」ではなく「このひとつの marker 集合」に絞る。範囲が狭い分、9d10af50 が扱った hygiene 問題（foreign carried guard 等）を踏む可能性も invariant-base 案より下がると見ている。
+
+### 安全条件（案、実装前に要検証）
+
+1. 再入検出は「force 中に、同一 marker identity の `MarkedForce` が呼ばれようとした」時点で行う。値の中身ではなく `markers` の identity で判定。
+2. 再入の間に、退役済み frame の内容を参照する継続が実体化・escape していないこと（invariant-base と同じ懸念、9d10af50 分類を流用）。
+3. 再入呼び出しが真の末尾位置であること——Yulang 意味論上の末尾であるだけでなく、`force_thunk_result` の呼び出し構造上もその先に追加の作業が残っていないこと。
+
+### 未解決の設計課題（決定点）
+
+1. `force_thunk_result` / `with_marker_frame` をトランポリン化する具体的な形——どこにループを置くか。既存 38ce176c tail loop と合流させるか、`MarkedForce` 専用の小さいループにするか。
+2. 「同一 identity の再入」をどこで検出するか——force の呼び出し前（prospective）か、再帰が一段進んでから引き返して判定するか。
+3. Stage 分け: F1 shadow（同一 identity 再入の発生率を計測するだけ、挙動変更なし）を先行するか。
+
+## 段階案
+
+- **Stage F1（shadow、挙動変更なし）**: 「force 中に同一 marker identity の `MarkedForce` が末尾位置で再度開始されたか」を counter で計測。平坦 for+ref・fold+ref・no-ref for・nondet 系・file 系で再入一致率と誤検知ゼロを確認。
+- **Stage F2（実行）**: F1 で分布が期待どおりなら、frame 使い回し＋トランポリン化を実装。
+  - 門番 fixture: 既存の `file_ref_lines_each_update_chain_native` / `do_binding_state_protocol` / `file_text_with_commit_do` / `debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_resume` ＋ 本日追加の 3 canary（`for_ref_tail_known_state_4096` 等）。
+  - 受け入れ: 平坦 for+ref が N=65,536 / 1,048,576 で overflow せず、時間が N に線形。
+
+## 関連
+
+- [[perf-findings-2026-07-05]]
+- notes/design/2026-07-05-tail-loop-invariant-base.md（invariant-base 提案・T2 revert の顛末、本ノートの前段）
+- 38ce176c（tail loop 初版）/ bd2a78fe / 9d10af50（marker hygiene 分類）
+- ba618206〜a18afa41（Stage S: known-state perform-site 短絡、本ノートの前提）
