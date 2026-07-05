@@ -1099,6 +1099,12 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
     })
 }
 
+pub fn warm_embedded_std_compiled_unit_artifact_prefix(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<(), RouteError> {
+    warm_embedded_std_prefix_from_artifact(artifact)
+}
+
 pub fn build_poly_from_source_text_with_embedded_playground_std(
     _entry: impl AsRef<FsPath>,
     source: impl Into<String>,
@@ -1138,6 +1144,12 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
         file_count,
         errors,
     })
+}
+
+pub fn warm_embedded_playground_std_compiled_unit_artifact_prefix(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<(), RouteError> {
+    warm_embedded_playground_std_prefix_from_artifact(artifact)
 }
 
 pub fn build_control_from_source_text_with_embedded_std(

@@ -58,5 +58,6 @@ pub use source::{
     run_built_control_program_with_labels, run_control_from_entry, run_control_from_entry_with_std,
     run_control_from_entry_with_std_options, run_control_from_source_text_with_embedded_std,
     run_mono_from_entry, run_mono_from_entry_with_std, run_mono_from_entry_with_std_options,
-    source_compilation_units,
+    source_compilation_units, warm_embedded_playground_std_compiled_unit_artifact_prefix,
+    warm_embedded_std_compiled_unit_artifact_prefix,
 };

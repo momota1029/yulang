@@ -534,6 +534,36 @@ point { x: 3, y: 4 } .norm2
     }
 
     #[test]
+    fn run_inner_reuses_warmed_std_prefix_without_cross_source_leaks() {
+        clear_std_cache();
+        let warmup = warm_std_cache_inner();
+        assert!(warmup.embedded_std_artifacts_valid, "{warmup:?}");
+
+        let cases = [
+            ("1 + 2\n", "run roots [3]\n"),
+            ("each(1..3).list\n", "run roots [[1, 2, 3]]\n"),
+            (
+                "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
+                "run roots [1]\n",
+            ),
+        ];
+
+        for (source, expected_text) in cases {
+            let output = run_inner_on_test_stack(source);
+            assert!(output.ok, "{output:?}");
+            assert_eq!(output.text, expected_text);
+            assert_eq!(
+                output
+                    .timings
+                    .as_ref()
+                    .map(|timing| (timing.source_cache_hits, timing.source_cache_misses)),
+                Some((0, 1)),
+                "{output:?}"
+            );
+        }
+    }
+
+    #[test]
     fn no_std_vm_boundary_on_ref_list_surface_retries_with_playground_std() {
         let source = "\
 {

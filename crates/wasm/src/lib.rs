@@ -163,6 +163,8 @@ fn semantic_highlight_spans(
 
 pub fn warm_std_cache_inner() -> WarmupOutput {
     let status = embedded_std_status_inner();
+    let prefix_fallback_reason = warm_embedded_std_prefixes();
+    let fallback_reason = status.fallback_reason.or(prefix_fallback_reason);
     WarmupOutput {
         source_cache_hits: 0,
         source_cache_misses: 0,
@@ -171,10 +173,33 @@ pub fn warm_std_cache_inner() -> WarmupOutput {
         embedded_std_artifacts: status.artifacts,
         embedded_std_runtime_bindings: status.runtime_bindings,
         embedded_std_artifacts_bytes: status.bytes,
-        embedded_std_artifacts_valid: status.valid,
-        embedded_std_artifacts_fallback_reason: status.fallback_reason,
+        embedded_std_artifacts_valid: status.valid && fallback_reason.is_none(),
+        embedded_std_artifacts_fallback_reason: fallback_reason,
         total_ms: 0.0,
     }
+}
+
+fn warm_embedded_std_prefixes() -> Option<String> {
+    let mut errors = Vec::new();
+    match embedded_playground_std_artifact() {
+        Some(artifact) => {
+            if let Err(error) =
+                yulang::warm_embedded_playground_std_compiled_unit_artifact_prefix(artifact)
+            {
+                errors.push(format!("embedded playground std prefix: {error}"));
+            }
+        }
+        None => errors.push("embedded playground std artifact failed validation".to_string()),
+    }
+    match embedded_full_std_artifact() {
+        Some(artifact) => {
+            if let Err(error) = yulang::warm_embedded_std_compiled_unit_artifact_prefix(artifact) {
+                errors.push(format!("embedded full std prefix: {error}"));
+            }
+        }
+        None => errors.push("embedded full std artifact failed validation".to_string()),
+    }
+    (!errors.is_empty()).then(|| errors.join("; "))
 }
 
 pub fn embedded_std_status_inner() -> EmbeddedStdArtifactsOutput {

@@ -5,12 +5,17 @@ use super::*;
 thread_local! {
     static EMBEDDED_STD_LOADED_PREFIX: RefCell<Option<Vec<sources::LoadedFile>>> =
         const { RefCell::new(None) };
-    static EMBEDDED_STD_LOWERING_PREFIX: RefCell<Option<infer::lowering::BodyLoweringPrefix>> =
+    static EMBEDDED_STD_LOWERING_PREFIX: RefCell<Option<CachedEmbeddedLoweringPrefix>> =
         const { RefCell::new(None) };
     static EMBEDDED_PLAYGROUND_STD_LOADED_PREFIX: RefCell<Option<Vec<sources::LoadedFile>>> =
         const { RefCell::new(None) };
-    static EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX: RefCell<Option<infer::lowering::BodyLoweringPrefix>> =
+    static EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX: RefCell<Option<CachedEmbeddedLoweringPrefix>> =
         const { RefCell::new(None) };
+}
+
+struct CachedEmbeddedLoweringPrefix {
+    key: crate::cache::SourceCacheKey,
+    prefix: infer::lowering::BodyLoweringPrefix,
 }
 
 pub(super) fn resolve_std_root(
@@ -148,7 +153,7 @@ pub(super) fn embedded_playground_std_lowering_with_root_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
-    let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
+    let prefix = cached_embedded_playground_std_lowering_prefix_from_artifact(artifact)?;
     lower_root_with_embedded_prefix(
         &prefix,
         cached_embedded_playground_std_loaded_prefix(),
@@ -167,8 +172,22 @@ pub(super) fn embedded_std_lowering_with_root_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
-    let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
+    let prefix = cached_embedded_std_lowering_prefix_from_artifact(artifact)?;
     lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
+}
+
+pub(super) fn warm_embedded_playground_std_prefix_from_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<(), RouteError> {
+    let _ = cached_embedded_playground_std_loaded_prefix();
+    cached_embedded_playground_std_lowering_prefix_from_artifact(artifact).map(|_| ())
+}
+
+pub(super) fn warm_embedded_std_prefix_from_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<(), RouteError> {
+    let _ = cached_embedded_std_loaded_prefix();
+    cached_embedded_std_lowering_prefix_from_artifact(artifact).map(|_| ())
 }
 
 fn lower_root_with_embedded_prefix(
@@ -212,16 +231,19 @@ fn cached_embedded_std_loaded_prefix() -> Vec<sources::LoadedFile> {
 fn cached_embedded_std_lowering_prefix() -> Result<infer::lowering::BodyLoweringPrefix, RouteError>
 {
     EMBEDDED_STD_LOWERING_PREFIX.with(|cache| {
-        if let Some(prefix) = cache.borrow().as_ref() {
-            return Ok(prefix.clone());
-        }
-
         let files =
             embedded_std_sources_with_root(FsPath::new("<embedded-std-root>"), String::new());
+        let key = crate::cache::source_cache_key(&files);
+        if let Some(cached) = cache.borrow().as_ref().filter(|cached| cached.key == key) {
+            return Ok(cached.prefix.clone());
+        }
         let loaded = load_collected_source_files(files.clone());
         let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
         let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
-        *cache.borrow_mut() = Some(prefix.clone());
+        *cache.borrow_mut() = Some(CachedEmbeddedLoweringPrefix {
+            key,
+            prefix: prefix.clone(),
+        });
         Ok(prefix)
     })
 }
@@ -238,20 +260,53 @@ fn cached_embedded_playground_std_loaded_prefix() -> Vec<sources::LoadedFile> {
 fn cached_embedded_playground_std_lowering_prefix()
 -> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
     EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX.with(|cache| {
-        if let Some(prefix) = cache.borrow().as_ref() {
-            return Ok(prefix.clone());
-        }
-
         let files = embedded_playground_std_sources_with_root(
             FsPath::new("<embedded-playground-std-root>"),
             String::new(),
         );
+        let key = crate::cache::source_cache_key(&files);
+        if let Some(cached) = cache.borrow().as_ref().filter(|cached| cached.key == key) {
+            return Ok(cached.prefix.clone());
+        }
         let loaded = load_collected_source_files(files.clone());
         let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
         let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
-        *cache.borrow_mut() = Some(prefix.clone());
+        *cache.borrow_mut() = Some(CachedEmbeddedLoweringPrefix {
+            key,
+            prefix: prefix.clone(),
+        });
         Ok(prefix)
     })
+}
+
+fn cached_embedded_std_lowering_prefix_from_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
+    EMBEDDED_STD_LOWERING_PREFIX.with(|cache| cached_lowering_prefix_from_artifact(cache, artifact))
+}
+
+fn cached_embedded_playground_std_lowering_prefix_from_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
+    EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX
+        .with(|cache| cached_lowering_prefix_from_artifact(cache, artifact))
+}
+
+fn cached_lowering_prefix_from_artifact(
+    cache: &RefCell<Option<CachedEmbeddedLoweringPrefix>>,
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
+    let key = artifact.cache_key();
+    if let Some(cached) = cache.borrow().as_ref().filter(|cached| cached.key == key) {
+        return Ok(cached.prefix.clone());
+    }
+
+    let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
+    *cache.borrow_mut() = Some(CachedEmbeddedLoweringPrefix {
+        key,
+        prefix: prefix.clone(),
+    });
+    Ok(prefix)
 }
 
 fn lowering_prefix_from_compiled_unit_artifact(
