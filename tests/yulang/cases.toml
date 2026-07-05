@@ -98,6 +98,33 @@ expect_stderr = ""
 contracts = ["runtime", "refs", "std.ref", "std.flow"]
 
 [[case]]
+name = "for_ref_tail_known_state_4096"
+file = "regressions/runtime/for_ref_tail_known_state_4096.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [8386560]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow"]
+
+[[case]]
+name = "range_fold_ref_tail_known_state_4096"
+file = "regressions/runtime/range_fold_ref_tail_known_state_4096.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [8386560]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.flow"]
+
+[[case]]
+name = "state_ref_nondet_resume_shared_state"
+file = "regressions/runtime/state_ref_nondet_resume_shared_state.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [([1, 2], 2)]\n"
+expect_stderr = ""
+contracts = ["runtime", "refs", "std.ref", "std.nondet", "deep-handler"]
+
+[[case]]
 name = "block_ref_loop_console_20000"
 file = "regressions/runtime/block_ref_loop_console_20000.yu"
 kind = "run"

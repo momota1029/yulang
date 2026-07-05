@@ -1,0 +1,12 @@
+use std::control::nondet::*
+use std::control::var::*
+
+{
+    my $x = 0
+    my ys = {
+        my b = each [true, false]
+        &x = $x + 1
+        $x
+    }.list
+    (ys, $x)
+}
