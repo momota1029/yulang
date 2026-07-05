@@ -3834,8 +3834,84 @@ pub(crate) fn print_run_report(
             .tail_invariant_base_rejected_carried_guard
     );
     println!(
+        "  runtime_evidence.tail_invariant_base_rejected_adapter_env: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_rejected_adapter_env
+    );
+    println!(
         "  runtime_evidence.tail_invariant_base_rejected_other: {}",
         output.evidence_stats.tail_invariant_base_rejected_other
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_would_loop: {}",
+        output.evidence_stats.tail_invariant_base_at_tail_would_loop
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_rejected_identity_mismatch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_tail_rejected_identity_mismatch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_rejected_continuation_captured: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_tail_rejected_continuation_captured
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_rejected_carried_guard: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_tail_rejected_carried_guard
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_rejected_adapter_env: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_tail_rejected_adapter_env
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_tail_rejected_other: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_tail_rejected_other
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_would_loop: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_would_loop
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_rejected_identity_mismatch: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_rejected_identity_mismatch
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_rejected_continuation_captured: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_rejected_continuation_captured
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_rejected_carried_guard: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_rejected_carried_guard
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_rejected_adapter_env: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_rejected_adapter_env
+    );
+    println!(
+        "  runtime_evidence.tail_invariant_base_at_resume_rejected_other: {}",
+        output
+            .evidence_stats
+            .tail_invariant_base_at_resume_rejected_other
     );
     println!(
         "  runtime_evidence.resume_marker_plan_empty: {}",
