@@ -4,7 +4,8 @@
 //! evidence that a handler-passing backend would need before it can replace the
 //! generic control VM for a local region.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fmt::Write;
 
 use mono::{FunctionAdapterHygiene, GuardMarker, StackWeight, Type};
@@ -292,6 +293,9 @@ pub fn format_control_evidence_program(program: &ControlEvidenceProgram) -> Stri
 struct ControlEvidenceBuilder<'a> {
     program: &'a Program,
     evidence: ControlEvidenceProgram,
+    cache_stats: Option<ControlEvidenceCacheStats>,
+    completed_instance_entries: HashSet<ControlEvidenceCacheKey>,
+    completed_known_callees: HashMap<ControlEvidenceCacheKey, bool>,
     recorded_handlers: HashSet<ExprId>,
     recorded_adapters: HashSet<ExprId>,
     recorded_delayed_boundaries: HashSet<ExprId>,
@@ -300,6 +304,151 @@ struct ControlEvidenceBuilder<'a> {
     recorded_fallbacks: HashSet<ControlFallbackEvidence>,
     active_exprs: HashSet<ExprId>,
     active_instances: HashSet<InstanceId>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ControlEvidenceCacheKey {
+    path: ControlEvidenceCachePath,
+    target: ControlEvidenceCacheTarget,
+    context: EvidenceContextKey,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum ControlEvidenceCachePath {
+    InstanceEntry,
+    KnownCalleeEntry,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum ControlEvidenceCacheTarget {
+    Expr(ExprId),
+    Instance(InstanceId),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum EvidenceContextKey {
+    NoHandlers,
+    Full {
+        handlers: Vec<EvidenceHandlerFrameKey>,
+        callback_boundary_depth: u32,
+        delayed_boundary_depth: u32,
+    },
+}
+
+#[derive(Default)]
+struct ControlEvidenceCacheStats {
+    instance_entry_hits: usize,
+    instance_entry_misses: usize,
+    known_callee_hits: usize,
+    known_callee_misses: usize,
+    no_handlers_hits: usize,
+    no_handlers_misses: usize,
+    full_context_hits: usize,
+    full_context_misses: usize,
+}
+
+impl ControlEvidenceCacheStats {
+    fn record_hit(&mut self, path: ControlEvidenceCachePath, context: &EvidenceContextKey) {
+        match path {
+            ControlEvidenceCachePath::InstanceEntry => self.instance_entry_hits += 1,
+            ControlEvidenceCachePath::KnownCalleeEntry => self.known_callee_hits += 1,
+        }
+        match context {
+            EvidenceContextKey::NoHandlers => self.no_handlers_hits += 1,
+            EvidenceContextKey::Full { .. } => self.full_context_hits += 1,
+        }
+    }
+
+    fn record_miss(&mut self, path: ControlEvidenceCachePath, context: &EvidenceContextKey) {
+        match path {
+            ControlEvidenceCachePath::InstanceEntry => self.instance_entry_misses += 1,
+            ControlEvidenceCachePath::KnownCalleeEntry => self.known_callee_misses += 1,
+        }
+        match context {
+            EvidenceContextKey::NoHandlers => self.no_handlers_misses += 1,
+            EvidenceContextKey::Full { .. } => self.full_context_misses += 1,
+        }
+    }
+
+    fn print(&self) {
+        eprintln!("control_evidence_cache_stats:");
+        eprintln!(
+            "  instance_entry hits={} misses={}",
+            self.instance_entry_hits, self.instance_entry_misses
+        );
+        eprintln!(
+            "  known_callee hits={} misses={}",
+            self.known_callee_hits, self.known_callee_misses
+        );
+        eprintln!(
+            "  no_handlers hits={} misses={}",
+            self.no_handlers_hits, self.no_handlers_misses
+        );
+        eprintln!(
+            "  full_context hits={} misses={}",
+            self.full_context_hits, self.full_context_misses
+        );
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct EvidenceHandlerFrameKey {
+    expr: ExprId,
+    arms: Vec<EvidenceHandlerArmShapeKey>,
+    callback_boundary_depth_at_entry: u32,
+    delayed_boundary_depth_at_entry: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct EvidenceHandlerArmShapeKey {
+    path: Vec<String>,
+    resumptive: bool,
+}
+
+impl EvidenceContextKey {
+    fn from_context(context: &EvidenceContext) -> Self {
+        if context.handlers.is_empty() {
+            return Self::NoHandlers;
+        }
+        Self::Full {
+            handlers: context
+                .handlers
+                .iter()
+                .map(|frame| EvidenceHandlerFrameKey {
+                    expr: frame.expr,
+                    arms: frame
+                        .arms
+                        .iter()
+                        .map(|arm| EvidenceHandlerArmShapeKey {
+                            path: arm.path.clone(),
+                            resumptive: arm.resumptive,
+                        })
+                        .collect(),
+                    callback_boundary_depth_at_entry: frame.callback_boundary_depth_at_entry,
+                    delayed_boundary_depth_at_entry: frame.delayed_boundary_depth_at_entry,
+                })
+                .collect(),
+            callback_boundary_depth: context.callback_boundary_depth,
+            delayed_boundary_depth: context.delayed_boundary_depth,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum KnownCalleeCacheKind {
+    Lambda,
+    KnownValue,
+    UnknownValue,
+}
+
+fn known_callee_cache_kind(program: &Program, entry: ExprId) -> Option<KnownCalleeCacheKind> {
+    let expr = program.exprs.get(entry.0 as usize)?;
+    Some(match expr {
+        Expr::Lambda { .. } => KnownCalleeCacheKind::Lambda,
+        Expr::PrimitiveOp { .. } | Expr::Constructor { .. } => KnownCalleeCacheKind::KnownValue,
+        Expr::EffectOp { .. } => return None,
+        _ => KnownCalleeCacheKind::UnknownValue,
+    })
 }
 
 impl<'a> ControlEvidenceBuilder<'a> {
@@ -316,6 +465,11 @@ impl<'a> ControlEvidenceBuilder<'a> {
                 delayed_boundaries: Vec::new(),
                 fallbacks: Vec::new(),
             },
+            cache_stats: env::var_os("YULANG_CONTROL_EVIDENCE_CACHE_STATS")
+                .is_some()
+                .then(ControlEvidenceCacheStats::default),
+            completed_instance_entries: HashSet::new(),
+            completed_known_callees: HashMap::new(),
             recorded_handlers: HashSet::new(),
             recorded_adapters: HashSet::new(),
             recorded_delayed_boundaries: HashSet::new(),
@@ -354,6 +508,9 @@ impl<'a> ControlEvidenceBuilder<'a> {
                 }
                 Root::Expr(expr) => self.visit_expr_id(*expr, &mut context),
             }
+        }
+        if let Some(stats) = &self.cache_stats {
+            stats.print();
         }
         self.evidence
     }
@@ -660,8 +817,7 @@ impl<'a> ControlEvidenceBuilder<'a> {
                 true
             }
             Expr::Lambda { param, body } => {
-                self.visit_pat(param, context);
-                self.visit_expr_id(*body, context);
+                self.visit_known_lambda_callee(callee, param, *body, context);
                 true
             }
             Expr::InstanceRef(instance) => {
@@ -686,6 +842,45 @@ impl<'a> ControlEvidenceBuilder<'a> {
             );
             return false;
         };
+        if self.active_instances.contains(&instance) {
+            self.record_fallback(
+                ExprId(instance.0),
+                ControlFallbackKind::CycleInstanceRef,
+                context,
+            );
+            return false;
+        }
+        let Some(kind) = known_callee_cache_kind(self.program, entry) else {
+            return self.visit_known_instance_call_site_uncached(apply, instance, entry, context);
+        };
+        if self.active_exprs.contains(&entry) {
+            return self.visit_known_instance_call_site_uncached(apply, instance, entry, context);
+        }
+        let context_key = EvidenceContextKey::from_context(context);
+        let key = ControlEvidenceCacheKey {
+            path: ControlEvidenceCachePath::KnownCalleeEntry,
+            target: ControlEvidenceCacheTarget::Instance(instance),
+            context: context_key.clone(),
+        };
+        if let Some(&known) = self.completed_known_callees.get(&key) {
+            self.record_cache_hit(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+            return known;
+        }
+        self.record_cache_miss(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+        self.active_instances.insert(instance);
+        let known = self.visit_known_callee_entry_for_kind(apply, entry, kind, context);
+        self.active_instances.remove(&instance);
+        self.completed_known_callees.insert(key, known);
+        known
+    }
+
+    fn visit_known_instance_call_site_uncached(
+        &mut self,
+        apply: ExprId,
+        instance: InstanceId,
+        entry: ExprId,
+        context: &mut EvidenceContext,
+    ) -> bool {
         if !self.active_instances.insert(instance) {
             self.record_fallback(
                 ExprId(instance.0),
@@ -709,6 +904,35 @@ impl<'a> ControlEvidenceBuilder<'a> {
             self.record_fallback(entry, ControlFallbackKind::MissingExprRef, context);
             return false;
         };
+        let Some(kind) = known_callee_cache_kind(self.program, entry) else {
+            return self.visit_known_callee_entry_uncached(apply, entry, expr, context);
+        };
+        if self.active_exprs.contains(&entry) {
+            return self.visit_known_callee_entry_uncached(apply, entry, expr, context);
+        }
+        let context_key = EvidenceContextKey::from_context(context);
+        let key = ControlEvidenceCacheKey {
+            path: ControlEvidenceCachePath::KnownCalleeEntry,
+            target: ControlEvidenceCacheTarget::Expr(entry),
+            context: context_key.clone(),
+        };
+        if let Some(&known) = self.completed_known_callees.get(&key) {
+            self.record_cache_hit(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+            return known;
+        }
+        self.record_cache_miss(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+        let known = self.visit_known_callee_entry_for_kind(apply, entry, kind, context);
+        self.completed_known_callees.insert(key, known);
+        known
+    }
+
+    fn visit_known_callee_entry_uncached(
+        &mut self,
+        apply: ExprId,
+        entry: ExprId,
+        expr: &Expr,
+        context: &mut EvidenceContext,
+    ) -> bool {
         match expr {
             Expr::EffectOp { def, path } => {
                 self.record_effect(
@@ -731,6 +955,60 @@ impl<'a> ControlEvidenceBuilder<'a> {
             Expr::PrimitiveOp { .. } | Expr::Constructor { .. } => true,
             _ => false,
         }
+    }
+
+    fn visit_known_callee_entry_for_kind(
+        &mut self,
+        apply: ExprId,
+        entry: ExprId,
+        kind: KnownCalleeCacheKind,
+        context: &mut EvidenceContext,
+    ) -> bool {
+        let Some(expr) = self.program.exprs.get(entry.0 as usize) else {
+            self.record_fallback(entry, ControlFallbackKind::MissingExprRef, context);
+            return false;
+        };
+        match (kind, expr) {
+            (KnownCalleeCacheKind::Lambda, Expr::Lambda { param, body }) => {
+                self.visit_pat(param, context);
+                self.visit_expr_id(*body, context);
+                true
+            }
+            (
+                KnownCalleeCacheKind::KnownValue,
+                Expr::PrimitiveOp { .. } | Expr::Constructor { .. },
+            ) => true,
+            (KnownCalleeCacheKind::UnknownValue, _) => false,
+            _ => self.visit_known_callee_entry_uncached(apply, entry, expr, context),
+        }
+    }
+
+    fn visit_known_lambda_callee(
+        &mut self,
+        callee: ExprId,
+        param: &Pat,
+        body: ExprId,
+        context: &mut EvidenceContext,
+    ) {
+        if self.active_exprs.contains(&callee) {
+            self.visit_pat(param, context);
+            self.visit_expr_id(body, context);
+            return;
+        }
+        let context_key = EvidenceContextKey::from_context(context);
+        let key = ControlEvidenceCacheKey {
+            path: ControlEvidenceCachePath::KnownCalleeEntry,
+            target: ControlEvidenceCacheTarget::Expr(callee),
+            context: context_key.clone(),
+        };
+        if self.completed_known_callees.contains_key(&key) {
+            self.record_cache_hit(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+            return;
+        }
+        self.record_cache_miss(ControlEvidenceCachePath::KnownCalleeEntry, &context_key);
+        self.visit_pat(param, context);
+        self.visit_expr_id(body, context);
+        self.completed_known_callees.insert(key, true);
     }
 
     fn visit_known_force_site(&mut self, thunk: ExprId, context: &mut EvidenceContext) -> bool {
@@ -797,7 +1075,7 @@ impl<'a> ControlEvidenceBuilder<'a> {
             );
             return;
         };
-        if !self.active_instances.insert(instance) {
+        if self.active_instances.contains(&instance) {
             self.record_fallback(
                 ExprId(instance.0),
                 ControlFallbackKind::CycleInstanceRef,
@@ -805,8 +1083,25 @@ impl<'a> ControlEvidenceBuilder<'a> {
             );
             return;
         }
+        if self.active_exprs.contains(&entry) {
+            self.record_fallback(entry, ControlFallbackKind::CycleExprRef, context);
+            return;
+        }
+        let context_key = EvidenceContextKey::from_context(context);
+        let key = ControlEvidenceCacheKey {
+            path: ControlEvidenceCachePath::InstanceEntry,
+            target: ControlEvidenceCacheTarget::Instance(instance),
+            context: context_key.clone(),
+        };
+        if self.completed_instance_entries.contains(&key) {
+            self.record_cache_hit(ControlEvidenceCachePath::InstanceEntry, &context_key);
+            return;
+        }
+        self.record_cache_miss(ControlEvidenceCachePath::InstanceEntry, &context_key);
+        self.active_instances.insert(instance);
         self.visit_expr_id(entry, context);
         self.active_instances.remove(&instance);
+        self.completed_instance_entries.insert(key);
     }
 
     fn instance_entry(&self, instance: InstanceId) -> Option<ExprId> {
@@ -1025,6 +1320,18 @@ impl<'a> ControlEvidenceBuilder<'a> {
         };
         if self.recorded_fallbacks.insert(evidence) {
             self.evidence.fallbacks.push(evidence);
+        }
+    }
+
+    fn record_cache_hit(&mut self, path: ControlEvidenceCachePath, context: &EvidenceContextKey) {
+        if let Some(stats) = &mut self.cache_stats {
+            stats.record_hit(path, context);
+        }
+    }
+
+    fn record_cache_miss(&mut self, path: ControlEvidenceCachePath, context: &EvidenceContextKey) {
+        if let Some(stats) = &mut self.cache_stats {
+            stats.record_miss(path, context);
         }
     }
 }
