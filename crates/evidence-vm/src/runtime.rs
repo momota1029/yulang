@@ -1382,6 +1382,12 @@ struct EffectThunkEvidence {
     static_route: Option<RuntimeEvidenceStaticRouteResolution>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum KnownStatePerformShortCircuit {
+    Get(SharedValue),
+    Set { frame_index: usize },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ProviderGrantPathGateFail {
     NoGrant,
@@ -6637,6 +6643,22 @@ impl EvidenceContinuation {
         };
         frame.shape_profile_at(depth)
     }
+}
+
+fn force_thunk_continuation_parts(
+    continuation: &EvidenceContinuation,
+) -> Option<(bool, EvidenceContinuation)> {
+    let EvidenceContinuation::Frame(frame) = continuation else {
+        return None;
+    };
+    let EvidenceContinuationFrame::ForceThunk {
+        target_value_is_thunk,
+        next,
+    } = frame.as_ref()
+    else {
+        return None;
+    };
+    Some((*target_value_is_thunk, next.clone()))
 }
 
 impl EvidenceContinuationFrame {
@@ -15225,6 +15247,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
             let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
             let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
+            if let Some(result) =
+                self.try_known_state_perform_short_circuit(target_value_is_thunk, &arg, evidence)?
+            {
+                return Ok(result);
+            }
             return self.force_effect_call_scoped_result(
                 target_value_is_thunk,
                 path,
@@ -15238,6 +15265,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Value(arg) => {
                 let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
                 let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
+                if let Some(result) = self.try_known_state_perform_short_circuit(
+                    target_value_is_thunk,
+                    &arg,
+                    evidence,
+                )? {
+                    return Ok(result);
+                }
                 self.force_effect_call_scoped_result(
                     target_value_is_thunk,
                     path,
@@ -15306,6 +15340,105 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.forced_effect_call_fusions += 1;
         let result = self.force_effect_result(path, arg, route, evidence)?;
         self.finish_force_thunk_result(result, target_value_is_thunk)
+    }
+
+    fn try_known_state_perform_short_circuit(
+        &mut self,
+        target_value_is_thunk: bool,
+        payload: &SharedValue,
+        evidence: EffectThunkEvidence,
+    ) -> Result<Option<EvidenceEvalResult>, RuntimeEvidenceRunError> {
+        let Some(value) = self.try_known_state_perform_short_circuit_value(payload, evidence)
+        else {
+            return Ok(None);
+        };
+        let result = self
+            .finish_force_thunk_result(EvidenceEvalResult::Value(value), target_value_is_thunk)?;
+        Ok(Some(result))
+    }
+
+    fn try_known_state_perform_short_circuit_value(
+        &mut self,
+        payload: &SharedValue,
+        evidence: EffectThunkEvidence,
+    ) -> Option<SharedValue> {
+        let operation = evidence.known_operation?;
+        let action = self.known_state_perform_short_circuit(operation, payload)?;
+        self.record_static_route_runtime_hit(evidence.static_route);
+        self.record_known_operation_hit(operation);
+        Some(self.eval_known_state_perform_short_circuit(action, payload))
+    }
+
+    fn known_state_perform_short_circuit(
+        &self,
+        operation: RuntimeEvidenceKnownOperationCall,
+        payload: &SharedValue,
+    ) -> Option<KnownStatePerformShortCircuit> {
+        if !operation.direct_ready {
+            return None;
+        }
+        let proof_id = operation.route_proof?;
+        let proof = self.context.known_state_route_proof(proof_id)?;
+        if proof.role != operation.role
+            || proof.plan_id != operation.plan_id
+            || proof.handler_id != operation.handler_id
+        {
+            return None;
+        }
+        match operation.role {
+            EvidenceVmKnownOperationRole::StateGet => {
+                if proof.payload != EvidenceVmKnownStateOperationPayloadProof::UnitPayloadForGet {
+                    return None;
+                }
+                if !matches!(payload.as_ref(), RuntimeEvidenceValue::Unit) {
+                    return None;
+                }
+                self.active_state_handler_frames
+                    .iter()
+                    .rev()
+                    .find(|frame| {
+                        frame.plan_id == proof.plan_id && frame.catch_expr == proof.catch_expr
+                    })
+                    .map(|frame| KnownStatePerformShortCircuit::Get(frame.state.clone()))
+            }
+            EvidenceVmKnownOperationRole::StateSet => {
+                if proof.payload
+                    != EvidenceVmKnownStateOperationPayloadProof::SingleValuePayloadForSet
+                {
+                    return None;
+                }
+                self.active_state_handler_frames
+                    .iter()
+                    .rposition(|frame| {
+                        frame.plan_id == proof.plan_id && frame.catch_expr == proof.catch_expr
+                    })
+                    .map(|frame_index| KnownStatePerformShortCircuit::Set { frame_index })
+            }
+        }
+    }
+
+    fn eval_known_state_perform_short_circuit(
+        &mut self,
+        action: KnownStatePerformShortCircuit,
+        payload: &SharedValue,
+    ) -> SharedValue {
+        match action {
+            KnownStatePerformShortCircuit::Get(state) => {
+                self.stats.known_operation_route_direct_get_attempts += 1;
+                self.stats.known_state_direct_gets += 1;
+                self.stats.known_state_perform_short_circuit_gets += 1;
+                self.stats.known_operation_route_direct_get_hits += 1;
+                state
+            }
+            KnownStatePerformShortCircuit::Set { frame_index } => {
+                self.active_state_handler_frames[frame_index].state = payload.clone();
+                self.stats.known_operation_route_direct_set_attempts += 1;
+                self.stats.known_state_direct_sets += 1;
+                self.stats.known_state_perform_short_circuit_sets += 1;
+                self.stats.known_operation_route_direct_set_hits += 1;
+                shared(RuntimeEvidenceValue::Unit)
+            }
+        }
     }
 
     fn eval_apply_arg_result(
@@ -17098,6 +17231,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ApplyArg { site, callee, next } => {
+                if let RuntimeEvidenceValue::EffectOp { expr, .. } = callee.as_ref()
+                    && let Some((target_value_is_thunk, after_force)) =
+                        force_thunk_continuation_parts(&next)
+                {
+                    let resolved_route = self.effect_route_for_operation_call(site, *expr);
+                    let evidence = self.effect_thunk_evidence(site, *expr, resolved_route);
+                    if let Some(result) = self.try_known_state_perform_short_circuit(
+                        target_value_is_thunk,
+                        &value,
+                        evidence,
+                    )? {
+                        return self.continue_result(result, after_force);
+                    }
+                }
                 let result = self.apply_scoped_value_result(site, callee, value)?;
                 self.continue_result(result, next)
             }
@@ -20210,6 +20357,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     evidence,
                 } => {
                     self.stats.thunk_force_effect += 1;
+                    if let Some(value) =
+                        self.try_known_state_perform_short_circuit_value(payload, *evidence)
+                    {
+                        return Ok(EvidenceEvalResult::Value(value));
+                    }
                     self.force_effect_result(path.clone(), payload.clone(), *route, *evidence)
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
@@ -20254,6 +20406,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             },
             RuntimeEvidenceValue::Marked { value, markers } => {
+                if let RuntimeEvidenceValue::Thunk(thunk) = value.as_ref()
+                    && let RuntimeEvidenceThunk::Effect {
+                        payload, evidence, ..
+                    } = thunk.as_ref()
+                    && let Some(value) =
+                        self.try_known_state_perform_short_circuit_value(payload, *evidence)
+                {
+                    self.stats.thunk_force_effect += 1;
+                    return Ok(EvidenceEvalResult::Value(value));
+                }
                 if let Some((value, markers)) =
                     marked_force_value_thunk(value.as_ref(), markers.clone())
                 {
