@@ -4310,6 +4310,26 @@ fn public_regression_list_update_runs_through_cli_cache() {
 }
 
 #[test]
+fn public_regression_parser_pattern_rest_runs_without_cache() {
+    let entry = repo_yulang_fixture("regressions/runtime/parser_pattern_case.yu");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("\"run:alpha beta\""), "{stdout}");
+    assert!(stdout.contains("\"rest-discard:run\""), "{stdout}");
+}
+
+#[test]
 fn public_regression_runtime_fixtures_run_through_cli_golden() {
     let cases = [
         (
