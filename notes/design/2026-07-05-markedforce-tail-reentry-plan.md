@@ -80,6 +80,28 @@ closure の中身が論理的に末尾呼び出しで終わっていても（`fo
 - **ただし一般化はしない**——この結論は `each 1..1` という最小例で確認された事実であり、`bench/nondet_20_discard.yu` 全体（861 件）や他の nondet 形状すべてで cross-branch fusion が起きないことを網羅的に証明したわけではない。F2 着手前に、より広い nondet ワークロードでの確認が望ましい。
 - **現在地**: F1（shadow、精緻化込み）は committed・green・挙動変更ゼロ確認済み。F2（実行）着手前に、(a) より広い nondet 網羅確認を追加するか、(b) 現状の証拠で十分とみて F2 に進むか、ユーザ判断待ち。
 
+## 追記3（2026-07-05、Claude 署名）: 意図的破壊テストで unsafe ケースを実発見——F2 の安全ゲート仕様が確定
+
+ユーザ指示（「石橋を叩き割る勢いで、つまり慎重に」）を受け、F1 の既存 shadow 計装（追加コード変更なし、`--runtime-evidence-profile-deep` での計測のみ）を使って、意図的に unsafe ケースを誘発する 5 形状を構築・計測した。
+
+- (a) fold+branch()（同一ループ内混在）: `8190 / 0 / 0 / 8191` — safe。
+- (b) ref+branch() 混在（既存 canary の拡大版）: `196607 / 0 / 131071 / 458747` — safe。
+- (c) **外側 `each` の各分岐内に、同一 identity で末尾再帰する内側 fold を持つ形**: `16372 / 21 / 1 / 16385` — **unsafe_materialized = 21 実測**。
+- (d) 1 反復内に複数の逐次 `branch()`（深い choice tree）: `43690 / 0 / 0 / 131071` — safe。
+- (e) `junction::junction(any/all ...)`: `14 / 0 / 6 / 6` — safe。
+
+### 決定的な発見（(c)）
+
+21 件の unsafe ヒットを個別追跡した結果、**`gen == parent_gen`**（「外側 MarkedForce 開始から継続実体化世代が変わったか」という粗い判定では素通り）だったが、`marker_materialized = true`（「この marker identity 自体が、過去いずれかの時点で実体化した継続に運ばれたことがあるか」という **per-marker 履歴フラグ**）で正しく unsafe と分類された。つまり:
+
+- **「世代が変わったか」という粗いチェックだけでは、この (c) のような入れ子 choice を見逃す**。
+- F1 精緻化（bbfd002b）で実装した `marker_materialized` の per-marker 履歴追跡は、狙った以上に正確な粒度で機能していた。
+- **結論: F2 の安全ゲートは `marker_identity 一致 AND marker_materialized == false`（per-marker 履歴ベース）を必須とする。「outer force 開始からの世代差分」のような粗い近似では不十分**——(c) が反証になる。
+
+### 評価
+
+5 形状中 4 つが safe、1 つ（(c)）で実際に unsafe を検出——これは「何も起きなかった」という弱い証拠ではなく、「危険な形を作ったら正しく捕まった」という強い証拠。ただし探索した形状は 5 通りのみであり、nondet 全空間の網羅ではない。F2 実装時は `marker_materialized` の per-marker 履歴チェックを安全ゲートの必須項とし、このチェックを外した近似（世代差分など）に置き換えないこと。
+
 ## 関連
 
 - [[perf-findings-2026-07-05]]
