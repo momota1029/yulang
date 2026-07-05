@@ -16115,6 +16115,104 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         )
     }
 
+    fn try_known_state_ref_assignment_short_circuit(
+        &mut self,
+        reference: &SharedValue,
+        assigned: &SharedValue,
+    ) -> Option<SharedValue> {
+        let update_effect = record_field(reference.as_ref(), "update_effect").ok()?;
+        let RuntimeEvidenceValue::Closure(closure) = update_effect.as_ref() else {
+            return None;
+        };
+        if !closure.provider_env.is_empty() {
+            return None;
+        }
+        let (site, effect, arg) = self.known_state_effect_call_parts(closure.body)?;
+        let update_payload = self.expr_ref_update_update_payload(arg)?;
+        self.try_known_state_ref_assignment_update_read(update_payload)?;
+        let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
+        let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
+        self.try_known_state_perform_short_circuit_value(assigned, evidence)
+    }
+
+    fn try_known_state_ref_assignment_update_read(&mut self, expr: ExprId) -> Option<()> {
+        let (site, effect, arg) = self.known_state_effect_call_parts(expr)?;
+        let RuntimeEvidenceExpr::Value(value) = self.runtime_expr_unaliased(arg) else {
+            return None;
+        };
+        if !matches!(value.as_ref(), RuntimeEvidenceValue::Unit) {
+            return None;
+        }
+        let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
+        let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
+        let operation = evidence.known_operation?;
+        if operation.role != EvidenceVmKnownOperationRole::StateGet {
+            return None;
+        }
+        let unit = shared(RuntimeEvidenceValue::Unit);
+        self.try_known_state_perform_short_circuit_value(&unit, evidence)?;
+        Some(())
+    }
+
+    fn known_state_effect_call_parts(&self, expr: ExprId) -> Option<(ExprId, ExprId, ExprId)> {
+        match self.runtime_expr_unaliased(expr) {
+            RuntimeEvidenceExpr::ForceEffectCall {
+                site, effect, arg, ..
+            } => Some((*site, *effect, *arg)),
+            RuntimeEvidenceExpr::Apply { site, callee, arg } => {
+                let RuntimeEvidenceExpr::Value(value) = self.runtime_expr_unaliased(*callee) else {
+                    return None;
+                };
+                let RuntimeEvidenceValue::EffectOp { expr: effect, .. } = value.as_ref() else {
+                    return None;
+                };
+                Some((*site, *effect, *arg))
+            }
+            _ => None,
+        }
+    }
+
+    fn expr_ref_update_update_payload(&self, expr: ExprId) -> Option<ExprId> {
+        match self.runtime_expr_unaliased(expr) {
+            RuntimeEvidenceExpr::ForceThunk { thunk, .. } => {
+                self.expr_ref_update_update_payload(*thunk)
+            }
+            RuntimeEvidenceExpr::Apply { callee, arg, .. } => {
+                if self.expr_value_is_ref_update_update_effect_op(*callee) {
+                    Some(*arg)
+                } else {
+                    None
+                }
+            }
+            RuntimeEvidenceExpr::ForceEffectCall { path, arg, .. }
+                if path_is_ref_update_update(path.as_ref()) =>
+            {
+                Some(*arg)
+            }
+            _ => None,
+        }
+    }
+
+    fn expr_value_is_ref_update_update_effect_op(&self, expr: ExprId) -> bool {
+        let RuntimeEvidenceExpr::Value(value) = self.runtime_expr_unaliased(expr) else {
+            return false;
+        };
+        matches!(
+            value.as_ref(),
+            RuntimeEvidenceValue::EffectOp { path, .. } if path_is_ref_update_update(path.as_ref())
+        )
+    }
+
+    fn runtime_expr_unaliased(&self, expr: ExprId) -> &RuntimeEvidenceExpr {
+        let mut expr = expr;
+        loop {
+            match &self.runtime_exprs[expr.0 as usize] {
+                RuntimeEvidenceExpr::Alias(inner) => expr = *inner,
+                runtime_expr => return runtime_expr,
+            }
+        }
+    }
+
     fn handle_ref_set_result(
         &mut self,
         result: EvidenceEvalResult,
@@ -17452,6 +17550,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceContinuationFrame::RefSetForcedValue { reference, next } => {
                 self.stats.ref_set_update_effect_calls += 1;
+                if let Some(value) =
+                    self.try_known_state_ref_assignment_short_circuit(&reference, &value)
+                {
+                    return self.continue_result(EvidenceEvalResult::Value(value), next);
+                }
                 let update_effect = record_field(reference.as_ref(), "update_effect")?;
                 let result = self.apply_value_result(
                     None,
@@ -22628,9 +22731,11 @@ fn finish_ref_set_values(finish: EvidenceRefSetFinish, values: Vec<SharedValue>)
 }
 
 fn request_is_ref_update(request: &EvidenceRequest) -> bool {
-    request
-        .path
-        .iter()
+    path_is_ref_update_update(request.path.as_ref())
+}
+
+fn path_is_ref_update_update(path: &[String]) -> bool {
+    path.iter()
         .map(String::as_str)
         .eq(["std", "control", "var", "ref_update", "update"])
 }
