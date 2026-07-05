@@ -64,6 +64,17 @@ tail loop の入場条件を次のように一般化する:
 2. 一致判定の強度: 深さ一致で足りるとみるか、同一性一致（推奨）まで要求するか。
 3. Stage T1 shadow を挟むか、T1+T2 を一息にやるか。
 
+## 追記（2026-07-05 同日、Claude 署名）: T2 試行の結果と方針転換
+
+- T1（shadow）は landed（d7d0f87e / cd3165e6 / 700cac07 / 6cb0c340）。deep-profile flag 配下にゲート済みで、flag OFF の通常実行は従来性能（148.5ms / 385.6ms @ N=4096/8192）。危険系棄却（continuation 実体化 / carried guard / adapter 捕獲）は全ワークロードでゼロを確認。
+- **T2（実行）は受け入れ失敗、revert 済み・commit なし**。
+  - 広い形（MarkedForce + plain Closure）は state 更新を飛ばして roots が変わり compare-control が検出（門番が機能）。
+  - 制限形（MarkedForce + RecursiveClosure）は小入力で正しいが、**実退役後も identity_mismatch(frames) が残存**し N=4096 で依然 stack overflow。
+  - 「不一致は shadow の非退役 artifact」という本文書の予測は**誤り**だった。反復ごとの積み上げには第二の源（`next::sub`/loop.next の Expr-source marker frame、述語対象外）があり、退役では追いつかない。
+- **根本診断の更新**: 問題の本質は loop 入場条件ではなく、**known-state 操作が per-iteration scope を suspend で凍結すること**。純粋 body では反復 scope が反復内で閉じてから tail call するため空条件で loop に乗る。効果つき body では state op が ApplyArg 継続を作り、宙吊り scope の下から再帰に入るため、いかなる退役戦略でも構造的に届かない。
+- **方針転換（承認済みの目的の範囲内でより低侵襲な手段への変更）**: invariant-base の実行段（T2）は棚上げ。本命は **known-state perform-site 短絡** — KnownHandlerPlan::State で handler が静的に判明している get/set を、perform 地点で同期実行し継続も marker frame も作らない。これにより反復 scope は純粋 body と同様に閉じ、既存 38ce176c tail loop が空条件のまま適用される。direct state frame 機構は nondet resume 横断 canary（debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_resume）で検証済みの土台。
+- T1 の shadow 計装は診断器として温存（flag 配下、通常実行コストゼロ）。
+
 ## 関連
 
 - 38ce176c（tail loop 初版・空条件）/ bd2a78fe（thunk-wrapped state handler 認識）/ 9d10af50（marker hygiene 分類）
