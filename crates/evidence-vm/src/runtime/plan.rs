@@ -24,6 +24,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     native_host_operations_disabled: bool,
     in_process_server_host_enabled: bool,
     flush_stdout_on_external_wait: bool,
+    print_nth: bool,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -237,6 +238,7 @@ impl RuntimeEvidenceRunContext {
             native_host_operations_disabled: false,
             in_process_server_host_enabled: false,
             flush_stdout_on_external_wait: false,
+            print_nth: false,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -351,6 +353,15 @@ impl RuntimeEvidenceRunContext {
 
     pub(super) fn flush_stdout_on_external_wait(&self) -> bool {
         self.flush_stdout_on_external_wait
+    }
+
+    pub(super) fn with_print_nth(mut self) -> Self {
+        self.print_nth = true;
+        self
+    }
+
+    pub(super) fn print_nth(&self) -> bool {
+        self.print_nth
     }
 
     pub(super) fn with_host_constructors(

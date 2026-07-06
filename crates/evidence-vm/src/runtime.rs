@@ -9422,6 +9422,8 @@ struct RuntimeBuiltinHostState {
     stdout: String,
     stdout_flushed_len: usize,
     flush_stdout_on_external_wait: bool,
+    print_nth: bool,
+    print_nth_next_result_index: usize,
     file_ambient_buffers: HashMap<PathBuf, String>,
     native_tcp_server: RuntimeNativeTcpServerHost,
     in_process_server: Option<RuntimeInProcessServerHost>,
@@ -9436,9 +9438,15 @@ struct RuntimeBuiltinHostState {
 }
 
 impl RuntimeBuiltinHostState {
-    fn new(in_process_server_host_enabled: bool, flush_stdout_on_external_wait: bool) -> Self {
+    fn new(
+        in_process_server_host_enabled: bool,
+        flush_stdout_on_external_wait: bool,
+        print_nth: bool,
+    ) -> Self {
         Self {
             flush_stdout_on_external_wait,
+            print_nth,
+            print_nth_next_result_index: 1,
             in_process_server: in_process_server_host_enabled
                 .then(RuntimeInProcessServerHost::default),
             ..Self::default()
@@ -9446,6 +9454,11 @@ impl RuntimeBuiltinHostState {
     }
 
     fn push_stdout(&mut self, text: &str) {
+        if self.print_nth {
+            let index = self.print_nth_next_result_index;
+            self.print_nth_next_result_index += 1;
+            self.stdout.push_str(&format!("Result {index}: "));
+        }
         self.stdout.push_str(text);
     }
 
@@ -10072,6 +10085,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             host_state: RuntimeBuiltinHostState::new(
                 context.in_process_server_host_enabled(),
                 context.flush_stdout_on_external_wait(),
+                context.print_nth(),
             ),
             current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
@@ -25211,6 +25225,58 @@ mod tests {
     }
 
     #[test]
+    fn console_out_write_print_nth_prefixes_each_write() {
+        let program = Program::default();
+        let context = RuntimeEvidenceRunContext::default().with_print_nth();
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(console_out_write_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.console.out",
+                operation_id: "write",
+                f: host_console_out_write,
+            }],
+        );
+
+        runner
+            .handle_escaped_request(console_out_write_request("hello\n"))
+            .expect("first console write should be handled");
+        runner
+            .handle_escaped_request(console_out_write_request("world\n"))
+            .expect("second console write should be handled");
+
+        assert_eq!(
+            runner.host_state.stdout,
+            "Result 1: hello\nResult 2: world\n"
+        );
+    }
+
+    #[test]
+    fn console_out_write_default_keeps_raw_stdout() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(console_out_write_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.console.out",
+                operation_id: "write",
+                f: host_console_out_write,
+            }],
+        );
+
+        runner
+            .handle_escaped_request(console_out_write_request("hello\n"))
+            .expect("first console write should be handled");
+        runner
+            .handle_escaped_request(console_out_write_request("world\n"))
+            .expect("second console write should be handled");
+
+        assert_eq!(runner.host_state.stdout, "hello\nworld\n");
+    }
+
+    #[test]
     fn host_abi_cache_safety_clock_now_marks_run_uncacheable() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -25996,6 +26062,22 @@ mod tests {
                 type_id: FAKE_LISTENER_TYPE_ID,
                 handle: 8080,
             }),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        }
+    }
+
+    fn console_out_write_request(text: &str) -> EvidenceRequest {
+        EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "console".to_string(),
+                "out".to_string(),
+                "write".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Str(text.to_string())),
             route: EvidenceEffectRoute::Unhandled,
             hygiene: EvidenceSignalHygiene::new(),
             continuation: EvidenceContinuation::identity(),
