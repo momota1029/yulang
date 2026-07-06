@@ -1754,7 +1754,7 @@ root = "repo"
 kind = "run"
 std = "repo"
 print_roots = false
-expect_stdout = "(edited copy, /tmp/yulang-cookbook-todo.txt, [(), (), (), ()])\ndone: write config reader\nkeep: review notes\ndone: ship example slice\n\n"
+expect_stdout = "(edited copy, [(), (), (), ()])\ndone: write config reader\nkeep: review notes\ndone: ship example slice\n\n"
 expect_stderr = ""
 contracts = ["public-example", "runtime", "standard-api", "stable-api", "str", "file", "file-resource", "resource-lifetime", "host.native", "std.nondet", "refs"]
 

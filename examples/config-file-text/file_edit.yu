@@ -1,13 +1,21 @@
 -- Edit a todo file through the durable text-ref line-edit idiom.
--- This writes a fresh /tmp copy first, so reruns do not dirty the tracked sample.
+-- This writes a fresh scratch copy first, so reruns do not dirty the tracked sample.
 -- Run: cargo run -q -p yulang -- --std-root lib --no-cache run examples/config-file-text/file_edit.yu
 
 use std::control::nondet::*
 use std::control::var::*
 use std::text::str::*
 
-my source = "examples/config-file-text/todo.txt"
-my path = "/tmp/yulang-cookbook-todo.txt"
+my path_of text = std::text::path::of_bytes (std::text::str::to_bytes text)
+
+my source = path_of "examples/config-file-text/todo.txt"
+my path = if std::io::file::is_dir (path_of "/tmp"):
+  path_of "/tmp/yulang-cookbook-todo.txt"
+else:
+  if std::io::file::is_dir (path_of "target"):
+    path_of "target/yulang-cookbook-todo.txt"
+  else:
+    path_of "yulang-cookbook-todo.txt"
 
 std::io::file::write_text path (std::io::file::read_text source)
 
@@ -16,5 +24,5 @@ my touched = ((&doc.lines.each).update \line ->
     line.replace_once "todo:" "done:"
 ).list
 
-("edited copy", path, touched).say
+("edited copy", touched).say
 $doc.say
