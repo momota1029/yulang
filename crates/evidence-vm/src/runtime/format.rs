@@ -4,6 +4,8 @@ use list_tree::ListTree;
 
 use super::{RuntimeEvidenceDisplayContext, RuntimeEvidenceValue, SharedValue};
 
+const STD_NUM_FRAC_CONSTRUCTOR_LABEL: &str = "std.num.frac.frac";
+
 pub(super) fn format_values_with_labels(
     values: &[RuntimeEvidenceValue],
     labels: Option<&poly::dump::DumpLabels>,
@@ -69,6 +71,10 @@ fn format_value_in_context(
     display: Option<&RuntimeEvidenceDisplayContext>,
     constructor_syntax: ConstructorSyntax,
 ) -> String {
+    if let Some(fraction) = format_fraction_value(value, labels) {
+        return fraction;
+    }
+
     match value {
         RuntimeEvidenceValue::Int(value) => value.to_string(),
         RuntimeEvidenceValue::BigInt(value) => value.clone(),
@@ -130,6 +136,68 @@ fn format_value_in_context(
         }
         RuntimeEvidenceValue::Continuation(_) => "<continuation>".to_string(),
         RuntimeEvidenceValue::Thunk(_) => "<thunk>".to_string(),
+    }
+}
+
+fn format_fraction_value(
+    value: &RuntimeEvidenceValue,
+    labels: Option<&poly::dump::DumpLabels>,
+) -> Option<String> {
+    match value {
+        RuntimeEvidenceValue::DataConstructor { def, payloads }
+            if constructor_has_label(labels, *def, STD_NUM_FRAC_CONSTRUCTOR_LABEL)
+                && payloads.len() == 1 =>
+        {
+            format_fraction_payload(payloads[0].as_ref())
+        }
+        RuntimeEvidenceValue::Marked { value, .. } => format_fraction_value(value, labels),
+        _ => None,
+    }
+}
+
+fn constructor_has_label(
+    labels: Option<&poly::dump::DumpLabels>,
+    def: DefId,
+    expected: &str,
+) -> bool {
+    labels
+        .and_then(|labels| labels.def_label(poly::expr::DefId(def.0)))
+        .is_some_and(|label| label == expected)
+}
+
+fn format_fraction_payload(value: &RuntimeEvidenceValue) -> Option<String> {
+    match value {
+        RuntimeEvidenceValue::Record(fields) => format_fraction_record(fields),
+        RuntimeEvidenceValue::Marked { value, .. } => format_fraction_payload(value),
+        _ => None,
+    }
+}
+
+fn format_fraction_record(fields: &[super::RuntimeEvidenceValueField]) -> Option<String> {
+    if fields.len() != 2 {
+        return None;
+    }
+    let num = int_field(fields, "num")?;
+    let den = int_field(fields, "den")?;
+    if den == 1 {
+        Some(num.to_string())
+    } else {
+        Some(format!("{num}/{den}"))
+    }
+}
+
+fn int_field(fields: &[super::RuntimeEvidenceValueField], name: &str) -> Option<i64> {
+    fields
+        .iter()
+        .find(|field| field.name.as_str() == name)
+        .and_then(|field| int_value(field.value.as_ref()))
+}
+
+fn int_value(value: &RuntimeEvidenceValue) -> Option<i64> {
+    match value {
+        RuntimeEvidenceValue::Int(value) => Some(*value),
+        RuntimeEvidenceValue::Marked { value, .. } => int_value(value),
+        _ => None,
     }
 }
 
@@ -276,6 +344,7 @@ mod tests {
         let mut labels = poly::dump::DumpLabels::new();
         labels.set_def_label(poly::expr::DefId(1), "std.data.opt.opt.just");
         labels.set_def_label(poly::expr::DefId(2), "local.wrapper.wrap");
+        labels.set_def_label(poly::expr::DefId(3), "std.num.frac.frac");
         labels
     }
 
@@ -288,6 +357,27 @@ mod tests {
             def: DefId(def),
             payloads,
         }
+    }
+
+    fn record(
+        fields: impl IntoIterator<Item = (&'static str, SharedValue)>,
+    ) -> RuntimeEvidenceValue {
+        RuntimeEvidenceValue::Record(
+            fields
+                .into_iter()
+                .map(|(name, value)| super::super::RuntimeEvidenceValueField {
+                    name: name.to_string(),
+                    value,
+                })
+                .collect(),
+        )
+    }
+
+    fn fraction(num: i64, den: i64) -> RuntimeEvidenceValue {
+        constructor(
+            3,
+            vec![Rc::new(record([("num", int(num)), ("den", int(den))]))],
+        )
     }
 
     #[test]
@@ -338,6 +428,28 @@ mod tests {
         assert_eq!(
             format_value_with_display_context(&value, Some(&labels()), &display),
             "wrap(just 1)"
+        );
+    }
+
+    #[test]
+    fn fraction_constructor_display_uses_std_surface_shape() {
+        assert_eq!(
+            format_value_with_labels(&fraction(3, 2), Some(&labels())),
+            "3/2"
+        );
+        assert_eq!(
+            format_value_with_labels(&fraction(2, 1), Some(&labels())),
+            "2"
+        );
+    }
+
+    #[test]
+    fn fraction_shaped_non_fraction_constructor_keeps_canonical_display() {
+        let value = constructor(2, vec![Rc::new(record([("num", int(3)), ("den", int(2))]))]);
+
+        assert_eq!(
+            format_value_with_labels(&value, Some(&labels())),
+            "wrapper::wrap({num: 3, den: 2})"
         );
     }
 }
