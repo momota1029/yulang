@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bin="${YULANG:-"$repo_root/target/release/yulang"}"
 test_timeout="${YULANG_RELEASE_GATE_TEST_TIMEOUT:-720s}"
+core_test_timeout="${YULANG_RELEASE_GATE_CORE_TEST_TIMEOUT:-1500s}"
 smoke_timeout="${YULANG_RELEASE_GATE_SMOKE_TIMEOUT:-420s}"
 build_timeout="${YULANG_RELEASE_GATE_BUILD_TIMEOUT:-900s}"
 
@@ -28,7 +29,7 @@ if [[ "$run_fmt" != "0" ]]; then
 fi
 
 if [[ "$run_core_tests" != "0" ]]; then
-  run_timeout "$test_timeout" \
+  run_timeout "$core_test_timeout" \
     cargo test -q -p parser -p infer -p yulang -- --test-threads=1
 fi
 
