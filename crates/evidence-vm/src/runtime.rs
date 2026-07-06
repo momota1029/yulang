@@ -29285,6 +29285,55 @@ mod tests {
         assert!(!runner.route_allows_routed_yield(false, evidence));
     }
 
+    #[test]
+    fn force_effect_result_routes_provider_grant_abortive_through_generic_request() {
+        let provider_env = provider_env_fixture();
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let frame = runner.provider_frame(provider_env);
+        let grant = EvidenceProviderGrant {
+            demand_slot_id: 7,
+            provider_slot_id: 7,
+            handler_id: 3,
+            scope_id: frame.scope_id,
+            hygiene_baseline: frame.hygiene_baseline,
+        };
+        runner.active_provider_envs.push(frame);
+        let grant_id = runner.record_provider_grant(grant);
+        let path = shared_path(&permission_test_path());
+
+        let result = runner
+            .force_effect_result(
+                path.clone(),
+                shared(RuntimeEvidenceValue::Unit),
+                EvidenceEffectRoute::Direct {
+                    handler: ExprId(3),
+                    resumptive: false,
+                    execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
+                    request_free_yield: false,
+                },
+                EffectThunkEvidence {
+                    route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
+                    visibility: Some(RuntimeEvidenceOperationVisibility::provider_grant(7)),
+                    known_operation: None,
+                    static_route: None,
+                },
+            )
+            .expect("provider-grant abortive force should stay routable");
+
+        let EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) = result
+        else {
+            panic!("provider-grant abortive route should fall back to generic request");
+        };
+        assert_eq!(request.path, path);
+        assert_eq!(request.route, EvidenceEffectRoute::Unhandled);
+        assert!(request.continuation.is_identity());
+        assert_eq!(
+            request.hygiene.provider_grant_permission(),
+            RuntimeEvidenceOperationVisibility::provider_grant(7).provider_grant_permission()
+        );
+    }
+
     fn permission_pair_hygiene(
         visibility: RuntimeEvidenceOperationVisibility,
         guard_id: EvidenceGuardId,
