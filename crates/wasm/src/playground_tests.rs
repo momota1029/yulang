@@ -158,6 +158,53 @@ my route = \line -> case line:
         );
     }
 
+    #[test]
+    fn playground_docs_links_keep_file_backed_install_and_clean_redirects() {
+        const PLAYGROUND_INDEX_HTML: &str = include_str!("../../../web/playground/index.html");
+        const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
+        const DOCS_EXTERNALIZE_SCRIPT: &str =
+            include_str!("../../../web/docs/scripts/externalize-inline-scripts.mjs");
+
+        assert!(
+            PLAYGROUND_INDEX_HTML
+                .contains(r#"href="/ja/guide/install.html" data-doc-link="install""#),
+            "static playground install link should target the generated file-backed docs URL"
+        );
+        assert!(
+            PLAYGROUND_MAIN_TS.contains(r#"install: { href: "/ja/guide/install.html""#),
+            "Japanese runtime doc link should keep the file-backed install URL"
+        );
+        assert!(
+            PLAYGROUND_MAIN_TS.contains(r#"install: { href: "/guide/install.html""#),
+            "English runtime doc link should keep the file-backed install URL"
+        );
+        assert!(PLAYGROUND_MAIN_TS.contains("redirectCleanDocsPath();"));
+        assert!(PLAYGROUND_MAIN_TS.contains("target = `${pathname}/`;"));
+        assert!(PLAYGROUND_MAIN_TS.contains("target = `${pathname}.html`;"));
+        assert!(DOCS_EXTERNALIZE_SCRIPT.contains("await createCleanUrlIndexes(webOutDir);"));
+        assert!(DOCS_EXTERNALIZE_SCRIPT.contains("filename !== \"404.html\""));
+    }
+
+    #[test]
+    fn playground_colorizer_keeps_plain_html_fallback() {
+        const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
+
+        assert!(PLAYGROUND_MAIN_TS.contains("function colorizedSourceHtml(source: string): string"));
+        assert!(PLAYGROUND_MAIN_TS.contains("try {\n        const output = colorize(source)"));
+        assert!(
+            PLAYGROUND_MAIN_TS
+                .contains("const spans = Array.isArray(output.spans) ? output.spans : [];")
+        );
+        assert!(PLAYGROUND_MAIN_TS.contains("return highlightSource(source, spans);"));
+        assert!(PLAYGROUND_MAIN_TS.contains("reportColorizeFallback(error);"));
+        assert!(PLAYGROUND_MAIN_TS.contains("return plainSourceHtml(source);"));
+        assert!(PLAYGROUND_MAIN_TS.contains("function plainSourceHtml(source: string): string"));
+        assert!(
+            PLAYGROUND_MAIN_TS
+                .contains("console.warn(\"Yulang colorizer failed; rendering plain source\", error);")
+        );
+    }
+
     fn assert_type_annotation_mismatch_diagnostic(diagnostic: &Diagnostic) {
         assert_eq!(diagnostic.label.as_deref(), Some("x"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
