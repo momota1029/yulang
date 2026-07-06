@@ -6,10 +6,16 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+use yulang_editor::diagnostics as editor_diagnostics;
+use yulang_editor::hover as editor_hover;
 use yulang_editor::semantic_tokens;
+use yulang_editor::text as editor_text;
 
-use crate::source::SourceTextAnalysis;
-use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange, SourceRename};
+use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
+use crate::{
+    SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin, SourceHover, SourceLocation,
+    SourceRange, SourceRename,
+};
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
 const LSP_ANALYSIS_DEBOUNCE: Duration = Duration::from_millis(150);
@@ -241,26 +247,24 @@ fn diagnostics_for_analysis(
         .analyze()
         .diagnostics
         .into_iter()
+        .map(editor_diagnostic_for_source_diagnostic)
         .map(|diagnostic| {
-            let mut message = match diagnostic.label {
-                Some(label) => format!("{label}: {}", diagnostic.message),
-                None => diagnostic.message,
-            };
-            if let Some(hint) = diagnostic.hint {
-                message.push_str("\nhint: ");
-                message.push_str(&hint);
-            }
+            let message = diagnostic.message_with_label_and_hint();
+            let root_has_implicit_prelude = analysis.root_has_implicit_prelude();
+            let range = diagnostic.range;
+            let severity = diagnostic.severity;
+            let code = diagnostic.code;
+            let related_diagnostics = diagnostic.related;
             let related_information = uri.as_ref().and_then(|uri| {
-                let related = diagnostic
-                    .related
+                let related = related_diagnostics
                     .into_iter()
                     .map(|related| DiagnosticRelatedInformation {
                         location: Location {
                             uri: uri.clone(),
-                            range: lsp_range_for_root_source(
+                            range: lsp_range_for_root_byte_range(
                                 source,
                                 related.range,
-                                analysis.root_has_implicit_prelude(),
+                                root_has_implicit_prelude,
                             ),
                         },
                         message: related.message,
@@ -269,18 +273,13 @@ fn diagnostics_for_analysis(
                 (!related.is_empty()).then_some(related)
             });
             Diagnostic {
-                range: diagnostic
-                    .range
+                range: range
                     .map(|range| {
-                        lsp_range_for_root_source(
-                            source,
-                            range,
-                            analysis.root_has_implicit_prelude(),
-                        )
+                        lsp_range_for_root_byte_range(source, range, root_has_implicit_prelude)
                     })
                     .unwrap_or_default(),
-                severity: Some(lsp_diagnostic_severity(diagnostic.severity)),
-                code: diagnostic.code.map(NumberOrString::String),
+                severity: Some(lsp_diagnostic_severity(severity)),
+                code: code.map(NumberOrString::String),
                 source: Some("yulang".to_string()),
                 message,
                 related_information,
@@ -290,9 +289,59 @@ fn diagnostics_for_analysis(
         .collect()
 }
 
-fn lsp_diagnostic_severity(severity: crate::SourceDiagnosticSeverity) -> DiagnosticSeverity {
+fn editor_diagnostic_for_source_diagnostic(
+    diagnostic: SourceDiagnostic,
+) -> editor_diagnostics::Diagnostic {
+    editor_diagnostics::Diagnostic {
+        severity: editor_diagnostic_severity(diagnostic.severity),
+        code: diagnostic.code,
+        label: diagnostic.label,
+        range: diagnostic.range.map(byte_range_for_source_range),
+        message: diagnostic.message,
+        hint: diagnostic.hint,
+        related: diagnostic
+            .related
+            .into_iter()
+            .map(editor_related_diagnostic_for_source_related)
+            .collect(),
+    }
+}
+
+fn editor_related_diagnostic_for_source_related(
+    related: SourceDiagnosticRelated,
+) -> editor_diagnostics::RelatedDiagnostic {
+    editor_diagnostics::RelatedDiagnostic {
+        message: related.message,
+        range: byte_range_for_source_range(related.range),
+        origin: related.origin.map(editor_related_origin_for_source_origin),
+    }
+}
+
+fn editor_diagnostic_severity(
+    severity: crate::SourceDiagnosticSeverity,
+) -> editor_diagnostics::DiagnosticSeverity {
     match severity {
-        crate::SourceDiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
+        crate::SourceDiagnosticSeverity::Error => editor_diagnostics::DiagnosticSeverity::Error,
+    }
+}
+
+fn editor_related_origin_for_source_origin(
+    origin: SourceDiagnosticRelatedOrigin,
+) -> editor_diagnostics::RelatedOrigin {
+    match origin {
+        SourceDiagnosticRelatedOrigin::TypeAnnotation => {
+            editor_diagnostics::RelatedOrigin::TypeAnnotation
+        }
+        SourceDiagnosticRelatedOrigin::Expression => editor_diagnostics::RelatedOrigin::Expression,
+        SourceDiagnosticRelatedOrigin::ImplCandidate => {
+            editor_diagnostics::RelatedOrigin::ImplCandidate
+        }
+    }
+}
+
+fn lsp_diagnostic_severity(severity: editor_diagnostics::DiagnosticSeverity) -> DiagnosticSeverity {
+    match severity {
+        editor_diagnostics::DiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
     }
 }
 
@@ -396,29 +445,34 @@ fn diagnostic_hover_for_analysis(
     analysis: &SourceTextAnalysis,
     position: Position,
 ) -> Option<Hover> {
-    diagnostics_for_analysis(path, source, analysis)
-        .into_iter()
-        .find_map(|diagnostic| {
-            let hover_range = diagnostic_hover_range_at_position(&diagnostic, position)?;
-            Some(lsp_hover_for_diagnostic_at_range(diagnostic, hover_range))
-        })
+    let diagnostics = diagnostics_for_analysis(path, source, analysis);
+    let targets = diagnostics
+        .iter()
+        .map(lsp_diagnostic_hover_target)
+        .collect::<Vec<_>>();
+    let selection =
+        editor_hover::select_diagnostic_hover(&targets, lsp_position_to_utf16(position))?;
+    let diagnostic = diagnostics.into_iter().nth(selection.diagnostic_index)?;
+    Some(lsp_hover_for_diagnostic_at_range(
+        diagnostic,
+        lsp_range_from_utf16(selection.range),
+    ))
 }
 
-fn diagnostic_hover_range_at_position(
-    diagnostic: &Diagnostic,
-    position: Position,
-) -> Option<Range> {
-    if position_is_in_lsp_range(position, diagnostic.range) {
-        return Some(diagnostic.range);
+fn lsp_diagnostic_hover_target(diagnostic: &Diagnostic) -> editor_hover::DiagnosticHoverTarget {
+    editor_hover::DiagnosticHoverTarget {
+        range: lsp_range_to_utf16(diagnostic.range),
+        related_ranges: diagnostic
+            .related_information
+            .as_ref()
+            .map(|related| {
+                related
+                    .iter()
+                    .map(|related| lsp_range_to_utf16(related.location.range))
+                    .collect()
+            })
+            .unwrap_or_default(),
     }
-    diagnostic
-        .related_information
-        .as_ref()?
-        .iter()
-        .find_map(|related| {
-            let range = related.location.range;
-            position_is_in_lsp_range(position, range).then_some(range)
-        })
 }
 
 fn definition_for_analysis(
@@ -610,98 +664,94 @@ fn lsp_range_for_root_source(
     range: SourceRange,
     root_has_implicit_prelude: bool,
 ) -> Range {
+    lsp_range_for_root_byte_range(
+        source,
+        byte_range_for_source_range(range),
+        root_has_implicit_prelude,
+    )
+}
+
+fn lsp_range_for_root_byte_range(
+    source: &str,
+    range: editor_text::ByteRange,
+    root_has_implicit_prelude: bool,
+) -> Range {
     if root_has_implicit_prelude {
         lsp_range_for_loaded_root_range(source, range)
     } else {
-        source_range_to_lsp_range(source, range)
+        lsp_range_for_byte_range(source, range)
     }
 }
 
-fn lsp_range_for_loaded_root_range(source: &str, range: SourceRange) -> Range {
-    source_range_to_lsp_range(source, subtract_implicit_prelude_range(range))
-}
-
-fn subtract_implicit_prelude_range(range: SourceRange) -> SourceRange {
-    let offset = crate::source::IMPLICIT_PRELUDE_IMPORT.len()
-        + crate::source::IMPLICIT_STD_MODULE_DECL.len();
-    if range.start < offset {
-        return range;
-    }
-    SourceRange {
-        start: range.start - offset,
-        end: range.end.saturating_sub(offset),
-    }
+fn lsp_range_for_loaded_root_range(source: &str, range: editor_text::ByteRange) -> Range {
+    lsp_range_for_byte_range(
+        source,
+        editor_text::subtract_prefix_after_start(
+            range,
+            crate::source::IMPLICIT_STD_SOURCE_PREFIX_LEN,
+        ),
+    )
 }
 
 fn source_range_to_lsp_range(source: &str, range: SourceRange) -> Range {
-    let start = clamp_to_char_boundary(source, range.start.min(source.len()));
-    let end = clamp_to_char_boundary(source, range.end.min(source.len())).max(start);
-    let line_starts = compute_line_starts(source);
-    Range {
-        start: byte_offset_to_position(source, &line_starts, start),
-        end: byte_offset_to_position(source, &line_starts, end),
-    }
+    lsp_range_for_byte_range(source, byte_range_for_source_range(range))
 }
 
+#[cfg(test)]
 fn compute_line_starts(source: &str) -> Vec<usize> {
-    let mut starts = vec![0];
-    for (index, byte) in source.bytes().enumerate() {
-        if byte == b'\n' {
-            starts.push(index + 1);
-        }
-    }
-    starts
+    editor_text::compute_line_starts(source)
 }
 
+#[cfg(test)]
 fn byte_offset_to_position(source: &str, line_starts: &[usize], offset: usize) -> Position {
-    let line = line_starts
-        .partition_point(|start| *start <= offset)
-        .saturating_sub(1);
-    let line_start = line_starts.get(line).copied().unwrap_or(0);
-    Position {
-        line: line as u32,
-        character: source[line_start..offset].encode_utf16().count() as u32,
-    }
+    lsp_position_from_utf16(editor_text::byte_offset_to_utf16_position(
+        source,
+        line_starts,
+        offset,
+    ))
 }
 
 fn position_to_byte_offset(source: &str, position: Position) -> Option<usize> {
-    let line_starts = compute_line_starts(source);
-    let line_start = *line_starts.get(position.line as usize)?;
-    let line_end = line_starts
-        .get(position.line as usize + 1)
-        .map(|next| next.saturating_sub(1))
-        .unwrap_or(source.len());
-    let mut utf16_column = 0u32;
-    for (relative, ch) in source[line_start..line_end].char_indices() {
-        if utf16_column == position.character {
-            return Some(line_start + relative);
-        }
-        let next_column = utf16_column + ch.len_utf16() as u32;
-        if position.character < next_column {
-            return None;
-        }
-        utf16_column = next_column;
+    editor_text::utf16_position_to_byte_offset(source, lsp_position_to_utf16(position))
+}
+
+fn lsp_range_for_byte_range(source: &str, range: editor_text::ByteRange) -> Range {
+    lsp_range_from_utf16(editor_text::utf16_range_for_byte_range(source, range))
+}
+
+fn byte_range_for_source_range(range: SourceRange) -> editor_text::ByteRange {
+    editor_text::ByteRange {
+        start: range.start,
+        end: range.end,
     }
-    (utf16_column == position.character).then_some(line_end)
 }
 
-fn position_is_in_lsp_range(position: Position, range: Range) -> bool {
-    position_is_at_or_after(position, range.start) && position_is_before(position, range.end)
-}
-
-fn position_is_at_or_after(position: Position, boundary: Position) -> bool {
-    (position.line, position.character) >= (boundary.line, boundary.character)
-}
-
-fn position_is_before(position: Position, boundary: Position) -> bool {
-    (position.line, position.character) < (boundary.line, boundary.character)
-}
-
-fn clamp_to_char_boundary(source: &str, mut offset: usize) -> usize {
-    while offset > 0 && !source.is_char_boundary(offset) {
-        offset -= 1;
+fn lsp_position_from_utf16(position: editor_text::Utf16Position) -> Position {
+    Position {
+        line: position.line,
+        character: position.character,
     }
-    offset
+}
+
+fn lsp_position_to_utf16(position: Position) -> editor_text::Utf16Position {
+    editor_text::Utf16Position {
+        line: position.line,
+        character: position.character,
+    }
+}
+
+fn lsp_range_from_utf16(range: editor_text::Utf16Range) -> Range {
+    Range {
+        start: lsp_position_from_utf16(range.start),
+        end: lsp_position_from_utf16(range.end),
+    }
+}
+
+fn lsp_range_to_utf16(range: Range) -> editor_text::Utf16Range {
+    editor_text::Utf16Range {
+        start: lsp_position_to_utf16(range.start),
+        end: lsp_position_to_utf16(range.end),
+    }
 }
 
 #[tower_lsp::async_trait]
