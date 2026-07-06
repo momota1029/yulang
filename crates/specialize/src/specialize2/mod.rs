@@ -71,7 +71,7 @@ pub(crate) fn role_method_check(arena: &poly_expr::Arena) -> Vec<RoleMethodCheck
 struct Specializer2 {
     instances: Vec<Option<Instance>>,
     instance_by_key: HashMap<InstanceKey, InstanceId>,
-    active_instance_signatures: HashMap<InstanceId, Type>,
+    pending_instances: VecDeque<PendingInstance>,
     local_defs: HashMap<poly_expr::DefId, usize>,
     force_block_tail_exprs: HashSet<poly_expr::ExprId>,
     runtime_evidence: RuntimeEvidenceSurface,
@@ -81,6 +81,15 @@ struct Specializer2 {
 struct InstanceKey {
     def: poly_expr::DefId,
     ty: Type,
+}
+
+struct PendingInstance {
+    id: InstanceId,
+    def: poly_expr::DefId,
+    body: poly_expr::ExprId,
+    inference_signature_ty: Type,
+    runtime_signature_ty: Type,
+    marker_signature_ty: Type,
 }
 
 #[derive(Debug, Clone)]

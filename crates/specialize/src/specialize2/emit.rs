@@ -42,6 +42,7 @@ impl Specializer2 {
                 }
             });
         }
+        self.drain_pending_instances(arena)?;
         let instances = self
             .instances
             .into_iter()
@@ -118,31 +119,50 @@ impl Specializer2 {
         let id = InstanceId(self.instances.len() as u32);
         self.instance_by_key.insert(key, id);
         self.instances.push(None);
-        self.active_instance_signatures
-            .insert(id, runtime_signature_ty.clone());
-
-        let solved = TaskSolver::solve_def_body(arena, def, body, inference_signature_ty)?;
-        self.runtime_evidence.push_solved_task(
-            arena,
-            RuntimeEvidenceTaskOwner::InstanceBody {
-                instance: id.0,
-                def: def.0,
-                body: body.0,
-            },
-            &solved,
-        );
-        let mut body = self.emit_expr(arena, &solved, body)?;
-        body = wrap_stack_handler_marker(&marker_signature_ty, body);
-        self.instances[id.0 as usize] = Some(Instance {
+        // Emit dependencies through a worklist so std-sized call graphs do not consume Rust stack.
+        self.pending_instances.push_back(PendingInstance {
             id,
-            source: InstanceSource::Def(convert_def(def)),
-            signature: Signature {
-                ty: runtime_signature_ty,
-            },
+            def,
             body,
+            inference_signature_ty,
+            runtime_signature_ty,
+            marker_signature_ty,
         });
-        self.active_instance_signatures.remove(&id);
         Ok(id)
+    }
+
+    fn drain_pending_instances(&mut self, arena: &poly_expr::Arena) -> Result<(), SpecializeError> {
+        while let Some(pending) = self.pending_instances.pop_front() {
+            if self.instances[pending.id.0 as usize].is_some() {
+                continue;
+            }
+            let solved = TaskSolver::solve_def_body(
+                arena,
+                pending.def,
+                pending.body,
+                pending.inference_signature_ty,
+            )?;
+            self.runtime_evidence.push_solved_task(
+                arena,
+                RuntimeEvidenceTaskOwner::InstanceBody {
+                    instance: pending.id.0,
+                    def: pending.def.0,
+                    body: pending.body.0,
+                },
+                &solved,
+            );
+            let mut body = self.emit_expr(arena, &solved, pending.body)?;
+            body = wrap_stack_handler_marker(&pending.marker_signature_ty, body);
+            self.instances[pending.id.0 as usize] = Some(Instance {
+                id: pending.id,
+                source: InstanceSource::Def(convert_def(pending.def)),
+                signature: Signature {
+                    ty: pending.runtime_signature_ty,
+                },
+                body,
+            });
+        }
+        Ok(())
     }
 
     pub(super) fn emit_expr(
