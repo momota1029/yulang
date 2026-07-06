@@ -1394,6 +1394,7 @@ fn import_cast_rules(
             source: rule.source.clone(),
             target: rule.target.clone(),
             scheme: type_importer.import_scheme(&rule.scheme),
+            kind: rule.kind,
         })
         .collect()
 }
@@ -1413,6 +1414,7 @@ fn import_selected_cast_rules(
             source: rule.source.clone(),
             target: rule.target.clone(),
             scheme: type_importer.import_scheme(&rule.scheme),
+            kind: rule.kind,
         })
         .collect()
 }

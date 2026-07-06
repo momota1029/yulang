@@ -90,6 +90,15 @@ pub struct CastRule {
     pub source: Vec<String>,
     pub target: Vec<String>,
     pub scheme: Scheme,
+    #[serde(default)]
+    pub kind: CastRuleKind,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CastRuleKind {
+    #[default]
+    Value,
+    EffectUp,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

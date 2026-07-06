@@ -59,11 +59,19 @@ impl AnalysisSession {
         }
 
         for rule in &self.poly.cast_rules {
-            self.casts.insert(
-                rule.source.clone(),
-                rule.target.clone(),
-                rule.scheme.clone(),
-            );
+            match rule.kind {
+                poly::expr::CastRuleKind::Value => self.casts.insert(
+                    rule.source.clone(),
+                    rule.target.clone(),
+                    rule.scheme.clone(),
+                ),
+                poly::expr::CastRuleKind::EffectUp => self.casts.insert_effect_up(
+                    rule.def,
+                    rule.source.clone(),
+                    rule.target.clone(),
+                    rule.scheme.clone(),
+                ),
+            }
         }
 
         let role_impls = self.poly.role_impls.iter().cloned().collect::<Vec<_>>();

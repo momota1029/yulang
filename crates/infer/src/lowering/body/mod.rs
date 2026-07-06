@@ -466,6 +466,9 @@ fn cast_defs_from_arena(
     let mut counts = FxHashMap::<(Vec<String>, Vec<String>), u32>::default();
     let mut casts = Vec::new();
     for rule in &arena.cast_rules {
+        if rule.kind != poly::expr::CastRuleKind::Value {
+            continue;
+        }
         let key = (rule.source.clone(), rule.target.clone());
         let ordinal = counts.entry(key).or_insert(0);
         casts.push(BodyLoweringPrefixRuntimeCastDef {
@@ -1540,6 +1543,7 @@ impl BodyLowerer {
             source: cast_scheme.source,
             target: cast_scheme.target,
             scheme: cast_scheme.scheme,
+            kind: poly::expr::CastRuleKind::Value,
         });
         self.finish_binding(decl.def, Name("#cast".into()), root, computation, false);
         Ok(())

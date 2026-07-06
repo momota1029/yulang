@@ -483,7 +483,11 @@ impl<'a> TypeGraph<'a> {
             .arena
             .cast_rules
             .iter()
-            .filter(|rule| rule.source == source && rule.target == target)
+            .filter(|rule| {
+                rule.kind == poly_expr::CastRuleKind::Value
+                    && rule.source == source
+                    && rule.target == target
+            })
             .cloned()
             .collect::<Vec<_>>();
         for candidate in candidates {

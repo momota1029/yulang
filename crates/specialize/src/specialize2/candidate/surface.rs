@@ -624,8 +624,9 @@ pub(in crate::specialize2) fn direct_cast_rule<'a>(
     if source_path == target_path {
         return None;
     }
-    arena
-        .cast_rules
-        .iter()
-        .find(|rule| rule.source == *source_path && rule.target == *target_path)
+    arena.cast_rules.iter().find(|rule| {
+        rule.kind == poly_expr::CastRuleKind::Value
+            && rule.source == *source_path
+            && rule.target == *target_path
+    })
 }

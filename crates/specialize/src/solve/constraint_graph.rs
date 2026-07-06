@@ -347,7 +347,11 @@ impl<'a> ConstraintGraph<'a> {
             .arena
             .cast_rules
             .iter()
-            .filter(|rule| rule.source == source && rule.target == target)
+            .filter(|rule| {
+                rule.kind == poly_expr::CastRuleKind::Value
+                    && rule.source == source
+                    && rule.target == target
+            })
             .cloned()
             .collect::<Vec<_>>();
         for candidate in candidates {
@@ -413,7 +417,8 @@ impl<'a> ConstraintGraph<'a> {
             return false;
         };
         self.arena.cast_rules.iter().any(|rule| {
-            rule.source == source
+            rule.kind == poly_expr::CastRuleKind::Value
+                && rule.source == source
                 && rule.target == target
                 && rule.scheme.quantifiers.is_empty()
                 && rule.scheme.role_predicates.is_empty()

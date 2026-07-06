@@ -1647,3 +1647,41 @@ fn user_error_throw_method_infers_error_effect_without_annotation() {
         "error throw should infer the thrown effect, got {rendered}"
     );
 }
+
+#[test]
+fn error_from_generated_up_registers_effect_up_cast_rule() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod throw:\n",
+        "      pub role Throw 'e:\n",
+        "        type throws\n",
+        "        pub e.throw: [throws] never\n",
+        "error inner_err:\n",
+        "  boom int\n",
+        "error outer_err:\n",
+        "  inner from inner_err\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let candidates = output
+        .session
+        .casts
+        .effect_up_candidates(&["inner_err".into()], &["outer_err".into()]);
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].kind, poly::expr::CastRuleKind::EffectUp);
+    assert!(candidates[0].def.is_some());
+    assert_eq!(candidates[0].source, vec!["inner_err".to_string()]);
+    assert_eq!(candidates[0].target, vec!["outer_err".to_string()]);
+    assert!(
+        output.session.poly.cast_rules.iter().any(|rule| {
+            rule.kind == poly::expr::CastRuleKind::EffectUp
+                && rule.source == ["inner_err".to_string()]
+                && rule.target == ["outer_err".to_string()]
+        }),
+        "generated error up cast should also be exported through poly cast rules"
+    );
+}

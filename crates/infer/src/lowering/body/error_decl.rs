@@ -397,6 +397,10 @@ impl BodyLowerer {
         if sources.is_empty() {
             return;
         }
+        if let Err(error) = self.register_error_up_casts(def, error, &sources) {
+            self.push_registered_expr_error(def, Name("up".into()), error);
+            return;
+        }
         let source = synthetic_error_up_source(&self.modules, decl, error, &sources);
         match source {
             Some(source) => self.lower_synthetic_error_helper_binding(
@@ -411,6 +415,41 @@ impl BodyLowerer {
                 LoweringError::UnsupportedSyntax { kind: node.kind() },
             ),
         }
+    }
+
+    fn register_error_up_casts(
+        &mut self,
+        def: DefId,
+        error: &ErrorDecl,
+        sources: &[ErrorLiftSource],
+    ) -> Result<(), LoweringError> {
+        let mut builder =
+            ann_type_builder(&self.modules, error.companion, module_path_site(), None);
+        let target_ann = builder.type_decl_application(error.owner, &error.type_vars);
+        for source in sources {
+            let source_ann =
+                builder.type_decl_application(source.source.owner, &source.source.type_vars);
+            let cast_scheme = build_cast_scheme_from_ann(
+                &mut self.session.poly,
+                &self.modules,
+                &source_ann,
+                &target_ann,
+            )?;
+            self.session.casts.insert_effect_up(
+                def,
+                cast_scheme.source.clone(),
+                cast_scheme.target.clone(),
+                cast_scheme.scheme.clone(),
+            );
+            self.session.poly.cast_rules.push(poly::expr::CastRule {
+                def,
+                source: cast_scheme.source,
+                target: cast_scheme.target,
+                scheme: cast_scheme.scheme,
+                kind: poly::expr::CastRuleKind::EffectUp,
+            });
+        }
+        Ok(())
     }
 
     fn lower_synthetic_error_helper_binding(

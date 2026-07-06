@@ -5,11 +5,13 @@ pub(super) fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper:
         return true;
     }
     match (lower, upper) {
-        (Type::Con { path: lower, .. }, Type::Con { path: upper, .. }) if lower != upper => graph
-            .arena
-            .cast_rules
-            .iter()
-            .any(|rule| rule.source == *lower && rule.target == *upper),
+        (Type::Con { path: lower, .. }, Type::Con { path: upper, .. }) if lower != upper => {
+            graph.arena.cast_rules.iter().any(|rule| {
+                rule.kind == poly_expr::CastRuleKind::Value
+                    && rule.source == *lower
+                    && rule.target == *upper
+            })
+        }
         (
             Type::Con {
                 path: lower_path,
