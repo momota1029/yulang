@@ -40,15 +40,15 @@ write_key_metrics() {
   cat >"$path" <<EOF
 ## Key metrics
 
-| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | marker touches | path prefix checks | active scans |
-| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| showcase-check-poly-std | 0.10 | n/a | 1ms | 2ms | n/a | 3 | 4 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| nondet-no-cache | 0.20 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | $nondet_runtime | 5 | 6 | 7 |
-| showcase-no-cache | 0.30 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 8ms | 9 | 10 | 11 |
-| nondet-cache-warmup | 0.40 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 12ms | n/a | n/a | n/a |
-| nondet-cache-hit | 0.50 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 13ms | n/a | n/a | n/a |
-| marker-heavy-cache-hit | 0.60 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 14ms | 15 | 16 | 17 |
-| source-unit-cache-smoke | 0.70 | merged-source-unit-prefix-hit,source-unit-prefix-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 18us,19us | n/a | n/a | n/a |
+| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | marker touches | path prefix checks | active scans | load.cst_parse | load.rowan_nodes | load.rowan_tokens |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| showcase-check-poly-std | 0.10 | n/a | 1ms | 2ms | n/a | 3 | 4 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 5ms | 123 | 456 |
+| nondet-no-cache | 0.20 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | $nondet_runtime | 5 | 6 | 7 | n/a | n/a | n/a |
+| showcase-no-cache | 0.30 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 8ms | 9 | 10 | 11 | n/a | n/a | n/a |
+| nondet-cache-warmup | 0.40 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 12ms | n/a | n/a | n/a | n/a | n/a | n/a |
+| nondet-cache-hit | 0.50 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 13ms | n/a | n/a | n/a | n/a | n/a | n/a |
+| marker-heavy-cache-hit | 0.60 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 14ms | 15 | 16 | 17 | n/a | n/a | n/a |
+| source-unit-cache-smoke | 0.70 | merged-source-unit-prefix-hit,source-unit-prefix-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 18us,19us | n/a | n/a | n/a | n/a | n/a | n/a |
 EOF
 }
 
