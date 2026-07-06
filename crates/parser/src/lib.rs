@@ -14,6 +14,8 @@ pub mod typ;
 use chasa::back::Front;
 use chasa::input::SeqInput;
 use lex::{SyntaxKind, TriviaInfo};
+use sink::GreenSinkStats;
+use std::time::{Duration, Instant};
 
 pub trait EventInput: SeqInput<Item = char, Seq: AsRef<str>> + Front {}
 
@@ -21,13 +23,45 @@ impl<I> EventInput for I where I: SeqInput<Item = char, Seq: AsRef<str>> + Front
 
 // ── 公開ユーティリティ ────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GreenParseMeasurement {
+    pub elapsed: Duration,
+    pub sink: GreenSinkStats,
+}
+
 /// ソース文字列をパースして Rowan の `GreenNode`（Root ノード）を返す。
 /// `SyntaxNode::new_root(green)` で走査可能な CST が得られる。
 pub fn parse_module_to_green(source: &str) -> rowan::GreenNode {
     parse_module_to_green_with_ops(source, crate::op::standard_op_table())
 }
 
+pub fn parse_module_to_green_measured(source: &str) -> (rowan::GreenNode, GreenParseMeasurement) {
+    parse_module_to_green_with_ops_measured(source, crate::op::standard_op_table())
+}
+
 pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> rowan::GreenNode {
+    parse_module_to_green_with_ops_inner(source, ops).0
+}
+
+pub fn parse_module_to_green_with_ops_measured(
+    source: &str,
+    ops: crate::op::OpTable,
+) -> (rowan::GreenNode, GreenParseMeasurement) {
+    let started = Instant::now();
+    let (green, sink) = parse_module_to_green_with_ops_inner(source, ops);
+    (
+        green,
+        GreenParseMeasurement {
+            elapsed: started.elapsed(),
+            sink,
+        },
+    )
+}
+
+fn parse_module_to_green_with_ops_inner(
+    source: &str,
+    ops: crate::op::OpTable,
+) -> (rowan::GreenNode, GreenSinkStats) {
     use chasa::error::LatestSink;
     use chasa::input::{Input as _, IsCut};
     use either::Either;
@@ -80,7 +114,7 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
     }
 
     state.sink.finish(); // Root
-    state.sink.finish_green()
+    state.sink.finish_green_with_stats()
 }
 
 /// ヘッダ先読み: 先頭の use / op_def 宣言だけをパースした CST を返す。
@@ -88,6 +122,26 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
 /// op テーブルと use 依存グラフを組むために使う（standard_op_table 始まりで、
 /// 自前 op は parse 中に `update_op_table` が育てる）。
 pub fn parse_header_to_green(source: &str) -> rowan::GreenNode {
+    parse_header_to_green_inner(source, crate::op::standard_op_table()).0
+}
+
+pub fn parse_header_to_green_measured(source: &str) -> (rowan::GreenNode, GreenParseMeasurement) {
+    let ops = crate::op::standard_op_table();
+    let started = Instant::now();
+    let (green, sink) = parse_header_to_green_inner(source, ops);
+    (
+        green,
+        GreenParseMeasurement {
+            elapsed: started.elapsed(),
+            sink,
+        },
+    )
+}
+
+fn parse_header_to_green_inner(
+    source: &str,
+    ops: crate::op::OpTable,
+) -> (rowan::GreenNode, GreenSinkStats) {
     use chasa::error::LatestSink;
     use chasa::input::{Input as _, IsCut};
     use im::HashSet;
@@ -106,12 +160,7 @@ pub fn parse_header_to_green(source: &str) -> rowan::GreenNode {
         let mut errors = LatestSink::new();
         let mut cut_flag = false;
         let base_in = chasa::prelude::In::new(&mut input, &mut errors, IsCut::new(&mut cut_flag));
-        let mut env = Env::new(
-            &mut state,
-            crate::op::standard_op_table(),
-            0,
-            HashSet::new(),
-        );
+        let mut env = Env::new(&mut state, ops, 0, HashSet::new());
         env.header_only = true;
         let mut i = base_in.set_env(env);
 
@@ -134,7 +183,7 @@ pub fn parse_header_to_green(source: &str) -> rowan::GreenNode {
     }
 
     state.sink.finish(); // Root
-    state.sink.finish_green()
+    state.sink.finish_green_with_stats()
 }
 
 #[cfg(test)]
