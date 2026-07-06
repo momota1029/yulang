@@ -468,7 +468,7 @@ impl<'a> ExprLowerer<'a> {
             if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
                 local.value = public_value;
             }
-            self.connect_local_binding_annotation(node, public_value, body)?;
+            let body = self.connect_local_binding_annotation(node, public_value, body)?;
             self.set_local_let_body(def, body.expr);
             self.generalize_local_binding(
                 def,
@@ -504,7 +504,7 @@ impl<'a> ExprLowerer<'a> {
             )?;
             self.subtype_var_to_var(body.value, value);
             self.subtype_var_to_var(value, body.value);
-            self.connect_local_binding_annotation(node, value, body)?;
+            let body = self.connect_local_binding_annotation(node, value, body)?;
             Ok(LoweredLocalStmt {
                 stmt: Stmt::Let(Vis::My, pat, body.expr),
                 effect: body.effect,
@@ -536,7 +536,7 @@ impl<'a> ExprLowerer<'a> {
 
             self.subtype_var_to_var(body.value, value);
             self.subtype_var_to_var(value, body.value);
-            self.connect_local_binding_annotation(node, value, body)?;
+            let body = self.connect_local_binding_annotation(node, value, body)?;
             let destructure_stmt = LoweredLocalStmt {
                 stmt: Stmt::Let(Vis::My, pat, body.expr),
                 effect: body.effect,
@@ -796,9 +796,9 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         value: TypeVar,
         computation: Computation,
-    ) -> Result<(), LoweringError> {
+    ) -> Result<Computation, LoweringError> {
         let Some(type_expr) = binding_type_expr(node) else {
-            return Ok(());
+            return Ok(computation);
         };
         let mut builder = ann_type_builder_with_aliases(
             self.modules,
@@ -811,6 +811,7 @@ impl<'a> ExprLowerer<'a> {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
+        let computation = self.apply_effect_annotation_upcasts(computation, &ann);
         let connection = AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
             .connect_computation_detailed(
                 AnnComputationTarget {
@@ -821,7 +822,7 @@ impl<'a> ExprLowerer<'a> {
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error })?;
         self.extend_current_predicate_connection(connection);
-        Ok(())
+        Ok(computation)
     }
 
     pub(in crate::lowering) fn lower_var_ref_constructor(

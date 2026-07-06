@@ -964,11 +964,12 @@ impl<'a> ExprLowerer<'a> {
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
-    ) -> Result<(), LoweringError> {
+    ) -> Result<Computation, LoweringError> {
         let ann = ann_builder
             .build_type_expr(type_expr)
             .map_err(|error| LoweringError::annotation_build(error, type_expr))?;
         self.check_result_annotation_type(body.value, &ann)?;
+        let body = self.apply_effect_annotation_upcasts(body, &ann);
         let vars = std::mem::take(ann_solver_vars);
         let closed_effect_rows = std::mem::take(ann_closed_effect_rows);
         let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows(
@@ -992,7 +993,79 @@ impl<'a> ExprLowerer<'a> {
         let connection = result?;
         self.constrain_effect_filters(body.effect, &connection.subtracts);
         self.extend_current_predicate_connection(connection);
-        Ok(())
+        Ok(body)
+    }
+
+    pub(in crate::lowering) fn apply_effect_annotation_upcasts(
+        &mut self,
+        mut body: Computation,
+        ann: &AnnType,
+    ) -> Computation {
+        let target_paths = self.annotation_effect_paths(ann);
+        if target_paths.is_empty() {
+            return body;
+        }
+        let mut applied = FxHashSet::default();
+        let mut up_defs = Vec::new();
+        for target in target_paths {
+            for def in self.session.casts.effect_up_defs_for_target(&target) {
+                if applied.insert(def) {
+                    up_defs.push(def);
+                }
+            }
+        }
+        for def in up_defs {
+            let public_value = body.value;
+            let up = self.lower_resolved_value_ref("#effect-up".to_string(), def);
+            let wrapped = self.make_app(up, body);
+            self.subtype_var_to_var(public_value, wrapped.value);
+            self.subtype_var_to_var(wrapped.value, public_value);
+            body = Computation::new(
+                wrapped.expr,
+                public_value,
+                wrapped.effect,
+                wrapped.evaluation,
+            );
+        }
+        body
+    }
+
+    fn annotation_effect_paths(&self, ann: &AnnType) -> Vec<Vec<String>> {
+        let AnnType::Effectful { eff, .. } = ann else {
+            return Vec::new();
+        };
+        let mut paths = eff
+            .items
+            .iter()
+            .filter_map(|atom| self.annotation_effect_atom_path(atom))
+            .collect::<Vec<_>>();
+        paths.sort();
+        paths.dedup();
+        paths
+    }
+
+    fn annotation_effect_atom_path(&self, atom: &AnnEffectAtom) -> Option<Vec<String>> {
+        match atom {
+            AnnEffectAtom::Type(AnnType::Var(_) | AnnType::Wildcard(_))
+            | AnnEffectAtom::Wildcard => None,
+            AnnEffectAtom::Type(ty) => self.annotation_constructor_path(ty),
+        }
+    }
+
+    fn annotation_constructor_path(&self, ann: &AnnType) -> Option<Vec<String>> {
+        match ann {
+            AnnType::Builtin(builtin) => Some(vec![builtin.surface_name().to_string()]),
+            AnnType::Named(id) => self.modules.type_decl_by_id(*id).map(|decl| {
+                self.modules
+                    .type_decl_path(&decl)
+                    .segments
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect()
+            }),
+            AnnType::Apply { callee, .. } => self.annotation_constructor_path(callee),
+            _ => None,
+        }
     }
 
     fn check_result_annotation_type(

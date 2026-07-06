@@ -1,0 +1,9 @@
+pub error fs_err:
+    not_found str
+
+pub error io_err:
+    fs from fs_err
+
+my run_abstract(action: ['e] int): ['e] int = action()
+
+run_abstract (\() -> 7)

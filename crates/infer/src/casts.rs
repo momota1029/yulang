@@ -78,6 +78,18 @@ impl CastTable {
             .unwrap_or(&[])
     }
 
+    pub fn effect_up_defs_for_target(&self, target: &[String]) -> Vec<DefId> {
+        let mut defs = self
+            .casts
+            .iter()
+            .filter(|(key, _)| key.target == target)
+            .flat_map(|(_, bucket)| bucket.effect_up.iter().filter_map(|rule| rule.def))
+            .collect::<Vec<_>>();
+        defs.sort_by_key(|def| def.0);
+        defs.dedup();
+        defs
+    }
+
     pub fn is_empty(&self) -> bool {
         self.casts.is_empty()
     }

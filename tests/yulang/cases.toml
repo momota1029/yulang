@@ -1557,6 +1557,37 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "from", "up", "result"]
 
 [[case]]
+name = "error_auto_up_annotation"
+file = "regressions/runtime/error_auto_up_annotation.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [result::err(io_err::fs(fs_err::not_found(\"missing\")))]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "from", "up", "result"]
+
+[[case]]
+name = "error_auto_up_row_var_unchanged"
+file = "regressions/runtime/error_auto_up_row_var_unchanged.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [7]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "standard-api", "stable-api", "errors", "from", "up"]
+
+[[case]]
+name = "error_auto_up_no_from_diagnostic"
+file = "regressions/diagnostics/error_auto_up_no_from.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.lowering]: source has lowering errors",
+  "detail: effect filter mismatch: fs_err is not allowed by [io_err]",
+]
+contracts = ["stable-core", "runtime", "diagnostics", "errors", "from", "up"]
+
+[[case]]
 name = "error_display"
 file = "regressions/runtime/error_display.yu"
 kind = "run"

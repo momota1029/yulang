@@ -1,0 +1,9 @@
+pub error fs_err:
+    not_found str
+
+pub error io_err:
+    denied str
+
+my read_or_throw(path: str): [fs_err] str = fail (fs_err::not_found path)
+
+my read_as_io(path: str): [io_err] str = read_or_throw path

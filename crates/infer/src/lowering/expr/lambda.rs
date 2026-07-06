@@ -253,9 +253,9 @@ impl<'a> ExprLowerer<'a> {
         }
 
         let Some((pattern, rest)) = patterns.split_first() else {
-            let body = self.lower_lambda_body(body, body_mode)?;
+            let mut body = self.lower_lambda_body(body, body_mode)?;
             if let Some(type_expr) = body_type_expr {
-                self.connect_type_method_result_annotation(
+                body = self.connect_type_method_result_annotation(
                     body,
                     type_expr,
                     ann_builder,
@@ -524,9 +524,9 @@ impl<'a> ExprLowerer<'a> {
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
-            let body = self.lower_lambda_body(body, &LambdaBodyMode::Expr)?;
+            let mut body = self.lower_lambda_body(body, &LambdaBodyMode::Expr)?;
             if let Some(type_expr) = body_type_expr {
-                self.connect_type_method_result_annotation(
+                body = self.connect_type_method_result_annotation(
                     body,
                     type_expr,
                     ann_builder,
@@ -685,7 +685,7 @@ impl<'a> ExprLowerer<'a> {
                 );
             }
             if let Some(type_expr) = body_type_expr {
-                self.connect_type_method_result_annotation(
+                body = self.connect_type_method_result_annotation(
                     body,
                     type_expr,
                     ann_builder,

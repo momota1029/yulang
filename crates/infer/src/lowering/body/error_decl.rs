@@ -747,7 +747,7 @@ fn synthetic_error_up_source(
         return None;
     }
     let effect_row = error_effect_row_source(modules, sources.iter().map(|source| &source.source))?;
-    let mut out = format!("pub up(action: [{effect_row}] _) = catch action:\n");
+    let mut out = format!("pub up(action: [{effect_row}; '__error_up_tail] _) = catch action:\n");
     for (source_index, source) in sources.iter().enumerate() {
         append_lifted_error_arms(modules, decl, source, source_index, "#throw", &mut out)?;
     }

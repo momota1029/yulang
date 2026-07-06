@@ -71,6 +71,7 @@ impl<'a> ExprLowerer<'a> {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
+        let acc = self.apply_effect_annotation_upcasts(acc, &ann);
         let connection = AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
             .connect_computation_detailed(
                 AnnComputationTarget {
