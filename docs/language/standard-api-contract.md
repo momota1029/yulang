@@ -14,6 +14,40 @@ records the current evidence for these slices.
 [`contract-v1-config-evidence.md`](contract-v1-config-evidence.md) records the
 unstable `std::text::config` preview slice.
 
+## Result And Generated Error Helpers
+
+The stable `std::data::result` slice covers the public `result` type and helper
+functions such as `map`, `and_then`, and `unwrap_or`.
+
+Generated `error E:` declarations are part of the same stable API boundary. A
+public error declaration generates:
+
+- the error value type and matching effect operations;
+- `fail`, which raises a constructed error value through the error effect;
+- `E::wrap`, which closes `E` and any `from`-registered narrower errors into a
+  `result`;
+- `E::up`, which explicitly handles narrower `from`-registered errors and
+  re-raises them as `E`;
+- generated `Cast Inner -> E` rules for each `from Inner` variant;
+- generated `Display E` behavior for the declared error shape.
+
+The contract also covers automatic annotation-boundary upcast for
+`from`-registered error relationships. When the checker compares an inferred
+effect row against a declared or annotated effect row, a concrete error effect
+atom such as `Inner` may satisfy a concrete annotated atom such as `Outer` if
+the generated `from` relationship registered a cast from `Inner` to `Outer`.
+This is the implicit form of the explicit `Outer::up` boundary.
+
+The conversion is intentionally local and narrow:
+
+- only concrete effect atoms are considered for conversion;
+- effect row variables and row tails pass through unchanged, and no conversion
+  is attempted for them;
+- a missing `from`/cast relationship remains a normal effect mismatch rather
+  than silently passing;
+- this rule applies at each declared or annotated boundary and is not a global
+  effect-unification mechanism.
+
 ## String API v1
 
 The `std::text::str` v1 slice covers these pure string functions and their

@@ -12,6 +12,96 @@ The source of truth is:
 tests/yulang/cases.toml
 ```
 
+## Result And Error Helpers
+
+Current `standard-api` / `stable-api` / `result` manifest coverage:
+
+| kind | count | contract role |
+| --- | ---: | --- |
+| `run` | 7 | compact behavior for result helpers and error wrapping into result values |
+| `public-signature` | 3 | exact result helper public type projection |
+| total | 10 | Result API executable slice |
+
+The result conformance command is:
+
+```bash
+cargo run -q -p yulang -- --std-root lib contract --contract standard-api --contract stable-api --contract result tests/yulang/cases.toml
+```
+
+Last recorded local validation on 2026-07-06:
+
+```text
+contract cases ok: 10
+```
+
+Current `standard-api` / `stable-api` / `errors` manifest coverage:
+
+| kind | count | contract role |
+| --- | ---: | --- |
+| `run` | 10 | compact behavior for generated user error helpers and stable `io_err` integration |
+| `public-signature` | 8 | exact generated error helper and constructor public type projection |
+| total | 18 | Generated error helper executable slice |
+
+The error helper conformance command is:
+
+```bash
+cargo run -q -p yulang -- --std-root lib contract --contract standard-api --contract stable-api --contract errors tests/yulang/cases.toml
+```
+
+Last recorded local validation on 2026-07-06:
+
+```text
+contract cases ok: 18
+```
+
+Current `errors` / `from` / `up` manifest coverage:
+
+| kind | count | contract role |
+| --- | ---: | --- |
+| `run` | 4 | explicit and automatic upcast behavior, plus no-`from` mismatch preservation |
+| `public-signature` | 1 | exact generated `up` public type projection |
+| total | 5 | Error upcast executable slice |
+
+The focused upcast conformance command is:
+
+```bash
+cargo run -q -p yulang -- --std-root lib contract --contract errors --contract from --contract up tests/yulang/cases.toml
+```
+
+Last recorded local validation on 2026-07-06:
+
+```text
+contract cases ok: 5
+```
+
+The key error/result cases in `tests/yulang/cases.toml` are:
+
+- `error_wrap_fail`;
+- `error_from_wrap`;
+- `error_up_wrap`;
+- `error_auto_up_annotation`;
+- `error_auto_up_row_var_unchanged`;
+- `error_auto_up_no_from_diagnostic`;
+- `error_display`;
+- `error_display_from_wrap`;
+- `user_error_wrap_public_signature`;
+- `user_error_from_wrap_public_signature`;
+- `user_error_up_public_signature`.
+
+This slice protects the generated `error` helper surface: `fail`, `wrap`,
+explicit `up`, generated `from` casts, generated display behavior, and result
+conversion. The `error_auto_up_annotation` case fixes the automatic
+annotation-boundary upcast rule: a concrete inner error effect may satisfy a
+concrete annotated outer error effect when a generated `from` relationship
+registered that conversion. `error_up_wrap` keeps the explicit `E::up` form
+valid, and `user_error_up_public_signature` fixes its projected public type.
+
+The negative side is part of the contract. `error_auto_up_no_from_diagnostic`
+must continue to reject the same shape when no generated `from`/cast relation
+exists. `error_auto_up_row_var_unchanged` keeps abstract row-variable/tail
+behavior unchanged; automatic upcast is not attempted for row variables and is
+not a global effect-row unification rule.
+
 Current `standard-api` / `stable-api` / `str` manifest coverage for String API
 v1 and its stable ref/file-line interactions:
 
