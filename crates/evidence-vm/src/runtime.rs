@@ -4660,6 +4660,13 @@ struct EvidenceActiveHandlerFrame {
     path: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+struct EvidenceActiveCatchFrame {
+    catch_expr: ExprId,
+    arms: Rc<[control_ir::CatchArm]>,
+    env: Env,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct EvidenceActiveAddIdMarker {
     marker: Rc<EvidenceAddIdMarker>,
@@ -5879,6 +5886,10 @@ impl EvidenceEvalResult {
 
     fn routed_yield(call: EvidenceRoutedYield) -> Self {
         Self::Effect(EvidenceEffectSignal::RoutedYield(call))
+    }
+
+    fn is_effect(&self) -> bool {
+        matches!(self, Self::Effect(_))
     }
 }
 
@@ -9929,6 +9940,7 @@ struct RuntimeEvidenceRunner<'a> {
     provider_grants: Vec<EvidenceProviderGrant>,
     active_frames: Vec<EvidenceActiveFrame>,
     active_handler_frames: Vec<EvidenceActiveHandlerFrame>,
+    active_catch_frames: Vec<EvidenceActiveCatchFrame>,
     active_add_ids: Vec<EvidenceActiveAddIdMarker>,
     #[cfg(debug_assertions)]
     active_add_id_index: ActiveAddIdIndex,
@@ -10009,6 +10021,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             provider_grants: Vec::new(),
             active_frames: Vec::new(),
             active_handler_frames: Vec::new(),
+            active_catch_frames: Vec::new(),
             active_add_ids: Vec::new(),
             #[cfg(debug_assertions)]
             active_add_id_index: ActiveAddIdIndex::default(),
@@ -14205,21 +14218,67 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             match result {
                 EvidenceEvalResult::Value(value) => return Ok(value),
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
-                    result = self.handle_escaped_request(request)?;
+                    result = self.resolve_active_catch_or_escaped_effect(
+                        EvidenceEvalResult::request(request),
+                    )?;
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()));
+                    result = self.resolve_active_catch_or_escaped_effect(
+                        EvidenceEvalResult::direct_abortive(call),
+                    )?;
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()));
+                    result = self.resolve_active_catch_or_escaped_effect(
+                        EvidenceEvalResult::direct_tail_resumptive(call),
+                    )?;
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(
-                        call.request().path.to_vec(),
-                    ));
+                    result = self.resolve_active_catch_or_escaped_effect(
+                        EvidenceEvalResult::routed_yield(call),
+                    )?;
                 }
             }
         }
+    }
+
+    fn resolve_active_catch_or_escaped_effect(
+        &mut self,
+        result: EvidenceEvalResult,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let result = self.continue_through_active_catches(result)?;
+        match result {
+            EvidenceEvalResult::Value(_) => Ok(result),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                self.handle_escaped_request(request)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => Err(
+                RuntimeEvidenceRunError::EscapedEffect(call.request().path.to_vec()),
+            ),
+        }
+    }
+
+    fn continue_through_active_catches(
+        &mut self,
+        mut result: EvidenceEvalResult,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut index = self.active_catch_frames.len();
+        while index > 0 && result.is_effect() {
+            index -= 1;
+            let frame = self.active_catch_frames[index].clone();
+            let active_len = self.active_catch_frames.len();
+            self.active_catch_frames.truncate(index);
+            let continued =
+                self.continue_catch_body_result(frame.catch_expr, frame.arms, &frame.env, result);
+            self.active_catch_frames.truncate(active_len);
+            result = continued?;
+        }
+        Ok(result)
     }
 
     fn drain_host_scheduler_values(
@@ -15719,6 +15778,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn tail_apply_can_enter_plain_closure(&self) -> bool {
         self.active_frames.is_empty()
             && self.active_handler_frames.is_empty()
+            && self.active_catch_frames.is_empty()
             && self.active_add_ids.is_empty()
             && self.active_marker_plans.is_empty()
             && self.active_provider_envs.is_empty()
@@ -21355,9 +21415,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let arms = self.static_catch_arms(catch_expr);
         let provider_len = self.active_provider_handlers.len();
         let state_frame_len = self.active_state_handler_frames.len();
+        let active_catch_len = self.active_catch_frames.len();
         self.push_known_state_frame_for_catch(catch_expr, env);
         self.active_provider_handlers
             .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
+        self.active_catch_frames.push(EvidenceActiveCatchFrame {
+            catch_expr,
+            arms: arms.clone(),
+            env: env.clone(),
+        });
         self.record_runtime_live_gauges();
         let body_result = if self.expr_preserves_env(body) {
             self.stats.catch_body_env_clone_elided += 1;
@@ -21367,6 +21433,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             let mut body_env = self.clone_env(env);
             self.eval_expr_result(body, &mut body_env)
         };
+        self.active_catch_frames.truncate(active_catch_len);
         self.active_provider_handlers.truncate(provider_len);
         let result = match body_result {
             Ok(result) => self.continue_catch_body_result(catch_expr, arms, env, result),
