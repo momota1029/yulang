@@ -227,11 +227,13 @@ pub fn run_inner(source: &str) -> RunOutput {
     }
 
     let output = run_inner_uncached(source);
-    RUN_CACHE.with(|cache| {
-        cache
-            .borrow_mut()
-            .insert(source.to_string(), output.clone());
-    });
+    if output.cache_safe() {
+        RUN_CACHE.with(|cache| {
+            cache
+                .borrow_mut()
+                .insert(source.to_string(), output.clone());
+        });
+    }
     output
 }
 
@@ -727,6 +729,8 @@ pub struct RunOutput {
     pub timings: Option<RunTimings>,
     pub diagnostics: Vec<Diagnostic>,
     pub errors: Vec<String>,
+    #[serde(skip)]
+    cache_safe: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -875,6 +879,7 @@ impl RunOutput {
             }),
             diagnostics,
             errors,
+            cache_safe: true,
         }
     }
 
@@ -891,6 +896,7 @@ impl RunOutput {
             .map(|(index, value)| RunResult { index, value })
             .collect::<Vec<_>>();
         let vm_continuation_steps = evidence_vm_continuation_steps(&output.stats);
+        let cache_safe = output.stats.is_cache_safe();
         Self {
             ok: diagnostics.is_empty(),
             file_count: output.file_count,
@@ -906,6 +912,7 @@ impl RunOutput {
             }),
             diagnostics,
             errors: output.errors,
+            cache_safe,
         }
     }
 
@@ -925,7 +932,12 @@ impl RunOutput {
             }),
             diagnostics: vec![Diagnostic::error(message.clone(), source_len)],
             errors: vec![message],
+            cache_safe: false,
         }
+    }
+
+    fn cache_safe(&self) -> bool {
+        self.cache_safe
     }
 }
 
@@ -1192,6 +1204,76 @@ fn to_js_value<T: Serialize>(value: &T) -> JsValue {
 fn set_panic_hook() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
+}
+
+#[cfg(test)]
+mod run_cache_tests {
+    use super::*;
+
+    fn on_test_stack<T>(work: impl FnOnce() -> T + Send + 'static) -> T
+    where
+        T: Send + 'static,
+    {
+        std::thread::Builder::new()
+            .name("wasm-run-cache-test-stack".to_string())
+            .stack_size(16 * 1024 * 1024)
+            .spawn(work)
+            .unwrap()
+            .join()
+            .unwrap()
+    }
+
+    #[test]
+    fn run_inner_caches_console_only_repeated_source() {
+        clear_std_cache();
+        let first = run_inner("println \"hello\"\n");
+        let second = run_inner("println \"hello\"\n");
+
+        assert!(first.ok, "{first:?}");
+        assert!(second.ok, "{second:?}");
+        assert_eq!(first.stdout, "hello\n");
+        assert_eq!(second.stdout, "hello\n");
+        assert_eq!(
+            second
+                .timings
+                .as_ref()
+                .map(|timing| timing.source_cache_hits),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn run_inner_skips_cache_for_clock_now_runs() {
+        let source = "std::time::clock::now()\n".to_string();
+        let (first, second) = on_test_stack(move || {
+            clear_std_cache();
+            let first = run_inner(&source);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            let second = run_inner(&source);
+            (first, second)
+        });
+
+        assert!(first.ok, "{first:?}");
+        assert!(second.ok, "{second:?}");
+        assert_eq!(
+            first
+                .timings
+                .as_ref()
+                .map(|timing| (timing.source_cache_hits, timing.source_cache_misses)),
+            Some((0, 1))
+        );
+        assert_eq!(
+            second
+                .timings
+                .as_ref()
+                .map(|timing| (timing.source_cache_hits, timing.source_cache_misses)),
+            Some((0, 1))
+        );
+        assert_ne!(
+            first.results.first().map(|result| result.value.as_str()),
+            second.results.first().map(|result| result.value.as_str())
+        );
+    }
 }
 
 #[cfg(test)]
