@@ -8999,12 +8999,31 @@ pub fn run_program_with_plan(
     RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
 }
 
+pub fn run_program_with_plan_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan).with_print_nth();
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
     labels: &poly::dump::DumpLabels,
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_with_labels_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_print_nth()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
 }
@@ -9020,6 +9039,18 @@ pub fn run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_with_labels_flushing_stdout_on_external_wait_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_print_nth()
+        .with_stdout_flush_on_external_wait()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -9028,6 +9059,20 @@ pub fn run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_externa
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
         .with_deep_profile(enabled)
+        .with_stdout_flush_on_external_wait()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .with_print_nth()
         .with_stdout_flush_on_external_wait()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
@@ -9052,6 +9097,18 @@ pub fn run_program_with_plan_without_native_host_operations_with_labels(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_without_native_host_operations_with_labels_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_print_nth()
+        .without_native_host_operations()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_deep_profile_without_native_host_operations_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -9060,6 +9117,20 @@ pub fn run_program_with_plan_deep_profile_without_native_host_operations_with_la
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
         .with_deep_profile(enabled)
+        .without_native_host_operations()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_deep_profile_without_native_host_operations_with_labels_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .with_print_nth()
         .without_native_host_operations()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
@@ -9076,6 +9147,18 @@ pub fn run_program_with_plan_with_in_process_server_host_with_labels(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_with_in_process_server_host_with_labels_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_print_nth()
+        .with_in_process_server_host()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_deep_profile_with_in_process_server_host_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -9084,6 +9167,20 @@ pub fn run_program_with_plan_deep_profile_with_in_process_server_host_with_label
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
         .with_deep_profile(enabled)
+        .with_in_process_server_host()
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_program_with_plan_deep_profile_with_in_process_server_host_with_labels_print_nth(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_deep_profile(enabled)
+        .with_print_nth()
         .with_in_process_server_host()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
@@ -9401,6 +9498,28 @@ enum RuntimeHostRequestHandling {
     Handled(EvidenceEvalResult),
     Suspended,
     Unhandled(EvidenceRequest),
+}
+
+fn is_nondet_branch_request(request: &EvidenceRequest) -> bool {
+    request_path_eq(
+        request.path.as_ref(),
+        &["std", "control", "nondet", "nondet", "branch"],
+    )
+}
+
+fn is_nondet_reject_request(request: &EvidenceRequest) -> bool {
+    request_path_eq(
+        request.path.as_ref(),
+        &["std", "control", "nondet", "nondet", "reject"],
+    )
+}
+
+fn request_path_eq(path: &[String], expected: &[&str]) -> bool {
+    path.len() == expected.len() && path.iter().map(String::as_str).eq(expected.iter().copied())
+}
+
+fn print_nth_nondet_terminal_result() -> EvidenceEvalResult {
+    EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Unit))
 }
 
 #[derive(Debug, Clone)]
@@ -10104,11 +10223,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_runtime_live_gauges();
         for root in &self.program.roots {
             match root {
-                Root::Instance(instance) => values.push(self.eval_instance(*instance)?),
+                Root::Instance(instance) => {
+                    let value = self.eval_instance(*instance)?;
+                    if !self.context.print_nth() {
+                        values.push(value);
+                    }
+                }
                 Root::EvalInstance(instance) => {
                     let _ = self.eval_instance(*instance)?;
                 }
-                Root::Expr(expr) => values.push(self.eval_tail_expr(*expr, &mut env)?),
+                Root::Expr(expr) => {
+                    let value = self.eval_tail_expr(*expr, &mut env)?;
+                    if !self.context.print_nth() {
+                        values.push(value);
+                    }
+                }
             }
             self.drain_host_scheduler_values(&mut values)?;
         }
@@ -14333,7 +14462,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         loop {
             while self.host_scheduler.has_pending_events() {
                 if let Some(result) = self.process_next_host_scheduler_event()? {
-                    values.push(self.resolve_eval_result(result)?);
+                    let value = self.resolve_eval_result(result)?;
+                    if !self.context.print_nth() {
+                        values.push(value);
+                    }
                 }
             }
             if !self.pump_external_host_events_until_scheduler_work()? {
@@ -14354,10 +14486,39 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     RuntimeEvidenceRunError::UnsupportedExpr("suspend host operation parked"),
                 )
             }
-            RuntimeHostRequestHandling::Unhandled(request) => Err(
-                RuntimeEvidenceRunError::EscapedEffect(request.path.to_vec()),
-            ),
+            RuntimeHostRequestHandling::Unhandled(request) => {
+                if self.context.print_nth() && is_nondet_branch_request(&request) {
+                    return self.drive_print_nth_nondet_branch(request);
+                }
+                if self.context.print_nth() && is_nondet_reject_request(&request) {
+                    return Ok(print_nth_nondet_terminal_result());
+                }
+                Err(RuntimeEvidenceRunError::EscapedEffect(
+                    request.path.to_vec(),
+                ))
+            }
         }
+    }
+
+    fn drive_print_nth_nondet_branch(
+        &mut self,
+        request: EvidenceRequest,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let continuation = request.continuation;
+        self.drive_print_nth_nondet_branch_resume(continuation.clone(), true)?;
+        self.drive_print_nth_nondet_branch_resume(continuation, false)?;
+        Ok(print_nth_nondet_terminal_result())
+    }
+
+    fn drive_print_nth_nondet_branch_resume(
+        &mut self,
+        continuation: EvidenceContinuation,
+        branch: bool,
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        let result =
+            self.resume_continuation(continuation, shared(RuntimeEvidenceValue::Bool(branch)))?;
+        let _ = self.resolve_eval_result(result)?;
+        Ok(())
     }
 
     fn process_or_wait_for_next_host_scheduler_value(
@@ -25277,6 +25438,110 @@ mod tests {
     }
 
     #[test]
+    fn unhandled_nondet_branch_and_reject_escape_as_generic_requests() {
+        let branch_program = print_nth_branch_side_effect_program();
+        let mut runner =
+            RuntimeEvidenceRunner::new(&branch_program, RuntimeEvidenceRunContext::default());
+        let mut env = Env::new();
+        let branch_root = program_root_expr(&branch_program);
+
+        let branch = runner
+            .eval_tail_expr_result(branch_root, &mut env)
+            .expect("branch program should produce an eval result");
+        let branch = assert_generic_request_path(branch, &nondet_branch_path());
+        assert!(!branch.continuation.is_identity());
+
+        let reject_program = nondet_reject_program();
+        let mut runner =
+            RuntimeEvidenceRunner::new(&reject_program, RuntimeEvidenceRunContext::default());
+        let mut env = Env::new();
+        let reject_root = program_root_expr(&reject_program);
+
+        let reject = runner
+            .eval_tail_expr_result(reject_root, &mut env)
+            .expect("reject program should produce an eval result");
+        assert_generic_request_path(reject, &nondet_reject_path());
+    }
+
+    #[test]
+    fn print_nth_mode_drives_unhandled_nondet_branch_for_side_effects() {
+        let program = print_nth_branch_side_effect_program();
+        let context = RuntimeEvidenceRunContext::default().with_print_nth();
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        install_console_out_write_host(&mut runner);
+
+        let output = runner
+            .run()
+            .expect("print-nth mode should auto-drive unhandled nondet branch");
+
+        assert_eq!(
+            output.stdout,
+            "Result 1: true branch\nResult 2: false branch\n"
+        );
+        assert_eq!(
+            output.root_value_texts_with_labels(None),
+            Vec::<String>::new()
+        );
+        assert_eq!(output.roots_text_with_labels(None), "run roots []\n");
+    }
+
+    #[test]
+    fn print_nth_mode_treats_unhandled_nondet_reject_as_terminal_noop() {
+        let program = nondet_reject_program();
+        let context = RuntimeEvidenceRunContext::default().with_print_nth();
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+
+        let output = runner
+            .run()
+            .expect("print-nth mode should treat unhandled nondet reject as terminal");
+
+        assert_eq!(output.stdout, "");
+        assert_eq!(
+            output.root_value_texts_with_labels(None),
+            Vec::<String>::new()
+        );
+        assert_eq!(output.roots_text_with_labels(None), "run roots []\n");
+    }
+
+    #[test]
+    fn unhandled_nondet_branch_still_errors_when_print_nth_is_off() {
+        let program = print_nth_branch_side_effect_program();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        install_console_out_write_host(&mut runner);
+
+        let error = runner
+            .run()
+            .expect_err("mode-off unhandled nondet should still escape");
+
+        assert_eq!(
+            error,
+            RuntimeEvidenceRunError::EscapedEffect(nondet_branch_path())
+        );
+        assert_eq!(runner.host_state.stdout, "");
+    }
+
+    #[test]
+    fn print_nth_mode_does_not_handle_other_unhandled_effects() {
+        let program = other_unhandled_effect_program();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let default_error = runner
+            .run()
+            .expect_err("default mode should reject the test effect");
+
+        let context = RuntimeEvidenceRunContext::default().with_print_nth();
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        let print_nth_error = runner
+            .run()
+            .expect_err("print-nth mode should still reject the test effect");
+
+        assert_eq!(
+            default_error,
+            RuntimeEvidenceRunError::EscapedEffect(other_unhandled_effect_path())
+        );
+        assert_eq!(print_nth_error, default_error);
+    }
+
+    #[test]
     fn host_abi_cache_safety_clock_now_marks_run_uncacheable() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -26082,6 +26347,174 @@ mod tests {
             hygiene: EvidenceSignalHygiene::new(),
             continuation: EvidenceContinuation::identity(),
         }
+    }
+
+    fn install_console_out_write_host(runner: &mut RuntimeEvidenceRunner<'_>) {
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(console_out_write_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.console.out",
+                operation_id: "write",
+                f: host_console_out_write,
+            }],
+        );
+    }
+
+    fn assert_generic_request_path(result: EvidenceEvalResult, path: &[String]) -> EvidenceRequest {
+        let EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) = result
+        else {
+            panic!("expected generic request, got {result:?}");
+        };
+        assert_eq!(request.path.as_ref(), path);
+        request
+    }
+
+    fn print_nth_branch_side_effect_program() -> Program {
+        Program {
+            roots: vec![Root::Expr(ExprId(11))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: nondet_branch_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                force_effect_expr(ExprId(2), Type::Any),
+                Expr::EffectOp {
+                    def: None,
+                    path: console_out_write_path(),
+                },
+                Expr::Lit(Lit::Str("true branch\n".to_string())),
+                Expr::Apply {
+                    callee: ExprId(4),
+                    arg: ExprId(5),
+                },
+                force_effect_expr(ExprId(6), Type::unit()),
+                Expr::Lit(Lit::Str("false branch\n".to_string())),
+                Expr::Apply {
+                    callee: ExprId(4),
+                    arg: ExprId(8),
+                },
+                force_effect_expr(ExprId(9), Type::unit()),
+                Expr::Case {
+                    scrutinee: ExprId(3),
+                    arms: vec![
+                        control_ir::CaseArm {
+                            pat: Pat::Lit(Lit::Bool(true)),
+                            guard: None,
+                            body: ExprId(7),
+                        },
+                        control_ir::CaseArm {
+                            pat: Pat::Wild,
+                            guard: None,
+                            body: ExprId(10),
+                        },
+                    ],
+                },
+            ],
+            ..Program::default()
+        }
+    }
+
+    fn nondet_reject_program() -> Program {
+        Program {
+            roots: vec![Root::Expr(ExprId(3))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: nondet_reject_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                force_effect_expr(ExprId(2), Type::Never),
+            ],
+            ..Program::default()
+        }
+    }
+
+    fn other_unhandled_effect_program() -> Program {
+        Program {
+            roots: vec![Root::Expr(ExprId(3))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: other_unhandled_effect_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                force_effect_expr(ExprId(2), Type::Any),
+            ],
+            ..Program::default()
+        }
+    }
+
+    fn program_root_expr(program: &Program) -> ExprId {
+        let Some(Root::Expr(expr)) = program.roots.first() else {
+            panic!("test program should have a root expression");
+        };
+        *expr
+    }
+
+    fn force_effect_expr(thunk: ExprId, value: Type) -> Expr {
+        Expr::ForceThunk {
+            source: EffectiveThunkType {
+                effect: Type::Any,
+                value: value.clone(),
+            },
+            target: specialize::mono::ComputationType {
+                effect: Type::Any,
+                value,
+            },
+            thunk,
+        }
+    }
+
+    fn nondet_branch_path() -> Vec<String> {
+        vec![
+            "std".to_string(),
+            "control".to_string(),
+            "nondet".to_string(),
+            "nondet".to_string(),
+            "branch".to_string(),
+        ]
+    }
+
+    fn nondet_reject_path() -> Vec<String> {
+        vec![
+            "std".to_string(),
+            "control".to_string(),
+            "nondet".to_string(),
+            "nondet".to_string(),
+            "reject".to_string(),
+        ]
+    }
+
+    fn console_out_write_path() -> Vec<String> {
+        vec![
+            "std".to_string(),
+            "io".to_string(),
+            "console".to_string(),
+            "out".to_string(),
+            "write".to_string(),
+        ]
+    }
+
+    fn other_unhandled_effect_path() -> Vec<String> {
+        vec![
+            "test".to_string(),
+            "effect".to_string(),
+            "unhandled".to_string(),
+        ]
     }
 
     fn fake_server_respond_request(slot: SharedValue, response: &[u8]) -> EvidenceRequest {
