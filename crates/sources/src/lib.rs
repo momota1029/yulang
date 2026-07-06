@@ -3,10 +3,11 @@
 
 use parser::lex::SyntaxKind;
 use parser::op::{BpVec, OpDef, OpTable, standard_op_table};
-use parser::sink::YulangLanguage;
+use parser::sink::{GreenSinkStats, YulangLanguage};
 use rowan::{GreenNode, NodeOrToken, SyntaxNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::Duration;
 
 mod realm;
 
@@ -377,7 +378,24 @@ struct SyntaxFileInput {
 /// ソースの先頭から use / op 宣言だけを読み取る。body には踏み込まない
 /// （[`parser::parse_header_to_green`] が最初の定義文で停止する）。
 pub fn read_header(source: &str) -> Header {
-    let green = parser::parse_header_to_green(source);
+    read_header_with_optional_timing(source, None)
+}
+
+pub fn read_header_timed(source: &str) -> (Header, SourceLoadTiming) {
+    let mut timing = SourceLoadTiming::default();
+    let header = read_header_with_optional_timing(source, Some(&mut timing));
+    (header, timing)
+}
+
+fn read_header_with_optional_timing(source: &str, timing: Option<&mut SourceLoadTiming>) -> Header {
+    let green = match timing {
+        Some(timing) => {
+            let (green, measurement) = parser::parse_header_to_green_measured(source);
+            timing.add_header_parse(measurement);
+            green
+        }
+        None => parser::parse_header_to_green(source),
+    };
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let mut header = Header::default();
     for node in root.children() {
@@ -943,13 +961,55 @@ pub struct LoadedFile {
     pub cst: GreenNode,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SourceLoadTiming {
+    pub header_cst_parse: Duration,
+    pub full_cst_parse: Duration,
+    pub rowan: GreenSinkStats,
+}
+
+impl SourceLoadTiming {
+    pub fn cst_parse(&self) -> Duration {
+        self.header_cst_parse + self.full_cst_parse
+    }
+
+    pub fn rowan_nodes(&self) -> usize {
+        self.rowan.nodes_started
+    }
+
+    pub fn rowan_tokens(&self) -> usize {
+        self.rowan.tokens
+    }
+
+    fn add_header_parse(&mut self, measurement: parser::GreenParseMeasurement) {
+        self.header_cst_parse += measurement.elapsed;
+        add_green_sink_stats(&mut self.rowan, measurement.sink);
+    }
+
+    fn add_full_parse(&mut self, measurement: parser::GreenParseMeasurement) {
+        self.full_cst_parse += measurement.elapsed;
+        add_green_sink_stats(&mut self.rowan, measurement.sink);
+    }
+}
+
 /// 全ファイルを読み込む。op テーブルはファイル別に正しく組む（循環 use でも OK）。
 pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
     load_with_loaded_prefix(&[], files)
 }
 
+pub fn load_timed(files: Vec<SourceFile>) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    load_with_loaded_prefix_timed(&[], files)
+}
+
 pub fn load_with_band_paths(files: Vec<SourceFile>, band_paths: Vec<Path>) -> Vec<LoadedFile> {
     load_with_loaded_prefix_and_band_paths(&[], files, band_paths)
+}
+
+pub fn load_with_band_paths_timed(
+    files: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    load_with_loaded_prefix_and_band_paths_timed(&[], files, band_paths)
 }
 
 /// 既に load 済みの dependency prefix を再利用し、suffix だけをフルパースする。
@@ -960,6 +1020,14 @@ pub fn load_with_band_paths(files: Vec<SourceFile>, band_paths: Vec<Path>) -> Ve
 pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -> Vec<LoadedFile> {
     let band_paths = vec![Path::default(); suffix.len()];
     load_with_loaded_prefix_and_band_paths(prefix, suffix, band_paths)
+}
+
+pub fn load_with_loaded_prefix_timed(
+    prefix: &[LoadedFile],
+    suffix: Vec<SourceFile>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    let band_paths = vec![Path::default(); suffix.len()];
+    load_with_loaded_prefix_and_band_paths_timed(prefix, suffix, band_paths)
 }
 
 pub fn load_with_loaded_prefix_and_band_paths(
@@ -990,6 +1058,32 @@ pub fn load_with_loaded_prefix_and_band_paths(
     loaded
 }
 
+pub fn load_with_loaded_prefix_and_band_paths_timed(
+    prefix: &[LoadedFile],
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    assert_eq!(
+        suffix.len(),
+        band_paths.len(),
+        "source files and band paths must have the same length"
+    );
+    let prefix_inputs: Vec<SyntaxFileInput> = prefix
+        .iter()
+        .map(|file| SyntaxFileInput {
+            module_path: file.module_path.clone(),
+            band_path: file.band_path.clone(),
+            header: file.header.clone(),
+        })
+        .collect();
+    let mut loaded = Vec::with_capacity(prefix.len() + suffix.len());
+    loaded.extend(prefix.iter().cloned());
+    let (suffix_loaded, timing) =
+        load_suffix_after_syntax_prefix_timed(&prefix_inputs, suffix, band_paths);
+    loaded.extend(suffix_loaded);
+    (loaded, timing)
+}
+
 /// Serialized syntax artifacts provide the same parser-facing surface as an
 /// already-loaded prefix, without requiring the dependency files' CSTs.
 pub fn load_suffix_with_syntax_prefix(
@@ -998,6 +1092,14 @@ pub fn load_suffix_with_syntax_prefix(
 ) -> Vec<LoadedFile> {
     let band_paths = vec![Path::default(); suffix.len()];
     load_suffix_with_syntax_prefix_and_band_paths(prefix, suffix, band_paths)
+}
+
+pub fn load_suffix_with_syntax_prefix_timed(
+    prefix: &CompiledSyntaxSurface,
+    suffix: Vec<SourceFile>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    let band_paths = vec![Path::default(); suffix.len()];
+    load_suffix_with_syntax_prefix_and_band_paths_timed(prefix, suffix, band_paths)
 }
 
 pub fn load_suffix_with_syntax_prefix_and_band_paths(
@@ -1013,10 +1115,43 @@ pub fn load_suffix_with_syntax_prefix_and_band_paths(
     load_suffix_after_syntax_prefix(&prefix_inputs, suffix, band_paths)
 }
 
+pub fn load_suffix_with_syntax_prefix_and_band_paths_timed(
+    prefix: &CompiledSyntaxSurface,
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    let prefix_inputs = prefix
+        .files
+        .iter()
+        .map(CompiledSyntaxFile::syntax_input)
+        .collect::<Vec<_>>();
+    load_suffix_after_syntax_prefix_timed(&prefix_inputs, suffix, band_paths)
+}
+
 fn load_suffix_after_syntax_prefix(
     prefix: &[SyntaxFileInput],
     suffix: Vec<SourceFile>,
     band_paths: Vec<Path>,
+) -> Vec<LoadedFile> {
+    load_suffix_after_syntax_prefix_inner(prefix, suffix, band_paths, None)
+}
+
+fn load_suffix_after_syntax_prefix_timed(
+    prefix: &[SyntaxFileInput],
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> (Vec<LoadedFile>, SourceLoadTiming) {
+    let mut timing = SourceLoadTiming::default();
+    let loaded =
+        load_suffix_after_syntax_prefix_inner(prefix, suffix, band_paths, Some(&mut timing));
+    (loaded, timing)
+}
+
+fn load_suffix_after_syntax_prefix_inner(
+    prefix: &[SyntaxFileInput],
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+    mut timing: Option<&mut SourceLoadTiming>,
 ) -> Vec<LoadedFile> {
     assert_eq!(
         suffix.len(),
@@ -1027,7 +1162,7 @@ fn load_suffix_after_syntax_prefix(
 
     let suffix_headers: Vec<Header> = suffix
         .iter()
-        .map(|file| read_header(&file.source))
+        .map(|file| read_header_with_optional_timing(&file.source, timing.as_deref_mut()))
         .collect();
     let headers: Vec<Header> = prefix
         .iter()
@@ -1102,7 +1237,7 @@ fn load_suffix_after_syntax_prefix(
     {
         let i = prefix.len() + offset;
         let table = initial_op_table(i, &header, &index, &root_band_path, &effective);
-        let cst = parser::parse_module_to_green_with_ops(&file.source, table.clone());
+        let cst = parse_module_with_optional_timing(&file.source, table.clone(), &mut timing);
         let root = SyntaxNode::<YulangLanguage>::new_root(cst.clone());
         let module_loads = module_load_requests(&file.module_path, &root);
         loaded.push(LoadedFile {
@@ -1116,6 +1251,29 @@ fn load_suffix_after_syntax_prefix(
         });
     }
     loaded
+}
+
+fn parse_module_with_optional_timing(
+    source: &str,
+    table: OpTable,
+    timing: &mut Option<&mut SourceLoadTiming>,
+) -> GreenNode {
+    match timing.as_deref_mut() {
+        Some(timing) => {
+            let (green, measurement) =
+                parser::parse_module_to_green_with_ops_measured(source, table);
+            timing.add_full_parse(measurement);
+            green
+        }
+        None => parser::parse_module_to_green_with_ops(source, table),
+    }
+}
+
+fn add_green_sink_stats(total: &mut GreenSinkStats, stats: GreenSinkStats) {
+    total.nodes_started += stats.nodes_started;
+    total.nodes_finished += stats.nodes_finished;
+    total.tokens += stats.tokens;
+    total.token_bytes += stats.token_bytes;
 }
 
 /// 各ファイルの初期テーブル（standard + use 先の実効 export op）を作る。
@@ -1608,6 +1766,23 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![path(&["root", "foo"]), path(&["root", "bar"])]
         );
+    }
+
+    #[test]
+    fn load_timed_collects_cst_parse_and_rowan_stats() {
+        let (loaded, timing) = load_timed(vec![SourceFile {
+            module_path: path(&["root"]),
+            source: "use mod bar::*\nmy x = 1\n".into(),
+        }]);
+
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(
+            timing.cst_parse(),
+            timing.header_cst_parse + timing.full_cst_parse
+        );
+        assert!(timing.rowan_nodes() > 0, "expected Rowan nodes");
+        assert!(timing.rowan_tokens() > 0, "expected Rowan tokens");
+        assert_eq!(timing.rowan.nodes_started, timing.rowan.nodes_finished);
     }
 
     #[test]
