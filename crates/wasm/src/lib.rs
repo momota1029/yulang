@@ -8,7 +8,9 @@ use poly::types::{Neg, Neu, Pos, StackWeight, Subtractability};
 use rowan::SyntaxNode;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
+use yulang_editor::diagnostics as editor_diagnostics;
 use yulang_editor::semantic_tokens;
+use yulang_editor::text as editor_text;
 
 const PLAYGROUND_ENTRY: &str = "playground.yu";
 const PLAYGROUND_STD_ARTIFACT_ENTRY: &str = "<embedded-playground-std-root>";
@@ -973,7 +975,10 @@ fn diagnostics_from_source_diagnostics(
 ) -> Vec<Diagnostic> {
     diagnostics
         .iter()
-        .map(|diagnostic| Diagnostic::from_source_diagnostic(diagnostic, source_len))
+        .map(|diagnostic| {
+            let diagnostic = editor_diagnostic_for_source_diagnostic(diagnostic);
+            Diagnostic::from_editor_diagnostic(&diagnostic, source_len)
+        })
         .collect()
 }
 
@@ -991,13 +996,16 @@ impl Diagnostic {
         }
     }
 
-    fn from_source_diagnostic(diagnostic: &yulang::SourceDiagnostic, source_len: usize) -> Self {
+    fn from_editor_diagnostic(
+        diagnostic: &editor_diagnostics::Diagnostic,
+        source_len: usize,
+    ) -> Self {
         let (start, end) = diagnostic
             .range
             .map(|range| playground_diagnostic_range(range, source_len))
             .unwrap_or((0, source_len));
         Self {
-            severity: DiagnosticSeverity::from_source(diagnostic.severity),
+            severity: DiagnosticSeverity::from_editor(diagnostic.severity),
             code: diagnostic.code.clone(),
             message: diagnostic.message.clone(),
             hint: diagnostic.hint.clone(),
@@ -1012,7 +1020,7 @@ impl Diagnostic {
                         message: related.message.clone(),
                         start,
                         end,
-                        origin: related.origin.as_ref().map(diagnostic_origin_code),
+                        origin: related.origin.map(diagnostic_origin_code),
                     }
                 })
                 .collect(),
@@ -1021,35 +1029,84 @@ impl Diagnostic {
     }
 }
 
-fn diagnostic_origin_code(origin: &yulang::SourceDiagnosticRelatedOrigin) -> String {
-    match origin {
-        yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation => "type_annotation".to_string(),
-        yulang::SourceDiagnosticRelatedOrigin::Expression => "expression".to_string(),
-        yulang::SourceDiagnosticRelatedOrigin::ImplCandidate => "impl_candidate".to_string(),
+fn editor_diagnostic_for_source_diagnostic(
+    diagnostic: &yulang::SourceDiagnostic,
+) -> editor_diagnostics::Diagnostic {
+    editor_diagnostics::Diagnostic {
+        severity: editor_diagnostic_severity(diagnostic.severity),
+        code: diagnostic.code.clone(),
+        label: diagnostic.label.clone(),
+        range: diagnostic.range.map(byte_range_for_source_range),
+        message: diagnostic.message.clone(),
+        hint: diagnostic.hint.clone(),
+        related: diagnostic
+            .related
+            .iter()
+            .map(editor_related_diagnostic_for_source_related)
+            .collect(),
     }
 }
 
-impl DiagnosticSeverity {
-    fn from_source(severity: yulang::SourceDiagnosticSeverity) -> Self {
-        match severity {
-            yulang::SourceDiagnosticSeverity::Error => DiagnosticSeverity::Error,
+fn editor_related_diagnostic_for_source_related(
+    related: &yulang::source::SourceDiagnosticRelated,
+) -> editor_diagnostics::RelatedDiagnostic {
+    editor_diagnostics::RelatedDiagnostic {
+        message: related.message.clone(),
+        range: byte_range_for_source_range(related.range),
+        origin: related
+            .origin
+            .as_ref()
+            .map(editor_related_origin_for_source_origin),
+    }
+}
+
+fn editor_diagnostic_severity(
+    severity: yulang::SourceDiagnosticSeverity,
+) -> editor_diagnostics::DiagnosticSeverity {
+    match severity {
+        yulang::SourceDiagnosticSeverity::Error => editor_diagnostics::DiagnosticSeverity::Error,
+    }
+}
+
+fn editor_related_origin_for_source_origin(
+    origin: &yulang::SourceDiagnosticRelatedOrigin,
+) -> editor_diagnostics::RelatedOrigin {
+    match origin {
+        yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation => {
+            editor_diagnostics::RelatedOrigin::TypeAnnotation
+        }
+        yulang::SourceDiagnosticRelatedOrigin::Expression => {
+            editor_diagnostics::RelatedOrigin::Expression
+        }
+        yulang::SourceDiagnosticRelatedOrigin::ImplCandidate => {
+            editor_diagnostics::RelatedOrigin::ImplCandidate
         }
     }
 }
 
-fn playground_diagnostic_range(range: yulang::SourceRange, source_len: usize) -> (usize, usize) {
-    let start = range
-        .start
-        .saturating_sub(yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN)
-        .min(source_len);
-    let end = range
-        .end
-        .saturating_sub(yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN)
-        .min(source_len);
-    if end < start {
-        (start, start)
-    } else {
-        (start, end)
+impl DiagnosticSeverity {
+    fn from_editor(severity: editor_diagnostics::DiagnosticSeverity) -> Self {
+        match severity {
+            editor_diagnostics::DiagnosticSeverity::Error => DiagnosticSeverity::Error,
+        }
+    }
+}
+
+fn diagnostic_origin_code(origin: editor_diagnostics::RelatedOrigin) -> String {
+    origin.playground_code().to_string()
+}
+
+fn playground_diagnostic_range(range: editor_text::ByteRange, source_len: usize) -> (usize, usize) {
+    let range =
+        editor_text::subtract_prefix_saturating(range, yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN);
+    let range = editor_text::clamp_byte_range_to_len(range, source_len);
+    (range.start, range.end)
+}
+
+fn byte_range_for_source_range(range: yulang::SourceRange) -> editor_text::ByteRange {
+    editor_text::ByteRange {
+        start: range.start,
+        end: range.end,
     }
 }
 
