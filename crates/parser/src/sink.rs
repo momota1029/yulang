@@ -69,17 +69,48 @@ impl RowanLanguage for YulangLanguage {
 
 pub struct GreenSink {
     builder: GreenNodeBuilder<'static>,
+    stats: GreenSinkStats,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct GreenSinkStats {
+    pub nodes_started: usize,
+    pub nodes_finished: usize,
+    pub tokens: usize,
+    pub token_bytes: usize,
 }
 
 impl GreenSink {
     pub fn new() -> Self {
         Self {
             builder: GreenNodeBuilder::new(),
+            stats: GreenSinkStats::default(),
         }
     }
 
     pub fn finish_green(self) -> GreenNode {
-        self.builder.finish()
+        self.finish_green_with_stats().0
+    }
+
+    pub fn finish_green_with_stats(self) -> (GreenNode, GreenSinkStats) {
+        (self.builder.finish(), self.stats)
+    }
+
+    fn start_node(&mut self, kind: SyntaxKind) {
+        self.builder.start_node(YulangLanguage::kind_to_raw(kind));
+        self.stats.nodes_started += 1;
+    }
+
+    fn token(&mut self, kind: SyntaxKind, text: &str) {
+        self.builder
+            .token(YulangLanguage::kind_to_raw(kind), text.as_ref());
+        self.stats.tokens += 1;
+        self.stats.token_bytes += text.len();
+    }
+
+    fn finish_node(&mut self) {
+        self.builder.finish_node();
+        self.stats.nodes_finished += 1;
     }
 }
 
@@ -91,12 +122,11 @@ impl Default for GreenSink {
 
 impl EventSink for GreenSink {
     fn start(&mut self, kind: SyntaxKind) {
-        self.builder.start_node(YulangLanguage::kind_to_raw(kind));
+        self.start_node(kind);
     }
 
     fn lex(&mut self, lex: &Lex) {
-        self.builder
-            .token(YulangLanguage::kind_to_raw(lex.kind), lex.text.as_ref());
+        self.token(lex.kind, lex.text.as_ref());
         self.trivia(&lex.trailing_trivia);
     }
 
@@ -104,31 +134,21 @@ impl EventSink for GreenSink {
         for part in trivia.parts() {
             match part.kind {
                 TriviaKind::BlockCommentStart => {
-                    self.builder
-                        .start_node(YulangLanguage::kind_to_raw(SyntaxKind::BlockComment));
-                    self.builder.token(
-                        YulangLanguage::kind_to_raw(SyntaxKind::BlockCommentStart),
-                        part.text.as_ref(),
-                    );
+                    self.start_node(SyntaxKind::BlockComment);
+                    self.token(SyntaxKind::BlockCommentStart, part.text.as_ref());
                 }
                 TriviaKind::BlockCommentEnd => {
-                    self.builder.token(
-                        YulangLanguage::kind_to_raw(SyntaxKind::BlockCommentEnd),
-                        part.text.as_ref(),
-                    );
-                    self.builder.finish_node();
+                    self.token(SyntaxKind::BlockCommentEnd, part.text.as_ref());
+                    self.finish_node();
                 }
                 _ => {
-                    self.builder.token(
-                        YulangLanguage::kind_to_raw(part.kind.into()),
-                        part.text.as_ref(),
-                    );
+                    self.token(part.kind.into(), part.text.as_ref());
                 }
             }
         }
     }
 
     fn finish(&mut self) {
-        self.builder.finish_node();
+        self.finish_node();
     }
 }
