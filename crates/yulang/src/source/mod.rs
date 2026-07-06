@@ -946,6 +946,7 @@ pub fn check_poly_from_source_text_with_embedded_std(
         loaded,
         collect,
         load,
+        sources::SourceLoadTiming::default(),
         total_start,
         CheckPolyKind::All {
             title: "check-poly-embedded-std",
@@ -1669,6 +1670,7 @@ impl std::error::Error for RouteError {}
 struct CheckPolyTimings {
     collect: Duration,
     load: Duration,
+    source_load: sources::SourceLoadTiming,
     infer: Duration,
     summarize: Duration,
     total: Duration,
@@ -1682,15 +1684,16 @@ fn check_poly_from_sources(
     kind: CheckPolyKind,
 ) -> Result<CheckPolyOutput, RouteError> {
     let load_start = Instant::now();
-    let loaded = load_collected_sources(files);
+    let (loaded, source_load) = load_collected_sources_timed(files);
     let load = load_start.elapsed();
-    check_poly_from_loaded_files(loaded, collect, load, total_start, kind)
+    check_poly_from_loaded_files(loaded, collect, load, source_load, total_start, kind)
 }
 
 fn check_poly_from_loaded_files(
     loaded: Vec<sources::LoadedFile>,
     collect: Duration,
     load: Duration,
+    source_load: sources::SourceLoadTiming,
     total_start: Instant,
     kind: CheckPolyKind,
 ) -> Result<CheckPolyOutput, RouteError> {
@@ -1698,6 +1701,7 @@ fn check_poly_from_loaded_files(
     let timing = CheckPolyTimings {
         collect,
         load,
+        source_load,
         infer: check.timing.infer,
         summarize: check.timing.summarize,
         total: total_start.elapsed(),
@@ -3293,16 +3297,15 @@ pub fn build_poly_from_loaded_files(
 }
 
 fn load_collected_sources(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
-    let mut source_files = Vec::with_capacity(files.len());
-    let mut band_paths = Vec::with_capacity(files.len());
-    for file in files {
-        source_files.push(SourceFile {
-            module_path: file.module_path,
-            source: file.source,
-        });
-        band_paths.push(file.band_path);
-    }
+    let (source_files, band_paths) = collected_source_files_and_band_paths(files);
     sources::load_with_band_paths(source_files, band_paths)
+}
+
+fn load_collected_sources_timed(
+    files: Vec<CollectedSource>,
+) -> (Vec<sources::LoadedFile>, sources::SourceLoadTiming) {
+    let (source_files, band_paths) = collected_source_files_and_band_paths(files);
+    sources::load_with_band_paths_timed(source_files, band_paths)
 }
 
 fn collected_source_files_and_band_paths(

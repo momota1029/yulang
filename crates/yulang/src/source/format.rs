@@ -336,6 +336,21 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     let _ = writeln!(out, "timing:");
     let _ = writeln!(out, "  collect: {}", format_duration(timing.collect));
     let _ = writeln!(out, "  load: {}", format_duration(timing.load));
+    let _ = writeln!(
+        out,
+        "  load.cst_parse: {}",
+        format_duration(timing.source_load.cst_parse())
+    );
+    let _ = writeln!(
+        out,
+        "  load.rowan_nodes: {}",
+        timing.source_load.rowan_nodes()
+    );
+    let _ = writeln!(
+        out,
+        "  load.rowan_tokens: {}",
+        timing.source_load.rowan_tokens()
+    );
     let _ = writeln!(out, "  infer: {}", format_duration(timing.infer));
     let _ = writeln!(
         out,
