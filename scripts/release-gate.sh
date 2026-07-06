@@ -7,12 +7,14 @@ test_timeout="${YULANG_RELEASE_GATE_TEST_TIMEOUT:-720s}"
 core_test_timeout="${YULANG_RELEASE_GATE_CORE_TEST_TIMEOUT:-1500s}"
 smoke_timeout="${YULANG_RELEASE_GATE_SMOKE_TIMEOUT:-420s}"
 build_timeout="${YULANG_RELEASE_GATE_BUILD_TIMEOUT:-900s}"
+performance_timeout="${YULANG_RELEASE_GATE_PERFORMANCE_TIMEOUT:-3600s}"
 
 run_fmt="${YULANG_RELEASE_GATE_FMT:-1}"
 run_core_tests="${YULANG_RELEASE_GATE_CORE_TESTS:-1}"
 run_release_build="${YULANG_RELEASE_GATE_BUILD_RELEASE:-1}"
 run_hardening="${YULANG_RELEASE_GATE_HARDENING:-1}"
 run_docs_build="${YULANG_RELEASE_GATE_DOCS_BUILD:-1}"
+run_performance="${YULANG_RELEASE_GATE_PERFORMANCE:-0}"
 run_web_build="${YULANG_RELEASE_GATE_WEB_BUILD:-0}"
 
 run_timeout() {
@@ -52,6 +54,16 @@ if [[ "$run_hardening" != "0" ]]; then
       "$repo_root/scripts/hardening-smoke.sh"
 elif [[ "$run_docs_build" != "0" ]]; then
   run_timeout "$smoke_timeout" npm --prefix "$repo_root/web/docs" run build
+fi
+
+if [[ "$run_performance" != "0" ]]; then
+  run_timeout "$performance_timeout" \
+    env \
+      "YULANG=$bin" \
+      "YULANG_PERF_GATE_BUILD_RELEASE=0" \
+      "YULANG_PERF_GATE_HARDENING=0" \
+      "YULANG_PERF_GATE_RELEASE_SMOKE=0" \
+      "$repo_root/scripts/performance-gate.sh"
 fi
 
 if [[ "$run_web_build" != "0" ]]; then
