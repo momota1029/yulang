@@ -5,6 +5,7 @@
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RuntimeEvidenceRunStats {
+    pub uncacheable_host_operation_invoked: bool,
     pub runtime_breakdown_stats_enabled: bool,
     pub effect_calls: usize,
     pub direct_effect_calls: usize,
@@ -843,4 +844,10 @@ pub struct RuntimeEvidenceRunStats {
     pub scope_sidecar_value_resume_reject_request_boundary: usize,
     pub scope_sidecar_value_resume_reject_ref_set: usize,
     pub scope_sidecar_value_resume_reject_non_foreign_boundary: usize,
+}
+
+impl RuntimeEvidenceRunStats {
+    pub fn is_cache_safe(&self) -> bool {
+        !self.uncacheable_host_operation_invoked
+    }
 }

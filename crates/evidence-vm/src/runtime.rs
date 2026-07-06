@@ -225,6 +225,24 @@ fn net_trace(args: fmt::Arguments<'_>) {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeHostOperationCacheSafety {
+    Cacheable,
+    Uncacheable,
+}
+
+fn runtime_host_operation_cache_safety(path: &[String]) -> RuntimeHostOperationCacheSafety {
+    if host_operation_path_eq(path, &["std", "io", "console", "out", "write"]) {
+        RuntimeHostOperationCacheSafety::Cacheable
+    } else {
+        RuntimeHostOperationCacheSafety::Uncacheable
+    }
+}
+
+fn host_operation_path_eq(path: &[String], expected: &[&str]) -> bool {
+    path.len() == expected.len() && path.iter().map(String::as_str).eq(expected.iter().copied())
+}
+
 pub fn builtin_host_registrations() -> Vec<HostOpRegistration> {
     vec![
         HostOpRegistration {
@@ -10096,6 +10114,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.current_host_branch
     }
 
+    fn record_runtime_host_operation_dispatch(
+        &mut self,
+        operation: &host::RuntimeHostResolvedOperation,
+    ) -> Vec<String> {
+        let operation_path = operation.path_strings();
+        if runtime_host_operation_cache_safety(&operation_path)
+            == RuntimeHostOperationCacheSafety::Uncacheable
+        {
+            self.stats.uncacheable_host_operation_invoked = true;
+        }
+        operation_path
+    }
+
     fn record_continuation_materialized(&mut self, continuation: &EvidenceContinuation) {
         self.continuation_capture_generation = self.continuation_capture_generation.wrapping_add(1);
         self.record_materialized_continuation_identity(continuation);
@@ -14384,7 +14415,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         operation: host::RuntimeHostResolvedOperation,
         payload: &RuntimeEvidenceValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let operation_path = operation.path_strings();
+        let operation_path = self.record_runtime_host_operation_dispatch(&operation);
         let boundary_payload = runtime_to_boundary_value(payload, &self.host_constructors)
             .map_err(|message| RuntimeEvidenceRunError::HostAbiError {
                 operation: operation_path.clone(),
@@ -14418,7 +14449,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         operation: host::RuntimeHostResolvedOperation,
         request: EvidenceRequest,
     ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
-        let operation_path = operation.path_strings();
+        let operation_path = self.record_runtime_host_operation_dispatch(&operation);
         let boundary_payload =
             runtime_to_boundary_value(request.payload.as_ref(), &self.host_constructors).map_err(
                 |message| RuntimeEvidenceRunError::HostAbiError {
@@ -14490,7 +14521,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         operation: host::RuntimeHostResolvedOperation,
         request: EvidenceRequest,
     ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
-        let operation_path = operation.path_strings();
+        let operation_path = self.record_runtime_host_operation_dispatch(&operation);
         let boundary_payload =
             runtime_to_boundary_value(request.payload.as_ref(), &self.host_constructors).map_err(
                 |message| RuntimeEvidenceRunError::HostAbiError {
@@ -25141,6 +25172,79 @@ mod tests {
     }
 
     #[test]
+    fn host_abi_cache_safety_console_out_write_remains_cache_safe() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(console_out_write_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.console.out",
+                operation_id: "write",
+                f: host_console_out_write,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "io".to_string(),
+                "console".to_string(),
+                "out".to_string(),
+                "write".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Str("hello\n".to_string())),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let result = runner
+            .handle_escaped_request(request)
+            .expect("console out write should be handled");
+
+        assert_eq!(
+            result,
+            EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Unit))
+        );
+        assert_eq!(runner.host_state.stdout, "hello\n");
+        assert!(runner.stats.is_cache_safe());
+    }
+
+    #[test]
+    fn host_abi_cache_safety_clock_now_marks_run_uncacheable() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(clock_now_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.time.clock",
+                operation_id: "now",
+                f: host_clock_now,
+            }],
+        );
+        let request = EvidenceRequest {
+            path: shared_path(&[
+                "std".to_string(),
+                "time".to_string(),
+                "clock".to_string(),
+                "now".to_string(),
+            ]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let result = runner
+            .handle_escaped_request(request)
+            .expect("clock now should be handled");
+
+        assert!(matches!(result, EvidenceEvalResult::Value(_)));
+        assert!(!runner.stats.is_cache_safe());
+    }
+
+    #[test]
     fn host_abi_registration_can_serve_custom_manifest_act() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -26063,6 +26167,24 @@ mod tests {
             &["std", "io", "file", "file"],
             "load",
             "path -> result str io_err",
+        )
+    }
+
+    fn console_out_write_host_manifest() -> poly::host_manifest::HostActManifest {
+        single_operation_host_manifest(
+            "std.io.console.out",
+            &["std", "io", "console", "out"],
+            "write",
+            "str -> ()",
+        )
+    }
+
+    fn clock_now_host_manifest() -> poly::host_manifest::HostActManifest {
+        single_operation_host_manifest(
+            "std.time.clock",
+            &["std", "time", "clock"],
+            "now",
+            "() -> instant",
         )
     }
 
