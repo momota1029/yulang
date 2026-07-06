@@ -20873,6 +20873,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ..
         } = route
         {
+            if evidence.route_cert.provider_grant_id().is_some() {
+                // Provider grants identify a lexical handler instance through marker hygiene.
+                // The direct abortive signal only names the handler expression, which conflates
+                // nested calls to the same handler body, so keep this path on generic request
+                // routing where active markers can hide the dynamically-nearest handler.
+                let mut request = EvidenceRequest {
+                    path,
+                    payload,
+                    route: EvidenceEffectRoute::Unhandled,
+                    hygiene: EvidenceSignalHygiene::new()
+                        .with_operation_visibility(evidence.visibility),
+                    continuation: EvidenceContinuation::identity(),
+                };
+                self.mark_request_with_active_markers(&mut request);
+                return Ok(EvidenceEvalResult::request(request));
+            }
             return Ok(EvidenceEvalResult::direct_abortive(
                 EvidenceDirectAbortive::static_handler(handler, path.clone(), payload),
             ));
