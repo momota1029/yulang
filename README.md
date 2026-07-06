@@ -111,14 +111,19 @@ What this buys you in practice:
 - **No invisible exceptions.** There is deliberately no `anyhow`-style
   type-erased catch-all. Every error keeps its concrete type in the effect
   row, so the origin and the handler of each error are readable from types
-  alone. Wider error families are built explicitly (`error io_err: fs from
-  fs_err`), and closing an error effect into a plain `result` value is one
-  call (`fs_err::wrap`).
+  alone. Wider error families are built explicitly with `from` entries such as
+  `fs from fs_err`; an `error E:` declaration generates `fail` support,
+  `E::wrap`, explicit `E::up`, `from` casts, and `Display` output.
 - **State cannot leak.** `my $x` opens a read/write port scoped to its
   binder. Because it is an effect, not a heap cell, a reference escaping its
   scope is a type error rather than a heisenbug.
-- **No surprise conversions.** Implicit conversions exist only where you
-  declare them: `cast(x: user_id): int = x.raw`.
+- **Conversions stay declared and local.** Ordinary value conversions use
+  explicit `cast(x: user_id): int = x.raw`. The generated exception is error
+  upcasting: at a declared or annotated effect boundary, a concrete `fs_err`
+  effect can satisfy concrete `io_err` only if `io_err` declared
+  `fs from fs_err`. Row variables and row tails pass through unchanged, a
+  missing `from` remains an effect mismatch, and this is not global effect-row
+  unification.
 - **Handlers are scoped by the program you wrote.** Effect propagation is
   statically scoped, and handler hygiene keeps library handlers from
   capturing operations they were never given. The
@@ -128,12 +133,21 @@ And you rarely write a type. Inference is Simple-sub-inspired, with subtyping,
 structural records and tuples, effect rows, and role constraints:
 
 ```yulang
-our twice x = x + x
-// inferred: twice : Add<α> => α -> α
+pub role Add 'a:
+    pub a.add: 'a -> 'a
+
+impl int: Add:
+    our x.add y = std::int::add x y
 ```
 
-`+` is not welded to `int`. `twice` works for any type with an `Add` role
-implementation — and the compiler figured that out by itself.
+Public types print role requirements as trailing `where` clauses:
+
+```text
+'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)
+```
+
+`+` is not welded to `int`; it resolves through the `Add` role. Other standard
+library APIs use the same role machinery, such as `Fold` for `for` loops.
 
 ## The everyday part: it stays light
 
@@ -282,15 +296,14 @@ executable. The source copy here is kept in sync with the separate
 
 ## Under the Hood
 
-Yulang currently has three runtime surfaces: the evidence VM (the default
-`run` route, and the fastest on effect-heavy programs), the control VM (a
-fallback route via `run --control-vm`), and the mono runtime (a simple
-interpreter kept as an oracle, via `run --interpreter`). The browser
-playground uses the evidence VM through the wasm crate. The evidence VM can
-be checked against the control VM:
+Yulang currently has two user-facing execution routes: the evidence VM (the
+default `run` route, and the fastest on effect-heavy programs) and the mono
+runtime, a simple interpreter kept as an oracle via `run --interpreter` and the
+lower-level `run-mono` commands. The browser playground uses the evidence VM
+through the wasm crate. The evidence VM debug route can be checked against mono:
 
 ```bash
-target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
+target/release/yulang --std-root lib debug evidence-vm-run --compare-mono examples/showcase.yu
 ```
 
 The evidence VM uses permission-native handler visibility for certified
@@ -327,7 +340,9 @@ Repository layout:
 - `crates/poly`: inferred polymorphic program representation.
 - `crates/specialize`: principal monomorphization.
 - `crates/mono` / `crates/mono-runtime`: monomorphic IR and oracle interpreter.
-- `crates/control-vm` / `crates/evidence-vm`: the two VM runtimes.
+- `crates/control-ir`: lightweight control IR, lowering, and evidence summaries
+  consumed by the evidence VM.
+- `crates/evidence-vm`: the default evidence VM runtime.
 - `crates/parser`: parser and syntax tree support.
 - `lib/std`: standard library written in Yulang.
 - `examples`, `web/`, `docs/`, `notes/`: examples, playground/docs sources,
