@@ -8,10 +8,14 @@ smoke_timeout="${YULANG_HARDENING_SMOKE_TIMEOUT:-360s}"
 run_public_examples="${YULANG_HARDENING_PUBLIC_EXAMPLES:-1}"
 run_public_contract_manifest="${YULANG_HARDENING_PUBLIC_CONTRACT_MANIFEST:-1}"
 run_contract_runner_smoke="${YULANG_HARDENING_CONTRACT_RUNNER_SMOKE:-1}"
-run_evidence_public_examples="${YULANG_HARDENING_EVIDENCE_PUBLIC_EXAMPLES:-1}"
-run_replay_compare="${YULANG_HARDENING_REPLAY_COMPARE:-1}"
-run_replay_public_diff="${YULANG_HARDENING_REPLAY_PUBLIC_DIFF:-1}"
-run_evidence_smoke="${YULANG_HARDENING_EVIDENCE_SMOKE:-1}"
+# The evidence-only replay skip path is a measurement-only prototype documented
+# in notes/design/2026-06-24-weighted-var-var-routing.md, not a sound production
+# optimization yet. Keep these checks available as explicit opt-ins via the
+# standalone replay-skip/evidence-only scripts, but do not gate normal hardening.
+run_evidence_public_examples="${YULANG_HARDENING_EVIDENCE_PUBLIC_EXAMPLES:-0}"
+run_replay_compare="${YULANG_HARDENING_REPLAY_COMPARE:-0}"
+run_replay_public_diff="${YULANG_HARDENING_REPLAY_PUBLIC_DIFF:-0}"
+run_evidence_smoke="${YULANG_HARDENING_EVIDENCE_SMOKE:-0}"
 run_release_smoke="${YULANG_HARDENING_RELEASE_SMOKE:-1}"
 run_release_server_smoke="${YULANG_HARDENING_RELEASE_SERVER_SMOKE:-1}"
 run_source_unit_cache_smoke="${YULANG_HARDENING_SOURCE_UNIT_CACHE_SMOKE:-1}"
