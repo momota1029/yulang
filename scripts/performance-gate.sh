@@ -23,6 +23,10 @@ run_marker_runtime="${YULANG_PERF_GATE_MARKER_RUNTIME:-1}"
 run_static_bench="${YULANG_PERF_GATE_STATIC_BENCH:-1}"
 build_release="${YULANG_PERF_GATE_BUILD_RELEASE:-1}"
 
+# Exit contract: 0 means all selected workloads ran and required metrics were
+# captured; nonzero means command failure, timeout, missing metric, or a
+# workload-reported failure.
+
 mkdir -p "$out_dir"
 : >"$summary"
 
@@ -172,6 +176,140 @@ append_key_metrics() {
     cat "$key_metrics" | tee -a "$summary"
 }
 
+scan_workload_failures() {
+    local log_dir="$1"
+    local failed=0
+    local log_file
+
+    while IFS= read -r log_file; do
+        local matches
+        if matches="$(rg -n '(^|[[:space:]])FAILED([[:space:]]|$)' "$log_file")"; then
+            local workload="${log_file#$log_dir/}"
+            workload="${workload%.log}"
+            echo "performance gate: workload reported failure: $workload ($log_file)" >&2
+            printf '%s\n' "$matches" >&2
+            failed=1
+        fi
+    done < <(find "$log_dir" -type f -name '*.log' | sort)
+
+    if [[ "$failed" != "0" ]]; then
+        return 1
+    fi
+}
+
+key_metric_value() {
+    local key_metrics="$1"
+    local workload="$2"
+    local field="$3"
+
+    awk -F '|' -v workload="$workload" -v field="$field" '
+        function trim(value) {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            return value
+        }
+        trim($2) == workload {
+            print trim($field)
+            found = 1
+            exit
+        }
+        END {
+            if (!found) {
+                exit 1
+            }
+        }
+    ' "$key_metrics"
+}
+
+require_key_metric() {
+    local key_metrics="$1"
+    local workload="$2"
+    local field="$3"
+    local metric="$4"
+    local value
+
+    if ! value="$(key_metric_value "$key_metrics" "$workload" "$field")"; then
+        echo "performance gate: missing key metrics row: $workload ($key_metrics)" >&2
+        return 1
+    fi
+    if [[ -z "$value" || "$value" == "n/a" || "$value" == "-" ]]; then
+        echo "performance gate: missing key metric: $workload $metric ($key_metrics)" >&2
+        return 1
+    fi
+}
+
+require_key_metric_set() {
+    local key_metrics="$1"
+    local workload="$2"
+    shift 2
+    local missing=0
+
+    while (($# > 0)); do
+        require_key_metric "$key_metrics" "$workload" "$1" "$2" || missing=1
+        shift 2
+    done
+
+    if [[ "$missing" != "0" ]]; then
+        return 1
+    fi
+}
+
+validate_key_metrics() {
+    local key_metrics="$1"
+    local missing=0
+
+    if [[ ! -s "$key_metrics" ]]; then
+        echo "performance gate: missing key metrics file: $key_metrics" >&2
+        return 1
+    fi
+
+    if [[ "$run_source_metrics" != "0" ]]; then
+        require_key_metric_set "$key_metrics" showcase-check-poly-std \
+            3 "wall(s)" \
+            5 "infer" \
+            6 "constraint.drain" \
+            8 "replay accepted" \
+            9 "replay duplicate" || missing=1
+        require_key_metric_set "$key_metrics" nondet-no-cache \
+            3 "wall(s)" \
+            16 "runtime execute" \
+            17 "marker touches" \
+            18 "path prefix checks" \
+            19 "active scans" || missing=1
+        require_key_metric_set "$key_metrics" showcase-no-cache \
+            3 "wall(s)" \
+            16 "runtime execute" \
+            17 "marker touches" \
+            18 "path prefix checks" \
+            19 "active scans" || missing=1
+        require_key_metric_set "$key_metrics" nondet-cache-warmup \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
+        require_key_metric_set "$key_metrics" nondet-cache-hit \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
+        require_key_metric_set "$key_metrics" source-unit-cache-smoke \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
+    fi
+
+    if [[ "$run_marker_runtime" != "0" ]]; then
+        require_key_metric_set "$key_metrics" marker-heavy-cache-hit \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" \
+            17 "marker touches" \
+            18 "path prefix checks" \
+            19 "active scans" || missing=1
+    fi
+
+    if [[ "$missing" != "0" ]]; then
+        return 1
+    fi
+}
+
 ensure_release_binary() {
     if [[ "$bin" == "$default_bin" ]]; then
         if [[ "$build_release" != "0" || ! -x "$bin" ]]; then
@@ -316,10 +454,14 @@ main() {
     fi
 
     append_key_metrics
+    scan_workload_failures "$out_dir"
+    validate_key_metrics "$out_dir/key-metrics.md"
 
     log ""
     log "performance gate ok"
     log "summary: $summary"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
