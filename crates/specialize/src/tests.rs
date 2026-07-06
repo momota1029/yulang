@@ -1,4 +1,6 @@
 mod tests {
+    use std::fmt::Write as _;
+
     use crate::{
         RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind,
         RuntimeEvidenceStaticRoute, RuntimeEvidenceStaticRouteDynamicReason,
@@ -458,6 +460,27 @@ mod tests {
             mono::dump::dump_type(&program.instances[0].signature.ty),
             "int -> int"
         );
+    }
+
+    #[test]
+    fn specialize2_string_input_drains_deep_instance_worklist() {
+        let depth = 256;
+        let mut source = String::new();
+        for index in 0..depth {
+            writeln!(&mut source, "my f{index} x = f{} x", index + 1).unwrap();
+        }
+        writeln!(&mut source, "my f{depth} x = x").unwrap();
+        source.push_str("f0(1)\n");
+        let lowering = lower_source(&source);
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("deep generic call chain should specialize");
+
+        assert_eq!(program.roots.len(), 1);
+        assert_eq!(program.instances.len(), depth + 1);
+        for instance in &program.instances {
+            assert_eq!(mono::dump::dump_type(&instance.signature.ty), "int -> int");
+        }
     }
 
     #[test]
