@@ -120,12 +120,9 @@ fn run_evidence_from_source_text_with_embedded_std(
 fn run_built_evidence_output(build: BuildControlOutput) -> Result<EvidenceTestOutput, RouteError> {
     reject_runtime_lowering_errors(&build.errors)?;
     let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
-    let output = evidence_vm::run_program_with_plan_with_labels(
-        &build.program,
-        &plan,
-        &build.labels,
-    )
-    .expect("evidence VM program should run");
+    let output =
+        evidence_vm::run_program_with_plan_with_labels(&build.program, &plan, &build.labels)
+            .expect("evidence VM program should run");
     Ok(EvidenceTestOutput {
         text: output.roots_text_with_labels(Some(&build.labels)),
         file_count: build.file_count,
