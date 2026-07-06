@@ -443,10 +443,13 @@ The companion module also receives:
 - `impl Throw fs_err` — backs `e.throw`, which re-raises a value through the
   effect.
 - `fs_err::wrap` — closes the error effect into a `result` value.
-- `fs_err::up` — a handler that lifts narrower errors into `fs_err`, used when
-  other error types declare `from fs_err`.
+- `fs_err::up` — when `fs_err` declares `from` entries, lifts those narrower
+  errors into `fs_err`.
+- `impl Display fs_err` — generated display behavior for the declared error
+  shape.
 
-If you want a text rendering of a particular error type, write `impl Display fs_err` yourself.
+Generated display is the default for `error` declarations, so ordinary errors
+can be rendered without a hand-written `Display` impl.
 
 ### Raising with `fail`
 
@@ -527,6 +530,17 @@ my read_and_parse path =
         parse_json text                       // [parse_err]
     // the whole block has effect [io_err]
 ```
+
+When a function or binding has an explicit effect annotation, the same
+`from`-registered relationship can also be used automatically at that annotation
+boundary. If the body produces a concrete `fs_err` effect and the annotation
+requires concrete `io_err`, the checker inserts the same conversion that
+`io_err::up` would perform.
+
+This is intentionally not a catch-all conversion rule. It only applies to
+concrete error effects at the annotation boundary. Abstract row variables and
+row tails pass through unchanged, and a missing `from` relationship remains a
+normal effect mismatch.
 
 ## `for`, `last`, `next`, and `redo`
 

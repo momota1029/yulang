@@ -107,9 +107,9 @@ v1 and its stable ref/file-line interactions:
 
 | kind | count | contract role |
 | --- | ---: | --- |
-| `run` | 11 | compact behavior for pure string APIs, method dispatch, ref mutation, and file-line string views |
+| `run` | 18 | compact behavior for pure string APIs, method dispatch, ref mutation, and file-line string views |
 | `public-signature` | 19 | exact pure and `ref '[e] str` public type projection |
-| total | 30 | String API v1 executable slice |
+| total | 37 | String API v1 executable slice |
 
 The conformance command is:
 
@@ -117,10 +117,10 @@ The conformance command is:
 cargo run -q -p yulang -- --std-root lib contract --contract standard-api --contract stable-api --contract str tests/yulang/cases.toml
 ```
 
-Last recorded local validation on 2026-07-04:
+Last recorded local validation on 2026-07-06:
 
 ```text
-contract cases ok: 30
+contract cases ok: 37
 ```
 
 ## String API v1
@@ -172,10 +172,10 @@ Current `parser-dsl` / `patterns` manifest coverage:
 
 | kind | count | contract role |
 | --- | ---: | --- |
-| `run` | 1 | case-arm parser pattern behavior |
+| `run` | 2 | case-arm parser pattern behavior |
 | `check` | 2 | malformed parser pattern diagnostics |
-| `public-signature` | 1 | effect-hygiene public projection for a parser-pattern helper |
-| total | 4 | Parser Pattern P1/P2 executable slice |
+| `public-signature` | 2 | effect-hygiene public projection for parser-pattern helpers |
+| total | 6 | Parser Pattern P1/P2 executable slice |
 
 The conformance command is:
 
@@ -183,10 +183,10 @@ The conformance command is:
 cargo run -q -p yulang -- --std-root lib contract --contract parser-dsl --contract patterns tests/yulang/cases.toml
 ```
 
-Last recorded local validation on 2026-07-04:
+Last recorded local validation on 2026-07-06:
 
 ```text
-contract cases ok: 4
+contract cases ok: 6
 ```
 
 The closed subset covers:

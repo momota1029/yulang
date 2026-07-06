@@ -7,7 +7,7 @@ contract slice instead?"
 
 ## Verdict
 
-As of 2026-07-02, the **Contract v0 executable spine is complete for the
+As of 2026-07-06, the **Contract v0 executable spine is complete for the
 `stable-core` subset**.
 
 That does not mean every designed Yulang surface is stable. It means the current
@@ -28,10 +28,10 @@ Current `stable-core` manifest coverage:
 
 | kind | count | contract role |
 | --- | ---: | --- |
-| `run` | 25 | runtime behavior and public examples |
-| `check` | 17 | structured source diagnostics |
+| `run` | 32 | runtime behavior and public examples |
+| `check` | 18 | structured source diagnostics |
 | `public-signature` | 15 | exact public type projection |
-| total | 57 | Contract v0 executable floor |
+| total | 65 | Contract v0 executable floor |
 
 The conformance command is:
 
@@ -39,10 +39,10 @@ The conformance command is:
 cargo run -q -p yulang -- --std-root lib contract --contract stable-core tests/yulang/cases.toml
 ```
 
-Last recorded local validation on 2026-07-02:
+Last recorded local validation on 2026-07-06:
 
 ```text
-contract cases ok: 57
+contract cases ok: 65
 ```
 
 ## Closed Slices
