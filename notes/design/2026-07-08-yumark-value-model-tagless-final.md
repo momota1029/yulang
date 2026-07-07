@@ -180,21 +180,82 @@ already a thunk. Verified against the full contract corpus (225/225 green) and
 the direct-vs-field-storage contrast repros
 (`examples/clock_effect_direct_repro.yu`, `examples/clock_effect_field_repro.yu`).
 
+## Surface syntax: block-position grouped commands (implemented 2026-07-08)
+
+The `\func(){}[]` prefix syntax is now real, for block position only. Finalized
+grammar:
+
+```text
+block_command := "\" ident command_group* command_terminator?
+command_group := "(" yulang_expr ")" | "{" yumark_block "}" | "[" yumark_inline "]"
+command_terminator := ";"
+```
+
+Key corrections from the first-pass plan — worth recording, since the initial
+plan was wrong twice before landing here:
+
+1. **Groups are repeatable, any order, any count** — not "each appears at most
+   once in a fixed `()`→`{}`→`[]` order" as first proposed. `\cmd()()()[][][][][]{}{}{}`
+   must parse, and `\link[](url_expr)` (inline body before expr group) must
+   parse. The parser does not validate arity/order/shape against what a
+   specific command expects — that's deferred to a later semantic/lowering
+   stage, the same way ordinary function-call arity isn't checked by the
+   parser. Modeled as a Pratt-tail-style loop (`(`/`{`/`[` lookahead, dispatch,
+   repeat) — the same architectural shape as the pre-existing curried-call
+   support (`f(a)(b)`, real precedent in `lib/std/text/parse.yu`), not the
+   delimited-list machinery.
+2. **Named parameters need no dedicated syntax** — `()` already holds an
+   arbitrary Yulang expression, so a record literal works directly:
+   `\thm({ title: '[...] }) { block }`. Quoted Yumark (`'[...]`) nests inside
+   the record field value and parses correctly (see evidence trail).
+3. **`;` explicitly terminates a zero-group command** (reusing the previously
+   dead `SyntaxKind::YmSemi`). Motivation: Japanese has no whitespace between
+   words, so `\mycommand` immediately followed by more prose with no space
+   cannot rely on whitespace to mark where the command ends. Without `;`, a
+   zero-group command falls through to the existing legacy behavior
+   (rest-of-line becomes the command's own inline content) — correct for
+   `\cmd trailing text`, wrong if the author meant "no arguments, unrelated
+   prose continues immediately." `\cmd;tail` parses `tail` as a separate,
+   following paragraph, not as content of `\cmd`. A trailing `;` after
+   one-or-more groups is accepted but optional (redundant, harmless) — once
+   groups are present the command is already unambiguously bounded by the
+   last group's closing delimiter.
+4. No whitespace is permitted between the identifier and the first group, or
+   between adjacent groups — implemented by checking trailing trivia on each
+   group's closing delimiter, not a separate whitespace-scanning pass.
+   Whitespace where a group would start simply ends the group-reading loop
+   (falls through to the zero-group/legacy path); it is not an error.
+5. First slice is **block position only**. Inline `\func(...)`/`[...]` (the
+   `YmBackslash` inline TODO) and postfix `[text]:func {}` remain deferred.
+
+Implemented in `a7928657` (`parser: parse grouped Yumark block commands`),
+`crates/parser/src/mark/parse.rs`. Six new targeted tests in
+`crates/parser/tests/mark_grammar.rs` cover: repeated/mixed-order groups,
+inline-before-expr reordering, `;` termination without legacy-body
+fallthrough, legacy fallback preserved unchanged, the named-parameter-via-
+record-in-parens pattern with nested quoted Yumark, and malformed/unclosed-
+group recovery (`InvalidToken`, not a panic or silent fallback). Full existing
+parser suite (259 tests across mark/expr/stmt grammar) and the full contract
+corpus (225 cases) both green — no regressions.
+
+This grammar work does not yet connect to lowering or the `yumark_node` value
+model from earlier sections — see "Parser/lowering integration" below.
+
 ## Open items / not addressed this session
 
 - The capability-boundary idea for injected content (point 3 under "No custom
   Yumark effect") — whether/how to statically bound what operations are legal
   inside a Yumark document before backend selection.
-- `\func(){}[]` prefix and `[text]:func {}` postfix surface syntax — parser
-  support exists only for a bare `\cmd` block command
-  (`crates/parser/src/mark/`); the bracket-group semantics (args vs body vs
-  extra group) are still unspecified.
+- Inline-position `\func(...)`/`[...]` and postfix `[text]:func {}` surface
+  syntax — only block-position grouped commands are implemented so far (see
+  "Surface syntax" above).
 - Whether/how the `[\each(...)]:list` postfix-method-with-embedded-effect
   syntax could work at all, given effect legality would need to be checked
   before backend/tagless-final selection.
 - Parser/lowering integration — turning the real `crates/parser/src/mark/` CST
-  into `yumark_node` values — has not been attempted; the static-vocab PoC
-  (see evidence trail) only proves the value-model shape in isolation.
+  (including the new grouped-command nodes) into `yumark_node` values — has
+  not been attempted; the static-vocab PoC (see evidence trail) only proves
+  the value-model shape in isolation, disconnected from the real parser.
 
 ### `yulang`-tagged code fences: two independent consumers, not one (2026-07-08 clarification)
 
