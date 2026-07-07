@@ -523,6 +523,209 @@ fn block_backslash_command() {
 }
 
 #[test]
+fn block_backslash_command_repeated_any_order_groups() {
+    let got = doc_body("\\cmd()()()[][][][][]{}{}{}");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"cmd\"",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    ParenR \")\"",
+        "  )",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    ParenR \")\"",
+        "  )",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    ParenR \")\"",
+        "  )",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandBody",
+        "    BraceL \"{\"",
+        "    (YmDoc",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        "  (YmCommandBody",
+        "    BraceL \"{\"",
+        "    (YmDoc",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        "  (YmCommandBody",
+        "    BraceL \"{\"",
+        "    (YmDoc",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn block_backslash_command_inline_body_before_expr_group() {
+    let got = doc_body("\\link[](url_expr)");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"link\"",
+        "  (YmCommandInlineBody",
+        "    BracketL \"[\"",
+        "    (YmDoc",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    (Expr",
+        "      Ident \"url_expr\"",
+        "    )",
+        "    ParenR \")\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn block_backslash_command_semicolon_terminates_without_legacy_body() {
+    let got = doc_body("\\cmd;tail\n");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"cmd\"",
+        "  YmSemi \";\"",
+        ")",
+        "(YmParagraph",
+        "  YmText \"tail\"",
+        "  Space \"\\n\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn block_backslash_command_legacy_rest_of_line_still_inline_body() {
+    let got = doc_body("\\cmd trailing *inline*\n");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"cmd\"",
+        "  YmText \" trailing\"",
+        "  Space \" \"",
+        "  (YmEmphasis",
+        "    YmStarSigil \"*\"",
+        "    YmText \"inline\"",
+        "    YmStarSigil \"*\"",
+        "  )",
+        "  YmNewline \"\\n\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn block_backslash_command_record_arg_with_quoted_yumark_then_block_body() {
+    let got = doc_body("\\thm({ title: '[label] }){block\n}");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"thm\"",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    (Expr",
+        "      (BraceGroup",
+        "        BraceL \"{\"",
+        "        (Expr",
+        "          Ident \"title\"",
+        "          (ApplyColon",
+        "            Colon \":\"",
+        "            (Expr",
+        "              (MarkExpr",
+        "                (MarkInlineBody",
+        "                  MarkLitStart \"'[\"",
+        "                  (YmDoc",
+        "                    YmText \"label\"",
+        "                  )",
+        "                  MarkLitEnd \"]\"",
+        "                )",
+        "              )",
+        "            )",
+        "          )",
+        "        )",
+        "        BraceR \"}\"",
+        "      )",
+        "    )",
+        "    ParenR \")\"",
+        "  )",
+        "  (YmCommandBody",
+        "    BraceL \"{\"",
+        "    (YmDoc",
+        "      (YmParagraph",
+        "        YmText \"block\"",
+        "        Space \"\\n\"",
+        "      )",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn block_backslash_command_unclosed_group_recovers_with_invalid_token() {
+    let got = doc_body("\\cmd(foo\n");
+    let expected = vec![
+        "(YmCommand",
+        "  YmBackslash \"\\\\\"",
+        "  YmIdent \"cmd\"",
+        "  (YmCommandArgs",
+        "    ParenL \"(\"",
+        "    (Expr",
+        "      Ident \"foo\"",
+        "    )",
+        "    (InvalidToken",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn block_section_close() {
     let got = doc_body("#.\n");
     let expected = vec![

@@ -4,7 +4,9 @@ use reborrow_generic::Reborrow as _;
 
 use crate::EventInput;
 use crate::context::In;
-use crate::lex::{SyntaxKind, TriviaInfo, TriviaKind};
+use crate::expr::parse_expr;
+use crate::lex::{Lex, SyntaxKind, TriviaInfo, TriviaKind};
+use crate::parse::emit_invalid;
 use crate::scan::trivia::scan_trivia;
 use crate::sink::EventSink;
 
@@ -88,6 +90,230 @@ fn is_terminal(mark: &Mark) -> bool {
             BlockNudTag::InputEnd | BlockNudTag::Dequote { .. } | BlockNudTag::DocBlockClose
         )
     )
+}
+
+struct CommandGroupEnd {
+    can_continue: bool,
+}
+
+fn emit_missing_invalid<I: EventInput, S: EventSink>(i: In<I, S>) {
+    i.env.state.sink.start(SyntaxKind::InvalidToken);
+    i.env.state.sink.finish();
+}
+
+fn consume_ym_semi<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<bool> {
+    if i.maybe(item(';'))?.is_none() {
+        return Some(false);
+    }
+    i.env.state.sink.push(SyntaxKind::YmSemi, ";");
+    Some(true)
+}
+
+fn parse_command_expr_args<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<CommandGroupEnd> {
+    let Some(_) = i.maybe(item('('))? else {
+        return Some(CommandGroupEnd {
+            can_continue: false,
+        });
+    };
+    let open = Lex::new(
+        TriviaInfo::None,
+        SyntaxKind::ParenL,
+        "(",
+        i.run(scan_trivia)?,
+    );
+
+    i.env.state.sink.start(SyntaxKind::YmCommandArgs);
+    i.env.state.sink.lex(&open);
+
+    let old_stop = i.env.stop.clone();
+    i.env.stop.insert(SyntaxKind::ParenR);
+    let parsed = parse_expr(open.trailing_trivia_info(), i.rb());
+    i.env.stop = old_stop;
+
+    let can_continue = match parsed {
+        Some(either::Either::Right(stop)) if stop.kind == SyntaxKind::ParenR => {
+            let can_continue = stop.trailing_trivia_info() == TriviaInfo::None;
+            i.env.state.sink.lex(&stop);
+            can_continue
+        }
+        Some(either::Either::Right(stop)) => {
+            emit_invalid(i.rb(), stop);
+            false
+        }
+        Some(either::Either::Left(_)) | None => {
+            emit_missing_invalid(i.rb());
+            false
+        }
+    };
+
+    i.env.state.sink.finish(); // YmCommandArgs
+    Some(CommandGroupEnd { can_continue })
+}
+
+fn close_mark_kind(mark: &Mark) -> Option<SyntaxKind> {
+    mark.nud.lex.as_ref().map(|lex| lex.kind)
+}
+
+fn close_mark_text(mark: &Mark) -> &str {
+    mark.nud
+        .lex
+        .as_ref()
+        .map(|lex| lex.text.as_ref())
+        .unwrap_or("")
+}
+
+fn parse_command_block_body<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<CommandGroupEnd> {
+    let Some(_) = i.maybe(item('{'))? else {
+        return Some(CommandGroupEnd {
+            can_continue: false,
+        });
+    };
+
+    i.env.state.sink.start(SyntaxKind::YmCommandBody);
+    i.env.state.sink.push(SyntaxKind::BraceL, "{");
+    i.env.state.sink.start(SyntaxKind::YmDoc);
+
+    let closed = if i.maybe(item('}'))?.is_some() {
+        i.env.state.sink.finish(); // YmDoc
+        i.env.state.sink.push(SyntaxKind::BraceR, "}");
+        true
+    } else {
+        let old_stop = i.env.stop.clone();
+        i.env.stop.insert(SyntaxKind::BraceR);
+        let tail = parse_doc_body_pub(i.rb());
+        i.env.stop = old_stop;
+        i.env.state.sink.finish(); // YmDoc
+
+        match tail {
+            Some(mark) if close_mark_kind(&mark) == Some(SyntaxKind::BraceR) => {
+                i.env
+                    .state
+                    .sink
+                    .push(SyntaxKind::BraceR, close_mark_text(&mark));
+                true
+            }
+            Some(mark) => {
+                if let Some(lex) = &mark.nud.lex {
+                    let trailing = i.run(scan_trivia)?;
+                    let invalid = Lex::new(TriviaInfo::None, lex.kind, lex.text.clone(), trailing);
+                    emit_invalid(i.rb(), invalid);
+                } else {
+                    emit_missing_invalid(i.rb());
+                }
+                false
+            }
+            None => {
+                emit_missing_invalid(i.rb());
+                false
+            }
+        }
+    };
+
+    i.env.state.sink.finish(); // YmCommandBody
+    Some(CommandGroupEnd {
+        can_continue: closed,
+    })
+}
+
+fn parse_command_inline_body<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<CommandGroupEnd> {
+    let Some(_) = i.maybe(item('['))? else {
+        return Some(CommandGroupEnd {
+            can_continue: false,
+        });
+    };
+
+    i.env.state.sink.start(SyntaxKind::YmCommandInlineBody);
+    i.env.state.sink.push(SyntaxKind::BracketL, "[");
+    i.env.state.sink.start(SyntaxKind::YmDoc);
+
+    let old_stop = i.env.stop.clone();
+    i.env.stop.insert(SyntaxKind::BracketR);
+    let tail = parse_inline(i.rb());
+    i.env.stop = old_stop;
+    i.env.state.sink.finish(); // YmDoc
+
+    let closed = match tail {
+        Some(mark) if close_mark_kind(&mark) == Some(SyntaxKind::BracketR) => {
+            i.env
+                .state
+                .sink
+                .push(SyntaxKind::BracketR, close_mark_text(&mark));
+            true
+        }
+        Some(mark) => {
+            if let Some(lex) = &mark.nud.lex {
+                let trailing = i.run(scan_trivia)?;
+                let invalid = Lex::new(TriviaInfo::None, lex.kind, lex.text.clone(), trailing);
+                emit_invalid(i.rb(), invalid);
+            } else {
+                emit_missing_invalid(i.rb());
+            }
+            false
+        }
+        None => {
+            emit_missing_invalid(i.rb());
+            false
+        }
+    };
+
+    i.env.state.sink.finish(); // YmCommandInlineBody
+    Some(CommandGroupEnd {
+        can_continue: closed,
+    })
+}
+
+fn parse_block_command<I: EventInput, S: EventSink>(mut i: In<I, S>, first: Mark) -> Option<Mark> {
+    i.env.state.sink.start(SyntaxKind::YmCommand);
+    emit_nud_lex(&mut i, &first); // YmBackslash "\"
+
+    if let Some((_, ident_text)) = i.with_seq(crate::scan::ident) {
+        i.env
+            .state
+            .sink
+            .push(SyntaxKind::YmIdent, ident_text.as_ref());
+    }
+
+    let mut consumed_group = false;
+    let mut can_continue = true;
+    while can_continue {
+        let group = if i.lookahead(item('(')).is_some() {
+            parse_command_expr_args(i.rb())?
+        } else if i.lookahead(item('{')).is_some() {
+            parse_command_block_body(i.rb())?
+        } else if i.lookahead(item('[')).is_some() {
+            parse_command_inline_body(i.rb())?
+        } else {
+            break;
+        };
+        consumed_group = true;
+        can_continue = group.can_continue;
+    }
+
+    if consumed_group {
+        let _ = consume_ym_semi(i.rb())?;
+        i.env.state.sink.finish(); // YmCommand
+        i.env.inline = false;
+        return parse_doc_body(i);
+    }
+
+    if consume_ym_semi(i.rb())? {
+        i.env.state.sink.finish(); // YmCommand
+        i.env.inline = false;
+        return parse_doc_body(i);
+    }
+
+    i.env.inline = true;
+    let stop = parse_inline(i.rb())?;
+    emit_trivia_only(&mut i, &stop); // \n → YmNewline
+    i.env.state.sink.finish(); // YmCommand
+    i.env.inline = false;
+    Some(stop)
 }
 
 // ---------------------------------------------------------------------------
@@ -288,23 +514,7 @@ fn parse_paragraph<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark>
             return Some(stop);
         }
         MarkNudTag::Inline(InlineNudTag::Backslash) if first.text.is_empty() => {
-            // ブロック位置の \cmd → YmCommand ノード
-            i.env.state.sink.start(SyntaxKind::YmCommand);
-            emit_nud_lex(&mut i, &first); // YmBackslash "\"
-            // コマンド名 (識別子) をスキャン
-            if let Some((_, ident_text)) = i.with_seq(crate::scan::ident) {
-                i.env
-                    .state
-                    .sink
-                    .push(SyntaxKind::YmIdent, ident_text.as_ref());
-            }
-            // 行末まで消費して trailing \n を YmNewline として emit
-            i.env.inline = true;
-            let stop = parse_inline(i.rb())?;
-            emit_trivia_only(&mut i, &stop); // \n → YmNewline
-            i.env.state.sink.finish(); // YmCommand
-            i.env.inline = false;
-            return Some(stop);
+            return parse_block_command(i, first);
         }
         MarkNudTag::Inline(InlineNudTag::Newline { .. }) => {
             i.env.state.sink.start(SyntaxKind::YmParagraph);

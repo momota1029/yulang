@@ -363,6 +363,7 @@ pub enum SyntaxKind {
     YmYulangArgs = 618,
     YmEmphasis = 619,
     YmStrong = 620,
+    YmCommandInlineBody = 645,
 
     // doc comment statement node
     DocCommentDecl = 621,
