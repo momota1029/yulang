@@ -1,0 +1,32 @@
+// Scratch reproduction for state + catch handler escape hygiene.
+// The final root runs the local-only contrast. Use `use_escaped_handler()`
+// as the root to exercise the escaping reusable handler shape.
+
+pub act log:
+    pub put: str -> ()
+
+my emit(): [log] unit = log::put "a"
+
+my local_only() =
+    my $entries = ""
+    catch emit():
+        log::put msg, k ->
+            &entries = $entries + msg
+            k ()
+            $entries
+        value -> $entries
+
+my make_escaped_handler() =
+    my $entries = ""
+    \thunk -> catch thunk():
+        log::put msg, k ->
+            &entries = $entries + msg
+            k ()
+            $entries
+        value -> $entries
+
+my use_escaped_handler() =
+    my escaped = make_escaped_handler()
+    escaped emit
+
+local_only()
