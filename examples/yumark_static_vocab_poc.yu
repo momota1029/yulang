@@ -1,0 +1,346 @@
+// Exploratory Yumark static vocabulary PoC.
+// Mirrors the structural CST nodes from crates/parser/src/mark while keeping
+// macro/function-call semantics behind the existing Candidate B injection slot.
+
+struct html_format { marker: str }
+struct markdown_format { marker: str }
+
+struct html_node { tag: str, body: str }
+struct html_backend { label: str }
+struct markdown_backend { label: str }
+
+struct yumark_heading {
+    marker: str,
+    level: int,
+    children: list yumark_node,
+}
+
+struct yumark_blank_line { marker: str }
+
+struct yumark_section_close {
+    marker: str,
+    children: list yumark_node,
+}
+
+struct yumark_list_block {
+    ordered: bool,
+    items: list yumark_node,
+}
+
+struct yumark_list_item {
+    marker: str,
+    children: list yumark_node,
+}
+
+struct yumark_code_fence {
+    info: yumark_node,
+    body: yumark_node,
+}
+
+struct yumark_quote_block { children: list yumark_node }
+struct yumark_span { children: list yumark_node }
+
+struct render_doc 'format 'repr { format: 'format, children: list 'repr }
+struct render_text 'format { format: 'format, value: str }
+struct render_heading 'format 'repr { format: 'format, marker: str, level: int, children: list 'repr }
+struct render_blank_line 'format { format: 'format, marker: str }
+struct render_section_close 'format 'repr { format: 'format, marker: str, children: list 'repr }
+struct render_list 'format 'repr { format: 'format, ordered: bool, items: list 'repr }
+struct render_list_item 'format 'repr { format: 'format, marker: str, children: list 'repr }
+struct render_list_item_body 'format 'repr { format: 'format, children: list 'repr }
+struct render_code_fence 'format 'repr { format: 'format, info: 'repr, body: 'repr }
+struct render_code_fence_info 'format { format: 'format, value: str }
+struct render_code_fence_text 'format { format: 'format, value: str }
+struct render_quote_block 'format 'repr { format: 'format, children: list 'repr }
+struct render_paragraph 'format 'repr { format: 'format, children: list 'repr }
+struct render_emphasis 'format 'repr { format: 'format, children: list 'repr }
+struct render_strong 'format 'repr { format: 'format, children: list 'repr }
+
+struct html_walk_result { trace: str, value: html_node }
+struct markdown_walk_result { trace: str, value: str }
+struct html_children { trace: str, values: list html_node }
+struct markdown_children { trace: str, values: list str }
+
+struct injection_payload {
+    html: () -> html_walk_result,
+    markdown: () -> markdown_walk_result,
+}
+
+enum yumark_node:
+    doc (list yumark_node)
+    text str
+    inject injection_payload
+    heading yumark_heading
+    blank_line yumark_blank_line
+    section_close yumark_section_close
+    list_block yumark_list_block
+    list_item yumark_list_item
+    list_item_body yumark_span
+    code_fence yumark_code_fence
+    code_fence_info str
+    code_fence_text str
+    quote_block yumark_quote_block
+    paragraph (list yumark_node)
+    emphasis yumark_span
+    strong yumark_span
+
+role YumarkRender 'backend 'format:
+    type repr
+    our backend.render_doc: render_doc 'format repr -> ['e] repr
+    our backend.render_text: render_text 'format -> ['e] repr
+    our backend.render_heading: render_heading 'format repr -> ['e] repr
+    our backend.render_blank_line: render_blank_line 'format -> ['e] repr
+    our backend.render_section_close: render_section_close 'format repr -> ['e] repr
+    our backend.render_list: render_list 'format repr -> ['e] repr
+    our backend.render_list_item: render_list_item 'format repr -> ['e] repr
+    our backend.render_list_item_body: render_list_item_body 'format repr -> ['e] repr
+    our backend.render_code_fence: render_code_fence 'format repr -> ['e] repr
+    our backend.render_code_fence_info: render_code_fence_info 'format -> ['e] repr
+    our backend.render_code_fence_text: render_code_fence_text 'format -> ['e] repr
+    our backend.render_quote_block: render_quote_block 'format repr -> ['e] repr
+    our backend.render_paragraph: render_paragraph 'format repr -> ['e] repr
+    our backend.render_emphasis: render_emphasis 'format repr -> ['e] repr
+    our backend.render_strong: render_strong 'format repr -> ['e] repr
+
+my html_format_value(): html_format = html_format { marker: "html" }
+my markdown_format_value(): markdown_format = markdown_format { marker: "markdown" }
+
+my html_tag(node: html_node): str =
+    "<" + node.tag + ">" + node.body + "</" + node.tag + ">"
+
+my join_html(nodes: list html_node): str = case std::data::list::view_raw nodes:
+    std::data::list::list_view::empty -> ""
+    std::data::list::list_view::leaf node -> html_tag node
+    std::data::list::list_view::node(left, right) -> join_html left + join_html right
+
+impl html_backend: YumarkRender html_format:
+    type repr = html_node
+    our backend.render_doc command = html_node { tag: "article", body: join_html command.children }
+    our backend.render_text command = html_node { tag: "span", body: command.value }
+    our backend.render_heading command = html_node { tag: "h" + command.level.show, body: join_html command.children }
+    our backend.render_blank_line command = html_node { tag: "br", body: command.marker }
+    our backend.render_section_close command = html_node { tag: "section-close", body: command.marker + join_html command.children }
+    our backend.render_list command =
+        my tag = if command.ordered: "ol" else: "ul"
+        html_node { tag: tag, body: join_html command.items }
+    our backend.render_list_item command = html_node { tag: "li", body: join_html command.children }
+    our backend.render_list_item_body command = html_node { tag: "item-body", body: join_html command.children }
+    our backend.render_code_fence command = html_node { tag: "pre", body: html_tag command.info + html_tag command.body }
+    our backend.render_code_fence_info command = html_node { tag: "code-info", body: command.value }
+    our backend.render_code_fence_text command = html_node { tag: "code", body: command.value }
+    our backend.render_quote_block command = html_node { tag: "blockquote", body: join_html command.children }
+    our backend.render_paragraph command = html_node { tag: "p", body: join_html command.children }
+    our backend.render_emphasis command = html_node { tag: "em", body: join_html command.children }
+    our backend.render_strong command = html_node { tag: "strong", body: join_html command.children }
+
+impl markdown_backend: YumarkRender markdown_format:
+    type repr = str
+    our backend.render_doc command = command.children.join "\n"
+    our backend.render_text command = command.value
+    our backend.render_heading command = command.marker + command.children.join ""
+    our backend.render_blank_line command = command.marker
+    our backend.render_section_close command = command.marker + command.children.join ""
+    our backend.render_list command = command.items.join "\n"
+    our backend.render_list_item command = command.marker + command.children.join ""
+    our backend.render_list_item_body command = command.children.join ""
+    our backend.render_code_fence command = "```" + command.info + "\n" + command.body + "\n```"
+    our backend.render_code_fence_info command = command.value
+    our backend.render_code_fence_text command = command.value
+    our backend.render_quote_block command = "> " + command.children.join " "
+    our backend.render_paragraph command = command.children.join ""
+    our backend.render_emphasis command = "*" + command.children.join "" + "*"
+    our backend.render_strong command = "**" + command.children.join "" + "**"
+
+my walk_html(backend: 'backend, node: yumark_node): html_walk_result =
+    where 'backend: YumarkRender html_format
+    case node:
+        yumark_node::doc children ->
+            my rendered = render_children_html backend children
+            html_walk_result { trace: rendered.trace, value: backend.render_doc (render_doc { format: html_format_value(), children: rendered.values }) }
+        yumark_node::text value -> html_walk_result { trace: "", value: backend.render_text (render_text { format: html_format_value(), value: value }) }
+        yumark_node::inject payload -> payload.html()
+        yumark_node::heading value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_heading (render_heading { format: html_format_value(), marker: value.marker, level: value.level, children: rendered.values }) }
+        yumark_node::blank_line value -> html_walk_result { trace: "", value: backend.render_blank_line (render_blank_line { format: html_format_value(), marker: value.marker }) }
+        yumark_node::section_close value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_section_close (render_section_close { format: html_format_value(), marker: value.marker, children: rendered.values }) }
+        yumark_node::list_block value ->
+            my rendered = render_children_html backend value.items
+            html_walk_result { trace: rendered.trace, value: backend.render_list (render_list { format: html_format_value(), ordered: value.ordered, items: rendered.values }) }
+        yumark_node::list_item value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_list_item (render_list_item { format: html_format_value(), marker: value.marker, children: rendered.values }) }
+        yumark_node::list_item_body value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_list_item_body (render_list_item_body { format: html_format_value(), children: rendered.values }) }
+        yumark_node::code_fence value ->
+            my info = walk_html backend value.info
+            my body = walk_html backend value.body
+            html_walk_result { trace: info.trace + body.trace, value: backend.render_code_fence (render_code_fence { format: html_format_value(), info: info.value, body: body.value }) }
+        yumark_node::code_fence_info value -> html_walk_result { trace: "", value: backend.render_code_fence_info (render_code_fence_info { format: html_format_value(), value: value }) }
+        yumark_node::code_fence_text value -> html_walk_result { trace: "", value: backend.render_code_fence_text (render_code_fence_text { format: html_format_value(), value: value }) }
+        yumark_node::quote_block value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_quote_block (render_quote_block { format: html_format_value(), children: rendered.values }) }
+        yumark_node::paragraph children ->
+            my rendered = render_children_html backend children
+            html_walk_result { trace: rendered.trace, value: backend.render_paragraph (render_paragraph { format: html_format_value(), children: rendered.values }) }
+        yumark_node::emphasis value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_emphasis (render_emphasis { format: html_format_value(), children: rendered.values }) }
+        yumark_node::strong value ->
+            my rendered = render_children_html backend value.children
+            html_walk_result { trace: rendered.trace, value: backend.render_strong (render_strong { format: html_format_value(), children: rendered.values }) }
+
+my render_children_html(backend: 'backend, children: list yumark_node): html_children =
+    where 'backend: YumarkRender html_format
+    case std::data::list::view_raw children:
+        std::data::list::list_view::empty -> html_children { trace: "", values: [] }
+        std::data::list::list_view::leaf child ->
+            my rendered = walk_html backend child
+            html_children { trace: rendered.trace, values: [rendered.value] }
+        std::data::list::list_view::node(left, right) ->
+            my left_rendered = render_children_html backend left
+            my right_rendered = render_children_html backend right
+            html_children { trace: left_rendered.trace + right_rendered.trace, values: left_rendered.values + right_rendered.values }
+
+my walk_markdown(backend: 'backend, node: yumark_node): markdown_walk_result =
+    where 'backend: YumarkRender markdown_format
+    case node:
+        yumark_node::doc children ->
+            my rendered = render_children_markdown backend children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_doc (render_doc { format: markdown_format_value(), children: rendered.values }) }
+        yumark_node::text value -> markdown_walk_result { trace: "", value: backend.render_text (render_text { format: markdown_format_value(), value: value }) }
+        yumark_node::inject payload -> payload.markdown()
+        yumark_node::heading value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_heading (render_heading { format: markdown_format_value(), marker: value.marker, level: value.level, children: rendered.values }) }
+        yumark_node::blank_line value -> markdown_walk_result { trace: "", value: backend.render_blank_line (render_blank_line { format: markdown_format_value(), marker: value.marker }) }
+        yumark_node::section_close value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_section_close (render_section_close { format: markdown_format_value(), marker: value.marker, children: rendered.values }) }
+        yumark_node::list_block value ->
+            my rendered = render_children_markdown backend value.items
+            markdown_walk_result { trace: rendered.trace, value: backend.render_list (render_list { format: markdown_format_value(), ordered: value.ordered, items: rendered.values }) }
+        yumark_node::list_item value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_list_item (render_list_item { format: markdown_format_value(), marker: value.marker, children: rendered.values }) }
+        yumark_node::list_item_body value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_list_item_body (render_list_item_body { format: markdown_format_value(), children: rendered.values }) }
+        yumark_node::code_fence value ->
+            my info = walk_markdown backend value.info
+            my body = walk_markdown backend value.body
+            markdown_walk_result { trace: info.trace + body.trace, value: backend.render_code_fence (render_code_fence { format: markdown_format_value(), info: info.value, body: body.value }) }
+        yumark_node::code_fence_info value -> markdown_walk_result { trace: "", value: backend.render_code_fence_info (render_code_fence_info { format: markdown_format_value(), value: value }) }
+        yumark_node::code_fence_text value -> markdown_walk_result { trace: "", value: backend.render_code_fence_text (render_code_fence_text { format: markdown_format_value(), value: value }) }
+        yumark_node::quote_block value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_quote_block (render_quote_block { format: markdown_format_value(), children: rendered.values }) }
+        yumark_node::paragraph children ->
+            my rendered = render_children_markdown backend children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_paragraph (render_paragraph { format: markdown_format_value(), children: rendered.values }) }
+        yumark_node::emphasis value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_emphasis (render_emphasis { format: markdown_format_value(), children: rendered.values }) }
+        yumark_node::strong value ->
+            my rendered = render_children_markdown backend value.children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_strong (render_strong { format: markdown_format_value(), children: rendered.values }) }
+
+my render_children_markdown(backend: 'backend, children: list yumark_node): markdown_children =
+    where 'backend: YumarkRender markdown_format
+    case std::data::list::view_raw children:
+        std::data::list::list_view::empty -> markdown_children { trace: "", values: [] }
+        std::data::list::list_view::leaf child ->
+            my rendered = walk_markdown backend child
+            markdown_children { trace: rendered.trace, values: [rendered.value] }
+        std::data::list::list_view::node(left, right) ->
+            my left_rendered = render_children_markdown backend left
+            my right_rendered = render_children_markdown backend right
+            markdown_children { trace: left_rendered.trace + right_rendered.trace, values: left_rendered.values + right_rendered.values }
+
+my html_injection(): html_walk_result =
+    html_walk_result {
+        trace: "force html static-vocab injection\n",
+        value: html_node { tag: "aside", body: "HTML injected node" },
+    }
+
+my markdown_injection(): markdown_walk_result =
+    markdown_walk_result {
+        trace: "force markdown static-vocab injection\n",
+        value: "_markdown injected text_",
+    }
+
+my payload(): injection_payload = injection_payload { html: html_injection, markdown: markdown_injection }
+
+my build_doc(): yumark_node =
+    yumark_node::doc [
+        yumark_node::heading (yumark_heading {
+            marker: "## ",
+            level: 2,
+            children: [yumark_node::text "Static Yumark Vocabulary"],
+        }),
+        yumark_node::paragraph [
+            yumark_node::text "A paragraph with ",
+            yumark_node::emphasis (yumark_span { children: [yumark_node::text "emphasis"] }),
+            yumark_node::text " and ",
+            yumark_node::strong (yumark_span { children: [yumark_node::text "strong text"] }),
+            yumark_node::text ".",
+        ],
+        yumark_node::blank_line (yumark_blank_line { marker: "\n" }),
+        yumark_node::list_block (yumark_list_block {
+            ordered: false,
+            items: [
+                yumark_node::list_item (yumark_list_item {
+                    marker: "- ",
+                    children: [
+                        yumark_node::list_item_body (yumark_span { children: [
+                            yumark_node::text "first item with ",
+                            yumark_node::emphasis (yumark_span { children: [yumark_node::text "inline style"] }),
+                        ] }),
+                    ],
+                }),
+                yumark_node::list_item (yumark_list_item {
+                    marker: "- ",
+                    children: [
+                        yumark_node::list_item_body (yumark_span { children: [
+                            yumark_node::strong (yumark_span { children: [yumark_node::text "second item"] }),
+                        ] }),
+                    ],
+                }),
+            ],
+        }),
+        yumark_node::code_fence (yumark_code_fence {
+            info: yumark_node::code_fence_info "text",
+            body: yumark_node::code_fence_text "line one\nline two",
+        }),
+        yumark_node::quote_block (yumark_quote_block {
+            children: [
+                yumark_node::paragraph [
+                    yumark_node::text "quoted paragraph with ",
+                    yumark_node::inject (payload()),
+                ],
+            ],
+        }),
+        yumark_node::section_close (yumark_section_close {
+            marker: "#.",
+            children: [yumark_node::text " close current section"],
+        }),
+    ]
+
+my proof(): str =
+    my doc = build_doc()
+    my html = walk_html (html_backend { label: "HTML" }) doc
+    my markdown = walk_markdown (markdown_backend { label: "MD" }) doc
+    "HTML trace:\n"
+        + html.trace
+        + "HTML root type: html_node\n"
+        + html_tag html.value
+        + "\n\nMarkdown trace:\n"
+        + markdown.trace
+        + "Markdown root type: str\n"
+        + markdown.value
+
+proof()
