@@ -241,6 +241,28 @@ corpus (225 cases) both green — no regressions.
 This grammar work does not yet connect to lowering or the `yumark_node` value
 model from earlier sections — see "Parser/lowering integration" below.
 
+### Command name resolution: ordinary functions/variables, no special mechanism (decided 2026-07-08, not yet implemented)
+
+`\ident(...)` should resolve `ident` via ordinary name lookup — no dedicated
+"this is a Yumark command" declaration or registration mechanism. Whether a
+given `ident` is usable as a command is gated entirely by ordinary
+type-checking: does `ident` (applied to whatever groups are present) produce
+something that fits into the Yumark tree/injection shape? If the types line
+up, it works; if not, a normal compile error, same as any other misapplied
+function call.
+
+- A bare variable (zero groups) works the same way — `\myconst` just
+  references an existing binding, as long as its type already matches. This
+  gives macro-like reuse via ordinary `my` bindings, no special "define a
+  macro" ceremony needed.
+- Consistent with this session's repeated pattern of reusing existing
+  mechanisms rather than inventing new ones (named params via record
+  literals, `Throw`/`ParseError` roles reused rather than a new `Error` role,
+  etc.).
+- Not yet implemented — this is a decision for when lowering work starts (see
+  "Parser/lowering integration" in Open items), recorded now so it doesn't
+  need re-deciding.
+
 ## Open items / not addressed this session
 
 - The capability-boundary idea for injected content (point 3 under "No custom
