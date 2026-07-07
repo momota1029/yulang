@@ -1,0 +1,100 @@
+// Exploratory Yumark value-model proof of concept.
+// The document is an inert recursive tree; injection thunks are forced only by walk.
+
+pub act Yumark:
+    pub note: str -> ()
+
+pub enum yumark_node:
+    text str
+    inject (() -> [Yumark] yumark_node)
+    paragraph (list yumark_node)
+
+role YumarkHandle 'backend:
+    our backend.handle_yumark: (() -> [Yumark] str) -> str
+
+role YumarkRender 'backend:
+    where 'backend: YumarkHandle
+    our backend.render_text: str -> str
+    our backend.render_paragraph: list str -> str
+
+struct yumark_html_backend { label: str }
+
+struct yumark_markdown_backend { label: str }
+
+my join_parts(parts: list str): str = case std::data::list::view_raw parts:
+    std::data::list::list_view::empty -> ""
+    std::data::list::list_view::leaf part -> part
+    std::data::list::list_view::node(left, right) -> join_parts left + join_parts right
+
+my walk(backend: 'backend, node: yumark_node): [Yumark] str =
+    where 'backend: YumarkRender
+    case node:
+        yumark_node::text value -> backend.render_text value
+        yumark_node::inject thunk -> walk backend (thunk())
+        yumark_node::paragraph children -> backend.render_paragraph (render_children backend children)
+
+my render_children(backend: 'backend, children: list yumark_node): [Yumark] list str =
+    where 'backend: YumarkRender
+    case std::data::list::view_raw children:
+        std::data::list::list_view::empty -> []
+        std::data::list::list_view::leaf child -> [walk backend child]
+        std::data::list::list_view::node(left, right) ->
+            render_children backend left + render_children backend right
+
+my html_handle(backend: yumark_html_backend, action: [Yumark] str): str = catch action:
+    Yumark::note message, k ->
+        backend.label + "-note(" + message + ")\n" + html_handle backend (k())
+    value -> value
+
+impl yumark_html_backend: YumarkHandle:
+    our backend.handle_yumark thunk = html_handle backend (thunk())
+
+impl yumark_html_backend: YumarkRender:
+    our backend.render_text value = "<span>" + value + "</span>"
+    our backend.render_paragraph parts = "<p>" + join_parts parts + "</p>"
+
+my markdown_handle(backend: yumark_markdown_backend, action: [Yumark] str): str = catch action:
+    Yumark::note message, k ->
+        backend.label + "-note(" + message + ")\n" + markdown_handle backend (k())
+    value -> value
+
+impl yumark_markdown_backend: YumarkHandle:
+    our backend.handle_yumark thunk = markdown_handle backend (thunk())
+
+impl yumark_markdown_backend: YumarkRender:
+    our backend.render_text value = "*" + value + "*"
+    our backend.render_paragraph parts = "MD(" + join_parts parts + ")"
+
+my first_injection(): [Yumark] yumark_node =
+    Yumark::note "first-injection"
+    yumark_node::text "first-body"
+
+my second_injection(): [Yumark] yumark_node =
+    Yumark::note "second-injection"
+    yumark_node::text "second-body"
+
+my build_doc(): yumark_node =
+    yumark_node::paragraph [
+        yumark_node::text "alpha",
+        yumark_node::inject first_injection,
+        yumark_node::text "middle",
+        yumark_node::inject second_injection,
+        yumark_node::text "omega",
+    ]
+
+my render_with(backend: 'backend, doc: yumark_node): str =
+    where 'backend: YumarkRender
+    backend.handle_yumark \() -> walk backend doc
+
+my proof =
+    my before = "01 before construction\n"
+    my doc = build_doc()
+    my after = "02 after construction\n"
+    my html = render_with (yumark_html_backend { label: "html" }) doc
+    my markdown = render_with (yumark_markdown_backend { label: "markdown" }) doc
+    my constructed = before + after
+    my html_section = constructed + "03 html walk\n" + html
+    my markdown_section = html_section + "\n04 markdown walk\n" + markdown
+    markdown_section + "\n05 done"
+
+proof
