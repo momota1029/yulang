@@ -10,10 +10,12 @@
 ### 次の contract slice
 
 - `contract-v1-file-resource-priority.md`
-  - Contract v0 は `stable-core` として閉じたため、次の完成線は
-    **Contract v1: File / Host Resource Contract** とする。
-  - file resource の mock / native / unsupported host contract を先に閉じ、
-    host act FFI、diagnostics parity、release artifact、server in-process driver へ進む。
+  - Contract v1 File / Host Resource の core file-resource / host-act /
+    manifest / server first slices は概ね閉じた。現状証拠と残りの範囲は
+    この memo を見る。
+  - 直近の slice は unscoped ambient line-editing idiom
+    (`$doc.lines.each` style) の source-mock / unsupported-host parity に絞る。
+    bytes / range、directory、残りの server、static route Stage 1 は post-v1。
 
 ### 既存の公開準備 track
 
