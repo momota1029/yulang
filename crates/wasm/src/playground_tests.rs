@@ -189,7 +189,9 @@ route "???" .say
     fn playground_colorizer_keeps_plain_html_fallback() {
         const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
 
-        assert!(PLAYGROUND_MAIN_TS.contains("function colorizedSourceHtml(source: string): string"));
+        assert!(
+            PLAYGROUND_MAIN_TS.contains("function colorizedSourceHtml(source: string): string")
+        );
         assert!(PLAYGROUND_MAIN_TS.contains("try {\n        const output = colorize(source)"));
         assert!(
             PLAYGROUND_MAIN_TS
@@ -200,8 +202,9 @@ route "???" .say
         assert!(PLAYGROUND_MAIN_TS.contains("return plainSourceHtml(source);"));
         assert!(PLAYGROUND_MAIN_TS.contains("function plainSourceHtml(source: string): string"));
         assert!(
-            PLAYGROUND_MAIN_TS
-                .contains("console.warn(\"Yulang colorizer failed; rendering plain source\", error);")
+            PLAYGROUND_MAIN_TS.contains(
+                "console.warn(\"Yulang colorizer failed; rendering plain source\", error);"
+            )
         );
     }
 
@@ -422,18 +425,29 @@ point { x: 3, y: 4 } .norm2 + 1.12
     }
 
     #[test]
+    fn run_inner_results_show_only_last_root_value() {
+        clear_std_cache();
+        let output = run_inner("1\n2\n3\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.results.len(), 1, "{output:?}");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("3")
+        );
+        assert_eq!(output.text, "run roots [1, 2, 3]\n");
+    }
+
+    #[test]
     fn run_inner_handles_console_out_as_stdout() {
         clear_std_cache();
         let output = run_inner("println \"hello\"\n1 + 2\n");
 
         assert!(output.ok, "{output:?}");
         assert_eq!(output.stdout, "Result 1: hello\n");
+        assert_eq!(output.results.len(), 1, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
-            Some("()")
-        );
-        assert_eq!(
-            output.results.get(1).map(|result| result.value.as_str()),
             Some("3")
         );
         assert_eq!(output.text, "run roots [(), 3]\n");
@@ -448,6 +462,32 @@ point { x: 3, y: 4 } .norm2 + 1.12
         assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots []\n");
+    }
+
+    #[test]
+    fn run_inner_results_empty_when_last_root_print_nth_suppressed() {
+        clear_std_cache();
+        let output = run_inner("1\nif nondet::branch() { say \"yes\" } else { say \"no\" }\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert!(output.results.is_empty(), "{output:?}");
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_inner_results_keep_last_normal_after_print_nth_suppressed_root() {
+        clear_std_cache();
+        let output = run_inner("if nondet::branch() { say \"yes\" } else { say \"no\" }\n2\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert_eq!(output.results.len(), 1, "{output:?}");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("2")
+        );
+        assert_eq!(output.text, "run roots [2]\n");
     }
 
     #[test]

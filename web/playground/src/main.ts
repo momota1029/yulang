@@ -1069,6 +1069,9 @@ function formatResults(results: RunResult[]): string {
     if (results.length === 0) {
         return t("noOutput");
     }
+    if (results.length === 1) {
+        return `${t("resultLine")}: ${results[0].value}`;
+    }
     return results
         .map((item) => `${t("resultLine")} ${item.index + 1}: ${item.value}`)
         .join("\n");
