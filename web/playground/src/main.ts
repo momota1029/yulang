@@ -98,6 +98,7 @@ type RunWorkerRequest =
           id: number;
           kind: "run";
           source: string;
+          lang: Lang;
       }
     | {
           id: number;
@@ -779,13 +780,14 @@ async function runSource(): Promise<void> {
         resetRunWorker("Yulang run superseded");
     }
     const source = sourceInput.value;
+    const lang = activeLang;
     renderColor();
     showRunLoading();
     await nextPaint();
     if (generation !== runGeneration) {
         return;
     }
-    const response = await requestRunWithWorkerRetry(source, generation);
+    const response = await requestRunWithWorkerRetry(source, lang, generation);
     if (generation !== runGeneration) {
         return;
     }
@@ -899,9 +901,10 @@ function logEmbeddedStdArtifacts(): void {
 
 async function requestRunWithWorkerRetry(
     source: string,
+    lang: Lang,
     generation: number,
 ): Promise<RunResponse> {
-    const first = await requestRunOrError(source, generation);
+    const first = await requestRunOrError(source, lang, generation);
     if (first.ok) {
         return first;
     }
@@ -910,16 +913,17 @@ async function requestRunWithWorkerRetry(
     }
     logWorkerRunFailure(first);
     resetRunWorker(`Yulang worker trapped: ${first.message}`);
-    const retry = await requestRunOrError(source, generation);
+    const retry = await requestRunOrError(source, lang, generation);
     return retry;
 }
 
 async function requestRunOrError(
     source: string,
+    lang: Lang,
     generation: number,
 ): Promise<RunResponse> {
     try {
-        return await requestRun(source);
+        return await requestRun(source, lang);
     } catch (error) {
         return {
             id: generation,
@@ -930,11 +934,12 @@ async function requestRunOrError(
     }
 }
 
-function requestRun(source: string): Promise<RunResponse> {
+function requestRun(source: string, lang: Lang): Promise<RunResponse> {
     return requestWorker({
         id: nextWorkerRequestId++,
         kind: "run",
         source,
+        lang,
     }) as Promise<RunResponse>;
 }
 

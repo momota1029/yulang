@@ -9013,6 +9013,15 @@ pub fn run_program_with_plan_print_nth(
     RuntimeEvidenceRunner::new(program, context).run()
 }
 
+pub fn run_program_with_plan_print_nth_label(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    label: impl Into<String>,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan).with_print_nth_label(label);
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 pub fn run_program_with_plan_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
@@ -9549,6 +9558,7 @@ struct RuntimeBuiltinHostState {
     stdout_flushed_len: usize,
     flush_stdout_on_external_wait: bool,
     print_nth: bool,
+    print_nth_label: String,
     print_nth_next_result_index: usize,
     file_ambient_buffers: HashMap<PathBuf, String>,
     native_tcp_server: RuntimeNativeTcpServerHost,
@@ -9568,10 +9578,12 @@ impl RuntimeBuiltinHostState {
         in_process_server_host_enabled: bool,
         flush_stdout_on_external_wait: bool,
         print_nth: bool,
+        print_nth_label: &str,
     ) -> Self {
         Self {
             flush_stdout_on_external_wait,
             print_nth,
+            print_nth_label: print_nth_label.to_string(),
             print_nth_next_result_index: 1,
             in_process_server: in_process_server_host_enabled
                 .then(RuntimeInProcessServerHost::default),
@@ -9583,7 +9595,8 @@ impl RuntimeBuiltinHostState {
         if self.print_nth {
             let index = self.print_nth_next_result_index;
             self.print_nth_next_result_index += 1;
-            self.stdout.push_str(&format!("Out {index}: "));
+            self.stdout
+                .push_str(&format!("{} {index}: ", self.print_nth_label));
         }
         self.stdout.push_str(text);
     }
@@ -10213,6 +10226,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 context.in_process_server_host_enabled(),
                 context.flush_stdout_on_external_wait(),
                 context.print_nth(),
+                context.print_nth_label(),
             ),
             current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
@@ -25556,10 +25570,32 @@ mod tests {
             .handle_escaped_request(console_out_write_request("world\n"))
             .expect("second console write should be handled");
 
-        assert_eq!(
-            runner.host_state.stdout,
-            "Out 1: hello\nOut 2: world\n"
+        assert_eq!(runner.host_state.stdout, "Out 1: hello\nOut 2: world\n");
+    }
+
+    #[test]
+    fn console_out_write_print_nth_uses_custom_label() {
+        let program = Program::default();
+        let context = RuntimeEvidenceRunContext::default().with_print_nth_label("出力");
+        let mut runner = RuntimeEvidenceRunner::new(&program, context);
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(console_out_write_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.io.console.out",
+                operation_id: "write",
+                f: host_console_out_write,
+            }],
         );
+
+        runner
+            .handle_escaped_request(console_out_write_request("hello\n"))
+            .expect("first console write should be handled");
+        runner
+            .handle_escaped_request(console_out_write_request("world\n"))
+            .expect("second console write should be handled");
+
+        assert_eq!(runner.host_state.stdout, "出力 1: hello\n出力 2: world\n");
     }
 
     #[test]
@@ -25623,10 +25659,7 @@ mod tests {
             .run()
             .expect("print-nth mode should auto-drive unhandled nondet branch");
 
-        assert_eq!(
-            output.stdout,
-            "Out 1: true branch\nOut 2: false branch\n"
-        );
+        assert_eq!(output.stdout, "Out 1: true branch\nOut 2: false branch\n");
         assert_eq!(
             output.root_value_texts_with_labels(None),
             Vec::<String>::new()
@@ -25730,10 +25763,7 @@ mod tests {
             .run()
             .expect("print-nth mode should only suppress the auto-driven root");
 
-        assert_eq!(
-            output.stdout,
-            "Out 1: true branch\nOut 2: false branch\n"
-        );
+        assert_eq!(output.stdout, "Out 1: true branch\nOut 2: false branch\n");
         assert_eq!(
             output.root_value_texts_with_labels(None),
             vec!["7".to_string(), "9".to_string()]

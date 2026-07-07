@@ -7,11 +7,14 @@ type RunWorkerRequest =
       id: number;
       kind: "run";
       source: string;
+      lang: RunLanguage;
     }
   | {
       id: number;
       kind: "warm-std-cache";
     };
+
+type RunLanguage = "ja" | "en";
 
 type WorkerControlMessage = {
   kind: "init-wasm";
@@ -106,7 +109,7 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
   try {
     await wasmReady;
     if (request.kind === "run") {
-      const output = run(request.source);
+      const output = run(request.source, request.lang);
       const continuationSteps = continuationStepsOf(output);
       trace.continuation_steps = continuationSteps;
       lastRunUsedContinuations = continuationSteps > 0;

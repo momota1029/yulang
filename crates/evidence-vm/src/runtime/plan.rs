@@ -18,6 +18,8 @@ use crate::{
     EvidenceVmStaticRouteDynamicReason, EvidenceVmStaticRouteResolution,
 };
 
+pub(super) const DEFAULT_PRINT_NTH_LABEL: &str = "Out";
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceRunContext {
     deep_profile: bool,
@@ -25,6 +27,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     in_process_server_host_enabled: bool,
     flush_stdout_on_external_wait: bool,
     print_nth: bool,
+    print_nth_label: Option<String>,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -239,6 +242,7 @@ impl RuntimeEvidenceRunContext {
             in_process_server_host_enabled: false,
             flush_stdout_on_external_wait: false,
             print_nth: false,
+            print_nth_label: None,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -360,8 +364,20 @@ impl RuntimeEvidenceRunContext {
         self
     }
 
+    pub(super) fn with_print_nth_label(mut self, label: impl Into<String>) -> Self {
+        self.print_nth = true;
+        self.print_nth_label = Some(label.into());
+        self
+    }
+
     pub(super) fn print_nth(&self) -> bool {
         self.print_nth
+    }
+
+    pub(super) fn print_nth_label(&self) -> &str {
+        self.print_nth_label
+            .as_deref()
+            .unwrap_or(DEFAULT_PRINT_NTH_LABEL)
     }
 
     pub(super) fn with_host_constructors(

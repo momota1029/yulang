@@ -159,6 +159,25 @@ route "???" .say
     }
 
     #[test]
+    fn playground_run_worker_passes_current_language_to_wasm() {
+        const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
+        const RUN_WORKER_TS: &str = include_str!("../../../web/playground/src/run-worker.ts");
+
+        assert!(
+            PLAYGROUND_MAIN_TS.contains("const lang = activeLang;")
+                && PLAYGROUND_MAIN_TS
+                    .contains("requestRunWithWorkerRetry(source, lang, generation)")
+                && PLAYGROUND_MAIN_TS.contains("lang,"),
+            "main thread should send the current UI language with run requests"
+        );
+        assert!(
+            RUN_WORKER_TS.contains("lang: RunLanguage;")
+                && RUN_WORKER_TS.contains("run(request.source, request.lang)"),
+            "run-worker should forward request.lang to wasm run"
+        );
+    }
+
+    #[test]
     fn playground_docs_links_keep_file_backed_install_and_clean_redirects() {
         const PLAYGROUND_INDEX_HTML: &str = include_str!("../../../web/playground/index.html");
         const PLAYGROUND_MAIN_TS: &str = include_str!("../../../web/playground/src/main.ts");
@@ -454,6 +473,44 @@ point { x: 3, y: 4 } .norm2 + 1.12
     }
 
     #[test]
+    fn run_inner_with_english_lang_uses_default_print_nth_label() {
+        clear_std_cache();
+        let output = run_inner_with_lang("println \"hello\"\n", "en");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, "Out 1: hello\n");
+    }
+
+    #[test]
+    fn run_inner_with_japanese_lang_uses_japanese_print_nth_label() {
+        clear_std_cache();
+        let output = run_inner_with_lang("println \"hello\"\n", "ja");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, "出力 1: hello\n");
+    }
+
+    #[test]
+    fn run_inner_cache_separates_print_nth_label() {
+        clear_std_cache();
+        let source = "println \"hello\"\n";
+        let english = run_inner_with_lang(source, "en");
+        let japanese = run_inner_with_lang(source, "ja");
+
+        assert!(english.ok, "{english:?}");
+        assert!(japanese.ok, "{japanese:?}");
+        assert_eq!(english.stdout, "Out 1: hello\n");
+        assert_eq!(japanese.stdout, "出力 1: hello\n");
+        assert_eq!(
+            japanese
+                .timings
+                .as_ref()
+                .map(|timing| timing.source_cache_hits),
+            Some(0)
+        );
+    }
+
+    #[test]
     fn run_inner_print_nth_drives_top_level_nondet_for_stdout() {
         clear_std_cache();
         let output = run_inner("if nondet::branch() { say \"yes\" } else { say \"no\" }\n");
@@ -504,10 +561,7 @@ use std::control::nondet::*
         );
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(
-            output.stdout,
-            "Out 1: 1\nOut 2: 2\nOut 3: 3\n"
-        );
+        assert_eq!(output.stdout, "Out 1: 1\nOut 2: 2\nOut 3: 3\n");
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots []\n");
     }
@@ -529,7 +583,8 @@ sub:
         let source = source.to_string();
         let (output, full_std_stdout, full_std_text) = on_test_stack(move || {
             let output = run_inner(&source);
-            let full_std_output = run_evidence_from_source_text_with_embedded_std(&source).unwrap();
+            let full_std_output =
+                run_evidence_from_source_text_with_embedded_std(&source, "Out").unwrap();
             (output, full_std_output.stdout, full_std_output.text)
         });
 
@@ -562,7 +617,8 @@ sub:
         let source = source.to_string();
         let (output, full_std_text) = on_test_stack(move || {
             let output = run_inner(&source);
-            let full_std_output = run_evidence_from_source_text_with_embedded_std(&source).unwrap();
+            let full_std_output =
+                run_evidence_from_source_text_with_embedded_std(&source, "Out").unwrap();
             (output, full_std_output.text)
         });
 

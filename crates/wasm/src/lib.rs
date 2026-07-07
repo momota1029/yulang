@@ -21,7 +21,7 @@ const EMBEDDED_FULL_STD_ARTIFACT: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/embedded_full_std.yucu"));
 
 thread_local! {
-    static RUN_CACHE: RefCell<HashMap<String, RunOutput>> = RefCell::new(HashMap::new());
+    static RUN_CACHE: RefCell<HashMap<RunCacheKey, RunOutput>> = RefCell::new(HashMap::new());
     static PLAYGROUND_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
         const { RefCell::new(None) };
     static FULL_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
@@ -29,9 +29,9 @@ thread_local! {
 }
 
 #[wasm_bindgen]
-pub fn run(source: &str) -> JsValue {
+pub fn run(source: &str, lang: &str) -> JsValue {
     set_panic_hook();
-    to_js_value(&run_inner(source))
+    to_js_value(&run_inner_with_lang(source, lang))
 }
 
 #[wasm_bindgen]
@@ -217,8 +217,23 @@ pub fn embedded_std_status_inner() -> EmbeddedStdArtifactsOutput {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct RunCacheKey {
+    source: String,
+    print_nth_label: &'static str,
+}
+
 pub fn run_inner(source: &str) -> RunOutput {
-    let cached = RUN_CACHE.with(|cache| cache.borrow().get(source).cloned());
+    run_inner_with_lang(source, "en")
+}
+
+pub fn run_inner_with_lang(source: &str, lang: &str) -> RunOutput {
+    let print_nth_label = print_nth_label_for_lang(lang);
+    let cache_key = RunCacheKey {
+        source: source.to_string(),
+        print_nth_label,
+    };
+    let cached = RUN_CACHE.with(|cache| cache.borrow().get(&cache_key).cloned());
     if let Some(mut output) = cached {
         if let Some(timings) = output.timings.as_mut() {
             timings.source_cache_hits += 1;
@@ -226,15 +241,20 @@ pub fn run_inner(source: &str) -> RunOutput {
         return output;
     }
 
-    let output = run_inner_uncached(source);
+    let output = run_inner_uncached(source, print_nth_label);
     if output.cache_safe() {
         RUN_CACHE.with(|cache| {
-            cache
-                .borrow_mut()
-                .insert(source.to_string(), output.clone());
+            cache.borrow_mut().insert(cache_key, output.clone());
         });
     }
     output
+}
+
+fn print_nth_label_for_lang(lang: &str) -> &'static str {
+    match lang {
+        "ja" => "出力",
+        _ => "Out",
+    }
 }
 
 pub fn check_inner(source: &str) -> CheckOutput {
@@ -267,20 +287,20 @@ pub fn dump_mono_inner(source: &str) -> DumpOutput {
     }
 }
 
-fn run_inner_uncached(source: &str) -> RunOutput {
-    match run_evidence_from_source_text_without_std(source) {
+fn run_inner_uncached(source: &str, print_nth_label: &str) -> RunOutput {
+    match run_evidence_from_source_text_without_std(source, print_nth_label) {
         Ok(output) if output.errors.is_empty() => {
             return RunOutput::from_runtime_output(output, source, false);
         }
         Ok(output) if should_retry_with_embedded_std(source, &output.errors) => {
-            return run_with_embedded_std_fallback(source, None);
+            return run_with_embedded_std_fallback(source, None, print_nth_label);
         }
         Ok(output) => return RunOutput::from_runtime_output(output, source, false),
         Err(_) if source_likely_needs_embedded_std(source) => {
-            return run_with_embedded_std_fallback(source, None);
+            return run_with_embedded_std_fallback(source, None, print_nth_label);
         }
         Err(no_std_error) => {
-            return run_with_embedded_std_fallback(source, Some(no_std_error));
+            return run_with_embedded_std_fallback(source, Some(no_std_error), print_nth_label);
         }
     }
 }
@@ -288,9 +308,10 @@ fn run_inner_uncached(source: &str) -> RunOutput {
 fn run_with_embedded_std_fallback(
     source: &str,
     no_std_error: Option<WasmRuntimeError>,
+    print_nth_label: &str,
 ) -> RunOutput {
     if !yulang::source_text_needs_full_embedded_std_for_playground(source) {
-        match run_evidence_from_source_text_with_playground_std(source) {
+        match run_evidence_from_source_text_with_playground_std(source, print_nth_label) {
             Ok(output) if output.errors.is_empty() => {
                 return RunOutput::from_runtime_output(output, source, true);
             }
@@ -298,7 +319,7 @@ fn run_with_embedded_std_fallback(
         }
     }
 
-    match run_evidence_from_source_text_with_embedded_std(source) {
+    match run_evidence_from_source_text_with_embedded_std(source, print_nth_label) {
         Ok(output) => RunOutput::from_runtime_output(output, source, true),
         Err(std_error) => {
             if let Some(output) = run_output_from_lowering_diagnostics(source, &std_error) {
@@ -336,14 +357,16 @@ fn run_output_from_lowering_diagnostics(
 
 fn run_evidence_from_source_text_without_std(
     source: &str,
+    print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let files = yulang::collect_local_source_text(PLAYGROUND_ENTRY, source.to_string())?;
     let output = build_named_runtime_from_collected_sources(files)?;
-    run_built_evidence_program(output)
+    run_built_evidence_program(output, print_nth_label)
 }
 
 fn run_evidence_from_source_text_with_embedded_std(
     source: &str,
+    print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let output = match embedded_full_std_artifact() {
         Some(artifact) => {
@@ -361,11 +384,12 @@ fn run_evidence_from_source_text_with_embedded_std(
             build_named_runtime_from_collected_sources(files)?
         }
     };
-    run_built_evidence_program(output)
+    run_built_evidence_program(output, print_nth_label)
 }
 
 fn run_evidence_from_source_text_with_playground_std(
     source: &str,
+    print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let poly = match embedded_playground_std_artifact() {
         Some(artifact) => yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
@@ -378,7 +402,7 @@ fn run_evidence_from_source_text_with_playground_std(
         )?,
     };
     let output = build_named_runtime_from_poly(poly)?;
-    run_built_evidence_program(output)
+    run_built_evidence_program(output, print_nth_label)
 }
 
 fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
@@ -500,9 +524,14 @@ fn exported_type_result(
 
 fn run_built_evidence_program(
     build: NamedRuntimeBuild,
+    print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
-    let output = evidence_vm::run_program_with_plan_print_nth(&build.output.program, &plan)?;
+    let output = evidence_vm::run_program_with_plan_print_nth_label(
+        &build.output.program,
+        &plan,
+        print_nth_label,
+    )?;
     let runtime_display = build.display.runtime_evidence_context();
     let all_root_value_texts =
         output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
