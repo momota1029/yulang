@@ -1,0 +1,18 @@
+use std::control::nondet::*
+use std::control::var::*
+use std::text::str::*
+
+my edit() =
+    my &doc = std::io::file::text "/mock"
+    my touched = ((&doc.lines.each).update \line ->
+        line.replace_once "todo:" "done:"
+    ).list
+    ("touched", touched, "after", $doc)
+
+my run(backing, x: [_] _) = catch x:
+    std::io::file::file::ambient_touch path, k -> run backing: k (result::ok ())
+    std::io::file::file::ambient_get path, k -> run backing: k backing
+    std::io::file::file::ambient_set (path, text), k -> run text: k ()
+    value -> (value, backing)
+
+run "keep\ntodo: one\nskip\ntodo: two": edit()
