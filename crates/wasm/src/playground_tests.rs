@@ -376,7 +376,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
         assert!(output.ok, "{output:?}");
         assert_eq!(
             output.stdout,
-            "Result 1: GET color\nResult 2: SET color = deep-blue\nResult 3: user alice\nResult 4: unknown\n"
+            "Output 1: GET color\nOutput 2: SET color = deep-blue\nOutput 3: user alice\nOutput 4: unknown\n"
         );
         assert_eq!(output.text, "run roots [(), (), (), ()]\n");
     }
@@ -444,7 +444,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
         let output = run_inner("println \"hello\"\n1 + 2\n");
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, "Result 1: hello\n");
+        assert_eq!(output.stdout, "Output 1: hello\n");
         assert_eq!(output.results.len(), 1, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
@@ -459,7 +459,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
         let output = run_inner("if nondet::branch() { say \"yes\" } else { say \"no\" }\n");
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert_eq!(output.stdout, "Output 1: yes\nOutput 2: no\n");
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots []\n");
     }
@@ -470,7 +470,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
         let output = run_inner("1\nif nondet::branch() { say \"yes\" } else { say \"no\" }\n");
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert_eq!(output.stdout, "Output 1: yes\nOutput 2: no\n");
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots [1]\n");
     }
@@ -481,7 +481,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
         let output = run_inner("if nondet::branch() { say \"yes\" } else { say \"no\" }\n2\n");
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert_eq!(output.stdout, "Output 1: yes\nOutput 2: no\n");
         assert_eq!(output.results.len(), 1, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
@@ -504,7 +504,10 @@ use std::control::nondet::*
         );
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, "Result 1: 1\nResult 2: 2\nResult 3: 3\n");
+        assert_eq!(
+            output.stdout,
+            "Output 1: 1\nOutput 2: 2\nOutput 3: 3\n"
+        );
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots []\n");
     }

@@ -77,7 +77,7 @@ fn compatible_run_print_nth_numbers_stdout_and_drives_nondet() {
         .unwrap();
 
     assert_success(&output);
-    assert_eq!(stdout(&output), "Result 1: yes\nResult 2: no\n");
+    assert_eq!(stdout(&output), "Output 1: yes\nOutput 2: no\n");
     assert_eq!(stderr(&output), "");
 }
 
@@ -105,7 +105,7 @@ use std::control::nondet::*
         .unwrap();
 
     assert_success(&output);
-    assert_eq!(stdout(&output), "Result 1: 1\nResult 2: 2\nResult 3: 3\n");
+    assert_eq!(stdout(&output), "Output 1: 1\nOutput 2: 2\nOutput 3: 3\n");
     assert_eq!(stderr(&output), "");
 }
 
