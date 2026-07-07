@@ -1176,6 +1176,14 @@ enum EvidenceContinuationFrame {
         target: Type,
         next: EvidenceContinuation,
     },
+    AdaptRecordFields {
+        source_values: Vec<RuntimeEvidenceValueField>,
+        source_fields: Rc<[specialize::mono::TypeField]>,
+        target_fields: Rc<[specialize::mono::TypeField]>,
+        out: Vec<RuntimeEvidenceValueField>,
+        index: usize,
+        next: EvidenceContinuation,
+    },
     WrapThunkValue {
         next: EvidenceContinuation,
     },
@@ -1734,6 +1742,7 @@ impl EvidenceContinuationLiveGauge {
                 self.apply_frames += 1;
             }
             EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { .. }
             | EvidenceContinuationFrame::WrapThunkValue { .. }
             | EvidenceContinuationFrame::ApplyAdapterArg { .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { .. } => {
@@ -2486,6 +2495,13 @@ enum EvidenceEvalDeltaFramePlan {
         source: Type,
         target: Type,
     },
+    AdaptRecordFields {
+        source_values: Vec<RuntimeEvidenceValueField>,
+        source_fields: Rc<[specialize::mono::TypeField]>,
+        target_fields: Rc<[specialize::mono::TypeField]>,
+        out: Vec<RuntimeEvidenceValueField>,
+        index: usize,
+    },
     WrapThunkValue,
     ApplyAdapterArg {
         function: SharedValue,
@@ -2576,6 +2592,7 @@ impl EvidenceEvalDeltaFramePlan {
                 EvidenceEvalDeltaFrameKind::Apply
             }
             Self::AdaptValue { .. }
+            | Self::AdaptRecordFields { .. }
             | Self::WrapThunkValue
             | Self::ApplyAdapterArg { .. }
             | Self::ApplyAdapterResult { .. } => EvidenceEvalDeltaFrameKind::Adapter,
@@ -2629,6 +2646,20 @@ impl EvidenceEvalDeltaFramePlan {
                     target: target.clone(),
                 })
             }
+            EvidenceContinuationFrame::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+                ..
+            } => Some(Self::AdaptRecordFields {
+                source_values: source_values.clone(),
+                source_fields: source_fields.clone(),
+                target_fields: target_fields.clone(),
+                out: out.clone(),
+                index: *index,
+            }),
             EvidenceContinuationFrame::WrapThunkValue { .. } => Some(Self::WrapThunkValue),
             EvidenceContinuationFrame::ApplyAdapterArg {
                 function,
@@ -2789,6 +2820,20 @@ impl EvidenceEvalDeltaFramePlan {
             Self::AdaptValue { source, target } => {
                 EvidenceContinuation::adapt_value(source.clone(), target.clone(), next)
             }
+            Self::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+            } => EvidenceContinuation::adapt_record_fields(
+                source_values.clone(),
+                source_fields.clone(),
+                target_fields.clone(),
+                out.clone(),
+                *index,
+                next,
+            ),
             Self::WrapThunkValue => EvidenceContinuation::wrap_thunk_value(next),
             Self::ApplyAdapterArg {
                 function,
@@ -6062,6 +6107,24 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn adapt_record_fields(
+        source_values: Vec<RuntimeEvidenceValueField>,
+        source_fields: Rc<[specialize::mono::TypeField]>,
+        target_fields: Rc<[specialize::mono::TypeField]>,
+        out: Vec<RuntimeEvidenceValueField>,
+        index: usize,
+        next: Self,
+    ) -> Self {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::AdaptRecordFields {
+            source_values,
+            source_fields,
+            target_fields,
+            out,
+            index,
+            next,
+        }))
+    }
+
     fn wrap_thunk_value(next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::WrapThunkValue { next }))
     }
@@ -6800,6 +6863,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
@@ -7165,6 +7229,25 @@ impl EvidenceContinuationFrame {
                 frames.push(EvidenceEvalDeltaFramePlan::AdaptValue {
                     source: source.clone(),
                     target: target.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::AdaptRecordFields {
+                    source_values: source_values.clone(),
+                    source_fields: source_fields.clone(),
+                    target_fields: target_fields.clone(),
+                    out: out.clone(),
+                    index: *index,
                 });
                 if let Some(frame) = next.frame() {
                     frame.append_eval_delta_plan(frames);
@@ -7802,6 +7885,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
@@ -8598,6 +8682,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
@@ -8638,6 +8723,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
@@ -18286,11 +18372,89 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     provider_env: RuntimeEvidenceProviderEnv::default(),
                 },
             ))),
-            (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
-                Ok(EvidenceEvalResult::Value(value))
+            (Type::Record(source_fields), Type::Record(target_fields))
+                if value_boundary_supported(source, target) =>
+            {
+                self.adapt_record_value_result(value, source_fields, target_fields)
             }
             _ => Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary")),
         }
+    }
+
+    fn adapt_record_value_result(
+        &mut self,
+        value: SharedValue,
+        source_fields: &[specialize::mono::TypeField],
+        target_fields: &[specialize::mono::TypeField],
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let source_values = record_fields(value.as_ref())?;
+        self.adapt_record_fields_result(
+            source_values,
+            Rc::from(source_fields.to_vec().into_boxed_slice()),
+            Rc::from(target_fields.to_vec().into_boxed_slice()),
+            Vec::new(),
+            0,
+        )
+    }
+
+    fn adapt_record_fields_result(
+        &mut self,
+        source_values: Vec<RuntimeEvidenceValueField>,
+        source_fields: Rc<[specialize::mono::TypeField]>,
+        target_fields: Rc<[specialize::mono::TypeField]>,
+        mut out: Vec<RuntimeEvidenceValueField>,
+        mut index: usize,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        while let Some(target_field) = target_fields.get(index) {
+            let Some(source_field) = record_field_type(&source_fields, &target_field.name) else {
+                if target_field.optional {
+                    index += 1;
+                    continue;
+                }
+                return Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary"));
+            };
+            let Some(source_value) = runtime_record_field_value(&source_values, &target_field.name)
+            else {
+                return Err(RuntimeEvidenceRunError::MissingRecordField(
+                    target_field.name.clone(),
+                ));
+            };
+            if record_field_boundary_should_defer(&source_field.value, &target_field.value) {
+                out.push(RuntimeEvidenceValueField {
+                    name: target_field.name.clone(),
+                    value: source_value,
+                });
+                index += 1;
+                continue;
+            }
+            let result =
+                self.adapt_value_result(source_value, &source_field.value, &target_field.value)?;
+            match result {
+                EvidenceEvalResult::Value(value) => {
+                    out.push(RuntimeEvidenceValueField {
+                        name: target_field.name.clone(),
+                        value,
+                    });
+                    index += 1;
+                }
+                result => {
+                    return self.continue_result(
+                        result,
+                        EvidenceContinuation::adapt_record_fields(
+                            source_values,
+                            source_fields,
+                            target_fields,
+                            out,
+                            index,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Record(
+            out,
+        ))))
     }
 
     fn resume_continuation(
@@ -18384,6 +18548,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = self.adapt_value_result(value, &source, &target)?;
+                self.continue_result(result, next)
+            }
+            EvidenceContinuationFrame::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                mut out,
+                index,
+                next,
+            } => {
+                let Some(target_field) = target_fields.get(index) else {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "empty record boundary continuation",
+                    ));
+                };
+                out.push(RuntimeEvidenceValueField {
+                    name: target_field.name.clone(),
+                    value,
+                });
+                let result = self.adapt_record_fields_result(
+                    source_values,
+                    source_fields,
+                    target_fields,
+                    out,
+                    index + 1,
+                )?;
                 self.continue_result(result, next)
             }
             EvidenceContinuationFrame::WrapThunkValue { next } => self.continue_result(
@@ -19308,6 +19498,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalDeltaFramePlan::AdaptValue { source, target } => {
                 self.adapt_value_result(value, source, target)
             }
+            EvidenceEvalDeltaFramePlan::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+            } => {
+                let mut out = out.clone();
+                let Some(target_field) = target_fields.get(*index) else {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "empty record boundary continuation",
+                    ));
+                };
+                out.push(RuntimeEvidenceValueField {
+                    name: target_field.name.clone(),
+                    value,
+                });
+                self.adapt_record_fields_result(
+                    source_values.clone(),
+                    source_fields.clone(),
+                    target_fields.clone(),
+                    out,
+                    index + 1,
+                )
+            }
             EvidenceEvalDeltaFramePlan::WrapThunkValue => Ok(EvidenceEvalResult::Value(shared(
                 RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Value(value))),
             ))),
@@ -19698,6 +19913,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.continuation_resume_apply_steps += 1;
             }
             EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { .. }
             | EvidenceContinuationFrame::WrapThunkValue { .. }
             | EvidenceContinuationFrame::ApplyAdapterArg { .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { .. } => {
@@ -19878,6 +20094,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
@@ -20303,6 +20520,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::adapt_value(
                         source,
                         target,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::adapt_record_fields(
+                        source_values,
+                        source_fields,
+                        target_fields,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
@@ -20812,6 +21050,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::adapt_value(
                         source,
                         target,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::AdaptRecordFields {
+                source_values,
+                source_fields,
+                target_fields,
+                out,
+                index,
+                next,
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::adapt_record_fields(
+                        source_values,
+                        source_fields,
+                        target_fields,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
@@ -24910,6 +25169,20 @@ fn record_field_type<'a>(
     name: &str,
 ) -> Option<&'a specialize::mono::TypeField> {
     fields.iter().find(|field| field.name == name)
+}
+
+fn runtime_record_field_value(
+    fields: &[RuntimeEvidenceValueField],
+    name: &str,
+) -> Option<SharedValue> {
+    fields
+        .iter()
+        .find(|field| field.name == name)
+        .map(|field| field.value.clone())
+}
+
+fn record_field_boundary_should_defer(source: &Type, target: &Type) -> bool {
+    matches!(source, Type::Thunk { .. }) && !matches!(target, Type::Thunk { .. })
 }
 
 fn value_boundary_supported(source: &Type, target: &Type) -> bool {
