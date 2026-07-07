@@ -283,7 +283,7 @@ const examples: Example[] = [
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+point { x: 3, y: 4 } .norm2.say
 
 // nondeterministic search: every Pythagorean triple under 15
 {
@@ -292,13 +292,14 @@ point { x: 3, y: 4 } .norm2
     my c = each b..15
     guard: a * a + b * b == c * c
     (a, b, c)
-}.list
+}.list.say
 
 // junction lifts a comparison over many choices at once
-if all [1, 2, 3] < any [3, 4, 5]:
-    "every left dominated"
-else:
-    "no"
+say:
+    if all [1, 2, 3] < any [3, 4, 5]:
+        "every left dominated"
+    else:
+        "no"
 
 // symbol variants: ad-hoc tagged choices, matched right inline
 my render option = case option:
@@ -306,7 +307,7 @@ my render option = case option:
     :err code -> "[err " + code.show + "]"
     :pending -> "..."
 
-[render(:ok "hello"), render(:err 404), render :pending]
+[render(:ok "hello"), render(:err 404), render :pending].say
 
 // a user-defined effect: \`coin\` calls the continuation TWICE,
 // so one run explores every branch.
@@ -317,11 +318,12 @@ our all_paths(action: [flip] _) = catch action:
     flip::coin(), k -> all_paths(k true) + all_paths(k false)
     v -> [v]
 
-all_paths:
+my paths = all_paths:
     my a = if flip::coin(): 1 else: 0
     my b = if flip::coin(): 10 else: 0
     my c = if flip::coin(): 100 else: 0
     a + b + c
+paths.say
 `,
     },
     {
@@ -330,16 +332,16 @@ all_paths:
 
 use std::text::parse::*
 
-my route = \\line -> case line:
+my route line = case line:
     ~"get :key" -> "GET " + key
     ~"set :key {v = ..}" -> "SET " + key + " = " + v
     rule { id = word } if id.starts_with "a" -> "user " + id
     _ -> "unknown"
 
-(route "get color").say
-(route "set color deep-blue").say
-(route "alice").say
-(route "???").say
+route "get color" .say
+route "set color deep-blue" .say
+route "alice" .say
+route "???" .say
 `,
     },
     {
@@ -371,7 +373,7 @@ my port = case c.get "" "port":
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+point { x: 3, y: 4 } .norm2.say
 `,
     },
     {
@@ -381,9 +383,9 @@ point { x: 3, y: 4 } .norm2
 my box {width = 1, height = width} =
     width * height
 
-box {}
-box { width: 3 }
-box { width: 3, height: 4 }
+box {} .say
+box { width: 3 } .say
+box { width: 3, height: 4 } .say
 `,
     },
     {
@@ -394,8 +396,10 @@ my button option = case option:
     :label text -> "<button>%{text}</button>"
     :disabled -> "<button disabled></button>"
 
-button: :label "send"
-button: :disabled
+say:
+    button: :label "send"
+say:
+    button: :disabled
 `,
     },
     {
@@ -407,7 +411,7 @@ button: :disabled
     for x in 1..5:
         &total = $total + x
     $total
-}
+}.say
 `,
     },
     {
@@ -422,7 +426,7 @@ button: :disabled
     ]
     &xs[1] = 6
     $xs
-}
+}.say
 `,
     },
     {
@@ -433,7 +437,7 @@ my first_over limit = sub:
     for x in 0..: if x * x > limit: return x
     0
 
-first_over 40
+first_over 40 .say
 `,
     },
     {
@@ -449,17 +453,18 @@ our g h = sub:
         h i
     return 1
 
-sub:
+my outer = sub:
     my b = g \\i -> if i == 0: return i
     println b.show
     2
+outer.say
 `,
     },
     {
         label: { ja: "非決定 list", en: "Nondet List" },
         source: `// each branches; .list collects every result.
 
-(each [1, 2, 3] + each [4, 5, 6]).list
+(each [1, 2, 3] + each [4, 5, 6]).list.say
 `,
     },
     {
@@ -474,17 +479,18 @@ sub:
     guard: a * a + b * b == c * c
 
     (a, b, c)
-} .once
+} .once.say
 `,
     },
     {
         label: { ja: "junction", en: "Junction" },
         source: `// all and any lift comparison into many choices.
 
-if all [1, 2, 3] < any [2, 3, 4]:
-    1
-else:
-    0
+say:
+    if all [1, 2, 3] < any [2, 3, 4]:
+        1
+    else:
+        0
 `,
     },
     {
@@ -496,7 +502,7 @@ pub answer = id 42
 pub name = id "Yulang"
 pub pair = (answer, name)
 
-pair
+pair.say
 `,
     },
     {
@@ -504,7 +510,7 @@ pair
         source: `// println is a library effect handled by the host.
 
 println "hello from Yulang"
-1 + 2
+(1 + 2).say
 `,
     },
     {
@@ -518,10 +524,11 @@ our ask() = console::read()
 
 our run_console(action: [console] _) =
     catch action:
-        console::read(), k -> run_console(k 42)
+        console::read(), k -> run_console: k 42
 
-run_console:
-    ask()
+say:
+    run_console:
+        ask()
 `,
     },
 ];

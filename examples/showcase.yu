@@ -4,7 +4,7 @@
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+point { x: 3, y: 4 } .norm2.say
 
 // nondeterministic search: every Pythagorean triple under 15
 {
@@ -13,13 +13,14 @@ point { x: 3, y: 4 } .norm2
     my c = each b..15
     guard: a * a + b * b == c * c
     (a, b, c)
-}.list
+}.list.say
 
 // junction lifts a comparison over many choices at once
-if all [1, 2, 3] < any [3, 4, 5]:
-    "every left dominated"
-else:
-    "no"
+say:
+    if all [1, 2, 3] < any [3, 4, 5]:
+        "every left dominated"
+    else:
+        "no"
 
 // symbol variants: ad-hoc tagged choices, matched right inline
 my render option = case option:
@@ -27,7 +28,7 @@ my render option = case option:
     :err code -> "[err " + code.show + "]"
     :pending -> "..."
 
-[render(:ok "hello"), render(:err 404), render :pending]
+[render(:ok "hello"), render(:err 404), render :pending].say
 
 // a user-defined effect: `coin` calls the continuation TWICE,
 // so one run explores every branch.
@@ -38,8 +39,9 @@ our all_paths(action: [flip] _) = catch action:
     flip::coin(), k -> all_paths(k true) + all_paths(k false)
     v -> [v]
 
-all_paths:
+my paths = all_paths:
     my a = if flip::coin(): 1 else: 0
     my b = if flip::coin(): 10 else: 0
     my c = if flip::coin(): 100 else: 0
     a + b + c
+paths.say

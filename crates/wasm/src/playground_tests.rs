@@ -51,16 +51,16 @@ mod tests {
 
     const PARSER_PATTERN_SHOWCASE: &str = r#"use std::text::parse::*
 
-my route = \line -> case line:
+my route line = case line:
     ~"get :key" -> "GET " + key
     ~"set :key {v = ..}" -> "SET " + key + " = " + v
     rule { id = word } if id.starts_with "a" -> "user " + id
     _ -> "unknown"
 
-(route "get color").say
-(route "set color deep-blue").say
-(route "alice").say
-(route "???").say
+route "get color" .say
+route "set color deep-blue" .say
+route "alice" .say
+route "???" .say
 "#;
 
     fn diagnostics_fixture(name: &str) -> &'static str {
