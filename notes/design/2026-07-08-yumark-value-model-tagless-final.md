@@ -111,6 +111,44 @@ This changes what "Parser/lowering integration" (see Open items) needs to
 target: lowering must produce cons-chain values whose *type* reflects the
 parsed document's actual shape, not values of one shared `yumark_node` type.
 
+### Static vocabulary ported to the typed cons-chain (2026-07-08)
+
+The node-kind vocabulary from the (now-historical) flat-enum static-vocab PoC
+— heading, blank line, list/list item, code fence, block quote, emphasis,
+strong, section close, paragraph, doc — is re-expressed and confirmed working
+in `examples/yumark_typed_static_vocab_poc.yu` (commit `af4cebc6`). Every
+container node kind follows the same generic-over-children pattern as
+`cons_cell` itself, e.g.:
+
+```yu
+struct heading_leaf 'children { marker: str, level: int, children: 'children }
+
+impl (heading_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_yumark _ = ...
+```
+
+`code_fence_info`/`code_fence_text` (previously two separate enum variants)
+collapsed into one `code_fence_leaf { info: str, body: str }` — under typed
+nodes there was no longer a reason to keep them as separate walkable pieces.
+A representative document (heading, paragraph with emphasis/strong, blank
+line, unordered list, code fence, block quote containing an injection,
+section close) renders correctly and richly in both HTML and Markdown, with
+no bespoke per-document-shape instance anywhere — confirming the inductive
+pattern generalizes across the whole vocabulary, not just the minimal
+`cons_cell`/`nil_cell` base case.
+
+**Performance risk found, not yet investigated**: wrapping the "render to both
+formats" logic in a named function (e.g. `my proof() = ...`) caused the type
+solver to time out; using a root-level tuple expression directly instead
+rendered in ~6s. This suggests deep inductive-derivation chains combined with
+generalization over a named function's own signature may be expensive for the
+solver. Real Yumark usage will obviously want named rendering functions (e.g.
+`render_html(doc)`), so this is worth a dedicated look before/during real
+implementation — not a blocker for the design itself, but a real cost to
+watch, not just a PoC artifact to ignore.
+
 ## Render role shape
 
 The core role shape below (tag parameter + associated `repr` + effect-row-
@@ -376,10 +414,14 @@ function call.
   harder now than it would have been for the flat-enum design, since lowering
   must produce a value whose *type* encodes the parsed shape — worth its own
   design pass before starting.
-- What the node/leaf vocabulary should look like under the cons-chain design
-  — the flat-enum static-vocab PoC's node kinds (heading, list, code fence,
-  block quote, emphasis, strong, ...) still need re-expressing as individual
-  leaf types with their own per-format role impls; not yet done.
+- ~~What the node/leaf vocabulary should look like under the cons-chain
+  design~~ — done: see "Static vocabulary ported to the typed cons-chain"
+  above.
+- Solver performance for named rendering functions over deep inductive
+  derivation chains (see "Static vocabulary ported..." above) — a root-level
+  expression rendered in ~6s, but wrapping the same logic in a named function
+  timed out. Not investigated yet; matters before real implementation since
+  named render functions are the obviously-wanted API shape.
 
 ### `yulang`-tagged code fences: two independent consumers, not one (2026-07-08 clarification)
 
@@ -437,11 +479,22 @@ wrong.
   Macro/injection-related CST nodes (command, inline bracket expression, link
   destination, image-like inline) are intentionally deferred to the
   `\func(){}[]` / `[text]:func {}` work. Flat enum, superseded structurally —
-  the node-kind vocabulary itself still needs re-expressing as individual leaf
-  types under the cons-chain design (see Open items).
+  vocabulary re-ported under the cons-chain design in
+  `yumark_typed_static_vocab_poc.yu` below.
 - `examples/yumark_typed_structure_poc.yu` — **adopted design**: hand-rolled
   `cons_cell`/`nil_cell` generic types, inductive `YumarkRender` instance
   derivation, positive case (4-leaf chain renders via a derived instance, no
   bespoke instance written), negative case (a non-implementing leaf correctly
   fails to compile), and confirmed compatibility with Candidate B injection
   leaves and inert construction. Commit `8bd02dec`.
+- `examples/yumark_typed_static_vocab_poc.yu` — **adopted design**, full
+  vocabulary: ports every static-vocab node kind (heading, blank line,
+  list/list item, code fence, block quote, emphasis, strong, section close,
+  paragraph, doc) to the typed cons-chain, each container generic over its
+  children's type with an inductive `YumarkRender` instance mirroring
+  `cons_cell`'s own. `code_fence_info`/`code_fence_text` collapsed into one
+  `code_fence_leaf`. A representative multi-node document (including a
+  block-quoted injection) renders correctly in both formats with zero
+  bespoke per-shape instances. Found, not yet investigated: a named
+  rendering function over this depth of inductive derivation timed out the
+  solver; a root-level expression rendered in ~6s. Commit `af4cebc6`.
