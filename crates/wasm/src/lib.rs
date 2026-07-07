@@ -502,7 +502,7 @@ fn run_built_evidence_program(
     build: NamedRuntimeBuild,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
-    let output = evidence_vm::run_program_with_plan(&build.output.program, &plan)?;
+    let output = evidence_vm::run_program_with_plan_print_nth(&build.output.program, &plan)?;
     let runtime_display = build.display.runtime_evidence_context();
     let results =
         output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
@@ -1231,8 +1231,8 @@ mod run_cache_tests {
 
         assert!(first.ok, "{first:?}");
         assert!(second.ok, "{second:?}");
-        assert_eq!(first.stdout, "hello\n");
-        assert_eq!(second.stdout, "hello\n");
+        assert_eq!(first.stdout, "Result 1: hello\n");
+        assert_eq!(second.stdout, "Result 1: hello\n");
         assert_eq!(
             second
                 .timings
@@ -1269,10 +1269,10 @@ mod run_cache_tests {
                 .map(|timing| (timing.source_cache_hits, timing.source_cache_misses)),
             Some((0, 1))
         );
-        assert_ne!(
-            first.results.first().map(|result| result.value.as_str()),
-            second.results.first().map(|result| result.value.as_str())
-        );
+        assert!(first.results.is_empty(), "{first:?}");
+        assert!(second.results.is_empty(), "{second:?}");
+        assert!(!first.cache_safe, "{first:?}");
+        assert!(!second.cache_safe, "{second:?}");
     }
 }
 
