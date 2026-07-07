@@ -60,6 +60,58 @@ fn compatible_run_prints_console_stdout_without_roots() {
 }
 
 #[test]
+fn compatible_run_print_nth_numbers_stdout_and_drives_nondet() {
+    let entry = write_entry(
+        "run-print-nth-nondet",
+        "if nondet::branch() { say \"yes\" } else { say \"no\" }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-nth")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "Result 1: yes\nResult 2: no\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn compatible_run_interpreter_rejects_print_nth() {
+    let entry = write_entry("run-print-nth-interpreter", "1\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--interpreter")
+        .arg("--print-nth")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("run --print-nth requires the evidence VM backend"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("[--print-roots] [--print-nth]"), "{stderr}");
+}
+
+#[test]
 fn compatible_run_std_file_read_write_text_host_contract() {
     let root = temp_root("run-std-file-read-write-text");
     let _ = fs::remove_dir_all(&root);

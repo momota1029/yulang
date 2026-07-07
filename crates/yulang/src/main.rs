@@ -189,6 +189,7 @@ struct RunSelection {
     backend_explicit: bool,
     host: RunHostMode,
     print_roots: bool,
+    print_nth: bool,
     runtime_evidence_profile_deep: bool,
 }
 
@@ -522,12 +523,22 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
                     selection.host,
                     selection.runtime_evidence_profile_deep,
                     options.runtime_phase_timings,
+                    selection.print_nth,
                 )
             } else {
                 match selection.host {
-                    RunHostMode::Native => run_built_evidence_for_cli(build),
+                    RunHostMode::Native if !selection.print_nth => {
+                        run_built_evidence_for_cli(build)
+                    }
+                    RunHostMode::Native => {
+                        run_built_evidence_for_cli_with_host_print_nth(build, selection.host)
+                    }
                     RunHostMode::Unsupported | RunHostMode::MockServer => {
-                        run_built_evidence_for_cli_with_host(build, selection.host)
+                        if selection.print_nth {
+                            run_built_evidence_for_cli_with_host_print_nth(build, selection.host)
+                        } else {
+                            run_built_evidence_for_cli_with_host(build, selection.host)
+                        }
                     }
                 }
             };

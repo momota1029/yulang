@@ -46,6 +46,9 @@ pub(super) fn parse_run_args(
             Some("--print-roots") => {
                 selection.print_roots = true;
             }
+            Some("--print-nth") => {
+                selection.print_nth = true;
+            }
             Some("--runtime-evidence-profile-deep") => {
                 selection.runtime_evidence_profile_deep = true;
             }
@@ -111,6 +114,9 @@ pub(super) fn parse_run_args(
         },
         (None, None) => print_usage_and_exit(program),
     };
+    if selection.print_nth && selection.backend == RunBackend::Mono {
+        print_usage_error_and_exit(program, "run --print-nth requires the evidence VM backend");
+    }
     (input, selection)
 }
 
@@ -403,12 +409,25 @@ pub(super) fn run_built_evidence_for_cli_with_host(
     run_built_evidence_for_cli_with_host_profile(build, host, false)
 }
 
+pub(super) fn run_built_evidence_for_cli_with_host_print_nth(
+    build: yulang::BuildControlOutput,
+    host: RunHostMode,
+) -> CliEvidenceRunOutput {
+    run_built_evidence_for_cli_with_host_profile_and_plan_profile(build, host, false, false, true)
+}
+
 pub(super) fn run_built_evidence_for_cli_with_host_profile(
     build: yulang::BuildControlOutput,
     host: RunHostMode,
     deep_profile: bool,
 ) -> CliEvidenceRunOutput {
-    run_built_evidence_for_cli_with_host_profile_and_plan_profile(build, host, deep_profile, false)
+    run_built_evidence_for_cli_with_host_profile_and_plan_profile(
+        build,
+        host,
+        deep_profile,
+        false,
+        false,
+    )
 }
 
 pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
@@ -416,6 +435,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
     host: RunHostMode,
     deep_profile: bool,
     plan_profile_enabled: bool,
+    print_nth: bool,
 ) -> CliEvidenceRunOutput {
     run_runtime_on_cli_stack(move || {
         let yulang::BuildControlOutput {
@@ -440,12 +460,23 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
         let run_start = Instant::now();
         let run_result = match host {
             RunHostMode::Native => {
-                if deep_profile {
+                if deep_profile && print_nth {
+                    evidence_vm::run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait_print_nth(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else if deep_profile {
                     evidence_vm::run_program_with_plan_deep_profile_with_labels_flushing_stdout_on_external_wait(
                         &program,
                         &plan,
                         true,
                         &labels,
+                    )
+                } else if print_nth {
+                    evidence_vm::run_program_with_plan_with_labels_flushing_stdout_on_external_wait_print_nth(
+                        &program, &plan, &labels,
                     )
                 } else {
                     evidence_vm::run_program_with_plan_with_labels_flushing_stdout_on_external_wait(
@@ -454,12 +485,23 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
                 }
             }
             RunHostMode::Unsupported => {
-                if deep_profile {
+                if deep_profile && print_nth {
+                    evidence_vm::run_program_with_plan_deep_profile_without_native_host_operations_with_labels_print_nth(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else if deep_profile {
                     evidence_vm::run_program_with_plan_deep_profile_without_native_host_operations_with_labels(
                         &program,
                         &plan,
                         true,
                         &labels,
+                    )
+                } else if print_nth {
+                    evidence_vm::run_program_with_plan_without_native_host_operations_with_labels_print_nth(
+                        &program, &plan, &labels,
                     )
                 } else {
                     evidence_vm::run_program_with_plan_without_native_host_operations_with_labels(
@@ -468,12 +510,23 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
                 }
             }
             RunHostMode::MockServer => {
-                if deep_profile {
+                if deep_profile && print_nth {
+                    evidence_vm::run_program_with_plan_deep_profile_with_in_process_server_host_with_labels_print_nth(
+                        &program,
+                        &plan,
+                        true,
+                        &labels,
+                    )
+                } else if deep_profile {
                     evidence_vm::run_program_with_plan_deep_profile_with_in_process_server_host_with_labels(
                         &program,
                         &plan,
                         true,
                         &labels,
+                    )
+                } else if print_nth {
+                    evidence_vm::run_program_with_plan_with_in_process_server_host_with_labels_print_nth(
+                        &program, &plan, &labels,
                     )
                 } else {
                     evidence_vm::run_program_with_plan_with_in_process_server_host_with_labels(
@@ -995,7 +1048,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [--runtime-evidence-profile-deep] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--interpreter] [--host <native|unsupported|mock-server>] [--print-roots] [--print-nth] [--runtime-evidence-profile-deep] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"
