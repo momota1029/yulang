@@ -9583,7 +9583,7 @@ impl RuntimeBuiltinHostState {
         if self.print_nth {
             let index = self.print_nth_next_result_index;
             self.print_nth_next_result_index += 1;
-            self.stdout.push_str(&format!("Output {index}: "));
+            self.stdout.push_str(&format!("Out {index}: "));
         }
         self.stdout.push_str(text);
     }
@@ -25558,7 +25558,7 @@ mod tests {
 
         assert_eq!(
             runner.host_state.stdout,
-            "Output 1: hello\nOutput 2: world\n"
+            "Out 1: hello\nOut 2: world\n"
         );
     }
 
@@ -25625,7 +25625,7 @@ mod tests {
 
         assert_eq!(
             output.stdout,
-            "Output 1: true branch\nOutput 2: false branch\n"
+            "Out 1: true branch\nOut 2: false branch\n"
         );
         assert_eq!(
             output.root_value_texts_with_labels(None),
@@ -25732,7 +25732,7 @@ mod tests {
 
         assert_eq!(
             output.stdout,
-            "Output 1: true branch\nOutput 2: false branch\n"
+            "Out 1: true branch\nOut 2: false branch\n"
         );
         assert_eq!(
             output.root_value_texts_with_labels(None),
