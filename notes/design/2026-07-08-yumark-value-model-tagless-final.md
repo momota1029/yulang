@@ -4,38 +4,124 @@ Status: design decisions from an extended design session, empirically verified v
 PoCs in `examples/`. This is the authoritative record of *why* the shape below was
 chosen and what alternatives were rejected and why. Implementation of the real
 Yumark parser/lowering/stdlib surface has not started; this covers the value model
-only.
+only. **Revised same day**: the original "Tree representation" (a single flat
+`enum yumark_node` with homogeneous `list yumark_node` children) was superseded
+by a typed cons-chain, once the user pointed out it dropped the actual point of
+reaching for tagless-final in the first place — see "Tree representation,
+revised" below. The flat-enum section is kept for its still-valid sub-findings
+(role mechanics, Candidate A/B) but its structural choice is no longer adopted.
 
 ## Summary
 
-Yumark documents are represented as a concrete, inert tree (initial encoding), and
-rendered to a target format (HTML, Markdown, ...) via a role-based interpreter
-layer that is tagless-final-*flavored* (extensible per-backend dispatch) but not
-pure tagless-final (no dictionary-passing term, no rank-2 storage). Injection
-(the `\func(){}[]` / `[text]:func {}` macro mechanism) produces genuinely
+Yumark documents are represented as a **typed cons-chain** — a hand-rolled
+generic `cons_cell 'head 'tail` / `nil_cell` pair, so each concrete document's
+own shape is reflected in its own nested type (not erased into one flat sum
+type). Rendering to a target format (HTML, Markdown, ...) uses a role-based
+interpreter layer, tagless-final-*flavored* (extensible per-backend dispatch,
+inductive instance derivation) but not pure tagless-final (no dictionary-passing
+term, no rank-2 storage — construction stays inert). Injection (the
+`\func(){}[]` / `[text]:func {}` macro mechanism) produces genuinely
 backend-native typed content by bundling one monomorphic thunk per supported
-format inside the injection node, not by storing a polymorphic function as data.
+format inside a leaf, not by storing a polymorphic function as data. See "Tree
+representation, revised" for the current design; the rest of this document's
+role-shape, injection, effect, and state findings still apply unchanged.
 
-## Tree representation
+## Tree representation, revised: typed cons-chain (2026-07-08, supersedes flat enum)
 
-`yumark_node` is a plain recursive `enum` (text / inject / paragraph, extendable
-with more node kinds later): inert data, building it never forces anything.
-Injection payloads carry per-format closures (see below), never a materialized
-`yumark_node` for "what a macro can produce" — the tree's own node kinds are for
-the backend-agnostic common vocabulary (text, paragraph, headings, lists, ...);
-injected macro output is not required to be expressible in that vocabulary.
+The document's own type reflects its structure, using hand-rolled generic
+types (empirically verified in `examples/yumark_typed_structure_poc.yu`,
+commit `8bd02dec`):
 
-Rationale for *not* using pure tagless-final (a `forall repr. Algebra repr =>
-repr` term with no intermediate structure): Yulang is eager, not lazy. A pure
-dictionary-passing term would force construction to commit to a concrete `repr`
-immediately (building a `list repr` argument requires evaluating each element),
-which both (a) defeats "same document, multiple backends" and (b) fires embedded
-effects at construction time instead of at a controlled, deliberate walk step.
-The concrete tree defers everything: effects inside injected content fire only
-when a `walk` function forces that specific node, in tree-structural order,
-which coincides with strict-evaluation order — deferred, but not reordered.
+```yu
+struct nil_cell { marker: str }
+struct cons_cell 'head 'tail { head: 'head, tail: 'tail }
+```
+
+A document is built by nesting `cons`, e.g. `cons(text_leaf {...}, cons(strong_leaf
+{...}, cons(injected_leaf {...}, nil())))` — every distinct document shape is its
+own concrete type (`cons_cell text_leaf (cons_cell strong_leaf (cons_cell
+injected_leaf nil_cell))` for the example above), not a value of one shared
+`yumark_node` type.
+
+Role instances are derived **inductively**, reusing the `YumarkRender 'node
+'format` role shape from "Render role shape" below (`type repr` per format,
+methods return `['e] repr`):
+
+```yu
+impl nil_cell: YumarkRender html_format:
+    type repr = html_node
+    our cell.render_yumark _ = html_node { tag: "empty", body: "" }
+
+impl (cons_cell 'head 'tail): YumarkRender html_format:
+    where 'head: YumarkRender html_format
+    where 'tail: YumarkRender html_format
+    type repr = html_node
+    our cell.render_yumark _ =
+        my head = render_html_doc cell.head
+        my tail = render_html_doc cell.tail
+        html_fragment head tail
+```
+
+Each leaf type (`text_leaf`, `strong_leaf`, `code_leaf`, `injected_leaf`, ...)
+gets its own base-case instance. A composite `cons_cell` implements
+`YumarkRender <format>` **only if both its head and tail already do** — this is
+the same "prerequisite recursion, same role" mechanism found earlier in the
+role-system investigation (`impl (mylist 'a): Display` requiring a same-role
+`Display 'a` prerequisite; stdlib `Display`/`Debug` recursive-looking impls for
+`list`/`opt`/`result`). It generalizes cleanly to a hand-rolled two-parameter
+generic type, even though genuinely generic arbitrary-arity tuple decomposition
+does **not** exist (see "Related findings" below, still accurate for real
+tuples) — the hand-rolled cons-chain sidesteps that limitation entirely by
+being an ordinary two-parameter generic type with a real recursive instance,
+not a fixed-arity tuple.
+
+Empirically confirmed, all three properties the design needs simultaneously:
+
+1. **Positive case**: a 4-leaf nested chain renders correctly through
+   `render_html_doc` with **no bespoke instance written for that specific
+   shape** — the composite instance is derived for free from the leaf
+   instances plus the two inductive rules above.
+2. **Negative case**: a chain containing one leaf that does *not* implement
+   `YumarkRender html_format` (only `markdown_format`) correctly **fails to
+   compile** when rendered as HTML:
+   `unresolved typeclass method ... for receiver markdown_only_leaf ->
+   render_yumark(html_format, html_node) -> html_node`. Malformed/
+   format-incompatible documents are caught by the type system, not silently
+   broken or discovered at runtime.
+3. **Compatibility with Candidate B injection**: a leaf can itself be an
+   `injected_leaf { payload: injection_payload }` (the same per-format
+   monomorphic-closure struct from "Injection mechanism" below) — nesting it
+   inside a cons-chain position doesn't force evaluation any earlier;
+   `clock::now` still only fires at render time, confirmed by a
+   construction-only run producing no clock output. The typed-structure
+   design and the deferred-effect design are not in tension — Candidate B
+   lives at the leaf level of the cons-chain.
+
+Two implementation caveats found along the way (workarounds, not blockers):
+
+- `where` clauses don't appear to support spelling an associated-type equality
+  directly, so pinning `repr` (e.g. to `html_node`) goes through a small typed
+  "command" helper function whose own return-type annotation fixes it:
+  `my html_render_command(): render_yumark html_format html_node = ...`.
+- Using `+` for string concatenation inside a generic (inductive) impl body
+  introduced extra role-solving ambiguity; calling `std::text::str::concat`
+  directly avoided it.
+
+This changes what "Parser/lowering integration" (see Open items) needs to
+target: lowering must produce cons-chain values whose *type* reflects the
+parsed document's actual shape, not values of one shared `yumark_node` type.
 
 ## Render role shape
+
+The core role shape below (tag parameter + associated `repr` + effect-row-
+polymorphic methods) is unchanged and still the mechanism used in the revised
+cons-chain design above. What *does* change under the cons-chain: instead of
+one role implemented once per backend with fixed `render_text`/
+`render_paragraph`/... methods dispatched via pattern-matching inside a `walk`
+function, each **node/leaf type** gets its own `impl <leaf_type>: YumarkRender
+<format>` with a single generic method (e.g. `render_yumark`), and composite
+`cons_cell`/`nil_cell` instances are derived inductively (see above) instead of
+a hand-written `walk` doing the pattern-match/recursion itself.
 
 ```yu
 role YumarkRender 'backend 'format:
@@ -58,6 +144,11 @@ role YumarkRender 'backend 'format:
   bespoke wrapper effect. See "No custom Yumark effect" below.
 
 ## Injection mechanism: Candidate A rejected, Candidate B adopted
+
+Still current under the revised cons-chain tree: Candidate B is what an
+`injected_leaf` node holds, one leaf among many in the chain (confirmed
+directly in `examples/yumark_typed_structure_poc.yu`, see "Tree
+representation, revised" above).
 
 Two candidates were tested empirically (`examples/yumark_value_model_poc2.yu`,
 `examples/yumark_effectful_injection_capstone.yu`):
@@ -155,11 +246,15 @@ and return values instead of relying on the `my &x` idiom's implicit handler.
 - **Tuples are fixed-arity products, not nested-pair sugar.** `(A, B, C)` is
   not equivalent to `(A, (B, C))` anywhere in the type IR. Role/subtype
   matching requires exact arity. There is no generic "N = head + tail"
-  instance mechanism today (confirmed by the stdlib's manual per-arity
-  Display/Debug impls for tuples 2..5) — a true type-level list with
-  array-like decomposition would need new infer/poly work. Not needed for
-  Yumark: once content flows through a render role, everything is already
-  uniformly `repr`-typed, so ordinary `list repr` suffices for children.
+  instance mechanism *for real tuples* today (confirmed by the stdlib's
+  manual per-arity Display/Debug impls for tuples 2..5) — a decomposable
+  type-level list built on the actual tuple type would need new infer/poly
+  work. **Correction (later same day): this finding is still true for real
+  tuples, but Yumark does need a type-level list, and gets one via a
+  hand-rolled two-parameter generic `cons_cell`/`nil_cell` pair instead of
+  real tuples** — see "Tree representation, revised." The `list repr`
+  suffices claim below was wrong; it silently erased the document's structure
+  into one flat sum type, which is not what was wanted.
 
 ## Bug found and fixed as a byproduct
 
@@ -275,9 +370,16 @@ function call.
   syntax could work at all, given effect legality would need to be checked
   before backend/tagless-final selection.
 - Parser/lowering integration — turning the real `crates/parser/src/mark/` CST
-  (including the new grouped-command nodes) into `yumark_node` values — has
-  not been attempted; the static-vocab PoC (see evidence trail) only proves
-  the value-model shape in isolation, disconnected from the real parser.
+  (including the new grouped-command nodes) into typed cons-chain values — has
+  not been attempted; every PoC (see evidence trail) only proves the
+  value-model shape in isolation, disconnected from the real parser. Likely
+  harder now than it would have been for the flat-enum design, since lowering
+  must produce a value whose *type* encodes the parsed shape — worth its own
+  design pass before starting.
+- What the node/leaf vocabulary should look like under the cons-chain design
+  — the flat-enum static-vocab PoC's node kinds (heading, list, code fence,
+  block quote, emphasis, strong, ...) still need re-expressing as individual
+  leaf types with their own per-format role impls; not yet done.
 
 ### `yulang`-tagged code fences: two independent consumers, not one (2026-07-08 clarification)
 
@@ -301,21 +403,32 @@ static-vocab PoC already does) and never special-case the language tag.
 
 ## Evidence trail
 
+`examples/yumark_typed_structure_poc.yu` (below) is the only PoC using the
+*adopted* tree representation. The four PoCs before it all used the flat-enum
+`yumark_node` tree that was superseded same-day — kept here because their
+sub-findings about role mechanics, Candidate A/B, and associated types are
+still correct and still relied upon; only their tree-structure choice was
+wrong.
+
 - `examples/yumark_value_model_poc.yu` — first PoC: effect-timing control,
   role-requires-role (`YumarkRender` requiring `YumarkHandle`), confirmed
   working directly at role-declaration level (no `where`-clause fallback
-  needed). Did not test type-level divergence (repr hardcoded to `str`).
+  needed). Did not test type-level divergence (repr hardcoded to `str`). Flat
+  enum, superseded structurally.
 - `examples/yumark_value_model_poc2.yu` — second PoC: genuine backend-typed
   divergence (`html_node` vs `str`), Candidate A failure / Candidate B success,
   tag-parametrized role + associated `repr` + effect-row-polymorphic methods
   all confirmed working together. No real effects used (plain value returns).
+  Flat enum, superseded structurally.
 - `examples/state_handler_escape_repro.yu` — state/handler dynamic-extent
-  escape, diagnostic only.
+  escape, diagnostic only. Independent of tree representation, still accurate.
 - `examples/clock_effect_direct_repro.yu`, `examples/clock_effect_field_repro.yu`
-  — minimal isolation of the evidence-vm record-boundary bug.
+  — minimal isolation of the evidence-vm record-boundary bug. Independent of
+  tree representation, still accurate.
 - `examples/yumark_effectful_injection_capstone.yu` — capstone: Candidate B
   with a real effect (`clock::now`) inside struct-field-stored closures,
-  producing genuinely backend-native typed output end to end.
+  producing genuinely backend-native typed output end to end. Flat enum,
+  superseded structurally; the Candidate B mechanism itself is reused as-is.
 - `examples/yumark_static_vocab_poc.yu` — extends the value model with the
   parser's static/structural CST vocabulary (heading, blank line, list/list
   item, code fence, block quote, emphasis, strong, section close, doc),
@@ -323,4 +436,12 @@ static-vocab PoC already does) and never special-case the language tag.
   expanded vocabulary, including an injection nested inside a block quote.
   Macro/injection-related CST nodes (command, inline bracket expression, link
   destination, image-like inline) are intentionally deferred to the
-  `\func(){}[]` / `[text]:func {}` work.
+  `\func(){}[]` / `[text]:func {}` work. Flat enum, superseded structurally —
+  the node-kind vocabulary itself still needs re-expressing as individual leaf
+  types under the cons-chain design (see Open items).
+- `examples/yumark_typed_structure_poc.yu` — **adopted design**: hand-rolled
+  `cons_cell`/`nil_cell` generic types, inductive `YumarkRender` instance
+  derivation, positive case (4-leaf chain renders via a derived instance, no
+  bespoke instance written), negative case (a non-implementing leaf correctly
+  fails to compile), and confirmed compatibility with Candidate B injection
+  leaves and inert construction. Commit `8bd02dec`.
