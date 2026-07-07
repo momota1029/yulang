@@ -1,0 +1,129 @@
+// Exploratory Yumark value-model PoC #2.
+// Candidate B: injection stores one monomorphic thunk per supported format.
+
+struct html_format { marker: str }
+struct markdown_format { marker: str }
+
+struct html_node { tag: str, body: str }
+struct html_backend { label: str }
+struct markdown_backend { label: str }
+
+struct render_text 'format { format: 'format, value: str }
+struct render_paragraph 'format 'repr { format: 'format, children: list 'repr }
+
+struct html_walk_result { trace: str, value: html_node }
+struct markdown_walk_result { trace: str, value: str }
+struct html_children { trace: str, values: list html_node }
+struct markdown_children { trace: str, values: list str }
+
+struct injection_payload {
+    html: () -> html_walk_result,
+    markdown: () -> markdown_walk_result,
+}
+
+enum yumark_node:
+    text str
+    inject injection_payload
+    paragraph (list yumark_node)
+
+role YumarkRender 'backend 'format:
+    type repr
+    our backend.render_text: render_text 'format -> ['e] repr
+    our backend.render_paragraph: render_paragraph 'format repr -> ['e] repr
+
+my html_tag(node: html_node): str =
+    "<" + node.tag + ">" + node.body + "</" + node.tag + ">"
+
+my join_html(nodes: list html_node): str = case std::data::list::view_raw nodes:
+    std::data::list::list_view::empty -> ""
+    std::data::list::list_view::leaf node -> html_tag node
+    std::data::list::list_view::node(left, right) -> join_html left + join_html right
+
+impl html_backend: YumarkRender html_format:
+    type repr = html_node
+    our backend.render_text command = html_node { tag: "span", body: backend.label + ":text(" + command.value + ")" }
+    our backend.render_paragraph command = html_node { tag: "p", body: join_html command.children }
+
+impl markdown_backend: YumarkRender markdown_format:
+    type repr = str
+    our backend.render_text command = backend.label + ":text(" + command.value + ")"
+    our backend.render_paragraph command = "MD[" + command.children.join "|" + "]"
+
+my html_format_value(): html_format = html_format { marker: "html" }
+my markdown_format_value(): markdown_format = markdown_format { marker: "markdown" }
+
+my walk_html(backend: 'backend, node: yumark_node): html_walk_result =
+    where 'backend: YumarkRender html_format
+    case node:
+        yumark_node::text value -> html_walk_result { trace: "", value: backend.render_text (render_text { format: html_format_value(), value: value }) }
+        yumark_node::inject payload -> payload.html()
+        yumark_node::paragraph children ->
+            my rendered = render_children_html backend children
+            html_walk_result { trace: rendered.trace, value: backend.render_paragraph (render_paragraph { format: html_format_value(), children: rendered.values }) }
+
+my render_children_html(backend: 'backend, children: list yumark_node): html_children =
+    where 'backend: YumarkRender html_format
+    case std::data::list::view_raw children:
+        std::data::list::list_view::empty -> html_children { trace: "", values: [] }
+        std::data::list::list_view::leaf child ->
+            my rendered = walk_html backend child
+            html_children { trace: rendered.trace, values: [rendered.value] }
+        std::data::list::list_view::node(left, right) ->
+            my left_rendered = render_children_html backend left
+            my right_rendered = render_children_html backend right
+            html_children { trace: left_rendered.trace + right_rendered.trace, values: left_rendered.values + right_rendered.values }
+
+my walk_markdown(backend: 'backend, node: yumark_node): markdown_walk_result =
+    where 'backend: YumarkRender markdown_format
+    case node:
+        yumark_node::text value -> markdown_walk_result { trace: "", value: backend.render_text (render_text { format: markdown_format_value(), value: value }) }
+        yumark_node::inject payload -> payload.markdown()
+        yumark_node::paragraph children ->
+            my rendered = render_children_markdown backend children
+            markdown_walk_result { trace: rendered.trace, value: backend.render_paragraph (render_paragraph { format: markdown_format_value(), children: rendered.values }) }
+
+my render_children_markdown(backend: 'backend, children: list yumark_node): markdown_children =
+    where 'backend: YumarkRender markdown_format
+    case std::data::list::view_raw children:
+        std::data::list::list_view::empty -> markdown_children { trace: "", values: [] }
+        std::data::list::list_view::leaf child ->
+            my rendered = walk_markdown backend child
+            markdown_children { trace: rendered.trace, values: [rendered.value] }
+        std::data::list::list_view::node(left, right) ->
+            my left_rendered = render_children_markdown backend left
+            my right_rendered = render_children_markdown backend right
+            markdown_children { trace: left_rendered.trace + right_rendered.trace, values: left_rendered.values + right_rendered.values }
+
+my first_html_injection(): html_walk_result =
+    html_walk_result { trace: "04 force html injection one\n", value: html_node { tag: "strong", body: "HTML-STRUCT(first)" } }
+
+my first_markdown_injection(): markdown_walk_result =
+    markdown_walk_result { trace: "08 force markdown injection one\n", value: "**MD(first)**" }
+
+my second_html_injection(): html_walk_result =
+    html_walk_result { trace: "05 force html injection two\n", value: html_node { tag: "aside", body: "HTML-STRUCT(second)" } }
+
+my second_markdown_injection(): markdown_walk_result =
+    markdown_walk_result { trace: "09 force markdown injection two\n", value: "_MD(second)_" }
+
+my first_payload(): injection_payload = injection_payload { html: first_html_injection, markdown: first_markdown_injection }
+my second_payload(): injection_payload = injection_payload { html: second_html_injection, markdown: second_markdown_injection }
+
+my build_doc(): yumark_node =
+    yumark_node::paragraph [
+        yumark_node::text "alpha",
+        yumark_node::inject (first_payload()),
+        yumark_node::text "middle",
+        yumark_node::inject (second_payload()),
+        yumark_node::text "omega",
+    ]
+
+my proof(): str =
+    my before = "01 before construction\n"
+    my doc = build_doc()
+    my after = "02 after construction\n"
+    my html = walk_html (html_backend { label: "HTML" }) doc
+    my markdown = walk_markdown (markdown_backend { label: "MD" }) doc
+    before + after + "03 before html walk\n" + html.trace + "06 after html walk\n" + "07 before markdown walk\n" + markdown.trace + "10 after markdown walk\n" + "HTML root type: html_node\nHTML serialized: " + html_tag html.value + "\nMarkdown root type: str\nMarkdown rendered: " + markdown.value
+
+proof()
