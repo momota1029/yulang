@@ -1800,8 +1800,9 @@ kind = "run"
 std = "repo"
 expect_stderr = ""
 expect_stdout_contains = [
-  "run roots [25,",
+  "25\n[(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]",
   "[111, 11, 101, 1, 110, 10, 100, 0]",
+  "run roots [(), (), (), (), ()]",
 ]
 contracts = ["public-example", "runtime", "showcase"]
 
