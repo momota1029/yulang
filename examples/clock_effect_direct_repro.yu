@@ -1,0 +1,7 @@
+// Contrast case for host-effect deferred invocation diagnosis:
+// direct function call, no struct-field storage.
+
+my direct_timestamp(): [std::time::clock] str =
+    "direct timestamp: " + (std::time::clock::now()).show
+
+direct_timestamp()

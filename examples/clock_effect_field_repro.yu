@@ -1,0 +1,14 @@
+// Repro case for host-effect deferred invocation diagnosis:
+// a function that performs a real host effect is stored in a struct field and
+// invoked later through that field.
+
+struct timestamp_payload {
+    produce: () -> [std::time::clock] str,
+}
+
+my produce_timestamp(): [std::time::clock] str =
+    "field timestamp: " + (std::time::clock::now()).show
+
+my payload = timestamp_payload { produce: produce_timestamp }
+
+payload.produce()
