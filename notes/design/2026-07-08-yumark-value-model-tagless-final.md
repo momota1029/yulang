@@ -189,11 +189,32 @@ the direct-vs-field-storage contrast repros
   support exists only for a bare `\cmd` block command
   (`crates/parser/src/mark/`); the bracket-group semantics (args vs body vs
   extra group) are still unspecified.
-- Additional node kinds beyond text/inject/paragraph (headings, lists,
-  emphasis, code fences, ...).
 - Whether/how the `[\each(...)]:list` postfix-method-with-embedded-effect
   syntax could work at all, given effect legality would need to be checked
   before backend/tagless-final selection.
+- Parser/lowering integration — turning the real `crates/parser/src/mark/` CST
+  into `yumark_node` values — has not been attempted; the static-vocab PoC
+  (see evidence trail) only proves the value-model shape in isolation.
+
+### `yulang`-tagged code fences: two independent consumers, not one (2026-07-08 clarification)
+
+A `yulang` fenced block in a doc comment is source for **two separate,
+decoupled features**, not one:
+
+1. **Document rendering** (this value model, `yulang doc`): always treated as
+   plain source text, same as any other fence — never executed, never treated
+   specially. For HTML output, syntax highlighting is a nice-to-have that can
+   be derived from the real, already-parsed Yulang AST (precise token/span
+   classification for free) rather than a heuristic highlighter — but it's
+   still just displaying code, not running it.
+2. **Test execution** (a future, separate doctest-style test runner — not yet
+   built, not part of `doc`): extracts and *runs* `yulang`-tagged fences as
+   tests. This is the reason the parser parses `yulang` fences as embedded
+   statements at all.
+
+The value model only needs to serve (1); it should keep treating `yulang`
+fences the same as any other `code_fence_info`/`code_fence_text` pair (as the
+static-vocab PoC already does) and never special-case the language tag.
 
 ## Evidence trail
 
@@ -212,3 +233,11 @@ the direct-vs-field-storage contrast repros
 - `examples/yumark_effectful_injection_capstone.yu` — capstone: Candidate B
   with a real effect (`clock::now`) inside struct-field-stored closures,
   producing genuinely backend-native typed output end to end.
+- `examples/yumark_static_vocab_poc.yu` — extends the value model with the
+  parser's static/structural CST vocabulary (heading, blank line, list/list
+  item, code fence, block quote, emphasis, strong, section close, doc),
+  following the same role/injection pattern. Both backends render the full
+  expanded vocabulary, including an injection nested inside a block quote.
+  Macro/injection-related CST nodes (command, inline bracket expression, link
+  destination, image-like inline) are intentionally deferred to the
+  `\func(){}[]` / `[text]:func {}` work.
