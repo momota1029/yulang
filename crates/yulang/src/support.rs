@@ -613,7 +613,8 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
         | evidence_vm::RuntimeEvidenceRunError::MissingInstance(_)
         | evidence_vm::RuntimeEvidenceRunError::MismatchedInstanceSlot { .. }
         | evidence_vm::RuntimeEvidenceRunError::RecursiveInstance(_)
-        | evidence_vm::RuntimeEvidenceRunError::UnboundLocal(_) => format!(
+        | evidence_vm::RuntimeEvidenceRunError::UnboundLocal(_)
+        | evidence_vm::RuntimeEvidenceRunError::PrintNthNondetTerminal => format!(
             "runtime error [yulang.runtime-internal]: {error}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
     }

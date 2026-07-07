@@ -1269,8 +1269,10 @@ mod run_cache_tests {
                 .map(|timing| (timing.source_cache_hits, timing.source_cache_misses)),
             Some((0, 1))
         );
-        assert!(first.results.is_empty(), "{first:?}");
-        assert!(second.results.is_empty(), "{second:?}");
+        assert_ne!(
+            first.results.first().map(|result| result.value.as_str()),
+            second.results.first().map(|result| result.value.as_str())
+        );
         assert!(!first.cache_safe, "{first:?}");
         assert!(!second.cache_safe, "{second:?}");
     }

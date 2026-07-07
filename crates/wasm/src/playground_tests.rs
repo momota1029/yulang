@@ -246,8 +246,11 @@ my route = \line -> case line:
                 .map(|timing| timing.used_embedded_std),
             Some(false)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("42")
+        );
+        assert_eq!(output.text, "run roots [42]\n");
     }
 
     #[test]
@@ -263,8 +266,11 @@ my route = \line -> case line:
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("3")
+        );
+        assert_eq!(output.text, "run roots [3]\n");
     }
 
     #[test]
@@ -280,8 +286,11 @@ my route = \line -> case line:
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("2.2")
+        );
+        assert_eq!(output.text, "run roots [2.2]\n");
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
     }
 
@@ -315,8 +324,11 @@ point { x: 3, y: 4 } .norm2 + 1.12
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("26.12")
+        );
+        assert_eq!(output.text, "run roots [26.12]\n");
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
     }
 
@@ -345,8 +357,11 @@ point { x: 3, y: 4 } .norm2 + 1.12
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("[2, 6, 4]")
+        );
+        assert_eq!(output.text, "run roots [[2, 6, 4]]\n");
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
     }
 
@@ -360,8 +375,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
             output.stdout,
             "Result 1: GET color\nResult 2: SET color = deep-blue\nResult 3: user alice\nResult 4: unknown\n"
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(output.text, "run roots [(), (), (), ()]\n");
     }
 
     #[test]
@@ -387,8 +401,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
     }
 
     #[test]
@@ -405,8 +418,7 @@ point { x: 3, y: 4 } .norm2 + 1.12
                 .map(|timing| timing.used_embedded_std),
             Some(true)
         );
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(output.text, "run roots [1]\n");
     }
 
     #[test]
@@ -416,8 +428,15 @@ point { x: 3, y: 4 } .norm2 + 1.12
 
         assert!(output.ok, "{output:?}");
         assert_eq!(output.stdout, "Result 1: hello\n");
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("()")
+        );
+        assert_eq!(
+            output.results.get(1).map(|result| result.value.as_str()),
+            Some("3")
+        );
+        assert_eq!(output.text, "run roots [(), 3]\n");
     }
 
     #[test]
@@ -427,6 +446,25 @@ point { x: 3, y: 4 } .norm2 + 1.12
 
         assert!(output.ok, "{output:?}");
         assert_eq!(output.stdout, "Result 1: yes\nResult 2: no\n");
+        assert!(output.results.is_empty(), "{output:?}");
+        assert_eq!(output.text, "run roots []\n");
+    }
+
+    #[test]
+    fn run_inner_print_nth_drives_each_for_stdout() {
+        clear_std_cache();
+        let output = run_inner(
+            "\
+use std::control::nondet::*
+{
+  my x = each [1, 2, 3]
+  say x
+}
+",
+        );
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, "Result 1: 1\nResult 2: 2\nResult 3: 3\n");
         assert!(output.results.is_empty(), "{output:?}");
         assert_eq!(output.text, "run roots []\n");
     }
@@ -453,12 +491,15 @@ sub:
         });
 
         assert_eq!(full_std_stdout, "");
-        assert_eq!(full_std_text, "run roots []\n");
+        assert_eq!(full_std_text, "run roots [0]\n");
 
         assert!(output.ok, "{output:?}");
         assert_eq!(output.stdout, full_std_stdout);
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("0")
+        );
+        assert_eq!(output.text, full_std_text);
     }
 
     #[test]
@@ -482,10 +523,13 @@ sub:
             (output, full_std_output.text)
         });
 
-        assert_eq!(full_std_text, "run roots []\n");
+        assert_eq!(full_std_text, "run roots [just (3, 4, 5)]\n");
         assert!(output.ok, "{output:?}");
-        assert!(output.results.is_empty(), "{output:?}");
-        assert_eq!(output.text, "run roots []\n");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("just (3, 4, 5)")
+        );
+        assert_eq!(output.text, full_std_text);
     }
 
     #[test]
@@ -610,18 +654,20 @@ point { x: 3, y: 4 } .norm2
         assert!(warmup.embedded_std_artifacts_valid, "{warmup:?}");
 
         let cases = [
-            "1 + 2\n",
-            playground_showcase_source("Config"),
-            PARSER_PATTERN_SHOWCASE,
-            "each(1..3).list\n",
-            "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
+            ("1 + 2\n", "run roots [3]\n"),
+            (playground_showcase_source("Config"), "run roots [(), ()]\n"),
+            (PARSER_PATTERN_SHOWCASE, "run roots [(), (), (), ()]\n"),
+            ("each(1..3).list\n", "run roots [[1, 2, 3]]\n"),
+            (
+                "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
+                "run roots [1]\n",
+            ),
         ];
 
-        for source in cases {
+        for (source, expected_text) in cases {
             let output = run_inner_on_test_stack(source);
             assert!(output.ok, "{output:?}");
-            assert!(output.results.is_empty(), "{output:?}");
-            assert_eq!(output.text, "run roots []\n");
+            assert_eq!(output.text, expected_text);
             assert_eq!(
                 output
                     .timings

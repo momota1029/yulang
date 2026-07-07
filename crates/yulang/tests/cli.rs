@@ -82,6 +82,34 @@ fn compatible_run_print_nth_numbers_stdout_and_drives_nondet() {
 }
 
 #[test]
+fn compatible_run_print_nth_drives_each_stdout() {
+    let entry = write_entry(
+        "run-print-nth-each",
+        "\
+use std::control::nondet::*
+{
+  my x = each [1, 2, 3]
+  say x
+}
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-nth")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "Result 1: 1\nResult 2: 2\nResult 3: 3\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_run_interpreter_rejects_print_nth() {
     let entry = write_entry("run-print-nth-interpreter", "1\n");
 

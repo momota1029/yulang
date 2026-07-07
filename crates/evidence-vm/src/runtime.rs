@@ -8928,6 +8928,8 @@ pub enum RuntimeEvidenceRunError {
     MissingRecordField(String),
     PatternMismatch,
     DivideByZero,
+    #[doc(hidden)]
+    PrintNthNondetTerminal,
 }
 
 impl fmt::Display for RuntimeEvidenceRunError {
@@ -8984,6 +8986,9 @@ impl fmt::Display for RuntimeEvidenceRunError {
             }
             Self::PatternMismatch => write!(f, "runtime-evidence-run pattern mismatch"),
             Self::DivideByZero => write!(f, "runtime-evidence-run division by zero"),
+            Self::PrintNthNondetTerminal => {
+                write!(f, "runtime-evidence-run internal print-nth nondet terminal")
+            }
         }
     }
 }
@@ -9500,6 +9505,11 @@ enum RuntimeHostRequestHandling {
     Unhandled(EvidenceRequest),
 }
 
+enum PrintNthSideEffectResolution {
+    Continue(EvidenceEvalResult),
+    Terminal,
+}
+
 fn is_nondet_branch_request(request: &EvidenceRequest) -> bool {
     request_path_eq(
         request.path.as_ref(),
@@ -9516,10 +9526,6 @@ fn is_nondet_reject_request(request: &EvidenceRequest) -> bool {
 
 fn request_path_eq(path: &[String], expected: &[&str]) -> bool {
     path.len() == expected.len() && path.iter().map(String::as_str).eq(expected.iter().copied())
-}
-
-fn print_nth_nondet_terminal_result() -> EvidenceEvalResult {
-    EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Unit))
 }
 
 #[derive(Debug, Clone)]
@@ -10123,6 +10129,7 @@ struct RuntimeEvidenceRunner<'a> {
     host_state: RuntimeBuiltinHostState,
     host_scheduler: RuntimeHostScheduler,
     current_host_branch: RuntimeHostBranchId,
+    print_nth_nondet_auto_drive_in_current_result: bool,
     suspended_host_continuations: HashMap<HostResumeTokenId, RuntimeSuspendedHostContinuation>,
     host_registry: RuntimeHostRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
@@ -10208,6 +10215,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ),
             current_host_branch: host_scheduler.root_branch_id(),
             host_scheduler,
+            print_nth_nondet_auto_drive_in_current_result: false,
             suspended_host_continuations: HashMap::new(),
             host_registry,
             host_constructors,
@@ -10224,18 +10232,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         for root in &self.program.roots {
             match root {
                 Root::Instance(instance) => {
-                    let value = self.eval_instance(*instance)?;
-                    if !self.context.print_nth() {
-                        values.push(value);
+                    self.reset_print_nth_nondet_auto_drive_for_current_result();
+                    match self.eval_instance(*instance) {
+                        Ok(value) => {
+                            if self.should_collect_current_result_value() {
+                                values.push(value);
+                            }
+                        }
+                        Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {}
+                        Err(err) => return Err(err),
                     }
                 }
                 Root::EvalInstance(instance) => {
-                    let _ = self.eval_instance(*instance)?;
+                    self.reset_print_nth_nondet_auto_drive_for_current_result();
+                    match self.eval_instance(*instance) {
+                        Ok(_) | Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {}
+                        Err(err) => return Err(err),
+                    }
                 }
                 Root::Expr(expr) => {
-                    let value = self.eval_tail_expr(*expr, &mut env)?;
-                    if !self.context.print_nth() {
-                        values.push(value);
+                    self.reset_print_nth_nondet_auto_drive_for_current_result();
+                    match self.eval_tail_expr(*expr, &mut env) {
+                        Ok(value) => {
+                            if self.should_collect_current_result_value() {
+                                values.push(value);
+                            }
+                        }
+                        Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {}
+                        Err(err) => return Err(err),
                     }
                 }
             }
@@ -14462,9 +14486,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         loop {
             while self.host_scheduler.has_pending_events() {
                 if let Some(result) = self.process_next_host_scheduler_event()? {
-                    let value = self.resolve_eval_result(result)?;
-                    if !self.context.print_nth() {
-                        values.push(value);
+                    self.reset_print_nth_nondet_auto_drive_for_current_result();
+                    match self.resolve_eval_result(result) {
+                        Ok(value) => {
+                            if self.should_collect_current_result_value() {
+                                values.push(value);
+                            }
+                        }
+                        Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {}
+                        Err(err) => return Err(err),
                     }
                 }
             }
@@ -14488,10 +14518,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             RuntimeHostRequestHandling::Unhandled(request) => {
                 if self.context.print_nth() && is_nondet_branch_request(&request) {
-                    return self.drive_print_nth_nondet_branch(request);
+                    self.drive_print_nth_nondet_branch(request)?;
+                    return Err(RuntimeEvidenceRunError::PrintNthNondetTerminal);
                 }
                 if self.context.print_nth() && is_nondet_reject_request(&request) {
-                    return Ok(print_nth_nondet_terminal_result());
+                    self.mark_print_nth_nondet_auto_drive_for_current_result();
+                    return Err(RuntimeEvidenceRunError::PrintNthNondetTerminal);
                 }
                 Err(RuntimeEvidenceRunError::EscapedEffect(
                     request.path.to_vec(),
@@ -14503,11 +14535,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn drive_print_nth_nondet_branch(
         &mut self,
         request: EvidenceRequest,
-    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        self.mark_print_nth_nondet_auto_drive_for_current_result();
         let continuation = request.continuation;
         self.drive_print_nth_nondet_branch_resume(continuation.clone(), true)?;
         self.drive_print_nth_nondet_branch_resume(continuation, false)?;
-        Ok(print_nth_nondet_terminal_result())
+        Ok(())
     }
 
     fn drive_print_nth_nondet_branch_resume(
@@ -14515,10 +14548,111 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: EvidenceContinuation,
         branch: bool,
     ) -> Result<(), RuntimeEvidenceRunError> {
-        let result =
-            self.resume_continuation(continuation, shared(RuntimeEvidenceValue::Bool(branch)))?;
-        let _ = self.resolve_eval_result(result)?;
-        Ok(())
+        let result = self.apply_scoped_value_result(
+            None,
+            shared(RuntimeEvidenceValue::Continuation(continuation)),
+            shared(RuntimeEvidenceValue::Bool(branch)),
+        )?;
+        let result = self.finish_force_thunk_result(result, false)?;
+        self.resolve_print_nth_side_effect_result(result)
+    }
+
+    fn resolve_print_nth_side_effect_result(
+        &mut self,
+        mut result: EvidenceEvalResult,
+    ) -> Result<(), RuntimeEvidenceRunError> {
+        loop {
+            match result {
+                EvidenceEvalResult::Value(_) => return Ok(()),
+                EvidenceEvalResult::Effect(signal) => {
+                    let resolved = self.resolve_active_catch_or_print_nth_side_effect_terminal(
+                        EvidenceEvalResult::Effect(signal),
+                    );
+                    match resolved {
+                        Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => return Ok(()),
+                        Err(err) => return Err(err),
+                        Ok(PrintNthSideEffectResolution::Continue(next)) => result = next,
+                        Ok(PrintNthSideEffectResolution::Terminal) => return Ok(()),
+                    }
+                }
+            }
+        }
+    }
+
+    fn resolve_active_catch_or_print_nth_side_effect_terminal(
+        &mut self,
+        result: EvidenceEvalResult,
+    ) -> Result<PrintNthSideEffectResolution, RuntimeEvidenceRunError> {
+        let result = match self.continue_through_active_catches(result) {
+            Ok(result) => result,
+            Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {
+                return Ok(PrintNthSideEffectResolution::Terminal);
+            }
+            Err(err) => return Err(err),
+        };
+        match result {
+            EvidenceEvalResult::Value(_) => Ok(PrintNthSideEffectResolution::Continue(result)),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                self.handle_escaped_request_for_print_nth_side_effect(request)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => Err(
+                RuntimeEvidenceRunError::EscapedEffect(call.request().path.to_vec()),
+            ),
+        }
+    }
+
+    fn handle_escaped_request_for_print_nth_side_effect(
+        &mut self,
+        request: EvidenceRequest,
+    ) -> Result<PrintNthSideEffectResolution, RuntimeEvidenceRunError> {
+        match self.try_handle_runtime_host_request(request)? {
+            RuntimeHostRequestHandling::Handled(result) => {
+                Ok(PrintNthSideEffectResolution::Continue(result))
+            }
+            RuntimeHostRequestHandling::Suspended => {
+                match self.process_or_wait_for_next_host_scheduler_value() {
+                    Ok(Some(result)) => Ok(PrintNthSideEffectResolution::Continue(result)),
+                    Ok(None) => Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "suspend host operation parked",
+                    )),
+                    Err(RuntimeEvidenceRunError::PrintNthNondetTerminal) => {
+                        Ok(PrintNthSideEffectResolution::Terminal)
+                    }
+                    Err(err) => Err(err),
+                }
+            }
+            RuntimeHostRequestHandling::Unhandled(request) => {
+                if self.context.print_nth() && is_nondet_branch_request(&request) {
+                    self.drive_print_nth_nondet_branch(request)?;
+                    return Ok(PrintNthSideEffectResolution::Terminal);
+                }
+                if self.context.print_nth() && is_nondet_reject_request(&request) {
+                    self.mark_print_nth_nondet_auto_drive_for_current_result();
+                    return Ok(PrintNthSideEffectResolution::Terminal);
+                }
+                Err(RuntimeEvidenceRunError::EscapedEffect(
+                    request.path.to_vec(),
+                ))
+            }
+        }
+    }
+
+    fn reset_print_nth_nondet_auto_drive_for_current_result(&mut self) {
+        self.print_nth_nondet_auto_drive_in_current_result = false;
+    }
+
+    fn mark_print_nth_nondet_auto_drive_for_current_result(&mut self) {
+        self.print_nth_nondet_auto_drive_in_current_result = true;
+    }
+
+    fn should_collect_current_result_value(&self) -> bool {
+        !self.print_nth_nondet_auto_drive_in_current_result
     }
 
     fn process_or_wait_for_next_host_scheduler_value(
@@ -25504,6 +25638,68 @@ mod tests {
     }
 
     #[test]
+    fn print_nth_mode_keeps_normal_root_values() {
+        let program = normal_value_roots_program();
+
+        let default_output =
+            RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default())
+                .run()
+                .expect("default mode should evaluate normal roots");
+        let print_nth_output = RuntimeEvidenceRunner::new(
+            &program,
+            RuntimeEvidenceRunContext::default().with_print_nth(),
+        )
+        .run()
+        .expect("print-nth mode should evaluate normal roots");
+
+        assert_eq!(
+            print_nth_output.root_value_texts_with_labels(None),
+            default_output.root_value_texts_with_labels(None)
+        );
+        assert_eq!(
+            print_nth_output.roots_text_with_labels(None),
+            default_output.roots_text_with_labels(None)
+        );
+        assert_eq!(
+            print_nth_output.roots_text_with_labels(None),
+            "run roots [3, true]\n"
+        );
+    }
+
+    #[test]
+    fn print_nth_mode_skips_only_auto_driven_root_value() {
+        let mut program = print_nth_branch_side_effect_program();
+        let first_normal = ExprId(program.exprs.len() as u32);
+        program.exprs.push(Expr::Lit(Lit::Int(7)));
+        let second_normal = ExprId(program.exprs.len() as u32);
+        program.exprs.push(Expr::Lit(Lit::Int(9)));
+        program.roots = vec![
+            Root::Expr(first_normal),
+            Root::Expr(ExprId(11)),
+            Root::Expr(second_normal),
+        ];
+        let mut runner = RuntimeEvidenceRunner::new(
+            &program,
+            RuntimeEvidenceRunContext::default().with_print_nth(),
+        );
+        install_console_out_write_host(&mut runner);
+
+        let output = runner
+            .run()
+            .expect("print-nth mode should only suppress the auto-driven root");
+
+        assert_eq!(
+            output.stdout,
+            "Result 1: true branch\nResult 2: false branch\n"
+        );
+        assert_eq!(
+            output.root_value_texts_with_labels(None),
+            vec!["7".to_string(), "9".to_string()]
+        );
+        assert_eq!(output.roots_text_with_labels(None), "run roots [7, 9]\n");
+    }
+
+    #[test]
     fn unhandled_nondet_branch_still_errors_when_print_nth_is_off() {
         let program = print_nth_branch_side_effect_program();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -26454,6 +26650,14 @@ mod tests {
                 },
                 force_effect_expr(ExprId(2), Type::Any),
             ],
+            ..Program::default()
+        }
+    }
+
+    fn normal_value_roots_program() -> Program {
+        Program {
+            roots: vec![Root::Expr(ExprId(0)), Root::Expr(ExprId(1))],
+            exprs: vec![Expr::Lit(Lit::Int(3)), Expr::Lit(Lit::Bool(true))],
             ..Program::default()
         }
     }
