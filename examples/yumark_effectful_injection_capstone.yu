@@ -1,0 +1,62 @@
+// Capstone for effectful Yumark Candidate B injections:
+// the same document stores per-format closures in a struct field, and each
+// closure performs a real host effect before returning backend-native content.
+
+struct html_node { tag: str, body: str }
+
+struct injection_payload {
+    html: () -> [std::time::clock] html_node,
+    markdown: () -> [std::time::clock] str,
+}
+
+struct yumark_doc {
+    label: str,
+    injection: injection_payload,
+}
+
+my html_tag(node: html_node): str =
+    "<" + node.tag + ">" + node.body + "</" + node.tag + ">"
+
+my html_injection(): [std::time::clock] html_node =
+    my stamp = (std::time::clock::now()).show
+    html_node { tag: "time", body: "html clock " + stamp }
+
+my markdown_injection(): [std::time::clock] str =
+    my stamp = (std::time::clock::now()).show
+    "**markdown clock " + stamp + "**"
+
+my make_doc(): yumark_doc =
+    yumark_doc {
+        label: "same-doc",
+        injection: injection_payload {
+            html: html_injection,
+            markdown: markdown_injection,
+        },
+    }
+
+my render_html(doc: yumark_doc): [std::time::clock] html_node =
+    html_node {
+        tag: "article",
+        body: doc.label + ":" + html_tag(doc.injection.html()),
+    }
+
+my render_markdown(doc: yumark_doc): [std::time::clock] str =
+    doc.label + ":" + doc.injection.markdown()
+
+my proof(): [std::time::clock] str =
+    my before = "01 before construction\n"
+    my doc = make_doc()
+    my after = "02 after construction\n"
+    my html = render_html doc
+    my markdown = render_markdown doc
+    before
+        + after
+        + "03 after html and markdown walks\n"
+        + "HTML root type: html_node\n"
+        + "HTML serialized: "
+        + html_tag html
+        + "\nMarkdown root type: str\n"
+        + "Markdown rendered: "
+        + markdown
+
+proof()
