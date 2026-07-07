@@ -40,6 +40,42 @@ argument. It parses like `f x (body)`, not like `(f x:) body`.
 f x: g y z
 ```
 
+## Chain Single-Expression Colon Blocks Inline
+
+When a `:` block's entire body is a single expression, keep that expression in
+the call spine instead of dropping each call to a new indented block.
+
+```yulang
+-- Prefer this shape for nested single-expression bodies.
+say: run_console: ask()
+
+-- Avoid expanding each single expression into its own block.
+say:
+    run_console:
+        ask()
+```
+
+This rule is only about blocks whose body is one expression. Keep ordinary
+indented blocks when the body has several statements, local bindings, or
+substantial `if`/`else`, `case`, `catch`, or handler branches.
+
+Whitespace after `:` is also a style signal. Use the spaced form when each step
+should read as its own call.
+
+```yulang
+say: run_console: ask()
+```
+
+Omit the space when the chain should read as one fused operation, similar to
+function composition.
+
+```yulang
+say:run_console:ask()
+```
+
+Both forms are colon application. The choice is about how tightly the chain
+should read.
+
 ## Whitespace Is Syntax
 
 Yulang has three call-like forms that look similar but parse differently.
@@ -114,6 +150,21 @@ names that are primarily module exports.
 path_err::not_found path
 std::control::nondet::each xs
 ```
+
+Do not add parentheses solely to enable a trailing dot call. If the receiver
+does not naturally stand on the left, restructure the call instead.
+
+```yulang
+-- Prefer this.
+say: 1 + 2
+
+-- Reconsider this when the parentheses only exist for `.say`.
+(1 + 2).say
+```
+
+Parentheses are still fine when they express real grouping or disambiguation.
+This rule only applies to parentheses whose only purpose is making a dot call
+syntactically possible.
 
 ## Use the Pipe for Left-to-Right Data Flow
 
@@ -347,7 +398,12 @@ Longer documentation block.
 ## Summary
 
 - Prefer whitespace application and `:` over nested parentheses.
+- Chain nested single-expression `:` blocks inline; keep real multi-statement
+  blocks indented.
+- Use `say: run_console: ask()` for visible steps and
+  `say:run_console:ask()` for an intentionally fused chain.
 - Use parentheses when grouping is the point, not as default punctuation.
+- Avoid parentheses whose only job is enabling a trailing dot call.
 - Prefer `my f x y = ...` for ordinary function bindings.
 - Use record-pattern defaults for small optional named arguments.
 - Keep pattern-heavy `case` and `catch` arms vertical.

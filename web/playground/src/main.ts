@@ -396,10 +396,8 @@ my button option = case option:
     :label text -> "<button>%{text}</button>"
     :disabled -> "<button disabled></button>"
 
-say:
-    button: :label "send"
-say:
-    button: :disabled
+say: button: :label "send"
+say: button: :disabled
 `,
     },
     {
@@ -510,7 +508,7 @@ pair.say
         source: `// println is a library effect handled by the host.
 
 println "hello from Yulang"
-(1 + 2).say
+say: 1 + 2
 `,
     },
     {
@@ -526,9 +524,7 @@ our run_console(action: [console] _) =
     catch action:
         console::read(), k -> run_console: k 42
 
-say:
-    run_console:
-        ask()
+say:run_console:ask()
 `,
     },
 ];

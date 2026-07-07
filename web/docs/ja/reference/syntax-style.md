@@ -36,6 +36,36 @@ say (format: greeting name)
 f x: g y z
 ```
 
+## 単一式のコロン block は inline に連ねる
+
+`:` block の body 全体が単一の式だけなら、呼び出しごとにインデント block へ落とさず、call spine の中で連ねて書く。
+
+```yulang
+-- 入れ子の単一式 body では、この形を優先する。
+say: run_console: ask()
+
+-- 単一式を一つずつ block に広げない。
+say:
+    run_console:
+        ask()
+```
+
+これは body が一つの式だけである場合の規則である。body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
+
+`:` の直後に空白を置くかどうかも style signal になる。各段を別々の呼び出しとして読ませたいときは、空白を置く。
+
+```yulang
+say: run_console: ask()
+```
+
+chain 全体を一つに融合した操作として読ませたいときは、関数合成に近い見え方として空白を詰める。
+
+```yulang
+say:run_console:ask()
+```
+
+どちらも colon application である。違いは、chain をどれくらい密につながったものとして読ませるかである。
+
 ## 空白は構文である
 
 Yulang には、似て見えるが parse が違う呼び出し形がある。
@@ -101,6 +131,18 @@ text.splice(range 1 3, "bc")
 path_err::not_found "/x"
 std::control::nondet::each xs
 ```
+
+末尾に dot call を置くためだけに括弧を足すのは避ける。receiver が左側に自然に立たない場合は、呼び出しの形を組み替える。
+
+```yulang
+-- この形を優先する。
+say: 1 + 2
+
+-- 括弧が `.say` のためだけなら見直す。
+(1 + 2).say
+```
+
+本当に grouping や曖昧性の解消が目的なら、括弧はそのまま使ってよい。この規則が対象にするのは、dot call を構文上可能にするためだけの括弧である。
 
 ## 左から右へのデータフローには pipe を使う
 
@@ -308,7 +350,10 @@ mutation を意図する場所ではこの形を使い、通常の `my` binding 
 ## まとめ
 
 - 入れ子の括弧より、whitespace application と `:` を優先する。
+- 入れ子の単一式 `:` block は inline に連ねる。本物の複数 statement block はインデントのままにする。
+- `say: run_console: ask()` は段階を見せる形、`say:run_console:ask()` は意図的に融合した chain として読ませる形として使い分ける。
 - 括弧は default punctuation ではなく、grouping を示したいときに使う。
+- 末尾の dot call を可能にするためだけの括弧は避ける。
 - 通常の関数 binding は `my f x y = ...` の形を優先する。
 - 小さい optional named argument には record-pattern default を使う。
 - pattern が多い `case` と `catch` は arm を縦に並べる。
