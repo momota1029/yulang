@@ -506,8 +506,11 @@ fn run_built_evidence_program(
     let runtime_display = build.display.runtime_evidence_context();
     let all_root_value_texts =
         output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
-    let results =
-        playground_visible_root_value_texts(&build, &plan, &runtime_display, all_root_value_texts)?;
+    let results = playground_visible_root_value_texts(
+        build.output.program.roots.len(),
+        output.last_root_produced_value,
+        all_root_value_texts,
+    );
     let text = output.roots_text_with_display_context(Some(&build.output.labels), &runtime_display);
     Ok(WasmRuntimeOutput {
         file_count: build.output.file_count,
@@ -521,39 +524,14 @@ fn run_built_evidence_program(
 }
 
 fn playground_visible_root_value_texts(
-    build: &NamedRuntimeBuild,
-    plan: &evidence_vm::EvidenceVmPlan,
-    runtime_display: &evidence_vm::RuntimeEvidenceDisplayContext,
+    root_count: usize,
+    last_root_produced_value: bool,
     mut all_root_value_texts: Vec<String>,
-) -> Result<Vec<String>, WasmRuntimeError> {
-    if all_root_value_texts.is_empty() {
-        return Ok(Vec::new());
+) -> Vec<String> {
+    if root_count == 0 || !last_root_produced_value {
+        return Vec::new();
     }
-    if build.output.program.roots.len() == 1
-        || playground_last_root_produced_value(build, plan, runtime_display)?
-    {
-        return Ok(all_root_value_texts.pop().into_iter().collect());
-    }
-    Ok(Vec::new())
-}
-
-fn playground_last_root_produced_value(
-    build: &NamedRuntimeBuild,
-    plan: &evidence_vm::EvidenceVmPlan,
-    runtime_display: &evidence_vm::RuntimeEvidenceDisplayContext,
-) -> Result<bool, WasmRuntimeError> {
-    let Some(last_root) = build.output.program.roots.last().cloned() else {
-        return Ok(false);
-    };
-    let mut program = build.output.program.clone();
-    program.roots.clear();
-    program.roots.push(last_root);
-    let output = evidence_vm::run_program_with_plan_print_nth(&program, plan)?;
-    Ok(output
-        .root_value_texts_with_display_context(Some(&build.output.labels), runtime_display)
-        .into_iter()
-        .next()
-        .is_some())
+    all_root_value_texts.pop().into_iter().collect()
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

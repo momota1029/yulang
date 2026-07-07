@@ -58,6 +58,7 @@ use text::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeEvidenceRunOutput {
     values: Vec<RuntimeEvidenceValue>,
+    pub last_root_produced_value: bool,
     pub stdout: String,
     pub evidence_stats: RuntimeEvidenceRunStats,
 }
@@ -10226,16 +10227,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn run(&mut self) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
         let mut values = Vec::new();
+        let last_root_index = self.program.roots.len().checked_sub(1);
+        let mut last_root_produced_value = false;
         let mut env = Env::new();
         self.record_env_gauge(&env);
         self.record_runtime_live_gauges();
-        for root in &self.program.roots {
+        for (root_index, root) in self.program.roots.iter().enumerate() {
+            let is_last_root = Some(root_index) == last_root_index;
             match root {
                 Root::Instance(instance) => {
                     self.reset_print_nth_nondet_auto_drive_for_current_result();
                     match self.eval_instance(*instance) {
                         Ok(value) => {
                             if self.should_collect_current_result_value() {
+                                if is_last_root {
+                                    last_root_produced_value = true;
+                                }
                                 values.push(value);
                             }
                         }
@@ -10255,6 +10262,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     match self.eval_tail_expr(*expr, &mut env) {
                         Ok(value) => {
                             if self.should_collect_current_result_value() {
+                                if is_last_root {
+                                    last_root_produced_value = true;
+                                }
                                 values.push(value);
                             }
                         }
@@ -10272,6 +10282,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 .into_iter()
                 .map(|value| value.as_ref().clone())
                 .collect(),
+            last_root_produced_value,
             stdout: self.host_state.unflushed_stdout(),
             evidence_stats: self.stats,
         })
@@ -25332,6 +25343,8 @@ fn effective_thunk_type_may_need_hygiene_mark(ty: &EffectiveThunkType) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use super::*;
     use crate::{
         EvidenceVmAllowedSetKind, EvidenceVmAllowedSetPlan, EvidenceVmContinuationUsePlan,
@@ -25341,6 +25354,8 @@ mod tests {
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
+
+    static LAST_ROOT_SIDE_EFFECT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
     #[test]
     fn runtime_host_operation_denied_by_context_reports_unsupported_capability() {
@@ -25616,6 +25631,7 @@ mod tests {
             output.root_value_texts_with_labels(None),
             Vec::<String>::new()
         );
+        assert!(!output.last_root_produced_value);
         assert_eq!(output.roots_text_with_labels(None), "run roots []\n");
     }
 
@@ -25634,6 +25650,7 @@ mod tests {
             output.root_value_texts_with_labels(None),
             Vec::<String>::new()
         );
+        assert!(!output.last_root_produced_value);
         assert_eq!(output.roots_text_with_labels(None), "run roots []\n");
     }
 
@@ -25656,6 +25673,7 @@ mod tests {
             print_nth_output.root_value_texts_with_labels(None),
             default_output.root_value_texts_with_labels(None)
         );
+        assert!(print_nth_output.last_root_produced_value);
         assert_eq!(
             print_nth_output.roots_text_with_labels(None),
             default_output.roots_text_with_labels(None)
@@ -25664,6 +25682,30 @@ mod tests {
             print_nth_output.roots_text_with_labels(None),
             "run roots [3, true]\n"
         );
+    }
+
+    #[test]
+    fn last_root_value_signal_does_not_reexecute_side_effecting_root() {
+        LAST_ROOT_SIDE_EFFECT_COUNT.store(0, Ordering::SeqCst);
+        let program = side_effecting_last_root_program();
+        let mut runner = RuntimeEvidenceRunner::new(
+            &program,
+            RuntimeEvidenceRunContext::default().with_print_nth(),
+        );
+        install_side_effect_counter_host(&mut runner);
+
+        let output = runner
+            .run()
+            .expect("side-effecting last root should evaluate once");
+
+        assert_eq!(LAST_ROOT_SIDE_EFFECT_COUNT.load(Ordering::SeqCst), 1);
+        assert_eq!(output.stdout, "");
+        assert_eq!(
+            output.root_value_texts_with_labels(None),
+            vec!["1".to_string(), "()".to_string()]
+        );
+        assert!(output.last_root_produced_value);
+        assert_eq!(output.roots_text_with_labels(None), "run roots [1, ()]\n");
     }
 
     #[test]
@@ -25696,6 +25738,7 @@ mod tests {
             output.root_value_texts_with_labels(None),
             vec!["7".to_string(), "9".to_string()]
         );
+        assert!(output.last_root_produced_value);
         assert_eq!(output.roots_text_with_labels(None), "run roots [7, 9]\n");
     }
 
@@ -26557,6 +26600,18 @@ mod tests {
         );
     }
 
+    fn install_side_effect_counter_host(runner: &mut RuntimeEvidenceRunner<'_>) {
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            true,
+            Some(side_effect_counter_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "test.last-root.counter",
+                operation_id: "tick",
+                f: side_effect_counter_tick,
+            }],
+        );
+    }
+
     fn assert_generic_request_path(result: EvidenceEvalResult, path: &[String]) -> EvidenceRequest {
         let EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) = result
         else {
@@ -26662,6 +26717,26 @@ mod tests {
         }
     }
 
+    fn side_effecting_last_root_program() -> Program {
+        Program {
+            roots: vec![Root::Expr(ExprId(0)), Root::Expr(ExprId(4))],
+            exprs: vec![
+                Expr::Lit(Lit::Int(1)),
+                Expr::EffectOp {
+                    def: None,
+                    path: side_effect_counter_path(),
+                },
+                Expr::Lit(Lit::Unit),
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(2),
+                },
+                force_effect_expr(ExprId(3), Type::unit()),
+            ],
+            ..Program::default()
+        }
+    }
+
     fn program_root_expr(program: &Program) -> ExprId {
         let Some(Root::Expr(expr)) = program.roots.first() else {
             panic!("test program should have a root expression");
@@ -26710,6 +26785,15 @@ mod tests {
             "console".to_string(),
             "out".to_string(),
             "write".to_string(),
+        ]
+    }
+
+    fn side_effect_counter_path() -> Vec<String> {
+        vec![
+            "test".to_string(),
+            "last_root".to_string(),
+            "counter".to_string(),
+            "tick".to_string(),
         ]
     }
 
@@ -26819,6 +26903,16 @@ mod tests {
         HostOutcome::Return(BoundaryValue::Int(42))
     }
 
+    fn side_effect_counter_tick(_: &mut HostCtx<'_>, payload: &BoundaryValue) -> HostOutcome {
+        if !matches!(payload, BoundaryValue::Unit) {
+            return HostOutcome::HostError(format!(
+                "side-effect counter expected unit, got {payload:?}"
+            ));
+        }
+        LAST_ROOT_SIDE_EFFECT_COUNT.fetch_add(1, Ordering::SeqCst);
+        HostOutcome::Return(BoundaryValue::Unit)
+    }
+
     fn suspending_host_call(_: &mut HostCtx<'_>, _: &BoundaryValue) -> HostOutcome {
         HostOutcome::Suspended
     }
@@ -26913,6 +27007,15 @@ mod tests {
             &["test", "host", "bridge"],
             "call",
             "() -> int",
+        )
+    }
+
+    fn side_effect_counter_host_manifest() -> poly::host_manifest::HostActManifest {
+        single_operation_host_manifest(
+            "test.last-root.counter",
+            &["test", "last_root", "counter"],
+            "tick",
+            "() -> ()",
         )
     }
 
