@@ -139,15 +139,35 @@ no bespoke per-document-shape instance anywhere — confirming the inductive
 pattern generalizes across the whole vocabulary, not just the minimal
 `cons_cell`/`nil_cell` base case.
 
-**Performance risk found, not yet investigated**: wrapping the "render to both
-formats" logic in a named function (e.g. `my proof() = ...`) caused the type
-solver to time out; using a root-level tuple expression directly instead
-rendered in ~6s. This suggests deep inductive-derivation chains combined with
-generalization over a named function's own signature may be expensive for the
-solver. Real Yumark usage will obviously want named rendering functions (e.g.
-`render_html(doc)`), so this is worth a dedicated look before/during real
-implementation — not a blocker for the design itself, but a real cost to
-watch, not just a PoC artifact to ignore.
+**Performance risk found, precisely characterized (2026-07-08 follow-up)**:
+initially reported as "named functions time out," but isolated to something
+much narrower. Measured (`--runtime-phase-timings`, `YULANG_ANALYSIS_TIMING=1`):
+
+| shape | time |
+|---|---|
+| top-level tuple root (no named function), both formats | 6.6s |
+| zero-arg named function (`my proof() = ...` calling `build_demo_doc()` internally), both formats | 63.5s |
+| zero-arg named function, HTML only | 6.5s |
+| zero-arg named function, Markdown only | 60.5s |
+| named function taking the doc as an **explicit parameter** (`my proof(doc: 'doc) = ...`), both formats | 6.6s |
+| named function taking the doc as an explicit parameter, Markdown only | 6.4s |
+
+The trigger is not "named function" and not "rendering both formats" — it's
+specifically **rendering to Markdown inside a zero-argument named binding that
+builds the document itself**. `YULANG_ANALYSIS_TIMING=1` shows the extra cost
+lands almost entirely in generalization of that binding (a `quantify
+generalize` phase for it costing ~58s, dominated by `generalize resolve
+roles` sub-phases) — i.e. Hindley-Milner generalization of a zero-arg let
+binding whose body needs the Markdown inductive role chain resolved is
+expensive; HTML's chain apparently isn't (not yet explained why the two
+formats differ this much). Passing the already-built document as an explicit
+parameter instead of calling `build_demo_doc()` inside a zero-arg function
+body sidesteps the expensive generalization path entirely and is fast either
+way. **Practical takeaway**: write rendering functions as `render(doc: 'doc)`
+(parameter), not `render() = ...; build the doc inside ...` (zero-arg) —
+ordinary, idiomatic style anyway, so this is not expected to constrain real
+usage. Still open: why Markdown's role chain triggers expensive generalization
+and HTML's doesn't; not investigated further.
 
 ## Render role shape
 
@@ -417,11 +437,11 @@ function call.
 - ~~What the node/leaf vocabulary should look like under the cons-chain
   design~~ — done: see "Static vocabulary ported to the typed cons-chain"
   above.
-- Solver performance for named rendering functions over deep inductive
-  derivation chains (see "Static vocabulary ported..." above) — a root-level
-  expression rendered in ~6s, but wrapping the same logic in a named function
-  timed out. Not investigated yet; matters before real implementation since
-  named render functions are the obviously-wanted API shape.
+- ~~Solver performance for named rendering functions~~ — precisely
+  characterized, see "Performance risk found, precisely characterized" above:
+  narrowly a zero-argument named binding rendering Markdown internally, not
+  named functions in general. Still genuinely open: *why* Markdown's
+  inductive role chain triggers expensive generalization and HTML's doesn't.
 
 ### `yulang`-tagged code fences: two independent consumers, not one (2026-07-08 clarification)
 
@@ -495,6 +515,9 @@ wrong.
   `cons_cell`'s own. `code_fence_info`/`code_fence_text` collapsed into one
   `code_fence_leaf`. A representative multi-node document (including a
   block-quoted injection) renders correctly in both formats with zero
-  bespoke per-shape instances. Found, not yet investigated: a named
-  rendering function over this depth of inductive derivation timed out the
-  solver; a root-level expression rendered in ~6s. Commit `af4cebc6`.
+  bespoke per-shape instances. Commit `af4cebc6`. Follow-up same day
+  precisely isolated a solver-performance finding from this file (see
+  "Performance risk found, precisely characterized" under "Tree
+  representation, revised"): narrowly, a zero-argument named binding
+  rendering Markdown internally, not named functions in general — passing
+  the document as an explicit parameter avoids it entirely.
