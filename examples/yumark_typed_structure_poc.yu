@@ -1,0 +1,178 @@
+// Exploratory Yumark typed-structure PoC.
+// The document shape is a hand-rolled generic cons-chain, so each concrete
+// document has its own nested type. Role impls derive renderability by
+// recursively requiring the head and tail cells to be renderable.
+
+struct html_format { marker: str }
+struct markdown_format { marker: str }
+
+struct html_node { tag: str, body: str }
+
+struct render_yumark 'format 'repr { format: 'format }
+
+role YumarkRender 'node 'format:
+    type repr
+    our node.render_yumark: render_yumark 'format repr -> ['e] repr
+
+struct nil_cell { marker: str }
+struct cons_cell 'head 'tail { head: 'head, tail: 'tail }
+
+struct text_leaf { value: str }
+struct strong_leaf { value: str }
+struct code_leaf { value: str }
+struct markdown_only_leaf { value: str }
+
+struct injection_payload {
+    html: () -> [std::time::clock] html_node,
+    markdown: () -> [std::time::clock] str,
+}
+
+struct injected_leaf { payload: injection_payload }
+
+my html_format_value(): html_format = html_format { marker: "html" }
+my markdown_format_value(): markdown_format = markdown_format { marker: "markdown" }
+
+my html_render_command(): render_yumark html_format html_node =
+    render_yumark { format: html_format_value() }
+
+my markdown_render_command(): render_yumark markdown_format str =
+    render_yumark { format: markdown_format_value() }
+
+my html_tag(node: html_node): str =
+    "<" + node.tag + ">" + node.body + "</" + node.tag + ">"
+
+my html_fragment(head: html_node, tail: html_node): html_node =
+    html_node { tag: "fragment", body: html_tag head + html_tag tail }
+
+my nil(): nil_cell = nil_cell { marker: "nil" }
+
+my cons(head: 'head, tail: 'tail): cons_cell 'head 'tail =
+    cons_cell { head: head, tail: tail }
+
+my render_html_doc(doc: 'doc): [std::time::clock] html_node =
+    where 'doc: YumarkRender html_format
+    doc.render_yumark (html_render_command())
+
+my render_markdown_doc(doc: 'doc): [std::time::clock] str =
+    where 'doc: YumarkRender markdown_format
+    doc.render_yumark (markdown_render_command())
+
+impl nil_cell: YumarkRender html_format:
+    type repr = html_node
+    our cell.render_yumark _ = html_node { tag: "empty", body: "" }
+
+impl (cons_cell 'head 'tail): YumarkRender html_format:
+    where 'head: YumarkRender html_format
+    where 'tail: YumarkRender html_format
+    type repr = html_node
+    our cell.render_yumark _ =
+        my head = render_html_doc cell.head
+        my tail = render_html_doc cell.tail
+        html_fragment head tail
+
+impl text_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_yumark _ = html_node { tag: "span", body: leaf.value }
+
+impl strong_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_yumark _ = html_node { tag: "strong", body: leaf.value }
+
+impl code_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_yumark _ = html_node { tag: "code", body: leaf.value }
+
+impl injected_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_yumark _ = leaf.payload.html()
+
+impl nil_cell: YumarkRender markdown_format:
+    type repr = str
+    our cell.render_yumark _ = ""
+
+impl (cons_cell 'head 'tail): YumarkRender markdown_format:
+    where 'head: YumarkRender markdown_format
+    where 'tail: YumarkRender markdown_format
+    type repr = str
+    our cell.render_yumark _ =
+        my head = render_markdown_doc cell.head
+        my tail = render_markdown_doc cell.tail
+        std::text::str::concat head tail
+
+impl text_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_yumark _ = leaf.value
+
+impl strong_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_yumark _ = std::text::str::concat (std::text::str::concat "**" leaf.value) "**"
+
+impl code_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_yumark _ = std::text::str::concat (std::text::str::concat "`" leaf.value) "`"
+
+impl injected_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_yumark _ = leaf.payload.markdown()
+
+impl markdown_only_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_yumark _ = std::text::str::concat (std::text::str::concat "_markdown-only:" leaf.value) "_"
+
+my injected_html(): [std::time::clock] html_node =
+    my stamp = (std::time::clock::now()).show
+    html_node { tag: "time", body: "html clock " + stamp }
+
+my injected_markdown(): [std::time::clock] str =
+    my stamp = (std::time::clock::now()).show
+    std::text::str::concat (std::text::str::concat "**markdown clock " stamp) "**"
+
+my injected_payload(): injection_payload =
+    injection_payload {
+        html: injected_html,
+        markdown: injected_markdown,
+    }
+
+my good_doc() =
+    cons(
+        text_leaf { value: "alpha" },
+        cons(
+            strong_leaf { value: "beta" },
+            cons(
+                code_leaf { value: "gamma" },
+                cons(
+                    injected_leaf { payload: injected_payload() },
+                    nil(),
+                ),
+            ),
+        ),
+    )
+
+my bad_doc() =
+    cons(
+        text_leaf { value: "alpha" },
+        cons(
+            markdown_only_leaf { value: "not-html" },
+            cons(strong_leaf { value: "omega" }, nil()),
+        ),
+    )
+
+my construction_inert_proof(): str =
+    my doc = good_doc()
+    "constructed cons-chain with deferred injection leaf"
+
+my positive_proof(): [std::time::clock] str =
+    my before = "01 before construction\n"
+    my doc = good_doc()
+    my after = "02 after construction\n"
+    my html = render_html_doc doc
+    before
+        + after
+        + "03 after html render\n"
+        + "construction inert: "
+        + construction_inert_proof()
+        + "\nHTML root type: html_node\n"
+        + "HTML serialized: "
+        + html_tag html
+
+positive_proof()
