@@ -509,6 +509,117 @@ The value model only needs to serve (1); it should keep treating `yulang`
 fences the same as any other `code_fence_info`/`code_fence_text` pair (as the
 static-vocab PoC already does) and never special-case the language tag.
 
+## LS doc-comment display (landed 2026-07-08, five slices)
+
+Built while the user was away, on request: doc comments now render as
+Markdown in language-server hover. Landed in five commits, in order:
+`1d228987` (stdlib vocabulary + Markdown backend), `9619642d` (doc-comment
+association), `edc2de3b` (lowering expansion — see caveat below), `1c37100a`
+(static renderer), `b6e0c4a6` (LS hover wiring).
+
+### Association rule (decided, not previously specified)
+
+A `DocCommentDecl` attaches to the declaration immediately following it in
+the same block, with no blank line in between (checked against raw source
+text when available — see below — falling back to CST-derived text
+otherwise). Consecutive line comments (`--`) stack/concatenate in source
+order. A block comment (`--- ... ---`) does not stack with adjacent
+comments; for a mixed block/line sequence, the nearest doc comment to the
+declaration wins (simplest reasonable choice for an underspecified
+sub-case). A doc comment with nothing following it, or separated by a blank
+line, is left unassociated — not an error. Implemented in
+`crates/infer/src/module_map/mod.rs`, storing `DocComment`/`DocCommentUnit`
+metadata keyed by `DefId`/`TypeDeclId` in `ModuleTable`. Blank-line detection
+needed raw source text, not just the CST, so `Lower` gained an optional
+`source_text: Option<String>` field, threaded through the real compilation
+paths (`None` elsewhere — additive, non-breaking).
+
+### Critical architectural finding: LS hover cannot evaluate, so rendering can't go through the value model
+
+The original plan (see "Storage form/timing" question in earlier planning)
+was to lower doc-comment content through the now-expanded `yumark_lit.rs`
+into a typed cons-chain value, then render it via
+`std::text::yumark::render_markdown_doc` — reusing the same pipeline real
+Yumark values use. **This turned out not to be feasible without much bigger
+new infrastructure**, discovered by investigation before implementing:
+
+- LS hover (`crates/yulang/src/server.rs` / `source/mod.rs`) is **static
+  only** — it runs `infer::check::check_loaded_files` and never touches
+  evidence-vm. There is no execution in the hover path today.
+- The `run` CLI's execution bridge (`evidence_vm::run_program`/
+  `run_program_with_plan`) is whole-program-oriented (iterates
+  `program.roots`); there's no existing API for "evaluate this one checked
+  sub-expression in isolation." Runtime values are also private —
+  `RuntimeEvidenceRunOutput`/`RuntimeEvidenceValue` don't expose a raw `str`
+  extraction API today.
+- Even if isolated evaluation existed, the LS request timeout is **5
+  seconds** (`crates/yulang/src/server.rs`) — incompatible with the
+  Markdown-generalization solver cost found earlier today (up to ~60s for a
+  single document in the worst case; see "Performance risk found, precisely
+  characterized").
+
+Given this, real evaluation-based rendering for LS hover would require: a
+new isolated-eval API on evidence-vm, a raw-value-extraction API, synthesized
+per-doc-comment "programs," and a caching/timeout/cancellation policy for
+the LS — a genuinely new capability, not a slice. **Resolution**: a
+separate, purely static Rust-side renderer
+(`crates/infer/src/doc_comment_render.rs`,
+`render_doc_comment_markdown(&DocComment) -> String`) walks the doc-comment
+CST directly and emits Markdown text, matching `std::text::yumark`'s
+Markdown-backend conventions by hand (same `SequenceOptions` shape as
+`yumark_lit.rs`, same code-fence raw-source-text trick). This is an
+intentional, acknowledged duplication of rendering logic — the two
+implementations (Yulang-level typed rendering for real Yumark values;
+Rust-level static rendering for LS hover) can drift apart over time and have
+no shared source of truth. Unifying them is future work, gated on the
+language gaining some form of compile-time/LS-time expression evaluation —
+not attempted here. Constructs the static renderer can't handle (`YmCommand`,
+`YmInlineExpr`, ...) fall back to raw source text (`node.text()`) rather than
+being dropped or erroring, since there's no type-check gate in this path to
+reject them the way `yumark_lit.rs` does.
+
+**Slice `edc2de3b` (lowering expansion) is still valid, separately.** It
+makes real parsed Yumark syntax (`'[...]`/`'{...}` used as ordinary program
+values) actually lower and execute correctly — a legitimate capability on
+its own, just not the path doc-comment hover ended up using.
+
+### Parser bug found and fixed along the way
+
+While testing rich doc comments end to end, hover positions after a doc
+comment containing block quotes, lists, fences, or headings were wrong. Root
+cause: several places in `crates/parser/src/mark/parse.rs` scanned a
+trailing/structural trivia token (a newline after a code fence, list item,
+or block quote) to decide control flow, then returned without emitting that
+already-scanned token into the CST — silently dropping it from the tree's
+reconstructed text. This broke the fundamental `root.text() == source`
+invariant for anything positioned after the affected constructs, which is
+what made hover positions drift. Fixed by emitting the scanned trivia
+(`emit_trivia_only` / `sink.trivia(...)`) at each such point before
+returning. Two new regression tests in `crates/parser/src/lib.rs` assert the
+invariant directly (`root.text().to_string() == source`, plus a downstream
+token's position matching `source.find(...)`) — this class of bug won't
+resurface silently. Purely additive to the CST (previously-dropped trivia
+now appears where it always should have); the existing parser suite needed
+only expected-output updates (new `YmNewline` tokens appearing), not
+behavioral rewrites, and passed in full alongside the new tests.
+
+### Result
+
+Hovering over a documented symbol now shows its type signature (unchanged,
+still fenced as ` ```yulang `) followed by the doc comment rendered as plain
+Markdown prose. Hovering over an undocumented symbol is byte-for-byte
+unchanged from before this feature (verified by test). Full contract corpus
+green after every slice (~1150-1200s each — use `timeout 1800s`, not
+shorter, or the corpus run produces a false-alarm timeout, as happened once
+during this work). Known follow-up, flagged but not fixed: the "embedded
+std" bundle used by some default/non-`--std-root` scenarios doesn't yet
+include the new `lib/std/text/yumark.yu` file — unrelated to this feature's
+correctness under explicit `--std-root`, but worth syncing separately.
+
+Not done: rendering type-declaration doc comments specifically (this slice
+wired `DefId` hover paths where the LS already resolves value/method
+targets; type-hover plumbing is separate and wasn't touched).
+
 ## Evidence trail
 
 `examples/yumark_typed_structure_poc.yu` (below) is the only PoC using the
