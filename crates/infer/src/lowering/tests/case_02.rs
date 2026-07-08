@@ -272,6 +272,134 @@ fn rule_lit_lowers_plain_text_to_text_parse_token() {
 }
 
 #[test]
+fn mark_expr_plain_text_lowers_to_yumark_cons_text_leaf_nil() {
+    let root = parse_with_text_yumark_std("pub main = '[hello world]\n");
+    let lower = lower_module_map(&root);
+    let cons = text_yumark_def(&lower.modules, "cons");
+    let text_leaf = text_yumark_def(&lower.modules, "text_leaf");
+    let nil = text_yumark_def(&lower.modules, "nil");
+    let module = lower.modules.root_id();
+    let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let (cons_partial, tail) = match output.session.poly.expr(binding_body_id(&output, main)) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected cons application"),
+    };
+    let head = match output.session.poly.expr(cons_partial) {
+        Expr::App(callee, arg) => {
+            assert_eq!(
+                output
+                    .session
+                    .poly
+                    .ref_target(expr_ref(&output.session, *callee)),
+                Some(cons)
+            );
+            *arg
+        }
+        _ => panic!("expected partial cons application"),
+    };
+    assert_text_leaf_application(&output.session, head, text_leaf, "hello world");
+    assert_nil_application(&output.session, tail, nil);
+}
+
+#[test]
+fn mark_expr_empty_inline_lowers_to_yumark_nil() {
+    let root = parse_with_text_yumark_std("pub main = '[]\n");
+    let lower = lower_module_map(&root);
+    let nil = text_yumark_def(&lower.modules, "nil");
+    let module = lower.modules.root_id();
+    let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_nil_application(&output.session, binding_body_id(&output, main), nil);
+}
+
+#[test]
+fn mark_expr_rejects_non_plain_inline_yumark() {
+    let root = parse_with_text_yumark_std("pub main = '[*emphasis*]\n");
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.iter().any(|error| {
+        matches!(
+            error,
+            BodyLoweringError::Expr {
+                error: LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::YmEmphasis,
+                },
+                ..
+            }
+        )
+    }));
+}
+
+#[test]
+fn mark_expr_rejects_block_yumark() {
+    let root = parse_with_text_yumark_std("pub main = '{}\n");
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.iter().any(|error| {
+        matches!(
+            error,
+            BodyLoweringError::Expr {
+                error: LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::MarkHeredocBody,
+                },
+                ..
+            }
+        )
+    }));
+}
+
+fn assert_text_leaf_application(
+    session: &AnalysisSession,
+    expr: ExprId,
+    constructor: DefId,
+    expected: &str,
+) {
+    let (callee, arg) = match session.poly.expr(expr) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected text_leaf application"),
+    };
+    assert_eq!(
+        session.poly.ref_target(expr_ref(session, callee)),
+        Some(constructor)
+    );
+    let fields = match session.poly.expr(arg) {
+        Expr::Record {
+            fields,
+            spread: RecordSpread::None,
+        } => fields,
+        _ => panic!("expected text_leaf record payload"),
+    };
+    let [(name, value)] = fields.as_slice() else {
+        panic!("expected one text_leaf field");
+    };
+    assert_eq!(name, "value");
+    assert!(matches!(session.poly.expr(*value), Expr::Lit(Lit::Str(text)) if text == expected));
+}
+
+fn assert_nil_application(session: &AnalysisSession, expr: ExprId, nil: DefId) {
+    let (callee, arg) = match session.poly.expr(expr) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected nil application"),
+    };
+    assert_eq!(
+        session.poly.ref_target(expr_ref(session, callee)),
+        Some(nil)
+    );
+    assert!(matches!(session.poly.expr(arg), Expr::Lit(Lit::Unit)));
+}
+
+#[test]
 fn rule_expr_wraps_sequence_in_unit_lambda() {
     let root = parse_with_text_parse_std("pub main = rule { \"a\" }\n");
     let lower = lower_module_map(&root);

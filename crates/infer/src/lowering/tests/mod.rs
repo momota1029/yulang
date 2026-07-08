@@ -23,6 +23,12 @@ fn parse_with_text_parse_std(src: &str) -> Cst {
     ))
 }
 
+fn parse_with_text_yumark_std(src: &str) -> Cst {
+    parse(&format!(
+        "mod std:\n  pub mod text:\n    pub mod str:\n      pub type str\n    pub mod yumark:\n      use std::text::str::str\n      pub struct nil_cell {{ marker: str }}\n      pub struct cons_cell 'head 'tail {{ head: 'head, tail: 'tail }}\n      pub struct text_leaf {{ value: str }}\n      pub nil() = nil_cell {{ marker: \"nil\" }}\n      pub cons head tail = cons_cell {{ head: head, tail: tail }}\n{src}"
+    ))
+}
+
 fn parse_with_flow_loop_std(src: &str) -> Cst {
     parse(&format!(
         "mod std:\n  pub mod control:\n    pub mod flow:\n      pub act loop:\n        pub for_in xs f = f xs\n{src}"
@@ -138,6 +144,16 @@ fn text_parse_def(modules: &ModuleTable, name: &str) -> DefId {
     modules
         .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
         .unwrap_or_else(|| panic!("std text parse value {name}"))
+}
+
+fn text_yumark_def(modules: &ModuleTable, name: &str) -> DefId {
+    let path = crate::std_paths::text_yumark_value(name)
+        .into_iter()
+        .map(Name)
+        .collect::<Vec<_>>();
+    modules
+        .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+        .unwrap_or_else(|| panic!("std text yumark value {name}"))
 }
 
 fn control_flow_loop_for_in_def(modules: &ModuleTable) -> DefId {

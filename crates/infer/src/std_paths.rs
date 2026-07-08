@@ -18,6 +18,12 @@ pub(crate) fn text_parse_value(name: &str) -> Vec<String> {
     path
 }
 
+pub(crate) fn text_yumark_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "text", "yumark"]);
+    path.push(name.to_string());
+    path
+}
+
 pub(crate) fn control_junction_value() -> Vec<String> {
     path(&["std", "control", "junction", "junction", "junction"])
 }

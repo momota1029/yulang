@@ -1,0 +1,63 @@
+use std::text::str::str
+
+pub struct nil_cell { marker: str }
+pub struct cons_cell 'head 'tail { head: 'head, tail: 'tail }
+pub struct text_leaf { value: str }
+
+pub struct html_format { marker: str }
+pub struct html_node { tag: str, body: str }
+
+pub struct render_yumark 'format 'repr { format: 'format }
+
+pub role YumarkRender 'node 'format:
+    type repr
+    our node.render_yumark: render_yumark 'format repr -> ['e] repr
+
+pub nil(): nil_cell = nil_cell { marker: "nil" }
+
+pub cons(head: 'head, tail: 'tail): cons_cell 'head 'tail =
+    cons_cell { head: head, tail: tail }
+
+pub html_format_value(): html_format = html_format { marker: "html" }
+
+pub html_render_command(): render_yumark html_format html_node =
+    render_yumark { format: html_format_value() }
+
+pub render_html_doc(doc: 'doc): ['e] html_node =
+    where 'doc: YumarkRender html_format
+    doc.render_yumark (html_render_command())
+
+pub html_tag(node: html_node): str =
+    if node.tag == "fragment":
+        node.body
+    else:
+        cat4 (cat3 "<" node.tag ">") node.body "</" (cat2 node.tag ">")
+
+my html_fragment(head: html_node, tail: html_node): html_node =
+    html_node { tag: "fragment", body: cat2 (html_tag head) (html_tag tail) }
+
+my cat2(left: str, right: str): str =
+    std::text::str::concat left right
+
+my cat3(a: str, b: str, c: str): str =
+    cat2 (cat2 a b) c
+
+my cat4(a: str, b: str, c: str, d: str): str =
+    cat2 (cat3 a b c) d
+
+impl nil_cell: YumarkRender html_format:
+    type repr = html_node
+    our cell.render_yumark _ = html_node { tag: "fragment", body: "" }
+
+impl (cons_cell 'head 'tail): YumarkRender html_format:
+    where 'head: YumarkRender html_format
+    where 'tail: YumarkRender html_format
+    type repr = html_node
+    our cell.render_yumark _ =
+        my head = render_html_doc cell.head
+        my tail = render_html_doc cell.tail
+        html_fragment head tail
+
+impl text_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_yumark _ = html_node { tag: "span", body: leaf.value }

@@ -1,0 +1,3 @@
+use std::text::yumark::*
+
+html_tag (render_html_doc '[hello world])

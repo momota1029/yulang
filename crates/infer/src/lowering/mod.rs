@@ -26,6 +26,7 @@ mod rule_lit;
 mod signature_effect;
 mod signature_match;
 mod string_lit;
+mod yumark_lit;
 
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;

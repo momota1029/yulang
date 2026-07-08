@@ -544,6 +544,7 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
             SyntaxKind::RuleLit => self.lower_rule_lit(node),
             SyntaxKind::RuleExpr => self.lower_rule_expr(node),
+            SyntaxKind::MarkExpr => self.lower_mark_expr(node),
             SyntaxKind::StringLit => self.lower_string_lit(node),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
             SyntaxKind::Bracket => self.lower_list_literal(node),
