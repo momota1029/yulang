@@ -21,6 +21,7 @@ mod compiled_namespace;
 mod compiled_runtime;
 mod compiled_typed;
 pub mod constraints;
+pub mod doc_comment_render;
 pub mod dump;
 pub mod generalize;
 pub mod host_acts;
