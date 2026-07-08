@@ -23,10 +23,43 @@ fn parse_with_text_parse_std(src: &str) -> Cst {
     ))
 }
 
-fn parse_with_text_yumark_std(src: &str) -> Cst {
-    parse(&format!(
-        "mod std:\n  pub mod text:\n    pub mod str:\n      pub type str\n    pub mod yumark:\n      use std::text::str::str\n      pub struct nil_cell {{ marker: str }}\n      pub struct cons_cell 'head 'tail {{ head: 'head, tail: 'tail }}\n      pub struct text_leaf {{ value: str }}\n      pub nil() = nil_cell {{ marker: \"nil\" }}\n      pub cons head tail = cons_cell {{ head: head, tail: tail }}\n{src}"
-    ))
+fn lower_with_text_yumark_std(src: &str) -> (Cst, Lower) {
+    let source = text_yumark_std_source(src);
+    let root = parse(&source);
+    let lower = crate::module_map::lower_module_map_with_source(&root, &source);
+    (root, lower)
+}
+
+fn text_yumark_std_source(src: &str) -> String {
+    format!(
+        concat!(
+            "mod std:\n",
+            "  pub mod text:\n",
+            "    pub mod str:\n",
+            "      pub type str\n",
+            "    pub mod yumark:\n",
+            "      use std::text::str::str\n",
+            "      pub struct nil_cell {{ marker: str }}\n",
+            "      pub struct cons_cell 'head 'tail {{ head: 'head, tail: 'tail }}\n",
+            "      pub struct doc_leaf 'children {{ children: 'children }}\n",
+            "      pub struct text_leaf {{ value: str }}\n",
+            "      pub struct paragraph_leaf 'children {{ children: 'children }}\n",
+            "      pub struct heading_leaf 'children {{ marker: str, level: int, children: 'children }}\n",
+            "      pub struct blank_line_leaf {{ marker: str }}\n",
+            "      pub struct section_close_leaf 'children {{ marker: str, children: 'children }}\n",
+            "      pub struct list_block_leaf 'items {{ ordered: bool, items: 'items }}\n",
+            "      pub struct list_item_leaf 'children {{ marker: str, children: 'children }}\n",
+            "      pub struct list_item_body_leaf 'children {{ children: 'children }}\n",
+            "      pub struct code_fence_leaf {{ info: str, body: str }}\n",
+            "      pub struct quote_block_leaf 'children {{ children: 'children }}\n",
+            "      pub struct emphasis_leaf 'children {{ children: 'children }}\n",
+            "      pub struct strong_leaf 'children {{ children: 'children }}\n",
+            "      pub nil() = nil_cell {{ marker: \"nil\" }}\n",
+            "      pub cons head tail = cons_cell {{ head: head, tail: tail }}\n",
+            "{}",
+        ),
+        src
+    )
 }
 
 fn parse_with_flow_loop_std(src: &str) -> Cst {
