@@ -643,6 +643,7 @@ pub fn lower_loaded_files_with_prefix(
             arena: prefix.poly.clone(),
             modules: prefix.modules.clone(),
             source_file: Path::default(),
+            source_text: None,
         },
         files,
     )?;
@@ -737,6 +738,7 @@ pub fn lower_root_loaded_file_with_prefix(
             arena: prefix.poly.clone(),
             modules: prefix.modules.clone(),
             source_file: Path::default(),
+            source_text: None,
         },
         root,
     )?;

@@ -129,6 +129,44 @@ pub struct SourceSpan {
     pub range: SourceRange,
 }
 
+#[derive(Clone)]
+pub struct DocComment {
+    units: Vec<DocCommentUnit>,
+}
+
+impl DocComment {
+    pub fn units(&self) -> &[DocCommentUnit] {
+        &self.units
+    }
+}
+
+#[derive(Clone)]
+pub struct DocCommentUnit {
+    kind: DocCommentKind,
+    source_span: SourceSpan,
+    node: Cst,
+}
+
+impl DocCommentUnit {
+    pub fn kind(&self) -> DocCommentKind {
+        self.kind
+    }
+
+    pub fn source_span(&self) -> &SourceSpan {
+        &self.source_span
+    }
+
+    pub fn node(&self) -> &SyntaxNode<YulangLanguage> {
+        &self.node
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DocCommentKind {
+    Line,
+    Block,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 /// 型名前空間の宣言 identity。
 ///
@@ -520,6 +558,8 @@ pub struct ModuleTable {
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     type_field_methods: FxHashMap<TypeDeclId, Vec<TypeFieldMethodDecl>>,
+    def_doc_comments: FxHashMap<DefId, DocComment>,
+    type_doc_comments: FxHashMap<TypeDeclId, DocComment>,
     def_source_spans: FxHashMap<DefId, SourceSpan>,
     next_type_id: u32,
 }
@@ -557,4 +597,5 @@ pub struct Lower {
     /// pass2 の名前解決で使う infer-local module map。
     pub modules: ModuleTable,
     source_file: ModulePath,
+    source_text: Option<String>,
 }

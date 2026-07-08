@@ -4,6 +4,27 @@ fn parse(src: &str) -> Cst {
     SyntaxNode::new_root(parser::parse_module_to_green(src))
 }
 
+fn lower_source(src: &str) -> Lower {
+    let cst = parse(src);
+    crate::module_map::lower_module_map_with_source(&cst, src)
+}
+
+fn value_def(lower: &Lower, name: &str) -> DefId {
+    let root = lower.modules.root_id();
+    lower.modules.value_decls(root, &Name(name.into()))[0].def
+}
+
+fn doc_unit_texts(doc: &DocComment) -> Vec<String> {
+    doc.units()
+        .iter()
+        .map(|unit| unit.node().text().to_string())
+        .collect()
+}
+
+fn doc_unit_kinds(doc: &DocComment) -> Vec<DocCommentKind> {
+    doc.units().iter().map(|unit| unit.kind()).collect()
+}
+
 #[test]
 fn registers_top_level_bindings() {
     let cst = parse("my f = 1\npub g = 2\n");
@@ -14,6 +35,81 @@ fn registers_top_level_bindings() {
     assert_eq!(f.len(), 1);
     assert_eq!(g.len(), 1);
     assert_eq!(lower.arena.roots.len(), 2);
+}
+
+#[test]
+fn doc_comment_line_attaches_to_following_binding() {
+    let lower = lower_source("-- hello\nmy x = 1\n");
+    let x = value_def(&lower, "x");
+    let doc = lower
+        .modules
+        .def_doc_comment(x)
+        .expect("line doc comment should attach to x");
+
+    assert_eq!(doc_unit_kinds(doc), vec![DocCommentKind::Line]);
+    assert_eq!(doc_unit_texts(doc), vec!["-- hello".to_string()]);
+}
+
+#[test]
+fn consecutive_line_doc_comments_stack_for_following_binding() {
+    let lower = lower_source("-- first\n-- second\nmy x = 1\n");
+    let x = value_def(&lower, "x");
+    let doc = lower
+        .modules
+        .def_doc_comment(x)
+        .expect("stacked line doc comments should attach to x");
+
+    assert_eq!(
+        doc_unit_kinds(doc),
+        vec![DocCommentKind::Line, DocCommentKind::Line]
+    );
+    assert_eq!(
+        doc_unit_texts(doc),
+        vec!["-- first".to_string(), "-- second".to_string()]
+    );
+}
+
+#[test]
+fn block_doc_comment_attaches_to_following_binding() {
+    let lower = lower_source("---\n# Title\n---\nmy x = 1\n");
+    let x = value_def(&lower, "x");
+    let doc = lower
+        .modules
+        .def_doc_comment(x)
+        .expect("block doc comment should attach to x");
+
+    assert_eq!(doc_unit_kinds(doc), vec![DocCommentKind::Block]);
+    assert_eq!(doc_unit_texts(doc), vec!["---\n# Title\n---".to_string()]);
+}
+
+#[test]
+fn blank_line_between_doc_comment_and_binding_breaks_association() {
+    let lower = lower_source("-- orphan\n\nmy x = 1\n");
+    let x = value_def(&lower, "x");
+
+    assert!(lower.modules.def_doc_comment(x).is_none());
+}
+
+#[test]
+fn trailing_doc_comment_without_declaration_is_unassociated() {
+    let lower = lower_source("-- orphan\n");
+
+    assert_eq!(lower.modules.def_doc_comments().count(), 0);
+    assert_eq!(lower.modules.type_doc_comments().count(), 0);
+}
+
+#[test]
+fn doc_comment_attaches_to_type_declaration_metadata() {
+    let lower = lower_source("-- boxed value\nstruct Box { value: int }\n");
+    let root = lower.modules.root_id();
+    let ty = lower.modules.type_decls(root, &Name("Box".into()))[0].id;
+    let doc = lower
+        .modules
+        .type_doc_comment(ty)
+        .expect("line doc comment should attach to Box type metadata");
+
+    assert_eq!(doc_unit_kinds(doc), vec![DocCommentKind::Line]);
+    assert_eq!(doc_unit_texts(doc), vec!["-- boxed value".to_string()]);
 }
 
 #[test]

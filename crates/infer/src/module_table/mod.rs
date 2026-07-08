@@ -45,6 +45,8 @@ impl ModuleTable {
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             type_field_methods: FxHashMap::default(),
+            def_doc_comments: FxHashMap::default(),
+            type_doc_comments: FxHashMap::default(),
             def_source_spans: FxHashMap::default(),
             next_type_id: 0,
         }
@@ -373,6 +375,24 @@ impl ModuleTable {
             .values()
             .flat_map(|methods| methods.iter())
     }
+    pub(super) fn set_def_doc_comment(&mut self, def: DefId, doc: DocComment) {
+        self.def_doc_comments.insert(def, doc);
+    }
+    pub fn def_doc_comment(&self, def: DefId) -> Option<&DocComment> {
+        self.def_doc_comments.get(&def)
+    }
+    pub fn def_doc_comments(&self) -> impl Iterator<Item = (DefId, &DocComment)> {
+        self.def_doc_comments.iter().map(|(def, doc)| (*def, doc))
+    }
+    pub(super) fn set_type_doc_comment(&mut self, id: TypeDeclId, doc: DocComment) {
+        self.type_doc_comments.insert(id, doc);
+    }
+    pub fn type_doc_comment(&self, id: TypeDeclId) -> Option<&DocComment> {
+        self.type_doc_comments.get(&id)
+    }
+    pub fn type_doc_comments(&self) -> impl Iterator<Item = (TypeDeclId, &DocComment)> {
+        self.type_doc_comments.iter().map(|(id, doc)| (*id, doc))
+    }
     pub(super) fn insert_module(
         &mut self,
         module: ModuleId,
@@ -478,6 +498,10 @@ impl ModuleTable {
         self.def_source_spans = std::mem::take(&mut self.def_source_spans)
             .into_iter()
             .map(|(def, span)| (import.map_def(def), span))
+            .collect();
+        self.def_doc_comments = std::mem::take(&mut self.def_doc_comments)
+            .into_iter()
+            .map(|(def, doc)| (import.map_def(def), doc))
             .collect();
     }
 

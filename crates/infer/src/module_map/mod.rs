@@ -33,12 +33,166 @@ impl ActCompanionBlockMode {
     }
 }
 
+#[derive(Clone)]
+enum PendingDocComment {
+    Line(Vec<DocCommentUnit>),
+    Block(DocCommentUnit),
+}
+
+impl PendingDocComment {
+    fn push(self, unit: DocCommentUnit, adjacent_to_previous: bool) -> Self {
+        match (self, unit.kind(), adjacent_to_previous) {
+            (PendingDocComment::Line(mut units), DocCommentKind::Line, true) => {
+                units.push(unit);
+                PendingDocComment::Line(units)
+            }
+            (_, DocCommentKind::Line, _) => PendingDocComment::Line(vec![unit]),
+            (_, DocCommentKind::Block, _) => PendingDocComment::Block(unit),
+        }
+    }
+
+    fn last_node(&self) -> &Cst {
+        match self {
+            PendingDocComment::Line(units) => units
+                .last()
+                .expect("pending line doc comment has at least one unit")
+                .node(),
+            PendingDocComment::Block(unit) => unit.node(),
+        }
+    }
+
+    fn into_doc_comment(self) -> DocComment {
+        let units = match self {
+            PendingDocComment::Line(units) => units,
+            PendingDocComment::Block(unit) => vec![unit],
+        };
+        DocComment { units }
+    }
+}
+
+fn take_pending_doc_comment(
+    pending: &mut Option<PendingDocComment>,
+    pending_end: &mut Option<usize>,
+    next: &Cst,
+    next_start: Option<usize>,
+    source: Option<&str>,
+) -> Option<DocComment> {
+    let pending = pending.take()?;
+    let pending_raw_end = pending_end.take();
+    nodes_are_doc_adjacent(
+        pending.last_node(),
+        pending_raw_end,
+        next,
+        next_start,
+        source,
+    )
+    .then(|| pending.into_doc_comment())
+}
+
+struct SourceCursor<'a> {
+    source: Option<&'a str>,
+    offset: usize,
+}
+
+#[derive(Clone, Copy)]
+struct RawSourceRange {
+    start: usize,
+    end: usize,
+}
+
+impl<'a> SourceCursor<'a> {
+    fn new(source: Option<&'a str>) -> Self {
+        Self { source, offset: 0 }
+    }
+
+    fn range_for(&mut self, node: &Cst) -> Option<RawSourceRange> {
+        let source = self.source?;
+        let node_text = node.text().to_string();
+        if node_text.is_empty() {
+            return Some(RawSourceRange {
+                start: self.offset,
+                end: self.offset,
+            });
+        }
+        let source_tail = source.get(self.offset..)?;
+        let start = self.offset + source_tail.find(&node_text)?;
+        let end = start + node_text.len();
+        self.offset = end;
+        Some(RawSourceRange { start, end })
+    }
+}
+
+fn doc_comment_kind(node: &Cst) -> Option<DocCommentKind> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::DocComment)
+        .and_then(|token| match token.text() {
+            "--" => Some(DocCommentKind::Line),
+            "---" => Some(DocCommentKind::Block),
+            _ => None,
+        })
+}
+
+fn nodes_are_doc_adjacent(
+    left: &Cst,
+    left_raw_end: Option<usize>,
+    right: &Cst,
+    right_raw_start: Option<usize>,
+    source: Option<&str>,
+) -> bool {
+    if let (Some(source), Some(left_end), Some(right_start)) =
+        (source, left_raw_end, right_raw_start)
+    {
+        if left_end > right_start {
+            return false;
+        }
+        let Some(gap) = source.get(left_end..right_start) else {
+            return false;
+        };
+        return gap_preserves_doc_association(gap);
+    }
+
+    let left_end = usize::from(left.text_range().end());
+    let right_start = usize::from(right.text_range().start());
+    if left_end > right_start {
+        return false;
+    }
+    let Some(root) = left.ancestors().last() else {
+        return false;
+    };
+    let source = root.text().to_string();
+    let Some(gap) = source.get(left_end..right_start) else {
+        return false;
+    };
+    gap_preserves_doc_association(gap)
+}
+
+fn gap_preserves_doc_association(gap: &str) -> bool {
+    let mut line_breaks = 0;
+    let mut chars = gap.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\r' => {
+                if chars.next_if_eq(&'\n').is_some() {
+                    // Treat CRLF as one line break.
+                }
+                line_breaks += 1;
+            }
+            '\n' => line_breaks += 1,
+            ch if ch.is_whitespace() => {}
+            _ => return false,
+        }
+    }
+    line_breaks <= 1
+}
+
 impl Lower {
     fn new() -> Self {
         Self {
             arena: PolyArena::new(),
             modules: ModuleTable::new(),
             source_file: ModulePath::default(),
+            source_text: None,
         }
     }
 
@@ -59,22 +213,89 @@ impl Lower {
         );
     }
 
+    fn doc_comment_unit(&self, node: &Cst) -> Option<DocCommentUnit> {
+        Some(DocCommentUnit {
+            kind: doc_comment_kind(node)?,
+            source_span: SourceSpan {
+                file: self.source_file.clone(),
+                range: node_source_range(node),
+            },
+            node: node.clone(),
+        })
+    }
+
     /// ブロック（root / IndentBlock / BraceGroup）の直下を走査して定義を採番する。
     /// 採番した DefId の並びを返す（呼び出し側が roots / Mod.children に入れる）。
     fn register_block(&mut self, block: &Cst, module: ModuleId) -> Vec<DefId> {
         let mut children = Vec::new();
+        let mut pending_doc_comment: Option<PendingDocComment> = None;
+        let source_text_storage = self.source_text.clone();
+        let source_text = source_text_storage.as_deref();
+        let mut source_cursor = SourceCursor::new(source_text);
+        let mut pending_doc_comment_end = None;
         for child in block.children() {
+            let child_source_range = source_cursor.range_for(&child);
             match child.kind() {
+                SyntaxKind::DocCommentDecl => {
+                    let Some(unit) = self.doc_comment_unit(&child) else {
+                        pending_doc_comment = None;
+                        pending_doc_comment_end = None;
+                        continue;
+                    };
+                    pending_doc_comment = Some(match pending_doc_comment.take() {
+                        Some(pending) => {
+                            let adjacent = nodes_are_doc_adjacent(
+                                pending.last_node(),
+                                pending_doc_comment_end,
+                                &child,
+                                child_source_range.map(|range| range.start),
+                                source_text,
+                            );
+                            pending.push(unit, adjacent)
+                        }
+                        None => PendingDocComment::push(
+                            PendingDocComment::Line(Vec::new()),
+                            unit,
+                            false,
+                        ),
+                    });
+                    pending_doc_comment_end = child_source_range.map(|range| range.end);
+                }
                 SyntaxKind::Binding => {
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
+                    let first_child = children.len();
                     self.register_binding_values(&child, module, &mut children);
+                    if let Some(doc_comment) = doc_comment {
+                        for def in &children[first_child..] {
+                            self.modules.set_def_doc_comment(*def, doc_comment.clone());
+                        }
+                    }
                 }
                 SyntaxKind::Expr => {
+                    pending_doc_comment = None;
+                    pending_doc_comment_end = None;
                     self.register_root_expr(&child, module);
                 }
                 SyntaxKind::ModDecl => {
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
                     if let Some(name) = mod_name(&child) {
                         let vis = vis_of(&child);
                         let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                        if let Some(doc_comment) = doc_comment {
+                            self.modules.set_def_doc_comment(def, doc_comment);
+                        }
                         let sub_children = self.register_mod_body(&child, sub);
                         self.set_module_children(def, sub_children);
                         if created {
@@ -83,9 +304,19 @@ impl Lower {
                     }
                 }
                 SyntaxKind::UseDecl => {
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
                         let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if let Some(doc_comment) = doc_comment {
+                            self.modules.set_def_doc_comment(def, doc_comment);
+                        }
                         if created {
                             children.push(def);
                         }
@@ -95,6 +326,13 @@ impl Lower {
                     }
                 }
                 SyntaxKind::OpDef => {
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
                     if let Some(info) = op_def_info(&child) {
                         let def = self.arena.defs.fresh();
                         self.arena.defs.set(
@@ -117,11 +355,24 @@ impl Lower {
                         if info.lazy {
                             self.modules.mark_lazy_op(def);
                         }
+                        if let Some(doc_comment) = doc_comment {
+                            self.modules.set_def_doc_comment(def, doc_comment);
+                        }
                         children.push(def);
                     }
                 }
                 SyntaxKind::CastDecl => {
-                    self.register_cast_decl(&child, module);
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
+                    let def = self.register_cast_decl(&child, module);
+                    if let Some(doc_comment) = doc_comment {
+                        self.modules.set_def_doc_comment(def, doc_comment);
+                    }
                 }
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
@@ -129,15 +380,40 @@ impl Lower {
                 | SyntaxKind::ErrorDecl
                 | SyntaxKind::RoleDecl
                 | SyntaxKind::ActDecl => {
-                    self.register_type_namespace_decl(&child, module, &mut children);
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
+                    if let Some(id) =
+                        self.register_type_namespace_decl(&child, module, &mut children)
+                        && let Some(doc_comment) = doc_comment
+                    {
+                        self.modules.set_type_doc_comment(id, doc_comment);
+                    }
                 }
                 // 型定義系の本体、Cast は後で。
                 SyntaxKind::ImplDecl => {
+                    let doc_comment = take_pending_doc_comment(
+                        &mut pending_doc_comment,
+                        &mut pending_doc_comment_end,
+                        &child,
+                        child_source_range.map(|range| range.start),
+                        source_text,
+                    );
                     if let Some(def) = self.register_role_impl_decl(&child, module) {
+                        if let Some(doc_comment) = doc_comment {
+                            self.modules.set_def_doc_comment(def, doc_comment);
+                        }
                         children.push(def);
                     }
                 }
-                _ => {}
+                _ => {
+                    pending_doc_comment = None;
+                    pending_doc_comment_end = None;
+                }
             }
         }
         children
@@ -325,9 +601,9 @@ impl Lower {
         node: &Cst,
         module: ModuleId,
         children: &mut Vec<DefId>,
-    ) {
+    ) -> Option<TypeDeclId> {
         let (Some(name), Some(kind)) = (type_decl_name(node), module_type_kind(node.kind())) else {
-            return;
+            return None;
         };
         let vis = vis_of(node);
         let id = self.modules.insert_type(module, name.clone(), kind, vis);
@@ -365,6 +641,7 @@ impl Lower {
                 self.register_error_companion_helpers(id);
             }
         }
+        Some(id)
     }
 
     fn register_local_var_act_copies_in_binding(
@@ -985,7 +1262,17 @@ fn is_local_var_act_pattern_root(node: &Cst) -> bool {
 
 /// pass1 の入口。フルパース済み CST のモジュールマップを作る。
 pub fn lower_module_map(root: &Cst) -> Lower {
+    lower_module_map_with_optional_source(root, None)
+}
+
+#[cfg(test)]
+pub(crate) fn lower_module_map_with_source(root: &Cst, source: &str) -> Lower {
+    lower_module_map_with_optional_source(root, Some(source))
+}
+
+fn lower_module_map_with_optional_source(root: &Cst, source: Option<&str>) -> Lower {
     let mut lower = Lower::new();
+    lower.source_text = source.map(str::to_string);
     let root_module = lower.modules.root_id();
     let roots = lower.register_block(root, root_module);
     lower.arena.roots = roots;
@@ -1012,6 +1299,7 @@ pub(crate) fn lower_loaded_file_csts_module_map(
     lower
         .modules
         .set_module_band_path(lower.modules.root_id(), root.band_path.clone());
+    lower.source_text = Some(root.source.clone());
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots = roots;
 
@@ -1027,8 +1315,11 @@ pub(crate) fn lower_loaded_file_csts_module_map(
         };
         let previous_source_file =
             std::mem::replace(&mut lower.source_file, file.module_path.clone());
+        let previous_source_text =
+            std::mem::replace(&mut lower.source_text, Some(file.source.clone()));
         let children = lower.register_block(&file.cst, target.module);
         lower.source_file = previous_source_file;
+        lower.source_text = previous_source_text;
         lower.set_module_children(def, children);
     }
 
@@ -1078,6 +1369,7 @@ pub(crate) fn append_root_loaded_file_to_lower(
 
     let loaded = LoadedFileCsts::new(std::slice::from_ref(file))?;
     let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    lower.source_text = Some(root.source.clone());
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots.extend(roots);
 
@@ -1141,6 +1433,7 @@ pub(crate) fn append_loaded_files_to_lower(
     lower
         .modules
         .set_module_band_path(lower.modules.root_id(), root.band_path.clone());
+    lower.source_text = Some(root.source.clone());
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots.extend(roots);
 
@@ -1156,8 +1449,11 @@ pub(crate) fn append_loaded_files_to_lower(
         };
         let previous_source_file =
             std::mem::replace(&mut lower.source_file, file.module_path.clone());
+        let previous_source_text =
+            std::mem::replace(&mut lower.source_text, Some(file.source.clone()));
         let children = lower.register_block(&file.cst, target.module);
         lower.source_file = previous_source_file;
+        lower.source_text = previous_source_text;
         if let Some(preserved) = previous_module_children.get(&def) {
             lower.set_module_children_preserving(def, preserved, children);
         } else {
@@ -1227,6 +1523,7 @@ pub(crate) struct LoadedFileCsts {
 pub(crate) struct LoadedFileCst {
     pub module_path: ModulePath,
     pub band_path: ModulePath,
+    pub source: String,
     pub cst: Cst,
 }
 
@@ -1243,6 +1540,7 @@ impl LoadedFileCsts {
             indexed.push(LoadedFileCst {
                 module_path: file.module_path.clone(),
                 band_path: file.band_path.clone(),
+                source: file.source.clone(),
                 cst: SyntaxNode::<YulangLanguage>::new_root(file.cst.clone()),
             });
         }
