@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use crate::EventInput;
 use crate::context::In;
 use crate::expr::{parse_expr_from_nud, scan::scan_stmt_head_nud};
-use crate::lex::{Lex, SyntaxKind, TriviaInfo};
+use crate::lex::{Lex, SyntaxKind, Trivia, TriviaInfo};
 use crate::mark::parse::{parse_doc_body_pub, parse_inline};
 use crate::mark::scan::{BlockNudTag, MarkNudTag};
 use crate::parse::emit_invalid;
@@ -105,11 +105,10 @@ pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
             }
         }
         i.env.state.sink.finish();
-        return Some(
-            i.run(scan_trivia)
-                .map(|t| t.info())
-                .unwrap_or(TriviaInfo::None),
-        );
+        let trailing = i.run(scan_trivia).unwrap_or_else(Trivia::empty);
+        let info = trailing.info();
+        i.env.state.sink.trivia(&trailing);
+        return Some(info);
     }
 
     i.env.state.sink.start(SyntaxKind::YmDoc);
@@ -119,7 +118,7 @@ pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
     i.env.state.sink.finish();
     i.env.state.sink.finish();
     i.env.state.sink.finish();
-    Some(match inline_stop.trivia.info() {
+    let info = match inline_stop.trivia.info() {
         TriviaInfo::Newline {
             indent,
             quote_level,
@@ -130,7 +129,9 @@ pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
             blank_line: false,
         },
         other => other,
-    })
+    };
+    i.env.state.sink.trivia(&inline_stop.trivia);
+    Some(info)
 }
 
 fn parse_visibility_stmt<I: EventInput, S: EventSink>(

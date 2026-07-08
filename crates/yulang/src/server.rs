@@ -547,10 +547,11 @@ fn lsp_hover_for_source_hover(
     root_has_implicit_prelude: bool,
 ) -> Hover {
     let contents = lsp_hover_source_contents(&hover.contents);
+    let value = lsp_hover_markdown_value(&contents, hover.documentation_markdown.as_deref());
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("```yulang\n{contents}\n```"),
+            value,
         }),
         range: Some(lsp_range_for_root_source(
             source,
@@ -558,6 +559,15 @@ fn lsp_hover_for_source_hover(
             root_has_implicit_prelude,
         )),
     }
+}
+
+fn lsp_hover_markdown_value(signature: &str, documentation_markdown: Option<&str>) -> String {
+    let mut value = format!("```yulang\n{signature}\n```");
+    if let Some(documentation) = documentation_markdown.filter(|doc| !doc.is_empty()) {
+        value.push_str("\n\n");
+        value.push_str(documentation);
+    }
+    value
 }
 
 fn lsp_hover_source_contents(contents: &str) -> String {
@@ -2128,6 +2138,7 @@ my got = make(1).norm2
             SourceHover {
                 range: SourceRange { start: 3, end: 4 },
                 contents: long_type,
+                documentation_markdown: None,
             },
             false,
         );
@@ -2163,6 +2174,89 @@ my got = make(1).norm2
                 <= LSP_HOVER_CONTENT_CHAR_LIMIT + "```yulang\n\n...\n```".chars().count(),
             "{:?}",
             contents.value
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_doc_comment_markdown_below_signature() {
+        let root = temp_root("hover-doc-comment");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "-- **documented** value\nmy x: int = 1\nmy y = x\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 2,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "```yulang\nx: int\n```\n\n**documented** value\n\n".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_rich_doc_comment_markdown_below_signature() {
+        let root = temp_root("hover-rich-doc-comment");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = concat!(
+            "---\n",
+            "# Title\n",
+            "A *soft* doc.\n",
+            "\n",
+            "- item\n",
+            "```text\n",
+            "body\n",
+            "```\n",
+            "---\n",
+            "my x: int = 1\n",
+            "my y = x\n",
+        );
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 10,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: concat!(
+                    "```yulang\n",
+                    "x: int\n",
+                    "```\n\n",
+                    "# Title\n\n",
+                    "A *soft* doc.\n\n\n",
+                    "- item\n\n",
+                    "```text\n",
+                    "body\n",
+                    "```\n\n",
+                )
+                .to_string(),
+            })
         );
     }
 

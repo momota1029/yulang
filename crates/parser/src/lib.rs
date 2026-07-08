@@ -262,4 +262,39 @@ mod tests {
             source.find("my").unwrap()
         );
     }
+
+    #[test]
+    fn parse_module_preserves_line_doc_comment_text_ranges() {
+        let source = "-- doc\nmy value = 1\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let my = root
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|token| token.kind() == SyntaxKind::My)
+            .expect("my token");
+
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(
+            usize::from(my.text_range().start()),
+            source.find("my").unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_module_preserves_block_doc_comment_text_ranges() {
+        let source =
+            "---\n# Title\nA *soft* doc.\n\n- item\n```text\nbody\n```\n---\nmy value = 1\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let my = root
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|token| token.kind() == SyntaxKind::My)
+            .expect("my token");
+
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(
+            usize::from(my.text_range().start()),
+            source.find("my").unwrap()
+        );
+    }
 }

@@ -302,6 +302,7 @@ fn block_list_simple() {
         "    YmListDashSigil \"- \"",
         "    (YmListItemBody",
         "      YmText \"item\"",
+        "      YmNewline \"\\n\"",
         "    )",
         "  )",
         ")",
@@ -325,6 +326,7 @@ fn block_fence_plain() {
         "  )",
         "  YmFenceSigil \"```\"",
         ")",
+        "YmNewline \"\\n\"",
     ];
     assert_eq!(got, expected);
 }
@@ -345,6 +347,7 @@ fn block_fence_no_info() {
         "  )",
         "  YmFenceSigil \"```\"",
         ")",
+        "YmNewline \"\\n\"",
     ];
     assert_eq!(got, expected);
 }
@@ -375,6 +378,7 @@ fn block_list_then_text() {
         "    YmListDashSigil \"- \"",
         "    (YmListItemBody",
         "      YmText \"item\"",
+        "      YmNewline \"\\n\"",
         "    )",
         "  )",
         ")",
@@ -396,6 +400,7 @@ fn block_blockquote_simple() {
         "    YmText \"foo\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);
@@ -411,6 +416,7 @@ fn block_blockquote_then_paragraph() {
         "    YmText \"foo\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
         "(YmParagraph",
         "  YmText \"bar\"",
@@ -779,6 +785,7 @@ fn block_fence_yulang() {
         "  )",
         "  YmFenceSigil \"```\"",
         ")",
+        "YmNewline \"\\n\"",
     ];
     assert_eq!(got, expected);
 }
@@ -804,6 +811,7 @@ fn block_fence_with_quote_in_body() {
         "  )",
         "  YmFenceSigil \"```\"",
         ")",
+        "YmNewline \"\\n\"",
     ];
     assert_eq!(got, expected);
 }
@@ -818,6 +826,7 @@ fn block_quote_then_fence() {
         "    YmText \"foo\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
         "(YmCodeFence",
         "  YmFenceSigil \"```\"",
@@ -831,6 +840,7 @@ fn block_quote_then_fence() {
         "  )",
         "  YmFenceSigil \"```\"",
         ")",
+        "YmNewline \"\\n\"",
     ];
     assert_eq!(got, expected);
 }
@@ -847,11 +857,13 @@ fn block_nested_blockquote() {
         "      YmText \"deep\"",
         "      QuotePrefix \"\\n> \"",
         "    )",
+        "    QuotePrefix \"\\n> \"",
         "  )",
         "  (YmParagraph",
         "    YmText \"outer\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);
@@ -877,6 +889,7 @@ fn block_quote_fence_per_line() {
         "    )",
         "    YmFenceSigil \"```\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);
@@ -894,12 +907,14 @@ fn block_quote_empty_line_within() {
         "    YmText \"foo\"",
         "    QuotePrefix \"\\n>\\n> \"",
         "  )",
+        "  QuotePrefix \"\\n>\\n> \"",
         "  (YmBlankLine",
         "  )",
         "  (YmParagraph",
         "    YmText \"bar\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);
@@ -917,6 +932,7 @@ fn block_quote_blank_line_between_paragraphs() {
         "    YmText \"foo\"",
         "    Space \"\\n\\n\"",
         "  )",
+        "  YmNewline \"\\n\\n\"",
         ")",
         "(YmQuoteBlock",
         "  YmChevronPrefixSigil \"> \"",
@@ -924,6 +940,7 @@ fn block_quote_blank_line_between_paragraphs() {
         "    YmText \"bar\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);
@@ -940,6 +957,7 @@ fn block_quote_no_space_sigil() {
         "    YmText \"foo\"",
         "    Space \"\\n\"",
         "  )",
+        "  YmNewline \"\\n\"",
         ")",
     ];
     assert_eq!(got, expected);

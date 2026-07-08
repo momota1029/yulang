@@ -2381,6 +2381,7 @@ fn hover_entry_source_reports_decl_type() {
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
             },
             contents: "x: int".to_string(),
+            documentation_markdown: None,
         }
     );
 }
@@ -2417,6 +2418,7 @@ fn hover_entry_source_reports_ref_target_type() {
                     + 1,
             },
             contents: "x: int".to_string(),
+            documentation_markdown: None,
         }
     );
 }

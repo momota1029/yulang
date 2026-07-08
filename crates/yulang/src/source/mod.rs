@@ -1237,6 +1237,7 @@ impl SourceTextAnalysis {
 pub struct SourceHover {
     pub range: SourceRange,
     pub contents: String,
+    pub documentation_markdown: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2451,6 +2452,7 @@ fn hover_for_def(
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
+        documentation_markdown: doc_comment_markdown(check, def),
     })
 }
 
@@ -2476,6 +2478,7 @@ fn hover_for_local_def(
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
+        documentation_markdown: None,
     })
 }
 
@@ -2512,6 +2515,7 @@ fn hover_for_resolved_selection_value(
             check.lowering.session.poly.select(select).name,
             format_context.format_value_type(use_site.selected_value)
         ),
+        documentation_markdown: None,
     })
 }
 
@@ -2541,6 +2545,7 @@ fn hover_for_selected_method(
     Some(SourceHover {
         range,
         contents: format!("{label}: {}", format_context.format_scheme(scheme)),
+        documentation_markdown: doc_comment_markdown(check, def),
     })
 }
 
@@ -2550,6 +2555,18 @@ fn hover_label_is_hidden(label: &str) -> bool {
         // and mutable local refs. They carry internal type state, not source names.
         segment.starts_with('#') || segment.contains('#') || segment.starts_with('&')
     })
+}
+
+fn doc_comment_markdown(
+    check: &infer::check::PolyCheckOutput,
+    def: poly::expr::DefId,
+) -> Option<String> {
+    check
+        .lowering
+        .modules
+        .def_doc_comment(def)
+        .map(infer::doc_comment_render::render_doc_comment_markdown)
+        .filter(|doc| !doc.is_empty())
 }
 
 struct HoverFormatContext<'a> {

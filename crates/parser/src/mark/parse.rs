@@ -609,14 +609,19 @@ fn parse_fence_raw<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark>
                 // ``` の後の構造的区切り \n を読み飛ばしてから継続
                 let sep = scan_mark(i.rb())?;
                 if is_terminal(&sep) {
+                    emit_trivia_only(&mut i, &sep);
                     return Some(sep);
                 }
                 match sep.nud.tag {
                     // 空テキスト + 単純改行: 構造区切りとして読み捨て
                     MarkNudTag::Inline(InlineNudTag::Newline { .. }) if sep.text.is_empty() => {
+                        emit_trivia_only(&mut i, &sep);
                         return parse_doc_body(i);
                     }
-                    MarkNudTag::Block(_) => return parse_block_nud(i, sep),
+                    MarkNudTag::Block(_) => {
+                        emit_trivia_only(&mut i, &sep);
+                        return parse_block_nud(i, sep);
+                    }
                     _ => return parse_doc_body(i),
                 }
             }
@@ -660,13 +665,18 @@ fn parse_fence_yulang<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Ma
                     i.env.state.sink.finish(); // YmCodeFence
                     let sep = scan_mark(i.rb())?;
                     if is_terminal(&sep) {
+                        emit_trivia_only(&mut i, &sep);
                         return Some(sep);
                     }
                     match sep.nud.tag {
                         MarkNudTag::Inline(InlineNudTag::Newline { .. }) if sep.text.is_empty() => {
+                            emit_trivia_only(&mut i, &sep);
                             return parse_doc_body(i);
                         }
-                        MarkNudTag::Block(_) => return parse_block_nud(i, sep),
+                        MarkNudTag::Block(_) => {
+                            emit_trivia_only(&mut i, &sep);
+                            return parse_block_nud(i, sep);
+                        }
                         _ => return parse_doc_body(i),
                     }
                 }
@@ -734,6 +744,7 @@ fn parse_list_item<I: EventInput, S: EventSink>(mut i: In<I, S>, mark: Mark) -> 
     i.env.state.sink.start(SyntaxKind::YmListItemBody);
     i.env.inline = true;
     let stop = parse_inline(i.rb())?;
+    emit_trivia_only(&mut i, &stop);
     i.env.state.sink.finish(); // YmListItemBody
     i.env.state.sink.finish(); // YmListItem
     Some(stop)
@@ -775,6 +786,9 @@ pub fn parse_block_nud<I: EventInput, S: EventSink>(mut i: In<I, S>, mark: Mark)
 fn parse_doc_body<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark> {
     loop {
         let stop = parse_paragraph(i.rb())?;
+        if matches!(stop.nud.tag, MarkNudTag::Block(_)) && !stop.text.is_empty() {
+            emit_trivia_only(&mut i, &stop);
+        }
         if is_terminal(&stop) {
             return Some(stop);
         }
