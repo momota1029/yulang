@@ -169,6 +169,52 @@ ordinary, idiomatic style anyway, so this is not expected to constrain real
 usage. Still open: why Markdown's role chain triggers expensive generalization
 and HTML's doesn't; not investigated further.
 
+### First lowering slice landed: plain-text inline Yumark (2026-07-08)
+
+The first real connection from parsed Yumark syntax to the typed cons-chain
+value model, previously the biggest open item. `'[hello world]` now compiles
+and runs end to end, producing `<span>hello world</span>`
+(`examples/yumark_lowering_plain_text_poc.yu`). Landed in `bd3834b7`.
+
+Two things had to happen together, decided and implemented same day:
+
+1. **The vocabulary needed a stable stdlib home.** Lowering references
+   combinators by fixed path (the same shape `RuleLit`/`RuleExpr` lowering
+   already uses for `std::text::parse::*`), so it can't reference PoC code
+   living only in `examples/`. The `cons_cell`/`nil_cell`/`text_leaf`/
+   `YumarkRender` vocabulary (plus a minimal HTML backend, for an observable
+   end-to-end test) is now real stdlib at `lib/std/text/yumark.yu`
+   (`pub mod yumark;` under `lib/std/text.yu`) — chosen location:
+   `std::text::yumark`, reasoned as fitting the existing text-processing
+   namespace and not precluding a later move. This is the vocabulary's first
+   promotion out of throwaway example code; still expected to keep growing
+   (more node kinds, injection, more backends) as lowering coverage expands.
+2. **Lowering directly synthesizes `poly::Expr`**, the same shape as
+   `rule_lit.rs`: a new `crates/infer/src/lowering/yumark_lit.rs`, dispatched
+   for `SyntaxKind::MarkExpr` in `crates/infer/src/lowering/expr/chain.rs`,
+   referencing `std::text::yumark::{cons,nil,text_leaf}` via a new
+   `text_yumark_value` path helper in `crates/infer/src/std_paths.rs` (same
+   shape as the pre-existing `text_parse_value`).
+
+Scope is deliberately narrow, matching the reviewed plan: only `MarkExpr ->
+MarkInlineBody -> YmDoc` where the `YmDoc` contains nothing but plain text
+tokens (`YmText`/`Space`/`YmNewline`) is accepted. `'[]` lowers to `nil()`.
+The extraction function walks every child of the relevant nodes and rejects
+(`UnsupportedSyntax`) on anything not explicitly on the allow-list — it does
+not optimistically extract-and-ignore. Confirmed still correctly rejected:
+`'[*emphasis*]` (`UnsupportedSyntax { kind: YmEmphasis }`) and the `'{...}`
+block form (`UnsupportedSyntax { kind: MarkHeredocBody }`). Four new targeted
+tests in `crates/infer/src/lowering/tests/case_02.rs` check both the exact
+synthesized `poly::Expr` shape (not just end-to-end output) and the rejection
+boundary. Full existing lowering suite (198 tests) and the full contract
+corpus (225 cases) both green.
+
+Explicitly not yet done: emphasis/strong/inline-expr, the `'{...}` block
+form, any of the static vocabulary (heading/list/code fence/...), injection,
+and grouped `\cmd(){}[]` lowering. Each remaining CST shape needs its own
+lowering branch added the same way, growing `lib/std/text/yumark.yu`'s
+vocabulary alongside.
+
 ## Render role shape
 
 The core role shape below (tag parameter + associated `repr` + effect-row-
@@ -427,13 +473,13 @@ function call.
 - Whether/how the `[\each(...)]:list` postfix-method-with-embedded-effect
   syntax could work at all, given effect legality would need to be checked
   before backend/tagless-final selection.
-- Parser/lowering integration — turning the real `crates/parser/src/mark/` CST
-  (including the new grouped-command nodes) into typed cons-chain values — has
-  not been attempted; every PoC (see evidence trail) only proves the
-  value-model shape in isolation, disconnected from the real parser. Likely
-  harder now than it would have been for the flat-enum design, since lowering
-  must produce a value whose *type* encodes the parsed shape — worth its own
-  design pass before starting.
+- Parser/lowering integration — **started**: plain-text-only inline quoted
+  Yumark lowers for real (see "First lowering slice landed" above). Everything
+  else remains disconnected: emphasis/strong/inline-expr, the `'{...}` block
+  form, the static vocabulary (heading/list/code fence/quote/section-close),
+  injection, and the grouped `\cmd(){}[]` command grammar landed today in
+  `a7928657` all still hit `UnsupportedSyntax` — each needs its own lowering
+  branch added the same way the plain-text slice was.
 - ~~What the node/leaf vocabulary should look like under the cons-chain
   design~~ — done: see "Static vocabulary ported to the typed cons-chain"
   above.
@@ -521,3 +567,10 @@ wrong.
   representation, revised"): narrowly, a zero-argument named binding
   rendering Markdown internally, not named functions in general — passing
   the document as an explicit parameter avoids it entirely.
+- `examples/yumark_lowering_plain_text_poc.yu` — **first real (non-PoC)
+  milestone**: `'[hello world]`, actual parsed Yumark syntax, compiles and
+  runs end to end via real compiler lowering (`crates/infer/src/lowering/
+  yumark_lit.rs`) and real stdlib (`lib/std/text/yumark.yu`, not an
+  `examples/`-only PoC), producing `<span>hello world</span>`. See "First
+  lowering slice landed" under "Tree representation, revised". Commit
+  `bd3834b7`.
