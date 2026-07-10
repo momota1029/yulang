@@ -402,6 +402,10 @@ solver replay はまだ太いが、var-var consequence を単純に捨てると 
 routing graph は propagation を証明できても、generalization / public projection が
 materialized evidence を読んでいるためである。
 
+- 2026-07-08: shadow-necessity を調査した。shadow は opt-in-only で既定では構築されず、
+  default `lower.resolve` の cost driver ではない。詳細は
+  `notes/design/2026-07-08-shadow-necessity-investigation.md`。既定 path の実際の cost driver は未特定。
+
 根拠:
 
 - `notes/design/2026-06-24-weighted-var-var-routing.md`
