@@ -1,0 +1,19 @@
+use std::text::yumark::*
+
+my canary_document() =
+    doc_leaf {
+        children: cons(
+            text_leaf { value: "cache" },
+            cons(
+                strong_leaf {
+                    children: cons(text_leaf { value: " boundary" }, nil()),
+                },
+                nil(),
+            ),
+        ),
+    }
+
+pub cache_equivalence_render(): str =
+    html_tag (render_html_doc (canary_document()))
+
+cache_equivalence_render()

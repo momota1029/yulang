@@ -3930,6 +3930,67 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
 }
 
 #[test]
+fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
+    let root = temp_root("run-std-prefix-role-equivalence");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let seed = root.join("seed.yu");
+    fs::write(&seed, "\"seed\"\n").unwrap();
+    let entry = repo_yulang_fixture("regressions/cache/std_prefix_role_equivalence.yu");
+
+    // Yumark's nested cons chain resolves a role-polymorphic std definition in
+    // the user suffix. Internal redundant predicates may differ across these
+    // routes; the deterministic public behavior must not.
+    let cold = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&cold);
+    assert_cache_route(&cold, "disabled");
+    assert_eq!(
+        stdout(&cold),
+        "run roots [\"<article><span>cache</span><strong><span> boundary</span></strong></article>\"]\n"
+    );
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+
+    let warm = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&warm);
+    assert_cache_route(&warm, "std-prefix-hit");
+    assert_eq!(stdout(&warm), stdout(&cold));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_with_std_prefix_cache_matches_full_build_for_mock_ref_view() {
     let root = temp_root("run-std-prefix-mock-ref-view");
     let _ = fs::remove_dir_all(&root);
