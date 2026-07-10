@@ -59,7 +59,7 @@ use crate::role_solve::coalesce_role_constraints;
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints_recording_merge_constraints,
     resolve_role_constraints, resolve_role_constraints_with_method_taint_stats,
-    resolve_role_constraints_with_stats, role_constraint_could_resolve,
+    resolve_role_constraints_with_stats_and_dispositions, role_constraint_could_resolve,
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleEpoch,

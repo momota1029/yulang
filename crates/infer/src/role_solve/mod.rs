@@ -63,6 +63,19 @@ pub(crate) struct RoleResolveOutput {
     pub stats: RoleResolveStats,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RoleDemandDisposition {
+    NewlyResolved { key: RoleResolutionKey },
+    AlreadyApplied { key: RoleResolutionKey },
+    Unresolved { candidate_matches: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleResolveDispositionOutput {
+    pub output: RoleResolveOutput,
+    pub dispositions: Vec<RoleDemandDisposition>,
+}
+
 #[cfg(test)]
 pub(crate) fn coalesce_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
@@ -123,7 +136,25 @@ pub(crate) fn resolve_role_constraints_with_stats(
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
 ) -> RoleResolveOutput {
-    resolve_role_constraints_with_method_taint_stats(
+    resolve_role_constraints_with_method_taint_stats_inner::<false>(
+        machine,
+        main,
+        constraints,
+        impls,
+        applied,
+        &FxHashMap::default(),
+    )
+    .output
+}
+
+pub(crate) fn resolve_role_constraints_with_stats_and_dispositions(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+) -> RoleResolveDispositionOutput {
+    resolve_role_constraints_with_method_taint_stats_inner::<true>(
         machine,
         main,
         constraints,
@@ -141,7 +172,31 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
     applied: &FxHashSet<RoleResolutionKey>,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> RoleResolveOutput {
+    resolve_role_constraints_with_method_taint_stats_inner::<false>(
+        machine,
+        main,
+        constraints,
+        impls,
+        applied,
+        method_taint,
+    )
+    .output
+}
+
+fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITIONS: bool>(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> RoleResolveDispositionOutput {
     let mut out = Vec::new();
+    let mut dispositions = if RECORD_DISPOSITIONS {
+        Vec::with_capacity(constraints.len())
+    } else {
+        Vec::new()
+    };
     let mut stats = RoleResolveStats::default();
     let main_polarity = MainPolarity::collect(main);
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
@@ -172,6 +227,11 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
             if candidates.len() > 1 {
                 stats.ambiguous_demands += 1;
             }
+            if RECORD_DISPOSITIONS {
+                dispositions.push(RoleDemandDisposition::Unresolved {
+                    candidate_matches: candidates.len(),
+                });
+            }
             continue;
         }
         let resolved = candidates.into_iter().next().expect("candidate");
@@ -181,7 +241,13 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
         };
         if applied.contains(&key) {
             stats.already_applied += 1;
+            if RECORD_DISPOSITIONS {
+                dispositions.push(RoleDemandDisposition::AlreadyApplied { key });
+            }
             continue;
+        }
+        if RECORD_DISPOSITIONS {
+            dispositions.push(RoleDemandDisposition::NewlyResolved { key: key.clone() });
         }
         out.push(RoleResolution {
             key,
@@ -191,9 +257,12 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
             residual_prerequisites: resolved.residual_prerequisites,
         });
     }
-    RoleResolveOutput {
-        resolutions: out,
-        stats,
+    RoleResolveDispositionOutput {
+        output: RoleResolveOutput {
+            resolutions: out,
+            stats,
+        },
+        dispositions,
     }
 }
 

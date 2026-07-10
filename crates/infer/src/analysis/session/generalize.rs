@@ -40,7 +40,7 @@ impl AnalysisSession {
         let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         let mut applied_subtype_constraints = FxHashSet::<CompactSubtypeConstraintKey>::default();
         let mut compact;
-        let coalesced_roles = loop {
+        let final_role_solve = loop {
             self.timing.record_generalize_iteration();
             let compact_epoch = self.infer.constraints().epoch();
             if let Some(shadow) = self.generalize_compact_shadow.as_mut() {
@@ -185,42 +185,53 @@ impl AnalysisSession {
             self.timing.record_generalize_cast(phase.elapsed(), 0, 0);
 
             let phase = Instant::now();
-            let resolutions = if coalesced_role_constraints.is_empty() {
-                Vec::new()
-            } else {
-                let (mut role_compact, mut roles) =
-                    simplified_role_view.take().unwrap_or_else(|| {
-                        self.simplified_coalesced_role_view_for_generalize(
-                            def,
-                            root,
-                            &compact,
-                            &coalesced_role_constraints,
-                            simplification_boundary,
-                        )
-                    });
-                eliminate_floor_redundant_variables(
-                    self.infer.constraints(),
-                    TypeLevel::root(),
-                    &mut role_compact,
-                    &mut roles,
-                );
-                if roles.is_empty() {
-                    Vec::new()
+            let (resolutions, dispositions, simplified_roles, floor_passes_noop) =
+                if coalesced_role_constraints.is_empty() {
+                    (Vec::new(), Vec::new(), Vec::new(), true)
                 } else {
-                    self.timing
-                        .record_generalize_role_resolve_inputs(roles.len());
-                    metrics.record_role_resolve_inputs(roles.len());
-                    let output = resolve_role_constraints_with_stats(
+                    let (mut role_compact, mut roles, floor_interval_noop) =
+                        simplified_role_view.take().unwrap_or_else(|| {
+                            self.simplified_coalesced_role_view_for_generalize(
+                                def,
+                                root,
+                                &compact,
+                                &coalesced_role_constraints,
+                                simplification_boundary,
+                            )
+                        });
+                    let floor_redundant_substitutions = eliminate_floor_redundant_variables(
                         self.infer.constraints(),
-                        &role_compact,
-                        &roles,
-                        &self.role_impls,
-                        &applied_roles,
+                        TypeLevel::root(),
+                        &mut role_compact,
+                        &mut roles,
                     );
-                    self.timing.record_role_resolve_stats(output.stats);
-                    output.resolutions
-                }
-            };
+                    if roles.is_empty() {
+                        (
+                            Vec::new(),
+                            Vec::new(),
+                            roles,
+                            floor_interval_noop && floor_redundant_substitutions.is_empty(),
+                        )
+                    } else {
+                        self.timing
+                            .record_generalize_role_resolve_inputs(roles.len());
+                        metrics.record_role_resolve_inputs(roles.len());
+                        let resolved = resolve_role_constraints_with_stats_and_dispositions(
+                            self.infer.constraints(),
+                            &role_compact,
+                            &roles,
+                            &self.role_impls,
+                            &applied_roles,
+                        );
+                        self.timing.record_role_resolve_stats(resolved.output.stats);
+                        (
+                            resolved.output.resolutions,
+                            resolved.dispositions,
+                            roles,
+                            floor_interval_noop && floor_redundant_substitutions.is_empty(),
+                        )
+                    }
+                };
             let resolution_count = resolutions.len();
             metrics.record_role_resolutions(resolution_count);
             let elapsed = phase.elapsed();
@@ -238,7 +249,15 @@ impl AnalysisSession {
                 self.route_constraint_events();
                 continue;
             }
-            break coalesced_role_constraints;
+            break FinalRoleSolveSnapshot {
+                coalesced_roles: coalesced_role_constraints,
+                simplified_roles,
+                dispositions,
+                floor_passes_noop,
+                constraint_epoch: self.infer.constraints().epoch(),
+                role_epoch: self.roles.epoch_for_owner(def),
+                raw_role_count: role_input_count,
+            };
         };
 
         let applied_role_candidates = applied_roles
@@ -250,19 +269,43 @@ impl AnalysisSession {
         // role 単独で簡約すると共起が減って併合が強く効きすぎ、ループでは適用されなかった
         // 解決をここで初めて作ってしまう（制約を注入せずに述語だけ消える）恐れがある。
         let phase = Instant::now();
+        // 最終反復と同じ入力が保たれ、床処理も表記を書き換えない時だけ、その反復の判定を
+        // 再利用できる。どれか一つでも崩れた場合は、従来どおり全体を簡約・再解決する。
+        let final_role_inputs_unchanged = final_role_solve.constraint_epoch
+            == self.infer.constraints().epoch()
+            && final_role_solve.role_epoch == self.roles.epoch_for_owner(def)
+            && final_role_solve.raw_role_count == self.roles.for_owner(def).len();
+        let can_reuse_final_dispositions = final_role_solve.floor_passes_noop
+            && final_role_inputs_unchanged
+            && final_role_solve.dispositions.len() == final_role_solve.coalesced_roles.len()
+            && final_role_solve.simplified_roles.len() == final_role_solve.coalesced_roles.len();
         let applied_in_simplified_view =
             if applied_role_candidates.is_empty() && applied_role_demands.is_empty() {
-                vec![false; coalesced_roles.len()]
+                vec![false; final_role_solve.coalesced_roles.len()]
+            } else if can_reuse_final_dispositions {
+                final_role_solve
+                    .simplified_roles
+                    .iter()
+                    .zip(&final_role_solve.dispositions)
+                    .map(|(role, disposition)| {
+                        applied_role_demands.contains(role)
+                            || matches!(
+                                disposition,
+                                crate::role_solve::RoleDemandDisposition::AlreadyApplied { .. }
+                            )
+                    })
+                    .collect()
             } else {
                 self.simplified_role_predicates_already_applied(
                     &compact,
-                    &coalesced_roles,
+                    &final_role_solve.coalesced_roles,
                     &applied_role_candidates,
                     &applied_role_demands,
                     simplification_boundary,
                 )
             };
-        let mut role_predicates: Vec<CompactRoleConstraint> = coalesced_roles
+        let mut role_predicates: Vec<CompactRoleConstraint> = final_role_solve
+            .coalesced_roles
             .into_iter()
             .zip(applied_in_simplified_view)
             .filter_map(|(role, applied)| {
@@ -388,7 +431,11 @@ impl AnalysisSession {
         compact: &crate::compact::CompactRoot,
         coalesced_roles: &[CompactRoleConstraint],
         simplification_boundary: TypeLevel,
-    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
+    ) -> (
+        crate::compact::CompactRoot,
+        Vec<CompactRoleConstraint>,
+        bool,
+    ) {
         if let Some(shadow) = self.generalize_role_view_shadow.as_mut() {
             let hit = shadow.observe(
                 def,
@@ -449,7 +496,11 @@ impl AnalysisSession {
         compact: &crate::compact::CompactRoot,
         coalesced_roles: &[CompactRoleConstraint],
         simplification_boundary: TypeLevel,
-    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
+    ) -> (
+        crate::compact::CompactRoot,
+        Vec<CompactRoleConstraint>,
+        bool,
+    ) {
         let mut role_compact = compact.clone();
         let mut roles = coalesced_roles.to_vec();
         simplify_compact_root_with_roles_and_non_generic(
@@ -459,13 +510,13 @@ impl AnalysisSession {
             &mut roles,
             &FxHashSet::default(),
         );
-        coalesce_floor_interval_equalities(
+        let floor_interval_substitutions = coalesce_floor_interval_equalities(
             self.infer.constraints(),
             TypeLevel::root(),
             &mut role_compact,
             &mut roles,
         );
-        (role_compact, roles)
+        (role_compact, roles, floor_interval_substitutions.is_empty())
     }
 
     /// 世代化の最終出力から落としてよい残置述語を、入力 role と同じ並びの bool 列で返す。
@@ -699,6 +750,16 @@ impl AnalysisSession {
         };
         *target = Some(scheme);
     }
+}
+
+struct FinalRoleSolveSnapshot {
+    coalesced_roles: Vec<CompactRoleConstraint>,
+    simplified_roles: Vec<CompactRoleConstraint>,
+    dispositions: Vec<crate::role_solve::RoleDemandDisposition>,
+    floor_passes_noop: bool,
+    constraint_epoch: ConstraintEpoch,
+    role_epoch: RoleEpoch,
+    raw_role_count: usize,
 }
 
 fn trace_generalize_phase(
