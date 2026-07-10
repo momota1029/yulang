@@ -49,6 +49,8 @@
    - 高速化を「意味論税の局所化」として整理する。
    - release gate、compiled-unit cache、generalize restart、runtime ScopeState、
      replay frontier、direct-style island の順番と撤退条件を固定する。
+   - 2026-07-08 の std-prefix cache generalization divergence（未解決の correctness
+     question を含む）は `../design/2026-07-08-std-prefix-cache-generalization-divergence.md` を見る。
 7. `yumark.md`
    - syntax parse 済みの Yumark を value model、lowering、runtime、表示へ接続する。
 8. `research-consultation.md`

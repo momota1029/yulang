@@ -405,6 +405,7 @@ materialized evidence を読んでいるためである。
 - 2026-07-08: shadow-necessity を調査した。shadow は opt-in-only で既定では構築されず、
   default `lower.resolve` の cost driver ではない。詳細は
   `notes/design/2026-07-08-shadow-necessity-investigation.md`。既定 path の実際の cost driver は未特定。
+- 2026-07-08: **OPEN QUESTION / deliberately NOT fixed tonight**: std-prefix-cache generalization divergence を見つけた。cached-std compilation path は同じ program の cold compile より fully-concretized で高コストな structurally different poly scheme を作り、HTML Yumark repro で 12.1x slowdown inversion を確認した。これは merely non-canonical/slower なのか、genuine semantic divergence（performance だけでなく correctness に影響し得る）なのかは未解決。詳細は `notes/design/2026-07-08-std-prefix-cache-generalization-divergence.md`。専用の investigation session が必要。
 
 根拠:
 
