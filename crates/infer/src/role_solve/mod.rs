@@ -204,7 +204,7 @@ fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITI
         stats.demands += 1;
         let impl_candidates = impls.candidates(&constraint.role);
         stats.candidate_scans += impl_candidates.len();
-        let concrete_inputs = role_concrete_inputs(constraint, &main_polarity, method_taint);
+        let concrete_inputs = role_concrete_input_bounds(constraint, &main_polarity, method_taint);
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
             if let Some(candidate) = resolve_role_candidate(
@@ -321,7 +321,7 @@ struct ResolvedPrerequisites {
 fn resolve_role_candidate(
     machine: &ConstraintMachine,
     constraint: &CompactRoleConstraint,
-    concrete_inputs: Option<&[CompactType]>,
+    concrete_inputs: Option<&[CompactBounds]>,
     candidate: &RoleImplCandidate,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
@@ -425,7 +425,8 @@ fn resolve_candidate_prerequisites(
             rewrite_role_constraint(&compact_role_constraint(machine, prerequisite), subst);
         let impl_candidates = impls.candidates(&prerequisite.role);
         stats.prerequisite_candidate_scans += impl_candidates.len();
-        let concrete_inputs = role_concrete_inputs(&prerequisite, main_polarity, method_taint);
+        let concrete_inputs =
+            role_concrete_input_bounds(&prerequisite, main_polarity, method_taint);
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
             if let Some(candidate) = resolve_role_candidate(
@@ -558,15 +559,18 @@ fn role_arg_concrete_type(
     None
 }
 
-fn role_concrete_inputs(
+fn role_concrete_input_bounds(
     constraint: &CompactRoleConstraint,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
-) -> Option<Vec<CompactType>> {
+) -> Option<Vec<CompactBounds>> {
     constraint
         .inputs
         .iter()
-        .map(|input| role_arg_concrete_type(input, main_polarity, method_taint))
+        .map(|input| {
+            let input = role_arg_concrete_type(input, main_polarity, method_taint)?;
+            compact_bounds_from_type(&input)
+        })
         .collect()
 }
 

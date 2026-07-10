@@ -22,13 +22,10 @@ impl TypeSubst {
 
 pub(super) fn match_role_arg_candidate(
     candidate: &CompactRoleArg,
-    demand: &CompactType,
+    demand: &CompactBounds,
     subst: &mut TypeSubst,
 ) -> bool {
-    let Some(demand) = compact_bounds_from_type(demand) else {
-        return false;
-    };
-    match_bounds_pattern(&candidate.bounds, &demand, subst)
+    match_bounds_pattern(&candidate.bounds, demand, subst)
 }
 
 pub(super) fn match_type_pattern(
