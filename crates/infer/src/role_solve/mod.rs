@@ -149,11 +149,13 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
         stats.demands += 1;
         let impl_candidates = impls.candidates(&constraint.role);
         stats.candidate_scans += impl_candidates.len();
+        let concrete_inputs = role_concrete_inputs(constraint, &main_polarity, method_taint);
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
             if let Some(candidate) = resolve_role_candidate(
                 machine,
                 constraint,
+                concrete_inputs.as_deref(),
                 candidate,
                 &main_polarity,
                 method_taint,
@@ -250,6 +252,7 @@ struct ResolvedPrerequisites {
 fn resolve_role_candidate(
     machine: &ConstraintMachine,
     constraint: &CompactRoleConstraint,
+    concrete_inputs: Option<&[CompactType]>,
     candidate: &RoleImplCandidate,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
@@ -263,10 +266,10 @@ fn resolve_role_candidate(
     }
     let raw_candidate = candidate;
     let candidate = candidate_cache.compact(machine, raw_candidate, stats);
+    let concrete_inputs = concrete_inputs?;
     let mut subst = TypeSubst::default();
-    for (demand, candidate) in constraint.inputs.iter().zip(&candidate.inputs) {
-        let demand = role_arg_concrete_type(demand, main_polarity, method_taint)?;
-        if !match_role_arg_candidate(candidate, &demand, &mut subst) {
+    for (demand, candidate) in concrete_inputs.iter().zip(&candidate.inputs) {
+        if !match_role_arg_candidate(candidate, demand, &mut subst) {
             return None;
         }
     }
@@ -353,11 +356,13 @@ fn resolve_candidate_prerequisites(
             rewrite_role_constraint(&compact_role_constraint(machine, prerequisite), subst);
         let impl_candidates = impls.candidates(&prerequisite.role);
         stats.prerequisite_candidate_scans += impl_candidates.len();
+        let concrete_inputs = role_concrete_inputs(&prerequisite, main_polarity, method_taint);
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
             if let Some(candidate) = resolve_role_candidate(
                 machine,
                 &prerequisite,
+                concrete_inputs.as_deref(),
                 candidate,
                 main_polarity,
                 method_taint,
@@ -482,6 +487,18 @@ fn role_arg_concrete_type(
         return upper;
     }
     None
+}
+
+fn role_concrete_inputs(
+    constraint: &CompactRoleConstraint,
+    main_polarity: &MainPolarity,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> Option<Vec<CompactType>> {
+    constraint
+        .inputs
+        .iter()
+        .map(|input| role_arg_concrete_type(input, main_polarity, method_taint))
+        .collect()
 }
 
 fn role_arg_boundary_type(arg: &CompactRoleArg, positive: bool) -> Option<CompactType> {
