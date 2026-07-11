@@ -401,10 +401,41 @@ impl AnalysisSession {
         if post_alias_changed {
             self.route_constraint_events();
         }
-        let mut generalized = generalize_alias_expanded_compact_root(
+        let cleaned = prepare_stack_cleaned_alias_expanded_compact_root(
             self.infer.constraints(),
             quantification_boundary,
             prepared,
+            &FxHashSet::default(),
+        );
+        // Stack-weight cleanup can erase a spent weight after the post-alias scan, changing the
+        // exact structural key of an invariant interval. Route the cleaned key once through the
+        // same bounded consistency/dominance lane. Like the alias companion pass above, this must
+        // not restart generalization or grow into a second settle loop.
+        let (post_cleanup_constraints, dominance) =
+            if compact_root_has_interval_bounds(&cleaned.compact, &cleaned.role_predicates) {
+                collect_interval_dominance_constraints_with_metrics(
+                    &cleaned.compact,
+                    &cleaned.role_predicates,
+                )
+            } else {
+                (Vec::new(), IntervalDominanceMetrics::default())
+            };
+        self.timing.record_generalize_dominance_scan(dominance);
+        metrics.record_dominance_scan(dominance);
+        let post_cleanup_constraint_count = post_cleanup_constraints.len();
+        metrics.record_dominance_constraints(post_cleanup_constraint_count);
+        let post_cleanup_changed = apply_compact_subtype_constraints(
+            self.infer.constraints_mut(),
+            post_cleanup_constraints,
+            &mut applied_subtype_constraints,
+        );
+        if post_cleanup_changed {
+            self.route_constraint_events();
+        }
+        let mut generalized = generalize_stack_cleaned_compact_root(
+            self.infer.constraints(),
+            quantification_boundary,
+            cleaned,
             &FxHashSet::default(),
         );
         let elapsed = phase.elapsed();

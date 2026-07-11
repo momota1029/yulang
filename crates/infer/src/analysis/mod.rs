@@ -54,9 +54,9 @@ use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     clone_role_impl_candidate_between_arenas, compact_boundary_bound_vars,
     finalize_compact_boundary_bounds, finalize_generalized_compact_root_with_ancestors,
-    generalize_alias_expanded_compact_root, generalized_compact_boundary_vars,
+    generalize_stack_cleaned_compact_root, generalized_compact_boundary_vars,
     prepare_alias_expanded_compact_root_with_role_variances,
-    prune_generalized_compact_root_for_cache,
+    prepare_stack_cleaned_alias_expanded_compact_root, prune_generalized_compact_root_for_cache,
 };
 use crate::instantiate::{
     ImportedBoundarySubstitution, SchemeInstantiationError, freshen_role_impl_candidate,

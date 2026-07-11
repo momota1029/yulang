@@ -4123,21 +4123,14 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
         &seed_output,
         "run.cache_interface.canonical_handoff_failure_kind",
     );
-    let failure_definition = runtime_metric_text(
-        &seed_output,
-        "run.cache_interface.canonical_handoff_failure_definition",
-    );
     let failure_detail = runtime_metric_text(
         &seed_output,
         "run.cache_interface.canonical_handoff_failure_detail",
     );
-    eprintln!(
-        "Stage 6 repository std canonical handoff failure: {failure_kind} at {failure_definition}: {failure_detail}"
-    );
+    eprintln!("Stage 6 repository std canonical handoff failure: {failure_kind}: {failure_detail}");
     assert_eq!(failure_kind, "FreezeProducedConstraint");
-    assert!(failure_definition.contains("std.control.nondet.nondet.#act-method:once"));
-    assert!(failure_detail.contains("merge_constraints: 0"));
-    assert!(failure_detail.contains("subtype_constraints: 1"));
+    assert!(failure_detail.contains("merge_constraints: 1"));
+    assert!(failure_detail.contains("subtype_constraints: 0"));
     let seed_boundary_entries = runtime_metric_usize(
         &seed_output,
         "run.cache_interface.std_prefix_boundary_entries",

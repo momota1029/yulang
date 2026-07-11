@@ -699,6 +699,49 @@ fn label_sub_generalization_applies_post_alias_interval_constraints() {
 }
 
 #[test]
+fn nondet_once_generalization_applies_post_stack_cleanup_interval_constraints() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod data:\n",
+        "    pub mod opt:\n",
+        "      pub enum opt 'a = nil | just 'a\n",
+        "  pub mod control:\n",
+        "    pub mod nondet:\n",
+        "      pub act nondet:\n",
+        "        pub branch: () -> bool\n",
+        "        pub reject: () -> never\n",
+        "        pub once(x: [std::control::nondet::nondet; 'e] 'a): ['e] std::data::opt::opt 'a = loop x with:\n",
+        "          our loop(x: [_] _) = catch x:\n",
+        "            branch(), k -> loop(k true)\n",
+        "            reject(), _ -> std::data::opt::opt::nil\n",
+        "            v -> std::data::opt::opt::just v\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let once = output
+        .labels
+        .def_labels()
+        .find_map(|(def, label)| (label == "std.control.nondet.nondet.once").then_some(def))
+        .expect("once definition label");
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, once));
+    assert_eq!(
+        rendered,
+        "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a"
+    );
+    let canonical = output
+        .session
+        .freeze_cache_interface([once])
+        .expect("once strict cache-interface audit after stack cleanup");
+    assert!(
+        canonical.boundary.bounds.is_empty(),
+        "fully quantified once must not invent a unit boundary binder"
+    );
+}
+
+#[test]
 fn local_sub_lambda_scheme_keeps_escaping_labeled_return_effect() {
     let root = parse(concat!(
         "mod std:\n",
