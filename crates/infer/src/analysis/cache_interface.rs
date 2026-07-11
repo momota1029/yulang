@@ -694,7 +694,7 @@ fn normalize_cache_candidate(
         prerequisites.push(prerequisite);
         merge_constraints.extend(prerequisite_merges);
     }
-    let unapplied = unapplied_compact_merge_constraint_count(
+    let unapplied = unapplied_compact_merge_constraint_count_with_tuple_implication(
         &merge_constraints,
         &session.cache_interface_applied_merge_constraints,
     );

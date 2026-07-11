@@ -130,6 +130,40 @@ pub(crate) fn unapplied_compact_merge_constraint_count(
         .count()
 }
 
+/// Count unapplied candidate constraints, accepting only direct tuple-product implication.
+///
+/// Invariance of equal-length tuples decomposes position-wise. A tuple wrapper therefore adds no
+/// new fact when every direct element merge is already applied. This is deliberately not recursive
+/// and does not extend to constructors, functions, records, variants, or associated-type carriers.
+pub(crate) fn unapplied_compact_merge_constraint_count_with_tuple_implication(
+    constraints: &[CompactMergeConstraint],
+    applied: &FxHashSet<CompactMergeConstraintKey>,
+) -> usize {
+    constraints
+        .iter()
+        .filter(|constraint| {
+            constraint.lhs != constraint.rhs
+                && !applied.contains(&constraint.key)
+                && !tuple_merge_is_implied_by_applied_elements(constraint, applied)
+        })
+        .count()
+}
+
+fn tuple_merge_is_implied_by_applied_elements(
+    constraint: &CompactMergeConstraint,
+    applied: &FxHashSet<CompactMergeConstraintKey>,
+) -> bool {
+    let (CompactBounds::Tuple { items }, CompactBounds::Tuple { items: right_items }) =
+        (&constraint.lhs, &constraint.rhs)
+    else {
+        return false;
+    };
+    items.len() == right_items.len()
+        && items.iter().zip(right_items).all(|(left, right)| {
+            left == right || applied.contains(&merge::compact_merge_constraint_key(left, right))
+        })
+}
+
 #[allow(
     dead_code,
     reason = "Stage 2 strict audit is consumed by the pending cache-interface finalizer wiring"

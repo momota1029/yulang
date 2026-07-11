@@ -118,6 +118,97 @@ fn role_arg_coalesce_records_merge_constraints() {
 }
 
 #[test]
+fn tuple_merge_audit_accepts_applied_position_merges() {
+    let (tuple, elements) = tuple_merge_audit_constraints();
+    let applied = elements
+        .into_iter()
+        .map(|constraint| constraint.key)
+        .collect::<FxHashSet<_>>();
+
+    assert_eq!(
+        unapplied_compact_merge_constraint_count_with_tuple_implication(&[tuple], &applied),
+        0
+    );
+}
+
+#[test]
+fn tuple_merge_audit_rejects_partially_applied_positions() {
+    let (tuple, elements) = tuple_merge_audit_constraints();
+    let applied = [elements[0].key.clone()].into_iter().collect();
+
+    assert_eq!(
+        unapplied_compact_merge_constraint_count_with_tuple_implication(&[tuple], &applied),
+        1
+    );
+}
+
+#[test]
+fn tuple_merge_audit_does_not_imply_non_tuple_wrappers() {
+    let (tuple, elements) = tuple_merge_audit_constraints();
+    let CompactBounds::Tuple { items: left } = tuple.lhs else {
+        panic!("tuple fixture lhs");
+    };
+    let CompactBounds::Tuple { items: right } = tuple.rhs else {
+        panic!("tuple fixture rhs");
+    };
+    let wrapper = CompactMergeConstraint::new(
+        &CompactBounds::Con {
+            path: vec!["pair".into()],
+            args: left,
+        },
+        &CompactBounds::Con {
+            path: vec!["pair".into()],
+            args: right,
+        },
+    )
+    .expect("distinct constructor bounds");
+    let applied = elements
+        .into_iter()
+        .map(|constraint| constraint.key)
+        .collect::<FxHashSet<_>>();
+
+    assert_eq!(
+        unapplied_compact_merge_constraint_count_with_tuple_implication(&[wrapper], &applied),
+        1
+    );
+}
+
+fn tuple_merge_audit_constraints() -> (CompactMergeConstraint, Vec<CompactMergeConstraint>) {
+    let interval = |vars: &[u32]| {
+        let ty = CompactType {
+            vars: vars
+                .iter()
+                .map(|var| CompactVar::plain(TypeVar(*var)))
+                .collect(),
+            ..CompactType::default()
+        };
+        CompactBounds::Interval {
+            lower: ty.clone(),
+            upper: ty,
+        }
+    };
+    let constructor = |vars: &[u32]| CompactBounds::Con {
+        path: vec!["item".into()],
+        args: vec![interval(vars)],
+    };
+    let left = vec![interval(&[1, 3]), constructor(&[2, 4])];
+    let right = vec![interval(&[1, 3, 5]), constructor(&[2, 4, 6])];
+    let elements = left
+        .iter()
+        .zip(&right)
+        .map(|(left, right)| {
+            CompactMergeConstraint::new(left, right).expect("distinct tuple element bounds")
+        })
+        .collect();
+    let tuple = CompactMergeConstraint::new(
+        &CompactBounds::Tuple { items: left },
+        &CompactBounds::Tuple { items: right },
+    )
+    .expect("distinct tuple bounds");
+    (tuple, elements)
+}
+
+#[test]
 fn compact_popped_stack_family_still_merges_with_coexisting_row_item() {
     let mut machine = ConstraintMachine::new();
     let root = TypeVar(0);

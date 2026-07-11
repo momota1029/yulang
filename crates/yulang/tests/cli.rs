@@ -4129,8 +4129,10 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
     );
     eprintln!("Stage 6 repository std canonical handoff failure: {failure_kind}: {failure_detail}");
     assert_eq!(failure_kind, "FreezeProducedConstraint");
-    assert!(failure_detail.contains("merge_constraints: 1"));
-    assert!(failure_detail.contains("subtype_constraints: 0"));
+    // The fmt::Debug 2-tuple wrapper is implied by its applied element merges. The next independent
+    // blocker is the list `Index int` candidate's post-normalization dominance constraint.
+    assert!(failure_detail.contains("merge_constraints: 0"));
+    assert!(failure_detail.contains("subtype_constraints: 1"));
     let seed_boundary_entries = runtime_metric_usize(
         &seed_output,
         "run.cache_interface.std_prefix_boundary_entries",

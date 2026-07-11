@@ -46,7 +46,9 @@ use crate::compact::{
     finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
-    unapplied_compact_merge_constraint_count, unapplied_compact_subtype_constraint_count,
+    unapplied_compact_merge_constraint_count,
+    unapplied_compact_merge_constraint_count_with_tuple_implication,
+    unapplied_compact_subtype_constraint_count,
     unapplied_compact_subtype_constraint_count_with_known,
 };
 use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
