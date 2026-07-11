@@ -59,7 +59,8 @@ use crate::generalize::{
     prune_generalized_compact_root_for_cache,
 };
 use crate::instantiate::{
-    freshen_role_impl_candidate, instantiate_scheme, instantiate_scheme_with_roles,
+    ImportedBoundarySubstitution, freshen_role_impl_candidate, instantiate_scheme,
+    instantiate_scheme_with_roles, seed_imported_boundary,
 };
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
@@ -132,6 +133,11 @@ pub struct AnalysisSession {
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
     def_parent_map: DefParentMapCache,
+    #[allow(
+        dead_code,
+        reason = "Stage 3 slice 1 retains this mapping for later instantiation/candidate preload"
+    )]
+    imported_boundary: ImportedBoundarySubstitution,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -29,6 +29,7 @@ pub struct BodyLowering {
 #[derive(Clone)]
 pub struct BodyLoweringPrefix {
     poly: poly::expr::Arena,
+    boundary: crate::CompiledBoundaryInterface,
     modules: ModuleTable,
     labels: DumpLabels,
     errors: Vec<BodyLoweringError>,
@@ -83,6 +84,7 @@ impl BodyLowering {
         let runtime = BodyLoweringPrefixRuntime::from_lowering(&self);
         BodyLoweringPrefix {
             poly: self.session.poly,
+            boundary: crate::CompiledBoundaryInterface::empty(),
             modules: self.modules,
             labels: self.labels,
             errors: self.errors,
@@ -94,6 +96,11 @@ impl BodyLowering {
 impl BodyLoweringPrefix {
     pub fn runtime(&self) -> &BodyLoweringPrefixRuntime {
         &self.runtime
+    }
+
+    #[cfg(test)]
+    pub(crate) fn imported_boundary_for_test(&self) -> &crate::CompiledBoundaryInterface {
+        &self.boundary
     }
 
     /// Build a root-lowering prefix from a runtime surface and the matching
@@ -176,10 +183,17 @@ impl BodyLoweringPrefix {
         } else {
             imported_runtime
         };
+        let mut boundary = base
+            .map(|prefix| prefix.boundary.clone())
+            .unwrap_or_else(crate::CompiledBoundaryInterface::empty);
+        boundary
+            .bounds
+            .extend(import.boundary.bounds.iter().copied());
         let modules = ModuleTable::from_compiled_surfaces(namespace, lowering, &import)?;
         let errors = base.map(|prefix| prefix.errors.clone()).unwrap_or_default();
         Some(Self {
             poly,
+            boundary,
             modules,
             labels,
             errors,
@@ -205,6 +219,7 @@ impl BodyLoweringPrefix {
         }
         Self {
             poly,
+            boundary: import.boundary,
             modules,
             labels,
             errors: Vec::new(),
@@ -654,7 +669,7 @@ pub fn lower_loaded_files_with_prefix(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new(append.lower);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let suffix_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -749,7 +764,7 @@ pub fn lower_root_loaded_file_with_prefix(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new(append.lower);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let root_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -935,8 +950,15 @@ pub(super) struct DeferredResultAnnotationCheck {
 
 impl BodyLowerer {
     pub(super) fn new(lower: Lower) -> Self {
+        Self::new_with_imported_boundary(lower, &crate::CompiledBoundaryInterface::empty())
+    }
+
+    fn new_with_imported_boundary(
+        lower: Lower,
+        boundary: &crate::CompiledBoundaryInterface,
+    ) -> Self {
         let labels = lower.modules.dump_labels();
-        let mut session = AnalysisSession::new(lower.arena);
+        let mut session = AnalysisSession::new_with_imported_boundary(lower.arena, boundary);
         register_declared_type_methods(&mut session, &lower.modules);
         register_declared_type_field_methods(&mut session, &lower.modules);
         register_declared_act_methods(&mut session, &lower.modules);

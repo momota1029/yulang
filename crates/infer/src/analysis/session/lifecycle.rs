@@ -2,9 +2,18 @@ use super::*;
 
 impl AnalysisSession {
     pub fn new(poly: PolyArena) -> Self {
+        Self::new_with_imported_boundary(poly, &crate::CompiledBoundaryInterface::empty())
+    }
+
+    pub(crate) fn new_with_imported_boundary(
+        poly: PolyArena,
+        boundary: &crate::CompiledBoundaryInterface,
+    ) -> Self {
+        let mut infer = InferArena::new();
+        let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
         let mut session = Self {
             poly,
-            infer: InferArena::new(),
+            infer,
             local_defs: LocalDefUseTable::new(),
             refs: RefUseTable::new(),
             selections: SelectionUseTable::new(),
@@ -35,9 +44,16 @@ impl AnalysisSession {
             timing: AnalysisTiming::default(),
             instantiated_targets: FxHashSet::default(),
             def_parent_map: DefParentMapCache::default(),
+            imported_boundary,
         };
+        session.route_constraint_events();
         session.seed_existing_poly_surface();
         session
+    }
+
+    #[cfg(test)]
+    pub(crate) fn imported_boundary_var(&self, source: TypeVar) -> Option<TypeVar> {
+        self.imported_boundary.get(source)
     }
 
     /// Import already-finalized definitions and lookup surfaces from a cached `poly` prefix.

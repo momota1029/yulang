@@ -15,6 +15,45 @@ use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
 };
 
+/// Session-lifetime mapping for unit-owned variables imported from one or more compiled units.
+///
+/// Boundary bounds are installed once when the analysis session is created. Later Stage 3 slices
+/// preload this same mapping into scheme instantiation and role-candidate freshening.
+#[derive(Debug, Default)]
+#[allow(
+    dead_code,
+    reason = "Stage 3 slice 1 stores the mapping for scheme and candidate preload in later slices"
+)]
+pub(crate) struct ImportedBoundarySubstitution {
+    vars: FxHashMap<TypeVar, TypeVar>,
+}
+
+pub(crate) fn seed_imported_boundary(
+    source: &TypeArena,
+    target: &mut InferArena,
+    boundary: &crate::CompiledBoundaryInterface,
+) -> ImportedBoundarySubstitution {
+    let mut vars = FxHashMap::default();
+    for bound in &boundary.bounds {
+        vars.entry(bound.var)
+            .or_insert_with(|| target.fresh_type_var_at(TypeLevel::root()));
+    }
+
+    let mut instantiator =
+        SchemeInstantiator::new_with_vars(source, target, TypeLevel::root(), vars);
+    instantiator.clone_boundary_bounds(boundary);
+    ImportedBoundarySubstitution {
+        vars: instantiator.vars,
+    }
+}
+
+impl ImportedBoundarySubstitution {
+    #[cfg(test)]
+    pub(crate) fn get(&self, source: TypeVar) -> Option<TypeVar> {
+        self.vars.get(&source).copied()
+    }
+}
+
 pub(crate) fn instantiate_scheme(
     source: &TypeArena,
     target: &mut InferArena,
@@ -93,6 +132,25 @@ impl<'a> SchemeInstantiator<'a> {
             neg_nodes: FxHashMap::default(),
             neu_nodes: FxHashMap::default(),
             freshen_unmapped: true,
+        }
+    }
+
+    fn new_with_vars(
+        source: &'a TypeArena,
+        target: &'a mut InferArena,
+        level: TypeLevel,
+        vars: FxHashMap<TypeVar, TypeVar>,
+    ) -> Self {
+        Self {
+            source,
+            target,
+            level,
+            vars,
+            subtracts: FxHashMap::default(),
+            pos_nodes: FxHashMap::default(),
+            neg_nodes: FxHashMap::default(),
+            neu_nodes: FxHashMap::default(),
+            freshen_unmapped: false,
         }
     }
 
@@ -469,6 +527,22 @@ impl<'a> SchemeInstantiator<'a> {
     fn clone_recursive_bounds(&mut self, scheme: &Scheme) {
         let mut constraints = Vec::with_capacity(scheme.recursive_bounds.len() * 2);
         for bound in &scheme.recursive_bounds {
+            let target_var = self.clone_var(bound.var);
+            let target_bounds = self.clone_neu(bound.bounds);
+            let (lower, upper) = self.project_recursive_neu_bounds(target_bounds);
+            let target_neg = self.target.alloc_neg(Neg::Var(target_var));
+            constraints.push((lower, target_neg));
+            let target_pos = self.target.alloc_pos(Pos::Var(target_var));
+            constraints.push((target_pos, upper));
+        }
+        if !constraints.is_empty() {
+            self.target.subtypes(constraints);
+        }
+    }
+
+    fn clone_boundary_bounds(&mut self, boundary: &crate::CompiledBoundaryInterface) {
+        let mut constraints = Vec::with_capacity(boundary.bounds.len() * 2);
+        for bound in &boundary.bounds {
             let target_var = self.clone_var(bound.var);
             let target_bounds = self.clone_neu(bound.bounds);
             let (lower, upper) = self.project_recursive_neu_bounds(target_bounds);

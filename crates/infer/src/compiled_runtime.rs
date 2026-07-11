@@ -2188,6 +2188,35 @@ mod tests {
     }
 
     #[test]
+    fn runtime_surface_prefix_seeds_imported_boundary_before_suffix_lowering() {
+        let loaded = sources::load(vec![source(&[], "pub id x = x\n")]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let mut runtime = CompiledRuntimeSurface::from_lowering(&lowering);
+        install_boundary(&mut runtime, poly::types::TypeVar(60_000));
+        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &lowering.modules);
+        let imported_poly_var = prefix.imported_boundary_for_test().bounds[0].var;
+        let root = sources::load(vec![source(&[], "my answer = id 42\n")])
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+        let imported_infer_var = lowered
+            .session
+            .imported_boundary_var(imported_poly_var)
+            .expect("prefix boundary should be seeded into the suffix session");
+
+        assert_eq!(
+            lowered
+                .session
+                .infer
+                .constraints()
+                .level_of(imported_infer_var),
+            crate::constraints::TypeLevel::root()
+        );
+    }
+
+    #[test]
     fn compiled_unit_prefix_marks_imported_runtime_defs() {
         let loaded = sources::load(vec![
             source(&[], "mod deps;\npub use deps::*\n"),

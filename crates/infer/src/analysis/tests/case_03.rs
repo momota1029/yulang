@@ -481,6 +481,97 @@ fn cache_boundary_capture_preserves_open_lower_and_upper_shape() {
 }
 
 #[test]
+fn imported_boundary_is_seeded_once_at_root_with_shared_graph_references() {
+    let first = TypeVar(10_000);
+    let second = TypeVar(10_001);
+    let mut poly = PolyArena::new();
+
+    let int_lower = poly
+        .typ
+        .alloc_pos(Pos::Con(vec!["int".to_string()], Vec::new()));
+    let second_upper = poly.typ.alloc_neg(Neg::Var(second));
+    let first_bounds = poly.typ.alloc_neu(Neu::Bounds(int_lower, second_upper));
+
+    let str_lower = poly
+        .typ
+        .alloc_pos(Pos::Con(vec!["str".to_string()], Vec::new()));
+    let str_upper = poly
+        .typ
+        .alloc_neg(Neg::Con(vec!["str".to_string()], Vec::new()));
+    let second_bounds = poly.typ.alloc_neu(Neu::Bounds(str_lower, str_upper));
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![
+            crate::CompiledBoundaryBound {
+                var: first,
+                bounds: first_bounds,
+            },
+            crate::CompiledBoundaryBound {
+                var: second,
+                bounds: second_bounds,
+            },
+        ],
+    };
+
+    let session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+    let imported_first = session
+        .imported_boundary_var(first)
+        .expect("first boundary binder should be mapped");
+    let imported_second = session
+        .imported_boundary_var(second)
+        .expect("second boundary binder should be mapped");
+
+    assert_ne!(imported_first, imported_second);
+    assert_eq!(
+        session.infer.constraints().level_of(imported_first),
+        TypeLevel::root()
+    );
+    assert_eq!(
+        session.infer.constraints().level_of(imported_second),
+        TypeLevel::root()
+    );
+    let first_infer_bounds = session
+        .infer
+        .constraints()
+        .bounds()
+        .of(imported_first)
+        .expect("first imported binder should receive its interval");
+    assert!(first_infer_bounds.lowers().iter().any(|bound| {
+        matches!(
+            session.infer.constraints().types().pos(bound.pos),
+            Pos::Con(path, args) if path == &["int".to_string()] && args.is_empty()
+        )
+    }));
+    assert!(first_infer_bounds.uppers().iter().any(|bound| {
+        matches!(
+            session.infer.constraints().types().neg(bound.neg),
+            Neg::Var(var) if *var == imported_second
+        )
+    }));
+    assert!(session.infer.constraints().events().is_empty());
+}
+
+#[test]
+fn imported_boundary_does_not_create_a_mapping_for_an_unlisted_variable() {
+    let listed = TypeVar(20_000);
+    let unlisted = TypeVar(20_001);
+    let mut poly = PolyArena::new();
+    let lower = poly.typ.alloc_pos(Pos::Var(listed));
+    let upper = poly.typ.alloc_neg(Neg::Var(listed));
+    let bounds = poly.typ.alloc_neu(Neu::Bounds(lower, upper));
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: listed,
+            bounds,
+        }],
+    };
+
+    let session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+
+    assert!(session.imported_boundary_var(listed).is_some());
+    assert_eq!(session.imported_boundary_var(unlisted), None);
+}
+
+#[test]
 fn joint_cache_freeze_keeps_bare_floor_boundary() {
     let def = DefId(0);
     let mut session = AnalysisSession::new(PolyArena::new());
