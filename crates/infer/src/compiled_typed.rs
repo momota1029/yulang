@@ -64,6 +64,473 @@ impl CompiledBoundaryInterface {
         }
         Some(CompiledBoundaryFingerprint(state))
     }
+
+    /// Fingerprint a structurally canonical non-empty boundary table in its owning arena.
+    ///
+    /// Entry roots first receive a local first-occurrence namespace used only for ordering. The
+    /// order is accepted when those exact structural keys are unique; ambiguous symmetric roots
+    /// remain non-canonical until the recursive-graph algorithm is specified. A second encoding
+    /// then uses ordinals from that structural order, so raw `TypeVar` and arena node IDs never
+    /// enter the fingerprint.
+    #[allow(
+        dead_code,
+        reason = "Stage 5 typed/runtime agreement connects this in the next artifact slice"
+    )]
+    pub(crate) fn semantic_fingerprint_with_types(
+        &self,
+        types: &TypeArena,
+    ) -> Option<CompiledBoundaryFingerprint> {
+        let key = self.canonical_structural_key(types)?;
+        let mut state = 0xcbf29ce484222325_u64;
+        for byte in key {
+            state ^= u64::from(byte);
+            state = state.wrapping_mul(0x100000001b3);
+        }
+        Some(CompiledBoundaryFingerprint(state))
+    }
+
+    #[allow(
+        dead_code,
+        reason = "Stage 5 typed/runtime agreement connects this in the next artifact slice"
+    )]
+    pub(crate) fn canonical_structural_key(&self, types: &TypeArena) -> Option<Vec<u8>> {
+        if self.bounds.is_empty() {
+            let mut key = b"yulang/compiled-boundary-interface/v1".to_vec();
+            push_u64(&mut key, 0);
+            return Some(key);
+        }
+
+        let mut boundary = FxHashSet::default();
+        for bound in &self.bounds {
+            if !boundary.insert(bound.var) {
+                return None;
+            }
+        }
+
+        let mut ordered = self
+            .bounds
+            .iter()
+            .map(|bound| {
+                let mut encoder = BoundaryStructuralEncoder::local(types, &boundary, bound.var);
+                let key = encoder.neu(bound.bounds)?;
+                Some((key, bound))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        ordered.sort_by(|left, right| left.0.cmp(&right.0));
+        if ordered.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+            return None;
+        }
+
+        let binders = ordered
+            .iter()
+            .enumerate()
+            .map(|(index, (_, bound))| {
+                let index = u32::try_from(index).ok()?;
+                Some((bound.var, index))
+            })
+            .collect::<Option<FxHashMap<_, _>>>()?;
+        let mut key = b"yulang/compiled-boundary-interface/v2".to_vec();
+        push_len(&mut key, ordered.len())?;
+        for (index, (_, bound)) in ordered.into_iter().enumerate() {
+            push_u32(&mut key, u32::try_from(index).ok()?);
+            let mut encoder = BoundaryStructuralEncoder::canonical(types, &boundary, &binders);
+            let bounds = encoder.neu(bound.bounds)?;
+            push_bytes(&mut key, &bounds)?;
+        }
+        Some(key)
+    }
+}
+
+use boundary_structural_fingerprint::{
+    BoundaryStructuralEncoder, push_bytes, push_len, push_u32, push_u64,
+};
+
+#[allow(
+    dead_code,
+    reason = "Stage 5 typed/runtime agreement connects this encoder in the next artifact slice"
+)]
+mod boundary_structural_fingerprint {
+    use super::*;
+
+    pub(super) struct BoundaryStructuralEncoder<'a> {
+        types: &'a TypeArena,
+        boundary: &'a FxHashSet<TypeVar>,
+        binders: FxHashMap<TypeVar, u32>,
+        assign_first_occurrence: bool,
+        pos: FxHashMap<PosId, Vec<u8>>,
+        neg: FxHashMap<NegId, Vec<u8>>,
+        neu: FxHashMap<NeuId, Vec<u8>>,
+    }
+
+    impl<'a> BoundaryStructuralEncoder<'a> {
+        pub(super) fn local(
+            types: &'a TypeArena,
+            boundary: &'a FxHashSet<TypeVar>,
+            root: TypeVar,
+        ) -> Self {
+            Self {
+                types,
+                boundary,
+                binders: FxHashMap::from_iter([(root, 0)]),
+                assign_first_occurrence: true,
+                pos: FxHashMap::default(),
+                neg: FxHashMap::default(),
+                neu: FxHashMap::default(),
+            }
+        }
+
+        pub(super) fn canonical(
+            types: &'a TypeArena,
+            boundary: &'a FxHashSet<TypeVar>,
+            binders: &FxHashMap<TypeVar, u32>,
+        ) -> Self {
+            Self {
+                types,
+                boundary,
+                binders: binders.clone(),
+                assign_first_occurrence: false,
+                pos: FxHashMap::default(),
+                neg: FxHashMap::default(),
+                neu: FxHashMap::default(),
+            }
+        }
+
+        fn binder(&mut self, var: TypeVar) -> Option<u32> {
+            if !self.boundary.contains(&var) {
+                return None;
+            }
+            if let Some(index) = self.binders.get(&var) {
+                return Some(*index);
+            }
+            if !self.assign_first_occurrence {
+                return None;
+            }
+            let index = u32::try_from(self.binders.len()).ok()?;
+            self.binders.insert(var, index);
+            Some(index)
+        }
+
+        fn pos(&mut self, id: PosId) -> Option<Vec<u8>> {
+            if let Some(encoded) = self.pos.get(&id) {
+                return Some(encoded.clone());
+            }
+            let node = self.types.pos_nodes().get(id.0 as usize)?.clone();
+            let mut out = Vec::new();
+            match node {
+                Pos::Bot => push_tag(&mut out, 0),
+                Pos::Var(var) => {
+                    push_tag(&mut out, 1);
+                    push_u32(&mut out, self.binder(var)?);
+                }
+                Pos::Con(path, args) => {
+                    push_tag(&mut out, 2);
+                    push_path(&mut out, &path)?;
+                    self.neu_ids(&mut out, &args)?;
+                }
+                Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    push_tag(&mut out, 3);
+                    push_bytes(&mut out, &self.neg(arg)?)?;
+                    push_bytes(&mut out, &self.neg(arg_eff)?)?;
+                    push_bytes(&mut out, &self.pos(ret_eff)?)?;
+                    push_bytes(&mut out, &self.pos(ret)?)?;
+                }
+                Pos::Record(fields) => {
+                    push_tag(&mut out, 4);
+                    self.pos_fields(&mut out, &fields)?;
+                }
+                Pos::RecordTailSpread { fields, tail } => {
+                    push_tag(&mut out, 5);
+                    self.pos_fields(&mut out, &fields)?;
+                    push_bytes(&mut out, &self.pos(tail)?)?;
+                }
+                Pos::RecordHeadSpread { tail, fields } => {
+                    push_tag(&mut out, 6);
+                    push_bytes(&mut out, &self.pos(tail)?)?;
+                    self.pos_fields(&mut out, &fields)?;
+                }
+                Pos::PolyVariant(items) => {
+                    push_tag(&mut out, 7);
+                    self.pos_variants(&mut out, &items)?;
+                }
+                Pos::Tuple(items) => {
+                    push_tag(&mut out, 8);
+                    self.pos_ids(&mut out, &items)?;
+                }
+                Pos::Row(items) => {
+                    push_tag(&mut out, 9);
+                    self.pos_ids(&mut out, &items)?;
+                }
+                Pos::Stack { inner, weight } => {
+                    if !weight.is_empty() {
+                        return None;
+                    }
+                    push_tag(&mut out, 10);
+                    push_bytes(&mut out, &self.pos(inner)?)?;
+                }
+                Pos::NonSubtract(inner, weight) => {
+                    if !weight.is_empty() {
+                        return None;
+                    }
+                    push_tag(&mut out, 11);
+                    push_bytes(&mut out, &self.pos(inner)?)?;
+                }
+                Pos::Union(left, right) => {
+                    push_tag(&mut out, 12);
+                    push_bytes(&mut out, &self.pos(left)?)?;
+                    push_bytes(&mut out, &self.pos(right)?)?;
+                }
+            }
+            self.pos.insert(id, out.clone());
+            Some(out)
+        }
+
+        fn neg(&mut self, id: NegId) -> Option<Vec<u8>> {
+            if let Some(encoded) = self.neg.get(&id) {
+                return Some(encoded.clone());
+            }
+            let node = self.types.neg_nodes().get(id.0 as usize)?.clone();
+            let mut out = Vec::new();
+            match node {
+                Neg::Top => push_tag(&mut out, 0),
+                Neg::Bot => push_tag(&mut out, 1),
+                Neg::Var(var) => {
+                    push_tag(&mut out, 2);
+                    push_u32(&mut out, self.binder(var)?);
+                }
+                Neg::Con(path, args) => {
+                    push_tag(&mut out, 3);
+                    push_path(&mut out, &path)?;
+                    self.neu_ids(&mut out, &args)?;
+                }
+                Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    push_tag(&mut out, 4);
+                    push_bytes(&mut out, &self.pos(arg)?)?;
+                    push_bytes(&mut out, &self.pos(arg_eff)?)?;
+                    push_bytes(&mut out, &self.neg(ret_eff)?)?;
+                    push_bytes(&mut out, &self.neg(ret)?)?;
+                }
+                Neg::Record(fields) => {
+                    push_tag(&mut out, 5);
+                    self.neg_fields(&mut out, &fields)?;
+                }
+                Neg::PolyVariant(items) => {
+                    push_tag(&mut out, 6);
+                    self.neg_variants(&mut out, &items)?;
+                }
+                Neg::Tuple(items) => {
+                    push_tag(&mut out, 7);
+                    self.neg_ids(&mut out, &items)?;
+                }
+                Neg::Row(items, tail) => {
+                    push_tag(&mut out, 8);
+                    self.neg_ids(&mut out, &items)?;
+                    push_bytes(&mut out, &self.neg(tail)?)?;
+                }
+                Neg::Stack { inner, weight } => {
+                    if !weight.is_empty() {
+                        return None;
+                    }
+                    push_tag(&mut out, 9);
+                    push_bytes(&mut out, &self.neg(inner)?)?;
+                }
+                Neg::Intersection(left, right) => {
+                    push_tag(&mut out, 10);
+                    push_bytes(&mut out, &self.neg(left)?)?;
+                    push_bytes(&mut out, &self.neg(right)?)?;
+                }
+            }
+            self.neg.insert(id, out.clone());
+            Some(out)
+        }
+
+        pub(super) fn neu(&mut self, id: NeuId) -> Option<Vec<u8>> {
+            if let Some(encoded) = self.neu.get(&id) {
+                return Some(encoded.clone());
+            }
+            let node = self.types.neu_nodes().get(id.0 as usize)?.clone();
+            let mut out = Vec::new();
+            match node {
+                Neu::Bounds(lower, upper) => {
+                    push_tag(&mut out, 0);
+                    push_bytes(&mut out, &self.pos(lower)?)?;
+                    push_bytes(&mut out, &self.neg(upper)?)?;
+                }
+                Neu::Con(path, args) => {
+                    push_tag(&mut out, 1);
+                    push_path(&mut out, &path)?;
+                    self.neu_ids(&mut out, &args)?;
+                }
+                Neu::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    push_tag(&mut out, 2);
+                    push_bytes(&mut out, &self.neu(arg)?)?;
+                    push_bytes(&mut out, &self.neu(arg_eff)?)?;
+                    push_bytes(&mut out, &self.neu(ret_eff)?)?;
+                    push_bytes(&mut out, &self.neu(ret)?)?;
+                }
+                Neu::Record(fields) => {
+                    push_tag(&mut out, 3);
+                    self.neu_fields(&mut out, &fields)?;
+                }
+                Neu::PolyVariant(items) => {
+                    push_tag(&mut out, 4);
+                    self.neu_variants(&mut out, &items)?;
+                }
+                Neu::Tuple(items) => {
+                    push_tag(&mut out, 5);
+                    self.neu_ids(&mut out, &items)?;
+                }
+            }
+            self.neu.insert(id, out.clone());
+            Some(out)
+        }
+
+        fn pos_ids(&mut self, out: &mut Vec<u8>, ids: &[PosId]) -> Option<()> {
+            push_len(out, ids.len())?;
+            for id in ids {
+                push_bytes(out, &self.pos(*id)?)?;
+            }
+            Some(())
+        }
+
+        fn neg_ids(&mut self, out: &mut Vec<u8>, ids: &[NegId]) -> Option<()> {
+            push_len(out, ids.len())?;
+            for id in ids {
+                push_bytes(out, &self.neg(*id)?)?;
+            }
+            Some(())
+        }
+
+        fn neu_ids(&mut self, out: &mut Vec<u8>, ids: &[NeuId]) -> Option<()> {
+            push_len(out, ids.len())?;
+            for id in ids {
+                push_bytes(out, &self.neu(*id)?)?;
+            }
+            Some(())
+        }
+
+        fn pos_fields(&mut self, out: &mut Vec<u8>, fields: &[RecordField<PosId>]) -> Option<()> {
+            push_len(out, fields.len())?;
+            for field in fields {
+                push_string(out, &field.name)?;
+                push_bool(out, field.optional);
+                push_bytes(out, &self.pos(field.value)?)?;
+            }
+            Some(())
+        }
+
+        fn neg_fields(&mut self, out: &mut Vec<u8>, fields: &[RecordField<NegId>]) -> Option<()> {
+            push_len(out, fields.len())?;
+            for field in fields {
+                push_string(out, &field.name)?;
+                push_bool(out, field.optional);
+                push_bytes(out, &self.neg(field.value)?)?;
+            }
+            Some(())
+        }
+
+        fn neu_fields(&mut self, out: &mut Vec<u8>, fields: &[RecordField<NeuId>]) -> Option<()> {
+            push_len(out, fields.len())?;
+            for field in fields {
+                push_string(out, &field.name)?;
+                push_bool(out, field.optional);
+                push_bytes(out, &self.neu(field.value)?)?;
+            }
+            Some(())
+        }
+
+        fn pos_variants(
+            &mut self,
+            out: &mut Vec<u8>,
+            items: &[(String, Vec<PosId>)],
+        ) -> Option<()> {
+            push_len(out, items.len())?;
+            for (name, payloads) in items {
+                push_string(out, name)?;
+                self.pos_ids(out, payloads)?;
+            }
+            Some(())
+        }
+
+        fn neg_variants(
+            &mut self,
+            out: &mut Vec<u8>,
+            items: &[(String, Vec<NegId>)],
+        ) -> Option<()> {
+            push_len(out, items.len())?;
+            for (name, payloads) in items {
+                push_string(out, name)?;
+                self.neg_ids(out, payloads)?;
+            }
+            Some(())
+        }
+
+        fn neu_variants(
+            &mut self,
+            out: &mut Vec<u8>,
+            items: &[(String, Vec<NeuId>)],
+        ) -> Option<()> {
+            push_len(out, items.len())?;
+            for (name, payloads) in items {
+                push_string(out, name)?;
+                self.neu_ids(out, payloads)?;
+            }
+            Some(())
+        }
+    }
+
+    fn push_tag(out: &mut Vec<u8>, tag: u8) {
+        out.push(tag);
+    }
+
+    fn push_bool(out: &mut Vec<u8>, value: bool) {
+        out.push(u8::from(value));
+    }
+
+    pub(super) fn push_u32(out: &mut Vec<u8>, value: u32) {
+        out.extend(value.to_le_bytes());
+    }
+
+    pub(super) fn push_u64(out: &mut Vec<u8>, value: u64) {
+        out.extend(value.to_le_bytes());
+    }
+
+    pub(super) fn push_len(out: &mut Vec<u8>, value: usize) -> Option<()> {
+        push_u64(out, u64::try_from(value).ok()?);
+        Some(())
+    }
+
+    pub(super) fn push_bytes(out: &mut Vec<u8>, value: &[u8]) -> Option<()> {
+        push_len(out, value.len())?;
+        out.extend(value);
+        Some(())
+    }
+
+    fn push_string(out: &mut Vec<u8>, value: &str) -> Option<()> {
+        push_bytes(out, value.as_bytes())
+    }
+
+    fn push_path(out: &mut Vec<u8>, path: &[String]) -> Option<()> {
+        push_len(out, path.len())?;
+        for segment in path {
+            push_string(out, segment)?;
+        }
+        Some(())
+    }
 }
 
 impl CompiledBoundaryFingerprint {
@@ -898,6 +1365,73 @@ mod tests {
     use super::*;
 
     #[test]
+    fn non_empty_boundary_fingerprint_ignores_raw_binder_node_and_entry_order() {
+        let (left_types, left) =
+            structural_boundary_fixture([TypeVar(7), TypeVar(8)], false, 0, "payload");
+        let (right_types, right) =
+            structural_boundary_fixture([TypeVar(800), TypeVar(300)], true, 3, "payload");
+
+        let left_fingerprint = left
+            .semantic_fingerprint_with_types(&left_types)
+            .expect("unique structural roots are canonical");
+        let right_fingerprint = right
+            .semantic_fingerprint_with_types(&right_types)
+            .expect("alpha-renamed structural roots are canonical");
+
+        assert_eq!(left_fingerprint, right_fingerprint);
+        assert_eq!(
+            left.semantic_fingerprint_with_types(&left_types),
+            left.semantic_fingerprint_with_types(&left_types),
+            "repeated fingerprinting must be deterministic"
+        );
+        assert_eq!(
+            CompiledBoundaryInterface::empty().semantic_fingerprint_with_types(&TypeArena::new()),
+            CompiledBoundaryInterface::empty().semantic_fingerprint(),
+            "the existing empty-boundary fingerprint must remain unchanged"
+        );
+    }
+
+    #[test]
+    fn non_empty_boundary_fingerprint_distinguishes_structure_and_rejects_ambiguous_roots() {
+        let (left_types, left) =
+            structural_boundary_fixture([TypeVar(11), TypeVar(12)], false, 0, "payload");
+        let (different_types, different) =
+            structural_boundary_fixture([TypeVar(91), TypeVar(92)], false, 0, "different");
+        assert_ne!(
+            left.semantic_fingerprint_with_types(&left_types),
+            different.semantic_fingerprint_with_types(&different_types)
+        );
+
+        let mut ambiguous_types = TypeArena::new();
+        let first = TypeVar(20);
+        let second = TypeVar(21);
+        let first_lower = ambiguous_types.alloc_pos(Pos::Var(first));
+        let first_upper = ambiguous_types.alloc_neg(Neg::Var(first));
+        let first_bounds = ambiguous_types.alloc_neu(Neu::Bounds(first_lower, first_upper));
+        let second_lower = ambiguous_types.alloc_pos(Pos::Var(second));
+        let second_upper = ambiguous_types.alloc_neg(Neg::Var(second));
+        let second_bounds = ambiguous_types.alloc_neu(Neu::Bounds(second_lower, second_upper));
+        let ambiguous = CompiledBoundaryInterface {
+            bounds: vec![
+                CompiledBoundaryBound {
+                    var: first,
+                    bounds: first_bounds,
+                },
+                CompiledBoundaryBound {
+                    var: second,
+                    bounds: second_bounds,
+                },
+            ],
+        };
+
+        assert_eq!(
+            ambiguous.semantic_fingerprint_with_types(&ambiguous_types),
+            None,
+            "symmetric roots need the still-unconfirmed recursive graph canonicalizer"
+        );
+    }
+
+    #[test]
     fn typed_surface_records_exported_value_schemes_by_namespace_symbol() {
         let loaded = sources::load(vec![
             source(&[], "mod ops;\npub use ops::*\n"),
@@ -1300,6 +1834,44 @@ mod tests {
         surface.boundary = CompiledBoundaryInterface {
             bounds: vec![CompiledBoundaryBound { var, bounds }],
         };
+    }
+
+    fn structural_boundary_fixture(
+        vars: [TypeVar; 2],
+        reverse_entries: bool,
+        padding_nodes: usize,
+        marker: &str,
+    ) -> (TypeArena, CompiledBoundaryInterface) {
+        let mut types = TypeArena::new();
+        for index in 0..padding_nodes {
+            types.alloc_pos(Pos::Con(vec![format!("padding-{index}")], Vec::new()));
+        }
+
+        let first_lower = types.alloc_pos(Pos::Var(vars[0]));
+        let first_upper = types.alloc_neg(Neg::Var(vars[0]));
+        let first_bounds = types.alloc_neu(Neu::Bounds(first_lower, first_upper));
+
+        let second_inner_lower = types.alloc_pos(Pos::Var(vars[1]));
+        let second_inner_upper = types.alloc_neg(Neg::Var(vars[1]));
+        let second_inner = types.alloc_neu(Neu::Bounds(second_inner_lower, second_inner_upper));
+        let second_lower = types.alloc_pos(Pos::Con(vec![marker.to_string()], vec![second_inner]));
+        let second_upper = types.alloc_neg(Neg::Con(vec![marker.to_string()], vec![second_inner]));
+        let second_bounds = types.alloc_neu(Neu::Bounds(second_lower, second_upper));
+
+        let mut bounds = vec![
+            CompiledBoundaryBound {
+                var: vars[0],
+                bounds: first_bounds,
+            },
+            CompiledBoundaryBound {
+                var: vars[1],
+                bounds: second_bounds,
+            },
+        ];
+        if reverse_entries {
+            bounds.reverse();
+        }
+        (types, CompiledBoundaryInterface { bounds })
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {
