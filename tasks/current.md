@@ -649,6 +649,34 @@ failed、std-prefix safety 6 passed、std-prefix CLI regression / characterizati
 しない。次は(2d) production writer / decoderのfail-closed接続で、format 19のnon-empty boundary payloadを実際に
 生成し、このexact agreementをmanifest fingerprint採用前に必須化する。Oracle A2 / Bにはまだ進まない。
 
+### Stage 5 artifact integration slice 2d: production writer / decoder fail-closed connection
+
+2026-07-12にClaude Sonnet 5とユーザは、prefix-only writerとsuffix-dependent safety gateを独立させる方針を
+確定した。writerはprogram reuse判定を待たずcanonical handoffを一度だけ試し、capture / candidate closure /
+exact structural-key agreementが成功した場合はnon-empty boundaryのtyped/runtime pairを保存する。いずれかが
+失敗した場合は、従来と同じempty boundary pairを保存する。suffixに応じてartifact内容を変える二段writerは
+採用しない。
+
+production `compiled_unit_artifact_from_lowering_with_syntax_and_key`をこの入口へ接続した。infer crateからはprivateな
+`CompiledCacheInterfaceSurfaces::from_lowering`と`BoundaryCaptureError`を露出せず、artifact-readyなexact agreement
+済みpairだけを返す`canonical_cache_interface_surfaces_from_lowering`を最小public wrapperとして追加した。
+decoder、manifest、mergeはすべて`boundary_fingerprint_agreeing_with_runtime`を共通入口にし、format 19のnon-empty
+payloadもcanonical keyがbyte完全一致した後だけmanifest fingerprintとして受理する。
+
+focused正常系ではexpansive exported valueからnon-empty artifactを実際にencode / decodeし、runtime boundaryだけを
+emptyへ改変してruntime hashを更新してもexact-key mismatchでcache missになることを確認した。否定系では
+prerequisite-only変数を持つcandidateを注入し、canonical closure失敗後にempty artifactがdiskへwrite / readできる
+ことを確認した。compiled-unit cache focusedは10 passed、infer interface oracle 9 passed、cache interface関連7
+passed、infer全体598 passed / 既知の`mark_expr_block_*` 5 failed、std-prefix safety 6 passed、std-prefix CLI
+regression / characterization 5 passedである。
+
+`std_prefix_cache_safety.rs`と`main.rs`のreuse gate呼び出しは無変更である。fresh cache実測はseedが
+`std-prefix-build` (`run.total` 5.929秒)、Markdownが`full-miss` (`run.build_poly` 32.588秒、`run.total`
+33.930秒)、HTMLが意図どおり`full-miss` (`run.build_poly` 6.128秒、`run.total` 7.451秒)だった。Markdownのsafety
+判定自体は従来どおりsafeだが、(2d)完了時点では後続warm import経路がhitを成立させていない。次はStage 5の
+Oracle A2 production encode/decode/fresh-session-import witnessで、どのimport前提が残っているかを固定する。Oracle B
+とfallback retirementにはまだ進まない。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -742,7 +770,10 @@ Stage 6で実害が計測された場合だけ再検討する。slice 2bではca
 truncateされたformat wordを安全なmissへ倒した。production payloadは引き続きempty boundaryで、既存のfresh
 cache routeは不変である。slice 2cではserialize後に独立するtyped/runtime arenaのcanonical structural keyを
 byte完全一致で比較し、一致後だけfingerprintへ縮約するpublic agreement入口を追加した。既存routeには未接続で
-ある。次は2dのproduction writer / decoder接続で、Oracle A2 / Bはその後である。Markdownのwarm成功は既存の
+ある。slice 2dではproduction writerをcanonical handoffへ接続し、成功時はnon-empty、構造的失敗時はempty
+artifactを保存するfail-closed経路と、decoder / manifest / mergeのexact agreementを有効化した。reuse safety gate
+は無変更である。次はOracle A2でproduction round trip後のfresh-session importを固定する。Markdownは2d後も
+`full-miss`であり、warm成功は既存の
 `full-miss`許容testではなく明示的な`std-prefix-hit` witnessで判定する。program-sensitive fallbackの退役判断は
 Stage 7まで待つ。
 

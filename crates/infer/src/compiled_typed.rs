@@ -74,7 +74,7 @@ impl CompiledBoundaryInterface {
     /// enter the fingerprint.
     #[allow(
         dead_code,
-        reason = "Stage 5 production artifact connection consumes this in slice 2d"
+        reason = "focused tests exercise one surface; production requires exact two-surface agreement"
     )]
     pub(crate) fn semantic_fingerprint_with_types(
         &self,
@@ -556,13 +556,22 @@ pub enum CompiledTypedMergeError {
 
 /// One-shot canonical cache-interface handoff to both compiled surfaces.
 ///
-/// Artifact construction does not use this entry until the later integration stage. Keeping the
-/// pair together here ensures that enabling it cannot independently freeze schemes, candidates,
-/// or boundary graphs for typed and runtime consumers.
-#[allow(
-    dead_code,
-    reason = "the Stage 5 non-empty artifact slice enables this common handoff"
-)]
+/// Production artifact construction uses this fail-closed entry instead of exposing the internal
+/// draft or its capture errors across the crate boundary. The returned surfaces have already
+/// passed exact structural-key agreement; `None` asks the caller to retain its conservative empty
+/// boundary representation.
+pub fn canonical_cache_interface_surfaces_from_lowering(
+    lowering: &BodyLowering,
+    namespace: &CompiledNamespaceSurface,
+) -> Option<(CompiledTypedSurface, crate::CompiledRuntimeSurface)> {
+    let surfaces = CompiledCacheInterfaceSurfaces::from_lowering(lowering, namespace).ok()?;
+    surfaces
+        .typed
+        .boundary_fingerprint_agreeing_with_runtime(&surfaces.runtime)?;
+    Some((surfaces.typed, surfaces.runtime))
+}
+
+/// Internal one-shot construction preserving one canonical arena for both compiled surfaces.
 pub(crate) struct CompiledCacheInterfaceSurfaces {
     pub(crate) typed: CompiledTypedSurface,
     pub(crate) runtime: crate::CompiledRuntimeSurface,
@@ -574,10 +583,6 @@ struct CompiledTypedValueSource {
     def: DefId,
 }
 
-#[allow(
-    dead_code,
-    reason = "the Stage 5 non-empty artifact slice enables this common handoff"
-)]
 impl CompiledCacheInterfaceSurfaces {
     pub(crate) fn from_lowering(
         lowering: &BodyLowering,

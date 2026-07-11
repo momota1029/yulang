@@ -1000,15 +1000,21 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
-    let boundary = infer::CompiledBoundaryInterface::empty();
-    let typed = infer::CompiledTypedSurface::from_lowering_with_boundary(
-        lowering,
-        &namespace,
-        boundary.clone(),
-    );
-    let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace_and_boundary(
-        lowering, &namespace, boundary,
-    );
+    let (typed, runtime) =
+        infer::canonical_cache_interface_surfaces_from_lowering(lowering, &namespace)
+            .unwrap_or_else(|| {
+                let boundary = infer::CompiledBoundaryInterface::empty();
+                let typed = infer::CompiledTypedSurface::from_lowering_with_boundary(
+                    lowering,
+                    &namespace,
+                    boundary.clone(),
+                );
+                let runtime =
+                    infer::CompiledRuntimeSurface::from_lowering_with_namespace_and_boundary(
+                        lowering, &namespace, boundary,
+                    );
+                (typed, runtime)
+            });
     let external_runtime = compiled_unit_external_runtime_refs(lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
@@ -1624,9 +1630,7 @@ fn compiled_unit_boundary_fingerprint(
     typed: &infer::CompiledTypedSurface,
     runtime: &infer::CompiledRuntimeSurface,
 ) -> Option<infer::CompiledBoundaryFingerprint> {
-    let typed = typed.boundary.semantic_fingerprint()?;
-    let runtime = runtime.boundary.semantic_fingerprint()?;
-    (typed == runtime).then_some(typed)
+    typed.boundary_fingerprint_agreeing_with_runtime(runtime)
 }
 
 fn cached_compiled_unit_artifact_from_envelope(
@@ -1762,7 +1766,7 @@ fn compiled_unit_manifest(
     key: SourceCacheKey,
 ) -> CompiledUnitManifest {
     let boundary_fingerprint = compiled_unit_boundary_fingerprint(typed, runtime)
-        .expect("Stage 1 compiled surfaces must share the empty boundary interface");
+        .expect("compiled surfaces must share one exact canonical boundary interface");
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
         compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
@@ -4537,6 +4541,115 @@ mod tests {
             suffix[0].op_table.0.get("<+>".as_bytes()).is_some(),
             "cached syntax surface should rebuild downstream parser operators"
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_round_trips_non_empty_canonical_boundary() {
+        let files = vec![source(
+            "main.yu",
+            &[],
+            "my id x = x\npub computed = id (\\x -> x)\n",
+        )];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+
+        assert!(
+            !artifact.typed.boundary.bounds.is_empty(),
+            "the expansive exported value must exercise the canonical boundary writer"
+        );
+        assert_eq!(artifact.typed.boundary, artifact.runtime.boundary);
+        assert_eq!(
+            artifact
+                .typed
+                .boundary_fingerprint_agreeing_with_runtime(&artifact.runtime),
+            Some(artifact.manifest.boundary_fingerprint)
+        );
+
+        let bytes = encode_compiled_unit_artifact_bytes(&artifact).unwrap();
+        let decoded = decode_compiled_unit_artifact_bytes(&bytes, key)
+            .unwrap()
+            .expect("format 19 non-empty boundary round trip");
+        assert_eq!(decoded.typed.boundary, artifact.typed.boundary);
+        assert_eq!(decoded.runtime.boundary, artifact.runtime.boundary);
+
+        let mut mismatched = artifact;
+        mismatched.runtime.boundary = infer::CompiledBoundaryInterface::empty();
+        mismatched.manifest.runtime_hash = compiled_runtime_hash(&mismatched.runtime);
+        let bytes = encode_compiled_unit_artifact_bytes(&mismatched).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none(),
+            "format 19 decode must reject typed/runtime exact-key disagreement"
+        );
+    }
+
+    #[test]
+    fn compiled_unit_cache_falls_back_to_empty_boundary_when_candidate_closure_fails() {
+        let root = temp_root("compiled-unit-canonical-closure-fallback");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "pub value = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let mut lowering = infer::lowering::lower_loaded_files(&loaded).unwrap();
+        let head = lowering.session.infer.fresh_type_var();
+        let prerequisite_only = lowering.session.infer.fresh_type_var();
+        let head_input = poly::roles::RoleConstraintArg {
+            lower: lowering
+                .session
+                .infer
+                .alloc_pos(poly::types::Pos::Var(head)),
+            upper: lowering
+                .session
+                .infer
+                .alloc_neg(poly::types::Neg::Var(head)),
+        };
+        let prerequisite_input = poly::roles::RoleConstraintArg {
+            lower: lowering
+                .session
+                .infer
+                .alloc_pos(poly::types::Pos::Var(prerequisite_only)),
+            upper: lowering
+                .session
+                .infer
+                .alloc_neg(poly::types::Neg::Var(prerequisite_only)),
+        };
+        lowering
+            .session
+            .role_impls
+            .insert(poly::roles::RoleImplCandidate {
+                impl_def: None,
+                role: vec!["UnclosedArtifactCandidate".into()],
+                inputs: vec![head_input],
+                associated: Vec::new(),
+                prerequisites: vec![poly::roles::RoleConstraint {
+                    role: vec!["UnclosedArtifactPrerequisite".into()],
+                    inputs: vec![prerequisite_input],
+                    associated: Vec::new(),
+                }],
+                methods: Vec::new(),
+            });
+        let key = source_cache_key(&files);
+
+        let artifact = compiled_unit_artifact_from_lowering(&files, &loaded, &lowering, Vec::new());
+        assert!(artifact.typed.boundary.bounds.is_empty());
+        assert!(artifact.runtime.boundary.bounds.is_empty());
+        assert_eq!(
+            artifact
+                .typed
+                .boundary_fingerprint_agreeing_with_runtime(&artifact.runtime),
+            Some(artifact.manifest.boundary_fingerprint)
+        );
+
+        cache.write_compiled_unit_artifact(key, &artifact).unwrap();
+        let restored = cache
+            .read_compiled_unit_artifact(key)
+            .unwrap()
+            .expect("empty fallback artifact remains writable");
+        assert!(restored.typed.boundary.bounds.is_empty());
+        assert!(restored.runtime.boundary.bounds.is_empty());
 
         let _ = fs::remove_dir_all(root);
     }

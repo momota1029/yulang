@@ -682,6 +682,19 @@ Stage 2 implementation or weaken the strict audit before that classification is 
   equal runtime results.
 - No-heavy-fixpoint: comparison and validation are offline structural passes.
 
+#### 2026-07-12 production writer / reuse-gate resolution
+
+Claude Sonnet 5 and the user confirmed that compiled-unit artifact construction remains prefix-only
+and independent of the program-sensitive std-prefix reuse gate. The writer always attempts the
+canonical typed/runtime handoff. It persists the non-empty boundary pair only when construction and
+exact structural-key agreement succeed; otherwise it persists the previous empty-boundary pair.
+
+`std_prefix_cache_safety` remains a separate suffix-dependent gate at reuse time, after artifact
+read/build and before warm lowering. Its decision, call order, and protection scope are unchanged.
+In particular, an artifact may be constructed canonically and still be rejected for a particular
+suffix. The rejected suffix follows the existing full-compile route. The alternative two-phase
+writer design, in which suffix eligibility controls artifact contents, is explicitly not adopted.
+
 ### Stage 6: performance and shadow validation
 
 - Changes: measure cold/warm role-resolution time, boundary table size, validator cost, and fallback
