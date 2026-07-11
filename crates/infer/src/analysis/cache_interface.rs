@@ -1,4 +1,9 @@
 use super::*;
+use std::hash::{Hash, Hasher};
+
+use rustc_hash::FxHasher;
+
+use crate::compact::CompactVarSubstitution;
 
 /// Pre-canonical unit boundary captured from settled inference state.
 ///
@@ -45,6 +50,18 @@ pub(crate) struct NormalizedCandidate {
     pub(crate) candidate: crate::roles::RoleImplCandidate,
     pub(crate) head: CompactRoleConstraint,
     pub(crate) prerequisites: Vec<CompactRoleConstraint>,
+    pub(crate) head_binders: Vec<TypeVar>,
+    pub(crate) boundary: Vec<TypeVar>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct FrozenCandidateInterface {
+    pub(crate) candidates: Vec<FrozenCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FrozenCandidate {
+    pub(crate) candidate: crate::roles::RoleImplCandidate,
     pub(crate) head_binders: Vec<TypeVar>,
     pub(crate) boundary: Vec<TypeVar>,
 }
@@ -114,6 +131,10 @@ pub(crate) enum BoundaryCaptureError {
         impl_def: Option<DefId>,
         role: Vec<String>,
         var: TypeVar,
+    },
+    NonCanonicalCandidateOrdering {
+        impl_def: Option<DefId>,
+        role: Vec<String>,
     },
     MissingBoundaryBound {
         var: TypeVar,
@@ -415,6 +436,28 @@ impl AnalysisSession {
         Ok(NormalizedCandidateInterface { candidates })
     }
 
+    /// Freeze one validated unit batch; a single candidate failure rejects the whole artifact.
+    ///
+    /// Dropping only a failed candidate would remove a source impl from suffix role resolution.
+    /// Until a semantics-preserving per-candidate fallback exists, unit-level fallback is the safe
+    /// compiled-artifact granularity.
+    pub(crate) fn freeze_cache_candidate_interface(
+        &self,
+        normalized: NormalizedCandidateInterface,
+        poly: &mut PolyArena,
+    ) -> Result<FrozenCandidateInterface, BoundaryCaptureError> {
+        let canonical = normalized
+            .candidates
+            .into_iter()
+            .map(canonicalize_candidate_order)
+            .collect::<Result<Vec<_>, _>>()?;
+        let candidates = canonical
+            .into_iter()
+            .map(|candidate| freeze_normalized_candidate(self, poly, candidate))
+            .collect();
+        Ok(FrozenCandidateInterface { candidates })
+    }
+
     /// Apply the normal structural simplification once to schemes and their captured boundary.
     pub(crate) fn freeze_cache_interface(
         &self,
@@ -605,6 +648,326 @@ fn normalize_cache_candidate(
         head_binders,
         boundary: candidate_boundary,
     })
+}
+
+struct CanonicallyOrderedCandidate {
+    candidate: crate::roles::RoleImplCandidate,
+    head: CompactRoleConstraint,
+    prerequisites: Vec<CompactRoleConstraint>,
+    head_binders: Vec<TypeVar>,
+    boundary: Vec<TypeVar>,
+}
+
+fn canonicalize_candidate_order(
+    mut normalized: NormalizedCandidate,
+) -> Result<CanonicallyOrderedCandidate, BoundaryCaptureError> {
+    normalized
+        .head
+        .associated
+        .sort_by(|left, right| left.name.cmp(&right.name));
+    for prerequisite in &mut normalized.prerequisites {
+        prerequisite
+            .associated
+            .sort_by(|left, right| left.name.cmp(&right.name));
+    }
+
+    let (temporary, canonical) = candidate_binder_normalization_substitutions(
+        &normalized.head_binders,
+        &normalized.boundary,
+    )?;
+    let mut keyed = normalized
+        .prerequisites
+        .into_iter()
+        .map(|prerequisite| {
+            let normalized_key =
+                normalize_candidate_role_binders(prerequisite.clone(), &temporary, &canonical);
+            let mut hasher = FxHasher::default();
+            normalized_key.hash(&mut hasher);
+            (hasher.finish(), normalized_key, prerequisite)
+        })
+        .collect::<Vec<_>>();
+    keyed.sort_by_key(|(fingerprint, _, _)| *fingerprint);
+
+    let mut prerequisites = Vec::new();
+    let mut previous = None::<(u64, CompactRoleConstraint)>;
+    for (fingerprint, normalized_key, prerequisite) in keyed {
+        if let Some((previous_fingerprint, previous_key)) = &previous
+            && *previous_fingerprint == fingerprint
+        {
+            if previous_key == &normalized_key {
+                continue;
+            }
+            return Err(BoundaryCaptureError::NonCanonicalCandidateOrdering {
+                impl_def: normalized.candidate.impl_def,
+                role: normalized.candidate.role.clone(),
+            });
+        }
+        previous = Some((fingerprint, normalized_key));
+        prerequisites.push(prerequisite);
+    }
+
+    Ok(CanonicallyOrderedCandidate {
+        candidate: normalized.candidate,
+        head: normalized.head,
+        prerequisites,
+        head_binders: normalized.head_binders,
+        boundary: normalized.boundary,
+    })
+}
+
+fn candidate_binder_normalization_substitutions(
+    head_binders: &[TypeVar],
+    boundary: &[TypeVar],
+) -> Result<(Vec<CompactVarSubstitution>, Vec<CompactVarSubstitution>), BoundaryCaptureError> {
+    const CANONICAL_BOUNDARY_BASE: u32 = 1 << 30;
+
+    let binders = head_binders
+        .iter()
+        .chain(boundary)
+        .copied()
+        .collect::<Vec<_>>();
+    let temporary_base = binders
+        .iter()
+        .map(|var| var.0)
+        .max()
+        .unwrap_or_default()
+        .checked_add(1)
+        .ok_or(BoundaryCaptureError::MalformedJointComponent)?;
+    let binder_count =
+        u32::try_from(binders.len()).map_err(|_| BoundaryCaptureError::MalformedJointComponent)?;
+    temporary_base
+        .checked_add(binder_count)
+        .ok_or(BoundaryCaptureError::MalformedJointComponent)?;
+    let head_count = u32::try_from(head_binders.len())
+        .map_err(|_| BoundaryCaptureError::MalformedJointComponent)?;
+    let boundary_count =
+        u32::try_from(boundary.len()).map_err(|_| BoundaryCaptureError::MalformedJointComponent)?;
+    if head_count >= CANONICAL_BOUNDARY_BASE {
+        return Err(BoundaryCaptureError::MalformedJointComponent);
+    }
+    CANONICAL_BOUNDARY_BASE
+        .checked_add(boundary_count)
+        .ok_or(BoundaryCaptureError::MalformedJointComponent)?;
+
+    let temporary = binders
+        .iter()
+        .enumerate()
+        .map(|(index, source)| CompactVarSubstitution {
+            source: *source,
+            target: Some(TypeVar(
+                temporary_base + u32::try_from(index).expect("binder count checked above"),
+            )),
+        })
+        .collect::<Vec<_>>();
+    let canonical = temporary
+        .iter()
+        .enumerate()
+        .map(|(index, substitution)| {
+            let index = u32::try_from(index).expect("binder count checked above");
+            let target = if index < head_count {
+                TypeVar(index)
+            } else {
+                TypeVar(CANONICAL_BOUNDARY_BASE + (index - head_count))
+            };
+            CompactVarSubstitution {
+                source: substitution.target.expect("temporary binder target"),
+                target: Some(target),
+            }
+        })
+        .collect();
+    Ok((temporary, canonical))
+}
+
+fn normalize_candidate_role_binders(
+    mut role: CompactRoleConstraint,
+    temporary: &[CompactVarSubstitution],
+    canonical: &[CompactVarSubstitution],
+) -> CompactRoleConstraint {
+    let mut root = CompactRoot::default();
+    apply_compact_simplifications_to_root_and_roles(
+        &mut root,
+        std::slice::from_mut(&mut role),
+        &[
+            CompactSimplification {
+                substitutions: temporary.to_vec(),
+                sandwiches: Vec::new(),
+            },
+            CompactSimplification {
+                substitutions: canonical.to_vec(),
+                sandwiches: Vec::new(),
+            },
+        ],
+    );
+    role
+}
+
+fn freeze_normalized_candidate(
+    session: &AnalysisSession,
+    poly: &mut PolyArena,
+    normalized: CanonicallyOrderedCandidate,
+) -> FrozenCandidate {
+    let head = freeze_compact_role_constraint(session, &mut poly.typ, &normalized.head);
+    let prerequisites = normalized
+        .prerequisites
+        .iter()
+        .map(|prerequisite| freeze_compact_role_constraint(session, &mut poly.typ, prerequisite))
+        .collect();
+    FrozenCandidate {
+        candidate: crate::roles::RoleImplCandidate {
+            impl_def: normalized.candidate.impl_def,
+            role: head.role,
+            inputs: head.inputs,
+            associated: head.associated,
+            prerequisites,
+            methods: normalized.candidate.methods,
+        },
+        head_binders: normalized.head_binders,
+        boundary: normalized.boundary,
+    }
+}
+
+fn freeze_compact_role_constraint(
+    session: &AnalysisSession,
+    types: &mut TypeArena,
+    role: &CompactRoleConstraint,
+) -> RoleConstraint {
+    RoleConstraint {
+        role: role.role.clone(),
+        inputs: role
+            .inputs
+            .iter()
+            .map(|input| freeze_compact_role_arg(session, types, input))
+            .collect(),
+        associated: role
+            .associated
+            .iter()
+            .map(|associated| RoleAssociatedConstraint {
+                name: associated.name.clone(),
+                value: freeze_compact_role_arg(session, types, &associated.value),
+            })
+            .collect(),
+    }
+}
+
+fn freeze_compact_role_arg(
+    session: &AnalysisSession,
+    types: &mut TypeArena,
+    arg: &CompactRoleArg,
+) -> RoleConstraintArg {
+    let bounds = finalize_compact_boundary_bounds(types, session.infer.constraints(), &arg.bounds);
+    match types.neu(bounds).clone() {
+        Neu::Bounds(lower, upper) => RoleConstraintArg { lower, upper },
+        bounds => RoleConstraintArg {
+            lower: freeze_neu_to_pos(types, bounds.clone()),
+            upper: freeze_neu_to_neg(types, bounds),
+        },
+    }
+}
+
+fn freeze_neu_to_pos(types: &mut TypeArena, neu: Neu) -> PosId {
+    let pos = match neu {
+        Neu::Bounds(lower, _) => return lower,
+        Neu::Con(path, args) => Pos::Con(path, args),
+        Neu::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Pos::Fun {
+            arg: freeze_neu_id_to_neg(types, arg),
+            arg_eff: freeze_neu_id_to_neg(types, arg_eff),
+            ret_eff: freeze_neu_id_to_pos(types, ret_eff),
+            ret: freeze_neu_id_to_pos(types, ret),
+        },
+        Neu::Record(fields) => Pos::Record(
+            fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: freeze_neu_id_to_pos(types, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Neu::PolyVariant(items) => Pos::PolyVariant(
+            items
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| freeze_neu_id_to_pos(types, payload))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Neu::Tuple(items) => Pos::Tuple(
+            items
+                .into_iter()
+                .map(|item| freeze_neu_id_to_pos(types, item))
+                .collect(),
+        ),
+    };
+    types.alloc_pos(pos)
+}
+
+fn freeze_neu_to_neg(types: &mut TypeArena, neu: Neu) -> NegId {
+    let neg = match neu {
+        Neu::Bounds(_, upper) => return upper,
+        Neu::Con(path, args) => Neg::Con(path, args),
+        Neu::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Neg::Fun {
+            arg: freeze_neu_id_to_pos(types, arg),
+            arg_eff: freeze_neu_id_to_pos(types, arg_eff),
+            ret_eff: freeze_neu_id_to_neg(types, ret_eff),
+            ret: freeze_neu_id_to_neg(types, ret),
+        },
+        Neu::Record(fields) => Neg::Record(
+            fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: freeze_neu_id_to_neg(types, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Neu::PolyVariant(items) => Neg::PolyVariant(
+            items
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| freeze_neu_id_to_neg(types, payload))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Neu::Tuple(items) => Neg::Tuple(
+            items
+                .into_iter()
+                .map(|item| freeze_neu_id_to_neg(types, item))
+                .collect(),
+        ),
+    };
+    types.alloc_neg(neg)
+}
+
+fn freeze_neu_id_to_pos(types: &mut TypeArena, id: NeuId) -> PosId {
+    freeze_neu_to_pos(types, types.neu(id).clone())
+}
+
+fn freeze_neu_id_to_neg(types: &mut TypeArena, id: NeuId) -> NegId {
+    freeze_neu_to_neg(types, types.neu(id).clone())
 }
 
 fn reachable_candidate_boundary(

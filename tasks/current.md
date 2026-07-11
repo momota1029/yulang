@@ -454,6 +454,44 @@ structural key順にsort / dedupする。candidate methodsとhead / prerequisite
 closure validator / runtime handoffへの接続はその次のsliceに残す。Markdownの`std-prefix-hit`化は引き続き
 Stage 5のnon-empty artifact integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
 
+### Stage 4 principal impl prerequisite slice 3: canonical candidate freeze / ordering
+
+candidate failureの粒度はunit batch全体のstrict rejectionを維持した。現行compiled-unit artifactから失敗
+candidateだけを除くと、prefixで定義されたimplがsuffixのrole resolutionから消えてfull compilationとの
+意味論が変わりうる。semantics-preservingなper-candidate fallback / overlayは存在しないため、全candidateの
+canonical orderingを検証してから一括freezeし、どれか一つでも失敗したら既存full-compile routeへ倒すのが
+現在のartifact粒度で安全な判断である。
+
+slice 3では`NormalizedCandidateInterface`を`FrozenCandidateInterface`へstructural freezeする入口を追加した。
+headとprerequisiteのassociated typesをname順へ揃え、head binderとunit `B`を別ordinal namespaceへ二段
+remapしたcompact structural fingerprintをprerequisite keyとして一度だけ計算し、sort / dedupする。同じ
+fingerprintでstructural keyが異なる衝突は`NonCanonicalCandidateOrdering`としてbatchを拒否するため、hash
+collisionで順序や意味を黙って選ばない。
+
+freezeはcompact boundsをstack-weight type argumentごとpoly arenaへremapした後、`Neu::Bounds(lower,
+upper)`ならそのcenterless pairをそのまま`RoleConstraintArg`へ使う。exact neutral shapeも正負へ構造的に
+projectするだけでcenter varを新設しない。candidate methodsは無変更で移し、TypeVar identityをremapしない
+ためhead / prerequisites間の共有binder identityも保持する。全candidateのorderingをpoly arena変更前に
+確定するので、batch error時に一部candidateだけがfreezeされることもない。
+
+focused witnessでは同じnormalized candidateのprerequisite入力順を逆転して別poly arenaへfreezeしても
+出力が完全一致し、duplicate prerequisiteが一件へ縮約され、head / prerequisite associatedがname順、
+methodsと共有TypeVarが保持され、head intervalが`Pos::Var` / `Neg::Var`のcenterless pairであることを直接
+確認した。別の否定witnessでは一つのunbound candidateがclosed candidateを含むunit batch全体を拒否する
+呼び出し規約を固定した。
+
+このfreeze helperもStage 4 focused testsだけから呼ばれ、既存のrole solve、candidate cache、
+`finalize_poly_role_impls`、compiled runtimeには未接続である。確認結果はcandidate capture / normalization /
+freeze 6 passed、infer interface oracle 9 passed、instantiate関連9 passed、role関連57 passed、infer全体
+592 passed / 既知の`mark_expr_block_*` 5 failed、std-prefix safety 6 passed、std-prefix CLI regression
+4 passedである。
+
+次sliceはStage 4最後のclosure validation / handoffである。scheme / boundary draftとfrozen candidatesを一つの
+canonical draftへ統合し、poly arena上でもcandidate varsがhead binders + `B`に閉じること、candidateの
+共有`B`がunit boundary tableを参照することをvalidatorで再確認して、typed/runtime共通handoffへ渡す。
+Stage 5のartifact有効化自体には進まない。Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty
+artifact integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -534,8 +572,10 @@ handoffに続き、Stage 3 §6.1 Import once、§6.2 Scheme instantiate、§6.3 
 Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4 slice 1ではcandidate head-local / known `B`
 inventoryとprerequisite-only varの明示的なunclassified inventoryを追加し、slice 2ではstrict rejection
 方針の下でhead + prerequisites + reachable `B` carrierのper-candidate joint compact normalizationと
-post-substitution inventory rewriteを完了した。次はnormalized candidateのstructural freezeとcanonical
-orderingへ進む。production artifactのencode/decode / fresh-session import gateであるOracle A2はStage 5へ
+post-substitution inventory rewriteを完了した。slice 3ではunit-batch strict rejectionの下でnormalized
+candidateのcenterless structural freeze、associated name ordering、binder-normalized prerequisite structural
+sort / dedup、methods / shared-var preservationを完了した。次はStage 4最後のclosure validation / common
+handoffへ進む。production artifactのencode/decode / fresh-session import gateであるOracle A2はStage 5へ
 移した。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty artifact
 integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
 

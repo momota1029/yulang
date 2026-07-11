@@ -660,6 +660,180 @@ fn cache_candidate_joint_normalization_rejects_surviving_prerequisite_only_varia
 }
 
 #[test]
+fn cache_candidate_freeze_orders_and_deduplicates_without_breaking_shared_vars() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let shared = session.infer.fresh_type_var();
+    let head_z = role_var_arg(&mut session.infer, shared);
+    let head_a = role_var_arg(&mut session.infer, shared);
+    let alpha_input = role_var_arg(&mut session.infer, shared);
+    let alpha_z = role_var_arg(&mut session.infer, shared);
+    let alpha_a = role_var_arg(&mut session.infer, shared);
+    let alpha_duplicate_input = role_var_arg(&mut session.infer, shared);
+    let alpha_duplicate_z = role_var_arg(&mut session.infer, shared);
+    let alpha_duplicate_a = role_var_arg(&mut session.infer, shared);
+    let zeta_input = role_var_arg(&mut session.infer, shared);
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(44)),
+        role: vec!["OrderedCandidate".into()],
+        inputs: vec![role_var_arg(&mut session.infer, shared)],
+        associated: vec![
+            RoleAssociatedConstraint {
+                name: "z".into(),
+                value: head_z,
+            },
+            RoleAssociatedConstraint {
+                name: "a".into(),
+                value: head_a,
+            },
+        ],
+        prerequisites: vec![
+            RoleConstraint {
+                role: vec!["Zeta".into()],
+                inputs: vec![zeta_input],
+                associated: Vec::new(),
+            },
+            RoleConstraint {
+                role: vec!["Alpha".into()],
+                inputs: vec![alpha_input],
+                associated: vec![
+                    RoleAssociatedConstraint {
+                        name: "z".into(),
+                        value: alpha_z,
+                    },
+                    RoleAssociatedConstraint {
+                        name: "a".into(),
+                        value: alpha_a,
+                    },
+                ],
+            },
+            RoleConstraint {
+                role: vec!["Alpha".into()],
+                inputs: vec![alpha_duplicate_input],
+                associated: vec![
+                    RoleAssociatedConstraint {
+                        name: "z".into(),
+                        value: alpha_duplicate_z,
+                    },
+                    RoleAssociatedConstraint {
+                        name: "a".into(),
+                        value: alpha_duplicate_a,
+                    },
+                ],
+            },
+        ],
+        methods: vec![poly::roles::RoleImplMethod {
+            requirement: DefId(45),
+            implementation: DefId(46),
+        }],
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface::default();
+    let captured = session.capture_cache_candidate_interface(&boundary);
+    let normalized = session
+        .normalize_cache_candidate_interface(captured, &boundary)
+        .expect("candidate should normalize");
+    let mut reversed = normalized.clone();
+    reversed.candidates[0].prerequisites.reverse();
+    let mut first_poly = PolyArena::new();
+    let mut second_poly = PolyArena::new();
+
+    let first = session
+        .freeze_cache_candidate_interface(normalized, &mut first_poly)
+        .expect("first canonical freeze");
+    let second = session
+        .freeze_cache_candidate_interface(reversed, &mut second_poly)
+        .expect("reordered canonical freeze");
+
+    assert_eq!(
+        first, second,
+        "input prerequisite order must not affect freeze"
+    );
+    let [frozen] = first.candidates.as_slice() else {
+        panic!("expected one frozen candidate");
+    };
+    assert_eq!(
+        frozen
+            .candidate
+            .associated
+            .iter()
+            .map(|associated| associated.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a", "z"]
+    );
+    assert_eq!(frozen.candidate.prerequisites.len(), 2);
+    assert!(frozen.candidate.prerequisites.iter().all(|prerequisite| {
+        prerequisite
+            .associated
+            .windows(2)
+            .all(|pair| pair[0].name <= pair[1].name)
+    }));
+    assert_eq!(
+        frozen.candidate.methods,
+        vec![poly::roles::RoleImplMethod {
+            requirement: DefId(45),
+            implementation: DefId(46),
+        }]
+    );
+    assert_eq!(frozen.head_binders, vec![shared]);
+    assert!(frozen.boundary.is_empty());
+    let head_vars = frozen.candidate.as_constraint().raw_vars(&first_poly.typ);
+    assert_eq!(head_vars, FxHashSet::from_iter([shared]));
+    assert!(frozen.candidate.prerequisites.iter().all(|prerequisite| {
+        prerequisite.raw_vars(&first_poly.typ) == FxHashSet::from_iter([shared])
+    }));
+    assert!(matches!(
+        first_poly.typ.pos(frozen.candidate.inputs[0].lower),
+        Pos::Var(var) if *var == shared
+    ));
+    assert!(matches!(
+        first_poly.typ.neg(frozen.candidate.inputs[0].upper),
+        Neg::Var(var) if *var == shared
+    ));
+}
+
+#[test]
+fn cache_candidate_normalization_rejects_the_unit_batch_when_one_candidate_is_unbound() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let closed = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(47)),
+        role: vec!["ClosedBatchCandidate".into()],
+        inputs: vec![role_var_arg(&mut session.infer, closed)],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    let open_head = session.infer.fresh_type_var();
+    let open_prerequisite = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(48)),
+        role: vec!["OpenBatchCandidate".into()],
+        inputs: vec![role_var_arg(&mut session.infer, open_head)],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["OpenBatchPrerequisite".into()],
+            inputs: vec![role_var_arg(&mut session.infer, open_prerequisite)],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface::default();
+    let captured = session.capture_cache_candidate_interface(&boundary);
+
+    let error = session
+        .normalize_cache_candidate_interface(captured, &boundary)
+        .expect_err("one non-canonical candidate rejects the unit artifact batch");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::UnboundCandidateVariable {
+            impl_def: Some(DefId(48)),
+            role: vec!["OpenBatchCandidate".into()],
+            var: open_prerequisite,
+        }
+    );
+}
+
+#[test]
 fn imported_boundary_is_seeded_once_at_root_with_shared_graph_references() {
     let first = TypeVar(10_000);
     let second = TypeVar(10_001);
