@@ -1,6 +1,167 @@
 use super::*;
 
 #[test]
+fn generalize_fallback_floor_normalization_drops_applied_parent_role() {
+    let document_role = vec!["Document".to_string()];
+    let children_role = vec!["Children".to_string()];
+    let node_path = vec!["node".to_string()];
+    let owner = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let root = session.infer.fresh_type_var();
+    let first = session.infer.fresh_type_var();
+    let second = session.infer.fresh_type_var();
+    let candidate_item = session.infer.fresh_type_var();
+
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: document_role.clone(),
+            inputs: vec![
+                role_unary_con_var_and_extra_arg(
+                    &mut session.infer,
+                    node_path.clone(),
+                    first,
+                    second,
+                ),
+                role_unary_con_var_arg(&mut session.infer, node_path.clone(), second),
+            ],
+            associated: Vec::new(),
+        },
+    );
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: children_role.clone(),
+            inputs: vec![role_var_arg(&mut session.infer, first)],
+            associated: Vec::new(),
+        },
+    );
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: document_role.clone(),
+        inputs: vec![
+            role_unary_con_var_arg(&mut session.infer, node_path.clone(), candidate_item),
+            role_unary_con_var_arg(&mut session.infer, node_path, candidate_item),
+        ],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: children_role.clone(),
+            inputs: vec![role_var_arg(&mut session.infer, candidate_item)],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    constrain_root_to_vars(&mut session, root, &[first]);
+
+    let applied = floor_normalized_role_resolution(&session, owner, root, &document_role);
+    assert!(
+        applied
+            .residual_prerequisites
+            .iter()
+            .any(|role| role.role == children_role)
+    );
+    let applied_flags = fallback_applied_flags(&session, owner, root, &applied);
+    assert_eq!(
+        applied_flags,
+        vec![
+            (document_role.clone(), true),
+            (children_role.clone(), false),
+        ]
+    );
+    session.applied_method_role_resolutions.insert(applied.key);
+
+    let generalized = session.generalize_root_with_prepasses(owner, root);
+    let residual_roles = generalized
+        .role_predicates
+        .iter()
+        .map(|predicate| predicate.role.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(residual_roles, vec![children_role]);
+}
+
+#[test]
+fn generalize_fallback_floor_normalization_keeps_unresolved_role() {
+    let document_role = vec!["Document".to_string()];
+    let node_path = vec!["node".to_string()];
+    let owner = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let root = session.infer.fresh_type_var();
+    let applied_first = session.infer.fresh_type_var();
+    let applied_second = session.infer.fresh_type_var();
+    let unresolved_first = session.infer.fresh_type_var();
+    let unresolved_second = session.infer.fresh_type_var();
+    let unmatched = session.infer.fresh_type_var();
+    let candidate_item = session.infer.fresh_type_var();
+
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: document_role.clone(),
+            inputs: vec![
+                role_unary_con_var_and_extra_arg(
+                    &mut session.infer,
+                    node_path.clone(),
+                    applied_first,
+                    applied_second,
+                ),
+                role_unary_con_var_arg(&mut session.infer, node_path.clone(), applied_second),
+            ],
+            associated: Vec::new(),
+        },
+    );
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: document_role.clone(),
+            inputs: vec![
+                role_unary_con_var_and_extra_arg(
+                    &mut session.infer,
+                    node_path.clone(),
+                    unresolved_first,
+                    unresolved_second,
+                ),
+                role_unary_con_var_arg(&mut session.infer, node_path.clone(), unmatched),
+            ],
+            associated: Vec::new(),
+        },
+    );
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: document_role.clone(),
+        inputs: vec![
+            role_unary_con_var_arg(&mut session.infer, node_path.clone(), candidate_item),
+            role_unary_con_var_arg(&mut session.infer, node_path, candidate_item),
+        ],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    constrain_root_to_vars(&mut session, root, &[applied_first, unresolved_first]);
+
+    let applied = floor_normalized_role_resolution(&session, owner, root, &document_role);
+    let applied_flags = fallback_applied_flags(&session, owner, root, &applied);
+    assert_eq!(
+        applied_flags
+            .iter()
+            .filter(|(role, _)| role == &document_role)
+            .map(|(_, applied)| *applied)
+            .collect::<Vec<_>>(),
+        vec![true, false]
+    );
+    session.applied_method_role_resolutions.insert(applied.key);
+
+    let generalized = session.generalize_root_with_prepasses(owner, root);
+    let residual_documents = generalized
+        .role_predicates
+        .iter()
+        .filter(|predicate| predicate.role == document_role)
+        .collect::<Vec<_>>();
+
+    assert_eq!(residual_documents.len(), 1, "{residual_documents:?}");
+}
+
+#[test]
 fn role_prepass_selects_parent_even_when_prerequisite_is_missing() {
     let wrap_role = vec!["Wrap".to_string()];
     let ready_role = vec!["Ready".to_string()];
@@ -264,6 +425,100 @@ fn poly_bounds_neu(types: &mut poly::types::TypeArena, var: TypeVar) -> NeuId {
     let lower = types.alloc_pos(Pos::Var(var));
     let upper = types.alloc_neg(Neg::Var(var));
     types.alloc_neu(Neu::Bounds(lower, upper))
+}
+
+fn constrain_root_to_vars(session: &mut AnalysisSession, root: TypeVar, vars: &[TypeVar]) {
+    let items = vars
+        .iter()
+        .map(|var| session.infer.alloc_pos(Pos::Var(*var)))
+        .collect();
+    let lower = session.infer.alloc_pos(Pos::Tuple(items));
+    let upper = session.infer.alloc_neg(Neg::Var(root));
+    session.infer.subtype(lower, upper);
+}
+
+fn floor_normalized_role_resolution(
+    session: &AnalysisSession,
+    owner: DefId,
+    root: TypeVar,
+    role: &[String],
+) -> RoleResolution {
+    let mut compact = compact_type_var(session.infer.constraints(), root);
+    let mut roles = coalesce_role_constraints(compact_reachable_role_constraints(
+        session.infer.constraints(),
+        &compact,
+        session.roles.for_owner(owner),
+    ));
+    simplify_compact_root_with_roles_and_non_generic(
+        session.infer.constraints(),
+        TypeLevel::root().child(),
+        &mut compact,
+        &mut roles,
+        &FxHashSet::default(),
+    );
+    assert!(
+        resolve_role_constraints(
+            session.infer.constraints(),
+            &compact,
+            &roles,
+            &session.role_impls,
+            &FxHashSet::default(),
+        )
+        .into_iter()
+        .all(|resolution| resolution.demand.role != role),
+        "role should require floor normalization"
+    );
+    let floor_substitutions = coalesce_floor_interval_equalities(
+        session.infer.constraints(),
+        TypeLevel::root(),
+        &mut compact,
+        &mut roles,
+    );
+    assert!(!floor_substitutions.is_empty());
+    eliminate_floor_redundant_variables(
+        session.infer.constraints(),
+        TypeLevel::root(),
+        &mut compact,
+        &mut roles,
+    );
+    resolve_role_constraints(
+        session.infer.constraints(),
+        &compact,
+        &roles,
+        &session.role_impls,
+        &FxHashSet::default(),
+    )
+    .into_iter()
+    .find(|resolution| resolution.demand.role == role)
+    .expect("role should resolve after floor normalization")
+}
+
+fn fallback_applied_flags(
+    session: &AnalysisSession,
+    owner: DefId,
+    root: TypeVar,
+    applied: &RoleResolution,
+) -> Vec<(Vec<String>, bool)> {
+    let compact = compact_type_var(session.infer.constraints(), root);
+    let roles = coalesce_role_constraints(compact_reachable_role_constraints(
+        session.infer.constraints(),
+        &compact,
+        session.roles.for_owner(owner),
+    ));
+    let applied_candidates = FxHashSet::from_iter([applied.candidate.clone()]);
+    let applied_demands = FxHashSet::from_iter([applied.demand.clone()]);
+    let flags = session.simplified_role_predicates_already_applied(
+        &compact,
+        &roles,
+        &applied_candidates,
+        &applied_demands,
+        TypeLevel::root().child(),
+    );
+    roles
+        .into_iter()
+        .zip(flags)
+        .map(|(role, applied)| (role.role, applied))
+        .collect()
 }
 
 pub(super) fn infer_bounds_neu(infer: &mut crate::arena::Arena, var: TypeVar) -> NeuId {

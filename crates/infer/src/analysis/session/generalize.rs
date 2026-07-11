@@ -199,19 +199,14 @@ impl AnalysisSession {
                                 simplification_boundary,
                             )
                         });
-                    let floor_redundant_substitutions = eliminate_floor_redundant_variables(
+                    let floor_passes_noop = normalize_role_resolution_floor(
                         self.infer.constraints(),
-                        TypeLevel::root(),
                         &mut role_compact,
                         &mut roles,
+                        Some(floor_interval_noop),
                     );
                     if roles.is_empty() {
-                        (
-                            Vec::new(),
-                            Vec::new(),
-                            roles,
-                            floor_interval_noop && floor_redundant_substitutions.is_empty(),
-                        )
+                        (Vec::new(), Vec::new(), roles, floor_passes_noop)
                     } else {
                         self.timing
                             .record_generalize_role_resolve_inputs(roles.len());
@@ -228,7 +223,7 @@ impl AnalysisSession {
                             resolved.output.resolutions,
                             resolved.dispositions,
                             roles,
-                            floor_interval_noop && floor_redundant_substitutions.is_empty(),
+                            floor_passes_noop,
                         )
                     }
                 };
@@ -476,17 +471,11 @@ impl AnalysisSession {
             &mut roles,
             &FxHashSet::default(),
         );
-        coalesce_floor_interval_equalities(
+        normalize_role_resolution_floor(
             self.infer.constraints(),
-            TypeLevel::root(),
             &mut role_compact,
             &mut roles,
-        );
-        eliminate_floor_redundant_variables(
-            self.infer.constraints(),
-            TypeLevel::root(),
-            &mut role_compact,
-            &mut roles,
+            None,
         );
         Some((role_compact, roles))
     }
@@ -522,7 +511,7 @@ impl AnalysisSession {
     /// 世代化の最終出力から落としてよい残置述語を、入力 role と同じ並びの bool 列で返す。
     /// true は簡約済み全体ビューで「適用済み demand と一致する」か
     /// 「適用済み impl 候補へ一意に解決する」。
-    pub(super) fn simplified_role_predicates_already_applied(
+    pub(in crate::analysis) fn simplified_role_predicates_already_applied(
         &self,
         compact: &crate::compact::CompactRoot,
         role_predicates: &[CompactRoleConstraint],
@@ -538,6 +527,12 @@ impl AnalysisSession {
             &mut role_compact,
             &mut simplified_roles,
             &FxHashSet::default(),
+        );
+        normalize_role_resolution_floor(
+            self.infer.constraints(),
+            &mut role_compact,
+            &mut simplified_roles,
+            None,
         );
         if applied_candidates.is_empty() {
             return simplified_roles
@@ -760,6 +755,25 @@ struct FinalRoleSolveSnapshot {
     constraint_epoch: ConstraintEpoch,
     role_epoch: RoleEpoch,
     raw_role_count: usize,
+}
+
+/// role resolve 用の床正規化を完了し、全 pass が no-op だったかを返す。
+///
+/// solve loop は interval pass 後の view を dominance scan にも使うため、そこだけ pipeline が
+/// 二段に分かれる。`floor_interval_noop` が `Some` なら interval pass は実行済み、`None` なら
+/// fallback 用にここで interval → redundant elimination の全順序を通す。
+fn normalize_role_resolution_floor(
+    machine: &crate::constraints::ConstraintMachine,
+    compact: &mut crate::compact::CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    floor_interval_noop: Option<bool>,
+) -> bool {
+    let floor_interval_noop = floor_interval_noop.unwrap_or_else(|| {
+        coalesce_floor_interval_equalities(machine, TypeLevel::root(), compact, roles).is_empty()
+    });
+    let floor_redundant_noop =
+        eliminate_floor_redundant_variables(machine, TypeLevel::root(), compact, roles).is_empty();
+    floor_interval_noop && floor_redundant_noop
 }
 
 fn trace_generalize_phase(
