@@ -64,7 +64,8 @@ pub(crate) use surface::{
     compact_negative_type_var_for_scheme, compact_pos_surface,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
     compact_role_constraint, compact_role_constraint_recording_merge_constraints, compact_type_var,
-    compact_type_var_for_scheme, compact_type_var_recording_merge_constraints,
+    compact_type_var_boundary_bounds_recording_merge_constraints, compact_type_var_for_scheme,
+    compact_type_var_recording_merge_constraints,
     compact_type_var_recording_merge_constraints_for_scheme,
 };
 
@@ -103,6 +104,46 @@ pub(crate) struct CompactSubtypeConstraint {
 pub(crate) struct CompactSubtypeConstraintKey {
     lower: CompactType,
     upper: CompactType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    dead_code,
+    reason = "Stage 2 compact boundary draft is consumed by a later artifact integration slice"
+)]
+pub(crate) struct CompactBoundaryCapture {
+    pub(crate) bounds: CompactBounds,
+    pub(crate) recursive: Vec<CompactRecursiveVar>,
+}
+
+#[allow(
+    dead_code,
+    reason = "Stage 2 strict audit is consumed by the pending cache-interface finalizer wiring"
+)]
+pub(crate) fn unapplied_compact_merge_constraint_count(
+    constraints: &[CompactMergeConstraint],
+    applied: &FxHashSet<CompactMergeConstraintKey>,
+) -> usize {
+    constraints
+        .iter()
+        .filter(|constraint| constraint.lhs != constraint.rhs && !applied.contains(&constraint.key))
+        .count()
+}
+
+#[allow(
+    dead_code,
+    reason = "Stage 2 strict audit is consumed by the pending cache-interface finalizer wiring"
+)]
+pub(crate) fn unapplied_compact_subtype_constraint_count(
+    constraints: &[CompactSubtypeConstraint],
+    applied: &FxHashSet<CompactSubtypeConstraintKey>,
+) -> usize {
+    constraints
+        .iter()
+        .filter(|constraint| {
+            constraint.lower != constraint.upper && !applied.contains(&constraint.key)
+        })
+        .count()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

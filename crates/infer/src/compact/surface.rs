@@ -147,6 +147,17 @@ pub(crate) fn compact_type_var_recording_merge_constraints_for_scheme(
     CompactCollector::new_recording(machine).compact_root_with_merge_constraints(root)
 }
 
+#[allow(
+    dead_code,
+    reason = "Stage 2 bound capture is consumed by the pending cache-interface finalizer wiring"
+)]
+pub(crate) fn compact_type_var_boundary_bounds_recording_merge_constraints(
+    machine: &ConstraintMachine,
+    var: TypeVar,
+) -> (CompactBoundaryCapture, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording(machine).compact_boundary_bounds_with_merge_constraints(var)
+}
+
 fn compact_neg_surface(types: &TypeArena, id: NegId) -> CompactType {
     match types.neg(id) {
         Neg::Top => CompactType::default(),

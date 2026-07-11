@@ -200,6 +200,31 @@ Stage 2 は、`std.control.flow.label_sub.sub` の 2 件を次のどちらと分
 次のセッションは、まず 2 件の key が `std.control.flow.label_sub.sub` のどの型変数と
 どの制約を要求しているかを特定する。帰属を切り分ける前に Stage 2 の実装を再開しない。
 
+### Stage 2 再開: boundary capture slice 1
+
+`15209b7e` `fix: apply post-alias dominance constraints` により、前記 2 件は既存
+generalization loop の post-alias lane で適用されるようになった。前回と同じ strict
+no-new-constraint audit を再構築して `std.control.flow.label_sub.sub` に実行した結果は
+`generated=2, unapplied=0` であり、Stage 2 blocker は解消した。
+
+Stage 2 の最初の実装 slice では、finalized generalized compact schemes を入力として、
+次を infer-internal な pre-canonical boundary draft まで実装した。
+
+- `Q/R` を除いた unit-owned `B` seed の分類と、value restriction の generalization
+  boundary の保持
+- live `ConstraintMachine` の lower/upper bounds と再帰 bound を、各変数 1 回の worklist で
+  推移 capture
+- normal generalization が適用した merge/subtype key の保持と、freeze/capture の strict
+  no-new-constraint audit
+- open interval、value-restricted `B`、未適用 dominance key の拒否、`label_sub.sub` blocker
+  解消の focused tests
+
+この slice は non-empty `CompiledBoundaryInterface` の typed/runtime surface 出力や import を
+まだ有効化しない。次は captured bounds を exported scheme と jointly compact し、shared floor /
+co-occurrence / sandwich / polarity elimination を一度だけ適用して、pruned canonical draft と
+closure validation を作る。artifact 配線と boundary-aware import は、その後の仕様上の stage に
+残す。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -274,10 +299,10 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 2026-06-17〜2026-06-19 の control VM frame runtime / performance slice は
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
-現在の active slice は canonical cache interface Option 1 Stage 2 の blocker 切り分け。
-`std.control.flow.label_sub.sub` で strict no-new-constraint audit が発見した 2 件の
-subtype/dominance key について、対象の型変数・制約を特定し、既存 generalization loop の
-未解決事実か Stage 2 freeze 試作が新設した条件かを分類するところから再開する。
+現在の active slice は canonical cache interface Option 1 Stage 2 の joint compact/freeze。
+infer-internal な boundary closure capture は完了した。次は captured `B` bounds と exported
+schemes を同じ compact component へ入れ、既存の shared simplification だけで canonical draft
+まで落とし、最終 `Q/R/B` closure を検証する。
 
 ## 守る不変条件
 

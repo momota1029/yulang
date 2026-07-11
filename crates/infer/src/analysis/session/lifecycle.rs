@@ -22,6 +22,8 @@ impl AnalysisSession {
             role_impl_member_simplifications: FxHashMap::default(),
             role_impl_member_projections: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
+            cache_interface_applied_merge_constraints: FxHashSet::default(),
+            cache_interface_applied_subtype_constraints: FxHashSet::default(),
             schemes: FxHashMap::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),

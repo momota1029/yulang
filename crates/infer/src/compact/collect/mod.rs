@@ -84,6 +84,33 @@ impl<'a> CompactCollector<'a> {
         )
     }
 
+    #[allow(
+        dead_code,
+        reason = "Stage 2 bound capture is consumed by the pending cache-interface finalizer wiring"
+    )]
+    pub(in crate::compact) fn compact_boundary_bounds_with_merge_constraints(
+        mut self,
+        var: TypeVar,
+    ) -> (CompactBoundaryCapture, Vec<CompactMergeConstraint>) {
+        let lower = self.compact_var_side(var, Polarity::Positive, ConstraintWeight::empty());
+        let upper = self.compact_var_side(var, Polarity::Negative, ConstraintWeight::empty());
+        let mut recursive = self
+            .rec_vars
+            .into_iter()
+            .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
+            .collect::<Vec<_>>();
+        recursive.sort_by_key(|rec| rec.var.0);
+        let bounds = recursive
+            .iter()
+            .find(|rec| rec.var == var)
+            .map(|rec| rec.bounds.clone())
+            .unwrap_or(CompactBounds::Interval { lower, upper });
+        (
+            CompactBoundaryCapture { bounds, recursive },
+            self.merge_constraints,
+        )
+    }
+
     pub(in crate::compact) fn merge_types(
         &mut self,
         positive: bool,

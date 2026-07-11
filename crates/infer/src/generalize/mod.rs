@@ -160,6 +160,40 @@ pub(crate) fn generalize_alias_expanded_compact_root(
     )
 }
 
+#[allow(
+    dead_code,
+    reason = "Stage 2 ownership discovery is consumed by the pending cache-interface finalizer wiring"
+)]
+pub(crate) fn generalized_compact_boundary_vars(root: &GeneralizedCompactRoot) -> Vec<TypeVar> {
+    let local = root
+        .quantifiers
+        .iter()
+        .copied()
+        .chain(root.compact.rec_vars.iter().map(|rec| rec.var))
+        .collect::<FxHashSet<_>>();
+    let mut vars = Vec::new();
+    collect_root_free_vars(&root.compact, &mut vars);
+    for role in &root.role_predicates {
+        collect_role_free_vars(role, &mut vars);
+    }
+    vars.retain(|var| !local.contains(var));
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+    vars
+}
+
+#[allow(
+    dead_code,
+    reason = "Stage 2 bound closure is consumed by the pending cache-interface finalizer wiring"
+)]
+pub(crate) fn compact_boundary_bound_vars(bounds: &CompactBounds) -> Vec<TypeVar> {
+    let mut vars = Vec::new();
+    collect_bounds_free_vars(bounds, &mut vars);
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+    vars
+}
+
 fn expand_positive_aliases_in_scheme_compact(
     machine: &ConstraintMachine,
     compact: &mut CompactRoot,

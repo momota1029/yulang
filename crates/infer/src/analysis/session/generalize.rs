@@ -422,6 +422,10 @@ impl AnalysisSession {
         }
         metrics.record_constraint_epoch_end(self.infer.constraints().epoch());
         metrics.record_role_epoch_end(self.roles.epoch_for_owner(def));
+        self.cache_interface_applied_merge_constraints
+            .extend(applied_merge_constraints);
+        self.cache_interface_applied_subtype_constraints
+            .extend(applied_subtype_constraints);
         (generalized, metrics)
     }
 
@@ -591,7 +595,7 @@ impl AnalysisSession {
             .collect()
     }
 
-    pub(super) fn generalize_boundary(&self, def: DefId) -> TypeLevel {
+    pub(in crate::analysis) fn generalize_boundary(&self, def: DefId) -> TypeLevel {
         self.binding_fetch(def)
             .generalize_boundary(TypeLevel::root())
     }

@@ -4,6 +4,11 @@
 //! `AnalysisSession` は constraint event を見て selection probe を起こし、名前解決や method selection が
 //! 確定したら `poly` へ解決結果を書き戻しつつ SCC machine へ dependency を渡す。
 
+#[allow(
+    dead_code,
+    reason = "Stage 2 capture is retained as the input to the later joint-freeze/artifact slice"
+)]
+mod cache_interface;
 mod method_taint;
 mod projection;
 mod session;
@@ -40,13 +45,14 @@ use crate::compact::{
     finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
+    unapplied_compact_merge_constraint_count, unapplied_compact_subtype_constraint_count,
 };
 use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
-    clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root_with_ancestors,
-    generalize_alias_expanded_compact_root,
-    prepare_alias_expanded_compact_root_with_role_variances,
+    clone_role_impl_candidate_between_arenas, compact_boundary_bound_vars,
+    finalize_generalized_compact_root_with_ancestors, generalize_alias_expanded_compact_root,
+    generalized_compact_boundary_vars, prepare_alias_expanded_compact_root_with_role_variances,
 };
 use crate::instantiate::{
     freshen_role_impl_candidate, instantiate_scheme, instantiate_scheme_with_roles,
@@ -108,6 +114,8 @@ pub struct AnalysisSession {
     role_impl_member_simplifications: FxHashMap<DefId, Vec<CompactSimplification>>,
     role_impl_member_projections: FxHashMap<DefId, CompactRoot>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
+    cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
+    cache_interface_applied_subtype_constraints: FxHashSet<CompactSubtypeConstraintKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,

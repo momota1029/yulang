@@ -353,6 +353,106 @@ fn computed_fetch_def_does_not_quantify_binding_level_root() {
     let computed_generalized = computed_session.generalize_root_with_prepasses(def, computed_root);
 
     assert!(computed_generalized.quantifiers.is_empty());
+    computed_session
+        .schemes
+        .insert(def, computed_generalized.clone());
+    let boundary = computed_session
+        .capture_cache_boundary_interface([def])
+        .expect("computed binding boundary capture");
+    assert!(!boundary.bounds.is_empty());
+    assert!(
+        boundary
+            .bounds
+            .iter()
+            .all(|bound| !computed_generalized.quantifiers.contains(&bound.var)),
+        "value-restricted variables must be classified as unit boundary binders, not Q"
+    );
+    assert!(
+        boundary
+            .bounds
+            .iter()
+            .any(|bound| bound.var == computed_inner),
+        "the value-restricted function payload must cross as B"
+    );
+}
+
+#[test]
+fn cache_boundary_capture_preserves_open_lower_and_upper_shape() {
+    let def = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let boundary_var = session.infer.fresh_type_var();
+    let payload = session.infer.fresh_type_var();
+    add_identity_function_lower_bound(&mut session, boundary_var, payload);
+    session.schemes.insert(
+        def,
+        GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    );
+
+    let boundary = session
+        .capture_cache_boundary_interface([def])
+        .expect("open boundary capture");
+    let root_bound = boundary
+        .bounds
+        .iter()
+        .find(|bound| bound.var == boundary_var)
+        .expect("root boundary bound");
+    let CompactBounds::Interval { lower, upper } = &root_bound.bounds else {
+        panic!("boundary root must stay a centerless interval");
+    };
+    assert!(lower.vars.iter().any(|var| var.var == boundary_var));
+    assert!(!lower.funs.is_empty());
+    assert!(upper.vars.iter().any(|var| var.var == boundary_var));
+}
+
+#[test]
+fn cache_boundary_capture_rejects_unapplied_scheme_dominance_key() {
+    let def = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let lower_var = session.infer.fresh_type_var();
+    let upper_var = session.infer.fresh_type_var();
+    let lower = CompactType::from_var(crate::compact::CompactVar::plain(lower_var));
+    let upper = CompactType::from_var(crate::compact::CompactVar::plain(upper_var));
+    session.schemes.insert(
+        def,
+        GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_con(crate::compact::CompactCon {
+                    path: vec!["invariant".into()],
+                    args: vec![CompactBounds::Interval { lower, upper }],
+                }),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: vec![lower_var, upper_var],
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    );
+
+    let error = session
+        .capture_cache_boundary_interface([def])
+        .expect_err("freeze must reject a dominance key absent from normal generalization");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::FreezeProducedConstraint {
+            def: Some(def),
+            boundary: None,
+            merge_constraints: 0,
+            subtype_constraints: 1,
+        }
+    );
 }
 
 fn add_identity_function_lower_bound(session: &mut AnalysisSession, root: TypeVar, inner: TypeVar) {

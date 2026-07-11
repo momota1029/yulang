@@ -688,6 +688,14 @@ fn label_sub_generalization_applies_post_alias_interval_constraints() {
         has_direct_upper(sub_payload, label_payload),
         "post-alias sub consistency must constrain {sub_payload:?} <: {label_payload:?}"
     );
+    let boundary = output
+        .session
+        .capture_cache_boundary_interface([sub])
+        .expect("label_sub.sub strict cache-interface audit");
+    assert!(
+        boundary.bounds.is_empty(),
+        "fully quantified label_sub.sub must not invent a unit boundary binder"
+    );
 }
 
 #[test]
