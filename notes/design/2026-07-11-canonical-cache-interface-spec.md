@@ -585,6 +585,41 @@ types/import paths, and `L` changes an inference boundary and requires multiple 
 - No-heavy-fixpoint: one reachability worklist and one pure freeze. Any need for a restart is routed
   back to the existing generalization constraint lanes, not implemented as a new loop.
 
+#### 2026-07-11 session progress note
+
+Stages 0 and 1 are committed. Stage 0's closure scanner and structural alpha view establish that the
+Yumark HTML fixture is not alpha-equivalent across the current cold/warm boundary, while the Markdown
+fixture is alpha-equivalent. Stage 1 wires an empty `CompiledBoundaryInterface` through the typed and
+runtime surfaces without changing production behavior.
+
+An experimental Stage 2 boundary capture reproduced the HTML cold abstract shape: an open interval
+equivalent to `Bounds(Union(Var, Concrete), Var)`. This is positive evidence that the capture approach
+is directionally correct. However, the mandatory strict no-new-constraint audit found two previously
+unapplied subtype/dominance keys while freezing std's own `std.control.flow.label_sub.sub`. This is
+independent of either Yumark fixture.
+
+Section 5.2 requires a newly discovered constraint to be handled by the existing generalization loop,
+not by restarting capture. The session also had an explicit stop condition: if Stage 2 appeared to
+require a change to that loop, implementation had to stop. Therefore all experimental Stage 2 changes
+were rolled back and were not committed. The worktree was clean at the stop point; no boundary-capture
+implementation from the experiment remains.
+
+The Markdown merge audit initially reported 23 apparently new keys, but comparison against the
+existing generalization applied-key sets showed that all 23 were already known. The session stopped
+at the independent std blocker before reaching the Markdown fixture's final abstract-shape check.
+
+Stage 2 must not resume until the two `std.control.flow.label_sub.sub` keys are classified between
+these alternatives:
+
+1. Existing generalization is allowing dominance/subtype facts that it should settle to pass through.
+   The fix then belongs to the existing generalization loop, outside Stage 2 boundary capture.
+2. The experimental freeze order or interface-component construction created dominance conditions
+   absent from normal generalization. The Stage 2 algorithm must then be revised.
+
+The exact restart point is to identify the type variables and source constraints represented by those
+two keys in `std.control.flow.label_sub.sub`, then determine which side owns them. Do not resume the
+Stage 2 implementation or weaken the strict audit before that classification is complete.
+
 ### Stage 3: boundary-aware import and instantiation
 
 - Changes: carry imported boundary metadata through `BodyLoweringPrefix`; seed one session mapping;
