@@ -580,6 +580,19 @@ fn oracle_a1_stage_3_exit_preserves_q_r_and_b_lifetimes_across_imported_uses() {
         FxHashSet::from_iter([imported_b]),
         "scheme instantiation and role candidate freshening must share B"
     );
+    let witness = session
+        .imported_instantiation_witness(def, &["OracleA1Role".into()])
+        .expect("the integration witness must observe the same imported session machinery");
+    assert!(!witness.first_recursive.is_empty());
+    assert!(
+        witness
+            .first_recursive
+            .iter()
+            .all(|var| !witness.second_recursive.contains(var)),
+        "the witness view must preserve non-empty R per-use freshness"
+    );
+    assert_eq!(witness.first_boundary, witness.second_boundary);
+    assert_eq!(witness.imported_candidate_boundary, witness.first_boundary);
     assert!(
         session
             .take_imported_scheme_instantiation_failures()

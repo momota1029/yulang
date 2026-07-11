@@ -5,7 +5,8 @@
 
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate,
-    RolePredicateArg, Scheme, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    RolePredicateArg, Scheme, SchemeRecursiveBound, StackWeight, SubtractId, Subtractability,
+    TypeArena, TypeVar,
 };
 use rustc_hash::FxHashMap;
 
@@ -23,6 +24,7 @@ use crate::roles::{
 #[derive(Debug, Default)]
 pub(crate) struct ImportedBoundarySubstitution {
     vars: FxHashMap<TypeVar, TypeVar>,
+    bounds: Vec<crate::interface_oracle::BoundaryBound>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,13 +46,18 @@ pub(crate) fn seed_imported_boundary(
 
     let mut instantiator =
         SchemeInstantiator::new_with_vars(source, target, TypeLevel::root(), vars);
-    instantiator.clone_boundary_bounds(boundary);
+    let bounds = instantiator.clone_boundary_bounds(boundary);
     ImportedBoundarySubstitution {
         vars: instantiator.vars,
+        bounds,
     }
 }
 
 impl ImportedBoundarySubstitution {
+    pub(crate) fn bounds(&self) -> &[crate::interface_oracle::BoundaryBound] {
+        &self.bounds
+    }
+
     #[cfg(test)]
     pub(crate) fn get(&self, source: TypeVar) -> Option<TypeVar> {
         self.vars.get(&source).copied()
@@ -89,6 +96,18 @@ pub(crate) fn instantiate_validated_imported_scheme_with_roles(
     instantiator.instantiate_scheme_with_roles(scheme)
 }
 
+pub(crate) fn instantiate_validated_imported_scheme_witness(
+    source: &TypeArena,
+    target: &mut InferArena,
+    level: TypeLevel,
+    scheme: &Scheme,
+    boundary: &ImportedBoundarySubstitution,
+) -> ImportedInstantiationWitness {
+    let mut instantiator =
+        SchemeInstantiator::new_with_preloaded_vars(source, target, level, &boundary.vars);
+    instantiator.instantiate_scheme_witness(scheme)
+}
+
 pub(crate) fn validate_imported_scheme_for_instantiation(
     source: &TypeArena,
     scheme: &Scheme,
@@ -116,6 +135,16 @@ pub(crate) fn freshen_role_impl_candidate(
 pub(crate) struct InstantiatedScheme {
     pub(crate) predicate: PosId,
     pub(crate) role_predicates: Vec<RolePredicate>,
+}
+
+pub(crate) struct ImportedInstantiationWitness {
+    pub(crate) scheme: Scheme,
+}
+
+impl ImportedInstantiationWitness {
+    pub(crate) fn as_scheme(&self) -> Scheme {
+        self.scheme.clone()
+    }
 }
 
 struct SchemeInstantiator<'a> {
@@ -212,6 +241,35 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn instantiate_scheme_with_roles(&mut self, scheme: &Scheme) -> InstantiatedScheme {
+        self.instantiate_scheme_parts(scheme, false).0
+    }
+
+    fn instantiate_scheme_witness(&mut self, scheme: &Scheme) -> ImportedInstantiationWitness {
+        let (instantiated, recursive_bounds) = self.instantiate_scheme_parts(scheme, true);
+        ImportedInstantiationWitness {
+            scheme: Scheme {
+                quantifiers: scheme
+                    .quantifiers
+                    .iter()
+                    .map(|var| self.vars[var])
+                    .collect(),
+                role_predicates: instantiated.role_predicates,
+                recursive_bounds: recursive_bounds.expect("witness captures recursive bounds"),
+                stack_quantifiers: scheme
+                    .stack_quantifiers
+                    .iter()
+                    .map(|id| self.subtracts[id])
+                    .collect(),
+                predicate: instantiated.predicate,
+            },
+        }
+    }
+
+    fn instantiate_scheme_parts(
+        &mut self,
+        scheme: &Scheme,
+        capture_recursive_bounds: bool,
+    ) -> (InstantiatedScheme, Option<Vec<SchemeRecursiveBound>>) {
         for var in &scheme.quantifiers {
             self.fresh_var(*var);
         }
@@ -221,7 +279,7 @@ impl<'a> SchemeInstantiator<'a> {
         for id in &scheme.stack_quantifiers {
             self.fresh_subtract(*id);
         }
-        self.clone_recursive_bounds(scheme);
+        let recursive_bounds = self.clone_recursive_bounds(scheme, capture_recursive_bounds);
         let predicate = self.clone_pos(scheme.predicate);
         let predicate = self.wrap_predicate_with_stack_pops(predicate, &scheme.stack_quantifiers);
         let role_predicates = scheme
@@ -229,10 +287,13 @@ impl<'a> SchemeInstantiator<'a> {
             .iter()
             .map(|predicate| self.clone_role_predicate(predicate))
             .collect();
-        InstantiatedScheme {
-            predicate,
-            role_predicates,
-        }
+        (
+            InstantiatedScheme {
+                predicate,
+                role_predicates,
+            },
+            recursive_bounds,
+        )
     }
 
     fn clone_role_predicate(&mut self, predicate: &RolePredicate) -> RolePredicate {
@@ -586,8 +647,13 @@ impl<'a> SchemeInstantiator<'a> {
         out
     }
 
-    fn clone_recursive_bounds(&mut self, scheme: &Scheme) {
+    fn clone_recursive_bounds(
+        &mut self,
+        scheme: &Scheme,
+        capture: bool,
+    ) -> Option<Vec<SchemeRecursiveBound>> {
         let mut constraints = Vec::with_capacity(scheme.recursive_bounds.len() * 2);
+        let mut bounds = capture.then(|| Vec::with_capacity(scheme.recursive_bounds.len()));
         for bound in &scheme.recursive_bounds {
             let target_var = self.clone_var(bound.var);
             let target_bounds = self.clone_neu(bound.bounds);
@@ -596,14 +662,25 @@ impl<'a> SchemeInstantiator<'a> {
             constraints.push((lower, target_neg));
             let target_pos = self.target.alloc_pos(Pos::Var(target_var));
             constraints.push((target_pos, upper));
+            if let Some(bounds) = &mut bounds {
+                bounds.push(SchemeRecursiveBound {
+                    var: target_var,
+                    bounds: target_bounds,
+                });
+            }
         }
         if !constraints.is_empty() {
             self.target.subtypes(constraints);
         }
+        bounds
     }
 
-    fn clone_boundary_bounds(&mut self, boundary: &crate::CompiledBoundaryInterface) {
+    fn clone_boundary_bounds(
+        &mut self,
+        boundary: &crate::CompiledBoundaryInterface,
+    ) -> Vec<crate::interface_oracle::BoundaryBound> {
         let mut constraints = Vec::with_capacity(boundary.bounds.len() * 2);
+        let mut bounds = Vec::with_capacity(boundary.bounds.len());
         for bound in &boundary.bounds {
             let target_var = self.clone_var(bound.var);
             let target_bounds = self.clone_neu(bound.bounds);
@@ -612,10 +689,16 @@ impl<'a> SchemeInstantiator<'a> {
             constraints.push((lower, target_neg));
             let target_pos = self.target.alloc_pos(Pos::Var(target_var));
             constraints.push((target_pos, upper));
+            bounds.push(crate::interface_oracle::BoundaryBound {
+                var: target_var,
+                lower,
+                upper,
+            });
         }
         if !constraints.is_empty() {
             self.target.subtypes(constraints);
         }
+        bounds
     }
 
     fn project_recursive_neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {

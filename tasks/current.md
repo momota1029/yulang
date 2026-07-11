@@ -677,6 +677,35 @@ regression / characterization 5 passedである。
 Oracle A2 production encode/decode/fresh-session-import witnessで、どのimport前提が残っているかを固定する。Oracle B
 とfallback retirementにはまだ進まない。
 
+### Stage 5 Oracle A2: production artifact round trip
+
+Oracle A2の6段階を一つのproduction integration witnessへ固定した。value-restriction boundary `B`を持つexported
+scheme、通常のquantifier `Q`を持つexported identity scheme、recursive bound `R`を持つprivate finalized scheme、
+head-local binderと共有`B` prerequisiteを持つrole candidateを同じlowering fixtureへ置く。test-onlyの`R`は
+finalized poly schemeへ直接構築するが、その後はほかのbinderと同じproduction writer、format 19
+encode/decode、runtime arena importを通り、raw envelope decodeやsynthetic boundary importで代用しない。
+
+pre-serialization canonical artifactから各schemeの期待`SchemeAlphaView`を作り、実byte round trip後のruntime
+surfaceから元のloweringとは別の`AnalysisSession::new_with_imported_boundary`を作る。suffix constraint追加前に
+同じschemeを2回instantiateし、decode前後のalpha view一致、各useのalpha view一致、`Q/R`のper-use freshness、
+`B`のsession-level共有、scheme occurrenceとcandidate prerequisite occurrenceの`B`一致、candidate-local head
+binderのfresheningを直接確認する。これで仕様§9.3のOracle A2を完了した。
+
+production instantiatorのclone処理を共通化したが、通常入口が返すcompactなpredicate / role predicatesとconstraint
+追加順は変えていない。recursive-bound metadataはOracle入口だけが収集する。import時に一度cloneしたboundary
+boundsはsession substitutionへ保持し、witnessが実際のtarget arena上で`SchemeAlphaView`とQ/R/B inventoryを作れる
+ようにした。yulangからfresh-session直後を観測するため、runtime surfaceへ`#[doc(hidden)]`の構造化Oracle APIを
+追加したが、production warm loweringとcache routeからは呼ばれない。safety gate、writer、decoder、artifact schema、
+fallback判定の変更はない。
+
+確認結果はOracle A2 focused 1 passed、Stage 3 Oracle A1 augmented witness 1 passed、infer interface oracle 9 passed、
+cache interface関連7 passed、instantiate関連9 passed、infer全体598 passed / 既知の`mark_expr_block_*` 5 failed、
+std-prefix safety 6 passed、std-prefix CLI regression / characterization 5 passedである。
+
+次はStage 5 Oracle Bである。cold full-sourceと明示的`std-prefix-hit` warm routeのsuffix scheme / candidate alpha同値、
+runtime結果、routeを一緒に固定する。Markdownは現時点では引き続き`full-miss`であり、Stage 5 Oracle BとStage 7の
+program-sensitive fallback retirement判断より前にwarm成功とは扱わない。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -772,7 +801,9 @@ cache routeは不変である。slice 2cではserialize後に独立するtyped/r
 byte完全一致で比較し、一致後だけfingerprintへ縮約するpublic agreement入口を追加した。既存routeには未接続で
 ある。slice 2dではproduction writerをcanonical handoffへ接続し、成功時はnon-empty、構造的失敗時はempty
 artifactを保存するfail-closed経路と、decoder / manifest / mergeのexact agreementを有効化した。reuse safety gate
-は無変更である。次はOracle A2でproduction round trip後のfresh-session importを固定する。Markdownは2d後も
+は無変更である。Oracle A2ではproduction format 19の実byte round trip後にfresh sessionへboundaryをimportし、
+decode前後の`SchemeAlphaView`一致、`Q/R`のper-use freshness、`B`のsession共有、scheme/candidate間の`B`一致を
+固定した。次はOracle Bで明示的なwarm routeとcold/warm suffix結果の同値性を確認する。MarkdownはOracle A2後も
 `full-miss`であり、warm成功は既存の
 `full-miss`許容testではなく明示的な`std-prefix-hit` witnessで判定する。program-sensitive fallbackの退役判断は
 Stage 7まで待つ。

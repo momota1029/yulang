@@ -9,6 +9,7 @@ use poly::expr::{
 use poly::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleImplMethod,
 };
+use poly::types::TypeVar;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lowering::BodyLowering;
@@ -43,6 +44,23 @@ pub struct CompiledRuntimeModuleDef {
 pub struct CompiledRuntimeValueDef {
     pub symbol: u32,
     pub def: DefId,
+}
+
+/// Cross-crate Stage 5 oracle output for one production-imported scheme and candidate.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledImportInstantiationWitness {
+    pub first_view: crate::interface_oracle::SchemeAlphaView,
+    pub second_view: crate::interface_oracle::SchemeAlphaView,
+    pub first_quantified: Vec<TypeVar>,
+    pub second_quantified: Vec<TypeVar>,
+    pub first_recursive: Vec<TypeVar>,
+    pub second_recursive: Vec<TypeVar>,
+    pub first_boundary: Vec<TypeVar>,
+    pub second_boundary: Vec<TypeVar>,
+    pub source_candidate_head: Vec<TypeVar>,
+    pub imported_candidate_head: Vec<TypeVar>,
+    pub imported_candidate_boundary: Vec<TypeVar>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,6 +132,25 @@ pub struct CompiledRuntimeImportedValue {
 }
 
 impl CompiledRuntimeSurface {
+    /// Instantiate one decoded exported scheme twice in a fresh boundary-aware session.
+    ///
+    /// This is intentionally a structural test oracle: production warm lowering continues through
+    /// `BodyLoweringPrefix`, while Stage 5 integration tests need to observe the state immediately
+    /// after import/instantiate and before adding suffix constraints.
+    #[doc(hidden)]
+    pub fn imported_instantiation_witness(
+        &self,
+        symbol: u32,
+        candidate_role: &[String],
+    ) -> Option<CompiledImportInstantiationWitness> {
+        let target = self.values.iter().find(|value| value.symbol == symbol)?.def;
+        let mut session = crate::analysis::AnalysisSession::new_with_imported_boundary(
+            self.arena.clone(),
+            &self.boundary,
+        );
+        session.imported_instantiation_witness(target, candidate_role)
+    }
+
     #[allow(
         dead_code,
         reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"

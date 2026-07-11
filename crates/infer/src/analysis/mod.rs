@@ -61,7 +61,8 @@ use crate::generalize::{
 use crate::instantiate::{
     ImportedBoundarySubstitution, SchemeInstantiationError, freshen_role_impl_candidate,
     instantiate_scheme, instantiate_scheme_with_roles,
-    instantiate_validated_imported_scheme_with_roles, seed_imported_boundary,
+    instantiate_validated_imported_scheme_with_roles,
+    instantiate_validated_imported_scheme_witness, seed_imported_boundary,
     validate_imported_scheme_for_instantiation,
 };
 use crate::methods::{

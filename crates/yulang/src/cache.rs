@@ -4655,6 +4655,206 @@ mod tests {
     }
 
     #[test]
+    fn oracle_a2_round_trips_imported_instantiation_and_binder_lifetimes() {
+        let files = vec![source(
+            "main.yu",
+            &[],
+            concat!(
+                "pub identity = \\x -> x\n",
+                "pub computed = identity (\\x -> x)\n",
+                "my recursive = \\x -> x\n",
+            ),
+        )];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let mut lowering = infer::lowering::lower_loaded_files(&loaded).unwrap();
+        let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let (_, probe_runtime) =
+            infer::canonical_cache_interface_surfaces_from_lowering(&lowering, &namespace)
+                .expect("pre-serialization canonical interface");
+        let [probe_boundary] = probe_runtime.boundary.bounds.as_slice() else {
+            panic!("Oracle A2 fixture must have one value-restriction boundary binder");
+        };
+        let boundary_var = probe_boundary.var;
+        let namespace_index = infer::CompiledNamespaceIndex::new(&namespace);
+        let root_module = namespace_index.module_by_path(&[]).expect("root module");
+        let recursive_symbol = root_module
+            .values
+            .iter()
+            .find(|value| value.name == "recursive")
+            .map(|value| value.symbol)
+            .expect("recursive scheme symbol");
+        let recursive_def = probe_runtime
+            .values
+            .iter()
+            .find(|value| value.symbol == recursive_symbol)
+            .map(|value| value.def)
+            .expect("recursive runtime def");
+        let recursive_var = lowering.session.poly.fresh_type_var();
+        let recursive_pos = lowering
+            .session
+            .poly
+            .typ
+            .alloc_pos(poly::types::Pos::Var(recursive_var));
+        let recursive_lower = lowering
+            .session
+            .poly
+            .typ
+            .alloc_pos(poly::types::Pos::Con(vec!["int".into()], Vec::new()));
+        let recursive_upper = lowering.session.poly.typ.alloc_neg(poly::types::Neg::Top);
+        let recursive_bounds = lowering
+            .session
+            .poly
+            .typ
+            .alloc_neu(poly::types::Neu::Bounds(recursive_lower, recursive_upper));
+        let Some(poly::expr::Def::Let {
+            scheme: Some(recursive_scheme),
+            ..
+        }) = lowering.session.poly.defs.get_mut(recursive_def)
+        else {
+            panic!("recursive finalized scheme");
+        };
+        recursive_scheme.predicate =
+            lowering
+                .session
+                .poly
+                .typ
+                .alloc_pos(poly::types::Pos::Tuple(vec![
+                    recursive_scheme.predicate,
+                    recursive_pos,
+                ]));
+        recursive_scheme
+            .recursive_bounds
+            .push(poly::types::SchemeRecursiveBound {
+                var: recursive_var,
+                bounds: recursive_bounds,
+            });
+        let candidate_head_var = lowering.session.infer.fresh_type_var();
+        let candidate_head = poly::roles::RoleConstraintArg {
+            lower: lowering
+                .session
+                .infer
+                .alloc_pos(poly::types::Pos::Var(candidate_head_var)),
+            upper: lowering
+                .session
+                .infer
+                .alloc_neg(poly::types::Neg::Var(candidate_head_var)),
+        };
+        let candidate_boundary = poly::roles::RoleConstraintArg {
+            lower: lowering
+                .session
+                .infer
+                .alloc_pos(poly::types::Pos::Var(boundary_var)),
+            upper: lowering
+                .session
+                .infer
+                .alloc_neg(poly::types::Neg::Var(boundary_var)),
+        };
+        let candidate_role = vec!["OracleA2Role".to_string()];
+        lowering
+            .session
+            .role_impls
+            .insert(poly::roles::RoleImplCandidate {
+                impl_def: None,
+                role: candidate_role.clone(),
+                inputs: vec![candidate_head],
+                associated: Vec::new(),
+                prerequisites: vec![poly::roles::RoleConstraint {
+                    role: vec!["OracleA2Boundary".into()],
+                    inputs: vec![candidate_boundary],
+                    associated: Vec::new(),
+                }],
+                methods: Vec::new(),
+            });
+        let computed_symbol = namespace_index
+            .exported_value_symbol(&[], "computed")
+            .expect("computed export symbol");
+        let id_symbol = root_module
+            .values
+            .iter()
+            .find(|value| value.name == "identity")
+            .map(|value| value.symbol)
+            .expect("identity scheme symbol");
+        let key = source_cache_key(&files);
+
+        let artifact = compiled_unit_artifact_from_lowering(&files, &loaded, &lowering, Vec::new());
+        assert!(!artifact.runtime.boundary.bounds.is_empty());
+        let expected_boundary = artifact
+            .runtime
+            .imported_instantiation_witness(computed_symbol, &candidate_role)
+            .expect("pre-serialization boundary instantiation");
+        let expected_quantified = artifact
+            .runtime
+            .imported_instantiation_witness(id_symbol, &candidate_role)
+            .expect("pre-serialization quantified instantiation");
+        let expected_recursive = artifact
+            .runtime
+            .imported_instantiation_witness(recursive_symbol, &candidate_role)
+            .expect("pre-serialization recursive instantiation");
+
+        let bytes = encode_compiled_unit_artifact_bytes(&artifact).unwrap();
+        let decoded = decode_compiled_unit_artifact_bytes(&bytes, key)
+            .unwrap()
+            .expect("production format 19 Oracle A2 round trip");
+        let actual_boundary = decoded
+            .runtime
+            .imported_instantiation_witness(computed_symbol, &candidate_role)
+            .expect("decoded boundary fresh-session instantiation");
+        let actual_quantified = decoded
+            .runtime
+            .imported_instantiation_witness(id_symbol, &candidate_role)
+            .expect("decoded quantified fresh-session instantiation");
+        let actual_recursive = decoded
+            .runtime
+            .imported_instantiation_witness(recursive_symbol, &candidate_role)
+            .expect("decoded recursive fresh-session instantiation");
+
+        assert_eq!(expected_boundary.first_view, actual_boundary.first_view);
+        assert_eq!(expected_quantified.first_view, actual_quantified.first_view);
+        assert_eq!(expected_recursive.first_view, actual_recursive.first_view);
+        assert_eq!(actual_boundary.first_view, actual_boundary.second_view);
+        assert_eq!(actual_quantified.first_view, actual_quantified.second_view);
+        assert_eq!(actual_recursive.first_view, actual_recursive.second_view);
+        assert!(
+            !actual_quantified.first_quantified.is_empty(),
+            "fixture must exercise a per-use Q binder"
+        );
+        assert!(
+            actual_quantified
+                .first_quantified
+                .iter()
+                .all(|var| !actual_quantified.second_quantified.contains(var)),
+            "Q binders must be fresh for each decoded use"
+        );
+        assert!(
+            !actual_recursive.first_recursive.is_empty(),
+            "fixture must exercise an R binder through production bytes"
+        );
+        assert!(
+            actual_recursive
+                .first_recursive
+                .iter()
+                .all(|var| !actual_recursive.second_recursive.contains(var)),
+            "R binders must be fresh for each decoded use"
+        );
+        assert_eq!(
+            actual_boundary.first_boundary, actual_boundary.second_boundary,
+            "B binders must share one decoded session mapping"
+        );
+        assert!(!actual_boundary.first_boundary.is_empty());
+        assert_eq!(
+            actual_boundary.imported_candidate_boundary, actual_boundary.first_boundary,
+            "scheme and candidate prerequisite must share decoded B"
+        );
+        assert!(
+            actual_boundary
+                .source_candidate_head
+                .iter()
+                .all(|var| !actual_boundary.imported_candidate_head.contains(var)),
+            "candidate-local head binders must freshen during decoded import"
+        );
+    }
+
+    #[test]
     fn compiled_unit_cache_treats_empty_boundary_only_format_as_a_miss() {
         let root = temp_root("compiled-unit-empty-boundary-only-format");
         let cache = ArtifactCache::new(&root);

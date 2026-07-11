@@ -138,6 +138,119 @@ impl AnalysisSession {
         }
     }
 
+    pub(crate) fn imported_instantiation_witness(
+        &mut self,
+        target: DefId,
+        candidate_role: &[String],
+    ) -> Option<crate::CompiledImportInstantiationWitness> {
+        let scheme = match self.poly.defs.get(target)? {
+            Def::Let {
+                scheme: Some(scheme),
+                ..
+            } => scheme.clone(),
+            Def::Mod { .. } | Def::Let { .. } | Def::Arg => return None,
+        };
+        validate_imported_scheme_for_instantiation(
+            &self.poly.typ,
+            &scheme,
+            &self.imported_boundary,
+        )
+        .ok()?;
+
+        let first = instantiate_validated_imported_scheme_witness(
+            &self.poly.typ,
+            &mut self.infer,
+            TypeLevel::root(),
+            &scheme,
+            &self.imported_boundary,
+        );
+        let second = instantiate_validated_imported_scheme_witness(
+            &self.poly.typ,
+            &mut self.infer,
+            TypeLevel::root(),
+            &scheme,
+            &self.imported_boundary,
+        );
+        let first_scheme = first.as_scheme();
+        let second_scheme = second.as_scheme();
+        let boundary_binders = self
+            .imported_boundary
+            .bounds()
+            .iter()
+            .map(|bound| bound.var)
+            .collect::<Vec<_>>();
+        let boundary = crate::interface_oracle::BoundaryInterface {
+            binders: &boundary_binders,
+            bounds: self.imported_boundary.bounds(),
+        };
+        let first_inventory = crate::interface_oracle::scan_scheme_closure(
+            self.infer.constraints().types(),
+            &first_scheme,
+            boundary,
+        )
+        .ok()?;
+        let second_inventory = crate::interface_oracle::scan_scheme_closure(
+            self.infer.constraints().types(),
+            &second_scheme,
+            boundary,
+        )
+        .ok()?;
+        let first_view = crate::interface_oracle::SchemeAlphaView::from_scheme(
+            self.infer.constraints().types(),
+            &first_scheme,
+            boundary,
+        )
+        .ok()?;
+        let second_view = crate::interface_oracle::SchemeAlphaView::from_scheme(
+            self.infer.constraints().types(),
+            &second_scheme,
+            boundary,
+        )
+        .ok()?;
+
+        let source_candidate = self.poly.role_impls.candidates(candidate_role).first()?;
+        let imported_candidate = self.role_impls.candidates(candidate_role).first()?;
+        let mut source_candidate_head = source_candidate
+            .as_constraint()
+            .raw_vars(&self.poly.typ)
+            .into_iter()
+            .collect::<Vec<_>>();
+        source_candidate_head.sort_by_key(|var| var.0);
+        let mut imported_candidate_head = imported_candidate
+            .as_constraint()
+            .raw_vars(self.infer.constraints().types())
+            .into_iter()
+            .collect::<Vec<_>>();
+        imported_candidate_head.sort_by_key(|var| var.0);
+        let boundary_set = boundary_binders.iter().copied().collect::<FxHashSet<_>>();
+        let mut imported_candidate_boundary = imported_candidate
+            .prerequisites
+            .iter()
+            .flat_map(|prerequisite| {
+                prerequisite
+                    .raw_vars(self.infer.constraints().types())
+                    .into_iter()
+            })
+            .filter(|var| boundary_set.contains(var))
+            .collect::<Vec<_>>();
+        imported_candidate_boundary.sort_by_key(|var| var.0);
+        imported_candidate_boundary.dedup();
+
+        Some(crate::CompiledImportInstantiationWitness {
+            first_view,
+            second_view,
+            first_quantified: first_inventory.quantified,
+            second_quantified: second_inventory.quantified,
+            first_recursive: first_inventory.recursive,
+            second_recursive: second_inventory.recursive,
+            first_boundary: first_inventory.boundary,
+            second_boundary: second_inventory.boundary,
+            source_candidate_head,
+            imported_candidate_head,
+            imported_candidate_boundary,
+        })
+    }
+
     #[cfg(test)]
     pub(in crate::analysis) fn instantiate_use(
         &mut self,
