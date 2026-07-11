@@ -745,6 +745,12 @@ The following are deliberately not guessed:
    available here.
 3. **Exact alpha algorithm for recursive graphs.** Partition refinement and canonical SCC encoding
    are both plausible; their exact equality conditions need implementation-level validation.
+
+   **Resolution (2026-07-12): conservative ambiguity rejection is the shipped policy.** Claude
+   Sonnet 5 and the user confirmed that a symmetric or otherwise ambiguous boundary graph continues
+   to produce `None` from `semantic_fingerprint_with_types`, making the artifact a cache miss. Stage
+   5 does not choose or implement a complete canonical SCC algorithm. That work may be reconsidered
+   only if Stage 6 measurements identify this rejection as a material source of repeated misses.
 4. **Prerequisite-only binder meaning.** A variable that occurs only in an impl prerequisite may be
    an omitted head dependency, a shared boundary variable, or an unsupported existential. It must not
    be classified by convenience.

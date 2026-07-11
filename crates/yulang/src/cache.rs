@@ -24,7 +24,11 @@ use crate::source::{
 const POLY_CACHE_FORMAT: u32 = 8;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 9;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
+#[cfg(test)]
+const EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
+#[cfg(test)]
+const PRE_BOUNDARY_COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 const SOURCE_KEY_INDEX_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
@@ -489,11 +493,9 @@ fn decode_compiled_unit_cache_envelope(
     // The format word is the first bincode field and can be decoded without
     // knowing the remainder of the schema. This makes an old surface layout a
     // deterministic miss instead of a missing-field decode error.
-    let format: u32 =
-        bincode::deserialize_from(&mut Cursor::new(bytes)).map_err(|error| CacheError::Decode {
-            path: path.to_path_buf(),
-            error,
-        })?;
+    let Ok(format): Result<u32, _> = bincode::deserialize_from(&mut Cursor::new(bytes)) else {
+        return Ok(None);
+    };
     if format != COMPILED_UNIT_CACHE_FORMAT {
         return Ok(None);
     }
@@ -4353,6 +4355,15 @@ mod tests {
         let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored.manifest, artifact.manifest);
+        assert_eq!(
+            restored.manifest.compiled_unit_format,
+            COMPILED_UNIT_CACHE_FORMAT
+        );
+        let encoded = encode_compiled_unit_artifact_bytes(&artifact).unwrap();
+        let decoded = decode_compiled_unit_artifact_bytes(&encoded, key)
+            .unwrap()
+            .expect("current compiled-unit format byte round trip");
+        assert_eq!(decoded.manifest, artifact.manifest);
         assert_ne!(restored.manifest.lowering_hash, 0);
         assert_ne!(restored.manifest.runtime_hash, 0);
         assert_ne!(restored.manifest.external_runtime_hash, 0);
@@ -4531,6 +4542,61 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_cache_treats_empty_boundary_only_format_as_a_miss() {
+        let root = temp_root("compiled-unit-empty-boundary-only-format");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let mut old_manifest = artifact.manifest.clone();
+        old_manifest.compiled_unit_format = EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT;
+        let old = CompiledUnitCacheEnvelope {
+            format: EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT,
+            manifest: &old_manifest,
+            syntax: &artifact.syntax,
+            namespace: &artifact.namespace,
+            lowering: &artifact.lowering,
+            typed: &artifact.typed,
+            runtime: &artifact.runtime,
+            external_runtime: &artifact.external_runtime,
+            errors: &artifact.errors,
+        };
+        let bytes = bincode::serialize(&old).unwrap();
+
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none()
+        );
+        let path = cache.compiled_unit_artifact_path(key);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_treats_unknown_or_truncated_format_word_as_a_miss() {
+        let key = SourceCacheKey { hash: 0 };
+        let unknown = bincode::serialize(&u32::MAX).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&unknown, key)
+                .unwrap()
+                .is_none()
+        );
+
+        let current = bincode::serialize(&COMPILED_UNIT_CACHE_FORMAT).unwrap();
+        let truncated = &current[..current.len() - 1];
+        assert!(
+            decode_compiled_unit_artifact_bytes(truncated, key)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
     fn compiled_unit_cache_treats_pre_boundary_format_as_a_miss() {
         #[derive(Serialize)]
         struct LegacyCompiledUnitManifest {
@@ -4567,10 +4633,10 @@ mod tests {
         let key = source_cache_key(&files);
         let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
         let legacy = CompiledUnitCacheEnvelope {
-            format: COMPILED_UNIT_CACHE_FORMAT - 1,
+            format: PRE_BOUNDARY_COMPILED_UNIT_CACHE_FORMAT,
             manifest: LegacyCompiledUnitManifest {
                 cache_schema_version: artifact.manifest.cache_schema_version,
-                compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT - 1,
+                compiled_unit_format: PRE_BOUNDARY_COMPILED_UNIT_CACHE_FORMAT,
                 source_hash: artifact.manifest.source_hash,
                 syntax_hash: artifact.manifest.syntax_hash,
                 namespace_hash: artifact.manifest.namespace_hash,
