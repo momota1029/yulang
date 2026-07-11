@@ -404,6 +404,141 @@ fn instantiate_imported_scheme_rejects_unmapped_free_type_var() {
     );
 }
 
+#[test]
+fn freshen_imported_role_candidate_shares_b_with_scheme_instantiation() {
+    let boundary_var = TypeVar(60_000);
+    let head_var = TypeVar(60_001);
+    let mut poly = PolyArena::new();
+    let predicate = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_lower = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_upper = poly.typ.alloc_neg(Neg::Var(boundary_var));
+    let boundary_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(boundary_lower, boundary_upper));
+    let def = poly.defs.fresh();
+    poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: Vec::new(),
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let head = poly_role_var_arg(&mut poly, head_var);
+    let prerequisite_boundary = poly_role_var_arg(&mut poly, boundary_var);
+    poly.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: vec!["ImportedRole".into()],
+        inputs: vec![head],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["NeedsBoundary".into()],
+            inputs: vec![prerequisite_boundary],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: boundary_var,
+            bounds: boundary_bounds,
+        }],
+    };
+    let mut session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+    let use_value = session.infer.fresh_type_var_at(TypeLevel::root());
+
+    session.instantiate_use(DefId(95), def, use_value);
+
+    let imported_b = session
+        .imported_boundary_var(boundary_var)
+        .expect("boundary should have one session-level mapping");
+    let use_bounds = session
+        .infer
+        .constraints()
+        .bounds()
+        .of(use_value)
+        .expect("scheme use should receive the imported B lower bound");
+    assert!(use_bounds.lowers().iter().any(|bound| matches!(
+        session.infer.constraints().types().pos(bound.pos),
+        Pos::Var(var) if *var == imported_b
+    )));
+    let candidate = &session.role_impls.candidates(&["ImportedRole".into()])[0];
+    let candidate_head = candidate
+        .as_constraint()
+        .raw_vars(session.infer.constraints().types());
+    assert_eq!(candidate_head.len(), 1);
+    assert!(!candidate_head.contains(&head_var));
+    assert!(!candidate_head.contains(&imported_b));
+    assert_eq!(
+        candidate.prerequisites[0].raw_vars(session.infer.constraints().types()),
+        FxHashSet::from_iter([imported_b]),
+        "scheme and impl prerequisite must point at the same imported B"
+    );
+}
+
+#[test]
+fn freshen_imported_role_candidate_keeps_unmapped_prerequisite_var_fresh() {
+    let boundary_var = TypeVar(61_000);
+    let head_var = TypeVar(61_001);
+    let prerequisite_var = TypeVar(61_002);
+    let mut poly = PolyArena::new();
+    let boundary_lower = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_upper = poly.typ.alloc_neg(Neg::Var(boundary_var));
+    let boundary_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(boundary_lower, boundary_upper));
+    let head = poly_role_var_arg(&mut poly, head_var);
+    let prerequisite = poly_role_var_arg(&mut poly, prerequisite_var);
+    poly.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: vec!["LegacyImportedRole".into()],
+        inputs: vec![head],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["LegacyPrerequisite".into()],
+            inputs: vec![prerequisite],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: boundary_var,
+            bounds: boundary_bounds,
+        }],
+    };
+
+    let session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+
+    let candidate = &session
+        .role_impls
+        .candidates(&["LegacyImportedRole".into()])[0];
+    let prerequisite_vars =
+        candidate.prerequisites[0].raw_vars(session.infer.constraints().types());
+    assert_eq!(prerequisite_vars.len(), 1);
+    assert!(!prerequisite_vars.contains(&prerequisite_var));
+    assert!(
+        !prerequisite_vars.contains(
+            &session
+                .imported_boundary_var(boundary_var)
+                .expect("boundary mapping")
+        )
+    );
+}
+
+fn poly_role_var_arg(poly: &mut PolyArena, var: TypeVar) -> RoleConstraintArg {
+    let lower = poly.typ.alloc_pos(Pos::Var(var));
+    let upper = poly.typ.alloc_neg(Neg::Var(var));
+    RoleConstraintArg { lower, upper }
+}
+
 fn instantiated_tuple_vars(session: &AnalysisSession, use_value: TypeVar) -> [TypeVar; 3] {
     let bounds = session
         .infer

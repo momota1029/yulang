@@ -101,9 +101,14 @@ pub(crate) fn freshen_role_impl_candidate(
     source: &TypeArena,
     target: &mut InferArena,
     candidate: &RoleImplCandidate,
+    boundary: &ImportedBoundarySubstitution,
 ) -> RoleImplCandidate {
-    let mut instantiator =
-        SchemeInstantiator::new_freshening_all(source, target, TypeLevel::root());
+    let mut instantiator = SchemeInstantiator::new_freshening_all_with_preloaded_vars(
+        source,
+        target,
+        TypeLevel::root(),
+        &boundary.vars,
+    );
     instantiator.clone_role_impl_candidate(candidate)
 }
 
@@ -142,17 +147,18 @@ impl<'a> SchemeInstantiator<'a> {
         }
     }
 
-    fn new_freshening_all(
+    fn new_freshening_all_with_preloaded_vars(
         source: &'a TypeArena,
         target: &'a mut InferArena,
         level: TypeLevel,
+        preloaded_vars: &'a FxHashMap<TypeVar, TypeVar>,
     ) -> Self {
         Self {
             source,
             target,
             level,
             vars: FxHashMap::default(),
-            preloaded_vars: None,
+            preloaded_vars: Some(preloaded_vars),
             subtracts: FxHashMap::default(),
             pos_nodes: FxHashMap::default(),
             neg_nodes: FxHashMap::default(),
@@ -329,17 +335,16 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn clone_var(&mut self, source: TypeVar) -> TypeVar {
+        if let Some(target) = self.vars.get(&source).copied().or_else(|| {
+            self.preloaded_vars
+                .and_then(|vars| vars.get(&source).copied())
+        }) {
+            return target;
+        }
         if self.freshen_unmapped {
             return self.fresh_var(source);
         }
-        self.vars
-            .get(&source)
-            .copied()
-            .or_else(|| {
-                self.preloaded_vars
-                    .and_then(|vars| vars.get(&source).copied())
-            })
-            .unwrap_or(source)
+        source
     }
 
     fn clone_subtract(&mut self, source: SubtractId) -> SubtractId {

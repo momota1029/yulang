@@ -99,8 +99,12 @@ impl AnalysisSession {
 
         let role_impls = self.poly.role_impls.iter().cloned().collect::<Vec<_>>();
         for candidate in role_impls {
-            let candidate =
-                freshen_role_impl_candidate(&self.poly.typ, &mut self.infer, &candidate);
+            let candidate = freshen_role_impl_candidate(
+                &self.poly.typ,
+                &mut self.infer,
+                &candidate,
+                &self.imported_boundary,
+            );
             self.role_impls.insert(candidate);
         }
     }

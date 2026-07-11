@@ -334,6 +334,36 @@ prerequisite occurrenceの`B`が同じinfer variableを指すことをfocused wi
 Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty artifact integrationとStage 7のfallback
 retirement判断まで待つ。
 
+### Stage 3 boundary-aware import slice 3: §6.3 Role candidate freshening
+
+session初期化で既存poly surfaceのrole impl candidateをinfer arenaへfreshenする入口に、§6.1/§6.2と
+同じpersistent boundary substitutionを借用preloadした。`SchemeInstantiator::clone_var`は
+candidateごとのlocal mapping、preloaded boundary mapping、fresh unmappedの順に解決する。これにより
+candidate-local head variableは従来どおりfreshになり、candidateのhead / associated type /
+prerequisiteに現れる既知の`B`だけがscheme occurrenceと同じsession-level infer variableを指す。
+
+candidateに対するstrict unmapped errorはこのsliceでは追加していない。prerequisite-only variableの
+binder解釈とcanonical candidate closureはStage 4の責務であり、Stage 3で先に拒否すると既存の
+pre-Stage 4 candidate semanticsを変えるためである。focused characterizationでは、この種のunmapped
+prerequisite variableがsource IDを流用せず従来どおりfreshになることを固定した。candidate closureの
+拒否はStage 4でhead bindersと`B`の分類が完成した後に行う。
+
+この変更はStage 3専用の別経路だけには閉じていない。`freshen_role_impl_candidate`は
+`AnalysisSession`生成時点のpoly arenaにある全role candidateへ一度ずつ適用されるため、既存の
+std-prefixを含むfinalized poly surfaceのcandidate freshening全体に及ぶ。一方、source lowering中に
+新規作成されて直接infer tableへ入るcandidateは対象外である。空boundaryでは従来と同じ全var fresh、
+non-empty boundaryでもtableに明示された`B`だけを共有し、他のvarはすべて従来どおりfreshになる。
+
+focused testは、actual session lifecycleでscheme useとimpl prerequisiteの`B`が同じmappingを指し、
+candidate headが別のfresh varになることを直接確認した。確認結果はinfer interface oracle 9 passed、
+instantiate関連9 passed、role関連57 passed、infer全体585 passed / 既知の`mark_expr_block_*` 5 failed、
+std-prefix regression 5 passedである。
+
+次sliceはStage 3 Exit witnessである。§6.1〜§6.3で作ったsession mapping、2回のscheme instantiation、
+scheme / candidate間の`B`共有を一つのtest-only witnessへまとめ、Stage 3 exit条件のOracle Aを確認する。
+production artifact integrationには進まない。Markdownの`std-prefix-hit`化は引き続きStage 5の
+non-empty artifact integrationとStage 7のfallback retirement判断まで待つ。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -411,10 +441,10 @@ effect subtraction の主性と colored soundness の定式化が更新された
 現在のactive sliceはcanonical cache interface Option 1 Stage 3 boundary-aware import and
 instantiationである。Stage 2のboundary capture、joint compact/freeze、poly arena freezeと
 typed/runtime production handoffに続き、Stage 3 §6.1 Import onceと§6.2 Scheme instantiateまで
-完了した。次は§6.3でrole candidate fresheningへ同じpersistent `B` mappingをpreloadし、candidate-local
-head variableのfresheningとscheme / impl prerequisite間の`B`共有を固定する。Markdownの
-`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty artifact integrationと
-Stage 7のfallback retirement判断まで待つ。
+進め、§6.3 Role candidate fresheningも完了した。次はStage 3 Exit witnessで、2回のscheme
+instantiationにおける`Q/R` fresh・`B`共有とscheme / candidate間の`B`共有をtest-only witnessと
+Oracle Aでまとめて確認する。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5の
+non-empty artifact integrationとStage 7のfallback retirement判断まで待つ。
 
 ## 守る不変条件
 
