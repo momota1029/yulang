@@ -571,6 +571,185 @@ pub fn canonical_cache_interface_surfaces_from_lowering(
     Some((surfaces.typed, surfaces.runtime))
 }
 
+/// Observation-only form of the production handoff retaining a structured failure reason.
+#[doc(hidden)]
+pub fn canonical_cache_interface_surfaces_from_lowering_observed(
+    lowering: &BodyLowering,
+    namespace: &CompiledNamespaceSurface,
+) -> Result<
+    (CompiledTypedSurface, crate::CompiledRuntimeSurface),
+    CanonicalCacheInterfaceHandoffError,
+> {
+    let surfaces =
+        CompiledCacheInterfaceSurfaces::from_lowering(lowering, namespace).map_err(|error| {
+            CanonicalCacheInterfaceHandoffError::from(error).with_definition_label(lowering)
+        })?;
+    surfaces
+        .typed
+        .boundary_fingerprint_agreeing_with_runtime(&surfaces.runtime)
+        .ok_or_else(CanonicalCacheInterfaceHandoffError::structural_key_disagreement)?;
+    Ok((surfaces.typed, surfaces.runtime))
+}
+
+/// Stable Stage 6 classification for an internal canonical handoff failure.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CanonicalCacheInterfaceHandoffErrorKind {
+    MissingGeneralizedScheme,
+    MissingPolySchemeTarget,
+    ConflictingBinderClass,
+    BoundaryDependsOnLocalBinder,
+    UnclassifiedBoundaryDependency,
+    FreezeProducedConstraint,
+    MalformedJointComponent,
+    UnboundSchemeVariable,
+    UnboundCandidateVariable,
+    NonCanonicalCandidateOrdering,
+    CandidateBinderInventoryMismatch,
+    UnboundSubtractId,
+    MissingBoundaryBound,
+    ConflictingBoundaryBound,
+    StructuralKeyDisagreement,
+}
+
+impl CanonicalCacheInterfaceHandoffErrorKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::MissingGeneralizedScheme => "MissingGeneralizedScheme",
+            Self::MissingPolySchemeTarget => "MissingPolySchemeTarget",
+            Self::ConflictingBinderClass => "ConflictingBinderClass",
+            Self::BoundaryDependsOnLocalBinder => "BoundaryDependsOnLocalBinder",
+            Self::UnclassifiedBoundaryDependency => "UnclassifiedBoundaryDependency",
+            Self::FreezeProducedConstraint => "FreezeProducedConstraint",
+            Self::MalformedJointComponent => "MalformedJointComponent",
+            Self::UnboundSchemeVariable => "UnboundSchemeVariable",
+            Self::UnboundCandidateVariable => "UnboundCandidateVariable",
+            Self::NonCanonicalCandidateOrdering => "NonCanonicalCandidateOrdering",
+            Self::CandidateBinderInventoryMismatch => "CandidateBinderInventoryMismatch",
+            Self::UnboundSubtractId => "UnboundSubtractId",
+            Self::MissingBoundaryBound => "MissingBoundaryBound",
+            Self::ConflictingBoundaryBound => "ConflictingBoundaryBound",
+            Self::StructuralKeyDisagreement => "StructuralKeyDisagreement",
+        }
+    }
+}
+
+/// Public observation payload without exposing the internal draft/error type.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanonicalCacheInterfaceHandoffError {
+    pub kind: CanonicalCacheInterfaceHandoffErrorKind,
+    pub def: Option<DefId>,
+    pub definition_label: Option<String>,
+    pub role: Option<Vec<String>>,
+    pub var: Option<TypeVar>,
+    pub detail: String,
+}
+
+impl CanonicalCacheInterfaceHandoffError {
+    fn with_definition_label(mut self, lowering: &BodyLowering) -> Self {
+        self.definition_label = self
+            .def
+            .and_then(|def| lowering.labels.def_label(def))
+            .map(str::to_owned);
+        self
+    }
+
+    fn structural_key_disagreement() -> Self {
+        Self {
+            kind: CanonicalCacheInterfaceHandoffErrorKind::StructuralKeyDisagreement,
+            def: None,
+            definition_label: None,
+            role: None,
+            var: None,
+            detail: "typed/runtime canonical structural keys disagree".into(),
+        }
+    }
+}
+
+impl From<crate::analysis::BoundaryCaptureError> for CanonicalCacheInterfaceHandoffError {
+    fn from(error: crate::analysis::BoundaryCaptureError) -> Self {
+        use crate::analysis::BoundaryCaptureError;
+        use CanonicalCacheInterfaceHandoffErrorKind as Kind;
+
+        let (kind, def, role, var) = match &error {
+            BoundaryCaptureError::MissingGeneralizedScheme { def } => {
+                (Kind::MissingGeneralizedScheme, Some(*def), None, None)
+            }
+            BoundaryCaptureError::MissingPolySchemeTarget { def } => {
+                (Kind::MissingPolySchemeTarget, Some(*def), None, None)
+            }
+            BoundaryCaptureError::ConflictingBinderClass { var } => {
+                (Kind::ConflictingBinderClass, None, None, Some(*var))
+            }
+            BoundaryCaptureError::BoundaryDependsOnLocalBinder { boundary, .. } => (
+                Kind::BoundaryDependsOnLocalBinder,
+                None,
+                None,
+                Some(*boundary),
+            ),
+            BoundaryCaptureError::UnclassifiedBoundaryDependency { boundary, .. } => (
+                Kind::UnclassifiedBoundaryDependency,
+                None,
+                None,
+                Some(*boundary),
+            ),
+            BoundaryCaptureError::FreezeProducedConstraint { def, boundary, .. } => {
+                (Kind::FreezeProducedConstraint, *def, None, *boundary)
+            }
+            BoundaryCaptureError::MalformedJointComponent => {
+                (Kind::MalformedJointComponent, None, None, None)
+            }
+            BoundaryCaptureError::UnboundSchemeVariable { def, var } => {
+                (Kind::UnboundSchemeVariable, Some(*def), None, Some(*var))
+            }
+            BoundaryCaptureError::UnboundCandidateVariable {
+                impl_def,
+                role,
+                var,
+            } => (
+                Kind::UnboundCandidateVariable,
+                *impl_def,
+                Some(role.clone()),
+                Some(*var),
+            ),
+            BoundaryCaptureError::NonCanonicalCandidateOrdering { impl_def, role } => (
+                Kind::NonCanonicalCandidateOrdering,
+                *impl_def,
+                Some(role.clone()),
+                None,
+            ),
+            BoundaryCaptureError::CandidateBinderInventoryMismatch {
+                impl_def,
+                role,
+                var,
+            } => (
+                Kind::CandidateBinderInventoryMismatch,
+                *impl_def,
+                Some(role.clone()),
+                Some(*var),
+            ),
+            BoundaryCaptureError::UnboundSubtractId { .. } => {
+                (Kind::UnboundSubtractId, None, None, None)
+            }
+            BoundaryCaptureError::MissingBoundaryBound { var } => {
+                (Kind::MissingBoundaryBound, None, None, Some(*var))
+            }
+            BoundaryCaptureError::ConflictingBoundaryBound { var } => {
+                (Kind::ConflictingBoundaryBound, None, None, Some(*var))
+            }
+        };
+        Self {
+            kind,
+            def,
+            definition_label: None,
+            role,
+            var,
+            detail: format!("{error:?}"),
+        }
+    }
+}
+
 /// Internal one-shot construction preserving one canonical arena for both compiled surfaces.
 pub(crate) struct CompiledCacheInterfaceSurfaces {
     pub(crate) typed: CompiledTypedSurface,
@@ -1742,6 +1921,23 @@ mod tests {
                 var: prerequisite_only,
             }
         );
+        let observed = match canonical_cache_interface_surfaces_from_lowering_observed(
+            &lowering, &namespace,
+        ) {
+            Ok(_) => panic!("the observed handoff must retain the same failure"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            observed.kind,
+            CanonicalCacheInterfaceHandoffErrorKind::UnboundCandidateVariable
+        );
+        assert_eq!(observed.def, None);
+        assert_eq!(
+            observed.role,
+            Some(vec!["UnclosedArtifactCandidate".into()])
+        );
+        assert_eq!(observed.var, Some(prerequisite_only));
+        assert!(observed.detail.contains("UnboundCandidateVariable"));
         assert!(
             lowering
                 .session

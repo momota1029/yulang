@@ -3965,6 +3965,11 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_cache_route(&output, "std-prefix-build");
     assert_eq!(
+        runtime_metric_text(&output, "run.cache_interface.canonical_handoff"),
+        "success-empty"
+    );
+    assert!(!runtime_metric_text(&output, "run.cache_interface.canonical_handoff_cost").is_empty());
+    assert_eq!(
         runtime_metric_usize(&output, "run.cache_interface.std_prefix_boundary_entries",),
         0,
         "the minimal std prefix has an empty canonical boundary"
@@ -3984,6 +3989,7 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [2]\n");
     assert_cache_route(&output, "std-prefix-hit");
+    assert_runtime_metric_absent(&output, "run.cache_interface.canonical_handoff");
     assert_eq!(
         runtime_metric_usize(&output, "run.cache_interface.std_prefix_boundary_entries",),
         0,
@@ -4023,6 +4029,10 @@ fn std_prefix_boundary_metrics_report_non_empty_canonical_artifact() {
         .unwrap();
     assert_success(&build);
     assert_cache_route(&build, "std-prefix-build");
+    assert_eq!(
+        runtime_metric_text(&build, "run.cache_interface.canonical_handoff"),
+        "success-non-empty"
+    );
     let entries = runtime_metric_usize(&build, "run.cache_interface.std_prefix_boundary_entries");
     eprintln!("Stage 6 custom std boundary entries: {entries}");
     assert!(
@@ -4042,6 +4052,7 @@ fn std_prefix_boundary_metrics_report_non_empty_canonical_artifact() {
         .unwrap();
     assert_success(&hit);
     assert_cache_route(&hit, "std-prefix-hit");
+    assert_runtime_metric_absent(&hit, "run.cache_interface.canonical_handoff");
     assert_eq!(
         runtime_metric_usize(&hit, "run.cache_interface.std_prefix_boundary_entries"),
         entries,
@@ -4102,6 +4113,31 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
         .unwrap();
     assert_success(&seed_output);
     assert_cache_route(&seed_output, "std-prefix-build");
+    let handoff_outcome =
+        runtime_metric_text(&seed_output, "run.cache_interface.canonical_handoff");
+    let handoff_cost =
+        runtime_metric_text(&seed_output, "run.cache_interface.canonical_handoff_cost");
+    eprintln!("Stage 6 repository std canonical handoff: {handoff_outcome} in {handoff_cost}");
+    assert_eq!(handoff_outcome, "failure");
+    let failure_kind = runtime_metric_text(
+        &seed_output,
+        "run.cache_interface.canonical_handoff_failure_kind",
+    );
+    let failure_definition = runtime_metric_text(
+        &seed_output,
+        "run.cache_interface.canonical_handoff_failure_definition",
+    );
+    let failure_detail = runtime_metric_text(
+        &seed_output,
+        "run.cache_interface.canonical_handoff_failure_detail",
+    );
+    eprintln!(
+        "Stage 6 repository std canonical handoff failure: {failure_kind} at {failure_definition}: {failure_detail}"
+    );
+    assert_eq!(failure_kind, "FreezeProducedConstraint");
+    assert!(failure_definition.contains("std.control.nondet.nondet.#act-method:once"));
+    assert!(failure_detail.contains("merge_constraints: 0"));
+    assert!(failure_detail.contains("subtype_constraints: 1"));
     let seed_boundary_entries = runtime_metric_usize(
         &seed_output,
         "run.cache_interface.std_prefix_boundary_entries",
@@ -7186,13 +7222,28 @@ fn assert_cache_route_any(output: &Output, routes: &[&str]) {
 }
 
 fn runtime_metric_usize(output: &Output, label: &str) -> usize {
+    runtime_metric_text(output, label)
+        .parse()
+        .unwrap_or_else(|error| panic!("invalid runtime metric {label:?}: {error}"))
+}
+
+fn runtime_metric_text(output: &Output, label: &str) -> String {
     let prefix = format!("{label}: ");
     stderr(output)
         .lines()
         .find_map(|line| line.trim().strip_prefix(&prefix))
         .unwrap_or_else(|| panic!("missing runtime metric {label:?}"))
-        .parse()
-        .unwrap_or_else(|error| panic!("invalid runtime metric {label:?}: {error}"))
+        .to_string()
+}
+
+fn assert_runtime_metric_absent(output: &Output, label: &str) {
+    let prefix = format!("{label}: ");
+    assert!(
+        stderr(output)
+            .lines()
+            .all(|line| !line.trim().starts_with(&prefix)),
+        "runtime metric {label:?} must be absent when its phase did not run"
+    );
 }
 
 fn assert_run_backend(output: &Output, backend: &str) {

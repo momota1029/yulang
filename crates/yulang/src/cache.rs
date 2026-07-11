@@ -20,6 +20,7 @@ use crate::source::{
     SourceUnitLoweringInputError, source_unit_closure_file_indices,
     source_unit_closure_lowering_loaded_files, source_unit_lowering_loaded_files,
 };
+use crate::time::{Duration, Instant};
 
 const POLY_CACHE_FORMAT: u32 = 8;
 const MONO_CACHE_FORMAT: u32 = 1;
@@ -462,6 +463,23 @@ pub struct CachedCompiledUnitArtifact {
     pub errors: Vec<String>,
 }
 
+/// Stage 6 observation for one canonical writer handoff attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledUnitCacheInterfaceTelemetry {
+    pub elapsed: Duration,
+    pub outcome: CompiledUnitCacheInterfaceOutcome,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledUnitCacheInterfaceOutcome {
+    Canonical {
+        boundary_entries: usize,
+    },
+    LegacyEmptyFallback {
+        error: infer::CanonicalCacheInterfaceHandoffError,
+    },
+}
+
 impl CachedCompiledUnitArtifact {
     pub fn cache_key(&self) -> SourceCacheKey {
         SourceCacheKey {
@@ -898,6 +916,38 @@ pub fn compiled_unit_artifact_from_loaded_files_with_key(
     ))
 }
 
+/// Build through the production writer while retaining observation-only handoff telemetry.
+pub fn compiled_unit_artifact_from_loaded_files_with_key_and_cache_interface_telemetry(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+    key: SourceCacheKey,
+) -> Result<
+    (
+        CachedCompiledUnitArtifact,
+        CompiledUnitCacheInterfaceTelemetry,
+    ),
+    infer::LoadedFilesError,
+> {
+    let lowering = infer::lowering::lower_loaded_files(loaded)?;
+    let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
+    let (artifact, telemetry) = compiled_unit_artifact_from_lowering_with_syntax_and_key_inner(
+        files,
+        syntax,
+        &lowering,
+        lowering
+            .errors
+            .iter()
+            .map(|error| format!("{error:?}"))
+            .collect(),
+        key,
+        true,
+    );
+    Ok((
+        artifact,
+        telemetry.expect("the observed writer must return handoff telemetry"),
+    ))
+}
+
 pub fn compiled_unit_artifact_from_standalone_source_unit(
     files: &[CollectedSource],
     units: &SourceCompilationUnits,
@@ -997,24 +1047,65 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
     errors: Vec<String>,
     key: SourceCacheKey,
 ) -> CachedCompiledUnitArtifact {
+    compiled_unit_artifact_from_lowering_with_syntax_and_key_inner(
+        files, syntax, lowering, errors, key, false,
+    )
+    .0
+}
+
+fn compiled_unit_artifact_from_lowering_with_syntax_and_key_inner(
+    files: &[CollectedSource],
+    syntax: sources::CompiledSyntaxSurface,
+    lowering: &infer::lowering::BodyLowering,
+    errors: Vec<String>,
+    key: SourceCacheKey,
+    observe_cache_interface: bool,
+) -> (
+    CachedCompiledUnitArtifact,
+    Option<CompiledUnitCacheInterfaceTelemetry>,
+) {
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
-    let (typed, runtime) =
-        infer::canonical_cache_interface_surfaces_from_lowering(lowering, &namespace)
-            .unwrap_or_else(|| {
-                let boundary = infer::CompiledBoundaryInterface::empty();
-                let typed = infer::CompiledTypedSurface::from_lowering_with_boundary(
-                    lowering,
-                    &namespace,
-                    boundary.clone(),
-                );
-                let runtime =
-                    infer::CompiledRuntimeSurface::from_lowering_with_namespace_and_boundary(
-                        lowering, &namespace, boundary,
-                    );
-                (typed, runtime)
-            });
+    let started = observe_cache_interface.then(Instant::now);
+    let (canonical, failure) = if observe_cache_interface {
+        match infer::canonical_cache_interface_surfaces_from_lowering_observed(lowering, &namespace)
+        {
+            Ok(surfaces) => (Some(surfaces), None),
+            Err(error) => (None, Some(error)),
+        }
+    } else {
+        (
+            infer::canonical_cache_interface_surfaces_from_lowering(lowering, &namespace),
+            None,
+        )
+    };
+    let canonical_boundary_entries = canonical
+        .as_ref()
+        .map(|(_, runtime)| runtime.boundary.bounds.len());
+    let (typed, runtime) = canonical.unwrap_or_else(|| {
+        let boundary = infer::CompiledBoundaryInterface::empty();
+        let typed = infer::CompiledTypedSurface::from_lowering_with_boundary(
+            lowering,
+            &namespace,
+            boundary.clone(),
+        );
+        let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace_and_boundary(
+            lowering, &namespace, boundary,
+        );
+        (typed, runtime)
+    });
+    let cache_interface_telemetry = started.map(|started| CompiledUnitCacheInterfaceTelemetry {
+        elapsed: started.elapsed(),
+        outcome: match canonical_boundary_entries {
+            Some(boundary_entries) => {
+                CompiledUnitCacheInterfaceOutcome::Canonical { boundary_entries }
+            }
+            None => CompiledUnitCacheInterfaceOutcome::LegacyEmptyFallback {
+                error: failure.expect("the observed failed handoff must retain its reason"),
+            },
+        },
+    });
     let external_runtime = compiled_unit_external_runtime_refs(lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
@@ -1026,16 +1117,19 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
         &external_runtime,
         key,
     );
-    CachedCompiledUnitArtifact {
-        manifest,
-        syntax,
-        namespace,
-        lowering: lowering_surface,
-        typed,
-        runtime,
-        external_runtime,
-        errors,
-    }
+    (
+        CachedCompiledUnitArtifact {
+            manifest,
+            syntax,
+            namespace,
+            lowering: lowering_surface,
+            typed,
+            runtime,
+            external_runtime,
+            errors,
+        },
+        cache_interface_telemetry,
+    )
 }
 
 fn compiled_unit_external_runtime_refs(
@@ -4554,7 +4648,18 @@ mod tests {
         )];
         let loaded = sources::load(collected_to_source_files(files.clone()));
         let key = source_cache_key(&files);
-        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let (artifact, telemetry) =
+            compiled_unit_artifact_from_loaded_files_with_key_and_cache_interface_telemetry(
+                &files, &loaded, key,
+            )
+            .unwrap();
+
+        assert!(matches!(
+            telemetry.outcome,
+            CompiledUnitCacheInterfaceOutcome::Canonical {
+                boundary_entries: 1
+            }
+        ));
 
         assert!(
             !artifact.typed.boundary.bounds.is_empty(),
@@ -4633,7 +4738,28 @@ mod tests {
             });
         let key = source_cache_key(&files);
 
-        let artifact = compiled_unit_artifact_from_lowering(&files, &loaded, &lowering, Vec::new());
+        let syntax = sources::CompiledSyntaxSurface::from_loaded_files(&loaded);
+        let (artifact, telemetry) = compiled_unit_artifact_from_lowering_with_syntax_and_key_inner(
+            &files,
+            syntax,
+            &lowering,
+            Vec::new(),
+            key,
+            true,
+        );
+        let telemetry = telemetry.expect("observed writer telemetry");
+        let CompiledUnitCacheInterfaceOutcome::LegacyEmptyFallback { error } = telemetry.outcome
+        else {
+            panic!("candidate closure failure must be observed before fallback")
+        };
+        assert_eq!(
+            error.kind,
+            infer::CanonicalCacheInterfaceHandoffErrorKind::UnboundCandidateVariable
+        );
+        assert_eq!(error.def, None);
+        assert_eq!(error.role, Some(vec!["UnclosedArtifactCandidate".into()]));
+        assert_eq!(error.var, Some(prerequisite_only));
+        assert!(error.detail.contains("UnboundCandidateVariable"));
         assert!(artifact.typed.boundary.bounds.is_empty());
         assert!(artifact.runtime.boundary.bounds.is_empty());
         assert_eq!(

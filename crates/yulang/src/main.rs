@@ -209,10 +209,11 @@ enum RunHostMode {
     MockServer,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct RuntimePhaseTimings {
     build_cache: RuntimeBuildCacheKind,
     std_prefix_boundary_entries: Option<usize>,
+    std_prefix_cache_interface: Option<yulang::cache::CompiledUnitCacheInterfaceTelemetry>,
     collect: Duration,
     build_poly: Duration,
     specialize: Duration,
@@ -1043,6 +1044,41 @@ fn print_runtime_evidence_phase_timings(
     eprintln!("  run.cache: {}", timing.build_cache.as_str());
     if let Some(entries) = timing.std_prefix_boundary_entries {
         eprintln!("  run.cache_interface.std_prefix_boundary_entries: {entries}");
+    }
+    if let Some(telemetry) = &timing.std_prefix_cache_interface {
+        eprintln!(
+            "  run.cache_interface.canonical_handoff_cost: {}",
+            format_duration(telemetry.elapsed)
+        );
+        match &telemetry.outcome {
+            yulang::cache::CompiledUnitCacheInterfaceOutcome::Canonical { boundary_entries } => {
+                let outcome = if *boundary_entries == 0 {
+                    "success-empty"
+                } else {
+                    "success-non-empty"
+                };
+                eprintln!("  run.cache_interface.canonical_handoff: {outcome}");
+            }
+            yulang::cache::CompiledUnitCacheInterfaceOutcome::LegacyEmptyFallback { error } => {
+                eprintln!("  run.cache_interface.canonical_handoff: failure");
+                eprintln!(
+                    "  run.cache_interface.canonical_handoff_failure_kind: {}",
+                    error.kind.as_str()
+                );
+                if let Some(def) = error.def {
+                    eprintln!("  run.cache_interface.canonical_handoff_failure_def: {def:?}");
+                }
+                if let Some(label) = &error.definition_label {
+                    eprintln!(
+                        "  run.cache_interface.canonical_handoff_failure_definition: {label}"
+                    );
+                }
+                eprintln!(
+                    "  run.cache_interface.canonical_handoff_failure_detail: {}",
+                    error.detail
+                );
+            }
+        }
     }
     eprintln!("  run.collect: {}", format_duration(timing.collect));
     eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
@@ -2041,7 +2077,7 @@ fn build_poly_from_std_prefix_cache(
     files: &[yulang::CollectedSource],
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
-    timings: Option<&mut RuntimePhaseTimings>,
+    mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
     let plan = std_prefix_cache_plan(files)?;
     let (prefix, kind) = match cache.read_compiled_unit_artifact(plan.key) {
@@ -2049,13 +2085,13 @@ fn build_poly_from_std_prefix_cache(
             (prefix, RuntimeBuildCacheKind::StdPrefixHit)
         }
         Ok(Some(_)) | Ok(None) => (
-            build_std_prefix_artifact(files, cache, &plan)?,
+            build_std_prefix_artifact(files, cache, &plan, timings.as_deref_mut())?,
             RuntimeBuildCacheKind::StdPrefixBuild,
         ),
         Err(error) => {
             eprintln!("warning: {error}");
             (
-                build_std_prefix_artifact(files, cache, &plan)?,
+                build_std_prefix_artifact(files, cache, &plan, timings.as_deref_mut())?,
                 RuntimeBuildCacheKind::StdPrefixBuild,
             )
         }
@@ -2243,6 +2279,7 @@ fn build_std_prefix_artifact(
     files: &[yulang::CollectedSource],
     cache: &yulang::cache::ArtifactCache,
     plan: &StdPrefixCachePlan,
+    timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<yulang::cache::CachedCompiledUnitArtifact> {
     let prefix_files = plan
         .file_indices
@@ -2250,15 +2287,32 @@ fn build_std_prefix_artifact(
         .map(|file| files[*file].clone())
         .collect::<Vec<_>>();
     let loaded = sources::load(std_prefix_lowering_source_files(files, &plan.file_indices));
-    let artifact = match yulang::cache::compiled_unit_artifact_from_loaded_files_with_key(
-        &prefix_files,
-        &loaded,
-        plan.key,
-    ) {
-        Ok(artifact) => artifact,
-        Err(error) => {
-            eprintln!("warning: {error}");
-            return None;
+    let artifact = if let Some(timings) = timings {
+        match yulang::cache::compiled_unit_artifact_from_loaded_files_with_key_and_cache_interface_telemetry(
+            &prefix_files,
+            &loaded,
+            plan.key,
+        ) {
+            Ok((artifact, telemetry)) => {
+                timings.std_prefix_cache_interface = Some(telemetry);
+                artifact
+            }
+            Err(error) => {
+                eprintln!("warning: {error}");
+                return None;
+            }
+        }
+    } else {
+        match yulang::cache::compiled_unit_artifact_from_loaded_files_with_key(
+            &prefix_files,
+            &loaded,
+            plan.key,
+        ) {
+            Ok(artifact) => artifact,
+            Err(error) => {
+                eprintln!("warning: {error}");
+                return None;
+            }
         }
     };
     if !artifact.errors.is_empty() {
