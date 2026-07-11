@@ -834,6 +834,87 @@ fn cache_candidate_normalization_rejects_the_unit_batch_when_one_candidate_is_un
 }
 
 #[test]
+fn canonical_cache_handoff_installs_scheme_and_candidate_with_the_same_unit_boundary() {
+    let (session, canonical, frozen, mut target, def, head, boundary_var) =
+        canonical_cache_handoff_fixture();
+
+    let boundary = canonical
+        .with_frozen_candidates(frozen)
+        .freeze_into_poly(session.infer.constraints(), &mut target)
+        .expect("closed scheme/candidate handoff");
+
+    assert_eq!(
+        boundary
+            .bounds
+            .iter()
+            .map(|bound| bound.var)
+            .collect::<Vec<_>>(),
+        vec![boundary_var]
+    );
+    let Some(Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = target.defs.get(def)
+    else {
+        panic!("canonical scheme must be installed")
+    };
+    assert!(matches!(target.typ.pos(scheme.predicate), Pos::Var(var) if *var == boundary_var));
+
+    let [candidate] = target
+        .role_impls
+        .candidates(&["HandoffCandidate".to_string()])
+    else {
+        panic!("canonical candidate must be installed")
+    };
+    assert_eq!(
+        candidate.as_constraint().raw_vars(&target.typ),
+        FxHashSet::from_iter([head, boundary_var])
+    );
+    assert_eq!(
+        candidate.prerequisites[0].raw_vars(&target.typ),
+        FxHashSet::from_iter([head, boundary_var])
+    );
+}
+
+#[test]
+fn canonical_cache_handoff_rejects_candidate_boundary_inventory_not_shared_with_unit_table() {
+    let (session, canonical, mut frozen, mut target, def, _, boundary_var) =
+        canonical_cache_handoff_fixture();
+    frozen.candidates[0].boundary.clear();
+    let before_nodes = target.typ.node_len();
+
+    let error = canonical
+        .with_frozen_candidates(frozen)
+        .freeze_into_poly(session.infer.constraints(), &mut target)
+        .expect_err("candidate B inventory must match the unit boundary table");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::CandidateBinderInventoryMismatch {
+            impl_def: Some(DefId(49)),
+            role: vec!["HandoffCandidate".into()],
+            var: boundary_var,
+        }
+    );
+    assert_eq!(target.typ.node_len(), before_nodes);
+    assert!(
+        target
+            .role_impls
+            .candidates(&["HandoffCandidate".to_string()])
+            .is_empty(),
+        "validator failure must not partially install candidates"
+    );
+    let Some(Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = target.defs.get(def)
+    else {
+        panic!("placeholder scheme must remain installed")
+    };
+    assert!(matches!(target.typ.pos(scheme.predicate), Pos::Tuple(items) if items.is_empty()));
+}
+
+#[test]
 fn imported_boundary_is_seeded_once_at_root_with_shared_graph_references() {
     let first = TypeVar(10_000);
     let second = TypeVar(10_001);
@@ -1234,6 +1315,89 @@ fn add_identity_function_lower_bound(session: &mut AnalysisSession, root: TypeVa
     });
     let upper = session.infer.alloc_neg(Neg::Var(root));
     session.infer.subtype(lower, upper);
+}
+
+fn canonical_cache_handoff_fixture() -> (
+    AnalysisSession,
+    crate::analysis::cache_interface::CanonicalCacheInterfaceDraft,
+    crate::analysis::cache_interface::FrozenCandidateInterface,
+    PolyArena,
+    DefId,
+    TypeVar,
+    TypeVar,
+) {
+    let def = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let boundary_var = session.infer.fresh_type_var();
+    let head = session.infer.fresh_type_var();
+    session.schemes.insert(
+        def,
+        GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    );
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(49)),
+        role: vec!["HandoffCandidate".into()],
+        inputs: vec![
+            role_var_arg(&mut session.infer, head),
+            role_var_arg(&mut session.infer, boundary_var),
+        ],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["HandoffPrerequisite".into()],
+            inputs: vec![
+                role_var_arg(&mut session.infer, head),
+                role_var_arg(&mut session.infer, boundary_var),
+            ],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+
+    let captured_boundary = session
+        .capture_cache_boundary_interface([def])
+        .expect("handoff boundary capture");
+    let captured_candidates = session.capture_cache_candidate_interface(&captured_boundary);
+    let normalized = session
+        .normalize_cache_candidate_interface(captured_candidates, &captured_boundary)
+        .expect("handoff candidate normalization");
+    let canonical = session
+        .freeze_cache_interface([def])
+        .expect("handoff scheme/boundary draft");
+
+    let mut target = PolyArena::new();
+    let target_def = target.defs.fresh();
+    assert_eq!(target_def, def);
+    let placeholder = target.typ.alloc_pos(Pos::Tuple(Vec::new()));
+    target.defs.set(
+        target_def,
+        Def::Let {
+            vis: poly::expr::Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: Vec::new(),
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate: placeholder,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let frozen = session
+        .freeze_cache_candidate_interface(normalized, &mut target)
+        .expect("handoff candidate freeze");
+
+    (session, canonical, frozen, target, def, head, boundary_var)
 }
 
 pub(super) fn monomorphic_cast_scheme(

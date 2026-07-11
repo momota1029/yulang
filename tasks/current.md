@@ -492,6 +492,38 @@ canonical draftへ統合し、poly arena上でもcandidate varsがhead binders +
 Stage 5のartifact有効化自体には進まない。Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty
 artifact integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
 
+### Stage 4 principal impl prerequisite slice 4: closure validation / common handoff
+
+Stage 2のscheme / boundary draftとStage 4のfrozen candidate batchを
+`CanonicalCacheInterfaceHandoffDraft`へ一度だけ束ねるhandoffを追加した。handoff消費前に、同じpoly arena上の
+candidate headと全prerequisiteをStage 0のmemoized `ClosureScan`で一回走査し、実際の変数集合がcandidate
+head binders + unit `B`へ閉じることを再検証する。candidateが宣言する`B` inventoryは実際のcandidate内の
+unit-boundary occurrenceと完全一致しなければならず、unit tableにない`B`、未閉包変数、binder inventory
+不一致、未束縛`SubtractId`はすべて構造化errorでunit batch全体をfail-closedにする。
+
+validator成功後にだけ、既存のone-shot scheme / boundary freezeを同じpoly arenaへ適用し、frozen candidate
+batchで`poly.role_impls`を一括置換する。これによりtyped/runtime共通handoffが受け取る一つのarena内で、scheme
+occurrence、candidate head / prerequisite、unit boundary tableが同じ`TypeVar` identityを共有する。validatorは
+role resolution、scheme instantiation、constraint mutation、追加simplificationを行わず、新しい反復も持たない。
+失敗はscheme / candidateを書き込む前に判定するため、非canonical unitが部分的にhandoffされることもない。
+
+focused統合witnessでは、同じopen `B`がscheme predicate、candidate head、candidate prerequisite、compiled
+boundary entryのすべてで同じ変数になることと、candidate batchがpoly arenaへ実際にinstallされることを直接
+確認した。対称な否定witnessではcandidateの`B` inventoryを欠落させ、
+`CandidateBinderInventoryMismatch`でscheme / candidate write前に拒否されることを固定した。
+
+このhandoffはStage 4 focused testsだけから呼ばれ、既存のrole solve、candidate生成、通常の
+`finalize_poly_role_impls`、compiled artifact構築にはまだ接続していない。そのため既存経路の意味論・性能には
+波及しない。確認結果はhandoff focused 2 passed、candidate capture / normalization / freeze 6 passed、infer
+interface oracle 9 passed、instantiate関連9 passed、role関連57 passed、infer全体594 passed / 既知の
+`mark_expr_block_*` 5 failed、std-prefix safety 6 passed、std-prefix CLI regression 4 passedである。
+
+これでStage 4 principal impl prerequisite interfaceは完了した。次はStage 5 artifact integrationで、この共通
+handoffをproduction compiled-unit構築へ接続し、non-empty boundary / candidate artifactのencode/decode、fresh
+session import、Oracle A2、Oracle Bを有効化する。Stage 5はMarkdown経路の実速度差をproduction artifact上で
+初めて観測できる段階だが、恒久的な`std-prefix-hit`要求とprogram-sensitive fallbackの退役判断は引き続き
+Stage 7まで行わない。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -566,18 +598,19 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 2026-06-17〜2026-06-19 の control VM frame runtime / performance slice は
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
-現在のactive sliceはcanonical cache interface Option 1 Stage 4 principal impl prerequisite interfaceで
-ある。Stage 2のboundary capture、joint compact/freeze、poly arena freezeとtyped/runtime production
+現在のactive sliceはcanonical cache interface Option 1 Stage 5 artifact integrationである。Stage 2の
+boundary capture、joint compact/freeze、poly arena freezeとtyped/runtime production
 handoffに続き、Stage 3 §6.1 Import once、§6.2 Scheme instantiate、§6.3 Role candidate fresheningと
 Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4 slice 1ではcandidate head-local / known `B`
 inventoryとprerequisite-only varの明示的なunclassified inventoryを追加し、slice 2ではstrict rejection
 方針の下でhead + prerequisites + reachable `B` carrierのper-candidate joint compact normalizationと
 post-substitution inventory rewriteを完了した。slice 3ではunit-batch strict rejectionの下でnormalized
 candidateのcenterless structural freeze、associated name ordering、binder-normalized prerequisite structural
-sort / dedup、methods / shared-var preservationを完了した。次はStage 4最後のclosure validation / common
-handoffへ進む。production artifactのencode/decode / fresh-session import gateであるOracle A2はStage 5へ
-移した。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty artifact
-integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
+sort / dedup、methods / shared-var preservationを完了した。slice 4ではscheme / boundaryとfrozen candidatesの
+common handoff、poly arena上のhead binders + unit `B` closure再検証、一括candidate installを完了し、Stage 4
+全体を閉じた。次はこのhandoffをproduction compiled-unit構築へ接続し、non-empty artifactとOracle A2 / Bを
+有効化するStage 5へ進む。Markdownの実速度差をproduction artifact上で初めて観測できるのもStage 5だが、
+恒久的な`std-prefix-hit`要求とprogram-sensitive fallbackの退役判断はStage 7まで待つ。
 
 ## 守る不変条件
 

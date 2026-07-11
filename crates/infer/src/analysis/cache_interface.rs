@@ -73,6 +73,17 @@ pub(crate) struct CanonicalCacheInterfaceDraft {
     pub(crate) binders: CanonicalBinderClasses,
 }
 
+/// One-shot Stage 4 handoff joining schemes, the unit boundary, and frozen role candidates.
+///
+/// Candidate types have already been structurally frozen into the target poly arena. Consuming
+/// this draft validates their binder closure against the same unit `B` table used by schemes,
+/// then installs the whole candidate batch alongside the finalized schemes.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct CanonicalCacheInterfaceHandoffDraft {
+    interface: CanonicalCacheInterfaceDraft,
+    candidates: FrozenCandidateInterface,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CanonicalSchemeDraft {
     pub(crate) def: DefId,
@@ -136,6 +147,14 @@ pub(crate) enum BoundaryCaptureError {
         impl_def: Option<DefId>,
         role: Vec<String>,
     },
+    CandidateBinderInventoryMismatch {
+        impl_def: Option<DefId>,
+        role: Vec<String>,
+        var: TypeVar,
+    },
+    UnboundSubtractId {
+        id: poly::types::SubtractId,
+    },
     MissingBoundaryBound {
         var: TypeVar,
     },
@@ -145,6 +164,17 @@ pub(crate) enum BoundaryCaptureError {
 }
 
 impl CanonicalCacheInterfaceDraft {
+    /// Join the Stage 2 scheme/boundary draft with the Stage 4 frozen candidate batch.
+    pub(crate) fn with_frozen_candidates(
+        self,
+        candidates: FrozenCandidateInterface,
+    ) -> CanonicalCacheInterfaceHandoffDraft {
+        CanonicalCacheInterfaceHandoffDraft {
+            interface: self,
+            candidates,
+        }
+    }
+
     /// Structurally freeze this validated draft into one poly arena.
     ///
     /// Taking the draft by value makes this the single handoff point: typed and runtime surfaces
@@ -200,6 +230,134 @@ impl CanonicalCacheInterfaceDraft {
         }
         Ok(boundary)
     }
+}
+
+impl CanonicalCacheInterfaceHandoffDraft {
+    /// Validate and install the complete canonical cache interface into one poly arena.
+    ///
+    /// Validation is read-only and precedes every scheme/candidate write. The returned boundary
+    /// and the installed candidates therefore share the same `TypeVar` identity in the arena that
+    /// the typed/runtime surface handoff will consume.
+    pub(crate) fn freeze_into_poly(
+        self,
+        machine: &crate::constraints::ConstraintMachine,
+        poly: &mut PolyArena,
+    ) -> Result<crate::CompiledBoundaryInterface, BoundaryCaptureError> {
+        let Self {
+            interface,
+            candidates,
+        } = self;
+        validate_frozen_candidate_interface(&poly.typ, &interface.boundary, &candidates)?;
+
+        let boundary = interface.freeze_into_poly(machine, poly)?;
+        let mut role_impls = RoleImplTable::new();
+        for candidate in candidates.candidates {
+            role_impls.insert(candidate.candidate);
+        }
+        poly.role_impls = role_impls;
+        Ok(boundary)
+    }
+}
+
+fn validate_frozen_candidate_interface(
+    types: &TypeArena,
+    boundary: &CapturedBoundaryInterface,
+    candidates: &FrozenCandidateInterface,
+) -> Result<(), BoundaryCaptureError> {
+    let unit_boundary = boundary
+        .bounds
+        .iter()
+        .map(|bound| bound.var)
+        .collect::<FxHashSet<_>>();
+
+    for frozen in &candidates.candidates {
+        let mut scan = crate::interface_oracle::ClosureScan::new(types);
+        scan_frozen_role_constraint(&mut scan, &frozen.candidate.as_constraint());
+        let head_vars = scan.vars.iter().copied().collect::<FxHashSet<_>>();
+        for prerequisite in &frozen.candidate.prerequisites {
+            scan_frozen_role_constraint(&mut scan, prerequisite);
+        }
+        if let Some(id) = scan.subtracts.iter().copied().min_by_key(|id| id.0) {
+            return Err(BoundaryCaptureError::UnboundSubtractId { id });
+        }
+        let all_vars = scan.vars.into_iter().collect::<FxHashSet<_>>();
+        let head_binders = frozen
+            .head_binders
+            .iter()
+            .copied()
+            .collect::<FxHashSet<_>>();
+        let candidate_boundary = frozen.boundary.iter().copied().collect::<FxHashSet<_>>();
+
+        if let Some(var) = head_binders.intersection(&unit_boundary).copied().next() {
+            return Err(BoundaryCaptureError::ConflictingBinderClass { var });
+        }
+        if let Some(var) = candidate_boundary
+            .difference(&unit_boundary)
+            .copied()
+            .next()
+        {
+            return Err(BoundaryCaptureError::MissingBoundaryBound { var });
+        }
+
+        let closed = head_binders
+            .union(&unit_boundary)
+            .copied()
+            .collect::<FxHashSet<_>>();
+        if let Some(var) = all_vars.difference(&closed).copied().next() {
+            return Err(BoundaryCaptureError::UnboundCandidateVariable {
+                impl_def: frozen.candidate.impl_def,
+                role: frozen.candidate.role.clone(),
+                var,
+            });
+        }
+
+        let actual_head_binders = head_vars
+            .difference(&unit_boundary)
+            .copied()
+            .collect::<FxHashSet<_>>();
+        let actual_boundary = all_vars
+            .intersection(&unit_boundary)
+            .copied()
+            .collect::<FxHashSet<_>>();
+        if let Some(var) = symmetric_set_difference(&head_binders, &actual_head_binders) {
+            return Err(BoundaryCaptureError::CandidateBinderInventoryMismatch {
+                impl_def: frozen.candidate.impl_def,
+                role: frozen.candidate.role.clone(),
+                var,
+            });
+        }
+        if let Some(var) = symmetric_set_difference(&candidate_boundary, &actual_boundary) {
+            return Err(BoundaryCaptureError::CandidateBinderInventoryMismatch {
+                impl_def: frozen.candidate.impl_def,
+                role: frozen.candidate.role.clone(),
+                var,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn scan_frozen_role_constraint(
+    scan: &mut crate::interface_oracle::ClosureScan<'_>,
+    role: &RoleConstraint,
+) {
+    for input in &role.inputs {
+        scan.pos(input.lower);
+        scan.neg(input.upper);
+    }
+    for associated in &role.associated {
+        scan.pos(associated.value.lower);
+        scan.neg(associated.value.upper);
+    }
+}
+
+fn symmetric_set_difference(
+    left: &FxHashSet<TypeVar>,
+    right: &FxHashSet<TypeVar>,
+) -> Option<TypeVar> {
+    left.symmetric_difference(right)
+        .copied()
+        .min_by_key(|var| var.0)
 }
 
 impl AnalysisSession {
