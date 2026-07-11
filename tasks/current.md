@@ -386,6 +386,40 @@ prerequisite-only変数のbinder分類、candidate head / prerequisiteのjoint c
 candidate closureを実装する。Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty artifact
 integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
 
+### Stage 4 principal impl prerequisite slice 1: candidate binder inventory
+
+Stage 4は、(1) candidate head / associated anchorと既知`B`に対するbinder inventory、(2) headと全
+prerequisiteを一つのcomponentとして扱うper-candidate joint compact normalization、(3) centerless
+invariant headを保ったstructural freezeとprerequisite sort/dedup、(4) head binders + `B` closureの
+validation / runtime handoff、の順に分解する。candidate searchやrecursive prerequisite dischargeは
+freeze中に行わず、candidateごとに一回のnormalizationだけを許す。
+
+最初のsliceでは、infer arena上のraw candidateを次sliceへそのまま保持する
+`CapturedCandidateInterface`を追加した。head inputsとassociated typesに現れる変数から既知のunit
+boundary bindersを除いたものをcandidate-local head binderとし、head / prerequisite全体に現れる既知
+`B`をcandidate boundary inventoryとして記録する。headにも既知`B`にも属さないprerequisite-only
+variableは、便宜的にquantify / boundary化せず`prerequisite_only` inventoryへ明示的に残す。この段階で
+rejectするとnormalizationで正当に消えるvariableまで早期拒否するため、構造化
+`UnboundCandidateVariable`への変換は次sliceのjoint normalization後にだけ行う。このcaptureはrole
+resolution、candidate simplification、constraint追加を一切行わない。
+
+このhelperは新しいStage 4 captureとfocused testsだけに閉じており、既存のrole solve、
+`collect_role_impl_member_prerequisites`、`finalize_poly_role_impls`、Stage 3 candidate fresheningにはまだ
+接続していない。正常系はhead-localとscheme由来の共有`B`をhead / prerequisite横断で分類できること、
+否定系はprerequisite-only varをbinderへ誤分類せずunclassified inventoryへ残すことを直接確認した。
+確認結果はcandidate capture
+2 passed、infer interface oracle 9 passed、instantiate関連9 passed、role関連57 passed、infer全体
+588 passed / 既知の`mark_expr_block_*` 5 failed、std-prefix safety 6 passed、std-prefix CLI regression
+4 passedである。
+
+次sliceは、captured candidateのheadと全prerequisite、および共有`B`のbound carrierを一つのcompact
+componentへ入れ、既存のfloor / co-occurrence / sandwich / polarity simplificationを一回だけ適用する
+per-candidate joint normalizationである。substitution後にhead / `B` inventoryを書き直してclosureを
+再検証する。candidate-only variableのunit ownershipを既存level / sharing decisionから導けないケースに
+遭遇した場合は、仕様§7.3 / §13どおりbinder意味を推測せず設計判断のため停止する。Markdownの
+`std-prefix-hit`化は引き続きStage 5のnon-empty artifact integration / Oracle A2とStage 7のfallback
+retirement判断まで待つ。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -463,10 +497,13 @@ effect subtraction の主性と colored soundness の定式化が更新された
 現在のactive sliceはcanonical cache interface Option 1 Stage 4 principal impl prerequisite interfaceで
 ある。Stage 2のboundary capture、joint compact/freeze、poly arena freezeとtyped/runtime production
 handoffに続き、Stage 3 §6.1 Import once、§6.2 Scheme instantiate、§6.3 Role candidate fresheningと
-Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4ではprerequisite-only変数の分類とcanonical
-candidate closureへ進む。production artifactのencode/decode / fresh-session import gateであるOracle A2は
-Stage 5へ移した。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty
-artifact integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
+Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4 slice 1ではcandidate head-local / known `B`
+inventoryとprerequisite-only varの明示的なunclassified inventoryを追加した。次はcaptured head +
+prerequisites + shared `B`
+carrierのper-candidate joint compact normalizationへ進む。production artifactのencode/decode /
+fresh-session import gateであるOracle A2はStage 5へ移した。Markdownの`std-prefix-hit`化はStage 3完了
+だけでは成立せず、Stage 5のnon-empty artifact integration / Oracle A2とStage 7のfallback retirement
+判断まで待つ。
 
 ## 守る不変条件
 

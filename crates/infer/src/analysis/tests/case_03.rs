@@ -481,6 +481,83 @@ fn cache_boundary_capture_preserves_open_lower_and_upper_shape() {
 }
 
 #[test]
+fn cache_candidate_capture_classifies_head_binders_and_shared_boundary() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let head = session.infer.fresh_type_var();
+    let boundary_var = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(40)),
+        role: vec!["CapturedCandidate".into()],
+        inputs: vec![
+            role_var_arg(&mut session.infer, head),
+            role_var_arg(&mut session.infer, boundary_var),
+        ],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["CapturedPrerequisite".into()],
+            inputs: vec![
+                role_var_arg(&mut session.infer, head),
+                role_var_arg(&mut session.infer, boundary_var),
+            ],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface {
+        bounds: vec![crate::analysis::cache_interface::CapturedBoundaryBound {
+            var: boundary_var,
+            bounds: CompactBounds::Interval {
+                lower: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                upper: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+            },
+        }],
+    };
+
+    let captured = session.capture_cache_candidate_interface(&boundary);
+
+    assert_eq!(captured.candidates.len(), 1);
+    assert_eq!(captured.candidates[0].head_binders, vec![head]);
+    assert_eq!(captured.candidates[0].boundary, vec![boundary_var]);
+    assert!(captured.candidates[0].prerequisite_only.is_empty());
+    assert_eq!(
+        captured.candidates[0].candidate.role,
+        vec!["CapturedCandidate".to_string()]
+    );
+    assert_eq!(captured.candidates[0].candidate.prerequisites.len(), 1);
+}
+
+#[test]
+fn cache_candidate_capture_leaves_prerequisite_only_variable_unclassified() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let head = session.infer.fresh_type_var();
+    let prerequisite_only = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(41)),
+        role: vec!["OpenCandidate".into()],
+        inputs: vec![role_var_arg(&mut session.infer, head)],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["OpenPrerequisite".into()],
+            inputs: vec![role_var_arg(&mut session.infer, prerequisite_only)],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+
+    let captured = session.capture_cache_candidate_interface(
+        &crate::analysis::cache_interface::CapturedBoundaryInterface::default(),
+    );
+
+    assert_eq!(captured.candidates.len(), 1);
+    assert_eq!(captured.candidates[0].head_binders, vec![head]);
+    assert!(captured.candidates[0].boundary.is_empty());
+    assert_eq!(
+        captured.candidates[0].prerequisite_only,
+        vec![prerequisite_only]
+    );
+}
+
+#[test]
 fn imported_boundary_is_seeded_once_at_root_with_shared_graph_references() {
     let first = TypeVar(10_000);
     let second = TypeVar(10_001);

@@ -16,6 +16,24 @@ pub(crate) struct CapturedBoundaryBound {
     pub(crate) bounds: CompactBounds,
 }
 
+/// Pre-normalization candidate components classified against the captured unit boundary.
+///
+/// Each candidate remains intact so the next Stage 4 slice can compact its head and prerequisites
+/// together. This capture only establishes binder ownership; it does not resolve roles, simplify a
+/// candidate, or assign a meaning to prerequisite-only variables.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct CapturedCandidateInterface {
+    pub(crate) candidates: Vec<CapturedCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CapturedCandidate {
+    pub(crate) candidate: crate::roles::RoleImplCandidate,
+    pub(crate) head_binders: Vec<TypeVar>,
+    pub(crate) boundary: Vec<TypeVar>,
+    pub(crate) prerequisite_only: Vec<TypeVar>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct CanonicalCacheInterfaceDraft {
     pub(crate) schemes: Vec<CanonicalSchemeDraft>,
@@ -276,6 +294,89 @@ impl AnalysisSession {
 
         bounds.sort_by_key(|bound| bound.var.0);
         Ok(CapturedBoundaryInterface { bounds })
+    }
+
+    /// Classify candidate head binders and known `B` occurrences before joint normalization.
+    ///
+    /// Variables occurring only in prerequisites remain explicitly unclassified. Their binder
+    /// interpretation is not inferred from convenience, and no candidate search is run here. The
+    /// later joint-normalization slice must reject only those that survive normal simplification.
+    pub(crate) fn capture_cache_candidate_interface(
+        &self,
+        boundary: &CapturedBoundaryInterface,
+    ) -> CapturedCandidateInterface {
+        let boundary_binders = boundary
+            .bounds
+            .iter()
+            .map(|bound| bound.var)
+            .collect::<FxHashSet<_>>();
+        let types = self.infer.constraints().types();
+        let mut captured = Vec::new();
+
+        for candidate in self.role_impls.iter() {
+            let head = candidate.as_constraint().raw_vars(types);
+            let mut all = head.clone();
+            for prerequisite in &candidate.prerequisites {
+                all.extend(prerequisite.raw_vars(types));
+            }
+
+            let mut head_binders = head
+                .difference(&boundary_binders)
+                .copied()
+                .collect::<Vec<_>>();
+            let mut candidate_boundary = all
+                .intersection(&boundary_binders)
+                .copied()
+                .collect::<Vec<_>>();
+            let closed = head
+                .union(&boundary_binders)
+                .copied()
+                .collect::<FxHashSet<_>>();
+            let mut prerequisite_only = all.difference(&closed).copied().collect::<Vec<_>>();
+
+            head_binders.sort_by_key(|var| var.0);
+            candidate_boundary.sort_by_key(|var| var.0);
+            prerequisite_only.sort_by_key(|var| var.0);
+            captured.push(CapturedCandidate {
+                candidate: candidate.clone(),
+                head_binders,
+                boundary: candidate_boundary,
+                prerequisite_only,
+            });
+        }
+
+        captured.sort_by(|left, right| {
+            left.candidate
+                .role
+                .cmp(&right.candidate.role)
+                .then_with(|| {
+                    left.candidate
+                        .impl_def
+                        .map(|def| def.0)
+                        .cmp(&right.candidate.impl_def.map(|def| def.0))
+                })
+                .then_with(|| {
+                    left.head_binders
+                        .iter()
+                        .map(|var| var.0)
+                        .cmp(right.head_binders.iter().map(|var| var.0))
+                })
+                .then_with(|| {
+                    left.boundary
+                        .iter()
+                        .map(|var| var.0)
+                        .cmp(right.boundary.iter().map(|var| var.0))
+                })
+                .then_with(|| {
+                    left.prerequisite_only
+                        .iter()
+                        .map(|var| var.0)
+                        .cmp(right.prerequisite_only.iter().map(|var| var.0))
+                })
+        });
+        CapturedCandidateInterface {
+            candidates: captured,
+        }
     }
 
     /// Apply the normal structural simplification once to schemes and their captured boundary.
