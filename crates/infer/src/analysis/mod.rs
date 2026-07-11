@@ -59,8 +59,10 @@ use crate::generalize::{
     prune_generalized_compact_root_for_cache,
 };
 use crate::instantiate::{
-    ImportedBoundarySubstitution, freshen_role_impl_candidate, instantiate_scheme,
-    instantiate_scheme_with_roles, seed_imported_boundary,
+    ImportedBoundarySubstitution, SchemeInstantiationError, freshen_role_impl_candidate,
+    instantiate_scheme, instantiate_scheme_with_roles,
+    instantiate_validated_imported_scheme_with_roles, seed_imported_boundary,
+    validate_imported_scheme_for_instantiation,
 };
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
@@ -133,11 +135,17 @@ pub struct AnalysisSession {
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
     def_parent_map: DefParentMapCache,
-    #[allow(
-        dead_code,
-        reason = "Stage 3 slice 1 retains this mapping for later instantiation/candidate preload"
-    )]
     imported_boundary: ImportedBoundarySubstitution,
+    imported_scheme_defs: FxHashSet<DefId>,
+    imported_scheme_validations: FxHashMap<DefId, Result<(), SchemeInstantiationError>>,
+    imported_scheme_instantiation_failures: Vec<ImportedSchemeInstantiationFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImportedSchemeInstantiationFailure {
+    parent: DefId,
+    target: DefId,
+    error: SchemeInstantiationError,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

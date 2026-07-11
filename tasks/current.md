@@ -307,6 +307,33 @@ per-use mappingへcloneする一方、boundary boundsはuseごとにreplayしな
 ないfree `TypeVar`をsource IDのまま残す挙動を構造化errorへ変え、共有/非共有を示す正常系・否定系の
 instantiation witnessを追加する。
 
+### Stage 3 boundary-aware import slice 2: §6.2 Scheme instantiate
+
+session生成時に既存poly surfaceからseedしたscheme defをimported targetとして記録し、そのuseだけを
+canonical instantiation入口へ流すようにした。`SchemeInstantiator`はsessionが保持するpersistent
+boundary substitutionを借用してpreloadし、per-use mapには`Q`と`R`だけをfresh allocateする。
+これにより、同じimported schemeの複数useで`Q/R`は別のinfer `TypeVar`へ写り、`B`だけが同じ
+session-level targetを共有する。recursive boundsはfreshened `R`へuseごとにcloneするが、boundary
+boundsは§6.1のsession初期化以外ではreplayしない。
+
+canonical schemeはclone前にread-only closure scanで一度だけ検証し、結果をimported def単位で
+memoizeする。`Q ∪ R ∪ B`に属さないfree `TypeVar`は`UnmappedFreeTypeVar`、preloaded `B`とper-use
+binderの衝突は`BoundaryBinderIsPerUse`という構造化errorにする。source `TypeVar`をそのままtargetへ
+返すfallbackはcanonical routeでは使わず、拒否されたschemeはuse constraintを部分投入しない。
+suffix内でgeneralizeされたlocal schemeとcast用schemeは従来の非canonical入口を維持する。
+
+focused testでは同じdefを2回actual `AnalysisSession::instantiate_use`へ通し、tuple witnessから
+`Q/R`がuseごとに異なり`B`がpersistent mappingと一致することを直接確認した。否定系では未知の
+free variableが構造化errorになり、use側にlower boundが追加されないことを固定した。確認結果は
+infer interface oracle 9 passed、instantiate関連9 passed、infer全体583 passed / 既知の
+`mark_expr_block_*` 5 failed、std-prefix regression 5 passedである。
+
+次sliceは§6.3 Role candidate fresheningである。candidate-local head variableを従来どおりfreshenしつつ、
+同じpersistent boundary substitutionをcandidate importerへpreloadし、scheme occurrenceとimpl
+prerequisite occurrenceの`B`が同じinfer variableを指すことをfocused witnessで固定する。
+Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty artifact integrationとStage 7のfallback
+retirement判断まで待つ。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -383,10 +410,11 @@ effect subtraction の主性と colored soundness の定式化が更新された
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
 現在のactive sliceはcanonical cache interface Option 1 Stage 3 boundary-aware import and
 instantiationである。Stage 2のboundary capture、joint compact/freeze、poly arena freezeと
-typed/runtime production handoffに続き、Stage 3 §6.1 Import onceまで完了した。次は§6.2で
-scheme instantiationへpersistent `B` mappingをpreloadし、`Q/R`のper-use fresheningと`B`の
-session共有を固定する。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5の
-non-empty artifact integrationとStage 7のfallback retirement判断まで待つ。
+typed/runtime production handoffに続き、Stage 3 §6.1 Import onceと§6.2 Scheme instantiateまで
+完了した。次は§6.3でrole candidate fresheningへ同じpersistent `B` mappingをpreloadし、candidate-local
+head variableのfresheningとscheme / impl prerequisite間の`B`共有を固定する。Markdownの
+`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty artifact integrationと
+Stage 7のfallback retirement判断まで待つ。
 
 ## 守る不変条件
 

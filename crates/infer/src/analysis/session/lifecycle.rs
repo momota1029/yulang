@@ -45,6 +45,9 @@ impl AnalysisSession {
             instantiated_targets: FxHashSet::default(),
             def_parent_map: DefParentMapCache::default(),
             imported_boundary,
+            imported_scheme_defs: FxHashSet::default(),
+            imported_scheme_validations: FxHashMap::default(),
+            imported_scheme_instantiation_failures: Vec::new(),
         };
         session.route_constraint_events();
         session.seed_existing_poly_surface();
@@ -72,6 +75,8 @@ impl AnalysisSession {
                 Def::Mod { .. } | Def::Let { .. } | Def::Arg => None,
             })
             .collect::<Vec<_>>();
+        self.imported_scheme_defs
+            .extend(quantified_defs.iter().copied());
         for def in quantified_defs {
             self.scc.seed_quantified_def(def);
         }
@@ -629,6 +634,13 @@ impl AnalysisSession {
     /// Take accumulated analysis diagnostics.
     pub fn take_diagnostics(&mut self) -> Vec<AnalysisDiagnostic> {
         std::mem::take(&mut self.diagnostics)
+    }
+
+    #[cfg(test)]
+    pub(in crate::analysis) fn take_imported_scheme_instantiation_failures(
+        &mut self,
+    ) -> Vec<ImportedSchemeInstantiationFailure> {
+        std::mem::take(&mut self.imported_scheme_instantiation_failures)
     }
 
     pub fn timing(&self) -> AnalysisTiming {

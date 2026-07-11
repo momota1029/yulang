@@ -211,12 +211,45 @@ impl AnalysisSession {
             );
         }
         let phase = Instant::now();
-        let instantiated = instantiate_scheme_with_roles(
-            &self.poly.typ,
-            &mut self.infer,
-            TypeLevel::secondary(),
-            scheme,
-        );
+        let instantiated = if self.imported_scheme_defs.contains(&target) {
+            let validation = if let Some(validation) = self.imported_scheme_validations.get(&target)
+            {
+                validation.clone()
+            } else {
+                let validation = validate_imported_scheme_for_instantiation(
+                    &self.poly.typ,
+                    scheme,
+                    &self.imported_boundary,
+                );
+                self.imported_scheme_validations
+                    .insert(target, validation.clone());
+                validation
+            };
+            if let Err(error) = validation {
+                self.imported_scheme_instantiation_failures.push(
+                    ImportedSchemeInstantiationFailure {
+                        parent,
+                        target,
+                        error,
+                    },
+                );
+                return false;
+            }
+            instantiate_validated_imported_scheme_with_roles(
+                &self.poly.typ,
+                &mut self.infer,
+                TypeLevel::secondary(),
+                scheme,
+                &self.imported_boundary,
+            )
+        } else {
+            instantiate_scheme_with_roles(
+                &self.poly.typ,
+                &mut self.infer,
+                TypeLevel::secondary(),
+                scheme,
+            )
+        };
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_clone_scheme(elapsed);
         trace_instantiate_phase(trace, "clone scheme", parent, target, elapsed, start);

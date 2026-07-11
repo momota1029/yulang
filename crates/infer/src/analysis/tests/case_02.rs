@@ -275,6 +275,166 @@ fn instantiate_use_restores_recursive_bounds_for_fresh_quantifier() {
 }
 
 #[test]
+fn instantiate_imported_scheme_freshens_q_r_per_use_and_shares_b() {
+    let quantified = TypeVar(40_000);
+    let recursive = TypeVar(40_001);
+    let boundary_var = TypeVar(40_002);
+    let mut poly = PolyArena::new();
+    let quantified_pos = poly.typ.alloc_pos(Pos::Var(quantified));
+    let recursive_pos = poly.typ.alloc_pos(Pos::Var(recursive));
+    let boundary_pos = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let predicate = poly.typ.alloc_pos(Pos::Tuple(vec![
+        quantified_pos,
+        recursive_pos,
+        boundary_pos,
+    ]));
+    let recursive_lower = poly.typ.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+    let recursive_upper = poly.typ.alloc_neg(Neg::Top);
+    let recursive_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(recursive_lower, recursive_upper));
+    let boundary_lower = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_upper = poly.typ.alloc_neg(Neg::Var(boundary_var));
+    let boundary_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(boundary_lower, boundary_upper));
+    let def = poly.defs.fresh();
+    poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: vec![quantified],
+                role_predicates: Vec::new(),
+                recursive_bounds: vec![SchemeRecursiveBound {
+                    var: recursive,
+                    bounds: recursive_bounds,
+                }],
+                stack_quantifiers: Vec::new(),
+                predicate,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: boundary_var,
+            bounds: boundary_bounds,
+        }],
+    };
+    let mut session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+    let first_use = session.infer.fresh_type_var_at(TypeLevel::root());
+    let second_use = session.infer.fresh_type_var_at(TypeLevel::root());
+
+    session.instantiate_use(DefId(90), def, first_use);
+    session.instantiate_use(DefId(91), def, second_use);
+
+    let [first_q, first_r, first_b] = instantiated_tuple_vars(&session, first_use);
+    let [second_q, second_r, second_b] = instantiated_tuple_vars(&session, second_use);
+    assert_ne!(first_q, second_q, "Q must be fresh for each use");
+    assert_ne!(first_r, second_r, "R must be fresh for each use");
+    assert_eq!(first_b, second_b, "B must be shared by every use");
+    assert_eq!(
+        Some(first_b),
+        session.imported_boundary_var(boundary_var),
+        "scheme B must reuse the session-level imported mapping"
+    );
+    assert!(
+        session
+            .take_imported_scheme_instantiation_failures()
+            .is_empty()
+    );
+}
+
+#[test]
+fn instantiate_imported_scheme_rejects_unmapped_free_type_var() {
+    let boundary_var = TypeVar(50_000);
+    let unknown = TypeVar(50_001);
+    let mut poly = PolyArena::new();
+    let boundary_pos = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let unknown_pos = poly.typ.alloc_pos(Pos::Var(unknown));
+    let predicate = poly
+        .typ
+        .alloc_pos(Pos::Tuple(vec![boundary_pos, unknown_pos]));
+    let boundary_lower = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_upper = poly.typ.alloc_neg(Neg::Var(boundary_var));
+    let boundary_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(boundary_lower, boundary_upper));
+    let def = poly.defs.fresh();
+    poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: Vec::new(),
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: boundary_var,
+            bounds: boundary_bounds,
+        }],
+    };
+    let mut session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+    let use_value = session.infer.fresh_type_var_at(TypeLevel::root());
+    let parent = DefId(99);
+
+    session.instantiate_use(parent, def, use_value);
+
+    assert_eq!(
+        session.take_imported_scheme_instantiation_failures(),
+        vec![ImportedSchemeInstantiationFailure {
+            parent,
+            target: def,
+            error: SchemeInstantiationError::UnmappedFreeTypeVar { var: unknown },
+        }]
+    );
+    assert!(
+        session.infer.constraints().bounds().of(use_value).is_none(),
+        "a rejected canonical scheme must not add a partial use constraint"
+    );
+}
+
+fn instantiated_tuple_vars(session: &AnalysisSession, use_value: TypeVar) -> [TypeVar; 3] {
+    let bounds = session
+        .infer
+        .constraints()
+        .bounds()
+        .of(use_value)
+        .expect("use value should receive an instantiated tuple lower bound");
+    let items = bounds
+        .lowers()
+        .iter()
+        .find_map(
+            |bound| match session.infer.constraints().types().pos(bound.pos) {
+                Pos::Tuple(items) => Some(items),
+                _ => None,
+            },
+        )
+        .expect("instantiated scheme predicate should remain a tuple");
+    let vars = items
+        .iter()
+        .map(
+            |item| match session.infer.constraints().types().pos(*item) {
+                Pos::Var(var) => *var,
+                other => panic!("tuple witness should contain only variables, got {other:?}"),
+            },
+        )
+        .collect::<Vec<_>>();
+    vars.try_into()
+        .expect("tuple witness should contain Q, R, and B")
+}
+
+#[test]
 fn compact_cast_prepass_normalizes_bidirectional_constructor_pair_once() {
     let source = vec!["source".to_string()];
     let target = vec!["target".to_string()];

@@ -11,6 +11,7 @@ use rustc_hash::FxHashMap;
 
 use crate::arena::Arena as InferArena;
 use crate::constraints::TypeLevel;
+use crate::interface_oracle::ClosureScan;
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
 };
@@ -20,12 +21,14 @@ use crate::roles::{
 /// Boundary bounds are installed once when the analysis session is created. Later Stage 3 slices
 /// preload this same mapping into scheme instantiation and role-candidate freshening.
 #[derive(Debug, Default)]
-#[allow(
-    dead_code,
-    reason = "Stage 3 slice 1 stores the mapping for scheme and candidate preload in later slices"
-)]
 pub(crate) struct ImportedBoundarySubstitution {
     vars: FxHashMap<TypeVar, TypeVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SchemeInstantiationError {
+    UnmappedFreeTypeVar { var: TypeVar },
+    BoundaryBinderIsPerUse { var: TypeVar },
 }
 
 pub(crate) fn seed_imported_boundary(
@@ -74,6 +77,26 @@ pub(crate) fn instantiate_scheme_with_roles(
     instantiator.instantiate_scheme_with_roles(scheme)
 }
 
+pub(crate) fn instantiate_validated_imported_scheme_with_roles(
+    source: &TypeArena,
+    target: &mut InferArena,
+    level: TypeLevel,
+    scheme: &Scheme,
+    boundary: &ImportedBoundarySubstitution,
+) -> InstantiatedScheme {
+    let mut instantiator =
+        SchemeInstantiator::new_with_preloaded_vars(source, target, level, &boundary.vars);
+    instantiator.instantiate_scheme_with_roles(scheme)
+}
+
+pub(crate) fn validate_imported_scheme_for_instantiation(
+    source: &TypeArena,
+    scheme: &Scheme,
+    boundary: &ImportedBoundarySubstitution,
+) -> Result<(), SchemeInstantiationError> {
+    validate_imported_scheme_vars(source, scheme, boundary)
+}
+
 pub(crate) fn freshen_role_impl_candidate(
     source: &TypeArena,
     target: &mut InferArena,
@@ -95,6 +118,7 @@ struct SchemeInstantiator<'a> {
     target: &'a mut InferArena,
     level: TypeLevel,
     vars: FxHashMap<TypeVar, TypeVar>,
+    preloaded_vars: Option<&'a FxHashMap<TypeVar, TypeVar>>,
     subtracts: FxHashMap<SubtractId, SubtractId>,
     pos_nodes: FxHashMap<PosId, PosId>,
     neg_nodes: FxHashMap<NegId, NegId>,
@@ -109,6 +133,7 @@ impl<'a> SchemeInstantiator<'a> {
             target,
             level,
             vars: FxHashMap::default(),
+            preloaded_vars: None,
             subtracts: FxHashMap::default(),
             pos_nodes: FxHashMap::default(),
             neg_nodes: FxHashMap::default(),
@@ -127,6 +152,7 @@ impl<'a> SchemeInstantiator<'a> {
             target,
             level,
             vars: FxHashMap::default(),
+            preloaded_vars: None,
             subtracts: FxHashMap::default(),
             pos_nodes: FxHashMap::default(),
             neg_nodes: FxHashMap::default(),
@@ -146,6 +172,27 @@ impl<'a> SchemeInstantiator<'a> {
             target,
             level,
             vars,
+            preloaded_vars: None,
+            subtracts: FxHashMap::default(),
+            pos_nodes: FxHashMap::default(),
+            neg_nodes: FxHashMap::default(),
+            neu_nodes: FxHashMap::default(),
+            freshen_unmapped: false,
+        }
+    }
+
+    fn new_with_preloaded_vars(
+        source: &'a TypeArena,
+        target: &'a mut InferArena,
+        level: TypeLevel,
+        preloaded_vars: &'a FxHashMap<TypeVar, TypeVar>,
+    ) -> Self {
+        Self {
+            source,
+            target,
+            level,
+            vars: FxHashMap::default(),
+            preloaded_vars: Some(preloaded_vars),
             subtracts: FxHashMap::default(),
             pos_nodes: FxHashMap::default(),
             neg_nodes: FxHashMap::default(),
@@ -161,6 +208,9 @@ impl<'a> SchemeInstantiator<'a> {
     fn instantiate_scheme_with_roles(&mut self, scheme: &Scheme) -> InstantiatedScheme {
         for var in &scheme.quantifiers {
             self.fresh_var(*var);
+        }
+        for bound in &scheme.recursive_bounds {
+            self.fresh_var(bound.var);
         }
         for id in &scheme.stack_quantifiers {
             self.fresh_subtract(*id);
@@ -282,7 +332,14 @@ impl<'a> SchemeInstantiator<'a> {
         if self.freshen_unmapped {
             return self.fresh_var(source);
         }
-        self.vars.get(&source).copied().unwrap_or(source)
+        self.vars
+            .get(&source)
+            .copied()
+            .or_else(|| {
+                self.preloaded_vars
+                    .and_then(|vars| vars.get(&source).copied())
+            })
+            .unwrap_or(source)
     }
 
     fn clone_subtract(&mut self, source: SubtractId) -> SubtractId {
@@ -668,6 +725,46 @@ impl<'a> SchemeInstantiator<'a> {
             })
             .collect()
     }
+}
+
+fn validate_imported_scheme_vars(
+    source: &TypeArena,
+    scheme: &Scheme,
+    boundary: &ImportedBoundarySubstitution,
+) -> Result<(), SchemeInstantiationError> {
+    let mut per_use = scheme
+        .quantifiers
+        .iter()
+        .copied()
+        .collect::<rustc_hash::FxHashSet<_>>();
+    per_use.extend(scheme.recursive_bounds.iter().map(|bound| bound.var));
+    if let Some(var) = per_use
+        .iter()
+        .copied()
+        .filter(|var| boundary.vars.contains_key(var))
+        .min_by_key(|var| var.0)
+    {
+        return Err(SchemeInstantiationError::BoundaryBinderIsPerUse { var });
+    }
+
+    let mut scan = ClosureScan::new(source);
+    scan.pos(scheme.predicate);
+    for predicate in &scheme.role_predicates {
+        scan.scheme_role_predicate(predicate);
+    }
+    for bound in &scheme.recursive_bounds {
+        scan.vars.insert(bound.var);
+        scan.neu(bound.bounds);
+    }
+    if let Some(var) = scan
+        .vars
+        .into_iter()
+        .filter(|var| !per_use.contains(var) && !boundary.vars.contains_key(var))
+        .min_by_key(|var| var.0)
+    {
+        return Err(SchemeInstantiationError::UnmappedFreeTypeVar { var });
+    }
+    Ok(())
 }
 
 #[cfg(test)]
