@@ -250,6 +250,22 @@ joint view から scheme roots、residual roles、recursive bounds、boundary bo
 次は pruned compact draft を一度だけ poly arenaへfreezeし、typed/runtimeが同じdraftを消費できる
 production handoffを作る。artifact encode/importの有効化は、そのhandoffとvalidatorが揃った後に行う。
 
+### Stage 2 poly arena freeze / production handoff slice 3
+
+pruned `CanonicalCacheInterfaceDraft` を値として一度だけ消費し、既存のcompact finalizerで
+scheme・role predicate・recursive bound・unit boundary boundを同じclone済みpoly arenaへ
+構造freezeする入口を実装した。freezeは再簡約やconstraint生成を行わず、対応するpoly scheme
+targetが欠ける場合はarenaへ書き込む前に構造化エラーで拒否する。
+
+typed/runtime surfaceはcrate-internalな`CompiledCacheInterfaceSurfaces` handoffから同じfrozen arenaと
+boundary tableを受け取る。value restrictionで残るnon-empty `B`を使い、両surfaceのarena node列、
+boundary table、scheme各fieldが一致するfocused testを固定した。公開APIと既存artifact構築routeは
+変更していないため、non-empty artifact encode/importとboundary-aware importはまだ有効ではない。
+
+確認済みはinfer interface oracle、cache interface focused tests、infer全体（578 passed / 既知の
+`mark_expr_block_*` 5 failed）、std-prefix Yumark / role-polymorphic cache regression。次はStage 3の
+boundary-aware import and instantiationであり、このsliceからは有効化しない。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -326,8 +342,9 @@ effect subtraction の主性と colored soundness の定式化が更新された
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
 現在の active slice は canonical cache interface Option 1 Stage 2 の production handoff。
 boundary capture と joint compact/freeze、最終 `Q/R/B` closure validation は完了した。次は
-pruned compact draft をpoly arenaへfreezeし、typed/runtime surface構築が同じdraftを一度だけ
-消費する入口を作る。boundary-aware importはStage 3まで有効化しない。
+pruned compact draftのpoly arena freezeと、typed/runtime surface構築が同じdraftを一度だけ
+消費する入口まで完了した。現在はreview待ちの停止点で、boundary-aware importはStage 3まで
+有効化しない。
 
 ## 守る不変条件
 

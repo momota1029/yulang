@@ -381,6 +381,52 @@ fn computed_fetch_def_does_not_quantify_binding_level_root() {
         canonical.binders.boundary.contains(&computed_inner),
         "joint freeze must retain the value-restricted payload in B"
     );
+
+    let mut target = PolyArena::new();
+    let target_def = target.defs.fresh();
+    assert_eq!(target_def, def);
+    let placeholder = target.typ.alloc_pos(Pos::Tuple(Vec::new()));
+    target.defs.set(
+        target_def,
+        Def::Let {
+            vis: poly::expr::Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: Vec::new(),
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate: placeholder,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let frozen_boundary = canonical
+        .freeze_into_poly(computed_session.infer.constraints(), &mut target)
+        .expect("one-shot compact draft freeze");
+
+    assert!(
+        matches!(
+            target.defs.get(def),
+            Some(Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) if scheme.quantifiers.is_empty()
+        ),
+        "the canonical scheme must be written into the same poly arena as its boundary"
+    );
+    assert!(
+        frozen_boundary
+            .bounds
+            .iter()
+            .any(|bound| bound.var == computed_inner)
+    );
+    assert!(
+        frozen_boundary
+            .bounds
+            .iter()
+            .all(|bound| { matches!(target.typ.neu(bound.bounds), Neu::Bounds(_, _)) })
+    );
 }
 
 #[test]
@@ -518,6 +564,46 @@ fn cache_interface_closure_prunes_unreachable_boundary_entry() {
 
     assert!(canonical.boundary.bounds.is_empty());
     assert!(canonical.binders.boundary.is_empty());
+}
+
+#[test]
+fn cache_interface_poly_freeze_rejects_missing_scheme_target_before_writing() {
+    let def = DefId(0);
+    let draft = crate::analysis::cache_interface::CanonicalSchemeDraft {
+        def,
+        generalized: GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_con(crate::compact::CompactCon {
+                    path: vec!["token".into()],
+                    args: Vec::new(),
+                }),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    };
+    let canonical = crate::analysis::cache_interface::validate_and_prune_cache_interface(
+        vec![draft],
+        Vec::new(),
+    )
+    .expect("closed canonical draft");
+    let session = AnalysisSession::new(PolyArena::new());
+    let mut target = PolyArena::new();
+    let before = target.typ.node_len();
+
+    let error = canonical
+        .freeze_into_poly(session.infer.constraints(), &mut target)
+        .expect_err("a draft must not be frozen without its corresponding poly scheme");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::MissingPolySchemeTarget { def }
+    );
+    assert_eq!(target.typ.node_len(), before);
 }
 
 #[test]

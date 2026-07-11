@@ -42,9 +42,17 @@ pub(crate) struct CanonicalSchemeBinders {
     pub(crate) recursive: Vec<TypeVar>,
 }
 
+struct FrozenCanonicalScheme {
+    def: DefId,
+    scheme: Scheme,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BoundaryCaptureError {
     MissingGeneralizedScheme {
+        def: DefId,
+    },
+    MissingPolySchemeTarget {
         def: DefId,
     },
     ConflictingBinderClass {
@@ -75,6 +83,64 @@ pub(crate) enum BoundaryCaptureError {
     ConflictingBoundaryBound {
         var: TypeVar,
     },
+}
+
+impl CanonicalCacheInterfaceDraft {
+    /// Structurally freeze this validated draft into one poly arena.
+    ///
+    /// Taking the draft by value makes this the single handoff point: typed and runtime surfaces
+    /// must share the resulting arena instead of independently finalizing compact graphs. All
+    /// target definitions are checked before the arena or its schemes are changed.
+    pub(crate) fn freeze_into_poly(
+        self,
+        machine: &crate::constraints::ConstraintMachine,
+        poly: &mut PolyArena,
+    ) -> Result<crate::CompiledBoundaryInterface, BoundaryCaptureError> {
+        for draft in &self.schemes {
+            if !matches!(
+                poly.defs.get(draft.def),
+                Some(Def::Let {
+                    scheme: Some(_),
+                    ..
+                })
+            ) {
+                return Err(BoundaryCaptureError::MissingPolySchemeTarget { def: draft.def });
+            }
+        }
+
+        let schemes = self
+            .schemes
+            .iter()
+            .map(|draft| FrozenCanonicalScheme {
+                def: draft.def,
+                scheme: crate::generalize::finalize_generalized_compact_root(
+                    &mut poly.typ,
+                    machine,
+                    &draft.generalized,
+                )
+                .scheme,
+            })
+            .collect::<Vec<_>>();
+        let boundary = crate::CompiledBoundaryInterface {
+            bounds: self
+                .boundary
+                .bounds
+                .iter()
+                .map(|bound| crate::CompiledBoundaryBound {
+                    var: bound.var,
+                    bounds: finalize_compact_boundary_bounds(&mut poly.typ, machine, &bound.bounds),
+                })
+                .collect(),
+        };
+
+        for frozen in schemes {
+            let Some(Def::Let { scheme, .. }) = poly.defs.get_mut(frozen.def) else {
+                unreachable!("cache-interface scheme targets were validated before freeze")
+            };
+            *scheme = Some(frozen.scheme);
+        }
+        Ok(boundary)
+    }
 }
 
 impl AnalysisSession {

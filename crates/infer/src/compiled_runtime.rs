@@ -114,6 +114,25 @@ pub struct CompiledRuntimeImportedValue {
 }
 
 impl CompiledRuntimeSurface {
+    #[allow(
+        dead_code,
+        reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"
+    )]
+    pub(crate) fn from_canonical_cache_interface_handoff(
+        lowering: &BodyLowering,
+        namespace: &CompiledNamespaceSurface,
+        arena: PolyArena,
+        boundary: CompiledBoundaryInterface,
+    ) -> Self {
+        Self {
+            arena,
+            boundary,
+            labels: lowering.labels.clone(),
+            modules: runtime_module_defs_from_namespace(lowering, namespace),
+            values: runtime_value_defs_from_namespace(lowering, namespace),
+        }
+    }
+
     pub fn from_lowering(lowering: &BodyLowering) -> Self {
         Self::from_lowering_with_boundary(lowering, CompiledBoundaryInterface::empty())
     }

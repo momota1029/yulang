@@ -53,8 +53,9 @@ use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, Ty
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     clone_role_impl_candidate_between_arenas, compact_boundary_bound_vars,
-    finalize_generalized_compact_root_with_ancestors, generalize_alias_expanded_compact_root,
-    generalized_compact_boundary_vars, prepare_alias_expanded_compact_root_with_role_variances,
+    finalize_compact_boundary_bounds, finalize_generalized_compact_root_with_ancestors,
+    generalize_alias_expanded_compact_root, generalized_compact_boundary_vars,
+    prepare_alias_expanded_compact_root_with_role_variances,
     prune_generalized_compact_root_for_cache,
 };
 use crate::instantiate::{
@@ -79,6 +80,7 @@ use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::time::{Duration, Instant};
 use crate::typing::BindingFetch;
 use crate::uses::{LocalDefUseTable, RefUseTable, SelectionUse, SelectionUseTable};
+pub(crate) use cache_interface::BoundaryCaptureError;
 use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
 };

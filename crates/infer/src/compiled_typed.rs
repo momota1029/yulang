@@ -91,6 +91,49 @@ pub enum CompiledTypedMergeError {
     DuplicateValueSymbol { symbol: u32 },
 }
 
+/// One-shot Stage 2 handoff from the canonical compact draft to both compiled surfaces.
+///
+/// Artifact construction does not use this entry until the later integration stage. Keeping the
+/// pair together here ensures that enabling it cannot independently freeze typed and runtime type
+/// graphs.
+#[allow(
+    dead_code,
+    reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"
+)]
+pub(crate) struct CompiledCacheInterfaceSurfaces {
+    pub(crate) typed: CompiledTypedSurface,
+    pub(crate) runtime: crate::CompiledRuntimeSurface,
+}
+
+#[derive(Clone, Copy)]
+struct CompiledTypedValueSource {
+    symbol: u32,
+    def: DefId,
+}
+
+#[allow(
+    dead_code,
+    reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"
+)]
+impl CompiledCacheInterfaceSurfaces {
+    pub(crate) fn from_lowering(
+        lowering: &BodyLowering,
+        namespace: &CompiledNamespaceSurface,
+    ) -> Result<Self, crate::analysis::BoundaryCaptureError> {
+        let value_sources = compiled_typed_value_sources(lowering, namespace);
+        let draft = lowering
+            .session
+            .freeze_cache_interface(value_sources.iter().map(|value| value.def))?;
+        let mut arena = lowering.session.poly.clone();
+        let boundary = draft.freeze_into_poly(lowering.session.infer.constraints(), &mut arena)?;
+        let typed = CompiledTypedSurface::from_poly_arena(&arena, &value_sources, boundary.clone());
+        let runtime = crate::CompiledRuntimeSurface::from_canonical_cache_interface_handoff(
+            lowering, namespace, arena, boundary,
+        );
+        Ok(Self { typed, runtime })
+    }
+}
+
 pub struct CompiledValueImport {
     pub boundary: CompiledBoundaryInterface,
     pub values: Vec<CompiledImportedValue>,
@@ -149,49 +192,34 @@ impl CompiledTypedSurface {
         namespace: &CompiledNamespaceSurface,
         boundary: CompiledBoundaryInterface,
     ) -> Self {
-        let mut values = Vec::new();
-        for module in &namespace.modules {
-            let Some(live_module) = lowering
-                .modules
-                .module_by_path(&path_from_strings(&module.path))
-            else {
-                continue;
-            };
-            for value in module
-                .values
-                .iter()
-                .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
-            {
-                let name = Name(value.name.clone());
-                let Some(def) = lowering
-                    .modules
-                    .value_decls(live_module, &name)
-                    .into_iter()
-                    .find(|decl| decl.order.index() == value.order)
-                    .map(|decl| decl.def)
-                else {
-                    continue;
-                };
+        let value_sources = compiled_typed_value_sources(lowering, namespace);
+        Self::from_poly_arena(&lowering.session.poly, &value_sources, boundary)
+    }
+
+    fn from_poly_arena(
+        arena: &PolyArena,
+        value_sources: &[CompiledTypedValueSource],
+        boundary: CompiledBoundaryInterface,
+    ) -> Self {
+        let mut values = value_sources
+            .iter()
+            .filter_map(|value| {
                 let Some(Def::Let {
-                    vis,
                     scheme: Some(scheme),
                     ..
-                }) = lowering.session.poly.defs.get(def)
+                }) = arena.defs.get(value.def)
                 else {
-                    continue;
+                    return None;
                 };
-                if *vis == Vis::My {
-                    continue;
-                }
-                values.push(CompiledTypedValueScheme {
+                Some(CompiledTypedValueScheme {
                     symbol: value.symbol,
                     scheme: scheme.clone(),
-                });
-            }
-        }
+                })
+            })
+            .collect::<Vec<_>>();
         values.sort_by_key(|value| value.symbol);
         Self {
-            types: CompiledTypeArena::from_type_arena(&lowering.session.poly.typ),
+            types: CompiledTypeArena::from_type_arena(&arena.typ),
             boundary,
             values,
         }
@@ -314,6 +342,54 @@ impl CompiledTypedSurface {
             values,
         })
     }
+}
+
+fn compiled_typed_value_sources(
+    lowering: &BodyLowering,
+    namespace: &CompiledNamespaceSurface,
+) -> Vec<CompiledTypedValueSource> {
+    let mut values = Vec::new();
+    for module in &namespace.modules {
+        let Some(live_module) = lowering
+            .modules
+            .module_by_path(&path_from_strings(&module.path))
+        else {
+            continue;
+        };
+        for value in module
+            .values
+            .iter()
+            .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
+        {
+            let name = Name(value.name.clone());
+            let Some(def) = lowering
+                .modules
+                .value_decls(live_module, &name)
+                .into_iter()
+                .find(|decl| decl.order.index() == value.order)
+                .map(|decl| decl.def)
+            else {
+                continue;
+            };
+            let Some(Def::Let {
+                vis,
+                scheme: Some(_),
+                ..
+            }) = lowering.session.poly.defs.get(def)
+            else {
+                continue;
+            };
+            if *vis == Vis::My {
+                continue;
+            }
+            values.push(CompiledTypedValueSource {
+                symbol: value.symbol,
+                def,
+            });
+        }
+    }
+    values.sort_by_key(|value| value.symbol);
+    values
 }
 
 fn compiled_value_visibility(visibility: CompiledNamespaceValueVisibility) -> Vis {
@@ -902,6 +978,78 @@ mod tests {
             restored_types.node_len(),
             lowering.session.poly.typ.node_len()
         );
+    }
+
+    #[test]
+    fn canonical_cache_interface_handoff_freezes_once_for_typed_and_runtime_surfaces() {
+        let loaded = sources::load(vec![source(
+            &[],
+            "my id x = x\npub computed = id (\\x -> x)\n",
+        )]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+
+        let surfaces = CompiledCacheInterfaceSurfaces::from_lowering(&lowering, &namespace)
+            .expect("canonical cache-interface surface handoff");
+
+        assert_eq!(surfaces.typed.boundary, surfaces.runtime.boundary);
+        assert!(
+            !surfaces.typed.boundary.bounds.is_empty(),
+            "the expansive function result must retain its unit-owned boundary binder"
+        );
+        assert_eq!(
+            surfaces.typed.types.pos,
+            surfaces.runtime.arena.typ.pos_nodes()
+        );
+        assert_eq!(
+            surfaces.typed.types.neg,
+            surfaces.runtime.arena.typ.neg_nodes()
+        );
+        assert_eq!(
+            surfaces.typed.types.neu,
+            surfaces.runtime.arena.typ.neu_nodes()
+        );
+
+        let root = Vec::<String>::new();
+        let symbol = crate::CompiledNamespaceIndex::new(&namespace)
+            .exported_value_symbol(&root, "computed")
+            .expect("computed symbol");
+        let typed_scheme = CompiledTypedIndex::new(&surfaces.typed)
+            .value_scheme(symbol)
+            .expect("typed computed scheme");
+        let runtime_def = surfaces
+            .runtime
+            .values
+            .iter()
+            .find(|value| value.symbol == symbol)
+            .map(|value| value.def)
+            .expect("runtime computed def");
+        let Some(Def::Let {
+            scheme: Some(runtime_scheme),
+            ..
+        }) = surfaces.runtime.arena.defs.get(runtime_def)
+        else {
+            panic!("runtime computed scheme");
+        };
+        assert_eq!(typed_scheme.quantifiers, runtime_scheme.quantifiers);
+        assert_eq!(typed_scheme.role_predicates, runtime_scheme.role_predicates);
+        assert_eq!(
+            typed_scheme.recursive_bounds,
+            runtime_scheme.recursive_bounds
+        );
+        assert_eq!(
+            typed_scheme.stack_quantifiers,
+            runtime_scheme.stack_quantifiers
+        );
+        assert_eq!(typed_scheme.predicate, runtime_scheme.predicate);
+
+        for bound in &surfaces.typed.boundary.bounds {
+            assert!(matches!(
+                surfaces.runtime.arena.typ.neu(bound.bounds),
+                Neu::Bounds(_, _)
+            ));
+        }
     }
 
     #[test]

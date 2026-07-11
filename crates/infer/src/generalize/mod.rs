@@ -34,7 +34,8 @@ mod tests;
 
 use core::*;
 pub(crate) use finalize::{
-    clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root,
+    clone_role_impl_candidate_between_arenas, finalize_compact_boundary_bounds,
+    finalize_generalized_compact_root,
 };
 use simplification::apply_ancestor_simplifications;
 pub(crate) use simplification::apply_compact_simplifications_to_root_and_roles;

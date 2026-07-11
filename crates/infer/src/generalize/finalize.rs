@@ -26,6 +26,21 @@ pub(crate) fn finalize_generalized_compact_root(
     }
 }
 
+/// Freeze one already-canonical compact boundary interval into the scheme arena.
+///
+/// Stack-weight type arguments still refer to the inference arena at this point, so the
+/// structural freeze remaps those arguments before allocating the neutral interval. It does not
+/// simplify the bound or add constraints.
+pub(crate) fn finalize_compact_boundary_bounds(
+    types: &mut TypeArena,
+    machine: &ConstraintMachine,
+    bounds: &CompactBounds,
+) -> NeuId {
+    let mut bounds = bounds.clone();
+    clone_compact_stack_weights_in_bounds(machine.types(), types, &mut bounds);
+    finalize_compact_bounds(types, &bounds)
+}
+
 fn finalize_compact_role_predicates(
     types: &mut TypeArena,
     predicates: &[CompactRoleConstraint],
