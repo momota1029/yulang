@@ -5942,6 +5942,131 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_artifact_merge_keeps_non_empty_boundary_scopes_disjoint() {
+        let files = vec![
+            source("main.yu", &[], "mod left;\nmod right;\nmod plain;\n"),
+            source(
+                "left.yu",
+                &["left"],
+                "my identity x = x\npub computed = identity (\\x -> x)\n",
+            ),
+            source(
+                "right.yu",
+                &["right"],
+                "my identity x = x\npub computed = identity (\\x -> (x, x))\n",
+            ),
+            source("plain.yu", &["plain"], "pub struct Plain { value: int }\n"),
+        ];
+        let units = crate::source::source_compilation_units(&files);
+        let left_unit = units.unit_for_file(1).unwrap();
+        let right_unit = units.unit_for_file(2).unwrap();
+        let plain_unit = units.unit_for_file(3).unwrap();
+        let left =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, left_unit).unwrap();
+        let mut right =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, right_unit).unwrap();
+        let plain =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, plain_unit).unwrap();
+
+        assert_eq!(left.typed.boundary.bounds.len(), 1);
+        assert_eq!(right.typed.boundary.bounds.len(), 1);
+        assert_eq!(left.typed.boundary, left.runtime.boundary);
+        assert_eq!(right.typed.boundary, right.runtime.boundary);
+        assert!(plain.typed.boundary.bounds.is_empty());
+        let mixed = merge_compiled_unit_artifacts(vec![plain, left.clone()]).unwrap();
+        assert_eq!(mixed.typed.boundary.bounds.len(), 1);
+        assert_eq!(mixed.runtime.boundary.bounds.len(), 1);
+        assert_eq!(
+            compiled_unit_boundary_fingerprint(&mixed.typed, &mixed.runtime),
+            Some(mixed.manifest.boundary_fingerprint)
+        );
+
+        assert!(matches!(
+            merge_compiled_unit_artifacts(vec![left.clone(), right.clone()]),
+            Err(CompiledUnitMergeError::MergedBoundaryInterfaceMismatch)
+        ));
+        wrap_only_boundary_with_marker(&mut right, "right-boundary-marker");
+
+        let merged = merge_compiled_unit_artifacts(vec![left.clone(), right.clone()]).unwrap();
+        let merged_vars = merged
+            .typed
+            .boundary
+            .bounds
+            .iter()
+            .map(|bound| bound.var)
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            merged_vars.len(),
+            2,
+            "equal raw source IDs from independent units must receive disjoint merged B binders"
+        );
+        assert_eq!(merged.typed.boundary.bounds.len(), 2);
+        assert_eq!(merged.runtime.boundary.bounds.len(), 2);
+        assert_eq!(
+            compiled_unit_boundary_fingerprint(&merged.typed, &merged.runtime),
+            Some(merged.manifest.boundary_fingerprint)
+        );
+
+        let reverse = merge_compiled_unit_artifacts(vec![right, left]).unwrap();
+        assert_eq!(
+            reverse.manifest.boundary_fingerprint, merged.manifest.boundary_fingerprint,
+            "canonical boundary identity must not depend on merge input order"
+        );
+
+        let key = merged.cache_key();
+        let bytes = encode_compiled_unit_artifact_bytes(&merged).unwrap();
+        let decoded = decode_compiled_unit_artifact_bytes(&bytes, key)
+            .unwrap()
+            .expect("merged non-empty boundary artifact must survive production decoding");
+        assert_eq!(
+            decoded.manifest.boundary_fingerprint,
+            merged.manifest.boundary_fingerprint
+        );
+        assert_eq!(decoded.typed.boundary.bounds.len(), 2);
+        assert_eq!(decoded.runtime.boundary.bounds.len(), 2);
+    }
+
+    #[test]
+    fn compiled_unit_cache_rejects_duplicate_boundary_binder_after_hash_validation() {
+        let files = vec![source(
+            "main.yu",
+            &[],
+            "my identity x = x\npub computed = identity (\\x -> x)\n",
+        )];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let mut artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let typed_bound = *artifact
+            .typed
+            .boundary
+            .bounds
+            .first()
+            .expect("fixture must produce a non-empty typed boundary");
+        let runtime_bound = *artifact
+            .runtime
+            .boundary
+            .bounds
+            .first()
+            .expect("fixture must produce a non-empty runtime boundary");
+        artifact.typed.boundary.bounds.push(typed_bound);
+        artifact.runtime.boundary.bounds.push(runtime_bound);
+        artifact.manifest.typed_hash = compiled_typed_hash(&artifact.typed);
+        artifact.manifest.runtime_hash = compiled_runtime_hash(&artifact.runtime);
+
+        let bytes = encode_compiled_unit_artifact_bytes(&artifact).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none(),
+            "matching payload hashes must not bypass duplicate-B validation"
+        );
+        assert!(matches!(
+            merge_compiled_unit_artifacts(vec![artifact]),
+            Err(CompiledUnitMergeError::BoundaryInterfaceMismatch { prefix: 0 })
+        ));
+    }
+
+    #[test]
     fn compiled_unit_artifact_merge_coalesces_shared_parent_modules() {
         let files = vec![
             source("main.yu", &[], "mod a;\n"),
@@ -6027,6 +6152,60 @@ mod tests {
             error,
             CompiledUnitMergeError::ConflictingFile { path } if path == "unit.yu"
         ));
+    }
+
+    fn wrap_only_boundary_with_marker(artifact: &mut CachedCompiledUnitArtifact, marker: &str) {
+        let typed_bound = artifact
+            .typed
+            .boundary
+            .bounds
+            .first_mut()
+            .expect("fixture must have one typed boundary");
+        let typed_inner = typed_bound.bounds;
+        let typed_lower = poly::types::PosId(artifact.typed.types.pos.len() as u32);
+        artifact.typed.types.pos.push(poly::types::Pos::Con(
+            vec![marker.to_string()],
+            vec![typed_inner],
+        ));
+        let typed_upper = poly::types::NegId(artifact.typed.types.neg.len() as u32);
+        artifact.typed.types.neg.push(poly::types::Neg::Con(
+            vec![marker.to_string()],
+            vec![typed_inner],
+        ));
+        let typed_bounds = poly::types::NeuId(artifact.typed.types.neu.len() as u32);
+        artifact
+            .typed
+            .types
+            .neu
+            .push(poly::types::Neu::Bounds(typed_lower, typed_upper));
+        typed_bound.bounds = typed_bounds;
+
+        let runtime_bound = artifact
+            .runtime
+            .boundary
+            .bounds
+            .first_mut()
+            .expect("fixture must have one runtime boundary");
+        let runtime_inner = runtime_bound.bounds;
+        let runtime_lower = artifact.runtime.arena.typ.alloc_pos(poly::types::Pos::Con(
+            vec![marker.to_string()],
+            vec![runtime_inner],
+        ));
+        let runtime_upper = artifact.runtime.arena.typ.alloc_neg(poly::types::Neg::Con(
+            vec![marker.to_string()],
+            vec![runtime_inner],
+        ));
+        runtime_bound.bounds = artifact
+            .runtime
+            .arena
+            .typ
+            .alloc_neu(poly::types::Neu::Bounds(runtime_lower, runtime_upper));
+
+        artifact.manifest.typed_hash = compiled_typed_hash(&artifact.typed);
+        artifact.manifest.runtime_hash = compiled_runtime_hash(&artifact.runtime);
+        artifact.manifest.boundary_fingerprint =
+            compiled_unit_boundary_fingerprint(&artifact.typed, &artifact.runtime)
+                .expect("the marked boundary must remain canonical across both surfaces");
     }
 
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
