@@ -748,6 +748,15 @@ The following are deliberately not guessed:
 4. **Prerequisite-only binder meaning.** A variable that occurs only in an impl prerequisite may be
    an omitted head dependency, a shared boundary variable, or an unsupported existential. It must not
    be classified by convenience.
+
+   **Resolution (2026-07-12): strict canonical rejection.** After the one permitted joint candidate
+   normalization, any variable that still occurs only in prerequisites and belongs to neither the
+   normalized head binders nor the known unit `B` table is an `UnboundCandidateVariable`. Artifact
+   construction rejects that candidate as non-canonical, so the cache route falls back to the slower
+   full compilation path. It is not promoted to `B`, implicitly quantified, or treated as an
+   existential. This matches the existing conservative-cache policy: an interface that cannot be
+   proved closed is not cached. Provenance tracking may be reconsidered only if Stage 6 measurements
+   show that this strict gate causes material cache misses; it is not part of Stage 4.
 5. **`R` outside `Q`.** Current tests show quantified recursive variables, but this investigation did
    not prove that every produced `recursive_bounds.var` is in `quantifiers`. Stage 0 must inventory
    this before choosing validation-only or explicit `R` freshening.
@@ -795,3 +804,10 @@ Stage 3 in-memory binder-lifetime gate (A1) and the Stage 5 production artifact 
 The original Stage 3 exit accidentally depended on non-empty artifact decode support assigned to
 Stage 5. This revision removes that stage dependency cycle without weakening either validation gate.
 Changes to this allocation require explicit user approval.*
+
+*Revision decision (2026-07-12): Claude Sonnet 5 and the user approved strict rejection for the
+section 13.4 prerequisite-only binder case. A variable that survives joint candidate normalization
+outside both the head binders and known `B` makes the candidate non-canonical and forces the existing
+safe full-compile fallback. This decision deliberately avoids changing prerequisite collection or
+inventing binder provenance; provenance may be reconsidered after Stage 6 evidence. Changes to this
+policy require explicit user approval.*

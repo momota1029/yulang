@@ -34,6 +34,21 @@ pub(crate) struct CapturedCandidate {
     pub(crate) prerequisite_only: Vec<TypeVar>,
 }
 
+/// One-pass normalized candidate components awaiting structural freeze and canonical ordering.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct NormalizedCandidateInterface {
+    pub(crate) candidates: Vec<NormalizedCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NormalizedCandidate {
+    pub(crate) candidate: crate::roles::RoleImplCandidate,
+    pub(crate) head: CompactRoleConstraint,
+    pub(crate) prerequisites: Vec<CompactRoleConstraint>,
+    pub(crate) head_binders: Vec<TypeVar>,
+    pub(crate) boundary: Vec<TypeVar>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct CanonicalCacheInterfaceDraft {
     pub(crate) schemes: Vec<CanonicalSchemeDraft>,
@@ -93,6 +108,11 @@ pub(crate) enum BoundaryCaptureError {
     MalformedJointComponent,
     UnboundSchemeVariable {
         def: DefId,
+        var: TypeVar,
+    },
+    UnboundCandidateVariable {
+        impl_def: Option<DefId>,
+        role: Vec<String>,
         var: TypeVar,
     },
     MissingBoundaryBound {
@@ -379,6 +399,22 @@ impl AnalysisSession {
         }
     }
 
+    /// Normalize each captured candidate as one connected head/prerequisite/`B` component.
+    ///
+    /// This is one structural pass per candidate. It does not resolve candidates or recursively
+    /// discharge prerequisites, and it never retries after simplification.
+    pub(crate) fn normalize_cache_candidate_interface(
+        &self,
+        captured: CapturedCandidateInterface,
+        boundary: &CapturedBoundaryInterface,
+    ) -> Result<NormalizedCandidateInterface, BoundaryCaptureError> {
+        let mut candidates = Vec::with_capacity(captured.candidates.len());
+        for candidate in captured.candidates {
+            candidates.push(normalize_cache_candidate(self, candidate, boundary)?);
+        }
+        Ok(NormalizedCandidateInterface { candidates })
+    }
+
     /// Apply the normal structural simplification once to schemes and their captured boundary.
     pub(crate) fn freeze_cache_interface(
         &self,
@@ -401,6 +437,218 @@ impl AnalysisSession {
 
         freeze_joint_cache_interface(self, schemes, boundary)
     }
+}
+
+fn normalize_cache_candidate(
+    session: &AnalysisSession,
+    captured: CapturedCandidate,
+    boundary: &CapturedBoundaryInterface,
+) -> Result<NormalizedCandidate, BoundaryCaptureError> {
+    let mut merge_constraints = Vec::new();
+    let (head, head_merges) = compact_role_constraint_recording_merge_constraints(
+        session.infer.constraints(),
+        &captured.candidate.as_constraint(),
+    );
+    merge_constraints.extend(head_merges);
+    let mut prerequisites = Vec::with_capacity(captured.candidate.prerequisites.len());
+    for prerequisite in &captured.candidate.prerequisites {
+        let (prerequisite, prerequisite_merges) =
+            compact_role_constraint_recording_merge_constraints(
+                session.infer.constraints(),
+                prerequisite,
+            );
+        prerequisites.push(prerequisite);
+        merge_constraints.extend(prerequisite_merges);
+    }
+    let unapplied = unapplied_compact_merge_constraint_count(
+        &merge_constraints,
+        &session.cache_interface_applied_merge_constraints,
+    );
+    if unapplied != 0 {
+        return Err(BoundaryCaptureError::FreezeProducedConstraint {
+            def: captured.candidate.impl_def,
+            boundary: None,
+            merge_constraints: unapplied,
+            subtype_constraints: 0,
+        });
+    }
+
+    let candidate_boundary = reachable_candidate_boundary(&captured.boundary, boundary)?;
+    // Unlike a scheme component, a candidate has no main value root to place in a synthetic tuple.
+    // Keeping head, prerequisites, and bound carriers in one role slice gives the existing
+    // occurrence/sandwich passes the same joint component while the root remains structurally empty.
+    let mut roles = Vec::with_capacity(1 + prerequisites.len() + candidate_boundary.len());
+    roles.push(head);
+    roles.extend(prerequisites);
+    let real_role_count = roles.len();
+    roles.extend(candidate_boundary.iter().map(boundary_bound_carrier));
+    let boundary_baseline = collect_interval_dominance_constraints_with_metrics(
+        &CompactRoot::default(),
+        &roles[real_role_count..],
+    )
+    .0;
+    let boundary_baseline = compact_subtype_constraint_keys(&boundary_baseline);
+
+    let mut root = CompactRoot::default();
+    let mut substitutions = coalesce_floor_interval_equalities(
+        session.infer.constraints(),
+        TypeLevel::root(),
+        &mut root,
+        &mut roles,
+    );
+    substitutions.extend(coalesce_floor_variable_sandwiches(
+        session.infer.constraints(),
+        TypeLevel::root(),
+        &mut root,
+        &mut roles,
+    ));
+    substitutions.extend(eliminate_floor_redundant_variables(
+        session.infer.constraints(),
+        TypeLevel::root(),
+        &mut root,
+        &mut roles,
+    ));
+    let simplification = simplify_compact_root_with_roles_and_non_generic(
+        session.infer.constraints(),
+        TypeLevel::root().child(),
+        &mut root,
+        &mut roles,
+        &FxHashSet::default(),
+    );
+    substitutions.extend(simplification.substitutions.iter().copied());
+    let substitutions = normalize_var_substitutions(substitutions);
+    let substitution_map = substitutions
+        .iter()
+        .map(|substitution| (substitution.source, substitution.target))
+        .collect::<FxHashMap<_, _>>();
+
+    let generated = collect_interval_dominance_constraints_with_metrics(&root, &roles).0;
+    let unapplied = unapplied_compact_subtype_constraint_count_with_known(
+        &generated,
+        &session.cache_interface_applied_subtype_constraints,
+        &boundary_baseline,
+    );
+    if unapplied != 0 {
+        return Err(BoundaryCaptureError::FreezeProducedConstraint {
+            def: captured.candidate.impl_def,
+            boundary: None,
+            merge_constraints: 0,
+            subtype_constraints: unapplied,
+        });
+    }
+
+    let mut roles = roles.into_iter();
+    let head = roles
+        .next()
+        .ok_or(BoundaryCaptureError::MalformedJointComponent)?;
+    let prerequisites = roles
+        .by_ref()
+        .take(captured.candidate.prerequisites.len())
+        .collect::<Vec<_>>();
+    if prerequisites.len() != captured.candidate.prerequisites.len()
+        || roles.count() != candidate_boundary.len()
+    {
+        return Err(BoundaryCaptureError::MalformedJointComponent);
+    }
+
+    let known_boundary = rewrite_binders(
+        &boundary
+            .bounds
+            .iter()
+            .map(|bound| bound.var)
+            .collect::<Vec<_>>(),
+        &substitution_map,
+    )
+    .into_iter()
+    .collect::<FxHashSet<_>>();
+    let head_vars = compact_role_constraint_vars(&head);
+    let prerequisite_vars = prerequisites
+        .iter()
+        .flat_map(compact_role_constraint_vars)
+        .collect::<FxHashSet<_>>();
+    let closed = head_vars
+        .union(&known_boundary)
+        .copied()
+        .collect::<FxHashSet<_>>();
+    let mut unbound = prerequisite_vars
+        .difference(&closed)
+        .copied()
+        .collect::<Vec<_>>();
+    unbound.sort_by_key(|var| var.0);
+    if let Some(var) = unbound.into_iter().next() {
+        return Err(BoundaryCaptureError::UnboundCandidateVariable {
+            impl_def: captured.candidate.impl_def,
+            role: captured.candidate.role.clone(),
+            var,
+        });
+    }
+
+    let mut head_binders = head_vars
+        .difference(&known_boundary)
+        .copied()
+        .collect::<Vec<_>>();
+    let all_vars = head_vars
+        .union(&prerequisite_vars)
+        .copied()
+        .collect::<FxHashSet<_>>();
+    let mut candidate_boundary = all_vars
+        .intersection(&known_boundary)
+        .copied()
+        .collect::<Vec<_>>();
+    head_binders.sort_by_key(|var| var.0);
+    candidate_boundary.sort_by_key(|var| var.0);
+
+    Ok(NormalizedCandidate {
+        candidate: captured.candidate,
+        head,
+        prerequisites,
+        head_binders,
+        boundary: candidate_boundary,
+    })
+}
+
+fn reachable_candidate_boundary(
+    roots: &[TypeVar],
+    boundary: &CapturedBoundaryInterface,
+) -> Result<Vec<CapturedBoundaryBound>, BoundaryCaptureError> {
+    let bounds = boundary
+        .bounds
+        .iter()
+        .map(|bound| (bound.var, bound))
+        .collect::<FxHashMap<_, _>>();
+    let mut pending = roots.iter().copied().collect::<VecDeque<_>>();
+    let mut visited = FxHashSet::default();
+    let mut reachable = Vec::new();
+    while let Some(var) = pending.pop_front() {
+        if !visited.insert(var) {
+            continue;
+        }
+        let bound = bounds
+            .get(&var)
+            .copied()
+            .ok_or(BoundaryCaptureError::MissingBoundaryBound { var })?;
+        for dependency in compact_boundary_bound_vars(&bound.bounds) {
+            if dependency != var {
+                pending.push_back(dependency);
+            }
+        }
+        reachable.push(bound.clone());
+    }
+    reachable.sort_by_key(|bound| bound.var.0);
+    Ok(reachable)
+}
+
+fn compact_role_constraint_vars(role: &CompactRoleConstraint) -> FxHashSet<TypeVar> {
+    role.inputs
+        .iter()
+        .map(|input| &input.bounds)
+        .chain(
+            role.associated
+                .iter()
+                .map(|associated| &associated.value.bounds),
+        )
+        .flat_map(compact_boundary_bound_vars)
+        .collect()
 }
 
 fn freeze_joint_cache_interface(

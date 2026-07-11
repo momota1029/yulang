@@ -558,6 +558,108 @@ fn cache_candidate_capture_leaves_prerequisite_only_variable_unclassified() {
 }
 
 #[test]
+fn cache_candidate_joint_normalization_rewrites_closed_head_and_boundary_inventory() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let head = session.infer.fresh_type_var();
+    let head_alias = session.infer.fresh_type_var();
+    let boundary_var = session.infer.fresh_type_var();
+    let head_lower = session.infer.alloc_pos(Pos::Var(head));
+    let alias_upper = session.infer.alloc_neg(Neg::Var(head_alias));
+    session.infer.subtype(head_lower, alias_upper);
+    let alias_lower = session.infer.alloc_pos(Pos::Var(head_alias));
+    let head_upper = session.infer.alloc_neg(Neg::Var(head));
+    session.infer.subtype(alias_lower, head_upper);
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(42)),
+        role: vec!["NormalizedCandidate".into()],
+        inputs: vec![
+            role_var_arg(&mut session.infer, head),
+            role_var_arg(&mut session.infer, boundary_var),
+        ],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["NormalizedPrerequisite".into()],
+            inputs: vec![
+                role_var_arg(&mut session.infer, head_alias),
+                role_var_arg(&mut session.infer, boundary_var),
+            ],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface {
+        bounds: vec![crate::analysis::cache_interface::CapturedBoundaryBound {
+            var: boundary_var,
+            bounds: CompactBounds::Interval {
+                lower: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                upper: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+            },
+        }],
+    };
+    let captured = session.capture_cache_candidate_interface(&boundary);
+    assert_eq!(captured.candidates[0].prerequisite_only, vec![head_alias]);
+
+    let normalized = session
+        .normalize_cache_candidate_interface(captured, &boundary)
+        .expect("head and known B close the normalized candidate");
+
+    assert_eq!(normalized.candidates.len(), 1);
+    let candidate = &normalized.candidates[0];
+    assert_eq!(candidate.candidate.impl_def, Some(DefId(42)));
+    assert_eq!(candidate.head.role, vec!["NormalizedCandidate".to_string()]);
+    assert_eq!(candidate.prerequisites.len(), 1);
+    assert_eq!(candidate.head_binders, vec![head]);
+    assert_eq!(candidate.boundary, vec![boundary_var]);
+    assert!(
+        compact_boundary_bound_vars(&candidate.head.inputs[0].bounds).contains(&head),
+        "normalized head must retain its local binder"
+    );
+    let normalized_prerequisite_head =
+        compact_boundary_bound_vars(&candidate.prerequisites[0].inputs[0].bounds);
+    assert!(normalized_prerequisite_head.contains(&head));
+    assert!(!normalized_prerequisite_head.contains(&head_alias));
+    assert!(
+        compact_boundary_bound_vars(&candidate.prerequisites[0].inputs[1].bounds)
+            .contains(&boundary_var),
+        "normalized prerequisite must retain the shared B occurrence"
+    );
+}
+
+#[test]
+fn cache_candidate_joint_normalization_rejects_surviving_prerequisite_only_variable() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let head = session.infer.fresh_type_var();
+    let prerequisite_only = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(DefId(43)),
+        role: vec!["RejectedCandidate".into()],
+        inputs: vec![role_var_arg(&mut session.infer, head)],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["RejectedPrerequisite".into()],
+            inputs: vec![role_var_arg(&mut session.infer, prerequisite_only)],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface::default();
+    let captured = session.capture_cache_candidate_interface(&boundary);
+
+    let error = session
+        .normalize_cache_candidate_interface(captured, &boundary)
+        .expect_err("a surviving prerequisite-only variable is not canonical");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::UnboundCandidateVariable {
+            impl_def: Some(DefId(43)),
+            role: vec!["RejectedCandidate".into()],
+            var: prerequisite_only,
+        }
+    );
+}
+
+#[test]
 fn imported_boundary_is_seeded_once_at_root_with_shared_graph_references() {
     let first = TypeVar(10_000);
     let second = TypeVar(10_001);
