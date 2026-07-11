@@ -40,12 +40,14 @@ use crate::compact::{
     collect_interval_dominance_constraints_with_metrics,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
     compact_role_constraint, compact_role_constraint_recording_merge_constraints,
-    compact_root_has_interval_bounds, compact_type_var_recording_merge_constraints,
+    compact_root_has_interval_bounds, compact_subtype_constraint_keys,
+    compact_type_var_recording_merge_constraints,
     compact_type_var_recording_merge_constraints_for_scheme, eliminate_floor_redundant_variables,
     finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
     unapplied_compact_merge_constraint_count, unapplied_compact_subtype_constraint_count,
+    unapplied_compact_subtype_constraint_count_with_known,
 };
 use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -53,6 +55,7 @@ use crate::generalize::{
     clone_role_impl_candidate_between_arenas, compact_boundary_bound_vars,
     finalize_generalized_compact_root_with_ancestors, generalize_alias_expanded_compact_root,
     generalized_compact_boundary_vars, prepare_alias_expanded_compact_root_with_role_variances,
+    prune_generalized_compact_root_for_cache,
 };
 use crate::instantiate::{
     freshen_role_impl_candidate, instantiate_scheme, instantiate_scheme_with_roles,

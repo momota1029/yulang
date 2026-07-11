@@ -194,6 +194,11 @@ pub(crate) fn compact_boundary_bound_vars(bounds: &CompactBounds) -> Vec<TypeVar
     vars
 }
 
+pub(crate) fn prune_generalized_compact_root_for_cache(root: &mut GeneralizedCompactRoot) {
+    prune_unreachable_recursive_bounds(&mut root.compact, &root.role_predicates);
+    prune_dead_quantifiers(root);
+}
+
 fn expand_positive_aliases_in_scheme_compact(
     machine: &ConstraintMachine,
     compact: &mut CompactRoot,

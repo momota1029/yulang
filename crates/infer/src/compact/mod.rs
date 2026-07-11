@@ -146,6 +146,31 @@ pub(crate) fn unapplied_compact_subtype_constraint_count(
         .count()
 }
 
+pub(crate) fn compact_subtype_constraint_keys(
+    constraints: &[CompactSubtypeConstraint],
+) -> FxHashSet<CompactSubtypeConstraintKey> {
+    constraints
+        .iter()
+        .filter(|constraint| constraint.lower != constraint.upper)
+        .map(|constraint| constraint.key.clone())
+        .collect()
+}
+
+pub(crate) fn unapplied_compact_subtype_constraint_count_with_known(
+    constraints: &[CompactSubtypeConstraint],
+    applied: &FxHashSet<CompactSubtypeConstraintKey>,
+    known: &FxHashSet<CompactSubtypeConstraintKey>,
+) -> usize {
+    constraints
+        .iter()
+        .filter(|constraint| {
+            constraint.lower != constraint.upper
+                && !applied.contains(&constraint.key)
+                && !known.contains(&constraint.key)
+        })
+        .count()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactMergeConstraintKey {
     lhs: CompactMergeConstraintShape,

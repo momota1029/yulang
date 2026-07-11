@@ -225,6 +225,31 @@ co-occurrence / sandwich / polarity elimination を一度だけ適用して、pr
 closure validation を作る。artifact 配線と boundary-aware import は、その後の仕様上の stage に
 残す。
 
+### Stage 2 joint compact/freeze slice 2
+
+captured `B` bounds と selected generalized schemes を一つの compact component へ合流し、
+normal generalization と同じ floor cleanup 3 pass と shared simplification をそれぞれ一度だけ
+適用する infer-internal finalizer を実装した。boundary bounds は recursive binder として保護せず、
+一時的な invariant carrier として main roots / residual roles / true recursive bounds と同じ
+occurrence accounting に参加する。
+
+joint view から scheme roots、residual roles、recursive bounds、boundary bounds を再分離した後、
+次を検証する。
+
+- 現行表現で `R ⊆ quantifiers` でも、概念上の binder class は effective `Q` / `R` / unit `B`
+  のいずれか一つになる。
+- scheme の全自由変数はその scheme の `Q ∪ R` または unit `B` に閉じる。
+- boundary bound は `B` と closed concrete structure だけを参照し、scheme-local `Q/R` に依存しない。
+- missing/conflicting boundary entry、unbound scheme variable、binder class collision は構造化エラーで
+  拒否する。
+- simplify 後の dominance key は normal generalization の applied key、または capture 直後の raw
+  boundary consistency key に既知でなければ `FreezeProducedConstraint` で拒否する。
+- scheme から到達しなくなった provisional `B` entry は有限 worklist で prune する。
+
+この slice でも、新しい solver loop、boundary-rigid / blocked pair / through flag は追加していない。
+次は pruned compact draft を一度だけ poly arenaへfreezeし、typed/runtimeが同じdraftを消費できる
+production handoffを作る。artifact encode/importの有効化は、そのhandoffとvalidatorが揃った後に行う。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -299,10 +324,10 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 2026-06-17〜2026-06-19 の control VM frame runtime / performance slice は
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
-現在の active slice は canonical cache interface Option 1 Stage 2 の joint compact/freeze。
-infer-internal な boundary closure capture は完了した。次は captured `B` bounds と exported
-schemes を同じ compact component へ入れ、既存の shared simplification だけで canonical draft
-まで落とし、最終 `Q/R/B` closure を検証する。
+現在の active slice は canonical cache interface Option 1 Stage 2 の production handoff。
+boundary capture と joint compact/freeze、最終 `Q/R/B` closure validation は完了した。次は
+pruned compact draft をpoly arenaへfreezeし、typed/runtime surface構築が同じdraftを一度だけ
+消費する入口を作る。boundary-aware importはStage 3まで有効化しない。
 
 ## 守る不変条件
 

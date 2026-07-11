@@ -374,6 +374,13 @@ fn computed_fetch_def_does_not_quantify_binding_level_root() {
             .any(|bound| bound.var == computed_inner),
         "the value-restricted function payload must cross as B"
     );
+    let canonical = computed_session
+        .freeze_cache_interface([def])
+        .expect("computed binding joint cache freeze");
+    assert!(
+        canonical.binders.boundary.contains(&computed_inner),
+        "joint freeze must retain the value-restricted payload in B"
+    );
 }
 
 #[test]
@@ -412,6 +419,235 @@ fn cache_boundary_capture_preserves_open_lower_and_upper_shape() {
     assert!(lower.vars.iter().any(|var| var.var == boundary_var));
     assert!(!lower.funs.is_empty());
     assert!(upper.vars.iter().any(|var| var.var == boundary_var));
+
+    let canonical = session
+        .freeze_cache_interface([def])
+        .expect("open boundary joint freeze");
+    assert_eq!(canonical.schemes.len(), 1);
+    assert!(canonical.binders.boundary.contains(&boundary_var));
+    assert!(
+        canonical
+            .boundary
+            .bounds
+            .iter()
+            .any(|bound| bound.var == boundary_var)
+    );
+}
+
+#[test]
+fn joint_cache_freeze_keeps_bare_floor_boundary() {
+    let def = DefId(0);
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let boundary_var = session.infer.fresh_type_var();
+    let concrete_lower = session
+        .infer
+        .alloc_pos(Pos::Con(vec!["token".into()], Vec::new()));
+    let boundary_upper = session.infer.alloc_neg(Neg::Var(boundary_var));
+    session.infer.subtype(concrete_lower, boundary_upper);
+    let boundary_lower = session.infer.alloc_pos(Pos::Var(boundary_var));
+    let concrete_upper = session
+        .infer
+        .alloc_neg(Neg::Con(vec!["token".into()], Vec::new()));
+    session.infer.subtype(boundary_lower, concrete_upper);
+    session.schemes.insert(
+        def,
+        GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    );
+
+    let canonical = session
+        .freeze_cache_interface([def])
+        .expect("bare floor boundary joint freeze");
+
+    assert_eq!(canonical.binders.boundary, vec![boundary_var]);
+    assert_eq!(canonical.boundary.bounds.len(), 1);
+    assert!(
+        canonical.schemes[0]
+            .generalized
+            .compact
+            .root
+            .vars
+            .iter()
+            .any(|var| var.var == boundary_var)
+    );
+}
+
+#[test]
+fn cache_interface_closure_prunes_unreachable_boundary_entry() {
+    let def = DefId(0);
+    let boundary_var = TypeVar(70);
+    let draft = crate::analysis::cache_interface::CanonicalSchemeDraft {
+        def,
+        generalized: GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_con(crate::compact::CompactCon {
+                    path: vec!["token".into()],
+                    args: Vec::new(),
+                }),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    };
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryBound {
+        var: boundary_var,
+        bounds: CompactBounds::Interval {
+            lower: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+            upper: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+        },
+    };
+
+    let canonical = crate::analysis::cache_interface::validate_and_prune_cache_interface(
+        vec![draft],
+        vec![boundary],
+    )
+    .expect("unreachable boundary pruning");
+
+    assert!(canonical.boundary.bounds.is_empty());
+    assert!(canonical.binders.boundary.is_empty());
+}
+
+#[test]
+fn cache_interface_closure_rejects_unbound_scheme_variable() {
+    let def = DefId(0);
+    let unbound = TypeVar(71);
+    let draft = crate::analysis::cache_interface::CanonicalSchemeDraft {
+        def,
+        generalized: GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_var(crate::compact::CompactVar::plain(unbound)),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    };
+
+    let error = crate::analysis::cache_interface::validate_and_prune_cache_interface(
+        vec![draft],
+        Vec::new(),
+    )
+    .expect_err("unbound variable must fail final Q/R/B closure");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::UnboundSchemeVariable {
+            def,
+            var: unbound,
+        }
+    );
+}
+
+#[test]
+fn cache_interface_closure_classifies_q_r_b_disjointly() {
+    let def = DefId(0);
+    let quantified = TypeVar(80);
+    let recursive = TypeVar(81);
+    let boundary_var = TypeVar(82);
+    let draft = crate::analysis::cache_interface::CanonicalSchemeDraft {
+        def,
+        generalized: GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType {
+                    vars: vec![
+                        crate::compact::CompactVar::plain(quantified),
+                        crate::compact::CompactVar::plain(recursive),
+                        crate::compact::CompactVar::plain(boundary_var),
+                    ],
+                    ..CompactType::default()
+                },
+                rec_vars: vec![crate::compact::CompactRecursiveVar {
+                    var: recursive,
+                    bounds: CompactBounds::Interval {
+                        lower: CompactType::from_var(crate::compact::CompactVar::plain(recursive)),
+                        upper: CompactType::from_var(crate::compact::CompactVar::plain(recursive)),
+                    },
+                }],
+            },
+            role_predicates: Vec::new(),
+            // Current Scheme representation includes R in quantifiers. The canonical
+            // classification must still assign it to R only.
+            quantifiers: vec![quantified, recursive],
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    };
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryBound {
+        var: boundary_var,
+        bounds: CompactBounds::Interval {
+            lower: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+            upper: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+        },
+    };
+
+    let canonical = crate::analysis::cache_interface::validate_and_prune_cache_interface(
+        vec![draft],
+        vec![boundary],
+    )
+    .expect("disjoint Q/R/B classification");
+
+    assert_eq!(canonical.binders.boundary, vec![boundary_var]);
+    assert_eq!(canonical.binders.schemes[0].quantified, vec![quantified]);
+    assert_eq!(canonical.binders.schemes[0].recursive, vec![recursive]);
+}
+
+#[test]
+fn cache_interface_closure_rejects_boundary_dependency_on_q() {
+    let def = DefId(0);
+    let quantified = TypeVar(90);
+    let boundary_var = TypeVar(91);
+    let draft = crate::analysis::cache_interface::CanonicalSchemeDraft {
+        def,
+        generalized: GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: Vec::new(),
+            quantifiers: vec![quantified],
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    };
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryBound {
+        var: boundary_var,
+        bounds: CompactBounds::Interval {
+            lower: CompactType::from_var(crate::compact::CompactVar::plain(quantified)),
+            upper: CompactType::from_var(crate::compact::CompactVar::plain(boundary_var)),
+        },
+    };
+
+    let error = crate::analysis::cache_interface::validate_and_prune_cache_interface(
+        vec![draft],
+        vec![boundary],
+    )
+    .expect_err("B bounds must not depend on a scheme-local Q binder");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::BoundaryDependsOnLocalBinder {
+            boundary: boundary_var,
+            local: quantified,
+        }
+    );
 }
 
 #[test]
