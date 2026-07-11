@@ -212,6 +212,7 @@ enum RunHostMode {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct RuntimePhaseTimings {
     build_cache: RuntimeBuildCacheKind,
+    std_prefix_boundary_entries: Option<usize>,
     collect: Duration,
     build_poly: Duration,
     specialize: Duration,
@@ -1040,6 +1041,9 @@ fn print_runtime_evidence_phase_timings(
     eprintln!("runtime timing:");
     eprintln!("  run.backend: evidence-vm");
     eprintln!("  run.cache: {}", timing.build_cache.as_str());
+    if let Some(entries) = timing.std_prefix_boundary_entries {
+        eprintln!("  run.cache_interface.std_prefix_boundary_entries: {entries}");
+    }
     eprintln!("  run.collect: {}", format_duration(timing.collect));
     eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
     eprintln!("  run.specialize: {}", format_duration(timing.specialize));
@@ -1948,7 +1952,7 @@ fn build_poly_with_cache_timed(
                 Err(error) => eprintln!("warning: {error}"),
             }
             if let Some((output, cache_kind)) =
-                build_poly_from_source_unit_prefix_cache(&files, key, cache)
+                build_poly_from_source_unit_prefix_cache(&files, key, cache, timings.as_deref_mut())
             {
                 record_runtime_build_cache(&mut timings, cache_kind);
                 return output;
@@ -2001,9 +2005,10 @@ fn build_poly_from_source_unit_prefix_cache(
     files: &[yulang::CollectedSource],
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
+    mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
     if source_set_contains_std(files) {
-        return build_poly_from_std_prefix_cache(files, key, cache);
+        return build_poly_from_std_prefix_cache(files, key, cache, timings.as_deref_mut());
     }
     let units = yulang::source_compilation_units(files);
     let cached = match cache.read_source_unit_compiled_artifacts(files, &units) {
@@ -2036,6 +2041,7 @@ fn build_poly_from_std_prefix_cache(
     files: &[yulang::CollectedSource],
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
+    timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
     let plan = std_prefix_cache_plan(files)?;
     let (prefix, kind) = match cache.read_compiled_unit_artifact(plan.key) {
@@ -2054,6 +2060,9 @@ fn build_poly_from_std_prefix_cache(
             )
         }
     };
+    if let Some(timings) = timings {
+        timings.std_prefix_boundary_entries = Some(prefix.runtime.boundary.bounds.len());
+    }
     if !std_prefix_cache_safety::can_reuse_for_program(files, &plan.file_indices, &prefix) {
         return None;
     }

@@ -3964,6 +3964,11 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_cache_route(&output, "std-prefix-build");
+    assert_eq!(
+        runtime_metric_usize(&output, "run.cache_interface.std_prefix_boundary_entries",),
+        0,
+        "the minimal std prefix has an empty canonical boundary"
+    );
     assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
 
     let output = yulang_command()
@@ -3979,7 +3984,69 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [2]\n");
     assert_cache_route(&output, "std-prefix-hit");
+    assert_eq!(
+        runtime_metric_usize(&output, "run.cache_interface.std_prefix_boundary_entries",),
+        0,
+        "the cached minimal std prefix keeps the same boundary size"
+    );
     assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn std_prefix_boundary_metrics_report_non_empty_canonical_artifact() {
+    let root = temp_root("std-prefix-non-empty-boundary-metrics");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let std_root = write_minimal_std(&root);
+    fs::write(
+        std_root.join("std").join("prelude.yu"),
+        "pub identity = \\value -> value\npub computed = identity (\\value -> value)\n",
+    )
+    .unwrap();
+    let cache_root = root.join("cache-root");
+    let first = root.join("first.yu");
+    let second = root.join("second.yu");
+    fs::write(&first, "1\n").unwrap();
+    fs::write(&second, "2\n").unwrap();
+
+    let build = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&first)
+        .output()
+        .unwrap();
+    assert_success(&build);
+    assert_cache_route(&build, "std-prefix-build");
+    let entries = runtime_metric_usize(&build, "run.cache_interface.std_prefix_boundary_entries");
+    eprintln!("Stage 6 custom std boundary entries: {entries}");
+    assert!(
+        entries > 0,
+        "the value-restricted std prefix must retain a canonical boundary"
+    );
+
+    let hit = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&second)
+        .output()
+        .unwrap();
+    assert_success(&hit);
+    assert_cache_route(&hit, "std-prefix-hit");
+    assert_eq!(
+        runtime_metric_usize(&hit, "run.cache_interface.std_prefix_boundary_entries"),
+        entries,
+        "build and hit routes must observe the same non-empty boundary"
+    );
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -4035,6 +4102,15 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
         .unwrap();
     assert_success(&seed_output);
     assert_cache_route(&seed_output, "std-prefix-build");
+    let seed_boundary_entries = runtime_metric_usize(
+        &seed_output,
+        "run.cache_interface.std_prefix_boundary_entries",
+    );
+    eprintln!("Stage 6 repository std boundary entries: {seed_boundary_entries}");
+    assert_eq!(
+        seed_boundary_entries, 0,
+        "the repository std currently serializes an empty boundary table"
+    );
 
     let warm = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4048,6 +4124,11 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
         .unwrap();
     assert_success(&warm);
     assert_cache_route(&warm, "std-prefix-hit");
+    assert_eq!(
+        runtime_metric_usize(&warm, "run.cache_interface.std_prefix_boundary_entries"),
+        seed_boundary_entries,
+        "build and hit routes must report the same prefix boundary size"
+    );
     assert_eq!(stdout(&warm), stdout(&cold));
 
     let _ = fs::remove_dir_all(&root);
@@ -4149,6 +4230,11 @@ fn oracle_b_markdown_std_prefix_hit_is_blocked_by_current_safety_gate() {
         .unwrap();
     assert_success(&output);
     assert_cache_route(&output, "full-miss");
+    assert_eq!(
+        runtime_metric_usize(&output, "run.cache_interface.std_prefix_boundary_entries"),
+        0,
+        "the rejected repository std artifact must still expose its observed boundary size"
+    );
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -7097,6 +7183,16 @@ fn assert_cache_route_any(output: &Output, routes: &[&str]) {
             .any(|route| stderr.contains(&format!("run.cache: {route}"))),
         "{stderr}"
     );
+}
+
+fn runtime_metric_usize(output: &Output, label: &str) -> usize {
+    let prefix = format!("{label}: ");
+    stderr(output)
+        .lines()
+        .find_map(|line| line.trim().strip_prefix(&prefix))
+        .unwrap_or_else(|| panic!("missing runtime metric {label:?}"))
+        .parse()
+        .unwrap_or_else(|error| panic!("invalid runtime metric {label:?}: {error}"))
 }
 
 fn assert_run_backend(output: &Output, backend: &str) {
