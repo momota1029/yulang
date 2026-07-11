@@ -4100,6 +4100,11 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
     assert_success(&cold);
     assert_cache_route(&cold, "disabled");
     assert_eq!(stdout(&cold), "run roots [42]\n");
+    assert_role_resolution_metrics_present(&cold);
+    assert!(
+        runtime_metric_usize(&cold, "run.analysis.role_resolve.candidate_scans") > 0,
+        "the cold Oracle B control must exercise role candidate scanning"
+    );
 
     let seed_output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4155,6 +4160,11 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
         .unwrap();
     assert_success(&warm);
     assert_cache_route(&warm, "std-prefix-hit");
+    assert_role_resolution_metrics_present(&warm);
+    assert!(
+        runtime_metric_usize(&warm, "run.analysis.role_resolve.candidate_scans") > 0,
+        "the warm Oracle B control must exercise role candidate scanning"
+    );
     assert_eq!(
         runtime_metric_usize(&warm, "run.cache_interface.std_prefix_boundary_entries"),
         seed_boundary_entries,
@@ -4191,6 +4201,7 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
         .unwrap();
     assert_success(&cold);
     assert_cache_route(&cold, "disabled");
+    assert_role_resolution_metrics_present(&cold);
     assert_eq!(
         stdout(&cold),
         "run roots [\"<article><span>cache</span><strong><span> boundary</span></strong></article>\"]\n"
@@ -4221,7 +4232,24 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
         .unwrap();
     assert_success(&warm);
     assert_cache_route(&warm, "std-prefix-hit");
+    assert_role_resolution_metrics_present(&warm);
     assert_eq!(stdout(&warm), stdout(&cold));
+
+    let cold_expansions = runtime_metric_usize(
+        &cold,
+        "run.analysis.role_resolve.prerequisite_candidate_scans",
+    );
+    let warm_expansions = runtime_metric_usize(
+        &warm,
+        "run.analysis.role_resolve.prerequisite_candidate_scans",
+    );
+    eprintln!(
+        "Stage 6 role-equivalence prerequisite candidate scans: cold={cold_expansions}, warm={warm_expansions}"
+    );
+    assert!(
+        cold_expansions > 0 && warm_expansions > 0,
+        "the cold/warm control must exercise recursive prerequisite candidate expansion"
+    );
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -7239,6 +7267,22 @@ fn assert_runtime_metric_absent(output: &Output, label: &str) {
             .all(|line| !line.trim().starts_with(&prefix)),
         "runtime metric {label:?} must be absent when its phase did not run"
     );
+}
+
+fn assert_role_resolution_metrics_present(output: &Output) {
+    assert!(!runtime_metric_text(output, "run.analysis.role_resolution").is_empty());
+    for label in [
+        "run.analysis.role_resolve.demands",
+        "run.analysis.role_resolve.candidate_scans",
+        "run.analysis.role_resolve.candidate_matches",
+        "run.analysis.role_resolve.prerequisite_demands",
+        "run.analysis.role_resolve.prerequisite_candidate_scans",
+        "run.analysis.role_resolve.prerequisite_candidate_matches",
+        "run.analysis.role_resolve.candidate_cache_hits",
+        "run.analysis.role_resolve.candidate_cache_misses",
+    ] {
+        let _ = runtime_metric_usize(output, label);
+    }
 }
 
 fn assert_run_backend(output: &Output, backend: &str) {

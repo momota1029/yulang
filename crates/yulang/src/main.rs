@@ -214,6 +214,7 @@ struct RuntimePhaseTimings {
     build_cache: RuntimeBuildCacheKind,
     std_prefix_boundary_entries: Option<usize>,
     std_prefix_cache_interface: Option<yulang::cache::CompiledUnitCacheInterfaceTelemetry>,
+    role_resolution: Option<RuntimeRoleResolutionTelemetry>,
     collect: Duration,
     build_poly: Duration,
     specialize: Duration,
@@ -222,6 +223,40 @@ struct RuntimePhaseTimings {
     runtime_execute: Duration,
     root_format: Duration,
     total: Duration,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct RuntimeRoleResolutionTelemetry {
+    total: Duration,
+    generalize: Duration,
+    methods: Duration,
+    demands: usize,
+    candidate_scans: usize,
+    candidate_matches: usize,
+    prerequisite_demands: usize,
+    prerequisite_candidate_scans: usize,
+    prerequisite_candidate_matches: usize,
+    candidate_cache_hits: usize,
+    candidate_cache_misses: usize,
+}
+
+impl RuntimeRoleResolutionTelemetry {
+    fn from_lowering_timing(timing: infer::lowering::BodyLoweringTiming) -> Self {
+        let analysis = timing.analysis;
+        Self {
+            total: analysis.generalize_resolve_roles + analysis.method_role_solve,
+            generalize: analysis.generalize_resolve_roles,
+            methods: analysis.method_role_solve,
+            demands: analysis.role_resolve_demands,
+            candidate_scans: analysis.role_resolve_candidate_scans,
+            candidate_matches: analysis.role_resolve_candidate_matches,
+            prerequisite_demands: analysis.role_resolve_prerequisite_demands,
+            prerequisite_candidate_scans: analysis.role_resolve_prerequisite_candidate_scans,
+            prerequisite_candidate_matches: analysis.role_resolve_prerequisite_candidate_matches,
+            candidate_cache_hits: analysis.role_resolve_candidate_cache_hits,
+            candidate_cache_misses: analysis.role_resolve_candidate_cache_misses,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -858,7 +893,12 @@ fn build_control_without_cache_timed(
     timings: &mut RuntimePhaseTimings,
 ) -> yulang::BuildControlOutput {
     let poly_start = Instant::now();
-    let poly = run_route_to_value(yulang::build_poly_from_collected_sources(files));
+    let (poly, lowering_timing) = run_route_to_value(
+        yulang::source::build_poly_from_collected_sources_with_lowering_timing(files),
+    );
+    timings.role_resolution = Some(RuntimeRoleResolutionTelemetry::from_lowering_timing(
+        lowering_timing,
+    ));
     timings.build_poly = poly_start.elapsed();
 
     build_control_from_poly_output_timed(poly, timings)
@@ -1034,6 +1074,17 @@ fn record_runtime_build_cache(
     }
 }
 
+fn record_runtime_role_resolution(
+    timings: &mut Option<&mut RuntimePhaseTimings>,
+    lowering_timing: infer::lowering::BodyLoweringTiming,
+) {
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.role_resolution = Some(RuntimeRoleResolutionTelemetry::from_lowering_timing(
+            lowering_timing,
+        ));
+    }
+}
+
 fn print_runtime_evidence_phase_timings(
     timing: &RuntimePhaseTimings,
     evidence_timing: &CliEvidenceRunTimings,
@@ -1079,6 +1130,49 @@ fn print_runtime_evidence_phase_timings(
                 );
             }
         }
+    }
+    if let Some(role) = timing.role_resolution {
+        eprintln!(
+            "  run.analysis.role_resolution: {}",
+            format_duration(role.total)
+        );
+        eprintln!(
+            "  run.analysis.role_resolution.generalize: {}",
+            format_duration(role.generalize)
+        );
+        eprintln!(
+            "  run.analysis.role_resolution.methods: {}",
+            format_duration(role.methods)
+        );
+        eprintln!("  run.analysis.role_resolve.demands: {}", role.demands);
+        eprintln!(
+            "  run.analysis.role_resolve.candidate_scans: {}",
+            role.candidate_scans
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.candidate_matches: {}",
+            role.candidate_matches
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.prerequisite_demands: {}",
+            role.prerequisite_demands
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.prerequisite_candidate_scans: {}",
+            role.prerequisite_candidate_scans
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.prerequisite_candidate_matches: {}",
+            role.prerequisite_candidate_matches
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.candidate_cache_hits: {}",
+            role.candidate_cache_hits
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.candidate_cache_misses: {}",
+            role.candidate_cache_misses
+        );
     }
     eprintln!("  run.collect: {}", format_duration(timing.collect));
     eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
@@ -1998,7 +2092,15 @@ fn build_poly_with_cache_timed(
         Err(error) => {
             eprintln!("warning: {error}");
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::ErrorFallback);
-            run_route_to_value(yulang::build_poly_from_collected_sources(files))
+            if timings.is_some() {
+                let (output, lowering_timing) = run_route_to_value(
+                    yulang::source::build_poly_from_collected_sources_with_lowering_timing(files),
+                );
+                record_runtime_role_resolution(&mut timings, lowering_timing);
+                output
+            } else {
+                run_route_to_value(yulang::build_poly_from_collected_sources(files))
+            }
         }
     }
 }
@@ -2010,9 +2112,19 @@ fn build_poly_full_miss_with_cache_timed(
     mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildPolyOutput {
     record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::FullMiss);
-    let output = run_route_to_value(yulang::build_poly_and_compiled_unit_from_collected_sources(
-        files.clone(),
-    ));
+    let output = if timings.is_some() {
+        let (output, lowering_timing) = run_route_to_value(
+            yulang::source::build_poly_and_compiled_unit_from_collected_sources_with_lowering_timing(
+                files.clone(),
+            ),
+        );
+        record_runtime_role_resolution(&mut timings, lowering_timing);
+        output
+    } else {
+        run_route_to_value(yulang::build_poly_and_compiled_unit_from_collected_sources(
+            files.clone(),
+        ))
+    };
     if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
         eprintln!("warning: {error}");
     }
@@ -2055,9 +2167,13 @@ fn build_poly_from_source_unit_prefix_cache(
         }
     };
     let candidates = select_source_unit_prefix_candidates(files, &units, &cached);
-    if let Some(output) =
-        build_poly_from_merged_source_unit_prefix_cache(files, key, cache, &candidates)
-    {
+    if let Some(output) = build_poly_from_merged_source_unit_prefix_cache(
+        files,
+        key,
+        cache,
+        &candidates,
+        timings.as_deref_mut(),
+    ) {
         return Some((output, RuntimeBuildCacheKind::MergedSourceUnitPrefixHit));
     }
     let prefix = candidates
@@ -2069,6 +2185,7 @@ fn build_poly_from_source_unit_prefix_cache(
         cache,
         &prefix.covered_files,
         prefix.artifact.clone(),
+        timings,
     )
     .map(|output| (output, RuntimeBuildCacheKind::SourceUnitPrefixHit))
 }
@@ -2096,14 +2213,21 @@ fn build_poly_from_std_prefix_cache(
             )
         }
     };
-    if let Some(timings) = timings {
+    if let Some(timings) = timings.as_deref_mut() {
         timings.std_prefix_boundary_entries = Some(prefix.runtime.boundary.bounds.len());
     }
     if !std_prefix_cache_safety::can_reuse_for_program(files, &plan.file_indices, &prefix) {
         return None;
     }
-    build_poly_from_compiled_source_unit_prefix(files, key, cache, &plan.file_indices, prefix)
-        .map(|output| (output, kind))
+    build_poly_from_compiled_source_unit_prefix(
+        files,
+        key,
+        cache,
+        &plan.file_indices,
+        prefix,
+        timings,
+    )
+    .map(|output| (output, kind))
 }
 
 #[derive(Clone)]
@@ -2174,6 +2298,7 @@ fn build_poly_from_merged_source_unit_prefix_cache(
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
     candidates: &[SourceUnitPrefixCandidate],
+    timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<yulang::BuildPolyOutput> {
     if candidates.len() < 2 {
         return None;
@@ -2205,7 +2330,7 @@ fn build_poly_from_merged_source_unit_prefix_cache(
             }
             Some(prefix)
         })?;
-    build_poly_from_compiled_source_unit_prefix(files, key, cache, &covered_files, prefix)
+    build_poly_from_compiled_source_unit_prefix(files, key, cache, &covered_files, prefix, timings)
 }
 
 fn build_poly_from_compiled_source_unit_prefix(
@@ -2214,6 +2339,7 @@ fn build_poly_from_compiled_source_unit_prefix(
     cache: &yulang::cache::ArtifactCache,
     prefix_file_indices: &[usize],
     prefix: yulang::cache::CachedCompiledUnitArtifact,
+    mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> Option<yulang::BuildPolyOutput> {
     let mut prefix_files = vec![false; files.len()];
     for file in prefix_file_indices {
@@ -2224,18 +2350,32 @@ fn build_poly_from_compiled_source_unit_prefix(
         .enumerate()
         .filter_map(|(file, source)| (!prefix_files[file]).then_some(source.clone()))
         .collect::<Vec<_>>();
-    let output =
-        match yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+    let observed = timings.is_some();
+    let output = match if observed {
+        yulang::source::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources_with_lowering_timing(
             prefix,
             files.to_vec(),
             suffix,
-        ) {
-            Ok(output) => output,
-            Err(error) => {
-                eprintln!("warning: {error}");
-                return None;
-            }
-        };
+        )
+        .map(|(output, lowering_timing)| (output, Some(lowering_timing)))
+    } else {
+        yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+            prefix,
+            files.to_vec(),
+            suffix,
+        )
+        .map(|output| (output, None))
+    } {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return None;
+        }
+    };
+    let (output, lowering_timing) = output;
+    if let Some(lowering_timing) = lowering_timing {
+        record_runtime_role_resolution(&mut timings, lowering_timing);
+    }
     if !output.poly.errors.is_empty() {
         return None;
     }

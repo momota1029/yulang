@@ -226,11 +226,50 @@ pub fn build_poly_from_collected_sources(
     build_poly_from_sources(files)
 }
 
+/// Observation-only companion for CLI phase telemetry.
+///
+/// The ordinary build API intentionally keeps lowering timings out of its
+/// artifact-shaped result. This entry point exposes the already-collected
+/// timing without changing the default build path or its output.
+#[doc(hidden)]
+pub fn build_poly_from_collected_sources_with_lowering_timing(
+    files: Vec<CollectedSource>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
+    build_poly_from_sources_with_lowering_timing(files)
+}
+
 pub fn build_poly_and_compiled_unit_from_collected_sources(
     files: Vec<CollectedSource>,
 ) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
+    build_poly_and_compiled_unit_from_collected_sources_with_timing(files).map(|(output, _)| output)
+}
+
+/// Observation-only companion for CLI phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_and_compiled_unit_from_collected_sources_with_lowering_timing(
+    files: Vec<CollectedSource>,
+) -> Result<
+    (
+        BuildPolyAndCompiledUnitOutput,
+        infer::lowering::BodyLoweringTiming,
+    ),
+    RouteError,
+> {
+    build_poly_and_compiled_unit_from_collected_sources_with_timing(files)
+}
+
+fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
+    files: Vec<CollectedSource>,
+) -> Result<
+    (
+        BuildPolyAndCompiledUnitOutput,
+        infer::lowering::BodyLoweringTiming,
+    ),
+    RouteError,
+> {
     let loaded = load_collected_sources(files.clone());
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let lowering_timing = lowering.timing;
     let errors = lowering
         .errors
         .iter()
@@ -243,16 +282,19 @@ pub fn build_poly_and_compiled_unit_from_collected_sources(
         errors.clone(),
     );
     let host_manifest = host_manifest_from_compiled_unit_artifact(&compiled_unit)?;
-    Ok(BuildPolyAndCompiledUnitOutput {
-        poly: BuildPolyOutput {
-            arena: lowering.session.poly,
-            labels: lowering.labels,
-            host_manifest: Some(host_manifest),
-            file_count: loaded.len(),
-            errors,
+    Ok((
+        BuildPolyAndCompiledUnitOutput {
+            poly: BuildPolyOutput {
+                arena: lowering.session.poly,
+                labels: lowering.labels,
+                host_manifest: Some(host_manifest),
+                file_count: loaded.len(),
+                errors,
+            },
+            compiled_unit,
         },
-        compiled_unit,
-    })
+        lowering_timing,
+    ))
 }
 
 pub fn build_poly_from_compiled_unit_artifact(
@@ -292,8 +334,40 @@ pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sour
     files: Vec<CollectedSource>,
     suffix: Vec<CollectedSource>,
 ) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
+    build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(prefix, files, suffix)
+        .map(|(output, _)| output)
+}
+
+/// Observation-only companion for CLI phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources_with_lowering_timing(
+    prefix: crate::cache::CachedCompiledUnitArtifact,
+    files: Vec<CollectedSource>,
+    suffix: Vec<CollectedSource>,
+) -> Result<
+    (
+        BuildPolyAndCompiledUnitOutput,
+        infer::lowering::BodyLoweringTiming,
+    ),
+    RouteError,
+> {
+    build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(prefix, files, suffix)
+}
+
+fn build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(
+    prefix: crate::cache::CachedCompiledUnitArtifact,
+    files: Vec<CollectedSource>,
+    suffix: Vec<CollectedSource>,
+) -> Result<
+    (
+        BuildPolyAndCompiledUnitOutput,
+        infer::lowering::BodyLoweringTiming,
+    ),
+    RouteError,
+> {
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
     debug_assert_eq!(output.file_count, files.len());
+    let lowering_timing = output.lowering.timing;
     let suffix_syntax = sources::CompiledSyntaxSurface::from_loaded_files(&output.loaded);
     let syntax =
         sources::CompiledSyntaxSurface::merge_prefixes([&output.prefix_syntax, &suffix_syntax])
@@ -306,16 +380,19 @@ pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sour
         crate::cache::source_cache_key(&files),
     );
     let host_manifest = host_manifest_from_compiled_unit_artifact(&compiled_unit)?;
-    Ok(BuildPolyAndCompiledUnitOutput {
-        poly: BuildPolyOutput {
-            arena: output.lowering.session.poly,
-            labels: output.lowering.labels,
-            host_manifest: Some(host_manifest),
-            file_count: output.file_count,
-            errors: output.errors,
+    Ok((
+        BuildPolyAndCompiledUnitOutput {
+            poly: BuildPolyOutput {
+                arena: output.lowering.session.poly,
+                labels: output.lowering.labels,
+                host_manifest: Some(host_manifest),
+                file_count: output.file_count,
+                errors: output.errors,
+            },
+            compiled_unit,
         },
-        compiled_unit,
-    })
+        lowering_timing,
+    ))
 }
 
 struct CompiledUnitPrefixLowering {
@@ -3294,23 +3371,39 @@ fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutpu
     build_poly_from_loaded_files(load_collected_sources(files))
 }
 
+fn build_poly_from_sources_with_lowering_timing(
+    files: Vec<CollectedSource>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
+    build_poly_from_loaded_files_with_lowering_timing(load_collected_sources(files))
+}
+
 pub fn build_poly_from_loaded_files(
     loaded: Vec<sources::LoadedFile>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_loaded_files_with_lowering_timing(loaded).map(|(output, _)| output)
+}
+
+fn build_poly_from_loaded_files_with_lowering_timing(
+    loaded: Vec<sources::LoadedFile>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let lowering_timing = lowering.timing;
     let errors = lowering
         .errors
         .iter()
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        labels: lowering.labels,
-        host_manifest: Some(host_manifest),
-        file_count: loaded.len(),
-        errors,
-    })
+    Ok((
+        BuildPolyOutput {
+            arena: lowering.session.poly,
+            labels: lowering.labels,
+            host_manifest: Some(host_manifest),
+            file_count: loaded.len(),
+            errors,
+        },
+        lowering_timing,
+    ))
 }
 
 fn load_collected_sources(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
