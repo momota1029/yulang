@@ -616,6 +616,39 @@ impl AnalysisSession {
         Ok(FrozenCandidateInterface { candidates })
     }
 
+    /// Prepare schemes, the unit boundary, and candidates from one boundary capture.
+    ///
+    /// The returned pieces remain one logical draft: candidates were classified against the exact
+    /// pre-normalization `B` table consumed by the joint scheme/boundary normalization. Structural
+    /// candidate freeze happens later in the shared target poly arena, immediately before the
+    /// Stage 4 handoff validator joins both pieces.
+    pub(crate) fn prepare_cache_interface_handoff(
+        &self,
+        defs: impl IntoIterator<Item = DefId>,
+    ) -> Result<(CanonicalCacheInterfaceDraft, NormalizedCandidateInterface), BoundaryCaptureError>
+    {
+        let mut defs = defs.into_iter().collect::<Vec<_>>();
+        defs.sort_by_key(|def| def.0);
+        defs.dedup();
+
+        let boundary = self.capture_cache_boundary_interface(defs.iter().copied())?;
+        let captured_candidates = self.capture_cache_candidate_interface(&boundary);
+        let candidates =
+            self.normalize_cache_candidate_interface(captured_candidates, &boundary)?;
+        let schemes = defs
+            .into_iter()
+            .map(|def| {
+                self.schemes
+                    .get(&def)
+                    .cloned()
+                    .map(|generalized| CanonicalSchemeDraft { def, generalized })
+                    .ok_or(BoundaryCaptureError::MissingGeneralizedScheme { def })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let interface = freeze_joint_cache_interface(self, schemes, boundary)?;
+        Ok((interface, candidates))
+    }
+
     /// Apply the normal structural simplification once to schemes and their captured boundary.
     pub(crate) fn freeze_cache_interface(
         &self,

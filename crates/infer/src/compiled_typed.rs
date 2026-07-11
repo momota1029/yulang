@@ -91,14 +91,14 @@ pub enum CompiledTypedMergeError {
     DuplicateValueSymbol { symbol: u32 },
 }
 
-/// One-shot Stage 2 handoff from the canonical compact draft to both compiled surfaces.
+/// One-shot canonical cache-interface handoff to both compiled surfaces.
 ///
 /// Artifact construction does not use this entry until the later integration stage. Keeping the
-/// pair together here ensures that enabling it cannot independently freeze typed and runtime type
-/// graphs.
+/// pair together here ensures that enabling it cannot independently freeze schemes, candidates,
+/// or boundary graphs for typed and runtime consumers.
 #[allow(
     dead_code,
-    reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"
+    reason = "the Stage 5 non-empty artifact slice enables this common handoff"
 )]
 pub(crate) struct CompiledCacheInterfaceSurfaces {
     pub(crate) typed: CompiledTypedSurface,
@@ -113,7 +113,7 @@ struct CompiledTypedValueSource {
 
 #[allow(
     dead_code,
-    reason = "the Stage 2 production handoff is enabled by the later artifact integration stage"
+    reason = "the Stage 5 non-empty artifact slice enables this common handoff"
 )]
 impl CompiledCacheInterfaceSurfaces {
     pub(crate) fn from_lowering(
@@ -121,11 +121,16 @@ impl CompiledCacheInterfaceSurfaces {
         namespace: &CompiledNamespaceSurface,
     ) -> Result<Self, crate::analysis::BoundaryCaptureError> {
         let value_sources = compiled_typed_value_sources(lowering, namespace);
-        let draft = lowering
+        let (draft, candidates) = lowering
             .session
-            .freeze_cache_interface(value_sources.iter().map(|value| value.def))?;
+            .prepare_cache_interface_handoff(value_sources.iter().map(|value| value.def))?;
         let mut arena = lowering.session.poly.clone();
-        let boundary = draft.freeze_into_poly(lowering.session.infer.constraints(), &mut arena)?;
+        let candidates = lowering
+            .session
+            .freeze_cache_candidate_interface(candidates, &mut arena)?;
+        let boundary = draft
+            .with_frozen_candidates(candidates)
+            .freeze_into_poly(lowering.session.infer.constraints(), &mut arena)?;
         let typed = CompiledTypedSurface::from_poly_arena(&arena, &value_sources, boundary.clone());
         let runtime = crate::CompiledRuntimeSurface::from_canonical_cache_interface_handoff(
             lowering, namespace, arena, boundary,
@@ -984,7 +989,15 @@ mod tests {
     fn canonical_cache_interface_handoff_freezes_once_for_typed_and_runtime_surfaces() {
         let loaded = sources::load(vec![source(
             &[],
-            "my id x = x\npub computed = id (\\x -> x)\n",
+            concat!(
+                "my id x = x\n",
+                "pub computed = id (\\x -> x)\n",
+                "struct Token;\n",
+                "role Echo 'a:\n",
+                "  our x.echo: 'a\n",
+                "impl Token: Echo:\n",
+                "  our x.echo = x\n",
+            ),
         )]);
         let lowering = lower_loaded_files(&loaded).unwrap();
         assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
@@ -1050,6 +1063,79 @@ mod tests {
                 Neu::Bounds(_, _)
             ));
         }
+        let [candidate] = surfaces
+            .runtime
+            .arena
+            .role_impls
+            .candidates(&["Echo".to_string()])
+        else {
+            panic!("canonical runtime handoff must retain the frozen candidate")
+        };
+        assert!(candidate.prerequisites.is_empty());
+    }
+
+    #[test]
+    fn canonical_cache_interface_handoff_rejects_an_unclosed_candidate_batch() {
+        let loaded = sources::load(vec![source(&[], "pub value = 1\n")]);
+        let mut lowering = lower_loaded_files(&loaded).unwrap();
+        assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+        let head = lowering.session.infer.fresh_type_var();
+        let prerequisite_only = lowering.session.infer.fresh_type_var();
+        let head_input = {
+            let lower = lowering.session.infer.alloc_pos(Pos::Var(head));
+            let upper = lowering.session.infer.alloc_neg(Neg::Var(head));
+            poly::roles::RoleConstraintArg { lower, upper }
+        };
+        let prerequisite_input = {
+            let lower = lowering
+                .session
+                .infer
+                .alloc_pos(Pos::Var(prerequisite_only));
+            let upper = lowering
+                .session
+                .infer
+                .alloc_neg(Neg::Var(prerequisite_only));
+            poly::roles::RoleConstraintArg { lower, upper }
+        };
+        lowering
+            .session
+            .role_impls
+            .insert(poly::roles::RoleImplCandidate {
+                impl_def: None,
+                role: vec!["UnclosedArtifactCandidate".into()],
+                inputs: vec![head_input],
+                associated: Vec::new(),
+                prerequisites: vec![poly::roles::RoleConstraint {
+                    role: vec!["UnclosedArtifactPrerequisite".into()],
+                    inputs: vec![prerequisite_input],
+                    associated: Vec::new(),
+                }],
+                methods: Vec::new(),
+            });
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+
+        let error = match CompiledCacheInterfaceSurfaces::from_lowering(&lowering, &namespace) {
+            Ok(_) => panic!("an unclosed candidate must reject the complete surface handoff"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error,
+            crate::analysis::BoundaryCaptureError::UnboundCandidateVariable {
+                impl_def: None,
+                role: vec!["UnclosedArtifactCandidate".into()],
+                var: prerequisite_only,
+            }
+        );
+        assert!(
+            lowering
+                .session
+                .poly
+                .role_impls
+                .candidates(&["UnclosedArtifactCandidate".to_string()])
+                .is_empty(),
+            "failed canonical construction must not mutate the source lowering arena"
+        );
     }
 
     #[test]
