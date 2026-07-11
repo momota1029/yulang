@@ -14,6 +14,7 @@ run_timeout="${YULANG_PERF_GATE_RUN_TIMEOUT:-300s}"
 bench_timeout="${YULANG_PERF_GATE_BENCH_TIMEOUT:-480s}"
 adversarial_timeout="${YULANG_PERF_GATE_ADVERSARIAL_TIMEOUT:-30s}"
 repeat="${YULANG_PERF_GATE_REPEAT:-1}"
+std_prefix_boundary_max_slowdown="${YULANG_PERF_GATE_STD_PREFIX_BOUNDARY_MAX_SLOWDOWN:-5}"
 
 run_hardening="${YULANG_PERF_GATE_HARDENING:-1}"
 run_adversarial="${YULANG_PERF_GATE_ADVERSARIAL:-1}"
@@ -171,8 +172,11 @@ append_key_metrics() {
         append_key_metrics_row showcase-check-poly-std
         append_key_metrics_row nondet-no-cache
         append_key_metrics_row showcase-no-cache
+        append_key_metrics_row yumark-html-no-cache
         append_key_metrics_row nondet-cache-warmup
         append_key_metrics_row nondet-cache-hit
+        append_key_metrics_row yumark-html-cache-boundary
+        append_key_metrics_row yumark-markdown-cache-boundary
         append_key_metrics_row marker-heavy-cache-hit
         append_key_metrics_row source-unit-cache-smoke multi
     } >"$key_metrics"
@@ -256,6 +260,42 @@ require_key_metric_set() {
     fi
 }
 
+check_slowdown_ratio() {
+    local label="$1"
+    local baseline="$2"
+    local candidate="$3"
+    local maximum="$4"
+
+    if ! awk -v baseline="$baseline" -v candidate="$candidate" -v maximum="$maximum" '
+        BEGIN {
+            if (baseline !~ /^[0-9]+([.][0-9]+)?$/ || baseline <= 0 ||
+                candidate !~ /^[0-9]+([.][0-9]+)?$/ || candidate < 0 ||
+                maximum !~ /^[0-9]+([.][0-9]+)?$/ || maximum <= 0) {
+                exit 2
+            }
+            exit candidate <= baseline * maximum ? 0 : 1
+        }
+    '; then
+        echo "performance gate: $label slowdown ${candidate}s / ${baseline}s exceeds ${maximum}x" >&2
+        return 1
+    fi
+}
+
+validate_std_prefix_boundary_slowdown() {
+    local key_metrics="$1"
+    local baseline
+    local candidate
+
+    baseline="$(key_metric_value "$key_metrics" yumark-html-no-cache 3)"
+    candidate="$(key_metric_value "$key_metrics" yumark-html-cache-boundary 3)"
+    check_slowdown_ratio \
+        "std-prefix HTML cache boundary" \
+        "$baseline" \
+        "$candidate" \
+        "$std_prefix_boundary_max_slowdown"
+    log "std-prefix HTML slowdown: ${candidate}s / ${baseline}s (limit ${std_prefix_boundary_max_slowdown}x)"
+}
+
 validate_key_metrics() {
     local key_metrics="$1"
     local missing=0
@@ -287,11 +327,23 @@ validate_key_metrics() {
             17 "marker touches" \
             18 "path prefix checks" \
             19 "active scans" || missing=1
+        require_key_metric_set "$key_metrics" yumark-html-no-cache \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
         require_key_metric_set "$key_metrics" nondet-cache-warmup \
             3 "wall(s)" \
             4 "cache route" \
             16 "runtime execute" || missing=1
         require_key_metric_set "$key_metrics" nondet-cache-hit \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
+        require_key_metric_set "$key_metrics" yumark-html-cache-boundary \
+            3 "wall(s)" \
+            4 "cache route" \
+            16 "runtime execute" || missing=1
+        require_key_metric_set "$key_metrics" yumark-markdown-cache-boundary \
             3 "wall(s)" \
             4 "cache route" \
             16 "runtime execute" || missing=1
@@ -376,6 +428,10 @@ run_source_metric_commands() {
         "$bin" --std-root "$std_root" --runtime-phase-timings --no-cache run --print-roots \
         "$repo_root/examples/showcase.yu"
 
+    run_with_log yumark-html-no-cache "$run_timeout" \
+        "$bin" --std-root "$std_root" --runtime-phase-timings --no-cache run --print-roots \
+        "$repo_root/tests/yulang/regressions/cache/std_prefix_yumark_html_fallback.yu"
+
     local cache_dir="$out_dir/cache"
     mkdir -p "$cache_dir"
 
@@ -388,6 +444,16 @@ run_source_metric_commands() {
         env "YULANG_CACHE_DIR=$cache_dir" \
         "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
         "$repo_root/bench/nondet_20_discard.yu"
+
+    run_with_log yumark-html-cache-boundary "$run_timeout" \
+        env "YULANG_CACHE_DIR=$cache_dir" \
+        "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
+        "$repo_root/tests/yulang/regressions/cache/std_prefix_yumark_html_fallback.yu"
+
+    run_with_log yumark-markdown-cache-boundary "$run_timeout" \
+        env "YULANG_CACHE_DIR=$cache_dir" \
+        "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
+        "$repo_root/tests/yulang/regressions/cache/std_prefix_yumark_markdown_workload.yu"
 
     run_with_log source-unit-cache-smoke "$run_timeout" \
         "$repo_root/scripts/source-unit-cache-smoke.sh" "$bin"
@@ -437,6 +503,7 @@ main() {
     log "binary: $bin"
     log "std root: $std_root"
     log "repeat: $repeat"
+    log "std-prefix boundary slowdown limit: ${std_prefix_boundary_max_slowdown}x"
 
     ensure_release_binary
 
@@ -462,6 +529,9 @@ main() {
     append_key_metrics
     scan_workload_failures "$out_dir"
     validate_key_metrics "$out_dir/key-metrics.md"
+    if [[ "$run_source_metrics" != "0" ]]; then
+        validate_std_prefix_boundary_slowdown "$out_dir/key-metrics.md"
+    fi
 
     log ""
     log "performance gate ok"

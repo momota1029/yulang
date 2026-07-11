@@ -45,8 +45,11 @@ write_key_metrics() {
 | showcase-check-poly-std | 0.10 | n/a | 1ms | 2ms | n/a | 3 | 4 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 5ms | 123 | 456 |
 | nondet-no-cache | 0.20 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | $nondet_runtime | 5 | 6 | 7 | n/a | n/a | n/a |
 | showcase-no-cache | 0.30 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 8ms | 9 | 10 | 11 | n/a | n/a | n/a |
+| yumark-html-no-cache | 0.80 | disabled | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 9ms | n/a | n/a | n/a | n/a | n/a | n/a |
 | nondet-cache-warmup | 0.40 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 12ms | n/a | n/a | n/a | n/a | n/a | n/a |
 | nondet-cache-hit | 0.50 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 13ms | n/a | n/a | n/a | n/a | n/a | n/a |
+| yumark-html-cache-boundary | 1.00 | full-miss | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 10ms | n/a | n/a | n/a | n/a | n/a | n/a |
+| yumark-markdown-cache-boundary | 10.00 | full-miss | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 11ms | n/a | n/a | n/a | n/a | n/a | n/a |
 | marker-heavy-cache-hit | 0.60 | control-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 14ms | 15 | 16 | 17 | n/a | n/a | n/a |
 | source-unit-cache-smoke | 0.70 | merged-source-unit-prefix-hit,source-unit-prefix-hit | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 18us,19us | n/a | n/a | n/a | n/a | n/a | n/a |
 EOF
@@ -72,6 +75,12 @@ rg -q 'FAILED' "$failure_err"
 key_metrics="$scratch/key-metrics.md"
 write_key_metrics "$key_metrics" "20ms"
 assert_success "validate_key_metrics accepts required rows" validate_key_metrics "$key_metrics"
+assert_success "validate_std_prefix_boundary_slowdown accepts fixture ratio" \
+  validate_std_prefix_boundary_slowdown "$key_metrics"
+assert_success "check_slowdown_ratio accepts the configured boundary" \
+  check_slowdown_ratio "fixture" 1.00 5.00 5
+assert_failure "check_slowdown_ratio rejects a large regression" \
+  check_slowdown_ratio "fixture" 1.00 5.01 5
 
 write_key_metrics "$key_metrics" "n/a"
 metrics_err="$scratch/metrics.err"

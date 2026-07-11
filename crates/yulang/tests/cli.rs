@@ -4046,6 +4046,86 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
 }
 
 #[test]
+fn compatible_std_prefix_cache_boundary_yumark_workloads_hold() {
+    let root = temp_root("run-std-prefix-yumark-boundary");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let seed = root.join("seed.yu");
+    fs::write(&seed, "\"seed\"\n").unwrap();
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+
+    let cases = [
+        (
+            "html",
+            "regressions/cache/std_prefix_yumark_html_fallback.yu",
+            "HTML injected at ",
+            "</aside>",
+            concat!(
+                r#"run roots ["<article><h2><span>Typed Static Yumark Vocabulary</span></h2><p><span>A paragraph with </span><em><span>emphasis</span></em><span> and </span><strong><span>strong text</span></strong><span>.</span></p><br>\n</br><ul><li><item-body><span>first item with </span><em><span>inline style</span></em></item-body></li><li><item-body><strong><span>second item</span></strong></item-body></li></ul><pre><code-info>text</code-info><code>line one\nline two</code></pre><blockquote><p><span>quoted paragraph with </span><aside>HTML injected at <clock></aside></p></blockquote><section-close>#.<span> close current section</span></section-close></article>"]"#,
+                "\n"
+            ),
+            true,
+        ),
+        (
+            "markdown",
+            "regressions/cache/std_prefix_yumark_markdown_workload.yu",
+            "_markdown injected at ",
+            "_",
+            concat!(
+                r###"run roots ["## Typed Static Yumark Vocabulary\n\nA paragraph with *emphasis* and **strong text**.\n\n\n- first item with *inline style*\n- **second item**\n\n```text\nline one\nline two\n```\n\n> quoted paragraph with _markdown injected at <clock>_\n\n\n#. close current section\n"]"###,
+                "\n"
+            ),
+            false,
+        ),
+    ];
+
+    for (slug, fixture, clock_marker, clock_terminator, expected_stdout, requires_fallback) in cases
+    {
+        let entry = repo_yulang_fixture(fixture);
+        let output = yulang_command()
+            .env("YULANG_CACHE_DIR", &cache_root)
+            .arg("--std-root")
+            .arg(repo_lib_root())
+            .arg("--runtime-phase-timings")
+            .arg("run")
+            .arg("--print-roots")
+            .arg(&entry)
+            .output()
+            .unwrap();
+
+        assert_success(&output);
+        assert_eq!(
+            normalize_clock_output(&stdout(&output), clock_marker, clock_terminator),
+            expected_stdout,
+            "{slug}"
+        );
+        if requires_fallback {
+            assert_cache_route(&output, "full-miss");
+        } else {
+            // Markdown's direct str representation is already expensive in a
+            // cold build. Either the conservative fallback or a future proven
+            // safe std-prefix hit is valid, provided the golden result holds.
+            assert_cache_route_any(&output, &["full-miss", "std-prefix-hit"]);
+        }
+    }
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_with_std_prefix_cache_matches_full_build_for_mock_ref_view() {
     let root = temp_root("run-std-prefix-mock-ref-view");
     let _ = fs::remove_dir_all(&root);
@@ -6648,6 +6728,25 @@ fn assert_run_backend(output: &Output, backend: &str) {
         stderr.contains(&format!("run.backend: {backend}")),
         "{stderr}"
     );
+}
+
+fn normalize_clock_output(stdout: &str, marker: &str, terminator: &str) -> String {
+    let timestamp_start = stdout
+        .find(marker)
+        .unwrap_or_else(|| panic!("clock marker {marker:?} missing from {stdout:?}"))
+        + marker.len();
+    let timestamp_end = timestamp_start
+        + stdout[timestamp_start..]
+            .find(terminator)
+            .unwrap_or_else(|| panic!("clock terminator {terminator:?} missing from {stdout:?}"));
+    assert!(
+        timestamp_end > timestamp_start,
+        "empty clock value: {stdout:?}"
+    );
+
+    let mut normalized = stdout.to_owned();
+    normalized.replace_range(timestamp_start..timestamp_end, "<clock>");
+    normalized
 }
 
 fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {

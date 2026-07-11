@@ -1,0 +1,380 @@
+// Std-prefix cache boundary regression: HTML's role-polymorphic typed
+// cons-chain must conservatively fall back instead of taking an unsafe warm
+// prefix route. Keep this workload structurally paired with the Markdown case.
+
+struct html_format { marker: str }
+struct markdown_format { marker: str }
+
+struct html_node { tag: str, body: str }
+
+struct render_yumark 'format 'repr { format: 'format }
+
+role YumarkRender 'node 'format:
+    type repr
+    our node.render_repro_yumark: render_yumark 'format repr -> ['e] repr
+
+struct nil_cell { marker: str }
+struct cons_cell 'head 'tail { head: 'head, tail: 'tail }
+
+struct doc_leaf 'children { children: 'children }
+struct text_leaf { value: str }
+struct paragraph_leaf 'children { children: 'children }
+struct heading_leaf 'children { marker: str, level: int, children: 'children }
+struct blank_line_leaf { marker: str }
+struct section_close_leaf 'children { marker: str, children: 'children }
+struct list_block_leaf 'items { ordered: bool, items: 'items }
+struct list_item_leaf 'children { marker: str, children: 'children }
+struct list_item_body_leaf 'children { children: 'children }
+struct code_fence_leaf { info: str, body: str }
+struct quote_block_leaf 'children { children: 'children }
+struct emphasis_leaf 'children { children: 'children }
+struct strong_leaf 'children { children: 'children }
+
+struct injection_payload {
+    html: () -> [std::time::clock] html_node,
+    markdown: () -> [std::time::clock] str,
+}
+
+struct injected_leaf { payload: injection_payload }
+
+my html_format_value(): html_format = html_format { marker: "html" }
+my markdown_format_value(): markdown_format = markdown_format { marker: "markdown" }
+
+my html_render_command(): render_yumark html_format html_node =
+    render_yumark { format: html_format_value() }
+
+my markdown_render_command(): render_yumark markdown_format str =
+    render_yumark { format: markdown_format_value() }
+
+my cat2(left: str, right: str): str =
+    std::text::str::concat left right
+
+my cat3(a: str, b: str, c: str): str =
+    cat2 (cat2 a b) c
+
+my cat4(a: str, b: str, c: str, d: str): str =
+    cat2 (cat3 a b c) d
+
+my html_tag(node: html_node): str =
+    if node.tag == "fragment":
+        node.body
+    else:
+        cat4 (cat3 "<" node.tag ">") node.body "</" (cat2 node.tag ">")
+
+my html_fragment(head: html_node, tail: html_node): html_node =
+    html_node { tag: "fragment", body: cat2 (html_tag head) (html_tag tail) }
+
+my nil(): nil_cell = nil_cell { marker: "nil" }
+
+my cons(head: 'head, tail: 'tail): cons_cell 'head 'tail =
+    cons_cell { head: head, tail: tail }
+
+my render_html_doc(doc: 'doc): [std::time::clock] html_node =
+    where 'doc: YumarkRender html_format
+    doc.render_repro_yumark (html_render_command())
+
+my render_markdown_doc(doc: 'doc): [std::time::clock] str =
+    where 'doc: YumarkRender markdown_format
+    doc.render_repro_yumark (markdown_render_command())
+
+impl nil_cell: YumarkRender html_format:
+    type repr = html_node
+    our cell.render_repro_yumark _ = html_node { tag: "fragment", body: "" }
+
+impl (cons_cell 'head 'tail): YumarkRender html_format:
+    where 'head: YumarkRender html_format
+    where 'tail: YumarkRender html_format
+    type repr = html_node
+    our cell.render_repro_yumark _ =
+        my head = render_html_doc cell.head
+        my tail = render_html_doc cell.tail
+        html_fragment head tail
+
+impl (doc_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "article", body: html_tag children }
+
+impl text_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_repro_yumark _ = html_node { tag: "span", body: leaf.value }
+
+impl (paragraph_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "p", body: html_tag children }
+
+impl (heading_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: cat2 "h" (std::int::to_string node.level), body: html_tag children }
+
+impl blank_line_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_repro_yumark _ = html_node { tag: "br", body: leaf.marker }
+
+impl (section_close_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "section-close", body: cat2 node.marker (html_tag children) }
+
+impl (list_block_leaf 'items): YumarkRender html_format:
+    where 'items: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my items = render_html_doc node.items
+        my tag = if node.ordered: "ol" else: "ul"
+        html_node { tag: tag, body: html_tag items }
+
+impl (list_item_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "li", body: html_tag children }
+
+impl (list_item_body_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "item-body", body: html_tag children }
+
+impl code_fence_leaf: YumarkRender html_format:
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my info = html_node { tag: "code-info", body: node.info }
+        my body = html_node { tag: "code", body: node.body }
+        html_node { tag: "pre", body: cat2 (html_tag info) (html_tag body) }
+
+impl (quote_block_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "blockquote", body: html_tag children }
+
+impl (emphasis_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "em", body: html_tag children }
+
+impl (strong_leaf 'children): YumarkRender html_format:
+    where 'children: YumarkRender html_format
+    type repr = html_node
+    our node.render_repro_yumark _ =
+        my children = render_html_doc node.children
+        html_node { tag: "strong", body: html_tag children }
+
+impl injected_leaf: YumarkRender html_format:
+    type repr = html_node
+    our leaf.render_repro_yumark _ = leaf.payload.html()
+
+impl nil_cell: YumarkRender markdown_format:
+    type repr = str
+    our cell.render_repro_yumark _ = ""
+
+impl (cons_cell 'head 'tail): YumarkRender markdown_format:
+    where 'head: YumarkRender markdown_format
+    where 'tail: YumarkRender markdown_format
+    type repr = str
+    our cell.render_repro_yumark _ =
+        my head = render_markdown_doc cell.head
+        my tail = render_markdown_doc cell.tail
+        cat2 head tail
+
+impl (doc_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = render_markdown_doc node.children
+
+impl text_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_repro_yumark _ = leaf.value
+
+impl (paragraph_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat2 (render_markdown_doc node.children) "\n\n"
+
+impl (heading_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ =
+        my children = render_markdown_doc node.children
+        cat3 node.marker children "\n\n"
+
+impl blank_line_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_repro_yumark _ = leaf.marker
+
+impl (section_close_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat3 node.marker (render_markdown_doc node.children) "\n"
+
+impl (list_block_leaf 'items): YumarkRender markdown_format:
+    where 'items: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat2 (render_markdown_doc node.items) "\n"
+
+impl (list_item_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat3 node.marker (render_markdown_doc node.children) "\n"
+
+impl (list_item_body_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = render_markdown_doc node.children
+
+impl code_fence_leaf: YumarkRender markdown_format:
+    type repr = str
+    our node.render_repro_yumark _ =
+        cat2 (cat4 "```" node.info "\n" node.body) "\n```\n\n"
+
+impl (quote_block_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat3 "> " (render_markdown_doc node.children) "\n"
+
+impl (emphasis_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat3 "*" (render_markdown_doc node.children) "*"
+
+impl (strong_leaf 'children): YumarkRender markdown_format:
+    where 'children: YumarkRender markdown_format
+    type repr = str
+    our node.render_repro_yumark _ = cat3 "**" (render_markdown_doc node.children) "**"
+
+impl injected_leaf: YumarkRender markdown_format:
+    type repr = str
+    our leaf.render_repro_yumark _ = leaf.payload.markdown()
+
+my text_node(value: str): text_leaf =
+    text_leaf { value: value }
+
+my text_children(value: str): cons_cell text_leaf nil_cell =
+    cons(text_node value, nil())
+
+my injected_html(): [std::time::clock] html_node =
+    my stamp = (std::time::clock::now()).show
+    html_node { tag: "aside", body: cat2 "HTML injected at " stamp }
+
+my injected_markdown(): [std::time::clock] str =
+    my stamp = (std::time::clock::now()).show
+    cat3 "_markdown injected at " stamp "_"
+
+my injected_payload(): injection_payload =
+    injection_payload {
+        html: injected_html,
+        markdown: injected_markdown,
+    }
+
+my build_demo_doc() =
+    doc_leaf {
+        children: cons(
+            heading_leaf {
+                marker: "## ",
+                level: 2,
+                children: text_children "Typed Static Yumark Vocabulary",
+            },
+            cons(
+                paragraph_leaf {
+                    children: cons(
+                        text_node "A paragraph with ",
+                        cons(
+                            emphasis_leaf { children: text_children "emphasis" },
+                            cons(
+                                text_node " and ",
+                                cons(
+                                    strong_leaf { children: text_children "strong text" },
+                                    cons(text_node ".", nil()),
+                                ),
+                            ),
+                        ),
+                    ),
+                },
+                cons(
+                    blank_line_leaf { marker: "\n" },
+                    cons(
+                        list_block_leaf {
+                            ordered: false,
+                            items: cons(
+                                list_item_leaf {
+                                    marker: "- ",
+                                    children: cons(
+                                        list_item_body_leaf {
+                                            children: cons(
+                                                text_node "first item with ",
+                                                cons(
+                                                    emphasis_leaf { children: text_children "inline style" },
+                                                    nil(),
+                                                ),
+                                            ),
+                                        },
+                                        nil(),
+                                    ),
+                                },
+                                cons(
+                                    list_item_leaf {
+                                        marker: "- ",
+                                        children: cons(
+                                            list_item_body_leaf {
+                                                children: cons(
+                                                    strong_leaf { children: text_children "second item" },
+                                                    nil(),
+                                                ),
+                                            },
+                                            nil(),
+                                        ),
+                                    },
+                                    nil(),
+                                ),
+                            ),
+                        },
+                        cons(
+                            code_fence_leaf { info: "text", body: "line one\nline two" },
+                            cons(
+                                quote_block_leaf {
+                                    children: cons(
+                                        paragraph_leaf {
+                                            children: cons(
+                                                text_node "quoted paragraph with ",
+                                                cons(
+                                                    injected_leaf { payload: injected_payload() },
+                                                    nil(),
+                                                ),
+                                            ),
+                                        },
+                                        nil(),
+                                    ),
+                                },
+                                cons(
+                                    section_close_leaf {
+                                        marker: "#.",
+                                        children: text_children " close current section",
+                                    },
+                                    nil(),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    }
+
+my proof() = html_tag (render_html_doc (build_demo_doc()))
+proof()
