@@ -364,6 +364,28 @@ scheme / candidate間の`B`共有を一つのtest-only witnessへまとめ、Sta
 production artifact integrationには進まない。Markdownの`std-prefix-hit`化は引き続きStage 5の
 non-empty artifact integrationとStage 7のfallback retirement判断まで待つ。
 
+### Stage 3 boundary-aware import exit: Oracle A1 binder lifetime witness
+
+Stage 3の出口条件とStage 5のartifact integrationの前後関係に循環が見つかったため、Claude Sonnet 5と
+ユーザの2026-07-11承認に基づきOracle Aを二つのgateへ分割した。Stage 3のOracle A1は、in-memoryで
+構築した`CompiledBoundaryInterface`をfresh sessionへseedし、import / instantiationのbinder lifetimeを
+直接検証する。production compiled-unit artifactの正規encode/decodeと、decode後のfresh session importを
+検証するOracle A2は、non-empty artifactを有効化するStage 5の出口条件へ移した。これはvalidationの
+削除ではなく、Stage 5で初めて成立するproduction decoder前提を正しいstageへ割り当て直したものである。
+
+Oracle A1の統合witnessでは、同じimported defを2回instantiateし、`Q`と`R`がuseごとに別のinfer
+`TypeVar`へfreshenされる一方、`B`は両useで同じsession-level mappingを指すことを一つのfixtureで確認した。
+同じsessionにimportされたrole candidateについても、candidate-local headはfreshになり、prerequisiteの
+`B`がscheme occurrenceと同じinfer `TypeVar`を指すことを直接固定した。これにより§6.1 Import once、
+§6.2 Scheme instantiate、§6.3 Role candidate fresheningを束ねたStage 3 exit条件は完了した。
+
+確認結果はExit witness 1 passed、infer interface oracle 9 passed、instantiate関連9 passed、role関連
+57 passed、infer全体586 passed / 既知の`mark_expr_block_*` 5 failed、std-prefix safety 6 passed、
+std-prefix CLI regression 4 passedである。次はStage 4 principal impl prerequisite interfaceで、
+prerequisite-only変数のbinder分類、candidate head / prerequisiteのjoint canonicalization、canonical
+candidate closureを実装する。Markdownの`std-prefix-hit`化は引き続きStage 5のnon-empty artifact
+integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -438,13 +460,13 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 2026-06-17〜2026-06-19 の control VM frame runtime / performance slice は
 `tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
-現在のactive sliceはcanonical cache interface Option 1 Stage 3 boundary-aware import and
-instantiationである。Stage 2のboundary capture、joint compact/freeze、poly arena freezeと
-typed/runtime production handoffに続き、Stage 3 §6.1 Import onceと§6.2 Scheme instantiateまで
-進め、§6.3 Role candidate fresheningも完了した。次はStage 3 Exit witnessで、2回のscheme
-instantiationにおける`Q/R` fresh・`B`共有とscheme / candidate間の`B`共有をtest-only witnessと
-Oracle Aでまとめて確認する。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5の
-non-empty artifact integrationとStage 7のfallback retirement判断まで待つ。
+現在のactive sliceはcanonical cache interface Option 1 Stage 4 principal impl prerequisite interfaceで
+ある。Stage 2のboundary capture、joint compact/freeze、poly arena freezeとtyped/runtime production
+handoffに続き、Stage 3 §6.1 Import once、§6.2 Scheme instantiate、§6.3 Role candidate fresheningと
+Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4ではprerequisite-only変数の分類とcanonical
+candidate closureへ進む。production artifactのencode/decode / fresh-session import gateであるOracle A2は
+Stage 5へ移した。Markdownの`std-prefix-hit`化はStage 3完了だけでは成立せず、Stage 5のnon-empty
+artifact integration / Oracle A2とStage 7のfallback retirement判断まで待つ。
 
 ## 守る不変条件
 

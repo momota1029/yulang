@@ -484,6 +484,110 @@ fn freshen_imported_role_candidate_shares_b_with_scheme_instantiation() {
 }
 
 #[test]
+fn oracle_a1_stage_3_exit_preserves_q_r_and_b_lifetimes_across_imported_uses() {
+    let quantified = TypeVar(62_000);
+    let recursive = TypeVar(62_001);
+    let boundary_var = TypeVar(62_002);
+    let candidate_head_var = TypeVar(62_003);
+    let mut poly = PolyArena::new();
+    let quantified_pos = poly.typ.alloc_pos(Pos::Var(quantified));
+    let recursive_pos = poly.typ.alloc_pos(Pos::Var(recursive));
+    let boundary_pos = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let predicate = poly.typ.alloc_pos(Pos::Tuple(vec![
+        quantified_pos,
+        recursive_pos,
+        boundary_pos,
+    ]));
+    let recursive_lower = poly.typ.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+    let recursive_upper = poly.typ.alloc_neg(Neg::Top);
+    let recursive_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(recursive_lower, recursive_upper));
+    let boundary_lower = poly.typ.alloc_pos(Pos::Var(boundary_var));
+    let boundary_upper = poly.typ.alloc_neg(Neg::Var(boundary_var));
+    let boundary_bounds = poly
+        .typ
+        .alloc_neu(Neu::Bounds(boundary_lower, boundary_upper));
+    let def = poly.defs.fresh();
+    poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::Pub,
+            scheme: Some(Scheme {
+                quantifiers: vec![quantified],
+                role_predicates: Vec::new(),
+                recursive_bounds: vec![SchemeRecursiveBound {
+                    var: recursive,
+                    bounds: recursive_bounds,
+                }],
+                stack_quantifiers: Vec::new(),
+                predicate,
+            }),
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let candidate_head = poly_role_var_arg(&mut poly, candidate_head_var);
+    let candidate_boundary = poly_role_var_arg(&mut poly, boundary_var);
+    poly.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: vec!["OracleA1Role".into()],
+        inputs: vec![candidate_head],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["OracleA1Boundary".into()],
+            inputs: vec![candidate_boundary],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+    let boundary = crate::CompiledBoundaryInterface {
+        bounds: vec![crate::CompiledBoundaryBound {
+            var: boundary_var,
+            bounds: boundary_bounds,
+        }],
+    };
+    let mut session = AnalysisSession::new_with_imported_boundary(poly, &boundary);
+    let first_use = session.infer.fresh_type_var_at(TypeLevel::root());
+    let second_use = session.infer.fresh_type_var_at(TypeLevel::root());
+
+    session.instantiate_use(DefId(96), def, first_use);
+    session.instantiate_use(DefId(97), def, second_use);
+
+    let [first_q, first_r, first_b] = instantiated_tuple_vars(&session, first_use);
+    let [second_q, second_r, second_b] = instantiated_tuple_vars(&session, second_use);
+    assert_ne!(first_q, quantified);
+    assert_ne!(second_q, quantified);
+    assert_ne!(first_q, second_q, "Q must be fresh for each imported use");
+    assert_ne!(first_r, recursive);
+    assert_ne!(second_r, recursive);
+    assert_ne!(first_r, second_r, "R must be fresh for each imported use");
+    assert_eq!(first_b, second_b, "B must be shared between imported uses");
+    let imported_b = session
+        .imported_boundary_var(boundary_var)
+        .expect("B should have one session-level imported mapping");
+    assert_eq!(first_b, imported_b);
+
+    let candidate = &session.role_impls.candidates(&["OracleA1Role".into()])[0];
+    let fresh_candidate_head = candidate
+        .as_constraint()
+        .raw_vars(session.infer.constraints().types());
+    assert_eq!(fresh_candidate_head.len(), 1);
+    assert!(!fresh_candidate_head.contains(&candidate_head_var));
+    assert!(!fresh_candidate_head.contains(&imported_b));
+    assert_eq!(
+        candidate.prerequisites[0].raw_vars(session.infer.constraints().types()),
+        FxHashSet::from_iter([imported_b]),
+        "scheme instantiation and role candidate freshening must share B"
+    );
+    assert!(
+        session
+            .take_imported_scheme_instantiation_failures()
+            .is_empty()
+    );
+}
+
+#[test]
 fn freshen_imported_role_candidate_keeps_unmapped_prerequisite_var_fresh() {
     let boundary_var = TypeVar(61_000);
     let head_var = TypeVar(61_001);

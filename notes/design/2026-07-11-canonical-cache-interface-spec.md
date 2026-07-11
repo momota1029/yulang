@@ -453,22 +453,41 @@ the finite labeled graph or a proven canonical SCC encoding. Choosing between th
 an implementation decision still marked as unconfirmed in section 13. A factorial permutation
 search is not acceptable.
 
-### 9.3 Oracle A: serialize/import/instantiate round trip
+### 9.3 Oracle A: binder lifetime and artifact round-trip gates
+
+Oracle A is split into two stage-aligned gates. This split preserves the full invariant while
+avoiding a dependency cycle in which Stage 3 required the production artifact support enabled only
+by Stage 5.
+
+#### Oracle A1: in-memory import and binder lifetime (Stage 3)
+
+For each selected exported scheme:
+
+1. Construct its canonical `CompiledBoundaryInterface` in memory.
+2. Seed that table into one fresh analysis session.
+3. Instantiate the imported scheme twice before suffix constraints are added and assert:
+   - `Q/R` binders differ between uses;
+   - `B` binders are identical between uses and equal the session-level imported mapping.
+4. Freshen the analogous role candidate in the same session and assert:
+   - candidate-local head variables are freshened;
+   - candidate `B` occurrences equal the scheme `B` mapping.
+
+This is the Stage 3 exit witness. It tests the importer and instantiator lifetime rules directly and
+does not claim that a non-empty compiled-unit artifact is accepted by the production decoder.
+
+#### Oracle A2: production artifact round trip (Stage 5)
 
 For each selected exported scheme:
 
 1. Build its expected symbolic instantiation from the pre-serialization canonical interface.
-2. Encode and decode the compiled-unit artifact.
-3. Import the boundary table into a fresh analysis session.
-4. Instantiate the imported scheme once and collect the witness before suffix constraints are added.
+2. Encode and decode the actual compiled-unit artifact through the production cache format.
+3. Import the decoded boundary table into a fresh analysis session.
+4. Instantiate the imported scheme before suffix constraints are added.
 5. Compare expected and actual `SchemeAlphaView` values.
-6. Instantiate it a second time and assert:
-   - `Q/R` binders differ between uses;
-   - `B` binders are identical between uses;
-   - both witnesses are alpha-equivalent after respecting those binder classes.
+6. Repeat the Oracle A1 lifetime assertions after decode, including scheme/candidate `B` identity.
 
-Role candidates receive the analogous test: candidate-local head variables are freshened for the
-new session, while candidate `B` occurrences equal the scheme `B` mapping.
+Oracle A2 is the Stage 5 artifact-integration gate. It must not be replaced by a raw envelope decode
+that bypasses version, fingerprint, typed/runtime agreement, or closure validation.
 
 ### 9.4 Oracle B: cold/warm suffix-result equivalence
 
@@ -631,7 +650,8 @@ Stage 2 implementation or weaken the strict audit before that classification is 
 - Risk: high; incorrect mapping lifetime breaks value restriction or cross-scheme sharing.
 - Dependencies: Stage 1; Stage 2 is required for non-empty production artifacts but unit tests can use
   synthetic tables.
-- Exit: two instantiations freshen `Q/R`, share `B`, and pass Oracle A.
+- Exit: Oracle A1 passes with an in-memory `CompiledBoundaryInterface`: two scheme instantiations
+  freshen `Q/R`, share one session-level `B`, and the analogous role candidate shares that same `B`.
 - No-heavy-fixpoint: one batched boundary seed plus existing constraint event routing.
 
 ### Stage 4: principal impl prerequisite interface
@@ -651,14 +671,15 @@ Stage 2 implementation or weaken the strict audit before that classification is 
 ### Stage 5: artifact integration and cold/warm equivalence
 
 - Changes: construct one canonical draft for both surfaces, enable non-empty boundary artifacts,
-  implement Oracle B, add merge and malformed-artifact tests.
+  implement Oracle A2 and Oracle B, add merge and malformed-artifact tests.
 - Likely targets: compiled-unit construction in `cache.rs`, compiled surface tests, CLI integration
   tests, Yumark cache fixtures.
 - Size: M-L, roughly 4-7 files and 500-900 lines including fixtures/tests.
 - Risk: high; a test can accidentally take full-miss and conceal warm-route failure.
 - Dependencies: Stages 1-4.
-- Exit: explicit `std-prefix-hit`, alpha-equivalent suffix schemes/candidates, and equal runtime
-  results.
+- Exit: Oracle A2 passes the production compiled-unit encode/decode/fresh-session-import round trip;
+  Oracle B observes an explicit `std-prefix-hit`, alpha-equivalent suffix schemes/candidates, and
+  equal runtime results.
 - No-heavy-fixpoint: comparison and validation are offline structural passes.
 
 ### Stage 6: performance and shadow validation
@@ -757,7 +778,8 @@ Option 1 is complete only when all of the following hold:
 - imported schemes never leave an unmapped free `TypeVar`;
 - `Q/R` and `B` lifetimes pass the two-instantiation witness test;
 - impl prerequisites close under head binders plus `B`;
-- Oracle A passes encode/decode/import/instantiate round trips;
+- Oracle A1 passes the in-memory two-instantiation and scheme/candidate binder-lifetime witness;
+- Oracle A2 passes production encode/decode/fresh-session-import/instantiate round trips;
 - Oracle B passes the Yumark reproduction and representative safe role-polymorphic fixtures;
 - tests assert the actual warm cache route;
 - role-solver counters show the pathological recursive expansion is absent;
@@ -767,3 +789,9 @@ Option 1 is complete only when all of the following hold:
 Only after these gates should Stage 7 consider removal of the conservative fallback.
 
 Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-11 session. Whether and when to implement remains a decision for Claude Sonnet 5 and the user; this document is a feasibility and design specification, not an implementation commitment.
+
+*Revision decision (2026-07-11): Claude Sonnet 5 and the user approved splitting Oracle A into the
+Stage 3 in-memory binder-lifetime gate (A1) and the Stage 5 production artifact round-trip gate (A2).
+The original Stage 3 exit accidentally depended on non-empty artifact decode support assigned to
+Stage 5. This revision removes that stage dependency cycle without weakening either validation gate.
+Changes to this allocation require explicit user approval.*
