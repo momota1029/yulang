@@ -74,25 +74,16 @@ impl CompiledBoundaryInterface {
     /// enter the fingerprint.
     #[allow(
         dead_code,
-        reason = "Stage 5 typed/runtime agreement connects this in the next artifact slice"
+        reason = "Stage 5 production artifact connection consumes this in slice 2d"
     )]
     pub(crate) fn semantic_fingerprint_with_types(
         &self,
         types: &TypeArena,
     ) -> Option<CompiledBoundaryFingerprint> {
         let key = self.canonical_structural_key(types)?;
-        let mut state = 0xcbf29ce484222325_u64;
-        for byte in key {
-            state ^= u64::from(byte);
-            state = state.wrapping_mul(0x100000001b3);
-        }
-        Some(CompiledBoundaryFingerprint(state))
+        Some(fingerprint_boundary_structural_key(&key))
     }
 
-    #[allow(
-        dead_code,
-        reason = "Stage 5 typed/runtime agreement connects this in the next artifact slice"
-    )]
     pub(crate) fn canonical_structural_key(&self, types: &TypeArena) -> Option<Vec<u8>> {
         if self.bounds.is_empty() {
             let mut key = b"yulang/compiled-boundary-interface/v1".to_vec();
@@ -141,14 +132,19 @@ impl CompiledBoundaryInterface {
     }
 }
 
+fn fingerprint_boundary_structural_key(key: &[u8]) -> CompiledBoundaryFingerprint {
+    let mut state = 0xcbf29ce484222325_u64;
+    for byte in key {
+        state ^= u64::from(*byte);
+        state = state.wrapping_mul(0x100000001b3);
+    }
+    CompiledBoundaryFingerprint(state)
+}
+
 use boundary_structural_fingerprint::{
     BoundaryStructuralEncoder, push_bytes, push_len, push_u32, push_u64,
 };
 
-#[allow(
-    dead_code,
-    reason = "Stage 5 typed/runtime agreement connects this encoder in the next artifact slice"
-)]
 mod boundary_structural_fingerprint {
     use super::*;
 
@@ -655,6 +651,26 @@ impl<'a> CompiledTypedIndex<'a> {
 }
 
 impl CompiledTypedSurface {
+    /// Return the boundary fingerprint only after exact typed/runtime structural agreement.
+    ///
+    /// The compiled surfaces serialize their type arenas independently even when both originated
+    /// from one canonical handoff. Decode and merge validation can therefore compare the complete
+    /// alpha-canonical byte keys before reducing their shared identity to a `u64` fingerprint.
+    pub fn boundary_fingerprint_agreeing_with_runtime(
+        &self,
+        runtime: &crate::CompiledRuntimeSurface,
+    ) -> Option<CompiledBoundaryFingerprint> {
+        let typed_types = self.types.to_type_arena();
+        let typed_key = self.boundary.canonical_structural_key(&typed_types)?;
+        let runtime_key = runtime
+            .boundary
+            .canonical_structural_key(&runtime.arena.typ)?;
+        if typed_key != runtime_key {
+            return None;
+        }
+        Some(fingerprint_boundary_structural_key(&typed_key))
+    }
+
     pub fn from_lowering(lowering: &BodyLowering, namespace: &CompiledNamespaceSurface) -> Self {
         Self::from_lowering_with_boundary(lowering, namespace, CompiledBoundaryInterface::empty())
     }
@@ -1388,6 +1404,66 @@ mod tests {
             CompiledBoundaryInterface::empty().semantic_fingerprint_with_types(&TypeArena::new()),
             CompiledBoundaryInterface::empty().semantic_fingerprint(),
             "the existing empty-boundary fingerprint must remain unchanged"
+        );
+    }
+
+    #[test]
+    fn typed_runtime_boundary_agreement_compares_exact_keys_before_hashing() {
+        let (typed_types, typed_boundary) =
+            structural_boundary_fixture([TypeVar(7), TypeVar(8)], false, 0, "payload");
+        let (runtime_types, runtime_boundary) =
+            structural_boundary_fixture([TypeVar(800), TypeVar(300)], true, 3, "payload");
+        let typed_key = typed_boundary
+            .canonical_structural_key(&typed_types)
+            .expect("typed boundary key");
+        let runtime_key = runtime_boundary
+            .canonical_structural_key(&runtime_types)
+            .expect("runtime boundary key");
+        assert_eq!(
+            typed_key, runtime_key,
+            "alpha-equivalent boundaries in independent arenas must agree exactly"
+        );
+        let expected = typed_boundary
+            .semantic_fingerprint_with_types(&typed_types)
+            .expect("agreed boundary fingerprint");
+        let typed = CompiledTypedSurface {
+            types: CompiledTypeArena::from_type_arena(&typed_types),
+            boundary: typed_boundary,
+            values: Vec::new(),
+        };
+        let mut runtime_arena = PolyArena::new();
+        runtime_arena.typ = runtime_types;
+        let runtime = crate::CompiledRuntimeSurface {
+            arena: runtime_arena,
+            boundary: runtime_boundary,
+            labels: poly::dump::DumpLabels::new(),
+            modules: Vec::new(),
+            values: Vec::new(),
+        };
+        assert_eq!(
+            typed.boundary_fingerprint_agreeing_with_runtime(&runtime),
+            Some(expected)
+        );
+
+        let (different_types, different_boundary) =
+            structural_boundary_fixture([TypeVar(91), TypeVar(92)], false, 0, "different");
+        let different_key = different_boundary
+            .canonical_structural_key(&different_types)
+            .expect("different runtime boundary key");
+        assert_ne!(typed_key, different_key);
+        let mut different_arena = PolyArena::new();
+        different_arena.typ = different_types;
+        let different_runtime = crate::CompiledRuntimeSurface {
+            arena: different_arena,
+            boundary: different_boundary,
+            labels: poly::dump::DumpLabels::new(),
+            modules: Vec::new(),
+            values: Vec::new(),
+        };
+        assert_eq!(
+            typed.boundary_fingerprint_agreeing_with_runtime(&different_runtime),
+            None,
+            "a structural mismatch must be rejected before either key is reduced to u64"
         );
     }
 
