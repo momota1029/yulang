@@ -3985,6 +3985,75 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
 }
 
 #[test]
+fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
+    let root = temp_root("oracle-b-small-std-prefix-hit");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let seed = root.join("seed.yu");
+    fs::write(&seed, "\"seed\"\n").unwrap();
+    let entry = repo_yulang_fixture("regressions/cache/std_prefix_oracle_b_small.yu");
+
+    let characterization = characterize_oracle_b_suffix(&entry, "oracle_b_result", "OracleBPick");
+    assert_eq!(
+        characterization.cold_scheme, characterization.warm_scheme,
+        "selected suffix scheme must be alpha-equivalent"
+    );
+    assert_eq!(
+        characterization.cold_candidates, characterization.warm_candidates,
+        "suffix-visible candidate interface must be alpha-equivalent"
+    );
+    assert!(
+        !characterization.cold_candidates.is_empty(),
+        "Oracle B control must exercise a suffix candidate"
+    );
+
+    let cold = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&cold);
+    assert_cache_route(&cold, "disabled");
+    assert_eq!(stdout(&cold), "run roots [42]\n");
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+
+    let warm = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&warm);
+    assert_cache_route(&warm, "std-prefix-hit");
+    assert_eq!(stdout(&warm), stdout(&cold));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
     let root = temp_root("run-std-prefix-role-equivalence");
     let _ = fs::remove_dir_all(&root);
@@ -4041,6 +4110,45 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
     assert_success(&warm);
     assert_cache_route(&warm, "std-prefix-hit");
     assert_eq!(stdout(&warm), stdout(&cold));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn oracle_b_markdown_std_prefix_hit_is_blocked_by_current_safety_gate() {
+    let root = temp_root("oracle-b-markdown-route-blocker");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let seed = root.join("seed.yu");
+    fs::write(&seed, "\"seed\"\n").unwrap();
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+
+    let entry = repo_yulang_fixture("regressions/cache/std_prefix_yumark_markdown_workload.yu");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_cache_route(&output, "full-miss");
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -4115,10 +4223,11 @@ fn compatible_std_prefix_cache_boundary_yumark_workloads_hold() {
         if requires_fallback {
             assert_cache_route(&output, "full-miss");
         } else {
-            // Markdown's direct str representation is already expensive in a
-            // cold build. Either the conservative fallback or a future proven
-            // safe std-prefix hit is valid, provided the golden result holds.
-            assert_cache_route_any(&output, &["full-miss", "std-prefix-hit"]);
+            // Oracle B must not let a silent fallback masquerade as warm-route
+            // success. The current suffix-time safety gate still classifies
+            // canonical B as an unquantified free variable; keep that known
+            // blocker explicit until its Stage 7 retirement decision.
+            assert_cache_route(&output, "full-miss");
         }
     }
 
@@ -5996,6 +6105,274 @@ struct SchemeCharacterization {
     warm_display: String,
     cold_violations: Vec<infer::interface_oracle::InterfaceViolation>,
     warm_violations: Vec<infer::interface_oracle::InterfaceViolation>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct OracleBSuffixCharacterization {
+    cold_scheme: infer::interface_oracle::SchemeAlphaView,
+    warm_scheme: infer::interface_oracle::SchemeAlphaView,
+    cold_candidates: Vec<OracleBCandidateAlphaView>,
+    warm_candidates: Vec<OracleBCandidateAlphaView>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct OracleBCandidateAlphaView {
+    interface: infer::interface_oracle::SchemeAlphaView,
+}
+
+fn characterize_oracle_b_suffix(
+    entry: &Path,
+    binding: &str,
+    candidate_role_name: &str,
+) -> OracleBSuffixCharacterization {
+    let options = yulang::StdSourceOptions {
+        std_root: Some(repo_lib_root()),
+    };
+    let files = yulang::collect_local_sources_with_std_options(entry, &options).unwrap();
+    let prefix_indices = std_prefix_file_indices(&files);
+    let prefix = build_std_prefix_characterization_artifact(&files, &prefix_indices);
+    let prefix_key = prefix.cache_key();
+    let prefix_bytes = yulang::cache::encode_compiled_unit_artifact_bytes(&prefix).unwrap();
+    let prefix = yulang::cache::decode_compiled_unit_artifact_bytes(&prefix_bytes, prefix_key)
+        .unwrap()
+        .expect("production prefix artifact round trip");
+    let suffix = files
+        .iter()
+        .enumerate()
+        .filter_map(|(index, file)| (!prefix_indices.contains(&index)).then_some(file.clone()))
+        .collect::<Vec<_>>();
+
+    let cold = yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()).unwrap();
+    let warm =
+        yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+            prefix, files, suffix,
+        )
+        .unwrap();
+    assert!(cold.poly.errors.is_empty(), "cold: {:?}", cold.poly.errors);
+    assert!(warm.poly.errors.is_empty(), "warm: {:?}", warm.poly.errors);
+
+    OracleBSuffixCharacterization {
+        cold_scheme: compiled_scheme_alpha_view(&cold.compiled_unit, binding),
+        warm_scheme: compiled_scheme_alpha_view(&warm.compiled_unit, binding),
+        cold_candidates: compiled_candidate_alpha_views(&cold.compiled_unit, candidate_role_name),
+        warm_candidates: compiled_candidate_alpha_views(&warm.compiled_unit, candidate_role_name),
+    }
+}
+
+fn compiled_scheme_alpha_view(
+    artifact: &yulang::cache::CachedCompiledUnitArtifact,
+    binding: &str,
+) -> infer::interface_oracle::SchemeAlphaView {
+    let namespace = infer::CompiledNamespaceIndex::new(&artifact.namespace);
+    let symbol = namespace
+        .exported_value_symbol(&[], binding)
+        .unwrap_or_else(|| panic!("missing exported value {binding:?}"));
+    let def = artifact
+        .runtime
+        .values
+        .iter()
+        .find(|value| value.symbol == symbol)
+        .map(|value| value.def)
+        .unwrap_or_else(|| panic!("missing runtime value for {binding:?}"));
+    let scheme = match artifact.runtime.arena.defs.get(def) {
+        Some(poly::expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) => scheme,
+        _ => panic!("missing finalized scheme for {binding:?}"),
+    };
+    let (binders, bounds) = compiled_oracle_boundary(&artifact.runtime);
+    infer::interface_oracle::SchemeAlphaView::from_scheme(
+        &artifact.runtime.arena.typ,
+        scheme,
+        infer::interface_oracle::BoundaryInterface {
+            binders: &binders,
+            bounds: &bounds,
+        },
+    )
+    .unwrap_or_else(|violations| panic!("unclosed scheme {binding:?}: {violations:?}"))
+}
+
+fn compiled_candidate_alpha_views(
+    artifact: &yulang::cache::CachedCompiledUnitArtifact,
+    role_name: &str,
+) -> Vec<OracleBCandidateAlphaView> {
+    let (binders, bounds) = compiled_oracle_boundary(&artifact.runtime);
+    let boundary = infer::interface_oracle::BoundaryInterface {
+        binders: &binders,
+        bounds: &bounds,
+    };
+    let mut views = artifact
+        .runtime
+        .arena
+        .role_impls
+        .iter()
+        .filter(|candidate| candidate.role.last().is_some_and(|name| name == role_name))
+        .map(|candidate| compiled_candidate_alpha_view(&artifact.runtime, candidate, boundary))
+        .collect::<Vec<_>>();
+    views.sort_by_cached_key(|view| format!("{view:?}"));
+    views
+}
+
+fn compiled_candidate_alpha_view(
+    runtime: &infer::CompiledRuntimeSurface,
+    candidate: &poly::roles::RoleImplCandidate,
+    boundary: infer::interface_oracle::BoundaryInterface<'_>,
+) -> OracleBCandidateAlphaView {
+    let inventory =
+        infer::interface_oracle::scan_candidate_closure(&runtime.arena.typ, candidate, boundary)
+            .unwrap_or_else(|violations| panic!("unclosed candidate: {violations:?}"));
+    let mut types = runtime.arena.typ.clone();
+    let predicate = types.alloc_pos(poly::types::Pos::Tuple(Vec::new()));
+    let mut quantifiers = inventory.head_binders;
+    let mut recursive_bounds = Vec::new();
+    let mut stack_quantifiers = Vec::new();
+    let mut role_predicates = vec![oracle_candidate_role_predicate(
+        &mut types,
+        &candidate.as_constraint(),
+        true,
+    )];
+    role_predicates.extend(
+        candidate
+            .prerequisites
+            .iter()
+            .map(|constraint| oracle_candidate_role_predicate(&mut types, constraint, false)),
+    );
+
+    let mut methods = candidate
+        .methods
+        .iter()
+        .map(|method| {
+            (
+                method,
+                runtime
+                    .labels
+                    .def_label(method.requirement)
+                    .unwrap_or("<unlabeled-requirement>")
+                    .to_string(),
+                runtime
+                    .labels
+                    .def_label(method.implementation)
+                    .unwrap_or("<unlabeled-implementation>")
+                    .to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
+    methods.sort_by(|left, right| (&left.1, &left.2).cmp(&(&right.1, &right.2)));
+    for (method, requirement, implementation) in methods {
+        let method_scheme = match runtime.arena.defs.get(method.implementation) {
+            Some(poly::expr::Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) => scheme,
+            _ => panic!("candidate method implementation has no finalized scheme"),
+        };
+        for var in &method_scheme.quantifiers {
+            if !quantifiers.contains(var) {
+                quantifiers.push(*var);
+            }
+        }
+        recursive_bounds.extend(method_scheme.recursive_bounds.iter().cloned());
+        for id in &method_scheme.stack_quantifiers {
+            if !stack_quantifiers.contains(id) {
+                stack_quantifiers.push(*id);
+            }
+        }
+
+        let upper = types.alloc_neg(poly::types::Neg::Top);
+        let value = types.alloc_neu(poly::types::Neu::Bounds(method_scheme.predicate, upper));
+        role_predicates.push(poly::types::RolePredicate {
+            role: vec![
+                "\0oracle-candidate-method".into(),
+                requirement.clone(),
+                implementation.clone(),
+            ],
+            inputs: vec![poly::types::RolePredicateArg::Invariant(value)],
+            associated: Vec::new(),
+        });
+        role_predicates.extend(method_scheme.role_predicates.iter().cloned().map(
+            |mut predicate| {
+                predicate.role.splice(
+                    0..0,
+                    [
+                        "\0oracle-candidate-method-role".into(),
+                        requirement.clone(),
+                        implementation.clone(),
+                    ],
+                );
+                predicate
+            },
+        ));
+    }
+
+    let scheme = poly::types::Scheme {
+        quantifiers,
+        role_predicates,
+        recursive_bounds,
+        stack_quantifiers,
+        predicate,
+    };
+    let interface =
+        infer::interface_oracle::SchemeAlphaView::from_scheme(&types, &scheme, boundary)
+            .unwrap_or_else(|violations| panic!("unclosed synthetic candidate: {violations:?}"));
+
+    OracleBCandidateAlphaView { interface }
+}
+
+fn oracle_candidate_role_predicate(
+    types: &mut poly::types::TypeArena,
+    constraint: &poly::roles::RoleConstraint,
+    head: bool,
+) -> poly::types::RolePredicate {
+    let mut role = constraint.role.clone();
+    if head {
+        role.insert(0, "\0oracle-candidate-head".into());
+    }
+    poly::types::RolePredicate {
+        role,
+        inputs: constraint
+            .inputs
+            .iter()
+            .map(|input| {
+                poly::types::RolePredicateArg::Invariant(
+                    types.alloc_neu(poly::types::Neu::Bounds(input.lower, input.upper)),
+                )
+            })
+            .collect(),
+        associated: constraint
+            .associated
+            .iter()
+            .map(|associated| poly::types::RoleAssociatedType {
+                name: associated.name.clone(),
+                value: types.alloc_neu(poly::types::Neu::Bounds(
+                    associated.value.lower,
+                    associated.value.upper,
+                )),
+            })
+            .collect(),
+    }
+}
+
+fn compiled_oracle_boundary(
+    runtime: &infer::CompiledRuntimeSurface,
+) -> (
+    Vec<poly::types::TypeVar>,
+    Vec<infer::interface_oracle::BoundaryBound>,
+) {
+    let mut binders = Vec::with_capacity(runtime.boundary.bounds.len());
+    let mut bounds = Vec::with_capacity(runtime.boundary.bounds.len());
+    for bound in &runtime.boundary.bounds {
+        let poly::types::Neu::Bounds(lower, upper) = runtime.arena.typ.neu(bound.bounds) else {
+            panic!("compiled boundary entry must remain a centerless interval")
+        };
+        binders.push(bound.var);
+        bounds.push(infer::interface_oracle::BoundaryBound {
+            var: bound.var,
+            lower: *lower,
+            upper: *upper,
+        });
+    }
+    (binders, bounds)
 }
 
 fn characterize_std_prefix_scheme(entry: &Path, binding: &str) -> SchemeCharacterization {

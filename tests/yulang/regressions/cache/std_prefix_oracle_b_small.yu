@@ -1,0 +1,21 @@
+// Small Stage 5 Oracle B control. The suffix owns both the selected scheme and
+// a closed role candidate, so cold/full and std-prefix-hit builds must produce
+// the same canonical suffix interface as well as the same runtime result.
+
+role OracleBPick 'container:
+    type value
+    our container.oracle_b_pick: value
+
+struct oracle_b_box 'value { value: 'value }
+
+impl (oracle_b_box 'value): OracleBPick:
+    type value = 'value
+    our box.oracle_b_pick = box.value
+
+pub oracle_b_identity = \value -> value
+
+pub oracle_b_result(): int =
+    my boxed = oracle_b_box { value: oracle_b_identity 42 }
+    boxed.oracle_b_pick
+
+oracle_b_result()

@@ -706,6 +706,40 @@ std-prefix safety 6 passed、std-prefix CLI regression / characterization 5 pass
 runtime結果、routeを一緒に固定する。Markdownは現時点では引き続き`full-miss`であり、Stage 5 Oracle BとStage 7の
 program-sensitive fallback retirement判断より前にwarm成功とは扱わない。
 
+### Stage 5 Oracle B: cold/warm suffix-result equivalence control and Yumark blocker
+
+Oracle Bの比較機構を、まず小さいclosed suffix fixtureで実装した。prefix artifactはproduction writerで構築後、
+実cache formatのbyte encode/decodeを通す。cold full-source buildとそのprefixを使ったwarm buildの
+`CompiledNamespaceSurface`から、suffix valueをmodule path / exported nameで対応付け、両compiled runtime surfaceの
+unit boundary tableを含む`SchemeAlphaView`を比較する。candidateはheadを専用marker付きrole predicate、全
+prerequisiteを通常role predicateへ写した一つのsynthetic schemeとして構造化し、head binderとprerequisite内の
+共有identityを同じalpha namespaceで比較する。candidate methodはrequirement / implementation labelと、candidate
+head binderを明示的に閉じたmethod scheme alpha viewで比較する。raw `DefId` / `TypeVar` / arena node IDは同値判定に
+使わない。
+
+新設`std_prefix_oracle_b_small.yu`はsuffix-owned quantified identity、selected exported scheme、closed role
+candidateとmethodを持つ。direct cold/warmではschemeとnon-empty candidate batchがalpha同値になり、実CLIではcold
+route `disabled`、warm route `std-prefix-hit`を明示assertし、runtime resultも双方`run roots [42]`で一致した。
+これによりOracle B harness自体がsilent full-missに依存せず動くことは確認できた。
+
+一方、mandatory Yumark Markdown fixtureは引き続き`full-miss`である。2026-07-12の再実測は
+`run.build_poly=31.784s`、`run.total=33.062s`だった。原因はsuffixの`where`付きimplにより
+`std_prefix_cache_safety`がopen-boundary scanを実行し、現行`scheme_has_open_boundary`がformat 19の
+`CompiledBoundaryInterface`を閉包binderとして参照せず、canonical `B`を未量化free variableとしてopen判定する
+ためである。変更禁止のsafety gateは一切触らず、従来`full-miss` / `std-prefix-hit`の両方を許していたMarkdown
+regressionを現在の事実である`full-miss`明示assertへ変更した。HTMLも非alpha同値caseとして引き続き
+`full-miss`を明示assertし、golden runtime outputを維持している。
+
+確認結果はsmall Oracle B focused 1 passed、Markdown blocker focused 1 passed、std-prefix CLI suite 7 passed、
+infer interface oracle 9 passed、std-prefix safety 6 passed、infer全体598 passed / 既知の
+`mark_expr_block_*` 5 failedである。production code、public API、safety gate、cache artifact schemaへの変更はない。
+
+したがってOracle Bの比較・route witness機構とsafe controlは完成したが、仕様§9.4 / Stage 5 exitが要求する
+Markdownの明示的`std-prefix-hit`は未達で、Oracle B全体はblockedのままである。次の設計判断は、Stage 7の
+fallback retirementまで待つ既存計画を維持するか、Stage 5 exitを満たすためcanonical boundary-aware safety判定を
+別sliceとして先行させるかである。今回の絶対条件に従い、どちらも選ばず停止する。merge / malformed artifact
+testsにも進まない。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -803,10 +837,11 @@ byte完全一致で比較し、一致後だけfingerprintへ縮約するpublic a
 artifactを保存するfail-closed経路と、decoder / manifest / mergeのexact agreementを有効化した。reuse safety gate
 は無変更である。Oracle A2ではproduction format 19の実byte round trip後にfresh sessionへboundaryをimportし、
 decode前後の`SchemeAlphaView`一致、`Q/R`のper-use freshness、`B`のsession共有、scheme/candidate間の`B`一致を
-固定した。次はOracle Bで明示的なwarm routeとcold/warm suffix結果の同値性を確認する。MarkdownはOracle A2後も
-`full-miss`であり、warm成功は既存の
-`full-miss`許容testではなく明示的な`std-prefix-hit` witnessで判定する。program-sensitive fallbackの退役判断は
-Stage 7まで待つ。
+固定した。Oracle Bでは小さいclosed suffix controlについて明示的`std-prefix-hit`、scheme / candidate alpha同値、
+runtime同値を確認した。しかしMarkdownはcanonical `B` tableを参照しない現行safety gateにより`full-miss`のままで、
+曖昧なroute許容を明示的`full-miss` characterizationへ変更した。Oracle B全体とStage 5 exitはMarkdown hit待ちで
+blockedである。program-sensitive fallbackの退役判断をStage 7まで待つ既存計画とのstage orderingを変更するには、
+追加の設計承認が必要である。
 
 ## 守る不変条件
 
