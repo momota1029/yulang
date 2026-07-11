@@ -26,6 +26,7 @@ pub mod dump;
 pub mod generalize;
 pub mod host_acts;
 pub mod instantiate;
+pub mod interface_oracle;
 pub mod lowering;
 pub mod methods;
 mod module_map;

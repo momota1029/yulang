@@ -3885,6 +3885,61 @@ fn compatible_runtime_phase_timings_report_cache_route() {
 }
 
 #[test]
+fn std_prefix_yumark_cold_warm_schemes_are_characterized_structurally() {
+    let cases = [
+        (
+            "html",
+            "regressions/cache/std_prefix_yumark_html_fallback.yu",
+            false,
+            (56, 0),
+        ),
+        (
+            "markdown",
+            "regressions/cache/std_prefix_yumark_markdown_workload.yu",
+            true,
+            (0, 0),
+        ),
+    ];
+
+    for (name, fixture, expected_equal, expected_violation_counts) in cases {
+        let entry = repo_yulang_fixture(fixture);
+        let characterization = characterize_std_prefix_scheme(&entry, "proof");
+        let equal = characterization.cold == characterization.warm;
+        eprintln!(
+            "{name} cold/warm scheme alpha-equivalent={equal}\n  cold summary: {:?}\n  warm summary: {:?}\n  first difference: {:?}\n  cold scheme: {}\n  warm scheme: {}",
+            characterization.cold.summary(),
+            characterization.warm.summary(),
+            characterization
+                .cold
+                .first_difference(&characterization.warm),
+            characterization.cold_display,
+            characterization.warm_display,
+        );
+        eprintln!(
+            "  cold closure violations: {}\n  warm closure violations: {}",
+            characterization.cold_violations.len(),
+            characterization.warm_violations.len(),
+        );
+        assert_eq!(
+            (
+                characterization.cold_violations.len(),
+                characterization.warm_violations.len(),
+            ),
+            expected_violation_counts,
+            "{name} closure inventory changed"
+        );
+        assert_eq!(
+            equal,
+            expected_equal,
+            "{name} scheme characterization changed; first difference: {:?}",
+            characterization
+                .cold
+                .first_difference(&characterization.warm)
+        );
+    }
+}
+
+#[test]
 fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     let root = temp_root("run-std-prefix-cache");
     let _ = fs::remove_dir_all(&root);
@@ -5852,6 +5907,133 @@ fn write_minimal_std(root: &Path) -> PathBuf {
     fs::write(std_root.join("std.yu"), "mod prelude;\n").unwrap();
     fs::write(std_root.join("std").join("prelude.yu"), "").unwrap();
     std_root
+}
+
+struct SchemeCharacterization {
+    cold: infer::interface_oracle::SchemeAlphaView,
+    warm: infer::interface_oracle::SchemeAlphaView,
+    cold_display: String,
+    warm_display: String,
+    cold_violations: Vec<infer::interface_oracle::InterfaceViolation>,
+    warm_violations: Vec<infer::interface_oracle::InterfaceViolation>,
+}
+
+fn characterize_std_prefix_scheme(entry: &Path, binding: &str) -> SchemeCharacterization {
+    let options = yulang::StdSourceOptions {
+        std_root: Some(repo_lib_root()),
+    };
+    let files = yulang::collect_local_sources_with_std_options(entry, &options).unwrap();
+    let prefix_indices = std_prefix_file_indices(&files);
+    let prefix = build_std_prefix_characterization_artifact(&files, &prefix_indices);
+    let suffix = files
+        .iter()
+        .enumerate()
+        .filter_map(|(index, file)| (!prefix_indices.contains(&index)).then_some(file.clone()))
+        .collect::<Vec<_>>();
+
+    let cold = yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()).unwrap();
+    let warm =
+        yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+            prefix, files, suffix,
+        )
+        .unwrap();
+    assert!(cold.poly.errors.is_empty(), "cold: {:?}", cold.poly.errors);
+    assert!(warm.poly.errors.is_empty(), "warm: {:?}", warm.poly.errors);
+
+    let (cold_scheme, cold_display) = named_scheme(&cold.poly, binding);
+    let (warm_scheme, warm_display) = named_scheme(&warm.poly, binding);
+    let cold_characterization =
+        infer::interface_oracle::SchemeAlphaView::characterize_current_scheme(
+            &cold.poly.arena.typ,
+            cold_scheme,
+            infer::interface_oracle::BoundaryInterface::EMPTY,
+        );
+    let warm_characterization =
+        infer::interface_oracle::SchemeAlphaView::characterize_current_scheme(
+            &warm.poly.arena.typ,
+            warm_scheme,
+            infer::interface_oracle::BoundaryInterface::EMPTY,
+        );
+    SchemeCharacterization {
+        cold: cold_characterization.view,
+        warm: warm_characterization.view,
+        cold_display,
+        warm_display,
+        cold_violations: cold_characterization.violations,
+        warm_violations: warm_characterization.violations,
+    }
+}
+
+fn std_prefix_file_indices(files: &[yulang::CollectedSource]) -> Vec<usize> {
+    let units = yulang::source_compilation_units(files);
+    let std_root = files
+        .iter()
+        .position(|file| {
+            file.module_path.segments.len() == 1 && file.module_path.segments[0].0 == "std"
+        })
+        .expect("std root source");
+    let unit = units.unit_for_file(std_root).expect("std root unit");
+    let indices = yulang::source::source_unit_closure_file_indices(&units, unit).unwrap();
+    assert!(
+        indices.iter().all(|index| files[*index]
+            .module_path
+            .segments
+            .first()
+            .is_some_and(|segment| segment.0 == "std")),
+        "std prefix must contain only std modules"
+    );
+    indices
+}
+
+fn build_std_prefix_characterization_artifact(
+    files: &[yulang::CollectedSource],
+    prefix_indices: &[usize],
+) -> yulang::cache::CachedCompiledUnitArtifact {
+    let prefix_files = prefix_indices
+        .iter()
+        .map(|index| files[*index].clone())
+        .collect::<Vec<_>>();
+    let mut source_files = vec![sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: format!("{}mod std;\n", yulang::IMPLICIT_PRELUDE_IMPORT),
+    }];
+    source_files.extend(prefix_indices.iter().map(|index| sources::SourceFile {
+        module_path: files[*index].module_path.clone(),
+        source: files[*index].source.clone(),
+    }));
+    let loaded = sources::load(source_files);
+    let artifact =
+        yulang::cache::compiled_unit_artifact_from_loaded_files(&prefix_files, &loaded).unwrap();
+    assert!(artifact.errors.is_empty(), "prefix: {:?}", artifact.errors);
+    artifact
+}
+
+fn named_scheme<'a>(
+    output: &'a yulang::BuildPolyOutput,
+    binding: &str,
+) -> (&'a poly::types::Scheme, String) {
+    let matches = output
+        .labels
+        .def_labels()
+        .filter(|(_, label)| *label == binding)
+        .filter_map(|(def, _)| match output.arena.defs.get(def) {
+            Some(poly::expr::Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) => Some(scheme),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let [scheme] = matches.as_slice() else {
+        panic!(
+            "expected one scheme for {binding:?}, found {}",
+            matches.len()
+        );
+    };
+    (
+        *scheme,
+        poly::dump::format_scheme(&output.arena.typ, scheme),
+    )
 }
 
 fn repo_lib_root() -> PathBuf {
