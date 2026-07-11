@@ -862,6 +862,38 @@ std-prefix safety 6 passed、std-prefix CLI suite 8 passed、infer全体602 pass
 ある。次は`list Index int` candidateの未適用subtype constraintを独立に診断する。その後にStage 6のcold/warm
 role-resolution counterへ戻る。safety gate / Stage 7には進まない。
 
+### Stage 6 investigation hold: `ref (list)` Index candidate dominance
+
+上記の次failureを追跡した結果、実際のcandidateは最初の`impl (list 'a): Index int`ではなく、
+`lib/std/data/list.yu`の`impl (ref 'e (list 'a)): Index int`（role `std::data::index::Index`、associated
+`value = ref 'e 'a`、run-local `DefId(469)`）だった。candidate normalization後の未適用constraintは、effect
+binder `'e`（run-local `TypeVar(8162)`）について、概略
+`Secondary('e, SubtractId(109) pop∞) <: Secondary('e, unweighted)`となる一件である。
+
+これは`15209b7e`のpost-alias dominanceや`8bad9363`のpost-stack-cleanup dominanceとは根本原因が異なる。
+normalization前のcandidate surfaceをscanした時点でdominance constraintsが3件あり、その3件すべてが通常の
+dominance / apply laneを一度も通っていなかった。その後、Stage 4 candidate normalization固有の
+`coalesce_floor_interval_equalities`がweighted alias `TypeVar(26113)`をhead binder `TypeVar(8162)`へcoalesceし、
+最終的な一件へ縮約した。したがって「通常generalizationの最後のscan後にalias expansion / stack cleanupがsurface
+を変えた」という既存のbounded companion-pass問題ではなく、candidate内部のconstraints自体が一度も
+`ConstraintMachine`へapplyされたことがない、より根本的なlifecycle / proof-boundary問題である。
+
+修正選択肢は次の三つを保留する。
+
+1. candidate head / associated / prerequisite constraintsを、scheme確定前のmutable analysis lifecycleへ正式に参加させる。
+   solver factとして最も強いが、zero-method / multi-method implとprerequisite完成時期を含むlifecycle設計が必要になる。
+2. floor coalescingがcandidate-local invarianceを保存することを構造的に証明し、その証明に基づくcanonical audit規則を
+   設計する。immutable handoffへ閉じられる可能性はあるが、raw candidate constraints自体も未適用なので、既存keyの
+   単純renameでは足りない。
+3. 既存role solverと同様にcandidate headをnon-recording local compactとして扱う。変更は小さいがstrict auditの
+   安全網を弱めるため、独立した健全性証明なしでは非推奨とする。
+
+Claude Sonnet 5の判断として、これはcanonical cache interfaceの健全性の土台に関わり、今夜ユーザの明示判断を
+必要としたOracle A分割、§13.4 prerequisite-only binder、ambiguous SCC graph方針と同じ重さの設計判断である。
+そのためユーザの承認なしに三案のいずれも実装しない。この件は2026-07-12 16:00以降のユーザ判断まで保留し、
+Stage 7 / safety gate変更には進まず、作業線はStage 6本来の残りであるcold/warm role-resolution time、candidate
+expansion counter、fallback shadow resultの計測へ戻す。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -967,9 +999,11 @@ slice 2で`std.control.nondet.nondet.#act-method:once`の`FreezeProducedConstrai
 判明した。bounded post-stack-cleanup dominance re-checkで`once`は通過したが、次のfirst failureは
 `std::core::fmt::Debug`の2-tuple impl candidate normalizationが生成する未適用Tuple wrapper mergeだった。Tuple
 direct-child implicationでこれを解消した後、次のfirst failureは`lib/std/data/list.yu`の`impl (list 'a): Index int`
-candidateが生成する未適用subtype constraint一件（merge `0` / subtype `1`）へ進んだ。これは別根なので今回修正しない。
-次はこの`Index` candidate subtype failureを独立に診断し、その後にcold/warm role-resolution counterへ戻る。
-program-sensitive fallbackの退役判断はStage 7まで行わない。
+と当初推定したcandidateの未適用subtype constraint一件（merge `0` / subtype `1`）へ進んだ。調査で実体は
+`impl (ref 'e (list 'a)): Index int`と確定し、candidate constraintsがnormalization前から通常apply laneを一度も
+通っていない別根のlifecycle / proof-boundary問題と判明した。三つの修正案は2026-07-12 16:00以降のユーザ判断まで
+保留し、active workはStage 6のcold/warm role-resolution counter / fallback shadow計測へ戻る。program-sensitive
+fallbackの退役判断はStage 7まで行わない。
 
 ## 守る不変条件
 
