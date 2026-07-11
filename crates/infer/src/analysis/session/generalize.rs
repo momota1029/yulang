@@ -368,13 +368,43 @@ impl AnalysisSession {
         }
 
         let phase = Instant::now();
-        let mut generalized = generalize_prepared_compact_root_with_role_variances_and_boundaries(
+        let prepared = prepare_alias_expanded_compact_root_with_role_variances(
             self.infer.constraints(),
-            quantification_boundary,
             simplification_boundary,
             compact,
             role_predicates,
             &self.role_input_variances,
+            &FxHashSet::default(),
+        );
+        // Alias expansion is one transitive traversal over the retained component. It can widen an
+        // interval after the solve loop's last dominance scan, so route the corresponding keys once
+        // against the same applied set. This is the bounded companion pass for that one expansion;
+        // it must not restart generalization or introduce a second settle loop.
+        let (post_alias_constraints, dominance) =
+            if compact_root_has_interval_bounds(&prepared.compact, &prepared.role_predicates) {
+                collect_interval_dominance_constraints_with_metrics(
+                    &prepared.compact,
+                    &prepared.role_predicates,
+                )
+            } else {
+                (Vec::new(), IntervalDominanceMetrics::default())
+            };
+        self.timing.record_generalize_dominance_scan(dominance);
+        metrics.record_dominance_scan(dominance);
+        let post_alias_constraint_count = post_alias_constraints.len();
+        metrics.record_dominance_constraints(post_alias_constraint_count);
+        let post_alias_changed = apply_compact_subtype_constraints(
+            self.infer.constraints_mut(),
+            post_alias_constraints,
+            &mut applied_subtype_constraints,
+        );
+        if post_alias_changed {
+            self.route_constraint_events();
+        }
+        let mut generalized = generalize_alias_expanded_compact_root(
+            self.infer.constraints(),
+            quantification_boundary,
+            prepared,
             &FxHashSet::default(),
         );
         let elapsed = phase.elapsed();

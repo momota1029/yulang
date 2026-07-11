@@ -619,6 +619,78 @@ fn local_recursive_binding_scheme_keeps_argument_effect_passthrough() {
 }
 
 #[test]
+fn label_sub_generalization_applies_post_alias_interval_constraints() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod flow:\n",
+        "      pub act sub 'a:\n",
+        "        pub return: 'a -> never\n",
+        "      pub act label_sub 'a:\n",
+        "        pub return: 'a -> never\n",
+        "        pub sub(x: [_] 'a): 'a = catch x:\n",
+        "          return a, _ -> a\n",
+        "          sub::return a, _ -> a\n",
+        "          a -> a\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let sub = output
+        .labels
+        .def_labels()
+        .find_map(|(def, label)| (label == "std.control.flow.label_sub.sub").then_some(def))
+        .expect("label_sub.sub def");
+    let scheme = def_scheme(&output, sub);
+    let Pos::Fun { arg_eff, .. } = output.session.poly.typ.pos(scheme.predicate) else {
+        panic!("expected label_sub.sub function");
+    };
+    let Neg::Row(items, _) = output.session.poly.typ.neg(*arg_eff) else {
+        panic!("expected label_sub.sub effect row");
+    };
+    let mut label_payload = None;
+    let mut sub_payload = None;
+    for item in items {
+        let Neg::Con(path, args) = output.session.poly.typ.neg(*item) else {
+            continue;
+        };
+        let Some(Neu::Bounds(lower, _)) = args.first().map(|arg| output.session.poly.typ.neu(*arg))
+        else {
+            continue;
+        };
+        let Pos::Var(payload) = output.session.poly.typ.pos(*lower) else {
+            continue;
+        };
+        match path.last().map(String::as_str) {
+            Some("label_sub") => label_payload = Some(*payload),
+            Some("sub") => sub_payload = Some(*payload),
+            _ => {}
+        }
+    }
+    let label_payload = label_payload.expect("label_sub payload var");
+    let sub_payload = sub_payload.expect("sub payload var");
+    let constraints = output.session.infer.constraints();
+    let has_direct_upper = |source, target| {
+        constraints.bounds().of(source).is_some_and(|bounds| {
+            bounds.uppers().iter().any(
+                |bound| matches!(constraints.types().neg(bound.neg), Neg::Var(var) if *var == target),
+            )
+        })
+    };
+
+    assert!(
+        has_direct_upper(label_payload, sub_payload),
+        "post-alias label_sub consistency must constrain {label_payload:?} <: {sub_payload:?}"
+    );
+    assert!(
+        has_direct_upper(sub_payload, label_payload),
+        "post-alias sub consistency must constrain {sub_payload:?} <: {label_payload:?}"
+    );
+}
+
+#[test]
 fn local_sub_lambda_scheme_keeps_escaping_labeled_return_effect() {
     let root = parse(concat!(
         "mod std:\n",

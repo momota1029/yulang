@@ -49,6 +49,12 @@ pub(crate) struct GeneralizedCompactRoot {
     pub(crate) sandwiches: Vec<CompactSandwich>,
 }
 
+pub(crate) struct AliasExpandedCompactRoot {
+    pub(crate) compact: CompactRoot,
+    pub(crate) role_predicates: Vec<CompactRoleConstraint>,
+    simplification: CompactSimplification,
+}
+
 pub(crate) struct FinalizedGeneralizedCompactRoot {
     pub(crate) scheme: Scheme,
 }
@@ -114,15 +120,14 @@ fn generalize_prepared_compact_root_with_roles_and_boundaries(
     )
 }
 
-pub(crate) fn generalize_prepared_compact_root_with_role_variances_and_boundaries(
+pub(crate) fn prepare_alias_expanded_compact_root_with_role_variances(
     machine: &ConstraintMachine,
-    quantification_boundary: TypeLevel,
     simplification_boundary: TypeLevel,
     mut compact: CompactRoot,
     mut role_predicates: Vec<CompactRoleConstraint>,
     role_variances: &RoleInputVarianceTable,
     non_generic: &FxHashSet<TypeVar>,
-) -> GeneralizedCompactRoot {
+) -> AliasExpandedCompactRoot {
     expand_positive_aliases_in_scheme_compact(machine, &mut compact, &mut role_predicates);
     let simplification = simplify_compact_root_with_role_variance_table_and_non_generic(
         machine,
@@ -132,13 +137,26 @@ pub(crate) fn generalize_prepared_compact_root_with_role_variances_and_boundarie
         role_variances,
         non_generic,
     );
+    AliasExpandedCompactRoot {
+        compact,
+        role_predicates,
+        simplification,
+    }
+}
+
+pub(crate) fn generalize_alias_expanded_compact_root(
+    machine: &ConstraintMachine,
+    quantification_boundary: TypeLevel,
+    prepared: AliasExpandedCompactRoot,
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
     generalize_compact_root_with_simplification(
         machine,
         quantification_boundary,
-        compact,
-        role_predicates,
+        prepared.compact,
+        prepared.role_predicates,
         non_generic,
-        simplification,
+        prepared.simplification,
     )
 }
 

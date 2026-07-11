@@ -45,7 +45,8 @@ use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, Ty
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root_with_ancestors,
-    generalize_prepared_compact_root_with_role_variances_and_boundaries,
+    generalize_alias_expanded_compact_root,
+    prepare_alias_expanded_compact_root_with_role_variances,
 };
 use crate::instantiate::{
     freshen_role_impl_candidate, instantiate_scheme, instantiate_scheme_with_roles,
