@@ -162,8 +162,8 @@ struct HostActDecl {
 mod tests {
     use super::*;
     use crate::{
-        CompiledLoweringActOperationSignature, CompiledNamespaceTypeSymbol, CompiledTypeArena,
-        CompiledTypedValueScheme,
+        CompiledBoundaryInterface, CompiledLoweringActOperationSignature,
+        CompiledNamespaceTypeSymbol, CompiledTypeArena, CompiledTypedValueScheme,
     };
     use poly::host_manifest::HostOperationTier;
     use poly::types::{Pos, Scheme, TypeArena};
@@ -387,6 +387,7 @@ mod tests {
         };
         CompiledTypedSurface {
             types: CompiledTypeArena::from_type_arena(&types),
+            boundary: CompiledBoundaryInterface::empty(),
             values: symbols
                 .into_iter()
                 .map(|symbol| CompiledTypedValueScheme {

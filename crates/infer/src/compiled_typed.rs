@@ -18,7 +18,58 @@ use crate::{
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CompiledTypedSurface {
     pub types: CompiledTypeArena,
+    pub boundary: CompiledBoundaryInterface,
     pub values: Vec<CompiledTypedValueScheme>,
+}
+
+/// Unit-scoped type binders retained across compiled-surface imports.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledBoundaryInterface {
+    pub bounds: Vec<CompiledBoundaryBound>,
+}
+
+/// One unit-owned boundary variable and its frozen neutral interval.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledBoundaryBound {
+    pub var: TypeVar,
+    pub bounds: NeuId,
+}
+
+/// Alpha-invariant identity of the boundary table accepted by this format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledBoundaryFingerprint(u64);
+
+impl CompiledBoundaryInterface {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// Stage 1 deliberately accepts only the empty canonical table.
+    ///
+    /// A non-empty table needs the recursive alpha-canonical graph encoding
+    /// specified for later stages. Hashing raw arena IDs here would make the
+    /// typed/runtime agreement check unsound after an arena remap.
+    pub fn semantic_fingerprint(&self) -> Option<CompiledBoundaryFingerprint> {
+        if !self.bounds.is_empty() {
+            return None;
+        }
+
+        let mut state = 0xcbf29ce484222325_u64;
+        for byte in b"yulang/compiled-boundary-interface/v1"
+            .iter()
+            .chain(0_u64.to_le_bytes().iter())
+        {
+            state ^= u64::from(*byte);
+            state = state.wrapping_mul(0x100000001b3);
+        }
+        Some(CompiledBoundaryFingerprint(state))
+    }
+}
+
+impl CompiledBoundaryFingerprint {
+    pub fn get(self) -> u64 {
+        self.0
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -41,6 +92,7 @@ pub enum CompiledTypedMergeError {
 }
 
 pub struct CompiledValueImport {
+    pub boundary: CompiledBoundaryInterface,
     pub values: Vec<CompiledImportedValue>,
 }
 
@@ -89,6 +141,14 @@ impl<'a> CompiledTypedIndex<'a> {
 
 impl CompiledTypedSurface {
     pub fn from_lowering(lowering: &BodyLowering, namespace: &CompiledNamespaceSurface) -> Self {
+        Self::from_lowering_with_boundary(lowering, namespace, CompiledBoundaryInterface::empty())
+    }
+
+    pub fn from_lowering_with_boundary(
+        lowering: &BodyLowering,
+        namespace: &CompiledNamespaceSurface,
+        boundary: CompiledBoundaryInterface,
+    ) -> Self {
         let mut values = Vec::new();
         for module in &namespace.modules {
             let Some(live_module) = lowering
@@ -132,6 +192,7 @@ impl CompiledTypedSurface {
         values.sort_by_key(|value| value.symbol);
         Self {
             types: CompiledTypeArena::from_type_arena(&lowering.session.poly.typ),
+            boundary,
             values,
         }
     }
@@ -143,6 +204,7 @@ impl CompiledTypedSurface {
         infer: &mut InferArena,
     ) -> CompiledValueImport {
         let mut type_importer = CompiledTypeImporter::new(&self.types, infer);
+        let boundary = type_importer.import_boundary_interface(&self.boundary);
         let values = self
             .values
             .iter()
@@ -164,7 +226,7 @@ impl CompiledTypedSurface {
                 })
             })
             .collect();
-        CompiledValueImport { values }
+        CompiledValueImport { boundary, values }
     }
 
     pub fn import_unit(
@@ -219,10 +281,16 @@ impl CompiledTypedSurface {
         namespace: &CompiledNamespaceMergeOutput,
     ) -> Result<Self, CompiledTypedMergeError> {
         let mut type_target = CompiledTypeArenaBuilder::new();
+        let mut boundary = CompiledBoundaryInterface::empty();
         let mut values = Vec::new();
         let mut seen_values = FxHashSet::default();
         for (prefix, surface) in prefixes.into_iter().enumerate() {
             let mut type_importer = CompiledTypeImporter::new(&surface.types, &mut type_target);
+            boundary.bounds.extend(
+                type_importer
+                    .import_boundary_interface(&surface.boundary)
+                    .bounds,
+            );
             for value in &surface.values {
                 let Some(symbol) = namespace.map_value(prefix, value.symbol) else {
                     return Err(CompiledTypedMergeError::MissingValueSymbol {
@@ -242,6 +310,7 @@ impl CompiledTypedSurface {
         values.sort_by_key(|value| value.symbol);
         Ok(Self {
             types: type_target.finish(),
+            boundary,
             values,
         })
     }
@@ -422,6 +491,27 @@ impl<'a, 'b, T: CompiledTypeImportTarget> CompiledTypeImporter<'a, 'b, T> {
                 .map(|id| self.map_subtract_id(*id))
                 .collect(),
             predicate: self.import_pos_id(scheme.predicate),
+        }
+    }
+
+    pub fn import_boundary_interface(
+        &mut self,
+        boundary: &CompiledBoundaryInterface,
+    ) -> CompiledBoundaryInterface {
+        // Register every unit binder before cloning any bound graph so mutual
+        // references and scheme references share this importer's one mapping.
+        for bound in &boundary.bounds {
+            self.map_type_var(bound.var);
+        }
+        CompiledBoundaryInterface {
+            bounds: boundary
+                .bounds
+                .iter()
+                .map(|bound| CompiledBoundaryBound {
+                    var: self.map_type_var(bound.var),
+                    bounds: self.import_neu_id(bound.bounds),
+                })
+                .collect(),
         }
     }
 
@@ -882,6 +972,34 @@ mod tests {
         assert!(!right_scheme.quantifiers.is_empty());
         assert_ne!(left_scheme.quantifiers[0], right_scheme.quantifiers[0]);
         assert!(typed.types.pos.len() > 0);
+        assert!(typed.boundary.bounds.is_empty());
+    }
+
+    #[test]
+    fn typed_surface_merge_alpha_renames_boundary_scopes_disjointly() {
+        let mut left = compiled_typed_surface(&["left"], "pub id x = x\n");
+        let mut right = compiled_typed_surface(&["right"], "pub id x = x\n");
+        install_boundary(&mut left.typed, TypeVar(50_000));
+        install_boundary(&mut right.typed, TypeVar(50_000));
+        let namespace = CompiledNamespaceSurface::merge_prefixes_with_remap([
+            &left.namespace,
+            &right.namespace,
+        ])
+        .unwrap();
+
+        let typed =
+            CompiledTypedSurface::merge_prefixes([&left.typed, &right.typed], &namespace).unwrap();
+
+        assert_eq!(typed.boundary.bounds.len(), 2);
+        assert_ne!(typed.boundary.bounds[0].var, typed.boundary.bounds[1].var);
+        let types = typed.types.to_type_arena();
+        for bound in &typed.boundary.bounds {
+            let Neu::Bounds(lower, upper) = types.neu(bound.bounds) else {
+                panic!("boundary bound should remain a neutral interval");
+            };
+            assert_eq!(types.pos(*lower), &Pos::Var(bound.var));
+            assert_eq!(types.neg(*upper), &Neg::Var(bound.var));
+        }
     }
 
     #[test]
@@ -937,6 +1055,17 @@ mod tests {
             namespace,
             typed,
         }
+    }
+
+    fn install_boundary(surface: &mut CompiledTypedSurface, var: TypeVar) {
+        let mut types = surface.types.to_type_arena();
+        let lower = types.alloc_pos(Pos::Var(var));
+        let upper = types.alloc_neg(Neg::Var(var));
+        let bounds = types.alloc_neu(Neu::Bounds(lower, upper));
+        surface.types = CompiledTypeArena::from_type_arena(&types);
+        surface.boundary = CompiledBoundaryInterface {
+            bounds: vec![CompiledBoundaryBound { var, bounds }],
+        };
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {

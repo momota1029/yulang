@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Cursor};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
@@ -24,7 +24,7 @@ use crate::source::{
 const POLY_CACHE_FORMAT: u32 = 8;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 9;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 const SOURCE_KEY_INDEX_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
@@ -39,8 +39,8 @@ const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v2";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v2";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v2";
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
-const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
-const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v3";
+const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v2";
+const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v4";
 const COMPILED_EXTERNAL_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-external-runtime-refs/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
@@ -251,9 +251,7 @@ impl ArtifactCache {
         key: SourceCacheKey,
     ) -> Result<Option<CachedCompiledUnitArtifact>, CacheError> {
         let path = self.compiled_unit_artifact_path(key);
-        let Some(envelope): Option<CompiledUnitCacheEnvelope> =
-            read_cache_envelope(&path, COMPILED_UNIT_CACHE_FORMAT)?
-        else {
+        let Some(envelope) = read_compiled_unit_cache_envelope(&path)? else {
             return Ok(None);
         };
         if !compiled_unit_envelope_matches_key(key, &envelope) {
@@ -468,6 +466,45 @@ impl CachedCompiledUnitArtifact {
     }
 }
 
+fn read_compiled_unit_cache_envelope(
+    path: &Path,
+) -> Result<Option<CompiledUnitCacheEnvelope>, CacheError> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(CacheError::Read {
+                path: path.to_path_buf(),
+                error,
+            });
+        }
+    };
+    decode_compiled_unit_cache_envelope(&bytes, path)
+}
+
+fn decode_compiled_unit_cache_envelope(
+    bytes: &[u8],
+    path: &Path,
+) -> Result<Option<CompiledUnitCacheEnvelope>, CacheError> {
+    // The format word is the first bincode field and can be decoded without
+    // knowing the remainder of the schema. This makes an old surface layout a
+    // deterministic miss instead of a missing-field decode error.
+    let format: u32 =
+        bincode::deserialize_from(&mut Cursor::new(bytes)).map_err(|error| CacheError::Decode {
+            path: path.to_path_buf(),
+            error,
+        })?;
+    if format != COMPILED_UNIT_CACHE_FORMAT {
+        return Ok(None);
+    }
+
+    let envelope = bincode::deserialize(bytes).map_err(|error| CacheError::Decode {
+        path: path.to_path_buf(),
+        error,
+    })?;
+    Ok(Some(envelope))
+}
+
 pub fn encode_compiled_unit_artifact_bytes(
     artifact: &CachedCompiledUnitArtifact,
 ) -> Result<Vec<u8>, CacheError> {
@@ -492,14 +529,11 @@ pub fn decode_compiled_unit_artifact_bytes(
     bytes: &[u8],
     key: SourceCacheKey,
 ) -> Result<Option<CachedCompiledUnitArtifact>, CacheError> {
-    let envelope: CompiledUnitCacheEnvelope =
-        bincode::deserialize(bytes).map_err(|error| CacheError::Decode {
-            path: embedded_compiled_unit_artifact_path(),
-            error,
-        })?;
-    if envelope.format != COMPILED_UNIT_CACHE_FORMAT
-        || !compiled_unit_envelope_matches_key(key, &envelope)
-    {
+    let path = embedded_compiled_unit_artifact_path();
+    let Some(envelope) = decode_compiled_unit_cache_envelope(bytes, &path)? else {
+        return Ok(None);
+    };
+    if !compiled_unit_envelope_matches_key(key, &envelope) {
         return Ok(None);
     }
     Ok(Some(cached_compiled_unit_artifact_from_envelope(envelope)))
@@ -539,6 +573,7 @@ pub struct CompiledUnitManifest {
     pub typed_hash: u64,
     pub runtime_hash: u64,
     pub external_runtime_hash: u64,
+    pub boundary_fingerprint: infer::CompiledBoundaryFingerprint,
     pub files: Vec<CompiledUnitSourceFile>,
 }
 
@@ -963,8 +998,15 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
-    let typed = infer::CompiledTypedSurface::from_lowering(lowering, &namespace);
-    let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(lowering, &namespace);
+    let boundary = infer::CompiledBoundaryInterface::empty();
+    let typed = infer::CompiledTypedSurface::from_lowering_with_boundary(
+        lowering,
+        &namespace,
+        boundary.clone(),
+    );
+    let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace_and_boundary(
+        lowering, &namespace, boundary,
+    );
     let external_runtime = compiled_unit_external_runtime_refs(lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
@@ -1260,6 +1302,8 @@ fn insert_external_runtime_def_pair(
 #[derive(Debug)]
 pub enum CompiledUnitMergeError {
     Empty,
+    BoundaryInterfaceMismatch { prefix: usize },
+    MergedBoundaryInterfaceMismatch,
     ConflictingFile { path: String },
     Syntax(sources::CompiledSyntaxMergeError),
     Namespace(infer::CompiledNamespaceMergeError),
@@ -1291,6 +1335,13 @@ pub fn merge_compiled_unit_artifacts(
     if artifacts.is_empty() {
         return Err(CompiledUnitMergeError::Empty);
     }
+    for (prefix, artifact) in artifacts.iter().enumerate() {
+        if compiled_unit_boundary_fingerprint(&artifact.typed, &artifact.runtime)
+            != Some(artifact.manifest.boundary_fingerprint)
+        {
+            return Err(CompiledUnitMergeError::BoundaryInterfaceMismatch { prefix });
+        }
+    }
     let key = merged_compiled_unit_artifact_key(&artifacts)?;
     let files = merge_compiled_unit_manifest_files(&artifacts)?;
     let syntax =
@@ -1321,6 +1372,9 @@ pub fn merge_compiled_unit_artifacts(
     .map_err(CompiledUnitMergeError::Lowering)?;
     let namespace = namespace.surface;
     let runtime = runtime.surface;
+    let Some(boundary_fingerprint) = compiled_unit_boundary_fingerprint(&typed, &runtime) else {
+        return Err(CompiledUnitMergeError::MergedBoundaryInterfaceMismatch);
+    };
     let manifest = CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
         compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
@@ -1331,6 +1385,7 @@ pub fn merge_compiled_unit_artifacts(
         typed_hash: compiled_typed_hash(&typed),
         runtime_hash: compiled_runtime_hash(&runtime),
         external_runtime_hash: compiled_external_runtime_hash(&external_runtime),
+        boundary_fingerprint,
         files,
     };
     Ok(CachedCompiledUnitArtifact {
@@ -1559,6 +1614,17 @@ fn compiled_unit_envelope_matches_key(
         && manifest.runtime_hash == compiled_runtime_hash(&envelope.runtime)
         && manifest.external_runtime_hash
             == compiled_external_runtime_hash(&envelope.external_runtime)
+        && compiled_unit_boundary_fingerprint(&envelope.typed, &envelope.runtime)
+            == Some(manifest.boundary_fingerprint)
+}
+
+fn compiled_unit_boundary_fingerprint(
+    typed: &infer::CompiledTypedSurface,
+    runtime: &infer::CompiledRuntimeSurface,
+) -> Option<infer::CompiledBoundaryFingerprint> {
+    let typed = typed.boundary.semantic_fingerprint()?;
+    let runtime = runtime.boundary.semantic_fingerprint()?;
+    (typed == runtime).then_some(typed)
 }
 
 fn cached_compiled_unit_artifact_from_envelope(
@@ -1693,6 +1759,8 @@ fn compiled_unit_manifest(
     external_runtime: &CompiledUnitExternalRuntimeRefs,
     key: SourceCacheKey,
 ) -> CompiledUnitManifest {
+    let boundary_fingerprint = compiled_unit_boundary_fingerprint(typed, runtime)
+        .expect("Stage 1 compiled surfaces must share the empty boundary interface");
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
         compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
@@ -1703,6 +1771,7 @@ fn compiled_unit_manifest(
         typed_hash: compiled_typed_hash(typed),
         runtime_hash: compiled_runtime_hash(runtime),
         external_runtime_hash: compiled_external_runtime_hash(external_runtime),
+        boundary_fingerprint,
         files: files
             .iter()
             .map(|file| CompiledUnitSourceFile {
@@ -1870,6 +1939,7 @@ fn compiled_typed_hash(typed: &infer::CompiledTypedSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_TYPED_HASH_SALT);
     hash_compiled_type_arena(&mut hasher, &typed.types);
+    hash_compiled_boundary_interface(&mut hasher, &typed.boundary);
     hasher.usize(typed.values.len());
     for value in &typed.values {
         hasher.u32(value.symbol);
@@ -2150,6 +2220,7 @@ fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_RUNTIME_HASH_SALT);
     hash_poly_arena(&mut hasher, &runtime.arena);
+    hash_compiled_boundary_interface(&mut hasher, &runtime.boundary);
     hasher.usize(runtime.modules.len());
     for module in &runtime.modules {
         hasher.u32(module.module);
@@ -2162,6 +2233,17 @@ fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
         hash_def_id(&mut hasher, value.def);
     }
     hasher.finish()
+}
+
+fn hash_compiled_boundary_interface(
+    hasher: &mut StableHasher,
+    boundary: &infer::CompiledBoundaryInterface,
+) {
+    hasher.usize(boundary.bounds.len());
+    for bound in &boundary.bounds {
+        hash_type_var(hasher, bound.var);
+        hash_neu_id(hasher, bound.bounds);
+    }
 }
 
 fn compiled_external_runtime_hash(external: &CompiledUnitExternalRuntimeRefs) -> u64 {
@@ -4274,6 +4356,16 @@ mod tests {
         assert_ne!(restored.manifest.lowering_hash, 0);
         assert_ne!(restored.manifest.runtime_hash, 0);
         assert_ne!(restored.manifest.external_runtime_hash, 0);
+        assert!(restored.typed.boundary.bounds.is_empty());
+        assert!(restored.runtime.boundary.bounds.is_empty());
+        assert_eq!(
+            restored.typed.boundary.semantic_fingerprint(),
+            Some(restored.manifest.boundary_fingerprint)
+        );
+        assert_eq!(
+            restored.runtime.boundary.semantic_fingerprint(),
+            Some(restored.manifest.boundary_fingerprint)
+        );
         assert_eq!(restored.syntax, artifact.syntax);
         assert_eq!(restored.namespace, artifact.namespace);
         assert_eq!(restored.lowering, artifact.lowering);
@@ -4436,6 +4528,118 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_treats_pre_boundary_format_as_a_miss() {
+        #[derive(Serialize)]
+        struct LegacyCompiledUnitManifest {
+            cache_schema_version: u32,
+            compiled_unit_format: u32,
+            source_hash: u64,
+            syntax_hash: u64,
+            namespace_hash: u64,
+            lowering_hash: u64,
+            typed_hash: u64,
+            runtime_hash: u64,
+            external_runtime_hash: u64,
+            files: Vec<CompiledUnitSourceFile>,
+        }
+
+        #[derive(Serialize)]
+        struct LegacyCompiledTypedSurface {
+            types: infer::CompiledTypeArena,
+            values: Vec<infer::CompiledTypedValueScheme>,
+        }
+
+        #[derive(Serialize)]
+        struct LegacyCompiledRuntimeSurface {
+            arena: poly::expr::Arena,
+            labels: poly::dump::DumpLabels,
+            modules: Vec<infer::CompiledRuntimeModuleDef>,
+            values: Vec<infer::CompiledRuntimeValueDef>,
+        }
+
+        let root = temp_root("compiled-unit-pre-boundary-format");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let legacy = CompiledUnitCacheEnvelope {
+            format: COMPILED_UNIT_CACHE_FORMAT - 1,
+            manifest: LegacyCompiledUnitManifest {
+                cache_schema_version: artifact.manifest.cache_schema_version,
+                compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT - 1,
+                source_hash: artifact.manifest.source_hash,
+                syntax_hash: artifact.manifest.syntax_hash,
+                namespace_hash: artifact.manifest.namespace_hash,
+                lowering_hash: artifact.manifest.lowering_hash,
+                typed_hash: artifact.manifest.typed_hash,
+                runtime_hash: artifact.manifest.runtime_hash,
+                external_runtime_hash: artifact.manifest.external_runtime_hash,
+                files: artifact.manifest.files.clone(),
+            },
+            syntax: artifact.syntax.clone(),
+            namespace: artifact.namespace.clone(),
+            lowering: artifact.lowering.clone(),
+            typed: LegacyCompiledTypedSurface {
+                types: artifact.typed.types.clone(),
+                values: artifact.typed.values.clone(),
+            },
+            runtime: LegacyCompiledRuntimeSurface {
+                arena: artifact.runtime.arena.clone(),
+                labels: artifact.runtime.labels.clone(),
+                modules: artifact.runtime.modules.clone(),
+                values: artifact.runtime.values.clone(),
+            },
+            external_runtime: artifact.external_runtime.clone(),
+            errors: artifact.errors.clone(),
+        };
+        let bytes = bincode::serialize(&legacy).unwrap();
+        let path = cache.compiled_unit_artifact_path(key);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, &bytes).unwrap();
+
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none()
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_boundary_fingerprint_matches_typed_and_runtime_surfaces() {
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let typed = artifact.typed.boundary.semantic_fingerprint();
+        let runtime = artifact.runtime.boundary.semantic_fingerprint();
+
+        assert_eq!(typed, runtime);
+        assert_eq!(typed, Some(artifact.manifest.boundary_fingerprint));
+        assert_ne!(artifact.manifest.boundary_fingerprint.get(), 0);
+
+        let mut mismatched = artifact.clone();
+        mismatched
+            .runtime
+            .boundary
+            .bounds
+            .push(infer::CompiledBoundaryBound {
+                var: poly::types::TypeVar(u32::MAX),
+                bounds: poly::types::NeuId(u32::MAX),
+            });
+        let error = match merge_compiled_unit_artifacts(vec![mismatched]) {
+            Ok(_) => panic!("merge should reject typed/runtime boundary disagreement"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            CompiledUnitMergeError::BoundaryInterfaceMismatch { prefix: 0 }
+        ));
     }
 
     #[test]
@@ -5172,6 +5376,12 @@ mod tests {
         assert_eq!(merged.manifest.files[0].path, "left.yu");
         assert_eq!(merged.manifest.files[1].path, "right.yu");
         assert_eq!(merged.cache_key(), key);
+        assert!(merged.typed.boundary.bounds.is_empty());
+        assert!(merged.runtime.boundary.bounds.is_empty());
+        assert_eq!(
+            compiled_unit_boundary_fingerprint(&merged.typed, &merged.runtime),
+            Some(merged.manifest.boundary_fingerprint)
+        );
         assert!(
             merged
                 .lowering
@@ -5431,10 +5641,12 @@ mod tests {
                 neg: Vec::new(),
                 neu: Vec::new(),
             },
+            boundary: infer::CompiledBoundaryInterface::empty(),
             values: Vec::new(),
         };
         let runtime = infer::CompiledRuntimeSurface {
             arena: poly::expr::Arena::new(),
+            boundary: infer::CompiledBoundaryInterface::empty(),
             labels: poly::dump::DumpLabels::new(),
             modules: Vec::new(),
             values: Vec::new(),

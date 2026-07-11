@@ -13,7 +13,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lowering::BodyLowering;
 use crate::{
-    CompiledNamespaceMergeOutput, CompiledNamespaceSurface, CompiledTypeArena, CompiledTypeImporter,
+    CompiledBoundaryInterface, CompiledNamespaceMergeOutput, CompiledNamespaceSurface,
+    CompiledTypeArena, CompiledTypeImporter,
 };
 
 /// Lowered per-unit runtime surface.
@@ -25,6 +26,7 @@ use crate::{
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CompiledRuntimeSurface {
     pub arena: poly::expr::Arena,
+    pub boundary: CompiledBoundaryInterface,
     pub labels: poly::dump::DumpLabels,
     pub modules: Vec<CompiledRuntimeModuleDef>,
     pub values: Vec<CompiledRuntimeValueDef>,
@@ -88,6 +90,7 @@ impl CompiledRuntimeMergeOutput {
 
 pub struct CompiledRuntimeImport {
     external_defs: FxHashSet<DefId>,
+    pub boundary: CompiledBoundaryInterface,
     pub defs: FxHashMap<DefId, DefId>,
     pub exprs: FxHashMap<ExprId, ExprId>,
     pub pats: FxHashMap<PatId, PatId>,
@@ -112,8 +115,16 @@ pub struct CompiledRuntimeImportedValue {
 
 impl CompiledRuntimeSurface {
     pub fn from_lowering(lowering: &BodyLowering) -> Self {
+        Self::from_lowering_with_boundary(lowering, CompiledBoundaryInterface::empty())
+    }
+
+    pub fn from_lowering_with_boundary(
+        lowering: &BodyLowering,
+        boundary: CompiledBoundaryInterface,
+    ) -> Self {
         Self {
             arena: lowering.session.poly.clone(),
+            boundary,
             labels: lowering.labels.clone(),
             modules: Vec::new(),
             values: Vec::new(),
@@ -124,8 +135,21 @@ impl CompiledRuntimeSurface {
         lowering: &BodyLowering,
         namespace: &CompiledNamespaceSurface,
     ) -> Self {
+        Self::from_lowering_with_namespace_and_boundary(
+            lowering,
+            namespace,
+            CompiledBoundaryInterface::empty(),
+        )
+    }
+
+    pub fn from_lowering_with_namespace_and_boundary(
+        lowering: &BodyLowering,
+        namespace: &CompiledNamespaceSurface,
+        boundary: CompiledBoundaryInterface,
+    ) -> Self {
         Self {
             arena: lowering.session.poly.clone(),
+            boundary,
             labels: lowering.labels.clone(),
             modules: runtime_module_defs_from_namespace(lowering, namespace),
             values: runtime_value_defs_from_namespace(lowering, namespace),
@@ -158,14 +182,16 @@ impl CompiledRuntimeSurface {
         reserve_pat_ids(&self.arena, target, &mut import);
 
         let source_types = CompiledTypeArena::from_type_arena(&self.arena.typ);
-        let (defs, cast_rules, role_impls) = {
+        let (boundary, defs, cast_rules, role_impls) = {
             let mut type_importer = CompiledTypeImporter::new(&source_types, target);
             (
+                type_importer.import_boundary_interface(&self.boundary),
                 import_defs(&self.arena, &import, &mut type_importer),
                 import_cast_rules(&self.arena, &import, &mut type_importer),
                 import_role_impls(&self.arena, &import, &mut type_importer),
             )
         };
+        import.boundary = boundary;
 
         import_refs(&self.arena, target, &import);
         import_selects(&self.arena, target, &import);
@@ -258,14 +284,16 @@ impl CompiledRuntimeSurface {
         reserve_selected_pat_ids(target, &mut import, &selection);
 
         let source_types = CompiledTypeArena::from_type_arena(&self.arena.typ);
-        let (defs, cast_rules, role_impls) = {
+        let (boundary, defs, cast_rules, role_impls) = {
             let mut type_importer = CompiledTypeImporter::new(&source_types, target);
             (
+                type_importer.import_boundary_interface(&self.boundary),
                 import_selected_defs(&self.arena, &import, &mut type_importer, &selection),
                 import_selected_cast_rules(&self.arena, &import, &mut type_importer, &selection),
                 import_selected_role_impls(&self.arena, &import, &mut type_importer, &selection),
             )
         };
+        import.boundary = boundary;
 
         import_selected_refs(&self.arena, target, &import, &selection);
         import_selected_selects(&self.arena, target, &import, &selection);
@@ -352,6 +380,7 @@ impl CompiledRuntimeSurface {
         namespace: &CompiledNamespaceMergeOutput,
     ) -> Result<CompiledRuntimeMergeOutput, CompiledRuntimeMergeError> {
         let mut arena = PolyArena::new();
+        let mut boundary = CompiledBoundaryInterface::empty();
         let mut labels = DumpLabels::new();
         let mut modules: Vec<CompiledRuntimeModuleDef> = Vec::new();
         let mut values: Vec<CompiledRuntimeValueDef> = Vec::new();
@@ -360,6 +389,9 @@ impl CompiledRuntimeSurface {
         let mut seen_values = FxHashSet::default();
         for (prefix, surface) in prefixes.into_iter().enumerate() {
             let import = surface.import_into(&mut arena, &mut labels);
+            boundary
+                .bounds
+                .extend(import.boundary.bounds.iter().copied());
             for (source, target) in &import.defs {
                 def_remap.insert((prefix, *source), *target);
             }
@@ -428,6 +460,7 @@ impl CompiledRuntimeSurface {
         Ok(CompiledRuntimeMergeOutput {
             surface: Self {
                 arena,
+                boundary,
                 labels,
                 modules,
                 values,
@@ -441,6 +474,7 @@ impl CompiledRuntimeImport {
     fn new() -> Self {
         Self {
             external_defs: FxHashSet::default(),
+            boundary: CompiledBoundaryInterface::empty(),
             defs: FxHashMap::default(),
             exprs: FxHashMap::default(),
             pats: FxHashMap::default(),
@@ -1862,6 +1896,7 @@ mod tests {
         assert_eq!(target.constructors.len(), runtime.arena.constructors.len());
         assert!(import.defs.iter().any(|(source, target)| source != target));
         assert!(target.defs.get(prefix_def).is_some());
+        assert!(import.boundary.bounds.is_empty());
 
         for root in &import.roots {
             assert!(target.defs.get(*root).is_some());
@@ -1882,6 +1917,26 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn runtime_surface_import_remaps_boundary_with_the_type_arena() {
+        let mut unit = compiled_runtime_surface(&["unit"], "pub id x = x\n");
+        install_boundary(&mut unit.runtime, poly::types::TypeVar(60_000));
+        let mut target = PolyArena::new();
+        let mut labels = DumpLabels::new();
+
+        let import = unit.runtime.import_into(&mut target, &mut labels);
+
+        let [bound] = import.boundary.bounds.as_slice() else {
+            panic!("runtime import should retain one boundary bound");
+        };
+        assert_ne!(bound.var, poly::types::TypeVar(60_000));
+        let poly::types::Neu::Bounds(lower, upper) = target.typ.neu(bound.bounds) else {
+            panic!("boundary bound should remain a neutral interval");
+        };
+        assert_eq!(target.typ.pos(*lower), &poly::types::Pos::Var(bound.var));
+        assert_eq!(target.typ.neg(*upper), &poly::types::Neg::Var(bound.var));
     }
 
     #[test]
@@ -1945,6 +2000,7 @@ mod tests {
         for module in &runtime.modules {
             assert!(runtime.arena.defs.get(module.def).is_some());
         }
+        assert!(runtime.boundary.bounds.is_empty());
     }
 
     #[test]
@@ -2362,6 +2418,18 @@ mod tests {
             namespace,
             runtime,
         }
+    }
+
+    fn install_boundary(surface: &mut CompiledRuntimeSurface, var: poly::types::TypeVar) {
+        let lower = surface.arena.typ.alloc_pos(poly::types::Pos::Var(var));
+        let upper = surface.arena.typ.alloc_neg(poly::types::Neg::Var(var));
+        let bounds = surface
+            .arena
+            .typ
+            .alloc_neu(poly::types::Neu::Bounds(lower, upper));
+        surface.boundary = CompiledBoundaryInterface {
+            bounds: vec![crate::CompiledBoundaryBound { var, bounds }],
+        };
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {
