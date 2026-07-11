@@ -11,6 +11,7 @@ mod contract;
 mod cst_view;
 mod parse_view;
 mod runtime_evidence_debug;
+mod std_prefix_cache_safety;
 mod support;
 use support::*;
 
@@ -2053,6 +2054,9 @@ fn build_poly_from_std_prefix_cache(
             )
         }
     };
+    if !std_prefix_cache_safety::can_reuse_for_program(files, &plan.file_indices, &prefix) {
+        return None;
+    }
     build_poly_from_compiled_source_unit_prefix(files, key, cache, &plan.file_indices, prefix)
         .map(|output| (output, kind))
 }
