@@ -34,6 +34,107 @@ fn generic_role_impl_conformance_stage0_alpha_renaming_oracle() {
     );
 }
 
+#[test]
+fn generic_role_impl_conformance_stage1_slice1_captures_binder_provenance() {
+    let fixtures = conformance_fixtures();
+    let dump = |name| {
+        let fixture = fixtures
+            .iter()
+            .find(|fixture| fixture.name == name)
+            .unwrap_or_else(|| panic!("missing fixture {name}"));
+        characterize_contract(fixture.source)
+    };
+
+    assert_eq!(
+        dump("explicit-bool-universal-a"),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{}]",
+    );
+    assert_eq!(
+        dump("explicit-a-same-a"),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{U0}]",
+    );
+    assert_eq!(
+        dump("explicit-list-a-nested-binder"),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{U0}]",
+    );
+    assert_eq!(
+        dump("omitted-associated-one-method"),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=inferred(A0)]",
+    );
+    assert_eq!(
+        dump("partial-explicit-multiple-associated"),
+        "role=PairView universals=[U0] inputs=[{U0}] associated=[first=explicit{U0},second=inferred(A0)]",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage1_slice1_is_alpha_stable() {
+    let fixtures = conformance_fixtures();
+    let left = fixtures
+        .iter()
+        .find(|fixture| fixture.name == "alpha-renamed-a")
+        .expect("alpha-renamed-a fixture");
+    let right = fixtures
+        .iter()
+        .find(|fixture| fixture.name == "alpha-renamed-b")
+        .expect("alpha-renamed-b fixture");
+
+    assert_eq!(
+        characterize_contract(left.source),
+        characterize_contract(right.source),
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage1_slice1_covers_self_alias_and_imported_nominal() {
+    let attached = concat!(
+        "role Index 'container 'key:\n",
+        "  type value\n",
+        "  our c.index: 'key -> value\n",
+        "type box 'a with:\n",
+        "  struct self:\n",
+        "    item: 'a\n",
+        "  impl Index int:\n",
+        "    type value = 'a\n",
+        "    our c.index i = c.item\n",
+    );
+    assert_eq!(
+        characterize_attached_contract(attached, "box"),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{U0}]",
+    );
+
+    let imported = concat!(
+        "mod types:\n",
+        "  pub type box 'a\n",
+        "use types::*\n",
+        "role Index 'container 'key:\n",
+        "  type value\n",
+        "  our c.index: 'key -> value\n",
+        "impl Index (box 'a) int:\n",
+        "  type value = 'a\n",
+    );
+    assert_eq!(
+        characterize_contract(imported),
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{U0}]",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage1_slice1_records_synthetic_name_overlap() {
+    let source = concat!(
+        "role Box 'a:\n",
+        "  type value\n",
+        "  our x.get: value\n",
+        "impl 'value: Box:\n",
+        "  our x.get = x\n",
+    );
+
+    assert_eq!(
+        characterize_contract(source),
+        "role=Box universals=[U0] inputs=[{U0}] associated=[value=inferred(A0;annotation-overlap=U0)]",
+    );
+}
+
 struct Fixture {
     name: &'static str,
     role: &'static str,
@@ -150,6 +251,64 @@ fn characterize(source: &str, role: &str) -> String {
     format!(
         "lowering={diagnostic}; check-diagnostics={check_diagnostics}\nmethods={method_schemes}\ninfer-candidates={infer_candidates}\npoly-candidates={poly_candidates}"
     )
+}
+
+fn characterize_contract(source: &str) -> String {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let node = root
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("root role impl declaration");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    let context = lowerer
+        .register_role_impl_candidate(
+            &node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            None,
+        )
+        .expect("role impl contract capture");
+    context
+        .conformance_contract
+        .expect("source role impl contract")
+        .binder_dump()
+}
+
+fn characterize_attached_contract(source: &str, owner: &str) -> String {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let owner = lower.modules.type_decls(root_module, &Name(owner.into()))[0].clone();
+    let companion = lower
+        .modules
+        .type_companion(owner.id)
+        .expect("type companion module");
+    let implementation = lower.modules.role_impls(companion)[0].clone();
+    let node = root
+        .descendants()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("attached role impl declaration");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    let context = lowerer
+        .register_role_impl_candidate(
+            &node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            Some(AnnSelfAlias {
+                owner: owner.id,
+                type_vars: vec!["a".into()],
+            }),
+        )
+        .expect("attached role impl contract capture");
+    context
+        .conformance_contract
+        .expect("attached source role impl contract")
+        .binder_dump()
 }
 
 fn format_candidate(

@@ -87,7 +87,7 @@ impl BodyLowerer {
         self.local_method_scope = previous_scope;
     }
 
-    pub(super) fn register_role_impl_candidate(
+    pub(in crate::lowering) fn register_role_impl_candidate(
         &mut self,
         node: &Cst,
         impl_def: DefId,
@@ -120,21 +120,39 @@ impl BodyLowerer {
         let role_input_names = self.modules.role_inputs(spec.role).to_vec();
         let role_associated_names = self.modules.role_associated(spec.role).to_vec();
         let explicit_associated = role_impl_associated_type_exprs(node);
-        let candidate_associated_anns = role_associated_names
-            .iter()
-            .map(|name| {
-                let ann = explicit_associated
-                    .get(name)
-                    .map(|type_expr| {
-                        ann_builder
-                            .build_type_expr(type_expr)
-                            .map_err(|error| LoweringError::annotation_build(error, type_expr))
-                    })
-                    .transpose()?
-                    .unwrap_or_else(|| AnnType::Var(ann_builder.ann_type_var_for_role(name)));
-                Ok((name.clone(), ann))
-            })
-            .collect::<Result<Vec<_>, LoweringError>>()?;
+        let mut candidate_associated_anns = Vec::with_capacity(role_associated_names.len());
+        let mut contract_associated = Vec::with_capacity(role_associated_names.len());
+        let mut next_inferred_associated = 0u32;
+        for name in &role_associated_names {
+            if let Some(type_expr) = explicit_associated.get(name) {
+                let ann = ann_builder
+                    .build_type_expr(type_expr)
+                    .map_err(|error| LoweringError::annotation_build(error, type_expr))?;
+                contract_associated.push(
+                    crate::role_impl_conformance::AssociatedAssignment::Explicit {
+                        name: name.clone(),
+                        ty: crate::role_impl_conformance::DeclaredType::new(ann.clone()),
+                        source: crate::node_source_range(type_expr),
+                    },
+                );
+                candidate_associated_anns.push((name.clone(), ann));
+            } else {
+                let ann_var = ann_builder.ann_type_var_for_role(name);
+                contract_associated.push(
+                    crate::role_impl_conformance::AssociatedAssignment::Inferred {
+                        name: name.clone(),
+                        binder: crate::role_impl_conformance::AssociatedInferenceBinder {
+                            id: crate::role_impl_conformance::AssociatedInferenceBinderId(
+                                next_inferred_associated,
+                            ),
+                            annotation_var: ann_var.id,
+                        },
+                    },
+                );
+                next_inferred_associated = next_inferred_associated.saturating_add(1);
+                candidate_associated_anns.push((name.clone(), AnnType::Var(ann_var)));
+            }
+        }
         let requirement_associated_anns = role_associated_names
             .iter()
             .map(|name| {
@@ -145,6 +163,28 @@ impl BodyLowerer {
             })
             .collect::<Vec<_>>();
         let type_var_bindings = ann_builder.type_var_bindings();
+        let role = self
+            .modules
+            .type_decl_by_id(spec.role)
+            .map(|role| {
+                self.modules
+                    .type_decl_path(&role)
+                    .segments
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+            })
+            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+        let conformance_contract =
+            crate::role_impl_conformance::RoleImplConformanceContract::capture(
+                impl_def,
+                role.clone(),
+                self.modules
+                    .def_source_range(impl_def)
+                    .unwrap_or_else(|| crate::node_source_range(node)),
+                spec.inputs.clone(),
+                contract_associated,
+            );
         let explicit_associated_complete = role_associated_names
             .iter()
             .all(|name| explicit_associated.contains_key(name));
@@ -160,18 +200,6 @@ impl BodyLowerer {
             } else {
                 self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?
             };
-        let role = self
-            .modules
-            .type_decl_by_id(spec.role)
-            .map(|role| {
-                self.modules
-                    .type_decl_path(&role)
-                    .segments
-                    .into_iter()
-                    .map(|name| name.0)
-                    .collect::<Vec<_>>()
-            })
-            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
         let candidate = RoleImplCandidate {
             impl_def: Some(impl_def),
             role,
@@ -181,7 +209,11 @@ impl BodyLowerer {
             methods: Vec::new(),
         };
         self.session.role_impls.insert(candidate);
+        #[cfg(not(test))]
+        drop(conformance_contract);
         Ok(RoleImplLoweringContext {
+            #[cfg(test)]
+            conformance_contract: Some(conformance_contract),
             role: spec.role,
             target_ann: spec.target,
             input_names: role_input_names,

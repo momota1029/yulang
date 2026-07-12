@@ -353,6 +353,8 @@ impl BodyLowerer {
             methods: Vec::new(),
         });
         Some(RoleImplLoweringContext {
+            #[cfg(test)]
+            conformance_contract: None,
             role: role.id,
             target_ann,
             input_names: role_inputs,

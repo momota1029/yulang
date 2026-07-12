@@ -32,6 +32,7 @@ pub mod methods;
 mod module_map;
 mod module_table;
 pub mod patterns;
+mod role_impl_conformance;
 mod role_solve;
 pub mod roles;
 pub mod scc;
