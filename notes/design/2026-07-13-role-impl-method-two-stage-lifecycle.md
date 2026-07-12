@@ -259,6 +259,165 @@ structured `Unavailable` result; they are not reconstructed from final raw IDs. 
 annotation-identity overlap maps `U` and `A` to the same solver variable, both logical entries are
 retained.
 
+#### 5.1.1 Slice 1 revision after lifecycle characterization
+
+Slice 0 resolved the earlier two-case question in the harder direction. Lowering only temporary
+expected nodes is already a mutating operation for effect-bearing `U/A`: return-effect tails gain
+declared subtract facts, and an effect-row parameter can gain both lower and upper bounds, before
+the temporary upper is attached to an actual parameter or body anchor. The plain value-position
+case remains non-mutating, but it is not a valid model for the language-wide design.
+
+This separates two properties which the earlier continuation sketch left implicit:
+
+1. retaining `SignatureLowerer` state can preserve same-session identities across a pause; but
+2. retaining state after the complete spine has already been lowered cannot make the earlier
+   mutation disappear from the actual surface.
+
+Therefore the literal continuation-state option -- lower the complete requirement spine at the
+current point, capture the lowerer afterward, and merely delay attachment of its uppers -- is not a
+sound pre-requirement snapshot boundary. A viable continuation design must pause *before* lowering
+the deferred body result/effect layer. Early parameter lowering may remain only as explicitly
+classified contextual input; effect-bearing parameter context is fail-closed until section 13
+point 2 is resolved.
+
+##### Continuation-state feasibility
+
+`SignatureLowerer<'a>` cannot itself be stored in the pending table because it borrows both the
+session `Arena` and `ModuleTable`. It must be split into a borrow-free owned state and a short-lived
+driver, conceptually:
+
+```rust
+struct SignatureLoweringContinuation {
+    vars: FxHashMap<String, TypeVar>,
+    new_var_level: Option<TypeLevel>,
+    closed_effect_rows: FxHashMap<SignatureClosedEffectRowKey, TypeVar>,
+    data_effect_private_tails: FxHashMap<DataEffectTailKey, DataEffectPrivateTail>,
+}
+
+struct SignatureLowerer<'a> {
+    infer: &'a mut Arena,
+    modules: &'a ModuleTable,
+    state: SignatureLoweringContinuation,
+}
+```
+
+Existing constructors become state constructors. New `from_continuation` and
+`into_continuation` operations borrow the current session only while lowering one uninterrupted
+layer. The captured `new_var_level` is mandatory: resuming at the session's later current level
+would change extrusion and simplification behavior even if every variable map were preserved.
+
+The structural requirement must also retain stable row-occurrence identity. The current
+`DataEffectTailKey` includes the address of a `SignatureEffectRow`; cloning or rebuilding the
+`SignatureType` would invalidate that identity. The pending descriptor should therefore own one
+immutable same-session allocation, for example `Arc<ResolvedRoleMethodRequirement>`, before the
+first layer is lowered. It must never clone the contained `SignatureType`. A borrow-free spine
+cursor records the number/path of consumed function layers and re-borrows the same allocation on
+resume. This keeps the current address-key behavior bounded to the lifetime of one immutable
+requirement. Replacing the address key with an explicit stable row-occurrence ID remains a possible
+later cleanup, but its serialization and compiled-signature impact is not yet known and is not part
+of Slice 1 by assumption.
+
+The pending receiver descriptor becomes equivalent to:
+
+```rust
+struct DeferredReceiverRequirement {
+    requirement: Arc<ResolvedRoleMethodRequirement>,
+    parameter_uppers: Vec<Option<NegId>>,
+    body_cursor: RequirementSpineCursor,
+    continuation: SignatureLoweringContinuation,
+    parameter_context: RequirementParameterContextStatus,
+    final_metadata: DeferredRequirementMetadata,
+}
+
+enum RequirementParameterContextStatus {
+    Clean(NonMutatingRequirementClass),
+    MutatedBridge(BridgeMutationAudit),
+    Unsupported(RequirementParameterContextUnavailable),
+}
+
+struct BridgeMutationAudit {
+    epoch_before: ConstraintEpoch,
+    epoch_after: ConstraintEpoch,
+    affected: Vec<ConformanceBinderMutation>,
+    unexplained_epoch_advance: bool,
+}
+```
+
+The continuation is captured after only the approved parameter layers have been prepared and
+before `lower_impl_requirement_body_connection` runs. At the first quiescent pending phase, the
+actual view is taken first; then the same continuation lowers the body result/effect upper exactly
+once and the legacy two body edges are applied. The current final projection/simplification call
+uses a separate fresh `SignatureLowerer` seed today. To preserve legacy behavior, Slice 1 retains
+that final metadata operation structurally and defers it until after the snapshot; it does not
+silently merge its identities with the parameter/body continuation.
+
+This route needs a lowering-internal `SignatureLowerer` representation change but no
+`ConstraintMachine` API or propagation-semantics change. It adds no retry loop: one continuation is
+created once, consumed once, and never reconstructed from `SignatureType` plus a fresh seed.
+
+##### Tagged-mutation feasibility
+
+The current read APIs can characterize an immediate call but cannot support sound fact-level
+exclusion:
+
+- `epoch()` says that some state changed but not which fact caused the change;
+- `bounds().of(var)` and `subtracts().facts(var)` permit before/after comparison for a known bridge
+  variable;
+- `events()` can expose the synchronous lower/upper/subtract events emitted during the initial
+  lowering call; and
+- `next_type_var()` permits a bounded scan of allocated variable IDs if a test or audit needs one.
+
+This is enough for a classification audit: if a known `U/A` bridge changes, or the epoch advances in
+a way the bridge snapshots do not explain, the early actual view can return structured
+`Unavailable`. It is not enough to remove only requirement-derived facts from a later view. Bounds
+carry type nodes and weights but no origin; subtract facts carry an ID and subtractability but no
+origin; `lower_filters`, pre-pop effect families, evidence bounds, replayed bounds, and the global
+`seen` subtype set also have no complete external provenance view.
+
+It is not even a complete immediate-mutation oracle: insertion into `lower_filters` is not exposed
+by the read API and does not itself advance the constraint epoch. Consequently `Clean` cannot mean
+"the observed bounds/facts/epoch happened not to change". It is available only for a structurally
+defined non-mutating signature subset, initially plain value positions with no effect row,
+effectful layer, or act/error effect-family position. The before/after audit is corroborating
+evidence and a reason to return `Unavailable`, never the proof that an arbitrary signature is clean.
+
+A complete immediate mutation journal would require a new read-only
+`ConstraintMutationSnapshot/Delta` API covering bounds, evidence bounds, subtract facts,
+lower filters, pre-pop families, declared-subtract membership, and emitted events. That is roughly
+2-4 constraint/lowering files and 150-300 lines including tests. It would improve diagnostics and
+auditing, but it still would not carry origin through later body-triggered replay and therefore does
+not make selective tagged filtering sound. The adopted Slice 1 does not require this API.
+
+Most importantly, a requirement-derived bound can later meet a body-derived bound. The replay
+result is produced after the immediate before/after window and has no tag connecting it back to the
+requirement. Adding a sound tag would require origin propagation through `SubtypeConstraint`,
+`ConstraintWork`, lower/upper/evidence bounds, subtract facts, row residual work, events, replay,
+subsumption, and deduplication. Duplicate constraints would need multi-origin union rather than the
+current exact `seen` set, and newly learned origin on an existing constraint might itself require
+provenance replay. That is an 8-12 file, roughly 700-1,300 line, very-high-risk solver project, not a
+pending-descriptor slice. It approaches the provenance subtraction rejected by section 10.2 and
+could accidentally introduce a second propagation fixed point.
+
+A smaller view-side exclusion policy would still require a new compact/view collector input for
+excluded weighted bounds and subtract facts, approximately 3-5 files and 250-500 lines. Without
+machine provenance it would be unsound for later mixed replay. The only safe use of the current API
+is coarse fail-closed classification, not selective subtraction.
+
+##### Slice 1 decision
+
+Slice 1 adopts the owned continuation-state direction, with body result/effect *lowering* deferred,
+not merely its final subtype edges. It rejects precise tagged-mutation filtering. A bounded bridge
+mutation audit is retained only to classify early parameter preparation as `Clean` or
+`Unavailable`. `Clean` requires the conservative structural classifier above; bounds/facts/epoch
+equality alone is insufficient. The audit is never consulted by unification,
+floor/co-occurrence/polarity simplification, or ordinary compact collection and never removes
+solver facts.
+
+This is consistent with section 16: the continuation has one monotonic create/consume lifecycle,
+does not add a fixed point, and is not a rigid, blocked, or through mechanism. The tagged approach
+would put new policy and provenance into the solver hot path and is therefore the less compatible
+direction.
+
 ### 5.2 SCC blocker
 
 Reusing `MethodDependencyAdded` as the pending blocker is unsafe. That counter means an unresolved
@@ -593,6 +752,36 @@ begins.
 Size S-M. Formalize the `U/A -> TypeVar` bridge, split requirement data from already-lowered uppers,
 and capture pending anchors behind an inactive/shadow-only path. No SCC behavior change.
 
+Revision after Slice 0: the S-M estimate above is superseded by size M-L, approximately 6-9 files
+and 700-1,200 lines including tests, with high risk. The increase comes from splitting
+`SignatureLowerer` into an owned continuation plus borrowed driver, retaining one stable immutable
+requirement allocation/cursor, and auditing early parameter preparation without changing solver
+semantics. Slice 1 still must not change SCC readiness or delay production edges.
+
+Slice 1 is divided further:
+
+1. **Slice 1a: production binder bridge.** Move the test-only annotation bridge into the
+   crate-private `RoleImplConformanceBinderBridge`, retaining separate logical `U` and `A` entries
+   even when their same-session `TypeVar` overlaps. Add missing/ambiguous structured failures. Size
+   S-M, risk medium.
+2. **Slice 1b: owned signature-lowering continuation.** Refactor `SignatureLowerer` state out of its
+   arena/module borrows; add stable immutable requirement ownership and a borrow-free spine cursor;
+   prove method-local variables, closed rows, private tails, and the captured level survive one
+   pause/resume. The production call path remains immediate. Size M, risk high.
+3. **Slice 1c: inactive pending descriptor and parameter audit.** Capture anchors, already-prepared
+   parameter uppers, the not-yet-lowered body cursor, continuation, separate deferred final metadata,
+   and `RequirementParameterContextStatus` behind an inactive path. A conservative structural scan
+   is the positive basis for `Clean`; existing bounds/subtract facts/epoch reads only provide a
+   negative mutation audit. Never filter or retract facts. Effect-bearing parameter mutation is
+   `Unavailable` until section 13 point 2 is decided. Size M, risk high.
+
+Slice 1 exit requires all three sub-slices, unchanged immediate production output, and witnesses
+showing that no body result/effect expected node is allocated before the conceptual snapshot point.
+If stable row identity cannot be retained without changing serialized `SignatureType`, or if a
+valid receiver body requires effect-bearing parameter context that cannot safely be classified,
+stop before Slice 2 and return to the user and Claude Sonnet 5. Do not replace the continuation with
+fact-level tagged subtraction as a local workaround.
+
 ### Slice 2: SCC conformance blocker
 
 Size M, risk high. Add distinct pending/released inputs, component merge handling, ready-except-
@@ -642,6 +831,12 @@ The following remain unconfirmed and must be resolved or bounded by the relevant
    for records, effects, recursive bounds, predicates, or casts.
 9. Whether transient candidates can use a pending method before its conformance snapshot exists;
    this is the parent specification's candidate-visibility question and remains unresolved.
+
+Slice 0 status update: point 3 is resolved as mutating for effect-bearing `U/A` and non-mutating only
+for the characterized plain value-position cases. It remains numbered here as the historical
+question that motivated the Slice 1 revision in section 5.1.1; it is no longer an open decision.
+Point 2 remains open and blocks treating effect-bearing parameter preparation as valid actual-side
+context.
 
 These are not reasons to weaken the view or comparison. An unsupported case remains explicit and
 blocks enforcement for that case.
