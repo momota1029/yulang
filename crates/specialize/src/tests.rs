@@ -5,8 +5,8 @@ mod tests {
         RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind,
         RuntimeEvidenceStaticRoute, RuntimeEvidenceStaticRouteDynamicReason,
         RuntimeEvidenceStaticRouteResolution, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
-        boundary_expr, boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
-        specialize_with_runtime_evidence, specialize2,
+        boundary_expr, boundary_expr_with_hygiene, hygiene, role_method_check, specialize,
+        specialize_roots, specialize_with_runtime_evidence, specialize2,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
@@ -349,6 +349,27 @@ mod tests {
             }
         );
         assert_eq!(program.instances[0].body.kind, ExprKind::Lit(Lit::Int(1)));
+    }
+
+    /// Stage 0 characterization for generic role-impl conformance.
+    ///
+    /// Infer owns the symbolic scheme/candidate snapshots. This downstream
+    /// witness records the current check/specialize boundary: none of these
+    /// undemanded impl methods is inspected by role-method checking or
+    /// specialization, including the deliberately malformed assignments.
+    #[test]
+    fn generic_role_impl_conformance_stage0_specialize_oracle() {
+        for (name, source, expected_roots) in conformance_stage0_sources() {
+            let lowering = lower_source(source);
+            assert!(
+                role_method_check(&lowering.session.poly).is_empty(),
+                "fixture {name} unexpectedly produced a role-method diagnostic",
+            );
+            let program = specialize(&lowering.session.poly)
+                .unwrap_or_else(|error| panic!("fixture {name} failed specialization: {error}"));
+            assert_eq!(program.roots.len(), expected_roots, "fixture {name}");
+            assert_eq!(program.instances.len(), expected_roots, "fixture {name}");
+        }
     }
 
     #[test]
@@ -1071,6 +1092,151 @@ mod tests {
             output.lowering.errors
         );
         output.lowering
+    }
+
+    fn conformance_stage0_sources() -> Vec<(&'static str, &'static str, usize)> {
+        let explicit_bool_int = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = bool\n",
+            "  our c.index i = 42\n",
+        );
+        let explicit_bool_a = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = bool\n",
+            "  our c.index i = c.item\n",
+        );
+        let explicit_a = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = 'a\n",
+            "  our c.index i = c.item\n",
+        );
+        let explicit_list_a = concat!(
+            "type list 'a\n",
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: list 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = list 'a\n",
+            "  our c.index i = c.item\n",
+        );
+        let omitted_one = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  our c.index i = c.item\n",
+        );
+        let omitted_two = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Access 'container:\n",
+            "  type value\n",
+            "  our c.get: value\n",
+            "  our c.peek: value\n",
+            "impl (box 'a): Access:\n",
+            "  our c.get = c.item\n",
+            "  our c.peek = c.item\n",
+        );
+        let partial_explicit = concat!(
+            "type pair 'a with:\n",
+            "  struct self:\n",
+            "    left: 'a\n",
+            "    right: 'a\n",
+            "role PairView 'container:\n",
+            "  type first\n",
+            "  type second\n",
+            "  our c.first: first\n",
+            "  our c.second: second\n",
+            "impl (pair 'a): PairView:\n",
+            "  type first = 'a\n",
+            "  our c.first = c.left\n",
+            "  our c.second = c.right\n",
+        );
+        let residual = concat!(
+            "role Eq 'a:\n",
+            "  our x.eq: unit\n",
+            "role Box 'a:\n",
+            "  our x.get: unit\n",
+            "impl int: Box:\n",
+            "  our x.get = ()\n",
+            "impl 'a: Box:\n",
+            "  our x.get = x.eq\n",
+        );
+        let effectful = concat!(
+            "act tick:\n",
+            "  pub ping: () -> ()\n",
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Flow 'container:\n",
+            "  type value\n",
+            "  our c.run: (unit -> ['e] value) -> ['e] value\n",
+            "impl (box 'a): Flow:\n",
+            "  type value = 'a\n",
+            "  our c.run f = f()\n",
+        );
+        let alpha_b = concat!(
+            "type box 'b with:\n",
+            "  struct self:\n",
+            "    item: 'b\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'b) int:\n",
+            "  type value = 'b\n",
+            "  our c.index i = c.item\n",
+        );
+        let malformed_unused = concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  our c.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = bool\n",
+            "  our c.index i = c.item\n",
+            "my unrelated = 1\n",
+        );
+        vec![
+            ("explicit-bool-concrete-int", explicit_bool_int, 0),
+            ("explicit-bool-universal-a", explicit_bool_a, 0),
+            ("explicit-a-same-a", explicit_a, 0),
+            ("explicit-list-a-nested-binder", explicit_list_a, 0),
+            ("omitted-associated-one-method", omitted_one, 0),
+            ("omitted-associated-shared-two-methods", omitted_two, 0),
+            ("partial-explicit-multiple-associated", partial_explicit, 0),
+            ("residual-prerequisite-absent-present", residual, 0),
+            ("effectful-shared-row-binder", effectful, 0),
+            ("alpha-renamed-a", explicit_a, 0),
+            ("alpha-renamed-b", alpha_b, 0),
+            ("malformed-unused-impl", malformed_unused, 0),
+        ]
     }
 
     fn effect_operation_def(arena: &poly::expr::Arena, path: &[&str]) -> poly::expr::DefId {

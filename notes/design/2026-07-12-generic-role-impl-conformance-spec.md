@@ -514,6 +514,29 @@ specialize. This stage establishes the oracle before selecting the proof kernel.
 
 Exit: every binder class and known failure mode has a direct fixture and symbolic dump.
 
+Stage 0 completed in the 2026-07-12 session. The test-only oracle is split along the existing crate
+dependency direction:
+
+- `infer::lowering::tests::case_07` records lowering/check acceptance, generalized impl-method
+  schemes, and both infer-local and finalized-poly candidate tables for all eleven patterns (the
+  alpha-renaming pattern uses two source fixtures);
+- `specialize::tests::generic_role_impl_conformance_stage0_specialize_oracle` records the current
+  downstream boundary without adding an `infer -> specialize` dependency: undemanded impl methods
+  produce no role-method diagnostic and are not materialized by specialization, including the
+  malformed unused impl.
+
+The oracle confirms the motivating gap rather than fixing it. Both `value = bool` counterexamples
+are accepted with zero check diagnostics: their method schemes return `int` or the universal impl
+binder while the candidate table independently retains `value = bool`. Valid explicit, nested,
+inferred, partial, prerequisite-bearing, effectful, and alpha-renamed cases are recorded in the same
+symbolic format. The shared-row fixture currently preserves the row binder but also retains the
+existing return intersection; that is characterization evidence, not a new conformance rule.
+The binder-link inventory also confirms that an explicit `value = 'a` reuses the candidate-head
+binder, while an omitted `value` is represented by a distinct inferred variable even when its
+formatted bounds look like the same `'a`. In the partial fixture, `first` shares the head binder and
+inferred `second` does not. Stage 1 must therefore preserve provenance and identity rather than
+reconstructing either from rendered type equality.
+
 ### Stage 1: immutable contract capture
 
 Size: S-M. Risk: medium.
@@ -725,4 +748,3 @@ Function result annotation and struct field conformance remain separately tracke
 own integration gates pass. Completion of this specification does not declare those issues fixed.
 
 Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-12 session. Whether and when to implement remains a decision for Claude Sonnet 5 and the user; this document is a feasibility and design specification, not an implementation commitment.
-
