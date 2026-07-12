@@ -2,6 +2,18 @@
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
+## 現在の未解決（2026-07-12 / declaration conformance）
+
+- [`2026-07-12-role-impl-explicit-associated-conformance-gap.md`](2026-07-12-role-impl-explicit-associated-conformance-gap.md)
+  — explicit associated type と role method 実装が別variableでlowerされ、generic implの
+  universal binder conformanceが検証されない。
+- [`2026-07-12-function-result-annotation-conformance-gap.md`](2026-07-12-function-result-annotation-conformance-gap.md)
+  — function result annotation のimmediate/deferred checkがnominal identityを見ず、
+  `f(): bool = 42`が実値42を返す。
+- [`2026-07-12-struct-field-type-conformance-gap.md`](2026-07-12-struct-field-type-conformance-gap.md)
+  — struct field mismatchから生じるmissing direct castが成功扱いになり、bare runtime
+  boundaryまで残る。
+
 ## 作業中メモ（2026-05-15 round-5 / 未コミット WIP）
 
 round-5 の 5 snippet は、手元 WIP ではいったん全て期待出力まで到達した。
