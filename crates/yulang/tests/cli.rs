@@ -4176,6 +4176,128 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
 }
 
 #[test]
+fn std_prefix_oracle_b_small_shadows_canonical_boundary_against_empty_import() {
+    let root = temp_root("oracle-b-small-boundary-shadow");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let std_root = write_minimal_std(&root);
+    fs::write(
+        std_root.join("std").join("prelude.yu"),
+        "pub identity = \\value -> value\npub computed = identity (\\value -> value)\n",
+    )
+    .unwrap();
+    let fixture = repo_yulang_fixture("regressions/cache/std_prefix_oracle_b_small.yu");
+    let entry = root.join("main.yu");
+    fs::write(&entry, fs::read_to_string(&fixture).unwrap()).unwrap();
+    let seed = root.join("seed.yu");
+    fs::write(&seed, "\"seed\"\n").unwrap();
+    let cache_root = root.join("cache-root");
+
+    let options = yulang::StdSourceOptions {
+        std_root: Some(std_root.clone()),
+    };
+    let files = yulang::collect_local_sources_with_std_options(&entry, &options).unwrap();
+    let prefix_indices = std_prefix_file_indices(&files);
+    let prefix = build_std_prefix_characterization_artifact(&files, &prefix_indices);
+    assert!(
+        !prefix.runtime.boundary.bounds.is_empty(),
+        "shadow control must start from a canonical non-empty boundary"
+    );
+    assert_eq!(prefix.typed.boundary, prefix.runtime.boundary);
+    let suffix = files
+        .iter()
+        .enumerate()
+        .filter_map(|(index, file)| (!prefix_indices.contains(&index)).then_some(file.clone()))
+        .collect::<Vec<_>>();
+
+    let (canonical, canonical_timing) = yulang::source::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources_with_lowering_timing(
+        prefix.clone(),
+        files.clone(),
+        suffix.clone(),
+    )
+    .unwrap();
+    let mut empty_prefix = prefix;
+    empty_prefix.typed.boundary = infer::CompiledBoundaryInterface::empty();
+    empty_prefix.runtime.boundary = infer::CompiledBoundaryInterface::empty();
+    let (empty, empty_timing) = yulang::source::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources_with_lowering_timing(
+        empty_prefix,
+        files,
+        suffix,
+    )
+    .unwrap();
+    assert!(
+        canonical.poly.errors.is_empty(),
+        "canonical: {:?}",
+        canonical.poly.errors
+    );
+    assert!(
+        empty.poly.errors.is_empty(),
+        "empty shadow: {:?}",
+        empty.poly.errors
+    );
+    assert_eq!(
+        compiled_scheme_alpha_view(&canonical.compiled_unit, "oracle_b_result"),
+        compiled_scheme_alpha_view(&empty.compiled_unit, "oracle_b_result"),
+        "boundary shadow must not change the suffix result scheme"
+    );
+    assert_eq!(
+        compiled_candidate_alpha_views(&canonical.compiled_unit, "OracleBPick"),
+        compiled_candidate_alpha_views(&empty.compiled_unit, "OracleBPick"),
+        "boundary shadow must not change the suffix candidate interface"
+    );
+
+    let canonical_metrics = RoleResolutionShadowMetrics::from_lowering(canonical_timing);
+    let empty_metrics = RoleResolutionShadowMetrics::from_lowering(empty_timing);
+    eprintln!(
+        "Stage 6 Oracle B small boundary shadow:\n  canonical: {canonical_metrics:?}\n  empty: {empty_metrics:?}"
+    );
+    assert!(canonical_metrics.candidate_scans > 0);
+    assert!(empty_metrics.candidate_scans > 0);
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+    assert_eq!(
+        runtime_metric_text(&seed_output, "run.cache_interface.canonical_handoff"),
+        "success-non-empty"
+    );
+    let boundary_entries = runtime_metric_usize(
+        &seed_output,
+        "run.cache_interface.std_prefix_boundary_entries",
+    );
+    assert!(boundary_entries > 0);
+
+    let warm = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&warm);
+    assert_cache_route(&warm, "std-prefix-hit");
+    assert_eq!(stdout(&warm), "run roots [42]\n");
+    assert_eq!(
+        runtime_metric_usize(&warm, "run.cache_interface.std_prefix_boundary_entries"),
+        boundary_entries
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
     let root = temp_root("run-std-prefix-role-equivalence");
     let _ = fs::remove_dir_all(&root);
@@ -6263,6 +6385,28 @@ struct OracleBSuffixCharacterization {
 #[derive(Debug, PartialEq, Eq)]
 struct OracleBCandidateAlphaView {
     interface: infer::interface_oracle::SchemeAlphaView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RoleResolutionShadowMetrics {
+    role_resolution: Duration,
+    candidate_scans: usize,
+    prerequisite_candidate_scans: usize,
+    candidate_matches: usize,
+    prerequisite_candidate_matches: usize,
+}
+
+impl RoleResolutionShadowMetrics {
+    fn from_lowering(timing: infer::lowering::BodyLoweringTiming) -> Self {
+        let analysis = timing.analysis;
+        Self {
+            role_resolution: analysis.generalize_resolve_roles + analysis.method_role_solve,
+            candidate_scans: analysis.role_resolve_candidate_scans,
+            prerequisite_candidate_scans: analysis.role_resolve_prerequisite_candidate_scans,
+            candidate_matches: analysis.role_resolve_candidate_matches,
+            prerequisite_candidate_matches: analysis.role_resolve_prerequisite_candidate_matches,
+        }
+    }
 }
 
 fn characterize_oracle_b_suffix(
