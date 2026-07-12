@@ -476,6 +476,477 @@ fn generic_role_impl_conformance_stage2_slice1_keeps_unavailable_and_ambiguous_e
     );
 }
 
+/// Slice 0 witness for the current role-impl method lifecycle. Body lowering is synchronous,
+/// while every SCC input stays queued until analysis starts draining. Keeping the role declaration
+/// after the impl makes the member-to-requirement dependency observable as a component edge instead
+/// of letting the role method quantify before the dependency input reaches the SCC machine.
+#[test]
+fn role_impl_method_lifecycle_slice0_records_current_event_order() {
+    for fixture in lifecycle_fixtures() {
+        let root = parse(fixture.source);
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let implementation = lower.modules.role_impls(module)[0].clone();
+        let members = implementation
+            .methods
+            .iter()
+            .map(|method| method.def)
+            .collect::<Vec<_>>();
+        let role = lower.modules.type_decls(module, &Name(fixture.role.into()))[0].clone();
+        let requirements = lower
+            .modules
+            .role_methods(role.id)
+            .iter()
+            .map(|method| method.def)
+            .collect::<Vec<_>>();
+        let ordinary = fixture.ordinary_binding.map(|name| {
+            lower
+                .modules
+                .value_decls(implementation.body_module, &Name(name.into()))[0]
+                .def
+        });
+        let mut lowerer = super::super::body::BodyLowerer::new(lower);
+
+        lowerer.lower_block(&root, module);
+
+        assert_eq!(lowerer.errors, Vec::new(), "fixture: {}", fixture.name);
+        for member in &members {
+            assert!(
+                lowerer.typing.def(*member).is_some(),
+                "body lowering assigned the method root before drain: {}",
+                fixture.name,
+            );
+            assert_eq!(
+                lowerer.session.scc.root_of(*member),
+                None,
+                "RegisterDef is still queued after body/requirement lowering: {}",
+                fixture.name,
+            );
+            assert!(!lowerer.session.scc.is_quantified(*member));
+            assert!(matches!(
+                lowerer.session.poly.defs.get(*member),
+                Some(Def::Let {
+                    scheme: None,
+                    body: Some(_),
+                    ..
+                })
+            ));
+        }
+
+        let mut timeline = Vec::new();
+        let mut registered = rustc_hash::FxHashSet::default();
+        while lowerer.session.step() {
+            for member in &members {
+                if !registered.contains(member) && lowerer.session.scc.root_of(*member).is_some() {
+                    registered.insert(*member);
+                    timeline.push(LifecycleEvent::RegisterDef(*member));
+                }
+            }
+            for event in lowerer.session.take_scc_events() {
+                match event {
+                    SccEvent::ComponentEdgeAdded { from, to }
+                        if from.iter().any(|def| members.contains(def))
+                            && to.iter().any(|def| requirements.contains(def)) =>
+                    {
+                        let member = *from
+                            .iter()
+                            .find(|def| members.contains(def))
+                            .expect("member dependency source");
+                        timeline.push(LifecycleEvent::RequirementDependency(member))
+                    }
+                    SccEvent::MergeComponents { merged, .. } => {
+                        timeline.push(LifecycleEvent::Merge(merged))
+                    }
+                    SccEvent::QuantifyComponent { component, .. } => {
+                        timeline.push(LifecycleEvent::Quantify(component))
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // `step` empties the ordinary queue but does not run the unresolved-role pass. Recursive
+        // fixtures need the same role-progress phase that `drain_work` owns before their SCC can
+        // merge and quantify.
+        lowerer.session.drain_work();
+        for event in lowerer.session.take_scc_events() {
+            match event {
+                SccEvent::MergeComponents { merged, .. } => {
+                    timeline.push(LifecycleEvent::Merge(merged))
+                }
+                SccEvent::QuantifyComponent { component, .. } => {
+                    timeline.push(LifecycleEvent::Quantify(component))
+                }
+                _ => {}
+            }
+        }
+
+        assert_eq!(registered.len(), members.len(), "fixture: {}", fixture.name);
+        if fixture.observe_dependency_edge {
+            assert_eq!(
+                timeline
+                    .iter()
+                    .filter(|event| matches!(event, LifecycleEvent::RequirementDependency(_)))
+                    .count(),
+                members.len(),
+                "one queued DependencyAdded per role impl member: {}",
+                fixture.name,
+            );
+        }
+        for member in &members {
+            let register = timeline_position(
+                &timeline,
+                |event| matches!(event, LifecycleEvent::RegisterDef(def) if def == member),
+            );
+            let quantify = timeline_position(
+                &timeline,
+                |event| matches!(event, LifecycleEvent::Quantify(component) if component.contains(member)),
+            );
+            if fixture.observe_dependency_edge {
+                let dependency = timeline_position(
+                    &timeline,
+                    |event| matches!(event, LifecycleEvent::RequirementDependency(def) if def == member),
+                );
+                assert!(
+                    register < dependency,
+                    "fixture: {}; {timeline:?}",
+                    fixture.name
+                );
+                assert!(
+                    dependency < quantify,
+                    "fixture: {}; {timeline:?}",
+                    fixture.name
+                );
+            } else {
+                assert!(
+                    register < quantify,
+                    "fixture: {}; {timeline:?}",
+                    fixture.name
+                );
+            }
+            assert!(lowerer.session.scc.is_quantified(*member));
+            assert!(matches!(
+                lowerer.session.poly.defs.get(*member),
+                Some(Def::Let {
+                    scheme: Some(_),
+                    ..
+                })
+            ));
+        }
+
+        if fixture.expect_multi_member_component {
+            assert!(
+                timeline.iter().any(|event| {
+                    matches!(event, LifecycleEvent::Merge(component)
+                    if members.iter().all(|member| component.contains(member)))
+                }),
+                "fixture: {}; {timeline:?}",
+                fixture.name
+            );
+            assert!(
+                timeline.iter().any(|event| {
+                    matches!(event, LifecycleEvent::Quantify(component)
+                    if members.iter().all(|member| component.contains(member)))
+                }),
+                "fixture: {}; {timeline:?}",
+                fixture.name
+            );
+        }
+        if let Some(ordinary) = ordinary {
+            assert!(
+                timeline.iter().any(|event| {
+                    matches!(event, LifecycleEvent::Quantify(component)
+                    if component.contains(&members[0]) && component.contains(&ordinary))
+                }),
+                "fixture: {}; {timeline:?}",
+                fixture.name
+            );
+        }
+
+        eprintln!("lifecycle {}: {timeline:?}", fixture.name);
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice0_counts_current_requirement_connections() {
+    let receiverless = concat!(
+        "role Make 'subject:\n",
+        "  our make: int\n",
+        "impl Make int:\n",
+        "  our make = 1\n",
+    );
+    with_requirement_harness(
+        receiverless,
+        "make",
+        |lowerer, requirement, bindings, vars| {
+            let method_value = lowerer.fresh_type_var();
+            let before = upper_bound_count(lowerer, method_value);
+            lowerer
+                .connect_impl_method_requirement(method_value, requirement, bindings, vars, true)
+                .expect("receiverless requirement connection");
+            assert_eq!(upper_bound_count(lowerer, method_value) - before, 1);
+        },
+    );
+
+    let receiver_zero = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    with_requirement_harness(
+        receiver_zero,
+        "read",
+        |lowerer, requirement, bindings, vars| {
+            assert_receiver_requirement_connections(lowerer, requirement, bindings, vars, 0);
+        },
+    );
+
+    let receiver_multiple = concat!(
+        "role Choose 'subject:\n",
+        "  our x.choose: int -> int -> int\n",
+        "impl int: Choose:\n",
+        "  our x.choose a b = a\n",
+    );
+    with_requirement_harness(
+        receiver_multiple,
+        "choose",
+        |lowerer, requirement, bindings, vars| {
+            assert_receiver_requirement_connections(lowerer, requirement, bindings, vars, 2);
+        },
+    );
+
+    let mutual = lifecycle_fixtures()
+        .into_iter()
+        .find(|fixture| fixture.name == "mutual-with-ordinary-binding")
+        .expect("mutual lifecycle fixture");
+    with_requirement_harness(
+        mutual.source,
+        "eval",
+        |lowerer, requirement, bindings, vars| {
+            assert_receiver_requirement_connections(lowerer, requirement, bindings, vars, 0);
+        },
+    );
+
+    for method in ["left", "right"] {
+        let multi = lifecycle_fixtures()
+            .into_iter()
+            .find(|fixture| fixture.name == "two-role-impl-methods-one-component")
+            .expect("multi-method lifecycle fixture");
+        with_requirement_harness(
+            multi.source,
+            method,
+            |lowerer, requirement, bindings, vars| {
+                assert_receiver_requirement_connections(lowerer, requirement, bindings, vars, 0);
+            },
+        );
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice0_expected_lowering_mutates_effect_bridge_before_connection() {
+    let plain_u = concat!(
+        "type box 'a\n",
+        "role Read 'subject:\n",
+        "  our x.read: 'subject\n",
+        "impl (box 'a): Read:\n",
+        "  our x.read = x\n",
+    );
+    with_requirement_harness(plain_u, "read", |lowerer, requirement, bindings, vars| {
+        let bridge = solver_var_named(bindings, vars, "a");
+        let before = bridge_state(lowerer, bridge);
+        let epoch = lowerer.session.infer.constraints().epoch();
+        let plan = lowerer
+            .impl_method_requirement_plan(&requirement.signature, 0, true, bindings, vars)
+            .expect("plain U requirement plan");
+        assert!(plan.body.is_some());
+        assert_eq!(bridge_state(lowerer, bridge), before);
+        assert_eq!(lowerer.session.infer.constraints().epoch(), epoch);
+        assert_eq!(solver_var_named(bindings, vars, "a"), bridge);
+    });
+
+    let plain_a = concat!(
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    with_requirement_harness(plain_a, "read", |lowerer, requirement, bindings, vars| {
+        let bridge = solver_var_named(bindings, vars, "value");
+        let before = bridge_state(lowerer, bridge);
+        let epoch = lowerer.session.infer.constraints().epoch();
+        let plan = lowerer
+            .impl_method_requirement_plan(&requirement.signature, 0, true, bindings, vars)
+            .expect("plain A requirement plan");
+        assert!(plan.body.is_some());
+        assert_eq!(bridge_state(lowerer, bridge), before);
+        assert_eq!(lowerer.session.infer.constraints().epoch(), epoch);
+        assert_eq!(solver_var_named(bindings, vars, "value"), bridge);
+    });
+
+    let effect_u = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Flow 'subject 'effect:\n",
+        "  our x.run: unit -> [tick; 'effect] unit\n",
+        "impl Flow int 'e:\n",
+        "  our x.run u = ()\n",
+    );
+    with_requirement_harness(effect_u, "run", |lowerer, requirement, bindings, vars| {
+        let bridge = solver_var_named(bindings, vars, "e");
+        let before = bridge_state(lowerer, bridge);
+        let epoch = lowerer.session.infer.constraints().epoch();
+        let plan = lowerer
+            .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+            .expect("effect-tail U requirement plan");
+        let after = bridge_state(lowerer, bridge);
+        assert!(plan.body.is_some(), "temporary body upper was lowered");
+        assert_eq!(after.bounds, before.bounds);
+        assert_eq!(after.subtract_facts.len(), before.subtract_facts.len() + 1);
+        assert!(lowerer.session.infer.constraints().epoch() > epoch);
+        assert_eq!(solver_var_named(bindings, vars, "e"), bridge);
+        eprintln!(
+            "expected lowering bridge mutation: U(e)=v{} bounds unchanged, subtract facts {} -> {}, epoch {} -> {}",
+            bridge.0,
+            before.subtract_facts.len(),
+            after.subtract_facts.len(),
+            epoch.as_u64(),
+            lowerer.session.infer.constraints().epoch().as_u64(),
+        );
+    });
+
+    let effect_a = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Flow 'subject:\n",
+        "  type effect\n",
+        "  our x.run: unit -> [tick; effect] unit\n",
+        "impl int: Flow:\n",
+        "  our x.run u = ()\n",
+    );
+    with_requirement_harness(effect_a, "run", |lowerer, requirement, bindings, vars| {
+        let bridge = solver_var_named(bindings, vars, "effect");
+        let before = bridge_state(lowerer, bridge);
+        let epoch = lowerer.session.infer.constraints().epoch();
+        let plan = lowerer
+            .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+            .expect("effect-tail A requirement plan");
+        let after = bridge_state(lowerer, bridge);
+        assert!(plan.body.is_some(), "temporary body upper was lowered");
+        assert_eq!(after.bounds, before.bounds);
+        assert_eq!(after.subtract_facts.len(), before.subtract_facts.len() + 1);
+        assert!(lowerer.session.infer.constraints().epoch() > epoch);
+        assert_eq!(solver_var_named(bindings, vars, "effect"), bridge);
+        eprintln!(
+            "expected lowering bridge mutation: A(effect)=v{} bounds unchanged, subtract facts {} -> {}, epoch {} -> {}",
+            bridge.0,
+            before.subtract_facts.len(),
+            after.subtract_facts.len(),
+            epoch.as_u64(),
+            lowerer.session.infer.constraints().epoch().as_u64(),
+        );
+    });
+
+    let effect_row_parameter_u = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Consume 'subject 'effect:\n",
+        "  our x.consume: '[tick; 'effect] -> unit\n",
+        "impl Consume int 'e:\n",
+        "  our x.consume action = ()\n",
+    );
+    with_requirement_harness(
+        effect_row_parameter_u,
+        "consume",
+        |lowerer, requirement, bindings, vars| {
+            let bridge = solver_var_named(bindings, vars, "e");
+            let before = bridge_state(lowerer, bridge);
+            let epoch = lowerer.session.infer.constraints().epoch();
+            let plan = lowerer
+                .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+                .expect("effect-row parameter U requirement plan");
+            let after = bridge_state(lowerer, bridge);
+            let bounds = after
+                .bounds
+                .as_ref()
+                .expect("temporary parameter upper mutates the bridge bounds");
+            assert!(plan.param_uppers[0].is_some());
+            assert!(!bounds.lowers().is_empty());
+            assert!(!bounds.uppers().is_empty());
+            assert_ne!(after.bounds, before.bounds);
+            assert!(lowerer.session.infer.constraints().epoch() > epoch);
+            assert_eq!(solver_var_named(bindings, vars, "e"), bridge);
+            eprintln!(
+                "expected lowering bridge mutation: parameter U(e)=v{} bounds {:?} -> lowers={}, uppers={}, epoch {} -> {}",
+                bridge.0,
+                before.bounds,
+                bounds.lowers().len(),
+                bounds.uppers().len(),
+                epoch.as_u64(),
+                lowerer.session.infer.constraints().epoch().as_u64(),
+            );
+        },
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice0_signature_lowerer_reuses_internal_state() {
+    let method_local = concat!(
+        "role Same 'subject:\n",
+        "  our x.same: 'm -> 'm\n",
+        "impl int: Same:\n",
+        "  our x.same value = value\n",
+    );
+    with_requirement_harness(
+        method_local,
+        "same",
+        |lowerer, requirement, bindings, vars| {
+            let plan = lowerer
+                .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+                .expect("method-local signature variable plan");
+            let parameter = neg_var(
+                lowerer.session.infer.constraints().types(),
+                plan.param_uppers[0].expect("parameter upper"),
+            );
+            let body = neg_var(
+                lowerer.session.infer.constraints().types(),
+                plan.body.expect("body upper").value_upper,
+            );
+            assert_eq!(parameter, body);
+            assert!(!vars.values().any(|bridge| *bridge == parameter));
+        },
+    );
+
+    let closed_effect = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: (unit -> [tick] unit) -> [tick] unit\n",
+        "impl int: Run:\n",
+        "  our x.run action = action()\n",
+    );
+    with_requirement_harness(
+        closed_effect,
+        "run",
+        |lowerer, requirement, bindings, vars| {
+            let plan = lowerer
+                .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+                .expect("closed effect row plan");
+            let types = lowerer.session.infer.constraints().types();
+            let parameter_effect = match types.neg(plan.param_uppers[0].expect("parameter upper")) {
+                Neg::Fun { ret_eff, .. } => stacked_neg_var(types, *ret_eff),
+                other => panic!("expected function parameter upper, got {other:?}"),
+            };
+            let body_effect = stacked_neg_var(types, plan.body.expect("body upper").effect_upper);
+            assert_eq!(parameter_effect, body_effect);
+            assert!(!vars.values().any(|bridge| *bridge == parameter_effect));
+        },
+    );
+
+    assert_signature_lowerer_reuses_private_data_effect_tail();
+}
+
 #[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
@@ -562,6 +1033,335 @@ struct Fixture {
     role: &'static str,
     source: &'static str,
     current: &'static str,
+}
+
+#[derive(Debug)]
+enum LifecycleEvent {
+    RegisterDef(DefId),
+    RequirementDependency(DefId),
+    Merge(Vec<DefId>),
+    Quantify(Vec<DefId>),
+}
+
+struct LifecycleFixture {
+    name: &'static str,
+    role: &'static str,
+    source: &'static str,
+    ordinary_binding: Option<&'static str>,
+    expect_multi_member_component: bool,
+    observe_dependency_edge: bool,
+}
+
+fn timeline_position(
+    timeline: &[LifecycleEvent],
+    predicate: impl Fn(&LifecycleEvent) -> bool,
+) -> usize {
+    timeline
+        .iter()
+        .position(predicate)
+        .unwrap_or_else(|| panic!("missing lifecycle event in {timeline:?}"))
+}
+
+fn with_requirement_harness<R>(
+    source: &str,
+    method_name: &str,
+    test: impl FnOnce(
+        &mut ExprLowerer<'_>,
+        &ResolvedRoleMethodRequirement,
+        &[(String, AnnTypeVarId)],
+        &mut rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> R,
+) -> R {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let impl_node = root
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("role impl declaration");
+    let mut body_lowerer = super::super::body::BodyLowerer::new(lower);
+    let mut context = body_lowerer
+        .register_role_impl_candidate(
+            &impl_node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            None,
+        )
+        .expect("role impl lowering context");
+    let role_method = body_lowerer
+        .modules
+        .role_methods(context.role)
+        .iter()
+        .find(|method| method.name == Name(method_name.into()))
+        .expect("role method requirement");
+    let stored = body_lowerer
+        .role_requirements
+        .get(&role_method.def)
+        .expect("stored role method requirement");
+    let requirement = ResolvedRoleMethodRequirement {
+        role_method: role_method.def,
+        role: body_lowerer
+            .modules
+            .type_decl_path(
+                &body_lowerer
+                    .modules
+                    .type_decl_by_id(context.role)
+                    .expect("role declaration"),
+            )
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect(),
+        inputs: context.input_signatures.clone(),
+        associated: context.associated_signatures.clone(),
+        signature: substitute_role_requirement_signature(stored, &context),
+    };
+    let method = implementation
+        .methods
+        .iter()
+        .find(|method| method.name == Name(method_name.into()))
+        .expect("role impl method");
+    let mut expr_lowerer = ExprLowerer::new(
+        &mut body_lowerer.session,
+        &body_lowerer.modules,
+        implementation.body_module,
+        method.order,
+        method.def,
+    );
+    test(
+        &mut expr_lowerer,
+        &requirement,
+        &context.type_var_bindings,
+        &mut context.ann_solver_vars,
+    )
+}
+
+fn assert_receiver_requirement_connections(
+    lowerer: &mut ExprLowerer<'_>,
+    requirement: &ResolvedRoleMethodRequirement,
+    bindings: &[(String, AnnTypeVarId)],
+    vars: &mut rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+    param_count: usize,
+) {
+    let plan = lowerer
+        .impl_method_requirement_plan(&requirement.signature, param_count, true, bindings, vars)
+        .expect("receiver requirement plan");
+    assert_eq!(plan.param_uppers.len(), param_count);
+    assert!(plan.param_uppers.iter().all(Option::is_some));
+    assert!(plan.body.is_some());
+
+    let mut param_connections = 0usize;
+    for upper in plan.param_uppers.into_iter().flatten() {
+        let actual = lowerer.fresh_type_var();
+        let before = upper_bound_count(lowerer, actual);
+        let lower = lowerer.alloc_pos(Pos::Var(actual));
+        lowerer.session.infer.subtype(lower, upper);
+        param_connections += upper_bound_count(lowerer, actual) - before;
+    }
+    assert_eq!(param_connections, param_count);
+
+    let body_value = lowerer.fresh_type_var();
+    let body_effect = lowerer.fresh_type_var();
+    let value_before = upper_bound_count(lowerer, body_value);
+    let effect_before = upper_bound_count(lowerer, body_effect);
+    let body = Computation::value(
+        lowerer.session.poly.add_expr(Expr::Tuple(Vec::new())),
+        body_value,
+        body_effect,
+    );
+    lowerer.connect_impl_method_body_requirement(body, plan.body.expect("body requirement"));
+    assert_eq!(upper_bound_count(lowerer, body_value) - value_before, 1);
+    assert_eq!(upper_bound_count(lowerer, body_effect) - effect_before, 1);
+
+    let method_value = lowerer.fresh_type_var();
+    let before = upper_bound_count(lowerer, method_value);
+    lowerer
+        .connect_impl_method_requirement(method_value, requirement, bindings, vars, false)
+        .expect("receiver final requirement metadata");
+    assert_eq!(upper_bound_count(lowerer, method_value) - before, 0);
+}
+
+fn upper_bound_count(lowerer: &ExprLowerer<'_>, var: TypeVar) -> usize {
+    lowerer
+        .session
+        .infer
+        .constraints()
+        .bounds()
+        .of(var)
+        .map(|bounds| bounds.uppers().len())
+        .unwrap_or(0)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BridgeState {
+    bounds: Option<crate::constraints::VarBounds>,
+    subtract_facts: Vec<crate::constraints::SubtractFact>,
+}
+
+fn bridge_state(lowerer: &ExprLowerer<'_>, var: TypeVar) -> BridgeState {
+    let constraints = lowerer.session.infer.constraints();
+    BridgeState {
+        bounds: constraints.bounds().of(var).cloned(),
+        subtract_facts: constraints.subtracts().facts(var).to_vec(),
+    }
+}
+
+fn solver_var_named(
+    bindings: &[(String, AnnTypeVarId)],
+    vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+    name: &str,
+) -> TypeVar {
+    let id = bindings
+        .iter()
+        .find_map(|(binding, id)| (binding == name).then_some(*id))
+        .unwrap_or_else(|| panic!("missing annotation binding {name}"));
+    vars.get(&id)
+        .copied()
+        .unwrap_or_else(|| panic!("missing solver bridge for {name}"))
+}
+
+fn neg_var(types: &poly::types::TypeArena, neg: NegId) -> TypeVar {
+    match types.neg(neg) {
+        Neg::Var(var) => *var,
+        other => panic!("expected variable upper, got {other:?}"),
+    }
+}
+
+fn stacked_neg_var(types: &poly::types::TypeArena, neg: NegId) -> TypeVar {
+    match types.neg(neg) {
+        Neg::Var(var) => *var,
+        Neg::Stack { inner, .. } => stacked_neg_var(types, *inner),
+        other => panic!("expected stacked variable upper, got {other:?}"),
+    }
+}
+
+fn stacked_pos_var(types: &poly::types::TypeArena, pos: PosId) -> Option<TypeVar> {
+    match types.pos(pos) {
+        Pos::Var(var) => Some(*var),
+        Pos::Stack { inner, .. } => stacked_pos_var(types, *inner),
+        Pos::Row(items) => items.iter().find_map(|item| stacked_pos_var(types, *item)),
+        _ => None,
+    }
+}
+
+fn assert_signature_lowerer_reuses_private_data_effect_tail() {
+    let root = parse(concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "my site = ()\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let tick = lower.modules.type_decls(module, &Name("tick".into()))[0].id;
+    let mut infer = crate::Arena::new();
+    let public_tail = infer.fresh_type_var();
+    let row = SignatureEffectRow::new(
+        vec![SignatureEffectAtom::Type(SignatureType::Named(tick))],
+        Some(SignatureVar::new("e")),
+    );
+    let signature = SignatureType::EffectRow(row);
+    let mut lowerer = SignatureLowerer::with_vars(
+        &mut infer,
+        &lower.modules,
+        rustc_hash::FxHashMap::from_iter([("e".into(), public_tail)]),
+    );
+    let invariant = lowerer
+        .lower_invariant_arg(&signature)
+        .expect("data-position effect row");
+    let types = lowerer.infer.constraints().types();
+    let (lower, upper) = match types.neu(invariant) {
+        Neu::Bounds(lower, upper) => (*lower, *upper),
+        other => panic!("expected invariant effect bounds, got {other:?}"),
+    };
+    let private_from_lower = stacked_pos_var(types, lower).expect("private positive tail");
+    let private_from_upper = match types.neg(upper) {
+        Neg::Row(_, tail) => stacked_neg_var(types, *tail),
+        other => panic!("expected negative effect row, got {other:?}"),
+    };
+    assert_eq!(private_from_lower, private_from_upper);
+    assert_ne!(private_from_lower, public_tail);
+    let public_bounds = lowerer
+        .infer
+        .constraints()
+        .bounds()
+        .of(public_tail)
+        .expect("private tail flows to public tail");
+    assert_eq!(public_bounds.lowers().len(), 1);
+}
+
+fn lifecycle_fixtures() -> Vec<LifecycleFixture> {
+    vec![
+        LifecycleFixture {
+            name: "receiverless",
+            role: "Make",
+            source: concat!(
+                "impl Make int:\n",
+                "  our make = 1\n",
+                "role Make 'subject:\n",
+                "  our make: int\n",
+            ),
+            ordinary_binding: None,
+            expect_multi_member_component: false,
+            observe_dependency_edge: true,
+        },
+        LifecycleFixture {
+            name: "receiver-zero-tail",
+            role: "Read",
+            source: concat!(
+                "impl int: Read:\n",
+                "  our x.read = 1\n",
+                "role Read 'subject:\n",
+                "  our x.read: int\n",
+            ),
+            ordinary_binding: None,
+            expect_multi_member_component: false,
+            observe_dependency_edge: true,
+        },
+        LifecycleFixture {
+            name: "receiver-multiple-tail",
+            role: "Choose",
+            source: concat!(
+                "impl int: Choose:\n",
+                "  our x.choose a b = a\n",
+                "role Choose 'subject:\n",
+                "  our x.choose: int -> int -> int\n",
+            ),
+            ordinary_binding: None,
+            expect_multi_member_component: false,
+            observe_dependency_edge: true,
+        },
+        LifecycleFixture {
+            name: "mutual-with-ordinary-binding",
+            role: "Eval",
+            source: concat!(
+                "role Eval 'subject:\n",
+                "  our x.eval: int\n",
+                "impl int: Eval:\n",
+                "  our x.eval = helper\n",
+                "  my helper = eval\n",
+            ),
+            ordinary_binding: Some("helper"),
+            expect_multi_member_component: false,
+            observe_dependency_edge: false,
+        },
+        LifecycleFixture {
+            name: "two-role-impl-methods-one-component",
+            role: "Pair",
+            source: concat!(
+                "role Pair 'subject:\n",
+                "  our x.left: int\n",
+                "  our x.right: int\n",
+                "impl int: Pair:\n",
+                "  our x.left = right\n",
+                "  our x.right = left\n",
+            ),
+            ordinary_binding: None,
+            expect_multi_member_component: true,
+            observe_dependency_edge: false,
+        },
+    ]
 }
 
 const EXPLICIT_BOOL_CONCRETE_INT: &str = concat!(

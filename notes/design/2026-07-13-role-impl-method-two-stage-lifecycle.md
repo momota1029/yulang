@@ -556,6 +556,38 @@ Size S, test-only. Record current event order for receiverless, receiver, recurs
 multi-member SCC fixtures. Add counters for requirement connections and quantification order. No
 behavior change.
 
+Slice 0 completed in the 2026-07-13 session (test-only, no behavior change). Witnesses live in
+`crates/infer/src/lowering/tests/case_07.rs`.
+
+- Event order confirmed for receiverless, receiver (zero and two tail parameters),
+  mutual-recursion-with-ordinary-binding, and two-role-impl-methods-one-component fixtures:
+  `RegisterDef` precedes the observable requirement-dependency component edge, which precedes
+  `QuantifyComponent`; merges land before the joint component quantifies. This matches section 2
+  exactly.
+- Connection counts confirmed: a receiverless method applies exactly one whole-value upper: a
+  receiver method applies one edge per tail parameter plus exactly two body edges (value, effect);
+  the final `connect_impl_method_requirement` metadata call on the receiver path adds no further
+  upper.
+- Section 13 point 3 is resolved, in the harder direction. Plain value-position `U`/`A` bridges are
+  unmutated by `impl_method_requirement_plan` before its body upper is connected. Effect-typed
+  `U`/`A` -- whether a result-effect tail or a full effect-row parameter -- are mutated purely by
+  lowering the expected signature: subtract facts and the constraint epoch advance, and for
+  effect-row parameters the bounds themselves gain lower/upper entries, before any body or
+  parameter upper is actually connected. This confirms section 5.1's "case 2": expected-signature
+  lowering itself changes the actual surface for effect-bearing positions.
+- `SignatureLowerer`'s internal state sharing (method-local signature variables, closed effect-row
+  identity, private data-effect tail) requires the same `SignatureLowerer` instance across the
+  parameter and body layers. Re-deriving it later from `SignatureType` plus a fresh seed would not
+  reproduce the same identities.
+
+Implication for Slice 1: keeping already-lowered parameter uppers untouched while deferring only the
+body result/effect connection does not extend safely to effect-bearing positions, which are common
+in this effect-oriented language. Slice 1 must design the explicit same-session continuation state
+for `SignatureLowerer` (or defer the expected-signature lowering itself for effect-bearing
+positions); it must not assume the plain-value case generalizes. This raises Slice 1's risk and cost
+above its original S-M sizing and is a decision point for Claude Sonnet 5 and the user before Slice 1
+begins.
+
 ### Slice 1: production binder bridge and pending descriptor
 
 Size S-M. Formalize the `U/A -> TypeVar` bridge, split requirement data from already-lowered uppers,
