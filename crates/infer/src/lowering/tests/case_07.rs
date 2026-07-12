@@ -135,6 +135,115 @@ fn generic_role_impl_conformance_stage1_slice1_records_synthetic_name_overlap() 
     );
 }
 
+#[test]
+fn generic_role_impl_conformance_stage1_slice2_captures_slot_substitution() {
+    let fixtures = conformance_fixtures();
+    let dump = |name| {
+        let fixture = fixtures
+            .iter()
+            .find(|fixture| fixture.name == name)
+            .unwrap_or_else(|| panic!("missing fixture {name}"));
+        characterize_method_contract(fixture.source)
+    };
+
+    assert_eq!(
+        dump("explicit-a-same-a"),
+        concat!(
+            "substitution=inputs=[container->input0,key->input1] associated=[value->U0] ambiguous=[]\n",
+            "methods=[index=explicit(1);refs=[input0,input1,U0]] unmatched=[]",
+        ),
+    );
+    assert_eq!(
+        dump("omitted-associated-one-method"),
+        concat!(
+            "substitution=inputs=[container->input0,key->input1] associated=[value->A0] ambiguous=[]\n",
+            "methods=[index=explicit(1);refs=[input0,input1,A0]] unmatched=[]",
+        ),
+    );
+    assert_eq!(dump("alpha-renamed-a"), dump("alpha-renamed-b"),);
+}
+
+#[test]
+fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
+    let source = concat!(
+        "role Demo 'subject:\n",
+        "  our x.required: unit\n",
+        "  our x.defaulted = ()\n",
+        "  our x.missing: unit\n",
+        "impl int: Demo:\n",
+        "  our x.required = ()\n",
+        "  our x.required = ()\n",
+        "  our extra = ()\n",
+    );
+
+    assert_eq!(
+        characterize_method_contract(source),
+        concat!(
+            "substitution=inputs=[subject->input0] associated=[] ambiguous=[]\n",
+            "methods=[required=explicit(2);refs=[input0] | defaulted=default;refs=[] | missing=missing;refs=[input0]] unmatched=[extra]",
+        ),
+    );
+}
+
+/// The parser/module map currently accepts an input and associated declaration with the same
+/// spelling. The contract keeps both slots and records requirement occurrences as ambiguous rather
+/// than silently choosing one. Enforcement remains a later-stage language decision.
+#[test]
+fn generic_role_impl_conformance_stage1_slice2_characterizes_same_name_slots() {
+    let source = concat!(
+        "role Clash 'a:\n",
+        "  type a\n",
+        "  our x.read: a\n",
+        "impl int: Clash:\n",
+        "  type a = int\n",
+        "  our x.read = 1\n",
+    );
+
+    assert_eq!(
+        characterize_method_contract(source),
+        concat!(
+            "substitution=inputs=[a->input0] associated=[a->] ambiguous=[a]\n",
+            "methods=[read=explicit(1);refs=[];ambiguous=[a]] unmatched=[]",
+        ),
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage1_slice2_recovers_imported_default_body() {
+    let source = concat!(
+        "role Demo 'subject:\n",
+        "  our x.defaulted = ()\n",
+        "impl int: Demo:\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let role = lower
+        .modules
+        .type_decls(lower.modules.root_id(), &Name("Demo".into()))[0]
+        .clone();
+    let default_method = lower.modules.role_methods(role.id)[0].def;
+    let output = lower_binding_bodies(&root, lower);
+    let runtime = crate::CompiledRuntimeSurface::from_lowering(&output);
+    let mut imported_poly = poly::expr::Arena::new();
+    let padding = imported_poly.defs.fresh();
+    imported_poly.defs.set(padding, Def::Arg);
+    let mut labels = poly::dump::DumpLabels::new();
+    let import = runtime.import_into(&mut imported_poly, &mut labels);
+    let imported_method = import.map_def(default_method);
+
+    assert_ne!(imported_method, default_method);
+    assert!(
+        !output
+            .modules
+            .role_method_has_source_default_body(imported_method)
+    );
+    assert!(crate::role_impl_conformance::role_method_has_default_body(
+        &output.modules,
+        &imported_poly,
+        imported_method,
+    ));
+}
+
 struct Fixture {
     name: &'static str,
     role: &'static str,
@@ -276,6 +385,31 @@ fn characterize_contract(source: &str) -> String {
         .conformance_contract
         .expect("source role impl contract")
         .binder_dump()
+}
+
+fn characterize_method_contract(source: &str) -> String {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let node = root
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("root role impl declaration");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    let context = lowerer
+        .register_role_impl_candidate(
+            &node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            None,
+        )
+        .expect("role impl contract capture");
+    context
+        .conformance_contract
+        .expect("source role impl contract")
+        .method_correspondence_dump()
 }
 
 fn characterize_attached_contract(source: &str, owner: &str) -> String {

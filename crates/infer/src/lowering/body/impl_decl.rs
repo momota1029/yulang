@@ -175,15 +175,62 @@ impl BodyLowerer {
                     .collect::<Vec<_>>()
             })
             .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+        let contract_source = self
+            .modules
+            .def_source_range(impl_def)
+            .unwrap_or_else(|| crate::node_source_range(node));
+        let contract_requirements = self
+            .modules
+            .role_methods(spec.role)
+            .iter()
+            .map(
+                |method| crate::role_impl_conformance::RoleImplMethodRequirementCapture {
+                    requirement: method.def,
+                    name: method.name.0.clone(),
+                    signature: role_method_contract_signature(&self.modules, spec.role, method),
+                    has_default_body: crate::role_impl_conformance::role_method_has_default_body(
+                        &self.modules,
+                        &self.session.poly,
+                        method.def,
+                    ),
+                    source: self.modules.def_source_range(method.def),
+                    order: method.order.index(),
+                },
+            )
+            .collect::<Vec<_>>();
+        let contract_implementations = self
+            .modules
+            .role_impls(module)
+            .iter()
+            .find(|implementation| implementation.def == impl_def)
+            .map(|implementation| {
+                implementation
+                    .methods
+                    .iter()
+                    .map(
+                        |method| crate::role_impl_conformance::RoleImplMethodImplementation {
+                            def: method.def,
+                            name: method.name.0.clone(),
+                            source: self
+                                .modules
+                                .def_source_range(method.def)
+                                .unwrap_or_else(|| contract_source.clone()),
+                            order: method.order.index(),
+                        },
+                    )
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         let conformance_contract =
             crate::role_impl_conformance::RoleImplConformanceContract::capture(
                 impl_def,
                 role.clone(),
-                self.modules
-                    .def_source_range(impl_def)
-                    .unwrap_or_else(|| crate::node_source_range(node)),
+                contract_source,
+                role_input_names.clone(),
                 spec.inputs.clone(),
                 contract_associated,
+                contract_requirements,
+                contract_implementations,
             );
         let explicit_associated_complete = role_associated_names
             .iter()
@@ -494,4 +541,28 @@ impl BodyLowerer {
         );
         Ok(())
     }
+}
+
+fn role_method_contract_signature(
+    modules: &ModuleTable,
+    role: TypeDeclId,
+    method: &RoleMethodDecl,
+) -> Option<SignatureType> {
+    let signature = method.signature.as_ref()?;
+    let companion = modules.type_companion(role)?;
+    let role_inputs = modules.role_inputs(role);
+    let role_associated = modules.role_associated(role);
+    let mut builder = ann_type_builder(modules, companion, method.order, None);
+    for name in role_inputs.iter().chain(role_associated.iter()) {
+        builder.add_bare_type_var(name.clone());
+    }
+    if let Some(first) = role_inputs.first() {
+        builder.add_bare_type_var_alias("self", first.clone());
+    }
+    let signature = build_stored_signature_type_expr(&mut builder, signature).ok()?;
+    Some(role_method_signature_with_receiver(
+        method.receiver.as_ref(),
+        role_inputs.first(),
+        signature,
+    ))
 }

@@ -969,6 +969,7 @@ impl Lower {
                 SyntaxKind::Binding => {
                     if let Some(method) = role_method_binding(&child) {
                         let vis = binding_vis(&child);
+                        let has_default_body = binding_body_expr(&child).is_some();
                         let def = self.arena.defs.fresh();
                         self.arena.defs.set(
                             def,
@@ -997,6 +998,9 @@ impl Lower {
                             order,
                             signature: binding_type_expr(&child).map(StoredSignature::source),
                         });
+                        if has_default_body {
+                            self.modules.mark_role_method_default_body(def);
+                        }
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     } else if let Some(name) = binding_name(&child) {

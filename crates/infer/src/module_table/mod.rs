@@ -42,6 +42,7 @@ impl ModuleTable {
             role_associated: FxHashMap::default(),
             role_impls: FxHashMap::default(),
             role_methods: FxHashMap::default(),
+            role_method_default_bodies: FxHashSet::default(),
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             type_field_methods: FxHashMap::default(),
@@ -338,6 +339,12 @@ impl ModuleTable {
             .values()
             .flat_map(|methods| methods.iter())
     }
+    pub(super) fn mark_role_method_default_body(&mut self, def: DefId) {
+        self.role_method_default_bodies.insert(def);
+    }
+    pub(crate) fn role_method_has_source_default_body(&self, def: DefId) -> bool {
+        self.role_method_default_bodies.contains(&def)
+    }
     pub(super) fn set_type_companion(&mut self, id: TypeDeclId, module: ModuleId) {
         self.type_companions.insert(id, module);
     }
@@ -485,6 +492,10 @@ impl ModuleTable {
                 method.def = import.map_def(method.def);
             }
         }
+        self.role_method_default_bodies = std::mem::take(&mut self.role_method_default_bodies)
+            .into_iter()
+            .map(|def| import.map_def(def))
+            .collect();
         for methods in self.type_methods.values_mut() {
             for method in methods {
                 method.def = import.map_def(method.def);

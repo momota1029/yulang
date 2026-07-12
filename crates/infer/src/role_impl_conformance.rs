@@ -1,12 +1,14 @@
 //! Immutable source contract captured before role-impl annotations enter inference.
 //!
-//! This module owns source binder identity and explicit/inferred associated provenance only.
-//! Method correspondence, validation, and `BodyLowering` lifecycle handoff belong to later stages.
+//! This module owns source binder identity, associated-assignment provenance, and deterministic
+//! method correspondence. Validation and `BodyLowering` lifecycle handoff belong to later stages.
 
-use poly::expr::DefId;
+use poly::expr::{Arena as PolyArena, Def, DefId};
 use sources::SourceRange;
 
+use crate::ModuleTable;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
+use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RoleImplConformanceContract {
@@ -16,6 +18,9 @@ pub(crate) struct RoleImplConformanceContract {
     pub(crate) universal_binders: Vec<ImplUniversalBinder>,
     pub(crate) inputs: Vec<DeclaredType>,
     pub(crate) associated: Vec<AssociatedAssignment>,
+    pub(crate) requirement_substitution: RoleRequirementSubstitution,
+    pub(crate) methods: Vec<RoleImplMethodContract>,
+    pub(crate) unmatched_implementations: Vec<RoleImplMethodImplementation>,
 }
 
 impl RoleImplConformanceContract {
@@ -23,8 +28,11 @@ impl RoleImplConformanceContract {
         impl_def: DefId,
         role: Vec<String>,
         source: SourceRange,
+        role_input_names: Vec<String>,
         inputs: Vec<AnnType>,
         associated: Vec<AssociatedAssignment>,
+        requirements: Vec<RoleImplMethodRequirementCapture>,
+        implementations: Vec<RoleImplMethodImplementation>,
     ) -> Self {
         let inputs = inputs
             .into_iter()
@@ -49,7 +57,11 @@ impl RoleImplConformanceContract {
                 annotation_var: binder.id,
                 source_name: binder.name,
             })
-            .collect();
+            .collect::<Vec<_>>();
+        let requirement_substitution =
+            RoleRequirementSubstitution::capture(role_input_names, &associated, &universal_binders);
+        let (methods, unmatched_implementations) =
+            capture_method_correspondence(requirements, implementations, &requirement_substitution);
 
         Self {
             impl_def,
@@ -58,6 +70,9 @@ impl RoleImplConformanceContract {
             universal_binders,
             inputs,
             associated,
+            requirement_substitution,
+            methods,
+            unmatched_implementations,
         }
     }
 
@@ -124,6 +139,61 @@ impl RoleImplConformanceContract {
             .iter()
             .find_map(|binder| (binder.annotation_var == annotation_var).then_some(binder.id))
     }
+
+    #[cfg(test)]
+    pub(crate) fn method_correspondence_dump(&self) -> String {
+        let slots = self.requirement_substitution.dump();
+        let methods = self
+            .methods
+            .iter()
+            .map(|method| {
+                let provision = match &method.provision {
+                    RoleImplMethodProvision::Explicit { implementations } => {
+                        format!("explicit({})", implementations.len())
+                    }
+                    RoleImplMethodProvision::Default { .. } => "default".to_string(),
+                    RoleImplMethodProvision::Missing => "missing".to_string(),
+                };
+                let references = method
+                    .declared_requirement
+                    .as_ref()
+                    .map(|requirement| requirement.references.as_slice())
+                    .unwrap_or_default()
+                    .iter()
+                    .map(ContractTypeRef::dump)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let ambiguous_names = method
+                    .declared_requirement
+                    .as_ref()
+                    .map(|requirement| requirement.ambiguous_names.as_slice())
+                    .unwrap_or_default();
+                let ambiguous = if ambiguous_names.is_empty() {
+                    String::new()
+                } else {
+                    format!(";ambiguous=[{}]", ambiguous_names.join(","))
+                };
+                format!("{}={provision};refs=[{references}]{ambiguous}", method.name)
+            })
+            .collect::<Vec<_>>()
+            .join(" | ");
+        let unmatched = self
+            .unmatched_implementations
+            .iter()
+            .map(|implementation| implementation.name.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("{slots}\nmethods=[{methods}] unmatched=[{unmatched}]")
+    }
+}
+
+pub(crate) fn role_method_has_default_body(
+    modules: &ModuleTable,
+    poly: &PolyArena,
+    def: DefId,
+) -> bool {
+    modules.role_method_has_source_default_body(def)
+        || matches!(poly.defs.get(def), Some(Def::Let { body: Some(_), .. }))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +242,323 @@ pub(crate) struct AssociatedInferenceBinder {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct AssociatedInferenceBinderId(pub(crate) u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodContract {
+    pub(crate) requirement: DefId,
+    pub(crate) name: String,
+    pub(crate) provision: RoleImplMethodProvision,
+    pub(crate) declared_requirement: Option<DeclaredRoleMethodRequirement>,
+    pub(crate) source: Option<SourceRange>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeclaredRoleMethodRequirement {
+    pub(crate) signature: SignatureType,
+    pub(crate) references: Vec<ContractTypeRef>,
+    pub(crate) ambiguous_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RoleImplMethodProvision {
+    Explicit {
+        implementations: Vec<RoleImplMethodImplementation>,
+    },
+    Default {
+        implementation: DefId,
+        source: Option<SourceRange>,
+    },
+    Missing,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodImplementation {
+    pub(crate) def: DefId,
+    pub(crate) name: String,
+    pub(crate) source: SourceRange,
+    pub(crate) order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodRequirementCapture {
+    pub(crate) requirement: DefId,
+    pub(crate) name: String,
+    pub(crate) signature: Option<SignatureType>,
+    pub(crate) has_default_body: bool,
+    pub(crate) source: Option<SourceRange>,
+    pub(crate) order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleRequirementSubstitution {
+    pub(crate) inputs: Vec<RoleRequirementSubstitutionSlot>,
+    pub(crate) associated: Vec<RoleRequirementSubstitutionSlot>,
+    pub(crate) ambiguous_names: Vec<String>,
+}
+
+impl RoleRequirementSubstitution {
+    fn capture(
+        role_input_names: Vec<String>,
+        associated: &[AssociatedAssignment],
+        universal_binders: &[ImplUniversalBinder],
+    ) -> Self {
+        let inputs = role_input_names
+            .into_iter()
+            .enumerate()
+            .map(|(index, name)| RoleRequirementSubstitutionSlot {
+                name,
+                references: vec![ContractTypeRef::DeclaredInput(index as u32)],
+            })
+            .collect::<Vec<_>>();
+        let associated = associated
+            .iter()
+            .map(|assignment| match assignment {
+                AssociatedAssignment::Explicit { name, ty, .. } => {
+                    let mut source_binders = Vec::new();
+                    ty.collect_source_binders(&mut source_binders);
+                    let mut references = source_binders
+                        .into_iter()
+                        .filter_map(|binder| {
+                            universal_binders.iter().find_map(|universal| {
+                                (universal.annotation_var == binder.id)
+                                    .then_some(ContractTypeRef::Universal(universal.id))
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    references.sort();
+                    references.dedup();
+                    RoleRequirementSubstitutionSlot {
+                        name: name.clone(),
+                        references,
+                    }
+                }
+                AssociatedAssignment::Inferred { name, binder } => {
+                    RoleRequirementSubstitutionSlot {
+                        name: name.clone(),
+                        references: vec![ContractTypeRef::InferredAssociated(binder.id)],
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut ambiguous_names = inputs
+            .iter()
+            .filter(|input| {
+                associated
+                    .iter()
+                    .any(|associated| associated.name == input.name)
+            })
+            .map(|input| input.name.clone())
+            .collect::<Vec<_>>();
+        ambiguous_names.sort();
+        ambiguous_names.dedup();
+        Self {
+            inputs,
+            associated,
+            ambiguous_names,
+        }
+    }
+
+    fn references_for_name(&self, name: &str) -> Result<&[ContractTypeRef], ()> {
+        if self
+            .ambiguous_names
+            .iter()
+            .any(|candidate| candidate == name)
+        {
+            return Err(());
+        }
+        self.inputs
+            .iter()
+            .chain(self.associated.iter())
+            .find(|slot| slot.name == name)
+            .map(|slot| slot.references.as_slice())
+            .ok_or(())
+    }
+
+    #[cfg(test)]
+    fn dump(&self) -> String {
+        let dump_slots = |slots: &[RoleRequirementSubstitutionSlot]| {
+            slots
+                .iter()
+                .map(|slot| {
+                    format!(
+                        "{}->{}",
+                        slot.name,
+                        slot.references
+                            .iter()
+                            .map(ContractTypeRef::dump)
+                            .collect::<Vec<_>>()
+                            .join("+")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        format!(
+            "substitution=inputs=[{}] associated=[{}] ambiguous=[{}]",
+            dump_slots(&self.inputs),
+            dump_slots(&self.associated),
+            self.ambiguous_names.join(",")
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleRequirementSubstitutionSlot {
+    pub(crate) name: String,
+    pub(crate) references: Vec<ContractTypeRef>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum ContractTypeRef {
+    DeclaredInput(u32),
+    Universal(ImplUniversalBinderId),
+    InferredAssociated(AssociatedInferenceBinderId),
+}
+
+impl ContractTypeRef {
+    #[cfg(test)]
+    fn dump(&self) -> String {
+        match self {
+            Self::DeclaredInput(index) => format!("input{index}"),
+            Self::Universal(id) => format!("U{}", id.0),
+            Self::InferredAssociated(id) => format!("A{}", id.0),
+        }
+    }
+}
+
+fn capture_method_correspondence(
+    mut requirements: Vec<RoleImplMethodRequirementCapture>,
+    mut implementations: Vec<RoleImplMethodImplementation>,
+    substitution: &RoleRequirementSubstitution,
+) -> (
+    Vec<RoleImplMethodContract>,
+    Vec<RoleImplMethodImplementation>,
+) {
+    requirements.sort_by_key(|requirement| (requirement.order, requirement.requirement.0));
+    implementations.sort_by_key(|implementation| (implementation.order, implementation.def.0));
+    let methods = requirements
+        .iter()
+        .map(|requirement| {
+            let matching = implementations
+                .iter()
+                .filter(|implementation| implementation.name == requirement.name)
+                .cloned()
+                .collect::<Vec<_>>();
+            let provision = if !matching.is_empty() {
+                RoleImplMethodProvision::Explicit {
+                    implementations: matching,
+                }
+            } else if requirement.has_default_body {
+                RoleImplMethodProvision::Default {
+                    implementation: requirement.requirement,
+                    source: requirement.source.clone(),
+                }
+            } else {
+                RoleImplMethodProvision::Missing
+            };
+            let declared_requirement = requirement.signature.clone().map(|signature| {
+                let (references, ambiguous_names) = contract_references(&signature, substitution);
+                DeclaredRoleMethodRequirement {
+                    signature,
+                    references,
+                    ambiguous_names,
+                }
+            });
+            RoleImplMethodContract {
+                requirement: requirement.requirement,
+                name: requirement.name.clone(),
+                provision,
+                declared_requirement,
+                source: requirement.source.clone(),
+            }
+        })
+        .collect();
+    let unmatched = implementations
+        .into_iter()
+        .filter(|implementation| {
+            !requirements
+                .iter()
+                .any(|requirement| requirement.name == implementation.name)
+        })
+        .collect();
+    (methods, unmatched)
+}
+
+fn contract_references(
+    signature: &SignatureType,
+    substitution: &RoleRequirementSubstitution,
+) -> (Vec<ContractTypeRef>, Vec<String>) {
+    let mut names = Vec::new();
+    collect_signature_var_names(signature, &mut names);
+    let mut references = Vec::new();
+    let mut ambiguous_names = Vec::new();
+    for name in names {
+        match substitution.references_for_name(&name) {
+            Ok(slot) => references.extend_from_slice(slot),
+            Err(())
+                if substitution
+                    .ambiguous_names
+                    .iter()
+                    .any(|item| item == &name) =>
+            {
+                ambiguous_names.push(name);
+            }
+            Err(()) => {}
+        }
+    }
+    ambiguous_names.sort();
+    ambiguous_names.dedup();
+    (references, ambiguous_names)
+}
+
+fn collect_signature_var_names(signature: &SignatureType, out: &mut Vec<String>) {
+    match signature {
+        SignatureType::Builtin(_) | SignatureType::Named(_) => {}
+        SignatureType::Var(var) => out.push(var.name().to_string()),
+        SignatureType::EffectRow(row) => collect_signature_effect_row_names(row, out),
+        SignatureType::Effectful { eff, ret } => {
+            collect_signature_effect_row_names(eff, out);
+            collect_signature_var_names(ret, out);
+        }
+        SignatureType::Tuple(items) => {
+            for item in items {
+                collect_signature_var_names(item, out);
+            }
+        }
+        SignatureType::Apply { callee, args } => {
+            collect_signature_var_names(callee, out);
+            for arg in args {
+                collect_signature_var_names(arg, out);
+            }
+        }
+        SignatureType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_signature_var_names(param, out);
+            if let Some(row) = arg_eff {
+                collect_signature_effect_row_names(row, out);
+            }
+            if let Some(row) = ret_eff {
+                collect_signature_effect_row_names(row, out);
+            }
+            collect_signature_var_names(ret, out);
+        }
+    }
+}
+
+fn collect_signature_effect_row_names(row: &SignatureEffectRow, out: &mut Vec<String>) {
+    for item in row.items() {
+        if let SignatureEffectAtom::Type(ty) = item {
+            collect_signature_var_names(ty, out);
+        }
+    }
+    if let Some(tail) = row.tail() {
+        out.push(tail.name().to_string());
+    }
+}
 
 fn collect_ann_type_vars(ty: &AnnType, out: &mut Vec<AnnTypeVar>) {
     match ty {

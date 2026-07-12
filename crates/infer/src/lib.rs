@@ -558,6 +558,7 @@ pub struct ModuleTable {
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
     role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
     role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
+    role_method_default_bodies: FxHashSet<DefId>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     type_field_methods: FxHashMap<TypeDeclId, Vec<TypeFieldMethodDecl>>,
