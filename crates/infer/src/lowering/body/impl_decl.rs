@@ -224,17 +224,6 @@ impl BodyLowerer {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let conformance_contract =
-            crate::role_impl_conformance::RoleImplConformanceContract::capture(
-                impl_def,
-                role.clone(),
-                contract_source,
-                role_input_names.clone(),
-                spec.inputs.clone(),
-                contract_associated,
-                contract_requirements,
-                contract_implementations,
-            );
         let explicit_associated_complete = role_associated_names
             .iter()
             .all(|name| explicit_associated.contains_key(name));
@@ -250,6 +239,18 @@ impl BodyLowerer {
             } else {
                 self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?
             };
+        let conformance_contract =
+            crate::role_impl_conformance::RoleImplConformanceContract::capture(
+                impl_def,
+                role.clone(),
+                contract_source,
+                role_input_names.clone(),
+                spec.inputs.clone(),
+                contract_associated,
+                contract_requirements,
+                contract_implementations,
+                &ann_solver_vars,
+            );
         #[cfg(test)]
         let conformance_contract = {
             let mut contract = conformance_contract;

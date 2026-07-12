@@ -10,7 +10,6 @@ pub(crate) mod view;
 pub(crate) use view::DeclaredRoleImplView;
 
 use poly::expr::{Arena as PolyArena, Def, DefId};
-#[cfg(test)]
 use poly::types::TypeVar;
 use sources::SourceRange;
 
@@ -29,6 +28,12 @@ pub(crate) struct RoleImplConformanceContract {
     pub(crate) requirement_substitution: RoleRequirementSubstitution,
     pub(crate) methods: Vec<RoleImplMethodContract>,
     pub(crate) unmatched_implementations: Vec<RoleImplMethodImplementation>,
+    #[allow(
+        dead_code,
+        reason = "same-session binder transport is consumed by a later conformance slice"
+    )]
+    pub(crate) binder_bridge:
+        Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
     #[cfg(test)]
     annotation_solver_bridge: Vec<(AnnTypeVarId, TypeVar)>,
 }
@@ -43,6 +48,7 @@ impl RoleImplConformanceContract {
         associated: Vec<AssociatedAssignment>,
         requirements: Vec<RoleImplMethodRequirementCapture>,
         implementations: Vec<RoleImplMethodImplementation>,
+        annotation_solver_vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Self {
         let inputs = inputs
             .into_iter()
@@ -72,6 +78,11 @@ impl RoleImplConformanceContract {
             RoleRequirementSubstitution::capture(role_input_names, &associated, &universal_binders);
         let (methods, unmatched_implementations) =
             capture_method_correspondence(requirements, implementations, &requirement_substitution);
+        let binder_bridge = RoleImplConformanceBinderBridge::capture(
+            &universal_binders,
+            &associated,
+            annotation_solver_vars,
+        );
 
         Self {
             impl_def,
@@ -83,6 +94,7 @@ impl RoleImplConformanceContract {
             requirement_substitution,
             methods,
             unmatched_implementations,
+            binder_bridge,
             #[cfg(test)]
             annotation_solver_bridge: Vec::new(),
         }
@@ -245,6 +257,92 @@ pub(crate) struct ImplUniversalBinder {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct ImplUniversalBinderId(pub(crate) u32);
+
+/// Same-session transport from logical conformance binders to annotation-lowering solver vars.
+///
+/// The logical U/A ids remain the identity of each entry. `TypeVar` is only the solver pointer
+/// attached to that identity for this inference session; this value must not be serialized.
+#[allow(
+    dead_code,
+    reason = "same-session binder transport is consumed by a later conformance slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplConformanceBinderBridge {
+    pub(crate) universals: Vec<(ImplUniversalBinderId, TypeVar)>,
+    pub(crate) inferred_associated: Vec<(AssociatedInferenceBinderId, TypeVar)>,
+}
+
+impl RoleImplConformanceBinderBridge {
+    fn capture(
+        universal_binders: &[ImplUniversalBinder],
+        associated: &[AssociatedAssignment],
+        annotation_solver_vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<Self, RoleImplConformanceBinderBridgeUnavailable> {
+        let mut universals = Vec::with_capacity(universal_binders.len());
+        let mut inferred_associated = Vec::new();
+        let mut missing = Vec::new();
+
+        for binder in universal_binders {
+            if let Some(var) = annotation_solver_vars.get(&binder.annotation_var) {
+                universals.push((binder.id, *var));
+            } else {
+                missing.push(RoleImplConformanceBinderBridgeMissing::Universal {
+                    binder: binder.id,
+                    annotation_var: binder.annotation_var,
+                });
+            }
+        }
+        for assignment in associated {
+            let AssociatedAssignment::Inferred { binder, .. } = assignment else {
+                continue;
+            };
+            if let Some(var) = annotation_solver_vars.get(&binder.annotation_var) {
+                // Deliberately retain this logical A entry even when its annotation identity and
+                // solver var overlap a U entry.
+                inferred_associated.push((binder.id, *var));
+            } else {
+                missing.push(RoleImplConformanceBinderBridgeMissing::InferredAssociated {
+                    binder: binder.id,
+                    annotation_var: binder.annotation_var,
+                });
+            }
+        }
+
+        if missing.is_empty() {
+            Ok(Self {
+                universals,
+                inferred_associated,
+            })
+        } else {
+            Err(RoleImplConformanceBinderBridgeUnavailable { missing })
+        }
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "same-session binder transport is consumed by a later conformance slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplConformanceBinderBridgeUnavailable {
+    pub(crate) missing: Vec<RoleImplConformanceBinderBridgeMissing>,
+}
+
+#[allow(
+    dead_code,
+    reason = "same-session binder transport is consumed by a later conformance slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RoleImplConformanceBinderBridgeMissing {
+    Universal {
+        binder: ImplUniversalBinderId,
+        annotation_var: AnnTypeVarId,
+    },
+    InferredAssociated {
+        binder: AssociatedInferenceBinderId,
+        annotation_var: AnnTypeVarId,
+    },
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DeclaredType {
@@ -647,5 +745,84 @@ fn collect_effect_row_vars(row: &AnnEffectRow, out: &mut Vec<AnnTypeVar>) {
     }
     if let Some(tail) = &row.tail {
         out.push(tail.clone());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashMap;
+
+    use super::*;
+
+    #[test]
+    fn binder_bridge_retains_overlapping_universal_and_associated_identities() {
+        let annotation_var = AnnTypeVarId(7);
+        let solver_var = TypeVar(42);
+        let universal_binders = vec![ImplUniversalBinder {
+            id: ImplUniversalBinderId(0),
+            annotation_var,
+            source_name: "T".to_string(),
+        }];
+        let associated = vec![AssociatedAssignment::Inferred {
+            name: "Item".to_string(),
+            binder: AssociatedInferenceBinder {
+                id: AssociatedInferenceBinderId(0),
+                annotation_var,
+            },
+        }];
+        let annotation_solver_vars = FxHashMap::from_iter([(annotation_var, solver_var)]);
+
+        let bridge = RoleImplConformanceBinderBridge::capture(
+            &universal_binders,
+            &associated,
+            &annotation_solver_vars,
+        )
+        .expect("overlapping logical identities have a shared solver mapping");
+
+        assert_eq!(
+            bridge.universals,
+            vec![(ImplUniversalBinderId(0), solver_var)]
+        );
+        assert_eq!(
+            bridge.inferred_associated,
+            vec![(AssociatedInferenceBinderId(0), solver_var)]
+        );
+    }
+
+    #[test]
+    fn binder_bridge_reports_every_missing_logical_mapping_as_unavailable() {
+        let universal_binders = vec![ImplUniversalBinder {
+            id: ImplUniversalBinderId(1),
+            annotation_var: AnnTypeVarId(11),
+            source_name: "T".to_string(),
+        }];
+        let associated = vec![AssociatedAssignment::Inferred {
+            name: "Item".to_string(),
+            binder: AssociatedInferenceBinder {
+                id: AssociatedInferenceBinderId(2),
+                annotation_var: AnnTypeVarId(12),
+            },
+        }];
+
+        let unavailable = RoleImplConformanceBinderBridge::capture(
+            &universal_binders,
+            &associated,
+            &FxHashMap::default(),
+        )
+        .expect_err("missing mappings make the bridge unavailable");
+
+        assert_eq!(
+            unavailable.missing,
+            vec![
+                RoleImplConformanceBinderBridgeMissing::Universal {
+                    binder: ImplUniversalBinderId(1),
+                    annotation_var: AnnTypeVarId(11),
+                },
+                RoleImplConformanceBinderBridgeMissing::InferredAssociated {
+                    binder: AssociatedInferenceBinderId(2),
+                    annotation_var: AnnTypeVarId(12),
+                },
+            ]
+        );
     }
 }
