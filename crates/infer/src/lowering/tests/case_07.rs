@@ -163,6 +163,31 @@ fn generic_role_impl_conformance_stage1_slice2_captures_slot_substitution() {
     assert_eq!(dump("alpha-renamed-a"), dump("alpha-renamed-b"),);
 }
 
+/// Stage 1 exit witness: the immutable contract survives normal lowering, and the impl head,
+/// explicit associated assignment, and substituted method requirement all point at logical U0.
+#[test]
+fn generic_role_impl_conformance_stage1_exit_preserves_u_through_lowering_handoff() {
+    let fixtures = conformance_fixtures();
+    let source = |name| {
+        fixtures
+            .iter()
+            .find(|fixture| fixture.name == name)
+            .unwrap_or_else(|| panic!("missing fixture {name}"))
+            .source
+    };
+    let expected = concat!(
+        "role=Index universals=[U0] inputs=[{U0},{}] associated=[value=explicit{U0}]\n",
+        "substitution=inputs=[container->input0,key->input1] associated=[value->U0] ambiguous=[]\n",
+        "methods=[index=explicit(1);refs=[input0,input1,U0]] unmatched=[]",
+    );
+
+    assert_eq!(lowered_contract_dump(source("explicit-a-same-a")), expected);
+    assert_eq!(
+        lowered_contract_dump(source("alpha-renamed-a")),
+        lowered_contract_dump(source("alpha-renamed-b")),
+    );
+}
+
 #[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
@@ -410,6 +435,24 @@ fn characterize_method_contract(source: &str) -> String {
         .conformance_contract
         .expect("source role impl contract")
         .method_correspondence_dump()
+}
+
+fn lowered_contract_dump(source: &str) -> String {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let output = lower_binding_bodies(&root, lower);
+    assert_eq!(
+        output.errors,
+        Vec::new(),
+        "exit fixture should lower cleanly"
+    );
+    let contracts = output.role_impl_conformance_contracts();
+    assert_eq!(contracts.len(), 1, "one source impl contract");
+    format!(
+        "{}\n{}",
+        contracts[0].binder_dump(),
+        contracts[0].method_correspondence_dump(),
+    )
 }
 
 fn characterize_attached_contract(source: &str, owner: &str) -> String {

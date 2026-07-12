@@ -555,6 +555,42 @@ Requirements:
 Exit: a test-only dump shows the same `U` binder in head, explicit associated assignment, and method
 requirement after substitution.
 
+Stage 1 completed in the 2026-07-13 session in three independently reviewed slices:
+
+1. **Binder/provenance capture.** Each source impl now creates one crate-private immutable
+   `RoleImplConformanceContract`. Stable `U` identities come from source annotation binder
+   ownership rather than final solver IDs, and explicit versus inferred associated assignments
+   retain distinct provenance (`U` versus independent `A`).
+2. **Total method correspondence.** Every role method is recorded in declaration order as
+   `Explicit(Vec<implementation>)`, `Default`, or `Missing`; duplicate explicit members are not
+   collapsed, and members matching no role requirement remain in a separate
+   `unmatched_implementations` inventory. Requirement substitution records role input slots as
+   `DeclaredInput(n)`, explicit-associated binder dependencies as `U`, and omitted associated
+   witnesses as `A`. Local default bodies come from a pass1 side table; imported defaults are
+   recovered from the remapped runtime `Def::Let.body`.
+3. **Lifecycle handoff.** Successful source contracts move once from `RoleImplLoweringContext` into
+   a `BodyLowerer` inventory and then into the final `BodyLowering`. Synthetic error-role impls do
+   not invent a source contract. No validation consumes the inventory yet, and no solver,
+   candidate, or public API semantics changed.
+
+The Stage 1 exit witness reads the contract back through normal `BodyLowering` output and shows the
+same logical `U0` in the impl head, `type value = 'a`, and the substituted role-method requirement.
+The same output is invariant under alpha-renaming of `'a`. Construction is one bounded annotation
+walk per source impl plus immutable storage; there is no new loop, fixed point, protected-variable
+set, or role-resolution hot-path work.
+
+Known constraints carried into Stage 2:
+
+- the current parser/module map accepts a role input and associated type with the same spelling;
+  Stage 1 preserves both slots and marks occurrences ambiguous rather than choosing one;
+- an unannotated default method has no declared requirement signature, so its provision is known
+  but its requirement-reference list is absent;
+- compiled artifacts preserve an imported default body but not its original source range, so the
+  imported `Default` source remains `None`;
+- source contracts intentionally do not flow into `BodyLoweringPrefix`: a prefix represents an
+  already-compiled unit, while conformance must consume the source contract before artifact
+  construction.
+
 ### Stage 2: binder-normalized conformance views
 
 Size: M. Risk: medium-high.

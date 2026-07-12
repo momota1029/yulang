@@ -30,6 +30,9 @@ impl BodyLowerer {
                 return;
             }
         };
+        if let Some(contract) = context.conformance_contract.take() {
+            self.role_impl_conformance_contracts.push(contract);
+        }
 
         let Some(body) = crate::role_impl_body(node) else {
             return;
@@ -256,10 +259,7 @@ impl BodyLowerer {
             methods: Vec::new(),
         };
         self.session.role_impls.insert(candidate);
-        #[cfg(not(test))]
-        drop(conformance_contract);
         Ok(RoleImplLoweringContext {
-            #[cfg(test)]
             conformance_contract: Some(conformance_contract),
             role: spec.role,
             target_ann: spec.target,

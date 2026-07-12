@@ -23,6 +23,8 @@ pub struct BodyLowering {
     pub labels: DumpLabels,
     pub errors: Vec<BodyLoweringError>,
     pub timing: BodyLoweringTiming,
+    pub(crate) role_impl_conformance_contracts:
+        Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
     prefix_runtime: BodyLoweringPrefixRuntime,
 }
 
@@ -80,8 +82,18 @@ impl BodyLowering {
         &self.prefix_runtime
     }
 
+    #[cfg(test)]
+    pub(crate) fn role_impl_conformance_contracts(
+        &self,
+    ) -> &[crate::role_impl_conformance::RoleImplConformanceContract] {
+        &self.role_impl_conformance_contracts
+    }
+
     pub fn into_prefix(self) -> BodyLoweringPrefix {
         let runtime = BodyLoweringPrefixRuntime::from_lowering(&self);
+        // Source conformance is consumed before artifact/prefix construction in later stages.
+        // Prefixes contain already-compiled units, so they do not carry source contracts forward.
+        let _role_impl_conformance_contracts = self.role_impl_conformance_contracts;
         BodyLoweringPrefix {
             poly: self.session.poly,
             boundary: crate::CompiledBoundaryInterface::empty(),
@@ -933,6 +945,8 @@ pub(super) struct BodyLowerer {
     pub(super) cast_cursors: FxHashMap<ModuleId, usize>,
     pub(super) role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     pub(super) deferred_result_annotation_checks: Vec<DeferredResultAnnotationCheck>,
+    pub(super) role_impl_conformance_contracts:
+        Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
     pub(super) local_method_scope: Option<ModuleId>,
     pub(super) prefix_runtime: BodyLoweringPrefixRuntime,
     pub(super) record_source_spans: bool,
@@ -979,6 +993,7 @@ impl BodyLowerer {
             cast_cursors: FxHashMap::default(),
             role_requirements: FxHashMap::default(),
             deferred_result_annotation_checks: Vec::new(),
+            role_impl_conformance_contracts: Vec::new(),
             local_method_scope: None,
             prefix_runtime: BodyLoweringPrefixRuntime::default(),
             record_source_spans: true,
@@ -1017,6 +1032,7 @@ impl BodyLowerer {
                 constraint: constraint_timing,
                 ..BodyLoweringTiming::default()
             },
+            role_impl_conformance_contracts: self.role_impl_conformance_contracts,
             prefix_runtime: self.prefix_runtime,
         }
     }

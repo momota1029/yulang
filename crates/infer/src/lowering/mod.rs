@@ -111,7 +111,6 @@ type CstItem = NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>;
 /// `session` は body を持つ `poly::Arena` と制約/SCC machine を所有する。
 /// `typing` は `DefId -> TypeVar` だけを保持し、式や pattern の永続型 table は作らない。
 struct RoleImplLoweringContext {
-    #[cfg(test)]
     conformance_contract: Option<crate::role_impl_conformance::RoleImplConformanceContract>,
     role: TypeDeclId,
     target_ann: AnnType,
