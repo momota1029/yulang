@@ -189,6 +189,294 @@ fn generic_role_impl_conformance_stage1_exit_preserves_u_through_lowering_handof
 }
 
 #[test]
+fn generic_role_impl_conformance_stage2_slice0_traces_u_and_a_into_final_schemes() {
+    let explicit = lower_conformance_fixture(fixture_source("explicit-a-same-a"));
+    let explicit_contract = &explicit.role_impl_conformance_contracts()[0];
+    let universal = &explicit_contract.universal_binders[0];
+    let explicit_associated_ann = match &explicit_contract.associated[0] {
+        crate::role_impl_conformance::AssociatedAssignment::Explicit { ty, .. } => {
+            let AnnType::Var(var) = &ty.annotation else {
+                panic!("explicit value = 'a should retain its source binder");
+            };
+            var.id
+        }
+        assignment => panic!("expected explicit associated assignment, got {assignment:?}"),
+    };
+    assert_eq!(explicit_associated_ann, universal.annotation_var);
+    let universal_solver_var = explicit_contract
+        .solver_var_for_annotation(universal.annotation_var)
+        .expect("U0 annotation should have an inference bridge");
+    let explicit_scheme = first_contract_method_scheme(&explicit, explicit_contract);
+    let universal_final_location = scheme_var_location(
+        &explicit.session.poly.typ,
+        explicit_scheme,
+        universal_solver_var,
+    );
+    assert_eq!(universal_final_location, "free");
+
+    let inferred = lower_conformance_fixture(fixture_source("omitted-associated-one-method"));
+    let inferred_contract = &inferred.role_impl_conformance_contracts()[0];
+    let inferred_binder = match &inferred_contract.associated[0] {
+        crate::role_impl_conformance::AssociatedAssignment::Inferred { binder, .. } => binder,
+        assignment => panic!("expected inferred associated assignment, got {assignment:?}"),
+    };
+    let inferred_solver_var = inferred_contract
+        .solver_var_for_annotation(inferred_binder.annotation_var)
+        .expect("A0 annotation should have an inference bridge");
+    let inferred_scheme = first_contract_method_scheme(&inferred, inferred_contract);
+    let inferred_final_location = scheme_var_location(
+        &inferred.session.poly.typ,
+        inferred_scheme,
+        inferred_solver_var,
+    );
+    assert_eq!(inferred_final_location, "free");
+
+    eprintln!(
+        "Stage 2 bridge trace: U0 ann={} -> infer=v{} -> final={}; A0 ann={} -> infer=v{} -> final={}",
+        universal.annotation_var.0,
+        universal_solver_var.0,
+        universal_final_location,
+        inferred_binder.annotation_var.0,
+        inferred_solver_var.0,
+        inferred_final_location,
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice0_characterizes_requirement_contamination() {
+    let concrete_bool = fixture_source("explicit-bool-concrete-int");
+    let concrete_int = concrete_bool.replacen("type value = bool", "type value = int", 1);
+    let universal_bool = fixture_source("explicit-bool-universal-a");
+    let universal_a = fixture_source("explicit-a-same-a");
+
+    let concrete_bool_scheme = finalized_contract_method_scheme(concrete_bool);
+    let concrete_int_scheme = finalized_contract_method_scheme(&concrete_int);
+    let universal_bool_scheme = finalized_contract_method_scheme(universal_bool);
+    let universal_a_scheme = finalized_contract_method_scheme(universal_a);
+
+    assert_eq!(concrete_bool_scheme, "box 'a -> int -> int");
+    assert_eq!(universal_bool_scheme, "box('a & 'b) -> int -> 'a");
+    assert_eq!(concrete_bool_scheme, concrete_int_scheme);
+    assert_eq!(universal_bool_scheme, universal_a_scheme);
+    assert!(!concrete_bool_scheme.contains("bool"));
+    assert!(!universal_bool_scheme.contains("bool"));
+
+    let no_declared_requirement =
+        universal_bool.replacen("our c.index: 'key -> value", "our c.index = ()", 1);
+    let no_requirement_scheme = finalized_contract_method_scheme(&no_declared_requirement);
+    assert_ne!(universal_bool_scheme, no_requirement_scheme);
+
+    eprintln!(
+        "Stage 2 contamination trace: concrete bool={concrete_bool_scheme}; concrete control={concrete_int_scheme}; universal bool={universal_bool_scheme}; universal control={universal_a_scheme}; no declared requirement={no_requirement_scheme}",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice1_builds_declared_first_order_view() {
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, DeclaredAssociatedView, DeclaredTypeReferenceView,
+        DeclaredTypeView, DeclaredViewUnavailable,
+    };
+
+    let output = lower_conformance_fixture(fixture_source("explicit-list-a-nested-binder"));
+    let view = output.role_impl_conformance_contracts()[0].declared_view(&output.modules);
+    let u0 = ConformanceBinder::Universal(
+        output.role_impl_conformance_contracts()[0].universal_binders[0].id,
+    );
+    let nominal = |name: &str, args| {
+        DeclaredTypeView::Available(ConformanceTypeView::Nominal {
+            path: vec![name.to_string()],
+            args,
+        })
+    };
+
+    assert_eq!(
+        view.inputs,
+        vec![
+            nominal("box", vec![ConformanceTypeView::Binder(u0)]),
+            DeclaredTypeView::Available(ConformanceTypeView::Builtin(BuiltinType::Int)),
+        ],
+    );
+    assert_eq!(
+        view.associated,
+        vec![DeclaredAssociatedView::Explicit {
+            name: "value".into(),
+            value: nominal("list", vec![ConformanceTypeView::Binder(u0)]),
+        }],
+    );
+    assert_eq!(
+        view.input_substitution[0].references,
+        vec![DeclaredTypeReferenceView::DeclaredInput(0)],
+    );
+    assert_eq!(view.input_substitution[0].value, view.inputs[0]);
+    assert_eq!(
+        view.associated_substitution[0].references,
+        vec![DeclaredTypeReferenceView::Binder(u0)],
+    );
+    assert_eq!(
+        view.associated_substitution[0].value,
+        match &view.associated[0] {
+            DeclaredAssociatedView::Explicit { value, .. } => value.clone(),
+            assignment => panic!("expected explicit assignment, got {assignment:?}"),
+        },
+    );
+    assert_eq!(
+        view.methods[0].requirement,
+        DeclaredTypeView::Unavailable(DeclaredViewUnavailable::UnsupportedFunction),
+    );
+
+    let inferred_output =
+        lower_conformance_fixture(fixture_source("omitted-associated-one-method"));
+    let inferred_view = inferred_output.role_impl_conformance_contracts()[0]
+        .declared_view(&inferred_output.modules);
+    let inferred = ConformanceBinder::InferredAssociated(
+        match &inferred_output.role_impl_conformance_contracts()[0].associated[0] {
+            crate::role_impl_conformance::AssociatedAssignment::Inferred { binder, .. } => {
+                binder.id
+            }
+            assignment => panic!("expected inferred assignment, got {assignment:?}"),
+        },
+    );
+    assert_eq!(
+        inferred_view.associated,
+        vec![DeclaredAssociatedView::Inferred {
+            name: "value".into(),
+            binder: inferred,
+        }],
+    );
+    assert_eq!(
+        inferred_view.associated_substitution[0].value,
+        DeclaredTypeView::Available(ConformanceTypeView::Binder(inferred)),
+    );
+    assert_eq!(
+        inferred_view.associated_substitution[0].references,
+        vec![DeclaredTypeReferenceView::Binder(inferred)],
+    );
+
+    let tuple_source = concat!(
+        "type box 'a with:\n",
+        "  struct self:\n",
+        "    item: ('a, int)\n",
+        "role Read 'container:\n",
+        "  type value\n",
+        "  our c.read: value\n",
+        "impl (box 'a): Read:\n",
+        "  type value = ('a, int)\n",
+        "  our c.read = c.item\n",
+    );
+    let tuple_output = lower_conformance_fixture(tuple_source);
+    let tuple_view =
+        tuple_output.role_impl_conformance_contracts()[0].declared_view(&tuple_output.modules);
+    assert!(matches!(
+        &tuple_view.associated[0],
+        DeclaredAssociatedView::Explicit {
+            value: DeclaredTypeView::Available(ConformanceTypeView::Tuple(items)),
+            ..
+        } if matches!(items.as_slice(), [
+            ConformanceTypeView::Binder(ConformanceBinder::Universal(_)),
+            ConformanceTypeView::Builtin(BuiltinType::Int),
+        ])
+    ));
+
+    let imported_source = concat!(
+        "mod types:\n",
+        "  pub type wrapped 'a\n",
+        "use types::*\n",
+        "role Read 'container:\n",
+        "  type value\n",
+        "  our c.read = ()\n",
+        "impl (wrapped 'a): Read:\n",
+        "  type value = 'a\n",
+    );
+    let imported_output = lower_conformance_fixture(imported_source);
+    let imported_view = imported_output.role_impl_conformance_contracts()[0]
+        .declared_view(&imported_output.modules);
+    assert!(matches!(
+        &imported_view.inputs[0],
+        DeclaredTypeView::Available(ConformanceTypeView::Nominal { path, args })
+            if path == &["types".to_string(), "wrapped".to_string()]
+                && matches!(args.as_slice(), [ConformanceTypeView::Binder(ConformanceBinder::Universal(_))])
+    ));
+
+    assert_ne!(ConformanceTypeView::Top, ConformanceTypeView::Bottom);
+    assert_ne!(ConformanceTypeView::Top, ConformanceTypeView::Unknown);
+    assert_ne!(ConformanceTypeView::Bottom, ConformanceTypeView::Unknown);
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice1_is_alpha_stable_and_binder_sensitive() {
+    let fixtures = conformance_fixtures();
+    let source = |name| {
+        fixtures
+            .iter()
+            .find(|fixture| fixture.name == name)
+            .unwrap_or_else(|| panic!("missing fixture {name}"))
+            .source
+    };
+    assert_eq!(
+        declared_contract_view(source("alpha-renamed-a")),
+        declared_contract_view(source("alpha-renamed-b")),
+    );
+
+    let left = concat!(
+        "type pair 'a 'b with:\n",
+        "  struct self:\n",
+        "    left: 'a\n",
+        "    right: 'b\n",
+        "role Pick 'container:\n",
+        "  type value\n",
+        "  our c.pick: value\n",
+        "impl (pair 'a 'b): Pick:\n",
+        "  type value = 'a\n",
+        "  our c.pick = c.left\n",
+    );
+    let alpha = left.replace("'a", "'x").replace("'b", "'y");
+    let swapped = left
+        .replacen("type value = 'a", "type value = 'b", 1)
+        .replacen("our c.pick = c.left", "our c.pick = c.right", 1);
+
+    assert_eq!(declared_contract_view(left), declared_contract_view(&alpha));
+    assert_ne!(
+        declared_contract_view(left),
+        declared_contract_view(&swapped),
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice1_keeps_unavailable_and_ambiguous_explicit() {
+    use crate::role_impl_conformance::view::{
+        DeclaredTypeView, DeclaredViewAmbiguity, DeclaredViewUnavailable,
+    };
+
+    let same_name = concat!(
+        "role Clash 'a:\n",
+        "  type a\n",
+        "  our x.read: a\n",
+        "impl int: Clash:\n",
+        "  type a = int\n",
+        "  our x.read = 1\n",
+    );
+    let same_name_view = declared_contract_view(same_name);
+    assert_eq!(
+        same_name_view.methods[0].requirement,
+        DeclaredTypeView::Ambiguous(DeclaredViewAmbiguity::InputAssociatedNameCollision(
+            "a".into(),
+        )),
+    );
+
+    let unannotated_default = concat!(
+        "role Demo 'subject:\n",
+        "  our x.defaulted = ()\n",
+        "impl int: Demo:\n",
+    );
+    let default_view = declared_contract_view(unannotated_default);
+    assert_eq!(
+        default_view.methods[0].requirement,
+        DeclaredTypeView::Unavailable(DeclaredViewUnavailable::UnannotatedRequirement),
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -453,6 +741,90 @@ fn lowered_contract_dump(source: &str) -> String {
         contracts[0].binder_dump(),
         contracts[0].method_correspondence_dump(),
     )
+}
+
+fn fixture_source(name: &str) -> &'static str {
+    conformance_fixtures()
+        .into_iter()
+        .find(|fixture| fixture.name == name)
+        .unwrap_or_else(|| panic!("missing fixture {name}"))
+        .source
+}
+
+fn lower_conformance_fixture(source: &str) -> BodyLowering {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let output = lower_binding_bodies(&root, lower);
+    assert_eq!(output.errors, Vec::new(), "fixture should lower cleanly");
+    output
+}
+
+fn declared_contract_view(
+    source: &str,
+) -> crate::role_impl_conformance::view::DeclaredRoleImplView {
+    let output = lower_conformance_fixture(source);
+    output.role_impl_conformance_contracts()[0].declared_view(&output.modules)
+}
+
+fn first_contract_method_scheme<'a>(
+    output: &'a BodyLowering,
+    contract: &crate::role_impl_conformance::RoleImplConformanceContract,
+) -> &'a Scheme {
+    let implementation = match &contract.methods[0].provision {
+        crate::role_impl_conformance::RoleImplMethodProvision::Explicit { implementations } => {
+            &implementations[0]
+        }
+        provision => panic!("expected explicit method provision, got {provision:?}"),
+    };
+    let Some(Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = output.session.poly.defs.get(implementation.def)
+    else {
+        panic!("impl method should have a finalized scheme");
+    };
+    scheme
+}
+
+fn finalized_contract_method_scheme(source: &str) -> String {
+    let output = lower_conformance_fixture(source);
+    let contract = &output.role_impl_conformance_contracts()[0];
+    poly::dump::format_scheme(
+        &output.session.poly.typ,
+        first_contract_method_scheme(&output, contract),
+    )
+}
+
+fn scheme_var_location(
+    types: &poly::types::TypeArena,
+    scheme: &Scheme,
+    var: poly::types::TypeVar,
+) -> &'static str {
+    if scheme.quantifiers.contains(&var) {
+        return "quantified";
+    }
+    if scheme.recursive_bounds.iter().any(|bound| bound.var == var) {
+        return "recursive";
+    }
+    let violations = crate::interface_oracle::scan_scheme_closure(
+        types,
+        scheme,
+        crate::interface_oracle::BoundaryInterface::EMPTY,
+    )
+    .err()
+    .unwrap_or_default();
+    if violations.iter().any(|violation| {
+        matches!(
+            violation,
+            crate::interface_oracle::InterfaceViolation::UnboundSchemeVariable {
+                var: unbound
+            } if *unbound == var
+        )
+    }) {
+        "free"
+    } else {
+        "absent"
+    }
 }
 
 fn characterize_attached_contract(source: &str, owner: &str) -> String {

@@ -250,6 +250,12 @@ impl BodyLowerer {
             } else {
                 self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?
             };
+        #[cfg(test)]
+        let conformance_contract = {
+            let mut contract = conformance_contract;
+            contract.capture_annotation_solver_bridge(&ann_solver_vars);
+            contract
+        };
         let candidate = RoleImplCandidate {
             impl_def: Some(impl_def),
             role,

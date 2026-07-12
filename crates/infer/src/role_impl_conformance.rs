@@ -3,7 +3,15 @@
 //! This module owns source binder identity, associated-assignment provenance, and deterministic
 //! method correspondence. Validation and `BodyLowering` lifecycle handoff belong to later stages.
 
+// Stage 2 lands the immutable view before its Stage 3 validation consumer.
+#[allow(dead_code)]
+pub(crate) mod view;
+
+pub(crate) use view::DeclaredRoleImplView;
+
 use poly::expr::{Arena as PolyArena, Def, DefId};
+#[cfg(test)]
+use poly::types::TypeVar;
 use sources::SourceRange;
 
 use crate::ModuleTable;
@@ -21,6 +29,8 @@ pub(crate) struct RoleImplConformanceContract {
     pub(crate) requirement_substitution: RoleRequirementSubstitution,
     pub(crate) methods: Vec<RoleImplMethodContract>,
     pub(crate) unmatched_implementations: Vec<RoleImplMethodImplementation>,
+    #[cfg(test)]
+    annotation_solver_bridge: Vec<(AnnTypeVarId, TypeVar)>,
 }
 
 impl RoleImplConformanceContract {
@@ -73,7 +83,37 @@ impl RoleImplConformanceContract {
             requirement_substitution,
             methods,
             unmatched_implementations,
+            #[cfg(test)]
+            annotation_solver_bridge: Vec::new(),
         }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn declared_view(&self, modules: &ModuleTable) -> DeclaredRoleImplView {
+        view::build_declared_role_impl_view(self, modules)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn capture_annotation_solver_bridge(
+        &mut self,
+        vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+    ) {
+        // Characterization only: `TypeVar` is a same-session transport pointer from source
+        // annotation lowering into the finalized scheme. Logical identity remains U/A and this
+        // bridge must never be compared across sessions or serialized.
+        let mut bridge = vars
+            .iter()
+            .map(|(ann, var)| (*ann, *var))
+            .collect::<Vec<_>>();
+        bridge.sort_by_key(|(ann, _)| ann.0);
+        self.annotation_solver_bridge = bridge;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn solver_var_for_annotation(&self, ann: AnnTypeVarId) -> Option<TypeVar> {
+        self.annotation_solver_bridge
+            .iter()
+            .find_map(|(source, target)| (*source == ann).then_some(*target))
     }
 
     #[cfg(test)]
