@@ -4,6 +4,8 @@
 //! function/effect structure, recursive bounds, and the comparison relation belong to later
 //! Stage 2 slices.
 
+#[cfg(test)]
+use poly::types::Neg;
 use poly::types::{BuiltinType, TypeVar};
 
 use super::{
@@ -542,6 +544,120 @@ fn capture_receiver_effect_actual_view(
     }
 }
 
+/// Read-only SCC index for the empty-weight variable projection of a constraint machine.
+///
+/// This is characterization-only until the exact-equivalence collapse is activated. Each
+/// reachable variable is visited once by Tarjan's algorithm, and completed classes are memoized
+/// for subsequent queries against the same settled machine.
+#[cfg(test)]
+pub(crate) struct ExactEquivalenceClasses<'a> {
+    machine: &'a ConstraintMachine,
+    next_index: usize,
+    nodes: rustc_hash::FxHashMap<TypeVar, ExactEquivalenceNode>,
+    stack: Vec<TypeVar>,
+    classes: rustc_hash::FxHashMap<TypeVar, Vec<TypeVar>>,
+}
+
+#[cfg(test)]
+impl<'a> ExactEquivalenceClasses<'a> {
+    pub(crate) fn new(machine: &'a ConstraintMachine) -> Self {
+        Self {
+            machine,
+            next_index: 0,
+            nodes: rustc_hash::FxHashMap::default(),
+            stack: Vec::new(),
+            classes: rustc_hash::FxHashMap::default(),
+        }
+    }
+
+    pub(crate) fn class(&mut self, start: TypeVar) -> Vec<TypeVar> {
+        if !self.classes.contains_key(&start) {
+            self.connect(start);
+        }
+        self.classes
+            .get(&start)
+            .cloned()
+            .unwrap_or_else(|| vec![start])
+    }
+
+    fn connect(&mut self, var: TypeVar) {
+        let index = self.next_index;
+        self.next_index += 1;
+        self.nodes.insert(
+            var,
+            ExactEquivalenceNode {
+                index,
+                lowlink: index,
+                on_stack: true,
+            },
+        );
+        self.stack.push(var);
+
+        for successor in self.exact_successors(var) {
+            if self.classes.contains_key(&successor) {
+                continue;
+            }
+            if !self.nodes.contains_key(&successor) {
+                self.connect(successor);
+                if self.nodes[&successor].on_stack {
+                    let successor_lowlink = self.nodes[&successor].lowlink;
+                    self.nodes.get_mut(&var).expect("visited node").lowlink =
+                        self.nodes[&var].lowlink.min(successor_lowlink);
+                }
+            } else if self.nodes[&successor].on_stack {
+                let successor_index = self.nodes[&successor].index;
+                self.nodes.get_mut(&var).expect("visited node").lowlink =
+                    self.nodes[&var].lowlink.min(successor_index);
+            }
+        }
+
+        let node = self.nodes[&var];
+        if node.lowlink != node.index {
+            return;
+        }
+
+        let mut class = Vec::new();
+        loop {
+            let member = self.stack.pop().expect("SCC root remains on Tarjan stack");
+            self.nodes.get_mut(&member).expect("visited node").on_stack = false;
+            class.push(member);
+            if member == var {
+                break;
+            }
+        }
+        class.sort_unstable_by_key(|var| var.0);
+        for member in &class {
+            self.classes.insert(*member, class.clone());
+        }
+    }
+
+    fn exact_successors(&self, var: TypeVar) -> Vec<TypeVar> {
+        let mut successors = self
+            .machine
+            .bounds()
+            .of(var)
+            .into_iter()
+            .flat_map(|bounds| bounds.projection_uppers())
+            .filter(|upper| upper.weights.is_empty())
+            .filter_map(|upper| match self.machine.types().neg(upper.neg) {
+                Neg::Var(target) => Some(*target),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        successors.sort_unstable_by_key(|var| var.0);
+        successors.dedup();
+        successors
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy)]
+struct ExactEquivalenceNode {
+    index: usize,
+    lowlink: usize,
+    on_stack: bool,
+}
+
 struct ActualFirstOrderNormalizer<'a> {
     bridge: &'a RoleImplConformanceBinderBridge,
     root_anchor: TypeVar,
@@ -991,12 +1107,31 @@ fn available(value: ConformanceTypeView) -> DeclaredTypeView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use poly::types::Pos;
 
     struct FirstOrderRelationFixture {
         name: &'static str,
         implementation: ConformanceTypeView,
         requirement: ConformanceTypeView,
         conforms: bool,
+    }
+
+    #[test]
+    fn exact_equivalence_classes_memoize_strong_components_of_exact_var_edges() {
+        let mut machine = ConstraintMachine::new();
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let downstream = TypeVar(2);
+        for (lower, upper) in [(a, b), (b, a), (b, downstream)] {
+            let lower = machine.alloc_pos(Pos::Var(lower));
+            let upper = machine.alloc_neg(Neg::Var(upper));
+            machine.subtype(lower, upper);
+        }
+
+        let mut classes = ExactEquivalenceClasses::new(&machine);
+        assert_eq!(classes.class(a), vec![a, b]);
+        assert_eq!(classes.class(b), vec![a, b]);
+        assert_eq!(classes.class(downstream), vec![downstream]);
     }
 
     #[test]

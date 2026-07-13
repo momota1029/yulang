@@ -182,6 +182,228 @@ fn generic_role_impl_conformance_stage3_stage0_field_selection_value_is_non_atom
 }
 
 #[test]
+fn generic_role_impl_conformance_stage3_eq1_groups_accessor_instantiations_with_u0() {
+    use crate::role_impl_conformance::view::ConformanceBinder;
+
+    for name in ["explicit-a-same-a", "explicit-list-a-nested-binder"] {
+        let witness = receiver_exact_equivalence_witness(fixture_source(name), "index");
+        assert_eq!(
+            witness.bridge_identities,
+            vec![ConformanceBinder::Universal(
+                crate::role_impl_conformance::ImplUniversalBinderId(0),
+            )],
+            "fixture: {name}",
+        );
+        assert_eq!(
+            witness.accessor_instantiations.len(),
+            1,
+            "fixture {name}: the two-member class must contain one non-bridge accessor instantiation; {witness:?}",
+        );
+        for accessor in &witness.accessor_instantiations {
+            assert!(
+                witness.exact_class.contains(accessor),
+                "fixture {name}: accessor v{} must share U0's exact class; {witness:?}",
+                accessor.0,
+            );
+        }
+        assert_eq!(
+            witness.exact_class.len(),
+            2,
+            "fixture {name}: unrelated solver variables must not enter the exact class; {witness:?}",
+        );
+        for unrelated in &witness.unrelated_anchors {
+            assert!(
+                !witness.exact_class.contains(unrelated),
+                "fixture {name}: unrelated anchor v{} entered U0's exact class; {witness:?}",
+                unrelated.0,
+            );
+        }
+    }
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_eq1_keeps_one_way_and_weighted_edges_separate() {
+    use crate::constraints::{ConstraintMachine, ConstraintWeights};
+    use crate::role_impl_conformance::view::ExactEquivalenceClasses;
+
+    let a = TypeVar(0);
+    let b = TypeVar(1);
+
+    let mut one_way = ConstraintMachine::new();
+    add_var_constraint(&mut one_way, a, ConstraintWeights::empty(), b);
+    let mut one_way_classes = ExactEquivalenceClasses::new(&one_way);
+    assert_eq!(one_way_classes.class(a), vec![a]);
+    assert_eq!(one_way_classes.class(b), vec![b]);
+
+    let mut weighted_return = ConstraintMachine::new();
+    add_var_constraint(&mut weighted_return, a, ConstraintWeights::empty(), b);
+    add_var_constraint(
+        &mut weighted_return,
+        b,
+        ConstraintWeights::empty().with_left(SubtractId(0)),
+        a,
+    );
+    assert!(weighted_return.bounds().of(b).is_some_and(|bounds| {
+        bounds.projection_uppers().any(|upper| {
+            matches!(weighted_return.types().neg(upper.neg), Neg::Var(var) if *var == a)
+                && !upper.weights.is_empty()
+        })
+    }));
+    let mut weighted_classes = ExactEquivalenceClasses::new(&weighted_return);
+    assert_eq!(weighted_classes.class(a), vec![a]);
+    assert_eq!(weighted_classes.class(b), vec![b]);
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_eq1_characterizes_zero_one_and_multiple_bridge_identities()
+{
+    use crate::constraints::{ConstraintMachine, ConstraintWeights};
+    use crate::role_impl_conformance::view::{ConformanceBinder, ExactEquivalenceClasses};
+    use crate::role_impl_conformance::{
+        AssociatedInferenceBinderId, ImplUniversalBinderId, RoleImplConformanceBinderBridge,
+    };
+
+    let a = TypeVar(0);
+    let b = TypeVar(1);
+    let mut unbridged_machine = ConstraintMachine::new();
+    add_var_constraint(&mut unbridged_machine, a, ConstraintWeights::empty(), b);
+    add_var_constraint(&mut unbridged_machine, b, ConstraintWeights::empty(), a);
+    let mut unbridged_classes = ExactEquivalenceClasses::new(&unbridged_machine);
+    let unbridged_class = unbridged_classes.class(a);
+    let no_bridge = RoleImplConformanceBinderBridge {
+        universals: Vec::new(),
+        inferred_associated: Vec::new(),
+    };
+    assert_eq!(bridge_identities_in_class(&no_bridge, &unbridged_class), []);
+
+    let one_bridge = RoleImplConformanceBinderBridge {
+        universals: vec![(ImplUniversalBinderId(0), a)],
+        inferred_associated: Vec::new(),
+    };
+    assert_eq!(
+        bridge_identities_in_class(&one_bridge, &unbridged_class),
+        [ConformanceBinder::Universal(ImplUniversalBinderId(0))],
+    );
+
+    // This source-level spelling is the realistic overlap already characterized by Stage 1:
+    // the impl-head U0 and omitted associated A0 retain distinct identities on one solver var.
+    let overlapping_source = concat!(
+        "role Box 'a:\n",
+        "  type value\n",
+        "  our x.get: value\n",
+        "impl 'value: Box:\n",
+        "  our x.get = x\n",
+    );
+    let overlapping = lower_conformance_fixture(overlapping_source);
+    let [overlapping_contract] = overlapping.role_impl_conformance_contracts() else {
+        panic!("overlap fixture must retain one contract")
+    };
+    let overlapping_bridge = overlapping_contract
+        .binder_bridge
+        .as_ref()
+        .expect("overlap fixture bridge");
+    let [(u0, universal_var)] = overlapping_bridge.universals.as_slice() else {
+        panic!("overlap fixture universal bridge: {overlapping_bridge:?}")
+    };
+    let [(a0, associated_var)] = overlapping_bridge.inferred_associated.as_slice() else {
+        panic!("overlap fixture associated bridge: {overlapping_bridge:?}")
+    };
+    assert_eq!(
+        (*u0, *a0),
+        (ImplUniversalBinderId(0), AssociatedInferenceBinderId(0))
+    );
+    assert_eq!(universal_var, associated_var);
+    let mut overlapping_classes =
+        ExactEquivalenceClasses::new(overlapping.session.infer.constraints());
+    let overlapping_class = overlapping_classes.class(*universal_var);
+    assert_eq!(
+        bridge_identities_in_class(overlapping_bridge, &overlapping_class),
+        [
+            ConformanceBinder::Universal(*u0),
+            ConformanceBinder::InferredAssociated(*a0),
+        ],
+        "EQ1 exposes both identities; the fail-closed policy remains deferred to EQ4",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_eq1_pins_cross_surface_qm_collision_baseline() {
+    use crate::constraints::{ConstraintMachine, ConstraintWeights};
+    use crate::role_impl_conformance::ActualMethodConformanceView;
+    use crate::role_impl_conformance::RoleImplConformanceBinderBridge;
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, ExactEquivalenceClasses,
+    };
+
+    // Existing role/impl syntax for a parameterized act introduces an additional exact alias and
+    // therefore reaches today's NonAtomicSurface guard before Qm allocation. This minimal settled
+    // receiver-surface fixture isolates the independent allocator bug without claiming otherwise.
+    let mut machine = ConstraintMachine::new();
+    let value_anchor = TypeVar(0);
+    let value_member = TypeVar(1);
+    let effect_anchor = TypeVar(2);
+    let effect_argument = TypeVar(3);
+    add_var_constraint(
+        &mut machine,
+        value_member,
+        ConstraintWeights::empty(),
+        value_anchor,
+    );
+    let effect_argument_lower = machine.alloc_pos(Pos::Var(effect_argument));
+    let effect_argument_upper = machine.alloc_neg(Neg::Var(effect_argument));
+    let effect_argument_bounds =
+        machine.alloc_neu(Neu::Bounds(effect_argument_lower, effect_argument_upper));
+    let effect_item =
+        machine.alloc_pos(Pos::Con(vec!["tick".into()], vec![effect_argument_bounds]));
+    let effect_row = machine.alloc_pos(Pos::Row(vec![effect_item]));
+    let effect_upper = machine.alloc_neg(Neg::Var(effect_anchor));
+    machine.subtype(effect_row, effect_upper);
+    let bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: Vec::new(),
+        inferred_associated: Vec::new(),
+    });
+
+    let actual = crate::role_impl_conformance::capture_receiver_actual_view(
+        &machine,
+        value_anchor,
+        effect_anchor,
+        &bridge,
+    );
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(
+            ConformanceBinder::MethodQuantifier(0),
+        )),
+    );
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Nominal {
+            path: vec!["tick".into()],
+            args: vec![ConformanceTypeView::Binder(
+                ConformanceBinder::MethodQuantifier(0),
+            )],
+        }),
+        "the independently-created effect normalizer currently reuses Qm0",
+    );
+
+    let bridge = bridge.as_ref().expect("constructed bridge");
+    let mut classes = ExactEquivalenceClasses::new(&machine);
+    let value_class = classes.class(value_member);
+    let effect_argument_class = classes.class(effect_argument);
+    assert_eq!(value_class, vec![value_member]);
+    assert_eq!(effect_argument_class, vec![effect_argument]);
+    assert_ne!(
+        value_class, effect_argument_class,
+        "the colliding Qm0 views come from genuinely different exact classes",
+    );
+    assert_eq!(bridge_identities_in_class(bridge, &value_class), []);
+    assert_eq!(
+        bridge_identities_in_class(bridge, &effect_argument_class),
+        [],
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage3_slice3b_compares_available_builtin_pairs() {
     let conforms = concat!(
         "role Make 'subject:\n",
@@ -3406,6 +3628,132 @@ fn inject_receiver_parameter_bridge_mutation(
         affected.solver_var == bridge && affected.bounds_changed && !affected.subtract_facts_changed
     }));
     audit
+}
+
+#[derive(Debug)]
+struct ReceiverExactEquivalenceWitness {
+    accessor_instantiations: Vec<TypeVar>,
+    exact_class: Vec<TypeVar>,
+    unrelated_anchors: Vec<TypeVar>,
+    bridge_identities: Vec<crate::role_impl_conformance::view::ConformanceBinder>,
+}
+
+fn receiver_exact_equivalence_witness(
+    source: &str,
+    method_name: &str,
+) -> ReceiverExactEquivalenceWitness {
+    use crate::role_impl_conformance::RoleImplMethodProvision;
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        ExactEquivalenceClasses,
+    };
+
+    let output = lower_conformance_fixture(source);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("fixture must retain one source conformance contract")
+    };
+    let method = contract
+        .methods
+        .iter()
+        .find(|method| method.name == method_name)
+        .unwrap_or_else(|| panic!("missing role method {method_name}"));
+    let RoleImplMethodProvision::Explicit { implementations } = &method.provision else {
+        panic!("fixture method must be explicit: {:?}", method.provision)
+    };
+    let [implementation] = implementations.as_slice() else {
+        panic!("fixture method must have one implementation: {implementations:?}")
+    };
+    let actual = contract
+        .actual_method_view(implementation.def)
+        .expect("captured receiver actual surface");
+    let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(actual) =
+        &actual.surface
+    else {
+        panic!("fixture method must be a receiver method")
+    };
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+        "EQ1 fixture must retain today's non-atomic capture baseline",
+    );
+
+    let bridge = contract
+        .binder_bridge
+        .as_ref()
+        .expect("complete conformance binder bridge");
+    let [(_, u0_bridge)] = bridge.universals.as_slice() else {
+        panic!("fixture must expose exactly one universal bridge: {bridge:?}")
+    };
+    let mut exact_classes = ExactEquivalenceClasses::new(output.session.infer.constraints());
+    let exact_class = exact_classes.class(*u0_bridge);
+    let mut unrelated_anchors = [contract.impl_def, implementation.def]
+        .into_iter()
+        .filter_map(|def| output.typing.def(def))
+        .collect::<Vec<_>>();
+    unrelated_anchors.sort_unstable_by_key(|var| var.0);
+    unrelated_anchors.dedup();
+    let bridged_vars = bridge
+        .universals
+        .iter()
+        .map(|(_, var)| *var)
+        .chain(bridge.inferred_associated.iter().map(|(_, var)| *var))
+        .collect::<rustc_hash::FxHashSet<_>>();
+    let accessor_instantiations = exact_class
+        .iter()
+        .copied()
+        .filter(|var| !bridged_vars.contains(var))
+        .collect::<Vec<_>>();
+    let bridge_identities = bridge_identities_in_class(bridge, &exact_class);
+
+    ReceiverExactEquivalenceWitness {
+        accessor_instantiations,
+        exact_class,
+        unrelated_anchors,
+        bridge_identities,
+    }
+}
+
+fn add_var_constraint(
+    machine: &mut crate::constraints::ConstraintMachine,
+    lower: TypeVar,
+    weights: crate::constraints::ConstraintWeights,
+    upper: TypeVar,
+) {
+    let lower = machine.alloc_pos(Pos::Var(lower));
+    let upper = machine.alloc_neg(Neg::Var(upper));
+    machine.weighted_subtype(lower, weights, upper);
+}
+
+fn bridge_identities_in_class(
+    bridge: &crate::role_impl_conformance::RoleImplConformanceBinderBridge,
+    class: &[TypeVar],
+) -> Vec<crate::role_impl_conformance::view::ConformanceBinder> {
+    use crate::role_impl_conformance::view::ConformanceBinder;
+
+    let mut identities = bridge
+        .universals
+        .iter()
+        .filter_map(|(binder, var)| {
+            class
+                .contains(var)
+                .then_some(ConformanceBinder::Universal(*binder))
+        })
+        .chain(
+            bridge
+                .inferred_associated
+                .iter()
+                .filter_map(|(binder, var)| {
+                    class
+                        .contains(var)
+                        .then_some(ConformanceBinder::InferredAssociated(*binder))
+                }),
+        )
+        .collect::<Vec<_>>();
+    identities.sort();
+    identities.dedup();
+    identities
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
