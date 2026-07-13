@@ -18,6 +18,8 @@ use super::{
 #[cfg(test)]
 use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
+#[cfg(test)]
+use crate::casts::CastTable;
 use crate::compact::{
     CompactBounds, CompactRecursiveVar, CompactRoleArg, CompactRoleArgPolarity, CompactRoot,
     CompactType, CompactVar, compact_type_var,
@@ -262,6 +264,75 @@ impl ActualBuiltinNominalPair {
 
     pub(crate) fn nominal_args(&self) -> &[CompactBounds] {
         &self.nominal_args
+    }
+}
+
+/// Result of consulting the visible value-cast registry for one constructor pair.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VisibleCastLookup {
+    Missing,
+    Unique,
+    Ambiguous,
+}
+
+/// Classify a clean first-order mismatch through the visible cast table. The registry is keyed by
+/// constructor paths; argument structure remains part of the captured endpoints but is not
+/// re-inferred by this bounded shadow comparison.
+#[cfg(test)]
+pub(crate) fn visible_cast_lookup(
+    casts: &CastTable,
+    source: &ConformanceTypeView,
+    target: &ConformanceTypeView,
+) -> VisibleCastLookup {
+    let Some((source_path, _source_arg_count)) = cast_constructor(source) else {
+        return VisibleCastLookup::Missing;
+    };
+    let Some((target_path, _target_arg_count)) = cast_constructor(target) else {
+        return VisibleCastLookup::Missing;
+    };
+    visible_cast_lookup_by_path(casts, &source_path, &target_path)
+}
+
+/// Consume C1-a's narrow pre/post-cast surface. The nominal half must identify the declared target
+/// before the builtin half may be treated as the actual source of a visible cast.
+#[cfg(test)]
+pub(crate) fn captured_builtin_nominal_cast_lookup(
+    casts: &CastTable,
+    captured: &ActualBuiltinNominalPair,
+    target: &ConformanceTypeView,
+) -> VisibleCastLookup {
+    let Some((target_path, target_arg_count)) = cast_constructor(target) else {
+        return VisibleCastLookup::Missing;
+    };
+    if captured.nominal_path() != target_path || captured.nominal_args().len() != target_arg_count {
+        return VisibleCastLookup::Missing;
+    }
+    let source_path = [captured.builtin().surface_name().to_string()];
+    visible_cast_lookup_by_path(casts, &source_path, &target_path)
+}
+
+#[cfg(test)]
+fn cast_constructor(view: &ConformanceTypeView) -> Option<(Vec<String>, usize)> {
+    match view {
+        ConformanceTypeView::Builtin(builtin) => {
+            Some((vec![builtin.surface_name().to_string()], 0))
+        }
+        ConformanceTypeView::Nominal { path, args } => Some((path.clone(), args.len())),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+fn visible_cast_lookup_by_path(
+    casts: &CastTable,
+    source_path: &[String],
+    target_path: &[String],
+) -> VisibleCastLookup {
+    match casts.candidates(source_path, target_path).len() {
+        0 => VisibleCastLookup::Missing,
+        1 => VisibleCastLookup::Unique,
+        _ => VisibleCastLookup::Ambiguous,
     }
 }
 

@@ -196,7 +196,7 @@ fn generic_role_impl_conformance_stage3_eq4_collapses_exact_field_selection_clas
         let pairs = output
             .role_impl_conformance_contracts()
             .iter()
-            .flat_map(|contract| contract.shadow_conformance_pairs(&output.modules))
+            .flat_map(|contract| shadow_conformance_pairs_from_output(&output, contract))
             .collect::<Vec<_>>();
         let [pair] = pairs.as_slice() else {
             panic!(
@@ -627,8 +627,7 @@ fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfa
         let [contract] = output.role_impl_conformance_contracts() else {
             panic!("expected one receiver conformance contract")
         };
-        let [pair] = contract
-            .shadow_conformance_pairs(&output.modules)
+        let [pair] = shadow_conformance_pairs_from_output(&output, contract)
             .try_into()
             .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
         pair
@@ -1122,10 +1121,12 @@ fn generic_role_impl_conformance_stage4_e1_compares_closed_multi_atom_effect_set
 
     for fixture in fixtures {
         let (output, _) = lower_receiver_conformance_shadow(fixture.source, true, false, false);
-        let [pair] = output.role_impl_conformance_contracts()[0]
-            .shadow_conformance_pairs(&output.modules)
-            .try_into()
-            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        let [pair] = shadow_conformance_pairs_from_output(
+            &output,
+            &output.role_impl_conformance_contracts()[0],
+        )
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
         let Some(DeclaredTypeView::Available(ConformanceTypeView::EffectSet(declared))) =
             pair.declared_effect.as_ref()
         else {
@@ -1274,10 +1275,10 @@ fn generic_role_impl_conformance_stage4_obs_open_effect_tail_is_unsupported() {
         "  our x.run = tick::ping()\n",
     );
     let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
-    let [pair] = output.role_impl_conformance_contracts()[0]
-        .shadow_conformance_pairs(&output.modules)
-        .try_into()
-        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+    let [pair] =
+        shadow_conformance_pairs_from_output(&output, &output.role_impl_conformance_contracts()[0])
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
 
     assert_eq!(
         pair.declared_effect,
@@ -1314,10 +1315,10 @@ fn generic_role_impl_conformance_stage4_obs_wildcard_effect_is_unsupported() {
         "  our x.run = ()\n",
     );
     let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
-    let [pair] = output.role_impl_conformance_contracts()[0]
-        .shadow_conformance_pairs(&output.modules)
-        .try_into()
-        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+    let [pair] =
+        shadow_conformance_pairs_from_output(&output, &output.role_impl_conformance_contracts()[0])
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
 
     assert_eq!(
         pair.declared_effect,
@@ -1652,8 +1653,7 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
     let [contract] = output.role_impl_conformance_contracts() else {
         panic!("expected one role impl contract")
     };
-    let [pair] = contract
-        .shadow_conformance_pairs(&output.modules)
+    let [pair] = shadow_conformance_pairs_from_output(&output, contract)
         .try_into()
         .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
     let expected_frac = ConformanceTypeView::Nominal {
@@ -1674,7 +1674,7 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
             ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         ),
     );
-    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
     assert_eq!(
         output
             .session
@@ -1718,8 +1718,8 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
     // Production accepts the expected-type boundary and its final scheme retains both `int` and
     // `frac`; the compact surface likewise contains those pre/post shapes and therefore becomes
     // `NonAtomicSurface`. Neither the contract nor its actual surface carries a cast-rule id or
-    // application record, so this capture point cannot establish which registered candidate (if
-    // any) produced the adaptation. This records the evidence gap without choosing a cast policy.
+    // application record, so capture alone cannot establish which registered candidate produced
+    // the adaptation. C1-b closes that gap in the shadow comparison by reading the visible table.
 }
 
 #[test]
@@ -1759,11 +1759,10 @@ fn generic_role_impl_conformance_stage4_c1a_preserves_only_the_builtin_nominal_c
         ),
         "C1-a must not change the outward capture result",
     );
-    let [shadow] = contract
-        .shadow_conformance_pairs(&output.modules)
+    let [shadow] = shadow_conformance_pairs_from_output(&output, contract)
         .try_into()
         .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
-    assert_eq!(shadow.outcome, ShadowConformanceOutcome::Unavailable);
+    assert_eq!(shadow.outcome, ShadowConformanceOutcome::Conforms);
     assert!(matches!(
         shadow.actual,
         Some(RoleImplMethodActualSurface::Receiver(_))
@@ -1866,6 +1865,151 @@ fn generic_role_impl_conformance_stage4_c1a_rejects_two_nominal_alternatives() {
         ),
     );
     assert!(capture_actual_builtin_nominal_pair(&machine, root, &bridge).is_none());
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c1b_accepts_unique_cast_for_both_capture_shapes() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, ConformanceTypeView,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    for (method, annotated) in [("our x.read = 1", false), ("our x.read: frac = 1", true)] {
+        let source = role_impl_cast_fixture(method, false);
+        let (output, _) = lower_receiver_conformance_shadow(&source, true, false, false);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one cast role impl contract")
+        };
+        assert_eq!(
+            output
+                .session
+                .casts
+                .candidates(
+                    &["int".into()],
+                    &["std".into(), "num".into(), "frac".into(), "frac".into()],
+                )
+                .len(),
+            1,
+        );
+        let [pair] = shadow_conformance_pairs_from_output(&output, contract)
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+            panic!("expected receiver actual surface")
+        };
+        if annotated {
+            assert_eq!(
+                actual.value,
+                ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                ),
+                "the annotated body must consume C1-a's pair seam",
+            );
+        } else {
+            assert_eq!(
+                actual.value,
+                ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(
+                    BuiltinType::Int,
+                )),
+                "the unannotated body must use the clean comparison path",
+            );
+        }
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+    }
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c1b_rejects_ambiguous_cast_for_both_capture_shapes() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, ConformanceTypeView,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    assert_ne!(
+        ShadowConformanceOutcome::AmbiguousCast,
+        ShadowConformanceOutcome::Ambiguous,
+        "cast ambiguity must remain distinct from declared-name ambiguity",
+    );
+    for (method, annotated) in [("our x.read = 1", false), ("our x.read: frac = 1", true)] {
+        let source = role_impl_cast_fixture(method, true);
+        let (output, _) = lower_receiver_conformance_shadow(&source, true, false, false);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one ambiguous-cast role impl contract")
+        };
+        assert_eq!(
+            output
+                .session
+                .casts
+                .candidates(
+                    &["int".into()],
+                    &["std".into(), "num".into(), "frac".into(), "frac".into()],
+                )
+                .len(),
+            2,
+        );
+        let [pair] = shadow_conformance_pairs_from_output(&output, contract)
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+            panic!("expected receiver actual surface")
+        };
+        if annotated {
+            assert_eq!(
+                actual.value,
+                ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                ),
+            );
+        } else {
+            assert_eq!(
+                actual.value,
+                ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(
+                    BuiltinType::Int,
+                )),
+            );
+        }
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::AmbiguousCast);
+    }
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c1b_keeps_missing_cast_outcomes_unchanged() {
+    use crate::casts::CastTable;
+    use crate::role_impl_conformance::ShadowConformanceOutcome;
+
+    let existing = lower_conformance_fixture(fixture_source("explicit-bool-concrete-int"));
+    let [existing_contract] = existing.role_impl_conformance_contracts() else {
+        panic!("expected existing mismatch contract")
+    };
+    let [existing_pair] = shadow_conformance_pairs_from_output(&existing, existing_contract)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one existing pair, got {pairs:?}"));
+    assert!(
+        existing
+            .session
+            .casts
+            .candidates(&["int".into()], &["bool".into()])
+            .is_empty()
+    );
+    assert_eq!(existing_pair.outcome, ShadowConformanceOutcome::Mismatch);
+
+    for (method, expected) in [
+        ("our x.read = 1", ShadowConformanceOutcome::Mismatch),
+        (
+            "our x.read: frac = 1",
+            ShadowConformanceOutcome::Unavailable,
+        ),
+    ] {
+        let source = role_impl_cast_fixture(method, false);
+        let (output, _) = lower_receiver_conformance_shadow(&source, true, false, false);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one cast role impl contract")
+        };
+        let [pair] = shadow_conformance_pairs_with_casts(&output, contract, &CastTable::new())
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        assert_eq!(pair.outcome, expected, "method: {method}");
+    }
 }
 
 #[test]
@@ -2098,7 +2242,7 @@ fn generic_role_impl_conformance_stage4_c0_std_cast_target_sample_is_direct_stru
     let pairs = output
         .role_impl_conformance_contracts()
         .iter()
-        .flat_map(|contract| contract.shadow_conformance_pairs(&output.modules))
+        .flat_map(|contract| shadow_conformance_pairs_from_output(&output, contract))
         .collect::<Vec<_>>();
     assert_eq!(pairs.len(), 4);
     for pair in pairs {
@@ -6186,6 +6330,39 @@ fn persisted_receiver_actual_view(
     view
 }
 
+fn role_impl_cast_fixture(method: &str, ambiguous: bool) -> String {
+    let second_cast = if ambiguous {
+        concat!(
+            "  pub mod second_convert:\n",
+            "    use std::num::frac::frac\n",
+            "    pub cast(x: int): frac = frac { num: x, den: 2 }\n",
+        )
+    } else {
+        ""
+    };
+    format!(
+        concat!(
+            "mod std:\n",
+            "  pub mod num:\n",
+            "    pub mod frac:\n",
+            "      pub struct frac {{ num: int, den: int }}\n",
+            "  pub mod first_convert:\n",
+            "    use std::num::frac::frac\n",
+            "    pub cast(x: int): frac = frac {{ num: x, den: 1 }}\n",
+            "{second_cast}",
+            "use std::num::frac::frac\n",
+            "role Read 'subject:\n",
+            "  type value\n",
+            "  our x.read: value\n",
+            "impl int: Read:\n",
+            "  type value = frac\n",
+            "  {method}\n",
+        ),
+        second_cast = second_cast,
+        method = method,
+    )
+}
+
 fn receiver_body_result_anchor(output: &BodyLowering, member: DefId) -> TypeVar {
     let actual = persisted_receiver_actual_view(output, member);
     let tail_parameter_count = actual
@@ -6200,6 +6377,47 @@ fn receiver_body_result_anchor(output: &BodyLowering, member: DefId) -> TypeVar 
         result = *next;
     }
     result
+}
+
+fn shadow_conformance_pairs_from_output(
+    output: &BodyLowering,
+    contract: &crate::role_impl_conformance::RoleImplConformanceContract,
+) -> Vec<crate::role_impl_conformance::ShadowConformancePair> {
+    shadow_conformance_pairs_with_casts(output, contract, &output.session.casts)
+}
+
+fn shadow_conformance_pairs_with_casts(
+    output: &BodyLowering,
+    contract: &crate::role_impl_conformance::RoleImplConformanceContract,
+    casts: &crate::casts::CastTable,
+) -> Vec<crate::role_impl_conformance::ShadowConformancePair> {
+    use crate::role_impl_conformance::RoleImplMethodActualSurface;
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        capture_actual_builtin_nominal_pair,
+    };
+
+    contract.shadow_conformance_pairs(&output.modules, casts, |implementation| {
+        let actual = contract.actual_method_view(implementation)?;
+        let RoleImplMethodActualSurface::Receiver(receiver) = &actual.surface else {
+            return None;
+        };
+        if receiver.tail_parameter_count.is_none()
+            || !matches!(
+                receiver.value,
+                ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::NonAtomicSurface
+                )
+            )
+        {
+            return None;
+        }
+        capture_actual_builtin_nominal_pair(
+            output.session.infer.constraints(),
+            receiver_body_result_anchor(output, implementation),
+            &contract.binder_bridge,
+        )
+    })
 }
 
 fn characterize_contract(source: &str) -> String {
@@ -6300,8 +6518,7 @@ fn shadow_conformance_pair_dump_from_output(output: &BodyLowering) -> String {
         .iter()
         .enumerate()
         .flat_map(|(contract_index, contract)| {
-            contract
-                .shadow_conformance_pairs(&output.modules)
+            shadow_conformance_pairs_from_output(output, contract)
                 .into_iter()
                 .map(move |pair| {
                     assert!(contract.methods.iter().any(|method| {

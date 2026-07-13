@@ -18,6 +18,8 @@ use sources::SourceRange;
 
 use crate::ModuleTable;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
+#[cfg(test)]
+use crate::casts::CastTable;
 use crate::constraints::ConstraintEpoch;
 use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
 
@@ -228,6 +230,8 @@ impl RoleImplConformanceContract {
     pub(crate) fn shadow_conformance_pairs(
         &self,
         modules: &ModuleTable,
+        casts: &CastTable,
+        mut captured_builtin_nominal_pair: impl FnMut(DefId) -> Option<view::ActualBuiltinNominalPair>,
     ) -> Vec<ShadowConformancePair> {
         let declared = self.declared_view(modules);
         let mut pairs = Vec::new();
@@ -259,6 +263,8 @@ impl RoleImplConformanceContract {
                             declared.effect,
                             Some(implementation.def),
                             actual,
+                            casts,
+                            captured_builtin_nominal_pair(implementation.def).as_ref(),
                         )
                     }));
                 }
@@ -270,6 +276,8 @@ impl RoleImplConformanceContract {
                         captured_declared_requirement,
                         None,
                         None,
+                        None,
+                        casts,
                         None,
                     ));
                 }
@@ -783,6 +791,7 @@ pub(crate) enum ShadowConformanceOutcome {
     Mismatch,
     Unavailable,
     Ambiguous,
+    AmbiguousCast,
     NotCaptured,
 }
 
@@ -867,12 +876,16 @@ fn build_shadow_conformance_pair(
     declared_effect: Option<view::DeclaredTypeView>,
     implementation: Option<DefId>,
     actual: Option<RoleImplMethodActualSurface>,
+    casts: &CastTable,
+    captured_builtin_nominal_pair: Option<&view::ActualBuiltinNominalPair>,
 ) -> ShadowConformancePair {
     let outcome = classify_shadow_conformance_pair(
         implementation,
         declared.as_ref(),
         declared_effect.as_ref(),
         actual.as_ref(),
+        casts,
+        captured_builtin_nominal_pair,
     );
     ShadowConformancePair {
         requirement: method.requirement,
@@ -891,6 +904,8 @@ fn classify_shadow_conformance_pair(
     declared: Option<&view::DeclaredTypeView>,
     declared_effect: Option<&view::DeclaredTypeView>,
     actual: Option<&RoleImplMethodActualSurface>,
+    casts: &CastTable,
+    captured_builtin_nominal_pair: Option<&view::ActualBuiltinNominalPair>,
 ) -> ShadowConformanceOutcome {
     if implementation.is_none() || declared.is_none() || actual.is_none() {
         return ShadowConformanceOutcome::NotCaptured;
@@ -904,25 +919,63 @@ fn classify_shadow_conformance_pair(
             declared_effect,
             Some(view::DeclaredTypeView::Unavailable(_))
         )
-        || actual.is_some_and(actual_surface_is_unavailable)
     {
         return ShadowConformanceOutcome::Unavailable;
     }
-    if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_)))
-        || matches!(declared_effect, Some(view::DeclaredTypeView::Ambiguous(_)))
-    {
-        return ShadowConformanceOutcome::Ambiguous;
+    let actual_effect = actual.and_then(actual_surface_effect);
+    if receiver && actual_effect.is_none() {
+        return ShadowConformanceOutcome::Unavailable;
     }
-    let Some(view::DeclaredTypeView::Available(requirement)) = declared else {
-        unreachable!("capture-state classification exhausted every declared view")
-    };
-    let actual_value = actual
-        .and_then(actual_surface_value)
-        .expect("capture-state classification established an available actual view");
-    if !view::first_order_conforms(actual_value, requirement) {
-        return ShadowConformanceOutcome::Mismatch;
+
+    if let Some(actual_value) = actual.and_then(actual_surface_value) {
+        if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_)))
+            || matches!(declared_effect, Some(view::DeclaredTypeView::Ambiguous(_)))
+        {
+            return ShadowConformanceOutcome::Ambiguous;
+        }
+        let Some(view::DeclaredTypeView::Available(requirement)) = declared else {
+            unreachable!("capture-state classification exhausted every declared view")
+        };
+        if !view::first_order_conforms(actual_value, requirement) {
+            match view::visible_cast_lookup(casts, actual_value, requirement) {
+                view::VisibleCastLookup::Missing => return ShadowConformanceOutcome::Mismatch,
+                view::VisibleCastLookup::Unique => {}
+                view::VisibleCastLookup::Ambiguous => {
+                    return ShadowConformanceOutcome::AmbiguousCast;
+                }
+            }
+        }
+    } else {
+        let Some(RoleImplMethodActualSurface::Receiver(actual_receiver)) = actual else {
+            return ShadowConformanceOutcome::Unavailable;
+        };
+        if !matches!(
+            actual_receiver.value,
+            ActualMethodConformanceView::Unavailable(
+                ActualMethodConformanceViewUnavailable::NonAtomicSurface
+            )
+        ) {
+            return ShadowConformanceOutcome::Unavailable;
+        }
+        let Some(view::DeclaredTypeView::Available(requirement)) = declared else {
+            return ShadowConformanceOutcome::Unavailable;
+        };
+        if !matches!(declared_effect, Some(view::DeclaredTypeView::Available(_))) {
+            return ShadowConformanceOutcome::Unavailable;
+        }
+        let Some(captured) = captured_builtin_nominal_pair else {
+            return ShadowConformanceOutcome::Unavailable;
+        };
+        match view::captured_builtin_nominal_cast_lookup(casts, captured, requirement) {
+            view::VisibleCastLookup::Missing => return ShadowConformanceOutcome::Unavailable,
+            view::VisibleCastLookup::Unique => {}
+            view::VisibleCastLookup::Ambiguous => {
+                return ShadowConformanceOutcome::AmbiguousCast;
+            }
+        }
     }
-    if let Some(actual_effect) = actual.and_then(actual_surface_effect) {
+
+    if let Some(actual_effect) = actual_effect {
         let Some(view::DeclaredTypeView::Available(requirement_effect)) = declared_effect else {
             unreachable!("receiver capture-state classification established a declared effect")
         };
@@ -931,18 +984,6 @@ fn classify_shadow_conformance_pair(
         }
     }
     ShadowConformanceOutcome::Conforms
-}
-
-#[cfg(test)]
-fn actual_surface_is_unavailable(surface: &RoleImplMethodActualSurface) -> bool {
-    !actual_surface_is_available(surface)
-}
-
-#[cfg(test)]
-fn actual_surface_is_available(surface: &RoleImplMethodActualSurface) -> bool {
-    actual_surface_value(surface).is_some()
-        && (!matches!(surface, RoleImplMethodActualSurface::Receiver(_))
-            || actual_surface_effect(surface).is_some())
 }
 
 #[cfg(test)]
@@ -1313,6 +1354,22 @@ mod tests {
 
     use super::*;
 
+    fn classify_without_casts(
+        implementation: Option<DefId>,
+        declared: Option<&view::DeclaredTypeView>,
+        declared_effect: Option<&view::DeclaredTypeView>,
+        actual: Option<&RoleImplMethodActualSurface>,
+    ) -> ShadowConformanceOutcome {
+        classify_shadow_conformance_pair(
+            implementation,
+            declared,
+            declared_effect,
+            actual,
+            &CastTable::new(),
+            None,
+        )
+    }
+
     #[test]
     fn slice3b_shadow_classifier_preserves_capture_priority_and_compares_available_views() {
         use poly::types::BuiltinType;
@@ -1333,7 +1390,7 @@ mod tests {
             ));
 
         assert_eq!(
-            classify_shadow_conformance_pair(
+            classify_without_casts(
                 None,
                 Some(&declared_available),
                 None,
@@ -1342,15 +1399,15 @@ mod tests {
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(Some(DefId(1)), None, None, Some(&actual_available)),
+            classify_without_casts(Some(DefId(1)), None, None, Some(&actual_available)),
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(Some(DefId(1)), Some(&declared_available), None, None,),
+            classify_without_casts(Some(DefId(1)), Some(&declared_available), None, None),
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(
+            classify_without_casts(
                 Some(DefId(1)),
                 Some(&DeclaredTypeView::Unavailable(
                     DeclaredViewUnavailable::UnsupportedFunction,
@@ -1361,7 +1418,7 @@ mod tests {
             ShadowConformanceOutcome::Unavailable,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(
+            classify_without_casts(
                 Some(DefId(1)),
                 Some(&declared_available),
                 None,
@@ -1370,7 +1427,7 @@ mod tests {
             ShadowConformanceOutcome::Unavailable,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(
+            classify_without_casts(
                 Some(DefId(1)),
                 Some(&DeclaredTypeView::Ambiguous(
                     DeclaredViewAmbiguity::InputAssociatedNameCollision("item".into()),
@@ -1381,7 +1438,7 @@ mod tests {
             ShadowConformanceOutcome::Ambiguous,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(
+            classify_without_casts(
                 Some(DefId(1)),
                 Some(&declared_available),
                 None,
