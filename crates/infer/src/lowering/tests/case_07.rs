@@ -1007,6 +1007,257 @@ fn role_impl_method_lifecycle_slice1b_pause_resume_preserves_signature_lowerer_s
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_parameters() {
+    let plain_u = concat!(
+        "type box 'a\n",
+        "role Read 'subject:\n",
+        "  our x.read: 'subject\n",
+        "impl (box 'a): Read:\n",
+        "  our x.read = x\n",
+    );
+    let plain_a = concat!(
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    for (source, bridge_name) in [(plain_u, "a"), (plain_a, "value")] {
+        with_requirement_harness(source, "read", |lowerer, requirement, bindings, vars| {
+            let receiver = lowerer.fresh_type_var();
+            let bridge = solver_var_named(bindings, vars, bridge_name);
+            let before = bridge_state(lowerer, bridge);
+            let epoch = lowerer.session.infer.constraints().epoch();
+            let pending = lowerer
+                .inactive_deferred_impl_method_requirement(
+                    DeferredRequirementAnchor::Receiver { receiver },
+                    Arc::clone(requirement),
+                    0,
+                    true,
+                    bindings,
+                    vars,
+                )
+                .expect("plain U/A pending descriptor");
+
+            assert_eq!(
+                pending.anchor,
+                DeferredRequirementAnchor::Receiver { receiver }
+            );
+            assert!(Arc::ptr_eq(&pending.requirement, requirement));
+            assert!(pending.parameter_uppers.is_empty());
+            assert_eq!(
+                pending.body_cursor,
+                RequirementSpineCursor::FunctionResult {
+                    consumed_function_layers: 1,
+                }
+            );
+            assert_eq!(
+                pending.parameter_context,
+                RequirementParameterContextStatus::Clean(
+                    NonMutatingRequirementClass::PlainValueParameters { count: 0 }
+                )
+            );
+            assert!(!pending.final_metadata.connect_value_upper);
+            assert_eq!(
+                pending.final_metadata.signature_vars.get(bridge_name),
+                Some(&bridge)
+            );
+            assert_eq!(bridge_state(lowerer, bridge), before);
+            assert_eq!(lowerer.session.infer.constraints().epoch(), epoch);
+        });
+    }
+
+    let receiverless = concat!(
+        "impl Make int:\n",
+        "  our make = 1\n",
+        "role Make 'subject:\n",
+        "  our make: int\n",
+    );
+    with_requirement_harness(
+        receiverless,
+        "make",
+        |lowerer, requirement, bindings, vars| {
+            let value = lowerer.fresh_type_var();
+            let pending = lowerer
+                .inactive_deferred_impl_method_requirement(
+                    DeferredRequirementAnchor::Receiverless { value },
+                    Arc::clone(requirement),
+                    0,
+                    false,
+                    bindings,
+                    vars,
+                )
+                .expect("receiverless pending descriptor");
+            assert_eq!(
+                pending.anchor,
+                DeferredRequirementAnchor::Receiverless { value }
+            );
+            assert_eq!(pending.body_cursor, RequirementSpineCursor::WholeValue);
+            assert!(pending.final_metadata.connect_value_upper);
+            assert!(pending.parameter_uppers.is_empty());
+        },
+    );
+
+    let effect_u = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Flow 'subject 'effect:\n",
+        "  our x.run: unit -> [tick; 'effect] unit\n",
+        "impl Flow int 'e:\n",
+        "  our x.run u = ()\n",
+    );
+    let effect_a = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Flow 'subject:\n",
+        "  type effect\n",
+        "  our x.run: unit -> [tick; effect] unit\n",
+        "impl int: Flow:\n",
+        "  our x.run u = ()\n",
+    );
+    for (source, bridge_name) in [(effect_u, "e"), (effect_a, "effect")] {
+        with_requirement_harness(source, "run", |lowerer, requirement, bindings, vars| {
+            let receiver = lowerer.fresh_type_var();
+            let bridge = solver_var_named(bindings, vars, bridge_name);
+            let before_bridge = bridge_state(lowerer, bridge);
+            let before_epoch = lowerer.session.infer.constraints().epoch();
+            let pending = lowerer
+                .inactive_deferred_impl_method_requirement(
+                    DeferredRequirementAnchor::Receiver { receiver },
+                    Arc::clone(requirement),
+                    1,
+                    true,
+                    bindings,
+                    vars,
+                )
+                .expect("effect-result pending descriptor");
+            assert_eq!(
+                pending.parameter_context,
+                RequirementParameterContextStatus::Clean(
+                    NonMutatingRequirementClass::PlainValueParameters { count: 1 }
+                )
+            );
+            assert!(pending.parameter_uppers[0].is_some());
+            assert_eq!(
+                pending.body_cursor,
+                RequirementSpineCursor::FunctionResult {
+                    consumed_function_layers: 2,
+                }
+            );
+            assert_eq!(pending.continuation.vars.get(bridge_name), Some(&bridge));
+            assert_eq!(
+                pending.final_metadata.signature_vars.get(bridge_name),
+                Some(&bridge)
+            );
+            assert_eq!(bridge_state(lowerer, bridge), before_bridge);
+            assert_eq!(lowerer.session.infer.constraints().epoch(), before_epoch);
+
+            // The defensive audit is deliberately negative-only. Running the legacy complete
+            // plan crosses the deferred body boundary and must classify the observed effect-tail
+            // mutation as unavailable rather than retroactively treating it as clean context.
+            let before = lowerer.requirement_bridge_audit_snapshot(bindings, vars);
+            lowerer
+                .impl_method_requirement_plan(&requirement.signature, 1, true, bindings, vars)
+                .expect("legacy complete effect-result plan");
+            let status = lowerer.requirement_parameter_context_since(
+                NonMutatingRequirementClass::PlainValueParameters { count: 1 },
+                before,
+                bindings,
+                vars,
+            );
+            let RequirementParameterContextStatus::MutatedBridge(audit) = status else {
+                panic!("expected bridge mutation audit")
+            };
+            assert!(audit.epoch_after > audit.epoch_before);
+            assert!(!audit.unexplained_epoch_advance);
+            assert!(audit.affected.iter().any(|mutation| {
+                mutation.solver_var == bridge
+                    && !mutation.bounds_changed
+                    && mutation.subtract_facts_changed
+            }));
+        });
+    }
+
+    let effect_row_parameter_u = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Consume 'subject 'effect:\n",
+        "  our x.consume: '[tick; 'effect] -> unit\n",
+        "impl Consume int 'e:\n",
+        "  our x.consume action = ()\n",
+    );
+    with_requirement_harness(
+        effect_row_parameter_u,
+        "consume",
+        |lowerer, requirement, bindings, vars| {
+            let receiver = lowerer.fresh_type_var();
+            let bridge = solver_var_named(bindings, vars, "e");
+            let before = bridge_state(lowerer, bridge);
+            let epoch = lowerer.session.infer.constraints().epoch();
+            let pending = lowerer
+                .inactive_deferred_impl_method_requirement(
+                    DeferredRequirementAnchor::Receiver { receiver },
+                    Arc::clone(requirement),
+                    1,
+                    true,
+                    bindings,
+                    vars,
+                )
+                .expect("effect-row parameter pending descriptor");
+
+            assert_eq!(pending.parameter_uppers, vec![None]);
+            assert!(matches!(
+                pending.parameter_context,
+                RequirementParameterContextStatus::Unsupported(
+                    RequirementParameterContextUnavailable {
+                        parameter_index: 0,
+                        reason: RequirementParameterUnsupportedReason::EffectRow,
+                    }
+                )
+            ));
+            assert_eq!(bridge_state(lowerer, bridge), before);
+            assert_eq!(lowerer.session.infer.constraints().epoch(), epoch);
+        },
+    );
+
+    let effect_family_parameter = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Consume 'subject:\n",
+        "  our x.consume: tick -> unit\n",
+        "impl int: Consume:\n",
+        "  our x.consume action = ()\n",
+    );
+    with_requirement_harness(
+        effect_family_parameter,
+        "consume",
+        |lowerer, requirement, bindings, vars| {
+            let receiver = lowerer.fresh_type_var();
+            let pending = lowerer
+                .inactive_deferred_impl_method_requirement(
+                    DeferredRequirementAnchor::Receiver { receiver },
+                    Arc::clone(requirement),
+                    1,
+                    true,
+                    bindings,
+                    vars,
+                )
+                .expect("effect-family parameter pending descriptor");
+            assert!(matches!(
+                pending.parameter_context,
+                RequirementParameterContextStatus::Unsupported(
+                    RequirementParameterContextUnavailable {
+                        parameter_index: 0,
+                        reason: RequirementParameterUnsupportedReason::EffectFamily { .. },
+                    }
+                )
+            ));
+            assert_eq!(pending.parameter_uppers, vec![None]);
+        },
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -1126,7 +1377,7 @@ fn with_requirement_harness<R>(
     method_name: &str,
     test: impl FnOnce(
         &mut ExprLowerer<'_>,
-        &ResolvedRoleMethodRequirement,
+        &Arc<ResolvedRoleMethodRequirement>,
         &[(String, AnnTypeVarId)],
         &mut rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> R,
@@ -1159,7 +1410,7 @@ fn with_requirement_harness<R>(
         .role_requirements
         .get(&role_method.def)
         .expect("stored role method requirement");
-    let requirement = ResolvedRoleMethodRequirement {
+    let requirement = Arc::new(ResolvedRoleMethodRequirement {
         role_method: role_method.def,
         role: body_lowerer
             .modules
@@ -1176,7 +1427,7 @@ fn with_requirement_harness<R>(
         inputs: context.input_signatures.clone(),
         associated: context.associated_signatures.clone(),
         signature: substitute_role_requirement_signature(stored, &context),
-    };
+    });
     let method = implementation
         .methods
         .iter()

@@ -15,6 +15,7 @@ use sources::SourceRange;
 
 use crate::ModuleTable;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
+use crate::constraints::ConstraintEpoch;
 use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,6 +343,72 @@ pub(crate) enum RoleImplConformanceBinderBridgeMissing {
         binder: AssociatedInferenceBinderId,
         annotation_var: AnnTypeVarId,
     },
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RequirementParameterContextStatus {
+    Clean(NonMutatingRequirementClass),
+    MutatedBridge(BridgeMutationAudit),
+    Unsupported(RequirementParameterContextUnavailable),
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NonMutatingRequirementClass {
+    PlainValueParameters { count: usize },
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BridgeMutationAudit {
+    pub(crate) epoch_before: ConstraintEpoch,
+    pub(crate) epoch_after: ConstraintEpoch,
+    pub(crate) affected: Vec<ConformanceBinderMutation>,
+    pub(crate) unexplained_epoch_advance: bool,
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ConformanceBinderMutation {
+    pub(crate) annotation_var: AnnTypeVarId,
+    pub(crate) solver_var: TypeVar,
+    pub(crate) bounds_changed: bool,
+    pub(crate) subtract_facts_changed: bool,
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RequirementParameterContextUnavailable {
+    pub(crate) parameter_index: usize,
+    pub(crate) reason: RequirementParameterUnsupportedReason,
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor metadata is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RequirementParameterUnsupportedReason {
+    MissingFunctionLayer,
+    EffectRow,
+    EffectfulLayer,
+    EffectFamily { declaration: crate::TypeDeclId },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

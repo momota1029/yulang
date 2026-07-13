@@ -8,6 +8,8 @@
 //! `poly` への `RefId -> DefId` 書き戻しと SCC edge 追加は、lowering 本体から分離された
 //! event routing 側に残る。
 
+use std::sync::Arc;
+
 mod body;
 mod builtin_op;
 mod cast_scheme;
@@ -59,6 +61,11 @@ use crate::compact::{
 use crate::constraints::TypeLevel;
 use crate::generalize::{
     generalize_prepared_compact_root_with_roles, generalize_type_var_with_boundaries,
+};
+use crate::role_impl_conformance::{
+    BridgeMutationAudit, ConformanceBinderMutation, NonMutatingRequirementClass,
+    RequirementParameterContextStatus, RequirementParameterContextUnavailable,
+    RequirementParameterUnsupportedReason,
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
@@ -132,6 +139,63 @@ struct ResolvedRoleMethodRequirement {
     inputs: Vec<SignatureType>,
     associated: Vec<(String, SignatureType)>,
     signature: SignatureType,
+}
+
+/// Inactive Slice 1 transport. It is built by characterization tests but is not registered with
+/// the SCC machine or any session-owned pending table yet.
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
+)]
+struct DeferredRoleImplMethodRequirement {
+    anchor: DeferredRequirementAnchor,
+    requirement: Arc<ResolvedRoleMethodRequirement>,
+    parameter_uppers: Vec<Option<NegId>>,
+    body_cursor: RequirementSpineCursor,
+    continuation: SignatureLoweringContinuation,
+    parameter_context: crate::role_impl_conformance::RequirementParameterContextStatus,
+    final_metadata: DeferredRequirementMetadata,
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DeferredRequirementAnchor {
+    Receiver { receiver: TypeVar },
+    Receiverless { value: TypeVar },
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RequirementSpineCursor {
+    WholeValue,
+    FunctionResult { consumed_function_layers: usize },
+}
+
+#[allow(
+    dead_code,
+    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
+)]
+struct DeferredRequirementMetadata {
+    signature_vars: FxHashMap<String, TypeVar>,
+    connect_value_upper: bool,
+}
+
+struct RequirementBridgeAuditSnapshot {
+    epoch: crate::constraints::ConstraintEpoch,
+    entries: Vec<RequirementBridgeAuditEntry>,
+}
+
+struct RequirementBridgeAuditEntry {
+    annotation_var: AnnTypeVarId,
+    solver_var: TypeVar,
+    bounds: Option<crate::constraints::VarBounds>,
+    subtract_facts: Vec<crate::constraints::SubtractFact>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -570,6 +570,171 @@ impl<'a> ExprLowerer<'a> {
     /// 最終 body の upper を同じ signature 変数で作る。impl 値全体へ raw
     /// `value <: requirement` を張ると、body 内の stack evidence が receiver まで含む
     /// 関数境界を回って戻るので、requirement 由来の alias だけを body 近くで接続する。
+    #[allow(
+        dead_code,
+        reason = "inactive Slice 1 descriptor is exercised by tests before SCC integration"
+    )]
+    pub(in crate::lowering) fn inactive_deferred_impl_method_requirement(
+        &mut self,
+        anchor: DeferredRequirementAnchor,
+        requirement: Arc<ResolvedRoleMethodRequirement>,
+        param_count: usize,
+        skip_receiver: bool,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<DeferredRoleImplMethodRequirement, LoweringError> {
+        let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
+        let final_metadata = DeferredRequirementMetadata {
+            signature_vars: seed.clone(),
+            connect_value_upper: matches!(anchor, DeferredRequirementAnchor::Receiverless { .. }),
+        };
+        let mut spine = &requirement.signature;
+        let mut consumed_function_layers = 0usize;
+        let mut parameter_signatures = Vec::with_capacity(param_count);
+        let mut unavailable = None;
+
+        if skip_receiver {
+            if let Some(layer) = signature_function_layer(spine) {
+                consumed_function_layers = consumed_function_layers.saturating_add(1);
+                spine = layer.ret;
+            } else {
+                unavailable = Some(RequirementParameterContextUnavailable {
+                    parameter_index: 0,
+                    reason: RequirementParameterUnsupportedReason::MissingFunctionLayer,
+                });
+            }
+        }
+
+        for parameter_index in 0..param_count {
+            let Some(layer) = signature_function_layer(spine) else {
+                unavailable.get_or_insert(RequirementParameterContextUnavailable {
+                    parameter_index,
+                    reason: RequirementParameterUnsupportedReason::MissingFunctionLayer,
+                });
+                break;
+            };
+            parameter_signatures.push(layer.param);
+            consumed_function_layers = consumed_function_layers.saturating_add(1);
+            spine = layer.ret;
+        }
+
+        if unavailable.is_none() {
+            unavailable =
+                parameter_signatures
+                    .iter()
+                    .enumerate()
+                    .find_map(|(parameter_index, signature)| {
+                        unsupported_requirement_parameter(signature, self.modules).map(|reason| {
+                            RequirementParameterContextUnavailable {
+                                parameter_index,
+                                reason,
+                            }
+                        })
+                    });
+        }
+
+        let body_cursor = if skip_receiver || param_count > 0 {
+            RequirementSpineCursor::FunctionResult {
+                consumed_function_layers,
+            }
+        } else {
+            RequirementSpineCursor::WholeValue
+        };
+        let level = self.session.infer.current_level();
+        let (parameter_uppers, continuation, parameter_context) = if let Some(unavailable) =
+            unavailable
+        {
+            let lowerer = SignatureLowerer::with_vars_at_level(
+                &mut self.session.infer,
+                self.modules,
+                seed,
+                level,
+            );
+            (
+                vec![None; param_count],
+                lowerer.into_continuation(),
+                RequirementParameterContextStatus::Unsupported(unavailable),
+            )
+        } else {
+            let before = self.requirement_bridge_audit_snapshot(type_var_bindings, ann_solver_vars);
+            let mut lowerer = SignatureLowerer::with_vars_at_level(
+                &mut self.session.infer,
+                self.modules,
+                seed,
+                level,
+            );
+            let mut parameter_uppers = Vec::with_capacity(param_count);
+            for signature in parameter_signatures {
+                parameter_uppers.push(Some(
+                    lowerer
+                        .lower_neg(signature)
+                        .map_err(|error| LoweringError::SignatureConstraint { error })?,
+                ));
+            }
+            let continuation = lowerer.into_continuation();
+            let parameter_context = self.requirement_parameter_context_since(
+                NonMutatingRequirementClass::PlainValueParameters { count: param_count },
+                before,
+                type_var_bindings,
+                ann_solver_vars,
+            );
+            (parameter_uppers, continuation, parameter_context)
+        };
+
+        Ok(DeferredRoleImplMethodRequirement {
+            anchor,
+            requirement,
+            parameter_uppers,
+            body_cursor,
+            continuation,
+            parameter_context,
+            final_metadata,
+        })
+    }
+
+    pub(in crate::lowering) fn requirement_bridge_audit_snapshot(
+        &self,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> RequirementBridgeAuditSnapshot {
+        let constraints = self.session.infer.constraints();
+        let mut mapped = type_var_bindings
+            .iter()
+            .filter_map(|(_, annotation_var)| {
+                ann_solver_vars
+                    .get(annotation_var)
+                    .copied()
+                    .map(|solver_var| (*annotation_var, solver_var))
+            })
+            .collect::<Vec<_>>();
+        mapped.sort_by_key(|(annotation_var, solver_var)| (annotation_var.0, solver_var.0));
+        mapped.dedup();
+        let entries = mapped
+            .into_iter()
+            .map(|(annotation_var, solver_var)| RequirementBridgeAuditEntry {
+                annotation_var,
+                solver_var,
+                bounds: constraints.bounds().of(solver_var).cloned(),
+                subtract_facts: constraints.subtracts().facts(solver_var).to_vec(),
+            })
+            .collect();
+        RequirementBridgeAuditSnapshot {
+            epoch: constraints.epoch(),
+            entries,
+        }
+    }
+
+    pub(in crate::lowering) fn requirement_parameter_context_since(
+        &self,
+        class: NonMutatingRequirementClass,
+        before: RequirementBridgeAuditSnapshot,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> RequirementParameterContextStatus {
+        let after = self.requirement_bridge_audit_snapshot(type_var_bindings, ann_solver_vars);
+        requirement_parameter_context_after_clean_lowering(class, before, after)
+    }
+
     pub(in crate::lowering) fn impl_method_requirement_plan(
         &mut self,
         requirement: &SignatureType,
@@ -1185,5 +1350,99 @@ fn signature_result_effect<'a>(
     match (ret_eff, ret) {
         (None, SignatureType::Effectful { eff, ret }) => (Some(eff), ret),
         _ => (ret_eff, ret),
+    }
+}
+
+fn unsupported_requirement_parameter(
+    signature: &SignatureType,
+    modules: &ModuleTable,
+) -> Option<RequirementParameterUnsupportedReason> {
+    match signature {
+        SignatureType::Builtin(_) | SignatureType::Var(_) => None,
+        SignatureType::Named(declaration) => modules
+            .type_decl_by_id(*declaration)
+            .filter(|decl| matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error))
+            .map(|_| RequirementParameterUnsupportedReason::EffectFamily {
+                declaration: *declaration,
+            }),
+        SignatureType::EffectRow(_) => Some(RequirementParameterUnsupportedReason::EffectRow),
+        SignatureType::Effectful { .. } => {
+            Some(RequirementParameterUnsupportedReason::EffectfulLayer)
+        }
+        SignatureType::Tuple(items) => items
+            .iter()
+            .find_map(|item| unsupported_requirement_parameter(item, modules)),
+        SignatureType::Apply { callee, args } => unsupported_requirement_parameter(callee, modules)
+            .or_else(|| {
+                args.iter()
+                    .find_map(|arg| unsupported_requirement_parameter(arg, modules))
+            }),
+        SignatureType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            if arg_eff.is_some() || ret_eff.is_some() {
+                return Some(RequirementParameterUnsupportedReason::EffectRow);
+            }
+            unsupported_requirement_parameter(param, modules)
+                .or_else(|| unsupported_requirement_parameter(ret, modules))
+        }
+    }
+}
+
+fn requirement_parameter_context_after_clean_lowering(
+    class: NonMutatingRequirementClass,
+    before: RequirementBridgeAuditSnapshot,
+    after: RequirementBridgeAuditSnapshot,
+) -> RequirementParameterContextStatus {
+    let mut affected = Vec::new();
+    for entry in &before.entries {
+        let found = after.entries.iter().find(|candidate| {
+            candidate.annotation_var == entry.annotation_var
+                && candidate.solver_var == entry.solver_var
+        });
+        let (bounds_changed, subtract_facts_changed) = match found {
+            Some(found) => (
+                found.bounds != entry.bounds,
+                found.subtract_facts != entry.subtract_facts,
+            ),
+            None => (true, true),
+        };
+        if bounds_changed || subtract_facts_changed {
+            affected.push(ConformanceBinderMutation {
+                annotation_var: entry.annotation_var,
+                solver_var: entry.solver_var,
+                bounds_changed,
+                subtract_facts_changed,
+            });
+        }
+    }
+    for entry in &after.entries {
+        let existed = before.entries.iter().any(|candidate| {
+            candidate.annotation_var == entry.annotation_var
+                && candidate.solver_var == entry.solver_var
+        });
+        if !existed {
+            affected.push(ConformanceBinderMutation {
+                annotation_var: entry.annotation_var,
+                solver_var: entry.solver_var,
+                bounds_changed: true,
+                subtract_facts_changed: true,
+            });
+        }
+    }
+    affected.sort_by_key(|mutation| (mutation.annotation_var.0, mutation.solver_var.0));
+    let unexplained_epoch_advance = before.epoch != after.epoch && affected.is_empty();
+    if affected.is_empty() && !unexplained_epoch_advance {
+        RequirementParameterContextStatus::Clean(class)
+    } else {
+        RequirementParameterContextStatus::MutatedBridge(BridgeMutationAudit {
+            epoch_before: before.epoch,
+            epoch_after: after.epoch,
+            affected,
+            unexplained_epoch_advance,
+        })
     }
 }
