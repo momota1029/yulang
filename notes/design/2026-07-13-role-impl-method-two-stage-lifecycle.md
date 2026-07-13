@@ -797,6 +797,13 @@ apply the edge, settle, and release. Compare production outputs with the immedia
 Size M-L, risk very high. Split contextual parameter preparation from deferred body/final
 connection. Cover zero/multiple parameters and result/effect annotations.
 
+Slice 4c is paused after its zero-tail receiver shadow attempt exposed the binding-transaction
+boundary gap recorded as section 13 point 10. The delayed path cannot be activated for receiver
+methods until that point is resolved: matching diagnostics alone is insufficient when the delayed
+method retains a scheme and runtime body that the immediate path rejects before `finish_binding`.
+The incomplete Slice 4c implementation was discarded and the implementation returned to the
+completed Slice 4b state (`661d7a66`).
+
 ### Slice 5: component-atomic recursion and merge witnesses
 
 Size M-L. Exercise mutual SCCs, post-edge merges, recursive binders, failure release, and strict
@@ -831,6 +838,50 @@ The following remain unconfirmed and must be resolved or bounded by the relevant
    for records, effects, recursive bounds, predicates, or casts.
 9. Whether transient candidates can use a pending method before its conformance snapshot exists;
    this is the parent specification's candidate-visibility question and remains unresolved.
+10. How a deferred receiver requirement preserves the immediate path's binding transaction on
+    connection failure. Slice 4c reproduced this with the following shape mismatch (shown compactly):
+
+    ```yu
+    role Build 'subject:
+      our x.build: int
+    impl int: Build:
+      our x.build = \value -> value
+    ```
+
+    The declared result is non-function `int`, while the body is a lambda. Both paths report the
+    same `SignatureTypeMismatch`, but their final definition states diverge. The immediate path
+    detects the mismatch inside method lowering, before `finish_binding` can run, so the definition
+    becomes `never = <missing>` and is included in `bodyless_decls`. The delayed path calls
+    `finish_binding` first and detects the failed conformance connection only in the later pending
+    phase. It therefore retains the body's real inferred scheme (for this fixture, a shape such as
+    `int -> 'a -> 'a`) and lambda runtime IR, then merely adds the separate diagnostic; its
+    `bodyless_decls` count also differs.
+
+    This is a structural ordering problem, not a presentation difference. The invalid delayed
+    definition remains usable as though it had a valid scheme, so another definition -- including
+    a mutually recursive binding -- could observe and rely on a type that must not exist. Treat the
+    gap as a soundness issue.
+
+    Two candidate directions remain open:
+
+    - **(a) Provisional binding transaction.** Keep the target method body provisional until its
+      pending connection completes. On failure, commit the same `never = <missing>` state as the
+      immediate path; on success, commit the body normally. This represents the failure exactly,
+      but it expands the pending lifecycle from constraint edges into binding ownership. Depending
+      on what must remain visible for recursive SCC construction, it may require delaying or
+      splitting `finish_binding`, `DefFinished`, poly/typing writes, and ordinary quantification.
+      Its interaction with mutual recursion and component merge is therefore broad and high-risk.
+    - **(b) Stronger eager read-only pre-check.** Strengthen
+      `check_impl_method_requirement_shape` or an equivalent pre-check so a body/requirement shape
+      mismatch is detected before deferral. Such a method falls back to the complete immediate
+      path and preserves the existing binding transaction while narrowing Slice 4c's blast radius.
+      This is smaller and keeps SCC ownership unchanged, but it is not yet known whether a read-only
+      pre-check can cover every connection failure class. In particular, value-type mismatches and
+      failures that require settled bounds may remain invisible even if simple shape mismatches are
+      excluded.
+
+    Slice 4c (real SCC activation for receiver methods) cannot complete until this choice, or an
+    equivalently sound transaction design, is resolved and witnessed against the immediate path.
 
 Slice 0 status update: point 3 is resolved as mutating for effect-bearing `U/A` and non-mutating only
 for the characterized plain value-position cases. It remains numbered here as the historical
