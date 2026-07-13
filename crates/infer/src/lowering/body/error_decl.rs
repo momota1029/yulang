@@ -601,7 +601,7 @@ impl BodyLowerer {
         let mut lowerer =
             SignatureLowerer::with_vars(&mut self.session.infer, &self.modules, vars.clone());
         let input = lowerer.lower_role_arg(&error_sig).ok()?;
-        vars = lowerer.vars;
+        vars = lowerer.into_vars();
         let mut lowerer = SignatureLowerer::with_vars(&mut self.session.infer, &self.modules, vars);
         let throws = lowerer.lower_role_arg(&throws_sig).ok()?;
         let associated = self

@@ -330,13 +330,21 @@ pub enum SignatureConstraintError {
     WildcardEffectRowInTypePosition,
 }
 
-struct SignatureLowerer<'a> {
-    infer: &'a mut crate::Arena,
-    modules: &'a ModuleTable,
+/// Borrow-free, same-session state shared by separately borrowed signature-lowering layers.
+///
+/// `data_effect_private_tails` contains row-address keys, so a resumed driver must re-borrow the
+/// same immutable `SignatureType` allocation rather than a clone or reconstruction.
+struct SignatureLoweringContinuation {
     vars: FxHashMap<String, TypeVar>,
     new_var_level: Option<TypeLevel>,
     closed_effect_rows: FxHashMap<SignatureClosedEffectRowKey, TypeVar>,
     data_effect_private_tails: FxHashMap<DataEffectTailKey, DataEffectPrivateTail>,
+}
+
+struct SignatureLowerer<'a> {
+    infer: &'a mut crate::Arena,
+    modules: &'a ModuleTable,
+    state: SignatureLoweringContinuation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -377,16 +385,33 @@ struct DataEffectPrivateTail {
     subtract: SubtractId,
 }
 
-impl<'a> SignatureLowerer<'a> {
-    fn new(infer: &'a mut crate::Arena, modules: &'a ModuleTable) -> Self {
+impl SignatureLoweringContinuation {
+    fn new() -> Self {
+        Self::with_vars(FxHashMap::default())
+    }
+
+    fn with_vars(vars: FxHashMap<String, TypeVar>) -> Self {
         Self {
-            infer,
-            modules,
-            vars: FxHashMap::default(),
+            vars,
             new_var_level: None,
             closed_effect_rows: FxHashMap::default(),
             data_effect_private_tails: FxHashMap::default(),
         }
+    }
+
+    fn with_vars_at_level(vars: FxHashMap<String, TypeVar>, new_var_level: TypeLevel) -> Self {
+        Self {
+            vars,
+            new_var_level: Some(new_var_level),
+            closed_effect_rows: FxHashMap::default(),
+            data_effect_private_tails: FxHashMap::default(),
+        }
+    }
+}
+
+impl<'a> SignatureLowerer<'a> {
+    fn new(infer: &'a mut crate::Arena, modules: &'a ModuleTable) -> Self {
+        Self::from_continuation(infer, modules, SignatureLoweringContinuation::new())
     }
 
     fn with_vars(
@@ -394,14 +419,11 @@ impl<'a> SignatureLowerer<'a> {
         modules: &'a ModuleTable,
         vars: FxHashMap<String, TypeVar>,
     ) -> Self {
-        Self {
+        Self::from_continuation(
             infer,
             modules,
-            vars,
-            new_var_level: None,
-            closed_effect_rows: FxHashMap::default(),
-            data_effect_private_tails: FxHashMap::default(),
-        }
+            SignatureLoweringContinuation::with_vars(vars),
+        )
     }
 
     fn with_vars_at_level(
@@ -410,14 +432,40 @@ impl<'a> SignatureLowerer<'a> {
         vars: FxHashMap<String, TypeVar>,
         new_var_level: TypeLevel,
     ) -> Self {
+        Self::from_continuation(
+            infer,
+            modules,
+            SignatureLoweringContinuation::with_vars_at_level(vars, new_var_level),
+        )
+    }
+
+    fn from_continuation(
+        infer: &'a mut crate::Arena,
+        modules: &'a ModuleTable,
+        state: SignatureLoweringContinuation,
+    ) -> Self {
         Self {
             infer,
             modules,
-            vars,
-            new_var_level: Some(new_var_level),
-            closed_effect_rows: FxHashMap::default(),
-            data_effect_private_tails: FxHashMap::default(),
+            state,
         }
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "pause/resume is witnessed in Slice 1b and consumed by a later slice"
+        )
+    )]
+    fn into_continuation(self) -> SignatureLoweringContinuation {
+        self.state
+    }
+
+    fn into_vars(self) -> FxHashMap<String, TypeVar> {
+        // Existing vars-only handoffs intentionally discard row/private-tail state and start a
+        // separate lowering session. They are not continuation resumes.
+        self.state.vars
     }
 
     fn lower_role_arg(
@@ -715,16 +763,16 @@ impl<'a> SignatureLowerer<'a> {
     }
 
     fn signature_var(&mut self, var: &SignatureVar) -> TypeVar {
-        if let Some(found) = self.vars.get(&var.name) {
+        if let Some(found) = self.state.vars.get(&var.name) {
             return *found;
         }
         let ty = self.fresh_type_var();
-        self.vars.insert(var.name.clone(), ty);
+        self.state.vars.insert(var.name.clone(), ty);
         ty
     }
 
     fn fresh_type_var(&mut self) -> TypeVar {
-        if let Some(level) = self.new_var_level {
+        if let Some(level) = self.state.new_var_level {
             self.infer.fresh_type_var_at(level)
         } else {
             self.infer.fresh_type_var()

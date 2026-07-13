@@ -301,14 +301,14 @@ impl<'a> SignatureLowerer<'a> {
             row: row as *const SignatureEffectRow as usize,
             public_tail,
         };
-        if let Some(private) = self.data_effect_private_tails.get(&key) {
+        if let Some(private) = self.state.data_effect_private_tails.get(&key) {
             return *private;
         }
         let private = DataEffectPrivateTail {
             tail: self.fresh_type_var(),
             subtract: self.infer.fresh_subtract_id(),
         };
-        self.data_effect_private_tails.insert(key, private);
+        self.state.data_effect_private_tails.insert(key, private);
         private
     }
 
@@ -319,11 +319,11 @@ impl<'a> SignatureLowerer<'a> {
         if !row.items.is_empty()
             && let Some(key) = closed_signature_effect_row_key(row)
         {
-            if let Some(found) = self.closed_effect_rows.get(&key) {
+            if let Some(found) = self.state.closed_effect_rows.get(&key) {
                 return *found;
             }
             let effect = self.fresh_type_var();
-            self.closed_effect_rows.insert(key, effect);
+            self.state.closed_effect_rows.insert(key, effect);
             return effect;
         }
         self.fresh_type_var()

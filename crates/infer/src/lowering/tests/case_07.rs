@@ -948,6 +948,65 @@ fn role_impl_method_lifecycle_slice0_signature_lowerer_reuses_internal_state() {
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice1b_pause_resume_preserves_signature_lowerer_state() {
+    let method_local = concat!(
+        "role Same 'subject:\n",
+        "  our x.same: 'm -> 'm\n",
+        "impl int: Same:\n",
+        "  our x.same value = value\n",
+    );
+    with_requirement_harness(
+        method_local,
+        "same",
+        |lowerer, requirement, bindings, vars| {
+            let witness =
+                pause_resume_requirement_parameter_and_body(lowerer, requirement, bindings, vars);
+            let types = lowerer.session.infer.constraints().types();
+            let parameter = neg_var(types, witness.parameter_upper);
+            let body = neg_var(types, witness.body.value_upper);
+            let resumed_fresh = neg_var(types, witness.resumed_fresh_upper);
+            assert_eq!(parameter, body);
+            assert!(!vars.values().any(|bridge| *bridge == parameter));
+            assert_eq!(
+                lowerer.session.infer.constraints().level_of(parameter),
+                witness.captured_level,
+            );
+            assert_eq!(
+                lowerer.session.infer.constraints().level_of(resumed_fresh),
+                witness.captured_level,
+            );
+        },
+    );
+
+    let closed_effect = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: (unit -> [tick] unit) -> [tick] unit\n",
+        "impl int: Run:\n",
+        "  our x.run action = action()\n",
+    );
+    with_requirement_harness(
+        closed_effect,
+        "run",
+        |lowerer, requirement, bindings, vars| {
+            let witness =
+                pause_resume_requirement_parameter_and_body(lowerer, requirement, bindings, vars);
+            let types = lowerer.session.infer.constraints().types();
+            let parameter_effect = match types.neg(witness.parameter_upper) {
+                Neg::Fun { ret_eff, .. } => stacked_neg_var(types, *ret_eff),
+                other => panic!("expected function parameter upper, got {other:?}"),
+            };
+            let body_effect = stacked_neg_var(types, witness.body.effect_upper);
+            assert_eq!(parameter_effect, body_effect);
+            assert!(!vars.values().any(|bridge| *bridge == parameter_effect));
+        },
+    );
+
+    assert_signature_lowerer_pause_resume_reuses_private_data_effect_tail();
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -1246,6 +1305,108 @@ fn stacked_pos_var(types: &poly::types::TypeArena, pos: PosId) -> Option<TypeVar
     }
 }
 
+struct PauseResumeRequirementWitness {
+    parameter_upper: NegId,
+    body: ImplRequirementBodyConnection,
+    resumed_fresh_upper: NegId,
+    captured_level: crate::constraints::TypeLevel,
+}
+
+struct WitnessSignatureFunctionLayer<'a> {
+    param: &'a SignatureType,
+    ret_eff: Option<&'a SignatureEffectRow>,
+    ret: &'a SignatureType,
+}
+
+fn pause_resume_requirement_parameter_and_body(
+    expr_lowerer: &mut ExprLowerer<'_>,
+    requirement: &ResolvedRoleMethodRequirement,
+    bindings: &[(String, AnnTypeVarId)],
+    vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+) -> PauseResumeRequirementWitness {
+    let receiver_layer = witness_signature_function_layer(&requirement.signature)
+        .expect("receiver requirement layer");
+    let parameter_layer =
+        witness_signature_function_layer(receiver_layer.ret).expect("tail parameter layer");
+    let seed = signature_vars_from_ann_vars(bindings, vars);
+    let captured_level = expr_lowerer.session.infer.current_level();
+    let mut lowerer = SignatureLowerer::with_vars_at_level(
+        &mut expr_lowerer.session.infer,
+        expr_lowerer.modules,
+        seed,
+        captured_level,
+    );
+    let parameter_upper = lowerer
+        .lower_neg(parameter_layer.param)
+        .expect("parameter layer before pause");
+    let continuation = lowerer.into_continuation();
+    assert_eq!(continuation.new_var_level, Some(captured_level));
+
+    // Resume while the arena itself is at a different level. Fresh variables produced after the
+    // pause must still use the level captured by the continuation.
+    let previous_level = expr_lowerer.session.infer.enter_child_level();
+    assert_eq!(previous_level, captured_level);
+    assert_ne!(expr_lowerer.session.infer.current_level(), captured_level);
+    let mut lowerer = SignatureLowerer::from_continuation(
+        &mut expr_lowerer.session.infer,
+        expr_lowerer.modules,
+        continuation,
+    );
+    let (ret_eff, ret) =
+        witness_signature_result_effect(parameter_layer.ret_eff, parameter_layer.ret);
+    let body = ImplRequirementBodyConnection {
+        effect_upper: lowerer
+            .lower_ret_effect_neg(ret_eff)
+            .expect("body effect layer after resume"),
+        value_upper: lowerer
+            .lower_neg(ret)
+            .expect("body value layer after resume"),
+    };
+    let resumed_fresh_upper = lowerer
+        .lower_neg(&SignatureType::Var(SignatureVar::new(
+            "#slice1b-resumed-fresh",
+        )))
+        .expect("fresh method-local variable after resume");
+    let _continuation = lowerer.into_continuation();
+    expr_lowerer.session.infer.restore_level(previous_level);
+
+    PauseResumeRequirementWitness {
+        parameter_upper,
+        body,
+        resumed_fresh_upper,
+        captured_level,
+    }
+}
+
+fn witness_signature_function_layer(
+    signature: &SignatureType,
+) -> Option<WitnessSignatureFunctionLayer<'_>> {
+    match signature {
+        SignatureType::Effectful { ret, .. } => witness_signature_function_layer(ret),
+        SignatureType::Function {
+            param,
+            ret_eff,
+            ret,
+            ..
+        } => Some(WitnessSignatureFunctionLayer {
+            param,
+            ret_eff: ret_eff.as_ref(),
+            ret,
+        }),
+        _ => None,
+    }
+}
+
+fn witness_signature_result_effect<'a>(
+    ret_eff: Option<&'a SignatureEffectRow>,
+    ret: &'a SignatureType,
+) -> (Option<&'a SignatureEffectRow>, &'a SignatureType) {
+    match (ret_eff, ret) {
+        (None, SignatureType::Effectful { eff, ret }) => (Some(eff), ret),
+        _ => (ret_eff, ret),
+    }
+}
+
 fn assert_signature_lowerer_reuses_private_data_effect_tail() {
     let root = parse(concat!(
         "act tick:\n",
@@ -1284,6 +1445,56 @@ fn assert_signature_lowerer_reuses_private_data_effect_tail() {
     assert_ne!(private_from_lower, public_tail);
     let public_bounds = lowerer
         .infer
+        .constraints()
+        .bounds()
+        .of(public_tail)
+        .expect("private tail flows to public tail");
+    assert_eq!(public_bounds.lowers().len(), 1);
+}
+
+fn assert_signature_lowerer_pause_resume_reuses_private_data_effect_tail() {
+    let root = parse(concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "my site = ()\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let tick = lower.modules.type_decls(module, &Name("tick".into()))[0].id;
+    let mut infer = crate::Arena::new();
+    let public_tail = infer.fresh_type_var();
+    let row = SignatureEffectRow::new(
+        vec![SignatureEffectAtom::Type(SignatureType::Named(tick))],
+        Some(SignatureVar::new("e")),
+    );
+    let signature = SignatureType::EffectRow(row);
+    let SignatureType::EffectRow(signature_row) = &signature else {
+        unreachable!("constructed effect-row signature")
+    };
+    let mut lowerer = SignatureLowerer::with_vars(
+        &mut infer,
+        &lower.modules,
+        rustc_hash::FxHashMap::from_iter([("e".into(), public_tail)]),
+    );
+    let lower_pos = lowerer
+        .lower_data_effect_row_pos(signature_row)
+        .expect("data-position positive effect row before pause");
+    let continuation = lowerer.into_continuation();
+    let mut lowerer = SignatureLowerer::from_continuation(&mut infer, &lower.modules, continuation);
+    let upper = lowerer
+        .lower_data_effect_row_neg(signature_row)
+        .expect("data-position negative effect row after resume");
+    let _continuation = lowerer.into_continuation();
+
+    let types = infer.constraints().types();
+    let private_from_lower = stacked_pos_var(types, lower_pos).expect("private positive tail");
+    let private_from_upper = match types.neg(upper) {
+        Neg::Row(_, tail) => stacked_neg_var(types, *tail),
+        other => panic!("expected negative effect row, got {other:?}"),
+    };
+    assert_eq!(private_from_lower, private_from_upper);
+    assert_ne!(private_from_lower, public_tail);
+    let public_bounds = infer
         .constraints()
         .bounds()
         .of(public_tail)

@@ -1178,7 +1178,7 @@ impl<'a> ExprLowerer<'a> {
         let target_lower = lowerer.infer.alloc_pos(Pos::Var(value));
         lowerer.infer.subtype(lower, target_upper);
         lowerer.infer.subtype(target_lower, upper);
-        Ok(lowerer.vars)
+        Ok(lowerer.into_vars())
     }
 
     fn error_variant_payload_signature(
