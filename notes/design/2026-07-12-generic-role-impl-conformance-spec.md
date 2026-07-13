@@ -822,8 +822,32 @@ The following decisions remain open and must not be guessed during implementatio
    algebraic subtype relation without becoming a second solver.
 3. **Cast policy.** Whether implicit casts are permitted in role method conformance, and how already
    elaborated cast evidence is recognized, is unsettled.
+
+   *Resolution (2026-07-13): visible cast-table lookup with explicit ambiguity rejection.* Already-elaborated
+   evidence was ruled out: tracing the full pipeline for a role method relying on an implicit cast
+   showed the inference-level cast candidate carries no declaration identity (`def: None`), the durable
+   `poly.cast_rules` entry identifies only the declaration and not an application site, and the lowered
+   method IR itself retains no cast node -- no durable "this boundary selected candidate X" record exists
+   anywhere reachable at Stage 3's capture timing. Visible lookup was chosen instead: query the cast
+   registry by constructor path at comparison time, zero candidates stays a mismatch, exactly one
+   candidate conforms, two or more candidates is a distinct, explicitly rejected outcome (never silently
+   resolved). This ambiguity handling is genuinely new policy for the shadow kernel, not a reuse of
+   existing behavior -- verifying a proposed precedent ("ordinary casts already reject ambiguous
+   candidates") found it false; see `notes/bugs/2026-07-13-implicit-cast-ambiguity-not-rejected.md` for
+   the separate, pre-existing gap this uncovered in ordinary (non-role-impl) cast resolution. Implemented
+   in two capture/comparison seams (Stage 3 shadow kernel commits C0 through C1-b).
 4. **Predicate entailment.** Exact normalized membership versus logical entailment of residual role
    predicates is unsettled.
+
+   *Resolution (2026-07-13): exact normalized membership.* Chosen for consistency with this project's
+   conservative, fail-closed, no-new-solver-machinery discipline -- logical entailment would require
+   goal-directed proof search over visible role candidates with its own ambiguity, cycle, and candidate-
+   visibility semantics, a materially larger and riskier undertaking. Under this policy, a method's
+   residual (used) role predicates must be a subset of the impl's own advertised (declared `where`-clause)
+   predicates, compared by role path and binder-normalized structural equality of each input -- not
+   subtyping-flavored conformance. An impl may advertise a prerequisite it never uses (over-advertising is
+   permitted); only an unadvertised residual is flagged. Implemented as a capture/comparison arc (Stage 3
+   shadow kernel commits P0 through P1-A).
 5. **Inferred associated ownership.** The principal lifecycle of omitted associated variables across
    zero, one, or multiple methods needs characterization.
 6. **Candidate visibility.** Whether transient use of an eventually invalid candidate can produce
