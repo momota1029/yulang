@@ -9,7 +9,8 @@ pub(crate) mod view;
 
 pub(crate) use view::{
     ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-    ActualReceiverMethodConformanceView, DeclaredRoleImplView,
+    ActualReceiverMethodConformanceView, ActualReceiverlessMethodConformanceView,
+    DeclaredRoleImplView,
 };
 
 use poly::expr::{Arena as PolyArena, Def, DefId};
@@ -23,12 +24,23 @@ use crate::casts::CastTable;
 use crate::constraints::ConstraintEpoch;
 use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
 
+#[cfg(test)]
 pub(crate) fn capture_receiverless_actual_view(
     machine: &crate::constraints::ConstraintMachine,
     anchor: TypeVar,
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualMethodConformanceView {
     view::capture_receiverless_actual_view(machine, anchor, bridge)
+}
+
+pub(crate) fn capture_receiverless_method_actual_view(
+    machine: &crate::constraints::ConstraintMachine,
+    value: TypeVar,
+    effect: TypeVar,
+    parameter_count: usize,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualReceiverlessMethodConformanceView {
+    view::capture_receiverless_method_actual_view(machine, value, effect, parameter_count, bridge)
 }
 
 pub(crate) fn capture_receiver_actual_view(
@@ -787,7 +799,7 @@ pub(crate) struct RoleImplMethodActualView {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RoleImplMethodActualSurface {
-    Receiverless(ActualMethodConformanceView),
+    Receiverless(ActualReceiverlessMethodConformanceView),
     Receiver(ActualReceiverMethodConformanceView),
 }
 
@@ -857,7 +869,7 @@ fn align_shadow_declared_requirement(
     captured: Option<view::DeclaredTypeView>,
     actual: Option<&RoleImplMethodActualSurface>,
 ) -> ShadowDeclaredSurface {
-    let Some(RoleImplMethodActualSurface::Receiver(actual)) = actual else {
+    let Some(actual) = actual else {
         return ShadowDeclaredSurface {
             value: captured,
             effect: None,
@@ -872,6 +884,46 @@ fn align_shadow_declared_requirement(
             effect: captured,
         };
     }
+    if let RoleImplMethodActualSurface::Receiverless(actual) = actual {
+        let Some(actual_parameter_count) = actual.parameter_count else {
+            return ShadowDeclaredSurface {
+                value: None,
+                effect: None,
+            };
+        };
+        if actual_parameter_count == 0 {
+            return ShadowDeclaredSurface {
+                value: captured,
+                effect: None,
+            };
+        }
+        let Some(requirement) = method.declared_requirement.as_ref() else {
+            return ShadowDeclaredSurface {
+                value: None,
+                effect: None,
+            };
+        };
+        let Some(surface) = view::declared_receiverless_method_view(
+            contract,
+            modules,
+            &declared.inputs,
+            &declared.associated,
+            &requirement.signature,
+            actual_parameter_count,
+        ) else {
+            return ShadowDeclaredSurface {
+                value: None,
+                effect: None,
+            };
+        };
+        return ShadowDeclaredSurface {
+            value: Some(surface.value),
+            effect: Some(surface.effect),
+        };
+    }
+    let RoleImplMethodActualSurface::Receiver(actual) = actual else {
+        unreachable!("receiverless alignment returned above")
+    };
     let Some(actual_tail_parameter_count) = actual.tail_parameter_count else {
         return ShadowDeclaredSurface {
             value: None,
@@ -993,8 +1045,13 @@ fn classify_shadow_conformance_pair(
     if implementation.is_none() || declared.is_none() || actual.is_none() {
         return ShadowConformanceOutcome::NotCaptured;
     }
-    let receiver = matches!(actual, Some(RoleImplMethodActualSurface::Receiver(_)));
-    if receiver && declared_effect.is_none() {
+    let body_effect = matches!(actual, Some(RoleImplMethodActualSurface::Receiver(_)))
+        || matches!(
+            actual,
+            Some(RoleImplMethodActualSurface::Receiverless(actual))
+                if actual.parameter_count.is_some_and(|count| count > 0)
+        );
+    if body_effect && declared_effect.is_none() {
         return ShadowConformanceOutcome::NotCaptured;
     }
     if matches!(declared, Some(view::DeclaredTypeView::Unavailable(_)))
@@ -1006,7 +1063,7 @@ fn classify_shadow_conformance_pair(
         return ShadowConformanceOutcome::Unavailable;
     }
     let actual_effect = actual.and_then(actual_surface_effect);
-    if receiver && actual_effect.is_none() {
+    if body_effect && actual_effect.is_none() {
         return ShadowConformanceOutcome::Unavailable;
     }
 
@@ -1074,12 +1131,10 @@ fn actual_surface_value(
     surface: &RoleImplMethodActualSurface,
 ) -> Option<&view::ConformanceTypeView> {
     match surface {
-        RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Available(
-            value,
-        )) => Some(value),
-        RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Unavailable(_)) => {
-            None
-        }
+        RoleImplMethodActualSurface::Receiverless(view) => match &view.value {
+            ActualMethodConformanceView::Available(value) => Some(value),
+            ActualMethodConformanceView::Unavailable(_) => None,
+        },
         RoleImplMethodActualSurface::Receiver(view) => match &view.value {
             ActualMethodConformanceView::Available(value) => Some(value),
             ActualMethodConformanceView::Unavailable(_) => None,
@@ -1092,6 +1147,14 @@ fn actual_surface_effect(
     surface: &RoleImplMethodActualSurface,
 ) -> Option<&view::ConformanceTypeView> {
     match surface {
+        RoleImplMethodActualSurface::Receiverless(view)
+            if view.parameter_count.is_some_and(|count| count > 0) =>
+        {
+            match &view.effect {
+                ActualMethodConformanceView::Available(effect) => Some(effect),
+                ActualMethodConformanceView::Unavailable(_) => None,
+            }
+        }
         RoleImplMethodActualSurface::Receiverless(_) => None,
         RoleImplMethodActualSurface::Receiver(view) => match &view.effect {
             ActualMethodConformanceView::Available(effect) => Some(effect),
@@ -1459,18 +1522,28 @@ mod tests {
 
         use super::view::{
             ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-            ConformanceTypeView, DeclaredTypeView, DeclaredViewAmbiguity, DeclaredViewUnavailable,
+            ActualReceiverlessMethodConformanceView, ConformanceTypeView, DeclaredTypeView,
+            DeclaredViewAmbiguity, DeclaredViewUnavailable,
         };
 
         let declared_available =
             DeclaredTypeView::Available(ConformanceTypeView::Builtin(BuiltinType::Int));
-        let actual_available = RoleImplMethodActualSurface::Receiverless(
-            ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Bool)),
-        );
+        let actual_available =
+            RoleImplMethodActualSurface::Receiverless(ActualReceiverlessMethodConformanceView {
+                value: ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(
+                    BuiltinType::Bool,
+                )),
+                effect: ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
+                parameter_count: Some(0),
+            });
         let actual_unavailable =
-            RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Unavailable(
-                ActualMethodConformanceViewUnavailable::UnsupportedFunction,
-            ));
+            RoleImplMethodActualSurface::Receiverless(ActualReceiverlessMethodConformanceView {
+                value: ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::UnsupportedFunction,
+                ),
+                effect: ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
+                parameter_count: Some(0),
+            });
 
         assert_eq!(
             classify_without_casts(

@@ -165,8 +165,15 @@ struct DeferredRoleImplMethodRequirement {
     allow(dead_code, reason = "receiver descriptors are activated by Slice 4")
 )]
 enum DeferredRequirementAnchor {
-    Receiver { receiver: TypeVar },
-    Receiverless { value: TypeVar },
+    Receiver {
+        receiver: TypeVar,
+    },
+    Receiverless {
+        value: TypeVar,
+        body_value: TypeVar,
+        body_effect: TypeVar,
+        parameter_count: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

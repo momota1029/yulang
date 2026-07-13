@@ -1716,10 +1716,11 @@ fn generic_role_impl_conformance_stage4_r1_real_recursive_capture_is_alpha_stabl
         let [actual] = contract.actual_method_views() else {
             panic!("expected one captured actual view")
         };
-        let RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Available(view)) =
-            &actual.surface
-        else {
+        let RoleImplMethodActualSurface::Receiverless(actual) = &actual.surface else {
             panic!("expected an available Rm-bearing receiverless view")
+        };
+        let ActualMethodConformanceView::Available(view) = &actual.value else {
+            panic!("expected an available Rm-bearing receiverless value")
         };
         (recursive.var, view.clone())
     }
@@ -3599,9 +3600,15 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
         "make",
         |lowerer, requirement, bindings, vars| {
             let value = lowerer.fresh_type_var();
+            let body_effect = lowerer.fresh_type_var();
             let pending = lowerer
                 .deferred_impl_method_requirement(
-                    DeferredRequirementAnchor::Receiverless { value },
+                    DeferredRequirementAnchor::Receiverless {
+                        value,
+                        body_value: value,
+                        body_effect,
+                        parameter_count: 0,
+                    },
                     Arc::clone(requirement),
                     0,
                     false,
@@ -3611,7 +3618,12 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
                 .expect("receiverless pending descriptor");
             assert_eq!(
                 pending.anchor,
-                DeferredRequirementAnchor::Receiverless { value }
+                DeferredRequirementAnchor::Receiverless {
+                    value,
+                    body_value: value,
+                    body_effect,
+                    parameter_count: 0,
+                }
             );
             assert_eq!(pending.body_cursor, RequirementSpineCursor::WholeValue);
             assert!(pending.final_metadata.connect_value_upper);
@@ -3828,6 +3840,208 @@ fn role_impl_method_lifecycle_slice3_receiverless_shadow_matches_immediate_basel
 }
 
 #[test]
+fn role_impl_method_lifecycle_receiverless_plain_parameters_capture_inner_result() {
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, DeclaredTypeView,
+    };
+    use crate::role_impl_conformance::{ActualMethodConformanceView, ShadowConformanceOutcome};
+
+    let single = concat!(
+        "role Compute 'subject:\n",
+        "  our compute: int -> int\n",
+        "impl Compute int:\n",
+        "  our compute(value: int): int = value\n",
+    );
+    let multiple = concat!(
+        "role Compute 'subject:\n",
+        "  our compute: int -> bool -> int\n",
+        "impl Compute int:\n",
+        "  our compute(value: int, flag: bool): int = value\n",
+    );
+    for (source, parameter_count) in [(single, 1usize), (multiple, 2usize)] {
+        let output = lower_receiverless_conformance_shadow(source, true);
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let [witness] = output.receiverless_conformance_shadow() else {
+            panic!("expected one receiverless witness for N={parameter_count}")
+        };
+        assert_eq!(
+            witness.actual_view,
+            ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Int,)),
+        );
+        let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(actual) =
+            persisted_actual_surface(&output, witness.member)
+        else {
+            panic!("expected receiverless actual surface")
+        };
+        assert_eq!(actual.parameter_count, Some(parameter_count));
+        assert_eq!(
+            actual.effect,
+            ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
+        );
+        assert_eq!((witness.edge_applications, witness.releases), (1, 1));
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one receiverless contract")
+        };
+        let pairs = shadow_conformance_pairs_from_output(&output, contract);
+        let [pair] = pairs.as_slice() else {
+            panic!("expected one receiverless shadow pair")
+        };
+        assert_eq!(
+            pair.declared,
+            Some(DeclaredTypeView::Available(ConformanceTypeView::Builtin(
+                BuiltinType::Int,
+            ))),
+        );
+        assert_eq!(
+            pair.declared_effect,
+            Some(DeclaredTypeView::Available(ConformanceTypeView::Bottom)),
+        );
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+    }
+
+    let binder = concat!(
+        "role Keep 'subject:\n",
+        "  our keep: 'subject -> bool -> 'subject\n",
+        "impl Keep 'a:\n",
+        "  our keep(value: 'a, flag: bool): 'a = value\n",
+    );
+    let output = lower_receiverless_conformance_shadow(binder, true);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [witness] = output.receiverless_conformance_shadow() else {
+        panic!("expected one binder-normalized receiverless witness")
+    };
+    assert_eq!(
+        witness.actual_view,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(
+            ConformanceBinder::Universal(crate::role_impl_conformance::ImplUniversalBinderId(0)),
+        )),
+    );
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one binder contract")
+    };
+    let pairs = shadow_conformance_pairs_from_output(&output, contract);
+    let [pair] = pairs.as_slice() else {
+        panic!("expected one binder shadow pair")
+    };
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+}
+
+#[test]
+fn role_impl_method_lifecycle_receiverless_plain_parameters_match_immediate_baseline() {
+    let valid_single = concat!(
+        "role Foo 'subject:\n",
+        "  our compute: int -> int\n",
+        "impl Foo int:\n",
+        "  our compute x = x\n",
+    );
+    let valid_multiple = concat!(
+        "role Foo 'subject:\n",
+        "  our compute: int -> bool -> int\n",
+        "impl Foo int:\n",
+        "  our compute x flag = x\n",
+    );
+    for (source, parameter_count) in [(valid_single, 1usize), (valid_multiple, 2usize)] {
+        let delayed = lower_receiverless_conformance_shadow(source, true);
+        let immediate = lower_receiverless_conformance_shadow(source, false);
+        assert_eq!(
+            receiverless_production_surface(&delayed, "Foo"),
+            receiverless_production_surface(&immediate, "Foo"),
+            "valid receiverless method diverged for N={parameter_count}",
+        );
+        assert_eq!(delayed.errors, immediate.errors);
+        assert_eq!(delayed.receiverless_conformance_shadow().len(), 1);
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_receiverless_plain_parameter_mismatches_match_immediate_baseline() {
+    let mismatch_single = concat!(
+        "role Foo 'subject:\n",
+        "  our compute: int -> int\n",
+        "impl Foo int:\n",
+        "  our compute x = \\y -> y\n",
+    );
+    let mismatch_multiple = concat!(
+        "role Foo 'subject:\n",
+        "  our compute: int -> bool -> int\n",
+        "impl Foo int:\n",
+        "  our compute x flag = \\y -> y\n",
+    );
+    for (source, parameter_count) in [(mismatch_single, 1usize), (mismatch_multiple, 2usize)] {
+        let delayed = lower_receiverless_conformance_shadow(source, true);
+        let immediate = lower_receiverless_conformance_shadow(source, false);
+        assert_eq!(
+            receiverless_production_surface(&delayed, "Foo"),
+            receiverless_production_surface(&immediate, "Foo"),
+            "rejected receiverless method diverged for N={parameter_count}",
+        );
+        assert_eq!(delayed.errors, immediate.errors);
+        assert!(delayed.receiverless_conformance_shadow().is_empty());
+        let method = delayed.modules.role_impls(delayed.modules.root_id())[0].methods[0].def;
+        assert!(matches!(
+            delayed.session.poly.defs.get(method),
+            Some(Def::Let {
+                body: None,
+                scheme: Some(scheme),
+                ..
+            }) if poly::dump::format_scheme(&delayed.session.poly.typ, scheme) == "never"
+        ));
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_receiverless_plain_parameters_capture_real_parse_error_methods() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, RoleImplMethodActualSurface, ShadowConformanceOutcome,
+    };
+
+    let loaded = load_repository_std_for_role_impl_conformance();
+    let output = lower_loaded_files(&loaded).expect("repository std should lower");
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let contract = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find(|contract| {
+            contract
+                .role
+                .ends_with(&["text".into(), "parse".into(), "ParseError".into()])
+        })
+        .expect("std::text::parse::str_error ParseError contract");
+    let pairs = shadow_conformance_pairs_from_output(&output, contract);
+
+    for method_name in ["unexpected", "expected"] {
+        let pair = pairs
+            .iter()
+            .find(|pair| pair.method_name == method_name)
+            .unwrap_or_else(|| panic!("missing ParseError.{method_name} shadow pair"));
+        let Some(RoleImplMethodActualSurface::Receiverless(actual)) = pair.actual.as_ref() else {
+            panic!("ParseError.{method_name} must retain a receiverless actual surface")
+        };
+        assert_eq!(actual.parameter_count, Some(2));
+        assert!(
+            matches!(actual.value, ActualMethodConformanceView::Available(_)),
+            "ParseError.{method_name}: {:?}",
+            actual.value,
+        );
+        assert_eq!(
+            actual.effect,
+            ActualMethodConformanceView::Available(
+                crate::role_impl_conformance::view::ConformanceTypeView::Bottom,
+            ),
+        );
+        assert_eq!(
+            pair.declared_effect,
+            Some(
+                crate::role_impl_conformance::view::DeclaredTypeView::Available(
+                    crate::role_impl_conformance::view::ConformanceTypeView::Bottom,
+                )
+            ),
+        );
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+    }
+}
+
+#[test]
 fn role_impl_method_lifecycle_slice3_unavailable_capture_still_releases() {
     use crate::role_impl_conformance::{
         ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
@@ -3870,14 +4084,27 @@ fn role_impl_method_lifecycle_slice3_keeps_out_of_scope_methods_immediate() {
         "impl Make int:\n",
         "  our make = 1\n",
     );
-    let unsupported_declared_function = concat!(
+    let zero_source_parameters_with_declared_function = concat!(
         "role Make 'subject:\n",
         "  our make: int -> int\n",
         "impl Make int:\n",
-        "  our make x = x\n",
+        "  our make = \\x -> x\n",
     );
 
-    for source in [inferred_associated, unsupported_declared_function] {
+    let effect_row_parameter = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Consume 'subject 'effect:\n",
+        "  our consume: '[tick; 'effect] -> unit\n",
+        "impl Consume int 'e:\n",
+        "  our consume action = ()\n",
+    );
+
+    for source in [
+        inferred_associated,
+        zero_source_parameters_with_declared_function,
+        effect_row_parameter,
+    ] {
         let output = lower_receiverless_conformance_shadow(source, true);
         assert!(output.receiverless_conformance_shadow().is_empty());
         assert!(
@@ -6541,7 +6768,7 @@ fn persisted_receiverless_actual_view(
     else {
         panic!("expected receiverless persisted actual view for {member:?}")
     };
-    view
+    &view.value
 }
 
 fn persisted_receiver_actual_view(
@@ -6554,6 +6781,52 @@ fn persisted_receiver_actual_view(
         panic!("expected receiver persisted actual view for {member:?}")
     };
     view
+}
+
+fn load_repository_std_for_role_impl_conformance() -> Vec<sources::LoadedFile> {
+    fn collect_yu_files(directory: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(directory).expect("read repository std directory") {
+            let path = entry.expect("read repository std entry").path();
+            if path.is_dir() {
+                collect_yu_files(&path, files);
+            } else if path.extension().and_then(|extension| extension.to_str()) == Some("yu") {
+                files.push(path);
+            }
+        }
+    }
+
+    let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonical repository root");
+    let lib = repository.join("lib");
+    let mut paths = vec![lib.join("std.yu")];
+    collect_yu_files(&lib.join("std"), &mut paths);
+    paths.sort();
+
+    let mut files = vec![sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: "use std::prelude::*\nmod std;\n".to_string(),
+    }];
+    files.extend(paths.into_iter().map(|path| {
+        let relative = path.strip_prefix(&lib).expect("std source below lib");
+        let mut module = relative.to_path_buf();
+        module.set_extension("");
+        let segments = module
+            .components()
+            .map(|component| {
+                let std::path::Component::Normal(segment) = component else {
+                    panic!("normal std module path component")
+                };
+                sources::Name(segment.to_str().expect("utf-8 std module path").to_string())
+            })
+            .collect();
+        sources::SourceFile {
+            module_path: sources::Path { segments },
+            source: std::fs::read_to_string(&path).expect("read repository std source"),
+        }
+    }));
+    sources::load(files)
 }
 
 fn role_impl_cast_fixture(method: &str, ambiguous: bool) -> String {
@@ -6772,12 +7045,12 @@ fn shadow_conformance_pair_dump_from_output(output: &BodyLowering) -> String {
                         None => "missing",
                     };
                     let actual = match pair.actual {
-                        Some(RoleImplMethodActualSurface::Receiverless(
-                            ActualMethodConformanceView::Available(_),
-                        )) => "available",
-                        Some(RoleImplMethodActualSurface::Receiverless(
-                            ActualMethodConformanceView::Unavailable(_),
-                        )) => "unavailable",
+                        Some(RoleImplMethodActualSurface::Receiverless(view))
+                            if matches!(view.value, ActualMethodConformanceView::Available(_)) =>
+                        {
+                            "available"
+                        }
+                        Some(RoleImplMethodActualSurface::Receiverless(_)) => "unavailable",
                         Some(RoleImplMethodActualSurface::Receiver(view))
                             if matches!(
                                 (&view.value, &view.effect),

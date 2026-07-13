@@ -430,11 +430,17 @@ impl BodyLowerer {
             );
         }
 
+        let arg_patterns = binding_arg_patterns(node);
+        let receiverless_parameter_count = requirement.as_ref().and_then(|requirement| {
+            crate::lowering::expr::method_body::clean_plain_receiverless_requirement_parameter_count(
+                &requirement.signature,
+                arg_patterns.len(),
+                &self.modules,
+            )
+        });
         let defer_receiverless_requirement = method.receiver.is_none()
             && requirement.is_some()
-            && requirement.as_ref().is_some_and(|requirement| {
-                !matches!(requirement.signature, SignatureType::Function { .. })
-            })
+            && receiverless_parameter_count.is_some()
             && conformance_shadow_target.is_some()
             && self.receiverless_conformance_shadow_enabled;
         let prepare_inactive_receiver_requirement = method.receiver.is_some()
@@ -467,7 +473,7 @@ impl BodyLowerer {
         .with_local_method_scope(self.local_method_scope)
         .lower_impl_method_body_expr(
             &expr,
-            &binding_arg_patterns(node),
+            &arg_patterns,
             method.receiver.clone(),
             target_ann,
             binding_type_expr(node),

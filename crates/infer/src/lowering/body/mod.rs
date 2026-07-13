@@ -1059,7 +1059,7 @@ enum PendingRoleImplConformanceKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PendingRoleImplActualView {
-    Receiverless(crate::role_impl_conformance::ActualMethodConformanceView),
+    Receiverless(crate::role_impl_conformance::ActualReceiverlessMethodConformanceView),
     Receiver(crate::role_impl_conformance::ActualReceiverMethodConformanceView),
 }
 
@@ -1113,14 +1113,27 @@ fn unavailable_receiver_actual_view(
     }
 }
 
+fn unavailable_receiverless_actual_view(
+    reason: crate::role_impl_conformance::ActualMethodConformanceViewUnavailable,
+) -> crate::role_impl_conformance::ActualReceiverlessMethodConformanceView {
+    crate::role_impl_conformance::ActualReceiverlessMethodConformanceView {
+        value: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
+            reason.clone(),
+        ),
+        effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
+        #[cfg(test)]
+        parameter_count: None,
+    }
+}
+
 fn unavailable_pending_actual_view(
     kind: &PendingRoleImplConformanceKind,
     reason: crate::role_impl_conformance::ActualMethodConformanceViewUnavailable,
 ) -> PendingRoleImplActualView {
     match kind {
-        PendingRoleImplConformanceKind::Receiverless => PendingRoleImplActualView::Receiverless(
-            crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
-        ),
+        PendingRoleImplConformanceKind::Receiverless => {
+            PendingRoleImplActualView::Receiverless(unavailable_receiverless_actual_view(reason))
+        }
         PendingRoleImplConformanceKind::Receiver { .. } => {
             PendingRoleImplActualView::Receiver(unavailable_receiver_actual_view(reason))
         }
@@ -1140,11 +1153,18 @@ fn capture_pending_actual_view(
     match (&pending.kind, deferred.anchor) {
         (
             PendingRoleImplConformanceKind::Receiverless,
-            DeferredRequirementAnchor::Receiverless { value },
+            DeferredRequirementAnchor::Receiverless {
+                body_value,
+                body_effect,
+                parameter_count,
+                ..
+            },
         ) => PendingRoleImplActualView::Receiverless(
-            crate::role_impl_conformance::capture_receiverless_actual_view(
+            crate::role_impl_conformance::capture_receiverless_method_actual_view(
                 machine,
-                value,
+                body_value,
+                body_effect,
+                parameter_count,
                 &pending.bridge,
             ),
         ),
@@ -1194,9 +1214,10 @@ fn attach_receiver_tail_parameter_count(
 
 fn pending_actual_view_is_available(view: &Option<PendingRoleImplActualView>) -> bool {
     match view {
-        Some(PendingRoleImplActualView::Receiverless(
-            crate::role_impl_conformance::ActualMethodConformanceView::Available(_),
-        )) => true,
+        Some(PendingRoleImplActualView::Receiverless(view)) => matches!(
+            view.value,
+            crate::role_impl_conformance::ActualMethodConformanceView::Available(_)
+        ),
         Some(PendingRoleImplActualView::Receiver(view)) => matches!(
             (&view.value, &view.effect),
             (
@@ -1218,7 +1239,7 @@ fn take_pending_actual_surface(
         ) => crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(view),
         (PendingRoleImplConformanceKind::Receiverless, _) => {
             crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(
-                crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
+                unavailable_receiverless_actual_view(
                     crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
                 ),
             )
@@ -1256,30 +1277,26 @@ fn apply_pending_requirement(
     );
     match pending.kind {
         PendingRoleImplConformanceKind::Receiverless => {
-            let DeferredRequirementAnchor::Receiverless { value } = deferred.anchor else {
+            let DeferredRequirementAnchor::Receiverless { value, .. } = deferred.anchor else {
                 return Err(LoweringError::SignatureShapeMismatch {
                     expected: SignatureShape::Any,
                 });
             };
-            if deferred.body_cursor != RequirementSpineCursor::WholeValue
-                || !deferred.parameter_uppers.is_empty()
-                || !matches!(
-                    deferred.parameter_context,
-                    crate::role_impl_conformance::RequirementParameterContextStatus::Clean(
-                        crate::role_impl_conformance::NonMutatingRequirementClass::PlainValueParameters {
-                            count: 0,
-                        },
-                    )
+            let Some(parameter_count) =
+                crate::lowering::expr::method_body::clean_plain_receiverless_parameter_count(
+                    &deferred,
                 )
-            {
+            else {
                 return Err(LoweringError::SignatureShapeMismatch {
                     expected: SignatureShape::Any,
                 });
+            };
+            if parameter_count == 0 {
+                debug_assert_eq!(
+                    deferred.continuation.vars,
+                    deferred.final_metadata.signature_vars
+                );
             }
-            debug_assert_eq!(
-                deferred.continuation.vars,
-                deferred.final_metadata.signature_vars
-            );
             lowerer.connect_impl_method_requirement_from_continuation(
                 value,
                 &deferred.requirement,
@@ -1695,7 +1712,7 @@ impl BodyLowerer {
                     .push(ReceiverlessConformanceShadowWitness {
                         impl_def: pending.impl_def,
                         member: pending.member,
-                        actual_view,
+                        actual_view: actual_view.value,
                         edge_applications: pending.edge_applications,
                         releases: 1,
                     });

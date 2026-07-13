@@ -275,6 +275,17 @@ pub(crate) enum ActualMethodConformanceView {
     Unavailable(ActualMethodConformanceViewUnavailable),
 }
 
+/// Receiverless parameterized methods expose their fully inferred inner body separately from the
+/// complete curried method value. The effect is retained with the value for a future effect-policy
+/// consumer; this slice keeps receiverless comparison behavior value-only.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActualReceiverlessMethodConformanceView {
+    pub(crate) value: ActualMethodConformanceView,
+    pub(crate) effect: ActualMethodConformanceView,
+    #[cfg(test)]
+    pub(crate) parameter_count: Option<usize>,
+}
+
 /// Receiver methods expose the raw body result and effect anchors separately. Both views are
 /// captured in the component-wide read-only batch before either deferred body edge is applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -642,6 +653,45 @@ pub(super) fn receiver_result_is_first_order(
     )
 }
 
+/// Align a receiverless inner-body snapshot with exactly the measured number of declared curried
+/// parameter layers. Unlike receiver alignment, there is no leading receiver layer to consume.
+#[cfg(test)]
+pub(crate) fn declared_receiverless_method_view(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    inputs: &[DeclaredTypeView],
+    associated: &[DeclaredAssociatedView],
+    signature: &SignatureType,
+    actual_parameter_count: usize,
+) -> Option<DeclaredReceiverMethodConformanceView> {
+    let mut result = signature;
+    let mut result_effect = None;
+    for _ in 0..actual_parameter_count {
+        let SignatureType::Function {
+            arg_eff: None,
+            ret_eff,
+            ret,
+            ..
+        } = result
+        else {
+            return None;
+        };
+        result_effect = ret_eff.as_ref();
+        result = ret;
+    }
+    if matches!(result, SignatureType::Function { .. }) {
+        return None;
+    }
+    let (result_effect, result) = match (result_effect, result) {
+        (None, SignatureType::Effectful { eff, ret }) => (Some(eff), ret.as_ref()),
+        _ => (result_effect, result),
+    };
+    Some(DeclaredReceiverMethodConformanceView {
+        value: signature_type_view(contract, modules, inputs, associated, result),
+        effect: signature_effect_view(contract, modules, inputs, associated, result_effect),
+    })
+}
+
 /// Align a receiver requirement with its captured body-value surface. The actual descriptor owns
 /// the measured tail arity; the declared signature is accepted only when its complete clean
 /// function prefix contains exactly one receiver layer plus that many tail-parameter layers.
@@ -740,6 +790,7 @@ fn signature_effect_view(
     }
 }
 
+#[cfg(test)]
 pub(super) fn capture_receiverless_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
@@ -757,6 +808,68 @@ pub(super) fn capture_receiverless_actual_view(
     let compact = compact_type_var(machine, anchor);
     binder_identities.register_method_recursive_vars(compact.rec_vars.iter().map(|rec| rec.var));
     capture_receiverless_actual_view_from_compact(machine, anchor, &compact, &mut binder_identities)
+}
+
+pub(super) fn capture_receiverless_method_actual_view(
+    machine: &ConstraintMachine,
+    value: TypeVar,
+    effect: TypeVar,
+    parameter_count: usize,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualReceiverlessMethodConformanceView {
+    let bridge = match bridge {
+        Ok(bridge) => bridge,
+        Err(reason) => {
+            return ActualReceiverlessMethodConformanceView {
+                value: ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+                ),
+                effect: ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+                ),
+                #[cfg(test)]
+                parameter_count: Some(parameter_count),
+            };
+        }
+    };
+    #[cfg(not(test))]
+    let _ = parameter_count;
+    let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
+    let value_compact = compact_type_var(machine, value);
+    let effect_compact = compact_type_var(machine, effect);
+    binder_identities.register_method_recursive_vars(
+        value_compact
+            .rec_vars
+            .iter()
+            .chain(&effect_compact.rec_vars)
+            .map(|rec| rec.var),
+    );
+    let value = capture_receiverless_actual_view_from_compact(
+        machine,
+        value,
+        &value_compact,
+        &mut binder_identities,
+    );
+    #[cfg(not(test))]
+    let effect = capture_receiverless_actual_view_from_compact(
+        machine,
+        effect,
+        &effect_compact,
+        &mut binder_identities,
+    );
+    #[cfg(test)]
+    let effect = capture_receiver_effect_actual_view(
+        machine,
+        effect,
+        &effect_compact,
+        &mut binder_identities,
+    );
+    ActualReceiverlessMethodConformanceView {
+        value,
+        effect,
+        #[cfg(test)]
+        parameter_count: Some(parameter_count),
+    }
 }
 
 fn capture_receiverless_actual_view_from_compact(

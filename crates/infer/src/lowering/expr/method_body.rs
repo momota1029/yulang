@@ -450,16 +450,33 @@ impl<'a> ExprLowerer<'a> {
         let mut ann_closed_effect_rows = FxHashMap::default();
 
         let Some(receiver) = receiver else {
-            let body = self.lower_lambda_params(
-                arg_patterns,
-                node,
-                LambdaScope::Defined,
-                &mut ann_builder,
-                ann_solver_vars,
-                &mut ann_closed_effect_rows,
-                result_type_expr.as_ref(),
-                None,
-            )?;
+            let (body, body_anchor) = if arg_patterns.is_empty() {
+                let body = self.lower_lambda_params(
+                    arg_patterns,
+                    node,
+                    LambdaScope::Defined,
+                    &mut ann_builder,
+                    ann_solver_vars,
+                    &mut ann_closed_effect_rows,
+                    result_type_expr.as_ref(),
+                    None,
+                )?;
+                (body, body)
+            } else {
+                let lowered = self.lower_defined_lambda_params_with_anchors(
+                    arg_patterns,
+                    node,
+                    &mut ann_builder,
+                    ann_solver_vars,
+                    &mut ann_closed_effect_rows,
+                    result_type_expr.as_ref(),
+                    None,
+                    &[],
+                    None,
+                    &LambdaBodyMode::Expr,
+                )?;
+                (lowered.computation, lowered.body)
+            };
             let deferred_requirement = if let Some(requirement) = requirement {
                 if defer_receiverless_requirement {
                     self.check_impl_method_requirement_shape(body.value, &requirement.signature)?;
@@ -467,14 +484,31 @@ impl<'a> ExprLowerer<'a> {
                         body.value,
                         &requirement.signature,
                     )?;
-                    Some(self.deferred_impl_method_requirement(
-                        DeferredRequirementAnchor::Receiverless { value: body.value },
+                    let deferred = self.deferred_impl_method_requirement(
+                        DeferredRequirementAnchor::Receiverless {
+                            value: body.value,
+                            body_value: body_anchor.value,
+                            body_effect: body_anchor.effect,
+                            parameter_count: arg_patterns.len(),
+                        },
                         Arc::clone(requirement),
-                        0,
+                        arg_patterns.len(),
                         false,
                         type_var_bindings,
                         ann_solver_vars,
-                    )?)
+                    )?;
+                    if clean_plain_receiverless_parameter_count(&deferred).is_some() {
+                        Some(deferred)
+                    } else {
+                        self.connect_impl_method_requirement(
+                            body.value,
+                            requirement,
+                            type_var_bindings,
+                            ann_solver_vars,
+                            true,
+                        )?;
+                        None
+                    }
                 } else {
                     self.connect_impl_method_requirement(
                         body.value,
@@ -1833,6 +1867,66 @@ pub(in crate::lowering) fn clean_plain_tail_receiver_parameter_count(
             .as_ref()
             .is_some_and(|anchors| anchors.tail_parameters.len() == count))
     .then_some(count)
+}
+
+pub(in crate::lowering) fn clean_plain_receiverless_parameter_count(
+    deferred: &DeferredRoleImplMethodRequirement,
+) -> Option<usize> {
+    let RequirementParameterContextStatus::Clean(
+        NonMutatingRequirementClass::PlainValueParameters { count },
+    ) = &deferred.parameter_context
+    else {
+        return None;
+    };
+    let count = *count;
+    let DeferredRequirementAnchor::Receiverless {
+        parameter_count, ..
+    } = deferred.anchor
+    else {
+        return None;
+    };
+    let expected_cursor = if count == 0 {
+        RequirementSpineCursor::WholeValue
+    } else {
+        RequirementSpineCursor::FunctionResult {
+            consumed_function_layers: count,
+        }
+    };
+    (parameter_count == count
+        && deferred.parameter_uppers.len() == count
+        && deferred.parameter_uppers.iter().all(Option::is_some)
+        && deferred.body_cursor == expected_cursor
+        && deferred.receiver_anchors.is_none()
+        && deferred.final_metadata.connect_value_upper)
+        .then_some(count)
+}
+
+/// Pre-classify a receiverless method's declared parameter spine without creating requirement
+/// constraints. The completed descriptor repeats the same structural audit and remains the
+/// authoritative `Clean(PlainValueParameters { count: N })` gate.
+pub(in crate::lowering) fn clean_plain_receiverless_requirement_parameter_count(
+    signature: &SignatureType,
+    parameter_count: usize,
+    modules: &ModuleTable,
+) -> Option<usize> {
+    // Preserve Slice 3's exact zero-parameter gate, including its treatment of a non-function
+    // outer wrapper. This slice only broadens explicitly declared curried parameter layers.
+    if parameter_count == 0 {
+        return (!matches!(signature, SignatureType::Function { .. })).then_some(0);
+    }
+
+    let mut result = signature;
+    for _ in 0..parameter_count {
+        let SignatureType::Function { param, ret, .. } = result else {
+            return None;
+        };
+        if unsupported_requirement_parameter(param, modules).is_some() {
+            return None;
+        }
+        result = ret;
+    }
+
+    (!matches!(result, SignatureType::Function { .. })).then_some(parameter_count)
 }
 
 #[derive(Clone, Copy)]
