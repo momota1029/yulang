@@ -448,13 +448,22 @@ pub(super) fn capture_receiverless_actual_view(
             );
         }
     };
+    let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
+    capture_receiverless_actual_view_with_resolver(machine, anchor, &mut binder_identities)
+}
+
+fn capture_receiverless_actual_view_with_resolver(
+    machine: &ConstraintMachine,
+    anchor: TypeVar,
+    binder_identities: &mut ActualBinderIdentityResolver<'_>,
+) -> ActualMethodConformanceView {
     let compact = compact_type_var(machine, anchor);
     if !compact.rec_vars.is_empty() {
         return ActualMethodConformanceView::Unavailable(
             ActualMethodConformanceViewUnavailable::RecursiveBounds,
         );
     }
-    let mut normalizer = ActualFirstOrderNormalizer::new(bridge, anchor);
+    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor);
     match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
@@ -467,12 +476,31 @@ pub(super) fn capture_receiver_actual_view(
     effect: TypeVar,
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualReceiverMethodConformanceView {
+    let bridge = match bridge {
+        Ok(bridge) => bridge,
+        Err(reason) => {
+            return ActualReceiverMethodConformanceView {
+                value: ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+                ),
+                effect: ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+                ),
+                #[cfg(test)]
+                tail_parameter_count: None,
+            };
+        }
+    };
+    let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
+    let value =
+        capture_receiverless_actual_view_with_resolver(machine, value, &mut binder_identities);
     #[cfg(not(test))]
-    let effect = capture_receiverless_actual_view(machine, effect, bridge);
+    let effect =
+        capture_receiverless_actual_view_with_resolver(machine, effect, &mut binder_identities);
     #[cfg(test)]
-    let effect = capture_receiver_effect_actual_view(machine, effect, bridge);
+    let effect = capture_receiver_effect_actual_view(machine, effect, &mut binder_identities);
     ActualReceiverMethodConformanceView {
-        value: capture_receiverless_actual_view(machine, value, bridge),
+        value,
         effect,
         #[cfg(test)]
         tail_parameter_count: None,
@@ -486,16 +514,8 @@ pub(super) fn capture_receiver_actual_view(
 fn capture_receiver_effect_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
-    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+    binder_identities: &mut ActualBinderIdentityResolver<'_>,
 ) -> ActualMethodConformanceView {
-    let bridge = match bridge {
-        Ok(bridge) => bridge,
-        Err(reason) => {
-            return ActualMethodConformanceView::Unavailable(
-                ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
-            );
-        }
-    };
     let compact = compact_type_var(machine, anchor);
     if !compact.rec_vars.is_empty() {
         return ActualMethodConformanceView::Unavailable(
@@ -519,7 +539,7 @@ fn capture_receiver_effect_actual_view(
             ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         );
     }
-    let mut normalizer = ActualFirstOrderNormalizer::new(bridge, anchor);
+    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor);
     let effect = match compact.root.rows.as_slice() {
         [] => Ok(ConformanceTypeView::Bottom),
         [row] if row.tail.is_empty() => match row.items.len() {
@@ -658,9 +678,9 @@ struct ExactEquivalenceNode {
     on_stack: bool,
 }
 
-struct ActualFirstOrderNormalizer<'a> {
+struct ActualFirstOrderNormalizer<'resolver, 'bridge> {
     root_anchor: TypeVar,
-    binder_identities: ActualBinderIdentityResolver<'a>,
+    binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
 }
 
 enum ActualFirstOrderTypeShape<'a> {
@@ -696,11 +716,14 @@ struct ActualBinderIdentityResolver<'a> {
     method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
 }
 
-impl<'a> ActualFirstOrderNormalizer<'a> {
-    fn new(bridge: &'a RoleImplConformanceBinderBridge, root_anchor: TypeVar) -> Self {
+impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
+    fn new(
+        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+        root_anchor: TypeVar,
+    ) -> Self {
         Self {
             root_anchor,
-            binder_identities: ActualBinderIdentityResolver::new(bridge),
+            binder_identities,
         }
     }
 

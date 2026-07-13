@@ -380,10 +380,10 @@ fn generic_role_impl_conformance_stage3_eq1_pins_cross_surface_qm_collision_base
         ActualMethodConformanceView::Available(ConformanceTypeView::Nominal {
             path: vec!["tick".into()],
             args: vec![ConformanceTypeView::Binder(
-                ConformanceBinder::MethodQuantifier(0),
+                ConformanceBinder::MethodQuantifier(1),
             )],
         }),
-        "the independently-created effect normalizer currently reuses Qm0",
+        "the shared value-before-effect resolver gives the distinct effect class Qm1",
     );
 
     let bridge = bridge.as_ref().expect("constructed bridge");
