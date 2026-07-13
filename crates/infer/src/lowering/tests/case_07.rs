@@ -1723,6 +1723,152 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_c1a_preserves_only_the_builtin_nominal_cast_shape() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        capture_actual_builtin_nominal_pair,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    let source = concat!(
+        "mod std:\n",
+        "  pub mod num:\n",
+        "    pub mod frac:\n",
+        "      pub struct frac { num: int, den: int }\n",
+        "  pub mod core:\n",
+        "    pub mod convert:\n",
+        "      use std::num::frac::frac\n",
+        "      pub cast(x: int): frac = frac { num: x, den: 1 }\n",
+        "use std::num::frac::frac\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = frac\n",
+        "  our x.read: frac = 1\n",
+    );
+    let (output, member) = lower_receiver_conformance_shadow(source, true, false, false);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one role impl contract")
+    };
+    let actual = persisted_receiver_actual_view(&output, member);
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+        "C1-a must not change the outward capture result",
+    );
+    let [shadow] = contract
+        .shadow_conformance_pairs(&output.modules)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+    assert_eq!(shadow.outcome, ShadowConformanceOutcome::Unavailable);
+    assert!(matches!(
+        shadow.actual,
+        Some(RoleImplMethodActualSurface::Receiver(_))
+    ));
+
+    let result = receiver_body_result_anchor(&output, member);
+    let pair = capture_actual_builtin_nominal_pair(
+        output.session.infer.constraints(),
+        result,
+        &contract.binder_bridge,
+    )
+    .expect("the exact int/frac surface must retain its structural pair");
+    assert_eq!(pair.builtin(), BuiltinType::Int);
+    assert_eq!(
+        pair.nominal_path(),
+        [
+            "std".to_string(),
+            "num".to_string(),
+            "frac".to_string(),
+            "frac".to_string(),
+        ],
+    );
+    assert!(pair.nominal_args().is_empty());
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c1a_does_not_capture_eq4_raw_variable_candidates() {
+    use crate::role_impl_conformance::RoleImplMethodProvision;
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, capture_actual_builtin_nominal_pair,
+    };
+
+    let output = lower_conformance_fixture(fixture_source("explicit-a-same-a"));
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected the existing EQ4 role impl contract")
+    };
+    let RoleImplMethodProvision::Explicit { implementations } = &contract.methods[0].provision
+    else {
+        panic!("expected an explicit EQ4 method")
+    };
+    let [implementation] = implementations.as_slice() else {
+        panic!("expected one EQ4 implementation")
+    };
+    let actual = persisted_receiver_actual_view(&output, implementation.def);
+    assert!(matches!(
+        actual.value,
+        ActualMethodConformanceView::Available(_)
+    ));
+
+    let result = receiver_body_result_anchor(&output, implementation.def);
+    let compact = crate::compact::compact_type_var(output.session.infer.constraints(), result);
+    let raw_variable_count = compact
+        .root
+        .vars
+        .iter()
+        .filter(|candidate| candidate.var != result)
+        .count();
+    assert!(raw_variable_count > 1, "EQ4 fixture shape: {compact:?}");
+    assert!(compact.root.builtins.is_empty());
+    assert!(compact.root.cons.is_empty());
+    assert!(
+        capture_actual_builtin_nominal_pair(
+            output.session.infer.constraints(),
+            result,
+            &contract.binder_bridge,
+        )
+        .is_none(),
+        "the all-raw EQ4 shape must remain RawVariableCandidates",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c1a_rejects_two_nominal_alternatives() {
+    use crate::constraints::ConstraintMachine;
+    use crate::role_impl_conformance::RoleImplConformanceBinderBridge;
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        capture_actual_builtin_nominal_pair,
+    };
+
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    for path in [["first".to_string()], ["second".to_string()]] {
+        let lower = machine.alloc_pos(Pos::Con(path.to_vec(), Vec::new()));
+        let upper = machine.alloc_neg(Neg::Var(root));
+        machine.subtype(lower, upper);
+    }
+    let compact = crate::compact::compact_type_var(&machine, root);
+    assert_eq!(compact.root.cons.len(), 2, "fixture shape: {compact:?}");
+    assert!(compact.root.builtins.is_empty());
+    let bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: Vec::new(),
+        inferred_associated: Vec::new(),
+    });
+
+    assert_eq!(
+        crate::role_impl_conformance::capture_receiverless_actual_view(&machine, root, &bridge),
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+    );
+    assert!(capture_actual_builtin_nominal_pair(&machine, root, &bridge).is_none());
+}
+
+#[test]
 fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_infer_site() {
     let source = concat!(
         "mod std:\n",
@@ -6038,6 +6184,22 @@ fn persisted_receiver_actual_view(
         panic!("expected receiver persisted actual view for {member:?}")
     };
     view
+}
+
+fn receiver_body_result_anchor(output: &BodyLowering, member: DefId) -> TypeVar {
+    let actual = persisted_receiver_actual_view(output, member);
+    let tail_parameter_count = actual
+        .tail_parameter_count
+        .expect("captured receiver tail arity");
+    let mut result = output.typing.def(member).expect("method root");
+    for _ in 0..=tail_parameter_count {
+        let (_, _, _, next) = function_lower_bound(&output.session, result);
+        let Pos::Var(next) = output.session.infer.constraints().types().pos(next) else {
+            panic!("expected receiver function result variable")
+        };
+        result = *next;
+    }
+    result
 }
 
 fn characterize_contract(source: &str) -> String {

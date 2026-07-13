@@ -240,6 +240,31 @@ pub(crate) struct ActualReceiverMethodConformanceView {
     pub(crate) tail_parameter_count: Option<usize>,
 }
 
+/// The one non-atomic actual shape whose constructor identities are useful to Stage 4's later
+/// cast-policy comparison. This remains capture metadata; it is not itself a conformance verdict.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActualBuiltinNominalPair {
+    builtin: BuiltinType,
+    nominal_path: Vec<String>,
+    nominal_args: Vec<CompactBounds>,
+}
+
+#[cfg(test)]
+impl ActualBuiltinNominalPair {
+    pub(crate) fn builtin(&self) -> BuiltinType {
+        self.builtin
+    }
+
+    pub(crate) fn nominal_path(&self) -> &[String] {
+        &self.nominal_path
+    }
+
+    pub(crate) fn nominal_args(&self) -> &[CompactBounds] {
+        &self.nominal_args
+    }
+}
+
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DeclaredReceiverMethodConformanceView {
@@ -697,6 +722,25 @@ pub(super) fn capture_receiver_actual_view(
     }
 }
 
+/// Read the Stage 4 builtin/nominal capture metadata without consulting cast policy or mutating
+/// the settled constraint machine. The ordinary capture result deliberately remains
+/// `Unavailable(NonAtomicSurface)` until the comparison-level C1-b slice consumes this shape.
+#[cfg(test)]
+pub(crate) fn capture_actual_builtin_nominal_pair(
+    machine: &ConstraintMachine,
+    anchor: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> Option<ActualBuiltinNominalPair> {
+    let bridge = bridge.as_ref().ok()?;
+    let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
+    let compact = compact_type_var(machine, anchor);
+    binder_identities.register_method_recursive_vars(compact.rec_vars.iter().map(|rec| rec.var));
+    let mut normalizer =
+        ActualFirstOrderNormalizer::new(&mut binder_identities, anchor, machine, &compact.rec_vars);
+    let _ = normalizer.root_view(&compact.root);
+    normalizer.builtin_nominal_pair
+}
+
 /// Project a settled body-effect lower surface into the first-order relation. Bare unweighted
 /// positive aliases carry no effect atom of their own; concrete row items do. This is one finite
 /// structural pass over the captured compact tree and never mutates the solver.
@@ -892,6 +936,8 @@ struct ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
     projecting_recursive_bounds: bool,
     #[cfg(test)]
     exact_equivalence_classes: ExactEquivalenceClasses<'resolver>,
+    #[cfg(test)]
+    builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
 }
 
 enum ActualFirstOrderTypeShape<'a> {
@@ -901,6 +947,12 @@ enum ActualFirstOrderTypeShape<'a> {
         vars: &'a [CompactVar],
         ignored_var: Option<TypeVar>,
         candidate_count: usize,
+    },
+    #[cfg(test)]
+    BuiltinNominalPair {
+        builtin: BuiltinType,
+        nominal_path: &'a [String],
+        nominal_args: &'a [CompactBounds],
     },
     Builtin(BuiltinType),
     Nominal {
@@ -969,6 +1021,7 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
+            builtin_nominal_pair: None,
         }
     }
 
@@ -1000,6 +1053,7 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
+            builtin_nominal_pair: None,
         }
     }
 
@@ -1092,6 +1146,19 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
                 ignored_var,
                 candidate_count,
             } => self.resolve_raw_variable_candidates(vars, ignored_var, candidate_count),
+            #[cfg(test)]
+            ActualFirstOrderTypeShape::BuiltinNominalPair {
+                builtin,
+                nominal_path,
+                nominal_args,
+            } => {
+                self.builtin_nominal_pair = Some(ActualBuiltinNominalPair {
+                    builtin,
+                    nominal_path: nominal_path.to_vec(),
+                    nominal_args: nominal_args.to_vec(),
+                });
+                Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface)
+            }
             ActualFirstOrderTypeShape::Builtin(builtin) => {
                 Ok(ConformanceTypeView::Builtin(builtin))
             }
@@ -1274,6 +1341,21 @@ fn project_actual_first_order_type_shape<'a>(
             vars: &ty.vars,
             ignored_var,
             candidate_count: raw_variable_count,
+        });
+    }
+    #[cfg(test)]
+    if alternative_count == 2
+        && raw_variable_count == 0
+        && !ty.never
+        && ty.builtins.len() == 1
+        && ty.cons.len() == 1
+        && ty.tuples.is_empty()
+    {
+        let (nominal_path, nominal_args) = ty.cons.iter().next().expect("one nominal alternative");
+        return Ok(ActualFirstOrderTypeShape::BuiltinNominalPair {
+            builtin: ty.builtins[0],
+            nominal_path,
+            nominal_args,
         });
     }
     if alternative_count != 1 {
