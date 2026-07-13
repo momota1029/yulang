@@ -417,6 +417,10 @@ impl BodyLowerer {
             && requirement.is_some()
             && conformance_shadow_target.is_some()
             && self.receiverless_conformance_shadow_enabled;
+        let prepare_inactive_receiver_requirement = method.receiver.is_some()
+            && requirement.is_some()
+            && conformance_shadow_target.is_some()
+            && self.receiverless_conformance_shadow_enabled;
         if defer_receiverless_requirement {
             self.session
                 .enqueue(AnalysisWork::Scc(SccInput::ConformancePending {
@@ -446,6 +450,7 @@ impl BodyLowerer {
             ann_solver_vars,
             requirement.as_ref(),
             defer_receiverless_requirement,
+            prepare_inactive_receiver_requirement,
             recursive_self_possible,
         );
         match lowered {

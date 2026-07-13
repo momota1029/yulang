@@ -150,6 +150,7 @@ struct ResolvedRoleMethodRequirement {
 
 struct DeferredRoleImplMethodRequirement {
     anchor: DeferredRequirementAnchor,
+    receiver_anchors: Option<expr::method_body::ReceiverMethodLoweringAnchors>,
     requirement: Arc<ResolvedRoleMethodRequirement>,
     parameter_uppers: Vec<Option<NegId>>,
     body_cursor: RequirementSpineCursor,
@@ -176,6 +177,7 @@ enum RequirementSpineCursor {
 
 struct DeferredRequirementMetadata {
     signature_vars: FxHashMap<String, TypeVar>,
+    new_var_level: TypeLevel,
     connect_value_upper: bool,
 }
 
@@ -391,6 +393,7 @@ pub enum SignatureConstraintError {
 ///
 /// `data_effect_private_tails` contains row-address keys, so a resumed driver must re-borrow the
 /// same immutable `SignatureType` allocation rather than a clone or reconstruction.
+#[derive(Clone)]
 struct SignatureLoweringContinuation {
     vars: FxHashMap<String, TypeVar>,
     new_var_level: Option<TypeLevel>,

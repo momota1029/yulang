@@ -16,10 +16,29 @@ pub(in crate::lowering) struct LoweredImplMethodBody {
         not(test),
         allow(
             dead_code,
+            reason = "completed receiver descriptors remain inactive until Slice 4c"
+        )
+    )]
+    pub(in crate::lowering) inactive_receiver_requirement:
+        Option<DeferredRoleImplMethodRequirement>,
+    #[cfg(test)]
+    pub(in crate::lowering) receiver_parameter_context: Option<RequirementParameterContextStatus>,
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
             reason = "receiver anchors are transported into the pending descriptor by Slice 4b"
         )
     )]
     pub(in crate::lowering) receiver_anchors: Option<ReceiverMethodLoweringAnchors>,
+}
+
+enum ReceiverRequirementPreparation {
+    Immediate {
+        plan: ImplRequirementMethodPlan,
+        parameter_context: RequirementParameterContextStatus,
+    },
+    Inactive(DeferredRoleImplMethodRequirement),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -415,6 +434,7 @@ impl<'a> ExprLowerer<'a> {
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         requirement: Option<&Arc<ResolvedRoleMethodRequirement>>,
         defer_receiverless_requirement: bool,
+        prepare_inactive_receiver_requirement: bool,
         recursive_self_possible: bool,
     ) -> Result<LoweredImplMethodBody, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
@@ -471,28 +491,67 @@ impl<'a> ExprLowerer<'a> {
             return Ok(LoweredImplMethodBody {
                 computation: body,
                 deferred_requirement,
+                inactive_receiver_requirement: None,
+                #[cfg(test)]
+                receiver_parameter_context: None,
                 receiver_anchors: None,
             });
         };
 
         let receiver_value = self.fresh_type_var();
         self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
-        let requirement_plan = match requirement {
-            Some(requirement) => {
-                let parameters = self.prepare_impl_method_requirement_parameters(
-                    &requirement.signature,
-                    arg_patterns.len(),
-                    true,
-                    type_var_bindings,
-                    ann_solver_vars,
-                )?;
-                self.resume_impl_method_requirement_body(&requirement.signature, parameters)?
-            }
-            None => ImplRequirementMethodPlan {
-                param_uppers: Vec::new(),
-                body: None,
-            },
-        };
+        let (requirement_plan, mut inactive_receiver_requirement, receiver_parameter_context) =
+            match requirement {
+                Some(requirement) if prepare_inactive_receiver_requirement => {
+                    match self.prepare_receiver_requirement(
+                        receiver_value,
+                        Arc::clone(requirement),
+                        arg_patterns.len(),
+                        type_var_bindings,
+                        ann_solver_vars,
+                    )? {
+                        ReceiverRequirementPreparation::Immediate {
+                            plan,
+                            parameter_context,
+                        } => (plan, None, Some(parameter_context)),
+                        ReceiverRequirementPreparation::Inactive(deferred) => {
+                            let parameter_context = deferred.parameter_context.clone();
+                            let plan = ImplRequirementMethodPlan {
+                                param_uppers: deferred.parameter_uppers.clone(),
+                                body: None,
+                            };
+                            (plan, Some(deferred), Some(parameter_context))
+                        }
+                    }
+                }
+                Some(requirement) => {
+                    let parameters = self.prepare_impl_method_requirement_parameters(
+                        &requirement.signature,
+                        arg_patterns.len(),
+                        true,
+                        type_var_bindings,
+                        ann_solver_vars,
+                    )?;
+                    (
+                        self.resume_impl_method_requirement_body(
+                            &requirement.signature,
+                            parameters,
+                        )?,
+                        None,
+                        None,
+                    )
+                }
+                None => (
+                    ImplRequirementMethodPlan {
+                        param_uppers: Vec::new(),
+                        body: None,
+                    },
+                    None,
+                    None,
+                ),
+            };
+        #[cfg(not(test))]
+        let _ = &receiver_parameter_context;
         let before_locals = self.locals.len();
         let pat = self.bind_pattern_local(
             receiver,
@@ -557,7 +616,17 @@ impl<'a> ExprLowerer<'a> {
                 ret,
             },
         );
-        if let Some(requirement) = requirement {
+        let receiver_anchors = ReceiverMethodLoweringAnchors {
+            receiver: receiver_value,
+            tail_parameters: lowered_tail.parameter_values,
+            body_value: lowered_tail.body.value,
+            body_effect: lowered_tail.body.effect,
+            method_value: value,
+        };
+        if let Some(deferred) = inactive_receiver_requirement.as_mut() {
+            deferred.receiver_anchors = Some(receiver_anchors.clone());
+            self.connect_inactive_receiver_requirement_immediately(deferred)?;
+        } else if let Some(requirement) = requirement {
             self.connect_impl_method_requirement(
                 value,
                 requirement,
@@ -571,13 +640,10 @@ impl<'a> ExprLowerer<'a> {
         Ok(LoweredImplMethodBody {
             computation: Computation::value(expr, value, effect),
             deferred_requirement: None,
-            receiver_anchors: Some(ReceiverMethodLoweringAnchors {
-                receiver: receiver_value,
-                tail_parameters: lowered_tail.parameter_values,
-                body_value: lowered_tail.body.value,
-                body_effect: lowered_tail.body.effect,
-                method_value: value,
-            }),
+            inactive_receiver_requirement,
+            #[cfg(test)]
+            receiver_parameter_context,
+            receiver_anchors: Some(receiver_anchors),
         })
     }
 
@@ -646,8 +712,10 @@ impl<'a> ExprLowerer<'a> {
         ann_solver_vars: &FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Result<DeferredRoleImplMethodRequirement, LoweringError> {
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
+        let level = self.session.infer.current_level();
         let final_metadata = DeferredRequirementMetadata {
             signature_vars: seed.clone(),
+            new_var_level: level,
             connect_value_upper: matches!(anchor, DeferredRequirementAnchor::Receiverless { .. }),
         };
         let mut spine = &requirement.signature;
@@ -702,7 +770,6 @@ impl<'a> ExprLowerer<'a> {
         } else {
             RequirementSpineCursor::WholeValue
         };
-        let level = self.session.infer.current_level();
         let (parameter_uppers, continuation, parameter_context) = if let Some(unavailable) =
             unavailable
         {
@@ -745,6 +812,7 @@ impl<'a> ExprLowerer<'a> {
 
         Ok(DeferredRoleImplMethodRequirement {
             anchor,
+            receiver_anchors: None,
             requirement,
             parameter_uppers,
             body_cursor,
@@ -752,6 +820,161 @@ impl<'a> ExprLowerer<'a> {
             parameter_context,
             final_metadata,
         })
+    }
+
+    fn prepare_receiver_requirement(
+        &mut self,
+        receiver: TypeVar,
+        requirement: Arc<ResolvedRoleMethodRequirement>,
+        param_count: usize,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<ReceiverRequirementPreparation, LoweringError> {
+        let deferred = self.deferred_impl_method_requirement(
+            DeferredRequirementAnchor::Receiver { receiver },
+            requirement,
+            param_count,
+            true,
+            type_var_bindings,
+            ann_solver_vars,
+        )?;
+        self.finish_receiver_requirement_preparation(
+            deferred,
+            param_count,
+            type_var_bindings,
+            ann_solver_vars,
+        )
+    }
+
+    fn finish_receiver_requirement_preparation(
+        &mut self,
+        deferred: DeferredRoleImplMethodRequirement,
+        param_count: usize,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<ReceiverRequirementPreparation, LoweringError> {
+        match &deferred.parameter_context {
+            RequirementParameterContextStatus::Clean(_) => {
+                Ok(ReceiverRequirementPreparation::Inactive(deferred))
+            }
+            RequirementParameterContextStatus::MutatedBridge(_) => {
+                let parameter_context = deferred.parameter_context.clone();
+                let plan = self.resume_deferred_receiver_requirement(deferred)?;
+                Ok(ReceiverRequirementPreparation::Immediate {
+                    plan,
+                    parameter_context,
+                })
+            }
+            RequirementParameterContextStatus::Unsupported(_) => {
+                let parameter_context = deferred.parameter_context.clone();
+                let parameters = self.prepare_impl_method_requirement_parameters(
+                    &deferred.requirement.signature,
+                    param_count,
+                    true,
+                    type_var_bindings,
+                    ann_solver_vars,
+                )?;
+                let plan = self.resume_impl_method_requirement_body(
+                    &deferred.requirement.signature,
+                    parameters,
+                )?;
+                Ok(ReceiverRequirementPreparation::Immediate {
+                    plan,
+                    parameter_context,
+                })
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn force_mutated_receiver_requirement_fallback_for_slice4b(
+        &mut self,
+        mut deferred: DeferredRoleImplMethodRequirement,
+        mutation: BridgeMutationAudit,
+        param_count: usize,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<ImplRequirementMethodPlan, LoweringError> {
+        deferred.parameter_context = RequirementParameterContextStatus::MutatedBridge(mutation);
+        match self.finish_receiver_requirement_preparation(
+            deferred,
+            param_count,
+            type_var_bindings,
+            ann_solver_vars,
+        )? {
+            ReceiverRequirementPreparation::Immediate { plan, .. } => Ok(plan),
+            ReceiverRequirementPreparation::Inactive(_) => {
+                unreachable!("forced MutatedBridge must take the immediate fallback")
+            }
+        }
+    }
+
+    fn resume_deferred_receiver_requirement(
+        &mut self,
+        deferred: DeferredRoleImplMethodRequirement,
+    ) -> Result<ImplRequirementMethodPlan, LoweringError> {
+        self.resume_impl_method_requirement_body(
+            &deferred.requirement.signature,
+            ImplRequirementParameterPreparation {
+                param_uppers: deferred.parameter_uppers,
+                body_cursor: Some(deferred.body_cursor),
+                continuation: deferred.continuation,
+            },
+        )
+    }
+
+    fn connect_inactive_receiver_requirement_immediately(
+        &mut self,
+        deferred: &DeferredRoleImplMethodRequirement,
+    ) -> Result<(), LoweringError> {
+        // Slice 4b keeps the completed pre-body continuation inactive for inspection while this
+        // clone restores the legacy edges exactly once. Slice 4c must consume the stored
+        // continuation instead and remove this compatibility application; running both would
+        // lower the deferred expected layer twice.
+        debug_assert!(matches!(
+            deferred.parameter_context,
+            RequirementParameterContextStatus::Clean(_)
+        ));
+        let anchors = deferred
+            .receiver_anchors
+            .as_ref()
+            .expect("completed receiver descriptor must retain every lowering anchor");
+        let body = self.resume_impl_method_requirement_body(
+            &deferred.requirement.signature,
+            ImplRequirementParameterPreparation {
+                param_uppers: deferred.parameter_uppers.clone(),
+                body_cursor: Some(deferred.body_cursor),
+                continuation: deferred.continuation.clone(),
+            },
+        )?;
+        let Some(body) = body.body else {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&deferred.requirement.signature),
+            });
+        };
+        self.connect_impl_method_body_requirement_anchors(
+            anchors.body_value,
+            anchors.body_effect,
+            body,
+        );
+
+        self.check_impl_method_requirement_shape(
+            anchors.method_value,
+            &deferred.requirement.signature,
+        )?;
+        self.check_impl_method_requirement_concrete_type(
+            anchors.method_value,
+            &deferred.requirement.signature,
+        )?;
+        self.connect_impl_method_requirement_from_continuation(
+            anchors.method_value,
+            &deferred.requirement,
+            SignatureLoweringContinuation::with_vars_at_level(
+                deferred.final_metadata.signature_vars.clone(),
+                deferred.final_metadata.new_var_level,
+            ),
+            deferred.final_metadata.connect_value_upper,
+        )
     }
 
     pub(in crate::lowering) fn requirement_bridge_audit_snapshot(
@@ -1006,11 +1229,20 @@ impl<'a> ExprLowerer<'a> {
         body: Computation,
         requirement: ImplRequirementBodyConnection,
     ) {
-        let effect_lower = self.alloc_pos(Pos::Var(body.effect));
+        self.connect_impl_method_body_requirement_anchors(body.value, body.effect, requirement);
+    }
+
+    fn connect_impl_method_body_requirement_anchors(
+        &mut self,
+        body_value: TypeVar,
+        body_effect: TypeVar,
+        requirement: ImplRequirementBodyConnection,
+    ) {
+        let effect_lower = self.alloc_pos(Pos::Var(body_effect));
         self.session
             .infer
             .subtype(effect_lower, requirement.effect_upper);
-        let value_lower = self.alloc_pos(Pos::Var(body.value));
+        let value_lower = self.alloc_pos(Pos::Var(body_value));
         self.session
             .infer
             .subtype(value_lower, requirement.value_upper);

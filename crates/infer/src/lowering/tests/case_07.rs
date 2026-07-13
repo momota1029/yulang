@@ -1429,7 +1429,7 @@ fn role_impl_method_lifecycle_slice4a_split_is_identical_to_uninterrupted_plan()
         );
         assert_eq!(split, uninterrupted, "method: {method}");
 
-        let anchors = receiver_method_anchor_witness(source, method);
+        let anchors = receiver_method_anchor_witness(source, method, false).anchors;
         assert_eq!(anchors.tail_parameters.len(), parameter_count);
         assert_eq!(anchors.parameter_requirement_edges, parameter_count);
         assert_eq!(anchors.body_value_requirement_edges, 1);
@@ -1452,6 +1452,141 @@ fn role_impl_method_lifecycle_slice4a_split_is_identical_to_uninterrupted_plan()
         finalized_contract_method_scheme(multiple_tail),
         "box 'a -> ('b & box 'a) -> box 'a -> 'b",
     );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4b_builds_inactive_receiver_descriptor_and_falls_back() {
+    let zero_tail = concat!(
+        "type box 'a\n",
+        "role Read 'subject:\n",
+        "  our x.read: 'subject\n",
+        "impl (box 'a): Read:\n",
+        "  our x.read = x\n",
+    );
+    let multiple_tail = concat!(
+        "type box 'a\n",
+        "role Choose 'subject:\n",
+        "  our x.choose: 'subject -> 'subject -> 'subject\n",
+        "impl (box 'a): Choose:\n",
+        "  our x.choose a b = a\n",
+    );
+
+    for (source, method, parameter_count) in [
+        (zero_tail, "read", 0usize),
+        (multiple_tail, "choose", 2usize),
+    ] {
+        let lowered = receiver_method_anchor_witness(source, method, true);
+        let descriptor = lowered
+            .descriptor
+            .expect("plain receiver method must complete an inactive descriptor");
+        assert_eq!(
+            descriptor.anchor,
+            DeferredRequirementAnchor::Receiver {
+                receiver: lowered.anchors.receiver,
+            }
+        );
+        assert_eq!(descriptor.anchors.receiver, lowered.anchors.receiver);
+        assert_eq!(
+            descriptor.anchors.tail_parameters,
+            lowered.anchors.tail_parameters
+        );
+        assert_eq!(descriptor.anchors.body_value, lowered.anchors.body_value);
+        assert_eq!(descriptor.anchors.body_effect, lowered.anchors.body_effect);
+        assert_eq!(
+            descriptor.anchors.method_value,
+            lowered.anchors.method_value
+        );
+        assert_eq!(descriptor.parameter_upper_count, parameter_count);
+        assert!(descriptor.all_parameter_uppers_present);
+        assert_eq!(
+            descriptor.body_cursor,
+            RequirementSpineCursor::FunctionResult {
+                consumed_function_layers: parameter_count + 1,
+            }
+        );
+        assert_eq!(
+            descriptor.parameter_context,
+            RequirementParameterContextStatus::Clean(
+                NonMutatingRequirementClass::PlainValueParameters {
+                    count: parameter_count,
+                }
+            )
+        );
+        assert_eq!(
+            lowered.parameter_context,
+            Some(descriptor.parameter_context.clone())
+        );
+        assert_eq!(
+            descriptor.continuation_level,
+            Some(descriptor.metadata_level)
+        );
+        assert!(!descriptor.final_connect_value_upper);
+        assert_eq!(lowered.anchors.parameter_requirement_edges, parameter_count);
+        assert_eq!(lowered.anchors.body_value_requirement_edges, 1);
+        assert_eq!(lowered.anchors.body_effect_requirement_edges, 1);
+        assert_eq!(lowered.anchors.method_value_requirement_edges, 0);
+
+        let output = lower_receiverless_conformance_shadow(source, true);
+        let transitions = output.session.scc.conformance_transition_counts();
+        assert_eq!((transitions.pending, transitions.released), (0, 0));
+        let immediate = lower_receiverless_conformance_shadow(source, false);
+        let role = if method == "read" { "Read" } else { "Choose" };
+        assert_eq!(
+            receiverless_production_surface(&output, role),
+            receiverless_production_surface(&immediate, role)
+        );
+    }
+
+    assert_eq!(
+        finalized_contract_method_scheme(zero_tail),
+        "box 'a -> box 'a",
+    );
+    assert_eq!(
+        finalized_contract_method_scheme(multiple_tail),
+        "box 'a -> ('b & box 'a) -> box 'a -> 'b",
+    );
+
+    let effect_row_parameter = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Consume 'subject 'effect:\n",
+        "  our x.consume: '[tick; 'effect] -> unit\n",
+        "impl Consume int 'e:\n",
+        "  our x.consume action = ()\n",
+    );
+    let immediate = receiver_method_anchor_witness(effect_row_parameter, "consume", false);
+    let fallback = receiver_method_anchor_witness(effect_row_parameter, "consume", true);
+    assert_eq!(fallback.anchors, immediate.anchors);
+    assert!(fallback.descriptor.is_none());
+    assert!(matches!(
+        fallback.parameter_context,
+        Some(RequirementParameterContextStatus::Unsupported(
+            RequirementParameterContextUnavailable {
+                parameter_index: 0,
+                reason: RequirementParameterUnsupportedReason::EffectRow,
+            }
+        ))
+    ));
+    let fallback_output = lower_receiverless_conformance_shadow(effect_row_parameter, true);
+    let immediate_output = lower_receiverless_conformance_shadow(effect_row_parameter, false);
+    assert_eq!(
+        receiverless_production_surface(&fallback_output, "Consume"),
+        receiverless_production_surface(&immediate_output, "Consume")
+    );
+
+    let split_with_same_mutation = slice4a_requirement_plan_witness(
+        multiple_tail,
+        "choose",
+        2,
+        Slice4aRequirementPlanMode::SplitWithInjectedBridgeMutation,
+    );
+    let mutated_fallback = slice4a_requirement_plan_witness(
+        multiple_tail,
+        "choose",
+        2,
+        Slice4aRequirementPlanMode::ForcedMutatedFallback,
+    );
+    assert_eq!(mutated_fallback, split_with_same_mutation);
 }
 
 #[test]
@@ -1649,6 +1784,8 @@ fn with_requirement_harness<R>(
 enum Slice4aRequirementPlanMode {
     Uninterrupted,
     Split,
+    SplitWithInjectedBridgeMutation,
+    ForcedMutatedFallback,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1680,6 +1817,7 @@ fn slice4a_requirement_plan_witness(
         source,
         method_name,
         |lowerer, requirement, bindings, vars| {
+            let receiver = lowerer.fresh_type_var();
             let plan = match mode {
                 Slice4aRequirementPlanMode::Uninterrupted => lowerer
                     .uninterrupted_impl_method_requirement_plan_for_slice4a(
@@ -1700,6 +1838,53 @@ fn slice4a_requirement_plan_witness(
                         )
                         .expect("split parameter preparation");
                     lowerer.resume_impl_method_requirement_body(&requirement.signature, parameters)
+                }
+                Slice4aRequirementPlanMode::SplitWithInjectedBridgeMutation => {
+                    let parameters = lowerer
+                        .prepare_impl_method_requirement_parameters(
+                            &requirement.signature,
+                            parameter_count,
+                            true,
+                            bindings,
+                            vars,
+                        )
+                        .expect("split parameter preparation");
+                    let _ = inject_receiver_parameter_bridge_mutation(
+                        lowerer,
+                        parameter_count,
+                        bindings,
+                        vars,
+                    );
+                    lowerer.resume_impl_method_requirement_body(&requirement.signature, parameters)
+                }
+                Slice4aRequirementPlanMode::ForcedMutatedFallback => {
+                    let deferred = lowerer
+                        .deferred_impl_method_requirement(
+                            DeferredRequirementAnchor::Receiver { receiver },
+                            Arc::clone(requirement),
+                            parameter_count,
+                            true,
+                            bindings,
+                            vars,
+                        )
+                        .expect("receiver descriptor preparation");
+                    assert!(matches!(
+                        deferred.parameter_context,
+                        RequirementParameterContextStatus::Clean(_)
+                    ));
+                    let mutation = inject_receiver_parameter_bridge_mutation(
+                        lowerer,
+                        parameter_count,
+                        bindings,
+                        vars,
+                    );
+                    lowerer.force_mutated_receiver_requirement_fallback_for_slice4b(
+                        deferred,
+                        mutation,
+                        parameter_count,
+                        bindings,
+                        vars,
+                    )
                 }
             }
             .expect("receiver requirement plan");
@@ -1789,11 +1974,48 @@ fn slice4a_requirement_plan_witness(
     )
 }
 
+fn inject_receiver_parameter_bridge_mutation(
+    lowerer: &mut ExprLowerer<'_>,
+    parameter_count: usize,
+    bindings: &[(String, AnnTypeVarId)],
+    vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
+) -> BridgeMutationAudit {
+    let before = lowerer.requirement_bridge_audit_snapshot(bindings, vars);
+    let bridge = bindings
+        .iter()
+        .find_map(|(_, annotation)| vars.get(annotation).copied())
+        .expect("receiver fixture bridge");
+    lowerer.constrain_lower(
+        bridge,
+        Pos::Con(
+            vec![BuiltinType::Int.surface_name().to_string()],
+            Vec::new(),
+        ),
+    );
+    let status = lowerer.requirement_parameter_context_since(
+        NonMutatingRequirementClass::PlainValueParameters {
+            count: parameter_count,
+        },
+        before,
+        bindings,
+        vars,
+    );
+    let RequirementParameterContextStatus::MutatedBridge(audit) = status else {
+        panic!("injected bridge lower bound must be detected")
+    };
+    assert!(audit.epoch_after > audit.epoch_before);
+    assert!(audit.affected.iter().any(|affected| {
+        affected.solver_var == bridge && affected.bounds_changed && !affected.subtract_facts_changed
+    }));
+    audit
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReceiverMethodAnchorWitness {
     receiver: TypeVar,
     tail_parameters: Vec<TypeVar>,
     body_value: TypeVar,
+    body_effect: TypeVar,
     method_value: TypeVar,
     parameter_requirement_edges: usize,
     body_value_requirement_edges: usize,
@@ -1801,7 +2023,31 @@ struct ReceiverMethodAnchorWitness {
     method_value_requirement_edges: usize,
 }
 
-fn receiver_method_anchor_witness(source: &str, method_name: &str) -> ReceiverMethodAnchorWitness {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReceiverDescriptorWitness {
+    anchor: DeferredRequirementAnchor,
+    anchors: crate::lowering::expr::method_body::ReceiverMethodLoweringAnchors,
+    parameter_upper_count: usize,
+    all_parameter_uppers_present: bool,
+    body_cursor: RequirementSpineCursor,
+    parameter_context: RequirementParameterContextStatus,
+    continuation_level: Option<crate::constraints::TypeLevel>,
+    metadata_level: crate::constraints::TypeLevel,
+    final_connect_value_upper: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReceiverMethodLoweringWitness {
+    anchors: ReceiverMethodAnchorWitness,
+    descriptor: Option<ReceiverDescriptorWitness>,
+    parameter_context: Option<RequirementParameterContextStatus>,
+}
+
+fn receiver_method_anchor_witness(
+    source: &str,
+    method_name: &str,
+    prepare_inactive_receiver_requirement: bool,
+) -> ReceiverMethodLoweringWitness {
     let root = parse(source);
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
@@ -1881,9 +2127,28 @@ fn receiver_method_anchor_witness(source: &str, method_name: &str) -> ReceiverMe
             &mut context.ann_solver_vars,
             Some(&requirement),
             false,
+            prepare_inactive_receiver_requirement,
             false,
         )
         .expect("receiver method lowering");
+    let parameter_context = lowered.receiver_parameter_context.clone();
+    let descriptor = lowered
+        .inactive_receiver_requirement
+        .as_ref()
+        .map(|deferred| ReceiverDescriptorWitness {
+            anchor: deferred.anchor,
+            anchors: deferred
+                .receiver_anchors
+                .clone()
+                .expect("completed receiver anchors"),
+            parameter_upper_count: deferred.parameter_uppers.len(),
+            all_parameter_uppers_present: deferred.parameter_uppers.iter().all(Option::is_some),
+            body_cursor: deferred.body_cursor,
+            parameter_context: deferred.parameter_context.clone(),
+            continuation_level: deferred.continuation.new_var_level,
+            metadata_level: deferred.final_metadata.new_var_level,
+            final_connect_value_upper: deferred.final_metadata.connect_value_upper,
+        });
     let anchors = lowered.receiver_anchors.expect("receiver lowering anchors");
     assert_eq!(lowered.computation.value, anchors.method_value);
     let parameter_requirement_edges = anchors
@@ -1891,15 +2156,20 @@ fn receiver_method_anchor_witness(source: &str, method_name: &str) -> ReceiverMe
         .iter()
         .map(|parameter| upper_bound_count(&lowerer, *parameter))
         .sum();
-    ReceiverMethodAnchorWitness {
-        receiver: anchors.receiver,
-        tail_parameters: anchors.tail_parameters,
-        body_value: anchors.body_value,
-        method_value: anchors.method_value,
-        parameter_requirement_edges,
-        body_value_requirement_edges: upper_bound_count(&lowerer, anchors.body_value),
-        body_effect_requirement_edges: upper_bound_count(&lowerer, anchors.body_effect),
-        method_value_requirement_edges: upper_bound_count(&lowerer, anchors.method_value),
+    ReceiverMethodLoweringWitness {
+        anchors: ReceiverMethodAnchorWitness {
+            receiver: anchors.receiver,
+            tail_parameters: anchors.tail_parameters,
+            body_value: anchors.body_value,
+            body_effect: anchors.body_effect,
+            method_value: anchors.method_value,
+            parameter_requirement_edges,
+            body_value_requirement_edges: upper_bound_count(&lowerer, anchors.body_value),
+            body_effect_requirement_edges: upper_bound_count(&lowerer, anchors.body_effect),
+            method_value_requirement_edges: upper_bound_count(&lowerer, anchors.method_value),
+        },
+        descriptor,
+        parameter_context,
     }
 }
 
