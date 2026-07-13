@@ -181,6 +181,8 @@ pub(crate) enum ActualMethodConformanceView {
 pub(crate) struct ActualReceiverMethodConformanceView {
     pub(crate) value: ActualMethodConformanceView,
     pub(crate) effect: ActualMethodConformanceView,
+    #[cfg(test)]
+    pub(crate) tail_parameter_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,6 +332,33 @@ pub(super) fn receiver_result_is_first_order(
     )
 }
 
+/// Align a receiver requirement with its captured body-value surface. The actual descriptor owns
+/// the measured tail arity; the declared signature is accepted only when its complete clean
+/// function prefix contains exactly one receiver layer plus that many tail-parameter layers.
+#[cfg(test)]
+pub(crate) fn declared_receiver_result_view(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    inputs: &[DeclaredTypeView],
+    associated: &[DeclaredAssociatedView],
+    signature: &SignatureType,
+    actual_tail_parameter_count: usize,
+) -> Option<DeclaredTypeView> {
+    let mut result = signature;
+    let mut function_layer_count = 0usize;
+    while let SignatureType::Function {
+        arg_eff: None, ret, ..
+    } = result
+    {
+        function_layer_count += 1;
+        result = ret;
+    }
+
+    let declared_tail_parameter_count = function_layer_count.checked_sub(1)?;
+    (declared_tail_parameter_count == actual_tail_parameter_count)
+        .then(|| signature_type_view(contract, modules, inputs, associated, result))
+}
+
 pub(super) fn capture_receiverless_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
@@ -365,6 +394,8 @@ pub(super) fn capture_receiver_actual_view(
     ActualReceiverMethodConformanceView {
         value: capture_receiverless_actual_view(machine, value, bridge),
         effect: capture_receiverless_actual_view(machine, effect, bridge),
+        #[cfg(test)]
+        tail_parameter_count: None,
     }
 }
 

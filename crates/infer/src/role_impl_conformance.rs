@@ -183,7 +183,7 @@ impl RoleImplConformanceContract {
         let declared = self.declared_view(modules);
         let mut pairs = Vec::new();
         for (index, method) in self.methods.iter().enumerate() {
-            let declared_requirement = declared
+            let captured_declared_requirement = declared
                 .methods
                 .get(index)
                 .filter(|view| view.name == method.name)
@@ -193,12 +193,22 @@ impl RoleImplConformanceContract {
                     if !implementations.is_empty() =>
                 {
                     pairs.extend(implementations.iter().map(|implementation| {
+                        let actual = self
+                            .actual_method_view(implementation.def)
+                            .map(|actual| actual.surface.clone());
+                        let declared_requirement = align_shadow_declared_requirement(
+                            self,
+                            modules,
+                            &declared,
+                            method,
+                            captured_declared_requirement.clone(),
+                            actual.as_ref(),
+                        );
                         build_shadow_conformance_pair(
                             method,
-                            declared_requirement.clone(),
+                            declared_requirement,
                             Some(implementation.def),
-                            self.actual_method_view(implementation.def)
-                                .map(|actual| actual.surface.clone()),
+                            actual,
                         )
                     }));
                 }
@@ -207,7 +217,7 @@ impl RoleImplConformanceContract {
                 | RoleImplMethodProvision::Missing => {
                     pairs.push(build_shadow_conformance_pair(
                         method,
-                        declared_requirement,
+                        captured_declared_requirement,
                         None,
                         None,
                     ));
@@ -685,6 +695,36 @@ pub(crate) struct ShadowConformancePair {
     pub(crate) declared: Option<view::DeclaredTypeView>,
     pub(crate) actual: Option<RoleImplMethodActualSurface>,
     pub(crate) outcome: ShadowConformanceOutcome,
+}
+
+#[cfg(test)]
+fn align_shadow_declared_requirement(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    declared: &DeclaredRoleImplView,
+    method: &RoleImplMethodContract,
+    captured: Option<view::DeclaredTypeView>,
+    actual: Option<&RoleImplMethodActualSurface>,
+) -> Option<view::DeclaredTypeView> {
+    let Some(RoleImplMethodActualSurface::Receiver(actual)) = actual else {
+        return captured;
+    };
+    if matches!(
+        captured.as_ref(),
+        Some(view::DeclaredTypeView::Ambiguous(_))
+    ) {
+        return captured;
+    }
+    let actual_tail_parameter_count = actual.tail_parameter_count?;
+    let requirement = method.declared_requirement.as_ref()?;
+    view::declared_receiver_result_view(
+        contract,
+        modules,
+        &declared.inputs,
+        &declared.associated,
+        &requirement.signature,
+        actual_tail_parameter_count,
+    )
 }
 
 #[cfg(test)]

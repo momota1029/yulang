@@ -39,19 +39,19 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
     const EXPECTED: &[(&str, &str)] = &[
         (
             "explicit-bool-concrete-int",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=available outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Mismatch",
         ),
         (
             "explicit-bool-universal-a",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
         (
             "explicit-a-same-a",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
         (
             "explicit-list-a-nested-binder",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
         (
             "omitted-associated-one-method",
@@ -74,8 +74,8 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
         (
             "residual-prerequisite-absent-present",
             concat!(
-                "contract=0 role=Box method=get impl=explicit declared=unavailable actual=available outcome=Unavailable\n",
-                "contract=1 role=Box method=get impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+                "contract=0 role=Box method=get impl=explicit declared=available actual=available outcome=Conforms\n",
+                "contract=1 role=Box method=get impl=explicit declared=available actual=unavailable outcome=Unavailable",
             ),
         ),
         (
@@ -84,15 +84,15 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
         ),
         (
             "alpha-renamed-a",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
         (
             "alpha-renamed-b",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
         (
             "malformed-unused-impl",
-            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
         ),
     ];
 
@@ -146,6 +146,62 @@ fn generic_role_impl_conformance_stage3_slice3b_compares_available_builtin_pairs
         shadow_conformance_pair_dump(mismatch),
         "contract=0 role=Make method=make impl=explicit declared=available actual=available outcome=Mismatch",
         "Slice 3a intentionally deferred this int/bool comparison to Slice 3b",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_aligns_receiver_result_before_comparison() {
+    let conforms = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    let mismatch = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = true\n",
+    );
+
+    let (conforming_output, conforming_member) =
+        lower_receiver_conformance_shadow(conforms, true, false, false);
+    let conforming_actual = persisted_receiver_actual_view(&conforming_output, conforming_member);
+    assert_eq!(conforming_actual.tail_parameter_count, Some(0));
+    assert_eq!(
+        shadow_conformance_pair_dump_from_output(&conforming_output),
+        "contract=0 role=Read method=read impl=explicit declared=available actual=available outcome=Conforms",
+    );
+
+    let [contract] = conforming_output.role_impl_conformance_contracts() else {
+        panic!("expected one receiver conformance contract")
+    };
+    let declared = contract.declared_view(&conforming_output.modules);
+    let requirement = contract.methods[0]
+        .declared_requirement
+        .as_ref()
+        .expect("declared receiver requirement");
+    assert_eq!(
+        crate::role_impl_conformance::view::declared_receiver_result_view(
+            contract,
+            &conforming_output.modules,
+            &declared.inputs,
+            &declared.associated,
+            &requirement.signature,
+            1,
+        ),
+        None,
+        "a measured tail-arity mismatch must not be forced into a comparison",
+    );
+
+    let (mismatching_output, mismatching_member) =
+        lower_receiver_conformance_shadow(mismatch, true, false, false);
+    let mismatching_actual =
+        persisted_receiver_actual_view(&mismatching_output, mismatching_member);
+    assert_eq!(mismatching_actual.tail_parameter_count, Some(0));
+    assert_eq!(
+        shadow_conformance_pair_dump_from_output(&mismatching_output),
+        "contract=0 role=Read method=read impl=explicit declared=available actual=available outcome=Mismatch",
     );
 }
 
@@ -2036,6 +2092,7 @@ fn role_impl_method_lifecycle_slice4c_t3_capture_failure_still_connects_and_comm
             ActualMethodConformanceViewUnavailable::NonAtomicSurface
         )
     ));
+    assert_eq!(witness.actual_view.tail_parameter_count, Some(0));
     assert_eq!(
         persisted_receiver_actual_view(&failed_capture, witness.member),
         &witness.actual_view,
@@ -2519,6 +2576,10 @@ fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_base
         assert_eq!(
             persisted_receiver_actual_view(&delayed, witness.member),
             &witness.actual_view,
+        );
+        assert_eq!(
+            witness.actual_view.tail_parameter_count,
+            Some(parameter_count),
         );
         assert!(
             matches!(
@@ -4167,10 +4228,14 @@ fn lower_conformance_fixture(source: &str) -> BodyLowering {
 }
 
 fn shadow_conformance_pair_dump(source: &str) -> String {
+    let output = lower_conformance_fixture(source);
+    shadow_conformance_pair_dump_from_output(&output)
+}
+
+fn shadow_conformance_pair_dump_from_output(output: &BodyLowering) -> String {
     use crate::role_impl_conformance::RoleImplMethodActualSurface;
     use crate::role_impl_conformance::view::{ActualMethodConformanceView, DeclaredTypeView};
 
-    let output = lower_conformance_fixture(source);
     output
         .role_impl_conformance_contracts()
         .iter()

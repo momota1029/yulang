@@ -1108,6 +1108,8 @@ fn unavailable_receiver_actual_view(
             reason.clone(),
         ),
         effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
+        #[cfg(test)]
+        tail_parameter_count: None,
     }
 }
 
@@ -1169,6 +1171,24 @@ fn capture_pending_actual_view(
             &pending.kind,
             crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         ),
+    }
+}
+
+#[cfg(test)]
+fn attach_receiver_tail_parameter_count(
+    view: &mut PendingRoleImplActualView,
+    pending: &PendingRoleImplConformance,
+) {
+    let Some(count) = pending
+        .deferred
+        .as_ref()
+        .and_then(|deferred| deferred.receiver_anchors.as_ref())
+        .map(|anchors| anchors.tail_parameters.len())
+    else {
+        return;
+    };
+    if let PendingRoleImplActualView::Receiver(view) = view {
+        view.tail_parameter_count = Some(count);
     }
 }
 
@@ -1548,6 +1568,12 @@ impl BodyLowerer {
                     let view = pending.actual_view.clone().unwrap_or_else(|| {
                         capture_pending_actual_view(self.session.infer.constraints(), pending)
                     });
+                    #[cfg(test)]
+                    let view = {
+                        let mut view = view;
+                        attach_receiver_tail_parameter_count(&mut view, pending);
+                        view
+                    };
                     (*member, view)
                 })
             })
