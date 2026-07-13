@@ -883,6 +883,247 @@ The following remain unconfirmed and must be resolved or bounded by the relevant
     Slice 4c (real SCC activation for receiver methods) cannot complete until this choice, or an
     equivalently sound transaction design, is resolved and witnessed against the immediate path.
 
+### 13.1 Point 10.1: provisional binding transaction detailed design
+
+The user selected point 10 direction (a). Investigation of the current ownership boundaries makes
+an implementation possible without rolling back solver state, but only if `finish_binding` is split
+by publication responsibility. Delaying `DefFinished` itself is not the design: the existing
+`first_component_ready_except_conformance` query requires every component member to be both
+registered and finished. Withholding `DefFinished` from the pending method would therefore prevent
+that method's component from ever reaching the phase which is supposed to settle it.
+
+#### Current responsibilities and publication boundary
+
+`lower_role_impl_method_binding` establishes the definition root before expression lowering. It
+stores the root in `Typing`, registers the root with `SccInput::RegisterDef`, registers role-impl
+ownership and requirement dependency metadata, and then lowers the body. Body lowering itself
+emits resolved-use, selection, and dependency work needed to construct or merge SCC components.
+None of those operations is performed by `finish_binding`.
+
+On the successful path, `finish_binding` currently performs all of the following as one operation:
+
+1. validate that the already-created poly definition is a `Def::Let`;
+2. publish `computation.expr` as `Def::Let.body`;
+3. connect `computation.value` as a lower bound of the registered definition root when
+   `connect_body` is true;
+4. derive and record `BindingFetch`, which also enqueues `SccInput::DefFetchRecorded`;
+5. add `RuntimeRoot::ComputedDef(def)` for a computed binding when runtime roots are not
+   suppressed; and
+6. enqueue `SccInput::DefFinished`.
+
+The scheme is not written by `finish_binding`. `DefFinished` only marks the member finished in the
+open SCC component. Once every ordinary blocker and every conformance blocker is gone,
+`QuantifyComponent` invokes the single production `quantify_component` path. That path writes the
+generalized root into `AnalysisSession::schemes` and then writes the finalized `Scheme` into
+`Def::Let.scheme`. `Typing` remains only the same-session `DefId -> TypeVar` table; it is populated
+before body lowering even on a failed definition.
+
+The provisional split classifies those operations as follows:
+
+| Operation | Provisional timing | Reason |
+| --- | --- | --- |
+| `Typing::set_def`, `RegisterDef`, role ownership, requirement dependency | immediate, unchanged | Required to expose the definition root and construct the SCC graph. |
+| Body lowering and its use/selection/dependency work | immediate, unchanged | Required to discover mutual recursion and component merges. |
+| `ConformancePending` | before provisional `DefFinished` | Prevents the otherwise-finished component from quantifying. |
+| `DefFinished` | immediate after the pending record is installed | Required by the ready-except-conformance query; it means lowering input is closed, not that the binding is valid. |
+| `Def::Let.body = Some(expr)` | successful transaction commit only | A failed immediate method leaves `body = None`. |
+| `computation.value <: def_root` | successful transaction commit only | This edge is monotonic and cannot be rolled back after a deferred failure. |
+| `BindingFetch` and `DefFetchRecorded` | successful transaction commit only, before release | A failed immediate method records no fetch; success still establishes the generalization boundary and computed-fetch-cycle evidence before quantification. |
+| `RuntimeRoot::ComputedDef` | successful transaction commit only | A rejected method must not remain executable runtime IR. |
+| generalized/finalized scheme writes | ordinary `QuantifyComponent` only | The transaction must not introduce a second scheme owner or a second generalization pass. |
+
+Result-annotation checks which already run from finalized schemes in `BodyLowerer::finish` are not
+part of this transaction. Under current semantics they add a diagnostic without making a binding
+bodyless. Only failures belonging to the legacy impl-requirement connection being deferred are
+transaction success/failure inputs.
+
+#### Exact immediate failure and poison equivalence
+
+For the `Build` fixture in point 10, the receiver body and its raw value/effect anchors are lowered,
+and the two legacy body requirement edges are prepared/applied before the final whole-method check.
+`connect_impl_method_requirement` first calls `check_impl_method_requirement_shape` and then
+`check_impl_method_requirement_concrete_type`. The observed `SignatureTypeMismatch` identifies the
+second check as the rejecting function: in the compacted constructed method, the receiver result
+still has the body's function shape where the corresponding requirement result is non-function.
+
+The error propagates out of `lower_impl_method_body_expr`, so
+`lower_role_impl_method_binding` calls `push_registered_expr_error` instead of `finish_binding`.
+That records `BodyLoweringError::Expr` and calls `finish_failed_def`, whose only state transition is
+`SccInput::DefFinished`. The module-map-created `Def::Let` therefore retains `body = None` and
+`scheme = None`; the registered root receives no lower bound from the rejected body; no binding
+fetch or computed runtime root is published. Ordinary SCC quantification subsequently compacts the
+unconnected positive root to Bottom (`Never`) and writes the scheme, producing the observed
+`never = <missing>`.
+
+There is no current poison or rollback function to reuse. Poison equivalence is the absence of the
+successful publications above, followed by the normal `DefFinished -> QuantifyComponent` path. An
+implementation must not overwrite the root with a fresh variable, manufacture `Unknown`, or add an
+explicit `Never` constraint. If other constraints legitimately reached the registered root before
+failure, the target is the exact state produced by the immediate path for the same input, not an
+unconditional syntactic `Never` scheme.
+
+#### Proposed transaction representation and APIs
+
+The pending conformance record should own a private, non-serialized, non-`Clone` transaction
+payload. An illustrative shape is:
+
+```rust
+struct ProvisionalBindingCommit {
+    def: DefId,
+    name: Name,
+    root: TypeVar,
+    computation: Computation,
+    connect_body: bool,
+    publish_runtime_root: bool,
+}
+
+enum PendingBindingState {
+    CapturedProvisional(ProvisionalBindingCommit),
+    RequirementAppliedAndCommitted,
+    RequirementFailedAndPoisoned,
+}
+```
+
+`publish_runtime_root` captures `!suppress_runtime_roots` at the original lowering site; it must not
+be recomputed later from whatever lowering mode happens to be active during the pending drain.
+Although `Computation` is currently `Copy`, the wrapper and pending-table API must enforce single
+consumption with `Option::take` or an equivalent state transition. Raw `TypeVar` and `ExprId`
+members remain same-session transport metadata and are never serialized or treated as logical
+conformance identities.
+
+The implementation boundary should split the current helper into three responsibilities:
+
+- an immediate wrapper which prepares and publishes the payload, then emits `DefFinished`,
+  preserving every existing non-deferred call site;
+- a provisional finish operation which validates the `Def::Let`, stores the payload in the pending
+  record, and emits the one `DefFinished` without publishing body/root/fetch/runtime state; and
+- a consuming commit operation which publishes body, body-to-root edge, fetch, and optional runtime
+  root but does not emit a second `DefFinished`.
+
+Deferred failure consumes and drops the payload, records the same `BodyLoweringError::Expr`, and
+does not call `push_registered_expr_error`, because the provisional finish already emitted the
+single `DefFinished`. A `Def::Let` validation failure is also terminal: record `NonLetDef`, discard
+the payload, and release the conformance blocker. Re-enqueuing `DefFinished` would be set-idempotent
+inside the SCC graph but would change lifecycle traces and obscure the one-transition invariant, so
+it is not part of the design.
+
+#### Component-atomic pending sequence
+
+For a targeted receiver method, the lowering and pending phases become:
+
+1. establish the public definition root and emit `RegisterDef` as today;
+2. emit `ConformancePending` before the definition can become ready;
+3. lower the body once, retaining its computation and completed receiver descriptor while emitting
+   all ordinary dependency/use work;
+4. install `ProvisionalBindingCommit` and emit the single `DefFinished`, without publishing its four
+   commit-only effects;
+5. at first ordinary quiescence, capture every pending member in the ready component before any
+   deferred requirement edge or binding commit is applied;
+6. consume each saved signature-lowering continuation in deterministic member order, resume the
+   body expected layer, apply the two body edges and final legacy metadata/check exactly once, and
+   use that legacy connection's `Result` as the transaction decision;
+7. on success, consume and publish the binding payload, including `DefFetchRecorded`; on failure,
+   consume and poison it by non-publication while recording the legacy diagnostic;
+8. drain all resulting constraint, fetch, selection, and SCC work while the conformance blocker is
+   still installed; and
+9. at the next quiescence, release every member blocker and allow the ordinary component
+   quantification path to run once.
+
+Actual-view capture availability and binding validity are separate. Section 8.4 still requires the
+legacy connection after a read-only capture returns `Unavailable`. If that connection succeeds, the
+binding commits even though the shadow view is unavailable; if it fails, the binding is poisoned.
+All member captures must precede both kinds of publication, including the body-to-root edge. The
+component need not roll all member bodies back when one member fails: immediate semantics reject
+definitions individually. However, commits and failures must occur only after the component-wide
+capture batch, and their deterministic ordering needs a witness because legacy connection attempts
+can themselves add monotonic constraints before returning.
+
+#### Mutual recursion, component merge, and downstream visibility
+
+The registered definition root remains the sole root used by `OpenUse`, so no second typing identity
+is introduced. A provisional method may refer to ordinary or provisional peers during body
+lowering, and those use edges still discover cycles and merge components. Component merge unions
+the existing conformance-pending sets. A peer referring to the provisional method sees the open
+public root, never a provisional scheme:
+
+- successful commit adds the saved body value as a lower bound of that root before blocker release,
+  so the bound propagates to every open use before joint quantification;
+- failed commit omits that lower bound, just as the immediate error path does, so peers see only the
+  constraints which could also have reached the failed registered root in the immediate execution;
+  and
+- no component member can observe a finalized scheme until every merged pending member has settled
+  and released its blocker.
+
+An incoming component which depends on the pending component remains behind its ordinary outgoing
+SCC edge until the target component quantifies. An already-merged mutually recursive ordinary
+binding is marked finished normally but cannot cause joint quantification while the conformance set
+is non-empty. `DefFetchRecorded` is delayed only until successful commit: recording it before
+release re-runs computed-fetch-cycle detection on the already-merged component and establishes the
+correct value-restriction boundary before generalization. On failure it remains absent, matching
+the current default `FetchValue` behavior for failed definitions.
+
+This solves scheme visibility through the SCC/instantiate path. It does not by itself resolve point
+9: a transient role candidate may have visibility outside ordinary scheme instantiation. Slice 4c
+must retain that question as an independent fail-closed blast-radius condition.
+
+#### Section 16 audit and boundedness
+
+This proposal adds no inference fixed point. Each targeted definition has one of the following
+finite paths, with no retry on capture or connection failure:
+
+```text
+CapturedProvisional -> RequirementAppliedAndCommitted -> Released
+CapturedProvisional -> RequirementFailedAndPoisoned  -> Released
+```
+
+Component merge cannot reset a member state. The implementation must count provisional creation,
+payload consumption, commit/poison, legacy edge application, and blocker release, and assert an
+upper bound of one for each per method. It uses the existing single drain scheduler and the existing
+single production quantification pass.
+
+The saved body-to-root constraint is one delayed legacy edge, not a reversible constraint or a
+protected variable. No provisional flag may be exposed to unification, floor, co-occurrence,
+polarity simplification, or generalization; no rigid set, blocked pair, through marker, provenance
+subtraction, or constraint rollback is allowed. If correctness appears to require a simplifier to
+inspect provisional state, this design has failed and implementation must stop. Detached poly
+expression nodes allocated while lowering a subsequently poisoned body are not made reachable
+through `Def::Let.body` or a computed runtime root; exact arena/dump parity with the immediate error
+path remains a required witness rather than an assumed property.
+
+#### Size, risk, and required implementation slices
+
+The total implementation is **L-XL, risk very high**, larger than the original Slice 4c estimate.
+It changes the meaning boundary of `finish_binding`, pending orchestration, fetch timing, and
+failure publication even though it must leave immediate call sites unchanged. Implement it only as
+the following separately reviewed slices:
+
+1. **Slice 4c-T1: structural binding-publication split (size S-M, risk medium).** Introduce the
+   payload and commit helper, but have every production call prepare and commit immediately. Prove
+   body, root bounds, fetch, runtime roots, `DefFinished`, scheme, diagnostics, and std totals are
+   unchanged.
+2. **Slice 4c-T2: inactive provisional transaction (size M, risk high).** Construct and consume the
+   payload behind a test-only/inactive receiver path. Prove success publishes all four effects once,
+   failure publishes none, and both paths emit exactly one `DefFinished`. Include computed-fetch and
+   suppressed-runtime-root cases.
+3. **Slice 4c-T3: zero-tail receiver activation (size M-L, risk very high).** Integrate the payload
+   with component-atomic capture, saved continuation consumption, settle, and release. Fix the
+   `Build` fixture against the immediate baseline and cover valid result annotations, pure/effect
+   result anchors allowed by the existing blast radius, capture failure, connection failure, and
+   internal descriptor failure.
+4. **Slice 4c-T4: recursion and publication parity (size M-L, risk very high).** Cover receiverless
+   plus receiver members in one component, a provisional receiver mutually recursive with an
+   ordinary binding, component merge after use resolution, one success plus one poisoned member,
+   computed-fetch-cycle diagnostics, candidate/selection/diagnostic parity, bodyless counts,
+   schemes, runtime IR, and repository std totals.
+
+Several details remain **to be verified**, not assumed: whether every deferred connection failure
+class leaves the same partial anchor constraints as the immediate call order; whether detached
+expression/local-definition arena entries are byte-for-byte or only reachability-equivalent on
+failure; and whether candidate visibility in point 9 can observe a pending definition outside SCC
+scheme instantiation. Any mismatch in these witnesses pauses activation before the next slice. Slice
+4c remains paused until at least T1-T3 are separately implemented and reviewed; multiple-tail
+receiver activation remains Slice 4d and must not be folded into this transaction work.
+
 Slice 0 status update: point 3 is resolved as mutating for effect-bearing `U/A` and non-mutating only
 for the characterized plain value-position cases. It remains numbered here as the historical
 question that motivated the Slice 1 revision in section 5.1.1; it is no longer an open decision.
@@ -917,3 +1158,12 @@ This signature approves the document as a reference specification only. It does 
 any implementation slice; §12's slices, beginning with Slice 0, each require a separate go-ahead
 given the very-high risk rating and the component-quantification machinery's incident history in
 this repository (`label_sub.sub`, `once`).
+
+Reviewed and signed (addendum): Claude Sonnet 5, 2026-07-13. Section 13.1's provisional binding
+transaction design is sound as specified: keeping `DefFinished` immediate while deferring only
+body/root-edge/fetch/runtime-root publication avoids the self-deadlock a naive reading of point 10
+direction (a) would cause, and reusing the existing Bottom-compaction behavior for the failure case
+(rather than inventing a new poison mechanism) keeps the change narrowly scoped. This signature
+approves the section as a reference design only. Slice 4c-T1 (structural binding-publication split,
+size S-M, risk medium) may proceed as the next implementation step under the same review discipline
+as every prior slice; T2-T4 each still require their own review before implementation.
