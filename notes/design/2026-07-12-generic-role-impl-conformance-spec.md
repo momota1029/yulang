@@ -624,6 +624,79 @@ No-heavy-fixpoint rule:
 Exit: all known malformed explicit impls are rejected in shadow, representative std impls pass, and
 no universal binder is rewritten.
 
+### Stage 3 addendum: exact-equivalence collapse (2026-07-13, Claude Sonnet 5 signature — design approval for this addendum's scope only)
+
+Stage 3's first-order relation (3a/3b/3a.5, receiver value+effect comparison) is implemented and lands
+the originally-motivating detection (explicit-bool-concrete-int and its effect analogue). However,
+Stage 3's own exit condition ("all known malformed explicit impls are rejected in shadow") is not yet
+met: 6 Stage 0 generic-associated fixtures (explicit-bool-universal-a, explicit-a-same-a,
+explicit-list-a-nested-binder, alpha-renamed-a/b, malformed-unused-impl) resolve to
+Unavailable(NonAtomicSurface) rather than a real verdict.
+
+Root cause (established via read-only investigation, cross-checked by execution after an initial
+hypothesis -- OrdinarySccBlocker -- was raised and refuted): the captured actual-value compact surface
+for these fixtures contains multiple raw TypeVar components (e.g. v27 | v13 for explicit-a-same-a)
+that the constraint machine has already proven exactly equivalent (bidirectional, unweighted
+subtyping), but which compact merge does not collapse to one id. ActualFirstOrderNormalizer's
+single-alternative rule then conservatively refuses to interpret the surface. Naively picking either
+raw survivor is unsafe: only one of the two (v13, via the U/A bridge) resolves to the semantically
+meaningful U0 identity -- the other (v27, a fresh accessor-instantiation variable) would misclassify
+as an unrelated Qm0 method-local quantifier if chosen. This is the same underlying gap previously
+flagged as the Qm-identity-collision risk (independent value/effect normalizers assigning colliding
+Qm ids).
+
+Design (Codex gpt-5.6-sol investigation and proposal, Claude review and decision):
+
+- Exact-equivalence rule: a -> b iff a has a projected upper bound Neg::Var(b) with empty
+  ConstraintWeights (unweighted); the class of a variable is its strongly-connected component in this
+  directed, empty-weight, variable-only graph (bounded single-pass computation, no
+  simplify-until-stable loop -- consistent with Section 16's no-heavy-fixpoint rule). Collapse to one
+  ConformanceTypeView is permitted only when every substantive component is a raw, unweighted
+  CompactVar and all remaining variables (after root-anchor exclusion) belong to the same exact class.
+  Same-shape, same-origin, one-way subtyping, or "one member has a bridge entry" are explicitly
+  insufficient and must not be used as substitutes.
+- Bridge preference: zero bridge identities in a class -> allocate one Qm keyed by the class; exactly
+  one distinct identity -> use it for the whole class; more than one distinct identity -> fail closed
+  (do not silently unify two different declared binders even if the solver proves their variables
+  equal) -- surfaced as an Unavailable/Ambiguous reason, not silently resolved.
+- Scope includes closing the Qm-identity-collision gap: a per-method binder context shared across a
+  method's value and effect actual surfaces (not just within one surface), so two independently
+  processed surfaces cannot each land on a colliding Qm0 for genuinely different zero-bridge classes.
+- No production `compact`/`constraints`/`generalize`/`poly` module changes are required -- all
+  necessary evidence (`bounds().of()`, `projection_uppers/lowers()`, weight emptiness) is already
+  exposed read-only from `&ConstraintMachine`.
+
+Decisions (Claude, 2026-07-13):
+
+- The new equivalence-class resolution and collapse logic must stay `#[cfg(test)]`-gated, matching
+  every other Stage 3 slice landed today, even though the pre-existing capture functions it extends
+  (`ActualFirstOrderNormalizer`, `capture_*_actual_view`) are already production-compiled as part of
+  Stage 2 Slice 6's handoff. Zero *new* production-compiled surface for this addendum.
+- The shared per-method Qm-identity context is in scope for this addendum, not deferred -- leaving it
+  out would not actually close the Qm-collision gap this addendum exists to close.
+- Remaining lower-stakes open points (whether `projection_*` evidence-only entries remain admissible
+  equality proof under enforcement, the exact Unavailable-reason naming, deterministic
+  value-before-effect Qm numbering order) are Stage 5-enforcement-time questions, not blocking for
+  this shadow-mode addendum.
+
+Size: S-M to M. Risk: medium to medium-high (identity soundness -- an overly broad equivalence rule
+could turn a real mismatch into false Conforms; shadow-only deployment limits exposure while this
+settles).
+
+Slices (each independently shadow/std-verified, following this project's established pattern):
+
+- EQ1 (characterization, S/low): expose the exact-equivalence classes for the diagnosed fixtures; add
+  one-way/weighted/multi-bridge/cross-surface-Qm witnesses fixing today's (wrong) behavior as a
+  baseline.
+- EQ2 (structural split, S-M/low, behavior-preserving): separate actual-surface shape projection from
+  binder-identity resolution inside the existing normalizer without changing any output.
+- EQ3 (shared Qm context, S-M/medium): introduce the per-method binder registry shared across a
+  receiver method's value/effect surfaces; verify two genuinely-distinct zero-bridge classes remain
+  distinct.
+- EQ4 (exact-class collapse activation, S-M/medium-high): activate SCC-based collapse and bridge
+  preference; the 6 Stage 0 fixtures move from Unavailable to their correct Conforms/Mismatch
+  verdicts.
+
 ### Stage 4: prerequisite/effect/cast closure
 
 Size: M-L. Risk: high.
