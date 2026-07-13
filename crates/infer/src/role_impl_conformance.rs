@@ -664,13 +664,8 @@ pub(crate) enum RoleImplMethodActualSurface {
     Receiver(ActualReceiverMethodConformanceView),
 }
 
-/// Stage 3 shadow classification. Slice 3a only classifies capture availability; `Mismatch`
-/// becomes reachable when Slice 3b adds the pure structural relation.
+/// Stage 3 shadow classification over aligned declared/actual first-order surfaces.
 #[cfg(test)]
-#[allow(
-    dead_code,
-    reason = "Mismatch is produced by the later Slice 3b relation"
-)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ShadowConformanceOutcome {
     Conforms,
@@ -728,12 +723,17 @@ fn classify_shadow_conformance_pair(
     if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_))) {
         return ShadowConformanceOutcome::Ambiguous;
     }
-    debug_assert!(matches!(
-        declared,
-        Some(view::DeclaredTypeView::Available(_))
-    ));
-    debug_assert!(actual.is_some_and(actual_surface_is_available));
-    ShadowConformanceOutcome::Conforms
+    let Some(view::DeclaredTypeView::Available(requirement)) = declared else {
+        unreachable!("capture-state classification exhausted every declared view")
+    };
+    let actual = actual
+        .and_then(actual_surface_value)
+        .expect("capture-state classification established an available actual view");
+    if view::first_order_conforms(actual, requirement) {
+        ShadowConformanceOutcome::Conforms
+    } else {
+        ShadowConformanceOutcome::Mismatch
+    }
 }
 
 #[cfg(test)]
@@ -743,17 +743,29 @@ fn actual_surface_is_unavailable(surface: &RoleImplMethodActualSurface) -> bool 
 
 #[cfg(test)]
 fn actual_surface_is_available(surface: &RoleImplMethodActualSurface) -> bool {
+    actual_surface_value(surface).is_some()
+}
+
+#[cfg(test)]
+/// Slice 3b compares the first-order method value. A receiver effect must have been captured, but
+/// its relation remains outside this value-only kernel.
+fn actual_surface_value(
+    surface: &RoleImplMethodActualSurface,
+) -> Option<&view::ConformanceTypeView> {
     match surface {
-        RoleImplMethodActualSurface::Receiverless(view) => {
-            matches!(view, ActualMethodConformanceView::Available(_))
+        RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Available(
+            value,
+        )) => Some(value),
+        RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Unavailable(_)) => {
+            None
         }
-        RoleImplMethodActualSurface::Receiver(view) => matches!(
-            (&view.value, &view.effect),
+        RoleImplMethodActualSurface::Receiver(view) => match (&view.value, &view.effect) {
             (
+                ActualMethodConformanceView::Available(value),
                 ActualMethodConformanceView::Available(_),
-                ActualMethodConformanceView::Available(_),
-            )
-        ),
+            ) => Some(value),
+            _ => None,
+        },
     }
 }
 
@@ -1095,7 +1107,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn slice3a_shadow_classifier_only_observes_capture_state() {
+    fn slice3b_shadow_classifier_preserves_capture_priority_and_compares_available_views() {
         use poly::types::BuiltinType;
 
         use super::view::{
@@ -1163,8 +1175,8 @@ mod tests {
                 Some(&declared_available),
                 Some(&actual_available),
             ),
-            ShadowConformanceOutcome::Conforms,
-            "Slice 3a deliberately does not compare the structurally different int/bool views",
+            ShadowConformanceOutcome::Mismatch,
+            "Slice 3b owns the structural comparison deliberately deferred by Slice 3a",
         );
     }
 

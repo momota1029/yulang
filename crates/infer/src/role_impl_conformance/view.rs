@@ -92,6 +92,80 @@ pub(crate) enum ConformanceTypeView {
     Tuple(Vec<ConformanceTypeView>),
 }
 
+/// Pure first-order implementation-to-requirement relation for the Stage 3 shadow kernel.
+/// Binder ids are interpreted inside the pair's owning contract; no solver identity participates.
+#[cfg(test)]
+pub(crate) fn first_order_conforms(
+    implementation: &ConformanceTypeView,
+    requirement: &ConformanceTypeView,
+) -> bool {
+    match (implementation, requirement) {
+        (ConformanceTypeView::Bottom, _) | (_, ConformanceTypeView::Top) => true,
+        (ConformanceTypeView::Binder(left), ConformanceTypeView::Binder(right)) => left == right,
+        (ConformanceTypeView::Builtin(left), ConformanceTypeView::Builtin(right)) => left == right,
+        (
+            ConformanceTypeView::Nominal {
+                path: left_path,
+                args: left_args,
+            },
+            ConformanceTypeView::Nominal {
+                path: right_path,
+                args: right_args,
+            },
+        ) => {
+            left_path == right_path
+                && left_args.len() == right_args.len()
+                && left_args
+                    .iter()
+                    .zip(right_args)
+                    .all(|(left, right)| first_order_invariantly_equal(left, right))
+        }
+        (ConformanceTypeView::Tuple(left), ConformanceTypeView::Tuple(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| first_order_conforms(left, right))
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+fn first_order_invariantly_equal(left: &ConformanceTypeView, right: &ConformanceTypeView) -> bool {
+    match (left, right) {
+        (ConformanceTypeView::Top, ConformanceTypeView::Top)
+        | (ConformanceTypeView::Bottom, ConformanceTypeView::Bottom) => true,
+        (ConformanceTypeView::Binder(left), ConformanceTypeView::Binder(right)) => left == right,
+        (ConformanceTypeView::Builtin(left), ConformanceTypeView::Builtin(right)) => left == right,
+        (
+            ConformanceTypeView::Nominal {
+                path: left_path,
+                args: left_args,
+            },
+            ConformanceTypeView::Nominal {
+                path: right_path,
+                args: right_args,
+            },
+        ) => {
+            left_path == right_path
+                && left_args.len() == right_args.len()
+                && left_args
+                    .iter()
+                    .zip(right_args)
+                    .all(|(left, right)| first_order_invariantly_equal(left, right))
+        }
+        (ConformanceTypeView::Tuple(left), ConformanceTypeView::Tuple(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| first_order_invariantly_equal(left, right))
+        }
+        _ => false,
+    }
+}
+
 /// Slice 3's immutable first-order actual-side shadow. It intentionally stops before functions,
 /// rows, recursive bounds, and non-exact interval arguments; those shapes remain structured
 /// `Unavailable` until the later actual-view handoff slice.
@@ -738,4 +812,209 @@ impl DeclaredTypeViewSequence {
 
 fn available(value: ConformanceTypeView) -> DeclaredTypeView {
     DeclaredTypeView::Available(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct FirstOrderRelationFixture {
+        name: &'static str,
+        implementation: ConformanceTypeView,
+        requirement: ConformanceTypeView,
+        conforms: bool,
+    }
+
+    #[test]
+    fn slice3b_first_order_relation_covers_lattice_binders_builtins_nominals_and_tuples() {
+        let builtin = ConformanceTypeView::Builtin;
+        let binder = ConformanceTypeView::Binder;
+        let u0 = binder(ConformanceBinder::Universal(ImplUniversalBinderId(0)));
+        let u1 = binder(ConformanceBinder::Universal(ImplUniversalBinderId(1)));
+        let a0 = binder(ConformanceBinder::InferredAssociated(
+            AssociatedInferenceBinderId(0),
+        ));
+        let a1 = binder(ConformanceBinder::InferredAssociated(
+            AssociatedInferenceBinderId(1),
+        ));
+        let q0 = binder(ConformanceBinder::MethodQuantifier(0));
+        let q1 = binder(ConformanceBinder::MethodQuantifier(1));
+        let r0 = binder(ConformanceBinder::MethodRecursive(0));
+        let r1 = binder(ConformanceBinder::MethodRecursive(1));
+        let list = |arg| ConformanceTypeView::Nominal {
+            path: vec!["std".into(), "list".into()],
+            args: vec![arg],
+        };
+        let option = |arg| ConformanceTypeView::Nominal {
+            path: vec!["std".into(), "option".into()],
+            args: vec![arg],
+        };
+        let fixtures = vec![
+            FirstOrderRelationFixture {
+                name: "bottom-conforms-to-every-requirement",
+                implementation: ConformanceTypeView::Bottom,
+                requirement: builtin(BuiltinType::Bool),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "every-implementation-conforms-to-top",
+                implementation: builtin(BuiltinType::Int),
+                requirement: ConformanceTypeView::Top,
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "top-does-not-conform-to-concrete-requirement",
+                implementation: ConformanceTypeView::Top,
+                requirement: builtin(BuiltinType::Int),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "same-builtin",
+                implementation: builtin(BuiltinType::Int),
+                requirement: builtin(BuiltinType::Int),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "different-builtin",
+                implementation: builtin(BuiltinType::Int),
+                requirement: builtin(BuiltinType::Bool),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "same-explicit-associated-universal",
+                implementation: u0.clone(),
+                requirement: u0.clone(),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "different-universal-id",
+                implementation: u0.clone(),
+                requirement: u1,
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "different-inferred-associated-id",
+                implementation: a0.clone(),
+                requirement: a1,
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "universal-does-not-match-inferred-associated",
+                implementation: u0.clone(),
+                requirement: a0.clone(),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "same-method-quantifier",
+                implementation: q0.clone(),
+                requirement: q0.clone(),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "different-method-quantifier-id",
+                implementation: q0.clone(),
+                requirement: q1,
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "same-method-recursive-binder",
+                implementation: r0.clone(),
+                requirement: r0.clone(),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "different-method-recursive-id",
+                implementation: r0,
+                requirement: r1,
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "universal-does-not-match-method-quantifier",
+                implementation: u0,
+                requirement: q0,
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "inferred-associated-does-not-match-method-recursive",
+                implementation: a0,
+                requirement: binder(ConformanceBinder::MethodRecursive(0)),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "same-nominal-and-invariant-argument",
+                implementation: list(builtin(BuiltinType::Int)),
+                requirement: list(builtin(BuiltinType::Int)),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "nominal-invariant-argument-differs",
+                implementation: list(builtin(BuiltinType::Int)),
+                requirement: list(builtin(BuiltinType::Bool)),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "nominal-canonical-path-differs",
+                implementation: list(builtin(BuiltinType::Int)),
+                requirement: option(builtin(BuiltinType::Int)),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "nominal-arity-differs",
+                implementation: list(builtin(BuiltinType::Int)),
+                requirement: ConformanceTypeView::Nominal {
+                    path: vec!["std".into(), "list".into()],
+                    args: vec![builtin(BuiltinType::Int), builtin(BuiltinType::Bool)],
+                },
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "nominal-argument-does-not-become-covariant",
+                implementation: list(ConformanceTypeView::Bottom),
+                requirement: list(ConformanceTypeView::Top),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "tuple-arity-differs",
+                implementation: ConformanceTypeView::Tuple(vec![builtin(BuiltinType::Int)]),
+                requirement: ConformanceTypeView::Tuple(vec![
+                    builtin(BuiltinType::Int),
+                    builtin(BuiltinType::Bool),
+                ]),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "tuple-elements-compare-covariantly",
+                implementation: ConformanceTypeView::Tuple(vec![ConformanceTypeView::Bottom]),
+                requirement: ConformanceTypeView::Tuple(vec![builtin(BuiltinType::Int)]),
+                conforms: true,
+            },
+            FirstOrderRelationFixture {
+                name: "tuple-element-differs",
+                implementation: ConformanceTypeView::Tuple(vec![builtin(BuiltinType::Int)]),
+                requirement: ConformanceTypeView::Tuple(vec![builtin(BuiltinType::Bool)]),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "different-structural-shapes",
+                implementation: builtin(BuiltinType::Int),
+                requirement: ConformanceTypeView::Tuple(vec![builtin(BuiltinType::Int)]),
+                conforms: false,
+            },
+            FirstOrderRelationFixture {
+                name: "unknown-is-not-a-conformance-witness",
+                implementation: ConformanceTypeView::Unknown,
+                requirement: ConformanceTypeView::Unknown,
+                conforms: false,
+            },
+        ];
+
+        for fixture in fixtures {
+            assert_eq!(
+                first_order_conforms(&fixture.implementation, &fixture.requirement),
+                fixture.conforms,
+                "fixture: {}",
+                fixture.name,
+            );
+        }
+    }
 }

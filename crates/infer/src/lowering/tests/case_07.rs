@@ -120,8 +120,16 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
 }
 
 #[test]
-fn generic_role_impl_conformance_stage3_slice3a_does_not_compare_available_pair() {
-    let source = concat!(
+fn generic_role_impl_conformance_stage3_slice3b_compares_available_builtin_pairs() {
+    let conforms = concat!(
+        "role Make 'subject:\n",
+        "  type output\n",
+        "  our make: output\n",
+        "impl Make int:\n",
+        "  type output = int\n",
+        "  our make = 1\n",
+    );
+    let mismatch = concat!(
         "role Make 'subject:\n",
         "  type output\n",
         "  our make: output\n",
@@ -131,9 +139,54 @@ fn generic_role_impl_conformance_stage3_slice3a_does_not_compare_available_pair(
     );
 
     assert_eq!(
-        shadow_conformance_pair_dump(source),
+        shadow_conformance_pair_dump(conforms),
         "contract=0 role=Make method=make impl=explicit declared=available actual=available outcome=Conforms",
     );
+    assert_eq!(
+        shadow_conformance_pair_dump(mismatch),
+        "contract=0 role=Make method=make impl=explicit declared=available actual=available outcome=Mismatch",
+        "Slice 3a intentionally deferred this int/bool comparison to Slice 3b",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_slice3b_matches_same_contract_universal_binder() {
+    use crate::role_impl_conformance::ActualMethodConformanceView;
+    use crate::role_impl_conformance::view::{DeclaredAssociatedView, DeclaredTypeView};
+
+    let source = concat!(
+        "role Same 'subject:\n",
+        "  type output\n",
+        "  our x.same: output\n",
+        "impl 'a: Same:\n",
+        "  type output = 'a\n",
+        "  our x.same = x\n",
+    );
+    let (output, member) = lower_receiver_conformance_shadow(source, true, false, false);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source conformance contract")
+    };
+    let declared = contract.declared_view(&output.modules);
+    let [
+        DeclaredAssociatedView::Explicit {
+            value: DeclaredTypeView::Available(requirement),
+            ..
+        },
+    ] = declared.associated.as_slice()
+    else {
+        panic!("expected explicit first-order associated view: {declared:?}")
+    };
+    let ActualMethodConformanceView::Available(actual) =
+        &persisted_receiver_actual_view(&output, member).value
+    else {
+        panic!("expected available receiver value handoff")
+    };
+
+    assert_eq!(actual, requirement, "both views should name contract U0");
+    assert!(crate::role_impl_conformance::view::first_order_conforms(
+        actual,
+        requirement,
+    ));
 }
 
 #[test]
