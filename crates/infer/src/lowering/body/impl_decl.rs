@@ -237,6 +237,7 @@ impl BodyLowerer {
                                 .def_source_range(method.def)
                                 .unwrap_or_else(|| contract_source.clone()),
                             order: method.order.index(),
+                            residual_prerequisites: None,
                         },
                     )
                     .collect::<Vec<_>>()

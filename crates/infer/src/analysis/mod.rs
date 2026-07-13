@@ -124,6 +124,8 @@ pub struct AnalysisSession {
     role_impl_member_sets: FxHashMap<DefId, Vec<DefId>>,
     role_impl_member_simplifications: FxHashMap<DefId, Vec<CompactSimplification>>,
     role_impl_member_projections: FxHashMap<DefId, CompactRoot>,
+    role_impl_member_residual_prerequisites:
+        FxHashMap<DefId, crate::role_impl_conformance::RoleImplMethodResidualPrerequisites>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
     cache_interface_applied_subtype_constraints: FxHashSet<CompactSubtypeConstraintKey>,

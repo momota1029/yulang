@@ -108,15 +108,42 @@ impl AnalysisSession {
             );
         }
         let mut prerequisites = Vec::new();
+        let mut residual_prerequisites = Vec::new();
         for role in &role_predicates {
             let prerequisite = self.finalize_compact_role_constraint(role);
             let vars = prerequisite.raw_vars(self.infer.constraints().types());
             if vars.iter().any(|var| !quantifiers.contains(var)) {
                 prerequisites.push(prerequisite);
+                residual_prerequisites.push(role.clone());
             }
         }
+        let previous = self.role_impl_member_residual_prerequisites.insert(
+            def,
+            crate::role_impl_conformance::RoleImplMethodResidualPrerequisites::new(
+                impl_def,
+                prerequisites.clone(),
+                residual_prerequisites,
+            ),
+        );
+        debug_assert!(
+            previous.is_none(),
+            "a role impl method residual must be captured once before candidate merge"
+        );
         self.role_impls
             .extend_prerequisites_for_impl(impl_def, prerequisites);
+    }
+
+    pub(crate) fn take_role_impl_member_residual_prerequisites(
+        &mut self,
+    ) -> Vec<(
+        DefId,
+        crate::role_impl_conformance::RoleImplMethodResidualPrerequisites,
+    )> {
+        let mut captures = std::mem::take(&mut self.role_impl_member_residual_prerequisites)
+            .into_iter()
+            .collect::<Vec<_>>();
+        captures.sort_by_key(|(member, _)| member.0);
+        captures
     }
 
     /// Copy solved role impl candidates from inference arena types into final poly types.

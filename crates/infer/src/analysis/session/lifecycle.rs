@@ -30,6 +30,7 @@ impl AnalysisSession {
             role_impl_member_sets: FxHashMap::default(),
             role_impl_member_simplifications: FxHashMap::default(),
             role_impl_member_projections: FxHashMap::default(),
+            role_impl_member_residual_prerequisites: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             cache_interface_applied_merge_constraints: FxHashSet::default(),
             cache_interface_applied_subtype_constraints: FxHashSet::default(),

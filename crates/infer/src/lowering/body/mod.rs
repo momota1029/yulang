@@ -1355,7 +1355,21 @@ impl BodyLowerer {
         lowerer
     }
 
-    pub(super) fn finish(self) -> BodyLowering {
+    pub(super) fn finish(mut self) -> BodyLowering {
+        for (member, residual) in self.session.take_role_impl_member_residual_prerequisites() {
+            let Some(contract) = self
+                .role_impl_conformance_contracts
+                .iter_mut()
+                .find(|contract| contract.impl_def == residual.impl_def())
+            else {
+                continue;
+            };
+            let handed_off = contract.handoff_method_residual_prerequisites(member, residual);
+            debug_assert!(
+                handed_off,
+                "a captured source method residual must belong to its unique contract"
+            );
+        }
         let mut session = self.session;
         session.finalize_poly_role_impls();
         let analysis_timing = session.timing();

@@ -136,6 +136,47 @@ impl RoleImplConformanceContract {
         view::build_declared_role_impl_view(self, modules)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn residual_prerequisites_view(
+        &self,
+        machine: &crate::constraints::ConstraintMachine,
+    ) -> Vec<view::RoleImplMethodResidualPrerequisitesView> {
+        view::build_role_impl_method_residual_prerequisites_view(self, machine)
+    }
+
+    /// Move one ordinary-generalization residual into its source method contract. This is a
+    /// one-shot handoff after capture and does not participate in pending conformance or SCC state.
+    pub(crate) fn handoff_method_residual_prerequisites(
+        &mut self,
+        implementation: DefId,
+        residual: RoleImplMethodResidualPrerequisites,
+    ) -> bool {
+        let mut handed_off = false;
+        for method in &mut self.methods {
+            let RoleImplMethodProvision::Explicit { implementations } = &mut method.provision
+            else {
+                continue;
+            };
+            for candidate in implementations {
+                if candidate.def != implementation {
+                    continue;
+                }
+                debug_assert!(candidate.residual_prerequisites.is_none());
+                candidate.residual_prerequisites = Some(residual.clone());
+                handed_off = true;
+            }
+        }
+        for candidate in &mut self.unmatched_implementations {
+            if candidate.def != implementation {
+                continue;
+            }
+            debug_assert!(candidate.residual_prerequisites.is_none());
+            candidate.residual_prerequisites = Some(residual.clone());
+            handed_off = true;
+        }
+        handed_off
+    }
+
     /// Move one settled pending snapshot into the source contract before the SCC blocker is
     /// released. The snapshot is immutable same-unit output; it is never serialized or read by
     /// the production lowering path in Stage 2.
@@ -672,6 +713,49 @@ pub(crate) struct RoleImplMethodImplementation {
     pub(crate) name: String,
     pub(crate) source: SourceRange,
     pub(crate) order: u32,
+    pub(crate) residual_prerequisites: Option<RoleImplMethodResidualPrerequisites>,
+}
+
+/// Member-owned residual role predicates captured after ordinary generalization has applied its
+/// simplifications and quantifier filter, but before candidate prerequisite aggregation.
+/// `prerequisites` is the exact finalized vector passed to the existing merge. Its compact sibling
+/// is captured in lockstep because arena ids still carry same-session variables rather than U/A
+/// identity; the normalized view projects that immutable structural adapter through the bridge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodResidualPrerequisites {
+    impl_def: DefId,
+    prerequisites: Vec<crate::roles::RoleConstraint>,
+    compact_prerequisites: Vec<crate::compact::CompactRoleConstraint>,
+}
+
+impl RoleImplMethodResidualPrerequisites {
+    pub(crate) fn new(
+        impl_def: DefId,
+        prerequisites: Vec<crate::roles::RoleConstraint>,
+        compact_prerequisites: Vec<crate::compact::CompactRoleConstraint>,
+    ) -> Self {
+        debug_assert_eq!(prerequisites.len(), compact_prerequisites.len());
+        debug_assert!(
+            prerequisites
+                .iter()
+                .zip(&compact_prerequisites)
+                .all(|(finalized, compact)| finalized.role == compact.role)
+        );
+        Self {
+            impl_def,
+            prerequisites,
+            compact_prerequisites,
+        }
+    }
+
+    pub(crate) fn impl_def(&self) -> DefId {
+        self.impl_def
+    }
+
+    fn compact_prerequisites(&self) -> &[crate::compact::CompactRoleConstraint] {
+        debug_assert_eq!(self.prerequisites.len(), self.compact_prerequisites.len());
+        &self.compact_prerequisites
+    }
 }
 
 /// Immutable actual-side handoff for one explicit source method.

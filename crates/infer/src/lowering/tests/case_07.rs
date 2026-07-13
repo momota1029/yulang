@@ -828,6 +828,117 @@ fn generic_role_impl_conformance_stage4_p0a_ignores_method_body_where_and_normal
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_p0d_captures_empty_method_residual() {
+    let source = concat!(
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl int: Box:\n",
+        "  our x.get = ()\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source role impl contract")
+    };
+    let residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+    let [method] = residuals.as_slice() else {
+        panic!("expected one captured method residual, got {residuals:?}")
+    };
+    assert_eq!(method.method_name, "get");
+    assert!(method.prerequisites.is_empty());
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p0d_captures_body_role_with_u_binder() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView,
+        RoleImplMethodResidualPredicateView,
+    };
+
+    let source = concat!(
+        "role Eq 'subject:\n",
+        "  our x.eq: unit\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  our x.get = x.eq\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source role impl contract")
+    };
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    let residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+    let [method] = residuals.as_slice() else {
+        panic!("expected one captured method residual, got {residuals:?}")
+    };
+    assert_eq!(
+        method.prerequisites,
+        vec![RoleImplMethodResidualPredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![ActualMethodConformanceView::Available(
+                ConformanceTypeView::Binder(u0),
+            )],
+        }],
+        "{contract:#?}",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p0d_separates_advertised_ord_from_body_eq() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView,
+        DeclaredRolePredicateView, DeclaredTypeView, RoleImplMethodResidualPredicateView,
+    };
+
+    let source = concat!(
+        "role Ord 'subject:\n",
+        "  our x.ord: unit\n",
+        "role Eq 'subject:\n",
+        "  our x.eq: unit\n",
+        "impl 'a: Eq:\n",
+        "  our x.eq = x.ord\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  where 'a: Ord\n",
+        "  our x.get = x.eq\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let contract = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find(|contract| contract.role == ["Box".to_string()])
+        .expect("expected Box source role impl contract");
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    assert_eq!(
+        contract
+            .declared_view(&output.modules)
+            .advertised_prerequisites,
+        vec![DeclaredRolePredicateView {
+            role: vec!["Ord".into()],
+            inputs: vec![DeclaredTypeView::Available(ConformanceTypeView::Binder(u0))],
+        }],
+    );
+
+    let residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+    let [method] = residuals.as_slice() else {
+        panic!("expected one Box method residual, got {residuals:?}")
+    };
+    assert_eq!(
+        method.prerequisites,
+        vec![RoleImplMethodResidualPredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![ActualMethodConformanceView::Available(
+                ConformanceTypeView::Binder(u0),
+            )],
+        }],
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage4_obs_final_prerequisites_lose_predicate_provenance() {
     let prelude = concat!(
         "role Ord 'a:\n",

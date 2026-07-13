@@ -4,6 +4,7 @@
 //! recursive bounds are unfolded once and retain Rm back-references; unsupported higher-order
 //! structure stays explicit rather than re-entering the solver.
 
+use poly::expr::DefId;
 #[cfg(test)]
 use poly::types::Neg;
 use poly::types::{BuiltinType, TypeVar};
@@ -18,7 +19,8 @@ use super::{
 use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
 use crate::compact::{
-    CompactBounds, CompactRecursiveVar, CompactRoot, CompactType, CompactVar, compact_type_var,
+    CompactBounds, CompactRecursiveVar, CompactRoleArg, CompactRoleArgPolarity, CompactRoot,
+    CompactType, CompactVar, compact_type_var,
 };
 use crate::constraints::ConstraintMachine;
 use crate::{ModuleTable, TypeDeclId};
@@ -37,6 +39,19 @@ pub(crate) struct DeclaredRoleImplView {
 pub(crate) struct DeclaredRolePredicateView {
     pub(crate) role: Vec<String>,
     pub(crate) inputs: Vec<DeclaredTypeView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodResidualPrerequisitesView {
+    pub(crate) method_name: String,
+    pub(crate) implementation: DefId,
+    pub(crate) prerequisites: Vec<RoleImplMethodResidualPredicateView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodResidualPredicateView {
+    pub(crate) role: Vec<String>,
+    pub(crate) inputs: Vec<ActualMethodConformanceView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -368,6 +383,99 @@ pub(super) fn build_declared_role_impl_view(
         associated_substitution,
         methods,
     }
+}
+
+pub(super) fn build_role_impl_method_residual_prerequisites_view(
+    contract: &RoleImplConformanceContract,
+    machine: &ConstraintMachine,
+) -> Vec<RoleImplMethodResidualPrerequisitesView> {
+    let mut implementations = contract
+        .methods
+        .iter()
+        .flat_map(|method| match &method.provision {
+            super::RoleImplMethodProvision::Explicit { implementations } => implementations
+                .iter()
+                .map(|implementation| (method.name.as_str(), implementation))
+                .collect::<Vec<_>>(),
+            super::RoleImplMethodProvision::Default { .. }
+            | super::RoleImplMethodProvision::Missing => Vec::new(),
+        })
+        .chain(
+            contract
+                .unmatched_implementations
+                .iter()
+                .map(|implementation| (implementation.name.as_str(), implementation)),
+        )
+        .collect::<Vec<_>>();
+    implementations.sort_by_key(|(_, implementation)| (implementation.order, implementation.def.0));
+    implementations.dedup_by_key(|(_, implementation)| implementation.def);
+
+    implementations
+        .into_iter()
+        .filter_map(|(method_name, implementation)| {
+            let residual = implementation.residual_prerequisites.as_ref()?;
+            Some(RoleImplMethodResidualPrerequisitesView {
+                method_name: method_name.to_string(),
+                implementation: implementation.def,
+                prerequisites: residual_role_predicate_views(contract, machine, residual),
+            })
+        })
+        .collect()
+}
+
+fn residual_role_predicate_views(
+    contract: &RoleImplConformanceContract,
+    machine: &ConstraintMachine,
+    residual: &super::RoleImplMethodResidualPrerequisites,
+) -> Vec<RoleImplMethodResidualPredicateView> {
+    let prerequisites = match &contract.binder_bridge {
+        Ok(bridge) => {
+            let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
+            let mut normalizer =
+                ActualFirstOrderNormalizer::new_for_bounds(&mut binder_identities, machine);
+            residual
+                .compact_prerequisites()
+                .iter()
+                .map(|prerequisite| RoleImplMethodResidualPredicateView {
+                    role: prerequisite.role.clone(),
+                    inputs: prerequisite
+                        .inputs
+                        .iter()
+                        .map(|input| match normalizer.role_arg_view(input) {
+                            Ok(view) => ActualMethodConformanceView::Available(view),
+                            Err(reason) => ActualMethodConformanceView::Unavailable(reason),
+                        })
+                        .collect(),
+                })
+                .collect::<Vec<_>>()
+        }
+        Err(reason) => residual
+            .compact_prerequisites()
+            .iter()
+            .map(|prerequisite| RoleImplMethodResidualPredicateView {
+                role: prerequisite.role.clone(),
+                inputs: prerequisite
+                    .inputs
+                    .iter()
+                    .map(|_| {
+                        ActualMethodConformanceView::Unavailable(
+                            ActualMethodConformanceViewUnavailable::MissingBinderBridge(
+                                reason.clone(),
+                            ),
+                        )
+                    })
+                    .collect(),
+            })
+            .collect::<Vec<_>>(),
+    };
+    let mut normalized = Vec::with_capacity(prerequisites.len());
+    for prerequisite in prerequisites {
+        if !normalized.contains(&prerequisite) {
+            normalized.push(prerequisite);
+        }
+    }
+    normalized.sort_by(|left, right| left.role.cmp(&right.role));
+    normalized
 }
 
 pub(super) fn receiver_result_is_first_order(
@@ -776,7 +884,7 @@ struct ExactEquivalenceNode {
 }
 
 struct ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
-    root_anchor: TypeVar,
+    root_anchor: Option<TypeVar>,
     binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
     recursive_order: Vec<TypeVar>,
     recursive_bounds: rustc_hash::FxHashMap<TypeVar, &'compact CompactBounds>,
@@ -831,7 +939,7 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
         recursive_vars: &'compact [CompactRecursiveVar],
     ) -> Self {
         Self {
-            root_anchor,
+            root_anchor: Some(root_anchor),
             binder_identities,
             recursive_order: recursive_vars.iter().map(|rec| rec.var).collect(),
             recursive_bounds: recursive_vars
@@ -851,13 +959,44 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
         recursive_vars: &'compact [CompactRecursiveVar],
     ) -> Self {
         Self {
-            root_anchor,
+            root_anchor: Some(root_anchor),
             binder_identities,
             recursive_order: recursive_vars.iter().map(|rec| rec.var).collect(),
             recursive_bounds: recursive_vars
                 .iter()
                 .map(|rec| (rec.var, &rec.bounds))
                 .collect(),
+            recursive_views: rustc_hash::FxHashMap::default(),
+            projecting_recursive_bounds: false,
+            exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
+        }
+    }
+
+    #[cfg(not(test))]
+    fn new_for_bounds(
+        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+        _machine: &'resolver ConstraintMachine,
+    ) -> Self {
+        Self {
+            root_anchor: None,
+            binder_identities,
+            recursive_order: Vec::new(),
+            recursive_bounds: rustc_hash::FxHashMap::default(),
+            recursive_views: rustc_hash::FxHashMap::default(),
+            projecting_recursive_bounds: false,
+        }
+    }
+
+    #[cfg(test)]
+    fn new_for_bounds(
+        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+        machine: &'resolver ConstraintMachine,
+    ) -> Self {
+        Self {
+            root_anchor: None,
+            binder_identities,
+            recursive_order: Vec::new(),
+            recursive_bounds: rustc_hash::FxHashMap::default(),
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
@@ -877,9 +1016,11 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             || !ty.poly_variants.is_empty()
             || !ty.tuples.is_empty()
             || !ty.rows.is_empty()
-            || ty.vars.iter().any(|var| var.var != self.root_anchor);
-        let view =
-            self.type_view_ignoring(ty, has_substantive_bound.then_some(self.root_anchor))?;
+            || ty.vars.iter().any(|var| Some(var.var) != self.root_anchor);
+        let view = self.type_view_ignoring(
+            ty,
+            has_substantive_bound.then_some(self.root_anchor).flatten(),
+        )?;
         self.project_recursive_bounds_once()?;
         Ok(view)
     }
@@ -1044,6 +1185,25 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
     ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
         let shape = project_actual_first_order_bounds_shape(bounds)?;
         self.resolve_bounds_shape(shape)
+    }
+
+    fn role_arg_view(
+        &mut self,
+        arg: &CompactRoleArg,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        match (&arg.polarity, &arg.bounds) {
+            (CompactRoleArgPolarity::Covariant, CompactBounds::Interval { lower, upper: _ }) => {
+                self.type_view(lower)
+            }
+            (
+                CompactRoleArgPolarity::Contravariant,
+                CompactBounds::Interval { lower: _, upper },
+            ) => self.type_view(upper),
+            (CompactRoleArgPolarity::Invariant, bounds)
+            | (CompactRoleArgPolarity::Covariant | CompactRoleArgPolarity::Contravariant, bounds) => {
+                self.bounds_view(bounds)
+            }
+        }
     }
 
     fn resolve_bounds_shape(
