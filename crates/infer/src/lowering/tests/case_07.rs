@@ -1176,12 +1176,13 @@ fn generic_role_impl_conformance_stage4_obs_weighted_effect_loses_subtract_scope
 }
 
 #[test]
-fn generic_role_impl_conformance_stage4_obs_recursive_bounds_are_shape_only() {
+fn generic_role_impl_conformance_stage4_r1_obs_root_recursive_bound_captures_one_level() {
     use crate::constraints::{ConstraintMachine, TypeLevel};
-    use crate::role_impl_conformance::view::{ConformanceTypeView, DeclaredTypeView};
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, DeclaredTypeView,
+    };
     use crate::role_impl_conformance::{
-        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        RoleImplConformanceBinderBridge,
+        ActualMethodConformanceView, RoleImplConformanceBinderBridge,
     };
 
     let declared = lower_conformance_fixture(concat!(
@@ -1198,10 +1199,8 @@ fn generic_role_impl_conformance_stage4_obs_recursive_bounds_are_shape_only() {
         DeclaredTypeView::Available(ConformanceTypeView::Builtin(BuiltinType::Int)),
     );
 
-    // No established source-syntax fixture in this file produces a recursive compact side table
-    // at the pre-edge anchor. Build the same constraint shape directly: `root` has a nominal lower
-    // whose invariant argument points back to `root`, so ordinary compact collection must record
-    // the cycle in `rec_vars` rather than unfold it.
+    // Keep OBS's raw construction to isolate the root-IS-recursive shape. The source witness below
+    // covers root-CONTAINS-recursive without entering the role-method SCC skeleton problem.
     let mut machine = ConstraintMachine::new();
     let root = TypeVar(0);
     machine.register_type_var(root, TypeLevel::root().child());
@@ -1224,12 +1223,168 @@ fn generic_role_impl_conformance_stage4_obs_recursive_bounds_are_shape_only() {
     });
     assert_eq!(
         crate::role_impl_conformance::capture_receiverless_actual_view(&machine, root, &bridge,),
-        ActualMethodConformanceView::Unavailable(
-            ActualMethodConformanceViewUnavailable::RecursiveBounds,
-        ),
+        ActualMethodConformanceView::Available(ConformanceTypeView::Nominal {
+            path: vec!["loop".into()],
+            args: vec![ConformanceTypeView::Binder(
+                ConformanceBinder::MethodRecursive(0),
+            )],
+        }),
     );
-    // Capture preserves only the fact that the compact side table is non-empty before returning
-    // `RecursiveBounds`; it does not project or compare the recorded interval in today's kernel.
+    // The positive lower side is unfolded once. Its invariant back-reference is Rm0 on both sides,
+    // so capture terminates without discarding the recursive nominal shape.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_r1_real_recursive_capture_is_alpha_stable() {
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, first_order_conforms,
+    };
+    use crate::role_impl_conformance::{ActualMethodConformanceView, RoleImplMethodActualSurface};
+
+    fn captured_recursive_view(source: &str) -> (TypeVar, ConformanceTypeView) {
+        let output = lower_receiverless_conformance_shadow(source, true);
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one role impl contract")
+        };
+        let [recursive] = first_contract_method_scheme(&output, contract)
+            .recursive_bounds
+            .as_slice()
+        else {
+            panic!("expected one finalized recursive bound")
+        };
+        let [actual] = contract.actual_method_views() else {
+            panic!("expected one captured actual view")
+        };
+        let RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Available(view)) =
+            &actual.surface
+        else {
+            panic!("expected an available Rm-bearing receiverless view")
+        };
+        (recursive.var, view.clone())
+    }
+
+    let left = concat!(
+        "struct loop 'a { next: 'a }\n",
+        "role Make 'subject:\n",
+        "  our make: int\n",
+        "impl int: Make:\n",
+        "  our make = helper\n",
+        "  my helper = loop { next: helper }\n",
+    );
+    let renamed = concat!(
+        "struct loop 'item { next: 'item }\n",
+        "role Make 'value:\n",
+        "  our make: int\n",
+        "impl int: Make:\n",
+        "  my padding = true\n",
+        "  our make = renamed\n",
+        "  my renamed = loop { next: renamed }\n",
+    );
+    let different = concat!(
+        "struct other 'a { next: 'a }\n",
+        "role Make 'subject:\n",
+        "  our make: int\n",
+        "impl int: Make:\n",
+        "  our make = helper\n",
+        "  my helper = other { next: helper }\n",
+    );
+
+    let (left_raw_recursive, left_view) = captured_recursive_view(left);
+    let (renamed_raw_recursive, renamed_view) = captured_recursive_view(renamed);
+    let (_, different_view) = captured_recursive_view(different);
+    let expected = ConformanceTypeView::Nominal {
+        path: vec!["loop".into()],
+        args: vec![ConformanceTypeView::Nominal {
+            path: vec!["loop".into()],
+            args: vec![ConformanceTypeView::Binder(
+                ConformanceBinder::MethodRecursive(0),
+            )],
+        }],
+    };
+
+    assert_ne!(left_raw_recursive, renamed_raw_recursive);
+    assert_eq!(left_view, expected);
+    assert_eq!(renamed_view, expected);
+    assert!(first_order_conforms(&left_view, &renamed_view));
+    assert!(!first_order_conforms(&left_view, &different_view));
+    // `helper` is an ordinary impl-local recursive binding. The role method itself is not in the
+    // recursive SCC, so this is a real pre-edge R1 fixture rather than a contract-skeleton case.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_r1_compares_recursive_reference_patterns() {
+    use crate::constraints::{ConstraintMachine, TypeLevel};
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, first_order_conforms,
+    };
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, RoleImplConformanceBinderBridge,
+    };
+
+    fn machine_with_pair(first: TypeVar, second: TypeVar, swapped: bool) -> ConstraintMachine {
+        fn invariant(machine: &mut ConstraintMachine, var: TypeVar) -> poly::types::NeuId {
+            let lower = machine.alloc_pos(Pos::Var(var));
+            let upper = machine.alloc_neg(Neg::Var(var));
+            machine.alloc_neu(Neu::Bounds(lower, upper))
+        }
+
+        let mut machine = ConstraintMachine::new();
+        machine.register_type_var(first, TypeLevel::root().child());
+        machine.register_type_var(second, TypeLevel::root().child());
+
+        let branch_arg = invariant(&mut machine, second);
+        let branch = machine.alloc_pos(Pos::Con(vec!["branch".into()], vec![branch_arg]));
+        let second_upper = machine.alloc_neg(Neg::Var(second));
+        machine.subtype(branch, second_upper);
+
+        let order = if swapped {
+            [second, first]
+        } else {
+            [first, second]
+        };
+        let pair_args = order.map(|var| invariant(&mut machine, var)).to_vec();
+        let pair = machine.alloc_pos(Pos::Con(vec!["pair".into()], pair_args));
+        let first_upper = machine.alloc_neg(Neg::Var(first));
+        machine.subtype(pair, first_upper);
+        machine
+    }
+
+    let bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: Vec::new(),
+        inferred_associated: Vec::new(),
+    });
+    let capture = |first, second, swapped| {
+        let machine = machine_with_pair(first, second, swapped);
+        crate::role_impl_conformance::capture_receiverless_actual_view(&machine, first, &bridge)
+    };
+    let left = capture(TypeVar(0), TypeVar(1), false);
+    // Reverse the raw id order as well as changing the ids. Rm numbering follows structural
+    // encounter order, not the side table's raw-TypeVar sort.
+    let renamed = capture(TypeVar(40), TypeVar(20), false);
+    let swapped = capture(TypeVar(60), TypeVar(80), true);
+
+    let ActualMethodConformanceView::Available(left_view) = &left else {
+        panic!("expected recursive left view")
+    };
+    let ActualMethodConformanceView::Available(renamed_view) = &renamed else {
+        panic!("expected recursive renamed view")
+    };
+    let ActualMethodConformanceView::Available(swapped_view) = &swapped else {
+        panic!("expected recursive swapped view")
+    };
+    assert_eq!(
+        left_view,
+        &ConformanceTypeView::Nominal {
+            path: vec!["pair".into()],
+            args: vec![
+                ConformanceTypeView::Binder(ConformanceBinder::MethodRecursive(0)),
+                ConformanceTypeView::Binder(ConformanceBinder::MethodRecursive(1)),
+            ],
+        },
+    );
+    assert!(first_order_conforms(left_view, renamed_view));
+    assert!(!first_order_conforms(left_view, swapped_view));
 }
 
 #[test]

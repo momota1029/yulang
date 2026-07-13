@@ -1,8 +1,8 @@
 //! Binder-normalized immutable views used by role-impl conformance.
 //!
-//! This first slice only translates the declared source contract. Actual method schemes,
-//! function/effect structure, recursive bounds, and the comparison relation belong to later
-//! Stage 2 slices.
+//! Declared contracts and settled actual surfaces meet here as finite first-order shapes. Method
+//! recursive bounds are unfolded once and retain Rm back-references; unsupported higher-order
+//! structure stays explicit rather than re-entering the solver.
 
 #[cfg(test)]
 use poly::types::Neg;
@@ -17,7 +17,9 @@ use super::{
 #[cfg(test)]
 use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
-use crate::compact::{CompactBounds, CompactType, CompactVar, compact_type_var};
+use crate::compact::{
+    CompactBounds, CompactRecursiveVar, CompactRoot, CompactType, CompactVar, compact_type_var,
+};
 use crate::constraints::ConstraintMachine;
 use crate::{ModuleTable, TypeDeclId};
 
@@ -199,8 +201,7 @@ fn first_order_effect_sets_equal(
 }
 
 /// Slice 3's immutable first-order actual-side shadow. It intentionally stops before functions,
-/// rows, recursive bounds, and non-exact interval arguments; those shapes remain structured
-/// `Unavailable` until the later actual-view handoff slice.
+/// rows, and non-exact invariant arguments; unsupported shapes remain structured `Unavailable`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ActualMethodConformanceView {
     Available(ConformanceTypeView),
@@ -228,7 +229,6 @@ pub(crate) struct DeclaredReceiverMethodConformanceView {
 pub(crate) enum ActualMethodConformanceViewUnavailable {
     MissingBinderBridge(RoleImplConformanceBinderBridgeUnavailable),
     OrdinarySccBlocker,
-    RecursiveBounds,
     NonAtomicSurface,
     WeightedVariable,
     AmbiguousBinderBridge(TypeVar),
@@ -485,24 +485,23 @@ pub(super) fn capture_receiverless_actual_view(
         }
     };
     let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
-    capture_receiverless_actual_view_with_resolver(machine, anchor, &mut binder_identities)
+    let compact = compact_type_var(machine, anchor);
+    binder_identities.register_method_recursive_vars(compact.rec_vars.iter().map(|rec| rec.var));
+    capture_receiverless_actual_view_from_compact(machine, anchor, &compact, &mut binder_identities)
 }
 
-fn capture_receiverless_actual_view_with_resolver(
-    machine: &ConstraintMachine,
+fn capture_receiverless_actual_view_from_compact(
+    _machine: &ConstraintMachine,
     anchor: TypeVar,
+    compact: &CompactRoot,
     binder_identities: &mut ActualBinderIdentityResolver<'_>,
 ) -> ActualMethodConformanceView {
-    let compact = compact_type_var(machine, anchor);
-    if !compact.rec_vars.is_empty() {
-        return ActualMethodConformanceView::Unavailable(
-            ActualMethodConformanceViewUnavailable::RecursiveBounds,
-        );
-    }
     #[cfg(not(test))]
-    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor);
+    let mut normalizer =
+        ActualFirstOrderNormalizer::new(binder_identities, anchor, &compact.rec_vars);
     #[cfg(test)]
-    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor, machine);
+    let mut normalizer =
+        ActualFirstOrderNormalizer::new(binder_identities, anchor, _machine, &compact.rec_vars);
     match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
@@ -531,13 +530,35 @@ pub(super) fn capture_receiver_actual_view(
         }
     };
     let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
-    let value =
-        capture_receiverless_actual_view_with_resolver(machine, value, &mut binder_identities);
+    let value_compact = compact_type_var(machine, value);
+    let effect_compact = compact_type_var(machine, effect);
+    binder_identities.register_method_recursive_vars(
+        value_compact
+            .rec_vars
+            .iter()
+            .chain(&effect_compact.rec_vars)
+            .map(|rec| rec.var),
+    );
+    let value = capture_receiverless_actual_view_from_compact(
+        machine,
+        value,
+        &value_compact,
+        &mut binder_identities,
+    );
     #[cfg(not(test))]
-    let effect =
-        capture_receiverless_actual_view_with_resolver(machine, effect, &mut binder_identities);
+    let effect = capture_receiverless_actual_view_from_compact(
+        machine,
+        effect,
+        &effect_compact,
+        &mut binder_identities,
+    );
     #[cfg(test)]
-    let effect = capture_receiver_effect_actual_view(machine, effect, &mut binder_identities);
+    let effect = capture_receiver_effect_actual_view(
+        machine,
+        effect,
+        &effect_compact,
+        &mut binder_identities,
+    );
     ActualReceiverMethodConformanceView {
         value,
         effect,
@@ -553,18 +574,21 @@ pub(super) fn capture_receiver_actual_view(
 fn capture_receiver_effect_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
+    compact: &CompactRoot,
     binder_identities: &mut ActualBinderIdentityResolver<'_>,
 ) -> ActualMethodConformanceView {
-    let compact = compact_type_var(machine, anchor);
-    if !compact.rec_vars.is_empty() {
-        return ActualMethodConformanceView::Unavailable(
-            ActualMethodConformanceViewUnavailable::RecursiveBounds,
-        );
-    }
     if compact.root.vars.iter().any(|var| !var.weight.is_empty()) {
         return ActualMethodConformanceView::Unavailable(
             ActualMethodConformanceViewUnavailable::WeightedVariable,
         );
+    }
+    let mut normalizer =
+        ActualFirstOrderNormalizer::new(binder_identities, anchor, machine, &compact.rec_vars);
+    if !compact.rec_vars.is_empty() {
+        return match normalizer.root_view(&compact.root) {
+            Ok(view) => ActualMethodConformanceView::Available(view),
+            Err(reason) => ActualMethodConformanceView::Unavailable(reason),
+        };
     }
     if !compact.root.builtins.is_empty()
         || !compact.root.cons.is_empty()
@@ -578,7 +602,6 @@ fn capture_receiver_effect_actual_view(
             ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         );
     }
-    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor, machine);
     let effect = match compact.root.rows.as_slice() {
         [] => Ok(ConformanceTypeView::Bottom),
         [row] if row.tail.is_empty() => match row.items.len() {
@@ -730,9 +753,13 @@ struct ExactEquivalenceNode {
     on_stack: bool,
 }
 
-struct ActualFirstOrderNormalizer<'resolver, 'bridge> {
+struct ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
     root_anchor: TypeVar,
     binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+    recursive_order: Vec<TypeVar>,
+    recursive_bounds: rustc_hash::FxHashMap<TypeVar, &'compact CompactBounds>,
+    recursive_views: rustc_hash::FxHashMap<TypeVar, ConformanceTypeView>,
+    projecting_recursive_bounds: bool,
     #[cfg(test)]
     exact_equivalence_classes: ExactEquivalenceClasses<'resolver>,
 }
@@ -768,19 +795,29 @@ enum ActualFirstOrderBoundsShape<'a> {
 struct ActualBinderIdentityResolver<'a> {
     bridge: &'a RoleImplConformanceBinderBridge,
     method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
+    method_recursive_vars: rustc_hash::FxHashSet<TypeVar>,
+    method_recursive: rustc_hash::FxHashMap<TypeVar, u32>,
     #[cfg(test)]
     exact_class_identities: rustc_hash::FxHashMap<TypeVar, ConformanceBinder>,
 }
 
-impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
+impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
     #[cfg(not(test))]
     fn new(
         binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
         root_anchor: TypeVar,
+        recursive_vars: &'compact [CompactRecursiveVar],
     ) -> Self {
         Self {
             root_anchor,
             binder_identities,
+            recursive_order: recursive_vars.iter().map(|rec| rec.var).collect(),
+            recursive_bounds: recursive_vars
+                .iter()
+                .map(|rec| (rec.var, &rec.bounds))
+                .collect(),
+            recursive_views: rustc_hash::FxHashMap::default(),
+            projecting_recursive_bounds: false,
         }
     }
 
@@ -789,10 +826,18 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
         binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
         root_anchor: TypeVar,
         machine: &'resolver ConstraintMachine,
+        recursive_vars: &'compact [CompactRecursiveVar],
     ) -> Self {
         Self {
             root_anchor,
             binder_identities,
+            recursive_order: recursive_vars.iter().map(|rec| rec.var).collect(),
+            recursive_bounds: recursive_vars
+                .iter()
+                .map(|rec| (rec.var, &rec.bounds))
+                .collect(),
+            recursive_views: rustc_hash::FxHashMap::default(),
+            projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
         }
     }
@@ -811,7 +856,49 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
             || !ty.tuples.is_empty()
             || !ty.rows.is_empty()
             || ty.vars.iter().any(|var| var.var != self.root_anchor);
-        self.type_view_ignoring(ty, has_substantive_bound.then_some(self.root_anchor))
+        let view =
+            self.type_view_ignoring(ty, has_substantive_bound.then_some(self.root_anchor))?;
+        self.project_recursive_bounds_once()?;
+        Ok(view)
+    }
+
+    /// Compact collection stores a recursive positive surface as a raw root variable plus one
+    /// unfolded lower side in `rec_vars`. Project every entry once while recursive references are
+    /// represented by their root-walk-assigned Rm identity; this keeps capture finite without
+    /// losing the shape immediately below the root or depending on raw `TypeVar` order.
+    fn project_recursive_bounds_once(
+        &mut self,
+    ) -> Result<(), ActualMethodConformanceViewUnavailable> {
+        for var in self.recursive_order.clone() {
+            if self.recursive_views.contains_key(&var) {
+                continue;
+            }
+            self.project_recursive_bound(var)?;
+        }
+        Ok(())
+    }
+
+    fn project_recursive_bound(
+        &mut self,
+        var: TypeVar,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        if let Some(view) = self.recursive_views.get(&var) {
+            return Ok(view.clone());
+        }
+        self.binder_identities
+            .resolve_method_recursive_binder(var)
+            .expect("compact recursive bounds are registered before normalization");
+        let bounds = self.recursive_bounds[&var];
+        let was_projecting = self.projecting_recursive_bounds;
+        self.projecting_recursive_bounds = true;
+        let view = match bounds {
+            CompactBounds::Interval { lower, .. } => self.type_view_ignoring(lower, Some(var)),
+            bounds => self.bounds_view(bounds),
+        };
+        self.projecting_recursive_bounds = was_projecting;
+        let view = view?;
+        self.recursive_views.insert(var, view.clone());
+        Ok(view)
     }
 
     fn type_view(
@@ -879,6 +966,19 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
             .expect("one projected raw variable candidate");
         if !var.weight.is_empty() {
             return Err(ActualMethodConformanceViewUnavailable::WeightedVariable);
+        }
+        if let Some(binder) = self
+            .binder_identities
+            .resolve_method_recursive_binder(var.var)
+        {
+            if self.projecting_recursive_bounds {
+                return Ok(ConformanceTypeView::Binder(binder));
+            }
+            return if self.recursive_bounds.contains_key(&var.var) {
+                self.project_recursive_bound(var.var)
+            } else {
+                Ok(ConformanceTypeView::Binder(binder))
+            };
         }
         self.binder_identities
             .resolve(var.var)
@@ -1041,15 +1141,35 @@ impl<'a> ActualBinderIdentityResolver<'a> {
         Self {
             bridge,
             method_quantifiers: rustc_hash::FxHashMap::default(),
+            method_recursive_vars: rustc_hash::FxHashSet::default(),
+            method_recursive: rustc_hash::FxHashMap::default(),
             #[cfg(test)]
             exact_class_identities: rustc_hash::FxHashMap::default(),
         }
+    }
+
+    fn register_method_recursive_vars(&mut self, vars: impl IntoIterator<Item = TypeVar>) {
+        for var in vars {
+            self.method_recursive_vars.insert(var);
+        }
+    }
+
+    fn resolve_method_recursive_binder(&mut self, var: TypeVar) -> Option<ConformanceBinder> {
+        if !self.method_recursive_vars.contains(&var) {
+            return None;
+        }
+        let next = self.method_recursive.len() as u32;
+        let binder = *self.method_recursive.entry(var).or_insert(next);
+        Some(ConformanceBinder::MethodRecursive(binder))
     }
 
     fn resolve(
         &mut self,
         var: TypeVar,
     ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
+        if let Some(binder) = self.resolve_method_recursive_binder(var) {
+            return Ok(binder);
+        }
         #[cfg(test)]
         if let Some(binder) = self.exact_class_identities.get(&var) {
             return Ok(*binder);
@@ -1095,6 +1215,24 @@ impl<'a> ActualBinderIdentityResolver<'a> {
         &mut self,
         class: &[TypeVar],
     ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
+        let mut recursive_identities = class
+            .iter()
+            .filter_map(|var| self.resolve_method_recursive_binder(*var))
+            .collect::<Vec<_>>();
+        recursive_identities.sort();
+        recursive_identities.dedup();
+        if recursive_identities.len() > 1 {
+            return Err(
+                ActualMethodConformanceViewUnavailable::AmbiguousExactClassIdentity(class.to_vec()),
+            );
+        }
+        if let Some(recursive) = recursive_identities.first() {
+            for member in class {
+                self.exact_class_identities.insert(*member, *recursive);
+            }
+            return Ok(*recursive);
+        }
+
         let mut bridge_identities = self
             .bridge
             .universals
