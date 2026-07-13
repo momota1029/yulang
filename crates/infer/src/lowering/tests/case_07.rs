@@ -1522,10 +1522,10 @@ fn role_impl_method_lifecycle_slice4b_builds_inactive_receiver_descriptor_and_fa
 
         let output = lower_receiverless_conformance_shadow(source, true);
         let transitions = output.session.scc.conformance_transition_counts();
-        let expected_transitions = if parameter_count == 0 { (1, 1) } else { (0, 0) };
         assert_eq!(
             (transitions.pending, transitions.released),
-            expected_transitions
+            (1, 1),
+            "all structurally clean plain-tail receiver descriptors enter the pending path",
         );
         let immediate = lower_receiverless_conformance_shadow(source, false);
         let role = if method == "read" { "Read" } else { "Choose" };
@@ -1567,6 +1567,11 @@ fn role_impl_method_lifecycle_slice4b_builds_inactive_receiver_descriptor_and_fa
     ));
     let fallback_output = lower_receiverless_conformance_shadow(effect_row_parameter, true);
     let immediate_output = lower_receiverless_conformance_shadow(effect_row_parameter, false);
+    assert_eq!(
+        fallback_output.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts::default(),
+        "effect-bearing parameters must remain on the immediate fallback path",
+    );
     assert_eq!(
         receiverless_production_surface(&fallback_output, "Consume"),
         receiverless_production_surface(&immediate_output, "Consume")
@@ -2239,6 +2244,150 @@ fn role_impl_method_lifecycle_slice4c_t4_computed_fetch_cycle_matches_immediate_
         })
         .expect("method/helper quantification event");
     assert!(merge_index < cycle_index && cycle_index < quantify_index);
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_baseline() {
+    let single = concat!(
+        "role Apply 'subject:\n",
+        "  our x.apply: int -> int\n",
+        "impl int: Apply:\n",
+        "  our x.apply value = value\n",
+        "my observed = 1.apply 2\n",
+    );
+    let multiple_annotated = concat!(
+        "role Choose 'subject:\n",
+        "  our x.choose: int -> bool -> int\n",
+        "impl int: Choose:\n",
+        "  our x.choose(value: int, flag: bool): int = value\n",
+        "my observed = 1.choose 2 true\n",
+    );
+    let multiple_effect_result = concat!(
+        "role Choose 'subject:\n",
+        "  our x.choose: int -> bool -> [] int\n",
+        "impl int: Choose:\n",
+        "  our x.choose(value: int, flag: bool): [] int = value\n",
+        "my observed = 1.choose 2 true\n",
+    );
+
+    for (source, role, parameter_count) in [
+        (single, "Apply", 1usize),
+        (multiple_annotated, "Choose", 2usize),
+        (multiple_effect_result, "Choose", 2usize),
+    ] {
+        let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+        let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+        assert_eq!(
+            receiver_shadow_production_surface(&delayed, role),
+            receiver_shadow_production_surface(&immediate, role),
+            "parameter_count={parameter_count}",
+        );
+        assert!(delayed.errors.is_empty(), "{:?}", delayed.errors);
+        let [witness] = delayed.receiver_conformance_shadow() else {
+            panic!("expected one delayed receiver witness for {parameter_count} parameters")
+        };
+        assert!(witness.binding_committed);
+        assert_eq!(
+            (
+                witness.edge_applications,
+                witness.releases,
+                witness.def_finished_emissions,
+                witness.binding_publication_commits,
+            ),
+            (1, 1, 1, 1),
+        );
+        assert_eq!(
+            delayed.session.scc.conformance_transition_counts(),
+            crate::scc::ConformanceTransitionCounts {
+                pending: 1,
+                released: 1,
+                ..Default::default()
+            },
+        );
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4d_missing_parameter_layer_falls_back_immediately() {
+    let source = concat!(
+        "role Choose 'subject:\n",
+        "  our x.choose: int -> int\n",
+        "impl int: Choose:\n",
+        "  our x.choose first second = first\n",
+    );
+    with_requirement_harness(source, "choose", |lowerer, requirement, bindings, vars| {
+        let receiver = lowerer.fresh_type_var();
+        let deferred = lowerer
+            .deferred_impl_method_requirement(
+                DeferredRequirementAnchor::Receiver { receiver },
+                Arc::clone(requirement),
+                2,
+                true,
+                bindings,
+                vars,
+            )
+            .expect("unsupported descriptor classification");
+        assert!(matches!(
+            deferred.parameter_context,
+            RequirementParameterContextStatus::Unsupported(
+                RequirementParameterContextUnavailable {
+                    parameter_index: 1,
+                    reason: RequirementParameterUnsupportedReason::MissingFunctionLayer,
+                }
+            )
+        ));
+    });
+
+    let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Choose"),
+        receiver_shadow_production_surface(&immediate, "Choose"),
+    );
+    assert!(delayed.receiver_conformance_shadow().is_empty());
+    assert_eq!(
+        delayed.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts::default(),
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4d_mixed_component_captures_multi_tail_atomically() {
+    let source = concat!(
+        "role Pair 'subject:\n",
+        "  our make: int\n",
+        "  our x.choose: int -> int -> int\n",
+        "impl int: Pair:\n",
+        "  our make = choose 1 2\n",
+        "  our x.choose first second = { make; first }\n",
+    );
+    let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Pair"),
+        receiver_shadow_production_surface(&immediate, "Pair"),
+    );
+    assert_eq!(delayed.receiverless_conformance_shadow().len(), 1);
+    assert_eq!(delayed.receiver_conformance_shadow().len(), 1);
+    assert!(delayed.receiver_conformance_shadow()[0].binding_committed);
+    let events = delayed.conformance_batch_events();
+    assert_eq!(events.len(), 4, "{events:?}");
+    assert!(events[..2].iter().all(|event| matches!(
+        event,
+        super::super::body::ConformanceBatchEvent::Captured(_)
+    )));
+    assert!(events[2..].iter().all(|event| matches!(
+        event,
+        super::super::body::ConformanceBatchEvent::RequirementApplied(_)
+    )));
+    assert_eq!(
+        delayed.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts {
+            pending: 2,
+            released: 2,
+            ..Default::default()
+        },
+    );
 }
 
 #[test]

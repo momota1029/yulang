@@ -625,7 +625,7 @@ impl<'a> ExprLowerer<'a> {
         };
         if let Some(deferred) = inactive_receiver_requirement.as_mut() {
             deferred.receiver_anchors = Some(receiver_anchors.clone());
-            if !is_zero_tail_clean_receiver_requirement(deferred) {
+            if clean_plain_tail_receiver_parameter_count(deferred).is_none() {
                 self.connect_inactive_receiver_requirement_immediately(deferred)?;
             }
         } else if let Some(requirement) = requirement {
@@ -929,9 +929,9 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         deferred: &DeferredRoleImplMethodRequirement,
     ) -> Result<(), LoweringError> {
-        // Multiple-tail descriptors remain on the Slice 4b compatibility path until Slice 4d.
-        // Zero-tail descriptors never call this helper: T3 moves and consumes their continuation
-        // after the component-wide snapshot, avoiding a second expected-layer lowering.
+        // Descriptors outside the structurally clean plain-parameter class stay on the Slice 4b
+        // compatibility path. Pending descriptors move and consume their continuation after the
+        // component-wide snapshot, avoiding a second expected-layer lowering.
         debug_assert!(matches!(
             deferred.parameter_context,
             RequirementParameterContextStatus::Clean(_)
@@ -978,11 +978,16 @@ impl<'a> ExprLowerer<'a> {
         )
     }
 
-    /// Consume the zero-tail receiver descriptor exactly once after its component snapshot.
+    /// Consume a clean plain-tail receiver descriptor exactly once after its component snapshot.
     pub(in crate::lowering) fn connect_deferred_receiver_requirement(
         &mut self,
         deferred: DeferredRoleImplMethodRequirement,
     ) -> Result<(), LoweringError> {
+        let Some(parameter_count) = clean_plain_tail_receiver_parameter_count(&deferred) else {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&deferred.requirement.signature),
+            });
+        };
         let DeferredRoleImplMethodRequirement {
             receiver_anchors,
             requirement,
@@ -993,26 +998,35 @@ impl<'a> ExprLowerer<'a> {
             final_metadata,
             ..
         } = deferred;
-        if !matches!(
+        debug_assert!(matches!(
             parameter_context,
             RequirementParameterContextStatus::Clean(
-                NonMutatingRequirementClass::PlainValueParameters { count: 0 }
-            )
-        ) || !parameter_uppers.is_empty()
-        {
-            return Err(LoweringError::SignatureShapeMismatch {
-                expected: SignatureShape::of(&requirement.signature),
-            });
-        }
+                NonMutatingRequirementClass::PlainValueParameters { count }
+            ) if count == parameter_count
+        ));
         let Some(anchors) = receiver_anchors else {
             return Err(LoweringError::SignatureShapeMismatch {
                 expected: SignatureShape::of(&requirement.signature),
             });
         };
-        if !anchors.tail_parameters.is_empty() {
-            return Err(LoweringError::SignatureShapeMismatch {
-                expected: SignatureShape::of(&requirement.signature),
-            });
+
+        // Parameter uppers are first applied while the lambda parameters are created, before body
+        // lowering, because they are legitimate contextual inputs. Reassert the saved one-to-one
+        // mapping before the deferred body/result edges: exact duplicate subtype edges are
+        // idempotent in the constraint machine, while a malformed descriptor was rejected above.
+        for (parameter_value, parameter_upper) in anchors
+            .tail_parameters
+            .iter()
+            .copied()
+            .zip(parameter_uppers.iter().copied())
+        {
+            let Some(parameter_upper) = parameter_upper else {
+                return Err(LoweringError::SignatureShapeMismatch {
+                    expected: SignatureShape::of(&requirement.signature),
+                });
+            };
+            let parameter_lower = self.alloc_pos(Pos::Var(parameter_value));
+            self.session.infer.subtype(parameter_lower, parameter_upper);
         }
 
         let body = self.resume_impl_method_requirement_body(
@@ -1802,19 +1816,23 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-pub(in crate::lowering) fn is_zero_tail_clean_receiver_requirement(
+pub(in crate::lowering) fn clean_plain_tail_receiver_parameter_count(
     deferred: &DeferredRoleImplMethodRequirement,
-) -> bool {
-    matches!(
-        deferred.parameter_context,
-        RequirementParameterContextStatus::Clean(
-            NonMutatingRequirementClass::PlainValueParameters { count: 0 }
-        )
-    ) && deferred.parameter_uppers.is_empty()
+) -> Option<usize> {
+    let RequirementParameterContextStatus::Clean(
+        NonMutatingRequirementClass::PlainValueParameters { count },
+    ) = &deferred.parameter_context
+    else {
+        return None;
+    };
+    let count = *count;
+    (deferred.parameter_uppers.len() == count
+        && deferred.parameter_uppers.iter().all(Option::is_some)
         && deferred
             .receiver_anchors
             .as_ref()
-            .is_some_and(|anchors| anchors.tail_parameters.is_empty())
+            .is_some_and(|anchors| anchors.tail_parameters.len() == count))
+    .then_some(count)
 }
 
 #[derive(Clone, Copy)]

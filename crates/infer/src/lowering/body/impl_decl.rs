@@ -503,9 +503,11 @@ impl BodyLowerer {
                     lowered.inactive_receiver_requirement.take(),
                     conformance_shadow_target,
                 ) {
-                    if crate::lowering::expr::method_body::is_zero_tail_clean_receiver_requirement(
+                    if crate::lowering::expr::method_body::clean_plain_tail_receiver_parameter_count(
                         &deferred,
-                    ) {
+                    )
+                    .is_some()
+                    {
                         if self.receiver_descriptor_pending_gate_accepts(method.def, &deferred) {
                             self.session
                                 .enqueue(AnalysisWork::Scc(SccInput::ConformancePending {
@@ -598,15 +600,19 @@ impl BodyLowerer {
         }
         #[cfg(not(test))]
         let _ = def;
+        let Some(parameter_count) =
+            crate::lowering::expr::method_body::clean_plain_tail_receiver_parameter_count(deferred)
+        else {
+            return false;
+        };
         matches!(deferred.anchor, DeferredRequirementAnchor::Receiver { .. })
             && matches!(
                 deferred.body_cursor,
                 RequirementSpineCursor::FunctionResult {
-                    consumed_function_layers: 1,
-                }
+                    consumed_function_layers,
+                } if consumed_function_layers == parameter_count.saturating_add(1)
             )
             && !deferred.final_metadata.connect_value_upper
-            && crate::lowering::expr::method_body::is_zero_tail_clean_receiver_requirement(deferred)
     }
 
     #[cfg(test)]

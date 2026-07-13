@@ -238,17 +238,20 @@ pub(super) fn receiver_result_is_first_order(
     associated: &[DeclaredAssociatedView],
     signature: &SignatureType,
 ) -> bool {
-    let SignatureType::Function {
-        arg_eff: None,
-        ret_eff: None,
-        ret,
-        ..
-    } = signature
-    else {
+    let mut result = signature;
+    let mut consumed_receiver = false;
+    while let SignatureType::Function {
+        arg_eff: None, ret, ..
+    } = result
+    {
+        consumed_receiver = true;
+        result = ret;
+    }
+    if !consumed_receiver {
         return false;
-    };
+    }
     matches!(
-        signature_type_view(contract, modules, inputs, associated, ret),
+        signature_type_view(contract, modules, inputs, associated, result),
         DeclaredTypeView::Available(_)
     )
 }
