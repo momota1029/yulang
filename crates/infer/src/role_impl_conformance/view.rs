@@ -94,6 +94,8 @@ pub(crate) enum ConformanceTypeView {
         args: Vec<ConformanceTypeView>,
     },
     Tuple(Vec<ConformanceTypeView>),
+    #[cfg(test)]
+    EffectSet(Vec<ConformanceTypeView>),
 }
 
 /// Pure first-order implementation-to-requirement relation for the Stage 3 shadow kernel.
@@ -131,6 +133,9 @@ pub(crate) fn first_order_conforms(
                     .zip(right)
                     .all(|(left, right)| first_order_conforms(left, right))
         }
+        (ConformanceTypeView::EffectSet(left), ConformanceTypeView::EffectSet(right)) => {
+            first_order_effect_sets_equal(left, right)
+        }
         _ => false,
     }
 }
@@ -166,8 +171,31 @@ fn first_order_invariantly_equal(left: &ConformanceTypeView, right: &Conformance
                     .zip(right)
                     .all(|(left, right)| first_order_invariantly_equal(left, right))
         }
+        (ConformanceTypeView::EffectSet(left), ConformanceTypeView::EffectSet(right)) => {
+            first_order_effect_sets_equal(left, right)
+        }
         _ => false,
     }
+}
+
+#[cfg(test)]
+fn first_order_effect_sets_equal(
+    left: &[ConformanceTypeView],
+    right: &[ConformanceTypeView],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut matched = vec![false; right.len()];
+    left.iter().all(|left_atom| {
+        let Some((index, _)) = right.iter().enumerate().find(|(index, right_atom)| {
+            !matched[*index] && first_order_invariantly_equal(left_atom, right_atom)
+        }) else {
+            return false;
+        };
+        matched[index] = true;
+        true
+    })
 }
 
 /// Slice 3's immutable first-order actual-side shadow. It intentionally stops before functions,
@@ -369,8 +397,8 @@ pub(crate) fn declared_receiver_result_view(
 }
 
 /// Return the receiver body's value/effect requirement after validating the measured tail arity.
-/// Effect rows stay deliberately first-order: pure and one closed atom are representable, while
-/// row tails, wildcards, and unions remain structured `Unavailable` values.
+/// Effect rows stay deliberately first-order: closed rows are representable, while row tails and
+/// wildcards remain structured `Unavailable` values.
 #[cfg(test)]
 pub(crate) fn declared_receiver_method_view(
     contract: &RoleImplConformanceContract,
@@ -433,7 +461,13 @@ fn signature_effect_view(
         [SignatureEffectAtom::Type(effect)] => {
             signature_type_view(contract, modules, inputs, associated, effect)
         }
-        _ => DeclaredTypeView::Unavailable(DeclaredViewUnavailable::UnsupportedEffectRow),
+        effects => sequence(effects.iter().map(|effect| {
+            let SignatureEffectAtom::Type(effect) = effect else {
+                unreachable!("wildcard effects return before closed-row projection")
+            };
+            signature_type_view(contract, modules, inputs, associated, effect)
+        }))
+        .map(ConformanceTypeView::EffectSet),
     }
 }
 
@@ -559,7 +593,20 @@ fn capture_receiver_effect_actual_view(
                         args,
                     })
             }
-            _ => Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow),
+            _ => row
+                .items
+                .iter()
+                .map(|(path, args)| {
+                    args.iter()
+                        .map(|arg| normalizer.bounds_view(arg))
+                        .collect::<Result<Vec<_>, _>>()
+                        .map(|args| ConformanceTypeView::Nominal {
+                            path: path.clone(),
+                            args,
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(ConformanceTypeView::EffectSet),
         },
         _ => Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow),
     };

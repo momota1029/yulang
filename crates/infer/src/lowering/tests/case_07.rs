@@ -619,7 +619,7 @@ fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfa
     use crate::role_impl_conformance::RoleImplMethodActualSurface;
     use crate::role_impl_conformance::ShadowConformanceOutcome;
     use crate::role_impl_conformance::view::{
-        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView, DeclaredViewUnavailable,
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView,
     };
 
     let pair = |source| {
@@ -703,27 +703,6 @@ fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfa
         mismatching_effect.outcome,
         ShadowConformanceOutcome::Mismatch,
     );
-
-    let unsupported_union = pair(concat!(
-        "act tick:\n",
-        "  pub ping: () -> ()\n",
-        "act flip:\n",
-        "  pub pong: () -> ()\n",
-        "role Run 'subject:\n",
-        "  our x.run: [tick, flip] unit\n",
-        "impl int: Run:\n",
-        "  our x.run = tick::ping()\n",
-    ));
-    assert_eq!(
-        unsupported_union.declared_effect,
-        Some(DeclaredTypeView::Unavailable(
-            DeclaredViewUnavailable::UnsupportedEffectRow,
-        )),
-    );
-    assert_eq!(
-        unsupported_union.outcome,
-        ShadowConformanceOutcome::Unavailable,
-    );
 }
 
 #[test]
@@ -794,47 +773,256 @@ fn generic_role_impl_conformance_stage4_obs_final_prerequisites_lose_predicate_p
 }
 
 #[test]
-fn generic_role_impl_conformance_stage4_obs_closed_multi_atom_effect_is_unsupported() {
-    use crate::role_impl_conformance::view::{DeclaredTypeView, DeclaredViewUnavailable};
-    use crate::role_impl_conformance::{
-        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        RoleImplMethodActualSurface, ShadowConformanceOutcome,
+fn generic_role_impl_conformance_stage4_e1_compares_closed_multi_atom_effect_sets() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView, first_order_conforms,
     };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
 
-    let source = concat!(
-        "act tick:\n",
-        "  pub ping: () -> ()\n",
-        "act flip:\n",
-        "  pub pong: () -> ()\n",
-        "role Run 'subject:\n",
-        "  our x.run: [tick, flip] unit\n",
-        "impl int: Run:\n",
-        "  our x.run = { tick::ping(); flip::pong() }\n",
-    );
-    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
-    let [pair] = output.role_impl_conformance_contracts()[0]
-        .shadow_conformance_pairs(&output.modules)
-        .try_into()
-        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+    struct Fixture {
+        name: &'static str,
+        source: &'static str,
+        declared_count: usize,
+        actual_count: usize,
+        outcome: ShadowConformanceOutcome,
+    }
 
-    assert_eq!(
-        pair.declared_effect,
-        Some(DeclaredTypeView::Unavailable(
-            DeclaredViewUnavailable::UnsupportedEffectRow,
-        )),
-    );
-    let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
-        panic!("expected receiver actual surface")
+    let tick = ConformanceTypeView::Nominal {
+        path: vec!["tick".into()],
+        args: Vec::new(),
     };
-    assert_eq!(
-        actual.effect,
-        ActualMethodConformanceView::Unavailable(
-            ActualMethodConformanceViewUnavailable::UnsupportedEffectRow,
+    let flip = ConformanceTypeView::Nominal {
+        path: vec!["flip".into()],
+        args: Vec::new(),
+    };
+    assert!(
+        first_order_conforms(
+            &ConformanceTypeView::EffectSet(vec![tick.clone(), flip.clone()]),
+            &ConformanceTypeView::EffectSet(vec![flip, tick]),
         ),
+        "closed effect sets compare independently of row order",
     );
-    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
-    // Both the declared row and the body-produced closed union reach capture, but today's
-    // first-order view accepts at most one closed atom and classifies this two-atom shape.
+
+    let fixtures = [
+        Fixture {
+            name: "matching atom set",
+            source: concat!(
+                "act tick:\n",
+                "  pub ping: () -> ()\n",
+                "act flip:\n",
+                "  pub pong: () -> ()\n",
+                "my effects(): [tick, flip] unit =\n",
+                "  tick::ping()\n",
+                "  flip::pong()\n",
+                "role Run 'subject:\n",
+                "  our x.run: [tick, flip] unit\n",
+                "impl int: Run:\n",
+                "  our x.run = effects()\n",
+            ),
+            declared_count: 2,
+            actual_count: 2,
+            outcome: ShadowConformanceOutcome::Conforms,
+        },
+        Fixture {
+            name: "same count with a different atom",
+            source: concat!(
+                "act tick:\n",
+                "  pub ping: () -> ()\n",
+                "act flip:\n",
+                "  pub pong: () -> ()\n",
+                "act toss:\n",
+                "  pub throw: () -> ()\n",
+                "my effects(): [tick, toss] unit =\n",
+                "  tick::ping()\n",
+                "  toss::throw()\n",
+                "role Run 'subject:\n",
+                "  our x.run: [tick, flip] unit\n",
+                "impl int: Run:\n",
+                "  our x.run = effects()\n",
+            ),
+            declared_count: 2,
+            actual_count: 2,
+            outcome: ShadowConformanceOutcome::Mismatch,
+        },
+        Fixture {
+            name: "actual row has one additional atom",
+            source: concat!(
+                "act tick:\n",
+                "  pub ping: () -> ()\n",
+                "act flip:\n",
+                "  pub pong: () -> ()\n",
+                "act toss:\n",
+                "  pub throw: () -> ()\n",
+                "my effects(): [tick, flip, toss] unit =\n",
+                "  tick::ping()\n",
+                "  flip::pong()\n",
+                "  toss::throw()\n",
+                "role Run 'subject:\n",
+                "  our x.run: [tick, flip] unit\n",
+                "impl int: Run:\n",
+                "  our x.run = effects()\n",
+            ),
+            declared_count: 2,
+            actual_count: 3,
+            outcome: ShadowConformanceOutcome::Mismatch,
+        },
+        Fixture {
+            name: "one atom has a different invariant argument",
+            source: concat!(
+                "act tick 'value:\n",
+                "  pub ping: 'value -> ()\n",
+                "act flip:\n",
+                "  pub pong: () -> ()\n",
+                "my effects(): [tick bool, flip] unit =\n",
+                "  tick::ping(true)\n",
+                "  flip::pong()\n",
+                "role Run 'subject:\n",
+                "  our x.run: [tick int, flip] unit\n",
+                "impl int: Run:\n",
+                "  our x.run = effects()\n",
+            ),
+            declared_count: 2,
+            actual_count: 2,
+            outcome: ShadowConformanceOutcome::Mismatch,
+        },
+    ];
+
+    for fixture in fixtures {
+        let (output, _) = lower_receiver_conformance_shadow(fixture.source, true, false, false);
+        let [pair] = output.role_impl_conformance_contracts()[0]
+            .shadow_conformance_pairs(&output.modules)
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        let Some(DeclaredTypeView::Available(ConformanceTypeView::EffectSet(declared))) =
+            pair.declared_effect.as_ref()
+        else {
+            panic!(
+                "fixture {}: expected a declared closed effect set",
+                fixture.name
+            )
+        };
+        let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual.as_ref() else {
+            panic!("fixture {}: expected receiver actual surface", fixture.name)
+        };
+        let ActualMethodConformanceView::Available(ConformanceTypeView::EffectSet(actual)) =
+            &actual.effect
+        else {
+            panic!(
+                "fixture {}: expected an actual closed effect set",
+                fixture.name
+            )
+        };
+
+        assert_eq!(
+            declared.len(),
+            fixture.declared_count,
+            "fixture: {}",
+            fixture.name
+        );
+        assert_eq!(
+            actual.len(),
+            fixture.actual_count,
+            "fixture: {}",
+            fixture.name
+        );
+        assert_eq!(
+            pair.outcome, fixture.outcome,
+            "fixture {}: {pair:#?}",
+            fixture.name
+        );
+    }
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_e1_effect_arguments_reach_eq4_exact_class_collapse() {
+    use crate::compact::{CompactBounds, compact_type_var};
+    use crate::constraints::{ConstraintMachine, ConstraintWeights};
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView,
+    };
+    use crate::role_impl_conformance::{ImplUniversalBinderId, RoleImplConformanceBinderBridge};
+
+    let value_anchor = TypeVar(0);
+    let effect_anchor = TypeVar(1);
+    let argument = TypeVar(2);
+    let argument_alias = TypeVar(3);
+    let mut machine = ConstraintMachine::new();
+    add_var_constraint(
+        &mut machine,
+        argument,
+        ConstraintWeights::empty(),
+        argument_alias,
+    );
+    add_var_constraint(
+        &mut machine,
+        argument_alias,
+        ConstraintWeights::empty(),
+        argument,
+    );
+
+    let argument_lower = machine.alloc_pos(Pos::Var(argument));
+    let argument_upper = machine.alloc_neg(Neg::Var(argument));
+    let argument_bounds = machine.alloc_neu(Neu::Bounds(argument_lower, argument_upper));
+    let tick = machine.alloc_pos(Pos::Con(vec!["tick".into()], vec![argument_bounds]));
+    let flip = machine.alloc_pos(Pos::Con(vec!["flip".into()], Vec::new()));
+    let row = machine.alloc_pos(Pos::Row(vec![tick, flip]));
+    let effect_upper = machine.alloc_neg(Neg::Var(effect_anchor));
+    machine.subtype(row, effect_upper);
+
+    let compact = compact_type_var(&machine, effect_anchor);
+    let [row] = compact.root.rows.as_slice() else {
+        panic!("expected one compact effect row: {compact:#?}")
+    };
+    let [tick_argument] = row
+        .items
+        .get(["tick".to_string()].as_slice())
+        .unwrap_or_else(|| panic!("expected compact tick atom: {row:#?}"))
+        .as_slice()
+    else {
+        panic!("expected one compact tick argument: {row:#?}")
+    };
+    let CompactBounds::Interval { lower, upper } = tick_argument else {
+        panic!("expected raw interval tick argument: {tick_argument:#?}")
+    };
+    assert!(
+        lower.vars.len() > 1 || upper.vars.len() > 1,
+        "the witness must expose a multi-variable raw effect argument: {tick_argument:#?}",
+    );
+
+    let bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: vec![(ImplUniversalBinderId(0), argument)],
+        inferred_associated: Vec::new(),
+    });
+    let actual = crate::role_impl_conformance::capture_receiver_actual_view(
+        &machine,
+        value_anchor,
+        effect_anchor,
+        &bridge,
+    );
+    let ActualMethodConformanceView::Available(ConformanceTypeView::EffectSet(atoms)) =
+        actual.effect
+    else {
+        panic!("EQ4 must make the multi-atom effect available: {actual:#?}")
+    };
+    let tick = atoms
+        .iter()
+        .find(|atom| {
+            matches!(
+                atom,
+                ConformanceTypeView::Nominal { path, .. } if path == &["tick".to_string()]
+            )
+        })
+        .expect("normalized tick atom");
+    assert_eq!(
+        tick,
+        &ConformanceTypeView::Nominal {
+            path: vec!["tick".into()],
+            args: vec![ConformanceTypeView::Binder(ConformanceBinder::Universal(
+                ImplUniversalBinderId(0),
+            ))],
+        },
+        "the effect-argument interval must reuse EQ4's unique bridge identity",
+    );
 }
 
 #[test]
