@@ -369,6 +369,10 @@ impl BodyLowerer {
         } = pending
             .take()
             .expect("a provisional binding commit must be consumed exactly once");
+        #[cfg(test)]
+        {
+            *self.binding_publication_commits.entry(def).or_default() += 1;
+        }
 
         let Some(current) = self.session.poly.defs.get_mut(def) else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
@@ -395,6 +399,10 @@ impl BodyLowerer {
     }
 
     fn emit_def_finished(&mut self, def: poly::expr::DefId) {
+        #[cfg(test)]
+        {
+            *self.binding_def_finished_emissions.entry(def).or_default() += 1;
+        }
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }

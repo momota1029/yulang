@@ -1633,6 +1633,67 @@ fn role_impl_method_lifecycle_slice4c_t1_immediate_publication_matches_frozen_or
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice4c_t2_inactive_provisional_commit_publishes_once() {
+    for suppress_runtime_root in [false, true] {
+        let (output, method, def_finished_emissions, publication_commits) =
+            lower_inactive_receiver_provisional_for_slice4c_t2(
+                Evaluation::Computation,
+                suppress_runtime_root,
+                true,
+            );
+
+        assert_eq!(def_finished_emissions, 1);
+        assert_eq!(publication_commits, 1);
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(
+            crate::check::summarize_lowering(&output)
+                .diagnostics
+                .is_empty()
+        );
+        assert_eq!(
+            slice4c_t1_binding_publication_witness(&output, method),
+            Slice4cT1BindingPublicationWitness {
+                body_published: true,
+                root_has_body_var_lower: true,
+                fetch: BindingFetch::FetchComputation,
+                computed_runtime_root: !suppress_runtime_root,
+                quantified: true,
+                scheme: "box 'a -> box 'a".into(),
+            }
+        );
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t2_inactive_rejection_poison_is_natural_bottom() {
+    let (output, method, def_finished_emissions, publication_commits) =
+        lower_inactive_receiver_provisional_for_slice4c_t2(Evaluation::Computation, false, false);
+
+    assert_eq!(def_finished_emissions, 1);
+    assert_eq!(publication_commits, 0);
+    assert!(matches!(
+        output.errors.as_slice(),
+        [BodyLoweringError::Expr {
+            def,
+            error: LoweringError::SignatureTypeMismatch { .. },
+            ..
+        }] if *def == method
+    ));
+    assert_eq!(
+        slice4c_t1_binding_publication_witness(&output, method),
+        Slice4cT1BindingPublicationWitness {
+            body_published: false,
+            root_has_body_var_lower: false,
+            // No fetch was published; the SCC machine's absent-entry default is FetchValue.
+            fetch: BindingFetch::FetchValue,
+            computed_runtime_root: false,
+            quantified: true,
+            scheme: "never".into(),
+        }
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -2659,6 +2720,111 @@ struct Slice4cT1BindingPublicationWitness {
     scheme: String,
 }
 
+fn lower_inactive_receiver_provisional_for_slice4c_t2(
+    evaluation: Evaluation,
+    suppress_runtime_root: bool,
+    commit: bool,
+) -> (BodyLowering, DefId, usize, usize) {
+    let source = concat!(
+        "type box 'a\n",
+        "role Read 'subject:\n",
+        "  our x.read: 'subject\n",
+        "impl (box 'a): Read:\n",
+        "  our x.read = x\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let method = lower.modules.role_impls(module)[0].methods[0].def;
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    lowerer.set_inactive_receiver_provisional_test_mode(evaluation, suppress_runtime_root);
+    lowerer.lower_block(&root, module);
+
+    assert!(
+        lowerer.inactive_receiver_provisional_descriptor_is_complete(method),
+        "inactive receiver descriptor missing: finished={}, committed={}",
+        lowerer.binding_def_finished_emission_count(method),
+        lowerer.binding_publication_commit_count(method),
+    );
+    assert_eq!(lowerer.binding_def_finished_emission_count(method), 1);
+    assert_eq!(lowerer.binding_publication_commit_count(method), 0);
+    let method_root = lowerer
+        .typing
+        .def(method)
+        .expect("provisional method must retain its registered root");
+    assert!(!root_has_direct_var_lower(&lowerer.session, method_root));
+    assert!(matches!(
+        lowerer.session.poly.defs.get(method),
+        Some(Def::Let {
+            body: None,
+            scheme: None,
+            ..
+        })
+    ));
+    assert_eq!(computed_runtime_root_count(&lowerer.session, method), 0);
+
+    assert_eq!(
+        lowerer.resolve_inactive_receiver_provisional_for_test(method, commit),
+        commit
+    );
+    assert_eq!(lowerer.binding_def_finished_emission_count(method), 1);
+    assert_eq!(
+        lowerer.binding_publication_commit_count(method),
+        usize::from(commit)
+    );
+    assert_eq!(
+        root_has_direct_var_lower(&lowerer.session, method_root),
+        commit
+    );
+    assert_eq!(
+        computed_runtime_root_count(&lowerer.session, method),
+        usize::from(commit && !suppress_runtime_root)
+    );
+    assert!(matches!(
+        lowerer.session.poly.defs.get(method),
+        Some(Def::Let { body, scheme: None, .. }) if body.is_some() == commit
+    ));
+
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    let def_finished_emissions = lowerer.binding_def_finished_emission_count(method);
+    let publication_commits = lowerer.binding_publication_commit_count(method);
+    let output = lowerer.finish();
+    assert_eq!(
+        output.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts::default(),
+        "inactive T2 must not emit an SCC conformance blocker",
+    );
+    (output, method, def_finished_emissions, publication_commits)
+}
+
+fn root_has_direct_var_lower(session: &AnalysisSession, root: TypeVar) -> bool {
+    session
+        .infer
+        .constraints()
+        .bounds()
+        .of(root)
+        .is_some_and(|bounds| {
+            bounds.lowers().iter().any(|bound| {
+                matches!(
+                    session.infer.constraints().types().pos(bound.pos),
+                    Pos::Var(_)
+                )
+            })
+        })
+}
+
+fn computed_runtime_root_count(session: &AnalysisSession, def: DefId) -> usize {
+    session
+        .poly
+        .runtime_roots
+        .iter()
+        .filter(|root| matches!(root, poly::expr::RuntimeRoot::ComputedDef(root) if *root == def))
+        .count()
+}
+
 fn slice4c_t1_binding_publication_witness(
     output: &BodyLowering,
     def: DefId,
@@ -2670,20 +2836,7 @@ fn slice4c_t1_binding_publication_witness(
         .typing
         .def(def)
         .expect("finished binding must retain its registered root");
-    let root_has_body_var_lower = output
-        .session
-        .infer
-        .constraints()
-        .bounds()
-        .of(root)
-        .is_some_and(|bounds| {
-            bounds.lowers().iter().any(|bound| {
-                matches!(
-                    output.session.infer.constraints().types().pos(bound.pos),
-                    Pos::Var(_)
-                )
-            })
-        });
+    let root_has_body_var_lower = root_has_direct_var_lower(&output.session, root);
     let scheme = scheme
         .as_ref()
         .map(|scheme| poly::dump::format_scheme(&output.session.poly.typ, scheme))
@@ -2693,12 +2846,7 @@ fn slice4c_t1_binding_publication_witness(
         body_published: body.is_some(),
         root_has_body_var_lower,
         fetch: output.session.scc.fetch_of(def),
-        computed_runtime_root: output
-            .session
-            .poly
-            .runtime_roots
-            .iter()
-            .any(|root| matches!(root, poly::expr::RuntimeRoot::ComputedDef(root) if *root == def)),
+        computed_runtime_root: computed_runtime_root_count(&output.session, def) != 0,
         quantified: output.session.scc.is_quantified(def),
         scheme,
     }

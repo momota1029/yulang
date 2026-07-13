@@ -421,6 +421,11 @@ impl BodyLowerer {
             && requirement.is_some()
             && conformance_shadow_target.is_some()
             && self.receiverless_conformance_shadow_enabled;
+        #[cfg(test)]
+        let prepare_inactive_receiver_requirement = prepare_inactive_receiver_requirement
+            || (method.receiver.is_some()
+                && requirement.is_some()
+                && self.inactive_receiver_provisional_config.is_some());
         if defer_receiverless_requirement {
             self.session
                 .enqueue(AnalysisWork::Scc(SccInput::ConformancePending {
@@ -455,6 +460,18 @@ impl BodyLowerer {
         );
         match lowered {
             Ok(lowered) => {
+                #[cfg(test)]
+                let mut lowered = lowered;
+                #[cfg(test)]
+                if self.finish_inactive_receiver_binding_provisionally_for_test(
+                    method.def,
+                    method.name.clone(),
+                    root,
+                    &mut lowered,
+                ) {
+                    self.session.infer.restore_level(previous_level);
+                    return;
+                }
                 if let (Some(deferred), Some(bridge)) =
                     (lowered.deferred_requirement, conformance_shadow_target)
                 {
@@ -498,6 +515,49 @@ impl BodyLowerer {
             }
         }
         self.session.infer.restore_level(previous_level);
+    }
+
+    #[cfg(test)]
+    fn finish_inactive_receiver_binding_provisionally_for_test(
+        &mut self,
+        def: DefId,
+        name: Name,
+        root: TypeVar,
+        lowered: &mut crate::lowering::expr::method_body::LoweredImplMethodBody,
+    ) -> bool {
+        let Some(config) = self.inactive_receiver_provisional_config else {
+            return false;
+        };
+        let Some(descriptor) = lowered.inactive_receiver_requirement.take() else {
+            return false;
+        };
+
+        let mut computation = lowered.computation;
+        computation.evaluation = config.evaluation;
+        let previous_suppression = std::mem::replace(
+            &mut self.suppress_runtime_roots,
+            config.suppress_runtime_root,
+        );
+        let mut binding = None;
+        self.finish_binding_provisionally(&mut binding, def, name, root, computation, true);
+        self.suppress_runtime_roots = previous_suppression;
+        assert!(
+            binding.is_some(),
+            "a completed receiver descriptor must retain a valid let binding"
+        );
+        assert!(
+            self.inactive_receiver_provisional_bindings
+                .insert(
+                    def,
+                    InactiveReceiverProvisionalBinding {
+                        descriptor,
+                        binding,
+                    },
+                )
+                .is_none(),
+            "an inactive receiver binding must be captured exactly once"
+        );
+        true
     }
 
     pub(super) fn lower_role_method_signature(

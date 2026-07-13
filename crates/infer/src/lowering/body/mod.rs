@@ -960,6 +960,14 @@ pub(super) struct BodyLowerer {
     receiverless_conformance_shadow_enabled: bool,
     #[cfg(test)]
     receiverless_conformance_shadow: Vec<ReceiverlessConformanceShadowWitness>,
+    #[cfg(test)]
+    inactive_receiver_provisional_config: Option<InactiveReceiverProvisionalConfig>,
+    #[cfg(test)]
+    inactive_receiver_provisional_bindings: FxHashMap<DefId, InactiveReceiverProvisionalBinding>,
+    #[cfg(test)]
+    binding_def_finished_emissions: FxHashMap<DefId, usize>,
+    #[cfg(test)]
+    binding_publication_commits: FxHashMap<DefId, usize>,
     pub(super) local_method_scope: Option<ModuleId>,
     pub(super) prefix_runtime: BodyLoweringPrefixRuntime,
     pub(super) record_source_spans: bool,
@@ -987,6 +995,19 @@ pub(super) struct ProvisionalBindingCommit {
     computation: Computation,
     connect_body: bool,
     publish_runtime_root: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct InactiveReceiverProvisionalConfig {
+    evaluation: Evaluation,
+    suppress_runtime_root: bool,
+}
+
+#[cfg(test)]
+struct InactiveReceiverProvisionalBinding {
+    descriptor: DeferredRoleImplMethodRequirement,
+    binding: Option<ProvisionalBindingCommit>,
 }
 
 struct PendingReceiverlessRoleImplConformance {
@@ -1065,6 +1086,14 @@ impl BodyLowerer {
             receiverless_conformance_shadow_enabled: true,
             #[cfg(test)]
             receiverless_conformance_shadow: Vec::new(),
+            #[cfg(test)]
+            inactive_receiver_provisional_config: None,
+            #[cfg(test)]
+            inactive_receiver_provisional_bindings: FxHashMap::default(),
+            #[cfg(test)]
+            binding_def_finished_emissions: FxHashMap::default(),
+            #[cfg(test)]
+            binding_publication_commits: FxHashMap::default(),
             local_method_scope: None,
             prefix_runtime: BodyLoweringPrefixRuntime::default(),
             record_source_spans: true,
@@ -1116,6 +1145,74 @@ impl BodyLowerer {
         enabled: bool,
     ) {
         self.receiverless_conformance_shadow_enabled = enabled;
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn set_inactive_receiver_provisional_test_mode(
+        &mut self,
+        evaluation: Evaluation,
+        suppress_runtime_root: bool,
+    ) {
+        self.inactive_receiver_provisional_config = Some(InactiveReceiverProvisionalConfig {
+            evaluation,
+            suppress_runtime_root,
+        });
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn inactive_receiver_provisional_descriptor_is_complete(
+        &self,
+        def: DefId,
+    ) -> bool {
+        self.inactive_receiver_provisional_bindings
+            .get(&def)
+            .is_some_and(|pending| pending.descriptor.receiver_anchors.is_some())
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn resolve_inactive_receiver_provisional_for_test(
+        &mut self,
+        def: DefId,
+        commit: bool,
+    ) -> bool {
+        let mut pending = self
+            .inactive_receiver_provisional_bindings
+            .remove(&def)
+            .expect("inactive receiver provisional binding must exist");
+        debug_assert!(pending.descriptor.receiver_anchors.is_some());
+        if commit {
+            return self.commit_provisional_binding(&mut pending.binding);
+        }
+
+        let discarded = pending
+            .binding
+            .take()
+            .expect("a rejected provisional binding must be consumed exactly once");
+        debug_assert_eq!(discarded.def, def);
+        self.errors.push(BodyLoweringError::Expr {
+            def,
+            name: discarded.name,
+            error: LoweringError::SignatureTypeMismatch {
+                expected: SignatureShape::of(&pending.descriptor.requirement.signature),
+            },
+        });
+        false
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn binding_def_finished_emission_count(&self, def: DefId) -> usize {
+        self.binding_def_finished_emissions
+            .get(&def)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn binding_publication_commit_count(&self, def: DefId) -> usize {
+        self.binding_publication_commits
+            .get(&def)
+            .copied()
+            .unwrap_or(0)
     }
 
     pub(super) fn drain_analysis_with_conformance(&mut self) {
