@@ -27,6 +27,10 @@ pub struct BodyLowering {
         Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
     #[cfg(test)]
     receiverless_conformance_shadow: Vec<ReceiverlessConformanceShadowWitness>,
+    #[cfg(test)]
+    receiver_conformance_shadow: Vec<ReceiverConformanceShadowWitness>,
+    #[cfg(test)]
+    conformance_batch_events: Vec<ConformanceBatchEvent>,
     prefix_runtime: BodyLoweringPrefixRuntime,
 }
 
@@ -96,6 +100,16 @@ impl BodyLowering {
         &self,
     ) -> &[ReceiverlessConformanceShadowWitness] {
         &self.receiverless_conformance_shadow
+    }
+
+    #[cfg(test)]
+    pub(crate) fn receiver_conformance_shadow(&self) -> &[ReceiverConformanceShadowWitness] {
+        &self.receiver_conformance_shadow
+    }
+
+    #[cfg(test)]
+    pub(crate) fn conformance_batch_events(&self) -> &[ConformanceBatchEvent] {
+        &self.conformance_batch_events
     }
 
     pub fn into_prefix(self) -> BodyLoweringPrefix {
@@ -956,14 +970,22 @@ pub(super) struct BodyLowerer {
     pub(super) deferred_result_annotation_checks: Vec<DeferredResultAnnotationCheck>,
     pub(super) role_impl_conformance_contracts:
         Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
-    pending_receiverless_conformance: FxHashMap<DefId, PendingReceiverlessRoleImplConformance>,
+    pending_role_impl_conformance: FxHashMap<DefId, PendingRoleImplConformance>,
     receiverless_conformance_shadow_enabled: bool,
     #[cfg(test)]
     receiverless_conformance_shadow: Vec<ReceiverlessConformanceShadowWitness>,
     #[cfg(test)]
+    receiver_conformance_shadow: Vec<ReceiverConformanceShadowWitness>,
+    #[cfg(test)]
+    conformance_batch_events: Vec<ConformanceBatchEvent>,
+    #[cfg(test)]
     inactive_receiver_provisional_config: Option<InactiveReceiverProvisionalConfig>,
     #[cfg(test)]
     inactive_receiver_provisional_bindings: FxHashMap<DefId, InactiveReceiverProvisionalBinding>,
+    #[cfg(test)]
+    receiver_descriptor_gate_failures: FxHashSet<DefId>,
+    #[cfg(test)]
+    receiver_capture_failures: FxHashSet<DefId>,
     #[cfg(test)]
     binding_def_finished_emissions: FxHashMap<DefId, usize>,
     #[cfg(test)]
@@ -1010,7 +1032,7 @@ struct InactiveReceiverProvisionalBinding {
     binding: Option<ProvisionalBindingCommit>,
 }
 
-struct PendingReceiverlessRoleImplConformance {
+struct PendingRoleImplConformance {
     #[cfg_attr(
         not(test),
         allow(
@@ -1027,14 +1049,29 @@ struct PendingReceiverlessRoleImplConformance {
         crate::role_impl_conformance::RoleImplConformanceBinderBridge,
         crate::role_impl_conformance::RoleImplConformanceBinderBridgeUnavailable,
     >,
+    kind: PendingRoleImplConformanceKind,
     deferred: Option<DeferredRoleImplMethodRequirement>,
-    actual_view: Option<crate::role_impl_conformance::ActualMethodConformanceView>,
-    phase: PendingReceiverlessConformancePhase,
+    actual_view: Option<PendingRoleImplActualView>,
+    phase: PendingRoleImplConformancePhase,
     edge_applications: usize,
 }
 
+enum PendingRoleImplConformanceKind {
+    Receiverless,
+    Receiver {
+        binding: Option<ProvisionalBindingCommit>,
+        committed: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PendingRoleImplActualView {
+    Receiverless(crate::role_impl_conformance::ActualMethodConformanceView),
+    Receiver(crate::role_impl_conformance::ActualReceiverMethodConformanceView),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PendingReceiverlessConformancePhase {
+enum PendingRoleImplConformancePhase {
     Captured,
     SnapshotTakenEdgesApplied,
     FailedAndEdgesApplied,
@@ -1048,6 +1085,170 @@ pub(crate) struct ReceiverlessConformanceShadowWitness {
     pub(crate) actual_view: crate::role_impl_conformance::ActualMethodConformanceView,
     pub(crate) edge_applications: usize,
     pub(crate) releases: usize,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReceiverConformanceShadowWitness {
+    pub(crate) impl_def: DefId,
+    pub(crate) member: DefId,
+    pub(crate) actual_view: crate::role_impl_conformance::ActualReceiverMethodConformanceView,
+    pub(crate) edge_applications: usize,
+    pub(crate) releases: usize,
+    pub(crate) binding_committed: bool,
+    pub(crate) def_finished_emissions: usize,
+    pub(crate) binding_publication_commits: usize,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConformanceBatchEvent {
+    Captured(DefId),
+    RequirementApplied(DefId),
+}
+
+fn unavailable_receiver_actual_view(
+    reason: crate::role_impl_conformance::ActualMethodConformanceViewUnavailable,
+) -> crate::role_impl_conformance::ActualReceiverMethodConformanceView {
+    crate::role_impl_conformance::ActualReceiverMethodConformanceView {
+        value: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
+            reason.clone(),
+        ),
+        effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
+    }
+}
+
+fn unavailable_pending_actual_view(
+    kind: &PendingRoleImplConformanceKind,
+    reason: crate::role_impl_conformance::ActualMethodConformanceViewUnavailable,
+) -> PendingRoleImplActualView {
+    match kind {
+        PendingRoleImplConformanceKind::Receiverless => PendingRoleImplActualView::Receiverless(
+            crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
+        ),
+        PendingRoleImplConformanceKind::Receiver { .. } => {
+            PendingRoleImplActualView::Receiver(unavailable_receiver_actual_view(reason))
+        }
+    }
+}
+
+fn capture_pending_actual_view(
+    machine: &crate::constraints::ConstraintMachine,
+    pending: &PendingRoleImplConformance,
+) -> PendingRoleImplActualView {
+    let Some(deferred) = pending.deferred.as_ref() else {
+        return unavailable_pending_actual_view(
+            &pending.kind,
+            crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        );
+    };
+    match (&pending.kind, deferred.anchor) {
+        (
+            PendingRoleImplConformanceKind::Receiverless,
+            DeferredRequirementAnchor::Receiverless { value },
+        ) => PendingRoleImplActualView::Receiverless(
+            crate::role_impl_conformance::capture_receiverless_actual_view(
+                machine,
+                value,
+                &pending.bridge,
+            ),
+        ),
+        (
+            PendingRoleImplConformanceKind::Receiver { .. },
+            DeferredRequirementAnchor::Receiver { .. },
+        ) => {
+            let Some(anchors) = deferred.receiver_anchors.as_ref() else {
+                return unavailable_pending_actual_view(
+                    &pending.kind,
+                    crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                );
+            };
+            PendingRoleImplActualView::Receiver(
+                crate::role_impl_conformance::capture_receiver_actual_view(
+                    machine,
+                    anchors.body_value,
+                    anchors.body_effect,
+                    &pending.bridge,
+                ),
+            )
+        }
+        _ => unavailable_pending_actual_view(
+            &pending.kind,
+            crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+    }
+}
+
+fn pending_actual_view_is_available(view: &Option<PendingRoleImplActualView>) -> bool {
+    match view {
+        Some(PendingRoleImplActualView::Receiverless(
+            crate::role_impl_conformance::ActualMethodConformanceView::Available(_),
+        )) => true,
+        Some(PendingRoleImplActualView::Receiver(view)) => matches!(
+            (&view.value, &view.effect),
+            (
+                crate::role_impl_conformance::ActualMethodConformanceView::Available(_),
+                crate::role_impl_conformance::ActualMethodConformanceView::Available(_),
+            )
+        ),
+        _ => false,
+    }
+}
+
+fn apply_pending_requirement(
+    session: &mut AnalysisSession,
+    modules: &ModuleTable,
+    pending: &mut PendingRoleImplConformance,
+) -> Result<(), LoweringError> {
+    let Some(deferred) = pending.deferred.take() else {
+        return Err(LoweringError::SignatureShapeMismatch {
+            expected: SignatureShape::Any,
+        });
+    };
+    let mut lowerer = ExprLowerer::new(
+        session,
+        modules,
+        pending.module,
+        pending.site,
+        pending.member,
+    );
+    match pending.kind {
+        PendingRoleImplConformanceKind::Receiverless => {
+            let DeferredRequirementAnchor::Receiverless { value } = deferred.anchor else {
+                return Err(LoweringError::SignatureShapeMismatch {
+                    expected: SignatureShape::Any,
+                });
+            };
+            if deferred.body_cursor != RequirementSpineCursor::WholeValue
+                || !deferred.parameter_uppers.is_empty()
+                || !matches!(
+                    deferred.parameter_context,
+                    crate::role_impl_conformance::RequirementParameterContextStatus::Clean(
+                        crate::role_impl_conformance::NonMutatingRequirementClass::PlainValueParameters {
+                            count: 0,
+                        },
+                    )
+                )
+            {
+                return Err(LoweringError::SignatureShapeMismatch {
+                    expected: SignatureShape::Any,
+                });
+            }
+            debug_assert_eq!(
+                deferred.continuation.vars,
+                deferred.final_metadata.signature_vars
+            );
+            lowerer.connect_impl_method_requirement_from_continuation(
+                value,
+                &deferred.requirement,
+                deferred.continuation,
+                deferred.final_metadata.connect_value_upper,
+            )
+        }
+        PendingRoleImplConformanceKind::Receiver { .. } => {
+            lowerer.connect_deferred_receiver_requirement(deferred)
+        }
+    }
 }
 
 impl BodyLowerer {
@@ -1082,14 +1283,22 @@ impl BodyLowerer {
             role_requirements: FxHashMap::default(),
             deferred_result_annotation_checks: Vec::new(),
             role_impl_conformance_contracts: Vec::new(),
-            pending_receiverless_conformance: FxHashMap::default(),
+            pending_role_impl_conformance: FxHashMap::default(),
             receiverless_conformance_shadow_enabled: true,
             #[cfg(test)]
             receiverless_conformance_shadow: Vec::new(),
             #[cfg(test)]
+            receiver_conformance_shadow: Vec::new(),
+            #[cfg(test)]
+            conformance_batch_events: Vec::new(),
+            #[cfg(test)]
             inactive_receiver_provisional_config: None,
             #[cfg(test)]
             inactive_receiver_provisional_bindings: FxHashMap::default(),
+            #[cfg(test)]
+            receiver_descriptor_gate_failures: FxHashSet::default(),
+            #[cfg(test)]
+            receiver_capture_failures: FxHashSet::default(),
             #[cfg(test)]
             binding_def_finished_emissions: FxHashMap::default(),
             #[cfg(test)]
@@ -1135,6 +1344,10 @@ impl BodyLowerer {
             role_impl_conformance_contracts: self.role_impl_conformance_contracts,
             #[cfg(test)]
             receiverless_conformance_shadow: self.receiverless_conformance_shadow,
+            #[cfg(test)]
+            receiver_conformance_shadow: self.receiver_conformance_shadow,
+            #[cfg(test)]
+            conformance_batch_events: self.conformance_batch_events,
             prefix_runtime: self.prefix_runtime,
         }
     }
@@ -1157,6 +1370,16 @@ impl BodyLowerer {
             evaluation,
             suppress_runtime_root,
         });
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn force_receiver_descriptor_gate_failure(&mut self, def: DefId) {
+        self.receiver_descriptor_gate_failures.insert(def);
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn force_receiver_capture_failure(&mut self, def: DefId) {
+        self.receiver_capture_failures.insert(def);
     }
 
     #[cfg(test)]
@@ -1220,20 +1443,20 @@ impl BodyLowerer {
             self.session.drain_work();
             let Some(component) = self.session.scc.first_component_ready_except_conformance()
             else {
-                if self.pending_receiverless_conformance.is_empty() {
+                if self.pending_role_impl_conformance.is_empty() {
                     break;
                 }
                 let mut members = self
-                    .pending_receiverless_conformance
+                    .pending_role_impl_conformance
                     .keys()
                     .copied()
                     .collect::<Vec<_>>();
                 members.sort_by_key(|member| member.0);
                 if members.iter().any(|member| {
-                    self.pending_receiverless_conformance
+                    self.pending_role_impl_conformance
                         .get(member)
                         .is_some_and(|pending| {
-                            pending.phase == PendingReceiverlessConformancePhase::Captured
+                            pending.phase == PendingRoleImplConformancePhase::Captured
                         })
                 }) {
                     // A remaining ordinary SCC/method-dependency blocker means no sound
@@ -1241,163 +1464,103 @@ impl BodyLowerer {
                     // closed, restore every legacy edge, settle once, and release on the next
                     // quiescence so final record-field resolution cannot deadlock.
                     for member in &members {
-                        if let Some(pending) = self.pending_receiverless_conformance.get_mut(member)
-                        {
-                            pending.actual_view = Some(
-                                crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
-                                    crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
-                                ),
-                            );
+                        if let Some(pending) = self.pending_role_impl_conformance.get_mut(member) {
+                            pending.actual_view = Some(unavailable_pending_actual_view(
+                                &pending.kind,
+                                crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
+                            ));
                         }
                     }
-                    self.capture_and_apply_receiverless_component(&members);
+                    self.capture_and_apply_role_impl_component(&members);
                 } else {
-                    self.release_receiverless_component(&members);
+                    self.release_role_impl_component(&members);
                 }
                 continue;
             };
 
             let has_captured = component.pending_members.iter().any(|member| {
-                self.pending_receiverless_conformance
+                self.pending_role_impl_conformance
                     .get(member)
                     .is_some_and(|pending| {
-                        pending.phase == PendingReceiverlessConformancePhase::Captured
+                        pending.phase == PendingRoleImplConformancePhase::Captured
                     })
             });
             if has_captured {
-                self.capture_and_apply_receiverless_component(&component.pending_members);
+                self.capture_and_apply_role_impl_component(&component.pending_members);
                 continue;
             }
 
             let all_edges_applied = component.pending_members.iter().all(|member| {
-                self.pending_receiverless_conformance
+                self.pending_role_impl_conformance
                     .get(member)
                     .is_none_or(|pending| {
                         matches!(
                             pending.phase,
-                            PendingReceiverlessConformancePhase::SnapshotTakenEdgesApplied
-                                | PendingReceiverlessConformancePhase::FailedAndEdgesApplied
+                            PendingRoleImplConformancePhase::SnapshotTakenEdgesApplied
+                                | PendingRoleImplConformancePhase::FailedAndEdgesApplied
                         )
                     })
             });
             if all_edges_applied {
-                self.release_receiverless_component(&component.pending_members);
+                self.release_role_impl_component(&component.pending_members);
                 continue;
             }
 
             // No production emitter other than this lowerer exists in Slice 3. Releasing an
             // unknown record is the fail-safe that keeps a malformed shadow capture from
             // deadlocking the analysis graph.
-            self.release_receiverless_component(&component.pending_members);
+            self.release_role_impl_component(&component.pending_members);
         }
     }
 
-    fn capture_and_apply_receiverless_component(&mut self, members: &[DefId]) {
+    fn capture_and_apply_role_impl_component(&mut self, members: &[DefId]) {
         // Capture every member first. No legacy requirement edge is applied until the complete
         // component batch has an immutable view or a structured Unavailable result.
-        let captures = members
+        let mut ordered_members = members.to_vec();
+        ordered_members.sort_by_key(|member| member.0);
+        let captures = ordered_members
             .iter()
             .filter_map(|member| {
-                let pending = self.pending_receiverless_conformance.get(member)?;
-                (pending.phase == PendingReceiverlessConformancePhase::Captured).then(|| {
-                    let anchor = pending
-                        .deferred
-                        .as_ref()
-                        .and_then(|deferred| match deferred.anchor {
-                            DeferredRequirementAnchor::Receiverless { value } => Some(value),
-                            DeferredRequirementAnchor::Receiver { .. } => None,
-                        });
-                    let view = pending.actual_view.clone().unwrap_or_else(|| anchor.map_or_else(
-                        || {
-                            crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
-                                crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-                            )
-                        },
-                        |anchor| {
-                            crate::role_impl_conformance::capture_receiverless_actual_view(
-                                self.session.infer.constraints(),
-                                anchor,
-                                &pending.bridge,
-                            )
-                        },
-                    ));
+                let pending = self.pending_role_impl_conformance.get(member)?;
+                (pending.phase == PendingRoleImplConformancePhase::Captured).then(|| {
+                    let view = pending.actual_view.clone().unwrap_or_else(|| {
+                        capture_pending_actual_view(self.session.infer.constraints(), pending)
+                    });
                     (*member, view)
                 })
             })
             .collect::<Vec<_>>();
         for (member, view) in captures {
-            if let Some(pending) = self.pending_receiverless_conformance.get_mut(&member) {
+            if let Some(pending) = self.pending_role_impl_conformance.get_mut(&member) {
                 pending.actual_view = Some(view);
             }
+            #[cfg(test)]
+            self.conformance_batch_events
+                .push(ConformanceBatchEvent::Captured(member));
         }
 
-        let captured = members
+        let captured = ordered_members
             .iter()
             .copied()
             .filter(|member| {
-                self.pending_receiverless_conformance
+                self.pending_role_impl_conformance
                     .get(member)
                     .is_some_and(|pending| {
-                        pending.phase == PendingReceiverlessConformancePhase::Captured
+                        pending.phase == PendingRoleImplConformancePhase::Captured
                     })
             })
             .collect::<Vec<_>>();
         for member in captured {
-            let Some(mut pending) = self.pending_receiverless_conformance.remove(&member) else {
+            let Some(mut pending) = self.pending_role_impl_conformance.remove(&member) else {
                 continue;
             };
-            let connection = pending.deferred.take().and_then(|deferred| {
-                let DeferredRequirementAnchor::Receiverless { value } = deferred.anchor else {
-                    return None;
-                };
-                if deferred.body_cursor != RequirementSpineCursor::WholeValue
-                    || !deferred.parameter_uppers.is_empty()
-                    || !matches!(
-                        deferred.parameter_context,
-                        crate::role_impl_conformance::RequirementParameterContextStatus::Clean(
-                            crate::role_impl_conformance::NonMutatingRequirementClass::PlainValueParameters {
-                                count: 0,
-                            },
-                        )
-                    )
-                {
-                    return None;
-                }
-                Some((
-                    value,
-                    deferred.requirement,
-                    deferred.continuation,
-                    deferred.final_metadata,
-                ))
-            });
+            pending.edge_applications = pending.edge_applications.saturating_add(1);
+            #[cfg(test)]
+            self.conformance_batch_events
+                .push(ConformanceBatchEvent::RequirementApplied(member));
+            let result = apply_pending_requirement(&mut self.session, &self.modules, &mut pending);
 
-            let result = if let Some((value, requirement, continuation, metadata)) = connection {
-                debug_assert_eq!(continuation.vars, metadata.signature_vars);
-                pending.edge_applications = pending.edge_applications.saturating_add(1);
-                ExprLowerer::new(
-                    &mut self.session,
-                    &self.modules,
-                    pending.module,
-                    pending.site,
-                    pending.member,
-                )
-                .connect_impl_method_requirement_from_continuation(
-                    value,
-                    &requirement,
-                    continuation,
-                    metadata.connect_value_upper,
-                )
-            } else {
-                // This can only be reached if an internal descriptor invariant was broken. The
-                // blocker still advances to the failed state and is released after one settle
-                // phase, so analysis cannot deadlock.
-                pending.edge_applications = pending.edge_applications.saturating_add(1);
-                Err(LoweringError::SignatureShapeMismatch {
-                    expected: SignatureShape::Any,
-                })
-            };
-
-            let connection_succeeded = result.is_ok();
+            let mut connection_succeeded = result.is_ok();
             if let Err(error) = result {
                 self.errors.push(BodyLoweringError::Expr {
                     def: pending.member,
@@ -1405,42 +1568,81 @@ impl BodyLowerer {
                     error,
                 });
             }
-            pending.phase = if connection_succeeded
-                && matches!(
-                    pending.actual_view,
-                    Some(crate::role_impl_conformance::ActualMethodConformanceView::Available(_))
-                ) {
-                PendingReceiverlessConformancePhase::SnapshotTakenEdgesApplied
-            } else {
-                PendingReceiverlessConformancePhase::FailedAndEdgesApplied
-            };
-            self.pending_receiverless_conformance
-                .insert(member, pending);
+            if let PendingRoleImplConformanceKind::Receiver { binding, committed } =
+                &mut pending.kind
+            {
+                if connection_succeeded {
+                    connection_succeeded =
+                        binding.is_some() && self.commit_provisional_binding(binding);
+                    *committed = connection_succeeded;
+                } else {
+                    let _discarded = binding.take();
+                }
+            }
+            pending.phase =
+                if connection_succeeded && pending_actual_view_is_available(&pending.actual_view) {
+                    PendingRoleImplConformancePhase::SnapshotTakenEdgesApplied
+                } else {
+                    PendingRoleImplConformancePhase::FailedAndEdgesApplied
+                };
+            self.pending_role_impl_conformance.insert(member, pending);
         }
     }
 
-    fn release_receiverless_component(&mut self, members: &[DefId]) {
+    fn release_role_impl_component(&mut self, members: &[DefId]) {
         for member in members.iter().copied() {
             self.session
                 .enqueue(AnalysisWork::Scc(SccInput::ConformanceReleased { member }));
-            let Some(pending) = self.pending_receiverless_conformance.remove(&member) else {
+            let Some(pending) = self.pending_role_impl_conformance.remove(&member) else {
                 continue;
             };
             #[cfg(not(test))]
             let _ = pending;
             #[cfg(test)]
-            self.receiverless_conformance_shadow
-                .push(ReceiverlessConformanceShadowWitness {
-                    impl_def: pending.impl_def,
-                    member: pending.member,
-                    actual_view: pending.actual_view.unwrap_or(
-                        crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
-                            crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-                        ),
+            self.record_conformance_shadow_witness(pending);
+        }
+    }
+
+    #[cfg(test)]
+    fn record_conformance_shadow_witness(&mut self, pending: PendingRoleImplConformance) {
+        match pending.kind {
+            PendingRoleImplConformanceKind::Receiverless => {
+                let actual_view = match pending.actual_view {
+                    Some(PendingRoleImplActualView::Receiverless(view)) => view,
+                    _ => crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
+                        crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
                     ),
-                    edge_applications: pending.edge_applications,
-                    releases: 1,
-                });
+                };
+                self.receiverless_conformance_shadow
+                    .push(ReceiverlessConformanceShadowWitness {
+                        impl_def: pending.impl_def,
+                        member: pending.member,
+                        actual_view,
+                        edge_applications: pending.edge_applications,
+                        releases: 1,
+                    });
+            }
+            PendingRoleImplConformanceKind::Receiver { committed, .. } => {
+                let actual_view = match pending.actual_view {
+                    Some(PendingRoleImplActualView::Receiver(view)) => view,
+                    _ => unavailable_receiver_actual_view(
+                        crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                    ),
+                };
+                self.receiver_conformance_shadow
+                    .push(ReceiverConformanceShadowWitness {
+                        impl_def: pending.impl_def,
+                        member: pending.member,
+                        actual_view,
+                        edge_applications: pending.edge_applications,
+                        releases: 1,
+                        binding_committed: committed,
+                        def_finished_emissions: self
+                            .binding_def_finished_emission_count(pending.member),
+                        binding_publication_commits: self
+                            .binding_publication_commit_count(pending.member),
+                    });
+            }
         }
     }
 

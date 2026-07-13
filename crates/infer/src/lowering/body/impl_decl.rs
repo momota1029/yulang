@@ -415,6 +415,9 @@ impl BodyLowerer {
 
         let defer_receiverless_requirement = method.receiver.is_none()
             && requirement.is_some()
+            && requirement.as_ref().is_some_and(|requirement| {
+                !matches!(requirement.signature, SignatureType::Function { .. })
+            })
             && conformance_shadow_target.is_some()
             && self.receiverless_conformance_shadow_enabled;
         let prepare_inactive_receiver_requirement = method.receiver.is_some()
@@ -459,9 +462,7 @@ impl BodyLowerer {
             recursive_self_possible,
         );
         match lowered {
-            Ok(lowered) => {
-                #[cfg(test)]
-                let mut lowered = lowered;
+            Ok(mut lowered) => {
                 #[cfg(test)]
                 if self.finish_inactive_receiver_binding_provisionally_for_test(
                     method.def,
@@ -472,21 +473,23 @@ impl BodyLowerer {
                     self.session.infer.restore_level(previous_level);
                     return;
                 }
-                if let (Some(deferred), Some(bridge)) =
-                    (lowered.deferred_requirement, conformance_shadow_target)
-                {
-                    self.pending_receiverless_conformance.insert(
+                if let (Some(deferred), Some(bridge)) = (
+                    lowered.deferred_requirement.take(),
+                    conformance_shadow_target.clone(),
+                ) {
+                    self.pending_role_impl_conformance.insert(
                         method.def,
-                        PendingReceiverlessRoleImplConformance {
+                        PendingRoleImplConformance {
                             impl_def,
                             member: method.def,
                             module,
                             site: method.order,
                             name: method.name.clone(),
                             bridge,
+                            kind: PendingRoleImplConformanceKind::Receiverless,
                             deferred: Some(deferred),
                             actual_view: None,
-                            phase: PendingReceiverlessConformancePhase::Captured,
+                            phase: PendingRoleImplConformancePhase::Captured,
                             edge_applications: 0,
                         },
                     );
@@ -495,6 +498,73 @@ impl BodyLowerer {
                         .enqueue(AnalysisWork::Scc(SccInput::ConformanceReleased {
                             member: method.def,
                         }));
+                }
+                if let (Some(deferred), Some(bridge)) = (
+                    lowered.inactive_receiver_requirement.take(),
+                    conformance_shadow_target,
+                ) {
+                    if crate::lowering::expr::method_body::is_zero_tail_clean_receiver_requirement(
+                        &deferred,
+                    ) {
+                        if self.receiver_descriptor_pending_gate_accepts(method.def, &deferred) {
+                            self.session
+                                .enqueue(AnalysisWork::Scc(SccInput::ConformancePending {
+                                    member: method.def,
+                                }));
+                            let mut binding = None;
+                            self.finish_binding_provisionally(
+                                &mut binding,
+                                method.def,
+                                method.name.clone(),
+                                root,
+                                lowered.computation,
+                                true,
+                            );
+                            #[cfg(test)]
+                            let actual_view = self.receiver_capture_failures.contains(&method.def).then(|| {
+                                PendingRoleImplActualView::Receiver(unavailable_receiver_actual_view(
+                                    crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                                ))
+                            });
+                            #[cfg(not(test))]
+                            let actual_view = None;
+                            self.pending_role_impl_conformance.insert(
+                                method.def,
+                                PendingRoleImplConformance {
+                                    impl_def,
+                                    member: method.def,
+                                    module,
+                                    site: method.order,
+                                    name: method.name.clone(),
+                                    bridge,
+                                    kind: PendingRoleImplConformanceKind::Receiver {
+                                        binding,
+                                        committed: false,
+                                    },
+                                    deferred: Some(deferred),
+                                    actual_view,
+                                    phase: PendingRoleImplConformancePhase::Captured,
+                                    edge_applications: 0,
+                                },
+                            );
+                            self.session.infer.restore_level(previous_level);
+                            return;
+                        }
+
+                        let result = ExprLowerer::new(
+                            &mut self.session,
+                            &self.modules,
+                            module,
+                            method.order,
+                            method.def,
+                        )
+                        .connect_deferred_receiver_requirement(deferred);
+                        if let Err(error) = result {
+                            self.push_registered_expr_error(method.def, method.name.clone(), error);
+                            self.session.infer.restore_level(previous_level);
+                            return;
+                        }
+                    }
                 }
                 self.finish_binding(
                     method.def,
@@ -515,6 +585,28 @@ impl BodyLowerer {
             }
         }
         self.session.infer.restore_level(previous_level);
+    }
+
+    fn receiver_descriptor_pending_gate_accepts(
+        &self,
+        def: DefId,
+        deferred: &DeferredRoleImplMethodRequirement,
+    ) -> bool {
+        #[cfg(test)]
+        if self.receiver_descriptor_gate_failures.contains(&def) {
+            return false;
+        }
+        #[cfg(not(test))]
+        let _ = def;
+        matches!(deferred.anchor, DeferredRequirementAnchor::Receiver { .. })
+            && matches!(
+                deferred.body_cursor,
+                RequirementSpineCursor::FunctionResult {
+                    consumed_function_layers: 1,
+                }
+            )
+            && !deferred.final_metadata.connect_value_upper
+            && crate::lowering::expr::method_body::is_zero_tail_clean_receiver_requirement(deferred)
     }
 
     #[cfg(test)]

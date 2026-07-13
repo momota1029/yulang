@@ -8,7 +8,8 @@
 pub(crate) mod view;
 
 pub(crate) use view::{
-    ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, DeclaredRoleImplView,
+    ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    ActualReceiverMethodConformanceView, DeclaredRoleImplView,
 };
 
 use poly::expr::{Arena as PolyArena, Def, DefId};
@@ -26,6 +27,15 @@ pub(crate) fn capture_receiverless_actual_view(
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualMethodConformanceView {
     view::capture_receiverless_actual_view(machine, anchor, bridge)
+}
+
+pub(crate) fn capture_receiver_actual_view(
+    machine: &crate::constraints::ConstraintMachine,
+    value: TypeVar,
+    effect: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualReceiverMethodConformanceView {
+    view::capture_receiver_actual_view(machine, value, effect, bridge)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,16 +144,27 @@ impl RoleImplConformanceContract {
             return Vec::new();
         }
 
-        let declared = self.declared_view(modules);
+        let declared_view = self.declared_view(modules);
         self.methods
             .iter()
-            .zip(declared.methods)
-            .filter(|(method, declared)| {
+            .zip(&declared_view.methods)
+            .filter(|(method, declared_method)| {
                 method
                     .declared_requirement
                     .as_ref()
-                    .is_some_and(|requirement| requirement.ambiguous_names.is_empty())
-                    && matches!(declared.requirement, view::DeclaredTypeView::Available(_))
+                    .is_some_and(|requirement| {
+                        requirement.ambiguous_names.is_empty()
+                            && (matches!(
+                                declared_method.requirement,
+                                view::DeclaredTypeView::Available(_)
+                            ) || view::receiver_result_is_first_order(
+                                self,
+                                modules,
+                                &declared_view.inputs,
+                                &declared_view.associated,
+                                &requirement.signature,
+                            ))
+                    })
             })
             .flat_map(|(method, _)| match &method.provision {
                 RoleImplMethodProvision::Explicit { implementations } => implementations

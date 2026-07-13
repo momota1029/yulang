@@ -1335,12 +1335,6 @@ fn role_impl_method_lifecycle_slice3_unavailable_capture_still_releases() {
 
 #[test]
 fn role_impl_method_lifecycle_slice3_keeps_out_of_scope_methods_immediate() {
-    let receiver = concat!(
-        "role Read 'subject:\n",
-        "  our x.read: int\n",
-        "impl int: Read:\n",
-        "  our x.read = 1\n",
-    );
     let inferred_associated = concat!(
         "role Make 'subject:\n",
         "  type output\n",
@@ -1355,7 +1349,7 @@ fn role_impl_method_lifecycle_slice3_keeps_out_of_scope_methods_immediate() {
         "  our make x = x\n",
     );
 
-    for source in [receiver, inferred_associated, unsupported_declared_function] {
+    for source in [inferred_associated, unsupported_declared_function] {
         let output = lower_receiverless_conformance_shadow(source, true);
         assert!(output.receiverless_conformance_shadow().is_empty());
         assert_eq!(
@@ -1528,7 +1522,11 @@ fn role_impl_method_lifecycle_slice4b_builds_inactive_receiver_descriptor_and_fa
 
         let output = lower_receiverless_conformance_shadow(source, true);
         let transitions = output.session.scc.conformance_transition_counts();
-        assert_eq!((transitions.pending, transitions.released), (0, 0));
+        let expected_transitions = if parameter_count == 0 { (1, 1) } else { (0, 0) };
+        assert_eq!(
+            (transitions.pending, transitions.released),
+            expected_transitions
+        );
         let immediate = lower_receiverless_conformance_shadow(source, false);
         let role = if method == "read" { "Read" } else { "Choose" };
         assert_eq!(
@@ -1689,6 +1687,216 @@ fn role_impl_method_lifecycle_slice4c_t2_inactive_rejection_poison_is_natural_bo
             computed_runtime_root: false,
             quantified: true,
             scheme: "never".into(),
+        }
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t3_build_failure_matches_immediate_baseline() {
+    let source = concat!(
+        "role Build 'subject:\n",
+        "  our x.build: int\n",
+        "impl int: Build:\n",
+        "  our x.build = \\value -> value\n",
+    );
+    let (delayed, method) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, immediate_method) =
+        lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(method, immediate_method);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Build"),
+        receiver_shadow_production_surface(&immediate, "Build"),
+        "a rejected delayed receiver must remain bodyless and compact naturally to Bottom",
+    );
+
+    let [witness] = delayed.receiver_conformance_shadow() else {
+        panic!("expected one delayed receiver witness")
+    };
+    assert!(!witness.binding_committed);
+    assert_eq!((witness.edge_applications, witness.releases), (1, 1));
+    assert_eq!(
+        (
+            witness.def_finished_emissions,
+            witness.binding_publication_commits
+        ),
+        (1, 0),
+    );
+    assert!(matches!(
+        delayed.session.poly.defs.get(method),
+        Some(Def::Let {
+            body: None,
+            scheme: Some(scheme),
+            ..
+        }) if poly::dump::format_scheme(&delayed.session.poly.typ, scheme) == "never"
+    ));
+    assert_eq!(computed_runtime_root_count(&delayed.session, method), 0);
+    assert_eq!(
+        delayed.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts {
+            pending: 1,
+            released: 1,
+            ..Default::default()
+        }
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t3_valid_result_annotation_and_capture_failure_match_baseline()
+ {
+    use crate::role_impl_conformance::ActualMethodConformanceView;
+    use crate::role_impl_conformance::view::ConformanceTypeView;
+
+    let source = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read: int = 1\n",
+        "my observed = 1.read\n",
+    );
+    let (delayed, method) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Read"),
+        receiver_shadow_production_surface(&immediate, "Read"),
+    );
+    assert!(delayed.errors.is_empty(), "{:?}", delayed.errors);
+
+    let [witness] = delayed.receiver_conformance_shadow() else {
+        panic!("expected one delayed receiver witness")
+    };
+    assert!(witness.binding_committed);
+    assert_eq!(
+        (
+            witness.def_finished_emissions,
+            witness.binding_publication_commits
+        ),
+        (1, 1),
+    );
+    assert_eq!(
+        witness.actual_view.value,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Int)),
+    );
+    assert!(matches!(
+        witness.actual_view.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+    ));
+    assert!(matches!(
+        delayed.session.poly.defs.get(method),
+        Some(Def::Let {
+            body: Some(_),
+            scheme: Some(scheme),
+            ..
+        }) if poly::dump::format_scheme(&delayed.session.poly.typ, scheme) == "int -> int"
+    ));
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t3_capture_failure_still_connects_and_commits() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let source = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    let (failed_capture, _) = lower_receiver_conformance_shadow(source, true, false, true);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&failed_capture, "Read"),
+        receiver_shadow_production_surface(&immediate, "Read"),
+    );
+    let [witness] = failed_capture.receiver_conformance_shadow() else {
+        panic!("expected one delayed receiver witness")
+    };
+    assert!(witness.binding_committed);
+    assert_eq!(
+        (
+            witness.def_finished_emissions,
+            witness.binding_publication_commits
+        ),
+        (1, 1),
+    );
+    assert!(matches!(
+        witness.actual_view.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface
+        )
+    ));
+    assert!(matches!(
+        witness.actual_view.effect,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface
+        )
+    ));
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t3_internal_descriptor_gate_falls_back_immediately() {
+    let source = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    let (fallback, _) = lower_receiver_conformance_shadow(source, true, true, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&fallback, "Read"),
+        receiver_shadow_production_surface(&immediate, "Read"),
+    );
+    assert!(fallback.receiver_conformance_shadow().is_empty());
+    assert_eq!(
+        fallback.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts::default(),
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t3_mixed_receiverless_receiver_component_captures_atomically()
+{
+    let source = concat!(
+        "role Pair 'subject:\n",
+        "  our make: int\n",
+        "  our x.read: int\n",
+        "impl int: Pair:\n",
+        "  our make = read\n",
+        "  our x.read = make\n",
+    );
+    let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Pair"),
+        receiver_shadow_production_surface(&immediate, "Pair"),
+    );
+    assert_eq!(delayed.receiverless_conformance_shadow().len(), 1);
+    assert_eq!(delayed.receiver_conformance_shadow().len(), 1);
+    let events = delayed.conformance_batch_events();
+    assert_eq!(events.len(), 4, "{events:?}");
+    assert!(matches!(
+        events[0],
+        super::super::body::ConformanceBatchEvent::Captured(_)
+    ));
+    assert!(matches!(
+        events[1],
+        super::super::body::ConformanceBatchEvent::Captured(_)
+    ));
+    assert!(matches!(
+        events[2],
+        super::super::body::ConformanceBatchEvent::RequirementApplied(_)
+    ));
+    assert!(matches!(
+        events[3],
+        super::super::body::ConformanceBatchEvent::RequirementApplied(_)
+    ));
+    assert_eq!(
+        delayed.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts {
+            pending: 2,
+            released: 2,
+            ..Default::default()
         }
     );
 }
@@ -2920,6 +3128,46 @@ fn lower_receiverless_conformance_shadow(source: &str, enabled: bool) -> BodyLow
         .session
         .resolve_unresolved_selections_as_record_fields();
     lowerer.finish()
+}
+
+fn lower_receiver_conformance_shadow(
+    source: &str,
+    enabled: bool,
+    force_descriptor_gate_failure: bool,
+    force_capture_failure: bool,
+) -> (BodyLowering, DefId) {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let method = lower.modules.role_impls(module)[0].methods[0].def;
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    lowerer.set_receiverless_conformance_shadow_enabled(enabled);
+    if force_descriptor_gate_failure {
+        lowerer.force_receiver_descriptor_gate_failure(method);
+    }
+    if force_capture_failure {
+        lowerer.force_receiver_capture_failure(method);
+    }
+    lowerer.lower_block(&root, module);
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    (lowerer.finish(), method)
+}
+
+fn receiver_shadow_production_surface(output: &BodyLowering, role: &str) -> String {
+    let bodyless = output
+        .session
+        .poly
+        .defs
+        .iter()
+        .filter(|(_, def)| matches!(def, Def::Let { body: None, .. }))
+        .count();
+    format!(
+        "{}\nbodyless={bodyless}",
+        receiverless_production_surface(output, role),
+    )
 }
 
 fn receiverless_production_surface(output: &BodyLowering, role: &str) -> String {

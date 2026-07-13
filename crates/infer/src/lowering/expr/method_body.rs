@@ -16,7 +16,7 @@ pub(in crate::lowering) struct LoweredImplMethodBody {
         not(test),
         allow(
             dead_code,
-            reason = "completed receiver descriptors remain inactive until Slice 4c"
+            reason = "multiple-tail receiver descriptors remain inactive until Slice 4d"
         )
     )]
     pub(in crate::lowering) inactive_receiver_requirement:
@@ -625,7 +625,9 @@ impl<'a> ExprLowerer<'a> {
         };
         if let Some(deferred) = inactive_receiver_requirement.as_mut() {
             deferred.receiver_anchors = Some(receiver_anchors.clone());
-            self.connect_inactive_receiver_requirement_immediately(deferred)?;
+            if !is_zero_tail_clean_receiver_requirement(deferred) {
+                self.connect_inactive_receiver_requirement_immediately(deferred)?;
+            }
         } else if let Some(requirement) = requirement {
             self.connect_impl_method_requirement(
                 value,
@@ -927,10 +929,9 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         deferred: &DeferredRoleImplMethodRequirement,
     ) -> Result<(), LoweringError> {
-        // Slice 4b keeps the completed pre-body continuation inactive for inspection while this
-        // clone restores the legacy edges exactly once. Slice 4c must consume the stored
-        // continuation instead and remove this compatibility application; running both would
-        // lower the deferred expected layer twice.
+        // Multiple-tail descriptors remain on the Slice 4b compatibility path until Slice 4d.
+        // Zero-tail descriptors never call this helper: T3 moves and consumes their continuation
+        // after the component-wide snapshot, avoiding a second expected-layer lowering.
         debug_assert!(matches!(
             deferred.parameter_context,
             RequirementParameterContextStatus::Clean(_)
@@ -974,6 +975,77 @@ impl<'a> ExprLowerer<'a> {
                 deferred.final_metadata.new_var_level,
             ),
             deferred.final_metadata.connect_value_upper,
+        )
+    }
+
+    /// Consume the zero-tail receiver descriptor exactly once after its component snapshot.
+    pub(in crate::lowering) fn connect_deferred_receiver_requirement(
+        &mut self,
+        deferred: DeferredRoleImplMethodRequirement,
+    ) -> Result<(), LoweringError> {
+        let DeferredRoleImplMethodRequirement {
+            receiver_anchors,
+            requirement,
+            parameter_uppers,
+            body_cursor,
+            continuation,
+            parameter_context,
+            final_metadata,
+            ..
+        } = deferred;
+        if !matches!(
+            parameter_context,
+            RequirementParameterContextStatus::Clean(
+                NonMutatingRequirementClass::PlainValueParameters { count: 0 }
+            )
+        ) || !parameter_uppers.is_empty()
+        {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&requirement.signature),
+            });
+        }
+        let Some(anchors) = receiver_anchors else {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&requirement.signature),
+            });
+        };
+        if !anchors.tail_parameters.is_empty() {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&requirement.signature),
+            });
+        }
+
+        let body = self.resume_impl_method_requirement_body(
+            &requirement.signature,
+            ImplRequirementParameterPreparation {
+                param_uppers: parameter_uppers,
+                body_cursor: Some(body_cursor),
+                continuation,
+            },
+        )?;
+        let Some(body) = body.body else {
+            return Err(LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::of(&requirement.signature),
+            });
+        };
+        self.connect_impl_method_body_requirement_anchors(
+            anchors.body_value,
+            anchors.body_effect,
+            body,
+        );
+        self.check_impl_method_requirement_shape(anchors.method_value, &requirement.signature)?;
+        self.check_impl_method_requirement_concrete_type(
+            anchors.method_value,
+            &requirement.signature,
+        )?;
+        self.connect_impl_method_requirement_from_continuation(
+            anchors.method_value,
+            &requirement,
+            SignatureLoweringContinuation::with_vars_at_level(
+                final_metadata.signature_vars,
+                final_metadata.new_var_level,
+            ),
+            final_metadata.connect_value_upper,
         )
     }
 
@@ -1728,6 +1800,21 @@ impl<'a> ExprLowerer<'a> {
             .map(|source| aliases.get(&source).cloned().unwrap_or(source))
             .collect()
     }
+}
+
+pub(in crate::lowering) fn is_zero_tail_clean_receiver_requirement(
+    deferred: &DeferredRoleImplMethodRequirement,
+) -> bool {
+    matches!(
+        deferred.parameter_context,
+        RequirementParameterContextStatus::Clean(
+            NonMutatingRequirementClass::PlainValueParameters { count: 0 }
+        )
+    ) && deferred.parameter_uppers.is_empty()
+        && deferred
+            .receiver_anchors
+            .as_ref()
+            .is_some_and(|anchors| anchors.tail_parameters.is_empty())
 }
 
 #[derive(Clone, Copy)]

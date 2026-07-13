@@ -101,6 +101,14 @@ pub(crate) enum ActualMethodConformanceView {
     Unavailable(ActualMethodConformanceViewUnavailable),
 }
 
+/// Receiver methods expose the raw body result and effect anchors separately. Both views are
+/// captured in the component-wide read-only batch before either deferred body edge is applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActualReceiverMethodConformanceView {
+    pub(crate) value: ActualMethodConformanceView,
+    pub(crate) effect: ActualMethodConformanceView,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ActualMethodConformanceViewUnavailable {
     MissingBinderBridge(RoleImplConformanceBinderBridgeUnavailable),
@@ -223,6 +231,28 @@ pub(super) fn build_declared_role_impl_view(
     }
 }
 
+pub(super) fn receiver_result_is_first_order(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    inputs: &[DeclaredTypeView],
+    associated: &[DeclaredAssociatedView],
+    signature: &SignatureType,
+) -> bool {
+    let SignatureType::Function {
+        arg_eff: None,
+        ret_eff: None,
+        ret,
+        ..
+    } = signature
+    else {
+        return false;
+    };
+    matches!(
+        signature_type_view(contract, modules, inputs, associated, ret),
+        DeclaredTypeView::Available(_)
+    )
+}
+
 pub(super) fn capture_receiverless_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
@@ -246,6 +276,18 @@ pub(super) fn capture_receiverless_actual_view(
     match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
+    }
+}
+
+pub(super) fn capture_receiver_actual_view(
+    machine: &ConstraintMachine,
+    value: TypeVar,
+    effect: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualReceiverMethodConformanceView {
+    ActualReceiverMethodConformanceView {
+        value: capture_receiverless_actual_view(machine, value, bridge),
+        effect: capture_receiverless_actual_view(machine, effect, bridge),
     }
 }
 
