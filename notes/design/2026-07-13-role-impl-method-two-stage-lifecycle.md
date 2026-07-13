@@ -883,6 +883,48 @@ The following remain unconfirmed and must be resolved or bounded by the relevant
     Slice 4c (real SCC activation for receiver methods) cannot complete until this choice, or an
     equivalently sound transaction design, is resolved and witnessed against the immediate path.
 
+11. Whether the already-active receiverless Slice 3 path also requires provisional binding
+    publication for failures discovered only after deferral. Receiverless lowering has the same
+    unconditional-call structure that exposed point 10: once deferred body lowering returns
+    `Ok`, `lower_role_impl_method_binding` calls `finish_binding` and publishes the body, root edge,
+    fetch, and possible runtime root before the pending-phase connection's success or failure is
+    known.
+
+    The concrete source-level shape/concrete-type mismatch class from point 10 is nevertheless
+    independently safe on the receiverless path. Before constructing its deferred descriptor,
+    `lower_impl_method_body_expr` runs `check_impl_method_requirement_shape` followed by
+    `check_impl_method_requirement_concrete_type`. Either failure returns `Err` before
+    `finish_binding`; the registered definition follows the ordinary failed-binding path and its
+    unconnected root compacts to Bottom. This was verified by running the following counterexample:
+
+    ```yu
+    role Foo 'subject:
+      our compute: int
+    impl Foo int:
+      our compute = \x -> x
+    ```
+
+    It reports `SignatureShapeMismatch` and finishes as `never = <missing>`, matching the immediate
+    path rather than retaining the lambda's inferred scheme. Thus receiverless methods do not
+    reproduce point 10 for the source mismatch class which triggered the receiver transaction
+    work.
+
+    A narrower residual gap remains. Receiverless Slice 3 does not own a
+    `ProvisionalBindingCommit`, so a failure which passes both eager read-only checks but arises
+    only while the pending phase resumes the saved continuation -- for example a
+    `SignatureConstraint` error or internal descriptor corruption -- would occur after the binding
+    publications above. No production source counterexample reaching such a late failure within
+    the current explicit-complete, first-order blast radius has been found, but reachability has
+    not been proved impossible either.
+
+    If a reachable counterexample is found, the expected repair is to generalize the Slice 4c-T1/T2
+    `finish_binding_provisionally` / `commit_provisional_binding` transaction to receiverless
+    pending records, retaining the same single-`DefFinished`, component-atomic capture, settle, and
+    release rules. Slice 4c deliberately does not make that extension. Deferring a known structural
+    gap is not ideal from a soundness perspective, but without a reachable counterexample the extra
+    production lifecycle change is not justified in this slice; the risk remains recorded rather
+    than silently treated as impossible.
+
 ### 13.1 Point 10.1: provisional binding transaction detailed design
 
 The user selected point 10 direction (a). Investigation of the current ownership boundaries makes
