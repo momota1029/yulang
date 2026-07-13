@@ -291,15 +291,92 @@ impl BodyLowerer {
         computation: Computation,
         connect_body: bool,
     ) {
+        let mut pending =
+            Some(self.prepare_binding_commit(def, name, root, computation, connect_body));
+        self.commit_provisional_binding(&mut pending);
+        self.emit_def_finished(def);
+    }
+
+    /// Close lowering for a binding while retaining its successful publications in `pending`.
+    ///
+    /// Slice 4c-T1 defines this boundary but leaves it inactive. T2 will pass the receiver pending
+    /// record's empty slot here before this single `DefFinished` is observed by the SCC machine.
+    #[allow(
+        dead_code,
+        reason = "Slice 4c-T2 activates provisional binding publication"
+    )]
+    pub(super) fn finish_binding_provisionally(
+        &mut self,
+        pending: &mut Option<ProvisionalBindingCommit>,
+        def: poly::expr::DefId,
+        name: Name,
+        root: TypeVar,
+        computation: Computation,
+        connect_body: bool,
+    ) {
+        assert!(
+            pending.is_none(),
+            "a provisional binding slot must be filled exactly once"
+        );
+        if self.validate_provisional_binding_target(def, &name) {
+            *pending =
+                Some(self.prepare_binding_commit(def, name, root, computation, connect_body));
+        }
+        self.emit_def_finished(def);
+    }
+
+    fn prepare_binding_commit(
+        &self,
+        def: poly::expr::DefId,
+        name: Name,
+        root: TypeVar,
+        computation: Computation,
+        connect_body: bool,
+    ) -> ProvisionalBindingCommit {
+        ProvisionalBindingCommit {
+            def,
+            name,
+            root,
+            computation,
+            connect_body,
+            publish_runtime_root: !self.suppress_runtime_roots,
+        }
+    }
+
+    fn validate_provisional_binding_target(&mut self, def: poly::expr::DefId, name: &Name) -> bool {
+        if matches!(self.session.poly.defs.get(def), Some(Def::Let { .. })) {
+            return true;
+        }
+        self.errors.push(BodyLoweringError::NonLetDef {
+            def,
+            name: name.clone(),
+        });
+        false
+    }
+
+    /// Consume and publish a previously prepared binding without emitting `DefFinished`.
+    pub(super) fn commit_provisional_binding(
+        &mut self,
+        pending: &mut Option<ProvisionalBindingCommit>,
+    ) -> bool {
+        let ProvisionalBindingCommit {
+            def,
+            name,
+            root,
+            computation,
+            connect_body,
+            publish_runtime_root,
+        } = pending
+            .take()
+            .expect("a provisional binding commit must be consumed exactly once");
+
         let Some(current) = self.session.poly.defs.get_mut(def) else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
-            self.finish_failed_def(def);
-            return;
+            return false;
         };
         let Def::Let { body, .. } = current else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
-            self.finish_failed_def(def);
-            return;
+            return false;
         };
 
         *body = Some(computation.expr);
@@ -308,14 +385,22 @@ impl BodyLowerer {
         }
         let fetch = BindingFetch::from_evaluation(computation.evaluation);
         self.session.record_binding_fetch(def, fetch);
-        if fetch.runs_computation() && !self.suppress_runtime_roots {
+        if fetch.runs_computation() && publish_runtime_root {
             self.session
                 .poly
                 .runtime_roots
                 .push(poly::expr::RuntimeRoot::ComputedDef(def));
         }
+        true
+    }
+
+    fn emit_def_finished(&mut self, def: poly::expr::DefId) {
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    }
+
+    pub(super) fn finish_failed_def(&mut self, def: poly::expr::DefId) {
+        self.emit_def_finished(def);
     }
 
     pub(super) fn register_failed_def(&mut self, def: poly::expr::DefId) {
@@ -343,11 +428,6 @@ impl BodyLowerer {
         self.errors
             .push(BodyLoweringError::MissingBody { def, name });
         self.register_failed_def(def);
-    }
-
-    pub(super) fn finish_failed_def(&mut self, def: poly::expr::DefId) {
-        self.session
-            .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }
 
     pub(super) fn constrain_def_body(&mut self, root: TypeVar, body: TypeVar) {

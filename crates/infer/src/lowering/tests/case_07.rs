@@ -1590,6 +1590,49 @@ fn role_impl_method_lifecycle_slice4b_builds_inactive_receiver_descriptor_and_fa
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice4c_t1_immediate_publication_matches_frozen_oracle() {
+    let source = concat!(
+        "my identity = \\value -> value\n",
+        "my computed = identity 1\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let identity = binding_def_and_order(&lower.modules, module, "identity").0;
+    let computed = binding_def_and_order(&lower.modules, module, "computed").0;
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert!(
+        crate::check::summarize_lowering(&output)
+            .diagnostics
+            .is_empty()
+    );
+    assert_eq!(
+        slice4c_t1_binding_publication_witness(&output, identity),
+        Slice4cT1BindingPublicationWitness {
+            body_published: true,
+            root_has_body_var_lower: true,
+            fetch: BindingFetch::FetchValue,
+            computed_runtime_root: false,
+            quantified: true,
+            scheme: "'a -> 'a".into(),
+        }
+    );
+    assert_eq!(
+        slice4c_t1_binding_publication_witness(&output, computed),
+        Slice4cT1BindingPublicationWitness {
+            body_published: true,
+            root_has_body_var_lower: true,
+            fetch: BindingFetch::FetchComputation,
+            computed_runtime_root: true,
+            quantified: true,
+            scheme: "int".into(),
+        }
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -2605,6 +2648,61 @@ const EFFECTFUL_SHARED_ROW: &str = concat!(
     "infer-candidates=Flow(box 'a <: box 'a; value='a <: 'a) where [] methods=1 links=assoc/head:[value:1],prereq/head:0\n",
     "poly-candidates=Flow(box 'a <: box 'a; value='a <: 'a) where [] methods=1 links=assoc/head:[value:1],prereq/head:0",
 );
+
+#[derive(Debug, PartialEq, Eq)]
+struct Slice4cT1BindingPublicationWitness {
+    body_published: bool,
+    root_has_body_var_lower: bool,
+    fetch: BindingFetch,
+    computed_runtime_root: bool,
+    quantified: bool,
+    scheme: String,
+}
+
+fn slice4c_t1_binding_publication_witness(
+    output: &BodyLowering,
+    def: DefId,
+) -> Slice4cT1BindingPublicationWitness {
+    let Some(Def::Let { body, scheme, .. }) = output.session.poly.defs.get(def) else {
+        panic!("expected let definition")
+    };
+    let root = output
+        .typing
+        .def(def)
+        .expect("finished binding must retain its registered root");
+    let root_has_body_var_lower = output
+        .session
+        .infer
+        .constraints()
+        .bounds()
+        .of(root)
+        .is_some_and(|bounds| {
+            bounds.lowers().iter().any(|bound| {
+                matches!(
+                    output.session.infer.constraints().types().pos(bound.pos),
+                    Pos::Var(_)
+                )
+            })
+        });
+    let scheme = scheme
+        .as_ref()
+        .map(|scheme| poly::dump::format_scheme(&output.session.poly.typ, scheme))
+        .unwrap_or_else(|| "<missing>".into());
+
+    Slice4cT1BindingPublicationWitness {
+        body_published: body.is_some(),
+        root_has_body_var_lower,
+        fetch: output.session.scc.fetch_of(def),
+        computed_runtime_root: output
+            .session
+            .poly
+            .runtime_roots
+            .iter()
+            .any(|root| matches!(root, poly::expr::RuntimeRoot::ComputedDef(root) if *root == def)),
+        quantified: output.session.scc.is_quantified(def),
+        scheme,
+    }
+}
 
 fn characterize(source: &str, role: &str) -> String {
     let root = parse(source);

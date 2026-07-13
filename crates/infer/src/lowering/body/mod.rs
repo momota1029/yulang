@@ -975,6 +975,20 @@ pub(super) struct DeferredResultAnnotationCheck {
     expected: SignatureType,
 }
 
+/// Successful binding publications retained across a future conformance pause.
+///
+/// The payload is same-session lowering state. It is deliberately neither cloneable nor
+/// serializable; the owning pending slot must move it into `commit_provisional_binding` exactly
+/// once. T1 still commits every payload immediately through `finish_binding`.
+pub(super) struct ProvisionalBindingCommit {
+    def: DefId,
+    name: Name,
+    root: TypeVar,
+    computation: Computation,
+    connect_body: bool,
+    publish_runtime_root: bool,
+}
+
 struct PendingReceiverlessRoleImplConformance {
     #[cfg_attr(
         not(test),
