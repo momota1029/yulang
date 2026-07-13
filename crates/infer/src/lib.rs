@@ -392,7 +392,15 @@ pub struct RoleImplDecl {
     pub module: ModuleId,
     pub body_module: ModuleId,
     pub order: ModuleOrder,
+    pub advertised_prerequisites: Vec<StoredRoleImplPrerequisite>,
     pub methods: Vec<RoleImplMethodDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredRoleImplPrerequisite {
+    pub subject: Option<StoredSignature>,
+    pub role: StoredSignature,
+    pub source: SourceRange,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -27,9 +27,16 @@ use crate::{ModuleTable, TypeDeclId};
 pub(crate) struct DeclaredRoleImplView {
     pub(crate) inputs: Vec<DeclaredTypeView>,
     pub(crate) associated: Vec<DeclaredAssociatedView>,
+    pub(crate) advertised_prerequisites: Vec<DeclaredRolePredicateView>,
     pub(crate) input_substitution: Vec<DeclaredSubstitutionSlotView>,
     pub(crate) associated_substitution: Vec<DeclaredSubstitutionSlotView>,
     pub(crate) methods: Vec<DeclaredMethodRequirementView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct DeclaredRolePredicateView {
+    pub(crate) role: Vec<String>,
+    pub(crate) inputs: Vec<DeclaredTypeView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,14 +64,14 @@ pub(crate) struct DeclaredMethodRequirementView {
     pub(crate) requirement: DeclaredTypeView,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum DeclaredTypeView {
     Available(ConformanceTypeView),
     Unavailable(DeclaredViewUnavailable),
     Ambiguous(DeclaredViewAmbiguity),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum DeclaredViewUnavailable {
     UnannotatedRequirement,
     UnsupportedFunction,
@@ -78,13 +85,13 @@ pub(crate) enum DeclaredViewUnavailable {
     UnboundSourceBinder,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum DeclaredViewAmbiguity {
     InputAssociatedNameCollision(String),
     DuplicateSubstitutionName(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ConformanceTypeView {
     Top,
     Bottom,
@@ -278,6 +285,20 @@ pub(super) fn build_declared_role_impl_view(
             },
         })
         .collect::<Vec<_>>();
+    let mut advertised_prerequisites = contract
+        .advertised_prerequisites
+        .iter()
+        .map(|prerequisite| DeclaredRolePredicateView {
+            role: prerequisite.role.clone(),
+            inputs: prerequisite
+                .inputs
+                .iter()
+                .map(|input| declared_type_view(contract, modules, input))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    advertised_prerequisites.sort();
+    advertised_prerequisites.dedup();
     let input_substitution = contract
         .requirement_substitution
         .inputs
@@ -342,6 +363,7 @@ pub(super) fn build_declared_role_impl_view(
     DeclaredRoleImplView {
         inputs,
         associated,
+        advertised_prerequisites,
         input_substitution,
         associated_substitution,
         methods,

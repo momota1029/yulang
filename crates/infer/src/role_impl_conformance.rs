@@ -46,6 +46,7 @@ pub(crate) struct RoleImplConformanceContract {
     pub(crate) universal_binders: Vec<ImplUniversalBinder>,
     pub(crate) inputs: Vec<DeclaredType>,
     pub(crate) associated: Vec<AssociatedAssignment>,
+    pub(crate) advertised_prerequisites: Vec<DeclaredRolePredicate>,
     pub(crate) requirement_substitution: RoleRequirementSubstitution,
     pub(crate) methods: Vec<RoleImplMethodContract>,
     pub(crate) unmatched_implementations: Vec<RoleImplMethodImplementation>,
@@ -68,6 +69,7 @@ impl RoleImplConformanceContract {
         role_input_names: Vec<String>,
         inputs: Vec<AnnType>,
         associated: Vec<AssociatedAssignment>,
+        advertised_prerequisites: Vec<DeclaredRolePredicate>,
         requirements: Vec<RoleImplMethodRequirementCapture>,
         implementations: Vec<RoleImplMethodImplementation>,
         annotation_solver_vars: &rustc_hash::FxHashMap<AnnTypeVarId, TypeVar>,
@@ -83,6 +85,11 @@ impl RoleImplConformanceContract {
         for assignment in &associated {
             if let AssociatedAssignment::Explicit { ty, .. } = assignment {
                 ty.collect_source_binders(&mut source_binders);
+            }
+        }
+        for prerequisite in &advertised_prerequisites {
+            for input in &prerequisite.inputs {
+                input.collect_source_binders(&mut source_binders);
             }
         }
         source_binders.sort_by_key(|binder| binder.id.0);
@@ -113,6 +120,7 @@ impl RoleImplConformanceContract {
             universal_binders,
             inputs,
             associated,
+            advertised_prerequisites,
             requirement_substitution,
             methods,
             unmatched_implementations,
@@ -599,6 +607,13 @@ impl DeclaredType {
     fn collect_source_binders(&self, out: &mut Vec<AnnTypeVar>) {
         collect_ann_type_vars(&self.annotation, out);
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeclaredRolePredicate {
+    pub(crate) role: Vec<String>,
+    pub(crate) inputs: Vec<DeclaredType>,
+    pub(crate) source: SourceRange,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

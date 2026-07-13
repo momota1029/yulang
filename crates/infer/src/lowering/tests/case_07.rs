@@ -706,6 +706,128 @@ fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfa
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_p0a_no_where_has_no_advertised_prerequisites() {
+    let source = concat!(
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl int: Box:\n",
+        "  our x.get = ()\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [implementation] = output.modules.role_impls(output.modules.root_id()) else {
+        panic!("expected one source role impl")
+    };
+    assert!(implementation.advertised_prerequisites.is_empty());
+
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source role impl contract")
+    };
+    assert!(contract.advertised_prerequisites.is_empty());
+    assert!(
+        contract
+            .declared_view(&output.modules)
+            .advertised_prerequisites
+            .is_empty()
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p0a_captures_impl_where_with_u_binder() {
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, DeclaredRolePredicateView, DeclaredTypeView,
+    };
+
+    let source = concat!(
+        "role SomeRole 'subject:\n",
+        "  our x.some: unit\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  where 'a: SomeRole\n",
+        "  our x.get = ()\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [implementation] = output.modules.role_impls(output.modules.root_id()) else {
+        panic!("expected one source role impl")
+    };
+    assert_eq!(implementation.advertised_prerequisites.len(), 1);
+
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source role impl contract")
+    };
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    assert_eq!(
+        contract
+            .declared_view(&output.modules)
+            .advertised_prerequisites,
+        vec![DeclaredRolePredicateView {
+            role: vec!["SomeRole".into()],
+            inputs: vec![DeclaredTypeView::Available(ConformanceTypeView::Binder(u0))],
+        }],
+    );
+    assert!(
+        output.session.role_impls.candidates(&["Box".into()])[0]
+            .prerequisites
+            .is_empty(),
+        "P0-A capture must not activate candidate prerequisites",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p0a_ignores_method_body_where_and_normalizes() {
+    use crate::role_impl_conformance::view::{
+        ConformanceBinder, ConformanceTypeView, DeclaredRolePredicateView, DeclaredTypeView,
+    };
+
+    let source = concat!(
+        "role AlphaRole 'subject:\n",
+        "  our x.alpha: unit\n",
+        "role ImplRole 'subject:\n",
+        "  our x.impl_role: unit\n",
+        "role BodyRole 'subject:\n",
+        "  our x.body_role: unit\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  where 'a: ImplRole\n",
+        "  where 'a: AlphaRole\n",
+        "  where 'a: ImplRole\n",
+        "  our x.get =\n",
+        "    where 'a: BodyRole\n",
+        "    ()\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [implementation] = output.modules.role_impls(output.modules.root_id()) else {
+        panic!("expected one source role impl")
+    };
+    assert_eq!(implementation.advertised_prerequisites.len(), 3);
+
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one source role impl contract")
+    };
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    let input = DeclaredTypeView::Available(ConformanceTypeView::Binder(u0));
+    assert_eq!(
+        contract
+            .declared_view(&output.modules)
+            .advertised_prerequisites,
+        vec![
+            DeclaredRolePredicateView {
+                role: vec!["AlphaRole".into()],
+                inputs: vec![input.clone()],
+            },
+            DeclaredRolePredicateView {
+                role: vec!["ImplRole".into()],
+                inputs: vec![input],
+            },
+        ],
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage4_obs_final_prerequisites_lose_predicate_provenance() {
     let prelude = concat!(
         "role Ord 'a:\n",

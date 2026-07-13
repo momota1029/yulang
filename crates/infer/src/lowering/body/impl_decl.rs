@@ -126,6 +126,11 @@ impl BodyLowerer {
         let role_input_names = self.modules.role_inputs(spec.role).to_vec();
         let role_associated_names = self.modules.role_associated(spec.role).to_vec();
         let explicit_associated = role_impl_associated_type_exprs(node);
+        let source_impl = self
+            .modules
+            .role_impls(module)
+            .iter()
+            .find(|implementation| implementation.def == impl_def);
         let mut candidate_associated_anns = Vec::with_capacity(role_associated_names.len());
         let mut contract_associated = Vec::with_capacity(role_associated_names.len());
         let mut next_inferred_associated = 0u32;
@@ -168,6 +173,19 @@ impl BodyLowerer {
                 )
             })
             .collect::<Vec<_>>();
+        let contract_advertised_prerequisites = source_impl
+            .as_ref()
+            .map(|implementation| {
+                implementation
+                    .advertised_prerequisites
+                    .iter()
+                    .map(|prerequisite| {
+                        lower_advertised_prerequisite(&self.modules, &mut ann_builder, prerequisite)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?
+            .unwrap_or_default();
         let type_var_bindings = ann_builder.type_var_bindings();
         let role = self
             .modules
@@ -204,11 +222,8 @@ impl BodyLowerer {
                 },
             )
             .collect::<Vec<_>>();
-        let contract_implementations = self
-            .modules
-            .role_impls(module)
-            .iter()
-            .find(|implementation| implementation.def == impl_def)
+        let contract_implementations = source_impl
+            .as_ref()
             .map(|implementation| {
                 implementation
                     .methods
@@ -250,6 +265,7 @@ impl BodyLowerer {
                 role_input_names.clone(),
                 spec.inputs.clone(),
                 contract_associated,
+                contract_advertised_prerequisites,
                 contract_requirements,
                 contract_implementations,
                 &ann_solver_vars,
@@ -775,6 +791,61 @@ impl BodyLowerer {
         );
         Ok(())
     }
+}
+
+fn lower_advertised_prerequisite(
+    modules: &ModuleTable,
+    ann_builder: &mut AnnTypeBuilder<'_>,
+    prerequisite: &crate::StoredRoleImplPrerequisite,
+) -> Result<crate::role_impl_conformance::DeclaredRolePredicate, LoweringError> {
+    let subject = prerequisite
+        .subject
+        .as_ref()
+        .map(|subject| build_source_prerequisite_type(ann_builder, subject))
+        .transpose()?;
+    let role = build_source_prerequisite_type(ann_builder, &prerequisite.role)?;
+    let (role, mut inputs) =
+        role_ann_application(modules, role).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::WherePredicate,
+        })?;
+    if let Some(subject) = subject {
+        inputs.insert(0, subject);
+    }
+    let role = modules
+        .type_decl_by_id(role)
+        .map(|role| {
+            modules
+                .type_decl_path(&role)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>()
+        })
+        .ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::WherePredicate,
+        })?;
+    Ok(crate::role_impl_conformance::DeclaredRolePredicate {
+        role,
+        inputs: inputs
+            .into_iter()
+            .map(crate::role_impl_conformance::DeclaredType::new)
+            .collect(),
+        source: prerequisite.source.clone(),
+    })
+}
+
+fn build_source_prerequisite_type(
+    ann_builder: &mut AnnTypeBuilder<'_>,
+    stored: &StoredSignature,
+) -> Result<AnnType, LoweringError> {
+    let StoredSignature::Source(type_expr) = stored else {
+        return Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::WherePredicate,
+        });
+    };
+    ann_builder
+        .build_type_expr(type_expr)
+        .map_err(|error| LoweringError::annotation_build(error, type_expr))
 }
 
 fn role_method_contract_signature(

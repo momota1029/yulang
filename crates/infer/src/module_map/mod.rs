@@ -481,7 +481,12 @@ impl Lower {
             },
         );
         let body_module = self.modules.new_anonymous_child_module(module, order);
-        let (children, methods) = role_impl_body(node)
+        let body = role_impl_body(node);
+        let advertised_prerequisites = body
+            .as_ref()
+            .map(|body| role_impl_advertised_prerequisites(body))
+            .unwrap_or_default();
+        let (children, methods) = body
             .map(|body| self.register_role_impl_block(&body, body_module))
             .unwrap_or_default();
         self.set_module_children(def, children);
@@ -490,6 +495,7 @@ impl Lower {
             module,
             body_module,
             order,
+            advertised_prerequisites,
             methods,
         });
         Some(def)
@@ -1235,6 +1241,31 @@ impl Lower {
             None
         }
     }
+}
+
+fn role_impl_advertised_prerequisites(block: &Cst) -> Vec<StoredRoleImplPrerequisite> {
+    block
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::WhereClause)
+        .flat_map(|clause| clause.children())
+        .filter(|child| child.kind() == SyntaxKind::WherePredicate)
+        .filter_map(|predicate| {
+            let type_exprs = predicate
+                .children()
+                .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+                .collect::<Vec<_>>();
+            let (subject, role) = match type_exprs.as_slice() {
+                [role] => (None, role.clone()),
+                [subject, role] => (Some(subject.clone()), role.clone()),
+                _ => return None,
+            };
+            Some(StoredRoleImplPrerequisite {
+                subject: subject.map(StoredSignature::source),
+                role: StoredSignature::source(role),
+                source: node_source_range(&predicate),
+            })
+        })
+        .collect()
 }
 
 fn is_local_var_act_pattern_root(node: &Cst) -> bool {
