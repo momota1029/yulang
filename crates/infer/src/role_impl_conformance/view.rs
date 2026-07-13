@@ -12,6 +12,8 @@ use super::{
     RoleImplConformanceBinderBridgeUnavailable, RoleImplConformanceContract,
     RoleRequirementSubstitutionSlot, SignatureType,
 };
+#[cfg(test)]
+use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
 use crate::compact::{CompactBounds, CompactType, compact_type_var};
 use crate::constraints::ConstraintMachine;
@@ -185,6 +187,13 @@ pub(crate) struct ActualReceiverMethodConformanceView {
     pub(crate) tail_parameter_count: Option<usize>,
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeclaredReceiverMethodConformanceView {
+    pub(crate) value: DeclaredTypeView,
+    pub(crate) effect: DeclaredTypeView,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ActualMethodConformanceViewUnavailable {
     MissingBinderBridge(RoleImplConformanceBinderBridgeUnavailable),
@@ -344,19 +353,84 @@ pub(crate) fn declared_receiver_result_view(
     signature: &SignatureType,
     actual_tail_parameter_count: usize,
 ) -> Option<DeclaredTypeView> {
+    declared_receiver_method_view(
+        contract,
+        modules,
+        inputs,
+        associated,
+        signature,
+        actual_tail_parameter_count,
+    )
+    .map(|surface| surface.value)
+}
+
+/// Return the receiver body's value/effect requirement after validating the measured tail arity.
+/// Effect rows stay deliberately first-order: pure and one closed atom are representable, while
+/// row tails, wildcards, and unions remain structured `Unavailable` values.
+#[cfg(test)]
+pub(crate) fn declared_receiver_method_view(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    inputs: &[DeclaredTypeView],
+    associated: &[DeclaredAssociatedView],
+    signature: &SignatureType,
+    actual_tail_parameter_count: usize,
+) -> Option<DeclaredReceiverMethodConformanceView> {
     let mut result = signature;
     let mut function_layer_count = 0usize;
+    let mut result_effect = None;
     while let SignatureType::Function {
-        arg_eff: None, ret, ..
+        arg_eff: None,
+        ret_eff,
+        ret,
+        ..
     } = result
     {
         function_layer_count += 1;
+        result_effect = ret_eff.as_ref();
         result = ret;
     }
 
     let declared_tail_parameter_count = function_layer_count.checked_sub(1)?;
-    (declared_tail_parameter_count == actual_tail_parameter_count)
-        .then(|| signature_type_view(contract, modules, inputs, associated, result))
+    if declared_tail_parameter_count != actual_tail_parameter_count {
+        return None;
+    }
+    let (result_effect, result) = match (result_effect, result) {
+        (None, SignatureType::Effectful { eff, ret }) => (Some(eff), ret.as_ref()),
+        _ => (result_effect, result),
+    };
+    Some(DeclaredReceiverMethodConformanceView {
+        value: signature_type_view(contract, modules, inputs, associated, result),
+        effect: signature_effect_view(contract, modules, inputs, associated, result_effect),
+    })
+}
+
+#[cfg(test)]
+fn signature_effect_view(
+    contract: &RoleImplConformanceContract,
+    modules: &ModuleTable,
+    inputs: &[DeclaredTypeView],
+    associated: &[DeclaredAssociatedView],
+    row: Option<&SignatureEffectRow>,
+) -> DeclaredTypeView {
+    let Some(row) = row else {
+        return available(ConformanceTypeView::Bottom);
+    };
+    if row.tail().is_some()
+        || row
+            .items()
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+    {
+        return DeclaredTypeView::Unavailable(DeclaredViewUnavailable::UnsupportedEffectRow);
+    }
+    match row.items() {
+        [] => available(ConformanceTypeView::Bottom),
+        [SignatureEffectAtom::Type(effect)] => {
+            signature_type_view(contract, modules, inputs, associated, effect)
+        }
+        _ => DeclaredTypeView::Unavailable(DeclaredViewUnavailable::UnsupportedEffectRow),
+    }
 }
 
 pub(super) fn capture_receiverless_actual_view(
@@ -391,11 +465,80 @@ pub(super) fn capture_receiver_actual_view(
     effect: TypeVar,
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualReceiverMethodConformanceView {
+    #[cfg(not(test))]
+    let effect = capture_receiverless_actual_view(machine, effect, bridge);
+    #[cfg(test)]
+    let effect = capture_receiver_effect_actual_view(machine, effect, bridge);
     ActualReceiverMethodConformanceView {
         value: capture_receiverless_actual_view(machine, value, bridge),
-        effect: capture_receiverless_actual_view(machine, effect, bridge),
+        effect,
         #[cfg(test)]
         tail_parameter_count: None,
+    }
+}
+
+/// Project a settled body-effect lower surface into the first-order relation. Bare unweighted
+/// positive aliases carry no effect atom of their own; concrete row items do. This is one finite
+/// structural pass over the captured compact tree and never mutates the solver.
+#[cfg(test)]
+fn capture_receiver_effect_actual_view(
+    machine: &ConstraintMachine,
+    anchor: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualMethodConformanceView {
+    let bridge = match bridge {
+        Ok(bridge) => bridge,
+        Err(reason) => {
+            return ActualMethodConformanceView::Unavailable(
+                ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+            );
+        }
+    };
+    let compact = compact_type_var(machine, anchor);
+    if !compact.rec_vars.is_empty() {
+        return ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::RecursiveBounds,
+        );
+    }
+    if compact.root.vars.iter().any(|var| !var.weight.is_empty()) {
+        return ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::WeightedVariable,
+        );
+    }
+    if !compact.root.builtins.is_empty()
+        || !compact.root.cons.is_empty()
+        || !compact.root.funs.is_empty()
+        || !compact.root.records.is_empty()
+        || !compact.root.record_spreads.is_empty()
+        || !compact.root.poly_variants.is_empty()
+        || !compact.root.tuples.is_empty()
+    {
+        return ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        );
+    }
+    let mut normalizer = ActualFirstOrderNormalizer::new(bridge, anchor);
+    let effect = match compact.root.rows.as_slice() {
+        [] => Ok(ConformanceTypeView::Bottom),
+        [row] if row.tail.is_empty() => match row.items.len() {
+            0 => Ok(ConformanceTypeView::Bottom),
+            1 => {
+                let (path, args) = row.items.iter().next().expect("one closed effect atom");
+                args.iter()
+                    .map(|arg| normalizer.bounds_view(arg))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(|args| ConformanceTypeView::Nominal {
+                        path: path.clone(),
+                        args,
+                    })
+            }
+            _ => Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow),
+        },
+        _ => Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow),
+    };
+    match effect {
+        Ok(effect) => ActualMethodConformanceView::Available(effect),
+        Err(reason) => ActualMethodConformanceView::Unavailable(reason),
     }
 }
 

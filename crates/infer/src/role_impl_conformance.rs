@@ -196,7 +196,7 @@ impl RoleImplConformanceContract {
                         let actual = self
                             .actual_method_view(implementation.def)
                             .map(|actual| actual.surface.clone());
-                        let declared_requirement = align_shadow_declared_requirement(
+                        let declared = align_shadow_declared_requirement(
                             self,
                             modules,
                             &declared,
@@ -206,7 +206,8 @@ impl RoleImplConformanceContract {
                         );
                         build_shadow_conformance_pair(
                             method,
-                            declared_requirement,
+                            declared.value,
+                            declared.effect,
                             Some(implementation.def),
                             actual,
                         )
@@ -218,6 +219,7 @@ impl RoleImplConformanceContract {
                     pairs.push(build_shadow_conformance_pair(
                         method,
                         captured_declared_requirement,
+                        None,
                         None,
                         None,
                     ));
@@ -693,8 +695,15 @@ pub(crate) struct ShadowConformancePair {
     pub(crate) method_name: String,
     pub(crate) implementation: Option<DefId>,
     pub(crate) declared: Option<view::DeclaredTypeView>,
+    pub(crate) declared_effect: Option<view::DeclaredTypeView>,
     pub(crate) actual: Option<RoleImplMethodActualSurface>,
     pub(crate) outcome: ShadowConformanceOutcome,
+}
+
+#[cfg(test)]
+struct ShadowDeclaredSurface {
+    value: Option<view::DeclaredTypeView>,
+    effect: Option<view::DeclaredTypeView>,
 }
 
 #[cfg(test)]
@@ -705,42 +714,73 @@ fn align_shadow_declared_requirement(
     method: &RoleImplMethodContract,
     captured: Option<view::DeclaredTypeView>,
     actual: Option<&RoleImplMethodActualSurface>,
-) -> Option<view::DeclaredTypeView> {
+) -> ShadowDeclaredSurface {
     let Some(RoleImplMethodActualSurface::Receiver(actual)) = actual else {
-        return captured;
+        return ShadowDeclaredSurface {
+            value: captured,
+            effect: None,
+        };
     };
     if matches!(
         captured.as_ref(),
         Some(view::DeclaredTypeView::Ambiguous(_))
     ) {
-        return captured;
+        return ShadowDeclaredSurface {
+            value: captured.clone(),
+            effect: captured,
+        };
     }
-    let actual_tail_parameter_count = actual.tail_parameter_count?;
-    let requirement = method.declared_requirement.as_ref()?;
-    view::declared_receiver_result_view(
+    let Some(actual_tail_parameter_count) = actual.tail_parameter_count else {
+        return ShadowDeclaredSurface {
+            value: None,
+            effect: None,
+        };
+    };
+    let Some(requirement) = method.declared_requirement.as_ref() else {
+        return ShadowDeclaredSurface {
+            value: None,
+            effect: None,
+        };
+    };
+    let Some(surface) = view::declared_receiver_method_view(
         contract,
         modules,
         &declared.inputs,
         &declared.associated,
         &requirement.signature,
         actual_tail_parameter_count,
-    )
+    ) else {
+        return ShadowDeclaredSurface {
+            value: None,
+            effect: None,
+        };
+    };
+    ShadowDeclaredSurface {
+        value: Some(surface.value),
+        effect: Some(surface.effect),
+    }
 }
 
 #[cfg(test)]
 fn build_shadow_conformance_pair(
     method: &RoleImplMethodContract,
     declared: Option<view::DeclaredTypeView>,
+    declared_effect: Option<view::DeclaredTypeView>,
     implementation: Option<DefId>,
     actual: Option<RoleImplMethodActualSurface>,
 ) -> ShadowConformancePair {
-    let outcome =
-        classify_shadow_conformance_pair(implementation, declared.as_ref(), actual.as_ref());
+    let outcome = classify_shadow_conformance_pair(
+        implementation,
+        declared.as_ref(),
+        declared_effect.as_ref(),
+        actual.as_ref(),
+    );
     ShadowConformancePair {
         requirement: method.requirement,
         method_name: method.name.clone(),
         implementation,
         declared,
+        declared_effect,
         actual,
         outcome,
     }
@@ -750,30 +790,48 @@ fn build_shadow_conformance_pair(
 fn classify_shadow_conformance_pair(
     implementation: Option<DefId>,
     declared: Option<&view::DeclaredTypeView>,
+    declared_effect: Option<&view::DeclaredTypeView>,
     actual: Option<&RoleImplMethodActualSurface>,
 ) -> ShadowConformanceOutcome {
     if implementation.is_none() || declared.is_none() || actual.is_none() {
         return ShadowConformanceOutcome::NotCaptured;
     }
+    let receiver = matches!(actual, Some(RoleImplMethodActualSurface::Receiver(_)));
+    if receiver && declared_effect.is_none() {
+        return ShadowConformanceOutcome::NotCaptured;
+    }
     if matches!(declared, Some(view::DeclaredTypeView::Unavailable(_)))
+        || matches!(
+            declared_effect,
+            Some(view::DeclaredTypeView::Unavailable(_))
+        )
         || actual.is_some_and(actual_surface_is_unavailable)
     {
         return ShadowConformanceOutcome::Unavailable;
     }
-    if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_))) {
+    if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_)))
+        || matches!(declared_effect, Some(view::DeclaredTypeView::Ambiguous(_)))
+    {
         return ShadowConformanceOutcome::Ambiguous;
     }
     let Some(view::DeclaredTypeView::Available(requirement)) = declared else {
         unreachable!("capture-state classification exhausted every declared view")
     };
-    let actual = actual
+    let actual_value = actual
         .and_then(actual_surface_value)
         .expect("capture-state classification established an available actual view");
-    if view::first_order_conforms(actual, requirement) {
-        ShadowConformanceOutcome::Conforms
-    } else {
-        ShadowConformanceOutcome::Mismatch
+    if !view::first_order_conforms(actual_value, requirement) {
+        return ShadowConformanceOutcome::Mismatch;
     }
+    if let Some(actual_effect) = actual.and_then(actual_surface_effect) {
+        let Some(view::DeclaredTypeView::Available(requirement_effect)) = declared_effect else {
+            unreachable!("receiver capture-state classification established a declared effect")
+        };
+        if !view::first_order_conforms(actual_effect, requirement_effect) {
+            return ShadowConformanceOutcome::Mismatch;
+        }
+    }
+    ShadowConformanceOutcome::Conforms
 }
 
 #[cfg(test)]
@@ -784,11 +842,11 @@ fn actual_surface_is_unavailable(surface: &RoleImplMethodActualSurface) -> bool 
 #[cfg(test)]
 fn actual_surface_is_available(surface: &RoleImplMethodActualSurface) -> bool {
     actual_surface_value(surface).is_some()
+        && (!matches!(surface, RoleImplMethodActualSurface::Receiver(_))
+            || actual_surface_effect(surface).is_some())
 }
 
 #[cfg(test)]
-/// Slice 3b compares the first-order method value. A receiver effect must have been captured, but
-/// its relation remains outside this value-only kernel.
 fn actual_surface_value(
     surface: &RoleImplMethodActualSurface,
 ) -> Option<&view::ConformanceTypeView> {
@@ -799,12 +857,22 @@ fn actual_surface_value(
         RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Unavailable(_)) => {
             None
         }
-        RoleImplMethodActualSurface::Receiver(view) => match (&view.value, &view.effect) {
-            (
-                ActualMethodConformanceView::Available(value),
-                ActualMethodConformanceView::Available(_),
-            ) => Some(value),
-            _ => None,
+        RoleImplMethodActualSurface::Receiver(view) => match &view.value {
+            ActualMethodConformanceView::Available(value) => Some(value),
+            ActualMethodConformanceView::Unavailable(_) => None,
+        },
+    }
+}
+
+#[cfg(test)]
+fn actual_surface_effect(
+    surface: &RoleImplMethodActualSurface,
+) -> Option<&view::ConformanceTypeView> {
+    match surface {
+        RoleImplMethodActualSurface::Receiverless(_) => None,
+        RoleImplMethodActualSurface::Receiver(view) => match &view.effect {
+            ActualMethodConformanceView::Available(effect) => Some(effect),
+            ActualMethodConformanceView::Unavailable(_) => None,
         },
     }
 }
@@ -1169,16 +1237,17 @@ mod tests {
             classify_shadow_conformance_pair(
                 None,
                 Some(&declared_available),
+                None,
                 Some(&actual_available),
             ),
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(Some(DefId(1)), None, Some(&actual_available)),
+            classify_shadow_conformance_pair(Some(DefId(1)), None, None, Some(&actual_available)),
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
-            classify_shadow_conformance_pair(Some(DefId(1)), Some(&declared_available), None,),
+            classify_shadow_conformance_pair(Some(DefId(1)), Some(&declared_available), None, None,),
             ShadowConformanceOutcome::NotCaptured,
         );
         assert_eq!(
@@ -1187,6 +1256,7 @@ mod tests {
                 Some(&DeclaredTypeView::Unavailable(
                     DeclaredViewUnavailable::UnsupportedFunction,
                 )),
+                None,
                 Some(&actual_available),
             ),
             ShadowConformanceOutcome::Unavailable,
@@ -1195,6 +1265,7 @@ mod tests {
             classify_shadow_conformance_pair(
                 Some(DefId(1)),
                 Some(&declared_available),
+                None,
                 Some(&actual_unavailable),
             ),
             ShadowConformanceOutcome::Unavailable,
@@ -1205,6 +1276,7 @@ mod tests {
                 Some(&DeclaredTypeView::Ambiguous(
                     DeclaredViewAmbiguity::InputAssociatedNameCollision("item".into()),
                 )),
+                None,
                 Some(&actual_available),
             ),
             ShadowConformanceOutcome::Ambiguous,
@@ -1213,6 +1285,7 @@ mod tests {
             classify_shadow_conformance_pair(
                 Some(DefId(1)),
                 Some(&declared_available),
+                None,
                 Some(&actual_available),
             ),
             ShadowConformanceOutcome::Mismatch,

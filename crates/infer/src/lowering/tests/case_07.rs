@@ -206,6 +206,118 @@ fn generic_role_impl_conformance_stage3_aligns_receiver_result_before_comparison
 }
 
 #[test]
+fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfaces() {
+    use crate::role_impl_conformance::RoleImplMethodActualSurface;
+    use crate::role_impl_conformance::ShadowConformanceOutcome;
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView, DeclaredViewUnavailable,
+    };
+
+    let pair = |source| {
+        let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one receiver conformance contract")
+        };
+        let [pair] = contract
+            .shadow_conformance_pairs(&output.modules)
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+        pair
+    };
+
+    let pure = pair(concat!(
+        "role Run 'subject:\n",
+        "  our x.run: unit\n",
+        "impl int: Run:\n",
+        "  our x.run = ()\n",
+    ));
+    assert_eq!(
+        pure.declared_effect,
+        Some(DeclaredTypeView::Available(ConformanceTypeView::Bottom)),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(pure_actual)) = pure.actual else {
+        panic!("expected pure receiver actual surface")
+    };
+    assert_eq!(
+        pure_actual.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
+    );
+    assert_eq!(pure.outcome, ShadowConformanceOutcome::Conforms);
+
+    let matching_effect = pair(concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: [tick] unit\n",
+        "impl int: Run:\n",
+        "  our x.run = tick::ping()\n",
+    ));
+    let expected_tick = ConformanceTypeView::Nominal {
+        path: vec!["tick".into()],
+        args: Vec::new(),
+    };
+    assert_eq!(
+        matching_effect.declared_effect,
+        Some(DeclaredTypeView::Available(expected_tick.clone())),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(matching_actual)) = matching_effect.actual
+    else {
+        panic!("expected effectful receiver actual surface")
+    };
+    assert_eq!(
+        matching_actual.effect,
+        ActualMethodConformanceView::Available(expected_tick.clone()),
+    );
+    assert_eq!(matching_effect.outcome, ShadowConformanceOutcome::Conforms);
+
+    let mismatching_effect = pair(concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: unit\n",
+        "impl int: Run:\n",
+        "  our x.run = tick::ping()\n",
+    ));
+    assert_eq!(
+        mismatching_effect.declared_effect,
+        Some(DeclaredTypeView::Available(ConformanceTypeView::Bottom)),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(mismatching_actual)) = mismatching_effect.actual
+    else {
+        panic!("expected mismatching receiver actual surface")
+    };
+    assert_eq!(
+        mismatching_actual.effect,
+        ActualMethodConformanceView::Available(expected_tick),
+    );
+    assert_eq!(
+        mismatching_effect.outcome,
+        ShadowConformanceOutcome::Mismatch,
+    );
+
+    let unsupported_union = pair(concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "act flip:\n",
+        "  pub pong: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: [tick, flip] unit\n",
+        "impl int: Run:\n",
+        "  our x.run = tick::ping()\n",
+    ));
+    assert_eq!(
+        unsupported_union.declared_effect,
+        Some(DeclaredTypeView::Unavailable(
+            DeclaredViewUnavailable::UnsupportedEffectRow,
+        )),
+    );
+    assert_eq!(
+        unsupported_union.outcome,
+        ShadowConformanceOutcome::Unavailable,
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage3_slice3b_matches_same_contract_universal_binder() {
     use crate::role_impl_conformance::ActualMethodConformanceView;
     use crate::role_impl_conformance::view::{DeclaredAssociatedView, DeclaredTypeView};
@@ -2035,7 +2147,7 @@ fn role_impl_method_lifecycle_slice4c_t3_valid_result_annotation_and_capture_fai
     );
     assert!(matches!(
         witness.actual_view.effect,
-        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+        ActualMethodConformanceView::Available(ConformanceTypeView::Bottom)
     ));
     assert_eq!(
         persisted_receiver_actual_view(&delayed, witness.member),
@@ -2603,7 +2715,7 @@ fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_base
             if pure_effect_anchor {
                 matches!(
                     witness.actual_view.effect,
-                    ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+                    ActualMethodConformanceView::Available(ConformanceTypeView::Bottom)
                 )
             } else {
                 matches!(
@@ -2753,7 +2865,7 @@ fn generic_role_impl_conformance_stage2_slice6_persists_poisoned_receiver_snapsh
     );
     assert!(matches!(
         witness.actual_view.effect,
-        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+        ActualMethodConformanceView::Available(ConformanceTypeView::Bottom)
     ));
     assert_eq!(
         persisted_receiver_actual_view(&delayed, witness.member),
