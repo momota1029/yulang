@@ -35,6 +35,126 @@ fn generic_role_impl_conformance_stage0_alpha_renaming_oracle() {
 }
 
 #[test]
+fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
+    const EXPECTED: &[(&str, &str)] = &[
+        (
+            "explicit-bool-concrete-int",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=available outcome=Unavailable",
+        ),
+        (
+            "explicit-bool-universal-a",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+        (
+            "explicit-a-same-a",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+        (
+            "explicit-list-a-nested-binder",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+        (
+            "omitted-associated-one-method",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=missing outcome=NotCaptured",
+        ),
+        (
+            "omitted-associated-shared-two-methods",
+            concat!(
+                "contract=0 role=Access method=get impl=explicit declared=unavailable actual=missing outcome=NotCaptured\n",
+                "contract=0 role=Access method=peek impl=explicit declared=unavailable actual=missing outcome=NotCaptured",
+            ),
+        ),
+        (
+            "partial-explicit-multiple-associated",
+            concat!(
+                "contract=0 role=PairView method=first impl=explicit declared=unavailable actual=missing outcome=NotCaptured\n",
+                "contract=0 role=PairView method=second impl=explicit declared=unavailable actual=missing outcome=NotCaptured",
+            ),
+        ),
+        (
+            "residual-prerequisite-absent-present",
+            concat!(
+                "contract=0 role=Box method=get impl=explicit declared=unavailable actual=available outcome=Unavailable\n",
+                "contract=1 role=Box method=get impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+            ),
+        ),
+        (
+            "effectful-shared-row-binder",
+            "contract=0 role=Flow method=run impl=explicit declared=unavailable actual=missing outcome=NotCaptured",
+        ),
+        (
+            "alpha-renamed-a",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+        (
+            "alpha-renamed-b",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+        (
+            "malformed-unused-impl",
+            "contract=0 role=Index method=index impl=explicit declared=unavailable actual=unavailable outcome=Unavailable",
+        ),
+    ];
+
+    let fixtures = conformance_fixtures();
+    assert_eq!(fixtures.len(), EXPECTED.len(), "Stage 0 fixture coverage");
+    let actual = fixtures
+        .iter()
+        .map(|fixture| {
+            let dump = shadow_conformance_pair_dump(fixture.source);
+            eprintln!("Stage 3 Slice 3a {}:\n{dump}", fixture.name);
+            (fixture.name, dump)
+        })
+        .collect::<Vec<_>>();
+    let expected = fixtures
+        .iter()
+        .map(|fixture| {
+            let expected = EXPECTED
+                .iter()
+                .find_map(|(name, expected)| (*name == fixture.name).then_some(*expected))
+                .unwrap_or_else(|| panic!("missing Slice 3a expectation for {}", fixture.name));
+            (fixture.name, expected.to_string())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_slice3a_does_not_compare_available_pair() {
+    let source = concat!(
+        "role Make 'subject:\n",
+        "  type output\n",
+        "  our make: output\n",
+        "impl Make int:\n",
+        "  type output = int\n",
+        "  our make = true\n",
+    );
+
+    assert_eq!(
+        shadow_conformance_pair_dump(source),
+        "contract=0 role=Make method=make impl=explicit declared=available actual=available outcome=Conforms",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage3_slice3a_marks_non_explicit_provisions_not_captured() {
+    let source = concat!(
+        "role Demo 'subject:\n",
+        "  our x.defaulted = ()\n",
+        "  our x.missing: unit\n",
+        "impl int: Demo:\n",
+    );
+
+    assert_eq!(
+        shadow_conformance_pair_dump(source),
+        concat!(
+            "contract=0 role=Demo method=defaulted impl=none declared=unavailable actual=missing outcome=NotCaptured\n",
+            "contract=0 role=Demo method=missing impl=none declared=unavailable actual=missing outcome=NotCaptured",
+        ),
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice1_captures_binder_provenance() {
     let fixtures = conformance_fixtures();
     let dump = |name| {
@@ -3991,6 +4111,67 @@ fn lower_conformance_fixture(source: &str) -> BodyLowering {
     let output = lower_binding_bodies(&root, lower);
     assert_eq!(output.errors, Vec::new(), "fixture should lower cleanly");
     output
+}
+
+fn shadow_conformance_pair_dump(source: &str) -> String {
+    use crate::role_impl_conformance::RoleImplMethodActualSurface;
+    use crate::role_impl_conformance::view::{ActualMethodConformanceView, DeclaredTypeView};
+
+    let output = lower_conformance_fixture(source);
+    output
+        .role_impl_conformance_contracts()
+        .iter()
+        .enumerate()
+        .flat_map(|(contract_index, contract)| {
+            contract
+                .shadow_conformance_pairs(&output.modules)
+                .into_iter()
+                .map(move |pair| {
+                    assert!(contract.methods.iter().any(|method| {
+                        method.requirement == pair.requirement && method.name == pair.method_name
+                    }));
+                    let implementation = if pair.implementation.is_some() {
+                        "explicit"
+                    } else {
+                        "none"
+                    };
+                    let declared = match pair.declared {
+                        Some(DeclaredTypeView::Available(_)) => "available",
+                        Some(DeclaredTypeView::Unavailable(_)) => "unavailable",
+                        Some(DeclaredTypeView::Ambiguous(_)) => "ambiguous",
+                        None => "missing",
+                    };
+                    let actual = match pair.actual {
+                        Some(RoleImplMethodActualSurface::Receiverless(
+                            ActualMethodConformanceView::Available(_),
+                        )) => "available",
+                        Some(RoleImplMethodActualSurface::Receiverless(
+                            ActualMethodConformanceView::Unavailable(_),
+                        )) => "unavailable",
+                        Some(RoleImplMethodActualSurface::Receiver(view))
+                            if matches!(
+                                (&view.value, &view.effect),
+                                (
+                                    ActualMethodConformanceView::Available(_),
+                                    ActualMethodConformanceView::Available(_),
+                                )
+                            ) =>
+                        {
+                            "available"
+                        }
+                        Some(RoleImplMethodActualSurface::Receiver(_)) => "unavailable",
+                        None => "missing",
+                    };
+                    format!(
+                        "contract={contract_index} role={} method={} impl={implementation} declared={declared} actual={actual} outcome={:?}",
+                        contract.role.join("::"),
+                        pair.method_name,
+                        pair.outcome,
+                    )
+                })
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn declared_contract_view(

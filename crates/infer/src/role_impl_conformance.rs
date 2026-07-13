@@ -172,6 +172,51 @@ impl RoleImplConformanceContract {
         &self.actual_methods
     }
 
+    /// Align every declared role method with each explicit source implementation. Methods without
+    /// an explicit provision retain one `NotCaptured` record so the shadow inventory is total over
+    /// the declared contract.
+    #[cfg(test)]
+    pub(crate) fn shadow_conformance_pairs(
+        &self,
+        modules: &ModuleTable,
+    ) -> Vec<ShadowConformancePair> {
+        let declared = self.declared_view(modules);
+        let mut pairs = Vec::new();
+        for (index, method) in self.methods.iter().enumerate() {
+            let declared_requirement = declared
+                .methods
+                .get(index)
+                .filter(|view| view.name == method.name)
+                .map(|view| view.requirement.clone());
+            match &method.provision {
+                RoleImplMethodProvision::Explicit { implementations }
+                    if !implementations.is_empty() =>
+                {
+                    pairs.extend(implementations.iter().map(|implementation| {
+                        build_shadow_conformance_pair(
+                            method,
+                            declared_requirement.clone(),
+                            Some(implementation.def),
+                            self.actual_method_view(implementation.def)
+                                .map(|actual| actual.surface.clone()),
+                        )
+                    }));
+                }
+                RoleImplMethodProvision::Explicit { .. }
+                | RoleImplMethodProvision::Default { .. }
+                | RoleImplMethodProvision::Missing => {
+                    pairs.push(build_shadow_conformance_pair(
+                        method,
+                        declared_requirement,
+                        None,
+                        None,
+                    ));
+                }
+            }
+        }
+        pairs
+    }
+
     /// Select the explicit-complete source members whose declared requirement is already in the
     /// first-order Stage 2 view. Receiver/receiverless shape is deliberately decided by body
     /// lowering, where the source binder is available.
@@ -619,6 +664,99 @@ pub(crate) enum RoleImplMethodActualSurface {
     Receiver(ActualReceiverMethodConformanceView),
 }
 
+/// Stage 3 shadow classification. Slice 3a only classifies capture availability; `Mismatch`
+/// becomes reachable when Slice 3b adds the pure structural relation.
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "Mismatch is produced by the later Slice 3b relation"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ShadowConformanceOutcome {
+    Conforms,
+    Mismatch,
+    Unavailable,
+    Ambiguous,
+    NotCaptured,
+}
+
+/// One deterministic declared/actual alignment owned by a source conformance contract.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ShadowConformancePair {
+    pub(crate) requirement: DefId,
+    pub(crate) method_name: String,
+    pub(crate) implementation: Option<DefId>,
+    pub(crate) declared: Option<view::DeclaredTypeView>,
+    pub(crate) actual: Option<RoleImplMethodActualSurface>,
+    pub(crate) outcome: ShadowConformanceOutcome,
+}
+
+#[cfg(test)]
+fn build_shadow_conformance_pair(
+    method: &RoleImplMethodContract,
+    declared: Option<view::DeclaredTypeView>,
+    implementation: Option<DefId>,
+    actual: Option<RoleImplMethodActualSurface>,
+) -> ShadowConformancePair {
+    let outcome =
+        classify_shadow_conformance_pair(implementation, declared.as_ref(), actual.as_ref());
+    ShadowConformancePair {
+        requirement: method.requirement,
+        method_name: method.name.clone(),
+        implementation,
+        declared,
+        actual,
+        outcome,
+    }
+}
+
+#[cfg(test)]
+fn classify_shadow_conformance_pair(
+    implementation: Option<DefId>,
+    declared: Option<&view::DeclaredTypeView>,
+    actual: Option<&RoleImplMethodActualSurface>,
+) -> ShadowConformanceOutcome {
+    if implementation.is_none() || declared.is_none() || actual.is_none() {
+        return ShadowConformanceOutcome::NotCaptured;
+    }
+    if matches!(declared, Some(view::DeclaredTypeView::Unavailable(_)))
+        || actual.is_some_and(actual_surface_is_unavailable)
+    {
+        return ShadowConformanceOutcome::Unavailable;
+    }
+    if matches!(declared, Some(view::DeclaredTypeView::Ambiguous(_))) {
+        return ShadowConformanceOutcome::Ambiguous;
+    }
+    debug_assert!(matches!(
+        declared,
+        Some(view::DeclaredTypeView::Available(_))
+    ));
+    debug_assert!(actual.is_some_and(actual_surface_is_available));
+    ShadowConformanceOutcome::Conforms
+}
+
+#[cfg(test)]
+fn actual_surface_is_unavailable(surface: &RoleImplMethodActualSurface) -> bool {
+    !actual_surface_is_available(surface)
+}
+
+#[cfg(test)]
+fn actual_surface_is_available(surface: &RoleImplMethodActualSurface) -> bool {
+    match surface {
+        RoleImplMethodActualSurface::Receiverless(view) => {
+            matches!(view, ActualMethodConformanceView::Available(_))
+        }
+        RoleImplMethodActualSurface::Receiver(view) => matches!(
+            (&view.value, &view.effect),
+            (
+                ActualMethodConformanceView::Available(_),
+                ActualMethodConformanceView::Available(_),
+            )
+        ),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RoleImplMethodRequirementCapture {
     pub(crate) requirement: DefId,
@@ -955,6 +1093,80 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use super::*;
+
+    #[test]
+    fn slice3a_shadow_classifier_only_observes_capture_state() {
+        use poly::types::BuiltinType;
+
+        use super::view::{
+            ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+            ConformanceTypeView, DeclaredTypeView, DeclaredViewAmbiguity, DeclaredViewUnavailable,
+        };
+
+        let declared_available =
+            DeclaredTypeView::Available(ConformanceTypeView::Builtin(BuiltinType::Int));
+        let actual_available = RoleImplMethodActualSurface::Receiverless(
+            ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Bool)),
+        );
+        let actual_unavailable =
+            RoleImplMethodActualSurface::Receiverless(ActualMethodConformanceView::Unavailable(
+                ActualMethodConformanceViewUnavailable::UnsupportedFunction,
+            ));
+
+        assert_eq!(
+            classify_shadow_conformance_pair(
+                None,
+                Some(&declared_available),
+                Some(&actual_available),
+            ),
+            ShadowConformanceOutcome::NotCaptured,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(Some(DefId(1)), None, Some(&actual_available)),
+            ShadowConformanceOutcome::NotCaptured,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(Some(DefId(1)), Some(&declared_available), None,),
+            ShadowConformanceOutcome::NotCaptured,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(
+                Some(DefId(1)),
+                Some(&DeclaredTypeView::Unavailable(
+                    DeclaredViewUnavailable::UnsupportedFunction,
+                )),
+                Some(&actual_available),
+            ),
+            ShadowConformanceOutcome::Unavailable,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(
+                Some(DefId(1)),
+                Some(&declared_available),
+                Some(&actual_unavailable),
+            ),
+            ShadowConformanceOutcome::Unavailable,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(
+                Some(DefId(1)),
+                Some(&DeclaredTypeView::Ambiguous(
+                    DeclaredViewAmbiguity::InputAssociatedNameCollision("item".into()),
+                )),
+                Some(&actual_available),
+            ),
+            ShadowConformanceOutcome::Ambiguous,
+        );
+        assert_eq!(
+            classify_shadow_conformance_pair(
+                Some(DefId(1)),
+                Some(&declared_available),
+                Some(&actual_available),
+            ),
+            ShadowConformanceOutcome::Conforms,
+            "Slice 3a deliberately does not compare the structurally different int/bool views",
+        );
+    }
 
     #[test]
     fn binder_bridge_retains_overlapping_universal_and_associated_identities() {
