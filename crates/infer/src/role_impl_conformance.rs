@@ -1,7 +1,7 @@
-//! Immutable source contract captured before role-impl annotations enter inference.
+//! Immutable source contract and normalized conformance views for source role impls.
 //!
 //! This module owns source binder identity, associated-assignment provenance, and deterministic
-//! method correspondence. Validation and `BodyLowering` lifecycle handoff belong to later stages.
+//! method correspondence. Validation belongs to a later stage.
 
 // Stage 2 lands the immutable view before its Stage 3 validation consumer.
 #[allow(dead_code)]
@@ -49,6 +49,7 @@ pub(crate) struct RoleImplConformanceContract {
     pub(crate) requirement_substitution: RoleRequirementSubstitution,
     pub(crate) methods: Vec<RoleImplMethodContract>,
     pub(crate) unmatched_implementations: Vec<RoleImplMethodImplementation>,
+    actual_methods: Vec<RoleImplMethodActualView>,
     #[allow(
         dead_code,
         reason = "same-session binder transport is consumed by a later conformance slice"
@@ -115,6 +116,7 @@ impl RoleImplConformanceContract {
             requirement_substitution,
             methods,
             unmatched_implementations,
+            actual_methods: Vec::new(),
             binder_bridge,
             #[cfg(test)]
             annotation_solver_bridge: Vec::new(),
@@ -124,6 +126,50 @@ impl RoleImplConformanceContract {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn declared_view(&self, modules: &ModuleTable) -> DeclaredRoleImplView {
         view::build_declared_role_impl_view(self, modules)
+    }
+
+    /// Move one settled pending snapshot into the source contract before the SCC blocker is
+    /// released. The snapshot is immutable same-unit output; it is never serialized or read by
+    /// the production lowering path in Stage 2.
+    pub(crate) fn handoff_actual_method_view(
+        &mut self,
+        implementation: DefId,
+        surface: RoleImplMethodActualSurface,
+    ) -> bool {
+        let belongs_to_contract = self.methods.iter().any(|method| match &method.provision {
+            RoleImplMethodProvision::Explicit { implementations } => implementations
+                .iter()
+                .any(|candidate| candidate.def == implementation),
+            RoleImplMethodProvision::Default { .. } | RoleImplMethodProvision::Missing => false,
+        });
+        if !belongs_to_contract
+            || self
+                .actual_methods
+                .iter()
+                .any(|actual| actual.implementation == implementation)
+        {
+            return false;
+        }
+        self.actual_methods.push(RoleImplMethodActualView {
+            implementation,
+            surface,
+        });
+        true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn actual_method_view(
+        &self,
+        implementation: DefId,
+    ) -> Option<&RoleImplMethodActualView> {
+        self.actual_methods
+            .iter()
+            .find(|actual| actual.implementation == implementation)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn actual_method_views(&self) -> &[RoleImplMethodActualView] {
+        &self.actual_methods
     }
 
     /// Select the explicit-complete source members whose declared requirement is already in the
@@ -554,6 +600,23 @@ pub(crate) struct RoleImplMethodImplementation {
     pub(crate) name: String,
     pub(crate) source: SourceRange,
     pub(crate) order: u32,
+}
+
+/// Immutable actual-side handoff for one explicit source method.
+///
+/// The implementation id only associates the snapshot with the already-captured method
+/// correspondence. An available normalized surface contains no solver identity; an unavailable
+/// result may retain same-session failure evidence but is never canonicalized or serialized.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleImplMethodActualView {
+    pub(crate) implementation: DefId,
+    pub(crate) surface: RoleImplMethodActualSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum RoleImplMethodActualSurface {
+    Receiverless(ActualMethodConformanceView),
+    Receiver(ActualReceiverMethodConformanceView),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1291,6 +1291,10 @@ fn role_impl_method_lifecycle_slice3_receiverless_shadow_matches_immediate_basel
     );
     assert_eq!(witness.edge_applications, 1);
     assert_eq!(witness.releases, 1);
+    assert_eq!(
+        persisted_receiverless_actual_view(&delayed, witness.member),
+        &witness.actual_view,
+    );
     let delayed_transitions = delayed.session.scc.conformance_transition_counts();
     assert_eq!(delayed_transitions.pending, 1);
     assert_eq!(delayed_transitions.released, 1);
@@ -1327,6 +1331,10 @@ fn role_impl_method_lifecycle_slice3_unavailable_capture_still_releases() {
     );
     assert_eq!(witness.edge_applications, 1);
     assert_eq!(witness.releases, 1);
+    assert_eq!(
+        persisted_receiverless_actual_view(&output, witness.member),
+        &witness.actual_view,
+    );
     let transitions = output.session.scc.conformance_transition_counts();
     assert_eq!((transitions.pending, transitions.released), (1, 1));
     assert!(!output.session.has_pending_work());
@@ -1352,6 +1360,13 @@ fn role_impl_method_lifecycle_slice3_keeps_out_of_scope_methods_immediate() {
     for source in [inferred_associated, unsupported_declared_function] {
         let output = lower_receiverless_conformance_shadow(source, true);
         assert!(output.receiverless_conformance_shadow().is_empty());
+        assert!(
+            output
+                .role_impl_conformance_contracts()
+                .iter()
+                .all(|contract| contract.actual_method_views().is_empty()),
+            "an out-of-scope receiverless method has no pending snapshot to hand off",
+        );
         assert_eq!(
             output.session.scc.conformance_transition_counts(),
             crate::scc::ConformanceTransitionCounts::default(),
@@ -1382,6 +1397,10 @@ fn role_impl_method_lifecycle_slice3_ordinary_blocker_fails_capture_without_dead
         ),
     );
     assert_eq!((witness.edge_applications, witness.releases), (1, 1));
+    assert_eq!(
+        persisted_receiverless_actual_view(&output, witness.member),
+        &witness.actual_view,
+    );
     let transitions = output.session.scc.conformance_transition_counts();
     assert_eq!((transitions.pending, transitions.released), (1, 1));
     assert!(!output.session.has_pending_work());
@@ -1720,6 +1739,10 @@ fn role_impl_method_lifecycle_slice4c_t3_build_failure_matches_immediate_baselin
     assert!(!witness.binding_committed);
     assert_eq!((witness.edge_applications, witness.releases), (1, 1));
     assert_eq!(
+        persisted_receiver_actual_view(&delayed, witness.member),
+        &witness.actual_view,
+    );
+    assert_eq!(
         (
             witness.def_finished_emissions,
             witness.binding_publication_commits
@@ -1785,6 +1808,10 @@ fn role_impl_method_lifecycle_slice4c_t3_valid_result_annotation_and_capture_fai
         witness.actual_view.effect,
         ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
     ));
+    assert_eq!(
+        persisted_receiver_actual_view(&delayed, witness.member),
+        &witness.actual_view,
+    );
     assert!(matches!(
         delayed.session.poly.defs.get(method),
         Some(Def::Let {
@@ -1836,6 +1863,10 @@ fn role_impl_method_lifecycle_slice4c_t3_capture_failure_still_connects_and_comm
             ActualMethodConformanceViewUnavailable::NonAtomicSurface
         )
     ));
+    assert_eq!(
+        persisted_receiver_actual_view(&failed_capture, witness.member),
+        &witness.actual_view,
+    );
 }
 
 #[test]
@@ -1853,6 +1884,12 @@ fn role_impl_method_lifecycle_slice4c_t3_internal_descriptor_gate_falls_back_imm
         receiver_shadow_production_surface(&immediate, "Read"),
     );
     assert!(fallback.receiver_conformance_shadow().is_empty());
+    assert!(
+        fallback.role_impl_conformance_contracts()[0]
+            .actual_method_views()
+            .is_empty(),
+        "an unsupported immediate fallback has no pending snapshot to hand off",
+    );
     assert_eq!(
         fallback.session.scc.conformance_transition_counts(),
         crate::scc::ConformanceTransitionCounts::default(),
@@ -1878,6 +1915,20 @@ fn role_impl_method_lifecycle_slice4c_t3_mixed_receiverless_receiver_component_c
     );
     assert_eq!(delayed.receiverless_conformance_shadow().len(), 1);
     assert_eq!(delayed.receiver_conformance_shadow().len(), 1);
+    let [contract] = delayed.role_impl_conformance_contracts() else {
+        panic!("expected one mixed-method source contract")
+    };
+    assert_eq!(contract.actual_method_views().len(), 2);
+    let receiverless = &delayed.receiverless_conformance_shadow()[0];
+    assert_eq!(
+        persisted_receiverless_actual_view(&delayed, receiverless.member),
+        &receiverless.actual_view,
+    );
+    let receiver = &delayed.receiver_conformance_shadow()[0];
+    assert_eq!(
+        persisted_receiver_actual_view(&delayed, receiver.member),
+        &receiver.actual_view,
+    );
     let events = delayed.conformance_batch_events();
     assert_eq!(events.len(), 4, "{events:?}");
     assert!(matches!(
@@ -2248,6 +2299,11 @@ fn role_impl_method_lifecycle_slice4c_t4_computed_fetch_cycle_matches_immediate_
 
 #[test]
 fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_baseline() {
+    use crate::role_impl_conformance::view::{ConformanceBinder, ConformanceTypeView};
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
     let single = concat!(
         "role Apply 'subject:\n",
         "  our x.apply: int -> int\n",
@@ -2270,10 +2326,10 @@ fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_base
         "my observed = 1.choose 2 true\n",
     );
 
-    for (source, role, parameter_count) in [
-        (single, "Apply", 1usize),
-        (multiple_annotated, "Choose", 2usize),
-        (multiple_effect_result, "Choose", 2usize),
+    for (source, role, parameter_count, pure_effect_anchor) in [
+        (single, "Apply", 1usize, true),
+        (multiple_annotated, "Choose", 2usize, true),
+        (multiple_effect_result, "Choose", 2usize, false),
     ] {
         let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
         let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
@@ -2287,6 +2343,45 @@ fn role_impl_method_lifecycle_slice4d_plain_tail_parameters_match_immediate_base
             panic!("expected one delayed receiver witness for {parameter_count} parameters")
         };
         assert!(witness.binding_committed);
+        assert_eq!(
+            persisted_receiver_actual_view(&delayed, witness.member),
+            &witness.actual_view,
+        );
+        assert!(
+            matches!(
+                (parameter_count, &witness.actual_view.value),
+                (
+                    1,
+                    ActualMethodConformanceView::Available(ConformanceTypeView::Binder(
+                        ConformanceBinder::MethodQuantifier(0)
+                    ))
+                ) | (
+                    2,
+                    ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(
+                        BuiltinType::Int
+                    ))
+                )
+            ),
+            "parameter_count={parameter_count}: {:?}",
+            witness.actual_view.value
+        );
+        assert!(
+            if pure_effect_anchor {
+                matches!(
+                    witness.actual_view.effect,
+                    ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+                )
+            } else {
+                matches!(
+                    witness.actual_view.effect,
+                    ActualMethodConformanceView::Unavailable(
+                        ActualMethodConformanceViewUnavailable::WeightedVariable
+                    )
+                )
+            },
+            "parameter_count={parameter_count}: {:?}",
+            witness.actual_view.effect,
+        );
         assert_eq!(
             (
                 witness.edge_applications,
@@ -2345,6 +2440,12 @@ fn role_impl_method_lifecycle_slice4d_missing_parameter_layer_falls_back_immedia
         receiver_shadow_production_surface(&immediate, "Choose"),
     );
     assert!(delayed.receiver_conformance_shadow().is_empty());
+    assert!(
+        delayed.role_impl_conformance_contracts()[0]
+            .actual_method_views()
+            .is_empty(),
+        "an unsupported parameter spine remains on the immediate path",
+    );
     assert_eq!(
         delayed.session.scc.conformance_transition_counts(),
         crate::scc::ConformanceTransitionCounts::default(),
@@ -2388,6 +2489,94 @@ fn role_impl_method_lifecycle_slice4d_mixed_component_captures_multi_tail_atomic
             ..Default::default()
         },
     );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice6_persists_poisoned_receiver_snapshot() {
+    use crate::role_impl_conformance::ActualMethodConformanceView;
+    use crate::role_impl_conformance::view::ConformanceTypeView;
+
+    let source = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = true\n",
+    );
+    let (delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Read"),
+        receiver_shadow_production_surface(&immediate, "Read"),
+    );
+
+    let [witness] = delayed.receiver_conformance_shadow() else {
+        panic!("expected one poisoned receiver witness")
+    };
+    assert!(!witness.binding_committed);
+    assert_eq!(
+        witness.actual_view.value,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Bool)),
+    );
+    assert!(matches!(
+        witness.actual_view.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Binder(_))
+    ));
+    assert_eq!(
+        persisted_receiver_actual_view(&delayed, witness.member),
+        &witness.actual_view,
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage2_slice6_exit_hands_off_declared_and_actual_together() {
+    use crate::role_impl_conformance::RoleImplMethodActualSurface;
+    use crate::role_impl_conformance::view::DeclaredTypeView;
+
+    let alpha_a = concat!(
+        "role Same 'subject:\n",
+        "  our x.same: 'subject\n",
+        "impl 'a: Same:\n",
+        "  our x.same = x\n",
+    );
+    let alpha_b = concat!(
+        "role Same 'subject:\n",
+        "  our x.same: 'subject\n",
+        "impl 'renamed: Same:\n",
+        "  our x.same = x\n",
+    );
+
+    let exit_view = |source| {
+        let (output, member) = lower_receiver_conformance_shadow(source, true, false, false);
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let [contract] = output.role_impl_conformance_contracts() else {
+            panic!("expected one source conformance contract")
+        };
+        let declared = contract.declared_view(&output.modules);
+        let DeclaredTypeView::Available(declared_input) = &declared.inputs[0] else {
+            panic!("expected first-order declared impl input: {declared:?}")
+        };
+        let actual_method = contract
+            .actual_method_view(member)
+            .expect("the same contract must own the actual method handoff");
+        let RoleImplMethodActualSurface::Receiver(actual) = &actual_method.surface else {
+            panic!("expected receiver actual handoff: {actual_method:?}")
+        };
+        let crate::role_impl_conformance::ActualMethodConformanceView::Available(actual_value) =
+            &actual.value
+        else {
+            panic!("expected first-order receiver value: {actual:?}")
+        };
+        assert_eq!(
+            actual_value, declared_input,
+            "the Exit witness observes declared and actual U0 through one contract",
+        );
+        (
+            declared_input.clone(),
+            RoleImplMethodActualSurface::Receiver(actual.clone()),
+        )
+    };
+
+    assert_eq!(exit_view(alpha_a), exit_view(alpha_b));
 }
 
 #[test]
@@ -3682,6 +3871,42 @@ fn receiverless_production_surface(output: &BodyLowering, role: &str) -> String 
         output.errors,
         poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels),
     )
+}
+
+fn persisted_actual_surface(
+    output: &BodyLowering,
+    member: DefId,
+) -> &crate::role_impl_conformance::RoleImplMethodActualSurface {
+    &output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find_map(|contract| contract.actual_method_view(member))
+        .unwrap_or_else(|| panic!("missing persisted actual view for {member:?}"))
+        .surface
+}
+
+fn persisted_receiverless_actual_view(
+    output: &BodyLowering,
+    member: DefId,
+) -> &crate::role_impl_conformance::ActualMethodConformanceView {
+    let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(view) =
+        persisted_actual_surface(output, member)
+    else {
+        panic!("expected receiverless persisted actual view for {member:?}")
+    };
+    view
+}
+
+fn persisted_receiver_actual_view(
+    output: &BodyLowering,
+    member: DefId,
+) -> &crate::role_impl_conformance::ActualReceiverMethodConformanceView {
+    let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(view) =
+        persisted_actual_surface(output, member)
+    else {
+        panic!("expected receiver persisted actual view for {member:?}")
+    };
+    view
 }
 
 fn characterize_contract(source: &str) -> String {

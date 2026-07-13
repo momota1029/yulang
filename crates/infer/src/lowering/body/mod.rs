@@ -1033,13 +1033,6 @@ struct InactiveReceiverProvisionalBinding {
 }
 
 struct PendingRoleImplConformance {
-    #[cfg_attr(
-        not(test),
-        allow(
-            dead_code,
-            reason = "impl ownership is handed off with actual views in Slice 6"
-        )
-    )]
     impl_def: DefId,
     member: DefId,
     module: ModuleId,
@@ -1192,6 +1185,35 @@ fn pending_actual_view_is_available(view: &Option<PendingRoleImplActualView>) ->
             )
         ),
         _ => false,
+    }
+}
+
+fn take_pending_actual_surface(
+    pending: &mut PendingRoleImplConformance,
+) -> crate::role_impl_conformance::RoleImplMethodActualSurface {
+    match (&pending.kind, pending.actual_view.take()) {
+        (
+            PendingRoleImplConformanceKind::Receiverless,
+            Some(PendingRoleImplActualView::Receiverless(view)),
+        ) => crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(view),
+        (PendingRoleImplConformanceKind::Receiverless, _) => {
+            crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(
+                crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
+                    crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                ),
+            )
+        }
+        (
+            PendingRoleImplConformanceKind::Receiver { .. },
+            Some(PendingRoleImplActualView::Receiver(view)),
+        ) => crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(view),
+        (PendingRoleImplConformanceKind::Receiver { .. }, _) => {
+            crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(
+                unavailable_receiver_actual_view(
+                    crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+                ),
+            )
+        }
     }
 }
 
@@ -1593,25 +1615,41 @@ impl BodyLowerer {
         for member in members.iter().copied() {
             self.session
                 .enqueue(AnalysisWork::Scc(SccInput::ConformanceReleased { member }));
-            let Some(pending) = self.pending_role_impl_conformance.remove(&member) else {
+            let Some(mut pending) = self.pending_role_impl_conformance.remove(&member) else {
                 continue;
             };
-            #[cfg(not(test))]
-            let _ = pending;
+            let actual_surface = take_pending_actual_surface(&mut pending);
             #[cfg(test)]
-            self.record_conformance_shadow_witness(pending);
+            let witness_surface = actual_surface.clone();
+            let handed_off = self
+                .role_impl_conformance_contracts
+                .iter_mut()
+                .find(|contract| contract.impl_def == pending.impl_def)
+                .is_some_and(|contract| {
+                    contract.handoff_actual_method_view(pending.member, actual_surface)
+                });
+            debug_assert!(
+                handed_off,
+                "a pending source method must hand its actual view to its unique contract once"
+            );
+            #[cfg(test)]
+            self.record_conformance_shadow_witness(pending, witness_surface);
         }
     }
 
     #[cfg(test)]
-    fn record_conformance_shadow_witness(&mut self, pending: PendingRoleImplConformance) {
+    fn record_conformance_shadow_witness(
+        &mut self,
+        pending: PendingRoleImplConformance,
+        actual_surface: crate::role_impl_conformance::RoleImplMethodActualSurface,
+    ) {
         match pending.kind {
             PendingRoleImplConformanceKind::Receiverless => {
-                let actual_view = match pending.actual_view {
-                    Some(PendingRoleImplActualView::Receiverless(view)) => view,
-                    _ => crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(
-                        crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-                    ),
+                let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(
+                    actual_view,
+                ) = actual_surface
+                else {
+                    unreachable!("receiverless pending record must retain a receiverless view")
                 };
                 self.receiverless_conformance_shadow
                     .push(ReceiverlessConformanceShadowWitness {
@@ -1623,11 +1661,11 @@ impl BodyLowerer {
                     });
             }
             PendingRoleImplConformanceKind::Receiver { committed, .. } => {
-                let actual_view = match pending.actual_view {
-                    Some(PendingRoleImplActualView::Receiver(view)) => view,
-                    _ => unavailable_receiver_actual_view(
-                        crate::role_impl_conformance::ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-                    ),
+                let crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(
+                    actual_view,
+                ) = actual_surface
+                else {
+                    unreachable!("receiver pending record must retain a receiver view")
                 };
                 self.receiver_conformance_shadow
                     .push(ReceiverConformanceShadowWitness {
