@@ -230,13 +230,14 @@ impl RoleImplConformanceContract {
     pub(crate) fn shadow_conformance_pairs(
         &self,
         modules: &ModuleTable,
+        residuals: &[view::RoleImplMethodResidualPrerequisitesView],
         casts: &CastTable,
         mut captured_builtin_nominal_pair: impl FnMut(DefId) -> Option<view::ActualBuiltinNominalPair>,
     ) -> Vec<ShadowConformancePair> {
-        let declared = self.declared_view(modules);
+        let declared_role = self.declared_view(modules);
         let mut pairs = Vec::new();
         for (index, method) in self.methods.iter().enumerate() {
-            let captured_declared_requirement = declared
+            let captured_declared_requirement = declared_role
                 .methods
                 .get(index)
                 .filter(|view| view.name == method.name)
@@ -249,10 +250,13 @@ impl RoleImplConformanceContract {
                         let actual = self
                             .actual_method_view(implementation.def)
                             .map(|actual| actual.surface.clone());
+                        let residual = residuals
+                            .iter()
+                            .find(|residual| residual.implementation == implementation.def);
                         let declared = align_shadow_declared_requirement(
                             self,
                             modules,
-                            &declared,
+                            &declared_role,
                             method,
                             captured_declared_requirement.clone(),
                             actual.as_ref(),
@@ -263,6 +267,8 @@ impl RoleImplConformanceContract {
                             declared.effect,
                             Some(implementation.def),
                             actual,
+                            &declared_role.advertised_prerequisites,
+                            residual,
                             casts,
                             captured_builtin_nominal_pair(implementation.def).as_ref(),
                         )
@@ -276,6 +282,8 @@ impl RoleImplConformanceContract {
                         captured_declared_requirement,
                         None,
                         None,
+                        None,
+                        &declared_role.advertised_prerequisites,
                         None,
                         casts,
                         None,
@@ -795,6 +803,31 @@ pub(crate) enum ShadowConformanceOutcome {
     NotCaptured,
 }
 
+/// Declaration-completeness verdict for one method's captured residual prerequisites. This stays
+/// independent from value/effect/cast compatibility so either axis can fail without masking the
+/// other.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ShadowPredicateConformanceOutcome {
+    Conforms,
+    NonConforming(Vec<ShadowPredicateConformanceFailure>),
+    NotCaptured,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ShadowPredicateConformanceFailure {
+    pub(crate) residual: view::RoleImplMethodResidualPredicateView,
+    pub(crate) reason: ShadowPredicateConformanceFailureReason,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ShadowPredicateConformanceFailureReason {
+    MissingAdvertisedPrerequisite,
+    UnavailableInput,
+}
+
 /// One deterministic declared/actual alignment owned by a source conformance contract.
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -806,6 +839,7 @@ pub(crate) struct ShadowConformancePair {
     pub(crate) declared_effect: Option<view::DeclaredTypeView>,
     pub(crate) actual: Option<RoleImplMethodActualSurface>,
     pub(crate) outcome: ShadowConformanceOutcome,
+    pub(crate) predicate_outcome: ShadowPredicateConformanceOutcome,
 }
 
 #[cfg(test)]
@@ -876,6 +910,8 @@ fn build_shadow_conformance_pair(
     declared_effect: Option<view::DeclaredTypeView>,
     implementation: Option<DefId>,
     actual: Option<RoleImplMethodActualSurface>,
+    advertised_prerequisites: &[view::DeclaredRolePredicateView],
+    residual_prerequisites: Option<&view::RoleImplMethodResidualPrerequisitesView>,
     casts: &CastTable,
     captured_builtin_nominal_pair: Option<&view::ActualBuiltinNominalPair>,
 ) -> ShadowConformancePair {
@@ -887,6 +923,11 @@ fn build_shadow_conformance_pair(
         casts,
         captured_builtin_nominal_pair,
     );
+    let predicate_outcome = classify_shadow_predicate_conformance_pair(
+        implementation,
+        advertised_prerequisites,
+        residual_prerequisites,
+    );
     ShadowConformancePair {
         requirement: method.requirement,
         method_name: method.name.clone(),
@@ -895,6 +936,48 @@ fn build_shadow_conformance_pair(
         declared_effect,
         actual,
         outcome,
+        predicate_outcome,
+    }
+}
+
+#[cfg(test)]
+fn classify_shadow_predicate_conformance_pair(
+    implementation: Option<DefId>,
+    advertised: &[view::DeclaredRolePredicateView],
+    residual: Option<&view::RoleImplMethodResidualPrerequisitesView>,
+) -> ShadowPredicateConformanceOutcome {
+    let (Some(implementation), Some(residual)) = (implementation, residual) else {
+        return ShadowPredicateConformanceOutcome::NotCaptured;
+    };
+    debug_assert_eq!(residual.implementation, implementation);
+
+    let failures = residual
+        .prerequisites
+        .iter()
+        .filter_map(|residual| {
+            let mut saw_unavailable = false;
+            for advertised in advertised {
+                match view::exact_role_predicate_match(residual, advertised) {
+                    view::ExactRolePredicateMatch::Matches => return None,
+                    view::ExactRolePredicateMatch::DoesNotMatch => {}
+                    view::ExactRolePredicateMatch::Unavailable => saw_unavailable = true,
+                }
+            }
+            Some(ShadowPredicateConformanceFailure {
+                residual: residual.clone(),
+                reason: if saw_unavailable {
+                    ShadowPredicateConformanceFailureReason::UnavailableInput
+                } else {
+                    ShadowPredicateConformanceFailureReason::MissingAdvertisedPrerequisite
+                },
+            })
+        })
+        .collect::<Vec<_>>();
+
+    if failures.is_empty() {
+        ShadowPredicateConformanceOutcome::Conforms
+    } else {
+        ShadowPredicateConformanceOutcome::NonConforming(failures)
     }
 }
 
@@ -1446,6 +1529,83 @@ mod tests {
             ),
             ShadowConformanceOutcome::Mismatch,
             "Slice 3b owns the structural comparison deliberately deferred by Slice 3a",
+        );
+    }
+
+    #[test]
+    fn stage4_predicate_classifier_fails_closed_on_unavailable_inputs() {
+        use super::view::{
+            ActualMethodConformanceViewUnavailable, ConformanceBinder, ConformanceTypeView,
+            DeclaredRolePredicateView, DeclaredTypeView, DeclaredViewAmbiguity,
+            DeclaredViewUnavailable, RoleImplMethodResidualPredicateView,
+        };
+
+        let implementation = DefId(1);
+        let u0 =
+            ConformanceTypeView::Binder(ConformanceBinder::Universal(ImplUniversalBinderId(0)));
+        let available_residual = view::RoleImplMethodResidualPrerequisitesView {
+            method_name: "get".into(),
+            implementation,
+            prerequisites: vec![RoleImplMethodResidualPredicateView {
+                role: vec!["Eq".into()],
+                inputs: vec![ActualMethodConformanceView::Available(u0.clone())],
+            }],
+        };
+        let unavailable_residual = view::RoleImplMethodResidualPrerequisitesView {
+            method_name: "get".into(),
+            implementation,
+            prerequisites: vec![RoleImplMethodResidualPredicateView {
+                role: vec!["Eq".into()],
+                inputs: vec![ActualMethodConformanceView::Unavailable(
+                    ActualMethodConformanceViewUnavailable::UnsupportedFunction,
+                )],
+            }],
+        };
+        let advertised_available = DeclaredRolePredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![DeclaredTypeView::Available(u0)],
+        };
+        let advertised_ambiguous = DeclaredRolePredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![DeclaredTypeView::Ambiguous(
+                DeclaredViewAmbiguity::InputAssociatedNameCollision("subject".into()),
+            )],
+        };
+        let advertised_unavailable = DeclaredRolePredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![DeclaredTypeView::Unavailable(
+                DeclaredViewUnavailable::UnsupportedFunction,
+            )],
+        };
+
+        for (residual, advertised) in [
+            (&available_residual, &advertised_ambiguous),
+            (&available_residual, &advertised_unavailable),
+            (&unavailable_residual, &advertised_available),
+        ] {
+            let outcome = classify_shadow_predicate_conformance_pair(
+                Some(implementation),
+                std::slice::from_ref(advertised),
+                Some(residual),
+            );
+            let ShadowPredicateConformanceOutcome::NonConforming(failures) = outcome else {
+                panic!("an unavailable predicate input must not verify membership: {outcome:?}")
+            };
+            assert_eq!(failures.len(), 1);
+            assert_eq!(
+                failures[0].reason,
+                ShadowPredicateConformanceFailureReason::UnavailableInput,
+            );
+        }
+
+        assert_eq!(
+            classify_shadow_predicate_conformance_pair(
+                Some(implementation),
+                &[advertised_ambiguous, advertised_available],
+                Some(&available_residual),
+            ),
+            ShadowPredicateConformanceOutcome::Conforms,
+            "an unavailable candidate must not hide a later exact available match",
         );
     }
 

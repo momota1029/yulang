@@ -938,6 +938,232 @@ fn generic_role_impl_conformance_stage4_p0d_separates_advertised_ord_from_body_e
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_p1a_flags_obs_unadvertised_eq_independently() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView,
+        RoleImplMethodResidualPredicateView,
+    };
+    use crate::role_impl_conformance::{
+        ShadowConformanceOutcome, ShadowPredicateConformanceFailure,
+        ShadowPredicateConformanceFailureReason, ShadowPredicateConformanceOutcome,
+    };
+
+    let source = concat!(
+        "role Ord 'subject:\n",
+        "  our x.ord: unit\n",
+        "role Eq 'subject:\n",
+        "  our x.eq: unit\n",
+        "impl 'a: Eq:\n",
+        "  our x.eq = x.ord\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  where 'a: Ord\n",
+        "  our x.get = x.eq\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let contract = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find(|contract| contract.role == ["Box".to_string()])
+        .expect("expected Box source role impl contract");
+    let [pair] = shadow_conformance_pairs_from_output(&output, contract)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one Box shadow pair, got {pairs:?}"));
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    assert_eq!(
+        contract
+            .declared_view(&output.modules)
+            .advertised_prerequisites
+            .iter()
+            .map(|prerequisite| prerequisite.role.as_slice())
+            .collect::<Vec<_>>(),
+        vec![["Ord".to_string()].as_slice()],
+    );
+
+    assert_eq!(
+        pair.outcome,
+        ShadowConformanceOutcome::Unavailable,
+        "{pair:#?}",
+    );
+    assert_eq!(
+        pair.predicate_outcome,
+        ShadowPredicateConformanceOutcome::NonConforming(vec![ShadowPredicateConformanceFailure {
+            residual: RoleImplMethodResidualPredicateView {
+                role: vec!["Eq".into()],
+                inputs: vec![ActualMethodConformanceView::Available(
+                    ConformanceTypeView::Binder(u0),
+                )],
+            },
+            reason: ShadowPredicateConformanceFailureReason::MissingAdvertisedPrerequisite,
+        },]),
+        "the advertised Ord must not logically entail the exact residual Eq membership",
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p1a_accepts_exact_coverage_and_over_advertising() {
+    use crate::role_impl_conformance::{
+        ShadowConformanceOutcome, ShadowPredicateConformanceOutcome,
+    };
+
+    let prelude = concat!(
+        "role Ord 'subject:\n",
+        "  our x.ord: unit\n",
+        "role Eq 'subject:\n",
+        "  our x.eq: unit\n",
+        "impl 'a: Eq:\n",
+        "  our x.eq = x.ord\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+    );
+    let fixtures = [
+        (
+            "exact residual coverage",
+            format!(
+                "{prelude}impl 'a: Box:\n  where 'a: Ord\n  where 'a: Eq\n  our x.get = x.eq\n"
+            ),
+            1,
+            ShadowConformanceOutcome::Unavailable,
+        ),
+        (
+            "empty residual with an unused advertised predicate",
+            format!("{prelude}impl 'a: Box:\n  where 'a: Eq\n  our x.get = ()\n"),
+            0,
+            ShadowConformanceOutcome::Conforms,
+        ),
+    ];
+
+    for (name, source, expected_residual_count, expected_value_outcome) in fixtures {
+        let output = lower_conformance_fixture(&source);
+        assert!(
+            output.errors.is_empty(),
+            "fixture {name}: {:?}",
+            output.errors
+        );
+        let contract = output
+            .role_impl_conformance_contracts()
+            .iter()
+            .find(|contract| contract.role == ["Box".to_string()])
+            .unwrap_or_else(|| panic!("fixture {name}: expected Box contract"));
+        let [pair] = shadow_conformance_pairs_from_output(&output, contract)
+            .try_into()
+            .unwrap_or_else(|pairs: Vec<_>| {
+                panic!("fixture {name}: expected one Box shadow pair, got {pairs:?}")
+            });
+        let residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+        let [residual] = residuals.as_slice() else {
+            panic!("fixture {name}: expected one method residual")
+        };
+
+        assert_eq!(
+            residual.prerequisites.len(),
+            expected_residual_count,
+            "{name}"
+        );
+        assert_eq!(pair.outcome, expected_value_outcome, "{name}: {pair:#?}",);
+        assert_eq!(
+            pair.predicate_outcome,
+            ShadowPredicateConformanceOutcome::Conforms,
+            "{name}: exact membership is residual ⊆ advertised; unused advertised entries are allowed",
+        );
+    }
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p1a_predicate_failure_does_not_mask_value_success() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView,
+        RoleImplMethodResidualPredicateView,
+    };
+    use crate::role_impl_conformance::{
+        ShadowConformanceOutcome, ShadowPredicateConformanceFailureReason,
+        ShadowPredicateConformanceOutcome,
+    };
+
+    let source = concat!(
+        "role Ord 'subject:\n",
+        "  our x.ord: unit\n",
+        "role Eq 'subject:\n",
+        "  our x.eq: unit\n",
+        "role Box 'subject:\n",
+        "  our x.get: unit\n",
+        "impl 'a: Box:\n",
+        "  where 'a: Ord\n",
+        "  our x.get = ()\n",
+    );
+    let output = lower_conformance_fixture(source);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one Box contract")
+    };
+    let u0 = ConformanceBinder::Universal(contract.universal_binders[0].id);
+    let mut residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+    let [residual] = residuals.as_mut_slice() else {
+        panic!("expected one clean captured residual")
+    };
+    assert!(residual.prerequisites.is_empty());
+    // A live prerequisite-bearing body keeps R1's actual snapshot behind an
+    // `OrdinarySccBlocker`. Inject the already-normalized P0-D view here so this comparison-level
+    // witness can isolate the two verdict axes without changing that capture lifecycle.
+    residual
+        .prerequisites
+        .push(RoleImplMethodResidualPredicateView {
+            role: vec!["Eq".into()],
+            inputs: vec![ActualMethodConformanceView::Available(
+                ConformanceTypeView::Binder(u0),
+            )],
+        });
+    let [pair] = shadow_conformance_pairs_with_residuals(
+        &output,
+        contract,
+        &output.session.casts,
+        &residuals,
+    )
+    .try_into()
+    .unwrap_or_else(|pairs: Vec<_>| panic!("expected one Box shadow pair, got {pairs:?}"));
+
+    assert_eq!(
+        pair.outcome,
+        ShadowConformanceOutcome::Conforms,
+        "{pair:#?}"
+    );
+    let ShadowPredicateConformanceOutcome::NonConforming(failures) = pair.predicate_outcome else {
+        panic!("expected unadvertised Eq failure, got {pair:#?}")
+    };
+    let [failure] = failures.as_slice() else {
+        panic!("expected one unadvertised Eq failure, got {failures:#?}")
+    };
+    assert_eq!(failure.residual.role, vec!["Eq".to_string()]);
+    assert_eq!(
+        failure.reason,
+        ShadowPredicateConformanceFailureReason::MissingAdvertisedPrerequisite,
+    );
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_p1a_predicate_success_does_not_mask_value_mismatch() {
+    use crate::role_impl_conformance::{
+        ShadowConformanceOutcome, ShadowPredicateConformanceOutcome,
+    };
+
+    let output = lower_conformance_fixture(fixture_source("explicit-bool-concrete-int"));
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one Index contract")
+    };
+    let [pair] = shadow_conformance_pairs_from_output(&output, contract)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one Index shadow pair, got {pairs:?}"));
+
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Mismatch);
+    assert_eq!(
+        pair.predicate_outcome,
+        ShadowPredicateConformanceOutcome::Conforms,
+        "an empty residual is covered even when the independent value axis fails",
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage4_obs_final_prerequisites_lose_predicate_provenance() {
     let prelude = concat!(
         "role Ord 'a:\n",
@@ -6391,13 +6617,23 @@ fn shadow_conformance_pairs_with_casts(
     contract: &crate::role_impl_conformance::RoleImplConformanceContract,
     casts: &crate::casts::CastTable,
 ) -> Vec<crate::role_impl_conformance::ShadowConformancePair> {
+    let residuals = contract.residual_prerequisites_view(output.session.infer.constraints());
+    shadow_conformance_pairs_with_residuals(output, contract, casts, &residuals)
+}
+
+fn shadow_conformance_pairs_with_residuals(
+    output: &BodyLowering,
+    contract: &crate::role_impl_conformance::RoleImplConformanceContract,
+    casts: &crate::casts::CastTable,
+    residuals: &[crate::role_impl_conformance::view::RoleImplMethodResidualPrerequisitesView],
+) -> Vec<crate::role_impl_conformance::ShadowConformancePair> {
     use crate::role_impl_conformance::RoleImplMethodActualSurface;
     use crate::role_impl_conformance::view::{
         ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
         capture_actual_builtin_nominal_pair,
     };
 
-    contract.shadow_conformance_pairs(&output.modules, casts, |implementation| {
+    contract.shadow_conformance_pairs(&output.modules, residuals, casts, |implementation| {
         let actual = contract.actual_method_view(implementation)?;
         let RoleImplMethodActualSurface::Receiver(receiver) = &actual.surface else {
             return None;

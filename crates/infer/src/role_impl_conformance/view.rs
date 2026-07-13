@@ -56,6 +56,17 @@ pub(crate) struct RoleImplMethodResidualPredicateView {
     pub(crate) inputs: Vec<ActualMethodConformanceView>,
 }
 
+/// Exact normalized comparison of one residual predicate against one advertised predicate.
+/// `Unavailable` means their role/arity and every comparable input agree, but at least one input
+/// is unavailable or ambiguous in its wrapper.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExactRolePredicateMatch {
+    Matches,
+    DoesNotMatch,
+    Unavailable,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum DeclaredAssociatedView {
     Explicit {
@@ -201,6 +212,38 @@ fn first_order_invariantly_equal(left: &ConformanceTypeView, right: &Conformance
             first_order_effect_sets_equal(left, right)
         }
         _ => false,
+    }
+}
+
+/// Compare one residual predicate with one advertised predicate under exact normalized
+/// membership. This deliberately does not use the subtype-flavored `first_order_conforms`.
+#[cfg(test)]
+pub(crate) fn exact_role_predicate_match(
+    residual: &RoleImplMethodResidualPredicateView,
+    advertised: &DeclaredRolePredicateView,
+) -> ExactRolePredicateMatch {
+    if residual.role != advertised.role || residual.inputs.len() != advertised.inputs.len() {
+        return ExactRolePredicateMatch::DoesNotMatch;
+    }
+
+    let mut unavailable = false;
+    for (actual, declared) in residual.inputs.iter().zip(&advertised.inputs) {
+        match (actual, declared) {
+            (
+                ActualMethodConformanceView::Available(actual),
+                DeclaredTypeView::Available(declared),
+            ) if !first_order_invariantly_equal(actual, declared) => {
+                return ExactRolePredicateMatch::DoesNotMatch;
+            }
+            (ActualMethodConformanceView::Available(_), DeclaredTypeView::Available(_)) => {}
+            _ => unavailable = true,
+        }
+    }
+
+    if unavailable {
+        ExactRolePredicateMatch::Unavailable
+    } else {
+        ExactRolePredicateMatch::Matches
     }
 }
 
