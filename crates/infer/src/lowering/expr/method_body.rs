@@ -3,6 +3,34 @@
 use super::super::*;
 use super::*;
 
+pub(in crate::lowering) struct ImplRequirementParameterPreparation {
+    param_uppers: Vec<Option<NegId>>,
+    body_cursor: Option<RequirementSpineCursor>,
+    continuation: SignatureLoweringContinuation,
+}
+
+pub(in crate::lowering) struct LoweredImplMethodBody {
+    pub(in crate::lowering) computation: Computation,
+    pub(in crate::lowering) deferred_requirement: Option<DeferredRoleImplMethodRequirement>,
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "receiver anchors are transported into the pending descriptor by Slice 4b"
+        )
+    )]
+    pub(in crate::lowering) receiver_anchors: Option<ReceiverMethodLoweringAnchors>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::lowering) struct ReceiverMethodLoweringAnchors {
+    pub(in crate::lowering) receiver: TypeVar,
+    pub(in crate::lowering) tail_parameters: Vec<TypeVar>,
+    pub(in crate::lowering) body_value: TypeVar,
+    pub(in crate::lowering) body_effect: TypeVar,
+    pub(in crate::lowering) method_value: TypeVar,
+}
+
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_binding_body_with_args_with_self(
         &mut self,
@@ -443,19 +471,23 @@ impl<'a> ExprLowerer<'a> {
             return Ok(LoweredImplMethodBody {
                 computation: body,
                 deferred_requirement,
+                receiver_anchors: None,
             });
         };
 
         let receiver_value = self.fresh_type_var();
         self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
         let requirement_plan = match requirement {
-            Some(requirement) => self.impl_method_requirement_plan(
-                &requirement.signature,
-                arg_patterns.len(),
-                true,
-                type_var_bindings,
-                ann_solver_vars,
-            )?,
+            Some(requirement) => {
+                let parameters = self.prepare_impl_method_requirement_parameters(
+                    &requirement.signature,
+                    arg_patterns.len(),
+                    true,
+                    type_var_bindings,
+                    ann_solver_vars,
+                )?;
+                self.resume_impl_method_requirement_body(&requirement.signature, parameters)?
+            }
             None => ImplRequirementMethodPlan {
                 param_uppers: Vec::new(),
                 body: None,
@@ -480,7 +512,7 @@ impl<'a> ExprLowerer<'a> {
         } else {
             self.recursive_self_value
         };
-        let body_result = self.lower_defined_tail_after_receiver(
+        let body_result = self.lower_defined_tail_after_receiver_with_anchors(
             arg_patterns,
             node,
             &mut ann_builder,
@@ -497,13 +529,14 @@ impl<'a> ExprLowerer<'a> {
             .pop()
             .expect("impl method predicate frame should be balanced");
         self.locals.truncate(before_locals);
+        let lowered_tail = body_result?;
         let body = match recursive_self {
             Some(recursive_self) => self.attach_receiver_recursive_self_body(
-                body_result?,
+                lowered_tail.computation,
                 recursive_self,
                 has_tail_args,
             ),
-            None => body_result?,
+            None => lowered_tail.computation,
         };
 
         let value = self.fresh_type_var();
@@ -538,6 +571,13 @@ impl<'a> ExprLowerer<'a> {
         Ok(LoweredImplMethodBody {
             computation: Computation::value(expr, value, effect),
             deferred_requirement: None,
+            receiver_anchors: Some(ReceiverMethodLoweringAnchors {
+                receiver: receiver_value,
+                tail_parameters: lowered_tail.parameter_values,
+                body_value: lowered_tail.body.value,
+                body_effect: lowered_tail.body.effect,
+                method_value: value,
+            }),
         })
     }
 
@@ -757,6 +797,7 @@ impl<'a> ExprLowerer<'a> {
         requirement_parameter_context_after_clean_lowering(class, before, after)
     }
 
+    #[cfg(test)]
     pub(in crate::lowering) fn impl_method_requirement_plan(
         &mut self,
         requirement: &SignatureType,
@@ -765,9 +806,145 @@ impl<'a> ExprLowerer<'a> {
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Result<ImplRequirementMethodPlan, LoweringError> {
+        let parameters = self.prepare_impl_method_requirement_parameters(
+            requirement,
+            param_count,
+            skip_receiver,
+            type_var_bindings,
+            ann_solver_vars,
+        )?;
+        self.resume_impl_method_requirement_body(requirement, parameters)
+    }
+
+    pub(in crate::lowering) fn prepare_impl_method_requirement_parameters(
+        &mut self,
+        requirement: &SignatureType,
+        param_count: usize,
+        skip_receiver: bool,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<ImplRequirementParameterPreparation, LoweringError> {
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         // 足場の区間変数（`Bounds(int|v, v&int)` の v）が root level で生まれると
         // simplify の level 保護で永久に残るので、def の現在 level で lower する。
+        let level = self.session.infer.current_level();
+        let mut lowerer = SignatureLowerer::with_vars_at_level(
+            &mut self.session.infer,
+            self.modules,
+            seed,
+            level,
+        );
+        let mut spine = requirement;
+        let mut consumed_function_layers = 0usize;
+        let mut missing_layer = false;
+
+        if skip_receiver {
+            match signature_function_layer(spine) {
+                Some(layer) => {
+                    consumed_function_layers = consumed_function_layers.saturating_add(1);
+                    spine = layer.ret;
+                }
+                None => {
+                    missing_layer = true;
+                }
+            }
+        }
+
+        let mut uppers = Vec::with_capacity(param_count);
+        for _ in 0..param_count {
+            let Some(layer) = signature_function_layer(spine) else {
+                uppers.push(None);
+                missing_layer = true;
+                continue;
+            };
+            uppers.push(Some(
+                lowerer
+                    .lower_neg(layer.param)
+                    .map_err(|error| LoweringError::SignatureConstraint { error })?,
+            ));
+            consumed_function_layers = consumed_function_layers.saturating_add(1);
+            spine = layer.ret;
+        }
+
+        let body_cursor = if missing_layer {
+            None
+        } else if skip_receiver || param_count > 0 {
+            Some(RequirementSpineCursor::FunctionResult {
+                consumed_function_layers,
+            })
+        } else {
+            Some(RequirementSpineCursor::WholeValue)
+        };
+
+        Ok(ImplRequirementParameterPreparation {
+            param_uppers: uppers,
+            body_cursor,
+            continuation: lowerer.into_continuation(),
+        })
+    }
+
+    pub(in crate::lowering) fn resume_impl_method_requirement_body(
+        &mut self,
+        requirement: &SignatureType,
+        parameters: ImplRequirementParameterPreparation,
+    ) -> Result<ImplRequirementMethodPlan, LoweringError> {
+        let ImplRequirementParameterPreparation {
+            param_uppers,
+            body_cursor,
+            continuation,
+        } = parameters;
+        let body = match body_cursor {
+            None => None,
+            Some(RequirementSpineCursor::WholeValue) => {
+                let mut lowerer = SignatureLowerer::from_continuation(
+                    &mut self.session.infer,
+                    self.modules,
+                    continuation,
+                );
+                Some(lower_impl_requirement_value_connection(
+                    &mut lowerer,
+                    requirement,
+                )?)
+            }
+            Some(RequirementSpineCursor::FunctionResult {
+                consumed_function_layers,
+            }) => {
+                let Some((ret_eff, ret)) =
+                    signature_function_result(requirement, consumed_function_layers)
+                else {
+                    return Ok(ImplRequirementMethodPlan {
+                        param_uppers,
+                        body: None,
+                    });
+                };
+                let mut lowerer = SignatureLowerer::from_continuation(
+                    &mut self.session.infer,
+                    self.modules,
+                    continuation,
+                );
+                Some(lower_impl_requirement_body_connection(
+                    &mut lowerer,
+                    ret_eff,
+                    ret,
+                )?)
+            }
+        };
+        Ok(ImplRequirementMethodPlan { param_uppers, body })
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn uninterrupted_impl_method_requirement_plan_for_slice4a(
+        &mut self,
+        requirement: &SignatureType,
+        param_count: usize,
+        skip_receiver: bool,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<ImplRequirementMethodPlan, LoweringError> {
+        // Frozen pre-Slice-4a oracle: unlike production, this keeps one uninterrupted driver
+        // across parameter and body expected-signature lowering. Raw node ids, bridge state, and
+        // epochs are compared against the split production path by the lifecycle witness.
+        let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         let level = self.session.infer.current_level();
         let mut lowerer = SignatureLowerer::with_vars_at_level(
             &mut self.session.infer,
@@ -785,20 +962,18 @@ impl<'a> ExprLowerer<'a> {
                     body_result = Some((layer.ret_eff, layer.ret));
                     spine = layer.ret;
                 }
-                None => {
-                    missing_layer = true;
-                }
+                None => missing_layer = true,
             }
         }
 
-        let mut uppers = Vec::with_capacity(param_count);
+        let mut param_uppers = Vec::with_capacity(param_count);
         for _ in 0..param_count {
             let Some(layer) = signature_function_layer(spine) else {
-                uppers.push(None);
+                param_uppers.push(None);
                 missing_layer = true;
                 continue;
             };
-            uppers.push(Some(
+            param_uppers.push(Some(
                 lowerer
                     .lower_neg(layer.param)
                     .map_err(|error| LoweringError::SignatureConstraint { error })?,
@@ -823,11 +998,7 @@ impl<'a> ExprLowerer<'a> {
         } else {
             None
         };
-
-        Ok(ImplRequirementMethodPlan {
-            param_uppers: uppers,
-            body,
-        })
+        Ok(ImplRequirementMethodPlan { param_uppers, body })
     }
 
     pub(in crate::lowering) fn connect_impl_method_body_requirement(
@@ -1355,6 +1526,20 @@ fn signature_function_layer(signature: &SignatureType) -> Option<SignatureFuncti
         }),
         _ => None,
     }
+}
+
+fn signature_function_result(
+    signature: &SignatureType,
+    consumed_function_layers: usize,
+) -> Option<(Option<&SignatureEffectRow>, &SignatureType)> {
+    let mut spine = signature;
+    let mut result = None;
+    for _ in 0..consumed_function_layers {
+        let layer = signature_function_layer(spine)?;
+        result = Some((layer.ret_eff, layer.ret));
+        spine = layer.ret;
+    }
+    result
 }
 
 fn lower_impl_requirement_body_connection(

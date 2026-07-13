@@ -158,11 +158,6 @@ struct DeferredRoleImplMethodRequirement {
     final_metadata: DeferredRequirementMetadata,
 }
 
-struct LoweredImplMethodBody {
-    computation: Computation,
-    deferred_requirement: Option<DeferredRoleImplMethodRequirement>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     not(test),

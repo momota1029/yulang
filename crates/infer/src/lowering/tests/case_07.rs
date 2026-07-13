@@ -1395,6 +1395,66 @@ fn role_impl_method_lifecycle_slice3_ordinary_blocker_fails_capture_without_dead
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice4a_split_is_identical_to_uninterrupted_plan() {
+    let zero_tail = concat!(
+        "type box 'a\n",
+        "role Read 'subject:\n",
+        "  our x.read: 'subject\n",
+        "impl (box 'a): Read:\n",
+        "  our x.read = x\n",
+    );
+    let multiple_tail = concat!(
+        "type box 'a\n",
+        "role Choose 'subject:\n",
+        "  our x.choose: 'subject -> 'subject -> 'subject\n",
+        "impl (box 'a): Choose:\n",
+        "  our x.choose a b = a\n",
+    );
+
+    for (source, method, parameter_count) in [
+        (zero_tail, "read", 0usize),
+        (multiple_tail, "choose", 2usize),
+    ] {
+        let uninterrupted = slice4a_requirement_plan_witness(
+            source,
+            method,
+            parameter_count,
+            Slice4aRequirementPlanMode::Uninterrupted,
+        );
+        let split = slice4a_requirement_plan_witness(
+            source,
+            method,
+            parameter_count,
+            Slice4aRequirementPlanMode::Split,
+        );
+        assert_eq!(split, uninterrupted, "method: {method}");
+
+        let anchors = receiver_method_anchor_witness(source, method);
+        assert_eq!(anchors.tail_parameters.len(), parameter_count);
+        assert_eq!(anchors.parameter_requirement_edges, parameter_count);
+        assert_eq!(anchors.body_value_requirement_edges, 1);
+        assert_eq!(anchors.body_effect_requirement_edges, 1);
+        assert_eq!(anchors.method_value_requirement_edges, 0);
+        assert_ne!(anchors.receiver, anchors.method_value);
+        assert_ne!(anchors.body_value, anchors.method_value);
+        if let Some(first_parameter) = anchors.tail_parameters.first() {
+            assert_eq!(anchors.body_value, *first_parameter);
+        } else {
+            assert_eq!(anchors.body_value, anchors.receiver);
+        }
+    }
+
+    assert_eq!(
+        finalized_contract_method_scheme(zero_tail),
+        "box 'a -> box 'a",
+    );
+    assert_eq!(
+        finalized_contract_method_scheme(multiple_tail),
+        "box 'a -> ('b & box 'a) -> box 'a -> 'b",
+    );
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
@@ -1583,6 +1643,264 @@ fn with_requirement_harness<R>(
         &context.type_var_bindings,
         &mut context.ann_solver_vars,
     )
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Slice4aRequirementPlanMode {
+    Uninterrupted,
+    Split,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Slice4aRequirementPlanWitness {
+    parameter_uppers: Vec<Option<NegId>>,
+    parameter_upper_shapes: Vec<Option<String>>,
+    body_uppers: Option<(NegId, NegId)>,
+    body_upper_shapes: Option<(String, String)>,
+    bridge_vars: Vec<(String, TypeVar)>,
+    bridge_after_plan: Vec<(String, BridgeState)>,
+    epoch_after_plan: crate::constraints::ConstraintEpoch,
+    next_type_var_after_plan: u32,
+    parameter_connections: usize,
+    body_value_connections: usize,
+    body_effect_connections: usize,
+    final_method_connections: usize,
+    bridge_after_final: Vec<(String, BridgeState)>,
+    epoch_after_final: crate::constraints::ConstraintEpoch,
+    next_type_var_after_final: u32,
+}
+
+fn slice4a_requirement_plan_witness(
+    source: &str,
+    method_name: &str,
+    parameter_count: usize,
+    mode: Slice4aRequirementPlanMode,
+) -> Slice4aRequirementPlanWitness {
+    with_requirement_harness(
+        source,
+        method_name,
+        |lowerer, requirement, bindings, vars| {
+            let plan = match mode {
+                Slice4aRequirementPlanMode::Uninterrupted => lowerer
+                    .uninterrupted_impl_method_requirement_plan_for_slice4a(
+                        &requirement.signature,
+                        parameter_count,
+                        true,
+                        bindings,
+                        vars,
+                    ),
+                Slice4aRequirementPlanMode::Split => {
+                    let parameters = lowerer
+                        .prepare_impl_method_requirement_parameters(
+                            &requirement.signature,
+                            parameter_count,
+                            true,
+                            bindings,
+                            vars,
+                        )
+                        .expect("split parameter preparation");
+                    lowerer.resume_impl_method_requirement_body(&requirement.signature, parameters)
+                }
+            }
+            .expect("receiver requirement plan");
+
+            let parameter_uppers = plan.param_uppers.clone();
+            let body = plan.body;
+            let constraints = lowerer.session.infer.constraints();
+            let parameter_upper_shapes = parameter_uppers
+                .iter()
+                .map(|upper| upper.map(|upper| poly::dump::format_neg(constraints.types(), upper)))
+                .collect::<Vec<_>>();
+            let body_uppers = body.map(|body| (body.effect_upper, body.value_upper));
+            let body_upper_shapes = body.map(|body| {
+                (
+                    poly::dump::format_neg(constraints.types(), body.effect_upper),
+                    poly::dump::format_neg(constraints.types(), body.value_upper),
+                )
+            });
+            let mut bridge_vars = bindings
+                .iter()
+                .filter_map(|(name, annotation)| {
+                    vars.get(annotation).copied().map(|var| (name.clone(), var))
+                })
+                .collect::<Vec<_>>();
+            bridge_vars.sort_by(|left, right| left.0.cmp(&right.0));
+            bridge_vars.dedup();
+            let bridge_after_plan = bridge_vars
+                .iter()
+                .map(|(name, var)| (name.clone(), bridge_state(lowerer, *var)))
+                .collect::<Vec<_>>();
+            let epoch_after_plan = constraints.epoch();
+            let next_type_var_after_plan = constraints.next_type_var();
+
+            let mut parameter_connections = 0usize;
+            for upper in parameter_uppers.iter().flatten().copied() {
+                let actual = lowerer.fresh_type_var();
+                let before = upper_bound_count(lowerer, actual);
+                let lower = lowerer.alloc_pos(Pos::Var(actual));
+                lowerer.session.infer.subtype(lower, upper);
+                parameter_connections += upper_bound_count(lowerer, actual) - before;
+            }
+
+            let body_value = lowerer.fresh_type_var();
+            let body_effect = lowerer.fresh_type_var();
+            let value_before = upper_bound_count(lowerer, body_value);
+            let effect_before = upper_bound_count(lowerer, body_effect);
+            let computation = Computation::value(
+                lowerer.session.poly.add_expr(Expr::Tuple(Vec::new())),
+                body_value,
+                body_effect,
+            );
+            lowerer
+                .connect_impl_method_body_requirement(computation, body.expect("body requirement"));
+            let body_value_connections = upper_bound_count(lowerer, body_value) - value_before;
+            let body_effect_connections = upper_bound_count(lowerer, body_effect) - effect_before;
+
+            let method_value = lowerer.fresh_type_var();
+            let method_before = upper_bound_count(lowerer, method_value);
+            lowerer
+                .connect_impl_method_requirement(method_value, requirement, bindings, vars, false)
+                .expect("receiver final metadata");
+            let final_method_connections = upper_bound_count(lowerer, method_value) - method_before;
+            let constraints = lowerer.session.infer.constraints();
+            let bridge_after_final = bridge_vars
+                .iter()
+                .map(|(name, var)| (name.clone(), bridge_state(lowerer, *var)))
+                .collect::<Vec<_>>();
+
+            Slice4aRequirementPlanWitness {
+                parameter_uppers,
+                parameter_upper_shapes,
+                body_uppers,
+                body_upper_shapes,
+                bridge_vars,
+                bridge_after_plan,
+                epoch_after_plan,
+                next_type_var_after_plan,
+                parameter_connections,
+                body_value_connections,
+                body_effect_connections,
+                final_method_connections,
+                bridge_after_final,
+                epoch_after_final: constraints.epoch(),
+                next_type_var_after_final: constraints.next_type_var(),
+            }
+        },
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReceiverMethodAnchorWitness {
+    receiver: TypeVar,
+    tail_parameters: Vec<TypeVar>,
+    body_value: TypeVar,
+    method_value: TypeVar,
+    parameter_requirement_edges: usize,
+    body_value_requirement_edges: usize,
+    body_effect_requirement_edges: usize,
+    method_value_requirement_edges: usize,
+}
+
+fn receiver_method_anchor_witness(source: &str, method_name: &str) -> ReceiverMethodAnchorWitness {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let impl_node = root
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("role impl declaration");
+    let binding = crate::role_impl_body(&impl_node)
+        .expect("role impl body")
+        .children()
+        .find(|child| {
+            crate::role_impl_method_binding(child)
+                .is_some_and(|method| method.name == Name(method_name.into()))
+        })
+        .expect("role impl method binding");
+    let method_syntax = crate::role_impl_method_binding(&binding).expect("method syntax");
+    let method = implementation
+        .methods
+        .iter()
+        .find(|method| method.name == Name(method_name.into()))
+        .expect("role impl method");
+    let mut body_lowerer = super::super::body::BodyLowerer::new(lower);
+    let mut context = body_lowerer
+        .register_role_impl_candidate(
+            &impl_node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            None,
+        )
+        .expect("role impl lowering context");
+    let role_method = body_lowerer
+        .modules
+        .role_methods(context.role)
+        .iter()
+        .find(|method| method.name == Name(method_name.into()))
+        .expect("role method requirement");
+    let stored = body_lowerer
+        .role_requirements
+        .get(&role_method.def)
+        .expect("stored role method requirement");
+    let requirement = Arc::new(ResolvedRoleMethodRequirement {
+        role_method: role_method.def,
+        role: body_lowerer
+            .modules
+            .type_decl_path(
+                &body_lowerer
+                    .modules
+                    .type_decl_by_id(context.role)
+                    .expect("role declaration"),
+            )
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect(),
+        inputs: context.input_signatures.clone(),
+        associated: context.associated_signatures.clone(),
+        signature: substitute_role_requirement_signature(stored, &context),
+    });
+    let expr = binding_body_expr(&binding).expect("method body expression");
+    let mut lowerer = ExprLowerer::new(
+        &mut body_lowerer.session,
+        &body_lowerer.modules,
+        implementation.body_module,
+        method.order,
+        method.def,
+    );
+    let lowered = lowerer
+        .lower_impl_method_body_expr(
+            &expr,
+            &binding_arg_patterns(&binding),
+            method_syntax.receiver,
+            &context.target_ann,
+            binding_type_expr(&binding),
+            &context.type_var_bindings,
+            &mut context.ann_solver_vars,
+            Some(&requirement),
+            false,
+            false,
+        )
+        .expect("receiver method lowering");
+    let anchors = lowered.receiver_anchors.expect("receiver lowering anchors");
+    assert_eq!(lowered.computation.value, anchors.method_value);
+    let parameter_requirement_edges = anchors
+        .tail_parameters
+        .iter()
+        .map(|parameter| upper_bound_count(&lowerer, *parameter))
+        .sum();
+    ReceiverMethodAnchorWitness {
+        receiver: anchors.receiver,
+        tail_parameters: anchors.tail_parameters,
+        body_value: anchors.body_value,
+        method_value: anchors.method_value,
+        parameter_requirement_edges,
+        body_value_requirement_edges: upper_bound_count(&lowerer, anchors.body_value),
+        body_effect_requirement_edges: upper_bound_count(&lowerer, anchors.body_effect),
+        method_value_requirement_edges: upper_bound_count(&lowerer, anchors.method_value),
+    }
 }
 
 fn assert_receiver_requirement_connections(

@@ -4,6 +4,12 @@ use super::super::*;
 use super::*;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow};
 
+pub(in crate::lowering) struct LoweredDefinedTailAfterReceiver {
+    pub(in crate::lowering) computation: Computation,
+    pub(in crate::lowering) parameter_values: Vec<TypeVar>,
+    pub(in crate::lowering) body: Computation,
+}
+
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_lambda(
         &mut self,
@@ -505,8 +511,34 @@ impl<'a> ExprLowerer<'a> {
         param_uppers: &[Option<NegId>],
         requirement_body: Option<ImplRequirementBodyConnection>,
     ) -> Result<Computation, LoweringError> {
+        self.lower_defined_tail_after_receiver_with_anchors(
+            patterns,
+            body,
+            ann_builder,
+            ann_solver_vars,
+            ann_closed_effect_rows,
+            body_type_expr,
+            self_value,
+            param_uppers,
+            requirement_body,
+        )
+        .map(|lowered| lowered.computation)
+    }
+
+    pub(in crate::lowering) fn lower_defined_tail_after_receiver_with_anchors(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+        body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
+        param_uppers: &[Option<NegId>],
+        requirement_body: Option<ImplRequirementBodyConnection>,
+    ) -> Result<LoweredDefinedTailAfterReceiver, LoweringError> {
         if !patterns.is_empty() {
-            return self.lower_defined_lambda_params(
+            return self.lower_defined_lambda_params_with_anchors(
                 patterns,
                 body,
                 ann_builder,
@@ -534,14 +566,19 @@ impl<'a> ExprLowerer<'a> {
                     ann_closed_effect_rows,
                 )?;
             }
+            let anchor = body;
             if let Some(requirement_body) = requirement_body {
                 self.connect_impl_method_body_requirement(body, requirement_body);
             }
-            Ok(body)
+            Ok((body, anchor))
         })();
         self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
-        body_result
+        body_result.map(|(computation, body)| LoweredDefinedTailAfterReceiver {
+            computation,
+            parameter_values: Vec::new(),
+            body,
+        })
     }
 
     pub(in crate::lowering) fn lower_defined_lambda_params(
@@ -557,6 +594,34 @@ impl<'a> ExprLowerer<'a> {
         requirement_body: Option<ImplRequirementBodyConnection>,
         body_mode: &LambdaBodyMode,
     ) -> Result<Computation, LoweringError> {
+        self.lower_defined_lambda_params_with_anchors(
+            patterns,
+            body,
+            ann_builder,
+            ann_solver_vars,
+            ann_closed_effect_rows,
+            body_type_expr,
+            self_value,
+            param_uppers,
+            requirement_body,
+            body_mode,
+        )
+        .map(|lowered| lowered.computation)
+    }
+
+    pub(in crate::lowering) fn lower_defined_lambda_params_with_anchors(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+        body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
+        param_uppers: &[Option<NegId>],
+        requirement_body: Option<ImplRequirementBodyConnection>,
+        body_mode: &LambdaBodyMode,
+    ) -> Result<LoweredDefinedTailAfterReceiver, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
         let before_active_skeletons = self.active_defined_skeletons.len();
@@ -658,6 +723,7 @@ impl<'a> ExprLowerer<'a> {
                     params: params.clone(),
                 });
         }
+        let parameter_values = params.iter().map(|param| param.value).collect::<Vec<_>>();
 
         let previous_level = self.session.infer.enter_child_level();
         let previous_local_generalize_boundary = self.local_generalize_boundary;
@@ -693,17 +759,18 @@ impl<'a> ExprLowerer<'a> {
                     ann_closed_effect_rows,
                 )?;
             }
+            let anchor = body;
             if let Some(requirement_body) = requirement_body {
                 self.connect_impl_method_body_requirement(body, requirement_body);
             }
-            Ok(body)
+            Ok((body, anchor))
         })();
         self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
         self.active_defined_skeletons
             .truncate(before_active_skeletons);
 
-        let mut body = match body_result {
+        let (mut body, body_anchor) = match body_result {
             Ok(body) => body,
             Err(error) => {
                 self.locals.truncate(before_locals);
@@ -728,7 +795,11 @@ impl<'a> ExprLowerer<'a> {
             );
         }
         self.locals.truncate(before_locals);
-        Ok(body)
+        Ok(LoweredDefinedTailAfterReceiver {
+            computation: body,
+            parameter_values,
+            body: body_anchor,
+        })
     }
 
     pub(in crate::lowering) fn lower_lambda_body(
