@@ -1902,6 +1902,346 @@ fn role_impl_method_lifecycle_slice4c_t3_mixed_receiverless_receiver_component_c
 }
 
 #[test]
+fn role_impl_method_lifecycle_slice4c_t4_receiver_and_ordinary_binding_recurse_in_one_component() {
+    let source = concat!(
+        "role Eval 'subject:\n",
+        "  our x.eval: int\n",
+        "impl int: Eval:\n",
+        "  our x.eval = helper\n",
+        "  my helper = eval\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let method = implementation.methods[0].def;
+    let helper = lower
+        .modules
+        .value_decls(implementation.body_module, &Name("helper".into()))[0]
+        .def;
+
+    let (mut delayed, delayed_method) =
+        lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, immediate_method) =
+        lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!((delayed_method, immediate_method), (method, method));
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Eval"),
+        receiver_shadow_production_surface(&immediate, "Eval"),
+    );
+
+    let [witness] = delayed.receiver_conformance_shadow() else {
+        panic!("expected one delayed receiver witness")
+    };
+    assert!(witness.binding_committed);
+    assert_eq!(
+        (
+            witness.edge_applications,
+            witness.releases,
+            witness.def_finished_emissions,
+            witness.binding_publication_commits,
+        ),
+        (1, 1, 1, 1),
+    );
+
+    let events = delayed.session.take_scc_events();
+    assert!(
+        events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::MergeComponents { merged, .. }
+                    if merged.contains(&method) && merged.contains(&helper)
+            )
+        }),
+        "missing method/helper component merge: {events:?}"
+    );
+    assert!(
+        events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, .. }
+                    if component.contains(&method) && component.contains(&helper)
+            )
+        }),
+        "missing joint method/helper quantification: {events:?}"
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t4_forward_use_resolution_closes_component_cycle() {
+    let source = concat!(
+        "role Eval 'subject:\n",
+        "  our x.eval: int\n",
+        "impl int: Eval:\n",
+        "  our x.eval = helper\n",
+        "  my helper = eval\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let method = implementation.methods[0].def;
+    let helper = lower
+        .modules
+        .value_decls(implementation.body_module, &Name("helper".into()))[0]
+        .def;
+
+    let (mut delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let events = delayed.session.take_scc_events();
+    let first_edge = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::ComponentEdgeAdded { from, to }
+                    if (from.contains(&method) && to.contains(&helper))
+                        || (from.contains(&helper) && to.contains(&method))
+            )
+        })
+        .unwrap_or_else(|| panic!("missing first method/helper use edge: {events:?}"));
+    let merge = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::MergeComponents { components, merged }
+                    if components.len() == 2
+                        && components.iter().all(|component| component.len() == 1)
+                        && merged.contains(&method)
+                        && merged.contains(&helper)
+            )
+        })
+        .unwrap_or_else(|| panic!("missing late method/helper merge: {events:?}"));
+    let quantify = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, .. }
+                    if component.contains(&method) && component.contains(&helper)
+            )
+        })
+        .unwrap_or_else(|| panic!("missing joint quantification: {events:?}"));
+
+    assert!(
+        first_edge < merge && merge < quantify,
+        "the first resolved use must leave two components open; the reverse use closes the cycle before joint quantification: {events:?}",
+    );
+    assert_eq!(
+        delayed
+            .conformance_batch_events()
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    super::super::body::ConformanceBatchEvent::Captured(_)
+                )
+            })
+            .count(),
+        1,
+    );
+    assert_eq!(
+        delayed
+            .conformance_batch_events()
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    super::super::body::ConformanceBatchEvent::RequirementApplied(_)
+                )
+            })
+            .count(),
+        1,
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t4_same_component_commits_success_and_poisons_failure() {
+    let source = concat!(
+        "role Pair 'subject:\n",
+        "  our x.good: int\n",
+        "  our x.bad: int\n",
+        "impl int: Pair:\n",
+        "  our x.good = { bad; 1 }\n",
+        "  our x.bad = \\value -> { good; value }\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let good = implementation.methods[0].def;
+    let bad = implementation.methods[1].def;
+
+    let (mut delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Pair"),
+        receiver_shadow_production_surface(&immediate, "Pair"),
+    );
+
+    assert_eq!(delayed.receiver_conformance_shadow().len(), 2);
+    let good_witness = delayed
+        .receiver_conformance_shadow()
+        .iter()
+        .find(|witness| witness.member == good)
+        .expect("good receiver witness");
+    let bad_witness = delayed
+        .receiver_conformance_shadow()
+        .iter()
+        .find(|witness| witness.member == bad)
+        .expect("bad receiver witness");
+    assert!(good_witness.binding_committed);
+    assert!(!bad_witness.binding_committed);
+    assert_eq!(
+        (
+            good_witness.edge_applications,
+            good_witness.releases,
+            good_witness.def_finished_emissions,
+            good_witness.binding_publication_commits,
+        ),
+        (1, 1, 1, 1),
+    );
+    assert_eq!(
+        (
+            bad_witness.edge_applications,
+            bad_witness.releases,
+            bad_witness.def_finished_emissions,
+            bad_witness.binding_publication_commits,
+        ),
+        (1, 1, 1, 0),
+    );
+    assert!(matches!(
+        delayed.session.poly.defs.get(good),
+        Some(Def::Let {
+            body: Some(_),
+            scheme: Some(_),
+            ..
+        })
+    ));
+    assert!(matches!(
+        delayed.session.poly.defs.get(bad),
+        Some(Def::Let {
+            body: None,
+            scheme: Some(scheme),
+            ..
+        }) if poly::dump::format_scheme(&delayed.session.poly.typ, scheme) == "never"
+    ));
+
+    let events = delayed.conformance_batch_events();
+    assert_eq!(events.len(), 4, "{events:?}");
+    assert!(events[..2].iter().all(|event| matches!(
+        event,
+        super::super::body::ConformanceBatchEvent::Captured(_)
+    )));
+    assert!(events[2..].iter().all(|event| matches!(
+        event,
+        super::super::body::ConformanceBatchEvent::RequirementApplied(_)
+    )));
+    let scc_events = delayed.session.take_scc_events();
+    assert!(
+        scc_events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::MergeComponents { merged, .. }
+                    if merged.contains(&good) && merged.contains(&bad)
+            )
+        }),
+        "missing good/bad component merge: {scc_events:?}"
+    );
+    assert!(
+        scc_events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, .. }
+                    if component.contains(&good) && component.contains(&bad)
+            )
+        }),
+        "missing joint good/bad quantification: {scc_events:?}"
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice4c_t4_computed_fetch_cycle_matches_immediate_timing() {
+    let source = concat!(
+        "my make_helper value = \\ignored -> value\n",
+        "role Eval 'subject:\n",
+        "  our x.eval: int\n",
+        "impl int: Eval:\n",
+        "  our x.eval = helper 0\n",
+        "  my helper = make_helper eval\n",
+    );
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let method = implementation.methods[0].def;
+    let helper = lower
+        .modules
+        .value_decls(implementation.body_module, &Name("helper".into()))[0]
+        .def;
+
+    let (mut delayed, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let (mut immediate, _) = lower_receiver_conformance_shadow(source, false, false, false);
+    assert_eq!(
+        receiver_shadow_production_surface(&delayed, "Eval"),
+        receiver_shadow_production_surface(&immediate, "Eval"),
+    );
+    assert!(matches!(
+        delayed.errors.as_slice(),
+        [BodyLoweringError::Analysis(
+            crate::analysis::AnalysisDiagnostic::ComputedFetchCycle {
+                component,
+                parent,
+                target,
+            }
+        )] if component.contains(&method)
+            && component.contains(&helper)
+            && component.len() == 2
+            && [*parent, *target].contains(&method)
+            && [*parent, *target].contains(&helper)
+    ));
+
+    let delayed_events = delayed.session.take_scc_events();
+    let immediate_events = immediate.session.take_scc_events();
+    let cycle_event = |events: &[SccEvent]| {
+        events
+            .iter()
+            .enumerate()
+            .find_map(|(index, event)| match event {
+                SccEvent::ComputedFetchCycle {
+                    component,
+                    parent,
+                    target,
+                } => Some((index, component.clone(), *parent, *target)),
+                _ => None,
+            })
+    };
+    assert_eq!(cycle_event(&delayed_events), cycle_event(&immediate_events));
+    let (cycle_index, _, _, _) = cycle_event(&delayed_events).expect("computed-fetch-cycle event");
+    let merge_index = delayed_events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::MergeComponents { merged, .. }
+                    if merged.contains(&method) && merged.contains(&helper)
+            )
+        })
+        .expect("method/helper merge event");
+    let quantify_index = delayed_events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, .. }
+                    if component.contains(&method) && component.contains(&helper)
+            )
+        })
+        .expect("method/helper quantification event");
+    assert!(merge_index < cycle_index && cycle_index < quantify_index);
+}
+
+#[test]
 fn generic_role_impl_conformance_stage1_slice2_classifies_all_method_provisions() {
     let source = concat!(
         "role Demo 'subject:\n",
