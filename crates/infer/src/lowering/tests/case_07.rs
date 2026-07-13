@@ -43,15 +43,15 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
         ),
         (
             "explicit-bool-universal-a",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Mismatch",
         ),
         (
             "explicit-a-same-a",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Conforms",
         ),
         (
             "explicit-list-a-nested-binder",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Conforms",
         ),
         (
             "omitted-associated-one-method",
@@ -84,15 +84,15 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
         ),
         (
             "alpha-renamed-a",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Conforms",
         ),
         (
             "alpha-renamed-b",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Conforms",
         ),
         (
             "malformed-unused-impl",
-            "contract=0 role=Index method=index impl=explicit declared=available actual=unavailable outcome=Unavailable",
+            "contract=0 role=Index method=index impl=explicit declared=available actual=available outcome=Mismatch",
         ),
     ];
 
@@ -120,63 +120,140 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
 }
 
 #[test]
-fn generic_role_impl_conformance_stage3_stage0_field_selection_value_is_non_atomic() {
+fn generic_role_impl_conformance_stage3_eq4_collapses_exact_field_selection_classes() {
     use crate::role_impl_conformance::view::{
-        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, ConformanceTypeView,
-        DeclaredTypeView,
+        ActualMethodConformanceView, ConformanceBinder, ConformanceTypeView, DeclaredTypeView,
+        first_order_conforms,
     };
-    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+    use crate::role_impl_conformance::{
+        ImplUniversalBinderId, RoleImplMethodActualSurface, ShadowConformanceOutcome,
+    };
 
-    const FIXTURES: &[&str] = &[
-        "explicit-bool-universal-a",
-        "explicit-a-same-a",
-        "explicit-list-a-nested-binder",
-        "alpha-renamed-a",
-        "alpha-renamed-b",
-        "malformed-unused-impl",
+    struct Fixture {
+        name: &'static str,
+        actual: ConformanceTypeView,
+        requirement: ConformanceTypeView,
+        outcome: ShadowConformanceOutcome,
+        reason: &'static str,
+    }
+
+    let u0 = ConformanceTypeView::Binder(ConformanceBinder::Universal(ImplUniversalBinderId(0)));
+    let bool_type = ConformanceTypeView::Builtin(BuiltinType::Bool);
+    let fixtures = [
+        Fixture {
+            name: "explicit-bool-universal-a",
+            actual: u0.clone(),
+            requirement: bool_type.clone(),
+            outcome: ShadowConformanceOutcome::Mismatch,
+            reason: "c.item returns U0, which does not conform to the declared bool",
+        },
+        Fixture {
+            name: "explicit-a-same-a",
+            actual: u0.clone(),
+            requirement: u0.clone(),
+            outcome: ShadowConformanceOutcome::Conforms,
+            reason: "c.item and the explicit associated value name the same U0",
+        },
+        Fixture {
+            name: "explicit-list-a-nested-binder",
+            actual: ConformanceTypeView::Nominal {
+                path: vec!["list".into()],
+                args: vec![u0.clone()],
+            },
+            requirement: ConformanceTypeView::Nominal {
+                path: vec!["list".into()],
+                args: vec![u0.clone()],
+            },
+            outcome: ShadowConformanceOutcome::Conforms,
+            reason: "both list values have the same invariant U0 argument",
+        },
+        Fixture {
+            name: "alpha-renamed-a",
+            actual: u0.clone(),
+            requirement: u0.clone(),
+            outcome: ShadowConformanceOutcome::Conforms,
+            reason: "source binder spelling normalizes to U0",
+        },
+        Fixture {
+            name: "alpha-renamed-b",
+            actual: u0.clone(),
+            requirement: u0.clone(),
+            outcome: ShadowConformanceOutcome::Conforms,
+            reason: "alpha-renaming the source binder still normalizes to U0",
+        },
+        Fixture {
+            name: "malformed-unused-impl",
+            actual: u0,
+            requirement: bool_type,
+            outcome: ShadowConformanceOutcome::Mismatch,
+            reason: "the unused impl still returns U0 where it declares bool",
+        },
     ];
-    let expected_value = ActualMethodConformanceView::Unavailable(
-        ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-    );
     let expected_effect = ActualMethodConformanceView::Available(ConformanceTypeView::Bottom);
 
-    for name in FIXTURES {
-        let output = lower_conformance_fixture(fixture_source(name));
+    for fixture in fixtures {
+        let output = lower_conformance_fixture(fixture_source(fixture.name));
         let pairs = output
             .role_impl_conformance_contracts()
             .iter()
             .flat_map(|contract| contract.shadow_conformance_pairs(&output.modules))
             .collect::<Vec<_>>();
         let [pair] = pairs.as_slice() else {
-            panic!("fixture {name}: expected one shadow conformance pair, got {pairs:?}")
+            panic!(
+                "fixture {}: expected one shadow conformance pair, got {pairs:?}",
+                fixture.name,
+            )
         };
 
         assert_eq!(
-            pair.outcome,
-            ShadowConformanceOutcome::Unavailable,
-            "fixture: {name}",
+            pair.outcome, fixture.outcome,
+            "fixture {}: {}",
+            fixture.name, fixture.reason,
         );
-        assert!(
-            matches!(pair.declared.as_ref(), Some(DeclaredTypeView::Available(_))),
-            "fixture {name}: declared value surface must be available",
+        let Some(DeclaredTypeView::Available(requirement)) = pair.declared.as_ref() else {
+            panic!("fixture {}: declared value must be available", fixture.name)
+        };
+        assert_eq!(
+            requirement, &fixture.requirement,
+            "fixture: {}",
+            fixture.name
         );
         assert!(
             matches!(
                 pair.declared_effect.as_ref(),
                 Some(DeclaredTypeView::Available(_))
             ),
-            "fixture {name}: declared effect surface must be available",
+            "fixture {}: declared effect surface must be available",
+            fixture.name,
         );
         let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual.as_ref() else {
-            panic!("fixture {name}: expected a captured receiver actual surface")
+            panic!(
+                "fixture {}: expected a captured receiver actual surface",
+                fixture.name,
+            )
+        };
+        let ActualMethodConformanceView::Available(actual_value) = &actual.value else {
+            panic!(
+                "fixture {}: EQ4 must make the value available",
+                fixture.name
+            )
         };
         assert_eq!(
-            actual.value, expected_value,
-            "fixture {name}: value surface",
+            actual_value, &fixture.actual,
+            "fixture {}: value surface",
+            fixture.name,
+        );
+        assert_eq!(
+            first_order_conforms(actual_value, requirement),
+            fixture.outcome == ShadowConformanceOutcome::Conforms,
+            "fixture {}: {}",
+            fixture.name,
+            fixture.reason,
         );
         assert_eq!(
             actual.effect, expected_effect,
-            "fixture {name}: effect surface",
+            "fixture {}: effect surface",
+            fixture.name,
         );
     }
 }
@@ -258,7 +335,10 @@ fn generic_role_impl_conformance_stage3_eq1_keeps_one_way_and_weighted_edges_sep
 fn generic_role_impl_conformance_stage3_eq1_characterizes_zero_one_and_multiple_bridge_identities()
 {
     use crate::constraints::{ConstraintMachine, ConstraintWeights};
-    use crate::role_impl_conformance::view::{ConformanceBinder, ExactEquivalenceClasses};
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, ConformanceBinder,
+        ConformanceTypeView, ExactEquivalenceClasses,
+    };
     use crate::role_impl_conformance::{
         AssociatedInferenceBinderId, ImplUniversalBinderId, RoleImplConformanceBinderBridge,
     };
@@ -322,7 +402,52 @@ fn generic_role_impl_conformance_stage3_eq1_characterizes_zero_one_and_multiple_
             ConformanceBinder::Universal(*u0),
             ConformanceBinder::InferredAssociated(*a0),
         ],
-        "EQ1 exposes both identities; the fail-closed policy remains deferred to EQ4",
+        "EQ1 exposes both identities for EQ4's fail-closed policy",
+    );
+
+    // Omitted associated assignments are not first-order shadow targets yet, so isolate the EQ4
+    // receiver seam with the two distinct source identities from the realistic overlap above.
+    let value_anchor = TypeVar(0);
+    let universal_member = TypeVar(1);
+    let associated_member = TypeVar(2);
+    let effect_anchor = TypeVar(3);
+    let mut ambiguous_machine = ConstraintMachine::new();
+    for (lower, upper) in [
+        (universal_member, associated_member),
+        (associated_member, universal_member),
+        (universal_member, value_anchor),
+        (associated_member, value_anchor),
+    ] {
+        add_var_constraint(
+            &mut ambiguous_machine,
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+        );
+    }
+    let ambiguous_bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: vec![(*u0, universal_member)],
+        inferred_associated: vec![(*a0, associated_member)],
+    });
+    let ambiguous_actual = crate::role_impl_conformance::capture_receiver_actual_view(
+        &ambiguous_machine,
+        value_anchor,
+        effect_anchor,
+        &ambiguous_bridge,
+    );
+    assert_eq!(
+        ambiguous_actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::AmbiguousExactClassIdentity(vec![
+                universal_member,
+                associated_member,
+            ]),
+        ),
+        "EQ4 must not coerce two distinct bridge identities into one binder",
+    );
+    assert_eq!(
+        ambiguous_actual.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
     );
 }
 
@@ -3644,8 +3769,7 @@ fn receiver_exact_equivalence_witness(
 ) -> ReceiverExactEquivalenceWitness {
     use crate::role_impl_conformance::RoleImplMethodProvision;
     use crate::role_impl_conformance::view::{
-        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        ExactEquivalenceClasses,
+        ActualMethodConformanceView, ExactEquivalenceClasses,
     };
 
     let output = lower_conformance_fixture(source);
@@ -3671,12 +3795,9 @@ fn receiver_exact_equivalence_witness(
     else {
         panic!("fixture method must be a receiver method")
     };
-    assert_eq!(
-        actual.value,
-        ActualMethodConformanceView::Unavailable(
-            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
-        ),
-        "EQ1 fixture must retain today's non-atomic capture baseline",
+    assert!(
+        matches!(actual.value, ActualMethodConformanceView::Available(_)),
+        "EQ4 must activate the exact class characterized by EQ1",
     );
 
     let bridge = contract

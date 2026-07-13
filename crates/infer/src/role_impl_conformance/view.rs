@@ -204,6 +204,8 @@ pub(crate) enum ActualMethodConformanceViewUnavailable {
     NonAtomicSurface,
     WeightedVariable,
     AmbiguousBinderBridge(TypeVar),
+    #[cfg(test)]
+    AmbiguousExactClassIdentity(Vec<TypeVar>),
     NonExactInvariantArgument,
     UnsupportedFunction,
     UnsupportedRecord,
@@ -463,7 +465,10 @@ fn capture_receiverless_actual_view_with_resolver(
             ActualMethodConformanceViewUnavailable::RecursiveBounds,
         );
     }
+    #[cfg(not(test))]
     let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor);
+    #[cfg(test)]
+    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor, machine);
     match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
@@ -539,7 +544,7 @@ fn capture_receiver_effect_actual_view(
             ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         );
     }
-    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor);
+    let mut normalizer = ActualFirstOrderNormalizer::new(binder_identities, anchor, machine);
     let effect = match compact.root.rows.as_slice() {
         [] => Ok(ConformanceTypeView::Bottom),
         [row] if row.tail.is_empty() => match row.items.len() {
@@ -566,9 +571,9 @@ fn capture_receiver_effect_actual_view(
 
 /// Read-only SCC index for the empty-weight variable projection of a constraint machine.
 ///
-/// This is characterization-only until the exact-equivalence collapse is activated. Each
-/// reachable variable is visited once by Tarjan's algorithm, and completed classes are memoized
-/// for subsequent queries against the same settled machine.
+/// In test builds this supplies the Stage 3 exact-equivalence collapse. Each reachable variable is
+/// visited once by Tarjan's algorithm, and completed classes are memoized for subsequent queries
+/// against the same settled machine.
 #[cfg(test)]
 pub(crate) struct ExactEquivalenceClasses<'a> {
     machine: &'a ConstraintMachine,
@@ -681,6 +686,8 @@ struct ExactEquivalenceNode {
 struct ActualFirstOrderNormalizer<'resolver, 'bridge> {
     root_anchor: TypeVar,
     binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+    #[cfg(test)]
+    exact_equivalence_classes: ExactEquivalenceClasses<'resolver>,
 }
 
 enum ActualFirstOrderTypeShape<'a> {
@@ -714,9 +721,12 @@ enum ActualFirstOrderBoundsShape<'a> {
 struct ActualBinderIdentityResolver<'a> {
     bridge: &'a RoleImplConformanceBinderBridge,
     method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
+    #[cfg(test)]
+    exact_class_identities: rustc_hash::FxHashMap<TypeVar, ConformanceBinder>,
 }
 
 impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
+    #[cfg(not(test))]
     fn new(
         binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
         root_anchor: TypeVar,
@@ -724,6 +734,19 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
         Self {
             root_anchor,
             binder_identities,
+        }
+    }
+
+    #[cfg(test)]
+    fn new(
+        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
+        root_anchor: TypeVar,
+        machine: &'resolver ConstraintMachine,
+    ) -> Self {
+        Self {
+            root_anchor,
+            binder_identities,
+            exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
         }
     }
 
@@ -798,7 +821,10 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
         candidate_count: usize,
     ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
         if candidate_count != 1 {
+            #[cfg(not(test))]
             return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
+            #[cfg(test)]
+            return self.resolve_exact_variable_class(vars, ignored_var);
         }
         let var = vars
             .iter()
@@ -809,6 +835,37 @@ impl<'resolver, 'bridge> ActualFirstOrderNormalizer<'resolver, 'bridge> {
         }
         self.binder_identities
             .resolve(var.var)
+            .map(ConformanceTypeView::Binder)
+    }
+
+    #[cfg(test)]
+    fn resolve_exact_variable_class(
+        &mut self,
+        vars: &[CompactVar],
+        ignored_var: Option<TypeVar>,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        let candidates = vars
+            .iter()
+            .filter(|candidate| Some(candidate.var) != ignored_var)
+            .collect::<Vec<_>>();
+        if candidates
+            .iter()
+            .any(|candidate| !candidate.weight.is_empty())
+        {
+            return Err(ActualMethodConformanceViewUnavailable::WeightedVariable);
+        }
+        let first = candidates
+            .first()
+            .expect("multiple projected raw variable candidates");
+        let class = self.exact_equivalence_classes.class(first.var);
+        if !candidates
+            .iter()
+            .all(|candidate| class.contains(&candidate.var))
+        {
+            return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
+        }
+        self.binder_identities
+            .resolve_class(&class)
             .map(ConformanceTypeView::Binder)
     }
 
@@ -937,6 +994,8 @@ impl<'a> ActualBinderIdentityResolver<'a> {
         Self {
             bridge,
             method_quantifiers: rustc_hash::FxHashMap::default(),
+            #[cfg(test)]
+            exact_class_identities: rustc_hash::FxHashMap::default(),
         }
     }
 
@@ -944,6 +1003,10 @@ impl<'a> ActualBinderIdentityResolver<'a> {
         &mut self,
         var: TypeVar,
     ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
+        #[cfg(test)]
+        if let Some(binder) = self.exact_class_identities.get(&var) {
+            return Ok(*binder);
+        }
         let mut mapped = self
             .bridge
             .universals
@@ -963,11 +1026,87 @@ impl<'a> ActualBinderIdentityResolver<'a> {
             if mapped.next().is_some() {
                 return Err(ActualMethodConformanceViewUnavailable::AmbiguousBinderBridge(var));
             }
+            #[cfg(test)]
+            self.exact_class_identities.insert(var, first);
             return Ok(first);
         }
         let next = self.method_quantifiers.len() as u32;
         let binder = *self.method_quantifiers.entry(var).or_insert(next);
-        Ok(ConformanceBinder::MethodQuantifier(binder))
+        #[cfg(not(test))]
+        return Ok(ConformanceBinder::MethodQuantifier(binder));
+        #[cfg(test)]
+        let binder = ConformanceBinder::MethodQuantifier(binder);
+        #[cfg(test)]
+        {
+            self.exact_class_identities.insert(var, binder);
+            Ok(binder)
+        }
+    }
+
+    #[cfg(test)]
+    fn resolve_class(
+        &mut self,
+        class: &[TypeVar],
+    ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
+        let mut bridge_identities = self
+            .bridge
+            .universals
+            .iter()
+            .filter_map(|(binder, var)| {
+                class
+                    .contains(var)
+                    .then_some(ConformanceBinder::Universal(*binder))
+            })
+            .chain(
+                self.bridge
+                    .inferred_associated
+                    .iter()
+                    .filter_map(|(binder, var)| {
+                        class
+                            .contains(var)
+                            .then_some(ConformanceBinder::InferredAssociated(*binder))
+                    }),
+            )
+            .collect::<Vec<_>>();
+        bridge_identities.sort();
+        bridge_identities.dedup();
+        if bridge_identities.len() > 1 {
+            return Err(
+                ActualMethodConformanceViewUnavailable::AmbiguousExactClassIdentity(class.to_vec()),
+            );
+        }
+
+        let mut registered_identities = class
+            .iter()
+            .filter_map(|var| self.exact_class_identities.get(var).copied())
+            .collect::<Vec<_>>();
+        registered_identities.sort();
+        registered_identities.dedup();
+        let binder = match (bridge_identities.first(), registered_identities.as_slice()) {
+            (Some(bridge), []) => *bridge,
+            (Some(bridge), [registered]) if bridge == registered => *bridge,
+            (None, [registered]) => *registered,
+            (None, []) => {
+                let representative = *class.first().expect("non-empty exact-equivalence class");
+                let next = self.method_quantifiers.len() as u32;
+                let quantifier = *self
+                    .method_quantifiers
+                    .entry(representative)
+                    .or_insert(next);
+                ConformanceBinder::MethodQuantifier(quantifier)
+            }
+            _ => {
+                return Err(
+                    ActualMethodConformanceViewUnavailable::AmbiguousExactClassIdentity(
+                        class.to_vec(),
+                    ),
+                );
+            }
+        };
+        for member in class {
+            self.exact_class_identities.insert(*member, binder);
+        }
+        Ok(binder)
     }
 }
 
@@ -1270,6 +1409,27 @@ mod tests {
         assert_eq!(classes.class(a), vec![a, b]);
         assert_eq!(classes.class(b), vec![a, b]);
         assert_eq!(classes.class(downstream), vec![downstream]);
+    }
+
+    #[test]
+    fn exact_class_identity_resolver_registers_one_qm_for_every_member() {
+        let bridge = RoleImplConformanceBinderBridge {
+            universals: Vec::new(),
+            inferred_associated: Vec::new(),
+        };
+        let mut resolver = ActualBinderIdentityResolver::new(&bridge);
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let unrelated = TypeVar(2);
+        let q0 = ConformanceBinder::MethodQuantifier(0);
+
+        assert_eq!(resolver.resolve_class(&[a, b]), Ok(q0));
+        assert_eq!(resolver.resolve(a), Ok(q0));
+        assert_eq!(resolver.resolve(b), Ok(q0));
+        assert_eq!(
+            resolver.resolve(unrelated),
+            Ok(ConformanceBinder::MethodQuantifier(1)),
+        );
     }
 
     #[test]
