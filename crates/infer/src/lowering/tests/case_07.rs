@@ -727,6 +727,426 @@ fn generic_role_impl_conformance_stage3_compares_receiver_value_and_effect_surfa
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_obs_final_prerequisites_lose_predicate_provenance() {
+    let prelude = concat!(
+        "role Ord 'a:\n",
+        "  our x.ord: unit\n",
+        "role Eq 'a:\n",
+        "  our x.eq: unit\n",
+        "impl 'a: Eq:\n",
+        "  our x.eq = x.ord\n",
+        "role Box 'a:\n",
+        "  our x.get: unit\n",
+    );
+    let advertised_only =
+        format!("{prelude}impl 'a: Box:\n  our x.get =\n    where 'a: Ord\n    ()\n");
+    let method_derived_only = format!("{prelude}impl 'a: Box:\n  our x.get = x.eq\n");
+    let advertised_and_method_derived =
+        format!("{prelude}impl 'a: Box:\n  our x.get =\n    where 'a: Ord\n    x.eq\n");
+
+    let final_prerequisite_roles = |source: &str| {
+        let output = lower_conformance_fixture(source);
+        let role = vec!["Box".to_string()];
+        let infer = output.session.role_impls.candidates(&role);
+        let poly = output.session.poly.role_impls.candidates(&role);
+        let [infer_candidate] = infer else {
+            panic!("expected one final inference candidate, got {infer:?}")
+        };
+        let [poly_candidate] = poly else {
+            panic!("expected one finalized poly candidate, got {poly:?}")
+        };
+        let names = |candidate: &poly::roles::RoleImplCandidate| {
+            candidate
+                .prerequisites
+                .iter()
+                .map(|prerequisite| prerequisite.role.join("::"))
+                .collect::<Vec<_>>()
+        };
+        (names(infer_candidate), names(poly_candidate))
+    };
+
+    let advertised = final_prerequisite_roles(&advertised_only);
+    let derived = final_prerequisite_roles(&method_derived_only);
+    let both = final_prerequisite_roles(&advertised_and_method_derived);
+    assert_eq!(advertised, (Vec::<String>::new(), Vec::<String>::new()));
+    assert_eq!(derived, (vec!["Eq".into()], vec!["Eq".into()]));
+    assert_eq!(both, derived);
+
+    let chained = lower_conformance_fixture(&advertised_and_method_derived);
+    let [eq_candidate] = chained.session.role_impls.candidates(&["Eq".to_string()]) else {
+        panic!("expected one generic Eq candidate")
+    };
+    assert_eq!(
+        eq_candidate
+            .prerequisites
+            .iter()
+            .map(|prerequisite| prerequisite.role.as_slice())
+            .collect::<Vec<_>>(),
+        vec![["Ord".to_string()].as_slice()],
+    );
+
+    // `collect_role_impl_member_prerequisites` extends the candidate and the table deduplicates by
+    // normalized constraint equality. An unused source `where Ord` is absent, while the call to
+    // `Eq.eq` contributes a residual `Eq`; adding `where Ord` to that same method leaves exactly the
+    // same final `Eq`, even though the generic `Eq` candidate itself carries `Ord`. The final tables
+    // neither retain the advertised-vs-derived origin nor expose enough provenance to ask whether
+    // the advertised `Ord` should entail the method-derived `Eq` through that candidate chain.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_closed_multi_atom_effect_is_unsupported() {
+    use crate::role_impl_conformance::view::{DeclaredTypeView, DeclaredViewUnavailable};
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        RoleImplMethodActualSurface, ShadowConformanceOutcome,
+    };
+
+    let source = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "act flip:\n",
+        "  pub pong: () -> ()\n",
+        "role Run 'subject:\n",
+        "  our x.run: [tick, flip] unit\n",
+        "impl int: Run:\n",
+        "  our x.run = { tick::ping(); flip::pong() }\n",
+    );
+    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let [pair] = output.role_impl_conformance_contracts()[0]
+        .shadow_conformance_pairs(&output.modules)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+
+    assert_eq!(
+        pair.declared_effect,
+        Some(DeclaredTypeView::Unavailable(
+            DeclaredViewUnavailable::UnsupportedEffectRow,
+        )),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+        panic!("expected receiver actual surface")
+    };
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::UnsupportedEffectRow,
+        ),
+    );
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
+    // Both the declared row and the body-produced closed union reach capture, but today's
+    // first-order view accepts at most one closed atom and classifies this two-atom shape.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_open_effect_tail_is_unsupported() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView, DeclaredViewUnavailable,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    let source = concat!(
+        "act tick:\n",
+        "  pub ping: () -> ()\n",
+        "role Run 'subject 'effect:\n",
+        "  our x.run: [tick; 'effect] unit\n",
+        "impl Run int 'e:\n",
+        "  our x.run = tick::ping()\n",
+    );
+    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let [pair] = output.role_impl_conformance_contracts()[0]
+        .shadow_conformance_pairs(&output.modules)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+
+    assert_eq!(
+        pair.declared_effect,
+        Some(DeclaredTypeView::Unavailable(
+            DeclaredViewUnavailable::UnsupportedEffectRow,
+        )),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+        panic!("expected receiver actual surface")
+    };
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Nominal {
+            path: vec!["tick".into()],
+            args: Vec::new(),
+        }),
+    );
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
+    // The body side's one closed atom is readable, while the declared `; 'effect` tail alone is
+    // enough to make the contract unavailable. No open-tail comparison is attempted today.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_wildcard_effect_is_unsupported() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView, DeclaredViewUnavailable,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    let source = concat!(
+        "role Run 'subject:\n",
+        "  our x.run: [_] unit\n",
+        "impl int: Run:\n",
+        "  our x.run = ()\n",
+    );
+    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    let [pair] = output.role_impl_conformance_contracts()[0]
+        .shadow_conformance_pairs(&output.modules)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+
+    assert_eq!(
+        pair.declared_effect,
+        Some(DeclaredTypeView::Unavailable(
+            DeclaredViewUnavailable::UnsupportedEffectRow,
+        )),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+        panic!("expected receiver actual surface")
+    };
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Bottom),
+    );
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
+    // Wildcard syntax is retained in the declared signature, but the current view deliberately
+    // refuses to reinterpret it as either a closed row or an ordinary method quantifier.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_weighted_effect_loses_subtract_scope() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let source = concat!(
+        "role Choose 'subject:\n",
+        "  our x.choose: int -> bool -> [] int\n",
+        "impl int: Choose:\n",
+        "  our x.choose(value: int, flag: bool): [] int = value\n",
+    );
+    let (output, member) = lower_receiver_conformance_shadow(source, true, false, false);
+    let actual = persisted_receiver_actual_view(&output, member);
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::WeightedVariable,
+        ),
+    );
+
+    let result_var = |var: TypeVar| {
+        let (_, _, _, result) = function_lower_bound(&output.session, var);
+        match output.session.infer.constraints().types().pos(result) {
+            Pos::Var(result) => *result,
+            other => panic!("expected function result variable, got {other:?}"),
+        }
+    };
+    let after_receiver = result_var(output.typing.def(member).expect("method root"));
+    let after_value = result_var(after_receiver);
+    let (_, _, body_effect, _) = function_lower_bound(&output.session, after_value);
+    let (body_effect, result_weight) =
+        match output.session.infer.constraints().types().pos(body_effect) {
+            Pos::NonSubtract(inner, weight) => {
+                let Pos::Var(body_effect) = output.session.infer.constraints().types().pos(*inner)
+                else {
+                    panic!("expected weighted body effect variable")
+                };
+                (*body_effect, weight.clone())
+            }
+            other => panic!("expected body effect variable, got {other:?}"),
+        };
+    assert!(!result_weight.is_empty());
+    let compact = crate::compact::compact_type_var(output.session.infer.constraints(), body_effect);
+    let weighted = compact
+        .root
+        .vars
+        .iter()
+        .filter(|var| !var.weight.is_empty())
+        .collect::<Vec<_>>();
+    assert!(!weighted.is_empty(), "{compact:?}");
+    let ids = result_weight
+        .subtract_ids()
+        .chain(weighted.iter().flat_map(|var| var.weight.subtract_ids()))
+        .collect::<Vec<_>>();
+    assert!(!ids.is_empty(), "{weighted:?}");
+    assert!(ids.iter().all(|id| {
+        output
+            .session
+            .infer
+            .constraints()
+            .subtracts()
+            .fact_by_id(*id)
+            .is_some()
+    }));
+    // The pre-edge compact carrier has only `TypeVar + StackWeight`, and each weight entry has an
+    // opaque `SubtractId` plus stack arithmetic. The global subtract fact adds subtractability but
+    // no method/DefId/scope owner. Thus capture can detect a non-empty weight, but cannot decide
+    // from this surface which id is method-local and which (if any) came from an outer scope.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_recursive_bounds_are_shape_only() {
+    use crate::constraints::{ConstraintMachine, TypeLevel};
+    use crate::role_impl_conformance::view::{ConformanceTypeView, DeclaredTypeView};
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        RoleImplConformanceBinderBridge,
+    };
+
+    let declared = lower_conformance_fixture(concat!(
+        "role Make 'subject:\n",
+        "  our make: int\n",
+        "impl Make int:\n",
+        "  our make = 1\n",
+    ));
+    assert_eq!(
+        declared.role_impl_conformance_contracts()[0]
+            .declared_view(&declared.modules)
+            .methods[0]
+            .requirement,
+        DeclaredTypeView::Available(ConformanceTypeView::Builtin(BuiltinType::Int)),
+    );
+
+    // No established source-syntax fixture in this file produces a recursive compact side table
+    // at the pre-edge anchor. Build the same constraint shape directly: `root` has a nominal lower
+    // whose invariant argument points back to `root`, so ordinary compact collection must record
+    // the cycle in `rec_vars` rather than unfold it.
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    machine.register_type_var(root, TypeLevel::root().child());
+    let lower = machine.alloc_pos(Pos::Var(root));
+    let upper = machine.alloc_neg(Neg::Var(root));
+    let argument = machine.alloc_neu(Neu::Bounds(lower, upper));
+    let recursive_nominal = machine.alloc_pos(Pos::Con(vec!["loop".into()], vec![argument]));
+    machine.subtype(recursive_nominal, upper);
+
+    let compact = crate::compact::compact_type_var(&machine, root);
+    assert_eq!(compact.rec_vars.len(), 1, "{compact:?}");
+    assert_eq!(compact.rec_vars[0].var, root);
+    assert!(matches!(
+        compact.rec_vars[0].bounds,
+        crate::compact::CompactBounds::Interval { .. }
+    ));
+    let bridge = Ok(RoleImplConformanceBinderBridge {
+        universals: Vec::new(),
+        inferred_associated: Vec::new(),
+    });
+    assert_eq!(
+        crate::role_impl_conformance::capture_receiverless_actual_view(&machine, root, &bridge,),
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::RecursiveBounds,
+        ),
+    );
+    // Capture preserves only the fact that the compact side table is non-empty before returning
+    // `RecursiveBounds`; it does not project or compare the recorded interval in today's kernel.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ConformanceTypeView, DeclaredTypeView,
+    };
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceViewUnavailable, RoleImplMethodActualSurface,
+        RoleImplMethodProvision, ShadowConformanceOutcome,
+    };
+
+    let source = concat!(
+        "mod std:\n",
+        "  pub mod num:\n",
+        "    pub mod frac:\n",
+        "      pub struct frac { num: int, den: int }\n",
+        "  pub mod core:\n",
+        "    pub mod convert:\n",
+        "      use std::num::frac::frac\n",
+        "      pub cast(x: int): frac = frac { num: x, den: 1 }\n",
+        "use std::num::frac::frac\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = frac\n",
+        "  our x.read: frac = 1\n",
+    );
+    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one role impl contract")
+    };
+    let [pair] = contract
+        .shadow_conformance_pairs(&output.modules)
+        .try_into()
+        .unwrap_or_else(|pairs: Vec<_>| panic!("expected one shadow pair, got {pairs:?}"));
+    let expected_frac = ConformanceTypeView::Nominal {
+        path: vec!["std".into(), "num".into(), "frac".into(), "frac".into()],
+        args: Vec::new(),
+    };
+
+    assert_eq!(
+        pair.declared,
+        Some(DeclaredTypeView::Available(expected_frac)),
+    );
+    let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+        panic!("expected receiver actual surface")
+    };
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+    );
+    assert_eq!(pair.outcome, ShadowConformanceOutcome::Unavailable);
+    assert_eq!(
+        output
+            .session
+            .casts
+            .candidates(
+                &["int".into()],
+                &["std".into(), "num".into(), "frac".into(), "frac".into()],
+            )
+            .len(),
+        1,
+    );
+    assert_eq!(
+        poly::dump::format_scheme(
+            &output.session.poly.typ,
+            first_contract_method_scheme(&output, contract),
+        ),
+        "int -> int | std::num::frac::frac",
+    );
+    let implementation = match &contract.methods[0].provision {
+        RoleImplMethodProvision::Explicit { implementations } => implementations[0].def,
+        provision => panic!("expected explicit method provision, got {provision:?}"),
+    };
+    let method_root = output.typing.def(implementation).expect("method root");
+    let (_, _, _, result) = function_lower_bound(&output.session, method_root);
+    let Pos::Var(result) = output.session.infer.constraints().types().pos(result) else {
+        panic!("expected method result variable")
+    };
+    let compact = crate::compact::compact_type_var(output.session.infer.constraints(), *result);
+    assert_eq!(compact.root.builtins, vec![BuiltinType::Int]);
+    assert!(
+        compact.root.cons.contains_key(
+            [
+                "std".to_string(),
+                "num".to_string(),
+                "frac".to_string(),
+                "frac".to_string(),
+            ]
+            .as_slice(),
+        )
+    );
+    // Production accepts the expected-type boundary and its final scheme retains both `int` and
+    // `frac`; the compact surface likewise contains those pre/post shapes and therefore becomes
+    // `NonAtomicSurface`. Neither the contract nor its actual surface carries a cast-rule id or
+    // application record, so this capture point cannot establish which registered candidate (if
+    // any) produced the adaptation. This records the evidence gap without choosing a cast policy.
+}
+
+#[test]
 fn generic_role_impl_conformance_stage3_slice3b_matches_same_contract_universal_binder() {
     use crate::role_impl_conformance::ActualMethodConformanceView;
     use crate::role_impl_conformance::view::{DeclaredAssociatedView, DeclaredTypeView};
