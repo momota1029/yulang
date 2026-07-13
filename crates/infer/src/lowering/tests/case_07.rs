@@ -1723,6 +1723,264 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
 }
 
 #[test]
+fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_infer_site() {
+    let source = concat!(
+        "mod std:\n",
+        "  pub mod num:\n",
+        "    pub mod frac:\n",
+        "      pub struct frac { num: int, den: int }\n",
+        "  pub mod core:\n",
+        "    pub mod convert:\n",
+        "      use std::num::frac::frac\n",
+        "      pub cast(x: int): frac = frac { num: x, den: 1 }\n",
+        "use std::num::frac::frac\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = frac\n",
+        "  our x.read: frac = 1\n",
+    );
+    let (output, _) = lower_receiver_conformance_shadow(source, true, false, false);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let source_path = ["int".to_string()];
+    let target_path = [
+        "std".to_string(),
+        "num".to_string(),
+        "frac".to_string(),
+        "frac".to_string(),
+    ];
+    let [infer_rule] = output.session.casts.candidates(&source_path, &target_path) else {
+        panic!("expected one inference cast candidate")
+    };
+    assert!(
+        infer_rule.def.is_none(),
+        "the inference lookup retains no declaration/application identity"
+    );
+
+    let poly_rules = output
+        .session
+        .poly
+        .cast_rules
+        .iter()
+        .filter(|rule| rule.source == source_path && rule.target == target_path)
+        .collect::<Vec<_>>();
+    let [poly_rule] = poly_rules.as_slice() else {
+        panic!("expected one durable cast declaration")
+    };
+    assert_eq!(poly_rule.kind, poly::expr::CastRuleKind::Value);
+
+    let [contract] = output.role_impl_conformance_contracts() else {
+        panic!("expected one role impl contract")
+    };
+    let implementation = match &contract.methods[0].provision {
+        crate::role_impl_conformance::RoleImplMethodProvision::Explicit { implementations } => {
+            implementations[0].def
+        }
+        provision => panic!("expected explicit method provision, got {provision:?}"),
+    };
+    let Some(Def::Let {
+        body: Some(method_body),
+        ..
+    }) = output.session.poly.defs.get(implementation)
+    else {
+        panic!("expected a lowered method body")
+    };
+    let Expr::Lambda(_, result) = output.session.poly.expr(*method_body) else {
+        panic!("expected the receiver lambda at the method root")
+    };
+    assert!(
+        matches!(output.session.poly.expr(*result), Expr::Lit(Lit::Int(_))),
+        "the inferred method IR should retain the source literal, not a cast edge"
+    );
+
+    // The durable `poly.cast_rules` entry identifies the declaration, not an application site. The
+    // method IR has no cast node or link back to `poly_rule.def`, and the inference-side candidate
+    // even has `def: None`. Downstream specialize2 again finds the first global rule, then lowers
+    // that ephemeral choice to an ordinary
+    // `Apply(InstanceRef(instance), value)` whose instance source is the rule's `DefId`; neither
+    // mono nor runtime evidence tags that application as an implicit cast. Thus the selected def
+    // can be reconstructed from the final call plus the original registry, but no durable
+    // structured fact says that this source boundary selected that cast.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c0_visible_cast_lookup_can_be_ambiguous() {
+    let source = concat!(
+        "mod std:\n",
+        "  pub mod num:\n",
+        "    pub mod frac:\n",
+        "      pub struct frac { num: int, den: int }\n",
+        "  pub mod first_convert:\n",
+        "    use std::num::frac::frac\n",
+        "    pub cast(x: int): frac = frac { num: x, den: 1 }\n",
+        "  pub mod second_convert:\n",
+        "    use std::num::frac::frac\n",
+        "    pub cast(x: int): frac = frac { num: x, den: 2 }\n",
+        "use std::num::frac::frac\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = frac\n",
+        "  our x.read: frac = 1\n",
+    );
+    let lower = || lower_receiver_conformance_shadow(source, true, false, false).0;
+    let first = lower();
+    let second = lower();
+    assert!(first.errors.is_empty(), "{:?}", first.errors);
+    assert!(second.errors.is_empty(), "{:?}", second.errors);
+
+    let source_path = ["int".to_string()];
+    let target_path = [
+        "std".to_string(),
+        "num".to_string(),
+        "frac".to_string(),
+        "frac".to_string(),
+    ];
+    let infer_candidates = first.session.casts.candidates(&source_path, &target_path);
+    assert_eq!(infer_candidates.len(), 2);
+    assert!(
+        infer_candidates
+            .iter()
+            .all(|candidate| candidate.def.is_none())
+    );
+
+    let poly_candidates = |output: &BodyLowering| {
+        output
+            .session
+            .poly
+            .cast_rules
+            .iter()
+            .filter(|rule| rule.source == source_path && rule.target == target_path)
+            .map(|rule| {
+                (
+                    rule.def,
+                    poly::dump::format_scheme(&output.session.poly.typ, &rule.scheme),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let first_candidates = poly_candidates(&first);
+    let second_candidates = poly_candidates(&second);
+    assert_eq!(first_candidates, second_candidates);
+    assert_eq!(first_candidates.len(), 2);
+    assert_ne!(first_candidates[0].0, first_candidates[1].0);
+    assert_eq!(first_candidates[0].1, first_candidates[1].1);
+
+    // Two ordinary source declarations with the same exact constructor pair are both registered.
+    // Lookup is repeatable because the bucket preserves source-lowering insertion order, but it is
+    // not unique and the infer table erases even the two declaration ids. Inference constrains both
+    // schemes; specialize2's `direct_cast_rule` later takes the first matching poly rule. This is a
+    // constructible ambiguity witness, not merely a hand-built CastTable state.
+}
+
+#[test]
+fn generic_role_impl_conformance_stage4_c0_std_cast_target_sample_is_direct_structural() {
+    use crate::role_impl_conformance::view::DeclaredTypeView;
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, RoleImplMethodActualSurface, ShadowConformanceOutcome,
+    };
+
+    const STD_CONVERT: &str = include_str!("../../../../../lib/std/core/convert.yu");
+    const STD_NUM: &str = include_str!("../../../../../lib/std/num.yu");
+    const STD_BYTES: &str = include_str!("../../../../../lib/std/text/bytes.yu");
+
+    let cast_targets = STD_CONVERT
+        .lines()
+        .filter_map(|line| {
+            let declaration = line.trim().strip_prefix("pub cast(")?;
+            let (_, result) = declaration.split_once("): ")?;
+            result.split_once(" =").map(|(target, _)| target)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(cast_targets, ["bytes", "frac", "float", "float"]);
+
+    let cast_target_associated_results = [
+        (STD_NUM, "type out = frac"),
+        (STD_NUM, "type out = float"),
+        (STD_NUM, "type out = frac"),
+        (STD_BYTES, "type value = bytes"),
+    ];
+    assert_eq!(
+        cast_target_associated_results
+            .iter()
+            .filter(|(source, assignment)| source.contains(assignment))
+            .count(),
+        4,
+    );
+    for body in [
+        "our x.div y = std::num::frac::new x y",
+        "our x.div y = std::float::div x y",
+        "our x.div y = std::num::frac::div x y",
+        "our b.index r = std::text::bytes::index_range b r",
+    ] {
+        assert!(STD_NUM.contains(body) || STD_BYTES.contains(body), "{body}");
+    }
+
+    let source = concat!(
+        "struct frac { value: int }\n",
+        "struct bytes { value: int }\n",
+        "struct path { value: int }\n",
+        "struct range { value: int }\n",
+        "pub cast(p: path): bytes = bytes { value: p.value }\n",
+        "pub cast(x: int): frac = frac { value: x }\n",
+        "pub cast(x: int): float = 0.0\n",
+        "pub cast(x: frac): float = 0.0\n",
+        "role Div 'subject:\n",
+        "  type out\n",
+        "  our x.div: out\n",
+        "impl int: Div:\n",
+        "  type out = frac\n",
+        "  our x.div = frac { value: x }\n",
+        "impl float: Div:\n",
+        "  type out = float\n",
+        "  our x.div = x\n",
+        "impl frac: Div:\n",
+        "  type out = frac\n",
+        "  our x.div = x\n",
+        "role Index 'container 'key:\n",
+        "  type value\n",
+        "  our container.index: key -> value\n",
+        "impl bytes: Index range:\n",
+        "  type value = bytes\n",
+        "  our b.index r = b\n",
+    );
+    let output = lower_conformance_fixture(source);
+    assert_eq!(output.session.poly.cast_rules.len(), 4);
+    let pairs = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .flat_map(|contract| contract.shadow_conformance_pairs(&output.modules))
+        .collect::<Vec<_>>();
+    assert_eq!(pairs.len(), 4);
+    for pair in pairs {
+        let Some(DeclaredTypeView::Available(declared)) = pair.declared else {
+            panic!(
+                "expected an available declared result, got {:?}",
+                pair.declared
+            )
+        };
+        let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual else {
+            panic!("expected a receiver method actual surface")
+        };
+        assert_eq!(
+            actual.value,
+            ActualMethodConformanceView::Available(declared),
+        );
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+    }
+
+    // The repository search found four associated assignments whose target is one of the three
+    // types reachable by a declared std value cast (`bytes`, `frac`, `float`). Their bodies call a
+    // function already returning exactly that target. This distilled compiler witness keeps all
+    // four cast declarations visible and still observes four direct structural conformances. It
+    // anchors a zero-found representative sample; it does not claim an exhaustive semantic proof
+    // over every std method body.
+}
+
+#[test]
 fn generic_role_impl_conformance_stage3_slice3b_matches_same_contract_universal_binder() {
     use crate::role_impl_conformance::ActualMethodConformanceView;
     use crate::role_impl_conformance::view::{DeclaredAssociatedView, DeclaredTypeView};
