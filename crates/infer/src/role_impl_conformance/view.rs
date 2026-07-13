@@ -17,7 +17,7 @@ use super::{
 #[cfg(test)]
 use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
-use crate::compact::{CompactBounds, CompactType, compact_type_var};
+use crate::compact::{CompactBounds, CompactType, CompactVar, compact_type_var};
 use crate::constraints::ConstraintMachine;
 use crate::{ModuleTable, TypeDeclId};
 
@@ -659,17 +659,48 @@ struct ExactEquivalenceNode {
 }
 
 struct ActualFirstOrderNormalizer<'a> {
-    bridge: &'a RoleImplConformanceBinderBridge,
     root_anchor: TypeVar,
+    binder_identities: ActualBinderIdentityResolver<'a>,
+}
+
+enum ActualFirstOrderTypeShape<'a> {
+    Top,
+    Bottom,
+    RawVariableCandidates {
+        vars: &'a [CompactVar],
+        ignored_var: Option<TypeVar>,
+        candidate_count: usize,
+    },
+    Builtin(BuiltinType),
+    Nominal {
+        path: &'a [String],
+        args: &'a [CompactBounds],
+    },
+    Tuple(&'a [CompactType]),
+}
+
+enum ActualFirstOrderBoundsShape<'a> {
+    Interval {
+        lower: &'a CompactType,
+        upper: &'a CompactType,
+    },
+    Nominal {
+        path: &'a [String],
+        args: &'a [CompactBounds],
+    },
+    Tuple(&'a [CompactBounds]),
+}
+
+struct ActualBinderIdentityResolver<'a> {
+    bridge: &'a RoleImplConformanceBinderBridge,
     method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
 }
 
 impl<'a> ActualFirstOrderNormalizer<'a> {
     fn new(bridge: &'a RoleImplConformanceBinderBridge, root_anchor: TypeVar) -> Self {
         Self {
-            bridge,
             root_anchor,
-            method_quantifiers: rustc_hash::FxHashMap::default(),
+            binder_identities: ActualBinderIdentityResolver::new(bridge),
         }
     }
 
@@ -702,73 +733,76 @@ impl<'a> ActualFirstOrderNormalizer<'a> {
         ty: &CompactType,
         ignored_var: Option<TypeVar>,
     ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
-        if !ty.funs.is_empty() {
-            return Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction);
-        }
-        if !ty.records.is_empty() || !ty.record_spreads.is_empty() {
-            return Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord);
-        }
-        if !ty.poly_variants.is_empty() {
-            return Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant);
-        }
-        if !ty.rows.is_empty() {
-            return Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow);
-        }
+        let shape = project_actual_first_order_type_shape(ty, ignored_var)?;
+        self.resolve_type_shape(shape)
+    }
 
-        let alternative_count = usize::from(ty.never)
-            + ty.vars
-                .iter()
-                .filter(|var| Some(var.var) != ignored_var)
-                .count()
-            + ty.builtins.len()
-            + ty.cons.len()
-            + ty.tuples.len();
-        if alternative_count == 0 {
-            return Ok(ConformanceTypeView::Top);
-        }
-        if alternative_count != 1 {
-            return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
-        }
-        if ty.never {
-            return Ok(ConformanceTypeView::Bottom);
-        }
-        if let Some(var) = ty.vars.iter().find(|var| Some(var.var) != ignored_var) {
-            if !var.weight.is_empty() {
-                return Err(ActualMethodConformanceViewUnavailable::WeightedVariable);
+    fn resolve_type_shape(
+        &mut self,
+        shape: ActualFirstOrderTypeShape<'_>,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        match shape {
+            ActualFirstOrderTypeShape::Top => Ok(ConformanceTypeView::Top),
+            ActualFirstOrderTypeShape::Bottom => Ok(ConformanceTypeView::Bottom),
+            ActualFirstOrderTypeShape::RawVariableCandidates {
+                vars,
+                ignored_var,
+                candidate_count,
+            } => self.resolve_raw_variable_candidates(vars, ignored_var, candidate_count),
+            ActualFirstOrderTypeShape::Builtin(builtin) => {
+                Ok(ConformanceTypeView::Builtin(builtin))
             }
-            return self.binder_view(var.var).map(ConformanceTypeView::Binder);
-        }
-        if let Some(builtin) = ty.builtins.first() {
-            return Ok(ConformanceTypeView::Builtin(*builtin));
-        }
-        if let Some((path, args)) = ty.cons.iter().next() {
-            return Ok(ConformanceTypeView::Nominal {
-                path: path.clone(),
+            ActualFirstOrderTypeShape::Nominal { path, args } => Ok(ConformanceTypeView::Nominal {
+                path: path.to_vec(),
                 args: args
                     .iter()
                     .map(|arg| self.bounds_view(arg))
                     .collect::<Result<Vec<_>, _>>()?,
-            });
+            }),
+            ActualFirstOrderTypeShape::Tuple(items) => Ok(ConformanceTypeView::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.type_view(item))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
         }
-        let tuple = ty
-            .tuples
-            .first()
-            .ok_or(ActualMethodConformanceViewUnavailable::NonAtomicSurface)?;
-        Ok(ConformanceTypeView::Tuple(
-            tuple
-                .items
-                .iter()
-                .map(|item| self.type_view(item))
-                .collect::<Result<Vec<_>, _>>()?,
-        ))
+    }
+
+    fn resolve_raw_variable_candidates(
+        &mut self,
+        vars: &[CompactVar],
+        ignored_var: Option<TypeVar>,
+        candidate_count: usize,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        if candidate_count != 1 {
+            return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
+        }
+        let var = vars
+            .iter()
+            .find(|var| Some(var.var) != ignored_var)
+            .expect("one projected raw variable candidate");
+        if !var.weight.is_empty() {
+            return Err(ActualMethodConformanceViewUnavailable::WeightedVariable);
+        }
+        self.binder_identities
+            .resolve(var.var)
+            .map(ConformanceTypeView::Binder)
     }
 
     fn bounds_view(
         &mut self,
         bounds: &CompactBounds,
     ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
-        match bounds {
-            CompactBounds::Interval { lower, upper } => {
+        let shape = project_actual_first_order_bounds_shape(bounds)?;
+        self.resolve_bounds_shape(shape)
+    }
+
+    fn resolve_bounds_shape(
+        &mut self,
+        shape: ActualFirstOrderBoundsShape<'_>,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        match shape {
+            ActualFirstOrderBoundsShape::Interval { lower, upper } => {
                 let lower = self.type_view(lower)?;
                 let upper = self.type_view(upper)?;
                 if lower == upper {
@@ -777,32 +811,113 @@ impl<'a> ActualFirstOrderNormalizer<'a> {
                     Err(ActualMethodConformanceViewUnavailable::NonExactInvariantArgument)
                 }
             }
-            CompactBounds::Con { path, args } => Ok(ConformanceTypeView::Nominal {
-                path: path.clone(),
-                args: args
-                    .iter()
-                    .map(|arg| self.bounds_view(arg))
-                    .collect::<Result<Vec<_>, _>>()?,
-            }),
-            CompactBounds::Tuple { items } => Ok(ConformanceTypeView::Tuple(
+            ActualFirstOrderBoundsShape::Nominal { path, args } => {
+                Ok(ConformanceTypeView::Nominal {
+                    path: path.to_vec(),
+                    args: args
+                        .iter()
+                        .map(|arg| self.bounds_view(arg))
+                        .collect::<Result<Vec<_>, _>>()?,
+                })
+            }
+            ActualFirstOrderBoundsShape::Tuple(items) => Ok(ConformanceTypeView::Tuple(
                 items
                     .iter()
                     .map(|item| self.bounds_view(item))
                     .collect::<Result<Vec<_>, _>>()?,
             )),
-            CompactBounds::Fun { .. } => {
-                Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction)
-            }
-            CompactBounds::Record { .. } => {
-                Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord)
-            }
-            CompactBounds::PolyVariant { .. } => {
-                Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant)
-            }
+        }
+    }
+}
+
+fn project_actual_first_order_type_shape<'a>(
+    ty: &'a CompactType,
+    ignored_var: Option<TypeVar>,
+) -> Result<ActualFirstOrderTypeShape<'a>, ActualMethodConformanceViewUnavailable> {
+    if !ty.funs.is_empty() {
+        return Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction);
+    }
+    if !ty.records.is_empty() || !ty.record_spreads.is_empty() {
+        return Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord);
+    }
+    if !ty.poly_variants.is_empty() {
+        return Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant);
+    }
+    if !ty.rows.is_empty() {
+        return Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow);
+    }
+
+    let raw_variable_count = ty
+        .vars
+        .iter()
+        .filter(|var| Some(var.var) != ignored_var)
+        .count();
+    let alternative_count = usize::from(ty.never)
+        + raw_variable_count
+        + ty.builtins.len()
+        + ty.cons.len()
+        + ty.tuples.len();
+    if alternative_count == 0 {
+        return Ok(ActualFirstOrderTypeShape::Top);
+    }
+    if raw_variable_count == alternative_count {
+        return Ok(ActualFirstOrderTypeShape::RawVariableCandidates {
+            vars: &ty.vars,
+            ignored_var,
+            candidate_count: raw_variable_count,
+        });
+    }
+    if alternative_count != 1 {
+        return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
+    }
+    if ty.never {
+        return Ok(ActualFirstOrderTypeShape::Bottom);
+    }
+    if let Some(builtin) = ty.builtins.first() {
+        return Ok(ActualFirstOrderTypeShape::Builtin(*builtin));
+    }
+    if let Some((path, args)) = ty.cons.iter().next() {
+        return Ok(ActualFirstOrderTypeShape::Nominal { path, args });
+    }
+    let tuple = ty
+        .tuples
+        .first()
+        .ok_or(ActualMethodConformanceViewUnavailable::NonAtomicSurface)?;
+    Ok(ActualFirstOrderTypeShape::Tuple(&tuple.items))
+}
+
+fn project_actual_first_order_bounds_shape(
+    bounds: &CompactBounds,
+) -> Result<ActualFirstOrderBoundsShape<'_>, ActualMethodConformanceViewUnavailable> {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            Ok(ActualFirstOrderBoundsShape::Interval { lower, upper })
+        }
+        CompactBounds::Con { path, args } => {
+            Ok(ActualFirstOrderBoundsShape::Nominal { path, args })
+        }
+        CompactBounds::Tuple { items } => Ok(ActualFirstOrderBoundsShape::Tuple(items)),
+        CompactBounds::Fun { .. } => {
+            Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction)
+        }
+        CompactBounds::Record { .. } => {
+            Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord)
+        }
+        CompactBounds::PolyVariant { .. } => {
+            Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant)
+        }
+    }
+}
+
+impl<'a> ActualBinderIdentityResolver<'a> {
+    fn new(bridge: &'a RoleImplConformanceBinderBridge) -> Self {
+        Self {
+            bridge,
+            method_quantifiers: rustc_hash::FxHashMap::default(),
         }
     }
 
-    fn binder_view(
+    fn resolve(
         &mut self,
         var: TypeVar,
     ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
