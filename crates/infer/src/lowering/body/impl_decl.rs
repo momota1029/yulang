@@ -54,6 +54,8 @@ impl BodyLowerer {
                         );
                         let requirement =
                             self.role_impl_method_requirement(&context, method_info.name.clone());
+                        let conformance_shadow_target =
+                            context.conformance_shadow_targets.get(&decl.def).cloned();
                         self.lower_role_impl_method_binding(
                             &child,
                             impl_decl.def,
@@ -72,6 +74,7 @@ impl BodyLowerer {
                             &context.type_var_bindings,
                             &mut context.ann_solver_vars,
                             requirement,
+                            conformance_shadow_target,
                         );
                     }
                 }
@@ -251,6 +254,10 @@ impl BodyLowerer {
                 contract_implementations,
                 &ann_solver_vars,
             );
+        let conformance_shadow_targets = conformance_contract
+            .first_order_shadow_targets(&self.modules)
+            .into_iter()
+            .collect();
         #[cfg(test)]
         let conformance_contract = {
             let mut contract = conformance_contract;
@@ -268,6 +275,7 @@ impl BodyLowerer {
         self.session.role_impls.insert(candidate);
         Ok(RoleImplLoweringContext {
             conformance_contract: Some(conformance_contract),
+            conformance_shadow_targets,
             role: spec.role,
             target_ann: spec.target,
             input_names: role_input_names,
@@ -339,7 +347,7 @@ impl BodyLowerer {
         &self,
         context: &RoleImplLoweringContext,
         name: Name,
-    ) -> Option<ResolvedRoleMethodRequirement> {
+    ) -> Option<Arc<ResolvedRoleMethodRequirement>> {
         let method = self
             .modules
             .role_methods(context.role)
@@ -354,13 +362,13 @@ impl BodyLowerer {
                 .map(|name| name.0)
                 .collect::<Vec<_>>()
         })?;
-        Some(ResolvedRoleMethodRequirement {
+        Some(Arc::new(ResolvedRoleMethodRequirement {
             role_method: method.def,
             role,
             inputs: context.input_signatures.clone(),
             associated: context.associated_signatures.clone(),
             signature: substitute_role_requirement_signature(requirement, context),
-        })
+        }))
     }
 
     pub(super) fn lower_role_impl_method_binding(
@@ -372,7 +380,13 @@ impl BodyLowerer {
         target_ann: &AnnType,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<ResolvedRoleMethodRequirement>,
+        requirement: Option<Arc<ResolvedRoleMethodRequirement>>,
+        conformance_shadow_target: Option<
+            Result<
+                crate::role_impl_conformance::RoleImplConformanceBinderBridge,
+                crate::role_impl_conformance::RoleImplConformanceBinderBridgeUnavailable,
+            >,
+        >,
     ) {
         let Some(expr) = binding_body_expr(node) else {
             self.push_missing_body_for_decl(method.def, method.name.clone());
@@ -399,6 +413,17 @@ impl BodyLowerer {
             );
         }
 
+        let defer_receiverless_requirement = method.receiver.is_none()
+            && requirement.is_some()
+            && conformance_shadow_target.is_some()
+            && self.receiverless_conformance_shadow_enabled;
+        if defer_receiverless_requirement {
+            self.session
+                .enqueue(AnalysisWork::Scc(SccInput::ConformancePending {
+                    member: method.def,
+                }));
+        }
+
         let recursive_self_possible = self.body_may_select_method(&expr, &method.name);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
@@ -420,13 +445,52 @@ impl BodyLowerer {
             type_var_bindings,
             ann_solver_vars,
             requirement.as_ref(),
+            defer_receiverless_requirement,
             recursive_self_possible,
         );
         match lowered {
-            Ok(computation) => {
-                self.finish_binding(method.def, method.name.clone(), root, computation, true)
+            Ok(lowered) => {
+                if let (Some(deferred), Some(bridge)) =
+                    (lowered.deferred_requirement, conformance_shadow_target)
+                {
+                    self.pending_receiverless_conformance.insert(
+                        method.def,
+                        PendingReceiverlessRoleImplConformance {
+                            impl_def,
+                            member: method.def,
+                            module,
+                            site: method.order,
+                            name: method.name.clone(),
+                            bridge,
+                            deferred: Some(deferred),
+                            actual_view: None,
+                            phase: PendingReceiverlessConformancePhase::Captured,
+                            edge_applications: 0,
+                        },
+                    );
+                } else if defer_receiverless_requirement {
+                    self.session
+                        .enqueue(AnalysisWork::Scc(SccInput::ConformanceReleased {
+                            member: method.def,
+                        }));
+                }
+                self.finish_binding(
+                    method.def,
+                    method.name.clone(),
+                    root,
+                    lowered.computation,
+                    true,
+                )
             }
-            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
+            Err(error) => {
+                if defer_receiverless_requirement {
+                    self.session
+                        .enqueue(AnalysisWork::Scc(SccInput::ConformanceReleased {
+                            member: method.def,
+                        }));
+                }
+                self.push_registered_expr_error(method.def, method.name.clone(), error)
+            }
         }
         self.session.infer.restore_level(previous_level);
     }

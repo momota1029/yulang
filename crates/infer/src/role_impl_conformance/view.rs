@@ -4,14 +4,17 @@
 //! function/effect structure, recursive bounds, and the comparison relation belong to later
 //! Stage 2 slices.
 
-use poly::types::BuiltinType;
+use poly::types::{BuiltinType, TypeVar};
 
 use super::{
     AssociatedAssignment, AssociatedInferenceBinderId, ContractTypeRef, DeclaredType,
-    ImplUniversalBinderId, RoleImplConformanceContract, RoleRequirementSubstitutionSlot,
-    SignatureType,
+    ImplUniversalBinderId, RoleImplConformanceBinderBridge,
+    RoleImplConformanceBinderBridgeUnavailable, RoleImplConformanceContract,
+    RoleRequirementSubstitutionSlot, SignatureType,
 };
 use crate::annotation::AnnType;
+use crate::compact::{CompactBounds, CompactType, compact_type_var};
+use crate::constraints::ConstraintMachine;
 use crate::{ModuleTable, TypeDeclId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,6 +90,30 @@ pub(crate) enum ConformanceTypeView {
         args: Vec<ConformanceTypeView>,
     },
     Tuple(Vec<ConformanceTypeView>),
+}
+
+/// Slice 3's immutable first-order actual-side shadow. It intentionally stops before functions,
+/// rows, recursive bounds, and non-exact interval arguments; those shapes remain structured
+/// `Unavailable` until the later actual-view handoff slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ActualMethodConformanceView {
+    Available(ConformanceTypeView),
+    Unavailable(ActualMethodConformanceViewUnavailable),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ActualMethodConformanceViewUnavailable {
+    MissingBinderBridge(RoleImplConformanceBinderBridgeUnavailable),
+    OrdinarySccBlocker,
+    RecursiveBounds,
+    NonAtomicSurface,
+    WeightedVariable,
+    AmbiguousBinderBridge(TypeVar),
+    NonExactInvariantArgument,
+    UnsupportedFunction,
+    UnsupportedRecord,
+    UnsupportedVariant,
+    UnsupportedEffectRow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -193,6 +220,207 @@ pub(super) fn build_declared_role_impl_view(
         input_substitution,
         associated_substitution,
         methods,
+    }
+}
+
+pub(super) fn capture_receiverless_actual_view(
+    machine: &ConstraintMachine,
+    anchor: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualMethodConformanceView {
+    let bridge = match bridge {
+        Ok(bridge) => bridge,
+        Err(reason) => {
+            return ActualMethodConformanceView::Unavailable(
+                ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
+            );
+        }
+    };
+    let compact = compact_type_var(machine, anchor);
+    if !compact.rec_vars.is_empty() {
+        return ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::RecursiveBounds,
+        );
+    }
+    let mut normalizer = ActualFirstOrderNormalizer::new(bridge, anchor);
+    match normalizer.root_view(&compact.root) {
+        Ok(view) => ActualMethodConformanceView::Available(view),
+        Err(reason) => ActualMethodConformanceView::Unavailable(reason),
+    }
+}
+
+struct ActualFirstOrderNormalizer<'a> {
+    bridge: &'a RoleImplConformanceBinderBridge,
+    root_anchor: TypeVar,
+    method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
+}
+
+impl<'a> ActualFirstOrderNormalizer<'a> {
+    fn new(bridge: &'a RoleImplConformanceBinderBridge, root_anchor: TypeVar) -> Self {
+        Self {
+            bridge,
+            root_anchor,
+            method_quantifiers: rustc_hash::FxHashMap::default(),
+        }
+    }
+
+    fn root_view(
+        &mut self,
+        ty: &CompactType,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        let has_substantive_bound = ty.never
+            || !ty.builtins.is_empty()
+            || !ty.cons.is_empty()
+            || !ty.funs.is_empty()
+            || !ty.records.is_empty()
+            || !ty.record_spreads.is_empty()
+            || !ty.poly_variants.is_empty()
+            || !ty.tuples.is_empty()
+            || !ty.rows.is_empty()
+            || ty.vars.iter().any(|var| var.var != self.root_anchor);
+        self.type_view_ignoring(ty, has_substantive_bound.then_some(self.root_anchor))
+    }
+
+    fn type_view(
+        &mut self,
+        ty: &CompactType,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        self.type_view_ignoring(ty, None)
+    }
+
+    fn type_view_ignoring(
+        &mut self,
+        ty: &CompactType,
+        ignored_var: Option<TypeVar>,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        if !ty.funs.is_empty() {
+            return Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction);
+        }
+        if !ty.records.is_empty() || !ty.record_spreads.is_empty() {
+            return Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord);
+        }
+        if !ty.poly_variants.is_empty() {
+            return Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant);
+        }
+        if !ty.rows.is_empty() {
+            return Err(ActualMethodConformanceViewUnavailable::UnsupportedEffectRow);
+        }
+
+        let alternative_count = usize::from(ty.never)
+            + ty.vars
+                .iter()
+                .filter(|var| Some(var.var) != ignored_var)
+                .count()
+            + ty.builtins.len()
+            + ty.cons.len()
+            + ty.tuples.len();
+        if alternative_count == 0 {
+            return Ok(ConformanceTypeView::Top);
+        }
+        if alternative_count != 1 {
+            return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
+        }
+        if ty.never {
+            return Ok(ConformanceTypeView::Bottom);
+        }
+        if let Some(var) = ty.vars.iter().find(|var| Some(var.var) != ignored_var) {
+            if !var.weight.is_empty() {
+                return Err(ActualMethodConformanceViewUnavailable::WeightedVariable);
+            }
+            return self.binder_view(var.var).map(ConformanceTypeView::Binder);
+        }
+        if let Some(builtin) = ty.builtins.first() {
+            return Ok(ConformanceTypeView::Builtin(*builtin));
+        }
+        if let Some((path, args)) = ty.cons.iter().next() {
+            return Ok(ConformanceTypeView::Nominal {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.bounds_view(arg))
+                    .collect::<Result<Vec<_>, _>>()?,
+            });
+        }
+        let tuple = ty
+            .tuples
+            .first()
+            .ok_or(ActualMethodConformanceViewUnavailable::NonAtomicSurface)?;
+        Ok(ConformanceTypeView::Tuple(
+            tuple
+                .items
+                .iter()
+                .map(|item| self.type_view(item))
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
+    }
+
+    fn bounds_view(
+        &mut self,
+        bounds: &CompactBounds,
+    ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
+        match bounds {
+            CompactBounds::Interval { lower, upper } => {
+                let lower = self.type_view(lower)?;
+                let upper = self.type_view(upper)?;
+                if lower == upper {
+                    Ok(lower)
+                } else {
+                    Err(ActualMethodConformanceViewUnavailable::NonExactInvariantArgument)
+                }
+            }
+            CompactBounds::Con { path, args } => Ok(ConformanceTypeView::Nominal {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.bounds_view(arg))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            CompactBounds::Tuple { items } => Ok(ConformanceTypeView::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.bounds_view(item))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            CompactBounds::Fun { .. } => {
+                Err(ActualMethodConformanceViewUnavailable::UnsupportedFunction)
+            }
+            CompactBounds::Record { .. } => {
+                Err(ActualMethodConformanceViewUnavailable::UnsupportedRecord)
+            }
+            CompactBounds::PolyVariant { .. } => {
+                Err(ActualMethodConformanceViewUnavailable::UnsupportedVariant)
+            }
+        }
+    }
+
+    fn binder_view(
+        &mut self,
+        var: TypeVar,
+    ) -> Result<ConformanceBinder, ActualMethodConformanceViewUnavailable> {
+        let mut mapped = self
+            .bridge
+            .universals
+            .iter()
+            .filter_map(|(binder, solver)| {
+                (*solver == var).then_some(ConformanceBinder::Universal(*binder))
+            })
+            .chain(
+                self.bridge
+                    .inferred_associated
+                    .iter()
+                    .filter_map(|(binder, solver)| {
+                        (*solver == var).then_some(ConformanceBinder::InferredAssociated(*binder))
+                    }),
+            );
+        if let Some(first) = mapped.next() {
+            if mapped.next().is_some() {
+                return Err(ActualMethodConformanceViewUnavailable::AmbiguousBinderBridge(var));
+            }
+            return Ok(first);
+        }
+        let next = self.method_quantifiers.len() as u32;
+        let binder = *self.method_quantifiers.entry(var).or_insert(next);
+        Ok(ConformanceBinder::MethodQuantifier(binder))
     }
 }
 

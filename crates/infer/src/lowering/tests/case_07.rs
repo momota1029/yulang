@@ -506,6 +506,7 @@ fn role_impl_method_lifecycle_slice0_records_current_event_order() {
                 .def
         });
         let mut lowerer = super::super::body::BodyLowerer::new(lower);
+        lowerer.set_receiverless_conformance_shadow_enabled(false);
 
         lowerer.lower_block(&root, module);
 
@@ -1029,7 +1030,7 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
             let before = bridge_state(lowerer, bridge);
             let epoch = lowerer.session.infer.constraints().epoch();
             let pending = lowerer
-                .inactive_deferred_impl_method_requirement(
+                .deferred_impl_method_requirement(
                     DeferredRequirementAnchor::Receiver { receiver },
                     Arc::clone(requirement),
                     0,
@@ -1079,7 +1080,7 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
         |lowerer, requirement, bindings, vars| {
             let value = lowerer.fresh_type_var();
             let pending = lowerer
-                .inactive_deferred_impl_method_requirement(
+                .deferred_impl_method_requirement(
                     DeferredRequirementAnchor::Receiverless { value },
                     Arc::clone(requirement),
                     0,
@@ -1122,7 +1123,7 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
             let before_bridge = bridge_state(lowerer, bridge);
             let before_epoch = lowerer.session.infer.constraints().epoch();
             let pending = lowerer
-                .inactive_deferred_impl_method_requirement(
+                .deferred_impl_method_requirement(
                     DeferredRequirementAnchor::Receiver { receiver },
                     Arc::clone(requirement),
                     1,
@@ -1195,7 +1196,7 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
             let before = bridge_state(lowerer, bridge);
             let epoch = lowerer.session.infer.constraints().epoch();
             let pending = lowerer
-                .inactive_deferred_impl_method_requirement(
+                .deferred_impl_method_requirement(
                     DeferredRequirementAnchor::Receiver { receiver },
                     Arc::clone(requirement),
                     1,
@@ -1234,7 +1235,7 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
         |lowerer, requirement, bindings, vars| {
             let receiver = lowerer.fresh_type_var();
             let pending = lowerer
-                .inactive_deferred_impl_method_requirement(
+                .deferred_impl_method_requirement(
                     DeferredRequirementAnchor::Receiver { receiver },
                     Arc::clone(requirement),
                     1,
@@ -1255,6 +1256,142 @@ fn role_impl_method_lifecycle_slice1c_builds_inactive_descriptor_and_audits_para
             assert_eq!(pending.parameter_uppers, vec![None]);
         },
     );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice3_receiverless_shadow_matches_immediate_baseline() {
+    use crate::role_impl_conformance::ActualMethodConformanceView;
+    use crate::role_impl_conformance::view::ConformanceTypeView;
+
+    let source = concat!(
+        "role Make 'subject:\n",
+        "  type output\n",
+        "  our make: output\n",
+        "impl Make int:\n",
+        "  type output = int\n",
+        "  our make = 1\n",
+        "my observed = make\n",
+    );
+    let delayed = lower_receiverless_conformance_shadow(source, true);
+    let immediate = lower_receiverless_conformance_shadow(source, false);
+
+    assert_eq!(
+        receiverless_production_surface(&delayed, "Make"),
+        receiverless_production_surface(&immediate, "Make"),
+        "delayed connection must preserve schemes, candidates, selections, diagnostics, and runtime IR",
+    );
+    assert_eq!(delayed.errors, immediate.errors);
+
+    let [witness] = delayed.receiverless_conformance_shadow() else {
+        panic!("expected one receiverless shadow witness")
+    };
+    assert_eq!(
+        witness.actual_view,
+        ActualMethodConformanceView::Available(ConformanceTypeView::Builtin(BuiltinType::Int)),
+    );
+    assert_eq!(witness.edge_applications, 1);
+    assert_eq!(witness.releases, 1);
+    let delayed_transitions = delayed.session.scc.conformance_transition_counts();
+    assert_eq!(delayed_transitions.pending, 1);
+    assert_eq!(delayed_transitions.released, 1);
+    assert_eq!(delayed_transitions.ignored_pending, 0);
+    assert_eq!(delayed_transitions.ignored_released, 0);
+    assert!(immediate.receiverless_conformance_shadow().is_empty());
+    assert_eq!(
+        immediate.session.scc.conformance_transition_counts(),
+        crate::scc::ConformanceTransitionCounts::default(),
+    );
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice3_unavailable_capture_still_releases() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let source = concat!(
+        "role Make 'subject:\n",
+        "  our make: 'subject\n",
+        "impl Make 'a:\n",
+        "  our make = \\x -> x\n",
+    );
+    let output = lower_receiverless_conformance_shadow(source, true);
+    let [witness] = output.receiverless_conformance_shadow() else {
+        panic!("expected one failed receiverless shadow witness")
+    };
+    assert_eq!(
+        witness.actual_view,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::UnsupportedFunction,
+        ),
+    );
+    assert_eq!(witness.edge_applications, 1);
+    assert_eq!(witness.releases, 1);
+    let transitions = output.session.scc.conformance_transition_counts();
+    assert_eq!((transitions.pending, transitions.released), (1, 1));
+    assert!(!output.session.has_pending_work());
+    assert!(output.session.scc.is_quantified(witness.member));
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice3_keeps_out_of_scope_methods_immediate() {
+    let receiver = concat!(
+        "role Read 'subject:\n",
+        "  our x.read: int\n",
+        "impl int: Read:\n",
+        "  our x.read = 1\n",
+    );
+    let inferred_associated = concat!(
+        "role Make 'subject:\n",
+        "  type output\n",
+        "  our make: output\n",
+        "impl Make int:\n",
+        "  our make = 1\n",
+    );
+    let unsupported_declared_function = concat!(
+        "role Make 'subject:\n",
+        "  our make: int -> int\n",
+        "impl Make int:\n",
+        "  our make x = x\n",
+    );
+
+    for source in [receiver, inferred_associated, unsupported_declared_function] {
+        let output = lower_receiverless_conformance_shadow(source, true);
+        assert!(output.receiverless_conformance_shadow().is_empty());
+        assert_eq!(
+            output.session.scc.conformance_transition_counts(),
+            crate::scc::ConformanceTransitionCounts::default(),
+        );
+    }
+}
+
+#[test]
+fn role_impl_method_lifecycle_slice3_ordinary_blocker_fails_capture_without_deadlock() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let source = concat!(
+        "role Make 'subject:\n",
+        "  our make: 'subject\n",
+        "impl Make 'a:\n",
+        "  our make = \\x -> x.value\n",
+    );
+    let output = lower_receiverless_conformance_shadow(source, true);
+    let [witness] = output.receiverless_conformance_shadow() else {
+        panic!("expected one ordinary-blocker shadow witness")
+    };
+    assert_eq!(
+        witness.actual_view,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
+        ),
+    );
+    assert_eq!((witness.edge_applications, witness.releases), (1, 1));
+    let transitions = output.session.scc.conformance_transition_counts();
+    assert_eq!((transitions.pending, transitions.released), (1, 1));
+    assert!(!output.session.has_pending_work());
+    assert!(output.session.scc.is_quantified(witness.member));
 }
 
 #[test]
@@ -1934,6 +2071,45 @@ fn characterize(source: &str, role: &str) -> String {
 
     format!(
         "lowering={diagnostic}; check-diagnostics={check_diagnostics}\nmethods={method_schemes}\ninfer-candidates={infer_candidates}\npoly-candidates={poly_candidates}"
+    )
+}
+
+fn lower_receiverless_conformance_shadow(source: &str, enabled: bool) -> BodyLowering {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    lowerer.set_receiverless_conformance_shadow_enabled(enabled);
+    lowerer.lower_block(&root, module);
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    lowerer.finish()
+}
+
+fn receiverless_production_surface(output: &BodyLowering, role: &str) -> String {
+    let role = vec![role.to_string()];
+    let infer_candidates = output
+        .session
+        .role_impls
+        .candidates(&role)
+        .iter()
+        .map(|candidate| format_candidate(&output.session.infer.constraints().types(), candidate))
+        .collect::<Vec<_>>();
+    let poly_candidates = output
+        .session
+        .poly
+        .role_impls
+        .candidates(&role)
+        .iter()
+        .map(|candidate| format_candidate(&output.session.poly.typ, candidate))
+        .collect::<Vec<_>>();
+    let diagnostics = crate::check::summarize_lowering(output);
+    format!(
+        "errors={:?}\ncheck={diagnostics:?}\ninfer={infer_candidates:?}\npoly={poly_candidates:?}\nruntime={} ",
+        output.errors,
+        poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels),
     )
 }
 

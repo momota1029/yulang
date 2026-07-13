@@ -119,6 +119,13 @@ type CstItem = NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>;
 /// `typing` は `DefId -> TypeVar` だけを保持し、式や pattern の永続型 table は作らない。
 struct RoleImplLoweringContext {
     conformance_contract: Option<crate::role_impl_conformance::RoleImplConformanceContract>,
+    conformance_shadow_targets: FxHashMap<
+        DefId,
+        Result<
+            crate::role_impl_conformance::RoleImplConformanceBinderBridge,
+            crate::role_impl_conformance::RoleImplConformanceBinderBridgeUnavailable,
+        >,
+    >,
     role: TypeDeclId,
     target_ann: AnnType,
     input_names: Vec<String>,
@@ -141,12 +148,6 @@ struct ResolvedRoleMethodRequirement {
     signature: SignatureType,
 }
 
-/// Inactive Slice 1 transport. It is built by characterization tests but is not registered with
-/// the SCC machine or any session-owned pending table yet.
-#[allow(
-    dead_code,
-    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
-)]
 struct DeferredRoleImplMethodRequirement {
     anchor: DeferredRequirementAnchor,
     requirement: Arc<ResolvedRoleMethodRequirement>,
@@ -157,30 +158,27 @@ struct DeferredRoleImplMethodRequirement {
     final_metadata: DeferredRequirementMetadata,
 }
 
-#[allow(
-    dead_code,
-    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
-)]
+struct LoweredImplMethodBody {
+    computation: Computation,
+    deferred_requirement: Option<DeferredRoleImplMethodRequirement>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "receiver descriptors are activated by Slice 4")
+)]
 enum DeferredRequirementAnchor {
     Receiver { receiver: TypeVar },
     Receiverless { value: TypeVar },
 }
 
-#[allow(
-    dead_code,
-    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
-)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RequirementSpineCursor {
     WholeValue,
     FunctionResult { consumed_function_layers: usize },
 }
 
-#[allow(
-    dead_code,
-    reason = "inactive Slice 1 descriptor is consumed by a later lifecycle slice"
-)]
 struct DeferredRequirementMetadata {
     signature_vars: FxHashMap<String, TypeVar>,
     connect_value_upper: bool,

@@ -7,7 +7,9 @@
 #[allow(dead_code)]
 pub(crate) mod view;
 
-pub(crate) use view::DeclaredRoleImplView;
+pub(crate) use view::{
+    ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, DeclaredRoleImplView,
+};
 
 use poly::expr::{Arena as PolyArena, Def, DefId};
 use poly::types::TypeVar;
@@ -17,6 +19,14 @@ use crate::ModuleTable;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
 use crate::constraints::ConstraintEpoch;
 use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
+
+pub(crate) fn capture_receiverless_actual_view(
+    machine: &crate::constraints::ConstraintMachine,
+    anchor: TypeVar,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+) -> ActualMethodConformanceView {
+    view::capture_receiverless_actual_view(machine, anchor, bridge)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RoleImplConformanceContract {
@@ -104,6 +114,47 @@ impl RoleImplConformanceContract {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn declared_view(&self, modules: &ModuleTable) -> DeclaredRoleImplView {
         view::build_declared_role_impl_view(self, modules)
+    }
+
+    /// Select the explicit-complete source members whose declared requirement is already in the
+    /// first-order Stage 2 view. Receiver/receiverless shape is deliberately decided by body
+    /// lowering, where the source binder is available.
+    pub(crate) fn first_order_shadow_targets(
+        &self,
+        modules: &ModuleTable,
+    ) -> Vec<(
+        DefId,
+        Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+    )> {
+        if self
+            .associated
+            .iter()
+            .any(|assignment| matches!(assignment, AssociatedAssignment::Inferred { .. }))
+        {
+            return Vec::new();
+        }
+
+        let declared = self.declared_view(modules);
+        self.methods
+            .iter()
+            .zip(declared.methods)
+            .filter(|(method, declared)| {
+                method
+                    .declared_requirement
+                    .as_ref()
+                    .is_some_and(|requirement| requirement.ambiguous_names.is_empty())
+                    && matches!(declared.requirement, view::DeclaredTypeView::Available(_))
+            })
+            .flat_map(|(method, _)| match &method.provision {
+                RoleImplMethodProvision::Explicit { implementations } => implementations
+                    .iter()
+                    .map(|implementation| (implementation.def, self.binder_bridge.clone()))
+                    .collect::<Vec<_>>(),
+                RoleImplMethodProvision::Default { .. } | RoleImplMethodProvision::Missing => {
+                    Vec::new()
+                }
+            })
+            .collect()
     }
 
     #[cfg(test)]

@@ -301,6 +301,7 @@ impl BodyLowerer {
             &context.type_var_bindings,
             &mut context.ann_solver_vars,
             requirement,
+            None,
         );
     }
 
@@ -354,6 +355,7 @@ impl BodyLowerer {
         });
         Some(RoleImplLoweringContext {
             conformance_contract: None,
+            conformance_shadow_targets: FxHashMap::default(),
             role: role.id,
             target_ann,
             input_names: role_inputs,

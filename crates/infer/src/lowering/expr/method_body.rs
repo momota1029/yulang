@@ -385,9 +385,10 @@ impl<'a> ExprLowerer<'a> {
         result_type_expr: Option<Cst>,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<&ResolvedRoleMethodRequirement>,
+        requirement: Option<&Arc<ResolvedRoleMethodRequirement>>,
+        defer_receiverless_requirement: bool,
         recursive_self_possible: bool,
-    ) -> Result<Computation, LoweringError> {
+    ) -> Result<LoweredImplMethodBody, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
@@ -411,16 +412,38 @@ impl<'a> ExprLowerer<'a> {
                 result_type_expr.as_ref(),
                 None,
             )?;
-            if let Some(requirement) = requirement {
-                self.connect_impl_method_requirement(
-                    body.value,
-                    requirement,
-                    type_var_bindings,
-                    ann_solver_vars,
-                    true,
-                )?;
-            }
-            return Ok(body);
+            let deferred_requirement = if let Some(requirement) = requirement {
+                if defer_receiverless_requirement {
+                    self.check_impl_method_requirement_shape(body.value, &requirement.signature)?;
+                    self.check_impl_method_requirement_concrete_type(
+                        body.value,
+                        &requirement.signature,
+                    )?;
+                    Some(self.deferred_impl_method_requirement(
+                        DeferredRequirementAnchor::Receiverless { value: body.value },
+                        Arc::clone(requirement),
+                        0,
+                        false,
+                        type_var_bindings,
+                        ann_solver_vars,
+                    )?)
+                } else {
+                    self.connect_impl_method_requirement(
+                        body.value,
+                        requirement,
+                        type_var_bindings,
+                        ann_solver_vars,
+                        true,
+                    )?;
+                    None
+                }
+            } else {
+                None
+            };
+            return Ok(LoweredImplMethodBody {
+                computation: body,
+                deferred_requirement,
+            });
         };
 
         let receiver_value = self.fresh_type_var();
@@ -512,7 +535,10 @@ impl<'a> ExprLowerer<'a> {
         }
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
-        Ok(Computation::value(expr, value, effect))
+        Ok(LoweredImplMethodBody {
+            computation: Computation::value(expr, value, effect),
+            deferred_requirement: None,
+        })
     }
 
     fn receiver_recursive_self_skeleton(
@@ -570,11 +596,7 @@ impl<'a> ExprLowerer<'a> {
     /// 最終 body の upper を同じ signature 変数で作る。impl 値全体へ raw
     /// `value <: requirement` を張ると、body 内の stack evidence が receiver まで含む
     /// 関数境界を回って戻るので、requirement 由来の alias だけを body 近くで接続する。
-    #[allow(
-        dead_code,
-        reason = "inactive Slice 1 descriptor is exercised by tests before SCC integration"
-    )]
-    pub(in crate::lowering) fn inactive_deferred_impl_method_requirement(
+    pub(in crate::lowering) fn deferred_impl_method_requirement(
         &mut self,
         anchor: DeferredRequirementAnchor,
         requirement: Arc<ResolvedRoleMethodRequirement>,
@@ -836,12 +858,27 @@ impl<'a> ExprLowerer<'a> {
         self.check_impl_method_requirement_concrete_type(value, signature)?;
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         let level = self.session.infer.current_level();
+        self.connect_impl_method_requirement_from_continuation(
+            value,
+            requirement,
+            SignatureLoweringContinuation::with_vars_at_level(seed, level),
+            connect_value_upper,
+        )
+    }
+
+    pub(in crate::lowering) fn connect_impl_method_requirement_from_continuation(
+        &mut self,
+        value: TypeVar,
+        requirement: &ResolvedRoleMethodRequirement,
+        continuation: SignatureLoweringContinuation,
+        connect_value_upper: bool,
+    ) -> Result<(), LoweringError> {
+        let signature = &requirement.signature;
         let (upper, summary_lower, summary_root, summary_role) = {
-            let mut lowerer = SignatureLowerer::with_vars_at_level(
+            let mut lowerer = SignatureLowerer::from_continuation(
                 &mut self.session.infer,
                 self.modules,
-                seed,
-                level,
+                continuation,
             );
             let upper = if connect_value_upper {
                 Some(
