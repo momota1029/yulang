@@ -412,6 +412,8 @@ impl AnalysisSession {
             | AnalysisWork::Scc(SccInput::MethodDependencyResolved { parent: use_parent }) => {
                 *use_parent == parent
             }
+            AnalysisWork::Scc(SccInput::ConformancePending { member })
+            | AnalysisWork::Scc(SccInput::ConformanceReleased { member }) => *member == parent,
             AnalysisWork::Scc(SccInput::DefFinished { .. })
             | AnalysisWork::Scc(SccInput::DependencyAdded { .. }) => false,
         }

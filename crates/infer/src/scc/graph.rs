@@ -102,6 +102,31 @@ impl ComponentGraph {
         }
     }
 
+    pub(super) fn add_conformance_pending(
+        &mut self,
+        component: ComponentId,
+        member: DefId,
+    ) -> bool {
+        let Some(component) = self.components.get_mut(&component) else {
+            return false;
+        };
+        if component.conformance_released.contains(&member) {
+            return false;
+        }
+        component.conformance_pending.insert(member)
+    }
+
+    pub(super) fn release_conformance(&mut self, component: ComponentId, member: DefId) -> bool {
+        let Some(component) = self.components.get_mut(&component) else {
+            return false;
+        };
+        if !component.conformance_pending.remove(&member) {
+            return false;
+        }
+        component.conformance_released.insert(member);
+        true
+    }
+
     pub(super) fn add_use_edge(
         &mut self,
         from: ComponentId,
@@ -478,7 +503,10 @@ impl ComponentGraph {
             .get(&component)
             .map(|targets| !targets.is_empty())
             .unwrap_or(false);
-        if has_outgoing_edges || component_data.method_dependencies != 0 {
+        if has_outgoing_edges
+            || component_data.method_dependencies != 0
+            || !component_data.conformance_pending.is_empty()
+        {
             return false;
         }
         self.stats.ready_member_checks += component_data.members.len();
@@ -498,9 +526,53 @@ impl ComponentGraph {
             .unwrap_or(false);
         !has_outgoing_edges
             && component_data.method_dependencies > 0
+            && component_data.conformance_pending.is_empty()
             && component_data.members.iter().all(|def| {
                 component_data.finished.contains(def) && component_data.roots.contains_key(def)
             })
+    }
+
+    pub(super) fn first_ready_except_conformance(&self) -> Option<ConformanceReadyComponent> {
+        let mut ready = self
+            .components
+            .iter()
+            .filter_map(|(component, component_data)| {
+                if component_data.conformance_pending.is_empty()
+                    || component_data.method_dependencies != 0
+                    || self
+                        .edges
+                        .get(component)
+                        .is_some_and(|targets| !targets.is_empty())
+                    || !component_data.members.iter().all(|def| {
+                        component_data.finished.contains(def)
+                            && component_data.roots.contains_key(def)
+                    })
+                {
+                    return None;
+                }
+
+                let mut members = component_data.members.clone();
+                sort_defs(&mut members);
+                let mut pending_members = component_data
+                    .conformance_pending
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>();
+                sort_defs(&mut pending_members);
+                Some(ConformanceReadyComponent {
+                    members,
+                    pending_members,
+                })
+            })
+            .collect::<Vec<_>>();
+        ready.sort_by_key(|component| {
+            component
+                .members
+                .iter()
+                .map(|member| member.0)
+                .collect::<Vec<_>>()
+        });
+        ready.into_iter().next()
     }
 
     pub(super) fn computed_fetch_cycle(
@@ -538,6 +610,8 @@ struct Component {
     pending_open_uses: Vec<UseEdge>,
     internal_uses: Vec<UseEdge>,
     method_dependencies: usize,
+    conformance_pending: FxHashSet<DefId>,
+    conformance_released: FxHashSet<DefId>,
     computed_fetch_cycle_reported: bool,
 }
 
@@ -550,6 +624,8 @@ impl Component {
             pending_open_uses: Vec::new(),
             internal_uses: Vec::new(),
             method_dependencies: 0,
+            conformance_pending: FxHashSet::default(),
+            conformance_released: FxHashSet::default(),
             computed_fetch_cycle_reported: false,
         }
     }
@@ -562,6 +638,8 @@ impl Component {
             pending_open_uses: Vec::new(),
             internal_uses: Vec::new(),
             method_dependencies: 0,
+            conformance_pending: FxHashSet::default(),
+            conformance_released: FxHashSet::default(),
             computed_fetch_cycle_reported: false,
         }
     }
@@ -573,6 +651,10 @@ impl Component {
         self.pending_open_uses.extend(component.pending_open_uses);
         self.internal_uses.extend(component.internal_uses);
         self.method_dependencies += component.method_dependencies;
+        self.conformance_pending
+            .extend(component.conformance_pending);
+        self.conformance_released
+            .extend(component.conformance_released);
         self.computed_fetch_cycle_reported |= component.computed_fetch_cycle_reported;
     }
 }

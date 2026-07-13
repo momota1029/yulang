@@ -33,6 +33,7 @@ pub(super) struct AnalysisDrainTrace {
     scc_use: usize,
     scc_dependency: usize,
     scc_method_dependency: usize,
+    scc_conformance: usize,
     scc_fetch: usize,
 }
 
@@ -54,6 +55,7 @@ impl AnalysisDrainTrace {
             scc_use: 0,
             scc_dependency: 0,
             scc_method_dependency: 0,
+            scc_conformance: 0,
             scc_fetch: 0,
         }
     }
@@ -77,6 +79,9 @@ impl AnalysisDrainTrace {
                 SccInput::DependencyAdded { .. } => self.scc_dependency += 1,
                 SccInput::MethodDependencyAdded { .. }
                 | SccInput::MethodDependencyResolved { .. } => self.scc_method_dependency += 1,
+                SccInput::ConformancePending { .. } | SccInput::ConformanceReleased { .. } => {
+                    self.scc_conformance += 1
+                }
                 SccInput::DefFetchRecorded { .. } => self.scc_fetch += 1,
             },
         }
@@ -180,7 +185,7 @@ impl AnalysisDrainTrace {
         eprintln!(
             "[analysis] {label}: processed={} queue={} max_queue={} roles={} elapsed={} \
 resolve_ref={} probe_select={} apply_ref={} apply_select={} \
-scc_register={} scc_finish={} scc_use={} scc_dep={} scc_method_dep={} scc_fetch={}",
+scc_register={} scc_finish={} scc_use={} scc_dep={} scc_method_dep={} scc_conformance={} scc_fetch={}",
             self.processed,
             queue_len,
             self.max_queue,
@@ -195,6 +200,7 @@ scc_register={} scc_finish={} scc_use={} scc_dep={} scc_method_dep={} scc_fetch=
             self.scc_use,
             self.scc_dependency,
             self.scc_method_dependency,
+            self.scc_conformance,
             self.scc_fetch
         );
     }
@@ -221,6 +227,8 @@ pub(super) fn analysis_work_kind(work: &AnalysisWork) -> &'static str {
             SccInput::DependencyAdded { .. } => "scc-dependency-added",
             SccInput::MethodDependencyAdded { .. } => "scc-method-dependency-added",
             SccInput::MethodDependencyResolved { .. } => "scc-method-dependency-resolved",
+            SccInput::ConformancePending { .. } => "scc-conformance-pending",
+            SccInput::ConformanceReleased { .. } => "scc-conformance-released",
             SccInput::DefFetchRecorded { .. } => "scc-def-fetch-recorded",
         },
     }

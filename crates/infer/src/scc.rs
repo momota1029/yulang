@@ -5,8 +5,9 @@
 //! 新しい edge が cycle を閉じた時だけ関係 component を merge する。
 //!
 //! この machine は量化タイミングも所有する。component が lowering 完了済みで、
-//! method dependency も outgoing SCC edge も持たなくなったら `QuantifyComponent` を出し、
-//! open graph から削除する。削除された component へ入っていた use edge は `InstantiateUse` に変換する。
+//! method dependency、conformance blocker、outgoing SCC edge を持たなくなったら
+//! `QuantifyComponent` を出し、open graph から削除する。削除された component へ入っていた use
+//! edge は `InstantiateUse` に変換する。
 
 mod graph;
 
@@ -23,11 +24,12 @@ use graph::{ComponentGraph, ComponentId, OpenUse, UseEdge};
 ///
 /// `quantified` に入った def は open graph から消えている。以後その def への use は edge を張らず、
 /// `InstantiateUse` event になる。open component はまだ量化できない def の集合で、
-/// method dependency count と outgoing edge が 0 になるまで保持する。
+/// method dependency count、conformance pending set、outgoing edge が空になるまで保持する。
 pub struct SccMachine {
     graph: ComponentGraph,
     quantified: FxHashMap<DefId, TypeVar>,
     events: Vec<SccEvent>,
+    conformance_transitions: ConformanceTransitionCounts,
 }
 
 impl SccMachine {
@@ -36,6 +38,7 @@ impl SccMachine {
             graph: ComponentGraph::new(),
             quantified: FxHashMap::default(),
             events: Vec::new(),
+            conformance_transitions: ConformanceTransitionCounts::default(),
         }
     }
 
@@ -52,6 +55,8 @@ impl SccMachine {
             SccInput::DefFinished { def } => self.finish_def(def),
             SccInput::MethodDependencyAdded { parent } => self.add_method_dependency(parent),
             SccInput::MethodDependencyResolved { parent } => self.resolve_method_dependency(parent),
+            SccInput::ConformancePending { member } => self.add_conformance_pending(member),
+            SccInput::ConformanceReleased { member } => self.release_conformance(member),
         }
     }
 
@@ -104,12 +109,70 @@ impl SccMachine {
         self.settle_components([component]);
     }
 
+    fn add_conformance_pending(&mut self, member: DefId) {
+        if self.quantified.contains_key(&member) {
+            self.conformance_transitions.ignored_pending += 1;
+            return;
+        }
+
+        let component = self.graph.ensure_component(member);
+        if self.graph.add_conformance_pending(component, member) {
+            self.conformance_transitions.pending += 1;
+        } else {
+            self.conformance_transitions.ignored_pending += 1;
+        }
+    }
+
+    fn release_conformance(&mut self, member: DefId) {
+        if self.quantified.contains_key(&member) {
+            self.conformance_transitions.ignored_released += 1;
+            return;
+        }
+        let Some(component) = self.graph.component_of(member) else {
+            self.conformance_transitions.ignored_released += 1;
+            return;
+        };
+        if !self.graph.release_conformance(component, member) {
+            self.conformance_transitions.ignored_released += 1;
+            return;
+        }
+
+        self.conformance_transitions.released += 1;
+        self.settle_components([component]);
+    }
+
     pub fn take_events(&mut self) -> Vec<SccEvent> {
         std::mem::take(&mut self.events)
     }
 
     pub fn stats(&self) -> SccStats {
         self.graph.stats()
+    }
+
+    /// Returns the first deterministic component whose only quantification blocker is
+    /// conformance. This query never settles or removes the component.
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "Slice 2 query is consumed when delayed conformance connects to SCC scheduling"
+        )
+    )]
+    pub(crate) fn first_component_ready_except_conformance(
+        &self,
+    ) -> Option<ConformanceReadyComponent> {
+        self.graph.first_ready_except_conformance()
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "Slice 2 counters are consumed when delayed conformance connects to SCC scheduling"
+        )
+    )]
+    pub(crate) fn conformance_transition_counts(&self) -> ConformanceTransitionCounts {
+        self.conformance_transitions
     }
 
     pub fn root_of(&self, def: DefId) -> Option<TypeVar> {
@@ -307,12 +370,44 @@ pub struct SccStats {
     pub ready_member_checks: usize,
 }
 
+/// Deterministic read-only view of an open component blocked only by conformance.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "Slice 2 query result is consumed by a later lifecycle slice"
+    )
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConformanceReadyComponent {
+    pub(crate) members: Vec<DefId>,
+    pub(crate) pending_members: Vec<DefId>,
+}
+
+/// Successful and ignored conformance lifecycle inputs. Successful counts are bounded to one
+/// pending and one release transition per member.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "Slice 2 counters are consumed by a later lifecycle slice"
+    )
+)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ConformanceTransitionCounts {
+    pub(crate) pending: usize,
+    pub(crate) released: usize,
+    pub(crate) ignored_pending: usize,
+    pub(crate) ignored_released: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// SCC machine へ渡す入力。
 ///
 /// `UseResolved` は `parent` から `target` への use が確定したことを表す。
 /// `RegisterDef` / `DefFinished` は、量化 ready 判定に必要な def 側の情報。
 /// method dependency は selection がまだ解けていない間、component の量化を止めるために使う。
+/// conformance pending/released は source methodの遅延finalizationを一度だけblock/releaseする。
 pub enum SccInput {
     UseResolved {
         parent: DefId,
@@ -339,6 +434,12 @@ pub enum SccInput {
     },
     MethodDependencyResolved {
         parent: DefId,
+    },
+    ConformancePending {
+        member: DefId,
+    },
+    ConformanceReleased {
+        member: DefId,
     },
 }
 
@@ -810,5 +911,175 @@ mod tests {
                 roots: vec![TypeVar(10), TypeVar(20)],
             }]
         );
+    }
+
+    #[test]
+    fn conformance_pending_blocks_until_one_monotonic_release() {
+        let mut machine = SccMachine::new();
+        machine.apply(SccInput::ConformancePending { member: DefId(1) });
+        machine.apply(SccInput::ConformancePending { member: DefId(1) });
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.finish_def(DefId(1));
+
+        assert_eq!(machine.take_events(), vec![]);
+        assert!(!machine.is_quantified(DefId(1)));
+        assert_eq!(
+            machine.first_component_ready_except_conformance(),
+            Some(ConformanceReadyComponent {
+                members: vec![DefId(1)],
+                pending_members: vec![DefId(1)],
+            })
+        );
+        assert_eq!(machine.take_events(), vec![]);
+
+        machine.apply(SccInput::ConformanceReleased { member: DefId(1) });
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::QuantifyComponent {
+                component: vec![DefId(1)],
+                roots: vec![TypeVar(10)],
+            }]
+        );
+
+        machine.apply(SccInput::ConformanceReleased { member: DefId(1) });
+        machine.apply(SccInput::ConformancePending { member: DefId(1) });
+        assert_eq!(
+            machine.conformance_transition_counts(),
+            ConformanceTransitionCounts {
+                pending: 1,
+                released: 1,
+                ignored_pending: 2,
+                ignored_released: 1,
+            }
+        );
+        assert_eq!(machine.take_events(), vec![]);
+    }
+
+    #[test]
+    fn conformance_pending_sets_union_across_component_merge() {
+        let mut machine = SccMachine::new();
+        for member in [DefId(1), DefId(2)] {
+            machine.apply(SccInput::ConformancePending { member });
+        }
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.register_def(DefId(2), TypeVar(20));
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(2),
+            target: DefId(1),
+            use_value: TypeVar(21),
+        });
+        machine.take_events();
+        machine.finish_def(DefId(1));
+        machine.finish_def(DefId(2));
+
+        assert_eq!(
+            machine.first_component_ready_except_conformance(),
+            Some(ConformanceReadyComponent {
+                members: vec![DefId(1), DefId(2)],
+                pending_members: vec![DefId(1), DefId(2)],
+            })
+        );
+        assert_eq!(machine.take_events(), vec![]);
+
+        machine.apply(SccInput::ConformanceReleased { member: DefId(1) });
+        assert_eq!(machine.take_events(), vec![]);
+        assert_eq!(
+            machine.first_component_ready_except_conformance(),
+            Some(ConformanceReadyComponent {
+                members: vec![DefId(1), DefId(2)],
+                pending_members: vec![DefId(2)],
+            })
+        );
+
+        machine.apply(SccInput::ConformanceReleased { member: DefId(2) });
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::QuantifyComponent {
+                component: vec![DefId(1), DefId(2)],
+                roots: vec![TypeVar(10), TypeVar(20)],
+            }]
+        );
+        assert_eq!(
+            machine.conformance_transition_counts(),
+            ConformanceTransitionCounts {
+                pending: 2,
+                released: 2,
+                ignored_pending: 0,
+                ignored_released: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn ready_except_conformance_query_is_deterministic_and_read_only() {
+        let mut machine = SccMachine::new();
+        for (member, root) in [(DefId(5), TypeVar(50)), (DefId(2), TypeVar(20))] {
+            machine.apply(SccInput::ConformancePending { member });
+            machine.register_def(member, root);
+            machine.finish_def(member);
+        }
+
+        assert_eq!(
+            machine.first_component_ready_except_conformance(),
+            Some(ConformanceReadyComponent {
+                members: vec![DefId(2)],
+                pending_members: vec![DefId(2)],
+            })
+        );
+        assert_eq!(machine.take_events(), vec![]);
+        assert!(!machine.is_quantified(DefId(2)));
+        assert!(!machine.is_quantified(DefId(5)));
+    }
+
+    #[test]
+    fn ready_except_conformance_query_rejects_every_ordinary_blocker() {
+        let mut machine = SccMachine::new();
+        machine.apply(SccInput::ConformancePending { member: DefId(1) });
+        machine.register_def(DefId(1), TypeVar(10));
+        assert_eq!(machine.first_component_ready_except_conformance(), None);
+
+        machine.finish_def(DefId(1));
+        assert!(machine.first_component_ready_except_conformance().is_some());
+
+        machine.add_method_dependency(DefId(1));
+        assert_eq!(machine.first_component_ready_except_conformance(), None);
+        machine.resolve_method_dependency(DefId(1));
+        assert!(machine.first_component_ready_except_conformance().is_some());
+
+        machine.apply(SccInput::DependencyAdded {
+            parent: DefId(1),
+            target: DefId(2),
+        });
+        assert_eq!(machine.first_component_ready_except_conformance(), None);
+        machine.register_def(DefId(2), TypeVar(20));
+        machine.finish_def(DefId(2));
+        machine.take_events();
+        assert!(machine.first_component_ready_except_conformance().is_some());
+        assert!(!machine.is_quantified(DefId(1)));
+    }
+
+    #[test]
+    fn ordinary_quantification_without_conformance_inputs_is_unchanged() {
+        let mut machine = SccMachine::new();
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.finish_def(DefId(1));
+
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::QuantifyComponent {
+                component: vec![DefId(1)],
+                roots: vec![TypeVar(10)],
+            }]
+        );
+        assert_eq!(
+            machine.conformance_transition_counts(),
+            ConformanceTransitionCounts::default()
+        );
+        assert_eq!(machine.first_component_ready_except_conformance(), None);
     }
 }

@@ -11,7 +11,9 @@ impl AnalysisSession {
             | SccInput::DependencyAdded { .. }
             | SccInput::RegisterDef { .. }
             | SccInput::DefFetchRecorded { .. }
-            | SccInput::MethodDependencyAdded { .. } => {}
+            | SccInput::MethodDependencyAdded { .. }
+            | SccInput::ConformancePending { .. }
+            | SccInput::ConformanceReleased { .. } => {}
         }
         self.apply_scc_to_machine(input);
     }
