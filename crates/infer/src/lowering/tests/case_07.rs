@@ -120,6 +120,68 @@ fn generic_role_impl_conformance_stage3_slice3a_dumps_stage0_shadow_pairs() {
 }
 
 #[test]
+fn generic_role_impl_conformance_stage3_stage0_field_selection_value_is_non_atomic() {
+    use crate::role_impl_conformance::view::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable, ConformanceTypeView,
+        DeclaredTypeView,
+    };
+    use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
+
+    const FIXTURES: &[&str] = &[
+        "explicit-bool-universal-a",
+        "explicit-a-same-a",
+        "explicit-list-a-nested-binder",
+        "alpha-renamed-a",
+        "alpha-renamed-b",
+        "malformed-unused-impl",
+    ];
+    let expected_value = ActualMethodConformanceView::Unavailable(
+        ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+    );
+    let expected_effect = ActualMethodConformanceView::Available(ConformanceTypeView::Bottom);
+
+    for name in FIXTURES {
+        let output = lower_conformance_fixture(fixture_source(name));
+        let pairs = output
+            .role_impl_conformance_contracts()
+            .iter()
+            .flat_map(|contract| contract.shadow_conformance_pairs(&output.modules))
+            .collect::<Vec<_>>();
+        let [pair] = pairs.as_slice() else {
+            panic!("fixture {name}: expected one shadow conformance pair, got {pairs:?}")
+        };
+
+        assert_eq!(
+            pair.outcome,
+            ShadowConformanceOutcome::Unavailable,
+            "fixture: {name}",
+        );
+        assert!(
+            matches!(pair.declared.as_ref(), Some(DeclaredTypeView::Available(_))),
+            "fixture {name}: declared value surface must be available",
+        );
+        assert!(
+            matches!(
+                pair.declared_effect.as_ref(),
+                Some(DeclaredTypeView::Available(_))
+            ),
+            "fixture {name}: declared effect surface must be available",
+        );
+        let Some(RoleImplMethodActualSurface::Receiver(actual)) = pair.actual.as_ref() else {
+            panic!("fixture {name}: expected a captured receiver actual surface")
+        };
+        assert_eq!(
+            actual.value, expected_value,
+            "fixture {name}: value surface",
+        );
+        assert_eq!(
+            actual.effect, expected_effect,
+            "fixture {name}: effect surface",
+        );
+    }
+}
+
+#[test]
 fn generic_role_impl_conformance_stage3_slice3b_compares_available_builtin_pairs() {
     let conforms = concat!(
         "role Make 'subject:\n",
