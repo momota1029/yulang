@@ -557,6 +557,175 @@ fn cache_candidate_capture_leaves_prerequisite_only_variable_unclassified() {
     );
 }
 
+/// Slice 0 characterization for partial option 1.
+///
+/// This pins the current (pre-fix) behavior as a baseline, not the desired final behavior: the
+/// real zero-prerequisite `ref 'e (list 'a): Index int` candidate reaches Stage 4 with a weighted
+/// effect-binder alias and is rejected by the strict freeze audit.
+#[test]
+fn cache_candidate_partial_option_1_slice_0_pins_ref_list_index_effect_freeze_rejection() {
+    fn path_is(path: &[String], expected: &[&str]) -> bool {
+        path.iter().map(String::as_str).eq(expected.iter().copied())
+    }
+
+    fn interval_contains_con(bounds: &CompactBounds, expected: &[&str]) -> bool {
+        let CompactBounds::Interval { lower, upper } = bounds else {
+            return false;
+        };
+        [lower, upper].into_iter().all(|ty| {
+            ty.cons
+                .keys()
+                .any(|path| path_is(path.as_slice(), expected))
+        })
+    }
+
+    fn sole_shared_primary_interval_var(bounds: &CompactBounds) -> Option<TypeVar> {
+        let CompactBounds::Interval { lower, upper } = bounds else {
+            return None;
+        };
+        let lower = lower
+            .vars
+            .iter()
+            .filter(|var| var.origin == crate::compact::CompactVarOrigin::Primary)
+            .map(|var| var.var)
+            .collect::<Vec<_>>();
+        let upper = upper
+            .vars
+            .iter()
+            .filter(|var| var.origin == crate::compact::CompactVarOrigin::Primary)
+            .map(|var| var.var)
+            .collect::<Vec<_>>();
+        (lower.len() == 1 && lower == upper).then(|| lower[0])
+    }
+
+    let output = lower_repository_std_for_cache_candidate_characterization();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface::default();
+    let captured = output.session.capture_cache_candidate_interface(&boundary);
+    let list_module = output
+        .modules
+        .module_by_path(&sources::Path {
+            segments: ["std", "data", "list"]
+                .into_iter()
+                .map(|segment| sources::Name(segment.to_string()))
+                .collect(),
+        })
+        .expect("repository std list module");
+    let impl_def = output
+        .modules
+        .role_impls(list_module)
+        .iter()
+        .find(|implementation| {
+            implementation.methods.iter().any(|method| {
+                method.name.0 == "index"
+                    && method
+                        .receiver
+                        .as_ref()
+                        .is_some_and(|receiver| receiver.0 == "r")
+            })
+        })
+        .expect("ref-list Index source impl")
+        .def;
+    let index_role = vec![
+        "std".to_string(),
+        "data".to_string(),
+        "index".to_string(),
+        "Index".to_string(),
+    ];
+    let matching = captured
+        .candidates
+        .into_iter()
+        .find(|captured| captured.candidate.impl_def == Some(impl_def))
+        .expect("captured ref-list Index candidate");
+    assert_eq!(matching.candidate.role, index_role);
+    assert!(matching.candidate.prerequisites.is_empty());
+    let compact = compact_role_constraint(
+        output.session.infer.constraints(),
+        &matching.candidate.as_constraint(),
+    );
+
+    let CompactBounds::Con {
+        path: input_path,
+        args: input_ref_args,
+    } = &compact.inputs[0].bounds
+    else {
+        panic!("ref-list Index input must be a ref")
+    };
+    assert!(path_is(input_path, &["std", "control", "var", "ref"]));
+    let [input_effect, input_item] = input_ref_args.as_slice() else {
+        panic!("ref input must have effect and item arguments")
+    };
+    assert!(interval_contains_con(
+        input_item,
+        &["std", "data", "list", "list"]
+    ));
+    let [associated] = compact.associated.as_slice() else {
+        panic!("Index must expose exactly one associated type")
+    };
+    assert_eq!(associated.name, "value");
+    let CompactBounds::Con {
+        path: associated_path,
+        args: associated_ref_args,
+    } = &associated.value.bounds
+    else {
+        panic!("ref-list Index value must be a ref")
+    };
+    assert!(path_is(associated_path, &["std", "control", "var", "ref"]));
+    let [associated_effect, _associated_item] = associated_ref_args.as_slice() else {
+        panic!("associated ref must have effect and item arguments")
+    };
+    let effect_binder = sole_shared_primary_interval_var(input_effect)
+        .expect("input ref must retain the declared effect binder");
+    let associated_effect_binder = sole_shared_primary_interval_var(associated_effect)
+        .expect("associated ref must retain the declared effect binder");
+    assert_eq!(associated_effect_binder, effect_binder);
+    assert_eq!(matching.head_binders.len(), 2);
+    assert!(matching.head_binders.contains(&effect_binder));
+
+    let CompactBounds::Interval { lower, upper } = input_effect else {
+        unreachable!("the effect argument was identified as an interval")
+    };
+    let weighted_alias = lower
+        .vars
+        .iter()
+        .find(|var| {
+            var.origin == crate::compact::CompactVarOrigin::Secondary
+                && matches!(
+                    var.weight.entries(),
+                    [entry]
+                        if entry.pops == u32::MAX
+                            && entry.floor.is_empty()
+                            && entry.stack.is_empty()
+                )
+        })
+        .expect("effect interval must retain the pop-infinity weighted alias");
+    assert_ne!(weighted_alias.var, effect_binder);
+    assert!(upper.vars.iter().any(|var| {
+        var.var == weighted_alias.var
+            && var.origin == crate::compact::CompactVarOrigin::Secondary
+            && var.weight.is_empty()
+    }));
+
+    let expected =
+        crate::analysis::cache_interface::BoundaryCaptureError::FreezeProducedConstraint {
+            def: Some(impl_def),
+            boundary: None,
+            merge_constraints: 0,
+            subtype_constraints: 1,
+        };
+    let error = output
+        .session
+        .normalize_cache_candidate_interface(
+            crate::analysis::cache_interface::CapturedCandidateInterface {
+                candidates: vec![matching],
+            },
+            &boundary,
+        )
+        .expect_err("pre-fix Stage 4 must reject the unapplied effect-binder dominance key");
+
+    assert_eq!(error, expected);
+}
+
 #[test]
 fn cache_candidate_joint_normalization_rewrites_closed_head_and_boundary_inventory() {
     let mut session = AnalysisSession::new(PolyArena::new());
@@ -1315,6 +1484,53 @@ fn add_identity_function_lower_bound(session: &mut AnalysisSession, root: TypeVa
     });
     let upper = session.infer.alloc_neg(Neg::Var(root));
     session.infer.subtype(lower, upper);
+}
+
+fn lower_repository_std_for_cache_candidate_characterization() -> crate::lowering::BodyLowering {
+    fn collect_yu_files(directory: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(directory).expect("read repository std directory") {
+            let path = entry.expect("read repository std entry").path();
+            if path.is_dir() {
+                collect_yu_files(&path, files);
+            } else if path.extension().and_then(|extension| extension.to_str()) == Some("yu") {
+                files.push(path);
+            }
+        }
+    }
+
+    let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonical repository root");
+    let lib = repository.join("lib");
+    let mut paths = vec![lib.join("std.yu")];
+    collect_yu_files(&lib.join("std"), &mut paths);
+    paths.sort();
+
+    let mut files = vec![sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: "use std::prelude::*\nmod std;\n".to_string(),
+    }];
+    files.extend(paths.into_iter().map(|path| {
+        let relative = path.strip_prefix(&lib).expect("std source below lib");
+        let mut module = relative.to_path_buf();
+        module.set_extension("");
+        let segments = module
+            .components()
+            .map(|component| {
+                let std::path::Component::Normal(segment) = component else {
+                    panic!("normal std module path component")
+                };
+                sources::Name(segment.to_str().expect("utf-8 std module path").to_string())
+            })
+            .collect();
+        sources::SourceFile {
+            module_path: sources::Path { segments },
+            source: std::fs::read_to_string(&path).expect("read repository std source"),
+        }
+    }));
+    let loaded = sources::load(files);
+    crate::lowering::lower_loaded_files(&loaded).expect("lower repository std")
 }
 
 fn canonical_cache_handoff_fixture() -> (
