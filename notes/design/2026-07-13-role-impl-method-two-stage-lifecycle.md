@@ -1209,3 +1209,69 @@ direction (a) would cause, and reusing the existing Bottom-compaction behavior f
 approves the section as a reference design only. Slice 4c-T1 (structural binding-publication split,
 size S-M, risk medium) may proceed as the next implementation step under the same review discipline
 as every prior slice; T2-T4 each still require their own review before implementation.
+
+## Addendum (2026-07-15): candidate-independent fallback early-resolution project
+
+This is a factual project-status record prepared by Codex under Claude's supervision. It is not a
+new design decision and is not covered by the Claude signatures above.
+
+### Problem and shipped proof surface
+
+This sub-project addressed receiver methods such as `ParseError.merge` which use infix operators in
+their bodies. The `.add` / `.lt` / `.gt` selections create SCC edges to unquantified
+`std::core::ops::#op:infix:*` wrapper components. Those wrappers' own selections normally resolve
+only in the late structured-method fallback batch, which runs after the conformance-readiness
+check. The pending receiver therefore failed closed as `Unavailable(OrdinarySccBlocker)` before
+the first-order actual-shape classifier could run.
+
+Slices 1-6 shipped as test-gated proof infrastructure with zero production behavior change:
+
+- `db7c72a8` exposed the shared role-solver readiness predicates.
+- `ef85da02` added a deterministic, read-only SCC frontier query.
+- `7f51e22d` added a fail-closed classifier which proves selection-level and component-level
+  soundness by read-only projection, without scheme instantiation.
+- `ce76bc49` split structured fallback collection from application without changing behavior.
+- `075d34d7` added a test-only early-resolution driver toggle.
+- `48d7b22a` proved the path against the real repository std. `ParseError.merge` advances to
+  `Unavailable(NonAtomicSurface)`, not `Conforms`: the result is further classification, not full
+  resolution. The complete census found 21 infix-using methods and 7 genuinely helped methods.
+
+All of this remains behind `#[cfg(test)]`. The real-std proof also pins unchanged production
+`output.errors`, the `998/3/297/0` std-comparison baseline, and production output parity.
+
+Section 13 point 9 remains an open concern in the general lifecycle design. For the classifier's
+narrow eligible subset, however, the relevant candidate-visibility concern is bounded: every
+selection and component is checked all-or-nothing, the target must already be locally quantified,
+and the read-only projected demands must remain unresolvable both before and after coalescing.
+Imported, pending, ambiguous, locally shadowed, merge-requiring, or otherwise unsupported cases
+fail closed. This proof does not settle candidate visibility outside that subset.
+
+### Production activation investigated and deferred
+
+Slice 7 attempted to make the proven early-resolution path part of unconditional production
+scheduling. Three implementations preserved semantic parity but failed the performance acceptance
+bar on `check-poly-std examples/showcase.yu`:
+
+1. naive unconditional wiring: approximately **+46%**;
+2. combined-quiescence gating: approximately **+11-14%**; and
+3. demand-driven targeted triggering: approximately **+15-18%**, with no improvement over the
+   combined-quiescence approach.
+
+Each attempt retained byte-identical `dump-poly-std` output, the unchanged `998/3/297/0`
+std-comparison baseline, identical `output.errors`, and the same 7/21 census result. The attempts
+were therefore semantically viable but operationally non-viable and were deliberately not shipped.
+
+Direct measurement localized the regression to role-solver scheduling. Every role pass rebuilds
+method taint from all unresolved selections and rescans all candidates from scratch; there is no
+incremental or dirty-tracking mechanism. At the natural late-fallback point, around round 161 of
+approximately 176-190 total rounds, a newly resolved wrapper demand survives about 5 rescan rounds.
+Resolving it early makes that same demand survive 14-21 rounds. Extending the demand's lifetime is
+inherent in early resolution, so changing the trigger point within this project's scope cannot
+remove the repeated work.
+
+Production activation is therefore deferred. A future, separate project would first need a
+role-solver incremental scheduling mechanism, such as dirty-owner or epoch-based invalidation, so
+unchanged role demands are not rebuilt and rescanned every round. This addendum records that open
+follow-up without designing it.
+
+Status addendum: Codex (gpt-5.6-sol), 2026-07-15.
