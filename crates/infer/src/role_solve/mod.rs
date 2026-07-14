@@ -6,6 +6,8 @@
 mod matchers;
 mod rewrite;
 mod taint;
+#[cfg(test)]
+mod tests;
 mod vars;
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -277,10 +279,16 @@ pub(crate) fn role_constraint_could_resolve(constraint: &CompactRoleConstraint) 
     constraint
         .inputs
         .iter()
-        .all(role_arg_has_concrete_component)
+        .all(role_input_has_concrete_component)
 }
 
-fn role_arg_has_concrete_component(arg: &CompactRoleArg) -> bool {
+/// role input が少なくとも一つ concrete な型成分を持つ時だけ true。
+///
+/// `Never`（bottom）、builtin、nominal constructor、function、record / spread、
+/// polymorphic variant、tuple、row は concrete 成分として数える。変数 occurrence と
+/// `Top` だけでは concrete としない。この判定は compact view を読むだけで、candidate
+/// lookup や solver state の更新は行わない。
+pub(crate) fn role_input_has_concrete_component(arg: &CompactRoleArg) -> bool {
     compact_bounds_has_concrete_component(&arg.bounds)
 }
 
