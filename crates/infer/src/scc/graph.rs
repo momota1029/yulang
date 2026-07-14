@@ -532,6 +532,86 @@ impl ComponentGraph {
             })
     }
 
+    pub(super) fn candidate_independent_fallback_frontier(
+        &self,
+        member_is_captured: impl Fn(DefId) -> bool,
+    ) -> Vec<CandidateIndependentFallbackComponent> {
+        let mut candidates = self
+            .components
+            .iter()
+            .filter_map(|(component, component_data)| {
+                // This is exactly the existing selection-fallback readiness floor: complete,
+                // conformance-free, edge-free, and blocked by one or more method dependencies.
+                if !self.is_blocked_only_by_method_dependencies(*component) {
+                    return None;
+                }
+
+                let has_captured_predecessor =
+                    self.reverse_edges
+                        .get(component)
+                        .is_some_and(|predecessors| {
+                            let mut predecessors = predecessors.iter().copied().collect::<Vec<_>>();
+                            sort_components(&mut predecessors);
+                            predecessors.into_iter().any(|predecessor| {
+                                self.is_finished_captured_predecessor(
+                                    predecessor,
+                                    &member_is_captured,
+                                )
+                            })
+                        });
+                if !has_captured_predecessor {
+                    return None;
+                }
+
+                let mut members = component_data.members.clone();
+                sort_defs(&mut members);
+                Some(CandidateIndependentFallbackComponent {
+                    component_id: CandidateFallbackComponentId(component.0),
+                    members,
+                    method_dependencies: component_data.method_dependencies,
+                })
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by(|left, right| {
+            left.members
+                .iter()
+                .map(|member| member.0)
+                .cmp(right.members.iter().map(|member| member.0))
+                .then_with(|| left.component_id.0.cmp(&right.component_id.0))
+        });
+        candidates
+    }
+
+    fn is_finished_captured_predecessor(
+        &self,
+        component: ComponentId,
+        member_is_captured: &impl Fn(DefId) -> bool,
+    ) -> bool {
+        let Some(component_data) = self.components.get(&component) else {
+            return false;
+        };
+        if component_data.conformance_pending.is_empty()
+            || component_data.method_dependencies != 0
+            || !self
+                .edges
+                .get(&component)
+                .is_some_and(|targets| !targets.is_empty())
+            || !component_data.members.iter().all(|def| {
+                component_data.finished.contains(def) && component_data.roots.contains_key(def)
+            })
+        {
+            return false;
+        }
+
+        let mut pending_members = component_data
+            .conformance_pending
+            .iter()
+            .copied()
+            .collect::<Vec<_>>();
+        sort_defs(&mut pending_members);
+        pending_members.into_iter().any(member_is_captured)
+    }
+
     pub(super) fn first_ready_except_conformance(&self) -> Option<ConformanceReadyComponent> {
         let mut ready = self
             .components

@@ -193,6 +193,27 @@ impl SccMachine {
         self.graph.is_blocked_only_by_method_dependencies(component)
     }
 
+    /// Returns the deterministic open-component frontier whose selections are candidates for an
+    /// independent fallback decision. This query never settles or otherwise updates the graph.
+    ///
+    /// SCC owns conformance-pending membership, but the lowering lifecycle owns whether a pending
+    /// member is still in its captured phase. Keeping that phase check as a read-only caller
+    /// predicate avoids duplicating lifecycle state in the graph.
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "Slice 2 query is consumed by the independent fallback classifier in a later slice"
+        )
+    )]
+    pub(crate) fn candidate_independent_fallback_frontier(
+        &self,
+        member_is_captured: impl Fn(DefId) -> bool,
+    ) -> Vec<CandidateIndependentFallbackComponent> {
+        self.graph
+            .candidate_independent_fallback_frontier(member_is_captured)
+    }
+
     pub fn is_quantified(&self, def: DefId) -> bool {
         self.quantified.contains_key(&def)
     }
@@ -382,6 +403,35 @@ pub struct SccStats {
 pub(crate) struct ConformanceReadyComponent {
     pub(crate) members: Vec<DefId>,
     pub(crate) pending_members: Vec<DefId>,
+}
+
+/// Opaque identity for a component in one independent-fallback frontier snapshot.
+///
+/// The numeric graph ID is copied into this key so callers can correlate query results without
+/// receiving a `ComponentId` accepted by SCC mutation internals.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "Slice 2 query result is consumed by a later lifecycle slice"
+    )
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct CandidateFallbackComponentId(u32);
+
+/// Deterministic read-only view of an open candidate wrapper component.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "Slice 2 query result is consumed by a later lifecycle slice"
+    )
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CandidateIndependentFallbackComponent {
+    pub(crate) component_id: CandidateFallbackComponentId,
+    pub(crate) members: Vec<DefId>,
+    pub(crate) method_dependencies: usize,
 }
 
 /// Successful and ignored conformance lifecycle inputs. Successful counts are bounded to one
@@ -1064,6 +1114,117 @@ mod tests {
     }
 
     #[test]
+    fn candidate_independent_fallback_frontier_returns_qualifying_wrapper() {
+        let mut machine = SccMachine::new();
+        let (predecessor, wrapper) =
+            add_candidate_frontier_pair(&mut machine, DefId(10), DefId(20), 2);
+
+        let expected = vec![CandidateIndependentFallbackComponent {
+            component_id: CandidateFallbackComponentId(wrapper.0),
+            members: vec![DefId(20)],
+            method_dependencies: 2,
+        }];
+        assert_eq!(
+            machine.candidate_independent_fallback_frontier(|member| member == DefId(10)),
+            expected
+        );
+        assert_eq!(
+            machine.candidate_independent_fallback_frontier(|member| member == DefId(10)),
+            expected,
+            "repeating the query must return the same snapshot without settling it"
+        );
+        assert_eq!(machine.graph.component_of(DefId(10)), Some(predecessor));
+        assert_eq!(machine.graph.component_of(DefId(20)), Some(wrapper));
+        assert!(machine.selection_fallback_ready(DefId(20)));
+        assert_eq!(machine.take_events(), vec![]);
+    }
+
+    #[test]
+    fn candidate_independent_fallback_frontier_rejects_wrapper_with_outgoing_edge() {
+        let mut machine = SccMachine::new();
+        let (_, wrapper) = add_candidate_frontier_pair(&mut machine, DefId(10), DefId(20), 1);
+        let target = add_finished_open_component(&mut machine, DefId(30));
+        assert!(machine.graph.add_dependency_edge(wrapper, target));
+
+        assert!(
+            machine
+                .candidate_independent_fallback_frontier(|member| member == DefId(10))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn candidate_independent_fallback_frontier_rejects_zero_method_dependencies() {
+        let mut machine = SccMachine::new();
+        add_candidate_frontier_pair(&mut machine, DefId(10), DefId(20), 0);
+
+        assert!(
+            machine
+                .candidate_independent_fallback_frontier(|member| member == DefId(10))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn candidate_independent_fallback_frontier_requires_zero_predecessor_method_dependencies() {
+        let mut machine = SccMachine::new();
+        let (predecessor, _) = add_candidate_frontier_pair(&mut machine, DefId(10), DefId(20), 1);
+        machine.graph.add_method_dependency(predecessor);
+
+        assert!(
+            machine
+                .candidate_independent_fallback_frontier(|member| member == DefId(10))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn candidate_independent_fallback_frontier_requires_direct_captured_predecessor() {
+        let mut machine = SccMachine::new();
+        add_candidate_frontier_pair(&mut machine, DefId(10), DefId(20), 1);
+        let detached = add_finished_open_component(&mut machine, DefId(30));
+        assert!(machine.graph.add_conformance_pending(detached, DefId(30)));
+
+        assert!(
+            machine
+                .candidate_independent_fallback_frontier(|member| member == DefId(30))
+                .is_empty(),
+            "a captured component without a direct edge must not qualify the wrapper"
+        );
+    }
+
+    #[test]
+    fn candidate_independent_fallback_frontier_sorts_components_and_members() {
+        let mut machine = SccMachine::new();
+        let (_, first_wrapper) = add_candidate_frontier_pair(&mut machine, DefId(90), DefId(80), 1);
+        let extra_member = add_finished_open_component(&mut machine, DefId(70));
+        let first_wrapper = machine
+            .graph
+            .merge_components(vec![extra_member, first_wrapper])
+            .id;
+        let (_, second_wrapper) =
+            add_candidate_frontier_pair(&mut machine, DefId(30), DefId(20), 3);
+
+        assert_eq!(
+            machine.candidate_independent_fallback_frontier(|member| {
+                matches!(member, DefId(30) | DefId(90))
+            }),
+            vec![
+                CandidateIndependentFallbackComponent {
+                    component_id: CandidateFallbackComponentId(second_wrapper.0),
+                    members: vec![DefId(20)],
+                    method_dependencies: 3,
+                },
+                CandidateIndependentFallbackComponent {
+                    component_id: CandidateFallbackComponentId(first_wrapper.0),
+                    members: vec![DefId(70), DefId(80)],
+                    method_dependencies: 1,
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn ordinary_quantification_without_conformance_inputs_is_unchanged() {
         let mut machine = SccMachine::new();
         machine.register_def(DefId(1), TypeVar(10));
@@ -1081,5 +1242,39 @@ mod tests {
             ConformanceTransitionCounts::default()
         );
         assert_eq!(machine.first_component_ready_except_conformance(), None);
+    }
+
+    // Query tests construct graph snapshots directly so each readiness predicate can be isolated
+    // without `SccMachine` settling a zero-blocker component before the assertion.
+    fn add_finished_open_component(machine: &mut SccMachine, member: DefId) -> ComponentId {
+        let component = machine.graph.ensure_component(member);
+        machine.graph.register_def(member, TypeVar(member.0 + 1000));
+        machine.graph.finish_def(member);
+        component
+    }
+
+    fn add_candidate_frontier_pair(
+        machine: &mut SccMachine,
+        predecessor: DefId,
+        wrapper: DefId,
+        wrapper_method_dependencies: usize,
+    ) -> (ComponentId, ComponentId) {
+        let predecessor_component = add_finished_open_component(machine, predecessor);
+        assert!(
+            machine
+                .graph
+                .add_conformance_pending(predecessor_component, predecessor)
+        );
+
+        let wrapper_component = add_finished_open_component(machine, wrapper);
+        for _ in 0..wrapper_method_dependencies {
+            machine.graph.add_method_dependency(wrapper_component);
+        }
+        assert!(
+            machine
+                .graph
+                .add_dependency_edge(predecessor_component, wrapper_component)
+        );
+        (predecessor_component, wrapper_component)
     }
 }
