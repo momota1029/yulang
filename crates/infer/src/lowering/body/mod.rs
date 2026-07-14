@@ -1446,6 +1446,11 @@ impl BodyLowerer {
     }
 
     #[cfg(test)]
+    pub(in crate::lowering) fn lower_synthetic_act_copy_bodies_for_test(&mut self) {
+        self.lower_synthetic_act_copy_bodies();
+    }
+
+    #[cfg(test)]
     pub(in crate::lowering) fn set_inactive_receiver_provisional_test_mode(
         &mut self,
         evaluation: Evaluation,

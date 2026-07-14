@@ -4091,6 +4091,237 @@ fn role_impl_conformance_parse_error_merge_is_blocked_before_actual_shape_projec
 }
 
 #[test]
+fn role_impl_conformance_parse_error_merge_reaches_actual_shape_projection_with_early_resolution() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        RoleImplMethodProvision,
+    };
+
+    let output = lower_repository_std_with_candidate_independent_fallback_early_resolution(true);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let contract = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find(|contract| {
+            contract
+                .role
+                .ends_with(&["text".into(), "parse".into(), "ParseError".into()])
+        })
+        .expect("std::text::parse::str_error ParseError contract");
+    let method = contract
+        .methods
+        .iter()
+        .find(|method| method.name == "merge")
+        .expect("ParseError.merge contract method");
+    let RoleImplMethodProvision::Explicit { implementations } = &method.provision else {
+        panic!("ParseError.merge must have an explicit implementation")
+    };
+    let [implementation] = implementations.as_slice() else {
+        panic!("ParseError.merge must have one implementation: {implementations:?}")
+    };
+    let actual = persisted_receiver_actual_view(&output, implementation.def);
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+        "the resolved operator wrappers must expose merge's non-atomic value union",
+    );
+    assert_eq!(
+        actual.effect,
+        ActualMethodConformanceView::Available(
+            crate::role_impl_conformance::view::ConformanceTypeView::Bottom,
+        ),
+    );
+    assert_eq!(actual.tail_parameter_count, Some(1));
+}
+
+#[test]
+fn candidate_independent_fallback_early_resolution_proves_real_std_census_and_production_parity() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        RoleImplMethodActualSurface, RoleImplMethodProvision,
+    };
+    use ActualMethodConformanceViewUnavailable::{
+        NonAtomicSurface, OrdinarySccBlocker, WeightedVariable,
+    };
+
+    const DEBUG: &str = "std::core::fmt::Debug";
+    const DISPLAY: &str = "std::core::fmt::Display";
+    const INDEX: &str = "std::data::index::Index";
+    const PARSE_ERROR: &str = "std::text::parse::ParseError";
+
+    let disabled = lower_repository_std_with_candidate_independent_fallback_early_resolution(false);
+    let enabled = lower_repository_std_with_candidate_independent_fallback_early_resolution(true);
+    assert!(disabled.errors.is_empty(), "{:?}", disabled.errors);
+    assert_eq!(enabled.errors, disabled.errors);
+
+    let infix_methods = repository_std_role_impl_method_locations(
+        &disabled.modules,
+        disabled.role_impl_conformance_contracts(),
+        true,
+    );
+    let all_method_locations = repository_std_role_impl_method_locations(
+        &disabled.modules,
+        disabled.role_impl_conformance_contracts(),
+        false,
+    );
+    let ordinary = ActualMethodConformanceView::Unavailable(OrdinarySccBlocker);
+    let bottom = ActualMethodConformanceView::Available(
+        crate::role_impl_conformance::view::ConformanceTypeView::Bottom,
+    );
+    let mut explicit_methods = 0usize;
+    let mut captured_methods = 0usize;
+    let mut changed_locations = Vec::new();
+    let mut unchanged_ordinary = 0usize;
+    let mut unchanged_concrete_ordinary = Vec::new();
+    let mut infix_census = Vec::new();
+    for contract in disabled.role_impl_conformance_contracts() {
+        let declared = contract.declared_view(&disabled.modules);
+        for method in &contract.methods {
+            let RoleImplMethodProvision::Explicit { implementations } = &method.provision else {
+                continue;
+            };
+            for implementation in implementations {
+                explicit_methods += 1;
+                let before = contract
+                    .actual_method_view(implementation.def)
+                    .map(|actual| &actual.surface);
+                let after = enabled
+                    .role_impl_conformance_contracts()
+                    .iter()
+                    .find_map(|contract| contract.actual_method_view(implementation.def))
+                    .map(|actual| &actual.surface);
+                assert_eq!(before.is_some(), after.is_some());
+                let (Some(before), Some(after)) = (before, after) else {
+                    continue;
+                };
+                captured_methods += 1;
+                let location = all_method_locations[&implementation.def.0].clone();
+                if let Some(location) = infix_methods.get(&implementation.def.0) {
+                    infix_census.push((
+                        location.clone(),
+                        contract.role.join("::"),
+                        method.name.clone(),
+                        actual_method_surface_outward(before).clone(),
+                        actual_method_surface_outward(after).clone(),
+                    ));
+                }
+                if before != after {
+                    assert!(
+                        infix_methods.contains_key(&implementation.def.0),
+                        "only a censused infix method may change: {location}",
+                    );
+                    let (
+                        RoleImplMethodActualSurface::Receiver(before),
+                        RoleImplMethodActualSurface::Receiver(after),
+                    ) = (before, after)
+                    else {
+                        panic!("the changed std methods must all be receiver methods: {location}")
+                    };
+                    assert_eq!(before.value, ordinary, "{location}");
+                    assert_eq!(before.effect, ordinary, "{location}");
+                    assert_eq!(after.effect, bottom, "{location}");
+                    assert_eq!(
+                        after.tail_parameter_count, before.tail_parameter_count,
+                        "{location}",
+                    );
+                    changed_locations.push(location);
+                } else if actual_method_surface_outward(before) == &ordinary {
+                    unchanged_ordinary += 1;
+                    if declared
+                        .inputs
+                        .first()
+                        .is_some_and(declared_type_view_is_concrete)
+                    {
+                        unchanged_concrete_ordinary.push(location);
+                    }
+                }
+            }
+        }
+    }
+
+    let expected_infix = [
+        ("std::time:138", DEBUG, "debug", NonAtomicSurface),
+        ("std::time:141", DEBUG, "debug", NonAtomicSurface),
+        ("std::core::fmt:156", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:160", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:167", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:174", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:181", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:189", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:198", DISPLAY, "show", OrdinarySccBlocker),
+        ("std::core::fmt:202", DEBUG, "debug", NonAtomicSurface),
+        ("std::core::fmt:205", DEBUG, "debug", NonAtomicSurface),
+        ("std::core::fmt:222", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:226", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:233", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:240", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:247", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:255", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::core::fmt:264", DEBUG, "debug", OrdinarySccBlocker),
+        ("std::data::list:33", INDEX, "index", WeightedVariable),
+        (
+            "std::text::parse:34",
+            PARSE_ERROR,
+            "merge",
+            NonAtomicSurface,
+        ),
+        ("std::text::str:506", INDEX, "index", WeightedVariable),
+    ]
+    .into_iter()
+    .map(|(location, role, method, after)| {
+        (
+            location.to_string(),
+            role.to_string(),
+            method.to_string(),
+            ordinary.clone(),
+            ActualMethodConformanceView::Unavailable(after),
+        )
+    })
+    .collect::<Vec<_>>();
+    infix_census.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut expected_infix = expected_infix;
+    expected_infix.sort_by(|left, right| left.0.cmp(&right.0));
+    assert_eq!(infix_census, expected_infix);
+
+    assert_eq!(explicit_methods, 133);
+    assert_eq!(
+        repository_std_role_impl_method_count(&disabled.modules),
+        133
+    );
+    assert_eq!(captured_methods, 129);
+    assert_eq!(unchanged_ordinary, 43);
+    changed_locations.sort();
+    assert_eq!(
+        changed_locations,
+        [
+            "std::core::fmt:202",
+            "std::core::fmt:205",
+            "std::data::list:33",
+            "std::text::parse:34",
+            "std::text::str:506",
+            "std::time:138",
+            "std::time:141",
+        ],
+    );
+    unchanged_concrete_ordinary.sort();
+    assert_eq!(
+        unchanged_concrete_ordinary,
+        [
+            "std::core::cmp:49",
+            "std::core::fmt:115",
+            "std::core::fmt:121",
+            "std::core::fmt:127",
+            "std::core::fmt:133",
+            "std::text::yumark:145",
+            "std::time:144",
+        ],
+    );
+}
+
+#[test]
 fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers() {
     use crate::analysis::{
         CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
@@ -4148,6 +4379,116 @@ fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers()
         vec!["+", "<", ">"],
         "ParseError.merge must expose all three std operator wrapper components"
     );
+
+    let infix_methods = repository_std_role_impl_method_locations(
+        &lowerer.modules,
+        &lowerer.role_impl_conformance_contracts,
+        true,
+    );
+    let expected_direct_demands = std::collections::BTreeMap::from([
+        ("std::core::fmt:160", vec!["show"]),
+        ("std::core::fmt:167", vec!["show", "show"]),
+        ("std::core::fmt:174", vec!["show", "show"]),
+        ("std::core::fmt:181", vec!["show", "show", "show"]),
+        ("std::core::fmt:189", vec!["show", "show", "show", "show"]),
+        (
+            "std::core::fmt:198",
+            vec!["show", "show", "show", "show", "show"],
+        ),
+        ("std::core::fmt:226", vec!["debug"]),
+        ("std::core::fmt:233", vec!["debug", "debug"]),
+        ("std::core::fmt:240", vec!["debug", "debug"]),
+        ("std::core::fmt:247", vec!["debug", "debug", "debug"]),
+        (
+            "std::core::fmt:255",
+            vec!["debug", "debug", "debug", "debug"],
+        ),
+        (
+            "std::core::fmt:264",
+            vec!["debug", "debug", "debug", "debug", "debug"],
+        ),
+    ]);
+    let mut characterized_fmt_blockers = Vec::new();
+    for contract in &lowerer.role_impl_conformance_contracts {
+        for method in &contract.methods {
+            let crate::role_impl_conformance::RoleImplMethodProvision::Explicit { implementations } =
+                &method.provision
+            else {
+                continue;
+            };
+            for implementation in implementations {
+                let Some(location) = infix_methods.get(&implementation.def.0) else {
+                    continue;
+                };
+                if !location.starts_with("std::core::fmt:")
+                    || matches!(
+                        location.as_str(),
+                        "std::core::fmt:202" | "std::core::fmt:205"
+                    )
+                {
+                    continue;
+                }
+                let mut selection_names = lowerer
+                    .session
+                    .selections
+                    .iter()
+                    .filter(|(_, use_site)| use_site.parent == implementation.def)
+                    .map(|(select_id, _)| lowerer.session.poly.select(select_id).name.clone())
+                    .collect::<Vec<_>>();
+                selection_names.sort();
+                let frontier = lowerer
+                    .session
+                    .scc
+                    .candidate_independent_fallback_frontier(|member| member == implementation.def);
+                if matches!(
+                    location.as_str(),
+                    "std::core::fmt:156" | "std::core::fmt:222"
+                ) {
+                    assert!(selection_names.is_empty(), "{location}");
+                    let [component] = frontier.as_slice() else {
+                        panic!("{location} must initially expose only the + wrapper: {frontier:?}")
+                    };
+                    assert!(
+                        component
+                            .members
+                            .iter()
+                            .any(|member| lowerer.labels.def_label(*member)
+                                == Some("std.core.ops.#op:infix:+")),
+                        "{location}: {component:?}",
+                    );
+                    assert!(
+                        lowerer
+                            .session
+                            .classify_candidate_independent_fallback_component(component)
+                            .is_eligible(),
+                        "{location}",
+                    );
+                } else {
+                    assert_eq!(
+                        selection_names,
+                        expected_direct_demands[location.as_str()],
+                        "{location}",
+                    );
+                    assert!(
+                        frontier.is_empty(),
+                        "a direct generic show/debug demand keeps the captured predecessor outside the frontier: {location}",
+                    );
+                }
+                characterized_fmt_blockers.push(location.clone());
+            }
+        }
+    }
+    characterized_fmt_blockers.sort();
+    let mut expected_fmt_blockers = expected_direct_demands
+        .keys()
+        .map(|location| (*location).to_string())
+        .collect::<Vec<_>>();
+    expected_fmt_blockers.extend([
+        "std::core::fmt:156".to_string(),
+        "std::core::fmt:222".to_string(),
+    ]);
+    expected_fmt_blockers.sort();
+    assert_eq!(characterized_fmt_blockers, expected_fmt_blockers);
 
     let mut positive =
         std::collections::BTreeMap::<&str, CandidateIndependentFallbackSelection>::new();
@@ -4251,6 +4592,80 @@ fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers()
             CandidateIndependentFallbackRejection::RolePredicateCount { count: 2, .. }
         )
     ));
+
+    let mut blocked = lower_repository_std_to_candidate_independent_fallback_frontier();
+    let locations = repository_std_role_impl_method_locations(
+        &blocked.modules,
+        &blocked.role_impl_conformance_contracts,
+        true,
+    );
+    let mut list_formatters = locations
+        .iter()
+        .filter_map(|(def, location)| {
+            matches!(
+                location.as_str(),
+                "std::core::fmt:156" | "std::core::fmt:222"
+            )
+            .then_some((DefId(*def), location.clone()))
+        })
+        .collect::<Vec<_>>();
+    list_formatters.sort_by(|left, right| left.1.cmp(&right.1));
+    let first_frontier = blocked
+        .session
+        .scc
+        .candidate_independent_fallback_frontier(|member| {
+            list_formatters
+                .iter()
+                .any(|(formatter, _)| *formatter == member)
+        });
+    let [first_component] = first_frontier.as_slice() else {
+        panic!("the two list formatters must share one + wrapper: {first_frontier:?}")
+    };
+    assert!(
+        blocked
+            .session
+            .classify_candidate_independent_fallback_component(first_component)
+            .is_eligible()
+    );
+    assert!(
+        blocked
+            .session
+            .enqueue_candidate_independent_fallback_frontier_resolutions(&first_frontier)
+    );
+    blocked.session.drain_work();
+    for (member, location) in list_formatters {
+        let second_frontier = blocked
+            .session
+            .scc
+            .candidate_independent_fallback_frontier(|pending| pending == member);
+        let [component] = second_frontier.as_slice() else {
+            panic!(
+                "{location} must expose its generic helper after + resolves: {second_frontier:?}"
+            )
+        };
+        let expected_helper = match location.as_str() {
+            "std::core::fmt:156" => "std.core.fmt.show_list_items",
+            "std::core::fmt:222" => "std.core.fmt.debug_list_items",
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            component
+                .members
+                .iter()
+                .filter_map(|member| blocked.labels.def_label(*member))
+                .collect::<Vec<_>>(),
+            [expected_helper],
+            "{location}",
+        );
+        assert!(matches!(
+            blocked
+                .session
+                .classify_candidate_independent_fallback_component(component),
+            CandidateIndependentFallbackClassification::Ineligible(
+                CandidateIndependentFallbackRejection::ResolvableRoleDemand
+            )
+        ));
+    }
 }
 
 #[test]
@@ -7177,6 +7592,43 @@ fn persisted_actual_surface(
         .surface
 }
 
+fn actual_method_surface_outward(
+    surface: &crate::role_impl_conformance::RoleImplMethodActualSurface,
+) -> &crate::role_impl_conformance::ActualMethodConformanceView {
+    match surface {
+        crate::role_impl_conformance::RoleImplMethodActualSurface::Receiverless(view) => {
+            &view.value
+        }
+        crate::role_impl_conformance::RoleImplMethodActualSurface::Receiver(view) => &view.value,
+    }
+}
+
+fn declared_type_view_is_concrete(
+    view: &crate::role_impl_conformance::view::DeclaredTypeView,
+) -> bool {
+    let crate::role_impl_conformance::view::DeclaredTypeView::Available(view) = view else {
+        return false;
+    };
+    conformance_type_view_is_concrete(view)
+}
+
+fn conformance_type_view_is_concrete(
+    view: &crate::role_impl_conformance::view::ConformanceTypeView,
+) -> bool {
+    match view {
+        crate::role_impl_conformance::view::ConformanceTypeView::Binder(_) => false,
+        crate::role_impl_conformance::view::ConformanceTypeView::Nominal { args, .. }
+        | crate::role_impl_conformance::view::ConformanceTypeView::Tuple(args)
+        | crate::role_impl_conformance::view::ConformanceTypeView::EffectSet(args) => {
+            args.iter().all(conformance_type_view_is_concrete)
+        }
+        crate::role_impl_conformance::view::ConformanceTypeView::Top
+        | crate::role_impl_conformance::view::ConformanceTypeView::Bottom
+        | crate::role_impl_conformance::view::ConformanceTypeView::Unknown
+        | crate::role_impl_conformance::view::ConformanceTypeView::Builtin(_) => true,
+    }
+}
+
 fn persisted_receiverless_actual_view(
     output: &BodyLowering,
     member: DefId,
@@ -7266,6 +7718,114 @@ fn lower_repository_std_to_candidate_independent_fallback_frontier()
     }
     lowerer.session.drain_work();
     lowerer
+}
+
+fn lower_repository_std_with_candidate_independent_fallback_early_resolution(
+    enabled: bool,
+) -> BodyLowering {
+    let files = load_repository_std_for_role_impl_conformance();
+    let loaded = crate::LoadedFileCsts::new(&files).expect("index repository std files");
+    let lower =
+        crate::lower_loaded_file_csts_module_map(&loaded).expect("lower repository std module map");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    lowerer.set_candidate_independent_fallback_early_resolution_enabled(enabled);
+    for file in loaded.by_depth() {
+        let module = lowerer
+            .modules
+            .module_by_path(&file.module_path)
+            .expect("loaded std module path");
+        let previous_source_file =
+            std::mem::replace(&mut lowerer.source_file, file.module_path.clone());
+        lowerer.lower_block(&file.cst, module);
+        lowerer.source_file = previous_source_file;
+    }
+    lowerer.lower_synthetic_act_copy_bodies_for_test();
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    lowerer.finish()
+}
+
+fn repository_std_role_impl_method_locations(
+    modules: &crate::ModuleTable,
+    contracts: &[crate::role_impl_conformance::RoleImplConformanceContract],
+    require_infix: bool,
+) -> std::collections::BTreeMap<u32, String> {
+    let files = load_repository_std_for_role_impl_conformance();
+    let loaded = crate::LoadedFileCsts::new(&files).expect("index repository std files");
+    let mut locations = std::collections::BTreeMap::new();
+    for contract in contracts {
+        for method in &contract.methods {
+            let crate::role_impl_conformance::RoleImplMethodProvision::Explicit { implementations } =
+                &method.provision
+            else {
+                continue;
+            };
+            for implementation in implementations {
+                let span = modules
+                    .def_source_span(implementation.def)
+                    .expect("repository std method source span");
+                let file = loaded
+                    .by_depth()
+                    .find(|file| file.module_path == span.file)
+                    .expect("repository std method source file");
+                let binding = file
+                    .cst
+                    .descendants()
+                    .filter(|node| node.kind() == parser::lex::SyntaxKind::Binding)
+                    .filter(|node| {
+                        let range = node.text_range();
+                        u32::from(range.start()) as usize <= span.range.start
+                            && u32::from(range.end()) as usize >= span.range.end
+                    })
+                    .min_by_key(|node| node.text_range().len());
+                let Some(binding) = binding else {
+                    continue;
+                };
+                if require_infix
+                    && !binding
+                        .descendants()
+                        .any(|node| node.kind() == parser::lex::SyntaxKind::InfixNode)
+                {
+                    continue;
+                }
+                let path = span
+                    .file
+                    .segments
+                    .iter()
+                    .map(|segment| segment.0.as_str())
+                    .collect::<Vec<_>>()
+                    .join("::");
+                let line = file.source[..span.range.start]
+                    .bytes()
+                    .filter(|byte| *byte == b'\n')
+                    .count()
+                    + 1;
+                locations.insert(implementation.def.0, format!("{path}:{line}"));
+            }
+        }
+    }
+    locations
+}
+
+fn repository_std_role_impl_method_count(modules: &crate::ModuleTable) -> usize {
+    let mut pending = vec![modules.root_id()];
+    let mut count = 0usize;
+    while let Some(module) = pending.pop() {
+        count += modules
+            .role_impls(module)
+            .iter()
+            .map(|implementation| implementation.methods.len())
+            .sum::<usize>();
+        pending.extend(
+            modules
+                .module_child_decls(module)
+                .into_iter()
+                .map(|child| child.module),
+        );
+    }
+    count
 }
 
 fn lower_candidate_independent_fallback_driver_fixture(
