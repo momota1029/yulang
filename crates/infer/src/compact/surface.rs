@@ -23,6 +23,15 @@ pub(crate) fn compact_negative_type_var_for_scheme(
     CompactCollector::new(machine).compact_root_with_polarity(root, Polarity::Negative)
 }
 
+#[cfg(test)]
+pub(crate) fn compact_negative_type_var_recording_merge_constraints(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording(machine)
+        .compact_root_with_polarity_and_merge_constraints(root, Polarity::Negative)
+}
+
 pub(crate) fn compact_pos_surface(types: &TypeArena, id: PosId) -> CompactType {
     match types.pos(id) {
         Pos::Bot => CompactType::never(),

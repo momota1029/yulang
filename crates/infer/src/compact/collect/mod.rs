@@ -64,6 +64,28 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
+    #[cfg(test)]
+    pub(in crate::compact) fn compact_root_with_polarity_and_merge_constraints(
+        mut self,
+        root: TypeVar,
+        polarity: Polarity,
+    ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+        let root_ty = self.compact_var_side(root, polarity, ConstraintWeight::empty());
+        let mut rec_vars = self
+            .rec_vars
+            .into_iter()
+            .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
+            .collect::<Vec<_>>();
+        rec_vars.sort_by_key(|rec| rec.var.0);
+        (
+            CompactRoot {
+                root: root_ty,
+                rec_vars,
+            },
+            self.merge_constraints,
+        )
+    }
+
     pub(in crate::compact) fn compact_root_with_merge_constraints(
         mut self,
         root: TypeVar,

@@ -122,6 +122,17 @@ pub(crate) fn merge_compact_types(
     merge_compact_types_with_sink(positive, lhs, rhs, &mut sink)
 }
 
+#[cfg(test)]
+pub(crate) fn merge_compact_types_recording_merge_constraints(
+    positive: bool,
+    lhs: CompactType,
+    rhs: CompactType,
+) -> (CompactType, Vec<CompactMergeConstraint>) {
+    let mut constraints = Vec::new();
+    let ty = merge_compact_types_with_sink(positive, lhs, rhs, &mut constraints);
+    (ty, constraints)
+}
+
 pub(crate) fn merge_compact_bounds_recording_merge_constraints(
     positive: bool,
     lhs: CompactBounds,

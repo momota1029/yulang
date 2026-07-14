@@ -4091,6 +4091,169 @@ fn role_impl_conformance_parse_error_merge_is_blocked_before_actual_shape_projec
 }
 
 #[test]
+fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers() {
+    use crate::analysis::{
+        CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
+        CandidateIndependentFallbackSelection,
+    };
+
+    let mut lowerer = lower_repository_std_to_candidate_independent_fallback_frontier();
+    assert!(lowerer.errors.is_empty(), "{:?}", lowerer.errors);
+    let merge = lowerer
+        .role_impl_conformance_contracts
+        .iter()
+        .find(|contract| {
+            contract
+                .role
+                .ends_with(&["text".into(), "parse".into(), "ParseError".into()])
+        })
+        .and_then(|contract| {
+            contract
+                .methods
+                .iter()
+                .find(|method| method.name == "merge")
+        })
+        .and_then(|method| match &method.provision {
+            crate::role_impl_conformance::RoleImplMethodProvision::Explicit { implementations } => {
+                implementations
+                    .first()
+                    .map(|implementation| implementation.def)
+            }
+            crate::role_impl_conformance::RoleImplMethodProvision::Default { .. }
+            | crate::role_impl_conformance::RoleImplMethodProvision::Missing => None,
+        })
+        .expect("std ParseError.merge implementation");
+    let frontier = lowerer
+        .session
+        .scc
+        .candidate_independent_fallback_frontier(|member| member == merge);
+
+    let mut operator_components = std::collections::BTreeMap::new();
+    for component in frontier {
+        let Some(symbol) = ["+", "<", ">"].into_iter().find(|symbol| {
+            let suffix = format!("#op:infix:{symbol}");
+            component.members.iter().any(|member| {
+                lowerer
+                    .labels
+                    .def_label(*member)
+                    .is_some_and(|label| label.ends_with(&suffix))
+            })
+        }) else {
+            continue;
+        };
+        operator_components.insert(symbol, component);
+    }
+    assert_eq!(
+        operator_components.keys().copied().collect::<Vec<_>>(),
+        vec!["+", "<", ">"],
+        "ParseError.merge must expose all three std operator wrapper components"
+    );
+
+    let mut positive =
+        std::collections::BTreeMap::<&str, CandidateIndependentFallbackSelection>::new();
+    for (symbol, component) in &operator_components {
+        let classification = lowerer
+            .session
+            .classify_candidate_independent_fallback_component(component);
+        if !classification.is_eligible() {
+            let target = lowerer.session.role_methods.candidates(match *symbol {
+                "+" => "add",
+                "<" => "lt",
+                ">" => "gt",
+                _ => unreachable!(),
+            })[0]
+                .def;
+            if let Some(Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) = lowerer.session.poly.defs.get(target)
+            {
+                eprintln!(
+                    "operator {symbol} scheme: {}\n{}",
+                    poly::dump::format_scheme(&lowerer.session.poly.typ, scheme),
+                    poly::dump::dump_scheme_raw(&lowerer.session.poly.typ, scheme)
+                );
+            }
+        }
+        assert!(
+            classification.is_eligible(),
+            "std::core::ops::{symbol}: {classification:?}"
+        );
+        let [selection] = classification.selections() else {
+            panic!("std::core::ops::{symbol} must contain exactly one role selection")
+        };
+        assert_eq!(
+            lowerer.session.poly.select(selection.select_id).name,
+            match *symbol {
+                "+" => "add",
+                "<" => "lt",
+                ">" => "gt",
+                _ => unreachable!(),
+            }
+        );
+        positive.insert(*symbol, selection.clone());
+    }
+
+    let add = &positive["+"];
+    let add_use = *lowerer
+        .session
+        .selections
+        .get(add.select_id)
+        .expect("add selection remains unresolved");
+    let concrete = lowerer.session.infer.alloc_pos(Pos::Con(
+        vec!["classifier".into(), "concrete_receiver".into()],
+        Vec::new(),
+    ));
+    let receiver = lowerer
+        .session
+        .infer
+        .alloc_neg(Neg::Var(add_use.receiver_value));
+    lowerer.session.infer.subtype(concrete, receiver);
+    assert!(matches!(
+        lowerer
+            .session
+            .classify_candidate_independent_fallback_component(&operator_components["+"]),
+        CandidateIndependentFallbackClassification::Ineligible(
+            CandidateIndependentFallbackRejection::ResolvableRoleDemand
+        )
+    ));
+
+    let lt = &positive["<"];
+    let lt_name = lowerer.session.poly.select(lt.select_id).name.clone();
+    lowerer
+        .session
+        .register_role_method(lt.role.clone(), lt_name, lt.target);
+    assert!(matches!(
+        lowerer
+            .session
+            .classify_candidate_independent_fallback_component(&operator_components["<"]),
+        CandidateIndependentFallbackClassification::Ineligible(
+            CandidateIndependentFallbackRejection::GlobalRoleCandidateCount { count: 2, .. }
+        )
+    ));
+
+    let gt = &positive[">"];
+    let Some(Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = lowerer.session.poly.defs.get_mut(gt.target)
+    else {
+        panic!("gt role method target must retain its finalized scheme")
+    };
+    scheme
+        .role_predicates
+        .push(scheme.role_predicates[0].clone());
+    assert!(matches!(
+        lowerer
+            .session
+            .classify_candidate_independent_fallback_component(&operator_components[">"]),
+        CandidateIndependentFallbackClassification::Ineligible(
+            CandidateIndependentFallbackRejection::RolePredicateCount { count: 2, .. }
+        )
+    ));
+}
+
+#[test]
 fn role_impl_conformance_concrete_anchor_witness_requires_bidirectional_nominal_evidence() {
     use crate::role_impl_conformance::view::{
         ConcreteAnchorNominalWitness, begin_concrete_anchor_actual_witness_capture,
@@ -6963,6 +7126,27 @@ fn load_repository_std_for_role_impl_conformance() -> Vec<sources::LoadedFile> {
         }
     }));
     sources::load(files)
+}
+
+fn lower_repository_std_to_candidate_independent_fallback_frontier()
+-> super::super::body::BodyLowerer {
+    let files = load_repository_std_for_role_impl_conformance();
+    let loaded = crate::LoadedFileCsts::new(&files).expect("index repository std files");
+    let lower =
+        crate::lower_loaded_file_csts_module_map(&loaded).expect("lower repository std module map");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    for file in loaded.by_depth() {
+        let module = lowerer
+            .modules
+            .module_by_path(&file.module_path)
+            .expect("loaded std module path");
+        let previous_source_file =
+            std::mem::replace(&mut lowerer.source_file, file.module_path.clone());
+        lowerer.lower_block(&file.cst, module);
+        lowerer.source_file = previous_source_file;
+    }
+    lowerer.session.drain_work();
+    lowerer
 }
 
 fn role_impl_cast_fixture(method: &str, ambiguous: bool) -> String {

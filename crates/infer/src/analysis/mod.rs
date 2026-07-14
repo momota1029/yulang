@@ -91,6 +91,11 @@ use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
 };
 use projection::role_impl_member_projection_substitutions;
+#[cfg(test)]
+pub(crate) use session::{
+    CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
+    CandidateIndependentFallbackSelection,
+};
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
 use trace::{
