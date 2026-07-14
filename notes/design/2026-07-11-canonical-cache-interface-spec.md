@@ -376,6 +376,16 @@ This is intentionally stricter than the current `collect_role_impl_member_prereq
 copies a predicate when it contains a variable outside the member scheme quantifiers. The current
 test is useful for collection but is not a complete binder specification.
 
+### Resolution (2026-07-15): partial option 1 (head/associated-only mutable lifecycle participation)
+
+Adopted direction: candidate head and associated-type variables participate in the mutable analysis lifecycle (ordinary dominance/apply lane) before Stage 4's canonical joint freeze, so their internal constraints are proven via the same constraint machine as ordinary bindings rather than assumed sound by an unproven coalescing argument. Prerequisite variables are explicitly excluded from this first activation and continue to be governed by the existing strict fail-closed audit (`FreezeProducedConstraint` rejection on any unapplied prerequisite-side constraint is unchanged).
+
+This decision is independent of option 2 (no floor-coalescing soundness axiom is introduced or assumed) and independent of the generic-role-impl-conformance project's Stage 5 (no production conformance enforcement is required or assumed as a precondition). A 2026-07-15 re-scoping pass confirmed neither dependency exists in current code, and confirmed the full (unscoped) version of option 1 is now estimated at L-XL/very-high risk (comparable to or exceeding the two-stage method lifecycle project) — this partial, head/associated-only slice is adopted specifically to avoid that scope.
+
+Initial blast radius is limited to zero-prerequisite candidates. The concrete blocker (`impl (ref 'e (list 'a)): Index int`) has no prerequisites, so this scope is sufficient to reach it. Candidates with non-empty prerequisites continue to hit the existing strict rejection path unchanged; extending this design to prerequisite-bearing candidates is explicitly deferred as a separate future decision, not assumed to follow automatically.
+
+Claude Sonnet 5 and the user approved this direction on 2026-07-15, following the same weight of judgment as the Oracle A split and the Section 13.4 resolution.
+
 ## 8. Canonical interface validator
 
 The validator is required both as an implementation aid and as a permanent cheap artifact check. It
