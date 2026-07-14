@@ -5,9 +5,9 @@
 //! structure stays explicit rather than re-entering the solver.
 
 use poly::expr::DefId;
-#[cfg(test)]
-use poly::types::Neg;
 use poly::types::{BuiltinType, TypeVar};
+#[cfg(test)]
+use poly::types::{Neg, Pos};
 
 use super::{
     AssociatedAssignment, AssociatedInferenceBinderId, ContractTypeRef, DeclaredType,
@@ -319,6 +319,59 @@ impl ActualBuiltinNominalPair {
     pub(crate) fn nominal_args(&self) -> &[CompactBounds] {
         &self.nominal_args
     }
+}
+
+/// Test-only snapshot of one concrete nominal constructor visible from an exact variable class.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ConcreteAnchorNominalWitness {
+    pub(crate) path: Vec<String>,
+    pub(crate) type_argument_count: usize,
+}
+
+/// Test-only evidence retained for one raw compact alternative before its method requirement runs.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConcreteAnchorRawVariableWitness {
+    pub(crate) var: TypeVar,
+    pub(crate) weight_is_empty: bool,
+    pub(crate) exact_class: Vec<TypeVar>,
+    pub(crate) empty_weight_lower_nominals: Vec<ConcreteAnchorNominalWitness>,
+    pub(crate) empty_weight_upper_nominals: Vec<ConcreteAnchorNominalWitness>,
+}
+
+/// Opt-in test capture of the settled actual-value surface at the pre-requirement boundary.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConcreteAnchorActualWitness {
+    pub(crate) anchor: TypeVar,
+    pub(crate) raw_variables: Vec<ConcreteAnchorRawVariableWitness>,
+    pub(crate) nominal_alternatives: Vec<ConcreteAnchorNominalWitness>,
+    pub(crate) outward: ActualMethodConformanceView,
+    pub(crate) c1a_capture_present: bool,
+}
+
+#[cfg(test)]
+thread_local! {
+    static CONCRETE_ANCHOR_ACTUAL_WITNESSES:
+        std::cell::RefCell<Option<Vec<ConcreteAnchorActualWitness>>> = const {
+            std::cell::RefCell::new(None)
+        };
+}
+
+/// Begin one thread-local characterization batch. Ordinary tests pay no capture or traversal cost.
+#[cfg(test)]
+pub(crate) fn begin_concrete_anchor_actual_witness_capture() {
+    CONCRETE_ANCHOR_ACTUAL_WITNESSES.with(|witnesses| {
+        *witnesses.borrow_mut() = Some(Vec::new());
+    });
+}
+
+/// End the current characterization batch and return only snapshots taken before requirement edges.
+#[cfg(test)]
+pub(crate) fn finish_concrete_anchor_actual_witness_capture() -> Vec<ConcreteAnchorActualWitness> {
+    CONCRETE_ANCHOR_ACTUAL_WITNESSES
+        .with(|witnesses| witnesses.borrow_mut().take().unwrap_or_default())
 }
 
 /// Result of consulting the visible value-cast registry for one constructor pair.
@@ -896,6 +949,8 @@ pub(super) fn capture_receiver_actual_view(
     effect: TypeVar,
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualReceiverMethodConformanceView {
+    #[cfg(test)]
+    let bridge_result = bridge;
     let bridge = match bridge {
         Ok(bridge) => bridge,
         Err(reason) => {
@@ -921,11 +976,21 @@ pub(super) fn capture_receiver_actual_view(
             .chain(&effect_compact.rec_vars)
             .map(|rec| rec.var),
     );
+    #[cfg(test)]
+    let value_anchor = value;
     let value = capture_receiverless_actual_view_from_compact(
         machine,
         value,
         &value_compact,
         &mut binder_identities,
+    );
+    #[cfg(test)]
+    record_concrete_anchor_actual_witness(
+        machine,
+        value_anchor,
+        &value_compact,
+        bridge_result,
+        value.clone(),
     );
     #[cfg(not(test))]
     let effect = capture_receiverless_actual_view_from_compact(
@@ -1144,6 +1209,118 @@ impl<'a> ExactEquivalenceClasses<'a> {
         successors.dedup();
         successors
     }
+}
+
+#[cfg(test)]
+fn record_concrete_anchor_actual_witness(
+    machine: &ConstraintMachine,
+    anchor: TypeVar,
+    compact: &CompactRoot,
+    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
+    outward: ActualMethodConformanceView,
+) {
+    let capture_enabled =
+        CONCRETE_ANCHOR_ACTUAL_WITNESSES.with(|witnesses| witnesses.borrow().is_some());
+    if !capture_enabled {
+        return;
+    }
+
+    let raw_candidates = compact
+        .root
+        .vars
+        .iter()
+        .filter(|candidate| candidate.var != anchor)
+        .collect::<Vec<_>>();
+    let nominal_alternatives = compact
+        .root
+        .cons
+        .iter()
+        .map(|(path, args)| ConcreteAnchorNominalWitness {
+            path: path.clone(),
+            type_argument_count: args.len(),
+        })
+        .collect::<Vec<_>>();
+    let mut exact_classes = ExactEquivalenceClasses::new(machine);
+    let raw_variables = raw_candidates
+        .into_iter()
+        .map(|candidate| {
+            let exact_class = exact_classes.class(candidate.var);
+            ConcreteAnchorRawVariableWitness {
+                var: candidate.var,
+                weight_is_empty: candidate.weight.is_empty(),
+                empty_weight_lower_nominals: empty_weight_class_lower_nominals(
+                    machine,
+                    &exact_class,
+                ),
+                empty_weight_upper_nominals: empty_weight_class_upper_nominals(
+                    machine,
+                    &exact_class,
+                ),
+                exact_class,
+            }
+        })
+        .collect();
+    let c1a_capture_present =
+        capture_actual_builtin_nominal_pair(machine, anchor, bridge).is_some();
+    let mut witness = ConcreteAnchorActualWitness {
+        anchor,
+        raw_variables,
+        nominal_alternatives,
+        outward,
+        c1a_capture_present,
+    };
+    witness.nominal_alternatives.sort();
+    CONCRETE_ANCHOR_ACTUAL_WITNESSES.with(|witnesses| {
+        if let Some(witnesses) = witnesses.borrow_mut().as_mut() {
+            witnesses.push(witness);
+        }
+    });
+}
+
+#[cfg(test)]
+fn empty_weight_class_lower_nominals(
+    machine: &ConstraintMachine,
+    class: &[TypeVar],
+) -> Vec<ConcreteAnchorNominalWitness> {
+    let mut nominals = class
+        .iter()
+        .filter_map(|member| machine.bounds().of(*member))
+        .flat_map(|bounds| bounds.projection_lowers())
+        .filter(|lower| lower.weights.is_empty())
+        .filter_map(|lower| match machine.types().pos(lower.pos) {
+            Pos::Con(path, args) => Some(ConcreteAnchorNominalWitness {
+                path: path.clone(),
+                type_argument_count: args.len(),
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    nominals.sort();
+    nominals.dedup();
+    nominals
+}
+
+#[cfg(test)]
+fn empty_weight_class_upper_nominals(
+    machine: &ConstraintMachine,
+    class: &[TypeVar],
+) -> Vec<ConcreteAnchorNominalWitness> {
+    let mut nominals = class
+        .iter()
+        .filter_map(|member| machine.bounds().of(*member))
+        .flat_map(|bounds| bounds.projection_uppers())
+        .filter(|upper| upper.weights.is_empty())
+        .filter_map(|upper| match machine.types().neg(upper.neg) {
+            Neg::Con(path, args) => Some(ConcreteAnchorNominalWitness {
+                path: path.clone(),
+                type_argument_count: args.len(),
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    nominals.sort();
+    nominals.dedup();
+    nominals
 }
 
 #[cfg(test)]

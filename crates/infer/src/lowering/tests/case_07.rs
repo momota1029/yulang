@@ -4042,6 +4042,137 @@ fn role_impl_method_lifecycle_receiverless_plain_parameters_capture_real_parse_e
 }
 
 #[test]
+fn role_impl_conformance_parse_error_merge_is_blocked_before_actual_shape_projection() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+        RoleImplMethodProvision,
+    };
+
+    let loaded = load_repository_std_for_role_impl_conformance();
+    let output = lower_loaded_files(&loaded).expect("repository std should lower");
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let contract = output
+        .role_impl_conformance_contracts()
+        .iter()
+        .find(|contract| {
+            contract
+                .role
+                .ends_with(&["text".into(), "parse".into(), "ParseError".into()])
+        })
+        .expect("std::text::parse::str_error ParseError contract");
+    let method = contract
+        .methods
+        .iter()
+        .find(|method| method.name == "merge")
+        .expect("ParseError.merge contract method");
+    let RoleImplMethodProvision::Explicit { implementations } = &method.provision else {
+        panic!("ParseError.merge must have an explicit implementation")
+    };
+    let [implementation] = implementations.as_slice() else {
+        panic!("ParseError.merge must have one implementation: {implementations:?}")
+    };
+    let actual = persisted_receiver_actual_view(&output, implementation.def);
+    // `merge` selects record fields such as `e.line` and `f.column`. Those selections still carry
+    // method dependencies when the conformance drain checks component readiness; record-field
+    // fallback runs only after that drain, so the first-order shape projector is never reached.
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
+        ),
+        "ParseError.merge must fail closed at the pre-projection SCC gate",
+    );
+}
+
+#[test]
+fn role_impl_conformance_concrete_anchor_witness_requires_bidirectional_nominal_evidence() {
+    use crate::role_impl_conformance::view::{
+        ConcreteAnchorNominalWitness, begin_concrete_anchor_actual_witness_capture,
+        finish_concrete_anchor_actual_witness_capture,
+    };
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let source = concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod junction:\n",
+        "      pub mod junction:\n",
+        "        pub junction x = x\n",
+        "struct marker { value: int }\n",
+        "my marker_value: marker = marker { value: 0 }\n",
+        "role Mix 'subject:\n",
+        "  our x.mix: 'left -> marker\n",
+        "impl unit: Mix:\n",
+        "  our x.mix left = if true: left\n",
+        "    else marker_value\n",
+    );
+    begin_concrete_anchor_actual_witness_capture();
+    let (output, member) = lower_receiver_conformance_shadow(source, true, false, false);
+    let witnesses = finish_concrete_anchor_actual_witness_capture();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let actual = persisted_receiver_actual_view(&output, member);
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+    );
+    let anchor = receiver_body_result_anchor(&output, member);
+    let witness = witnesses
+        .iter()
+        .find(|witness| witness.anchor == anchor)
+        .unwrap_or_else(|| panic!("missing pre-requirement negative witness for v{}", anchor.0));
+    let marker = ConcreteAnchorNominalWitness {
+        path: vec!["marker".into()],
+        type_argument_count: 0,
+    };
+
+    assert_eq!(witness.raw_variables.len(), 2, "{witness:#?}");
+    assert!(
+        witness
+            .raw_variables
+            .iter()
+            .all(|variable| variable.weight_is_empty),
+        "every negative-control raw alternative must be unweighted: {witness:#?}",
+    );
+    assert_eq!(witness.nominal_alternatives, [marker.clone()]);
+    assert_eq!(
+        witness.outward,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+    );
+    assert!(!witness.c1a_capture_present, "{witness:#?}");
+    assert!(
+        witness
+            .raw_variables
+            .iter()
+            .all(|variable| variable.exact_class == [variable.var]),
+        "the two raw alternatives must remain unrelated singleton exact classes: {witness:#?}",
+    );
+    let mut nominal_evidence = witness
+        .raw_variables
+        .iter()
+        .map(|variable| {
+            (
+                variable.empty_weight_lower_nominals.contains(&marker),
+                variable.empty_weight_upper_nominals.contains(&marker),
+            )
+        })
+        .collect::<Vec<_>>();
+    nominal_evidence.sort_unstable();
+    assert_eq!(
+        nominal_evidence,
+        [(false, false), (true, false)],
+        "one raw class is unconstrained and the nominal wrapper has only one-way evidence",
+    );
+}
+
+#[test]
 fn role_impl_method_lifecycle_slice3_unavailable_capture_still_releases() {
     use crate::role_impl_conformance::{
         ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
