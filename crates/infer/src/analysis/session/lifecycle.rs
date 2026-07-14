@@ -449,27 +449,11 @@ impl AnalysisSession {
     }
 
     fn enqueue_ready_structured_selection_resolutions(&mut self) -> bool {
-        let ready = self.ready_structured_selection_resolutions();
-        let Some((select_id, target)) = ready.first().cloned() else {
-            return false;
-        };
-        if self.fallback_target_can_batch(&target) {
-            let batch = ready
-                .into_iter()
-                .filter(|(_, target)| self.fallback_target_can_batch(target))
-                .collect::<Vec<_>>();
-            for (select_id, target) in batch {
-                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
-            }
-        } else {
-            // Unquantified role-method fallback can introduce an SCC edge. Keep those
-            // one-by-one so the next readiness decision sees the updated graph.
-            self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
-        }
-        true
+        let ready = self.collect_ready_structured_selection_resolutions();
+        self.enqueue_structured_selection_resolutions(ready)
     }
 
-    fn ready_structured_selection_resolutions(&self) -> Vec<(SelectId, SelectionTarget)> {
+    fn collect_ready_structured_selection_resolutions(&self) -> Vec<(SelectId, SelectionTarget)> {
         let mut ready = self
             .selections
             .iter()
@@ -487,6 +471,29 @@ impl AnalysisSession {
             .collect::<Vec<_>>();
         ready.sort_by_key(|(select_id, _)| select_id.0);
         ready
+    }
+
+    pub(super) fn enqueue_structured_selection_resolutions(
+        &mut self,
+        ready: Vec<(SelectId, SelectionTarget)>,
+    ) -> bool {
+        let Some((select_id, target)) = ready.first().cloned() else {
+            return false;
+        };
+        if self.fallback_target_can_batch(&target) {
+            let batch = ready
+                .into_iter()
+                .filter(|(_, target)| self.fallback_target_can_batch(target))
+                .collect::<Vec<_>>();
+            for (select_id, target) in batch {
+                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+            }
+        } else {
+            // Unquantified role-method fallback can introduce an SCC edge. Keep those
+            // one-by-one so the next readiness decision sees the updated graph.
+            self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+        }
+        true
     }
 
     fn ready_record_field_selections(&self) -> Vec<SelectId> {
