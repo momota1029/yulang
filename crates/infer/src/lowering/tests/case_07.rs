@@ -4073,9 +4073,14 @@ fn role_impl_conformance_parse_error_merge_is_blocked_before_actual_shape_projec
         panic!("ParseError.merge must have one implementation: {implementations:?}")
     };
     let actual = persisted_receiver_actual_view(&output, implementation.def);
-    // `merge` selects record fields such as `e.line` and `f.column`. Those selections still carry
-    // method dependencies when the conformance drain checks component readiness; record-field
-    // fallback runs only after that drain, so the first-order shape projector is never reached.
+    // `merge`'s own field selections (`e.line`, `f.column`, etc.) resolve as ordinary `Method`
+    // dependencies before the conformance-drain readiness check runs -- they are not the blocker.
+    // The real cause: `merge`'s body uses the `<`/`>`/`+` infix operators, which create outgoing
+    // SCC edges to the unquantified `std::core::ops::#op:infix:{lt,gt,add}` operator-wrapper
+    // components. Those wrappers' own `.lt`/`.gt`/`.add` selections are not resolved until the
+    // late structured-method fallback batch that runs after `drain_analysis_with_conformance`, so
+    // `merge` still has an outgoing SCC edge at the readiness check and fails closed here, before
+    // the first-order shape projector is ever reached.
     assert_eq!(
         actual.value,
         ActualMethodConformanceView::Unavailable(
