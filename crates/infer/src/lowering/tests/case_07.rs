@@ -4254,6 +4254,107 @@ fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers()
 }
 
 #[test]
+fn candidate_independent_fallback_early_resolution_toggle_off_preserves_ordinary_blocker() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let (output, member) = lower_candidate_independent_fallback_driver_fixture(
+        CANDIDATE_INDEPENDENT_FALLBACK_GENERIC_WRAPPER,
+        false,
+    );
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eq!(
+        persisted_receiver_actual_view(&output, member).value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
+        ),
+    );
+}
+
+#[test]
+fn candidate_independent_fallback_early_resolution_reaches_actual_shape_projection() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let (output, member) = lower_candidate_independent_fallback_driver_fixture(
+        CANDIDATE_INDEPENDENT_FALLBACK_GENERIC_WRAPPER,
+        true,
+    );
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let actual = persisted_receiver_actual_view(&output, member);
+    assert_eq!(
+        actual.value,
+        ActualMethodConformanceView::Unavailable(
+            ActualMethodConformanceViewUnavailable::NonAtomicSurface,
+        ),
+        "the generic wrapper must resolve before the actual-shape projector runs",
+    );
+    assert_eq!(actual.tail_parameter_count, Some(1));
+    let transitions = output.session.scc.conformance_transition_counts();
+    assert_eq!((transitions.pending, transitions.released), (1, 1));
+    assert!(!output.session.has_pending_work());
+    assert!(output.session.scc.is_quantified(member));
+}
+
+#[test]
+fn candidate_independent_fallback_early_resolution_declines_concrete_receiver() {
+    use crate::role_impl_conformance::{
+        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
+    };
+
+    let (disabled, disabled_member) = lower_candidate_independent_fallback_driver_fixture(
+        CANDIDATE_INDEPENDENT_FALLBACK_CONCRETE_RECEIVER,
+        false,
+    );
+    let (enabled, enabled_member) = lower_candidate_independent_fallback_driver_fixture(
+        CANDIDATE_INDEPENDENT_FALLBACK_CONCRETE_RECEIVER,
+        true,
+    );
+    assert!(disabled.errors.is_empty(), "{:?}", disabled.errors);
+    assert!(enabled.errors.is_empty(), "{:?}", enabled.errors);
+    assert_eq!(disabled_member, enabled_member);
+    let expected = ActualMethodConformanceView::Unavailable(
+        ActualMethodConformanceViewUnavailable::OrdinarySccBlocker,
+    );
+    assert_eq!(
+        persisted_receiver_actual_view(&disabled, disabled_member).value,
+        expected,
+    );
+    assert_eq!(
+        persisted_receiver_actual_view(&enabled, enabled_member),
+        persisted_receiver_actual_view(&disabled, disabled_member),
+    );
+    assert_eq!(
+        receiver_shadow_production_surface(&enabled, "Merge"),
+        receiver_shadow_production_surface(&disabled, "Merge"),
+    );
+}
+
+#[test]
+fn candidate_independent_fallback_early_resolution_bound_covers_existing_lifecycle_fixtures() {
+    for fixture in lifecycle_fixtures() {
+        let root = parse(fixture.source);
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let mut lowerer = super::super::body::BodyLowerer::new(lower);
+        lowerer.set_candidate_independent_fallback_early_resolution_enabled(true);
+        lowerer.lower_block(&root, module);
+        lowerer.drain_analysis_with_conformance();
+        lowerer
+            .session
+            .resolve_unresolved_selections_as_record_fields();
+        let output = lowerer.finish();
+        assert!(
+            !output.session.has_pending_work(),
+            "fixture: {}",
+            fixture.name
+        );
+    }
+}
+
+#[test]
 fn role_impl_conformance_concrete_anchor_witness_requires_bidirectional_nominal_evidence() {
     use crate::role_impl_conformance::view::{
         ConcreteAnchorNominalWitness, begin_concrete_anchor_actual_witness_capture,
@@ -6768,6 +6869,24 @@ const EFFECTFUL_SHARED_ROW: &str = concat!(
     "infer-candidates=Flow(box 'a <: box 'a; value='a <: 'a) where [] methods=1 links=assoc/head:[value:1],prereq/head:0\n",
     "poly-candidates=Flow(box 'a <: box 'a; value='a <: 'a) where [] methods=1 links=assoc/head:[value:1],prereq/head:0",
 );
+const CANDIDATE_INDEPENDENT_FALLBACK_GENERIC_WRAPPER: &str = concat!(
+    "role Add 'subject:\n",
+    "  our x.add: 'subject -> 'subject\n",
+    "my add_wrapper x y = x.add y\n",
+    "role Merge 'subject:\n",
+    "  our x.merge: 'subject -> 'subject\n",
+    "impl 'a: Merge:\n",
+    "  our x.merge y = add_wrapper x y\n",
+);
+const CANDIDATE_INDEPENDENT_FALLBACK_CONCRETE_RECEIVER: &str = concat!(
+    "role Add 'subject:\n",
+    "  our x.add: 'subject -> 'subject\n",
+    "my add_wrapper(x: int, y: int): int = x.add y\n",
+    "role Merge 'subject:\n",
+    "  our x.merge: 'subject -> 'subject\n",
+    "impl int: Merge:\n",
+    "  our x.merge y = add_wrapper x y\n",
+);
 
 #[derive(Debug, PartialEq, Eq)]
 struct Slice4cT1BindingPublicationWitness {
@@ -7147,6 +7266,24 @@ fn lower_repository_std_to_candidate_independent_fallback_frontier()
     }
     lowerer.session.drain_work();
     lowerer
+}
+
+fn lower_candidate_independent_fallback_driver_fixture(
+    source: &str,
+    early_resolution_enabled: bool,
+) -> (BodyLowering, DefId) {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let member = lower.modules.role_impls(module)[0].methods[0].def;
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    lowerer.set_candidate_independent_fallback_early_resolution_enabled(early_resolution_enabled);
+    lowerer.lower_block(&root, module);
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    (lowerer.finish(), member)
 }
 
 fn role_impl_cast_fixture(method: &str, ambiguous: bool) -> String {

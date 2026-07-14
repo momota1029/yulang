@@ -12,3 +12,29 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
 };
+
+#[cfg(test)]
+impl AnalysisSession {
+    pub(crate) fn enqueue_candidate_independent_fallback_frontier_resolutions(
+        &mut self,
+        components: &[crate::scc::CandidateIndependentFallbackComponent],
+    ) -> bool {
+        let mut ready = Vec::new();
+        for component in components {
+            let CandidateIndependentFallbackClassification::Eligible { selections } =
+                self.classify_candidate_independent_fallback_component(component)
+            else {
+                continue;
+            };
+            ready.extend(selections.into_iter().map(|selection| {
+                (
+                    selection.select_id,
+                    SelectionTarget::TypeclassMethod {
+                        member: selection.target,
+                    },
+                )
+            }));
+        }
+        self.enqueue_structured_selection_resolutions(ready)
+    }
+}

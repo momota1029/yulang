@@ -979,6 +979,8 @@ pub(super) struct BodyLowerer {
     #[cfg(test)]
     conformance_batch_events: Vec<ConformanceBatchEvent>,
     #[cfg(test)]
+    candidate_independent_fallback_early_resolution_enabled: bool,
+    #[cfg(test)]
     inactive_receiver_provisional_config: Option<InactiveReceiverProvisionalConfig>,
     #[cfg(test)]
     inactive_receiver_provisional_bindings: FxHashMap<DefId, InactiveReceiverProvisionalBinding>,
@@ -1351,6 +1353,8 @@ impl BodyLowerer {
             #[cfg(test)]
             conformance_batch_events: Vec::new(),
             #[cfg(test)]
+            candidate_independent_fallback_early_resolution_enabled: false,
+            #[cfg(test)]
             inactive_receiver_provisional_config: None,
             #[cfg(test)]
             inactive_receiver_provisional_bindings: FxHashMap::default(),
@@ -1434,6 +1438,14 @@ impl BodyLowerer {
     }
 
     #[cfg(test)]
+    pub(in crate::lowering) fn set_candidate_independent_fallback_early_resolution_enabled(
+        &mut self,
+        enabled: bool,
+    ) {
+        self.candidate_independent_fallback_early_resolution_enabled = enabled;
+    }
+
+    #[cfg(test)]
     pub(in crate::lowering) fn set_inactive_receiver_provisional_test_mode(
         &mut self,
         evaluation: Evaluation,
@@ -1512,8 +1524,23 @@ impl BodyLowerer {
     }
 
     pub(super) fn drain_analysis_with_conformance(&mut self) {
+        #[cfg(test)]
+        let mut early_resolution_passes = 0usize;
         loop {
             self.session.drain_work();
+            #[cfg(test)]
+            if self.candidate_independent_fallback_early_resolution_enabled
+                && self.enqueue_candidate_independent_fallback_frontier_resolutions()
+            {
+                early_resolution_passes += 1;
+                assert!(
+                    early_resolution_passes <= 4096,
+                    "candidate-independent fallback early resolution exceeded 4096 successful passes; resolved selections must not be reinserted",
+                );
+                // The next drain applies this batch and removes its SelectIds permanently. Run
+                // the existing apply path before consulting conformance readiness again.
+                continue;
+            }
             let Some(component) = self.session.scc.first_component_ready_except_conformance()
             else {
                 if self.pending_role_impl_conformance.is_empty() {
@@ -1584,6 +1611,22 @@ impl BodyLowerer {
             // deadlocking the analysis graph.
             self.release_role_impl_component(&component.pending_members);
         }
+    }
+
+    #[cfg(test)]
+    fn enqueue_candidate_independent_fallback_frontier_resolutions(&mut self) -> bool {
+        let frontier = self
+            .session
+            .scc
+            .candidate_independent_fallback_frontier(|member| {
+                self.pending_role_impl_conformance
+                    .get(&member)
+                    .is_some_and(|pending| {
+                        pending.phase == PendingRoleImplConformancePhase::Captured
+                    })
+            });
+        self.session
+            .enqueue_candidate_independent_fallback_frontier_resolutions(&frontier)
     }
 
     fn capture_and_apply_role_impl_component(&mut self, members: &[DefId]) {
