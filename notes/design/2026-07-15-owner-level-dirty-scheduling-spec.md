@@ -797,6 +797,44 @@ Commit `c77ef953` (`perf(infer): gate method-role mutation journal`) is pushed. 
   4. no benchmark mode can silently become the default route;
   5. route counters distinguish whole-pass skip, clean-owner skip, dirty solve, and full fallback.
 
+#### Stage 5 first attempt (2026-07-15/16): real correctness gap found, tree reset
+
+A first implementation attempt added an off-by-default CLI benchmark flag
+(`GlobalOptions.owner_dirty_scheduler_benchmark: bool`, defaulting to `false`) and promoted the Stage
+3/4 scheduler from `#[cfg(test)]`-only toward real release-build code. Verification found a real
+correctness gap before any performance measurement was attempted: the production-side
+constraint-dependency read hooks (the ones capturing `ConstraintBounds`/`ConstraintNeighbors`/
+`ConstraintSubtractFacts`/`ConstraintLevel`/`ConstraintBirthLevel`/`ConstraintPrePopFamilies` reads)
+remained `#[cfg(test)]`-gated even though the scheduler itself was being promoted to run in release
+builds under the new flag. This means enabling the benchmark flag in a release build would have
+produced a scheduler that could not observe constraint-level mutations at all, risking false-clean
+predictions in benchmark mode -- a real soundness gap, not a performance question. Unused-import and
+unused-constructor compiler warnings in the verification snapshot were direct evidence: the production
+capture entry points existed but were never called.
+
+A second issue surfaced during the same verification: the working tree was mutated by an unmanaged,
+still-apparently-running background process while verification was in progress (the diff grew across
+multiple re-checks, eventually including files well outside this stage's intended scope, such as an
+unrelated formatting diff in `crates/evidence-vm/src/runtime.rs`). This made it impossible to trust
+that any single compile/test snapshot corresponded to a fixed, reviewable diff. The entire attempt
+(both the correctness gap and the unstable tree) was discarded via `git stash` and a hard reset to
+`e959c96c` (Stage 4's last verified-good, pushed state); a small amount of orphaned debris that
+continued to appear afterward (a stray generic-parameter reference in a test file with no
+corresponding production change) was separately discarded via `git checkout --`. Nothing from this
+attempt landed on `main`.
+
+Design implication for the next Stage 5 attempt: production-promote the constraint-level read hooks
+(currently `#[cfg(test)]`-gated since Stage 0) alongside the scheduler itself, gated behind the SAME
+off-by-default benchmark flag rather than left permanently test-only -- the flag should activate the
+whole observation chain (constraint reads, session-level mutators, and the scheduler's prediction
+logic) as one unit, not the scheduler alone. Before starting a second attempt, explicitly confirm no
+other Codex session is still executing in the background (re-check `git log`/`git status` partway
+through any long-running verification, not just at the start and end) -- this project has now observed
+unmanaged concurrent tree writes on multiple separate occasions this session (Stage 2's first attempt,
+Stage 3, Stage 4, and this Stage 5 attempt), and Stage 5 in particular showed a writer still active
+well after the client-side timeout that originally triggered recovery, and even after an initial
+`git reset --hard`.
+
 ### Stage 6: fail-closed production activation
 
 - Size: S-M.
