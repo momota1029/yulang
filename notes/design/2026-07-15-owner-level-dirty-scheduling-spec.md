@@ -896,6 +896,55 @@ closed; Stage 6 (default production activation) should not begin until caps are 
   5. method-taint rebuild remains once per forced pass, not once per owner;
   6. no source path/name/fixture condition influences scheduling.
 
+#### Stage 6 complete (2026-07-16): gate shortfall found and fixed, default activation verified
+
+A first Stage 6 attempt flipped the scheduler's activation to default-on and was fully correctness-verified
+(zero divergence across the complete 8-item acceptance set: Markdown, HTML, repository-std-only,
+showcase, early-fallback census, rename/module-move, ordinary non-role, small-role; all fail-closed
+adversarial tests for unknown-mutation/cap-overflow/journal-overflow passed) but fell short of the
+required >=5% Yumark Markdown `build_poly` improvement, measuring only 3.14% even though the
+mechanism's own targeted metric (`method_role_solve`) improved 73.92% and HTML/repository-std-only/
+showcase all comfortably exceeded 5% (11-19% each).
+
+A follow-up investigation (working from a temporarily-applied stash, tree restored to clean and stash
+preserved afterward) found the precise root cause: once the first forced method-role pass activated
+the mutation journal, journal recording stayed active for the rest of the session -- a one-way latch
+inherited from Stage 3's original test-only-scheduler design (where persisting activation across
+passes was necessary to avoid collapsing the clean-prediction rate, per Stage 3's own history) but now
+costly since Stage 6 makes this the always-on default. Every ordinary constraint mutation throughout
+the rest of compilation kept getting recorded even outside method-role passes. Measured impact: the
+`analysis.route` phase went from 5.4ms (always-solve) to 105.9ms (scheduler-on), a +100.5ms cost
+almost exactly matching the ~98.66ms shortfall against the 5% gate. A duplicate mutation-outbox
+synchronization in the routing path (`route_constraint_events` calling `sync_method_role_mutation_outboxes`
+both directly and transitively through `owner_dirty_scheduler_drain_journal`) compounded this. The
+investigation calculated a "mechanism-adjusted ceiling" of ~6.06% if the overhead were eliminated --
+comfortably above the 5% gate, confirming this was a fixable implementation cost, not an inherent
+arithmetic ceiling from Markdown's already-small post-optimization method-role share (~10.89% of total
+`build_poly`, down from a much larger share before this session's earlier fixes).
+
+The fix (built on the stashed first attempt, applied via `git diff | git apply` since `.git stash apply`
+itself hit the same read-only-filesystem sandbox constraint seen throughout this session): make journal
+emission subscription-aware rather than session-wide-always-on -- only `DependencyKey`s with a live
+reverse-subscription from some owner get recorded, while cross-pass persistence (required since Stage 3)
+is unchanged; the recording criterion changed (WHICH keys), not the activation window (WHEN). The
+duplicate synchronization was also removed. This deliberately avoided reintroducing Stage 3's original
+problem: Markdown's clean-owner-skip rate was re-confirmed at ~97.78% (not collapsed to the ~3.59% a
+naive "only record during an active pass" policy had caused when first tried in Stage 3).
+
+Full re-verification after the fix: zero divergence across the complete acceptance set (unchanged from
+the first attempt); Stage 3's clean-rate concern confirmed absent; `cargo test -p infer --lib` showed
+809 passed / 5 known-unrelated failures (2 new tests, zero regressions); fresh Section 6.2 gate
+measurements (same-time A/B against `aa4033b8`) all passed: Markdown `build_poly` -5.799% (gate: >=5%),
+HTML -23.35%, repository-std-only -25.65%, showcase -23.35% (all comfortably under the <=2%-regression
+gate that only ever required non-Markdown fixtures not to get worse); repository-std semantic SHA-256
+was byte-identical before and after. Commit `72467f78` (`perf(infer): activate subscription-aware owner
+scheduling by default`) is pushed.
+
+**Owner-level dirty scheduling is now active by default in production** -- the `--owner-dirty-scheduler-
+benchmark` CLI flag from Stage 5 remains a compatible no-op (kept rather than removed, per Stage 5's
+own deferral of that decision to Stage 7's cleanup). Only Stage 7 (hardening, cleanup, and project
+closeout) remains.
+
 ### Stage 7: hardening, cleanup, and project closeout
 
 - Size: S-M.
