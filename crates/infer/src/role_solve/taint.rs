@@ -48,6 +48,8 @@ pub(super) fn compact_type_has_method_taint(
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> bool {
     ty.vars.iter().any(|var| {
+        #[cfg(test)]
+        crate::analysis::record_shadow_method_taint_read(var.var);
         method_taint
             .get(&var.var)
             .is_some_and(|selects| !selects.is_empty())

@@ -6,6 +6,8 @@ pub(super) mod impl_decl;
 pub(super) mod methods;
 pub(super) mod register;
 pub(super) mod role;
+#[cfg(test)]
+mod shadow_dirty_oracle_tests;
 pub(super) mod signature_helpers;
 #[cfg(test)]
 mod stage0_tests;

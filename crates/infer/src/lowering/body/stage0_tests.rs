@@ -621,7 +621,7 @@ fn lower_loaded_file_bodies(lowerer: &mut BodyLowerer, loaded: &LoadedFileCsts) 
     }
 }
 
-fn repository_std_loaded(root_source: &str) -> Vec<LoadedFile> {
+pub(super) fn repository_std_loaded(root_source: &str) -> Vec<LoadedFile> {
     let repository = repository_root();
     let lib = repository.join("lib");
     let mut paths = vec![lib.join("std.yu")];
@@ -650,7 +650,7 @@ fn repository_std_loaded(root_source: &str) -> Vec<LoadedFile> {
     sources::load(files)
 }
 
-fn root_value_def(modules: &ModuleTable, name: &str) -> DefId {
+pub(super) fn root_value_def(modules: &ModuleTable, name: &str) -> DefId {
     let decls = modules.value_decls(modules.root_id(), &Name(name.into()));
     let [decl] = decls.as_slice() else {
         panic!("expected one root value {name:?}")
@@ -658,7 +658,7 @@ fn root_value_def(modules: &ModuleTable, name: &str) -> DefId {
     decl.def
 }
 
-fn fixture_source(name: &str) -> String {
+pub(super) fn fixture_source(name: &str) -> String {
     let path = repository_root()
         .join("tests/yulang/regressions/cache")
         .join(name);

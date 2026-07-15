@@ -123,13 +123,43 @@ impl AnalysisSession {
             return false;
         }
 
+        #[cfg(test)]
+        self.shadow_dirty_oracle_begin_pass(&parents, &method_taint);
+
         let mut progressed = false;
         let role_solve_start = Instant::now();
         for def in parents {
             let Some(root) = self.scc.root_of(def) else {
+                #[cfg(test)]
+                if self.shadow_dirty_oracle.is_some() {
+                    self.shadow_dirty_oracle_finish_owner(
+                        def,
+                        None,
+                        false,
+                        &method_taint,
+                        Default::default(),
+                    );
+                }
                 continue;
             };
-            if self.resolve_method_tainted_roles_for_def(def, root, &method_taint) {
+            #[cfg(test)]
+            let shadow_reads = self
+                .shadow_dirty_oracle
+                .is_some()
+                .then(begin_shadow_owner_reads);
+            let owner_progressed =
+                self.resolve_method_tainted_roles_for_def(def, root, &method_taint);
+            #[cfg(test)]
+            if let Some(shadow_reads) = shadow_reads {
+                self.shadow_dirty_oracle_finish_owner(
+                    def,
+                    Some(root),
+                    owner_progressed,
+                    &method_taint,
+                    shadow_reads.finish(),
+                );
+            }
+            if owner_progressed {
                 progressed = true;
             }
         }

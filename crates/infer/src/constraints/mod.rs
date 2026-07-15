@@ -238,6 +238,8 @@ impl TypeBounds {
     }
 
     pub fn of(&self, var: TypeVar) -> Option<&VarBounds> {
+        #[cfg(test)]
+        crate::analysis::record_shadow_bound_read(var);
         self.vars
             .get(var.0 as usize)
             .and_then(|bounds| bounds.as_ref())
@@ -381,6 +383,8 @@ impl SubtractTable {
     }
 
     pub fn facts(&self, effect: TypeVar) -> &[SubtractFact] {
+        #[cfg(test)]
+        crate::analysis::record_shadow_subtract_read(effect);
         self.facts.get(&effect).map(Vec::as_slice).unwrap_or(&[])
     }
 

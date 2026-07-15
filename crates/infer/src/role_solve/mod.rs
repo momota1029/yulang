@@ -214,6 +214,8 @@ fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITI
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
         stats.demands += 1;
+        #[cfg(test)]
+        crate::analysis::record_shadow_candidate_bucket_read(&constraint.role);
         let impl_candidates = impls.candidates(&constraint.role);
         stats.candidate_scans += impl_candidates.len();
         let concrete_inputs = role_concrete_input_bounds(constraint, &main_polarity, method_taint);
@@ -251,6 +253,8 @@ fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITI
             demand: constraint.clone(),
             candidate: resolved.candidate.clone(),
         };
+        #[cfg(test)]
+        crate::analysis::record_shadow_applied_resolution_read(&key, applied.contains(&key));
         if applied.contains(&key) {
             stats.already_applied += 1;
             if RECORD_DISPOSITIONS {
@@ -446,6 +450,8 @@ fn resolve_candidate_prerequisites(
         stats.prerequisite_demands += 1;
         let prerequisite =
             rewrite_role_constraint(&compact_role_constraint(machine, prerequisite), subst);
+        #[cfg(test)]
+        crate::analysis::record_shadow_candidate_bucket_read(&prerequisite.role);
         let impl_candidates = impls.candidates(&prerequisite.role);
         stats.prerequisite_candidate_scans += impl_candidates.len();
         let concrete_inputs =

@@ -41,6 +41,8 @@ impl AnalysisSession {
             #[cfg(test)]
             candidate_settlement_safety_witness: None,
             #[cfg(test)]
+            shadow_dirty_oracle: ShadowDirtyOracle::for_new_session(),
+            #[cfg(test)]
             stage0_quantify_watch: FxHashSet::default(),
             #[cfg(test)]
             stage0_quantify_events: Vec::new(),
@@ -148,7 +150,11 @@ impl AnalysisSession {
 
     /// Register a role implementation visible to role solving.
     pub fn register_role_impl_candidate(&mut self, candidate: RoleImplCandidate) {
+        #[cfg(test)]
+        let shadow_role = candidate.role.clone();
         self.role_impls.insert(candidate);
+        #[cfg(test)]
+        self.shadow_dirty_oracle_candidate_inserted(shadow_role);
         self.mark_method_role_input_changed();
     }
 
@@ -164,6 +170,8 @@ impl AnalysisSession {
         }
         self.role_impls
             .extend_prerequisites_for_impl(impl_def, prerequisites);
+        #[cfg(test)]
+        self.shadow_dirty_oracle_prerequisites_extended(impl_def);
         self.mark_method_role_input_changed();
     }
 

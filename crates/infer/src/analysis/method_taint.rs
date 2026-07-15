@@ -296,6 +296,8 @@ fn compact_bounds_has_method_taint(
 
 fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintIndex) -> bool {
     ty.vars.iter().any(|var| {
+        #[cfg(test)]
+        super::record_shadow_method_taint_read(var.var);
         method_taint
             .get(&var.var)
             .is_some_and(|selects| !selects.is_empty())
