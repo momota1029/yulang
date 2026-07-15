@@ -4133,21 +4133,15 @@ fn oracle_b_small_suffix_matches_across_explicit_std_prefix_hit() {
     let handoff_cost =
         runtime_metric_text(&seed_output, "run.cache_interface.canonical_handoff_cost");
     eprintln!("Stage 6 repository std canonical handoff: {handoff_outcome} in {handoff_cost}");
-    assert_eq!(handoff_outcome, "failure");
-    let failure_kind = runtime_metric_text(
+    assert_eq!(handoff_outcome, "success-empty");
+    assert_runtime_metric_absent(
         &seed_output,
         "run.cache_interface.canonical_handoff_failure_kind",
     );
-    let failure_detail = runtime_metric_text(
+    assert_runtime_metric_absent(
         &seed_output,
         "run.cache_interface.canonical_handoff_failure_detail",
     );
-    eprintln!("Stage 6 repository std canonical handoff failure: {failure_kind}: {failure_detail}");
-    assert_eq!(failure_kind, "FreezeProducedConstraint");
-    // The fmt::Debug 2-tuple wrapper is implied by its applied element merges. The next independent
-    // blocker is the list `Index int` candidate's post-normalization dominance constraint.
-    assert!(failure_detail.contains("merge_constraints: 0"));
-    assert!(failure_detail.contains("subtype_constraints: 1"));
     let seed_boundary_entries = runtime_metric_usize(
         &seed_output,
         "run.cache_interface.std_prefix_boundary_entries",
