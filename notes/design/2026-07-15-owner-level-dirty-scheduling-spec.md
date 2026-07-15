@@ -704,6 +704,51 @@ exactly the cases where it could pay off). This decision needs human judgment be
 (`constraints::mutation` owned by the low-level module) should be preserved in the next attempt
 regardless of which outbox-design option is chosen.
 
+#### Stage 2 second attempt (2026-07-15): activation-gated design verified
+
+Following the first attempt's performance-gate failure, the user selected remedy (c): gate all
+mutation-journal emission behind a session-lifetime activation flag, enabled only immediately before
+a forced method-role pass runs (right when the whole-session `df1c23f3` guard determines a pass
+cannot be skipped) and disabled again immediately after. The mutation vocabulary was also relocated
+into a new `crates/infer/src/constraints/mutation.rs` module, correcting the first attempt's layering
+violation: `constraints::mutation` is now self-contained, and `analysis`/`roles` depend on it, not the
+reverse.
+
+Verification: `cargo check -p infer` compiled cleanly with zero warnings. `cargo test -p infer --lib`
+showed 776 passed / 5 known-unrelated Yumark DefId-ordering failures (baseline after Stage 1 was 767
+passed / 5 known failures -- 9 new activation-aware tests added, zero regressions). A repository-std
+semantic comparison (`dump-poly-std examples/showcase.yu` SHA-256) was byte-identical before and
+after. New tests confirm mutation emission is a complete no-op when the journal is inactive and
+produces the correct typed key when active, for both constraint-machine mutators (bounds, neighbors,
+evidence) and session-level mutators (selection/role/candidate registration).
+
+The overhead measurement initially looked ambiguous: absolute timing against the session's original
+~14.36-15.5s baseline showed the gated build running at ~15.1-15.9s across several rounds, a
+seeming regression. However, a controlled analysis resolved this: (a) a same-time A/B comparison
+between the gated build and a temporarily-disabled-journal build showed no consistent difference
+(gated was measured slightly faster in more than one comparison), and (b) a same-environment,
+same-timeframe comparison between the final commit (`c77ef953`) and the pre-Stage-2 baseline commit
+(`9e8e583e`), built and measured back-to-back just now, showed the gated Stage 2 build running about
+4.8% FASTER than the Stage 1 baseline, not slower. The conclusion: the original ~14.36-15.5s absolute
+baseline had become stale after many hours of continuous heavy compilation in this session's shared
+environment (thermal/load drift), not because of any real overhead in this design. Absolute wall-clock
+baselines established early in a very long working session should not be trusted for later go/no-go
+decisions in the same session without a fresh same-environment control measurement; same-time A/B
+comparisons are the reliable signal.
+
+An operational hazard was also confirmed during this stage: a Codex MCP call that times out on the
+client side (this session hit six ~30-minute timeouts total) does not necessarily stop running on the
+server side. On at least three occasions this session, a timed-out call's underlying process continued
+executing and eventually committed its own work to the local repository without ever returning a
+response to the client -- including once, during this stage, while a SEPARATE, independently-launched
+verification call was simultaneously reading/measuring the same working tree, which the verifier
+correctly flagged as a mid-verification provenance concern. Practical mitigation used this session:
+always re-check `git log`/`git status`/`git diff --stat` immediately after any timeout before assuming
+nothing happened, and re-verify a commit's actual content independently rather than trusting a
+verification report generated against a working tree that may have changed underneath it.
+
+Commit `c77ef953` (`perf(infer): gate method-role mutation journal`) is pushed. Stage 2 is complete.
+
 ### Stage 3: journal-backed owner scheduler in shadow mode
 
 - Size: M.
