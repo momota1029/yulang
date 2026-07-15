@@ -38,6 +38,10 @@ impl AnalysisSession {
             candidate_settlement_complete: false,
             #[cfg(test)]
             candidate_settlement_safety_witness: None,
+            #[cfg(test)]
+            stage0_quantify_watch: FxHashSet::default(),
+            #[cfg(test)]
+            stage0_quantify_events: Vec::new(),
             schemes: FxHashMap::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),

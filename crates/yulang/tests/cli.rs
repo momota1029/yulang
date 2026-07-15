@@ -3904,6 +3904,16 @@ fn std_prefix_yumark_cold_warm_schemes_are_characterized_structurally() {
     for (name, fixture, expected_equal, expected_violation_counts) in cases {
         let entry = repo_yulang_fixture(fixture);
         let characterization = characterize_std_prefix_scheme(&entry, "proof");
+        assert!(characterization.cold_build_succeeded, "{name} cold build");
+        assert!(
+            characterization.forced_warm_build_succeeded,
+            "{name} forced warm build"
+        );
+        assert_eq!(characterization.cold_diagnostics, 0, "{name} cold");
+        assert_eq!(
+            characterization.forced_warm_diagnostics, 0,
+            "{name} forced warm"
+        );
         let equal = characterization.cold == characterization.warm;
         eprintln!(
             "{name} cold/warm scheme alpha-equivalent={equal}\n  cold summary: {:?}\n  warm summary: {:?}\n  first difference: {:?}\n  cold scheme: {}\n  warm scheme: {}",
@@ -6366,6 +6376,10 @@ fn write_minimal_std(root: &Path) -> PathBuf {
 }
 
 struct SchemeCharacterization {
+    cold_build_succeeded: bool,
+    forced_warm_build_succeeded: bool,
+    cold_diagnostics: usize,
+    forced_warm_diagnostics: usize,
     cold: infer::interface_oracle::SchemeAlphaView,
     warm: infer::interface_oracle::SchemeAlphaView,
     cold_display: String,
@@ -6677,14 +6691,16 @@ fn characterize_std_prefix_scheme(entry: &Path, binding: &str) -> SchemeCharacte
         .filter_map(|(index, file)| (!prefix_indices.contains(&index)).then_some(file.clone()))
         .collect::<Vec<_>>();
 
-    let cold = yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()).unwrap();
-    let warm =
-        yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
-            prefix, files, suffix,
-        )
-        .unwrap();
-    assert!(cold.poly.errors.is_empty(), "cold: {:?}", cold.poly.errors);
-    assert!(warm.poly.errors.is_empty(), "warm: {:?}", warm.poly.errors);
+    let cold = yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone());
+    let cold_build_succeeded = cold.is_ok();
+    let cold = cold.expect("cold characterization build");
+    let warm = yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+        prefix, files, suffix,
+    );
+    let forced_warm_build_succeeded = warm.is_ok();
+    let warm = warm.expect("forced warm characterization build");
+    let cold_diagnostics = cold.poly.errors.len();
+    let forced_warm_diagnostics = warm.poly.errors.len();
 
     let (cold_scheme, cold_display) = named_scheme(&cold.poly, binding);
     let (warm_scheme, warm_display) = named_scheme(&warm.poly, binding);
@@ -6701,6 +6717,10 @@ fn characterize_std_prefix_scheme(entry: &Path, binding: &str) -> SchemeCharacte
             infer::interface_oracle::BoundaryInterface::EMPTY,
         );
     SchemeCharacterization {
+        cold_build_succeeded,
+        forced_warm_build_succeeded,
+        cold_diagnostics,
+        forced_warm_diagnostics,
         cold: cold_characterization.view,
         warm: warm_characterization.view,
         cold_display,

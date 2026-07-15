@@ -96,6 +96,7 @@ use session::CandidateSettlementFact;
 pub(crate) use session::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection, CandidateSettlementSafetyWitness,
+    Stage0PendingWorkInventory, Stage0QuantifyEvent,
 };
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
@@ -139,6 +140,10 @@ pub struct AnalysisSession {
     candidate_settlement_complete: bool,
     #[cfg(test)]
     candidate_settlement_safety_witness: Option<CandidateSettlementSafetyWitness>,
+    #[cfg(test)]
+    stage0_quantify_watch: FxHashSet<DefId>,
+    #[cfg(test)]
+    stage0_quantify_events: Vec<Stage0QuantifyEvent>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,

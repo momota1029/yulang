@@ -7,6 +7,8 @@ mod generalize;
 mod instantiate;
 mod lifecycle;
 mod selection;
+#[cfg(test)]
+mod stage0_support;
 
 pub(super) use candidate_settlement::CandidateSettlementFact;
 #[cfg(test)]
@@ -17,6 +19,8 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
 };
+#[cfg(test)]
+pub(crate) use stage0_support::{Stage0PendingWorkInventory, Stage0QuantifyEvent};
 
 #[cfg(test)]
 impl AnalysisSession {

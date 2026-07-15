@@ -873,6 +873,8 @@ impl AnalysisSession {
                     });
                 }
                 SccEvent::QuantifyComponent { component, roots } => {
+                    #[cfg(test)]
+                    self.stage0_capture_quantify_component(&component, &roots);
                     self.quantify_component(&component, &roots);
                     self.scc_events
                         .push(SccEvent::QuantifyComponent { component, roots });
