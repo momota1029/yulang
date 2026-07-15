@@ -345,10 +345,8 @@ fn resolve_role_candidate(
     let raw_candidate = candidate;
     let candidate = candidate_cache.compact(machine, raw_candidate, stats);
     let mut subst = TypeSubst::default();
-    for (demand, candidate) in concrete_inputs.iter().zip(&candidate.inputs) {
-        if !match_role_arg_candidate(candidate, demand, &mut subst) {
-            return None;
-        }
+    if !match_role_candidate_inputs(&candidate.inputs, concrete_inputs, &mut subst) {
+        return None;
     }
 
     let candidate = rewrite_role_constraint(&candidate, &subst);

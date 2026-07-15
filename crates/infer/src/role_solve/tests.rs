@@ -104,6 +104,100 @@ fn role_constraint_could_resolve_requires_concrete_information_for_every_input()
     assert!(role_constraint_could_resolve(&concrete));
 }
 
+#[test]
+fn candidate_precheck_rejects_definite_non_first_head_mismatch_before_deep_match() {
+    let mut infer = Arena::new();
+    let node_var = infer.fresh_type_var();
+    let candidate = vec![
+        nominal_role_arg(
+            "doc_leaf",
+            vec![nominal_bounds(
+                "cons_cell",
+                vec![
+                    identity_bounds(node_var),
+                    nominal_bounds("nil_cell", Vec::new()),
+                ],
+            )],
+        ),
+        nominal_role_arg("html_format", Vec::new()),
+    ];
+    let demand = vec![
+        nominal_bounds(
+            "doc_leaf",
+            vec![nominal_bounds(
+                "cons_cell",
+                vec![
+                    nominal_bounds("text_leaf", Vec::new()),
+                    nominal_bounds("nil_cell", Vec::new()),
+                ],
+            )],
+        ),
+        nominal_bounds("markdown_format", Vec::new()),
+    ];
+
+    assert!(role_candidate_has_definite_input_head_mismatch(
+        &candidate, &demand
+    ));
+    let mut subst = TypeSubst::default();
+    assert!(!match_role_candidate_inputs(
+        &candidate, &demand, &mut subst
+    ));
+    assert_eq!(subst.get(node_var), None);
+}
+
+#[test]
+fn candidate_precheck_defers_ambiguous_input_to_full_match() {
+    let mut infer = Arena::new();
+    let format_var = infer.fresh_type_var();
+    let candidate = vec![
+        nominal_role_arg("text_leaf", Vec::new()),
+        identity_role_arg(format_var),
+    ];
+    let demand = vec![
+        nominal_bounds("text_leaf", Vec::new()),
+        nominal_bounds("markdown_format", Vec::new()),
+    ];
+
+    assert!(!role_candidate_has_definite_input_head_mismatch(
+        &candidate, &demand
+    ));
+    let mut subst = TypeSubst::default();
+    assert!(match_role_candidate_inputs(&candidate, &demand, &mut subst));
+    assert_eq!(
+        subst.get(format_var),
+        compact_type_from_bounds(&demand[1]).as_ref()
+    );
+}
+
+#[test]
+fn candidate_precheck_preserves_positive_nominal_match() {
+    let nested_node = nominal_bounds(
+        "doc_leaf",
+        vec![nominal_bounds(
+            "cons_cell",
+            vec![
+                nominal_bounds("text_leaf", Vec::new()),
+                nominal_bounds("nil_cell", Vec::new()),
+            ],
+        )],
+    );
+    let markdown = nominal_bounds("markdown_format", Vec::new());
+    let candidate = vec![
+        CompactRoleArg::invariant(nested_node.clone()),
+        CompactRoleArg::invariant(markdown.clone()),
+    ];
+    let demand = vec![nested_node, markdown];
+
+    assert!(!role_candidate_has_definite_input_head_mismatch(
+        &candidate, &demand
+    ));
+    assert!(match_role_candidate_inputs(
+        &candidate,
+        &demand,
+        &mut TypeSubst::default()
+    ));
+}
+
 fn compact_role_input(infer: &Arena, lower: PosId, upper: NegId) -> CompactRoleArg {
     compact_role_constraint(
         infer.constraints(),
@@ -124,5 +218,28 @@ fn role_constraint(inputs: Vec<CompactRoleArg>) -> CompactRoleConstraint {
         role: vec!["TestRole".into()],
         inputs,
         associated: Vec::new(),
+    }
+}
+
+fn identity_role_arg(var: TypeVar) -> CompactRoleArg {
+    CompactRoleArg::invariant(identity_bounds(var))
+}
+
+fn identity_bounds(var: TypeVar) -> CompactBounds {
+    let ty = CompactType::from_var(crate::compact::CompactVar::plain(var));
+    CompactBounds::Interval {
+        lower: ty.clone(),
+        upper: ty,
+    }
+}
+
+fn nominal_role_arg(name: &str, args: Vec<CompactBounds>) -> CompactRoleArg {
+    CompactRoleArg::invariant(nominal_bounds(name, args))
+}
+
+fn nominal_bounds(name: &str, args: Vec<CompactBounds>) -> CompactBounds {
+    CompactBounds::Con {
+        path: vec![name.into()],
+        args,
     }
 }

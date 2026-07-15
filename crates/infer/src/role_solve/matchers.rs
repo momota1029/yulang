@@ -28,6 +28,54 @@ pub(super) fn match_role_arg_candidate(
     match_bounds_pattern(&candidate.bounds, demand, subst)
 }
 
+pub(super) fn match_role_candidate_inputs(
+    candidate: &[CompactRoleArg],
+    demand: &[CompactBounds],
+    subst: &mut TypeSubst,
+) -> bool {
+    candidate.len() == demand.len()
+        && !role_candidate_has_definite_input_head_mismatch(candidate, demand)
+        && candidate
+            .iter()
+            .zip(demand)
+            .all(|(candidate, demand)| match_role_arg_candidate(candidate, demand, subst))
+}
+
+pub(super) fn role_candidate_has_definite_input_head_mismatch(
+    candidate: &[CompactRoleArg],
+    demand: &[CompactBounds],
+) -> bool {
+    // Intervals and non-nominal shapes stay on the full matcher. Direct `Con` heads are the
+    // narrow case where a different canonical nominal/builtin head is already a certain failure.
+    candidate.iter().zip(demand).any(|(candidate, demand)| {
+        let Some(candidate) = definite_nominal_or_builtin_head(&candidate.bounds) else {
+            return false;
+        };
+        let Some(demand) = definite_nominal_or_builtin_head(demand) else {
+            return false;
+        };
+        candidate != demand
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DefiniteRoleInputHead<'a> {
+    Builtin(BuiltinType),
+    Nominal(&'a [String]),
+}
+
+fn definite_nominal_or_builtin_head(bounds: &CompactBounds) -> Option<DefiniteRoleInputHead<'_>> {
+    let CompactBounds::Con { path, args } = bounds else {
+        return None;
+    };
+    if args.is_empty()
+        && let Some(builtin) = builtin_for_path(path)
+    {
+        return Some(DefiniteRoleInputHead::Builtin(builtin));
+    }
+    Some(DefiniteRoleInputHead::Nominal(path))
+}
+
 pub(super) fn match_type_pattern(
     pattern: &CompactType,
     demand: &CompactType,
@@ -279,14 +327,14 @@ pub(super) fn match_bounds_pattern(
             let Some(demand_ty) = compact_type_from_bounds(demand) else {
                 return false;
             };
+            if interval_pattern_is_identity(subject_var, lower, upper) {
+                return subst.bind(subject_var, demand_ty);
+            }
             if !subst.bind(subject_var, demand_ty.clone()) {
                 return false;
             }
             // `impl Add (list 'a)` の `'a` は payload 全体を受ける pattern なので、
             // demand の invariant bounds をさらに同じ変数へ分解照合しない。
-            if interval_pattern_is_identity(subject_var, lower, upper) {
-                return true;
-            }
             match demand {
                 CompactBounds::Interval {
                     lower: demand_lower,
