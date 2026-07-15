@@ -246,8 +246,15 @@ impl AnalysisSession {
                 self.route_constraint_events();
                 continue;
             }
+            let capture_raw_compact = (!applied_roles.is_empty()
+                || !applied_role_demands.is_empty())
+                && solved_view.as_ref().is_some_and(|view| {
+                    view.normalized_roles.len() == coalesced_role_constraints.len()
+                        && view.dispositions.len() == coalesced_role_constraints.len()
+                });
             break FinalRoleSolveSnapshot {
                 coalesced_roles: coalesced_role_constraints,
+                raw_compact: capture_raw_compact.then(|| compact.clone()),
                 solved_view,
                 constraint_epoch: self.infer.constraints().epoch(),
                 role_epoch: self.roles.epoch_for_owner(def),
@@ -268,33 +275,33 @@ impl AnalysisSession {
             if applied_role_candidates.is_empty() && applied_role_demands.is_empty() {
                 vec![false; final_role_solve.coalesced_roles.len()]
             } else {
-                let rebuilt_view = final_role_solve
-                    .inputs_match(
-                        self.infer.constraints().epoch(),
-                        self.roles.epoch_for_owner(def),
-                        self.roles.for_owner(def).len(),
-                    )
-                    .then(|| {
-                        // A floor rewrite may be harmless for this solve without being a no-op.
-                        // Rebuild the exact final-filter view and compare both solver inputs before
-                        // trusting the prior per-demand dispositions.
-                        self.normalized_role_view(
-                            &compact,
-                            &final_role_solve.coalesced_roles,
-                            simplification_boundary,
-                        )
-                    });
-                let reused = rebuilt_view.as_ref().and_then(|(role_compact, roles)| {
-                    final_role_solve.applied_flags_if_view_is_exact(
-                        role_compact,
-                        roles,
+                let reuse_check = if final_role_solve.inputs_match(
+                    self.infer.constraints().epoch(),
+                    self.roles.epoch_for_owner(def),
+                    self.roles.for_owner(def).len(),
+                ) {
+                    final_role_solve.reuse_applied_flags_or_rebuild_view(
+                        &compact,
+                        &final_role_solve.coalesced_roles,
                         &applied_roles,
                         &applied_role_demands,
+                        || {
+                            // Raw inputs can differ yet normalize to the same solver view. Preserve
+                            // the exact post-floor comparison from the original reuse gate for that
+                            // case; only an exact raw match may skip this rebuild.
+                            self.normalized_role_view(
+                                &compact,
+                                &final_role_solve.coalesced_roles,
+                                simplification_boundary,
+                            )
+                        },
                     )
-                });
-                if let Some(reused) = reused {
+                } else {
+                    FinalRoleReuseCheck::default()
+                };
+                if let Some(reused) = reuse_check.applied_flags {
                     reused
-                } else if let Some((role_compact, roles)) = rebuilt_view {
+                } else if let Some((role_compact, roles)) = reuse_check.rebuilt_view {
                     self.normalized_role_predicates_already_applied(
                         &role_compact,
                         &roles,
@@ -845,6 +852,7 @@ impl AnalysisSession {
 
 struct FinalRoleSolveSnapshot {
     coalesced_roles: Vec<CompactRoleConstraint>,
+    raw_compact: Option<crate::compact::CompactRoot>,
     solved_view: Option<FinalRoleSolvedView>,
     constraint_epoch: ConstraintEpoch,
     role_epoch: RoleEpoch,
@@ -855,6 +863,12 @@ struct FinalRoleSolvedView {
     role_compact: crate::compact::CompactRoot,
     normalized_roles: Vec<CompactRoleConstraint>,
     dispositions: Vec<crate::role_solve::RoleDemandDisposition>,
+}
+
+#[derive(Default)]
+struct FinalRoleReuseCheck {
+    applied_flags: Option<Vec<bool>>,
+    rebuilt_view: Option<(crate::compact::CompactRoot, Vec<CompactRoleConstraint>)>,
 }
 
 impl FinalRoleSolveSnapshot {
@@ -873,6 +887,56 @@ impl FinalRoleSolveSnapshot {
             })
     }
 
+    fn reuse_applied_flags_or_rebuild_view(
+        &self,
+        raw_compact: &crate::compact::CompactRoot,
+        raw_roles: &[CompactRoleConstraint],
+        applied_roles: &FxHashSet<crate::role_solve::RoleResolutionKey>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+        rebuild_view: impl FnOnce() -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>),
+    ) -> FinalRoleReuseCheck {
+        if let Some(applied_flags) = self.applied_flags_if_raw_inputs_are_exact(
+            raw_compact,
+            raw_roles,
+            applied_roles,
+            applied_demands,
+        ) {
+            return FinalRoleReuseCheck {
+                applied_flags: Some(applied_flags),
+                rebuilt_view: None,
+            };
+        }
+
+        let rebuilt_view = rebuild_view();
+        let applied_flags = self.applied_flags_if_view_is_exact(
+            &rebuilt_view.0,
+            &rebuilt_view.1,
+            applied_roles,
+            applied_demands,
+        );
+        FinalRoleReuseCheck {
+            applied_flags,
+            rebuilt_view: Some(rebuilt_view),
+        }
+    }
+
+    fn applied_flags_if_raw_inputs_are_exact(
+        &self,
+        raw_compact: &crate::compact::CompactRoot,
+        raw_roles: &[CompactRoleConstraint],
+        applied_roles: &FxHashSet<crate::role_solve::RoleResolutionKey>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+    ) -> Option<Vec<bool>> {
+        let solved_raw_compact = self.raw_compact.as_ref()?;
+        if *solved_raw_compact != *raw_compact || self.coalesced_roles != raw_roles {
+            return None;
+        }
+        // Normalization is deterministic over exactly these two values. This fast path therefore
+        // establishes the same normalized-view equality as `applied_flags_if_view_is_exact`
+        // without rebuilding that view; disposition validation remains shared below.
+        self.applied_flags_if_dispositions_are_valid(applied_roles, applied_demands)
+    }
+
     fn applied_flags_if_view_is_exact(
         &self,
         role_compact: &crate::compact::CompactRoot,
@@ -886,6 +950,15 @@ impl FinalRoleSolveSnapshot {
         {
             return None;
         }
+        self.applied_flags_if_dispositions_are_valid(applied_roles, applied_demands)
+    }
+
+    fn applied_flags_if_dispositions_are_valid(
+        &self,
+        applied_roles: &FxHashSet<crate::role_solve::RoleResolutionKey>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+    ) -> Option<Vec<bool>> {
+        let solved_view = self.solved_view.as_ref()?;
         // The solve loop cannot terminate with a newly resolved demand. Checking that invariant,
         // the disposition-to-demand alignment, and membership in the unchanged applied-key set
         // makes malformed or stale snapshots fail closed into the ordinary resolver.
@@ -939,9 +1012,10 @@ mod final_role_reuse_tests {
     use crate::roles::{RoleConstraint, RoleConstraintArg, RoleImplCandidate};
     use poly::expr::Arena as PolyArena;
     use poly::types::{Neg, Neu, Pos, TypeVar};
+    use std::cell::Cell;
 
     #[test]
-    fn exact_post_floor_view_reuses_dispositions_and_matches_full_resolve() {
+    fn exact_raw_inputs_skip_view_rebuild_and_match_full_resolve() {
         let fixture = exact_reuse_fixture();
 
         assert!(fixture.snapshot.inputs_match(
@@ -949,7 +1023,27 @@ mod final_role_reuse_tests {
             fixture.session.roles.epoch_for_owner(fixture.owner),
             fixture.session.roles.for_owner(fixture.owner).len(),
         ));
-        let reused = fixture
+        let rebuilds = Cell::new(0);
+        let reuse_check = fixture.snapshot.reuse_applied_flags_or_rebuild_view(
+            &fixture.compact,
+            &fixture.coalesced_roles,
+            &fixture.applied_roles,
+            &fixture.applied_demands,
+            || {
+                rebuilds.set(rebuilds.get() + 1);
+                fixture.session.normalized_role_view(
+                    &fixture.compact,
+                    &fixture.coalesced_roles,
+                    TypeLevel::root().child(),
+                )
+            },
+        );
+        assert_eq!(rebuilds.get(), 0, "an exact raw match must skip rebuilding");
+        assert!(reuse_check.rebuilt_view.is_none());
+        let reused = reuse_check
+            .applied_flags
+            .expect("an exact raw view must reuse the terminal dispositions");
+        let via_post_floor_gate = fixture
             .snapshot
             .applied_flags_if_view_is_exact(
                 &fixture.normalized_compact,
@@ -966,8 +1060,96 @@ mod final_role_reuse_tests {
             TypeLevel::root().child(),
         );
 
+        assert_eq!(reused, via_post_floor_gate);
         assert_eq!(reused, full);
         assert_eq!(reused, vec![true, false]);
+    }
+
+    #[test]
+    fn changed_raw_inputs_rebuild_and_reuse_when_post_floor_view_is_exact() {
+        let fixture = exact_reuse_fixture();
+        let changed_raw_compact = fixture.normalized_compact.clone();
+        assert_ne!(fixture.compact, changed_raw_compact);
+        let expected_rebuilt = fixture.session.normalized_role_view(
+            &changed_raw_compact,
+            &fixture.coalesced_roles,
+            TypeLevel::root().child(),
+        );
+        assert_eq!(expected_rebuilt.0, fixture.normalized_compact);
+        assert_eq!(expected_rebuilt.1, fixture.normalized_roles);
+
+        let rebuilds = Cell::new(0);
+        let reuse_check = fixture.snapshot.reuse_applied_flags_or_rebuild_view(
+            &changed_raw_compact,
+            &fixture.coalesced_roles,
+            &fixture.applied_roles,
+            &fixture.applied_demands,
+            || {
+                rebuilds.set(rebuilds.get() + 1);
+                fixture.session.normalized_role_view(
+                    &changed_raw_compact,
+                    &fixture.coalesced_roles,
+                    TypeLevel::root().child(),
+                )
+            },
+        );
+
+        assert_eq!(
+            rebuilds.get(),
+            1,
+            "a raw mismatch must preserve the post-floor rebuild gate"
+        );
+        assert!(reuse_check.rebuilt_view.is_some());
+        assert_eq!(reuse_check.applied_flags, Some(vec![true, false]));
+    }
+
+    #[test]
+    fn semantic_raw_change_rebuilds_and_falls_back_to_full_resolve() {
+        let fixture = exact_reuse_fixture();
+        let mut changed_raw_roles = fixture.coalesced_roles.clone();
+        let document = changed_raw_roles
+            .iter_mut()
+            .find(|role| role.role == vec!["Document".to_string()])
+            .expect("document demand");
+        document.inputs[1].bounds = CompactBounds::Con {
+            path: vec!["other_node".into()],
+            args: Vec::new(),
+        };
+        assert_ne!(fixture.coalesced_roles, changed_raw_roles);
+
+        let rebuilds = Cell::new(0);
+        let reuse_check = fixture.snapshot.reuse_applied_flags_or_rebuild_view(
+            &fixture.compact,
+            &changed_raw_roles,
+            &fixture.applied_roles,
+            &fixture.applied_demands,
+            || {
+                rebuilds.set(rebuilds.get() + 1);
+                fixture.session.normalized_role_view(
+                    &fixture.compact,
+                    &changed_raw_roles,
+                    TypeLevel::root().child(),
+                )
+            },
+        );
+
+        assert_eq!(rebuilds.get(), 1);
+        assert!(reuse_check.applied_flags.is_none());
+        let (rebuilt_compact, rebuilt_roles) = reuse_check
+            .rebuilt_view
+            .expect("a raw mismatch must retain the rebuilt view for full resolve");
+        let full = fixture.session.normalized_role_predicates_already_applied(
+            &rebuilt_compact,
+            &rebuilt_roles,
+            &fixture.applied_candidates,
+            &fixture.applied_demands,
+        );
+        let document_index = rebuilt_roles
+            .iter()
+            .position(|role| role.role == vec!["Document".to_string()])
+            .expect("document demand");
+
+        assert!(!full[document_index]);
     }
 
     #[test]
@@ -1207,6 +1389,7 @@ mod final_role_reuse_tests {
         let applied_demands = FxHashSet::from_iter([applied.demand]);
         let snapshot = FinalRoleSolveSnapshot {
             coalesced_roles: coalesced_roles.clone(),
+            raw_compact: Some(compact.clone()),
             solved_view: Some(FinalRoleSolvedView {
                 role_compact: normalized_compact.clone(),
                 normalized_roles: normalized_roles.clone(),
