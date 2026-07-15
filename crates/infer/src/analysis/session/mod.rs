@@ -19,7 +19,7 @@ pub(super) use candidate_settlement::CandidateSettlementFact;
 pub(crate) use candidate_settlement::CandidateSettlementSafetyWitness;
 
 #[cfg(test)]
-pub(crate) use dirty_scheduling_contract::{DependencyKey, DependencyKeyKind};
+pub(crate) use dirty_scheduling_contract::DependencyKeyKind;
 
 #[cfg(test)]
 pub(crate) use early_fallback_classifier::{

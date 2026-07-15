@@ -50,6 +50,10 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        if self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintBounds(target));
+        }
         let epoch = self.bump_epoch();
         self.bounds.record_var_epoch(target, epoch);
         let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
@@ -98,6 +102,10 @@ impl ConstraintMachine {
         self.prune_upper_rows_subsumed_by(source, neg, &weights);
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
+        }
+        if self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintBounds(source));
         }
         let epoch = self.bump_epoch();
         self.bounds.record_var_epoch(source, epoch);
@@ -476,6 +484,10 @@ impl ConstraintMachine {
                 .bounds
                 .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
             {
+                if self.method_role_mutations.is_active() {
+                    self.method_role_mutations
+                        .record(DependencyKey::ConstraintBounds(target));
+                }
                 let epoch = self.bump_epoch();
                 self.bounds.record_var_epoch(target, epoch);
             }
@@ -483,6 +495,10 @@ impl ConstraintMachine {
                 .bounds
                 .add_evidence_upper(source, constraint.upper, constraint.weights)
             {
+                if self.method_role_mutations.is_active() {
+                    self.method_role_mutations
+                        .record(DependencyKey::ConstraintBounds(source));
+                }
                 let epoch = self.bump_epoch();
                 self.bounds.record_var_epoch(source, epoch);
             }
@@ -594,8 +610,15 @@ impl ConstraintMachine {
             }
             keep
         });
+        let bounds_changed = !removed.is_empty();
         for upper in removed {
             self.unrecord_neg_bound_var_neighbors(source, upper);
+        }
+        if bounds_changed && self.method_role_mutations.is_active() {
+            // Pruning predates the per-variable bounds epoch. Publish from the authoritative
+            // vector mutation instead of inferring invalidation from that incomplete epoch.
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintBounds(source));
         }
     }
 
@@ -680,26 +703,54 @@ impl ConstraintMachine {
         if left == right {
             return;
         }
-        *self
-            .var_adjacency
-            .entry(left)
-            .or_default()
-            .entry(right)
-            .or_default() += 1;
-        *self
-            .var_adjacency
-            .entry(right)
-            .or_default()
-            .entry(left)
-            .or_default() += 1;
+        if !self.method_role_mutations.is_active() {
+            increment_var_neighbor(&mut self.var_adjacency, left, right);
+            increment_var_neighbor(&mut self.var_adjacency, right, left);
+            return;
+        }
+        let left_transition =
+            increment_var_neighbor_recording_transition(&mut self.var_adjacency, left, right);
+        let right_transition =
+            increment_var_neighbor_recording_transition(&mut self.var_adjacency, right, left);
+        if left_transition != right_transition {
+            self.method_role_mutations.invalidate_all(
+                InvalidateAllReason::AuditFenceDisagreement {
+                    site: "record_var_neighbor symmetry",
+                },
+            );
+            return;
+        }
+        if left_transition {
+            self.method_role_mutations.record_many([
+                DependencyKey::ConstraintNeighbors(left),
+                DependencyKey::ConstraintNeighbors(right),
+            ]);
+        }
     }
 
     fn unrecord_var_neighbor(&mut self, left: TypeVar, right: TypeVar) {
         if left == right {
             return;
         }
-        decrement_var_neighbor(&mut self.var_adjacency, left, right);
-        decrement_var_neighbor(&mut self.var_adjacency, right, left);
+        let left_transition = decrement_var_neighbor(&mut self.var_adjacency, left, right);
+        let right_transition = decrement_var_neighbor(&mut self.var_adjacency, right, left);
+        if !self.method_role_mutations.is_active() {
+            return;
+        }
+        if left_transition != right_transition {
+            self.method_role_mutations.invalidate_all(
+                InvalidateAllReason::AuditFenceDisagreement {
+                    site: "unrecord_var_neighbor symmetry",
+                },
+            );
+            return;
+        }
+        if left_transition {
+            self.method_role_mutations.record_many([
+                DependencyKey::ConstraintNeighbors(left),
+                DependencyKey::ConstraintNeighbors(right),
+            ]);
+        }
     }
 
     fn neg_ids_match_for_row_tail(&self, lhs: NegId, rhs: NegId) -> bool {
@@ -901,7 +952,11 @@ impl ConstraintMachine {
         if !ctx.visited.insert(var) {
             return;
         }
-        self.levels.lower_to(var, ctx.target);
+        let level_lowered = self.levels.lower_to(var, ctx.target);
+        if level_lowered && self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintLevel(var));
+        }
         let bounds = self
             .bounds
             .of(var)
@@ -917,24 +972,162 @@ impl ConstraintMachine {
     }
 }
 
-fn decrement_var_neighbor(
+#[cfg(test)]
+mod mutation_tests {
+    use super::*;
+
+    #[test]
+    fn evidence_add_and_promotion_emit_bounds_only_while_active() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let target = TypeVar(1);
+        machine.register_type_var(source, TypeLevel::root());
+        machine.register_type_var(target, TypeLevel::root());
+        assert!(machine.take_method_role_mutations().is_empty());
+
+        let journal = machine.activate_method_role_mutations();
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        let mut actions = BoundReplayActions::new();
+        actions.push(SubtypeConstraint {
+            lower,
+            upper,
+            weights: ConstraintWeights::empty(),
+        });
+        machine.apply_bound_replay_evidence_actions(actions);
+        assert_eq!(
+            changed_keys(machine.take_method_role_mutations()),
+            [
+                DependencyKey::ConstraintBounds(target),
+                DependencyKey::ConstraintBounds(source),
+            ]
+        );
+        assert_eq!(
+            machine.bounds().of(target).unwrap().evidence_lower_count(),
+            1
+        );
+        assert_eq!(
+            machine.bounds().of(source).unwrap().evidence_upper_count(),
+            1
+        );
+
+        machine.add_lower_bound(target, lower, ConstraintWeights::empty());
+        assert!(
+            changed_keys(machine.take_method_role_mutations())
+                .contains(&DependencyKey::ConstraintBounds(target))
+        );
+        assert_eq!(
+            machine.bounds().of(target).unwrap().evidence_lower_count(),
+            0
+        );
+
+        machine.add_upper_bound(source, upper, ConstraintWeights::empty());
+        assert!(
+            changed_keys(machine.take_method_role_mutations())
+                .contains(&DependencyKey::ConstraintBounds(source))
+        );
+        assert_eq!(
+            machine.bounds().of(source).unwrap().evidence_upper_count(),
+            0
+        );
+        journal.finish();
+
+        machine.register_type_var(TypeVar(2), TypeLevel::root());
+        assert!(machine.take_method_role_mutations().is_empty());
+    }
+
+    #[test]
+    fn neighbor_symmetry_audit_fences_fail_closed_when_active() {
+        let left = TypeVar(3);
+        let right = TypeVar(4);
+
+        let mut add = ConstraintMachine::new();
+        add.var_adjacency.entry(left).or_default().insert(right, 1);
+        let add_journal = add.activate_method_role_mutations();
+        add.record_var_neighbor(left, right);
+        assert!(matches!(
+            add.method_role_mutations(),
+            [MethodRoleMutation::InvalidateAll {
+                reason: InvalidateAllReason::AuditFenceDisagreement {
+                    site: "record_var_neighbor symmetry",
+                },
+                ..
+            }]
+        ));
+        add_journal.finish();
+
+        let mut remove = ConstraintMachine::new();
+        remove
+            .var_adjacency
+            .entry(left)
+            .or_default()
+            .insert(right, 1);
+        let remove_journal = remove.activate_method_role_mutations();
+        remove.unrecord_var_neighbor(left, right);
+        assert!(matches!(
+            remove.method_role_mutations(),
+            [MethodRoleMutation::InvalidateAll {
+                reason: InvalidateAllReason::AuditFenceDisagreement {
+                    site: "unrecord_var_neighbor symmetry",
+                },
+                ..
+            }]
+        ));
+        remove_journal.finish();
+    }
+
+    fn changed_keys(mutations: Vec<MethodRoleMutation>) -> Vec<DependencyKey> {
+        mutations
+            .into_iter()
+            .filter_map(|mutation| match mutation {
+                MethodRoleMutation::Changed { key, .. } => Some(key),
+                MethodRoleMutation::InvalidateAll { reason, .. } => {
+                    panic!("unexpected InvalidateAll: {reason:?}")
+                }
+            })
+            .collect()
+    }
+}
+
+fn increment_var_neighbor(
     adjacency: &mut FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     left: TypeVar,
     right: TypeVar,
 ) {
+    *adjacency.entry(left).or_default().entry(right).or_default() += 1;
+}
+
+fn increment_var_neighbor_recording_transition(
+    adjacency: &mut FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
+    left: TypeVar,
+    right: TypeVar,
+) -> bool {
+    let count = adjacency.entry(left).or_default().entry(right).or_default();
+    let absent = *count == 0;
+    *count += 1;
+    absent
+}
+
+fn decrement_var_neighbor(
+    adjacency: &mut FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
+    left: TypeVar,
+    right: TypeVar,
+) -> bool {
     let Some(neighbors) = adjacency.get_mut(&left) else {
-        return;
+        return false;
     };
     let Some(count) = neighbors.get_mut(&right) else {
-        return;
+        return false;
     };
     *count = count.saturating_sub(1);
+    let removed = *count == 0;
     if *count == 0 {
         neighbors.remove(&right);
     }
     if neighbors.is_empty() {
         adjacency.remove(&left);
     }
+    removed
 }
 
 fn collect_pos_id_vars(types: &TypeArena, id: PosId, out: &mut FxHashSet<TypeVar>) {

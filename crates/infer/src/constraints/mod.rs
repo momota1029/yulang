@@ -8,6 +8,7 @@
 
 mod directed_weight;
 mod machine;
+pub(crate) mod mutation;
 mod row_effect;
 #[cfg(test)]
 mod tests;
@@ -25,6 +26,13 @@ use poly::types::{
     TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
+
+#[cfg(test)]
+pub(crate) use mutation::MethodRoleMutation;
+pub(crate) use mutation::{
+    DependencyKey, InvalidateAllReason, MethodRoleMutationActivation, MethodRoleMutationOutbox,
+    MutationGeneration,
+};
 
 pub use timing::{
     ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
@@ -56,6 +64,7 @@ pub struct ConstraintMachine {
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     seen: FxHashSet<SubtypeConstraint>,
     events: Vec<ConstraintEvent>,
+    method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
     epoch: ConstraintEpoch,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
@@ -119,6 +128,17 @@ impl TypeLevels {
         self.births[index].get_or_insert(level);
     }
 
+    fn register_recording_change(&mut self, var: TypeVar, level: TypeLevel) -> bool {
+        let index = var.0 as usize;
+        ensure_slot(&mut self.vars, index);
+        ensure_slot(&mut self.births, index);
+        let current_inserted = self.vars[index].is_none();
+        let birth_inserted = self.births[index].is_none();
+        self.vars[index].get_or_insert(level);
+        self.births[index].get_or_insert(level);
+        current_inserted || birth_inserted
+    }
+
     fn level_of(&self, var: TypeVar) -> TypeLevel {
         self.vars
             .get(var.0 as usize)
@@ -133,13 +153,15 @@ impl TypeLevels {
             .unwrap_or_else(TypeLevel::root)
     }
 
-    fn lower_to(&mut self, var: TypeVar, target: TypeLevel) {
+    fn lower_to(&mut self, var: TypeVar, target: TypeLevel) -> bool {
         let index = var.0 as usize;
         ensure_slot(&mut self.vars, index);
         let level = self.vars[index].get_or_insert_with(TypeLevel::root);
         if target < *level {
             *level = target;
+            return true;
         }
+        false
     }
 }
 

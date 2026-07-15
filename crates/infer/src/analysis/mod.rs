@@ -51,6 +51,10 @@ use crate::compact::{
     unapplied_compact_subtype_constraint_count,
     unapplied_compact_subtype_constraint_count_with_known,
 };
+pub(crate) use crate::constraints::mutation::{DependencyKey, MethodRoleMutation};
+use crate::constraints::mutation::{
+    InvalidateAllReason, MethodRoleMutationActivation, MethodRoleMutationOutbox, MutationGeneration,
+};
 use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
@@ -79,8 +83,9 @@ use crate::role_solve::{
     resolve_role_constraints_with_stats_and_dispositions, role_constraint_could_resolve,
 };
 use crate::roles::{
-    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleEpoch,
-    RoleImplCandidate, RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
+    IndexedRoleImplTable, RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg,
+    RoleConstraintTable, RoleEpoch, RoleImplCandidate, RoleImplTable, RoleInputVariance,
+    RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::time::{Duration, Instant};
@@ -97,12 +102,12 @@ use session::ShadowDirtyOracle;
 #[cfg(test)]
 pub(crate) use session::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
-    CandidateIndependentFallbackSelection, CandidateSettlementSafetyWitness, DependencyKey,
-    DependencyKeyKind, Stage0PendingWorkInventory, Stage0QuantifyEvent,
-    record_shadow_applied_resolution_read, record_shadow_birth_level_read,
-    record_shadow_bound_read, record_shadow_candidate_bucket_read, record_shadow_level_read,
-    record_shadow_method_taint_read, record_shadow_neighbor_read, record_shadow_pre_pop_read,
-    record_shadow_subtract_read, with_shadow_dirty_oracle_for_new_sessions,
+    CandidateIndependentFallbackSelection, CandidateSettlementSafetyWitness, DependencyKeyKind,
+    Stage0PendingWorkInventory, Stage0QuantifyEvent, record_shadow_applied_resolution_read,
+    record_shadow_birth_level_read, record_shadow_bound_read, record_shadow_candidate_bucket_read,
+    record_shadow_level_read, record_shadow_method_taint_read, record_shadow_neighbor_read,
+    record_shadow_pre_pop_read, record_shadow_subtract_read,
+    with_shadow_dirty_oracle_for_new_sessions,
 };
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
@@ -124,15 +129,15 @@ pub struct AnalysisSession {
     pub local_defs: LocalDefUseTable,
     pub refs: RefUseTable,
     pub selections: SelectionUseTable,
-    pub roles: RoleConstraintTable,
-    pub role_impls: RoleImplTable,
+    pub(crate) roles: RoleConstraintTable,
+    pub(crate) role_impls: IndexedRoleImplTable,
     pub casts: CastTable,
     pub methods: TypeMethodTable,
     pub effect_methods: EffectMethodTable,
     pub role_methods: RoleMethodTable,
     pub role_input_variances: RoleInputVarianceTable,
     pub local_methods: CompanionMethodTable,
-    pub scc: SccMachine,
+    pub(crate) scc: SccMachine,
     role_impl_members: FxHashMap<DefId, DefId>,
     role_impl_member_sets: FxHashMap<DefId, Vec<DefId>>,
     role_impl_member_simplifications: FxHashMap<DefId, Vec<CompactSimplification>>,
@@ -140,6 +145,12 @@ pub struct AnalysisSession {
     role_impl_member_residual_prerequisites:
         FxHashMap<DefId, crate::role_impl_conformance::RoleImplMethodResidualPrerequisites>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
+    method_role_mutations: MethodRoleMutationOutbox,
+    last_audited_constraint_epoch: ConstraintEpoch,
+    last_audited_constraint_mutation_generation: MutationGeneration,
+    last_audited_role_epoch: RoleEpoch,
+    last_audited_role_mutation_generation: MutationGeneration,
+    last_audited_candidate_mutation_generation: MutationGeneration,
     method_role_input_generation: u64,
     last_no_progress_method_role_pass: Option<MethodRolePassInputSnapshot>,
     cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
@@ -177,6 +188,41 @@ struct MethodRolePassInputSnapshot {
     constraint_epoch: ConstraintEpoch,
     role_epoch: RoleEpoch,
     input_generation: u64,
+    contract_generation: MutationGeneration,
+}
+
+impl MethodRolePassInputSnapshot {
+    fn guard_inputs_equal(self, other: Self) -> bool {
+        // Stage 2 captures the coarse contract generation for the future scheduler. The existing
+        // whole-session skip remains on its original three independently proven inputs.
+        let _additive_contract_snapshot = (self.contract_generation, other.contract_generation);
+        self.constraint_epoch == other.constraint_epoch
+            && self.role_epoch == other.role_epoch
+            && self.input_generation == other.input_generation
+    }
+}
+
+/// Non-borrowing guards for every outbox participating in one forced pass.
+struct MethodRoleMutationJournalActivation {
+    session: MethodRoleMutationActivation,
+    constraints: MethodRoleMutationActivation,
+    roles: MethodRoleMutationActivation,
+    candidates: MethodRoleMutationActivation,
+}
+
+impl MethodRoleMutationJournalActivation {
+    fn finish(self) {
+        let Self {
+            session,
+            constraints,
+            roles,
+            candidates,
+        } = self;
+        candidates.finish();
+        roles.finish();
+        constraints.finish();
+        session.finish();
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

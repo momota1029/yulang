@@ -30,6 +30,12 @@ impl AnalysisSession {
 
     pub(super) fn apply_scc_to_machine(&mut self, input: SccInput) {
         let start = Instant::now();
+        if self.method_role_mutations.is_active()
+            && let SccInput::RegisterDef { def, .. } = &input
+        {
+            self.method_role_mutations
+                .record(DependencyKey::SccRoot(*def));
+        }
         self.scc.apply(input);
         self.timing.record_scc_apply(start.elapsed());
     }
@@ -182,7 +188,9 @@ impl AnalysisSession {
     }
 
     pub(super) fn method_role_pass_inputs_changed(&self) -> bool {
-        self.last_no_progress_method_role_pass != Some(self.method_role_pass_input_snapshot())
+        let current = self.method_role_pass_input_snapshot();
+        self.last_no_progress_method_role_pass
+            .is_none_or(|previous| !previous.guard_inputs_equal(current))
     }
 
     pub(super) fn begin_method_role_pass(&mut self) {
@@ -199,16 +207,21 @@ impl AnalysisSession {
         let Some(next) = self.method_role_input_generation.checked_add(1) else {
             self.method_role_input_generation = 0;
             self.last_no_progress_method_role_pass = None;
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .invalidate_all(InvalidateAllReason::MutationGenerationOverflow);
+            }
             return;
         };
         self.method_role_input_generation = next;
     }
 
-    fn method_role_pass_input_snapshot(&self) -> MethodRolePassInputSnapshot {
+    pub(super) fn method_role_pass_input_snapshot(&self) -> MethodRolePassInputSnapshot {
         MethodRolePassInputSnapshot {
             constraint_epoch: self.infer.constraints().epoch(),
             role_epoch: self.roles.epoch(),
             input_generation: self.method_role_input_generation,
+            contract_generation: self.method_role_mutations.generation(),
         }
     }
 
@@ -258,14 +271,24 @@ impl AnalysisSession {
             }
 
             for resolution in output.resolutions {
-                self.applied_method_role_resolutions
-                    .insert(resolution.key.clone());
+                self.insert_applied_method_role_resolution(resolution.key.clone());
                 self.constrain_role_resolution(def, &resolution);
                 progressed = true;
             }
             self.route_constraint_events();
         }
         progressed
+    }
+
+    pub(super) fn insert_applied_method_role_resolution(&mut self, key: RoleResolutionKey) -> bool {
+        if !self.applied_method_role_resolutions.insert(key.clone()) {
+            return false;
+        }
+        if self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::AppliedResolution(key));
+        }
+        true
     }
 
     pub(super) fn method_tainted_role_constraints_recording_merge_constraints(
@@ -949,6 +972,10 @@ impl AnalysisSession {
                     });
                 }
                 SccEvent::QuantifyComponent { component, roots } => {
+                    if self.method_role_mutations.is_active() {
+                        self.method_role_mutations
+                            .record_many(component.iter().copied().map(DependencyKey::SccRoot));
+                    }
                     #[cfg(test)]
                     self.stage0_capture_quantify_component(&component, &roots);
                     self.quantify_component(&component, &roots);

@@ -149,7 +149,7 @@ impl SelectionUseTable {
         Self::default()
     }
 
-    pub fn insert(&mut self, id: SelectId, use_site: SelectionUse) -> Option<SelectionUse> {
+    pub(crate) fn insert(&mut self, id: SelectId, use_site: SelectionUse) -> Option<SelectionUse> {
         self.uses.insert(id, use_site)
     }
 
@@ -179,7 +179,7 @@ impl SelectionUseTable {
         self.resolved.get(&id)
     }
 
-    pub fn remove(&mut self, id: SelectId) -> Option<SelectionUse> {
+    pub(crate) fn remove(&mut self, id: SelectId) -> Option<SelectionUse> {
         let removed = self.uses.remove(&id);
         self.clear_receiver_upper_tracking(id);
         removed

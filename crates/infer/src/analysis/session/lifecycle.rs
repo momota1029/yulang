@@ -18,7 +18,7 @@ impl AnalysisSession {
             refs: RefUseTable::new(),
             selections: SelectionUseTable::new(),
             roles: RoleConstraintTable::new(),
-            role_impls: RoleImplTable::new(),
+            role_impls: IndexedRoleImplTable::new(),
             casts: CastTable::new(),
             methods: TypeMethodTable::new(),
             effect_methods: EffectMethodTable::new(),
@@ -32,6 +32,12 @@ impl AnalysisSession {
             role_impl_member_projections: FxHashMap::default(),
             role_impl_member_residual_prerequisites: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
+            method_role_mutations: MethodRoleMutationOutbox::new(),
+            last_audited_constraint_epoch: ConstraintEpoch::default(),
+            last_audited_constraint_mutation_generation: MutationGeneration::default(),
+            last_audited_role_epoch: RoleEpoch::default(),
+            last_audited_role_mutation_generation: MutationGeneration::default(),
+            last_audited_candidate_mutation_generation: MutationGeneration::default(),
             method_role_input_generation: 0,
             last_no_progress_method_role_pass: None,
             cache_interface_applied_merge_constraints: FxHashSet::default(),
@@ -129,7 +135,20 @@ impl AnalysisSession {
 
     /// Register a selection use-site and schedule its initial method probe.
     pub fn register_selection_use(&mut self, select_id: SelectId, use_site: SelectionUse) {
-        self.selections.insert(select_id, use_site);
+        let previous = self.selections.insert(select_id, use_site);
+        if self.method_role_mutations.is_active() {
+            match previous {
+                Some(previous) => self.method_role_mutations.record_many([
+                    DependencyKey::Selection(select_id),
+                    DependencyKey::OwnerSelections(previous.parent),
+                    DependencyKey::OwnerSelections(use_site.parent),
+                ]),
+                None => self.method_role_mutations.record_many([
+                    DependencyKey::Selection(select_id),
+                    DependencyKey::OwnerSelections(use_site.parent),
+                ]),
+            }
+        }
         self.mark_method_role_input_changed();
         self.enqueue(AnalysisWork::Scc(SccInput::MethodDependencyAdded {
             parent: use_site.parent,
@@ -142,7 +161,13 @@ impl AnalysisSession {
         select_id: SelectId,
     ) -> Option<SelectionUse> {
         let removed = self.selections.remove(select_id);
-        if removed.is_some() {
+        if let Some(use_site) = removed {
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations.record_many([
+                    DependencyKey::Selection(select_id),
+                    DependencyKey::OwnerSelections(use_site.parent),
+                ]);
+            }
             self.mark_method_role_input_changed();
         }
         removed
@@ -334,6 +359,9 @@ impl AnalysisSession {
     /// Convert constraint-machine events into analysis work and cast constraints.
     pub fn route_constraint_events(&mut self) -> Duration {
         let start = Instant::now();
+        if self.method_role_mutations.is_active() {
+            self.sync_method_role_mutation_outboxes();
+        }
         let events = self.infer.constraints_mut().take_events();
         let event_count = events.len();
         trace_constraint_events(&events);
@@ -374,6 +402,142 @@ impl AnalysisSession {
         elapsed
     }
 
+    pub(super) fn activate_method_role_mutation_journal(
+        &mut self,
+    ) -> MethodRoleMutationJournalActivation {
+        // Inactive work is intentionally outside the contract window. Establish fresh audit
+        // baselines before opening every outbox, so old coarse epochs cannot be mistaken for a
+        // missing mutation in this forced pass.
+        self.last_audited_constraint_epoch = self.infer.constraints().epoch();
+        self.last_audited_constraint_mutation_generation =
+            self.infer.constraints().method_role_mutation_generation();
+        self.last_audited_role_epoch = self.roles.epoch();
+        self.last_audited_role_mutation_generation = self.roles.method_role_mutation_generation();
+        self.last_audited_candidate_mutation_generation =
+            self.role_impls.method_role_mutation_generation();
+
+        MethodRoleMutationJournalActivation {
+            session: self.method_role_mutations.activate(),
+            constraints: self.infer.constraints().activate_method_role_mutations(),
+            roles: self.roles.activate_method_role_mutations(),
+            candidates: self.role_impls.activate_method_role_mutations(),
+        }
+    }
+
+    fn finish_method_role_mutation_journal(
+        &mut self,
+        activation: MethodRoleMutationJournalActivation,
+    ) {
+        self.sync_method_role_mutation_outboxes();
+        activation.finish();
+    }
+
+    fn sync_method_role_mutation_outboxes(&mut self) {
+        debug_assert!(self.method_role_mutations.is_active());
+
+        let constraint_epoch = self.infer.constraints().epoch();
+        let constraint_generation = self.infer.constraints().method_role_mutation_generation();
+        let constraint_mutations_drained = self
+            .infer
+            .constraints_mut()
+            .drain_method_role_mutations_into(&mut self.method_role_mutations);
+        if constraint_epoch != self.last_audited_constraint_epoch
+            && constraint_generation == self.last_audited_constraint_mutation_generation
+        {
+            self.method_role_mutations.invalidate_all(
+                InvalidateAllReason::AuditFenceDisagreement {
+                    site: "ConstraintMachine::epoch",
+                },
+            );
+        }
+        self.audit_drained_source_outbox(
+            constraint_generation,
+            self.last_audited_constraint_mutation_generation,
+            constraint_mutations_drained,
+            "ConstraintMachine::mutation_outbox",
+        );
+        self.last_audited_constraint_epoch = constraint_epoch;
+        self.last_audited_constraint_mutation_generation = constraint_generation;
+
+        let role_epoch = self.roles.epoch();
+        let role_generation = self.roles.method_role_mutation_generation();
+        let role_mutations_drained = self
+            .roles
+            .drain_method_role_mutations_into(&mut self.method_role_mutations);
+        if role_epoch != self.last_audited_role_epoch
+            && role_generation == self.last_audited_role_mutation_generation
+        {
+            self.method_role_mutations.invalidate_all(
+                InvalidateAllReason::AuditFenceDisagreement {
+                    site: "RoleConstraintTable::epoch",
+                },
+            );
+        }
+        self.audit_drained_source_outbox(
+            role_generation,
+            self.last_audited_role_mutation_generation,
+            role_mutations_drained,
+            "RoleConstraintTable::mutation_outbox",
+        );
+        self.last_audited_role_epoch = role_epoch;
+        self.last_audited_role_mutation_generation = role_generation;
+
+        let candidate_generation = self.role_impls.method_role_mutation_generation();
+        let candidate_mutations_drained = self
+            .role_impls
+            .drain_method_role_mutations_into(&mut self.method_role_mutations);
+        self.audit_drained_source_outbox(
+            candidate_generation,
+            self.last_audited_candidate_mutation_generation,
+            candidate_mutations_drained,
+            "IndexedRoleImplTable::mutation_outbox",
+        );
+        self.last_audited_candidate_mutation_generation = candidate_generation;
+    }
+
+    fn audit_drained_source_outbox(
+        &mut self,
+        generation: MutationGeneration,
+        last_generation: MutationGeneration,
+        had_mutations: bool,
+        site: &'static str,
+    ) {
+        if generation != last_generation && !had_mutations {
+            self.method_role_mutations
+                .invalidate_all(InvalidateAllReason::AuditFenceDisagreement { site });
+        }
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "Stage 3 drains the production journal for scheduling"
+        )
+    )]
+    pub(crate) fn take_method_role_mutations(&mut self) -> Vec<MethodRoleMutation> {
+        if self.method_role_mutations.is_active() {
+            self.sync_method_role_mutation_outboxes();
+        }
+        self.method_role_mutations.take()
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "Stage 3 gates owner eligibility on the mutation contract"
+        )
+    )]
+    pub(crate) fn method_role_owner_eligibility(&self) -> bool {
+        self.method_role_mutations.owner_eligibility()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn method_role_mutation_journal_active(&self) -> bool {
+        self.method_role_mutations.is_active()
+    }
+
     /// Drain queued analysis work until method-role solving reaches a fixed point.
     pub fn drain_work(&mut self) {
         let mut trace = AnalysisDrainTrace::from_env(self.work.len());
@@ -383,9 +547,11 @@ impl AnalysisSession {
                 break;
             }
             self.begin_method_role_pass();
+            let mutation_journal = self.activate_method_role_mutation_journal();
             trace.before_role_pass(self.selections.unresolved().count(), self.work.len());
             let role_start = Instant::now();
             let progressed = self.resolve_roles_for_unresolved_methods();
+            self.finish_method_role_mutation_journal(mutation_journal);
             self.timing
                 .record_role_pass(role_start.elapsed(), progressed);
             trace.after_role_pass(

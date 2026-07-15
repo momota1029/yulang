@@ -3,7 +3,7 @@ use super::*;
 use super::stage0_tests::{fixture_source, repository_std_loaded, root_value_def};
 use crate::Arena;
 use crate::analysis::{
-    DependencyKey, DependencyKeyKind, with_shadow_dirty_oracle_for_new_sessions,
+    DependencyKey, DependencyKeyKind, MethodRoleMutation, with_shadow_dirty_oracle_for_new_sessions,
 };
 use crate::constraints::{ConstraintWeights, LeftConstraintWeight, RightConstraintWeight};
 
@@ -279,11 +279,12 @@ fn upper_row_pruning_can_escape_the_current_bounds_epoch_fingerprint() {
     let mut infer = Arena::new();
     let source = infer.fresh_type_var();
     let leaf_var = infer.fresh_type_var();
+    let follower_var = infer.fresh_type_var();
     let source_pos = infer.alloc_pos(Pos::Var(source));
     let leaf = infer.alloc_neg(Neg::Var(leaf_var));
     let inner_item = infer.alloc_neg(Neg::Con(vec!["inner".into()], Vec::new()));
     let stale_item = infer.alloc_neg(Neg::Con(vec!["stale".into()], Vec::new()));
-    let follower_item = infer.alloc_neg(Neg::Con(vec!["follower".into()], Vec::new()));
+    let follower_item = infer.alloc_neg(Neg::Var(follower_var));
     let inner = infer.alloc_neg(Neg::Row(vec![inner_item], leaf));
     let stale = infer.alloc_neg(Neg::Row(vec![stale_item], inner));
     let follower = infer.alloc_neg(Neg::Row(vec![follower_item], stale));
@@ -301,6 +302,14 @@ fn upper_row_pruning_can_escape_the_current_bounds_epoch_fingerprint() {
     let before_epoch = before.epoch();
     let before_uppers = before.uppers().to_vec();
     assert!(before_uppers.iter().any(|upper| upper.neg == follower));
+    assert!(
+        infer
+            .constraints_mut()
+            .take_method_role_mutations()
+            .is_empty(),
+        "the production mutation journal is inactive during ordinary constraint solving"
+    );
+    let mutation_journal = infer.constraints().activate_method_role_mutations();
     let retry_source_pos = infer.alloc_pos(Pos::Var(source));
     let oracle_detected_change = infer
         .constraints_mut()
@@ -323,6 +332,11 @@ fn upper_row_pruning_can_escape_the_current_bounds_epoch_fingerprint() {
     assert_eq!(after.epoch(), before_epoch);
     assert_ne!(after.uppers(), before_uppers);
     assert!(!after.uppers().iter().any(|upper| upper.neg == follower));
+    let mutations = infer.constraints_mut().take_method_role_mutations();
+    mutation_journal.finish();
+    assert!(contains_bounds_mutation(&mutations, source));
+    assert!(contains_neighbor_mutation(&mutations, source));
+    assert!(contains_neighbor_mutation(&mutations, follower_var));
     assert!(
         !oracle_detected_change,
         "the current oracle stores only the bounds epoch, so exact-vector pruning must expose its blind spot"
@@ -357,6 +371,14 @@ fn row_effect_no_replay_prune_and_insert_escapes_the_current_bounds_epoch_finger
     let before_epoch = before.epoch();
     let before_uppers = before.uppers().to_vec();
     assert!(before_uppers.iter().any(|upper| upper.neg == stale_row));
+    assert!(
+        infer
+            .constraints_mut()
+            .take_method_role_mutations()
+            .is_empty(),
+        "the production mutation journal is inactive during ordinary constraint solving"
+    );
+    let mutation_journal = infer.constraints().activate_method_role_mutations();
     let oracle_detected_change = infer
         .constraints_mut()
         .shadow_dirty_oracle_detects_bound_mutation_for_test(source, |machine| {
@@ -372,10 +394,37 @@ fn row_effect_no_replay_prune_and_insert_escapes_the_current_bounds_epoch_finger
     assert_ne!(after.uppers(), before_uppers);
     assert!(!after.uppers().iter().any(|upper| upper.neg == stale_row));
     assert!(after.uppers().iter().any(|upper| upper.neg == tail));
+    let mutations = infer.constraints_mut().take_method_role_mutations();
+    mutation_journal.finish();
+    assert!(contains_bounds_mutation(&mutations, source));
     assert!(
         !oracle_detected_change,
         "the row-effect no-replay path changes exact uppers without changing the epoch fingerprint"
     );
+}
+
+fn contains_bounds_mutation(mutations: &[MethodRoleMutation], var: TypeVar) -> bool {
+    mutations.iter().any(|mutation| {
+        matches!(
+            mutation,
+            MethodRoleMutation::Changed {
+                key: DependencyKey::ConstraintBounds(changed),
+                ..
+            } if *changed == var
+        )
+    })
+}
+
+fn contains_neighbor_mutation(mutations: &[MethodRoleMutation], var: TypeVar) -> bool {
+    mutations.iter().any(|mutation| {
+        matches!(
+            mutation,
+            MethodRoleMutation::Changed {
+                key: DependencyKey::ConstraintNeighbors(changed),
+                ..
+            } if *changed == var
+        )
+    })
 }
 
 struct ShadowOracleCase {

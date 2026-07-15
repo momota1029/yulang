@@ -1,7 +1,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+use poly::expr::{Arena as PolyArena, Def, Vis};
+use poly::types::{Neg, Pos};
+
 use super::*;
+use crate::analysis::AnalysisSession;
 use crate::analysis::session::shadow_dirty_oracle::ShadowDirtyDependencyInventory;
+use crate::roles::{RoleConstraint, RoleImplCandidate};
+use crate::scc::SccInput;
+use crate::uses::SelectionUse;
 
 #[test]
 fn every_shadow_oracle_read_kind_has_one_typed_dependency_kind() {
@@ -335,6 +342,462 @@ fn journal_capacity_and_serial_overflow_invalidate_all() {
 }
 
 #[test]
+fn production_outbox_is_inactive_by_default_and_clears_on_finish_or_unwind() {
+    let mut outbox = MethodRoleMutationOutbox::new();
+    outbox.record(DependencyKey::ConstraintBounds(TypeVar(64)));
+    assert!(outbox.mutations().is_empty());
+    assert_eq!(outbox.generation(), MutationGeneration::default());
+
+    {
+        let activation = outbox.activate();
+        assert!(outbox.is_active());
+        outbox.record(DependencyKey::ConstraintBounds(TypeVar(64)));
+        assert_eq!(
+            outbox.mutations(),
+            [MethodRoleMutation::Changed {
+                serial: MutationSerial::new(1),
+                key: DependencyKey::ConstraintBounds(TypeVar(64)),
+            }]
+        );
+        activation.finish();
+    }
+    assert!(!outbox.is_active());
+    outbox.take();
+
+    let unwind = catch_unwind(AssertUnwindSafe(|| {
+        let _activation = outbox.activate();
+        outbox.record(DependencyKey::ConstraintLevel(TypeVar(65)));
+        panic!("exercise mutation journal unwind cleanup");
+    }));
+    assert!(unwind.is_err());
+    assert!(!outbox.is_active());
+    outbox.record(DependencyKey::ConstraintBirthLevel(TypeVar(65)));
+    assert_eq!(
+        changed_keys(outbox.take()),
+        [DependencyKey::ConstraintLevel(TypeVar(65))],
+        "unwinding disables later emission but preserves events already produced in the window"
+    );
+}
+
+#[test]
+fn production_outbox_overflow_and_audit_disagreement_clear_owner_eligibility() {
+    let mut capacity = MethodRoleMutationOutbox::with_capacity(1);
+    let capacity_activation = capacity.activate();
+    capacity.record_many([
+        DependencyKey::ConstraintNeighbors(TypeVar(66)),
+        DependencyKey::ConstraintNeighbors(TypeVar(67)),
+    ]);
+    assert_eq!(
+        capacity.mutations(),
+        [MethodRoleMutation::InvalidateAll {
+            serial: MutationSerial::new(1),
+            reason: InvalidateAllReason::JournalOverflow,
+        }]
+    );
+    assert!(!capacity.owner_eligibility());
+    capacity_activation.finish();
+
+    let mut serial = MethodRoleMutationOutbox::with_state(
+        usize::MAX,
+        MutationSerial::new(u64::MAX),
+        MutationGeneration::default(),
+    );
+    let serial_activation = serial.activate();
+    serial.record(DependencyKey::ConstraintBounds(TypeVar(68)));
+    assert!(matches!(
+        serial.mutations(),
+        [MethodRoleMutation::InvalidateAll {
+            reason: InvalidateAllReason::MutationSerialOverflow,
+            ..
+        }]
+    ));
+    assert!(!serial.owner_eligibility());
+    serial_activation.finish();
+
+    let mut generation = MethodRoleMutationOutbox::with_state(
+        usize::MAX,
+        MutationSerial::default(),
+        MutationGeneration::new(u64::MAX),
+    );
+    let generation_activation = generation.activate();
+    generation.record(DependencyKey::ConstraintBounds(TypeVar(69)));
+    assert!(matches!(
+        generation.mutations(),
+        [MethodRoleMutation::InvalidateAll {
+            reason: InvalidateAllReason::MutationGenerationOverflow,
+            ..
+        }]
+    ));
+    assert!(!generation.owner_eligibility());
+    generation_activation.finish();
+
+    let mut audit = MethodRoleMutationOutbox::new();
+    let audit_activation = audit.activate();
+    let before = audit.generation();
+    audit.audit_generation(before, true, "test observable without journal entry");
+    assert_eq!(
+        audit.mutations(),
+        [MethodRoleMutation::InvalidateAll {
+            serial: MutationSerial::new(1),
+            reason: InvalidateAllReason::AuditFenceDisagreement {
+                site: "test observable without journal entry",
+            },
+        }]
+    );
+    assert!(!audit.owner_eligibility());
+    audit_activation.finish();
+}
+
+#[test]
+fn session_journal_activation_opens_and_clears_every_outbox_on_unwind() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    assert!(!session.method_role_mutation_journal_active());
+    assert!(
+        !session
+            .infer
+            .constraints()
+            .method_role_mutation_journal_active()
+    );
+    assert!(!session.roles.method_role_mutation_journal_active());
+    assert!(!session.role_impls.method_role_mutation_journal_active());
+
+    let unwind = catch_unwind(AssertUnwindSafe(|| {
+        let _activation = session.activate_method_role_mutation_journal();
+        assert!(session.method_role_mutation_journal_active());
+        assert!(
+            session
+                .infer
+                .constraints()
+                .method_role_mutation_journal_active()
+        );
+        assert!(session.roles.method_role_mutation_journal_active());
+        assert!(session.role_impls.method_role_mutation_journal_active());
+        panic!("exercise whole-session journal unwind cleanup");
+    }));
+    assert!(unwind.is_err());
+    assert!(!session.method_role_mutation_journal_active());
+    assert!(
+        !session
+            .infer
+            .constraints()
+            .method_role_mutation_journal_active()
+    );
+    assert!(!session.roles.method_role_mutation_journal_active());
+    assert!(!session.role_impls.method_role_mutation_journal_active());
+}
+
+#[test]
+fn real_session_mutators_are_silent_inactive_and_publish_typed_keys_active() {
+    let mut poly = PolyArena::new();
+    let owner = poly.defs.fresh();
+    poly.defs.set(
+        owner,
+        Def::Let {
+            vis: Vis::My,
+            scheme: None,
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let mut session = AnalysisSession::new(poly);
+
+    let inactive_select = session.poly.add_select("inactive_member");
+    let inactive_use = selection_use(owner, 90);
+    session.register_selection_use(inactive_select, inactive_use);
+    assert_eq!(
+        session.remove_unresolved_selection(inactive_select),
+        Some(inactive_use)
+    );
+    let inactive_impl = DefId(91);
+    let inactive_role = vec!["InactiveCandidate".to_owned()];
+    session.register_role_impl_candidate(RoleImplCandidate {
+        impl_def: Some(inactive_impl),
+        role: inactive_role.clone(),
+        inputs: Vec::new(),
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    assert_eq!(
+        session.role_impls.role_buckets_for_impl(inactive_impl),
+        [inactive_role]
+    );
+    assert!(
+        session.take_method_role_mutations().is_empty(),
+        "session-owned production mutators must be a no-op while the journal is inactive"
+    );
+
+    let journal = session.activate_method_role_mutation_journal();
+    let select = session.poly.add_select("member");
+    let other_owner = DefId(101);
+    let use_site = selection_use(owner, 110);
+    session.register_selection_use(select, use_site);
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::Selection(select),
+            DependencyKey::OwnerSelections(owner),
+        ],
+    );
+
+    let replacement = SelectionUse {
+        receiver_value: TypeVar(120),
+        ..use_site
+    };
+    session.register_selection_use(select, replacement);
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::Selection(select),
+            DependencyKey::OwnerSelections(owner),
+        ],
+    );
+
+    let reparented = SelectionUse {
+        parent: other_owner,
+        ..replacement
+    };
+    session.register_selection_use(select, reparented);
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::Selection(select),
+            DependencyKey::OwnerSelections(owner),
+            DependencyKey::OwnerSelections(other_owner),
+        ],
+    );
+    assert_eq!(
+        session.remove_unresolved_selection(select),
+        Some(reparented)
+    );
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::Selection(select),
+            DependencyKey::OwnerSelections(other_owner),
+        ],
+    );
+
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: vec!["RawRole".to_owned()],
+            inputs: Vec::new(),
+            associated: Vec::new(),
+        },
+    );
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[DependencyKey::OwnerRawRoles(owner)],
+    );
+
+    let impl_def = DefId(130);
+    let candidate_role = vec!["CandidateRole".to_owned()];
+    let second_candidate_role = vec!["SecondCandidateRole".to_owned()];
+    session.register_role_impl_candidate(RoleImplCandidate {
+        impl_def: Some(impl_def),
+        role: candidate_role.clone(),
+        inputs: Vec::new(),
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[DependencyKey::CandidateBucket(candidate_role.clone())],
+    );
+    session.register_role_impl_candidate(RoleImplCandidate {
+        impl_def: Some(impl_def),
+        role: second_candidate_role.clone(),
+        inputs: Vec::new(),
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[DependencyKey::CandidateBucket(
+            second_candidate_role.clone(),
+        )],
+    );
+    assert_eq!(
+        session.role_impls.role_buckets_for_impl(impl_def),
+        [candidate_role.clone(), second_candidate_role.clone()]
+    );
+
+    session.extend_role_impl_prerequisites(
+        impl_def,
+        [RoleConstraint {
+            role: vec!["Prerequisite".to_owned()],
+            inputs: Vec::new(),
+            associated: Vec::new(),
+        }],
+    );
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::CandidateBucket(candidate_role.clone()),
+            DependencyKey::CandidateBucket(second_candidate_role.clone()),
+        ],
+    );
+
+    session
+        .role_impls
+        .add_method_for_impl(impl_def, DefId(131), DefId(132));
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[
+            DependencyKey::CandidateBucket(candidate_role),
+            DependencyKey::CandidateBucket(second_candidate_role),
+        ],
+    );
+
+    let root = session.infer.fresh_type_var();
+    session.take_method_role_mutations();
+    session.apply_scc_input(SccInput::RegisterDef { def: owner, root });
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[DependencyKey::SccRoot(owner)],
+    );
+    session.apply_scc_input(SccInput::DefFinished { def: owner });
+    session.route_scc_events();
+    assert!(
+        changed_keys(session.take_method_role_mutations()).contains(&DependencyKey::SccRoot(owner))
+    );
+
+    let applied = sample_role_resolution_key("AppliedProduction");
+    assert!(session.insert_applied_method_role_resolution(applied.clone()));
+    assert!(!session.insert_applied_method_role_resolution(applied.clone()));
+    assert_changed_keys(
+        session.take_method_role_mutations(),
+        &[DependencyKey::AppliedResolution(applied)],
+    );
+    assert!(session.method_role_owner_eligibility());
+    journal.finish();
+
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: vec!["InactiveRawRole".to_owned()],
+            inputs: Vec::new(),
+            associated: Vec::new(),
+        },
+    );
+    assert!(session.take_method_role_mutations().is_empty());
+}
+
+#[test]
+fn real_constraint_mutators_are_silent_inactive_and_publish_compact_observable_keys_active() {
+    use poly::types::{StackWeight, SubtractId, Subtractability};
+
+    use crate::constraints::{ConstraintMachine, TypeLevel};
+
+    let mut machine = ConstraintMachine::new();
+    machine.register_type_var(TypeVar(159), TypeLevel::root());
+    assert!(machine.take_method_role_mutations().is_empty());
+
+    let journal = machine.activate_method_role_mutations();
+    let source = TypeVar(160);
+    let target = TypeVar(161);
+    machine.register_type_var(source, TypeLevel::root().child());
+    assert_changed_keys(
+        machine.take_method_role_mutations(),
+        &[
+            DependencyKey::ConstraintLevel(source),
+            DependencyKey::ConstraintBirthLevel(source),
+        ],
+    );
+    machine.register_type_var(target, TypeLevel::root());
+    machine.take_method_role_mutations();
+
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let target_neg = machine.alloc_neg(Neg::Var(target));
+    machine.subtype(source_pos, target_neg);
+    let mutations = changed_keys(machine.take_method_role_mutations());
+    assert!(mutations.contains(&DependencyKey::ConstraintLevel(source)));
+    assert!(mutations.contains(&DependencyKey::ConstraintBounds(source)));
+    assert!(mutations.contains(&DependencyKey::ConstraintBounds(target)));
+    assert!(mutations.contains(&DependencyKey::ConstraintNeighbors(source)));
+    assert!(mutations.contains(&DependencyKey::ConstraintNeighbors(target)));
+
+    let subtract = SubtractId(170);
+    machine.subtract_fact(source, subtract, Subtractability::All);
+    assert!(
+        changed_keys(machine.take_method_role_mutations())
+            .contains(&DependencyKey::ConstraintSubtractFacts(source))
+    );
+
+    let stacked = machine.alloc_pos(Pos::Stack {
+        inner: source_pos,
+        weight: StackWeight::push(
+            subtract,
+            Subtractability::Set(vec!["effect".to_owned()], Vec::new()),
+        ),
+    });
+    machine.subtype(stacked, target_neg);
+    assert!(
+        changed_keys(machine.take_method_role_mutations())
+            .contains(&DependencyKey::ConstraintPrePopFamilies(target))
+    );
+
+    machine.invalidate_method_role_mutations_for_test(InvalidateAllReason::JournalTruncated);
+    assert!(matches!(
+        machine.method_role_mutations(),
+        [MethodRoleMutation::InvalidateAll {
+            reason: InvalidateAllReason::JournalTruncated,
+            ..
+        }]
+    ));
+    assert!(!machine.method_role_owner_eligibility());
+    journal.finish();
+}
+
+#[test]
+fn stolen_active_source_mutation_trips_the_session_audit_fence() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let journal = session.activate_method_role_mutation_journal();
+    session
+        .infer
+        .constraints_mut()
+        .register_type_var(TypeVar(180), crate::constraints::TypeLevel::root());
+    let stolen = session.infer.constraints_mut().take_method_role_mutations();
+    assert!(!stolen.is_empty());
+    assert!(matches!(
+        session.take_method_role_mutations().as_slice(),
+        [MethodRoleMutation::InvalidateAll {
+            reason: InvalidateAllReason::AuditFenceDisagreement {
+                site: "ConstraintMachine::mutation_outbox",
+            },
+            ..
+        }]
+    ));
+    assert!(!session.method_role_owner_eligibility());
+    journal.finish();
+}
+
+#[test]
+fn coarse_contract_generation_is_additive_to_the_existing_whole_session_guard() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    session.record_no_progress_method_role_pass();
+    let previous = session
+        .last_no_progress_method_role_pass
+        .expect("recorded no-progress snapshot");
+
+    let journal = session.activate_method_role_mutation_journal();
+    session
+        .method_role_mutations
+        .record(DependencyKey::MethodTaint(TypeVar(150)));
+    let current = session.method_role_pass_input_snapshot();
+    assert_ne!(previous.contract_generation, current.contract_generation);
+    assert!(previous.guard_inputs_equal(current));
+    assert!(
+        !session.method_role_pass_inputs_changed(),
+        "Stage 2 must not consult the additive contract generation for df1c23f3 skipping"
+    );
+    journal.finish();
+}
+
+#[test]
 fn session_local_read_collector_is_inactive_by_default_and_clears_on_finish_or_unwind() {
     let collector = SessionLocalOwnerReadCollector::default();
     let var = TypeVar(70);
@@ -393,4 +856,32 @@ fn record_six_constraint_reads(collector: &SessionLocalOwnerReadCollector, var: 
     collector.record_constraint_level(var);
     collector.record_constraint_birth_level(var);
     collector.record_constraint_pre_pop_families(var);
+}
+
+fn selection_use(parent: DefId, base: u32) -> SelectionUse {
+    SelectionUse {
+        parent,
+        method_value: TypeVar(base),
+        selected_value: TypeVar(base + 1),
+        receiver_value: TypeVar(base + 2),
+        receiver_effect: TypeVar(base + 3),
+        local_method_scope: None,
+        recursive_self_value: None,
+    }
+}
+
+fn assert_changed_keys(actual: Vec<MethodRoleMutation>, expected: &[DependencyKey]) {
+    assert_eq!(changed_keys(actual), expected);
+}
+
+fn changed_keys(actual: Vec<MethodRoleMutation>) -> Vec<DependencyKey> {
+    actual
+        .into_iter()
+        .map(|mutation| match mutation {
+            MethodRoleMutation::Changed { key, .. } => key,
+            MethodRoleMutation::InvalidateAll { reason, .. } => {
+                panic!("unexpected InvalidateAll: {reason:?}")
+            }
+        })
+        .collect()
 }

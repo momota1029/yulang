@@ -21,6 +21,7 @@ impl ConstraintMachine {
             effect_filter_violations: FxHashSet::default(),
             seen: FxHashSet::default(),
             events: Vec::new(),
+            method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
             epoch: ConstraintEpoch::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
@@ -65,7 +66,16 @@ impl ConstraintMachine {
     }
 
     pub fn register_type_var(&mut self, var: TypeVar, level: TypeLevel) {
-        self.levels.register(var, level);
+        if self.method_role_mutations.is_active() {
+            if self.levels.register_recording_change(var, level) {
+                self.method_role_mutations.record_many([
+                    DependencyKey::ConstraintLevel(var),
+                    DependencyKey::ConstraintBirthLevel(var),
+                ]);
+            }
+        } else {
+            self.levels.register(var, level);
+        }
         self.next_internal_type_var = self.next_internal_type_var.max(var.0.saturating_add(1));
     }
 
@@ -118,6 +128,49 @@ impl ConstraintMachine {
 
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
         std::mem::take(&mut self.events)
+    }
+
+    pub(crate) fn activate_method_role_mutations(&self) -> MethodRoleMutationActivation {
+        self.method_role_mutations.activate()
+    }
+
+    pub(crate) fn method_role_mutation_generation(&self) -> MutationGeneration {
+        self.method_role_mutations.generation()
+    }
+
+    pub(crate) fn drain_method_role_mutations_into(
+        &mut self,
+        target: &mut MethodRoleMutationOutbox,
+    ) -> bool {
+        self.method_role_mutations.drain_into(target)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn method_role_mutation_journal_active(&self) -> bool {
+        self.method_role_mutations.is_active()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn method_role_mutations(&self) -> &[MethodRoleMutation] {
+        self.method_role_mutations.mutations()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn method_role_owner_eligibility(&self) -> bool {
+        self.method_role_mutations.owner_eligibility()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn take_method_role_mutations(&mut self) -> Vec<MethodRoleMutation> {
+        self.method_role_mutations.take()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn invalidate_method_role_mutations_for_test(
+        &mut self,
+        reason: InvalidateAllReason,
+    ) {
+        self.method_role_mutations.invalidate_all(reason);
     }
 
     pub fn subtype(&mut self, lower: PosId, upper: NegId) {
@@ -428,6 +481,10 @@ impl ConstraintMachine {
         let id = fact.id;
         if self.subtracts.record(effect, fact) {
             self.bump_epoch();
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .record(DependencyKey::ConstraintSubtractFacts(effect));
+            }
             self.events
                 .push(ConstraintEvent::SubtractFactAdded { effect, id });
         }
@@ -455,6 +512,10 @@ impl ConstraintMachine {
         }
         if changed {
             self.bump_epoch();
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .record(DependencyKey::ConstraintPrePopFamilies(target));
+            }
         }
     }
 

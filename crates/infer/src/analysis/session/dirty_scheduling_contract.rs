@@ -1,8 +1,8 @@
-//! Inactive Stage 1 contract for owner-level dirty scheduling.
+//! Test contract for owner-level dirty scheduling.
 //!
-//! This module is compiled only in tests. It describes the dependency and mutation vocabulary
-//! which later stages must emit, but it neither observes production mutation sites nor makes an
-//! owner-skip decision.
+//! Stage 2 promotes the typed vocabulary and activation-scoped outbox to `constraints::mutation`.
+//! This independent matrix still describes every effective mutation kind, but it neither makes an
+//! owner-skip decision nor duplicates the production journal implementation.
 
 use std::cell::RefCell;
 
@@ -10,31 +10,12 @@ use poly::expr::{DefId, SelectId};
 use poly::types::TypeVar;
 
 use crate::compact::CompactRoleConstraint;
+pub(crate) use crate::constraints::mutation::DependencyKey;
+use crate::constraints::mutation::{
+    InvalidateAllReason, MethodRoleMutation, MethodRoleMutationOutbox, MutationGeneration,
+    MutationSerial, RolePath,
+};
 use crate::role_solve::RoleResolutionKey;
-
-pub(crate) type RolePath = Vec<String>;
-
-/// Mutable resources which can affect one method-role owner solve.
-///
-/// The variants are exactly the first-version vocabulary from the reference specification. New
-/// solver reads must extend this enum and the shadow-oracle coverage test before scheduling can
-/// treat them as clean.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum DependencyKey {
-    SccRoot(DefId),
-    OwnerRawRoles(DefId),
-    OwnerSelections(DefId),
-    Selection(SelectId),
-    ConstraintBounds(TypeVar),
-    ConstraintNeighbors(TypeVar),
-    ConstraintSubtractFacts(TypeVar),
-    ConstraintLevel(TypeVar),
-    ConstraintBirthLevel(TypeVar),
-    ConstraintPrePopFamilies(TypeVar),
-    MethodTaint(TypeVar),
-    CandidateBucket(RolePath),
-    AppliedResolution(RoleResolutionKey),
-}
 
 impl DependencyKey {
     pub(crate) fn kind(&self) -> DependencyKeyKind {
@@ -93,39 +74,6 @@ impl DependencyKeyKind {
     pub(crate) const fn index(self) -> usize {
         self as usize
     }
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct MutationSerial(u64);
-
-impl MutationSerial {
-    pub(crate) const fn new(value: u64) -> Self {
-        Self(value)
-    }
-
-    fn checked_next(self) -> Option<Self> {
-        self.0.checked_add(1).map(Self)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum InvalidateAllReason {
-    UnrecognizedMutation { site: &'static str },
-    JournalOverflow,
-    MutationSerialOverflow,
-}
-
-/// Test view of the journal item later authoritative mutators must publish.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MethodRoleMutation {
-    Changed {
-        serial: MutationSerial,
-        key: DependencyKey,
-    },
-    InvalidateAll {
-        serial: MutationSerial,
-        reason: InvalidateAllReason,
-    },
 }
 
 /// Effective observable mutation kinds present in the current session implementation.
