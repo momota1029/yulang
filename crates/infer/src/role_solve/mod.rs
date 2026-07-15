@@ -341,9 +341,9 @@ fn resolve_role_candidate(
     if constraint.inputs.len() != candidate.inputs.len() {
         return None;
     }
+    let concrete_inputs = concrete_inputs?;
     let raw_candidate = candidate;
     let candidate = candidate_cache.compact(machine, raw_candidate, stats);
-    let concrete_inputs = concrete_inputs?;
     let mut subst = TypeSubst::default();
     for (demand, candidate) in concrete_inputs.iter().zip(&candidate.inputs) {
         if !match_role_arg_candidate(candidate, demand, &mut subst) {
