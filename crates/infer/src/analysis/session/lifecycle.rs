@@ -34,6 +34,10 @@ impl AnalysisSession {
             applied_method_role_resolutions: FxHashSet::default(),
             cache_interface_applied_merge_constraints: FxHashSet::default(),
             cache_interface_applied_subtype_constraints: FxHashSet::default(),
+            candidate_settlements: FxHashMap::default(),
+            candidate_settlement_complete: false,
+            #[cfg(test)]
+            candidate_settlement_safety_witness: None,
             schemes: FxHashMap::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),

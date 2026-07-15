@@ -557,13 +557,13 @@ fn cache_candidate_capture_leaves_prerequisite_only_variable_unclassified() {
     );
 }
 
-/// Slice 0 characterization for partial option 1.
+/// Slice 1 positive witness for partial option 1.
 ///
-/// This pins the current (pre-fix) behavior as a baseline, not the desired final behavior: the
-/// real zero-prerequisite `ref 'e (list 'a): Index int` candidate reaches Stage 4 with a weighted
-/// effect-binder alias and is rejected by the strict freeze audit.
+/// The real zero-prerequisite `ref 'e (list 'a): Index int` candidate still reaches the late pass
+/// with its weighted effect-binder alias. Candidate-scoped settlement now proves the post-floor
+/// dominance key through the real machine, so Stage 4 accepts the otherwise unchanged head.
 #[test]
-fn cache_candidate_partial_option_1_slice_0_pins_ref_list_index_effect_freeze_rejection() {
+fn cache_candidate_partial_option_1_slice_1_settles_ref_list_index_effect_head() {
     fn path_is(path: &[String], expected: &[&str]) -> bool {
         path.iter().map(String::as_str).eq(expected.iter().copied())
     }
@@ -706,14 +706,15 @@ fn cache_candidate_partial_option_1_slice_0_pins_ref_list_index_effect_freeze_re
             && var.weight.is_empty()
     }));
 
-    let expected =
-        crate::analysis::cache_interface::BoundaryCaptureError::FreezeProducedConstraint {
-            def: Some(impl_def),
-            boundary: None,
-            merge_constraints: 0,
-            subtype_constraints: 1,
-        };
-    let error = output
+    let (settled_merges, settled_subtypes) = output
+        .session
+        .candidate_settlement_fact_counts(impl_def)
+        .expect("source zero-prerequisite candidate must retain a settlement fact");
+    assert!(
+        settled_subtypes > 0,
+        "the Index witness must exercise the candidate-local dominance lane"
+    );
+    let normalized = output
         .session
         .normalize_cache_candidate_interface(
             crate::analysis::cache_interface::CapturedCandidateInterface {
@@ -721,9 +722,151 @@ fn cache_candidate_partial_option_1_slice_0_pins_ref_list_index_effect_freeze_re
             },
             &boundary,
         )
-        .expect_err("pre-fix Stage 4 must reject the unapplied effect-binder dominance key");
+        .expect("Slice 1 settlement must satisfy the strict Stage 4 audit");
 
-    assert_eq!(error, expected);
+    assert_eq!(normalized.candidates.len(), 1);
+    assert_eq!(normalized.candidates[0].candidate.impl_def, Some(impl_def));
+    assert_eq!(normalized.candidates[0].candidate.prerequisites.len(), 0);
+    assert_eq!(settled_merges, 0);
+}
+
+/// Late candidate settlement must not rewrite any scheme already finalized by SCC generalization.
+#[test]
+fn candidate_settlement_preserves_every_repository_std_binding_scheme() {
+    let output = lower_repository_std_for_cache_candidate_characterization();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert!(
+        !output.session.has_pending_work(),
+        "late settlement must not leave analysis work behind"
+    );
+    let witness = output
+        .session
+        .candidate_settlement_safety_witness()
+        .expect("BodyLowerer::finish must record the settlement safety witness in tests");
+
+    assert!(witness.eligible_candidates > 0);
+    assert!(witness.recorded_candidates > 0);
+    assert!(
+        witness.unstable_candidates.is_empty(),
+        "repository std must not contain a cross-candidate settlement conflict: {:?}",
+        witness.unstable_candidates
+    );
+    assert_eq!(witness.binding_count_before, witness.binding_count_after);
+    assert_eq!(witness.typed_lets_before, witness.typed_lets_after);
+    assert_eq!(
+        witness.missing_schemes_before,
+        witness.missing_schemes_after
+    );
+    assert!(
+        witness.all_binding_schemes_unchanged,
+        "every finalized Scheme field must remain structurally identical across settlement"
+    );
+}
+
+#[test]
+fn candidate_settlement_excludes_imported_and_prerequisite_candidates() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let source_def = DefId(50);
+    let imported_def = DefId(51);
+    let prerequisite_def = DefId(52);
+    let source_var = session.infer.fresh_type_var();
+    let imported_var = session.infer.fresh_type_var();
+    let synthetic_var = session.infer.fresh_type_var();
+    let prerequisite_head = session.infer.fresh_type_var();
+    let prerequisite_var = session.infer.fresh_type_var();
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(source_def),
+        role: vec!["SourceZeroPrerequisite".into()],
+        inputs: vec![role_var_arg(&mut session.infer, source_var)],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: None,
+        role: vec!["SyntheticZeroPrerequisite".into()],
+        inputs: vec![role_var_arg(&mut session.infer, synthetic_var)],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(imported_def),
+        role: vec!["ImportedZeroPrerequisite".into()],
+        inputs: vec![role_var_arg(&mut session.infer, imported_var)],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(prerequisite_def),
+        role: vec!["SourceWithPrerequisite".into()],
+        inputs: vec![role_var_arg(&mut session.infer, prerequisite_head)],
+        associated: Vec::new(),
+        prerequisites: vec![RoleConstraint {
+            role: vec!["Required".into()],
+            inputs: vec![role_var_arg(&mut session.infer, prerequisite_var)],
+            associated: Vec::new(),
+        }],
+        methods: Vec::new(),
+    });
+
+    session.settle_source_role_impl_candidates([source_def, prerequisite_def]);
+
+    assert!(
+        session
+            .candidate_settlement_fact_counts(source_def)
+            .is_some()
+    );
+    assert!(
+        session
+            .candidate_settlement_fact_counts(imported_def)
+            .is_none()
+    );
+    assert!(
+        session
+            .candidate_settlement_fact_counts(prerequisite_def)
+            .is_none()
+    );
+    let witness = session
+        .candidate_settlement_safety_witness()
+        .expect("settlement scope witness");
+    assert_eq!(witness.eligible_candidates, 1);
+    assert_eq!(witness.recorded_candidates, 1);
+}
+
+#[test]
+fn cache_candidate_without_source_settlement_keeps_strict_freeze_rejection() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let impl_def = DefId(53);
+    let lower_var = session.infer.fresh_type_var();
+    let upper_var = session.infer.fresh_type_var();
+    let lower = session.infer.alloc_pos(Pos::Var(lower_var));
+    let upper = session.infer.alloc_neg(Neg::Var(upper_var));
+    session.role_impls.insert(RoleImplCandidate {
+        impl_def: Some(impl_def),
+        role: vec!["ImportedUnsettledCandidate".into()],
+        inputs: vec![RoleConstraintArg { lower, upper }],
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    });
+    let boundary = crate::analysis::cache_interface::CapturedBoundaryInterface::default();
+    let captured = session.capture_cache_candidate_interface(&boundary);
+
+    let error = session
+        .normalize_cache_candidate_interface(captured, &boundary)
+        .expect_err("a zero-prerequisite candidate without source settlement stays fail-closed");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::FreezeProducedConstraint {
+            def: Some(impl_def),
+            boundary: None,
+            merge_constraints: 1,
+            subtype_constraints: 0,
+        }
+    );
 }
 
 #[test]

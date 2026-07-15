@@ -1391,7 +1391,13 @@ impl BodyLowerer {
                 "a captured source method residual must belong to its unique contract"
             );
         }
+        let source_impl_defs = self
+            .role_impl_conformance_contracts
+            .iter()
+            .map(|contract| contract.impl_def)
+            .collect::<Vec<_>>();
         let mut session = self.session;
+        session.settle_source_role_impl_candidates(source_impl_defs);
         session.finalize_poly_role_impls();
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();

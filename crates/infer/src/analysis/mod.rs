@@ -91,10 +91,11 @@ use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
 };
 use projection::role_impl_member_projection_substitutions;
+use session::CandidateSettlementFact;
 #[cfg(test)]
 pub(crate) use session::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
-    CandidateIndependentFallbackSelection,
+    CandidateIndependentFallbackSelection, CandidateSettlementSafetyWitness,
 };
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
@@ -134,6 +135,10 @@ pub struct AnalysisSession {
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
     cache_interface_applied_subtype_constraints: FxHashSet<CompactSubtypeConstraintKey>,
+    candidate_settlements: FxHashMap<DefId, CandidateSettlementFact>,
+    candidate_settlement_complete: bool,
+    #[cfg(test)]
+    candidate_settlement_safety_witness: Option<CandidateSettlementSafetyWitness>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,

@@ -678,6 +678,7 @@ fn normalize_cache_candidate(
     captured: CapturedCandidate,
     boundary: &CapturedBoundaryInterface,
 ) -> Result<NormalizedCandidate, BoundaryCaptureError> {
+    let settlement = session.cache_candidate_settlement_fact(&captured.candidate);
     let mut merge_constraints = Vec::new();
     let (head, head_merges) = compact_role_constraint_recording_merge_constraints(
         session.infer.constraints(),
@@ -694,10 +695,22 @@ fn normalize_cache_candidate(
         prerequisites.push(prerequisite);
         merge_constraints.extend(prerequisite_merges);
     }
-    let unapplied = unapplied_compact_merge_constraint_count_with_tuple_implication(
+    let global_unapplied = unapplied_compact_merge_constraint_count_with_tuple_implication(
         &merge_constraints,
         &session.cache_interface_applied_merge_constraints,
     );
+    let unapplied = if global_unapplied == 0 {
+        0
+    } else if let Some(settlement) = settlement {
+        let mut applied = session.cache_interface_applied_merge_constraints.clone();
+        applied.extend(settlement.merge_constraints.iter().cloned());
+        unapplied_compact_merge_constraint_count_with_tuple_implication(
+            &merge_constraints,
+            &applied,
+        )
+    } else {
+        global_unapplied
+    };
     if unapplied != 0 {
         return Err(BoundaryCaptureError::FreezeProducedConstraint {
             def: captured.candidate.impl_def,
@@ -724,44 +737,32 @@ fn normalize_cache_candidate(
     let boundary_baseline = compact_subtype_constraint_keys(&boundary_baseline);
 
     let mut root = CompactRoot::default();
-    let mut substitutions = coalesce_floor_interval_equalities(
-        session.infer.constraints(),
-        TypeLevel::root(),
-        &mut root,
-        &mut roles,
-    );
-    substitutions.extend(coalesce_floor_variable_sandwiches(
-        session.infer.constraints(),
-        TypeLevel::root(),
-        &mut root,
-        &mut roles,
-    ));
-    substitutions.extend(eliminate_floor_redundant_variables(
-        session.infer.constraints(),
-        TypeLevel::root(),
-        &mut root,
-        &mut roles,
-    ));
-    let simplification = simplify_compact_root_with_roles_and_non_generic(
-        session.infer.constraints(),
-        TypeLevel::root().child(),
-        &mut root,
-        &mut roles,
-        &FxHashSet::default(),
-    );
-    substitutions.extend(simplification.substitutions.iter().copied());
-    let substitutions = normalize_var_substitutions(substitutions);
+    let substitutions =
+        simplify_cache_candidate_component(session.infer.constraints(), &mut root, &mut roles);
     let substitution_map = substitutions
         .iter()
         .map(|substitution| (substitution.source, substitution.target))
         .collect::<FxHashMap<_, _>>();
 
     let generated = collect_interval_dominance_constraints_with_metrics(&root, &roles).0;
-    let unapplied = unapplied_compact_subtype_constraint_count_with_known(
+    let global_unapplied = unapplied_compact_subtype_constraint_count_with_known(
         &generated,
         &session.cache_interface_applied_subtype_constraints,
         &boundary_baseline,
     );
+    let unapplied = if global_unapplied == 0 {
+        0
+    } else if let Some(settlement) = settlement {
+        let mut applied = session.cache_interface_applied_subtype_constraints.clone();
+        applied.extend(settlement.subtype_constraints.iter().cloned());
+        unapplied_compact_subtype_constraint_count_with_known(
+            &generated,
+            &applied,
+            &boundary_baseline,
+        )
+    } else {
+        global_unapplied
+    };
     if unapplied != 0 {
         return Err(BoundaryCaptureError::FreezeProducedConstraint {
             def: captured.candidate.impl_def,
@@ -839,6 +840,40 @@ fn normalize_cache_candidate(
         head_binders,
         boundary: candidate_boundary,
     })
+}
+
+/// Apply the exact head-side structural view used by the Stage 4 candidate audit.
+///
+/// The late mutable settlement pass shares this entry point so it records dominance keys after
+/// the same floor/co-occurrence/sandwich sequence that the read-only freeze later observes.
+pub(in crate::analysis) fn simplify_cache_candidate_component(
+    machine: &crate::constraints::ConstraintMachine,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let mut substitutions =
+        coalesce_floor_interval_equalities(machine, TypeLevel::root(), root, roles);
+    substitutions.extend(coalesce_floor_variable_sandwiches(
+        machine,
+        TypeLevel::root(),
+        root,
+        roles,
+    ));
+    substitutions.extend(eliminate_floor_redundant_variables(
+        machine,
+        TypeLevel::root(),
+        root,
+        roles,
+    ));
+    let simplification = simplify_compact_root_with_roles_and_non_generic(
+        machine,
+        TypeLevel::root().child(),
+        root,
+        roles,
+        &FxHashSet::default(),
+    );
+    substitutions.extend(simplification.substitutions);
+    normalize_var_substitutions(substitutions)
 }
 
 struct CanonicallyOrderedCandidate {

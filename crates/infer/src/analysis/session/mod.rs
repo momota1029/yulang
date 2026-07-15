@@ -1,11 +1,16 @@
 use super::*;
 
+mod candidate_settlement;
 #[cfg(test)]
 mod early_fallback_classifier;
 mod generalize;
 mod instantiate;
 mod lifecycle;
 mod selection;
+
+pub(super) use candidate_settlement::CandidateSettlementFact;
+#[cfg(test)]
+pub(crate) use candidate_settlement::CandidateSettlementSafetyWitness;
 
 #[cfg(test)]
 pub(crate) use early_fallback_classifier::{
