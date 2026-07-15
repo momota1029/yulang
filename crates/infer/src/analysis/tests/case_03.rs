@@ -560,8 +560,8 @@ fn cache_candidate_capture_leaves_prerequisite_only_variable_unclassified() {
 /// Slice 1 positive witness for partial option 1.
 ///
 /// The real zero-prerequisite `ref 'e (list 'a): Index int` candidate still reaches the late pass
-/// with its weighted effect-binder alias. Candidate-scoped settlement now proves the post-floor
-/// dominance key through the real machine, so Stage 4 accepts the otherwise unchanged head.
+/// with its weighted effect-binder alias. Candidate-scoped settlement and Stage 4 now share the
+/// same cleanup-before-dominance view, so the dead key needs no apply fact and freeze accepts it.
 #[test]
 fn cache_candidate_partial_option_1_slice_1_settles_ref_list_index_effect_head() {
     fn path_is(path: &[String], expected: &[&str]) -> bool {
@@ -710,9 +710,9 @@ fn cache_candidate_partial_option_1_slice_1_settles_ref_list_index_effect_head()
         .session
         .candidate_settlement_fact_counts(impl_def)
         .expect("source zero-prerequisite candidate must retain a settlement fact");
-    assert!(
-        settled_subtypes > 0,
-        "the Index witness must exercise the candidate-local dominance lane"
+    assert_eq!(
+        settled_subtypes, 0,
+        "dead candidate stack weights must disappear before dominance keys are generated"
     );
     let normalized = output
         .session
@@ -728,6 +728,129 @@ fn cache_candidate_partial_option_1_slice_1_settles_ref_list_index_effect_head()
     assert_eq!(normalized.candidates[0].candidate.impl_def, Some(impl_def));
     assert_eq!(normalized.candidates[0].candidate.prerequisites.len(), 0);
     assert_eq!(settled_merges, 0);
+}
+
+/// Slice 2 applies ordinary generalization's dead stack-weight cleanup to candidate freeze.
+#[test]
+fn cache_candidate_partial_option_1_slice_2_prunes_repository_std_dead_stack_ids() {
+    let output = lower_repository_std_for_cache_candidate_characterization();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let raw_roles = output
+        .session
+        .role_impls
+        .iter()
+        .flat_map(|candidate| {
+            std::iter::once(compact_role_constraint(
+                output.session.infer.constraints(),
+                &candidate.as_constraint(),
+            ))
+            .chain(candidate.prerequisites.iter().map(|prerequisite| {
+                compact_role_constraint(output.session.infer.constraints(), prerequisite)
+            }))
+        })
+        .collect::<Vec<_>>();
+    let raw_subtracts = crate::analysis::cache_interface::cache_candidate_stack_ids(
+        &CompactRoot::default(),
+        &raw_roles,
+    );
+    assert_eq!(
+        raw_subtracts,
+        vec![
+            poly::types::SubtractId(109),
+            poly::types::SubtractId(110),
+            poly::types::SubtractId(111),
+            poly::types::SubtractId(113),
+        ],
+        "the real std witness must still enter candidate freeze with all four dead pop-only ids"
+    );
+
+    let namespace = crate::CompiledNamespaceSurface::from_module_table(&output.modules);
+    let (_, runtime) =
+        crate::canonical_cache_interface_surfaces_from_lowering_observed(&output, &namespace)
+            .expect(
+                "dead candidate stack ids must no longer reject the complete canonical handoff",
+            );
+    let frozen_subtracts =
+        role_candidate_subtract_ids(&runtime.arena.typ, runtime.arena.role_impls.iter());
+
+    assert!(
+        frozen_subtracts.is_empty(),
+        "all four dead ids must be removed before structural freeze: {frozen_subtracts:?}"
+    );
+}
+
+#[test]
+fn cache_candidate_partial_option_1_slice_2_rejects_live_stack_id_after_cleanup() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let head = session.infer.fresh_type_var();
+    let stacked = poly::types::SubtractId(700);
+    let declared_all = poly::types::SubtractId(701);
+    session
+        .infer
+        .subtract_fact(head, declared_all, Subtractability::All);
+    let live_weight = poly::types::StackWeight::push(stacked, Subtractability::Empty)
+        .compose(&poly::types::StackWeight::pops(declared_all, u32::MAX));
+    let live_type = CompactType::from_var(crate::compact::CompactVar::covariant(head, live_weight));
+    let mut root = CompactRoot::default();
+    let mut roles = vec![CompactRoleConstraint {
+        role: vec!["LiveCandidateStack".into()],
+        inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+            lower: live_type.clone(),
+            upper: live_type,
+        })],
+        associated: Vec::new(),
+    }];
+    crate::analysis::cache_interface::simplify_cache_candidate_component(
+        session.infer.constraints(),
+        &mut root,
+        &mut roles,
+    );
+    let head_role = roles.pop().expect("candidate head survives simplification");
+    let CompactBounds::Interval { lower, upper } = &head_role.inputs[0].bounds else {
+        panic!("synthetic candidate head remains an interval")
+    };
+    for ty in [lower, upper] {
+        assert!(ty.vars[0].weight.contains(stacked));
+        assert!(ty.vars[0].weight.contains(declared_all));
+    }
+
+    let normalized = crate::analysis::cache_interface::NormalizedCandidateInterface {
+        candidates: vec![crate::analysis::cache_interface::NormalizedCandidate {
+            candidate: RoleImplCandidate {
+                impl_def: Some(DefId(54)),
+                role: head_role.role.clone(),
+                inputs: Vec::new(),
+                associated: Vec::new(),
+                prerequisites: Vec::new(),
+                methods: Vec::new(),
+            },
+            head: head_role,
+            prerequisites: Vec::new(),
+            head_binders: vec![head],
+            boundary: Vec::new(),
+        }],
+    };
+    let mut target = PolyArena::new();
+    let frozen = session
+        .freeze_cache_candidate_interface(normalized, &mut target)
+        .expect("live stack evidence survives structural freeze");
+    let error = crate::analysis::cache_interface::CanonicalCacheInterfaceDraft::default()
+        .with_frozen_candidates(frozen)
+        .freeze_into_poly(session.infer.constraints(), &mut target)
+        .expect_err("a genuinely live candidate stack id must remain fail-closed");
+
+    assert_eq!(
+        error,
+        crate::analysis::cache_interface::BoundaryCaptureError::UnboundSubtractId { id: stacked }
+    );
+    assert!(
+        target
+            .role_impls
+            .candidates(&["LiveCandidateStack".to_string()])
+            .is_empty(),
+        "validator failure must not install the live candidate"
+    );
 }
 
 /// Late candidate settlement must not rewrite any scheme already finalized by SCC generalization.
@@ -1674,6 +1797,35 @@ fn lower_repository_std_for_cache_candidate_characterization() -> crate::lowerin
     }));
     let loaded = sources::load(files);
     crate::lowering::lower_loaded_files(&loaded).expect("lower repository std")
+}
+
+fn role_candidate_subtract_ids<'a>(
+    types: &poly::types::TypeArena,
+    candidates: impl IntoIterator<Item = &'a RoleImplCandidate>,
+) -> Vec<poly::types::SubtractId> {
+    let mut ids = Vec::new();
+    for candidate in candidates {
+        let Err(violations) = crate::interface_oracle::scan_candidate_closure(
+            types,
+            candidate,
+            crate::interface_oracle::BoundaryInterface::EMPTY,
+        ) else {
+            continue;
+        };
+        ids.extend(
+            violations
+                .into_iter()
+                .filter_map(|violation| match violation {
+                    crate::interface_oracle::InterfaceViolation::UnboundSubtractId { id } => {
+                        Some(id)
+                    }
+                    _ => None,
+                }),
+        );
+    }
+    ids.sort_by_key(|id| id.0);
+    ids.dedup();
+    ids
 }
 
 fn canonical_cache_handoff_fixture() -> (

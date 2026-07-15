@@ -873,7 +873,314 @@ pub(in crate::analysis) fn simplify_cache_candidate_component(
         &FxHashSet::default(),
     );
     substitutions.extend(simplification.substitutions);
+    if let Some(head) = roles.first_mut() {
+        cleanup_cache_candidate_stack_weights(machine, root, std::slice::from_mut(head));
+    }
     normalize_var_substitutions(substitutions)
+}
+
+/// Match ordinary generalization's post-simplification stack cleanup before dominance keys exist.
+///
+/// The generalization helper is intentionally module-private, so the candidate-head path keeps the
+/// same classification locally: an id is live when a covariant occurrence retains a non-empty
+/// stack or the machine has a `Subtractability::All` fact for it. Every other leftover weight is
+/// dead. Callers pass only the head carrier; prerequisite cleanup remains outside partial option 1.
+fn cleanup_cache_candidate_stack_weights(
+    machine: &crate::constraints::ConstraintMachine,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> bool {
+    let mut all_ids = FxHashSet::default();
+    let mut live_ids = FxHashSet::default();
+    collect_cache_candidate_stack_ids_in_type(&root.root, true, &mut all_ids, &mut live_ids);
+    for rec in &root.rec_vars {
+        collect_cache_candidate_stack_ids_in_bounds(&rec.bounds, true, &mut all_ids, &mut live_ids);
+    }
+    for role in roles.iter() {
+        collect_cache_candidate_stack_ids_in_role(role, &mut all_ids, &mut live_ids);
+    }
+
+    let dead_ids = all_ids
+        .difference(&live_ids)
+        .copied()
+        .filter(|id| {
+            !machine
+                .subtracts()
+                .fact_by_id(*id)
+                .is_some_and(|fact| matches!(fact.subtractability, Subtractability::All))
+        })
+        .collect::<FxHashSet<_>>();
+    if dead_ids.is_empty() {
+        return false;
+    }
+
+    prune_cache_candidate_stack_ids_in_root_and_roles(root, roles, &dead_ids)
+}
+
+#[cfg(test)]
+pub(in crate::analysis) fn cache_candidate_stack_ids(
+    root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
+) -> Vec<poly::types::SubtractId> {
+    let mut all_ids = FxHashSet::default();
+    let mut live_ids = FxHashSet::default();
+    collect_cache_candidate_stack_ids_in_type(&root.root, true, &mut all_ids, &mut live_ids);
+    for rec in &root.rec_vars {
+        collect_cache_candidate_stack_ids_in_bounds(&rec.bounds, true, &mut all_ids, &mut live_ids);
+    }
+    for role in roles {
+        collect_cache_candidate_stack_ids_in_role(role, &mut all_ids, &mut live_ids);
+    }
+    let mut ids = all_ids.into_iter().collect::<Vec<_>>();
+    ids.sort_by_key(|id| id.0);
+    ids
+}
+
+fn collect_cache_candidate_stack_ids_in_role(
+    role: &CompactRoleConstraint,
+    all_ids: &mut FxHashSet<poly::types::SubtractId>,
+    live_ids: &mut FxHashSet<poly::types::SubtractId>,
+) {
+    for input in &role.inputs {
+        collect_cache_candidate_stack_ids_in_bounds(&input.bounds, true, all_ids, live_ids);
+    }
+    for associated in &role.associated {
+        collect_cache_candidate_stack_ids_in_bounds(
+            &associated.value.bounds,
+            true,
+            all_ids,
+            live_ids,
+        );
+    }
+}
+
+fn collect_cache_candidate_stack_ids_in_type(
+    ty: &CompactType,
+    covariant: bool,
+    all_ids: &mut FxHashSet<poly::types::SubtractId>,
+    live_ids: &mut FxHashSet<poly::types::SubtractId>,
+) {
+    for var in &ty.vars {
+        for entry in var.weight.entries() {
+            all_ids.insert(entry.id);
+            if covariant && !entry.stack.is_empty() {
+                live_ids.insert(entry.id);
+            }
+        }
+    }
+    for args in ty.cons.values() {
+        for arg in args {
+            collect_cache_candidate_stack_ids_in_bounds(arg, covariant, all_ids, live_ids);
+        }
+    }
+    for fun in &ty.funs {
+        collect_cache_candidate_stack_ids_in_type(&fun.arg, !covariant, all_ids, live_ids);
+        collect_cache_candidate_stack_ids_in_type(&fun.arg_eff, !covariant, all_ids, live_ids);
+        collect_cache_candidate_stack_ids_in_type(&fun.ret_eff, covariant, all_ids, live_ids);
+        collect_cache_candidate_stack_ids_in_type(&fun.ret, covariant, all_ids, live_ids);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_cache_candidate_stack_ids_in_type(&field.value, covariant, all_ids, live_ids);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_cache_candidate_stack_ids_in_type(&field.value, covariant, all_ids, live_ids);
+        }
+        collect_cache_candidate_stack_ids_in_type(&spread.tail, covariant, all_ids, live_ids);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_cache_candidate_stack_ids_in_type(payload, covariant, all_ids, live_ids);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_cache_candidate_stack_ids_in_type(item, covariant, all_ids, live_ids);
+        }
+    }
+    for row in &ty.rows {
+        for args in row.items.values() {
+            for arg in args {
+                collect_cache_candidate_stack_ids_in_bounds(arg, covariant, all_ids, live_ids);
+            }
+        }
+        collect_cache_candidate_stack_ids_in_type(&row.tail, covariant, all_ids, live_ids);
+    }
+}
+
+fn collect_cache_candidate_stack_ids_in_bounds(
+    bounds: &CompactBounds,
+    covariant: bool,
+    all_ids: &mut FxHashSet<poly::types::SubtractId>,
+    live_ids: &mut FxHashSet<poly::types::SubtractId>,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            collect_cache_candidate_stack_ids_in_type(lower, covariant, all_ids, live_ids);
+            collect_cache_candidate_stack_ids_in_type(upper, covariant, all_ids, live_ids);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_cache_candidate_stack_ids_in_bounds(arg, covariant, all_ids, live_ids);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_cache_candidate_stack_ids_in_bounds(arg, !covariant, all_ids, live_ids);
+            collect_cache_candidate_stack_ids_in_bounds(arg_eff, !covariant, all_ids, live_ids);
+            collect_cache_candidate_stack_ids_in_bounds(ret_eff, covariant, all_ids, live_ids);
+            collect_cache_candidate_stack_ids_in_bounds(ret, covariant, all_ids, live_ids);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_cache_candidate_stack_ids_in_bounds(
+                    &field.value,
+                    covariant,
+                    all_ids,
+                    live_ids,
+                );
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_cache_candidate_stack_ids_in_bounds(
+                        payload, covariant, all_ids, live_ids,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn prune_cache_candidate_stack_ids_in_root_and_roles(
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    dead_ids: &FxHashSet<poly::types::SubtractId>,
+) -> bool {
+    let mut changed = prune_cache_candidate_stack_ids_in_type(&mut root.root, dead_ids);
+    for rec in &mut root.rec_vars {
+        changed |= prune_cache_candidate_stack_ids_in_bounds(&mut rec.bounds, dead_ids);
+    }
+    for role in roles {
+        for input in &mut role.inputs {
+            changed |= prune_cache_candidate_stack_ids_in_bounds(&mut input.bounds, dead_ids);
+        }
+        for associated in &mut role.associated {
+            changed |=
+                prune_cache_candidate_stack_ids_in_bounds(&mut associated.value.bounds, dead_ids);
+        }
+    }
+    changed
+}
+
+fn prune_cache_candidate_stack_ids_in_type(
+    ty: &mut CompactType,
+    dead_ids: &FxHashSet<poly::types::SubtractId>,
+) -> bool {
+    let mut changed = false;
+    for var in &mut ty.vars {
+        let before = var.weight.clone();
+        var.weight = var.weight.without_ids(|id| dead_ids.contains(&id));
+        changed |= var.weight != before;
+    }
+    for args in ty.cons.values_mut() {
+        for arg in args {
+            changed |= prune_cache_candidate_stack_ids_in_bounds(arg, dead_ids);
+        }
+    }
+    for fun in &mut ty.funs {
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut fun.arg, dead_ids);
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut fun.arg_eff, dead_ids);
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut fun.ret_eff, dead_ids);
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut fun.ret, dead_ids);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            changed |= prune_cache_candidate_stack_ids_in_type(&mut field.value, dead_ids);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            changed |= prune_cache_candidate_stack_ids_in_type(&mut field.value, dead_ids);
+        }
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut spread.tail, dead_ids);
+    }
+    for variant in &mut ty.poly_variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                changed |= prune_cache_candidate_stack_ids_in_type(payload, dead_ids);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in &mut tuple.items {
+            changed |= prune_cache_candidate_stack_ids_in_type(item, dead_ids);
+        }
+    }
+    for row in &mut ty.rows {
+        for args in row.items.values_mut() {
+            for arg in args {
+                changed |= prune_cache_candidate_stack_ids_in_bounds(arg, dead_ids);
+            }
+        }
+        changed |= prune_cache_candidate_stack_ids_in_type(&mut row.tail, dead_ids);
+    }
+    changed
+}
+
+fn prune_cache_candidate_stack_ids_in_bounds(
+    bounds: &mut CompactBounds,
+    dead_ids: &FxHashSet<poly::types::SubtractId>,
+) -> bool {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            prune_cache_candidate_stack_ids_in_type(lower, dead_ids)
+                | prune_cache_candidate_stack_ids_in_type(upper, dead_ids)
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            let mut changed = false;
+            for arg in args {
+                changed |= prune_cache_candidate_stack_ids_in_bounds(arg, dead_ids);
+            }
+            changed
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            prune_cache_candidate_stack_ids_in_bounds(arg, dead_ids)
+                | prune_cache_candidate_stack_ids_in_bounds(arg_eff, dead_ids)
+                | prune_cache_candidate_stack_ids_in_bounds(ret_eff, dead_ids)
+                | prune_cache_candidate_stack_ids_in_bounds(ret, dead_ids)
+        }
+        CompactBounds::Record { fields } => {
+            let mut changed = false;
+            for field in fields {
+                changed |= prune_cache_candidate_stack_ids_in_bounds(&mut field.value, dead_ids);
+            }
+            changed
+        }
+        CompactBounds::PolyVariant { items } => {
+            let mut changed = false;
+            for (_, payloads) in items {
+                for payload in payloads {
+                    changed |= prune_cache_candidate_stack_ids_in_bounds(payload, dead_ids);
+                }
+            }
+            changed
+        }
+    }
 }
 
 struct CanonicallyOrderedCandidate {
