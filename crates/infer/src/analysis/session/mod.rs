@@ -8,6 +8,8 @@ mod early_fallback_classifier;
 mod generalize;
 mod instantiate;
 mod lifecycle;
+#[cfg(test)]
+mod owner_dirty_scheduler;
 mod selection;
 #[cfg(test)]
 mod shadow_dirty_oracle;
@@ -26,6 +28,13 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
 };
+#[cfg(test)]
+pub(crate) use owner_dirty_scheduler::{
+    MethodRoleOwnerDirtyScheduler, OwnerPredictionReason,
+    with_owner_dirty_scheduler_for_new_sessions,
+};
+#[cfg(test)]
+pub(super) use shadow_dirty_oracle::OwnerSolveOutcome;
 #[cfg(test)]
 pub(crate) use shadow_dirty_oracle::{
     ShadowDirtyOracle, begin_shadow_owner_reads, record_shadow_applied_resolution_read,

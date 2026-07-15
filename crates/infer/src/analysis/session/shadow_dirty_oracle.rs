@@ -421,20 +421,20 @@ struct CachedOwnerSolve {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct OwnerPrediction {
-    clean: bool,
-    cached_outcome: Option<OwnerSolveOutcome>,
+pub(super) struct OwnerPrediction {
+    pub(super) clean: bool,
+    pub(super) cached_outcome: Option<OwnerSolveOutcome>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum OwnerSolveOutcome {
+pub(crate) enum OwnerSolveOutcome {
     RootUnavailable,
     NoProgress,
     Progress,
 }
 
 impl OwnerSolveOutcome {
-    fn from_solve(root: Option<TypeVar>, progressed: bool) -> Self {
+    pub(super) fn from_solve(root: Option<TypeVar>, progressed: bool) -> Self {
         match (root, progressed) {
             (None, _) => Self::RootUnavailable,
             (Some(_), false) => Self::NoProgress,
@@ -442,11 +442,11 @@ impl OwnerSolveOutcome {
         }
     }
 
-    fn cacheable(self) -> bool {
+    pub(super) fn cacheable(self) -> bool {
         self != Self::Progress
     }
 
-    fn as_str(self) -> &'static str {
+    pub(super) fn as_str(self) -> &'static str {
         match self {
             Self::RootUnavailable => "root-unavailable",
             Self::NoProgress => "no-progress",
@@ -731,7 +731,7 @@ impl crate::constraints::ConstraintMachine {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct OwnerReadFrontier {
     bound_vars: FxHashSet<TypeVar>,
     neighbor_vars: FxHashSet<TypeVar>,
@@ -786,6 +786,42 @@ impl OwnerReadFrontier {
         );
         keys.sort_by_key(|key| key.kind().index());
         keys
+    }
+
+    pub(super) fn owner_dependency_keys(
+        &self,
+        owner: DefId,
+        method_taint: &MethodTaintIndex,
+    ) -> Vec<DependencyKey> {
+        let mut keys = vec![
+            DependencyKey::SccRoot(owner),
+            DependencyKey::OwnerRawRoles(owner),
+            DependencyKey::OwnerSelections(owner),
+        ];
+        keys.extend(self.constraint_dependency_keys());
+        keys.extend(
+            self.candidate_buckets
+                .iter()
+                .cloned()
+                .map(DependencyKey::CandidateBucket),
+        );
+        for var in &self.taint_vars {
+            keys.push(DependencyKey::MethodTaint(*var));
+            if let Some(selects) = method_taint.get(var) {
+                keys.extend(selects.iter().copied().map(DependencyKey::Selection));
+            }
+        }
+        keys.extend(
+            self.applied_resolution_reads
+                .keys()
+                .cloned()
+                .map(DependencyKey::AppliedResolution),
+        );
+        keys
+    }
+
+    pub(super) fn solve_duration(&self) -> Duration {
+        self.solve_duration
     }
 }
 
@@ -986,6 +1022,12 @@ fn projection_selection_snapshot(
 }
 
 impl AnalysisSession {
+    pub(super) fn shadow_dirty_oracle_prediction(&self, owner: DefId) -> Option<OwnerPrediction> {
+        self.shadow_dirty_oracle
+            .as_ref()
+            .and_then(|oracle| oracle.current_predictions.get(&owner).copied())
+    }
+
     pub(super) fn shadow_dirty_oracle_begin_pass(
         &mut self,
         owners: &[DefId],

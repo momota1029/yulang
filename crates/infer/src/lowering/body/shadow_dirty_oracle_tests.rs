@@ -3,12 +3,13 @@ use super::*;
 use super::stage0_tests::{fixture_source, repository_std_loaded, root_value_def};
 use crate::Arena;
 use crate::analysis::{
-    DependencyKey, DependencyKeyKind, MethodRoleMutation, with_shadow_dirty_oracle_for_new_sessions,
+    DependencyKey, DependencyKeyKind, MethodRoleMutation, OwnerPredictionReason,
+    with_owner_dirty_scheduler_for_new_sessions, with_shadow_dirty_oracle_for_new_sessions,
 };
 use crate::constraints::{ConstraintWeights, LeftConstraintWeight, RightConstraintWeight};
 
 #[test]
-fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
+fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
     let cases = [
         ShadowOracleCase::fixture(
             "markdown",
@@ -33,9 +34,26 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
             source: "use std::prelude::*\nmod std;\n".to_string(),
             target: None,
             workload_owner_label: None,
-            expected_forced_passes: 91,
-            expected_owner_checks: 6_480,
-            expected_predicted_clean: 6_317,
+            expected_forced_passes: Some(91),
+            expected_owner_checks: Some(6_480),
+            expected_predicted_clean: Some(6_317),
+        },
+        ShadowOracleCase {
+            name: "repository-showcase",
+            source: format!(
+                "use std::prelude::*\nmod std;\n{}",
+                std::fs::read_to_string(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../..")
+                        .join("examples/showcase.yu")
+                )
+                .expect("read repository showcase")
+            ),
+            target: None,
+            workload_owner_label: None,
+            expected_forced_passes: None,
+            expected_owner_checks: None,
+            expected_predicted_clean: None,
         },
     ];
     let mut fingerprint_inventory_coverage = [false; 13];
@@ -43,7 +61,9 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
     for case in cases {
         let loaded = repository_std_loaded(&case.source);
         let output = with_shadow_dirty_oracle_for_new_sessions(|| {
-            lower_loaded_files(&loaded).expect("lower shadow dirty oracle fixture")
+            with_owner_dirty_scheduler_for_new_sessions(|| {
+                lower_loaded_files(&loaded).expect("lower shadow dirty oracle fixture")
+            })
         });
         assert!(
             output.errors.is_empty(),
@@ -55,6 +75,10 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
             .session
             .shadow_dirty_oracle_report()
             .expect("fixture lowering session must carry the enabled oracle");
+        let scheduler = output
+            .session
+            .owner_dirty_scheduler_report()
+            .expect("fixture lowering session must carry the journal-backed scheduler");
         assert_eq!(
             report.predicted_clean + report.predicted_dirty,
             report.owner_checks,
@@ -63,21 +87,27 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
         );
         assert!(report.owner_checks > 0, "{}", case.name);
         assert!(report.predicted_clean > 0, "{}", case.name);
-        assert_eq!(
-            report.forced_passes, case.expected_forced_passes,
-            "{} forced-pass characterization drifted",
-            case.name
-        );
-        assert_eq!(
-            report.owner_checks, case.expected_owner_checks,
-            "{} owner-check characterization drifted",
-            case.name
-        );
-        assert_eq!(
-            report.predicted_clean, case.expected_predicted_clean,
-            "{} clean characterization drifted",
-            case.name
-        );
+        if let Some(expected) = case.expected_forced_passes {
+            assert_eq!(
+                report.forced_passes, expected,
+                "{} forced-pass characterization drifted",
+                case.name
+            );
+        }
+        if let Some(expected) = case.expected_owner_checks {
+            assert_eq!(
+                report.owner_checks, expected,
+                "{} owner-check characterization drifted",
+                case.name
+            );
+        }
+        if let Some(expected) = case.expected_predicted_clean {
+            assert_eq!(
+                report.predicted_clean, expected,
+                "{} clean characterization drifted",
+                case.name
+            );
+        }
         assert_eq!(
             report.root_available_predicted_clean + report.root_available_predicted_dirty,
             report.root_available_checks,
@@ -216,6 +246,159 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
             "{} clean prediction changed under the real solve: {:#?}",
             case.name,
             report.mismatches
+        );
+
+        assert_eq!(
+            scheduler.forced_passes, report.forced_passes,
+            "{}",
+            case.name
+        );
+        assert_eq!(scheduler.owner_checks, report.owner_checks, "{}", case.name);
+        assert_eq!(
+            scheduler.predicted_clean + scheduler.predicted_dirty,
+            scheduler.owner_checks,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            scheduler.root_available_checks, report.root_available_checks,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            scheduler.root_available_predicted_clean + scheduler.root_available_predicted_dirty,
+            scheduler.root_available_checks,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            scheduler.predicted_clean_owner_solve_time + scheduler.predicted_dirty_owner_solve_time,
+            scheduler.owner_solve_time,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            scheduler.would_have_been_clean_hits + scheduler.would_have_been_clean_misses,
+            scheduler.predicted_clean,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            scheduler.oracle_agreements
+                + scheduler.conservative_divergences.len()
+                + scheduler.permissive_divergences.len(),
+            scheduler.owner_checks,
+            "{}",
+            case.name
+        );
+        assert!(
+            scheduler.mismatches.is_empty(),
+            "{} journal-backed false-clean prediction: {:#?}",
+            case.name,
+            scheduler.mismatches
+        );
+        assert!(
+            scheduler.permissive_divergences.is_empty(),
+            "{} journal-backed prediction was more permissive than the exact oracle: {:#?}",
+            case.name,
+            scheduler.permissive_divergences
+        );
+        assert!(
+            scheduler.conservative_divergences.iter().all(|divergence| {
+                matches!(
+                    divergence.reason,
+                    OwnerPredictionReason::MissingRecord
+                        | OwnerPredictionReason::TouchedDependency
+                        | OwnerPredictionReason::FullInvalidation
+                )
+            }),
+            "{} unexplained conservative divergence: {:#?}",
+            case.name,
+            scheduler.conservative_divergences
+        );
+        assert_eq!(
+            scheduler.would_have_been_clean_misses, 0,
+            "{} journal-backed terminal mismatch",
+            case.name
+        );
+        assert!(
+            percentage(
+                scheduler.root_available_predicted_clean,
+                scheduler.root_available_checks,
+            ) >= 90.0,
+            "{} journal-backed clean-rate gate: {}/{}",
+            case.name,
+            scheduler.root_available_predicted_clean,
+            scheduler.root_available_checks,
+        );
+        let scheduler_clean_time_percentage = duration_percentage(
+            scheduler.predicted_clean_owner_solve_time,
+            scheduler.owner_solve_time,
+        );
+        if matches!(case.name, "markdown" | "html") {
+            assert!(
+                scheduler_clean_time_percentage >= 50.0,
+                "{} journal-backed clean-time gate: {:.2}%",
+                case.name,
+                scheduler_clean_time_percentage,
+            );
+        }
+        if output.session.selections.unresolved().next().is_none() {
+            assert_eq!(scheduler.live_records, 0, "{}", case.name);
+            assert_eq!(scheduler.live_dependency_keys, 0, "{}", case.name);
+            assert_eq!(scheduler.live_reverse_edges, 0, "{}", case.name);
+        }
+        let scheduler_workload_owner = workload_owner.as_ref().and_then(|owner| {
+            scheduler.owner(owner.owner).map(|metrics| {
+                (
+                    metrics.owner_checks,
+                    metrics.predicted_clean,
+                    metrics.would_have_been_clean_hits,
+                )
+            })
+        });
+        let conservative_reasons = [
+            OwnerPredictionReason::MissingRecord,
+            OwnerPredictionReason::TouchedDependency,
+            OwnerPredictionReason::FullInvalidation,
+        ]
+        .map(|reason| {
+            (
+                reason,
+                scheduler
+                    .conservative_divergences
+                    .iter()
+                    .filter(|divergence| divergence.reason == reason)
+                    .count(),
+            )
+        });
+        eprintln!(
+            "journal owner scheduler {}: passes={}, owner-checks={}, clean={}/{} ({:.2}%), clean-owner-solve={:?}/{:?} ({:.2}%), would-clean={{hits:{}, misses:{}}}, oracle={{agreements:{}, conservative:{}, permissive:{}}}, conservative-reasons={:?}, mutations={}, invalidations={:?}, peaks={{records:{}, keys:{}, edges:{}}}, live={{records:{}, keys:{}, edges:{}}}, workload-owner={:?}, mismatches={:?}",
+            case.name,
+            scheduler.forced_passes,
+            scheduler.owner_checks,
+            scheduler.predicted_clean,
+            scheduler.owner_checks,
+            percentage(scheduler.predicted_clean, scheduler.owner_checks),
+            scheduler.predicted_clean_owner_solve_time,
+            scheduler.owner_solve_time,
+            scheduler_clean_time_percentage,
+            scheduler.would_have_been_clean_hits,
+            scheduler.would_have_been_clean_misses,
+            scheduler.oracle_agreements,
+            scheduler.conservative_divergences.len(),
+            scheduler.permissive_divergences.len(),
+            conservative_reasons,
+            scheduler.changed_mutations,
+            scheduler.invalidate_all_reasons,
+            scheduler.peak_records,
+            scheduler.peak_dependency_keys,
+            scheduler.peak_reverse_edges,
+            scheduler.live_records,
+            scheduler.live_dependency_keys,
+            scheduler.live_reverse_edges,
+            scheduler_workload_owner,
+            scheduler.mismatches,
         );
     }
 
@@ -432,9 +615,9 @@ struct ShadowOracleCase {
     source: String,
     target: Option<&'static str>,
     workload_owner_label: Option<&'static str>,
-    expected_forced_passes: usize,
-    expected_owner_checks: usize,
-    expected_predicted_clean: usize,
+    expected_forced_passes: Option<usize>,
+    expected_owner_checks: Option<usize>,
+    expected_predicted_clean: Option<usize>,
 }
 
 impl ShadowOracleCase {
@@ -452,9 +635,9 @@ impl ShadowOracleCase {
             source: fixture_source(fixture),
             target,
             workload_owner_label,
-            expected_forced_passes,
-            expected_owner_checks,
-            expected_predicted_clean,
+            expected_forced_passes: Some(expected_forced_passes),
+            expected_owner_checks: Some(expected_owner_checks),
+            expected_predicted_clean: Some(expected_predicted_clean),
         }
     }
 }

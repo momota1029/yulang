@@ -49,6 +49,10 @@ impl AnalysisSession {
             #[cfg(test)]
             shadow_dirty_oracle: ShadowDirtyOracle::for_new_session(),
             #[cfg(test)]
+            owner_dirty_scheduler: MethodRoleOwnerDirtyScheduler::for_new_session(),
+            #[cfg(test)]
+            owner_dirty_scheduler_journal: None,
+            #[cfg(test)]
             stage0_quantify_watch: FxHashSet::default(),
             #[cfg(test)]
             stage0_quantify_events: Vec::new(),
@@ -169,6 +173,14 @@ impl AnalysisSession {
                 ]);
             }
             self.mark_method_role_input_changed();
+            #[cfg(test)]
+            if !self
+                .selections
+                .iter()
+                .any(|(_, remaining)| remaining.parent == use_site.parent)
+            {
+                self.owner_dirty_scheduler_remove_owner(use_site.parent);
+            }
         }
         removed
     }
@@ -361,6 +373,8 @@ impl AnalysisSession {
         let start = Instant::now();
         if self.method_role_mutations.is_active() {
             self.sync_method_role_mutation_outboxes();
+            #[cfg(test)]
+            self.owner_dirty_scheduler_drain_journal();
         }
         let events = self.infer.constraints_mut().take_events();
         let event_count = events.len();
@@ -416,12 +430,15 @@ impl AnalysisSession {
         self.last_audited_candidate_mutation_generation =
             self.role_impls.method_role_mutation_generation();
 
-        MethodRoleMutationJournalActivation {
+        let activation = MethodRoleMutationJournalActivation {
             session: self.method_role_mutations.activate(),
             constraints: self.infer.constraints().activate_method_role_mutations(),
             roles: self.roles.activate_method_role_mutations(),
             candidates: self.role_impls.activate_method_role_mutations(),
-        }
+        };
+        #[cfg(test)]
+        self.owner_dirty_scheduler_begin_journal_window();
+        activation
     }
 
     fn finish_method_role_mutation_journal(
@@ -429,6 +446,8 @@ impl AnalysisSession {
         activation: MethodRoleMutationJournalActivation,
     ) {
         self.sync_method_role_mutation_outboxes();
+        #[cfg(test)]
+        self.owner_dirty_scheduler_finish_journal_window();
         activation.finish();
     }
 
@@ -541,17 +560,43 @@ impl AnalysisSession {
     /// Drain queued analysis work until method-role solving reaches a fixed point.
     pub fn drain_work(&mut self) {
         let mut trace = AnalysisDrainTrace::from_env(self.work.len());
+        #[cfg(test)]
+        // A terminal record can outlive one `drain_work` call while lowering continues to mutate
+        // constraints. The Stage 3 shadow scheduler therefore keeps its test-only activation
+        // alive after the first forced pass and drains it at ordinary routing boundaries. The
+        // release path retains Stage 2's one-forced-pass activation until Stage 5 measures an
+        // off-by-default production-shaped mode.
+        let persistent_shadow_journal = self.owner_dirty_scheduler.is_some();
+        #[cfg(not(test))]
+        let persistent_shadow_journal = false;
+        let mut mutation_journal = None;
         loop {
             while self.step_traced(&mut trace) {}
             if !self.method_role_pass_inputs_changed() {
                 break;
             }
             self.begin_method_role_pass();
-            let mutation_journal = self.activate_method_role_mutation_journal();
+            #[cfg(test)]
+            if self.owner_dirty_scheduler.is_some() && self.owner_dirty_scheduler_journal.is_none()
+            {
+                let activation = self.activate_method_role_mutation_journal();
+                self.owner_dirty_scheduler_journal = Some(activation);
+            }
+            if !persistent_shadow_journal {
+                if mutation_journal.is_none() {
+                    mutation_journal = Some(self.activate_method_role_mutation_journal());
+                }
+            }
             trace.before_role_pass(self.selections.unresolved().count(), self.work.len());
             let role_start = Instant::now();
             let progressed = self.resolve_roles_for_unresolved_methods();
-            self.finish_method_role_mutation_journal(mutation_journal);
+            if mutation_journal.is_some() {
+                self.finish_method_role_mutation_journal(
+                    mutation_journal
+                        .take()
+                        .expect("forced method-role pass has an active journal"),
+                );
+            }
             self.timing
                 .record_role_pass(role_start.elapsed(), progressed);
             trace.after_role_pass(
@@ -563,6 +608,9 @@ impl AnalysisSession {
                 self.record_no_progress_method_role_pass();
                 break;
             }
+        }
+        if let Some(mutation_journal) = mutation_journal {
+            self.finish_method_role_mutation_journal(mutation_journal);
         }
         trace.finish(self.work.len());
     }

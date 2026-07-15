@@ -98,6 +98,8 @@ use method_taint::{
 use projection::role_impl_member_projection_substitutions;
 use session::CandidateSettlementFact;
 #[cfg(test)]
+use session::MethodRoleOwnerDirtyScheduler;
+#[cfg(test)]
 use session::ShadowDirtyOracle;
 #[cfg(test)]
 pub(crate) use session::{
@@ -109,6 +111,8 @@ pub(crate) use session::{
     record_shadow_pre_pop_read, record_shadow_subtract_read,
     with_shadow_dirty_oracle_for_new_sessions,
 };
+#[cfg(test)]
+pub(crate) use session::{OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions};
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
 use trace::{
@@ -161,6 +165,10 @@ pub struct AnalysisSession {
     candidate_settlement_safety_witness: Option<CandidateSettlementSafetyWitness>,
     #[cfg(test)]
     shadow_dirty_oracle: Option<ShadowDirtyOracle>,
+    #[cfg(test)]
+    owner_dirty_scheduler: Option<MethodRoleOwnerDirtyScheduler>,
+    #[cfg(test)]
+    owner_dirty_scheduler_journal: Option<MethodRoleMutationJournalActivation>,
     #[cfg(test)]
     stage0_quantify_watch: FxHashSet<DefId>,
     #[cfg(test)]
