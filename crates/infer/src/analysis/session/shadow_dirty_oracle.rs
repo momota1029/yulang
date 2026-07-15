@@ -24,6 +24,16 @@ pub(crate) struct ShadowDirtyOracleReport {
     pub(crate) root_available_checks: usize,
     pub(crate) root_available_predicted_clean: usize,
     pub(crate) root_available_predicted_dirty: usize,
+    pub(crate) root_unavailable_outcomes: usize,
+    pub(crate) no_progress_outcomes: usize,
+    pub(crate) progress_outcomes: usize,
+    pub(crate) owner_solve_time: Duration,
+    pub(crate) predicted_clean_owner_solve_time: Duration,
+    pub(crate) predicted_dirty_owner_solve_time: Duration,
+    pub(crate) method_taint_rebuild_time: Duration,
+    pub(crate) method_role_loop_time: Duration,
+    pub(crate) dependency_cardinalities: Vec<usize>,
+    pub(crate) dependency_inventory: ShadowDirtyDependencyInventory,
     pub(crate) owners: Vec<ShadowDirtyOracleOwnerReport>,
     pub(crate) mismatches: Vec<ShadowDirtyOracleMismatch>,
 }
@@ -43,6 +53,96 @@ pub(crate) struct ShadowDirtyOracleOwnerReport {
     pub(crate) root_available_checks: usize,
     pub(crate) root_available_predicted_clean: usize,
     pub(crate) root_available_predicted_dirty: usize,
+    pub(crate) root_unavailable_outcomes: usize,
+    pub(crate) no_progress_outcomes: usize,
+    pub(crate) progress_outcomes: usize,
+    pub(crate) owner_solve_time: Duration,
+    pub(crate) predicted_clean_owner_solve_time: Duration,
+    pub(crate) predicted_dirty_owner_solve_time: Duration,
+    pub(crate) dependency_cardinality_total: usize,
+    pub(crate) dependency_cardinality_min: usize,
+    pub(crate) dependency_cardinality_max: usize,
+}
+
+/// Counts the dependency-key-shaped entries observed across owner solves.
+///
+/// Root, raw-role, and owner-selection snapshots each correspond to one future journal key. The
+/// remaining fields count the exact variables, buckets, selections, or resolution keys queried by
+/// the current fingerprint. This makes the total a Stage 2 subscription-cost estimate rather than
+/// a byte count of the test oracle's exact value snapshots.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ShadowDirtyDependencyInventory {
+    pub(crate) scc_roots: usize,
+    pub(crate) owner_raw_roles: usize,
+    pub(crate) owner_selections: usize,
+    pub(crate) constraint_bounds: usize,
+    pub(crate) constraint_neighbors: usize,
+    pub(crate) constraint_subtract_facts: usize,
+    pub(crate) constraint_levels: usize,
+    pub(crate) constraint_birth_levels: usize,
+    pub(crate) constraint_pre_pop_families: usize,
+    pub(crate) candidate_buckets: usize,
+    pub(crate) method_taint_entries: usize,
+    pub(crate) projection_selections: usize,
+    pub(crate) applied_resolutions: usize,
+}
+
+impl ShadowDirtyDependencyInventory {
+    pub(crate) fn total(self) -> usize {
+        self.scc_roots
+            + self.owner_raw_roles
+            + self.owner_selections
+            + self.constraint_bounds
+            + self.constraint_neighbors
+            + self.constraint_subtract_facts
+            + self.constraint_levels
+            + self.constraint_birth_levels
+            + self.constraint_pre_pop_families
+            + self.candidate_buckets
+            + self.method_taint_entries
+            + self.projection_selections
+            + self.applied_resolutions
+    }
+
+    fn absorb(&mut self, other: Self) {
+        self.scc_roots += other.scc_roots;
+        self.owner_raw_roles += other.owner_raw_roles;
+        self.owner_selections += other.owner_selections;
+        self.constraint_bounds += other.constraint_bounds;
+        self.constraint_neighbors += other.constraint_neighbors;
+        self.constraint_subtract_facts += other.constraint_subtract_facts;
+        self.constraint_levels += other.constraint_levels;
+        self.constraint_birth_levels += other.constraint_birth_levels;
+        self.constraint_pre_pop_families += other.constraint_pre_pop_families;
+        self.candidate_buckets += other.candidate_buckets;
+        self.method_taint_entries += other.method_taint_entries;
+        self.projection_selections += other.projection_selections;
+        self.applied_resolutions += other.applied_resolutions;
+    }
+
+    fn for_reads(
+        session: &AnalysisSession,
+        method_taint: &MethodTaintIndex,
+        reads: &OwnerReadFrontier,
+    ) -> Self {
+        let taint_projection =
+            taint_projection_snapshot(method_taint, reads.taint_vars.iter().copied());
+        Self {
+            scc_roots: 1,
+            owner_raw_roles: 1,
+            owner_selections: 1,
+            constraint_bounds: reads.bound_vars.len(),
+            constraint_neighbors: reads.neighbor_vars.len(),
+            constraint_subtract_facts: reads.subtract_vars.len(),
+            constraint_levels: reads.level_vars.len(),
+            constraint_birth_levels: reads.birth_level_vars.len(),
+            constraint_pre_pop_families: reads.pre_pop_vars.len(),
+            candidate_buckets: reads.candidate_buckets.len(),
+            method_taint_entries: reads.taint_vars.len(),
+            projection_selections: projection_selection_snapshot(session, &taint_projection).len(),
+            applied_resolutions: reads.applied_resolution_reads.len(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +167,14 @@ pub(crate) struct ShadowDirtyOracle {
     root_available_checks: usize,
     root_available_predicted_clean: usize,
     root_available_predicted_dirty: usize,
+    root_unavailable_outcomes: usize,
+    no_progress_outcomes: usize,
+    progress_outcomes: usize,
+    owner_solve_time: Duration,
+    predicted_clean_owner_solve_time: Duration,
+    predicted_dirty_owner_solve_time: Duration,
+    dependency_cardinalities: Vec<usize>,
+    dependency_inventory: ShadowDirtyDependencyInventory,
     mismatches: Vec<ShadowDirtyOracleMismatch>,
 }
 
@@ -142,6 +250,39 @@ impl ShadowDirtyOracle {
             .current_predictions
             .remove(&owner)
             .expect("every observed owner must have a pre-solve prediction");
+        let dependency_inventory =
+            ShadowDirtyDependencyInventory::for_reads(session, method_taint, &reads);
+        let dependency_cardinality = dependency_inventory.total();
+        let solve_duration = reads.solve_duration;
+
+        self.owner_solve_time += solve_duration;
+        self.dependency_cardinalities.push(dependency_cardinality);
+        self.dependency_inventory.absorb(dependency_inventory);
+        if prediction.clean {
+            self.predicted_clean_owner_solve_time += solve_duration;
+        } else {
+            self.predicted_dirty_owner_solve_time += solve_duration;
+        }
+        match outcome {
+            OwnerSolveOutcome::RootUnavailable => self.root_unavailable_outcomes += 1,
+            OwnerSolveOutcome::NoProgress => self.no_progress_outcomes += 1,
+            OwnerSolveOutcome::Progress => self.progress_outcomes += 1,
+        }
+        let metrics = self.owner_metrics.entry(owner).or_default();
+        metrics.record_outcome(outcome);
+        metrics.owner_solve_time += solve_duration;
+        metrics.dependency_cardinality_total += dependency_cardinality;
+        metrics.dependency_cardinality_min = metrics
+            .dependency_cardinality_min
+            .min(dependency_cardinality);
+        metrics.dependency_cardinality_max = metrics
+            .dependency_cardinality_max
+            .max(dependency_cardinality);
+        if prediction.clean {
+            metrics.predicted_clean_owner_solve_time += solve_duration;
+        } else {
+            metrics.predicted_dirty_owner_solve_time += solve_duration;
+        }
         if prediction.clean && prediction.cached_outcome != Some(outcome) {
             self.mismatches.push(ShadowDirtyOracleMismatch {
                 pass: self.pass,
@@ -185,7 +326,11 @@ impl ShadowDirtyOracle {
         }
     }
 
-    fn report(&self) -> ShadowDirtyOracleReport {
+    fn report(
+        &self,
+        method_taint_rebuild_time: Duration,
+        method_role_loop_time: Duration,
+    ) -> ShadowDirtyOracleReport {
         let mut owners = self
             .owner_metrics
             .iter()
@@ -197,6 +342,15 @@ impl ShadowDirtyOracle {
                 root_available_checks: metrics.root_available_checks,
                 root_available_predicted_clean: metrics.root_available_predicted_clean,
                 root_available_predicted_dirty: metrics.root_available_predicted_dirty,
+                root_unavailable_outcomes: metrics.root_unavailable_outcomes,
+                no_progress_outcomes: metrics.no_progress_outcomes,
+                progress_outcomes: metrics.progress_outcomes,
+                owner_solve_time: metrics.owner_solve_time,
+                predicted_clean_owner_solve_time: metrics.predicted_clean_owner_solve_time,
+                predicted_dirty_owner_solve_time: metrics.predicted_dirty_owner_solve_time,
+                dependency_cardinality_total: metrics.dependency_cardinality_total,
+                dependency_cardinality_min: metrics.dependency_cardinality_min,
+                dependency_cardinality_max: metrics.dependency_cardinality_max,
             })
             .collect::<Vec<_>>();
         owners.sort_by_key(|metrics| metrics.owner.0);
@@ -208,6 +362,16 @@ impl ShadowDirtyOracle {
             root_available_checks: self.root_available_checks,
             root_available_predicted_clean: self.root_available_predicted_clean,
             root_available_predicted_dirty: self.root_available_predicted_dirty,
+            root_unavailable_outcomes: self.root_unavailable_outcomes,
+            no_progress_outcomes: self.no_progress_outcomes,
+            progress_outcomes: self.progress_outcomes,
+            owner_solve_time: self.owner_solve_time,
+            predicted_clean_owner_solve_time: self.predicted_clean_owner_solve_time,
+            predicted_dirty_owner_solve_time: self.predicted_dirty_owner_solve_time,
+            method_taint_rebuild_time,
+            method_role_loop_time,
+            dependency_cardinalities: self.dependency_cardinalities.clone(),
+            dependency_inventory: self.dependency_inventory,
             owners,
             mismatches: self.mismatches.clone(),
         }
@@ -255,7 +419,7 @@ impl OwnerSolveOutcome {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct OwnerMetrics {
     owner_checks: usize,
     predicted_clean: usize,
@@ -263,6 +427,47 @@ struct OwnerMetrics {
     root_available_checks: usize,
     root_available_predicted_clean: usize,
     root_available_predicted_dirty: usize,
+    root_unavailable_outcomes: usize,
+    no_progress_outcomes: usize,
+    progress_outcomes: usize,
+    owner_solve_time: Duration,
+    predicted_clean_owner_solve_time: Duration,
+    predicted_dirty_owner_solve_time: Duration,
+    dependency_cardinality_total: usize,
+    dependency_cardinality_min: usize,
+    dependency_cardinality_max: usize,
+}
+
+impl Default for OwnerMetrics {
+    fn default() -> Self {
+        Self {
+            owner_checks: 0,
+            predicted_clean: 0,
+            predicted_dirty: 0,
+            root_available_checks: 0,
+            root_available_predicted_clean: 0,
+            root_available_predicted_dirty: 0,
+            root_unavailable_outcomes: 0,
+            no_progress_outcomes: 0,
+            progress_outcomes: 0,
+            owner_solve_time: Duration::ZERO,
+            predicted_clean_owner_solve_time: Duration::ZERO,
+            predicted_dirty_owner_solve_time: Duration::ZERO,
+            dependency_cardinality_total: 0,
+            dependency_cardinality_min: usize::MAX,
+            dependency_cardinality_max: 0,
+        }
+    }
+}
+
+impl OwnerMetrics {
+    fn record_outcome(&mut self, outcome: OwnerSolveOutcome) {
+        match outcome {
+            OwnerSolveOutcome::RootUnavailable => self.root_unavailable_outcomes += 1,
+            OwnerSolveOutcome::NoProgress => self.no_progress_outcomes += 1,
+            OwnerSolveOutcome::Progress => self.progress_outcomes += 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -350,7 +555,13 @@ struct ConstraintDependencyFingerprint {
 
 impl ConstraintDependencyFingerprint {
     fn capture(session: &AnalysisSession, reads: &OwnerReadFrontier) -> Self {
-        let machine = session.infer.constraints();
+        Self::capture_machine(session.infer.constraints(), reads)
+    }
+
+    fn capture_machine(
+        machine: &crate::constraints::ConstraintMachine,
+        reads: &OwnerReadFrontier,
+    ) -> Self {
         let mut bounds = reads
             .bound_vars
             .iter()
@@ -402,6 +613,10 @@ impl ConstraintDependencyFingerprint {
     }
 
     fn matches(&self, session: &AnalysisSession) -> bool {
+        self.matches_machine(session.infer.constraints())
+    }
+
+    fn matches_machine(&self, machine: &crate::constraints::ConstraintMachine) -> bool {
         let reads = OwnerReadFrontier {
             bound_vars: self.bounds.iter().map(|(var, _)| *var).collect(),
             neighbor_vars: self.neighbors.iter().map(|(var, _)| *var).collect(),
@@ -415,13 +630,53 @@ impl ConstraintDependencyFingerprint {
                 .collect(),
             ..OwnerReadFrontier::default()
         };
-        let current = Self::capture(session, &reads);
+        let current = Self::capture_machine(machine, &reads);
         self.bounds == current.bounds
             && self.neighbors == current.neighbors
             && self.subtract_facts == current.subtract_facts
             && self.levels == current.levels
             && self.birth_levels == current.birth_levels
             && self.pre_pop_effect_families == current.pre_pop_effect_families
+    }
+}
+
+impl crate::constraints::ConstraintMachine {
+    /// Confirms that every constraint read API represented in the fingerprint reaches its hook.
+    pub(crate) fn shadow_dirty_oracle_constraint_read_hook_inventory_for_test(
+        &self,
+        var: TypeVar,
+    ) -> [bool; 6] {
+        let guard = begin_shadow_owner_reads();
+        let _ = self.bounds().of(var);
+        let _ = self.var_neighbors(var).count();
+        let _ = self.subtracts().facts(var);
+        let _ = self.level_of(var);
+        let _ = self.birth_level_of(var);
+        let _ = self.pre_pop_effect_families(var);
+        let reads = guard.finish();
+        [
+            reads.bound_vars.contains(&var),
+            reads.neighbor_vars.contains(&var),
+            reads.subtract_vars.contains(&var),
+            reads.level_vars.contains(&var),
+            reads.birth_level_vars.contains(&var),
+            reads.pre_pop_vars.contains(&var),
+        ]
+    }
+
+    /// Runs a focused mutation against the same bounds fingerprint used by the owner oracle.
+    pub(crate) fn shadow_dirty_oracle_detects_bound_mutation_for_test(
+        &mut self,
+        var: TypeVar,
+        mutate: impl FnOnce(&mut Self),
+    ) -> bool {
+        let reads = OwnerReadFrontier {
+            bound_vars: [var].into_iter().collect(),
+            ..OwnerReadFrontier::default()
+        };
+        let fingerprint = ConstraintDependencyFingerprint::capture_machine(self, &reads);
+        mutate(self);
+        !fingerprint.matches_machine(self)
     }
 }
 
@@ -436,20 +691,23 @@ pub(crate) struct OwnerReadFrontier {
     candidate_buckets: FxHashSet<Vec<String>>,
     taint_vars: FxHashSet<TypeVar>,
     applied_resolution_reads: FxHashMap<RoleResolutionKey, bool>,
+    solve_duration: Duration,
 }
 
 pub(crate) struct ShadowOwnerReadGuard {
     active: bool,
+    started_at: Instant,
 }
 
 impl ShadowOwnerReadGuard {
     pub(crate) fn finish(mut self) -> OwnerReadFrontier {
-        let reads = ACTIVE_OWNER_READS.with(|active| {
+        let mut reads = ACTIVE_OWNER_READS.with(|active| {
             active
                 .borrow_mut()
                 .take()
                 .expect("active shadow owner observation")
         });
+        reads.solve_duration = self.started_at.elapsed();
         self.active = false;
         reads
     }
@@ -488,7 +746,10 @@ pub(crate) fn begin_shadow_owner_reads() -> ShadowOwnerReadGuard {
             "shadow owner read observation must not nest"
         );
     });
-    ShadowOwnerReadGuard { active: true }
+    ShadowOwnerReadGuard {
+        active: true,
+        started_at: Instant::now(),
+    }
 }
 
 pub(crate) fn record_shadow_bound_read(var: TypeVar) {
@@ -677,8 +938,9 @@ impl AnalysisSession {
     }
 
     pub(crate) fn shadow_dirty_oracle_report(&self) -> Option<ShadowDirtyOracleReport> {
+        let timing = self.timing();
         self.shadow_dirty_oracle
             .as_ref()
-            .map(ShadowDirtyOracle::report)
+            .map(|oracle| oracle.report(timing.method_taint, timing.method_role_solve))
     }
 }
