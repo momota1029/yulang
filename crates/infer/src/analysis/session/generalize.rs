@@ -185,48 +185,50 @@ impl AnalysisSession {
             self.timing.record_generalize_cast(phase.elapsed(), 0, 0);
 
             let phase = Instant::now();
-            let (resolutions, dispositions, simplified_roles, floor_passes_noop) =
-                if coalesced_role_constraints.is_empty() {
-                    (Vec::new(), Vec::new(), Vec::new(), true)
-                } else {
-                    let (mut role_compact, mut roles, floor_interval_noop) =
-                        simplified_role_view.take().unwrap_or_else(|| {
-                            self.simplified_coalesced_role_view_for_generalize(
-                                def,
-                                root,
-                                &compact,
-                                &coalesced_role_constraints,
-                                simplification_boundary,
-                            )
-                        });
-                    let floor_passes_noop = normalize_role_resolution_floor(
-                        self.infer.constraints(),
-                        &mut role_compact,
-                        &mut roles,
-                        Some(floor_interval_noop),
-                    );
-                    if roles.is_empty() {
-                        (Vec::new(), Vec::new(), roles, floor_passes_noop)
-                    } else {
-                        self.timing
-                            .record_generalize_role_resolve_inputs(roles.len());
-                        metrics.record_role_resolve_inputs(roles.len());
-                        let resolved = resolve_role_constraints_with_stats_and_dispositions(
-                            self.infer.constraints(),
-                            &role_compact,
-                            &roles,
-                            &self.role_impls,
-                            &applied_roles,
-                        );
-                        self.timing.record_role_resolve_stats(resolved.output.stats);
-                        (
-                            resolved.output.resolutions,
-                            resolved.dispositions,
-                            roles,
-                            floor_passes_noop,
+            let (resolutions, solved_view) = if coalesced_role_constraints.is_empty() {
+                (Vec::new(), None)
+            } else {
+                let (mut role_compact, mut roles, floor_interval_noop) =
+                    simplified_role_view.take().unwrap_or_else(|| {
+                        self.simplified_coalesced_role_view_for_generalize(
+                            def,
+                            root,
+                            &compact,
+                            &coalesced_role_constraints,
+                            simplification_boundary,
                         )
-                    }
+                    });
+                normalize_role_resolution_floor(
+                    self.infer.constraints(),
+                    &mut role_compact,
+                    &mut roles,
+                    Some(floor_interval_noop),
+                );
+                let (resolutions, dispositions) = if roles.is_empty() {
+                    (Vec::new(), Vec::new())
+                } else {
+                    self.timing
+                        .record_generalize_role_resolve_inputs(roles.len());
+                    metrics.record_role_resolve_inputs(roles.len());
+                    let resolved = resolve_role_constraints_with_stats_and_dispositions(
+                        self.infer.constraints(),
+                        &role_compact,
+                        &roles,
+                        &self.role_impls,
+                        &applied_roles,
+                    );
+                    self.timing.record_role_resolve_stats(resolved.output.stats);
+                    (resolved.output.resolutions, resolved.dispositions)
                 };
+                (
+                    resolutions,
+                    Some(FinalRoleSolvedView {
+                        role_compact,
+                        normalized_roles: roles,
+                        dispositions,
+                    }),
+                )
+            };
             let resolution_count = resolutions.len();
             metrics.record_role_resolutions(resolution_count);
             let elapsed = phase.elapsed();
@@ -246,9 +248,7 @@ impl AnalysisSession {
             }
             break FinalRoleSolveSnapshot {
                 coalesced_roles: coalesced_role_constraints,
-                simplified_roles,
-                dispositions,
-                floor_passes_noop,
+                solved_view,
                 constraint_epoch: self.infer.constraints().epoch(),
                 role_epoch: self.roles.epoch_for_owner(def),
                 raw_role_count: role_input_count,
@@ -264,40 +264,52 @@ impl AnalysisSession {
         // role 単独で簡約すると共起が減って併合が強く効きすぎ、ループでは適用されなかった
         // 解決をここで初めて作ってしまう（制約を注入せずに述語だけ消える）恐れがある。
         let phase = Instant::now();
-        // 最終反復と同じ入力が保たれ、床処理も表記を書き換えない時だけ、その反復の判定を
-        // 再利用できる。どれか一つでも崩れた場合は、従来どおり全体を簡約・再解決する。
-        let final_role_inputs_unchanged = final_role_solve.constraint_epoch
-            == self.infer.constraints().epoch()
-            && final_role_solve.role_epoch == self.roles.epoch_for_owner(def)
-            && final_role_solve.raw_role_count == self.roles.for_owner(def).len();
-        let can_reuse_final_dispositions = final_role_solve.floor_passes_noop
-            && final_role_inputs_unchanged
-            && final_role_solve.dispositions.len() == final_role_solve.coalesced_roles.len()
-            && final_role_solve.simplified_roles.len() == final_role_solve.coalesced_roles.len();
         let applied_in_simplified_view =
             if applied_role_candidates.is_empty() && applied_role_demands.is_empty() {
                 vec![false; final_role_solve.coalesced_roles.len()]
-            } else if can_reuse_final_dispositions {
-                final_role_solve
-                    .simplified_roles
-                    .iter()
-                    .zip(&final_role_solve.dispositions)
-                    .map(|(role, disposition)| {
-                        applied_role_demands.contains(role)
-                            || matches!(
-                                disposition,
-                                crate::role_solve::RoleDemandDisposition::AlreadyApplied { .. }
-                            )
-                    })
-                    .collect()
             } else {
-                self.simplified_role_predicates_already_applied(
-                    &compact,
-                    &final_role_solve.coalesced_roles,
-                    &applied_role_candidates,
-                    &applied_role_demands,
-                    simplification_boundary,
-                )
+                let rebuilt_view = final_role_solve
+                    .inputs_match(
+                        self.infer.constraints().epoch(),
+                        self.roles.epoch_for_owner(def),
+                        self.roles.for_owner(def).len(),
+                    )
+                    .then(|| {
+                        // A floor rewrite may be harmless for this solve without being a no-op.
+                        // Rebuild the exact final-filter view and compare both solver inputs before
+                        // trusting the prior per-demand dispositions.
+                        self.normalized_role_view(
+                            &compact,
+                            &final_role_solve.coalesced_roles,
+                            simplification_boundary,
+                        )
+                    });
+                let reused = rebuilt_view.as_ref().and_then(|(role_compact, roles)| {
+                    final_role_solve.applied_flags_if_view_is_exact(
+                        role_compact,
+                        roles,
+                        &applied_roles,
+                        &applied_role_demands,
+                    )
+                });
+                if let Some(reused) = reused {
+                    reused
+                } else if let Some((role_compact, roles)) = rebuilt_view {
+                    self.normalized_role_predicates_already_applied(
+                        &role_compact,
+                        &roles,
+                        &applied_role_candidates,
+                        &applied_role_demands,
+                    )
+                } else {
+                    self.simplified_role_predicates_already_applied(
+                        &compact,
+                        &final_role_solve.coalesced_roles,
+                        &applied_role_candidates,
+                        &applied_role_demands,
+                        simplification_boundary,
+                    )
+                }
             };
         let mut role_predicates: Vec<CompactRoleConstraint> = final_role_solve
             .coalesced_roles
@@ -584,21 +596,40 @@ impl AnalysisSession {
         applied_demands: &FxHashSet<CompactRoleConstraint>,
         simplification_boundary: TypeLevel,
     ) -> Vec<bool> {
-        let mut role_compact = compact.clone();
-        let mut simplified_roles = role_predicates.to_vec();
-        simplify_compact_root_with_roles_and_non_generic(
-            self.infer.constraints(),
-            simplification_boundary,
-            &mut role_compact,
-            &mut simplified_roles,
-            &FxHashSet::default(),
-        );
+        let (role_compact, simplified_roles) =
+            self.normalized_role_view(compact, role_predicates, simplification_boundary);
+        self.normalized_role_predicates_already_applied(
+            &role_compact,
+            &simplified_roles,
+            applied_candidates,
+            applied_demands,
+        )
+    }
+
+    fn normalized_role_view(
+        &self,
+        compact: &crate::compact::CompactRoot,
+        role_predicates: &[CompactRoleConstraint],
+        simplification_boundary: TypeLevel,
+    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
+        let (mut role_compact, mut roles, floor_interval_noop) =
+            self.simplified_coalesced_role_view(compact, role_predicates, simplification_boundary);
         normalize_role_resolution_floor(
             self.infer.constraints(),
             &mut role_compact,
-            &mut simplified_roles,
-            None,
+            &mut roles,
+            Some(floor_interval_noop),
         );
+        (role_compact, roles)
+    }
+
+    fn normalized_role_predicates_already_applied(
+        &self,
+        role_compact: &crate::compact::CompactRoot,
+        simplified_roles: &[CompactRoleConstraint],
+        applied_candidates: &FxHashSet<CompactRoleConstraint>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+    ) -> Vec<bool> {
         if applied_candidates.is_empty() {
             return simplified_roles
                 .iter()
@@ -814,12 +845,68 @@ impl AnalysisSession {
 
 struct FinalRoleSolveSnapshot {
     coalesced_roles: Vec<CompactRoleConstraint>,
-    simplified_roles: Vec<CompactRoleConstraint>,
-    dispositions: Vec<crate::role_solve::RoleDemandDisposition>,
-    floor_passes_noop: bool,
+    solved_view: Option<FinalRoleSolvedView>,
     constraint_epoch: ConstraintEpoch,
     role_epoch: RoleEpoch,
     raw_role_count: usize,
+}
+
+struct FinalRoleSolvedView {
+    role_compact: crate::compact::CompactRoot,
+    normalized_roles: Vec<CompactRoleConstraint>,
+    dispositions: Vec<crate::role_solve::RoleDemandDisposition>,
+}
+
+impl FinalRoleSolveSnapshot {
+    fn inputs_match(
+        &self,
+        constraint_epoch: ConstraintEpoch,
+        role_epoch: RoleEpoch,
+        raw_role_count: usize,
+    ) -> bool {
+        self.constraint_epoch == constraint_epoch
+            && self.role_epoch == role_epoch
+            && self.raw_role_count == raw_role_count
+            && self.solved_view.as_ref().is_some_and(|view| {
+                view.normalized_roles.len() == self.coalesced_roles.len()
+                    && view.dispositions.len() == self.coalesced_roles.len()
+            })
+    }
+
+    fn applied_flags_if_view_is_exact(
+        &self,
+        role_compact: &crate::compact::CompactRoot,
+        normalized_roles: &[CompactRoleConstraint],
+        applied_roles: &FxHashSet<crate::role_solve::RoleResolutionKey>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+    ) -> Option<Vec<bool>> {
+        let solved_view = self.solved_view.as_ref()?;
+        if solved_view.role_compact != *role_compact
+            || solved_view.normalized_roles != normalized_roles
+        {
+            return None;
+        }
+        // The solve loop cannot terminate with a newly resolved demand. Checking that invariant,
+        // the disposition-to-demand alignment, and membership in the unchanged applied-key set
+        // makes malformed or stale snapshots fail closed into the ordinary resolver.
+        solved_view
+            .normalized_roles
+            .iter()
+            .zip(&solved_view.dispositions)
+            .map(|(role, disposition)| match disposition {
+                crate::role_solve::RoleDemandDisposition::AlreadyApplied { key }
+                    if key.demand == *role && applied_roles.contains(key) =>
+                {
+                    Some(true)
+                }
+                crate::role_solve::RoleDemandDisposition::Unresolved { .. } => {
+                    Some(applied_demands.contains(role))
+                }
+                crate::role_solve::RoleDemandDisposition::NewlyResolved { .. }
+                | crate::role_solve::RoleDemandDisposition::AlreadyApplied { .. } => None,
+            })
+            .collect()
+    }
 }
 
 /// role resolve 用の床正規化を完了し、全 pass が no-op だったかを返す。
@@ -839,6 +926,360 @@ fn normalize_role_resolution_floor(
     let floor_redundant_noop =
         eliminate_floor_redundant_variables(machine, TypeLevel::root(), compact, roles).is_empty();
     floor_interval_noop && floor_redundant_noop
+}
+
+#[cfg(test)]
+mod final_role_reuse_tests {
+    use super::*;
+    use crate::compact::{CompactBounds, compact_reachable_role_constraints, compact_type_var};
+    use crate::role_solve::{
+        RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
+        resolve_role_constraints_with_stats_and_dispositions,
+    };
+    use crate::roles::{RoleConstraint, RoleConstraintArg, RoleImplCandidate};
+    use poly::expr::Arena as PolyArena;
+    use poly::types::{Neg, Neu, Pos, TypeVar};
+
+    #[test]
+    fn exact_post_floor_view_reuses_dispositions_and_matches_full_resolve() {
+        let fixture = exact_reuse_fixture();
+
+        assert!(fixture.snapshot.inputs_match(
+            fixture.session.infer.constraints().epoch(),
+            fixture.session.roles.epoch_for_owner(fixture.owner),
+            fixture.session.roles.for_owner(fixture.owner).len(),
+        ));
+        let reused = fixture
+            .snapshot
+            .applied_flags_if_view_is_exact(
+                &fixture.normalized_compact,
+                &fixture.normalized_roles,
+                &fixture.applied_roles,
+                &fixture.applied_demands,
+            )
+            .expect("an exact post-floor view must reuse the terminal dispositions");
+        let full = fixture.session.simplified_role_predicates_already_applied(
+            &fixture.compact,
+            &fixture.coalesced_roles,
+            &fixture.applied_candidates,
+            &fixture.applied_demands,
+            TypeLevel::root().child(),
+        );
+
+        assert_eq!(reused, full);
+        assert_eq!(reused, vec![true, false]);
+    }
+
+    #[test]
+    fn relevant_post_floor_demand_change_rejects_reuse_and_full_resolve_keeps_it() {
+        let fixture = exact_reuse_fixture();
+        let changed_compact = crate::compact::CompactRoot::default();
+        assert_ne!(fixture.normalized_compact, changed_compact);
+        assert!(
+            fixture
+                .snapshot
+                .applied_flags_if_view_is_exact(
+                    &changed_compact,
+                    &fixture.normalized_roles,
+                    &fixture.applied_roles,
+                    &fixture.applied_demands,
+                )
+                .is_none(),
+            "a structurally changed post-floor main view must fail closed"
+        );
+
+        let mut changed_roles = fixture.normalized_roles.clone();
+        let document = changed_roles
+            .iter_mut()
+            .find(|role| role.role == vec!["Document".to_string()])
+            .expect("document demand");
+        document.inputs[1].bounds = CompactBounds::Con {
+            path: vec!["other_node".into()],
+            args: Vec::new(),
+        };
+
+        assert!(
+            fixture
+                .snapshot
+                .applied_flags_if_view_is_exact(
+                    &fixture.normalized_compact,
+                    &changed_roles,
+                    &fixture.applied_roles,
+                    &fixture.applied_demands,
+                )
+                .is_none(),
+            "a structurally changed normalized demand must fail closed"
+        );
+        let full = fixture.session.normalized_role_predicates_already_applied(
+            &fixture.normalized_compact,
+            &changed_roles,
+            &fixture.applied_candidates,
+            &fixture.applied_demands,
+        );
+        let document_index = changed_roles
+            .iter()
+            .position(|role| role.role == vec!["Document".to_string()])
+            .expect("document demand");
+
+        assert!(!full[document_index]);
+    }
+
+    #[test]
+    fn terminal_disposition_mismatch_rejects_reuse() {
+        let mut fixture = exact_reuse_fixture();
+        let key = fixture
+            .applied_roles
+            .iter()
+            .next()
+            .expect("applied document key")
+            .clone();
+        let view = fixture
+            .snapshot
+            .solved_view
+            .as_mut()
+            .expect("terminal solved view");
+        let document_index = view
+            .normalized_roles
+            .iter()
+            .position(|role| role.role == vec!["Document".to_string()])
+            .expect("document demand");
+        view.dispositions[document_index] =
+            crate::role_solve::RoleDemandDisposition::NewlyResolved { key };
+
+        assert!(
+            fixture
+                .snapshot
+                .applied_flags_if_view_is_exact(
+                    &fixture.normalized_compact,
+                    &fixture.normalized_roles,
+                    &fixture.applied_roles,
+                    &fixture.applied_demands,
+                )
+                .is_none(),
+            "a terminal snapshot cannot contain a newly resolved demand"
+        );
+    }
+
+    #[test]
+    fn changed_epoch_or_role_count_rejects_reuse_before_view_comparison() {
+        let mut fixture = exact_reuse_fixture();
+        let snapshot_constraint_epoch = fixture.session.infer.constraints().epoch();
+        let snapshot_role_epoch = fixture.session.roles.epoch_for_owner(fixture.owner);
+        let snapshot_role_count = fixture.session.roles.for_owner(fixture.owner).len();
+
+        assert!(!fixture.snapshot.inputs_match(
+            snapshot_constraint_epoch,
+            snapshot_role_epoch,
+            snapshot_role_count + 1,
+        ));
+
+        let changed = fixture.session.infer.fresh_type_var();
+        let lower = fixture
+            .session
+            .infer
+            .alloc_pos(Pos::Con(vec!["epoch_change".into()], Vec::new()));
+        let upper = fixture.session.infer.alloc_neg(Neg::Var(changed));
+        fixture.session.infer.subtype(lower, upper);
+        let changed_constraint_epoch = fixture.session.infer.constraints().epoch();
+        assert_ne!(snapshot_constraint_epoch, changed_constraint_epoch);
+        assert!(!fixture.snapshot.inputs_match(
+            changed_constraint_epoch,
+            snapshot_role_epoch,
+            snapshot_role_count,
+        ));
+
+        fixture.session.roles.insert(
+            fixture.owner,
+            RoleConstraint {
+                role: vec!["Noise".into()],
+                inputs: Vec::new(),
+                associated: Vec::new(),
+            },
+        );
+        assert!(!fixture.snapshot.inputs_match(
+            snapshot_constraint_epoch,
+            fixture.session.roles.epoch_for_owner(fixture.owner),
+            snapshot_role_count,
+        ));
+    }
+
+    struct ExactReuseFixture {
+        session: AnalysisSession,
+        owner: DefId,
+        compact: crate::compact::CompactRoot,
+        coalesced_roles: Vec<CompactRoleConstraint>,
+        normalized_compact: crate::compact::CompactRoot,
+        normalized_roles: Vec<CompactRoleConstraint>,
+        applied_roles: FxHashSet<RoleResolutionKey>,
+        applied_candidates: FxHashSet<CompactRoleConstraint>,
+        applied_demands: FxHashSet<CompactRoleConstraint>,
+        snapshot: FinalRoleSolveSnapshot,
+    }
+
+    fn exact_reuse_fixture() -> ExactReuseFixture {
+        let document_role = vec!["Document".to_string()];
+        let children_role = vec!["Children".to_string()];
+        let node_path = vec!["node".to_string()];
+        let owner = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let root = session.infer.fresh_type_var();
+        let first = session.infer.fresh_type_var();
+        let second = session.infer.fresh_type_var();
+        let candidate_item = session.infer.fresh_type_var();
+
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: document_role.clone(),
+                inputs: vec![
+                    role_unary_con_var_and_extra_arg(
+                        &mut session.infer,
+                        node_path.clone(),
+                        first,
+                        second,
+                    ),
+                    role_unary_con_var_arg(&mut session.infer, node_path.clone(), second),
+                ],
+                associated: Vec::new(),
+            },
+        );
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: children_role.clone(),
+                inputs: vec![role_var_arg(&mut session.infer, first)],
+                associated: Vec::new(),
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
+            role: document_role.clone(),
+            inputs: vec![
+                role_unary_con_var_arg(&mut session.infer, node_path.clone(), candidate_item),
+                role_unary_con_var_arg(&mut session.infer, node_path, candidate_item),
+            ],
+            associated: Vec::new(),
+            prerequisites: vec![RoleConstraint {
+                role: children_role,
+                inputs: vec![role_var_arg(&mut session.infer, candidate_item)],
+                associated: Vec::new(),
+            }],
+            methods: Vec::new(),
+        });
+        constrain_root_to_vars(&mut session, root, &[first]);
+
+        let compact = compact_type_var(session.infer.constraints(), root);
+        let coalesced_roles = coalesce_role_constraints(compact_reachable_role_constraints(
+            session.infer.constraints(),
+            &compact,
+            session.roles.for_owner(owner),
+        ));
+        let (mut normalized_compact, mut normalized_roles, floor_interval_noop) = session
+            .simplified_coalesced_role_view(&compact, &coalesced_roles, TypeLevel::root().child());
+        let floor_noop = normalize_role_resolution_floor(
+            session.infer.constraints(),
+            &mut normalized_compact,
+            &mut normalized_roles,
+            Some(floor_interval_noop),
+        );
+        assert!(!floor_noop, "fixture must exercise the old rejected path");
+
+        let applied = resolve_role_constraints(
+            session.infer.constraints(),
+            &normalized_compact,
+            &normalized_roles,
+            &session.role_impls,
+            &FxHashSet::default(),
+        )
+        .into_iter()
+        .find(|resolution| resolution.demand.role == document_role)
+        .expect("floor-normalized document demand must resolve");
+        let applied_roles = FxHashSet::from_iter([applied.key.clone()]);
+        let terminal = resolve_role_constraints_with_stats_and_dispositions(
+            session.infer.constraints(),
+            &normalized_compact,
+            &normalized_roles,
+            &session.role_impls,
+            &applied_roles,
+        );
+        assert!(terminal.output.resolutions.is_empty());
+        let applied_candidates = FxHashSet::from_iter([applied.candidate]);
+        let applied_demands = FxHashSet::from_iter([applied.demand]);
+        let snapshot = FinalRoleSolveSnapshot {
+            coalesced_roles: coalesced_roles.clone(),
+            solved_view: Some(FinalRoleSolvedView {
+                role_compact: normalized_compact.clone(),
+                normalized_roles: normalized_roles.clone(),
+                dispositions: terminal.dispositions,
+            }),
+            constraint_epoch: session.infer.constraints().epoch(),
+            role_epoch: session.roles.epoch_for_owner(owner),
+            raw_role_count: session.roles.for_owner(owner).len(),
+        };
+
+        ExactReuseFixture {
+            session,
+            owner,
+            compact,
+            coalesced_roles,
+            normalized_compact,
+            normalized_roles,
+            applied_roles,
+            applied_candidates,
+            applied_demands,
+            snapshot,
+        }
+    }
+
+    fn constrain_root_to_vars(session: &mut AnalysisSession, root: TypeVar, vars: &[TypeVar]) {
+        let items = vars
+            .iter()
+            .map(|var| session.infer.alloc_pos(Pos::Var(*var)))
+            .collect();
+        let lower = session.infer.alloc_pos(Pos::Tuple(items));
+        let upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(lower, upper);
+    }
+
+    fn role_var_arg(infer: &mut crate::arena::Arena, var: TypeVar) -> RoleConstraintArg {
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Var(var)),
+            upper: infer.alloc_neg(Neg::Var(var)),
+        }
+    }
+
+    fn role_unary_con_var_arg(
+        infer: &mut crate::arena::Arena,
+        path: Vec<String>,
+        item: TypeVar,
+    ) -> RoleConstraintArg {
+        let lower = infer.alloc_pos(Pos::Var(item));
+        let upper = infer.alloc_neg(Neg::Var(item));
+        let item = infer.alloc_neu(Neu::Bounds(lower, upper));
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
+            upper: infer.alloc_neg(Neg::Con(path, vec![item])),
+        }
+    }
+
+    fn role_unary_con_var_and_extra_arg(
+        infer: &mut crate::arena::Arena,
+        path: Vec<String>,
+        item: TypeVar,
+        extra: TypeVar,
+    ) -> RoleConstraintArg {
+        let item_lower = infer.alloc_pos(Pos::Var(item));
+        let extra_lower = infer.alloc_pos(Pos::Var(extra));
+        let lower = infer.alloc_pos(Pos::Union(item_lower, extra_lower));
+        let item_upper = infer.alloc_neg(Neg::Var(item));
+        let extra_upper = infer.alloc_neg(Neg::Var(extra));
+        let upper = infer.alloc_neg(Neg::Intersection(item_upper, extra_upper));
+        let item = infer.alloc_neu(Neu::Bounds(lower, upper));
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
+            upper: infer.alloc_neg(Neg::Con(path, vec![item])),
+        }
+    }
 }
 
 fn trace_generalize_phase(
