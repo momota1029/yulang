@@ -2,7 +2,9 @@ use super::*;
 
 use super::stage0_tests::{fixture_source, repository_std_loaded, root_value_def};
 use crate::Arena;
-use crate::analysis::with_shadow_dirty_oracle_for_new_sessions;
+use crate::analysis::{
+    DependencyKey, DependencyKeyKind, with_shadow_dirty_oracle_for_new_sessions,
+};
 use crate::constraints::{ConstraintWeights, LeftConstraintWeight, RightConstraintWeight};
 
 #[test]
@@ -206,22 +208,8 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
             report.mismatches,
         );
         let inventory = report.dependency_inventory;
-        for (covered, count) in fingerprint_inventory_coverage.iter_mut().zip([
-            inventory.scc_roots,
-            inventory.owner_raw_roles,
-            inventory.owner_selections,
-            inventory.constraint_bounds,
-            inventory.constraint_neighbors,
-            inventory.constraint_subtract_facts,
-            inventory.constraint_levels,
-            inventory.constraint_birth_levels,
-            inventory.constraint_pre_pop_families,
-            inventory.candidate_buckets,
-            inventory.method_taint_entries,
-            inventory.projection_selections,
-            inventory.applied_resolutions,
-        ]) {
-            *covered |= count > 0;
+        for (kind, count) in inventory.typed_key_kind_counts() {
+            fingerprint_inventory_coverage[kind.index()] |= count > 0;
         }
         assert!(
             report.mismatches.is_empty(),
@@ -235,17 +223,18 @@ fn shadow_dirty_oracle_characterizes_yumark_and_repository_std_owner_checks() {
         "scc-root",
         "owner-raw-roles",
         "owner-selections",
+        "selection",
         "constraint-bounds",
         "constraint-neighbors",
         "constraint-subtract-facts",
         "constraint-levels",
         "constraint-birth-levels",
         "constraint-pre-pop-families",
-        "candidate-buckets",
         "method-taint-entries",
-        "projection-selections",
+        "candidate-buckets",
         "applied-resolutions",
     ];
+    assert_eq!(inventory_names.len(), DependencyKeyKind::ALL.len());
     let missing = inventory_names
         .into_iter()
         .zip(fingerprint_inventory_coverage)
@@ -268,6 +257,20 @@ fn shadow_dirty_oracle_constraint_fingerprint_read_hooks_are_complete() {
             .shadow_dirty_oracle_constraint_read_hook_inventory_for_test(var),
         [true; 6],
         "bounds, neighbors, subtract facts, level, birth level, and pre-pop families must all reach the owner-read frontier"
+    );
+    assert_eq!(
+        infer
+            .constraints()
+            .shadow_dirty_oracle_constraint_dependency_keys_for_test(var),
+        vec![
+            DependencyKey::ConstraintBounds(var),
+            DependencyKey::ConstraintNeighbors(var),
+            DependencyKey::ConstraintSubtractFacts(var),
+            DependencyKey::ConstraintLevel(var),
+            DependencyKey::ConstraintBirthLevel(var),
+            DependencyKey::ConstraintPrePopFamilies(var),
+        ],
+        "the six real constraint hooks must map directly to the six typed dependency keys"
     );
 }
 

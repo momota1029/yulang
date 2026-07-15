@@ -10,6 +10,8 @@ use std::cell::{Cell, RefCell};
 
 use crate::constraints::{ConstraintEffectFamily, SubtractFact};
 
+use super::dirty_scheduling_contract::{DependencyKey, DependencyKeyKind};
+
 thread_local! {
     static ENABLE_NEW_ORACLES: Cell<bool> = const { Cell::new(false) };
     static ACTIVE_OWNER_READS: RefCell<Option<OwnerReadFrontier>> = const { RefCell::new(None) };
@@ -102,6 +104,40 @@ impl ShadowDirtyDependencyInventory {
             + self.method_taint_entries
             + self.projection_selections
             + self.applied_resolutions
+    }
+
+    /// Typed Stage 1 mapping for every field/read represented by the exact-value oracle.
+    pub(crate) fn typed_key_kind_counts(self) -> [(DependencyKeyKind, usize); 13] {
+        [
+            (DependencyKeyKind::SccRoot, self.scc_roots),
+            (DependencyKeyKind::OwnerRawRoles, self.owner_raw_roles),
+            (DependencyKeyKind::OwnerSelections, self.owner_selections),
+            (DependencyKeyKind::Selection, self.projection_selections),
+            (DependencyKeyKind::ConstraintBounds, self.constraint_bounds),
+            (
+                DependencyKeyKind::ConstraintNeighbors,
+                self.constraint_neighbors,
+            ),
+            (
+                DependencyKeyKind::ConstraintSubtractFacts,
+                self.constraint_subtract_facts,
+            ),
+            (DependencyKeyKind::ConstraintLevel, self.constraint_levels),
+            (
+                DependencyKeyKind::ConstraintBirthLevel,
+                self.constraint_birth_levels,
+            ),
+            (
+                DependencyKeyKind::ConstraintPrePopFamilies,
+                self.constraint_pre_pop_families,
+            ),
+            (DependencyKeyKind::MethodTaint, self.method_taint_entries),
+            (DependencyKeyKind::CandidateBucket, self.candidate_buckets),
+            (
+                DependencyKeyKind::AppliedResolution,
+                self.applied_resolutions,
+            ),
+        ]
     }
 
     fn absorb(&mut self, other: Self) {
@@ -664,6 +700,21 @@ impl crate::constraints::ConstraintMachine {
         ]
     }
 
+    /// Returns the typed Stage 1 keys reached through the six real constraint read hooks.
+    pub(crate) fn shadow_dirty_oracle_constraint_dependency_keys_for_test(
+        &self,
+        var: TypeVar,
+    ) -> Vec<DependencyKey> {
+        let guard = begin_shadow_owner_reads();
+        let _ = self.bounds().of(var);
+        let _ = self.var_neighbors(var).count();
+        let _ = self.subtracts().facts(var);
+        let _ = self.level_of(var);
+        let _ = self.birth_level_of(var);
+        let _ = self.pre_pop_effect_families(var);
+        guard.finish().constraint_dependency_keys()
+    }
+
     /// Runs a focused mutation against the same bounds fingerprint used by the owner oracle.
     pub(crate) fn shadow_dirty_oracle_detects_bound_mutation_for_test(
         &mut self,
@@ -692,6 +743,50 @@ pub(crate) struct OwnerReadFrontier {
     taint_vars: FxHashSet<TypeVar>,
     applied_resolution_reads: FxHashMap<RoleResolutionKey, bool>,
     solve_duration: Duration,
+}
+
+impl OwnerReadFrontier {
+    fn constraint_dependency_keys(&self) -> Vec<DependencyKey> {
+        let mut keys = Vec::new();
+        keys.extend(
+            self.bound_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintBounds),
+        );
+        keys.extend(
+            self.neighbor_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintNeighbors),
+        );
+        keys.extend(
+            self.subtract_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintSubtractFacts),
+        );
+        keys.extend(
+            self.level_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintLevel),
+        );
+        keys.extend(
+            self.birth_level_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintBirthLevel),
+        );
+        keys.extend(
+            self.pre_pop_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintPrePopFamilies),
+        );
+        keys.sort_by_key(|key| key.kind().index());
+        keys
+    }
 }
 
 pub(crate) struct ShadowOwnerReadGuard {

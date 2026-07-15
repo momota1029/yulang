@@ -2,6 +2,8 @@ use super::*;
 
 mod candidate_settlement;
 #[cfg(test)]
+mod dirty_scheduling_contract;
+#[cfg(test)]
 mod early_fallback_classifier;
 mod generalize;
 mod instantiate;
@@ -15,6 +17,9 @@ mod stage0_support;
 pub(super) use candidate_settlement::CandidateSettlementFact;
 #[cfg(test)]
 pub(crate) use candidate_settlement::CandidateSettlementSafetyWitness;
+
+#[cfg(test)]
+pub(crate) use dirty_scheduling_contract::{DependencyKey, DependencyKeyKind};
 
 #[cfg(test)]
 pub(crate) use early_fallback_classifier::{
