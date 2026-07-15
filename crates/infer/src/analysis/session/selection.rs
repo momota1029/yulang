@@ -2,6 +2,16 @@ use super::*;
 
 impl AnalysisSession {
     pub(super) fn apply_scc_input(&mut self, input: SccInput) {
+        // A newly available unresolved-selection parent root can enable method-role solving
+        // without changing either constraint or role epochs. Unrelated roots are not pass inputs.
+        if let SccInput::RegisterDef { def, .. } = &input
+            && self
+                .selections
+                .iter()
+                .any(|(_, use_site)| use_site.parent == *def)
+        {
+            self.mark_method_role_input_changed();
+        }
         match &input {
             SccInput::DefFinished { def } => self.add_unready_role_impl_dependencies(*def),
             SccInput::MethodDependencyResolved { parent } => {
@@ -70,7 +80,7 @@ impl AnalysisSession {
 
     pub(super) fn probe_select(&mut self, select_id: SelectId) {
         if self.poly.select(select_id).resolution.is_some() {
-            self.selections.remove(select_id);
+            self.remove_unresolved_selection(select_id);
             return;
         }
         let Some(use_site) = self.selections.get(select_id).copied() else {
@@ -134,6 +144,42 @@ impl AnalysisSession {
                 .record_enqueue_selection_probes(enqueue_start.elapsed());
         }
         progressed
+    }
+
+    #[cfg(test)]
+    pub(in crate::analysis) fn force_method_role_pass_for_test(&mut self) -> bool {
+        self.resolve_roles_for_unresolved_methods()
+    }
+
+    pub(super) fn method_role_pass_inputs_changed(&self) -> bool {
+        self.last_no_progress_method_role_pass != Some(self.method_role_pass_input_snapshot())
+    }
+
+    pub(super) fn begin_method_role_pass(&mut self) {
+        // Keep only proven no-progress snapshots. A progressing pass, panic, or other uncertain
+        // exit must make the next fixed-point check run through the existing solver path.
+        self.last_no_progress_method_role_pass = None;
+    }
+
+    pub(super) fn record_no_progress_method_role_pass(&mut self) {
+        self.last_no_progress_method_role_pass = Some(self.method_role_pass_input_snapshot());
+    }
+
+    pub(super) fn mark_method_role_input_changed(&mut self) {
+        let Some(next) = self.method_role_input_generation.checked_add(1) else {
+            self.method_role_input_generation = 0;
+            self.last_no_progress_method_role_pass = None;
+            return;
+        };
+        self.method_role_input_generation = next;
+    }
+
+    fn method_role_pass_input_snapshot(&self) -> MethodRolePassInputSnapshot {
+        MethodRolePassInputSnapshot {
+            constraint_epoch: self.infer.constraints().epoch(),
+            role_epoch: self.roles.epoch(),
+            input_generation: self.method_role_input_generation,
+        }
     }
 
     pub(super) fn resolve_method_tainted_roles_for_def(

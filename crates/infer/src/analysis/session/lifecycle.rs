@@ -32,6 +32,8 @@ impl AnalysisSession {
             role_impl_member_projections: FxHashMap::default(),
             role_impl_member_residual_prerequisites: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
+            method_role_input_generation: 0,
+            last_no_progress_method_role_pass: None,
             cache_interface_applied_merge_constraints: FxHashSet::default(),
             cache_interface_applied_subtype_constraints: FxHashSet::default(),
             candidate_settlements: FxHashMap::default(),
@@ -114,7 +116,7 @@ impl AnalysisSession {
                 &candidate,
                 &self.imported_boundary,
             );
-            self.role_impls.insert(candidate);
+            self.register_role_impl_candidate(candidate);
         }
     }
 
@@ -126,10 +128,43 @@ impl AnalysisSession {
     /// Register a selection use-site and schedule its initial method probe.
     pub fn register_selection_use(&mut self, select_id: SelectId, use_site: SelectionUse) {
         self.selections.insert(select_id, use_site);
+        self.mark_method_role_input_changed();
         self.enqueue(AnalysisWork::Scc(SccInput::MethodDependencyAdded {
             parent: use_site.parent,
         }));
         self.enqueue(AnalysisWork::ProbeSelect(select_id));
+    }
+
+    pub(super) fn remove_unresolved_selection(
+        &mut self,
+        select_id: SelectId,
+    ) -> Option<SelectionUse> {
+        let removed = self.selections.remove(select_id);
+        if removed.is_some() {
+            self.mark_method_role_input_changed();
+        }
+        removed
+    }
+
+    /// Register a role implementation visible to role solving.
+    pub fn register_role_impl_candidate(&mut self, candidate: RoleImplCandidate) {
+        self.role_impls.insert(candidate);
+        self.mark_method_role_input_changed();
+    }
+
+    /// Add residual prerequisites to an already registered role implementation.
+    pub(super) fn extend_role_impl_prerequisites(
+        &mut self,
+        impl_def: DefId,
+        prerequisites: impl IntoIterator<Item = RoleConstraint>,
+    ) {
+        let prerequisites = prerequisites.into_iter().collect::<Vec<_>>();
+        if prerequisites.is_empty() {
+            return;
+        }
+        self.role_impls
+            .extend_prerequisites_for_impl(impl_def, prerequisites);
+        self.mark_method_role_input_changed();
     }
 
     /// Add a globally visible value receiver method and re-probe pending selections.
@@ -336,6 +371,10 @@ impl AnalysisSession {
         let mut trace = AnalysisDrainTrace::from_env(self.work.len());
         loop {
             while self.step_traced(&mut trace) {}
+            if !self.method_role_pass_inputs_changed() {
+                break;
+            }
+            self.begin_method_role_pass();
             trace.before_role_pass(self.selections.unresolved().count(), self.work.len());
             let role_start = Instant::now();
             let progressed = self.resolve_roles_for_unresolved_methods();
@@ -347,6 +386,7 @@ impl AnalysisSession {
                 self.work.len(),
             );
             if !progressed {
+                self.record_no_progress_method_role_pass();
                 break;
             }
         }
@@ -548,13 +588,13 @@ impl AnalysisSession {
         for select_id in selections {
             selection_count += 1;
             if self.poly.select(select_id).resolution.is_some() {
-                self.selections.remove(select_id);
+                self.remove_unresolved_selection(select_id);
                 continue;
             }
             let name = self.poly.select(select_id).name.clone();
             self.poly
                 .resolve_select(select_id, SelectionTarget::RecordField.resolution());
-            let Some(use_site) = self.selections.remove(select_id) else {
+            let Some(use_site) = self.remove_unresolved_selection(select_id) else {
                 continue;
             };
             self.selections.insert_resolved(select_id, use_site.into());
@@ -687,12 +727,12 @@ impl AnalysisSession {
             }
             AnalysisWork::ApplySelectionResolution { select_id, target } => {
                 if self.poly.select(select_id).resolution.is_some() {
-                    self.selections.remove(select_id);
+                    self.remove_unresolved_selection(select_id);
                     return;
                 }
                 let name = self.poly.select(select_id).name.clone();
                 self.poly.resolve_select(select_id, target.resolution());
-                let Some(use_site) = self.selections.remove(select_id) else {
+                let Some(use_site) = self.remove_unresolved_selection(select_id) else {
                     return;
                 };
                 self.selections.insert_resolved(select_id, use_site.into());

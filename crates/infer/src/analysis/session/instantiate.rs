@@ -129,8 +129,7 @@ impl AnalysisSession {
             previous.is_none(),
             "a role impl method residual must be captured once before candidate merge"
         );
-        self.role_impls
-            .extend_prerequisites_for_impl(impl_def, prerequisites);
+        self.extend_role_impl_prerequisites(impl_def, prerequisites);
     }
 
     pub(crate) fn take_role_impl_member_residual_prerequisites(

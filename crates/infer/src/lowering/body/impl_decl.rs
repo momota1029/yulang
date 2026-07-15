@@ -289,7 +289,7 @@ impl BodyLowerer {
             prerequisites: Vec::new(),
             methods: Vec::new(),
         };
-        self.session.role_impls.insert(candidate);
+        self.session.register_role_impl_candidate(candidate);
         Ok(RoleImplLoweringContext {
             conformance_contract: Some(conformance_contract),
             conformance_shadow_targets,

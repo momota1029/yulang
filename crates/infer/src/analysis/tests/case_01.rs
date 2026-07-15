@@ -86,6 +86,27 @@ fn register_test_selection_use(
     result: TypeVar,
     result_effect: TypeVar,
 ) {
+    let use_site = prepare_test_selection_use(
+        session,
+        parent,
+        method_value,
+        receiver,
+        receiver_effect,
+        result,
+        result_effect,
+    );
+    session.register_selection_use(select, use_site);
+}
+
+fn prepare_test_selection_use(
+    session: &mut AnalysisSession,
+    parent: DefId,
+    method_value: TypeVar,
+    receiver: TypeVar,
+    receiver_effect: TypeVar,
+    result: TypeVar,
+    result_effect: TypeVar,
+) -> SelectionUse {
     let method = session.infer.alloc_pos(Pos::Var(method_value));
     let arg = session.infer.alloc_pos(Pos::Var(receiver));
     let arg_eff = session.infer.alloc_pos(Pos::Bot);
@@ -103,18 +124,15 @@ fn register_test_selection_use(
     session
         .infer
         .subtype(receiver_effect_pos, result_effect_neg);
-    session.register_selection_use(
-        select,
-        SelectionUse {
-            parent,
-            method_value,
-            selected_value: result,
-            receiver_value: receiver,
-            receiver_effect,
-            local_method_scope: None,
-            recursive_self_value: None,
-        },
-    );
+    SelectionUse {
+        parent,
+        method_value,
+        selected_value: result,
+        receiver_value: receiver,
+        receiver_effect,
+        local_method_scope: None,
+        recursive_self_value: None,
+    }
 }
 
 #[test]
@@ -675,6 +693,162 @@ fn unresolved_method_selection_forces_tainted_role_resolution() {
                 if from == &vec![owner] && to == &vec![method]
         )
     }));
+}
+
+struct MethodRolePassGuardFixture {
+    session: AnalysisSession,
+    select: SelectId,
+    selection_use: SelectionUse,
+    candidate: RoleImplCandidate,
+    method: DefId,
+}
+
+fn method_role_pass_guard_fixture() -> MethodRolePassGuardFixture {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let owner = DefId(1);
+    let method = DefId(2);
+    let root = TypeVar(0);
+    let receiver = TypeVar(3);
+    let method_value = TypeVar(4);
+    let receiver_effect = TypeVar(5);
+    let result = TypeVar(6);
+    let result_effect = TypeVar(7);
+    let select = session.poly.add_select("display");
+    let role = vec!["HasDisplay".to_string()];
+    let unit = vec!["unit".to_string()];
+    let int = vec!["int".to_string()];
+
+    session.roles.insert(
+        owner,
+        RoleConstraint {
+            role: role.clone(),
+            inputs: vec![role_exact_arg(&mut session.infer, unit.clone())],
+            associated: vec![RoleAssociatedConstraint {
+                name: "out".to_string(),
+                value: role_var_arg(&mut session.infer, receiver),
+            }],
+        },
+    );
+    let candidate = RoleImplCandidate {
+        impl_def: None,
+        role,
+        inputs: vec![role_exact_arg(&mut session.infer, unit)],
+        associated: vec![RoleAssociatedConstraint {
+            name: "out".to_string(),
+            value: role_exact_arg(&mut session.infer, int.clone()),
+        }],
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    };
+    let selection_use = prepare_test_selection_use(
+        &mut session,
+        owner,
+        method_value,
+        receiver,
+        receiver_effect,
+        result,
+        result_effect,
+    );
+    session.register_value_type_method(int, "display", method);
+    session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+        def: owner,
+        root,
+    }));
+
+    MethodRolePassGuardFixture {
+        session,
+        select,
+        selection_use,
+        candidate,
+        method,
+    }
+}
+
+#[test]
+fn unchanged_method_role_inputs_skip_a_redundant_pass() {
+    let mut fixture = method_role_pass_guard_fixture();
+    fixture
+        .session
+        .register_selection_use(fixture.select, fixture.selection_use);
+    fixture.session.drain_work();
+
+    let executed_passes = fixture.session.timing().role_passes;
+    let expected_resolution = fixture.session.poly.select(fixture.select).resolution;
+    let expected_constraint_epoch = fixture.session.infer.constraints().epoch();
+    assert_eq!(expected_resolution, None);
+
+    fixture.session.drain_work();
+
+    assert_eq!(fixture.session.timing().role_passes, executed_passes);
+    assert!(!fixture.session.force_method_role_pass_for_test());
+    assert_eq!(
+        fixture.session.poly.select(fixture.select).resolution,
+        expected_resolution
+    );
+    assert_eq!(
+        fixture.session.infer.constraints().epoch(),
+        expected_constraint_epoch
+    );
+}
+
+#[test]
+fn new_unresolved_selection_invalidates_method_role_pass_guard() {
+    let mut fixture = method_role_pass_guard_fixture();
+    fixture
+        .session
+        .register_role_impl_candidate(fixture.candidate);
+    fixture.session.drain_work();
+    let executed_passes = fixture.session.timing().role_passes;
+    let constraint_epoch = fixture.session.infer.constraints().epoch();
+    let role_epoch = fixture.session.roles.epoch();
+
+    fixture
+        .session
+        .register_selection_use(fixture.select, fixture.selection_use);
+    assert_eq!(
+        fixture.session.infer.constraints().epoch(),
+        constraint_epoch
+    );
+    assert_eq!(fixture.session.roles.epoch(), role_epoch);
+    fixture.session.drain_work();
+
+    assert!(fixture.session.timing().role_passes > executed_passes);
+    assert_eq!(
+        fixture.session.poly.select(fixture.select).resolution,
+        Some(SelectResolution::Method {
+            def: fixture.method
+        })
+    );
+}
+
+#[test]
+fn new_role_impl_candidate_invalidates_method_role_pass_guard() {
+    let mut fixture = method_role_pass_guard_fixture();
+    fixture
+        .session
+        .register_selection_use(fixture.select, fixture.selection_use);
+    fixture.session.drain_work();
+    let executed_passes = fixture.session.timing().role_passes;
+    let constraint_epoch = fixture.session.infer.constraints().epoch();
+    let role_epoch = fixture.session.roles.epoch();
+
+    fixture
+        .session
+        .register_role_impl_candidate(fixture.candidate);
+    assert_eq!(
+        fixture.session.infer.constraints().epoch(),
+        constraint_epoch
+    );
+    assert_eq!(fixture.session.roles.epoch(), role_epoch);
+    fixture.session.drain_work();
+
+    assert!(fixture.session.timing().role_passes > executed_passes);
+    assert_eq!(
+        fixture.session.poly.select(fixture.select).resolution,
+        Some(SelectResolution::Method {
+            def: fixture.method
+        })
+    );
 }
 
 #[test]

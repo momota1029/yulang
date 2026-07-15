@@ -185,7 +185,7 @@ impl BodyLowerer {
         if let Some(candidate) =
             self.error_throw_candidate(impl_def, &throw_role, error, throw_method.def, method_def)
         {
-            self.session.role_impls.insert(candidate);
+            self.session.register_role_impl_candidate(candidate);
             self.session
                 .role_impls
                 .add_method_for_impl(impl_def, throw_method.def, method_def);
@@ -345,14 +345,15 @@ impl BodyLowerer {
             .iter()
             .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
             .collect::<Vec<_>>();
-        self.session.role_impls.insert(RoleImplCandidate {
-            impl_def: Some(impl_def),
-            role: role_path,
-            inputs,
-            associated,
-            prerequisites: Vec::new(),
-            methods: Vec::new(),
-        });
+        self.session
+            .register_role_impl_candidate(RoleImplCandidate {
+                impl_def: Some(impl_def),
+                role: role_path,
+                inputs,
+                associated,
+                prerequisites: Vec::new(),
+                methods: Vec::new(),
+            });
         Some(RoleImplLoweringContext {
             conformance_contract: None,
             conformance_shadow_targets: FxHashMap::default(),

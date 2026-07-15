@@ -80,7 +80,7 @@ use crate::role_solve::{
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleEpoch,
-    RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
+    RoleImplCandidate, RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::time::{Duration, Instant};
@@ -134,6 +134,8 @@ pub struct AnalysisSession {
     role_impl_member_residual_prerequisites:
         FxHashMap<DefId, crate::role_impl_conformance::RoleImplMethodResidualPrerequisites>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
+    method_role_input_generation: u64,
+    last_no_progress_method_role_pass: Option<MethodRolePassInputSnapshot>,
     cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
     cache_interface_applied_subtype_constraints: FxHashSet<CompactSubtypeConstraintKey>,
     candidate_settlements: FxHashMap<DefId, CandidateSettlementFact>,
@@ -159,6 +161,14 @@ pub struct AnalysisSession {
     imported_scheme_defs: FxHashSet<DefId>,
     imported_scheme_validations: FxHashMap<DefId, Result<(), SchemeInstantiationError>>,
     imported_scheme_instantiation_failures: Vec<ImportedSchemeInstantiationFailure>,
+}
+
+/// Inputs whose exact equality makes a repeated no-progress method-role pass redundant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MethodRolePassInputSnapshot {
+    constraint_epoch: ConstraintEpoch,
+    role_epoch: RoleEpoch,
+    input_generation: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
