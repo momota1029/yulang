@@ -658,6 +658,52 @@ a new semantic judgment; it does not override the pending approval at the end of
   5. overflow and audit-fence disagreement clear all eligibility;
   6. production output is unchanged and disabled-journal overhead is measured.
 
+#### Stage 2 first attempt (2026-07-15): correctness passed, performance gate failed
+
+A first implementation attempt wired real mutation emission into all identified production sites
+(constraint-machine bounds/neighbors/levels, the two known epoch gaps, session-owned role/selection
+wrappers, and a candidate `impl_def -> role bucket` index). Correctness verification was clean:
+`cargo check`/`cargo test -p infer --lib` showed zero regressions beyond the 5 known-unrelated
+Yumark DefId-ordering failures, and a repository-std semantic comparison (`dump-poly-std
+examples/showcase.yu`) produced an identical SHA-256 hash before and after.
+
+However, the "disabled-journal overhead" measurement (exit criterion 6) failed: 5 timing samples of
+the Yumark Markdown cold-compile workload averaged 15.958s, roughly 11% above the ~14.36s baseline
+established earlier this session and outside normal measurement noise. The likely cause: the session
+mutation outbox is not yet drained or bounded by any consumer (Stage 3 does not exist yet), so every
+low-level constraint mutation (bounds, neighbors, levels -- occurring hundreds of thousands of times
+per compile per this session's own profiling data) accumulates in an ever-growing record for the
+entire session lifetime. "Record everything, unconditionally, for later consumption" is not free at
+this mutation volume.
+
+A separate, independent architectural finding surfaced during verification: the first attempt defined
+the mutation vocabulary types in `analysis::session` and had `crates/infer/src/constraints/mod.rs`
+import them, making the low-level `constraints` module depend on the higher-level `analysis` module.
+This does not match this codebase's existing precedent, where constraint-machine-local instrumentation
+types (`ConstraintTiming`, `ReplayFrontierShadow`, `ConstraintEvent`) are defined inside `constraints`
+itself, with `analysis` depending on `constraints` and not the reverse. A corrected version relocating
+the mutation vocabulary into a new `constraints::mutation` module (dependency direction:
+`analysis`/`roles` -> `constraints::mutation`) was drafted but not verified against the performance
+gate before the whole attempt was set aside.
+
+Both the failed commit and the uncommitted layering fix were discarded; the repository was reset to
+Stage 1 (`9e8e583e`), which remains the last verified-good state. Nothing from this attempt landed on
+`main`. The stashed work (`git stash`, message "WIP: Stage 2 layering fix attempt (journal design
+still fails overhead gate)") is preserved locally for reference but is not assumed correct or reusable
+without re-verification.
+
+Design implication for a revised Stage 2: an always-on, unbounded, unconsumed mutation log is not
+viable at this mutation volume. A revised approach must do one of: (a) bound/summarize the outbox
+(e.g., coalesce repeated mutations to the same key rather than retaining a full history, or represent
+"changed since serial N" more cheaply than an append-only log), (b) merge Stage 2 and Stage 3 so the
+journal is drained by a real consumer as it's produced rather than accumulating indefinitely, or (c)
+gate journal emission behind a session-lifetime activation flag that a later stage can enable only
+when the whole-session guard has already determined a pass will be forced (deferring the cost to
+exactly the cases where it could pay off). This decision needs human judgment before any second Stage
+2 attempt begins; it is not something to guess at silently. The corrected module-layering direction
+(`constraints::mutation` owned by the low-level module) should be preserved in the next attempt
+regardless of which outbox-design option is chosen.
+
 ### Stage 3: journal-backed owner scheduler in shadow mode
 
 - Size: M.
