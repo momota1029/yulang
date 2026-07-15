@@ -380,6 +380,74 @@ fn production_outbox_is_inactive_by_default_and_clears_on_finish_or_unwind() {
 }
 
 #[test]
+fn production_outbox_emits_only_exact_live_subscriptions() {
+    let subscriptions = MethodRoleMutationSubscriptions::default();
+    let subscribed = DependencyKey::ConstraintBounds(TypeVar(166));
+    let unrelated = DependencyKey::ConstraintBounds(TypeVar(167));
+    let mut outbox = MethodRoleMutationOutbox::new();
+    outbox.set_subscriptions(subscriptions.clone());
+    let activation = outbox.activate();
+
+    let before = outbox.generation();
+    outbox.record(unrelated.clone());
+    assert!(outbox.mutations().is_empty());
+    assert!(outbox.generation() > before);
+    assert_eq!(
+        outbox.emission_generation(),
+        MutationGeneration::default(),
+        "an unobserved key must retain audit coverage without allocating a journal entry"
+    );
+    outbox.audit_generation(before, true, "filtered mutation remains audited");
+    assert!(outbox.owner_eligibility());
+
+    subscriptions.insert(subscribed.clone());
+    outbox.record_many([unrelated, subscribed.clone(), subscribed.clone()]);
+    assert_eq!(
+        changed_keys(outbox.take()),
+        [subscribed.clone()],
+        "only the exact subscribed key may enter the journal"
+    );
+
+    subscriptions.remove(&subscribed);
+    outbox.record(subscribed);
+    assert!(outbox.take().is_empty());
+
+    outbox.invalidate_all(InvalidateAllReason::JournalTruncated);
+    assert!(matches!(
+        outbox.take().as_slice(),
+        [MethodRoleMutation::InvalidateAll {
+            reason: InvalidateAllReason::JournalTruncated,
+            ..
+        }]
+    ));
+    assert!(!outbox.owner_eligibility());
+    activation.finish();
+}
+
+#[test]
+fn constraint_machine_filters_unsubscribed_keys_at_the_mutation_site() {
+    use crate::constraints::{ConstraintMachine, TypeLevel};
+
+    let subscriptions = MethodRoleMutationSubscriptions::default();
+    let observed = TypeVar(168);
+    let unobserved = TypeVar(169);
+    subscriptions.insert(DependencyKey::ConstraintLevel(observed));
+
+    let mut machine = ConstraintMachine::new();
+    machine.set_method_role_mutation_subscriptions(subscriptions);
+    let activation = machine.activate_method_role_mutations();
+    machine.register_type_var(unobserved, TypeLevel::root());
+    assert!(machine.take_method_role_mutations().is_empty());
+
+    machine.register_type_var(observed, TypeLevel::root().child());
+    assert_changed_keys(
+        machine.take_method_role_mutations(),
+        &[DependencyKey::ConstraintLevel(observed)],
+    );
+    activation.finish();
+}
+
+#[test]
 fn production_outbox_overflow_and_audit_disagreement_clear_owner_eligibility() {
     let mut capacity = MethodRoleMutationOutbox::with_capacity(1);
     let capacity_activation = capacity.activate();

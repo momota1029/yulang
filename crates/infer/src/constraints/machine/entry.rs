@@ -138,6 +138,17 @@ impl ConstraintMachine {
         self.method_role_mutations.generation()
     }
 
+    pub(crate) fn method_role_mutation_emission_generation(&self) -> MutationGeneration {
+        self.method_role_mutations.emission_generation()
+    }
+
+    pub(crate) fn set_method_role_mutation_subscriptions(
+        &mut self,
+        subscriptions: MethodRoleMutationSubscriptions,
+    ) {
+        self.method_role_mutations.set_subscriptions(subscriptions);
+    }
+
     pub(crate) fn drain_method_role_mutations_into(
         &mut self,
         target: &mut MethodRoleMutationOutbox,

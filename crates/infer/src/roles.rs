@@ -13,7 +13,8 @@ pub use poly::roles::{
 use rustc_hash::FxHashMap;
 
 use crate::constraints::mutation::{
-    DependencyKey, MethodRoleMutationActivation, MethodRoleMutationOutbox, MutationGeneration,
+    DependencyKey, MethodRoleMutationActivation, MethodRoleMutationOutbox,
+    MethodRoleMutationSubscriptions, MutationGeneration,
 };
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -73,6 +74,17 @@ impl RoleConstraintTable {
 
     pub(crate) fn method_role_mutation_generation(&self) -> MutationGeneration {
         self.mutations.generation()
+    }
+
+    pub(crate) fn method_role_mutation_emission_generation(&self) -> MutationGeneration {
+        self.mutations.emission_generation()
+    }
+
+    pub(crate) fn set_method_role_mutation_subscriptions(
+        &mut self,
+        subscriptions: MethodRoleMutationSubscriptions,
+    ) {
+        self.mutations.set_subscriptions(subscriptions);
     }
 
     pub(crate) fn drain_method_role_mutations_into(
@@ -192,6 +204,17 @@ impl IndexedRoleImplTable {
 
     pub(crate) fn method_role_mutation_generation(&self) -> MutationGeneration {
         self.mutations.generation()
+    }
+
+    pub(crate) fn method_role_mutation_emission_generation(&self) -> MutationGeneration {
+        self.mutations.emission_generation()
+    }
+
+    pub(crate) fn set_method_role_mutation_subscriptions(
+        &mut self,
+        subscriptions: MethodRoleMutationSubscriptions,
+    ) {
+        self.mutations.set_subscriptions(subscriptions);
     }
 
     pub(crate) fn drain_method_role_mutations_into(

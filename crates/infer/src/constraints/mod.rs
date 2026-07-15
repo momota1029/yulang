@@ -31,7 +31,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) use mutation::MethodRoleMutation;
 pub(crate) use mutation::{
     DependencyKey, InvalidateAllReason, MethodRoleMutationActivation, MethodRoleMutationOutbox,
-    MutationGeneration,
+    MethodRoleMutationSubscriptions, MutationGeneration,
 };
 
 pub use timing::{

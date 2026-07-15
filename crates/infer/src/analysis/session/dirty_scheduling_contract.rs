@@ -12,8 +12,8 @@ use poly::types::TypeVar;
 use crate::compact::CompactRoleConstraint;
 pub(crate) use crate::constraints::mutation::DependencyKey;
 use crate::constraints::mutation::{
-    InvalidateAllReason, MethodRoleMutation, MethodRoleMutationOutbox, MutationGeneration,
-    MutationSerial, RolePath,
+    InvalidateAllReason, MethodRoleMutation, MethodRoleMutationOutbox,
+    MethodRoleMutationSubscriptions, MutationGeneration, MutationSerial, RolePath,
 };
 use crate::role_solve::RoleResolutionKey;
 

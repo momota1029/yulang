@@ -1,11 +1,11 @@
-//! Activation-scoped mutation journal for method-role dirty scheduling.
+//! Subscription-aware mutation journal for method-role dirty scheduling.
 //!
 //! The constraint machine owns the low-level vocabulary and outbox. Higher analysis layers may
 //! publish the same typed mutations, but the constraint core never depends on analysis
-//! orchestration. Journaling is inactive by default and mutation sites pay only an activation
-//! check until a forced method-role pass opens the collector.
+//! orchestration. Journaling is inactive by default. Once the owner scheduler opens its persistent
+//! cross-pass window, mutation sites emit only keys with a live owner subscription.
 
-use std::cell::Cell;
+use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use poly::expr::{DefId, SelectId};
@@ -98,15 +98,55 @@ pub(crate) enum MethodRoleMutation {
     },
 }
 
+/// Live dependency keys currently retained by owner terminal records.
+///
+/// Scheduler-enabled outboxes share this set. Keeping the filter in the low-level mutation module
+/// lets authoritative mutators perform one exact-key lookup without depending on analysis state.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct MethodRoleMutationSubscriptions {
+    keys: Rc<RefCell<FxHashSet<DependencyKey>>>,
+}
+
+impl MethodRoleMutationSubscriptions {
+    pub(crate) fn insert(&self, key: DependencyKey) {
+        self.keys.borrow_mut().insert(key);
+    }
+
+    pub(crate) fn remove(&self, key: &DependencyKey) {
+        self.keys.borrow_mut().remove(key);
+    }
+
+    pub(crate) fn clear(&self) {
+        self.keys.borrow_mut().clear();
+    }
+
+    pub(crate) fn contains(&self, key: &DependencyKey) -> bool {
+        self.keys.borrow().contains(key)
+    }
+
+    pub(crate) fn keys(&self) -> Ref<'_, FxHashSet<DependencyKey>> {
+        self.keys.borrow()
+    }
+
+    fn detached_clone(&self) -> Self {
+        Self {
+            keys: Rc::new(RefCell::new(self.keys.borrow().clone())),
+        }
+    }
+}
+
 /// Bounded mutation outbox with a fail-closed coarse generation.
 ///
-/// Stage 5 selects an absolute production cap from measurements. Stage 2 uses an unbounded cap,
-/// but records only while a forced method-role pass has activated the outbox.
+/// Scheduler-enabled sessions retain activation across passes, but the shared subscription set
+/// prevents unobserved keys from consuming journal capacity. Isolated Stage 2 contract harnesses
+/// have no subscription filter and retain the original record-all behavior.
 #[derive(Debug)]
 pub(crate) struct MethodRoleMutationOutbox {
     activation: Rc<Cell<bool>>,
+    subscriptions: Option<MethodRoleMutationSubscriptions>,
     last_serial: MutationSerial,
     generation: MutationGeneration,
+    emission_generation: MutationGeneration,
     capacity: usize,
     owner_eligibility: bool,
     mutations: Vec<MethodRoleMutation>,
@@ -116,8 +156,13 @@ impl Clone for MethodRoleMutationOutbox {
     fn clone(&self) -> Self {
         Self {
             activation: Rc::new(Cell::new(false)),
+            subscriptions: self
+                .subscriptions
+                .as_ref()
+                .map(MethodRoleMutationSubscriptions::detached_clone),
             last_serial: self.last_serial,
             generation: self.generation,
+            emission_generation: self.emission_generation,
             capacity: self.capacity,
             owner_eligibility: self.owner_eligibility,
             mutations: self.mutations.clone(),
@@ -133,8 +178,10 @@ impl MethodRoleMutationOutbox {
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             activation: Rc::new(Cell::new(false)),
+            subscriptions: None,
             last_serial: MutationSerial::default(),
             generation: MutationGeneration::default(),
+            emission_generation: MutationGeneration::default(),
             capacity,
             owner_eligibility: true,
             mutations: Vec::new(),
@@ -149,8 +196,10 @@ impl MethodRoleMutationOutbox {
     ) -> Self {
         Self {
             activation: Rc::new(Cell::new(false)),
+            subscriptions: None,
             last_serial,
             generation,
+            emission_generation: MutationGeneration::default(),
             capacity,
             owner_eligibility: true,
             mutations: Vec::new(),
@@ -172,6 +221,15 @@ impl MethodRoleMutationOutbox {
         }
     }
 
+    /// Restrict this outbox to keys retained by the production owner scheduler.
+    pub(crate) fn set_subscriptions(&mut self, subscriptions: MethodRoleMutationSubscriptions) {
+        assert!(
+            !self.is_active() && self.mutations.is_empty(),
+            "method-role subscriptions must be installed before journal activation"
+        );
+        self.subscriptions = Some(subscriptions);
+    }
+
     #[inline]
     pub(crate) fn is_active(&self) -> bool {
         self.activation.get()
@@ -179,6 +237,11 @@ impl MethodRoleMutationOutbox {
 
     pub(crate) fn generation(&self) -> MutationGeneration {
         self.generation
+    }
+
+    /// Generation of entries actually emitted, distinct from filtered-but-audited mutations.
+    pub(crate) fn emission_generation(&self) -> MutationGeneration {
+        self.emission_generation
     }
 
     pub(crate) fn owner_eligibility(&self) -> bool {
@@ -195,7 +258,13 @@ impl MethodRoleMutationOutbox {
     }
 
     pub(crate) fn record(&mut self, key: DependencyKey) {
-        if self.begin_record(1).is_some() {
+        if !self.accepts_mutations() || !self.observe_mutation() {
+            return;
+        }
+        if !self.is_subscribed(&key) {
+            return;
+        }
+        if self.begin_emission(1).is_some() {
             let serial = self.last_serial;
             self.mutations
                 .push(MethodRoleMutation::Changed { serial, key });
@@ -220,7 +289,11 @@ impl MethodRoleMutationOutbox {
             let mut seen = FxHashSet::default();
             keys.retain(|key| seen.insert(key.clone()));
         }
-        if self.begin_record(keys.len()).is_none() {
+        if keys.is_empty() || !self.observe_mutation() {
+            return;
+        }
+        keys.retain(|key| self.is_subscribed(key));
+        if self.begin_emission(keys.len()).is_none() {
             return;
         }
         let serial = self.last_serial;
@@ -259,15 +332,30 @@ impl MethodRoleMutationOutbox {
         self.is_active() && self.owner_eligibility
     }
 
-    fn begin_record(&mut self, key_count: usize) -> Option<()> {
-        if !self.accepts_mutations() || key_count == 0 {
+    fn is_subscribed(&self, key: &DependencyKey) -> bool {
+        self.subscriptions
+            .as_ref()
+            .is_none_or(|subscriptions| subscriptions.contains(key))
+    }
+
+    fn observe_mutation(&mut self) -> bool {
+        let Some(generation) = self.generation.checked_next() else {
+            self.fail_closed(InvalidateAllReason::MutationGenerationOverflow);
+            return false;
+        };
+        self.generation = generation;
+        true
+    }
+
+    fn begin_emission(&mut self, key_count: usize) -> Option<()> {
+        if key_count == 0 {
             return None;
         }
         let Some(serial) = self.last_serial.checked_next() else {
             self.fail_closed(InvalidateAllReason::MutationSerialOverflow);
             return None;
         };
-        let Some(generation) = self.generation.checked_next() else {
+        let Some(emission_generation) = self.emission_generation.checked_next() else {
             self.fail_closed(InvalidateAllReason::MutationGenerationOverflow);
             return None;
         };
@@ -280,7 +368,7 @@ impl MethodRoleMutationOutbox {
             return None;
         }
         self.last_serial = serial;
-        self.generation = generation;
+        self.emission_generation = emission_generation;
         Some(())
     }
 
@@ -322,6 +410,10 @@ impl MethodRoleMutationOutbox {
         };
         match self.generation.checked_next() {
             Some(generation) => self.generation = generation,
+            None => reason = InvalidateAllReason::MutationGenerationOverflow,
+        }
+        match self.emission_generation.checked_next() {
+            Some(generation) => self.emission_generation = generation,
             None => reason = InvalidateAllReason::MutationGenerationOverflow,
         }
         self.owner_eligibility = false;

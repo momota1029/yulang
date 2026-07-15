@@ -2,12 +2,12 @@ use super::*;
 
 use super::stage0_tests::{fixture_source, repository_std_loaded};
 use crate::analysis::{
-    with_owner_dirty_scheduler_skips_for_new_sessions, with_shadow_dirty_oracle_for_new_sessions,
+    with_owner_dirty_scheduler_disabled_for_new_sessions, with_shadow_dirty_oracle_for_new_sessions,
 };
 use poly::expr::SelectId;
 
 #[test]
-fn stage4_markdown_scheduled_compile_matches_always_solve() {
+fn stage6_markdown_default_compile_matches_always_solve() {
     assert_paired_source(
         "markdown",
         &fixture_source("std_prefix_yumark_markdown_workload.yu"),
@@ -15,7 +15,7 @@ fn stage4_markdown_scheduled_compile_matches_always_solve() {
 }
 
 #[test]
-fn stage4_html_scheduled_compile_matches_always_solve() {
+fn stage6_html_default_compile_matches_always_solve() {
     assert_paired_source(
         "html",
         &fixture_source("std_prefix_yumark_html_fallback.yu"),
@@ -23,12 +23,12 @@ fn stage4_html_scheduled_compile_matches_always_solve() {
 }
 
 #[test]
-fn stage4_repository_std_scheduled_compile_matches_always_solve() {
+fn stage6_repository_std_default_compile_matches_always_solve() {
     assert_paired_source("repository-std-only", "use std::prelude::*\nmod std;\n");
 }
 
 #[test]
-fn stage4_showcase_scheduled_compile_matches_always_solve() {
+fn stage6_showcase_default_compile_matches_always_solve() {
     let showcase = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
@@ -42,25 +42,25 @@ fn stage4_showcase_scheduled_compile_matches_always_solve() {
 }
 
 #[test]
-fn stage4_early_fallback_real_std_census_matches_with_scheduling() {
+fn stage6_early_fallback_real_std_census_matches_with_default_scheduling() {
     let loaded = repository_std_loaded("use std::prelude::*\nmod std;\n");
     let production = lower_loaded_files_with_early_resolution(&loaded, false);
     let always = with_shadow_dirty_oracle_for_new_sessions(|| {
-        lower_loaded_files_with_early_resolution(&loaded, true)
-    });
-    let scheduled = with_shadow_dirty_oracle_for_new_sessions(|| {
-        with_owner_dirty_scheduler_skips_for_new_sessions(|| {
+        with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
             lower_loaded_files_with_early_resolution(&loaded, true)
         })
+    });
+    let scheduled = with_shadow_dirty_oracle_for_new_sessions(|| {
+        lower_loaded_files_with_early_resolution(&loaded, true)
     });
 
     assert_early_fallback_census("always-solve", &loaded, &production, &always);
     assert_early_fallback_census("scheduled", &loaded, &production, &scheduled);
-    assert_paired_lowering("early-fallback-real-std", always, scheduled);
+    assert_paired_lowering("early-fallback-real-std", always, scheduled, true);
 }
 
 #[test]
-fn stage4_rename_and_module_move_variants_keep_structured_scheduling() {
+fn stage6_rename_and_module_move_variants_keep_structured_default_scheduling() {
     let renamed_from = paired_source_witness(
         "metamorphic-rename-before",
         concat!(
@@ -98,6 +98,22 @@ fn stage4_rename_and_module_move_variants_keep_structured_scheduling() {
     assert_eq!(moved.scheduler_counts, renamed_from.scheduler_counts);
 }
 
+#[test]
+fn stage6_ordinary_non_role_default_compile_matches_always_solve() {
+    assert_paired_standalone_source(
+        "ordinary-non-role",
+        "my plain(value: int): int = value\nmy result: int = plain 42\n",
+    );
+}
+
+#[test]
+fn stage6_small_role_default_compile_matches_always_solve() {
+    assert_paired_standalone_source(
+        "small-role",
+        "role Display 'a:\n  our x.display: unit\nmy show = \\x -> x.display\n",
+    );
+}
+
 fn assert_paired_source(case: &str, source: &str) {
     let _ = paired_source_witness(case, source);
 }
@@ -105,12 +121,12 @@ fn assert_paired_source(case: &str, source: &str) {
 fn paired_source_witness(case: &str, source: &str) -> PairedSourceWitness {
     let loaded = repository_std_loaded(source);
     let always = with_shadow_dirty_oracle_for_new_sessions(|| {
-        lower_loaded_files(&loaded).expect("lower always-solve Stage 4 fixture")
+        with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
+            lower_loaded_files(&loaded).expect("lower always-solve Stage 6 fixture")
+        })
     });
     let scheduled = with_shadow_dirty_oracle_for_new_sessions(|| {
-        with_owner_dirty_scheduler_skips_for_new_sessions(|| {
-            lower_loaded_files(&loaded).expect("lower scheduled Stage 4 fixture")
-        })
+        lower_loaded_files(&loaded).expect("lower default-scheduled Stage 6 fixture")
     });
     let scheduler = scheduled
         .session
@@ -126,8 +142,19 @@ fn paired_source_witness(case: &str, source: &str) -> PairedSourceWitness {
             scheduler.changed_mutations,
         ),
     };
-    assert_paired_lowering(case, always, scheduled);
+    assert_paired_lowering(case, always, scheduled, true);
     witness
+}
+
+fn assert_paired_standalone_source(case: &str, source: &str) {
+    let always = with_shadow_dirty_oracle_for_new_sessions(|| {
+        with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
+            crate::dump::dump_source(source).lowering
+        })
+    });
+    let scheduled =
+        with_shadow_dirty_oracle_for_new_sessions(|| crate::dump::dump_source(source).lowering);
+    assert_paired_lowering(case, always, scheduled, false);
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -137,7 +164,7 @@ struct PairedSourceWitness {
 }
 
 fn lower_loaded_files_with_early_resolution(files: &[LoadedFile], enabled: bool) -> BodyLowering {
-    let loaded = LoadedFileCsts::new(files).expect("index early-fallback Stage 4 files");
+    let loaded = LoadedFileCsts::new(files).expect("index early-fallback Stage 6 files");
     let lower =
         lower_loaded_file_csts_module_map(&loaded).expect("lower early-fallback module map");
     let mut lowerer = BodyLowerer::new(lower);
@@ -325,7 +352,12 @@ fn repository_std_infix_method_defs(
     infix
 }
 
-fn assert_paired_lowering(case: &str, mut always: BodyLowering, mut scheduled: BodyLowering) {
+fn assert_paired_lowering(
+    case: &str,
+    mut always: BodyLowering,
+    mut scheduled: BodyLowering,
+    require_clean_skip: bool,
+) {
     let always_oracle = always
         .session
         .shadow_dirty_oracle_report()
@@ -342,6 +374,11 @@ fn assert_paired_lowering(case: &str, mut always: BodyLowering, mut scheduled: B
         always_oracle.owner_checks,
         "{case}: always-solve oracle must observe every real owner solve",
     );
+    assert_eq!(
+        always.session.timing().method_taint_rebuilds,
+        always_oracle.forced_passes,
+        "{case}: always-solve method taint must rebuild once per forced pass",
+    );
 
     let scheduled_oracle = scheduled
         .session
@@ -356,10 +393,12 @@ fn assert_paired_lowering(case: &str, mut always: BodyLowering, mut scheduled: B
         .session
         .owner_dirty_scheduler_report()
         .expect("scheduled pair must carry the journal scheduler");
-    assert!(
-        scheduler.clean_skips > 0,
-        "{case}: no owner solve was skipped"
-    );
+    if require_clean_skip {
+        assert!(
+            scheduler.clean_skips > 0,
+            "{case}: no owner solve was skipped"
+        );
+    }
     assert_eq!(
         scheduler.real_solves + scheduler.clean_skips,
         scheduler.owner_checks,
@@ -375,6 +414,17 @@ fn assert_paired_lowering(case: &str, mut always: BodyLowering, mut scheduled: B
         "{case}: journal scheduler was more permissive than the exact oracle: {:#?}",
         scheduler.permissive_divergences,
     );
+    assert_eq!(
+        scheduled.session.timing().method_taint_rebuilds,
+        scheduler.forced_passes,
+        "{case}: default scheduler must rebuild method taint once per forced pass",
+    );
+    if scheduler.owner_checks > scheduler.forced_passes {
+        assert!(
+            scheduler.owner_checks > scheduled.session.timing().method_taint_rebuilds,
+            "{case}: method taint must not rebuild once per owner",
+        );
+    }
 
     let always = SemanticParitySnapshot::capture(&mut always);
     let scheduled = SemanticParitySnapshot::capture(&mut scheduled);

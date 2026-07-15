@@ -210,7 +210,7 @@ fn method_taint_and_cross_owner_selection_projection_control_skip_eligibility() 
 }
 
 #[test]
-fn every_fail_closed_reason_refuses_all_owner_skips() {
+fn default_scheduler_every_fail_closed_reason_executes_the_full_owner_loop() {
     let reasons = [
         InvalidateAllReason::UnrecognizedMutation {
             site: "stage4-unknown",
@@ -228,10 +228,18 @@ fn every_fail_closed_reason_refuses_all_owner_skips() {
     for reason in reasons {
         let first = DefId(1);
         let second = DefId(2);
-        let mut scheduler = skipping_scheduler_with_records([
-            (first, DependencyKey::ConstraintBounds(TypeVar(10))),
-            (second, DependencyKey::ConstraintBounds(TypeVar(20))),
-        ]);
+        let mut scheduler =
+            MethodRoleOwnerDirtyScheduler::for_new_session().expect("Stage 6 default scheduler");
+        scheduler.publish_record(
+            first,
+            OwnerSolveOutcome::NoProgress,
+            vec![DependencyKey::ConstraintBounds(TypeVar(10))],
+        );
+        scheduler.publish_record(
+            second,
+            OwnerSolveOutcome::NoProgress,
+            vec![DependencyKey::ConstraintBounds(TypeVar(20))],
+        );
         scheduler.begin_pass(&[first, second], &MethodTaintIndex::default());
         scheduler.drain_mutations(
             vec![MethodRoleMutation::InvalidateAll {
@@ -339,14 +347,17 @@ fn record_replacement_removes_old_reverse_subscriptions() {
     );
 
     assert!(!scheduler.reverse_subscriptions.contains_key(&old));
+    assert!(!scheduler.mutation_subscriptions.contains(&old));
     assert_eq!(
         scheduler.reverse_subscriptions.get(&retained),
         Some(&[owner].into_iter().collect())
     );
+    assert!(scheduler.mutation_subscriptions.contains(&retained));
     assert_eq!(
         scheduler.reverse_subscriptions.get(&new),
         Some(&[owner].into_iter().collect())
     );
+    assert!(scheduler.mutation_subscriptions.contains(&new));
     assert_eq!(scheduler.reverse_edge_count(), 2);
     assert_eq!(scheduler.metrics.record_replacements, 1);
 }
@@ -609,24 +620,34 @@ fn method_taint_diff_is_sorted_and_detects_add_change_and_removal() {
 }
 
 #[test]
-fn benchmark_mode_is_disabled_by_default_and_restored_after_return_or_unwind() {
-    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+fn production_skips_are_default_and_scoped_overrides_restore_after_return_or_unwind() {
+    let scheduler = MethodRoleOwnerDirtyScheduler::for_new_session()
+        .expect("Stage 6 enables the production scheduler by default");
+    assert!(scheduler.permit_owner_skips);
 
     with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
         let scheduler = MethodRoleOwnerDirtyScheduler::for_new_session()
-            .expect("explicit benchmark scope enables new sessions");
+            .expect("retained benchmark scope keeps the production mode");
         assert!(scheduler.permit_owner_skips);
     });
-    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+    assert!(
+        MethodRoleOwnerDirtyScheduler::for_new_session()
+            .expect("production mode restored")
+            .permit_owner_skips
+    );
 
     let unwind = catch_unwind(AssertUnwindSafe(|| {
-        with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
-            assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_some());
-            panic!("exercise benchmark mode unwind cleanup");
+        with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
+            assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+            panic!("exercise always-solve override unwind cleanup");
         });
     }));
     assert!(unwind.is_err());
-    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+    assert!(
+        MethodRoleOwnerDirtyScheduler::for_new_session()
+            .expect("production mode restored after unwind")
+            .permit_owner_skips
+    );
 }
 
 #[test]
@@ -759,17 +780,14 @@ fn retained_bytes_cap_forces_every_owner_through_the_real_solve() {
 #[test]
 fn capped_global_fallback_preserves_production_poly_output() {
     let source = "role Display 'a:\n  our x.display: unit\nmy show = \\x -> x.display\n";
-    let always_solve = crate::dump::dump_source(source);
+    let always_solve =
+        with_owner_dirty_scheduler_disabled_for_new_sessions(|| crate::dump::dump_source(source));
     let capped = with_new_session_budget(
         OwnerDirtySchedulerBudget {
             max_owners: Some(0),
             ..OwnerDirtySchedulerBudget::default()
         },
-        || {
-            with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
-                crate::dump::dump_source(source)
-            })
-        },
+        || crate::dump::dump_source(source),
     );
 
     assert_eq!(capped.text, always_solve.text);
@@ -809,6 +827,7 @@ fn skipping_scheduler_with_budget(
 
 fn assert_global_cap_refuses_all_skips(scheduler: &mut MethodRoleOwnerDirtyScheduler) {
     assert!(scheduler.records.is_empty());
+    assert!(scheduler.mutation_subscriptions.keys().is_empty());
     assert!(scheduler.force_all_dirty_this_pass);
     assert_eq!(scheduler.metrics.full_fallbacks, 1);
     assert_eq!(scheduler.metrics.global_cap_fallbacks, 1);

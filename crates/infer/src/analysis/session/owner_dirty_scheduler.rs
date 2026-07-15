@@ -1,9 +1,8 @@
-//! Journal-backed owner scheduler for the opt-in Stage 5 benchmark route.
+//! Journal-backed owner scheduler for production method-role passes.
 //!
-//! Release builds contain this module, but new sessions are unconditionally disabled unless a
-//! caller enters [`with_owner_dirty_scheduler_benchmark_for_new_sessions`]. The default route
-//! therefore retains the Stage 4 always-solve loop. Tests additionally keep the Stage 3 shadow
-//! mode, where every owner runs and the independent exact-snapshot oracle checks predictions.
+//! Stage 6 enables clean terminal owner reuse for every new session. Tests retain explicit
+//! always-solve and Stage 3 shadow modes, and the independent exact-snapshot oracle remains a
+//! separate check on production scheduler predictions.
 
 use super::*;
 
@@ -12,11 +11,13 @@ use std::cmp::Ordering;
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
-use crate::constraints::mutation::{InvalidateAllReason, MutationGeneration, MutationSerial};
+use crate::constraints::mutation::{
+    InvalidateAllReason, MethodRoleMutationSubscriptions, MutationGeneration, MutationSerial,
+};
 
 thread_local! {
     static NEW_SESSION_MODE: Cell<OwnerDirtySchedulingMode> = const {
-        Cell::new(OwnerDirtySchedulingMode::Disabled)
+        Cell::new(OwnerDirtySchedulingMode::ProductionSkips)
     };
     static ACTIVE_OWNER_READS: RefCell<Option<OwnerReadFrontier>> = const {
         RefCell::new(None)
@@ -33,10 +34,11 @@ static ACTIVE_OWNER_READ_CAPTURE_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 enum OwnerDirtySchedulingMode {
     #[default]
+    ProductionSkips,
+    #[cfg(test)]
     Disabled,
     #[cfg(test)]
     ShadowAlwaysSolve,
-    BenchmarkSkips,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -76,7 +78,7 @@ impl OwnerSolveOutcome {
 /// Dependencies observed while the unchanged owner solver runs.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct OwnerReadFrontier {
-    /// Constraint dependencies collected by the release benchmark route's explicit compact walk.
+    /// Constraint dependencies collected by the production scheduler's explicit compact walk.
     ///
     /// Test builds separately populate test-only typed fields through the Stage 3 exact read
     /// hooks. Keeping the two sources disjoint preserves the shadow oracle's independence from
@@ -346,6 +348,7 @@ pub(crate) struct MethodRoleOwnerDirtyScheduler {
     budget: OwnerDirtySchedulerBudget,
     records: FxHashMap<DefId, CachedOwnerTerminal>,
     reverse_subscriptions: FxHashMap<DependencyKey, FxHashSet<DefId>>,
+    mutation_subscriptions: MethodRoleMutationSubscriptions,
     dirty: FxHashSet<DefId>,
     generations: FxHashMap<DependencyKey, MutationGeneration>,
     drained_mutation_serial: MutationSerial,
@@ -392,14 +395,15 @@ thread_local! {
 impl MethodRoleOwnerDirtyScheduler {
     pub(super) fn for_new_session() -> Option<Self> {
         match NEW_SESSION_MODE.with(Cell::get) {
-            OwnerDirtySchedulingMode::Disabled => None,
-            #[cfg(test)]
-            OwnerDirtySchedulingMode::ShadowAlwaysSolve => Some(Self::default()),
-            OwnerDirtySchedulingMode::BenchmarkSkips => Some(Self {
+            OwnerDirtySchedulingMode::ProductionSkips => Some(Self {
                 permit_owner_skips: true,
                 budget: budget_for_new_session(),
                 ..Self::default()
             }),
+            #[cfg(test)]
+            OwnerDirtySchedulingMode::Disabled => None,
+            #[cfg(test)]
+            OwnerDirtySchedulingMode::ShadowAlwaysSolve => Some(Self::default()),
         }
     }
 
@@ -716,10 +720,14 @@ impl MethodRoleOwnerDirtyScheduler {
             self.metrics.record_replacements += 1;
         }
         for key in &dependencies {
-            self.reverse_subscriptions
+            let subscribed = self
+                .reverse_subscriptions
                 .entry(key.clone())
                 .or_default()
                 .insert(owner);
+            if subscribed {
+                self.mutation_subscriptions.insert(key.clone());
+            }
         }
         self.records.insert(owner, record);
         self.dirty.remove(&owner);
@@ -748,6 +756,7 @@ impl MethodRoleOwnerDirtyScheduler {
             };
             if remove_key {
                 self.reverse_subscriptions.remove(&stamp.key);
+                self.mutation_subscriptions.remove(&stamp.key);
             }
         }
         Some(record)
@@ -806,6 +815,7 @@ impl MethodRoleOwnerDirtyScheduler {
         self.force_all_dirty_this_pass = true;
         self.records.clear();
         self.reverse_subscriptions.clear();
+        self.mutation_subscriptions.clear();
         self.dirty.clear();
         self.update_memory_peaks();
     }
@@ -871,6 +881,12 @@ impl MethodRoleOwnerDirtyScheduler {
             bytes += dependency_key_heap_bytes(key);
             bytes += set_capacity_bytes::<DefId>(owners.capacity());
         }
+        let mutation_subscriptions = self.mutation_subscriptions.keys();
+        bytes += set_capacity_bytes::<DependencyKey>(mutation_subscriptions.capacity());
+        bytes += mutation_subscriptions
+            .iter()
+            .map(dependency_key_heap_bytes)
+            .sum::<usize>();
         for key in self.generations.keys() {
             bytes += dependency_key_heap_bytes(key);
         }
@@ -990,7 +1006,7 @@ struct JournalOwnerDependencyFingerprint {
     dependencies: Vec<DependencyStamp>,
     #[allow(
         dead_code,
-        reason = "retained for serial audit and Stage 4 eligibility assertions"
+        reason = "retained for serial audit and always-solve eligibility assertions"
     )]
     capture_serial: MutationSerial,
 }
@@ -1208,6 +1224,25 @@ impl OwnerDirtySchedulerOwnerMetrics {
 }
 
 impl AnalysisSession {
+    pub(super) fn owner_dirty_scheduler_install_mutation_subscriptions(&mut self) {
+        let Some(subscriptions) = self
+            .owner_dirty_scheduler
+            .as_ref()
+            .map(|scheduler| scheduler.mutation_subscriptions.clone())
+        else {
+            return;
+        };
+        self.method_role_mutations
+            .set_subscriptions(subscriptions.clone());
+        self.infer
+            .constraints_mut()
+            .set_method_role_mutation_subscriptions(subscriptions.clone());
+        self.roles
+            .set_method_role_mutation_subscriptions(subscriptions.clone());
+        self.role_impls
+            .set_method_role_mutation_subscriptions(subscriptions);
+    }
+
     pub(super) fn owner_dirty_scheduler_begin_journal_window(&mut self) {
         let snapshot = self.method_role_pass_input_snapshot();
         if let Some(scheduler) = &mut self.owner_dirty_scheduler {
@@ -1312,12 +1347,13 @@ impl AnalysisSession {
     }
 }
 
-/// Enable real clean-owner skips only for sessions created during this call.
+/// Backward-compatible Stage 5 benchmark scope.
 ///
-/// The mode is scoped and restores the previous value during ordinary return or unwinding. No
-/// environment variable or process default can enter this route.
+/// Stage 6 makes this the process default, so the scope is intentionally an inert no-op for
+/// scheduling behavior. Keeping it avoids breaking existing benchmark scripts; Stage 7 may remove
+/// the duplicate API and CLI flag after compatibility review.
 pub fn with_owner_dirty_scheduler_benchmark_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
-    with_new_session_mode(OwnerDirtySchedulingMode::BenchmarkSkips, f)
+    with_new_session_mode(OwnerDirtySchedulingMode::ProductionSkips, f)
 }
 
 fn with_new_session_mode<T>(mode: OwnerDirtySchedulingMode, f: impl FnOnce() -> T) -> T {
@@ -1339,8 +1375,8 @@ pub(crate) fn with_owner_dirty_scheduler_for_new_sessions<T>(f: impl FnOnce() ->
 }
 
 #[cfg(test)]
-pub(crate) fn with_owner_dirty_scheduler_skips_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
-    with_owner_dirty_scheduler_benchmark_for_new_sessions(f)
+pub(crate) fn with_owner_dirty_scheduler_disabled_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+    with_new_session_mode(OwnerDirtySchedulingMode::Disabled, f)
 }
 
 fn normalized_method_taint(method_taint: &MethodTaintIndex) -> MethodTaintIndex {

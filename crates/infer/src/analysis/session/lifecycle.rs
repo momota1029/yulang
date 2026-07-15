@@ -35,9 +35,12 @@ impl AnalysisSession {
             method_role_mutations: MethodRoleMutationOutbox::new(),
             last_audited_constraint_epoch: ConstraintEpoch::default(),
             last_audited_constraint_mutation_generation: MutationGeneration::default(),
+            last_audited_constraint_mutation_emission_generation: MutationGeneration::default(),
             last_audited_role_epoch: RoleEpoch::default(),
             last_audited_role_mutation_generation: MutationGeneration::default(),
+            last_audited_role_mutation_emission_generation: MutationGeneration::default(),
             last_audited_candidate_mutation_generation: MutationGeneration::default(),
+            last_audited_candidate_mutation_emission_generation: MutationGeneration::default(),
             method_role_input_generation: 0,
             last_no_progress_method_role_pass: None,
             cache_interface_applied_merge_constraints: FxHashSet::default(),
@@ -369,8 +372,11 @@ impl AnalysisSession {
     pub fn route_constraint_events(&mut self) -> Duration {
         let start = Instant::now();
         if self.method_role_mutations.is_active() {
-            self.sync_method_role_mutation_outboxes();
-            self.owner_dirty_scheduler_drain_journal();
+            if self.owner_dirty_scheduler.is_some() {
+                self.owner_dirty_scheduler_drain_journal();
+            } else {
+                self.sync_method_role_mutation_outboxes();
+            }
         }
         let events = self.infer.constraints_mut().take_events();
         let event_count = events.len();
@@ -421,10 +427,18 @@ impl AnalysisSession {
         self.last_audited_constraint_epoch = self.infer.constraints().epoch();
         self.last_audited_constraint_mutation_generation =
             self.infer.constraints().method_role_mutation_generation();
+        self.last_audited_constraint_mutation_emission_generation = self
+            .infer
+            .constraints()
+            .method_role_mutation_emission_generation();
         self.last_audited_role_epoch = self.roles.epoch();
         self.last_audited_role_mutation_generation = self.roles.method_role_mutation_generation();
+        self.last_audited_role_mutation_emission_generation =
+            self.roles.method_role_mutation_emission_generation();
         self.last_audited_candidate_mutation_generation =
             self.role_impls.method_role_mutation_generation();
+        self.last_audited_candidate_mutation_emission_generation =
+            self.role_impls.method_role_mutation_emission_generation();
 
         let activation = MethodRoleMutationJournalActivation {
             session: self.method_role_mutations.activate(),
@@ -450,6 +464,10 @@ impl AnalysisSession {
 
         let constraint_epoch = self.infer.constraints().epoch();
         let constraint_generation = self.infer.constraints().method_role_mutation_generation();
+        let constraint_emission_generation = self
+            .infer
+            .constraints()
+            .method_role_mutation_emission_generation();
         let constraint_mutations_drained = self
             .infer
             .constraints_mut()
@@ -464,16 +482,18 @@ impl AnalysisSession {
             );
         }
         self.audit_drained_source_outbox(
-            constraint_generation,
-            self.last_audited_constraint_mutation_generation,
+            constraint_emission_generation,
+            self.last_audited_constraint_mutation_emission_generation,
             constraint_mutations_drained,
             "ConstraintMachine::mutation_outbox",
         );
         self.last_audited_constraint_epoch = constraint_epoch;
         self.last_audited_constraint_mutation_generation = constraint_generation;
+        self.last_audited_constraint_mutation_emission_generation = constraint_emission_generation;
 
         let role_epoch = self.roles.epoch();
         let role_generation = self.roles.method_role_mutation_generation();
+        let role_emission_generation = self.roles.method_role_mutation_emission_generation();
         let role_mutations_drained = self
             .roles
             .drain_method_role_mutations_into(&mut self.method_role_mutations);
@@ -487,35 +507,39 @@ impl AnalysisSession {
             );
         }
         self.audit_drained_source_outbox(
-            role_generation,
-            self.last_audited_role_mutation_generation,
+            role_emission_generation,
+            self.last_audited_role_mutation_emission_generation,
             role_mutations_drained,
             "RoleConstraintTable::mutation_outbox",
         );
         self.last_audited_role_epoch = role_epoch;
         self.last_audited_role_mutation_generation = role_generation;
+        self.last_audited_role_mutation_emission_generation = role_emission_generation;
 
         let candidate_generation = self.role_impls.method_role_mutation_generation();
+        let candidate_emission_generation =
+            self.role_impls.method_role_mutation_emission_generation();
         let candidate_mutations_drained = self
             .role_impls
             .drain_method_role_mutations_into(&mut self.method_role_mutations);
         self.audit_drained_source_outbox(
-            candidate_generation,
-            self.last_audited_candidate_mutation_generation,
+            candidate_emission_generation,
+            self.last_audited_candidate_mutation_emission_generation,
             candidate_mutations_drained,
             "IndexedRoleImplTable::mutation_outbox",
         );
         self.last_audited_candidate_mutation_generation = candidate_generation;
+        self.last_audited_candidate_mutation_emission_generation = candidate_emission_generation;
     }
 
     fn audit_drained_source_outbox(
         &mut self,
-        generation: MutationGeneration,
-        last_generation: MutationGeneration,
+        emission_generation: MutationGeneration,
+        last_emission_generation: MutationGeneration,
         had_mutations: bool,
         site: &'static str,
     ) {
-        if generation != last_generation && !had_mutations {
+        if emission_generation != last_emission_generation && !had_mutations {
             self.method_role_mutations
                 .invalidate_all(InvalidateAllReason::AuditFenceDisagreement { site });
         }
@@ -555,10 +579,10 @@ impl AnalysisSession {
     pub fn drain_work(&mut self) {
         let mut trace = AnalysisDrainTrace::from_env(self.work.len());
         // A terminal record can outlive one `drain_work` call while lowering continues to mutate
-        // constraints. An explicitly enabled scheduler therefore keeps activation alive after
-        // the first forced pass and drains it at ordinary routing boundaries. Disabled sessions
-        // retain Stage 2's one-forced-pass activation exactly.
-        let persistent_shadow_journal = self.owner_dirty_scheduler.is_some();
+        // constraints. The production scheduler therefore keeps activation alive after the first
+        // forced pass and drains it at ordinary routing boundaries. A test-only disabled session
+        // retains Stage 2's one-forced-pass activation exactly.
+        let persistent_scheduler_journal = self.owner_dirty_scheduler.is_some();
         let mut mutation_journal = None;
         loop {
             while self.step_traced(&mut trace) {}
@@ -569,10 +593,11 @@ impl AnalysisSession {
             self.begin_method_role_pass();
             if self.owner_dirty_scheduler.is_some() && self.owner_dirty_scheduler_journal.is_none()
             {
+                self.owner_dirty_scheduler_install_mutation_subscriptions();
                 let activation = self.activate_method_role_mutation_journal();
                 self.owner_dirty_scheduler_journal = Some(activation);
             }
-            if !persistent_shadow_journal {
+            if !persistent_scheduler_journal {
                 if mutation_journal.is_none() {
                     mutation_journal = Some(self.activate_method_role_mutation_journal());
                 }

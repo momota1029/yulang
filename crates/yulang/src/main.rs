@@ -139,6 +139,8 @@ fn main() {
         }
         _ => print_usage_and_exit(&program),
     };
+    // Stage 6 enables the scheduler by default. Retain the Stage 5 flag as a compatibility no-op
+    // until Stage 7 decides whether removing the duplicate CLI surface is safe.
     if options.owner_dirty_scheduler_benchmark {
         infer::analysis::with_owner_dirty_scheduler_benchmark_for_new_sessions(run_command);
     } else {
@@ -3535,7 +3537,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn owner_dirty_scheduler_benchmark_is_an_explicit_global_opt_in() {
+    fn owner_dirty_scheduler_benchmark_is_accepted_as_a_compatibility_no_op() {
         let (default_options, default_args) =
             parse_global_options(VecDeque::from([OsString::from("run")])).expect("parse default");
         assert!(!default_options.owner_dirty_scheduler_benchmark);
@@ -3545,7 +3547,7 @@ mod tests {
             OsString::from("--owner-dirty-scheduler-benchmark"),
             OsString::from("run"),
         ]))
-        .expect("parse benchmark opt-in");
+        .expect("parse retained benchmark flag");
         assert!(enabled_options.owner_dirty_scheduler_benchmark);
         assert_eq!(enabled_args, VecDeque::from([OsString::from("run")]));
     }

@@ -96,6 +96,7 @@ pub struct AnalysisTiming {
     pub role_passes: usize,
     pub progressed_role_passes: usize,
     pub method_role_whole_pass_skips: usize,
+    pub method_taint_rebuilds: usize,
     pub owner_dirty_clean_owner_skips: usize,
     pub owner_dirty_dirty_solves: usize,
     pub owner_dirty_full_fallbacks: usize,
@@ -395,6 +396,7 @@ impl AnalysisTiming {
 
     pub(super) fn record_method_taint(&mut self, elapsed: Duration) {
         self.method_taint += elapsed;
+        self.method_taint_rebuilds += 1;
     }
 
     pub(super) fn record_method_role_solve(&mut self, elapsed: Duration) {

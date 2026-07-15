@@ -36,8 +36,8 @@ pub(crate) use owner_dirty_scheduler::{
 };
 #[cfg(test)]
 pub(crate) use owner_dirty_scheduler::{
-    OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
-    with_owner_dirty_scheduler_skips_for_new_sessions,
+    OwnerPredictionReason, with_owner_dirty_scheduler_disabled_for_new_sessions,
+    with_owner_dirty_scheduler_for_new_sessions,
 };
 #[cfg(test)]
 pub(crate) use owner_dirty_scheduler::{

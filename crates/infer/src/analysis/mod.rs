@@ -112,8 +112,8 @@ pub(crate) use session::{
 };
 #[cfg(test)]
 pub(crate) use session::{
-    OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
-    with_owner_dirty_scheduler_skips_for_new_sessions,
+    OwnerPredictionReason, with_owner_dirty_scheduler_disabled_for_new_sessions,
+    with_owner_dirty_scheduler_for_new_sessions,
 };
 pub(crate) use session::{
     record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
@@ -163,9 +163,12 @@ pub struct AnalysisSession {
     method_role_mutations: MethodRoleMutationOutbox,
     last_audited_constraint_epoch: ConstraintEpoch,
     last_audited_constraint_mutation_generation: MutationGeneration,
+    last_audited_constraint_mutation_emission_generation: MutationGeneration,
     last_audited_role_epoch: RoleEpoch,
     last_audited_role_mutation_generation: MutationGeneration,
+    last_audited_role_mutation_emission_generation: MutationGeneration,
     last_audited_candidate_mutation_generation: MutationGeneration,
+    last_audited_candidate_mutation_emission_generation: MutationGeneration,
     method_role_input_generation: u64,
     last_no_progress_method_role_pass: Option<MethodRolePassInputSnapshot>,
     cache_interface_applied_merge_constraints: FxHashSet<CompactMergeConstraintKey>,
