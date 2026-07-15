@@ -129,7 +129,6 @@ impl AnalysisSession {
             return false;
         }
 
-        #[cfg(test)]
         self.owner_dirty_scheduler_begin_pass(&parents, &method_taint);
         #[cfg(test)]
         self.shadow_dirty_oracle_begin_pass(&parents, &method_taint);
@@ -138,15 +137,16 @@ impl AnalysisSession {
         let role_solve_start = Instant::now();
         for def in parents {
             let root = self.scc.root_of(def);
-            #[cfg(test)]
             if let OwnerScheduleDecision::Reuse(outcome) =
                 self.owner_dirty_scheduler_prepare_owner(def, root.is_some())
             {
+                #[cfg(test)]
                 self.shadow_dirty_oracle_reuse_terminal_owner(def, outcome);
+                #[cfg(not(test))]
+                let _ = outcome;
                 continue;
             }
             let Some(root) = root else {
-                #[cfg(test)]
                 self.owner_dirty_scheduler_finish_owner(
                     def,
                     OwnerSolveOutcome::RootUnavailable,
@@ -165,27 +165,31 @@ impl AnalysisSession {
                 }
                 continue;
             };
+            let capture_owner_reads = self.owner_dirty_scheduler.is_some();
             #[cfg(test)]
-            let shadow_reads = (self.shadow_dirty_oracle.is_some()
-                || self.owner_dirty_scheduler.is_some())
-            .then(begin_shadow_owner_reads);
-            let owner_progressed =
-                self.resolve_method_tainted_roles_for_def(def, root, &method_taint);
-            #[cfg(test)]
-            if let Some(shadow_reads) = shadow_reads {
-                let shadow_reads = shadow_reads.finish();
+            let capture_owner_reads = capture_owner_reads || self.shadow_dirty_oracle.is_some();
+            let owner_reads = capture_owner_reads.then(begin_owner_dependency_reads);
+            let owner_progressed = self.resolve_method_tainted_roles_for_def(
+                def,
+                root,
+                &method_taint,
+                capture_owner_reads,
+            );
+            if let Some(owner_reads) = owner_reads {
+                let owner_reads = owner_reads.finish();
                 self.owner_dirty_scheduler_finish_owner(
                     def,
                     OwnerSolveOutcome::from_solve(Some(root), owner_progressed),
                     &method_taint,
-                    &shadow_reads,
+                    &owner_reads,
                 );
+                #[cfg(test)]
                 self.shadow_dirty_oracle_finish_owner(
                     def,
                     Some(root),
                     owner_progressed,
                     &method_taint,
-                    shadow_reads,
+                    owner_reads,
                 );
             }
             if owner_progressed {
@@ -253,12 +257,16 @@ impl AnalysisSession {
         def: DefId,
         root: TypeVar,
         method_taint: &MethodTaintIndex,
+        record_owner_dependencies: bool,
     ) -> bool {
         let mut progressed = false;
         let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         loop {
-            let (mut compact, merge_constraints) =
-                compact_type_var_recording_merge_constraints(self.infer.constraints(), root);
+            let (mut compact, merge_constraints) = if record_owner_dependencies {
+                compact_type_var_recording_owner_dependencies(self.infer.constraints(), root)
+            } else {
+                compact_type_var_recording_merge_constraints(self.infer.constraints(), root)
+            };
             if apply_compact_merge_constraints(
                 self.infer.constraints_mut(),
                 merge_constraints,
@@ -269,8 +277,12 @@ impl AnalysisSession {
                 continue;
             }
             normalize_compact_casts(&mut compact, &FxHashSet::default());
-            let (roles, role_merge_constraints) =
-                self.method_tainted_role_constraints_recording_merge_constraints(def, method_taint);
+            let (roles, role_merge_constraints) = self
+                .method_tainted_role_constraints_recording_merge_constraints(
+                    def,
+                    method_taint,
+                    record_owner_dependencies,
+                );
             if apply_compact_merge_constraints(
                 self.infer.constraints_mut(),
                 role_merge_constraints,
@@ -280,14 +292,25 @@ impl AnalysisSession {
                 progressed = true;
                 continue;
             }
-            let output = resolve_role_constraints_with_method_taint_stats(
-                self.infer.constraints(),
-                &compact,
-                &roles,
-                &self.role_impls,
-                &self.applied_method_role_resolutions,
-                method_taint,
-            );
+            let output = if record_owner_dependencies {
+                resolve_role_constraints_with_method_taint_stats_recording_owner_dependencies(
+                    self.infer.constraints(),
+                    &compact,
+                    &roles,
+                    &self.role_impls,
+                    &self.applied_method_role_resolutions,
+                    method_taint,
+                )
+            } else {
+                resolve_role_constraints_with_method_taint_stats(
+                    self.infer.constraints(),
+                    &compact,
+                    &roles,
+                    &self.role_impls,
+                    &self.applied_method_role_resolutions,
+                    method_taint,
+                )
+            };
             self.timing.record_role_resolve_stats(output.stats);
             if output.resolutions.is_empty() {
                 break;
@@ -318,6 +341,7 @@ impl AnalysisSession {
         &self,
         def: DefId,
         method_taint: &MethodTaintIndex,
+        record_owner_dependencies: bool,
     ) -> (
         Vec<CompactRoleConstraint>,
         Vec<crate::compact::CompactMergeConstraint>,
@@ -328,11 +352,26 @@ impl AnalysisSession {
             .for_owner(def)
             .iter()
             .filter_map(|constraint| {
-                let (constraint, constraints) = compact_role_constraint_recording_merge_constraints(
-                    self.infer.constraints(),
-                    constraint,
-                );
-                if compact_role_constraint_has_method_taint(&constraint, method_taint) {
+                let (constraint, constraints) = if record_owner_dependencies {
+                    compact_role_constraint_recording_owner_dependencies(
+                        self.infer.constraints(),
+                        constraint,
+                    )
+                } else {
+                    compact_role_constraint_recording_merge_constraints(
+                        self.infer.constraints(),
+                        constraint,
+                    )
+                };
+                let has_method_taint = if record_owner_dependencies {
+                    compact_role_constraint_has_method_taint_recording_owner_dependencies(
+                        &constraint,
+                        method_taint,
+                    )
+                } else {
+                    compact_role_constraint_has_method_taint(&constraint, method_taint)
+                };
+                if has_method_taint {
                     merge_constraints.extend(constraints);
                     Some(constraint)
                 } else {
@@ -1001,7 +1040,6 @@ impl AnalysisSession {
                     }
                     #[cfg(test)]
                     self.stage0_capture_quantify_component(&component, &roots);
-                    #[cfg(test)]
                     for owner in &component {
                         self.owner_dirty_scheduler_remove_owner(*owner);
                     }

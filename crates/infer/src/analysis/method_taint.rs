@@ -36,14 +36,28 @@ pub(super) fn compact_role_constraint_has_method_taint(
     constraint: &CompactRoleConstraint,
     method_taint: &MethodTaintIndex,
 ) -> bool {
-    constraint
-        .inputs
-        .iter()
-        .any(|arg| compact_role_arg_has_method_taint(arg, method_taint))
-        || constraint
-            .associated
-            .iter()
-            .any(|associated| compact_role_arg_has_method_taint(&associated.value, method_taint))
+    compact_role_constraint_has_method_taint_inner::<false>(constraint, method_taint)
+}
+
+pub(super) fn compact_role_constraint_has_method_taint_recording_owner_dependencies(
+    constraint: &CompactRoleConstraint,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    compact_role_constraint_has_method_taint_inner::<true>(constraint, method_taint)
+}
+
+fn compact_role_constraint_has_method_taint_inner<const RECORD_OWNER_DEPENDENCIES: bool>(
+    constraint: &CompactRoleConstraint,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    constraint.inputs.iter().any(|arg| {
+        compact_role_arg_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, method_taint)
+    }) || constraint.associated.iter().any(|associated| {
+        compact_role_arg_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+            &associated.value,
+            method_taint,
+        )
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -253,88 +267,104 @@ fn push_unique_select(items: &mut Vec<SelectId>, select: SelectId) {
     }
 }
 
-fn compact_role_arg_has_method_taint(
+fn compact_role_arg_has_method_taint<const RECORD_OWNER_DEPENDENCIES: bool>(
     arg: &CompactRoleArg,
     method_taint: &MethodTaintIndex,
 ) -> bool {
-    compact_bounds_has_method_taint(&arg.bounds, method_taint)
+    compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&arg.bounds, method_taint)
 }
 
-fn compact_bounds_has_method_taint(
+fn compact_bounds_has_method_taint<const RECORD_OWNER_DEPENDENCIES: bool>(
     bounds: &CompactBounds,
     method_taint: &MethodTaintIndex,
 ) -> bool {
     match bounds {
         CompactBounds::Interval { lower, upper } => {
-            compact_type_has_method_taint(lower, method_taint)
-                || compact_type_has_method_taint(upper, method_taint)
+            compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(lower, method_taint)
+                || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(upper, method_taint)
         }
-        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
-            .iter()
-            .any(|arg| compact_bounds_has_method_taint(arg, method_taint)),
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            args.iter().any(|arg| {
+                compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, method_taint)
+            })
+        }
         CompactBounds::Fun {
             arg,
             arg_eff,
             ret_eff,
             ret,
         } => {
-            compact_bounds_has_method_taint(arg, method_taint)
-                || compact_bounds_has_method_taint(arg_eff, method_taint)
-                || compact_bounds_has_method_taint(ret_eff, method_taint)
-                || compact_bounds_has_method_taint(ret, method_taint)
+            compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, method_taint)
+                || compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+                    arg_eff,
+                    method_taint,
+                )
+                || compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+                    ret_eff,
+                    method_taint,
+                )
+                || compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(ret, method_taint)
         }
-        CompactBounds::Record { fields } => fields
-            .iter()
-            .any(|field| compact_bounds_has_method_taint(&field.value, method_taint)),
+        CompactBounds::Record { fields } => fields.iter().any(|field| {
+            compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&field.value, method_taint)
+        }),
         CompactBounds::PolyVariant { items } => items.iter().any(|(_, payloads)| {
-            payloads
-                .iter()
-                .any(|payload| compact_bounds_has_method_taint(payload, method_taint))
+            payloads.iter().any(|payload| {
+                compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(payload, method_taint)
+            })
         }),
     }
 }
 
-fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintIndex) -> bool {
+fn compact_type_has_method_taint<const RECORD_OWNER_DEPENDENCIES: bool>(
+    ty: &CompactType,
+    method_taint: &MethodTaintIndex,
+) -> bool {
     ty.vars.iter().any(|var| {
-        #[cfg(test)]
-        super::record_shadow_method_taint_read(var.var);
+        if RECORD_OWNER_DEPENDENCIES {
+            super::record_owner_method_taint_read(var.var);
+        }
         method_taint
             .get(&var.var)
             .is_some_and(|selects| !selects.is_empty())
     }) || ty.cons.values().any(|args| {
-        args.iter()
-            .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
+        args.iter().any(|arg| {
+            compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, method_taint)
+        })
     }) || ty.funs.iter().any(|fun| {
-        compact_type_has_method_taint(&fun.arg, method_taint)
-            || compact_type_has_method_taint(&fun.arg_eff, method_taint)
-            || compact_type_has_method_taint(&fun.ret_eff, method_taint)
-            || compact_type_has_method_taint(&fun.ret, method_taint)
+        compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&fun.arg, method_taint)
+            || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+                &fun.arg_eff,
+                method_taint,
+            )
+            || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+                &fun.ret_eff,
+                method_taint,
+            )
+            || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&fun.ret, method_taint)
     }) || ty.records.iter().any(|record| {
-        record
-            .fields
-            .iter()
-            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
+        record.fields.iter().any(|field| {
+            compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&field.value, method_taint)
+        })
     }) || ty.record_spreads.iter().any(|spread| {
-        spread
-            .fields
-            .iter()
-            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
-            || compact_type_has_method_taint(&spread.tail, method_taint)
+        spread.fields.iter().any(|field| {
+            compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&field.value, method_taint)
+        }) || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&spread.tail, method_taint)
     }) || ty.poly_variants.iter().any(|variant| {
         variant.items.iter().any(|(_, payloads)| {
-            payloads
-                .iter()
-                .any(|payload| compact_type_has_method_taint(payload, method_taint))
+            payloads.iter().any(|payload| {
+                compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(payload, method_taint)
+            })
         })
     }) || ty.tuples.iter().any(|tuple| {
-        tuple
-            .items
-            .iter()
-            .any(|item| compact_type_has_method_taint(item, method_taint))
+        tuple.items.iter().any(|item| {
+            compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(item, method_taint)
+        })
     }) || ty.rows.iter().any(|row| {
         row.items.values().any(|args| {
-            args.iter()
-                .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
-        }) || compact_type_has_method_taint(&row.tail, method_taint)
+            args.iter().any(|arg| {
+                compact_bounds_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, method_taint)
+            })
+        }) || compact_type_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(&row.tail, method_taint)
     })
 }

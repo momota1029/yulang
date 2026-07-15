@@ -40,9 +40,10 @@ use crate::compact::{
     collect_interval_dominance_constraints_with_metrics,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
     compact_role_constraint, compact_role_constraint_recording_merge_constraints,
-    compact_root_has_interval_bounds, compact_subtype_constraint_keys,
-    compact_type_var_recording_merge_constraints,
-    compact_type_var_recording_merge_constraints_for_scheme, eliminate_floor_redundant_variables,
+    compact_role_constraint_recording_owner_dependencies, compact_root_has_interval_bounds,
+    compact_subtype_constraint_keys, compact_type_var_recording_merge_constraints,
+    compact_type_var_recording_merge_constraints_for_scheme,
+    compact_type_var_recording_owner_dependencies, eliminate_floor_redundant_variables,
     finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
@@ -80,6 +81,7 @@ use crate::role_solve::coalesce_role_constraints;
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints_recording_merge_constraints,
     resolve_role_constraints, resolve_role_constraints_with_method_taint_stats,
+    resolve_role_constraints_with_method_taint_stats_recording_owner_dependencies,
     resolve_role_constraints_with_stats_and_dispositions, role_constraint_could_resolve,
 };
 use crate::roles::{
@@ -94,27 +96,33 @@ use crate::uses::{LocalDefUseTable, RefUseTable, SelectionUse, SelectionUseTable
 pub(crate) use cache_interface::BoundaryCaptureError;
 use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
+    compact_role_constraint_has_method_taint_recording_owner_dependencies,
 };
 use projection::role_impl_member_projection_substitutions;
 use session::CandidateSettlementFact;
-#[cfg(test)]
 use session::MethodRoleOwnerDirtyScheduler;
 #[cfg(test)]
 use session::ShadowDirtyOracle;
+pub use session::with_owner_dirty_scheduler_benchmark_for_new_sessions;
 #[cfg(test)]
 pub(crate) use session::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection, CandidateSettlementSafetyWitness, DependencyKeyKind,
-    Stage0PendingWorkInventory, Stage0QuantifyEvent, record_shadow_applied_resolution_read,
-    record_shadow_birth_level_read, record_shadow_bound_read, record_shadow_candidate_bucket_read,
-    record_shadow_level_read, record_shadow_method_taint_read, record_shadow_neighbor_read,
-    record_shadow_pre_pop_read, record_shadow_subtract_read,
-    with_shadow_dirty_oracle_for_new_sessions,
+    Stage0PendingWorkInventory, Stage0QuantifyEvent, with_shadow_dirty_oracle_for_new_sessions,
 };
 #[cfg(test)]
 pub(crate) use session::{
     OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
     with_owner_dirty_scheduler_skips_for_new_sessions,
+};
+pub(crate) use session::{
+    record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
+    record_owner_dependency_read, record_owner_method_taint_read,
+};
+#[cfg(test)]
+pub(crate) use session::{
+    record_owner_birth_level_read, record_owner_bound_read, record_owner_level_read,
+    record_owner_neighbor_read, record_owner_pre_pop_read, record_owner_subtract_read,
 };
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
@@ -168,9 +176,7 @@ pub struct AnalysisSession {
     candidate_settlement_safety_witness: Option<CandidateSettlementSafetyWitness>,
     #[cfg(test)]
     shadow_dirty_oracle: Option<ShadowDirtyOracle>,
-    #[cfg(test)]
     owner_dirty_scheduler: Option<MethodRoleOwnerDirtyScheduler>,
-    #[cfg(test)]
     owner_dirty_scheduler_journal: Option<MethodRoleMutationJournalActivation>,
     #[cfg(test)]
     stage0_quantify_watch: FxHashSet<DefId>,

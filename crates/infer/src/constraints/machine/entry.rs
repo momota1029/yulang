@@ -54,7 +54,7 @@ impl ConstraintMachine {
 
     pub(crate) fn var_neighbors(&self, var: TypeVar) -> impl Iterator<Item = TypeVar> + '_ {
         #[cfg(test)]
-        crate::analysis::record_shadow_neighbor_read(var);
+        crate::analysis::record_owner_neighbor_read(var);
         self.var_adjacency
             .get(&var)
             .into_iter()
@@ -81,13 +81,13 @@ impl ConstraintMachine {
 
     pub fn level_of(&self, var: TypeVar) -> TypeLevel {
         #[cfg(test)]
-        crate::analysis::record_shadow_level_read(var);
+        crate::analysis::record_owner_level_read(var);
         self.levels.level_of(var)
     }
 
     pub fn birth_level_of(&self, var: TypeVar) -> TypeLevel {
         #[cfg(test)]
-        crate::analysis::record_shadow_birth_level_read(var);
+        crate::analysis::record_owner_birth_level_read(var);
         self.levels.birth_level_of(var)
     }
 
@@ -310,7 +310,7 @@ impl ConstraintMachine {
 
     pub(crate) fn pre_pop_effect_families(&self, var: TypeVar) -> &[ConstraintEffectFamily] {
         #[cfg(test)]
-        crate::analysis::record_shadow_pre_pop_read(var);
+        crate::analysis::record_owner_pre_pop_read(var);
         self.pre_pop_effect_families
             .get(&var)
             .map(Vec::as_slice)

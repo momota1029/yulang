@@ -43,6 +43,10 @@ pub struct AnalysisTiming {
     pub role_pass: Duration,
     pub method_taint: Duration,
     pub method_role_solve: Duration,
+    pub owner_dirty_skip: Duration,
+    pub owner_dirty_owner_solve: Duration,
+    pub owner_dirty_journal_drain: Duration,
+    pub owner_dirty_method_taint_diff: Duration,
     pub unready_role_dependency_scan: Duration,
     pub enqueue_selection_probes: Duration,
     pub quantify: Duration,
@@ -91,6 +95,24 @@ pub struct AnalysisTiming {
     pub max_queue: usize,
     pub role_passes: usize,
     pub progressed_role_passes: usize,
+    pub method_role_whole_pass_skips: usize,
+    pub owner_dirty_clean_owner_skips: usize,
+    pub owner_dirty_dirty_solves: usize,
+    pub owner_dirty_full_fallbacks: usize,
+    pub owner_dirty_journal_bursts: usize,
+    pub owner_dirty_journal_mutations: usize,
+    pub owner_dirty_peak_journal_burst: usize,
+    pub owner_dirty_peak_owners: usize,
+    pub owner_dirty_peak_dependency_keys: usize,
+    pub owner_dirty_peak_dependencies_per_owner: usize,
+    pub owner_dirty_peak_reverse_edges: usize,
+    pub owner_dirty_peak_retained_bytes: usize,
+    pub owner_dirty_live_owners: usize,
+    pub owner_dirty_live_dependency_keys: usize,
+    pub owner_dirty_live_reverse_edges: usize,
+    pub owner_dirty_live_retained_bytes: usize,
+    pub owner_dirty_per_owner_cap_rejections: usize,
+    pub owner_dirty_global_cap_fallbacks: usize,
     pub unready_role_dependency_scans: usize,
     pub unready_role_dependency_inputs: usize,
     pub unready_role_dependency_edges: usize,
@@ -365,6 +387,10 @@ impl AnalysisTiming {
         if progressed {
             self.progressed_role_passes += 1;
         }
+    }
+
+    pub(super) fn record_method_role_whole_pass_skip(&mut self) {
+        self.method_role_whole_pass_skips += 1;
     }
 
     pub(super) fn record_method_taint(&mut self, elapsed: Duration) {

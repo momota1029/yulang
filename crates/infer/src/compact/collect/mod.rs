@@ -1,11 +1,13 @@
 use super::merge::*;
 use super::*;
+use crate::constraints::mutation::DependencyKey;
 
 mod type_nodes;
 
 pub(in crate::compact) struct CompactCollector<'a> {
     machine: &'a ConstraintMachine,
     record_merge_constraints: bool,
+    record_owner_dependencies: bool,
     merge_constraints: Vec<CompactMergeConstraint>,
     in_progress: FxHashSet<(TypeVar, Polarity)>,
     row_tail_in_progress: FxHashSet<TypeVar>,
@@ -26,6 +28,7 @@ impl<'a> CompactCollector<'a> {
         Self {
             machine,
             record_merge_constraints: false,
+            record_owner_dependencies: false,
             merge_constraints: Vec::new(),
             in_progress: FxHashSet::default(),
             row_tail_in_progress: FxHashSet::default(),
@@ -38,6 +41,16 @@ impl<'a> CompactCollector<'a> {
     pub(in crate::compact) fn new_recording(machine: &'a ConstraintMachine) -> Self {
         Self {
             record_merge_constraints: true,
+            ..Self::new(machine)
+        }
+    }
+
+    pub(in crate::compact) fn new_recording_owner_dependencies(
+        machine: &'a ConstraintMachine,
+    ) -> Self {
+        Self {
+            record_merge_constraints: true,
+            record_owner_dependencies: true,
             ..Self::new(machine)
         }
     }
@@ -460,6 +473,7 @@ impl<'a> CompactCollector<'a> {
     fn expand_reachable_role_vars(&self, reachable: &mut FxHashSet<TypeVar>) {
         let mut stack = reachable.iter().copied().collect::<Vec<_>>();
         while let Some(var) = stack.pop() {
+            self.record_owner_constraint_read(var, DependencyKey::ConstraintNeighbors(var));
             for neighbor in self.machine.var_neighbors(var) {
                 if reachable.insert(neighbor) {
                     stack.push(neighbor);
@@ -595,6 +609,7 @@ impl<'a> CompactCollector<'a> {
         polarity: Polarity,
         weight: &ConstraintWeight,
     ) -> CompactType {
+        self.record_owner_constraint_read(var, DependencyKey::ConstraintBounds(var));
         let Some(bounds) = self.machine.bounds().of(var).cloned() else {
             return CompactType::default();
         };
@@ -630,6 +645,7 @@ impl<'a> CompactCollector<'a> {
         &mut self,
         var: TypeVar,
     ) -> Vec<CompactStackFamily> {
+        self.record_owner_constraint_read(var, DependencyKey::ConstraintPrePopFamilies(var));
         self.machine
             .pre_pop_effect_families(var)
             .iter()
@@ -735,6 +751,7 @@ impl<'a> CompactCollector<'a> {
         cancelled: &ConstraintWeight,
     ) -> CompactType {
         let mut retained_items = items;
+        self.record_owner_constraint_read(source, DependencyKey::ConstraintSubtractFacts(source));
         for fact in self.machine.subtracts().facts(source) {
             if cancelled.contains(fact.id) {
                 continue;
@@ -748,6 +765,18 @@ impl<'a> CompactCollector<'a> {
         } else {
             self.compact_neg_row(retained_items, tail, weight)
         }
+    }
+
+    fn record_owner_constraint_read(&self, var: TypeVar, key: DependencyKey) {
+        if !self.record_owner_dependencies {
+            return;
+        }
+        crate::analysis::record_owner_dependency_read(key);
+        // Level/birth reads made by merge application and candidate simplification are over the
+        // same compacted variables. Subscribing here is conservative and keeps those reads out of
+        // the release-wide `ConstraintMachine` hot path.
+        crate::analysis::record_owner_dependency_read(DependencyKey::ConstraintLevel(var));
+        crate::analysis::record_owner_dependency_read(DependencyKey::ConstraintBirthLevel(var));
     }
 
     pub(in crate::compact) fn retain_neg_row_items_by_subtractability(

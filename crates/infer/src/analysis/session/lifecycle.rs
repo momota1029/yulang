@@ -48,9 +48,7 @@ impl AnalysisSession {
             candidate_settlement_safety_witness: None,
             #[cfg(test)]
             shadow_dirty_oracle: ShadowDirtyOracle::for_new_session(),
-            #[cfg(test)]
             owner_dirty_scheduler: MethodRoleOwnerDirtyScheduler::for_new_session(),
-            #[cfg(test)]
             owner_dirty_scheduler_journal: None,
             #[cfg(test)]
             stage0_quantify_watch: FxHashSet::default(),
@@ -173,7 +171,6 @@ impl AnalysisSession {
                 ]);
             }
             self.mark_method_role_input_changed();
-            #[cfg(test)]
             if !self
                 .selections
                 .iter()
@@ -373,7 +370,6 @@ impl AnalysisSession {
         let start = Instant::now();
         if self.method_role_mutations.is_active() {
             self.sync_method_role_mutation_outboxes();
-            #[cfg(test)]
             self.owner_dirty_scheduler_drain_journal();
         }
         let events = self.infer.constraints_mut().take_events();
@@ -436,7 +432,6 @@ impl AnalysisSession {
             roles: self.roles.activate_method_role_mutations(),
             candidates: self.role_impls.activate_method_role_mutations(),
         };
-        #[cfg(test)]
         self.owner_dirty_scheduler_begin_journal_window();
         activation
     }
@@ -446,7 +441,6 @@ impl AnalysisSession {
         activation: MethodRoleMutationJournalActivation,
     ) {
         self.sync_method_role_mutation_outboxes();
-        #[cfg(test)]
         self.owner_dirty_scheduler_finish_journal_window();
         activation.finish();
     }
@@ -560,23 +554,19 @@ impl AnalysisSession {
     /// Drain queued analysis work until method-role solving reaches a fixed point.
     pub fn drain_work(&mut self) {
         let mut trace = AnalysisDrainTrace::from_env(self.work.len());
-        #[cfg(test)]
         // A terminal record can outlive one `drain_work` call while lowering continues to mutate
-        // constraints. The Stage 3 shadow scheduler therefore keeps its test-only activation
-        // alive after the first forced pass and drains it at ordinary routing boundaries. The
-        // release path retains Stage 2's one-forced-pass activation until Stage 5 measures an
-        // off-by-default production-shaped mode.
+        // constraints. An explicitly enabled scheduler therefore keeps activation alive after
+        // the first forced pass and drains it at ordinary routing boundaries. Disabled sessions
+        // retain Stage 2's one-forced-pass activation exactly.
         let persistent_shadow_journal = self.owner_dirty_scheduler.is_some();
-        #[cfg(not(test))]
-        let persistent_shadow_journal = false;
         let mut mutation_journal = None;
         loop {
             while self.step_traced(&mut trace) {}
             if !self.method_role_pass_inputs_changed() {
+                self.timing.record_method_role_whole_pass_skip();
                 break;
             }
             self.begin_method_role_pass();
-            #[cfg(test)]
             if self.owner_dirty_scheduler.is_some() && self.owner_dirty_scheduler_journal.is_none()
             {
                 let activation = self.activate_method_role_mutation_journal();
@@ -930,6 +920,9 @@ impl AnalysisSession {
     pub fn timing(&self) -> AnalysisTiming {
         let mut timing = self.timing;
         timing.record_scc_stats(self.scc.stats());
+        if let Some(scheduler) = &self.owner_dirty_scheduler {
+            scheduler.record_timing(&mut timing);
+        }
         timing
     }
 

@@ -149,6 +149,14 @@ pub(crate) fn compact_type_var_recording_merge_constraints(
     CompactCollector::new_recording(machine).compact_root_with_merge_constraints(root)
 }
 
+pub(crate) fn compact_type_var_recording_owner_dependencies(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording_owner_dependencies(machine)
+        .compact_root_with_merge_constraints(root)
+}
+
 pub(crate) fn compact_type_var_recording_merge_constraints_for_scheme(
     machine: &ConstraintMachine,
     root: TypeVar,
@@ -507,4 +515,19 @@ pub(crate) fn compact_role_constraint_recording_merge_constraints(
 ) -> (CompactRoleConstraint, Vec<CompactMergeConstraint>) {
     CompactCollector::new_recording(machine)
         .compact_role_constraint_with_merge_constraints(constraint)
+}
+
+pub(crate) fn compact_role_constraint_recording_owner_dependencies(
+    machine: &ConstraintMachine,
+    constraint: &RoleConstraint,
+) -> (CompactRoleConstraint, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording_owner_dependencies(machine)
+        .compact_role_constraint_with_merge_constraints(constraint)
+}
+
+pub(crate) fn compact_role_constraint_with_owner_dependencies(
+    machine: &ConstraintMachine,
+    constraint: &RoleConstraint,
+) -> CompactRoleConstraint {
+    CompactCollector::new_recording_owner_dependencies(machine).compact_role_constraint(constraint)
 }

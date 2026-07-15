@@ -33,7 +33,7 @@ fn main() {
         print_usage_and_exit(&program);
     };
 
-    match command.to_str() {
+    let run_command = || match command.to_str() {
         Some("check") => run_compatible_check(&program, &options, args),
         Some("contract") => contract::run(&program, options.std_root.clone(), args),
         Some("build") => run_compatible_build(&program, &options, args),
@@ -138,6 +138,11 @@ fn main() {
             );
         }
         _ => print_usage_and_exit(&program),
+    };
+    if options.owner_dirty_scheduler_benchmark {
+        infer::analysis::with_owner_dirty_scheduler_benchmark_for_new_sessions(run_command);
+    } else {
+        run_command();
     }
 }
 
@@ -148,6 +153,7 @@ struct GlobalOptions {
     show_cst: bool,
     use_cache: bool,
     runtime_phase_timings: bool,
+    owner_dirty_scheduler_benchmark: bool,
 }
 
 impl Default for GlobalOptions {
@@ -158,6 +164,7 @@ impl Default for GlobalOptions {
             show_cst: false,
             use_cache: true,
             runtime_phase_timings: false,
+            owner_dirty_scheduler_benchmark: false,
         }
     }
 }
@@ -230,6 +237,30 @@ struct RuntimeRoleResolutionTelemetry {
     total: Duration,
     generalize: Duration,
     methods: Duration,
+    method_pass: Duration,
+    method_taint: Duration,
+    owner_dirty_skip: Duration,
+    owner_dirty_owner_solve: Duration,
+    owner_dirty_journal_drain: Duration,
+    owner_dirty_method_taint_diff: Duration,
+    whole_pass_skips: usize,
+    clean_owner_skips: usize,
+    dirty_solves: usize,
+    full_fallbacks: usize,
+    journal_bursts: usize,
+    journal_mutations: usize,
+    peak_journal_burst: usize,
+    peak_owners: usize,
+    peak_dependency_keys: usize,
+    peak_dependencies_per_owner: usize,
+    peak_reverse_edges: usize,
+    peak_retained_bytes: usize,
+    live_owners: usize,
+    live_dependency_keys: usize,
+    live_reverse_edges: usize,
+    live_retained_bytes: usize,
+    per_owner_cap_rejections: usize,
+    global_cap_fallbacks: usize,
     demands: usize,
     candidate_scans: usize,
     candidate_matches: usize,
@@ -247,6 +278,30 @@ impl RuntimeRoleResolutionTelemetry {
             total: analysis.generalize_resolve_roles + analysis.method_role_solve,
             generalize: analysis.generalize_resolve_roles,
             methods: analysis.method_role_solve,
+            method_pass: analysis.role_pass,
+            method_taint: analysis.method_taint,
+            owner_dirty_skip: analysis.owner_dirty_skip,
+            owner_dirty_owner_solve: analysis.owner_dirty_owner_solve,
+            owner_dirty_journal_drain: analysis.owner_dirty_journal_drain,
+            owner_dirty_method_taint_diff: analysis.owner_dirty_method_taint_diff,
+            whole_pass_skips: analysis.method_role_whole_pass_skips,
+            clean_owner_skips: analysis.owner_dirty_clean_owner_skips,
+            dirty_solves: analysis.owner_dirty_dirty_solves,
+            full_fallbacks: analysis.owner_dirty_full_fallbacks,
+            journal_bursts: analysis.owner_dirty_journal_bursts,
+            journal_mutations: analysis.owner_dirty_journal_mutations,
+            peak_journal_burst: analysis.owner_dirty_peak_journal_burst,
+            peak_owners: analysis.owner_dirty_peak_owners,
+            peak_dependency_keys: analysis.owner_dirty_peak_dependency_keys,
+            peak_dependencies_per_owner: analysis.owner_dirty_peak_dependencies_per_owner,
+            peak_reverse_edges: analysis.owner_dirty_peak_reverse_edges,
+            peak_retained_bytes: analysis.owner_dirty_peak_retained_bytes,
+            live_owners: analysis.owner_dirty_live_owners,
+            live_dependency_keys: analysis.owner_dirty_live_dependency_keys,
+            live_reverse_edges: analysis.owner_dirty_live_reverse_edges,
+            live_retained_bytes: analysis.owner_dirty_live_retained_bytes,
+            per_owner_cap_rejections: analysis.owner_dirty_per_owner_cap_rejections,
+            global_cap_fallbacks: analysis.owner_dirty_global_cap_fallbacks,
             demands: analysis.role_resolve_demands,
             candidate_scans: analysis.role_resolve_candidate_scans,
             candidate_matches: analysis.role_resolve_candidate_matches,
@@ -453,6 +508,9 @@ fn parse_global_options(
             }
             Some("--runtime-phase-timings") => {
                 options.runtime_phase_timings = true;
+            }
+            Some("--owner-dirty-scheduler-benchmark") => {
+                options.owner_dirty_scheduler_benchmark = true;
             }
             Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
@@ -1143,6 +1201,102 @@ fn print_runtime_evidence_phase_timings(
         eprintln!(
             "  run.analysis.role_resolution.methods: {}",
             format_duration(role.methods)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.method_pass: {}",
+            format_duration(role.method_pass)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.method_taint: {}",
+            format_duration(role.method_taint)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.skip: {}",
+            format_duration(role.owner_dirty_skip)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.owner_solve: {}",
+            format_duration(role.owner_dirty_owner_solve)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.journal_drain: {}",
+            format_duration(role.owner_dirty_journal_drain)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.method_taint_diff: {}",
+            format_duration(role.owner_dirty_method_taint_diff)
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.whole_pass_skips: {}",
+            role.whole_pass_skips
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.clean_owner_skips: {}",
+            role.clean_owner_skips
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.dirty_solves: {}",
+            role.dirty_solves
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.full_fallbacks: {}",
+            role.full_fallbacks
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.journal_bursts: {}",
+            role.journal_bursts
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.journal_mutations: {}",
+            role.journal_mutations
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_journal_burst: {}",
+            role.peak_journal_burst
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_owners: {}",
+            role.peak_owners
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_dependency_keys: {}",
+            role.peak_dependency_keys
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_dependencies_per_owner: {}",
+            role.peak_dependencies_per_owner
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_reverse_edges: {}",
+            role.peak_reverse_edges
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.peak_retained_bytes: {}",
+            role.peak_retained_bytes
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.live_owners: {}",
+            role.live_owners
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.live_dependency_keys: {}",
+            role.live_dependency_keys
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.live_reverse_edges: {}",
+            role.live_reverse_edges
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.live_retained_bytes: {}",
+            role.live_retained_bytes
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.per_owner_cap_rejections: {}",
+            role.per_owner_cap_rejections
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.owner_dirty.global_cap_fallbacks: {}",
+            role.global_cap_fallbacks
         );
         eprintln!("  run.analysis.role_resolve.demands: {}", role.demands);
         eprintln!(
@@ -3374,4 +3528,25 @@ fn set_realm_version(program: &str, version: &mut Option<String>, value: OsStrin
         print_usage_error_and_exit(program, "realm version must be UTF-8");
     };
     *version = Some(value.to_string());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_dirty_scheduler_benchmark_is_an_explicit_global_opt_in() {
+        let (default_options, default_args) =
+            parse_global_options(VecDeque::from([OsString::from("run")])).expect("parse default");
+        assert!(!default_options.owner_dirty_scheduler_benchmark);
+        assert_eq!(default_args, VecDeque::from([OsString::from("run")]));
+
+        let (enabled_options, enabled_args) = parse_global_options(VecDeque::from([
+            OsString::from("--owner-dirty-scheduler-benchmark"),
+            OsString::from("run"),
+        ]))
+        .expect("parse benchmark opt-in");
+        assert!(enabled_options.owner_dirty_scheduler_benchmark);
+        assert_eq!(enabled_args, VecDeque::from([OsString::from("run")]));
+    }
 }

@@ -4,6 +4,28 @@ use poly::expr::Arena as PolyArena;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[test]
+fn production_constraint_capture_does_not_pollute_the_exact_shadow_frontier() {
+    let exact_var = TypeVar(10);
+    let production_var = TypeVar(20);
+    let guard = begin_owner_dependency_reads();
+
+    record_owner_bound_read(exact_var);
+    record_owner_dependency_read(DependencyKey::ConstraintNeighbors(production_var));
+
+    let reads = guard.finish();
+    assert_eq!(
+        reads.constraint_dependency_keys(),
+        vec![DependencyKey::ConstraintBounds(exact_var)]
+    );
+    assert_eq!(
+        reads.production_constraint_dependencies,
+        [DependencyKey::ConstraintNeighbors(production_var)]
+            .into_iter()
+            .collect()
+    );
+}
+
+#[test]
 fn every_dependency_key_wakes_its_owner_and_preserves_unrelated_clean_reuse() {
     let owner = DefId(1);
     let unrelated_owner = DefId(2);
@@ -583,6 +605,102 @@ fn method_taint_diff_is_sorted_and_detects_add_change_and_removal() {
     assert_eq!(
         diff_method_taint(&previous, &current),
         vec![first, second, TypeVar(3)]
+    );
+}
+
+#[test]
+fn benchmark_mode_is_disabled_by_default_and_restored_after_return_or_unwind() {
+    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+
+    with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
+        let scheduler = MethodRoleOwnerDirtyScheduler::for_new_session()
+            .expect("explicit benchmark scope enables new sessions");
+        assert!(scheduler.permit_owner_skips);
+    });
+    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+
+    let unwind = catch_unwind(AssertUnwindSafe(|| {
+        with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
+            assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_some());
+            panic!("exercise benchmark mode unwind cleanup");
+        });
+    }));
+    assert!(unwind.is_err());
+    assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
+}
+
+#[test]
+fn configured_budget_caps_fail_closed_without_setting_production_defaults() {
+    let owner = DefId(1);
+    let dependency = DependencyKey::ConstraintBounds(TypeVar(1));
+
+    let mut per_owner = MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        budget: OwnerDirtySchedulerBudget {
+            max_dependencies_per_owner: Some(0),
+            ..OwnerDirtySchedulerBudget::default()
+        },
+        ..MethodRoleOwnerDirtyScheduler::default()
+    };
+    per_owner.publish_record(
+        owner,
+        OwnerSolveOutcome::NoProgress,
+        vec![dependency.clone()],
+    );
+    assert!(per_owner.records.is_empty());
+    assert_eq!(per_owner.metrics.per_owner_cap_rejections, 1);
+
+    let mut global = MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        budget: OwnerDirtySchedulerBudget {
+            max_owners: Some(0),
+            ..OwnerDirtySchedulerBudget::default()
+        },
+        ..MethodRoleOwnerDirtyScheduler::default()
+    };
+    global.publish_record(
+        owner,
+        OwnerSolveOutcome::NoProgress,
+        vec![dependency.clone()],
+    );
+    assert!(global.records.is_empty());
+    assert!(global.force_all_dirty_this_pass);
+    assert_eq!(global.metrics.full_fallbacks, 1);
+    assert_eq!(global.metrics.global_cap_fallbacks, 1);
+
+    let mut journal = MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        budget: OwnerDirtySchedulerBudget {
+            max_journal_burst: Some(0),
+            ..OwnerDirtySchedulerBudget::default()
+        },
+        ..MethodRoleOwnerDirtyScheduler::default()
+    };
+    journal.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(1),
+            key: dependency,
+        }],
+        true,
+    );
+    assert!(journal.force_all_dirty_this_pass);
+    assert_eq!(journal.metrics.peak_journal_burst, 1);
+    assert_eq!(journal.metrics.global_cap_fallbacks, 1);
+
+    assert_eq!(OwnerDirtySchedulerBudget::default().max_owners, None);
+    assert_eq!(
+        OwnerDirtySchedulerBudget::default().max_dependencies_per_owner,
+        None
+    );
+    assert_eq!(
+        OwnerDirtySchedulerBudget::default().max_dependency_keys,
+        None
+    );
+    assert_eq!(OwnerDirtySchedulerBudget::default().max_reverse_edges, None);
+    assert_eq!(OwnerDirtySchedulerBudget::default().max_journal_burst, None);
+    assert_eq!(
+        OwnerDirtySchedulerBudget::default().max_retained_bytes,
+        None
     );
 }
 

@@ -495,7 +495,7 @@ fn raw_and_compacted_candidate_head_prechecks_compose() {
     ));
     let mut cache = CompactRoleImplCandidateCache::default();
     let mut compact_stats = RoleResolveStats::default();
-    let compact = cache.compact(&machine, &candidate, &mut compact_stats);
+    let compact = cache.compact::<false>(&machine, &candidate, &mut compact_stats);
     assert!(role_candidate_has_definite_input_head_mismatch(
         &compact.inputs,
         &demand,
@@ -586,7 +586,7 @@ fn resolve_raw_candidate_for_test(
     );
     let mut cache = CompactRoleImplCandidateCache::default();
     let mut stats = RoleResolveStats::default();
-    let matched = resolve_role_candidate(
+    let matched = resolve_role_candidate::<false>(
         machine,
         &constraint,
         Some(demand),

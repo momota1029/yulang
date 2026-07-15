@@ -598,6 +598,7 @@ impl<'a> CompactCollector<'a> {
         if !self.row_tail_in_progress.insert(var) {
             return out;
         }
+        self.record_owner_constraint_read(var, DependencyKey::ConstraintBounds(var));
         let Some(bounds) = self.machine.bounds().of(var).cloned() else {
             self.row_tail_in_progress.remove(&var);
             return out;

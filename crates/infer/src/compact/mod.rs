@@ -63,10 +63,13 @@ pub(crate) use surface::{
     apply_compact_merge_constraints, apply_compact_subtype_constraints,
     compact_negative_type_var_for_scheme, compact_pos_surface,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
-    compact_role_constraint, compact_role_constraint_recording_merge_constraints, compact_type_var,
+    compact_role_constraint, compact_role_constraint_recording_merge_constraints,
+    compact_role_constraint_recording_owner_dependencies,
+    compact_role_constraint_with_owner_dependencies, compact_type_var,
     compact_type_var_boundary_bounds_recording_merge_constraints, compact_type_var_for_scheme,
     compact_type_var_recording_merge_constraints,
     compact_type_var_recording_merge_constraints_for_scheme,
+    compact_type_var_recording_owner_dependencies,
 };
 #[cfg(test)]
 pub(crate) use surface::{

@@ -17,8 +17,9 @@ use crate::compact::{
     CompactPolyVariant, CompactRecord, CompactRecordSpread, CompactRoleArg,
     CompactRoleAssociatedType, CompactRoleConstraint, CompactRoot, CompactRow, CompactRowItemMap,
     CompactTuple, CompactType, compact_con_entries, compact_role_constraint,
-    compact_row_item_entries, merge_compact_bounds_recording_merge_constraints,
-    merge_compact_types, merge_cons, simplify_compact_root_with_roles_and_non_generic,
+    compact_role_constraint_with_owner_dependencies, compact_row_item_entries,
+    merge_compact_bounds_recording_merge_constraints, merge_compact_types, merge_cons,
+    simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintMachine, TypeLevel};
 use crate::roles::{RoleConstraint, RoleImplCandidate, RoleImplTable};
@@ -148,7 +149,7 @@ pub(crate) fn resolve_role_constraints_with_stats(
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
 ) -> RoleResolveOutput {
-    resolve_role_constraints_with_method_taint_stats_inner::<false>(
+    resolve_role_constraints_with_method_taint_stats_inner::<false, false>(
         machine,
         main,
         constraints,
@@ -166,7 +167,7 @@ pub(crate) fn resolve_role_constraints_with_stats_and_dispositions(
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
 ) -> RoleResolveDispositionOutput {
-    resolve_role_constraints_with_method_taint_stats_inner::<true>(
+    resolve_role_constraints_with_method_taint_stats_inner::<true, false>(
         machine,
         main,
         constraints,
@@ -184,7 +185,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
     applied: &FxHashSet<RoleResolutionKey>,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> RoleResolveOutput {
-    resolve_role_constraints_with_method_taint_stats_inner::<false>(
+    resolve_role_constraints_with_method_taint_stats_inner::<false, false>(
         machine,
         main,
         constraints,
@@ -195,7 +196,29 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
     .output
 }
 
-fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITIONS: bool>(
+pub(crate) fn resolve_role_constraints_with_method_taint_stats_recording_owner_dependencies(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> RoleResolveOutput {
+    resolve_role_constraints_with_method_taint_stats_inner::<false, true>(
+        machine,
+        main,
+        constraints,
+        impls,
+        applied,
+        method_taint,
+    )
+    .output
+}
+
+fn resolve_role_constraints_with_method_taint_stats_inner<
+    const RECORD_DISPOSITIONS: bool,
+    const RECORD_OWNER_DEPENDENCIES: bool,
+>(
     machine: &ConstraintMachine,
     main: &CompactRoot,
     constraints: &[CompactRoleConstraint],
@@ -214,14 +237,19 @@ fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITI
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
         stats.demands += 1;
-        #[cfg(test)]
-        crate::analysis::record_shadow_candidate_bucket_read(&constraint.role);
+        if RECORD_OWNER_DEPENDENCIES {
+            crate::analysis::record_owner_candidate_bucket_read(&constraint.role);
+        }
         let impl_candidates = impls.candidates(&constraint.role);
         stats.candidate_scans += impl_candidates.len();
-        let concrete_inputs = role_concrete_input_bounds(constraint, &main_polarity, method_taint);
+        let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
+            constraint,
+            &main_polarity,
+            method_taint,
+        );
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
-            if let Some(candidate) = resolve_role_candidate(
+            if let Some(candidate) = resolve_role_candidate::<RECORD_OWNER_DEPENDENCIES>(
                 machine,
                 constraint,
                 concrete_inputs.as_deref(),
@@ -253,8 +281,9 @@ fn resolve_role_constraints_with_method_taint_stats_inner<const RECORD_DISPOSITI
             demand: constraint.clone(),
             candidate: resolved.candidate.clone(),
         };
-        #[cfg(test)]
-        crate::analysis::record_shadow_applied_resolution_read(&key, applied.contains(&key));
+        if RECORD_OWNER_DEPENDENCIES {
+            crate::analysis::record_owner_applied_resolution_read(&key, applied.contains(&key));
+        }
         if applied.contains(&key) {
             stats.already_applied += 1;
             if RECORD_DISPOSITIONS {
@@ -340,7 +369,7 @@ struct ResolvedPrerequisites {
     residuals: Vec<CompactRoleConstraint>,
 }
 
-fn resolve_role_candidate(
+fn resolve_role_candidate<const RECORD_OWNER_DEPENDENCIES: bool>(
     machine: &ConstraintMachine,
     constraint: &CompactRoleConstraint,
     concrete_inputs: Option<&[CompactBounds]>,
@@ -364,7 +393,8 @@ fn resolve_role_candidate(
     ) {
         return None;
     }
-    let candidate = candidate_cache.compact(machine, raw_candidate, stats);
+    let candidate =
+        candidate_cache.compact::<RECORD_OWNER_DEPENDENCIES>(machine, raw_candidate, stats);
     let mut subst = TypeSubst::default();
     if !match_role_candidate_inputs(&candidate.inputs, concrete_inputs, &mut subst) {
         return None;
@@ -378,7 +408,7 @@ fn resolve_role_candidate(
     if !stack.insert(key.clone()) {
         return None;
     }
-    let prerequisites = resolve_candidate_prerequisites(
+    let prerequisites = resolve_candidate_prerequisites::<RECORD_OWNER_DEPENDENCIES>(
         machine,
         &raw_candidate.prerequisites,
         &subst,
@@ -404,7 +434,7 @@ struct CompactRoleImplCandidateCache {
 }
 
 impl CompactRoleImplCandidateCache {
-    fn compact(
+    fn compact<const RECORD_OWNER_DEPENDENCIES: bool>(
         &mut self,
         machine: &ConstraintMachine,
         candidate: &RoleImplCandidate,
@@ -419,7 +449,11 @@ impl CompactRoleImplCandidateCache {
         }
         stats.candidate_cache_misses += 1;
         let mut root = CompactRoot::default();
-        let mut roles = vec![compact_role_constraint(machine, &candidate.as_constraint())];
+        let mut roles = vec![if RECORD_OWNER_DEPENDENCIES {
+            compact_role_constraint_with_owner_dependencies(machine, &candidate.as_constraint())
+        } else {
+            compact_role_constraint(machine, &candidate.as_constraint())
+        }];
         simplify_compact_root_with_roles_and_non_generic(
             machine,
             TypeLevel::root(),
@@ -433,7 +467,7 @@ impl CompactRoleImplCandidateCache {
     }
 }
 
-fn resolve_candidate_prerequisites(
+fn resolve_candidate_prerequisites<const RECORD_OWNER_DEPENDENCIES: bool>(
     machine: &ConstraintMachine,
     prerequisites: &[RoleConstraint],
     subst: &TypeSubst,
@@ -448,17 +482,27 @@ fn resolve_candidate_prerequisites(
     let mut residual_prerequisites = Vec::new();
     for prerequisite in prerequisites {
         stats.prerequisite_demands += 1;
-        let prerequisite =
-            rewrite_role_constraint(&compact_role_constraint(machine, prerequisite), subst);
-        #[cfg(test)]
-        crate::analysis::record_shadow_candidate_bucket_read(&prerequisite.role);
+        let prerequisite = rewrite_role_constraint(
+            &if RECORD_OWNER_DEPENDENCIES {
+                compact_role_constraint_with_owner_dependencies(machine, prerequisite)
+            } else {
+                compact_role_constraint(machine, prerequisite)
+            },
+            subst,
+        );
+        if RECORD_OWNER_DEPENDENCIES {
+            crate::analysis::record_owner_candidate_bucket_read(&prerequisite.role);
+        }
         let impl_candidates = impls.candidates(&prerequisite.role);
         stats.prerequisite_candidate_scans += impl_candidates.len();
-        let concrete_inputs =
-            role_concrete_input_bounds(&prerequisite, main_polarity, method_taint);
+        let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
+            &prerequisite,
+            main_polarity,
+            method_taint,
+        );
         let mut candidates = Vec::new();
         for candidate in impl_candidates {
-            if let Some(candidate) = resolve_role_candidate(
+            if let Some(candidate) = resolve_role_candidate::<RECORD_OWNER_DEPENDENCIES>(
                 machine,
                 &prerequisite,
                 concrete_inputs.as_deref(),
@@ -564,7 +608,7 @@ fn merge_role_arg(
     CompactRoleArg::invariant(bounds).with_polarity(polarity)
 }
 
-fn role_arg_concrete_type(
+fn role_arg_concrete_type<const RECORD_OWNER_DEPENDENCIES: bool>(
     arg: &CompactRoleArg,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
@@ -573,7 +617,7 @@ fn role_arg_concrete_type(
     let lower = lower_boundary.as_ref().and_then(single_concrete_type);
     if let Some(lower_ty) = &lower
         && role_arg_lower_allowed(arg, lower_ty, main_polarity)
-        && !role_arg_boundary_has_method_taint(arg, true, method_taint)
+        && !role_arg_boundary_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(arg, true, method_taint)
     {
         return lower;
     }
@@ -581,14 +625,18 @@ fn role_arg_concrete_type(
     let upper = upper_boundary.as_ref().and_then(single_concrete_type);
     if upper.is_some()
         && role_arg_allowed_by_main_polarity(arg, false, main_polarity)
-        && !role_arg_boundary_has_method_taint(arg, false, method_taint)
+        && !role_arg_boundary_has_method_taint::<RECORD_OWNER_DEPENDENCIES>(
+            arg,
+            false,
+            method_taint,
+        )
     {
         return upper;
     }
     None
 }
 
-fn role_concrete_input_bounds(
+fn role_concrete_input_bounds<const RECORD_OWNER_DEPENDENCIES: bool>(
     constraint: &CompactRoleConstraint,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
@@ -597,7 +645,11 @@ fn role_concrete_input_bounds(
         .inputs
         .iter()
         .map(|input| {
-            let input = role_arg_concrete_type(input, main_polarity, method_taint)?;
+            let input = role_arg_concrete_type::<RECORD_OWNER_DEPENDENCIES>(
+                input,
+                main_polarity,
+                method_taint,
+            )?;
             compact_bounds_from_type(&input)
         })
         .collect()

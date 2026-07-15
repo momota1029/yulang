@@ -8,7 +8,6 @@ mod early_fallback_classifier;
 mod generalize;
 mod instantiate;
 mod lifecycle;
-#[cfg(test)]
 mod owner_dirty_scheduler;
 mod selection;
 #[cfg(test)]
@@ -28,22 +27,26 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
 };
-#[cfg(test)]
 pub(super) use owner_dirty_scheduler::OwnerScheduleDecision;
-#[cfg(test)]
+pub use owner_dirty_scheduler::with_owner_dirty_scheduler_benchmark_for_new_sessions;
 pub(crate) use owner_dirty_scheduler::{
-    MethodRoleOwnerDirtyScheduler, OwnerPredictionReason,
-    with_owner_dirty_scheduler_for_new_sessions, with_owner_dirty_scheduler_skips_for_new_sessions,
+    MethodRoleOwnerDirtyScheduler, OwnerSolveOutcome, begin_owner_dependency_reads,
+    record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
+    record_owner_dependency_read, record_owner_method_taint_read,
 };
 #[cfg(test)]
-pub(super) use shadow_dirty_oracle::OwnerSolveOutcome;
+pub(crate) use owner_dirty_scheduler::{
+    OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
+    with_owner_dirty_scheduler_skips_for_new_sessions,
+};
+#[cfg(test)]
+pub(crate) use owner_dirty_scheduler::{
+    record_owner_birth_level_read, record_owner_bound_read, record_owner_level_read,
+    record_owner_neighbor_read, record_owner_pre_pop_read, record_owner_subtract_read,
+};
 #[cfg(test)]
 pub(crate) use shadow_dirty_oracle::{
-    ShadowDirtyOracle, begin_shadow_owner_reads, record_shadow_applied_resolution_read,
-    record_shadow_birth_level_read, record_shadow_bound_read, record_shadow_candidate_bucket_read,
-    record_shadow_level_read, record_shadow_method_taint_read, record_shadow_neighbor_read,
-    record_shadow_pre_pop_read, record_shadow_subtract_read,
-    with_shadow_dirty_oracle_for_new_sessions,
+    ShadowDirtyOracle, with_shadow_dirty_oracle_for_new_sessions,
 };
 #[cfg(test)]
 pub(crate) use stage0_support::{Stage0PendingWorkInventory, Stage0QuantifyEvent};

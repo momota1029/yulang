@@ -6,15 +6,17 @@
 
 use super::*;
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 
 use crate::constraints::{ConstraintEffectFamily, SubtractFact};
 
 use super::dirty_scheduling_contract::{DependencyKey, DependencyKeyKind};
+use super::owner_dirty_scheduler::{
+    ExactOwnerPrediction, OwnerReadFrontier, OwnerSolveOutcome, begin_owner_dependency_reads,
+};
 
 thread_local! {
     static ENABLE_NEW_ORACLES: Cell<bool> = const { Cell::new(false) };
-    static ACTIVE_OWNER_READS: RefCell<Option<OwnerReadFrontier>> = const { RefCell::new(None) };
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -442,35 +444,6 @@ pub(super) struct OwnerPrediction {
     pub(super) cached_outcome: Option<OwnerSolveOutcome>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OwnerSolveOutcome {
-    RootUnavailable,
-    NoProgress,
-    Progress,
-}
-
-impl OwnerSolveOutcome {
-    pub(super) fn from_solve(root: Option<TypeVar>, progressed: bool) -> Self {
-        match (root, progressed) {
-            (None, _) => Self::RootUnavailable,
-            (Some(_), false) => Self::NoProgress,
-            (Some(_), true) => Self::Progress,
-        }
-    }
-
-    pub(super) fn cacheable(self) -> bool {
-        self != Self::Progress
-    }
-
-    pub(super) fn as_str(self) -> &'static str {
-        match self {
-            Self::RootUnavailable => "root-unavailable",
-            Self::NoProgress => "no-progress",
-            Self::Progress => "progress",
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 struct OwnerMetrics {
     owner_checks: usize,
@@ -698,7 +671,7 @@ impl crate::constraints::ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> [bool; 6] {
-        let guard = begin_shadow_owner_reads();
+        let guard = begin_owner_dependency_reads();
         let _ = self.bounds().of(var);
         let _ = self.var_neighbors(var).count();
         let _ = self.subtracts().facts(var);
@@ -721,14 +694,16 @@ impl crate::constraints::ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> Vec<DependencyKey> {
-        let guard = begin_shadow_owner_reads();
+        let guard = begin_owner_dependency_reads();
         let _ = self.bounds().of(var);
         let _ = self.var_neighbors(var).count();
         let _ = self.subtracts().facts(var);
         let _ = self.level_of(var);
         let _ = self.birth_level_of(var);
         let _ = self.pre_pop_effect_families(var);
-        guard.finish().constraint_dependency_keys()
+        let mut keys = guard.finish().constraint_dependency_keys();
+        keys.sort_by_key(|key| key.kind().index());
+        keys
     }
 
     /// Runs a focused mutation against the same bounds fingerprint used by the owner oracle.
@@ -747,129 +722,6 @@ impl crate::constraints::ConstraintMachine {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct OwnerReadFrontier {
-    bound_vars: FxHashSet<TypeVar>,
-    neighbor_vars: FxHashSet<TypeVar>,
-    subtract_vars: FxHashSet<TypeVar>,
-    level_vars: FxHashSet<TypeVar>,
-    birth_level_vars: FxHashSet<TypeVar>,
-    pre_pop_vars: FxHashSet<TypeVar>,
-    candidate_buckets: FxHashSet<Vec<String>>,
-    taint_vars: FxHashSet<TypeVar>,
-    applied_resolution_reads: FxHashMap<RoleResolutionKey, bool>,
-    solve_duration: Duration,
-}
-
-impl OwnerReadFrontier {
-    fn constraint_dependency_keys(&self) -> Vec<DependencyKey> {
-        let mut keys = Vec::new();
-        keys.extend(
-            self.bound_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintBounds),
-        );
-        keys.extend(
-            self.neighbor_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintNeighbors),
-        );
-        keys.extend(
-            self.subtract_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintSubtractFacts),
-        );
-        keys.extend(
-            self.level_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintLevel),
-        );
-        keys.extend(
-            self.birth_level_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintBirthLevel),
-        );
-        keys.extend(
-            self.pre_pop_vars
-                .iter()
-                .copied()
-                .map(DependencyKey::ConstraintPrePopFamilies),
-        );
-        keys.sort_by_key(|key| key.kind().index());
-        keys
-    }
-
-    pub(super) fn owner_dependency_keys(
-        &self,
-        owner: DefId,
-        method_taint: &MethodTaintIndex,
-    ) -> Vec<DependencyKey> {
-        let mut keys = vec![
-            DependencyKey::SccRoot(owner),
-            DependencyKey::OwnerRawRoles(owner),
-            DependencyKey::OwnerSelections(owner),
-        ];
-        keys.extend(self.constraint_dependency_keys());
-        keys.extend(
-            self.candidate_buckets
-                .iter()
-                .cloned()
-                .map(DependencyKey::CandidateBucket),
-        );
-        for var in &self.taint_vars {
-            keys.push(DependencyKey::MethodTaint(*var));
-            if let Some(selects) = method_taint.get(var) {
-                keys.extend(selects.iter().copied().map(DependencyKey::Selection));
-            }
-        }
-        keys.extend(
-            self.applied_resolution_reads
-                .keys()
-                .cloned()
-                .map(DependencyKey::AppliedResolution),
-        );
-        keys
-    }
-
-    pub(super) fn solve_duration(&self) -> Duration {
-        self.solve_duration
-    }
-}
-
-pub(crate) struct ShadowOwnerReadGuard {
-    active: bool,
-    started_at: Instant,
-}
-
-impl ShadowOwnerReadGuard {
-    pub(crate) fn finish(mut self) -> OwnerReadFrontier {
-        let mut reads = ACTIVE_OWNER_READS.with(|active| {
-            active
-                .borrow_mut()
-                .take()
-                .expect("active shadow owner observation")
-        });
-        reads.solve_duration = self.started_at.elapsed();
-        self.active = false;
-        reads
-    }
-}
-
-impl Drop for ShadowOwnerReadGuard {
-    fn drop(&mut self) {
-        if self.active {
-            ACTIVE_OWNER_READS.with(|active| {
-                active.borrow_mut().take();
-            });
-        }
-    }
-}
-
 pub(crate) fn with_shadow_dirty_oracle_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
     struct EnableGuard(bool);
     impl Drop for EnableGuard {
@@ -881,86 +733,6 @@ pub(crate) fn with_shadow_dirty_oracle_for_new_sessions<T>(f: impl FnOnce() -> T
     let previous = ENABLE_NEW_ORACLES.with(|enabled| enabled.replace(true));
     let _guard = EnableGuard(previous);
     f()
-}
-
-pub(crate) fn begin_shadow_owner_reads() -> ShadowOwnerReadGuard {
-    ACTIVE_OWNER_READS.with(|active| {
-        assert!(
-            active
-                .borrow_mut()
-                .replace(OwnerReadFrontier::default())
-                .is_none(),
-            "shadow owner read observation must not nest"
-        );
-    });
-    ShadowOwnerReadGuard {
-        active: true,
-        started_at: Instant::now(),
-    }
-}
-
-pub(crate) fn record_shadow_bound_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.bound_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_neighbor_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.neighbor_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_subtract_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.subtract_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_level_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.level_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_birth_level_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.birth_level_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_pre_pop_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.pre_pop_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_candidate_bucket_read(role: &[String]) {
-    with_active_owner_reads(|reads| {
-        reads.candidate_buckets.insert(role.to_vec());
-    });
-}
-
-pub(crate) fn record_shadow_method_taint_read(var: TypeVar) {
-    with_active_owner_reads(|reads| {
-        reads.taint_vars.insert(var);
-    });
-}
-
-pub(crate) fn record_shadow_applied_resolution_read(key: &RoleResolutionKey, was_applied: bool) {
-    with_active_owner_reads(|reads| {
-        reads
-            .applied_resolution_reads
-            .insert(key.clone(), was_applied);
-    });
-}
-
-fn with_active_owner_reads(f: impl FnOnce(&mut OwnerReadFrontier)) {
-    ACTIVE_OWNER_READS.with(|active| {
-        if let Some(reads) = active.borrow_mut().as_mut() {
-            f(reads);
-        }
-    });
 }
 
 fn owner_selection_snapshot(
@@ -1038,10 +810,16 @@ fn projection_selection_snapshot(
 }
 
 impl AnalysisSession {
-    pub(super) fn shadow_dirty_oracle_prediction(&self, owner: DefId) -> Option<OwnerPrediction> {
+    pub(super) fn shadow_dirty_oracle_prediction(
+        &self,
+        owner: DefId,
+    ) -> Option<ExactOwnerPrediction> {
         self.shadow_dirty_oracle
             .as_ref()
             .and_then(|oracle| oracle.current_predictions.get(&owner).copied())
+            .map(|prediction| ExactOwnerPrediction {
+                clean: prediction.clean,
+            })
     }
 
     pub(super) fn shadow_dirty_oracle_begin_pass(

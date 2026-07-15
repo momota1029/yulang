@@ -1,30 +1,349 @@
-//! Journal-backed owner scheduler with an explicitly test-only Stage 4 skip mode.
+//! Journal-backed owner scheduler for the opt-in Stage 5 benchmark route.
 //!
-//! The ordinary test mode retains Stage 3 behavior: every owner runs and its terminal outcome is
-//! compared with the independent exact-snapshot oracle. A second, explicit test-only mode permits
-//! Stage 4 to reuse a clean `RootUnavailable`/`NoProgress` record. No release build contains this
-//! module or the permission flag.
+//! Release builds contain this module, but new sessions are unconditionally disabled unless a
+//! caller enters [`with_owner_dirty_scheduler_benchmark_for_new_sessions`]. The default route
+//! therefore retains the Stage 4 always-solve loop. Tests additionally keep the Stage 3 shadow
+//! mode, where every owner runs and the independent exact-snapshot oracle checks predictions.
 
 use super::*;
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
+use std::mem::size_of;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use crate::constraints::mutation::{InvalidateAllReason, MutationGeneration, MutationSerial};
 
-use super::shadow_dirty_oracle::{
-    OwnerPrediction as ExactOwnerPrediction, OwnerReadFrontier, OwnerSolveOutcome,
-};
-
 thread_local! {
-    static ENABLE_NEW_SCHEDULERS: Cell<bool> = const { Cell::new(false) };
-    static PERMIT_OWNER_SKIPS: Cell<bool> = const { Cell::new(false) };
+    static NEW_SESSION_MODE: Cell<OwnerDirtySchedulingMode> = const {
+        Cell::new(OwnerDirtySchedulingMode::Disabled)
+    };
+    static ACTIVE_OWNER_READS: RefCell<Option<OwnerReadFrontier>> = const {
+        RefCell::new(None)
+    };
+}
+
+/// Avoid touching TLS/`RefCell` on the default and non-owner hot paths.
+///
+/// A count rather than a boolean keeps concurrent scoped compilations correct: an unrelated
+/// thread may see a non-zero count, but its own TLS slot remains empty and records nothing.
+static ACTIVE_OWNER_READ_CAPTURE_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+/// Scheduling route inherited by sessions created inside one explicit scoped call.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum OwnerDirtySchedulingMode {
+    #[default]
+    Disabled,
+    #[cfg(test)]
+    ShadowAlwaysSolve,
+    BenchmarkSkips,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct ExactOwnerPrediction {
+    pub(super) clean: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OwnerSolveOutcome {
+    RootUnavailable,
+    NoProgress,
+    Progress,
+}
+
+impl OwnerSolveOutcome {
+    pub(super) fn from_solve(root: Option<TypeVar>, progressed: bool) -> Self {
+        match (root, progressed) {
+            (None, _) => Self::RootUnavailable,
+            (Some(_), false) => Self::NoProgress,
+            (Some(_), true) => Self::Progress,
+        }
+    }
+
+    pub(super) fn cacheable(self) -> bool {
+        self != Self::Progress
+    }
+
+    pub(super) fn as_str(self) -> &'static str {
+        match self {
+            Self::RootUnavailable => "root-unavailable",
+            Self::NoProgress => "no-progress",
+            Self::Progress => "progress",
+        }
+    }
+}
+
+/// Dependencies observed while the unchanged owner solver runs.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct OwnerReadFrontier {
+    /// Constraint dependencies collected by the release benchmark route's explicit compact walk.
+    ///
+    /// Test builds separately populate test-only typed fields through the Stage 3 exact read
+    /// hooks. Keeping the two sources disjoint preserves the shadow oracle's independence from
+    /// the production-shaped conservative collector.
+    pub(super) production_constraint_dependencies: FxHashSet<DependencyKey>,
+    #[cfg(test)]
+    pub(super) bound_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) neighbor_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) subtract_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) level_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) birth_level_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) pre_pop_vars: FxHashSet<TypeVar>,
+    pub(super) candidate_buckets: FxHashSet<Vec<String>>,
+    pub(super) taint_vars: FxHashSet<TypeVar>,
+    pub(super) applied_resolution_reads: FxHashMap<RoleResolutionKey, bool>,
+    pub(super) solve_duration: Duration,
+}
+
+impl OwnerReadFrontier {
+    #[cfg(test)]
+    pub(super) fn constraint_dependency_keys(&self) -> Vec<DependencyKey> {
+        let mut keys = Vec::new();
+        keys.extend(
+            self.bound_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintBounds),
+        );
+        keys.extend(
+            self.neighbor_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintNeighbors),
+        );
+        keys.extend(
+            self.subtract_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintSubtractFacts),
+        );
+        keys.extend(
+            self.level_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintLevel),
+        );
+        keys.extend(
+            self.birth_level_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintBirthLevel),
+        );
+        keys.extend(
+            self.pre_pop_vars
+                .iter()
+                .copied()
+                .map(DependencyKey::ConstraintPrePopFamilies),
+        );
+        keys
+    }
+
+    fn scheduler_owner_dependency_keys(
+        &self,
+        owner: DefId,
+        method_taint: &MethodTaintIndex,
+    ) -> Vec<DependencyKey> {
+        self.owner_dependency_keys_with_constraints(
+            owner,
+            method_taint,
+            self.production_constraint_dependencies.iter().cloned(),
+        )
+    }
+
+    fn owner_dependency_keys_with_constraints(
+        &self,
+        owner: DefId,
+        method_taint: &MethodTaintIndex,
+        constraint_dependencies: impl IntoIterator<Item = DependencyKey>,
+    ) -> Vec<DependencyKey> {
+        let mut keys = vec![
+            DependencyKey::SccRoot(owner),
+            DependencyKey::OwnerRawRoles(owner),
+            DependencyKey::OwnerSelections(owner),
+        ];
+        keys.extend(constraint_dependencies);
+        keys.extend(
+            self.candidate_buckets
+                .iter()
+                .cloned()
+                .map(DependencyKey::CandidateBucket),
+        );
+        for var in &self.taint_vars {
+            keys.push(DependencyKey::MethodTaint(*var));
+            if let Some(selects) = method_taint.get(var) {
+                keys.extend(selects.iter().copied().map(DependencyKey::Selection));
+            }
+        }
+        keys.extend(
+            self.applied_resolution_reads
+                .keys()
+                .cloned()
+                .map(DependencyKey::AppliedResolution),
+        );
+        keys
+    }
+
+    pub(super) fn solve_duration(&self) -> Duration {
+        self.solve_duration
+    }
+}
+
+pub(crate) struct OwnerReadGuard {
+    active: bool,
+    started_at: Instant,
+}
+
+impl OwnerReadGuard {
+    pub(crate) fn finish(mut self) -> OwnerReadFrontier {
+        let mut reads = ACTIVE_OWNER_READS.with(|active| {
+            active
+                .borrow_mut()
+                .take()
+                .expect("active owner dependency capture")
+        });
+        reads.solve_duration = self.started_at.elapsed();
+        ACTIVE_OWNER_READ_CAPTURE_COUNT.fetch_sub(1, AtomicOrdering::Relaxed);
+        self.active = false;
+        reads
+    }
+}
+
+impl Drop for OwnerReadGuard {
+    fn drop(&mut self) {
+        if self.active {
+            ACTIVE_OWNER_READS.with(|active| {
+                active.borrow_mut().take();
+            });
+            ACTIVE_OWNER_READ_CAPTURE_COUNT.fetch_sub(1, AtomicOrdering::Relaxed);
+        }
+    }
+}
+
+pub(crate) fn begin_owner_dependency_reads() -> OwnerReadGuard {
+    ACTIVE_OWNER_READS.with(|active| {
+        assert!(
+            active
+                .borrow_mut()
+                .replace(OwnerReadFrontier::default())
+                .is_none(),
+            "owner dependency capture must not nest"
+        );
+    });
+    ACTIVE_OWNER_READ_CAPTURE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
+    OwnerReadGuard {
+        active: true,
+        started_at: Instant::now(),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_bound_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.bound_vars.insert(var);
+    });
+}
+
+pub(crate) fn record_owner_dependency_read(key: DependencyKey) {
+    match key {
+        key @ (DependencyKey::ConstraintBounds(_)
+        | DependencyKey::ConstraintNeighbors(_)
+        | DependencyKey::ConstraintSubtractFacts(_)
+        | DependencyKey::ConstraintLevel(_)
+        | DependencyKey::ConstraintBirthLevel(_)
+        | DependencyKey::ConstraintPrePopFamilies(_)) => {
+            with_active_owner_reads(|reads| {
+                reads.production_constraint_dependencies.insert(key);
+            });
+        }
+        DependencyKey::SccRoot(_)
+        | DependencyKey::OwnerRawRoles(_)
+        | DependencyKey::OwnerSelections(_)
+        | DependencyKey::Selection(_)
+        | DependencyKey::MethodTaint(_)
+        | DependencyKey::CandidateBucket(_)
+        | DependencyKey::AppliedResolution(_) => {
+            panic!("explicit owner constraint capture received a non-constraint dependency")
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_neighbor_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.neighbor_vars.insert(var);
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_subtract_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.subtract_vars.insert(var);
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_level_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.level_vars.insert(var);
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_birth_level_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.birth_level_vars.insert(var);
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn record_owner_pre_pop_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.pre_pop_vars.insert(var);
+    });
+}
+
+pub(crate) fn record_owner_candidate_bucket_read(role: &[String]) {
+    with_active_owner_reads(|reads| {
+        reads.candidate_buckets.insert(role.to_vec());
+    });
+}
+
+pub(crate) fn record_owner_method_taint_read(var: TypeVar) {
+    with_active_owner_reads(|reads| {
+        reads.taint_vars.insert(var);
+    });
+}
+
+pub(crate) fn record_owner_applied_resolution_read(key: &RoleResolutionKey, was_applied: bool) {
+    with_active_owner_reads(|reads| {
+        reads
+            .applied_resolution_reads
+            .insert(key.clone(), was_applied);
+    });
+}
+
+#[inline]
+fn with_active_owner_reads(f: impl FnOnce(&mut OwnerReadFrontier)) {
+    if ACTIVE_OWNER_READ_CAPTURE_COUNT.load(AtomicOrdering::Relaxed) == 0 {
+        return;
+    }
+    ACTIVE_OWNER_READS.with(|active| {
+        if let Some(reads) = active.borrow_mut().as_mut() {
+            f(reads);
+        }
+    });
 }
 
 /// Session-owned record, reverse-subscription, and dirty state for method-role owners.
 #[derive(Debug, Default)]
 pub(crate) struct MethodRoleOwnerDirtyScheduler {
     permit_owner_skips: bool,
+    budget: OwnerDirtySchedulerBudget,
     records: FxHashMap<DefId, CachedOwnerTerminal>,
     reverse_subscriptions: FxHashMap<DependencyKey, FxHashSet<DefId>>,
     dirty: FxHashSet<DefId>,
@@ -39,12 +358,29 @@ pub(crate) struct MethodRoleOwnerDirtyScheduler {
     metrics: OwnerDirtySchedulerMetrics,
 }
 
+/// Optional hard limits. Stage 5 intentionally leaves every value unset until measurements are
+/// reviewed; tests can install limits to prove the fail-closed route.
+#[derive(Debug, Clone, Copy, Default)]
+struct OwnerDirtySchedulerBudget {
+    max_owners: Option<usize>,
+    max_dependencies_per_owner: Option<usize>,
+    max_dependency_keys: Option<usize>,
+    max_reverse_edges: Option<usize>,
+    max_journal_burst: Option<usize>,
+    max_retained_bytes: Option<usize>,
+}
+
 impl MethodRoleOwnerDirtyScheduler {
     pub(super) fn for_new_session() -> Option<Self> {
-        ENABLE_NEW_SCHEDULERS.with(Cell::get).then(|| Self {
-            permit_owner_skips: PERMIT_OWNER_SKIPS.with(Cell::get),
-            ..Self::default()
-        })
+        match NEW_SESSION_MODE.with(Cell::get) {
+            OwnerDirtySchedulingMode::Disabled => None,
+            #[cfg(test)]
+            OwnerDirtySchedulingMode::ShadowAlwaysSolve => Some(Self::default()),
+            OwnerDirtySchedulingMode::BenchmarkSkips => Some(Self {
+                permit_owner_skips: true,
+                ..Self::default()
+            }),
+        }
     }
 
     fn begin_journal_window(&mut self, current: MethodRolePassInputSnapshot) {
@@ -74,6 +410,7 @@ impl MethodRoleOwnerDirtyScheduler {
         owners: &[DefId],
         method_taint: &MethodTaintIndex,
     ) -> Vec<DependencyKey> {
+        let taint_diff_start = Instant::now();
         debug_assert!(self.current_predictions.is_empty());
         self.prepared_this_pass.clear();
         self.metrics.forced_passes += 1;
@@ -99,13 +436,27 @@ impl MethodRoleOwnerDirtyScheduler {
 
         let changed = diff_method_taint(&self.method_taint_snapshot, method_taint);
         self.method_taint_snapshot = normalized_method_taint(method_taint);
-        changed
+        let mutations = changed
             .into_iter()
             .map(DependencyKey::MethodTaint)
-            .collect()
+            .collect();
+        self.metrics.method_taint_diff_time += taint_diff_start.elapsed();
+        mutations
     }
 
     fn drain_mutations(&mut self, mutations: Vec<MethodRoleMutation>, owner_eligibility: bool) {
+        let drain_start = Instant::now();
+        let burst = mutations.len();
+        if burst > 0 {
+            self.metrics.journal_bursts += 1;
+            self.metrics.journal_mutations += burst;
+            self.metrics.peak_journal_burst = self.metrics.peak_journal_burst.max(burst);
+        }
+        if self.budget.max_journal_burst.is_some_and(|cap| burst > cap) {
+            self.fallback_for_global_cap();
+            self.metrics.journal_drain_time += drain_start.elapsed();
+            return;
+        }
         for mutation in mutations {
             match mutation {
                 MethodRoleMutation::Changed { serial, key } => {
@@ -139,6 +490,8 @@ impl MethodRoleOwnerDirtyScheduler {
                 site: "MethodRoleMutationOutbox::owner_eligibility",
             });
         }
+        self.metrics.journal_drain_time += drain_start.elapsed();
+        self.update_memory_peaks();
     }
 
     fn prepare_owner(
@@ -147,6 +500,7 @@ impl MethodRoleOwnerDirtyScheduler {
         root_available: bool,
         exact: Option<ExactOwnerPrediction>,
     ) -> OwnerScheduleDecision {
+        let skip_check_start = Instant::now();
         assert!(
             self.prepared_this_pass.insert(owner),
             "one owner must not be scheduled more than once in a forced method-role pass"
@@ -212,6 +566,7 @@ impl MethodRoleOwnerDirtyScheduler {
                 "only RootUnavailable/NoProgress terminal outcomes may be replayed"
             );
             self.metrics.clean_skips += 1;
+            self.metrics.clean_skip_time += skip_check_start.elapsed();
             owner_metrics.clean_skips += 1;
             owner_metrics.record_reused_outcome(outcome);
             return OwnerScheduleDecision::Reuse(outcome);
@@ -310,6 +665,18 @@ impl MethodRoleOwnerDirtyScheduler {
             "progressing owner outcomes must never enter the terminal cache"
         );
         let dependencies = normalize_dependencies(dependencies);
+        self.metrics.peak_dependencies_per_owner = self
+            .metrics
+            .peak_dependencies_per_owner
+            .max(dependencies.len());
+        if self
+            .budget
+            .max_dependencies_per_owner
+            .is_some_and(|cap| dependencies.len() > cap)
+        {
+            self.metrics.per_owner_cap_rejections += 1;
+            return;
+        }
         let stamps = dependencies
             .iter()
             .map(|key| DependencyStamp {
@@ -336,15 +703,10 @@ impl MethodRoleOwnerDirtyScheduler {
         }
         self.records.insert(owner, record);
         self.dirty.remove(&owner);
-        self.metrics.peak_records = self.metrics.peak_records.max(self.records.len());
-        self.metrics.peak_dependency_keys = self
-            .metrics
-            .peak_dependency_keys
-            .max(self.reverse_subscriptions.len());
-        self.metrics.peak_reverse_edges = self
-            .metrics
-            .peak_reverse_edges
-            .max(self.reverse_edge_count());
+        self.update_memory_peaks();
+        if self.global_budget_exceeded() {
+            self.fallback_for_global_cap();
+        }
     }
 
     fn remove_owner(&mut self, owner: DefId) {
@@ -372,6 +734,9 @@ impl MethodRoleOwnerDirtyScheduler {
     }
 
     fn invalidate_all_for_pass(&mut self, reason: InvalidateAllReason) {
+        if !self.force_all_dirty_this_pass {
+            self.metrics.full_fallbacks += 1;
+        }
         self.force_all_dirty_this_pass = true;
         self.dirty.extend(self.records.keys().copied());
         self.metrics.invalidate_all_reasons.push(reason);
@@ -395,6 +760,131 @@ impl MethodRoleOwnerDirtyScheduler {
             .sum()
     }
 
+    fn global_budget_exceeded(&self) -> bool {
+        self.budget
+            .max_owners
+            .is_some_and(|cap| self.records.len() > cap)
+            || self
+                .budget
+                .max_dependency_keys
+                .is_some_and(|cap| self.generations.len() > cap)
+            || self
+                .budget
+                .max_reverse_edges
+                .is_some_and(|cap| self.reverse_edge_count() > cap)
+            || self
+                .budget
+                .max_retained_bytes
+                .is_some_and(|cap| self.retained_bytes() > cap)
+    }
+
+    fn fallback_for_global_cap(&mut self) {
+        if !self.force_all_dirty_this_pass {
+            self.metrics.full_fallbacks += 1;
+        }
+        self.metrics.global_cap_fallbacks += 1;
+        self.force_all_dirty_this_pass = true;
+        self.records.clear();
+        self.reverse_subscriptions.clear();
+        self.dirty.clear();
+        self.update_memory_peaks();
+    }
+
+    fn update_memory_peaks(&mut self) {
+        self.metrics.peak_records = self.metrics.peak_records.max(self.records.len());
+        self.metrics.peak_dependency_keys = self
+            .metrics
+            .peak_dependency_keys
+            .max(self.reverse_subscriptions.len());
+        self.metrics.peak_generation_keys = self
+            .metrics
+            .peak_generation_keys
+            .max(self.generations.len());
+        self.metrics.peak_reverse_edges = self
+            .metrics
+            .peak_reverse_edges
+            .max(self.reverse_edge_count());
+        self.metrics.peak_retained_bytes =
+            self.metrics.peak_retained_bytes.max(self.retained_bytes());
+    }
+
+    /// Stable retained-byte estimate for scheduler tables and visible nested buffers.
+    ///
+    /// Allocator control bytes and heap buffers hidden inside compound key fields are unavailable
+    /// through stable APIs. The same explicit accounting is used for measurement and cap checks,
+    /// so the proposed byte cap is tied to this estimate rather than allocator RSS.
+    fn retained_bytes(&self) -> usize {
+        let mut bytes = size_of::<Self>();
+        bytes += map_capacity_bytes::<DefId, CachedOwnerTerminal>(self.records.capacity());
+        bytes += map_capacity_bytes::<DependencyKey, FxHashSet<DefId>>(
+            self.reverse_subscriptions.capacity(),
+        );
+        bytes += set_capacity_bytes::<DefId>(self.dirty.capacity());
+        bytes +=
+            map_capacity_bytes::<DependencyKey, MutationGeneration>(self.generations.capacity());
+        bytes +=
+            map_capacity_bytes::<TypeVar, Vec<SelectId>>(self.method_taint_snapshot.capacity());
+        bytes += map_capacity_bytes::<DefId, JournalOwnerPrediction>(
+            self.current_predictions.capacity(),
+        );
+        bytes += set_capacity_bytes::<DefId>(self.prepared_this_pass.capacity());
+        bytes += map_capacity_bytes::<DefId, OwnerDirtySchedulerOwnerMetrics>(
+            self.metrics.owners.capacity(),
+        );
+        bytes += self.metrics.conservative_divergences.capacity()
+            * size_of::<OwnerPredictionDivergence>();
+        bytes +=
+            self.metrics.permissive_divergences.capacity() * size_of::<OwnerPredictionDivergence>();
+        bytes += self.metrics.mismatches.capacity() * size_of::<OwnerDirtySchedulerMismatch>();
+        bytes += self.metrics.invalidate_all_reasons.capacity() * size_of::<InvalidateAllReason>();
+
+        for record in self.records.values() {
+            bytes += record.fingerprint.dependencies.capacity() * size_of::<DependencyStamp>();
+            bytes += record
+                .fingerprint
+                .dependencies
+                .iter()
+                .map(|stamp| dependency_key_heap_bytes(&stamp.key))
+                .sum::<usize>();
+        }
+        for (key, owners) in &self.reverse_subscriptions {
+            bytes += dependency_key_heap_bytes(key);
+            bytes += set_capacity_bytes::<DefId>(owners.capacity());
+        }
+        for key in self.generations.keys() {
+            bytes += dependency_key_heap_bytes(key);
+        }
+        for selects in self.method_taint_snapshot.values() {
+            bytes += selects.capacity() * size_of::<SelectId>();
+        }
+        bytes
+    }
+
+    pub(super) fn record_timing(&self, timing: &mut AnalysisTiming) {
+        timing.owner_dirty_skip = self.metrics.clean_skip_time;
+        timing.owner_dirty_owner_solve = self.metrics.owner_solve_time;
+        timing.owner_dirty_journal_drain = self.metrics.journal_drain_time;
+        timing.owner_dirty_method_taint_diff = self.metrics.method_taint_diff_time;
+        timing.owner_dirty_clean_owner_skips = self.metrics.clean_skips;
+        timing.owner_dirty_dirty_solves = self.metrics.real_solves;
+        timing.owner_dirty_full_fallbacks = self.metrics.full_fallbacks;
+        timing.owner_dirty_journal_bursts = self.metrics.journal_bursts;
+        timing.owner_dirty_journal_mutations = self.metrics.journal_mutations;
+        timing.owner_dirty_peak_journal_burst = self.metrics.peak_journal_burst;
+        timing.owner_dirty_peak_owners = self.metrics.peak_records;
+        timing.owner_dirty_peak_dependency_keys = self.metrics.peak_generation_keys;
+        timing.owner_dirty_peak_dependencies_per_owner = self.metrics.peak_dependencies_per_owner;
+        timing.owner_dirty_peak_reverse_edges = self.metrics.peak_reverse_edges;
+        timing.owner_dirty_peak_retained_bytes = self.metrics.peak_retained_bytes;
+        timing.owner_dirty_live_owners = self.records.len();
+        timing.owner_dirty_live_dependency_keys = self.generations.len();
+        timing.owner_dirty_live_reverse_edges = self.reverse_edge_count();
+        timing.owner_dirty_live_retained_bytes = self.retained_bytes();
+        timing.owner_dirty_per_owner_cap_rejections = self.metrics.per_owner_cap_rejections;
+        timing.owner_dirty_global_cap_fallbacks = self.metrics.global_cap_fallbacks;
+    }
+
+    #[cfg(test)]
     fn report(&self) -> OwnerDirtySchedulerReport {
         let mut owners = self
             .metrics
@@ -533,6 +1023,7 @@ pub(crate) struct OwnerPredictionDivergence {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct OwnerDirtySchedulerReport {
     pub(crate) forced_passes: usize,
     pub(crate) owner_checks: usize,
@@ -569,6 +1060,7 @@ pub(crate) struct OwnerDirtySchedulerReport {
     pub(crate) owners: Vec<OwnerDirtySchedulerOwnerReport>,
 }
 
+#[cfg(test)]
 impl OwnerDirtySchedulerReport {
     pub(crate) fn owner(&self, owner: DefId) -> Option<&OwnerDirtySchedulerOwnerReport> {
         self.owners.iter().find(|metrics| metrics.owner == owner)
@@ -576,6 +1068,7 @@ impl OwnerDirtySchedulerReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct OwnerDirtySchedulerOwnerReport {
     pub(crate) owner: DefId,
     pub(crate) owner_checks: usize,
@@ -614,6 +1107,13 @@ struct OwnerDirtySchedulerMetrics {
     would_have_been_clean_misses: usize,
     real_solves: usize,
     clean_skips: usize,
+    clean_skip_time: Duration,
+    method_taint_diff_time: Duration,
+    full_fallbacks: usize,
+    journal_drain_time: Duration,
+    journal_bursts: usize,
+    journal_mutations: usize,
+    peak_journal_burst: usize,
     changed_mutations: usize,
     oracle_agreements: usize,
     conservative_divergences: Vec<OwnerPredictionDivergence>,
@@ -624,7 +1124,12 @@ struct OwnerDirtySchedulerMetrics {
     record_replacements: usize,
     peak_records: usize,
     peak_dependency_keys: usize,
+    peak_generation_keys: usize,
+    peak_dependencies_per_owner: usize,
     peak_reverse_edges: usize,
+    peak_retained_bytes: usize,
+    per_owner_cap_rejections: usize,
+    global_cap_fallbacks: usize,
     inactive_constraint_epoch_changes: usize,
     inactive_role_epoch_changes: usize,
     inactive_input_generation_changes: usize,
@@ -716,7 +1221,10 @@ impl AnalysisSession {
             return OwnerScheduleDecision::Solve;
         }
         self.owner_dirty_scheduler_drain_journal();
+        #[cfg(test)]
         let exact = self.shadow_dirty_oracle_prediction(owner);
+        #[cfg(not(test))]
+        let exact = None;
         if let Some(scheduler) = &mut self.owner_dirty_scheduler {
             return scheduler.prepare_owner(owner, root_available, exact);
         }
@@ -733,7 +1241,7 @@ impl AnalysisSession {
         if self.owner_dirty_scheduler.is_none() {
             return;
         }
-        let dependencies = reads.owner_dependency_keys(owner, method_taint);
+        let dependencies = reads.scheduler_owner_dependency_keys(owner, method_taint);
         let solve_duration = reads.solve_duration();
         self.owner_dirty_scheduler_drain_journal();
         let still_unresolved = self
@@ -768,6 +1276,7 @@ impl AnalysisSession {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn owner_dirty_scheduler_report(&self) -> Option<OwnerDirtySchedulerReport> {
         self.owner_dirty_scheduler
             .as_ref()
@@ -775,30 +1284,35 @@ impl AnalysisSession {
     }
 }
 
-pub(crate) fn with_owner_dirty_scheduler_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
-    struct EnableGuard(bool);
-    impl Drop for EnableGuard {
+/// Enable real clean-owner skips only for sessions created during this call.
+///
+/// The mode is scoped and restores the previous value during ordinary return or unwinding. No
+/// environment variable or process default can enter this route.
+pub fn with_owner_dirty_scheduler_benchmark_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+    with_new_session_mode(OwnerDirtySchedulingMode::BenchmarkSkips, f)
+}
+
+fn with_new_session_mode<T>(mode: OwnerDirtySchedulingMode, f: impl FnOnce() -> T) -> T {
+    struct ModeGuard(OwnerDirtySchedulingMode);
+    impl Drop for ModeGuard {
         fn drop(&mut self) {
-            ENABLE_NEW_SCHEDULERS.with(|enabled| enabled.set(self.0));
+            NEW_SESSION_MODE.with(|current| current.set(self.0));
         }
     }
 
-    let previous = ENABLE_NEW_SCHEDULERS.with(|enabled| enabled.replace(true));
-    let _guard = EnableGuard(previous);
+    let previous = NEW_SESSION_MODE.with(|current| current.replace(mode));
+    let _guard = ModeGuard(previous);
     f()
 }
 
-pub(crate) fn with_owner_dirty_scheduler_skips_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
-    struct PermitGuard(bool);
-    impl Drop for PermitGuard {
-        fn drop(&mut self) {
-            PERMIT_OWNER_SKIPS.with(|permitted| permitted.set(self.0));
-        }
-    }
+#[cfg(test)]
+pub(crate) fn with_owner_dirty_scheduler_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+    with_new_session_mode(OwnerDirtySchedulingMode::ShadowAlwaysSolve, f)
+}
 
-    let previous = PERMIT_OWNER_SKIPS.with(|permitted| permitted.replace(true));
-    let _guard = PermitGuard(previous);
-    with_owner_dirty_scheduler_for_new_sessions(f)
+#[cfg(test)]
+pub(crate) fn with_owner_dirty_scheduler_skips_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+    with_owner_dirty_scheduler_benchmark_for_new_sessions(f)
 }
 
 fn normalized_method_taint(method_taint: &MethodTaintIndex) -> MethodTaintIndex {
@@ -841,6 +1355,35 @@ fn normalize_dependencies(dependencies: Vec<DependencyKey>) -> Vec<DependencyKey
         .collect::<Vec<_>>();
     dependencies.sort_by(dependency_key_cmp);
     dependencies
+}
+
+fn map_capacity_bytes<K, V>(capacity: usize) -> usize {
+    capacity.saturating_mul(size_of::<K>() + size_of::<V>() + 1)
+}
+
+fn set_capacity_bytes<T>(capacity: usize) -> usize {
+    capacity.saturating_mul(size_of::<T>() + 1)
+}
+
+fn dependency_key_heap_bytes(key: &DependencyKey) -> usize {
+    match key {
+        DependencyKey::CandidateBucket(path) => {
+            path.capacity() * size_of::<String>()
+                + path.iter().map(|segment| segment.capacity()).sum::<usize>()
+        }
+        DependencyKey::SccRoot(_)
+        | DependencyKey::OwnerRawRoles(_)
+        | DependencyKey::OwnerSelections(_)
+        | DependencyKey::Selection(_)
+        | DependencyKey::ConstraintBounds(_)
+        | DependencyKey::ConstraintNeighbors(_)
+        | DependencyKey::ConstraintSubtractFacts(_)
+        | DependencyKey::ConstraintLevel(_)
+        | DependencyKey::ConstraintBirthLevel(_)
+        | DependencyKey::ConstraintPrePopFamilies(_)
+        | DependencyKey::MethodTaint(_)
+        | DependencyKey::AppliedResolution(_) => 0,
+    }
 }
 
 fn dependency_key_cmp(left: &DependencyKey, right: &DependencyKey) -> Ordering {
