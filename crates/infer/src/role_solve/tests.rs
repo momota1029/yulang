@@ -2,7 +2,7 @@ use super::*;
 
 use crate::arena::Arena;
 use crate::roles::RoleConstraintArg;
-use poly::types::{Neg, NegId, Pos, PosId};
+use poly::types::{Neg, NegId, Neu, Pos, PosId};
 
 #[test]
 fn role_input_rejects_variable_only_aliases_and_top() {
@@ -199,6 +199,122 @@ fn candidate_precheck_preserves_positive_nominal_match() {
 }
 
 #[test]
+fn constructor_match_rejects_when_later_child_fails() {
+    let mut infer = Arena::new();
+    let head = infer.fresh_type_var();
+    let candidate = vec![nominal_role_arg(
+        "doc_leaf",
+        vec![
+            identity_bounds(head),
+            nominal_bounds("nil_cell", Vec::new()),
+        ],
+    )];
+    let demand = vec![nominal_bounds(
+        "doc_leaf",
+        vec![
+            nominal_bounds("text_leaf", Vec::new()),
+            nominal_bounds("cons_cell", Vec::new()),
+        ],
+    )];
+
+    assert!(!match_role_candidate_inputs(
+        &candidate,
+        &demand,
+        &mut TypeSubst::default(),
+    ));
+}
+
+#[test]
+fn failed_constructor_child_does_not_poison_next_structural_alternative() {
+    let mut infer = Arena::new();
+    let head = infer.fresh_type_var();
+    let pattern = CompactTuple {
+        items: vec![nominal_type(
+            "doc_leaf",
+            vec![
+                identity_bounds(head),
+                nominal_bounds("nil_cell", Vec::new()),
+            ],
+        )],
+    };
+    let mut demand = CompactType::default();
+    demand.tuples = vec![
+        CompactTuple {
+            items: vec![nominal_type(
+                "doc_leaf",
+                vec![
+                    nominal_bounds("poison_leaf", Vec::new()),
+                    nominal_bounds("cons_cell", Vec::new()),
+                ],
+            )],
+        },
+        CompactTuple {
+            items: vec![nominal_type(
+                "doc_leaf",
+                vec![
+                    nominal_bounds("winning_leaf", Vec::new()),
+                    nominal_bounds("nil_cell", Vec::new()),
+                ],
+            )],
+        },
+    ];
+    let winning_head = nominal_type("winning_leaf", Vec::new());
+    let mut subst = TypeSubst::default();
+
+    assert!(match_tuple_pattern(&pattern, &demand, &mut subst));
+    assert_eq!(subst.get(head), Some(&winning_head));
+}
+
+#[test]
+fn failed_constructor_candidate_does_not_poison_next_role_candidate() {
+    let mut machine = ConstraintMachine::new();
+    let failed_head = TypeVar(0);
+    machine.register_type_var(failed_head, TypeLevel::root());
+
+    let failed_head_arg = raw_identity_role_arg(&mut machine, failed_head);
+    let failed_tail_arg = raw_nominal_role_arg(&mut machine, "cons_cell");
+    let failed_input = raw_nominal_role_arg_with_args(
+        &mut machine,
+        "doc_leaf",
+        vec![failed_head_arg, failed_tail_arg],
+    );
+    let failed = raw_role_candidate(vec![failed_input]);
+
+    let winning_head_arg = raw_nominal_role_arg(&mut machine, "text_leaf");
+    let winning_tail_arg = raw_nominal_role_arg(&mut machine, "nil_cell");
+    let winning_input = raw_nominal_role_arg_with_args(
+        &mut machine,
+        "doc_leaf",
+        vec![winning_head_arg, winning_tail_arg],
+    );
+    let winning = raw_role_candidate(vec![winning_input]);
+
+    let mut impls = RoleImplTable::new();
+    impls.insert(failed);
+    impls.insert(winning);
+    let demand = nominal_bounds(
+        "doc_leaf",
+        vec![
+            nominal_bounds("text_leaf", Vec::new()),
+            nominal_bounds("nil_cell", Vec::new()),
+        ],
+    );
+    let constraint = role_constraint(vec![CompactRoleArg::invariant(demand)]);
+
+    let output = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        &[constraint],
+        &impls,
+        &FxHashSet::default(),
+    );
+
+    assert_eq!(output.stats.candidate_scans, 2);
+    assert_eq!(output.stats.candidate_matches, 1);
+    assert_eq!(output.resolutions.len(), 1);
+}
+
+#[test]
 fn raw_candidate_precheck_rejects_definite_head_mismatch_before_compaction() {
     let mut machine = ConstraintMachine::new();
     let candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "html_format")]);
@@ -357,6 +473,28 @@ fn raw_nominal_role_arg(machine: &mut ConstraintMachine, name: &str) -> RoleCons
     }
 }
 
+fn raw_identity_role_arg(machine: &mut ConstraintMachine, var: TypeVar) -> RoleConstraintArg {
+    let lower = machine.alloc_pos(Pos::Var(var));
+    let upper = machine.alloc_neg(Neg::Var(var));
+    RoleConstraintArg { lower, upper }
+}
+
+fn raw_nominal_role_arg_with_args(
+    machine: &mut ConstraintMachine,
+    name: &str,
+    args: Vec<RoleConstraintArg>,
+) -> RoleConstraintArg {
+    let args = args
+        .into_iter()
+        .map(|arg| machine.alloc_neu(Neu::Bounds(arg.lower, arg.upper)))
+        .collect::<Vec<_>>();
+    let path = vec![name.into()];
+    RoleConstraintArg {
+        lower: machine.alloc_pos(Pos::Con(path.clone(), args.clone())),
+        upper: machine.alloc_neg(Neg::Con(path, args)),
+    }
+}
+
 fn resolve_raw_candidate_for_test(
     machine: &ConstraintMachine,
     candidate: &RoleImplCandidate,
@@ -408,4 +546,11 @@ fn nominal_bounds(name: &str, args: Vec<CompactBounds>) -> CompactBounds {
         path: vec![name.into()],
         args,
     }
+}
+
+fn nominal_type(name: &str, args: Vec<CompactBounds>) -> CompactType {
+    CompactType::from_con(CompactCon {
+        path: vec![name.into()],
+        args,
+    })
 }

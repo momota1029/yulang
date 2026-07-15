@@ -202,18 +202,13 @@ pub(super) fn match_con_pattern(
     if pattern.args.len() != demand_args.len() {
         return false;
     }
-    let mut candidate_subst = subst.clone();
-    if pattern
+    // The path-keyed entry has no sibling constructor to retry. An enclosing structural
+    // alternative owns its own rollback snapshot, while every other failure rejects the candidate.
+    pattern
         .args
         .iter()
         .zip(demand_args)
-        .all(|(pattern, demand)| match_bounds_pattern(pattern, demand, &mut candidate_subst))
-    {
-        *subst = candidate_subst;
-        true
-    } else {
-        false
-    }
+        .all(|(pattern, demand)| match_bounds_pattern(pattern, demand, subst))
 }
 
 pub(super) fn match_fun_pattern(
