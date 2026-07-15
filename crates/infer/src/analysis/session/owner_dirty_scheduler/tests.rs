@@ -630,78 +630,194 @@ fn benchmark_mode_is_disabled_by_default_and_restored_after_return_or_unwind() {
 }
 
 #[test]
-fn configured_budget_caps_fail_closed_without_setting_production_defaults() {
-    let owner = DefId(1);
+fn approved_production_budget_uses_the_stage5_caps() {
+    let budget = OwnerDirtySchedulerBudget::default();
+    assert_eq!(budget.max_owners, Some(1_000));
+    assert_eq!(budget.max_dependency_keys, Some(250_000));
+    assert_eq!(budget.max_dependencies_per_owner, Some(2_000));
+    assert_eq!(budget.max_reverse_edges, Some(25_000));
+    assert_eq!(budget.max_journal_burst, Some(500_000));
+    assert_eq!(budget.max_retained_bytes, Some(33_554_432));
+}
+
+#[test]
+fn dependencies_per_owner_cap_rejects_only_the_oversized_owner() {
+    let cacheable_owner = DefId(1);
+    let oversized_owner = DefId(2);
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_dependencies_per_owner: Some(1),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.publish_record(
+        cacheable_owner,
+        OwnerSolveOutcome::NoProgress,
+        vec![DependencyKey::ConstraintBounds(TypeVar(1))],
+    );
+    scheduler.publish_record(
+        oversized_owner,
+        OwnerSolveOutcome::NoProgress,
+        vec![
+            DependencyKey::ConstraintBounds(TypeVar(2)),
+            DependencyKey::ConstraintNeighbors(TypeVar(2)),
+        ],
+    );
+
+    assert_eq!(scheduler.metrics.per_owner_cap_rejections, 1);
+    assert_eq!(scheduler.metrics.global_cap_fallbacks, 0);
+    assert_eq!(
+        scheduler.prepare_owner(cacheable_owner, true, None),
+        OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+    );
+    assert_eq!(
+        scheduler.prepare_owner(oversized_owner, true, None),
+        OwnerScheduleDecision::Solve,
+    );
+}
+
+#[test]
+fn owners_cap_forces_every_owner_through_the_real_solve() {
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_owners: Some(0),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.publish_record(
+        DefId(1),
+        OwnerSolveOutcome::NoProgress,
+        vec![DependencyKey::ConstraintBounds(TypeVar(1))],
+    );
+
+    assert_global_cap_refuses_all_skips(&mut scheduler);
+}
+
+#[test]
+fn dependency_keys_cap_forces_every_owner_through_the_real_solve() {
     let dependency = DependencyKey::ConstraintBounds(TypeVar(1));
-
-    let mut per_owner = MethodRoleOwnerDirtyScheduler {
-        permit_owner_skips: true,
-        budget: OwnerDirtySchedulerBudget {
-            max_dependencies_per_owner: Some(0),
-            ..OwnerDirtySchedulerBudget::default()
-        },
-        ..MethodRoleOwnerDirtyScheduler::default()
-    };
-    per_owner.publish_record(
-        owner,
-        OwnerSolveOutcome::NoProgress,
-        vec![dependency.clone()],
-    );
-    assert!(per_owner.records.is_empty());
-    assert_eq!(per_owner.metrics.per_owner_cap_rejections, 1);
-
-    let mut global = MethodRoleOwnerDirtyScheduler {
-        permit_owner_skips: true,
-        budget: OwnerDirtySchedulerBudget {
-            max_owners: Some(0),
-            ..OwnerDirtySchedulerBudget::default()
-        },
-        ..MethodRoleOwnerDirtyScheduler::default()
-    };
-    global.publish_record(
-        owner,
-        OwnerSolveOutcome::NoProgress,
-        vec![dependency.clone()],
-    );
-    assert!(global.records.is_empty());
-    assert!(global.force_all_dirty_this_pass);
-    assert_eq!(global.metrics.full_fallbacks, 1);
-    assert_eq!(global.metrics.global_cap_fallbacks, 1);
-
-    let mut journal = MethodRoleOwnerDirtyScheduler {
-        permit_owner_skips: true,
-        budget: OwnerDirtySchedulerBudget {
-            max_journal_burst: Some(0),
-            ..OwnerDirtySchedulerBudget::default()
-        },
-        ..MethodRoleOwnerDirtyScheduler::default()
-    };
-    journal.drain_mutations(
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_dependency_keys: Some(0),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.drain_mutations(
         vec![MethodRoleMutation::Changed {
             serial: MutationSerial::new(1),
-            key: dependency,
+            key: dependency.clone(),
         }],
         true,
     );
-    assert!(journal.force_all_dirty_this_pass);
-    assert_eq!(journal.metrics.peak_journal_burst, 1);
-    assert_eq!(journal.metrics.global_cap_fallbacks, 1);
+    scheduler.publish_record(DefId(1), OwnerSolveOutcome::NoProgress, vec![dependency]);
 
-    assert_eq!(OwnerDirtySchedulerBudget::default().max_owners, None);
-    assert_eq!(
-        OwnerDirtySchedulerBudget::default().max_dependencies_per_owner,
-        None
+    assert_global_cap_refuses_all_skips(&mut scheduler);
+}
+
+#[test]
+fn reverse_edges_cap_forces_every_owner_through_the_real_solve() {
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_reverse_edges: Some(0),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.publish_record(
+        DefId(1),
+        OwnerSolveOutcome::NoProgress,
+        vec![DependencyKey::ConstraintBounds(TypeVar(1))],
     );
-    assert_eq!(
-        OwnerDirtySchedulerBudget::default().max_dependency_keys,
-        None
+
+    assert_global_cap_refuses_all_skips(&mut scheduler);
+}
+
+#[test]
+fn journal_burst_cap_forces_every_owner_through_the_real_solve() {
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_journal_burst: Some(0),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(1),
+            key: DependencyKey::ConstraintBounds(TypeVar(1)),
+        }],
+        true,
     );
-    assert_eq!(OwnerDirtySchedulerBudget::default().max_reverse_edges, None);
-    assert_eq!(OwnerDirtySchedulerBudget::default().max_journal_burst, None);
-    assert_eq!(
-        OwnerDirtySchedulerBudget::default().max_retained_bytes,
-        None
+
+    assert_eq!(scheduler.metrics.peak_journal_burst, 1);
+    assert_global_cap_refuses_all_skips(&mut scheduler);
+}
+
+#[test]
+fn retained_bytes_cap_forces_every_owner_through_the_real_solve() {
+    let mut scheduler = skipping_scheduler_with_budget(OwnerDirtySchedulerBudget {
+        max_retained_bytes: Some(0),
+        ..OwnerDirtySchedulerBudget::default()
+    });
+    scheduler.publish_record(
+        DefId(1),
+        OwnerSolveOutcome::NoProgress,
+        vec![DependencyKey::ConstraintBounds(TypeVar(1))],
     );
+
+    assert_global_cap_refuses_all_skips(&mut scheduler);
+}
+
+#[test]
+fn capped_global_fallback_preserves_production_poly_output() {
+    let source = "role Display 'a:\n  our x.display: unit\nmy show = \\x -> x.display\n";
+    let always_solve = crate::dump::dump_source(source);
+    let capped = with_new_session_budget(
+        OwnerDirtySchedulerBudget {
+            max_owners: Some(0),
+            ..OwnerDirtySchedulerBudget::default()
+        },
+        || {
+            with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
+                crate::dump::dump_source(source)
+            })
+        },
+    );
+
+    assert_eq!(capped.text, always_solve.text);
+    assert_eq!(capped.lowering.errors, always_solve.lowering.errors);
+    let scheduler = capped
+        .lowering
+        .session
+        .owner_dirty_scheduler
+        .as_ref()
+        .expect("capped compile scheduler");
+    assert!(scheduler.metrics.global_cap_fallbacks > 0);
+    assert!(scheduler.metrics.full_fallbacks > 0);
+}
+
+fn with_new_session_budget<T>(budget: OwnerDirtySchedulerBudget, f: impl FnOnce() -> T) -> T {
+    struct BudgetGuard(Option<OwnerDirtySchedulerBudget>);
+    impl Drop for BudgetGuard {
+        fn drop(&mut self) {
+            NEW_SESSION_BUDGET_OVERRIDE.with(|current| current.set(self.0));
+        }
+    }
+
+    let previous = NEW_SESSION_BUDGET_OVERRIDE.with(|current| current.replace(Some(budget)));
+    let _guard = BudgetGuard(previous);
+    f()
+}
+
+fn skipping_scheduler_with_budget(
+    budget: OwnerDirtySchedulerBudget,
+) -> MethodRoleOwnerDirtyScheduler {
+    MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        budget,
+        ..MethodRoleOwnerDirtyScheduler::default()
+    }
+}
+
+fn assert_global_cap_refuses_all_skips(scheduler: &mut MethodRoleOwnerDirtyScheduler) {
+    assert!(scheduler.records.is_empty());
+    assert!(scheduler.force_all_dirty_this_pass);
+    assert_eq!(scheduler.metrics.full_fallbacks, 1);
+    assert_eq!(scheduler.metrics.global_cap_fallbacks, 1);
+    for owner in [DefId(1), DefId(2)] {
+        assert_eq!(
+            scheduler.prepare_owner(owner, true, None),
+            OwnerScheduleDecision::Solve,
+        );
+    }
 }
 
 fn scheduler_with_records<const N: usize>(

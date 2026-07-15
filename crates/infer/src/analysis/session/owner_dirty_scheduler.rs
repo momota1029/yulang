@@ -358,9 +358,8 @@ pub(crate) struct MethodRoleOwnerDirtyScheduler {
     metrics: OwnerDirtySchedulerMetrics,
 }
 
-/// Optional hard limits. Stage 5 intentionally leaves every value unset until measurements are
-/// reviewed; tests can install limits to prove the fail-closed route.
-#[derive(Debug, Clone, Copy, Default)]
+/// Approved Stage 5 hard limits, with roughly 8-10x headroom over representative fixture peaks.
+#[derive(Debug, Clone, Copy)]
 struct OwnerDirtySchedulerBudget {
     max_owners: Option<usize>,
     max_dependencies_per_owner: Option<usize>,
@@ -368,6 +367,26 @@ struct OwnerDirtySchedulerBudget {
     max_reverse_edges: Option<usize>,
     max_journal_burst: Option<usize>,
     max_retained_bytes: Option<usize>,
+}
+
+impl Default for OwnerDirtySchedulerBudget {
+    fn default() -> Self {
+        Self {
+            max_owners: Some(1_000),
+            max_dependencies_per_owner: Some(2_000),
+            max_dependency_keys: Some(250_000),
+            max_reverse_edges: Some(25_000),
+            max_journal_burst: Some(500_000),
+            max_retained_bytes: Some(33_554_432),
+        }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static NEW_SESSION_BUDGET_OVERRIDE: Cell<Option<OwnerDirtySchedulerBudget>> = const {
+        Cell::new(None)
+    };
 }
 
 impl MethodRoleOwnerDirtyScheduler {
@@ -378,6 +397,7 @@ impl MethodRoleOwnerDirtyScheduler {
             OwnerDirtySchedulingMode::ShadowAlwaysSolve => Some(Self::default()),
             OwnerDirtySchedulingMode::BenchmarkSkips => Some(Self {
                 permit_owner_skips: true,
+                budget: budget_for_new_session(),
                 ..Self::default()
             }),
         }
@@ -949,6 +969,14 @@ impl MethodRoleOwnerDirtyScheduler {
             owners,
         }
     }
+}
+
+fn budget_for_new_session() -> OwnerDirtySchedulerBudget {
+    #[cfg(test)]
+    if let Some(budget) = NEW_SESSION_BUDGET_OVERRIDE.with(Cell::get) {
+        return budget;
+    }
+    OwnerDirtySchedulerBudget::default()
 }
 
 #[derive(Debug, Clone)]
