@@ -1,4 +1,6 @@
 use super::*;
+use poly::roles::RoleConstraintArg;
+use poly::types::{Neg, Pos};
 
 #[derive(Default, Clone)]
 pub(super) struct TypeSubst {
@@ -41,6 +43,24 @@ pub(super) fn match_role_candidate_inputs(
             .all(|(candidate, demand)| match_role_arg_candidate(candidate, demand, subst))
 }
 
+pub(super) fn raw_role_candidate_has_definite_input_head_mismatch(
+    machine: &ConstraintMachine,
+    candidate: &[RoleConstraintArg],
+    demand: &[CompactBounds],
+) -> bool {
+    // Do not follow variables or arena bounds here: both raw sides must name the same direct
+    // constructor before skipping the compaction that resolves every other shape.
+    candidate.iter().zip(demand).any(|(candidate, demand)| {
+        let Some(candidate) = definite_raw_nominal_or_builtin_head(machine, candidate) else {
+            return false;
+        };
+        let Some(demand) = definite_nominal_or_builtin_head(demand) else {
+            return false;
+        };
+        candidate != demand
+    })
+}
+
 pub(super) fn role_candidate_has_definite_input_head_mismatch(
     candidate: &[CompactRoleArg],
     demand: &[CompactBounds],
@@ -64,16 +84,36 @@ enum DefiniteRoleInputHead<'a> {
     Nominal(&'a [String]),
 }
 
+fn definite_raw_nominal_or_builtin_head<'a>(
+    machine: &'a ConstraintMachine,
+    arg: &RoleConstraintArg,
+) -> Option<DefiniteRoleInputHead<'a>> {
+    let Pos::Con(lower_path, lower_args) = machine.types().pos(arg.lower) else {
+        return None;
+    };
+    let Neg::Con(upper_path, upper_args) = machine.types().neg(arg.upper) else {
+        return None;
+    };
+    let lower = canonical_nominal_or_builtin_head(lower_path, lower_args.is_empty());
+    let upper = canonical_nominal_or_builtin_head(upper_path, upper_args.is_empty());
+    (lower == upper).then_some(lower)
+}
+
 fn definite_nominal_or_builtin_head(bounds: &CompactBounds) -> Option<DefiniteRoleInputHead<'_>> {
     let CompactBounds::Con { path, args } = bounds else {
         return None;
     };
-    if args.is_empty()
-        && let Some(builtin) = builtin_for_path(path)
-    {
-        return Some(DefiniteRoleInputHead::Builtin(builtin));
+    Some(canonical_nominal_or_builtin_head(path, args.is_empty()))
+}
+
+fn canonical_nominal_or_builtin_head(
+    path: &[String],
+    args_are_empty: bool,
+) -> DefiniteRoleInputHead<'_> {
+    if args_are_empty && let Some(builtin) = builtin_for_path(path) {
+        return DefiniteRoleInputHead::Builtin(builtin);
     }
-    Some(DefiniteRoleInputHead::Nominal(path))
+    DefiniteRoleInputHead::Nominal(path)
 }
 
 pub(super) fn match_type_pattern(

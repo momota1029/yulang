@@ -343,6 +343,13 @@ fn resolve_role_candidate(
     }
     let concrete_inputs = concrete_inputs?;
     let raw_candidate = candidate;
+    if raw_role_candidate_has_definite_input_head_mismatch(
+        machine,
+        &raw_candidate.inputs,
+        concrete_inputs,
+    ) {
+        return None;
+    }
     let candidate = candidate_cache.compact(machine, raw_candidate, stats);
     let mut subst = TypeSubst::default();
     if !match_role_candidate_inputs(&candidate.inputs, concrete_inputs, &mut subst) {

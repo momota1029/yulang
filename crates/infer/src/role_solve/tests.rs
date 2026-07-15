@@ -198,6 +198,123 @@ fn candidate_precheck_preserves_positive_nominal_match() {
     ));
 }
 
+#[test]
+fn raw_candidate_precheck_rejects_definite_head_mismatch_before_compaction() {
+    let mut machine = ConstraintMachine::new();
+    let candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "html_format")]);
+    let demand = vec![nominal_bounds("markdown_format", Vec::new())];
+
+    assert!(raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &demand,
+    ));
+    let (matched, stats, cached_candidates) =
+        resolve_raw_candidate_for_test(&machine, &candidate, &demand);
+
+    assert!(!matched);
+    assert_eq!(stats.candidate_cache_misses, 0);
+    assert_eq!(stats.candidate_cache_hits, 0);
+    assert_eq!(cached_candidates, 0);
+}
+
+#[test]
+fn raw_candidate_precheck_compares_canonical_builtin_heads() {
+    let mut machine = ConstraintMachine::new();
+    let candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "int")]);
+
+    assert!(!raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &[nominal_bounds("int", Vec::new())],
+    ));
+    assert!(raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &[nominal_bounds("float", Vec::new())],
+    ));
+}
+
+#[test]
+fn raw_candidate_precheck_defers_variable_input_to_compaction_and_matching() {
+    let mut machine = ConstraintMachine::new();
+    let var = TypeVar(0);
+    machine.register_type_var(var, TypeLevel::root());
+    let candidate = raw_role_candidate(vec![RoleConstraintArg {
+        lower: machine.alloc_pos(Pos::Var(var)),
+        upper: machine.alloc_neg(Neg::Var(var)),
+    }]);
+    let demand = vec![nominal_bounds("markdown_format", Vec::new())];
+
+    assert!(!raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &demand,
+    ));
+    let (matched, stats, cached_candidates) =
+        resolve_raw_candidate_for_test(&machine, &candidate, &demand);
+
+    assert!(matched);
+    assert_eq!(stats.candidate_cache_misses, 1);
+    assert_eq!(cached_candidates, 1);
+}
+
+#[test]
+fn raw_candidate_precheck_preserves_positive_nominal_match() {
+    let mut machine = ConstraintMachine::new();
+    let candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "markdown_format")]);
+    let demand = vec![nominal_bounds("markdown_format", Vec::new())];
+
+    assert!(!raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &demand,
+    ));
+    let (matched, stats, cached_candidates) =
+        resolve_raw_candidate_for_test(&machine, &candidate, &demand);
+
+    assert!(matched);
+    assert_eq!(stats.candidate_cache_misses, 1);
+    assert_eq!(cached_candidates, 1);
+}
+
+#[test]
+fn raw_and_compacted_candidate_head_prechecks_compose() {
+    let mut machine = ConstraintMachine::new();
+    let var = TypeVar(0);
+    machine.register_type_var(var, TypeLevel::root());
+    let html_lower = machine.alloc_pos(Pos::Con(vec!["html_format".into()], Vec::new()));
+    let html_upper = machine.alloc_neg(Neg::Con(vec!["html_format".into()], Vec::new()));
+    let raw_lower = machine.alloc_pos(Pos::Var(var));
+    let raw_upper = machine.alloc_neg(Neg::Var(var));
+    machine.constrain_subtype(html_lower, raw_upper);
+    machine.constrain_subtype(raw_lower, html_upper);
+    let candidate = raw_role_candidate(vec![RoleConstraintArg {
+        lower: raw_lower,
+        upper: raw_upper,
+    }]);
+    let demand = vec![nominal_bounds("markdown_format", Vec::new())];
+
+    assert!(!raw_role_candidate_has_definite_input_head_mismatch(
+        &machine,
+        &candidate.inputs,
+        &demand,
+    ));
+    let mut cache = CompactRoleImplCandidateCache::default();
+    let mut compact_stats = RoleResolveStats::default();
+    let compact = cache.compact(&machine, &candidate, &mut compact_stats);
+    assert!(role_candidate_has_definite_input_head_mismatch(
+        &compact.inputs,
+        &demand,
+    ));
+
+    let (matched, stats, cached_candidates) =
+        resolve_raw_candidate_for_test(&machine, &candidate, &demand);
+    assert!(!matched);
+    assert_eq!(stats.candidate_cache_misses, 1);
+    assert_eq!(cached_candidates, 1);
+}
+
 fn compact_role_input(infer: &Arena, lower: PosId, upper: NegId) -> CompactRoleArg {
     compact_role_constraint(
         infer.constraints(),
@@ -219,6 +336,55 @@ fn role_constraint(inputs: Vec<CompactRoleArg>) -> CompactRoleConstraint {
         inputs,
         associated: Vec::new(),
     }
+}
+
+fn raw_role_candidate(inputs: Vec<RoleConstraintArg>) -> RoleImplCandidate {
+    RoleImplCandidate {
+        impl_def: None,
+        role: vec!["TestRole".into()],
+        inputs,
+        associated: Vec::new(),
+        prerequisites: Vec::new(),
+        methods: Vec::new(),
+    }
+}
+
+fn raw_nominal_role_arg(machine: &mut ConstraintMachine, name: &str) -> RoleConstraintArg {
+    let path = vec![name.into()];
+    RoleConstraintArg {
+        lower: machine.alloc_pos(Pos::Con(path.clone(), Vec::new())),
+        upper: machine.alloc_neg(Neg::Con(path, Vec::new())),
+    }
+}
+
+fn resolve_raw_candidate_for_test(
+    machine: &ConstraintMachine,
+    candidate: &RoleImplCandidate,
+    demand: &[CompactBounds],
+) -> (bool, RoleResolveStats, usize) {
+    let constraint = role_constraint(
+        demand
+            .iter()
+            .cloned()
+            .map(CompactRoleArg::invariant)
+            .collect(),
+    );
+    let mut cache = CompactRoleImplCandidateCache::default();
+    let mut stats = RoleResolveStats::default();
+    let matched = resolve_role_candidate(
+        machine,
+        &constraint,
+        Some(demand),
+        candidate,
+        &MainPolarity::default(),
+        &FxHashMap::default(),
+        &RoleImplTable::new(),
+        &mut cache,
+        &mut FxHashSet::default(),
+        &mut stats,
+    )
+    .is_some();
+    (matched, stats, cache.entries.len())
 }
 
 fn identity_role_arg(var: TypeVar) -> CompactRoleArg {
