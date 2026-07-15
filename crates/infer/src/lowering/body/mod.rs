@@ -10,6 +10,8 @@ pub(super) mod role;
 mod shadow_dirty_oracle_tests;
 pub(super) mod signature_helpers;
 #[cfg(test)]
+mod skip_parity_tests;
+#[cfg(test)]
 mod stage0_tests;
 pub(super) mod type_decl;
 

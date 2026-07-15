@@ -1,9 +1,9 @@
-//! Journal-backed owner scheduler running in Stage 3 shadow mode.
+//! Journal-backed owner scheduler with an explicitly test-only Stage 4 skip mode.
 //!
-//! The scheduler consumes the production mutation journal and maintains the records which a later
-//! stage could use to skip terminal owner solves. Stage 3 deliberately never acts on a clean
-//! prediction: the unchanged owner solve always runs, and its real terminal outcome is compared
-//! with both this scheduler and the independent exact-snapshot oracle.
+//! The ordinary test mode retains Stage 3 behavior: every owner runs and its terminal outcome is
+//! compared with the independent exact-snapshot oracle. A second, explicit test-only mode permits
+//! Stage 4 to reuse a clean `RootUnavailable`/`NoProgress` record. No release build contains this
+//! module or the permission flag.
 
 use super::*;
 
@@ -18,11 +18,13 @@ use super::shadow_dirty_oracle::{
 
 thread_local! {
     static ENABLE_NEW_SCHEDULERS: Cell<bool> = const { Cell::new(false) };
+    static PERMIT_OWNER_SKIPS: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Session-owned record, reverse-subscription, and dirty state for method-role owners.
 #[derive(Debug, Default)]
 pub(crate) struct MethodRoleOwnerDirtyScheduler {
+    permit_owner_skips: bool,
     records: FxHashMap<DefId, CachedOwnerTerminal>,
     reverse_subscriptions: FxHashMap<DependencyKey, FxHashSet<DefId>>,
     dirty: FxHashSet<DefId>,
@@ -33,12 +35,16 @@ pub(crate) struct MethodRoleOwnerDirtyScheduler {
     last_journal_window_end: Option<MethodRolePassInputSnapshot>,
     inactive_window_changed: bool,
     force_all_dirty_this_pass: bool,
+    prepared_this_pass: FxHashSet<DefId>,
     metrics: OwnerDirtySchedulerMetrics,
 }
 
 impl MethodRoleOwnerDirtyScheduler {
     pub(super) fn for_new_session() -> Option<Self> {
-        ENABLE_NEW_SCHEDULERS.with(Cell::get).then(Self::default)
+        ENABLE_NEW_SCHEDULERS.with(Cell::get).then(|| Self {
+            permit_owner_skips: PERMIT_OWNER_SKIPS.with(Cell::get),
+            ..Self::default()
+        })
     }
 
     fn begin_journal_window(&mut self, current: MethodRolePassInputSnapshot) {
@@ -69,6 +75,7 @@ impl MethodRoleOwnerDirtyScheduler {
         method_taint: &MethodTaintIndex,
     ) -> Vec<DependencyKey> {
         debug_assert!(self.current_predictions.is_empty());
+        self.prepared_this_pass.clear();
         self.metrics.forced_passes += 1;
         self.force_all_dirty_this_pass = false;
 
@@ -139,7 +146,11 @@ impl MethodRoleOwnerDirtyScheduler {
         owner: DefId,
         root_available: bool,
         exact: Option<ExactOwnerPrediction>,
-    ) {
+    ) -> OwnerScheduleDecision {
+        assert!(
+            self.prepared_this_pass.insert(owner),
+            "one owner must not be scheduled more than once in a forced method-role pass"
+        );
         let prediction = self.prediction(owner);
         self.metrics.owner_checks += 1;
         let owner_metrics = self.metrics.owners.entry(owner).or_default();
@@ -192,9 +203,26 @@ impl MethodRoleOwnerDirtyScheduler {
             }
         }
 
+        if self.permit_owner_skips && prediction.clean {
+            let outcome = prediction
+                .cached_outcome
+                .expect("a clean owner prediction must carry its cached terminal outcome");
+            assert!(
+                outcome.cacheable(),
+                "only RootUnavailable/NoProgress terminal outcomes may be replayed"
+            );
+            self.metrics.clean_skips += 1;
+            owner_metrics.clean_skips += 1;
+            owner_metrics.record_reused_outcome(outcome);
+            return OwnerScheduleDecision::Reuse(outcome);
+        }
+
+        self.metrics.real_solves += 1;
+        owner_metrics.real_solves += 1;
         self.current_predictions.insert(owner, prediction);
         self.detach_record(owner);
         self.dirty.remove(&owner);
+        OwnerScheduleDecision::Solve
     }
 
     fn finish_owner(
@@ -277,6 +305,10 @@ impl MethodRoleOwnerDirtyScheduler {
         outcome: OwnerSolveOutcome,
         dependencies: Vec<DependencyKey>,
     ) {
+        assert!(
+            outcome.cacheable(),
+            "progressing owner outcomes must never enter the terminal cache"
+        );
         let dependencies = normalize_dependencies(dependencies);
         let stamps = dependencies
             .iter()
@@ -384,6 +416,10 @@ impl MethodRoleOwnerDirtyScheduler {
                 predicted_dirty_owner_solve_time: metrics.predicted_dirty_owner_solve_time,
                 would_have_been_clean_hits: metrics.would_have_been_clean_hits,
                 would_have_been_clean_misses: metrics.would_have_been_clean_misses,
+                real_solves: metrics.real_solves,
+                clean_skips: metrics.clean_skips,
+                reused_root_unavailable: metrics.reused_root_unavailable,
+                reused_no_progress: metrics.reused_no_progress,
             })
             .collect::<Vec<_>>();
         owners.sort_by_key(|metrics| metrics.owner.0);
@@ -400,6 +436,8 @@ impl MethodRoleOwnerDirtyScheduler {
             predicted_dirty_owner_solve_time: self.metrics.predicted_dirty_owner_solve_time,
             would_have_been_clean_hits: self.metrics.would_have_been_clean_hits,
             would_have_been_clean_misses: self.metrics.would_have_been_clean_misses,
+            real_solves: self.metrics.real_solves,
+            clean_skips: self.metrics.clean_skips,
             changed_mutations: self.metrics.changed_mutations,
             oracle_agreements: self.metrics.oracle_agreements,
             conservative_divergences: self.metrics.conservative_divergences.clone(),
@@ -452,6 +490,12 @@ struct JournalOwnerPrediction {
     reason: OwnerPredictionReason,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OwnerScheduleDecision {
+    Solve,
+    Reuse(OwnerSolveOutcome),
+}
+
 impl JournalOwnerPrediction {
     fn dirty(reason: OwnerPredictionReason) -> Self {
         Self {
@@ -502,6 +546,8 @@ pub(crate) struct OwnerDirtySchedulerReport {
     pub(crate) predicted_dirty_owner_solve_time: Duration,
     pub(crate) would_have_been_clean_hits: usize,
     pub(crate) would_have_been_clean_misses: usize,
+    pub(crate) real_solves: usize,
+    pub(crate) clean_skips: usize,
     pub(crate) changed_mutations: usize,
     pub(crate) oracle_agreements: usize,
     pub(crate) conservative_divergences: Vec<OwnerPredictionDivergence>,
@@ -546,6 +592,10 @@ pub(crate) struct OwnerDirtySchedulerOwnerReport {
     pub(crate) predicted_dirty_owner_solve_time: Duration,
     pub(crate) would_have_been_clean_hits: usize,
     pub(crate) would_have_been_clean_misses: usize,
+    pub(crate) real_solves: usize,
+    pub(crate) clean_skips: usize,
+    pub(crate) reused_root_unavailable: usize,
+    pub(crate) reused_no_progress: usize,
 }
 
 #[derive(Debug, Default)]
@@ -562,6 +612,8 @@ struct OwnerDirtySchedulerMetrics {
     predicted_dirty_owner_solve_time: Duration,
     would_have_been_clean_hits: usize,
     would_have_been_clean_misses: usize,
+    real_solves: usize,
+    clean_skips: usize,
     changed_mutations: usize,
     oracle_agreements: usize,
     conservative_divergences: Vec<OwnerPredictionDivergence>,
@@ -596,6 +648,10 @@ struct OwnerDirtySchedulerOwnerMetrics {
     predicted_dirty_owner_solve_time: Duration,
     would_have_been_clean_hits: usize,
     would_have_been_clean_misses: usize,
+    real_solves: usize,
+    clean_skips: usize,
+    reused_root_unavailable: usize,
+    reused_no_progress: usize,
 }
 
 impl OwnerDirtySchedulerOwnerMetrics {
@@ -604,6 +660,16 @@ impl OwnerDirtySchedulerOwnerMetrics {
             OwnerSolveOutcome::RootUnavailable => self.root_unavailable_outcomes += 1,
             OwnerSolveOutcome::NoProgress => self.no_progress_outcomes += 1,
             OwnerSolveOutcome::Progress => self.progress_outcomes += 1,
+        }
+    }
+
+    fn record_reused_outcome(&mut self, outcome: OwnerSolveOutcome) {
+        match outcome {
+            OwnerSolveOutcome::RootUnavailable => self.reused_root_unavailable += 1,
+            OwnerSolveOutcome::NoProgress => self.reused_no_progress += 1,
+            OwnerSolveOutcome::Progress => {
+                panic!("a progressing owner outcome must never be replayed")
+            }
         }
     }
 }
@@ -645,15 +711,16 @@ impl AnalysisSession {
         &mut self,
         owner: DefId,
         root_available: bool,
-    ) {
+    ) -> OwnerScheduleDecision {
         if self.owner_dirty_scheduler.is_none() {
-            return;
+            return OwnerScheduleDecision::Solve;
         }
         self.owner_dirty_scheduler_drain_journal();
         let exact = self.shadow_dirty_oracle_prediction(owner);
         if let Some(scheduler) = &mut self.owner_dirty_scheduler {
-            scheduler.prepare_owner(owner, root_available, exact);
+            return scheduler.prepare_owner(owner, root_available, exact);
         }
+        OwnerScheduleDecision::Solve
     }
 
     pub(super) fn owner_dirty_scheduler_finish_owner(
@@ -719,6 +786,19 @@ pub(crate) fn with_owner_dirty_scheduler_for_new_sessions<T>(f: impl FnOnce() ->
     let previous = ENABLE_NEW_SCHEDULERS.with(|enabled| enabled.replace(true));
     let _guard = EnableGuard(previous);
     f()
+}
+
+pub(crate) fn with_owner_dirty_scheduler_skips_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+    struct PermitGuard(bool);
+    impl Drop for PermitGuard {
+        fn drop(&mut self) {
+            PERMIT_OWNER_SKIPS.with(|permitted| permitted.set(self.0));
+        }
+    }
+
+    let previous = PERMIT_OWNER_SKIPS.with(|permitted| permitted.replace(true));
+    let _guard = PermitGuard(previous);
+    with_owner_dirty_scheduler_for_new_sessions(f)
 }
 
 fn normalized_method_taint(method_taint: &MethodTaintIndex) -> MethodTaintIndex {

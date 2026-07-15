@@ -139,7 +139,12 @@ impl AnalysisSession {
         for def in parents {
             let root = self.scc.root_of(def);
             #[cfg(test)]
-            self.owner_dirty_scheduler_prepare_owner(def, root.is_some());
+            if let OwnerScheduleDecision::Reuse(outcome) =
+                self.owner_dirty_scheduler_prepare_owner(def, root.is_some())
+            {
+                self.shadow_dirty_oracle_reuse_terminal_owner(def, outcome);
+                continue;
+            }
             let Some(root) = root else {
                 #[cfg(test)]
                 self.owner_dirty_scheduler_finish_owner(

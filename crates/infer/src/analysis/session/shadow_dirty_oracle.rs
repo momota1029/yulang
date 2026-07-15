@@ -349,6 +349,22 @@ impl ShadowDirtyOracle {
         }
     }
 
+    fn reuse_terminal_owner(&mut self, owner: DefId, outcome: OwnerSolveOutcome) {
+        let prediction = self
+            .current_predictions
+            .remove(&owner)
+            .expect("every skipped owner must have an independent pre-solve prediction");
+        assert!(
+            prediction.clean,
+            "the journal scheduler may not skip an owner the exact-snapshot oracle considers dirty"
+        );
+        assert_eq!(
+            prediction.cached_outcome,
+            Some(outcome),
+            "the journal scheduler and exact-snapshot oracle must reuse the same terminal outcome"
+        );
+    }
+
     fn bump_candidate_buckets(&mut self, roles: impl IntoIterator<Item = Vec<String>>) {
         let Some(next) = self.candidate_epoch.checked_add(1) else {
             self.candidate_epoch = 0;
@@ -1053,6 +1069,16 @@ impl AnalysisSession {
         };
         oracle.finish_owner(self, owner, root, progressed, method_taint, reads);
         self.shadow_dirty_oracle = Some(oracle);
+    }
+
+    pub(super) fn shadow_dirty_oracle_reuse_terminal_owner(
+        &mut self,
+        owner: DefId,
+        outcome: OwnerSolveOutcome,
+    ) {
+        if let Some(oracle) = &mut self.shadow_dirty_oracle {
+            oracle.reuse_terminal_owner(owner, outcome);
+        }
     }
 
     pub(super) fn shadow_dirty_oracle_candidate_inserted(&mut self, role: Vec<String>) {

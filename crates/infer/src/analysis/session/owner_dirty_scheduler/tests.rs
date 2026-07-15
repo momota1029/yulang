@@ -1,6 +1,301 @@
 use super::*;
 
 use poly::expr::Arena as PolyArena;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+#[test]
+fn every_dependency_key_wakes_its_owner_and_preserves_unrelated_clean_reuse() {
+    let owner = DefId(1);
+    let unrelated_owner = DefId(2);
+    let dependencies = every_dependency_key(owner);
+    assert_eq!(dependencies.len(), 13);
+
+    for (index, dependency) in dependencies.into_iter().enumerate() {
+        let unrelated = DependencyKey::ConstraintBounds(TypeVar(10_000 + index as u32));
+        let mut scheduler = skipping_scheduler_with_records([
+            (owner, dependency.clone()),
+            (unrelated_owner, unrelated),
+        ]);
+
+        scheduler.begin_pass(&[owner, unrelated_owner], &MethodTaintIndex::default());
+        assert_eq!(
+            scheduler.prepare_owner(owner, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+            "{dependency:?}: an unchanged terminal record must exercise the real skip path",
+        );
+        assert_eq!(
+            scheduler.prepare_owner(unrelated_owner, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+        );
+
+        scheduler.begin_pass(&[owner, unrelated_owner], &MethodTaintIndex::default());
+        scheduler.drain_mutations(
+            vec![MethodRoleMutation::Changed {
+                serial: MutationSerial::new(1),
+                key: dependency.clone(),
+            }],
+            true,
+        );
+        assert_eq!(
+            scheduler.prepare_owner(owner, true, None),
+            OwnerScheduleDecision::Solve,
+            "{dependency:?}: its subscribed owner must wake",
+        );
+        scheduler.finish_owner(
+            owner,
+            OwnerSolveOutcome::NoProgress,
+            vec![dependency.clone()],
+            Duration::ZERO,
+            true,
+        );
+        assert_eq!(
+            scheduler.prepare_owner(unrelated_owner, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+            "{dependency:?}: an independently subscribed owner must remain clean",
+        );
+
+        scheduler.begin_pass(&[owner, unrelated_owner], &MethodTaintIndex::default());
+        assert_eq!(
+            scheduler.prepare_owner(owner, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+            "{dependency:?}: the real no-progress solve must republish a reusable terminal",
+        );
+        assert_eq!(
+            scheduler.prepare_owner(unrelated_owner, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+        );
+        assert_eq!(scheduler.metrics.real_solves, 1);
+        assert_eq!(scheduler.metrics.clean_skips, 5);
+    }
+}
+
+#[test]
+fn candidate_prerequisite_dependencies_invalidate_transitively_and_locally() {
+    let reader = DefId(1);
+    let non_reader = DefId(2);
+    let buckets =
+        ["A", "B", "C"].map(|name| DependencyKey::CandidateBucket(vec![name.to_string()]));
+    let unread = DependencyKey::CandidateBucket(vec!["D".to_string()]);
+
+    for changed in buckets.iter().cloned() {
+        let mut scheduler = MethodRoleOwnerDirtyScheduler {
+            permit_owner_skips: true,
+            ..Default::default()
+        };
+        scheduler.publish_record(reader, OwnerSolveOutcome::NoProgress, buckets.to_vec());
+        scheduler.publish_record(
+            non_reader,
+            OwnerSolveOutcome::NoProgress,
+            vec![unread.clone()],
+        );
+        scheduler.begin_pass(&[reader, non_reader], &MethodTaintIndex::default());
+        scheduler.drain_mutations(
+            vec![MethodRoleMutation::Changed {
+                serial: MutationSerial::new(1),
+                key: changed.clone(),
+            }],
+            true,
+        );
+        assert_eq!(
+            scheduler.prepare_owner(reader, true, None),
+            OwnerScheduleDecision::Solve
+        );
+        assert_eq!(
+            scheduler.prepare_owner(non_reader, true, None),
+            OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+            "unread owner changed for transitive bucket {changed:?}",
+        );
+    }
+
+    let mut scheduler = MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        ..Default::default()
+    };
+    scheduler.publish_record(reader, OwnerSolveOutcome::NoProgress, buckets.to_vec());
+    scheduler.begin_pass(&[reader], &MethodTaintIndex::default());
+    scheduler.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(1),
+            key: unread,
+        }],
+        true,
+    );
+    assert_eq!(
+        scheduler.prepare_owner(reader, true, None),
+        OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+        "an unread prerequisite bucket must not destroy locality",
+    );
+}
+
+#[test]
+fn method_taint_and_cross_owner_selection_projection_control_skip_eligibility() {
+    let reader = DefId(1);
+    let queried = TypeVar(10);
+    let unqueried = TypeVar(11);
+    let cross_owner_selection = SelectId(12);
+    let dependencies = vec![
+        DependencyKey::MethodTaint(queried),
+        DependencyKey::Selection(cross_owner_selection),
+    ];
+
+    for changed in dependencies.iter().cloned() {
+        let mut scheduler = MethodRoleOwnerDirtyScheduler {
+            permit_owner_skips: true,
+            ..Default::default()
+        };
+        scheduler.publish_record(reader, OwnerSolveOutcome::NoProgress, dependencies.clone());
+        scheduler.begin_pass(&[reader], &MethodTaintIndex::default());
+        scheduler.drain_mutations(
+            vec![MethodRoleMutation::Changed {
+                serial: MutationSerial::new(1),
+                key: changed,
+            }],
+            true,
+        );
+        assert_eq!(
+            scheduler.prepare_owner(reader, true, None),
+            OwnerScheduleDecision::Solve
+        );
+    }
+
+    let mut scheduler = MethodRoleOwnerDirtyScheduler {
+        permit_owner_skips: true,
+        ..Default::default()
+    };
+    scheduler.publish_record(reader, OwnerSolveOutcome::NoProgress, dependencies);
+    scheduler.begin_pass(&[reader], &MethodTaintIndex::default());
+    scheduler.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(1),
+            key: DependencyKey::MethodTaint(unqueried),
+        }],
+        true,
+    );
+    assert_eq!(
+        scheduler.prepare_owner(reader, true, None),
+        OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
+    );
+
+    let previous = [(queried, vec![SelectId(1)]), (unqueried, vec![SelectId(2)])]
+        .into_iter()
+        .collect();
+    let current = [(unqueried, vec![SelectId(2)])].into_iter().collect();
+    assert_eq!(
+        diff_method_taint(&previous, &current),
+        vec![queried],
+        "a disappeared earlier short-circuit taint entry must wake its readers",
+    );
+}
+
+#[test]
+fn every_fail_closed_reason_refuses_all_owner_skips() {
+    let reasons = [
+        InvalidateAllReason::UnrecognizedMutation {
+            site: "stage4-unknown",
+        },
+        InvalidateAllReason::JournalOverflow,
+        InvalidateAllReason::MutationSerialOverflow,
+        InvalidateAllReason::MutationGenerationOverflow,
+        InvalidateAllReason::AuditFenceDisagreement {
+            site: "stage4-audit",
+        },
+        InvalidateAllReason::ContractVersionMismatch,
+        InvalidateAllReason::JournalTruncated,
+    ];
+
+    for reason in reasons {
+        let first = DefId(1);
+        let second = DefId(2);
+        let mut scheduler = skipping_scheduler_with_records([
+            (first, DependencyKey::ConstraintBounds(TypeVar(10))),
+            (second, DependencyKey::ConstraintBounds(TypeVar(20))),
+        ]);
+        scheduler.begin_pass(&[first, second], &MethodTaintIndex::default());
+        scheduler.drain_mutations(
+            vec![MethodRoleMutation::InvalidateAll {
+                serial: MutationSerial::new(1),
+                reason: reason.clone(),
+            }],
+            false,
+        );
+        assert_eq!(
+            scheduler.prepare_owner(first, true, None),
+            OwnerScheduleDecision::Solve
+        );
+        assert_eq!(
+            scheduler.prepare_owner(second, true, None),
+            OwnerScheduleDecision::Solve
+        );
+        assert_eq!(scheduler.metrics.clean_skips, 0, "{reason:?}");
+        assert_eq!(scheduler.metrics.real_solves, 2, "{reason:?}");
+    }
+}
+
+#[test]
+fn missing_journal_serial_and_generation_overflow_refuse_real_skips() {
+    let owner = DefId(1);
+    let dependency = DependencyKey::ConstraintBounds(TypeVar(10));
+
+    let mut lost = skipping_scheduler_with_records([(owner, dependency.clone())]);
+    lost.begin_pass(&[owner], &MethodTaintIndex::default());
+    lost.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(2),
+            key: dependency.clone(),
+        }],
+        true,
+    );
+    assert_eq!(
+        lost.prepare_owner(owner, true, None),
+        OwnerScheduleDecision::Solve
+    );
+    assert!(matches!(
+        lost.metrics.invalidate_all_reasons.as_slice(),
+        [InvalidateAllReason::JournalTruncated]
+    ));
+
+    let mut overflow = skipping_scheduler_with_records([(owner, dependency.clone())]);
+    overflow
+        .generations
+        .insert(dependency.clone(), MutationGeneration::new(u64::MAX));
+    overflow.begin_pass(&[owner], &MethodTaintIndex::default());
+    overflow.drain_mutations(
+        vec![MethodRoleMutation::Changed {
+            serial: MutationSerial::new(1),
+            key: dependency,
+        }],
+        true,
+    );
+    assert_eq!(
+        overflow.prepare_owner(owner, true, None),
+        OwnerScheduleDecision::Solve
+    );
+    assert!(matches!(
+        overflow.metrics.invalidate_all_reasons.as_slice(),
+        [InvalidateAllReason::MutationGenerationOverflow]
+    ));
+}
+
+#[test]
+fn owner_runs_at_most_once_per_pass_and_progress_never_enters_the_cache() {
+    let owner = DefId(1);
+    let dependency = DependencyKey::ConstraintBounds(TypeVar(10));
+    let mut scheduler = skipping_scheduler_with_records([(owner, dependency.clone())]);
+    scheduler.begin_pass(&[owner], &MethodTaintIndex::default());
+    assert_eq!(
+        scheduler.prepare_owner(owner, true, None),
+        OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress)
+    );
+    let duplicate = catch_unwind(AssertUnwindSafe(|| {
+        let _ = scheduler.prepare_owner(owner, true, None);
+    }));
+    assert!(duplicate.is_err());
+
+    let progress_cache = catch_unwind(AssertUnwindSafe(|| {
+        scheduler.publish_record(owner, OwnerSolveOutcome::Progress, vec![dependency]);
+    }));
+    assert!(progress_cache.is_err());
+}
 
 #[test]
 fn record_replacement_removes_old_reverse_subscriptions() {
@@ -43,9 +338,14 @@ fn pass_ordering_drains_earlier_mutation_before_later_owner_eligibility() {
         (earlier, DependencyKey::ConstraintBounds(TypeVar(10))),
         (later, later_dependency.clone()),
     ]);
+    scheduler.permit_owner_skips = true;
+    scheduler.dirty.insert(earlier);
     scheduler.begin_pass(&[earlier, later], &MethodTaintIndex::default());
 
-    scheduler.prepare_owner(earlier, true, None);
+    assert_eq!(
+        scheduler.prepare_owner(earlier, true, None),
+        OwnerScheduleDecision::Solve
+    );
     scheduler.finish_owner(
         earlier,
         OwnerSolveOutcome::Progress,
@@ -60,7 +360,10 @@ fn pass_ordering_drains_earlier_mutation_before_later_owner_eligibility() {
         }],
         true,
     );
-    scheduler.prepare_owner(later, true, None);
+    assert_eq!(
+        scheduler.prepare_owner(later, true, None),
+        OwnerScheduleDecision::Solve
+    );
 
     let prediction = scheduler
         .current_predictions
@@ -80,17 +383,18 @@ fn pass_ordering_leaves_earlier_owner_dirty_for_the_next_pass() {
         (earlier, earlier_dependency.clone()),
         (later, DependencyKey::ConstraintBounds(TypeVar(20))),
     ]);
+    scheduler.permit_owner_skips = true;
+    scheduler.dirty.insert(later);
     scheduler.begin_pass(&[earlier, later], &MethodTaintIndex::default());
 
-    scheduler.prepare_owner(earlier, true, None);
-    scheduler.finish_owner(
-        earlier,
-        OwnerSolveOutcome::NoProgress,
-        vec![earlier_dependency.clone()],
-        Duration::ZERO,
-        true,
+    assert_eq!(
+        scheduler.prepare_owner(earlier, true, None),
+        OwnerScheduleDecision::Reuse(OwnerSolveOutcome::NoProgress),
     );
-    scheduler.prepare_owner(later, true, None);
+    assert_eq!(
+        scheduler.prepare_owner(later, true, None),
+        OwnerScheduleDecision::Solve
+    );
     scheduler.drain_mutations(
         vec![MethodRoleMutation::Changed {
             serial: MutationSerial::new(1),
@@ -108,7 +412,10 @@ fn pass_ordering_leaves_earlier_owner_dirty_for_the_next_pass() {
 
     assert!(scheduler.dirty.contains(&earlier));
     scheduler.begin_pass(&[earlier, later], &MethodTaintIndex::default());
-    scheduler.prepare_owner(earlier, true, None);
+    assert_eq!(
+        scheduler.prepare_owner(earlier, true, None),
+        OwnerScheduleDecision::Solve
+    );
     let prediction = scheduler
         .current_predictions
         .get(&earlier)
@@ -287,4 +594,38 @@ fn scheduler_with_records<const N: usize>(
         scheduler.publish_record(owner, OwnerSolveOutcome::NoProgress, vec![dependency]);
     }
     scheduler
+}
+
+fn skipping_scheduler_with_records<const N: usize>(
+    records: [(DefId, DependencyKey); N],
+) -> MethodRoleOwnerDirtyScheduler {
+    let mut scheduler = scheduler_with_records(records);
+    scheduler.permit_owner_skips = true;
+    scheduler
+}
+
+fn every_dependency_key(owner: DefId) -> Vec<DependencyKey> {
+    let role = CompactRoleConstraint {
+        role: vec!["Applied".to_string()],
+        inputs: Vec::new(),
+        associated: Vec::new(),
+    };
+    vec![
+        DependencyKey::SccRoot(owner),
+        DependencyKey::OwnerRawRoles(owner),
+        DependencyKey::OwnerSelections(owner),
+        DependencyKey::Selection(SelectId(4)),
+        DependencyKey::ConstraintBounds(TypeVar(5)),
+        DependencyKey::ConstraintNeighbors(TypeVar(6)),
+        DependencyKey::ConstraintSubtractFacts(TypeVar(7)),
+        DependencyKey::ConstraintLevel(TypeVar(8)),
+        DependencyKey::ConstraintBirthLevel(TypeVar(9)),
+        DependencyKey::ConstraintPrePopFamilies(TypeVar(10)),
+        DependencyKey::MethodTaint(TypeVar(11)),
+        DependencyKey::CandidateBucket(vec!["Candidate".to_string()]),
+        DependencyKey::AppliedResolution(RoleResolutionKey {
+            demand: role.clone(),
+            candidate: role,
+        }),
+    ]
 }

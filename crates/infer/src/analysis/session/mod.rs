@@ -29,9 +29,11 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackSelection,
 };
 #[cfg(test)]
+pub(super) use owner_dirty_scheduler::OwnerScheduleDecision;
+#[cfg(test)]
 pub(crate) use owner_dirty_scheduler::{
     MethodRoleOwnerDirtyScheduler, OwnerPredictionReason,
-    with_owner_dirty_scheduler_for_new_sessions,
+    with_owner_dirty_scheduler_for_new_sessions, with_owner_dirty_scheduler_skips_for_new_sessions,
 };
 #[cfg(test)]
 pub(super) use shadow_dirty_oracle::OwnerSolveOutcome;

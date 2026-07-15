@@ -112,7 +112,10 @@ pub(crate) use session::{
     with_shadow_dirty_oracle_for_new_sessions,
 };
 #[cfg(test)]
-pub(crate) use session::{OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions};
+pub(crate) use session::{
+    OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
+    with_owner_dirty_scheduler_skips_for_new_sessions,
+};
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
 use trace::{
