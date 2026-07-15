@@ -250,23 +250,6 @@ fn candidate_and_prerequisite_changes_cover_transitively_read_buckets() {
     let role_a = role_path("A");
     let role_b = role_path("B");
     let role_c = role_path("C");
-    let collector = SessionLocalOwnerReadCollector::default();
-    let capture = collector.activate();
-    collector.record(DependencyKey::CandidateBucket(role_a.clone()));
-    collector.record(DependencyKey::CandidateBucket(role_b.clone()));
-    collector.record(DependencyKey::CandidateBucket(role_c.clone()));
-    collector.record(DependencyKey::CandidateBucket(role_b.clone()));
-    let reads = capture.finish();
-    assert_eq!(
-        reads.dependencies(),
-        [
-            DependencyKey::CandidateBucket(role_a.clone()),
-            DependencyKey::CandidateBucket(role_b.clone()),
-            DependencyKey::CandidateBucket(role_c.clone()),
-        ],
-        "top-level and recursively reached prerequisite buckets must use the same typed key"
-    );
-
     assert_eq!(
         record_one(ContractMutation::Known(
             KnownMutation::CandidateRegistered {
@@ -865,45 +848,6 @@ fn coarse_contract_generation_is_additive_to_the_existing_whole_session_guard() 
     journal.finish();
 }
 
-#[test]
-fn session_local_read_collector_is_inactive_by_default_and_clears_on_finish_or_unwind() {
-    let collector = SessionLocalOwnerReadCollector::default();
-    let var = TypeVar(70);
-
-    record_six_constraint_reads(&collector, var);
-    assert!(collector.activate().finish().dependencies().is_empty());
-
-    let capture = collector.activate();
-    record_six_constraint_reads(&collector, var);
-    collector.record_constraint_bounds(var);
-    assert_eq!(
-        capture.finish().dependencies(),
-        [
-            DependencyKey::ConstraintBounds(var),
-            DependencyKey::ConstraintNeighbors(var),
-            DependencyKey::ConstraintSubtractFacts(var),
-            DependencyKey::ConstraintLevel(var),
-            DependencyKey::ConstraintBirthLevel(var),
-            DependencyKey::ConstraintPrePopFamilies(var),
-        ]
-    );
-
-    collector.record_constraint_bounds(var);
-    assert!(collector.activate().finish().dependencies().is_empty());
-
-    let unwind = catch_unwind(AssertUnwindSafe(|| {
-        let _capture = collector.activate();
-        collector.record_constraint_bounds(var);
-        panic!("exercise collector unwind cleanup");
-    }));
-    assert!(unwind.is_err());
-    assert!(collector.activate().finish().dependencies().is_empty());
-
-    let source = include_str!("../dirty_scheduling_contract.rs");
-    assert!(!source.contains("thread_local!"));
-    assert!(!source.contains("OwnerDependencyFingerprint"));
-}
-
 fn record_one(mutation: ContractMutation) -> Vec<MethodRoleMutation> {
     MutationContractHarness::new(usize::MAX).record(mutation)
 }
@@ -915,15 +859,6 @@ fn changed_events(keys: Vec<DependencyKey>) -> Vec<MethodRoleMutation> {
             key,
         })
         .collect()
-}
-
-fn record_six_constraint_reads(collector: &SessionLocalOwnerReadCollector, var: TypeVar) {
-    collector.record_constraint_bounds(var);
-    collector.record_constraint_neighbors(var);
-    collector.record_constraint_subtract_facts(var);
-    collector.record_constraint_level(var);
-    collector.record_constraint_birth_level(var);
-    collector.record_constraint_pre_pop_families(var);
 }
 
 fn selection_use(parent: DefId, base: u32) -> SelectionUse {

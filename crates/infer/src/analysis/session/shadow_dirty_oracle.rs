@@ -1,8 +1,9 @@
 //! Test-only oracle for measuring owner-level method-role pass dirtiness.
 //!
-//! The production solver always runs. This module records only the state that an owner's real
-//! solve read, predicts whether that state is unchanged on the next forced pass, and checks the
-//! prediction against the real outcome.
+//! This module never makes a production skip decision. It records only the state that an owner's
+//! real solve read and predicts whether that state is unchanged on the next forced pass.
+//! Always-solve tests check that prediction against the next real outcome; scheduled parity tests
+//! independently require every reused terminal outcome to match the exact-snapshot prediction.
 
 use super::*;
 

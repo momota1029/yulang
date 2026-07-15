@@ -4,8 +4,6 @@
 //! This independent matrix still describes every effective mutation kind, but it neither makes an
 //! owner-skip decision nor duplicates the production journal implementation.
 
-use std::cell::RefCell;
-
 use poly::expr::{DefId, SelectId};
 use poly::types::TypeVar;
 
@@ -665,107 +663,6 @@ impl MutationContractHarness {
         self.journal.clear();
         self.journal.push(event.clone());
         vec![event]
-    }
-}
-
-/// Session-owned read recorder prototype for the six constraint reads and explicit solve reads.
-///
-/// This is ordinary session-local state, not TLS. Inactive reads allocate nothing and record
-/// nothing. It accepts only already-observed typed keys, so it has no API for reconstructing or
-/// polling a complete owner fingerprint before an eligibility decision.
-#[derive(Debug, Default)]
-pub(crate) struct SessionLocalOwnerReadCollector {
-    active: RefCell<Option<CapturedOwnerReads>>,
-}
-
-impl SessionLocalOwnerReadCollector {
-    pub(crate) fn activate(&self) -> OwnerReadCapture<'_> {
-        assert!(
-            self.active
-                .borrow_mut()
-                .replace(CapturedOwnerReads::default())
-                .is_none(),
-            "owner read capture must not nest"
-        );
-        OwnerReadCapture {
-            collector: self,
-            active: true,
-        }
-    }
-
-    pub(crate) fn record(&self, key: DependencyKey) {
-        let mut active = self.active.borrow_mut();
-        let Some(reads) = active.as_mut() else {
-            return;
-        };
-        reads.insert(key);
-    }
-
-    pub(crate) fn record_constraint_bounds(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintBounds(var));
-    }
-
-    pub(crate) fn record_constraint_neighbors(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintNeighbors(var));
-    }
-
-    pub(crate) fn record_constraint_subtract_facts(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintSubtractFacts(var));
-    }
-
-    pub(crate) fn record_constraint_level(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintLevel(var));
-    }
-
-    pub(crate) fn record_constraint_birth_level(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintBirthLevel(var));
-    }
-
-    pub(crate) fn record_constraint_pre_pop_families(&self, var: TypeVar) {
-        self.record(DependencyKey::ConstraintPrePopFamilies(var));
-    }
-
-    fn take_active(&self) -> CapturedOwnerReads {
-        self.active
-            .borrow_mut()
-            .take()
-            .expect("owner read capture must be active")
-    }
-}
-
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct CapturedOwnerReads {
-    dependencies: Vec<DependencyKey>,
-}
-
-impl CapturedOwnerReads {
-    pub(crate) fn dependencies(&self) -> &[DependencyKey] {
-        &self.dependencies
-    }
-
-    fn insert(&mut self, key: DependencyKey) {
-        push_unique_key(&mut self.dependencies, key);
-    }
-}
-
-pub(crate) struct OwnerReadCapture<'a> {
-    collector: &'a SessionLocalOwnerReadCollector,
-    active: bool,
-}
-
-impl OwnerReadCapture<'_> {
-    pub(crate) fn finish(mut self) -> CapturedOwnerReads {
-        let reads = self.collector.take_active();
-        self.active = false;
-        reads
-    }
-}
-
-impl Drop for OwnerReadCapture<'_> {
-    fn drop(&mut self) {
-        if self.active {
-            self.collector.active.borrow_mut().take();
-        }
     }
 }
 

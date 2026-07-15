@@ -603,6 +603,34 @@ fn resolved_and_quantified_owners_leave_no_reverse_subscription_tombstones() {
 }
 
 #[test]
+fn scheduler_records_do_not_survive_the_session_boundary() {
+    let owner = DefId(1);
+    {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        session
+            .owner_dirty_scheduler
+            .as_mut()
+            .expect("default production scheduler")
+            .publish_record(
+                owner,
+                OwnerSolveOutcome::NoProgress,
+                vec![DependencyKey::OwnerSelections(owner)],
+            );
+        let report = session.owner_dirty_scheduler_report().expect("report");
+        assert_eq!(report.live_records, 1);
+        assert_eq!(report.live_dependency_keys, 1);
+        assert_eq!(report.live_reverse_edges, 1);
+    }
+
+    let fresh = AnalysisSession::new(PolyArena::new());
+    let report = fresh.owner_dirty_scheduler_report().expect("fresh report");
+    assert_eq!(report.live_records, 0);
+    assert_eq!(report.live_dependency_keys, 0);
+    assert_eq!(report.live_reverse_edges, 0);
+    assert!(!fresh.method_role_mutation_journal_active());
+}
+
+#[test]
 fn method_taint_diff_is_sorted_and_detects_add_change_and_removal() {
     let first = TypeVar(1);
     let second = TypeVar(2);
@@ -625,10 +653,8 @@ fn production_skips_are_default_and_scoped_overrides_restore_after_return_or_unw
         .expect("Stage 6 enables the production scheduler by default");
     assert!(scheduler.permit_owner_skips);
 
-    with_owner_dirty_scheduler_benchmark_for_new_sessions(|| {
-        let scheduler = MethodRoleOwnerDirtyScheduler::for_new_session()
-            .expect("retained benchmark scope keeps the production mode");
-        assert!(scheduler.permit_owner_skips);
+    with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
+        assert!(MethodRoleOwnerDirtyScheduler::for_new_session().is_none());
     });
     assert!(
         MethodRoleOwnerDirtyScheduler::for_new_session()

@@ -139,10 +139,10 @@ fn main() {
         }
         _ => print_usage_and_exit(&program),
     };
-    // Stage 6 enables the scheduler by default. Retain the Stage 5 flag as a compatibility no-op
-    // until Stage 7 decides whether removing the duplicate CLI surface is safe.
-    if options.owner_dirty_scheduler_benchmark {
-        infer::analysis::with_owner_dirty_scheduler_benchmark_for_new_sessions(run_command);
+    // Stage 7's explicitly named rollback/debug route selects always-solve mode. The retained
+    // Stage 5 benchmark spelling is parsed below as a compatibility no-op.
+    if options.owner_dirty_scheduler_always_solve {
+        infer::analysis::with_owner_dirty_scheduler_disabled_for_new_sessions(run_command);
     } else {
         run_command();
     }
@@ -155,7 +155,7 @@ struct GlobalOptions {
     show_cst: bool,
     use_cache: bool,
     runtime_phase_timings: bool,
-    owner_dirty_scheduler_benchmark: bool,
+    owner_dirty_scheduler_always_solve: bool,
 }
 
 impl Default for GlobalOptions {
@@ -166,7 +166,7 @@ impl Default for GlobalOptions {
             show_cst: false,
             use_cache: true,
             runtime_phase_timings: false,
-            owner_dirty_scheduler_benchmark: false,
+            owner_dirty_scheduler_always_solve: false,
         }
     }
 }
@@ -511,8 +511,11 @@ fn parse_global_options(
             Some("--runtime-phase-timings") => {
                 options.runtime_phase_timings = true;
             }
-            Some("--owner-dirty-scheduler-benchmark") => {
-                options.owner_dirty_scheduler_benchmark = true;
+            // Stage 6 made this Stage 5 opt-in spelling a no-op. Keep accepting it without
+            // changing behavior so older benchmark commands retain their original meaning.
+            Some("--owner-dirty-scheduler-benchmark") => {}
+            Some("--owner-dirty-scheduler-always-solve") => {
+                options.owner_dirty_scheduler_always_solve = true;
             }
             Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
@@ -3540,15 +3543,27 @@ mod tests {
     fn owner_dirty_scheduler_benchmark_is_accepted_as_a_compatibility_no_op() {
         let (default_options, default_args) =
             parse_global_options(VecDeque::from([OsString::from("run")])).expect("parse default");
-        assert!(!default_options.owner_dirty_scheduler_benchmark);
-        assert_eq!(default_args, VecDeque::from([OsString::from("run")]));
+        assert!(!default_options.owner_dirty_scheduler_always_solve);
 
-        let (enabled_options, enabled_args) = parse_global_options(VecDeque::from([
+        let (compatibility_options, compatibility_args) = parse_global_options(VecDeque::from([
             OsString::from("--owner-dirty-scheduler-benchmark"),
             OsString::from("run"),
         ]))
         .expect("parse retained benchmark flag");
-        assert!(enabled_options.owner_dirty_scheduler_benchmark);
-        assert_eq!(enabled_args, VecDeque::from([OsString::from("run")]));
+
+        assert_eq!(compatibility_options, default_options);
+        assert_eq!(compatibility_args, default_args);
+    }
+
+    #[test]
+    fn owner_dirty_scheduler_always_solve_flag_selects_the_disable_control() {
+        let (options, args) = parse_global_options(VecDeque::from([
+            OsString::from("--owner-dirty-scheduler-always-solve"),
+            OsString::from("run"),
+        ]))
+        .expect("parse always-solve flag");
+
+        assert!(options.owner_dirty_scheduler_always_solve);
+        assert_eq!(args, VecDeque::from([OsString::from("run")]));
     }
 }

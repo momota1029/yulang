@@ -28,7 +28,7 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackSelection,
 };
 pub(super) use owner_dirty_scheduler::OwnerScheduleDecision;
-pub use owner_dirty_scheduler::with_owner_dirty_scheduler_benchmark_for_new_sessions;
+pub use owner_dirty_scheduler::with_owner_dirty_scheduler_disabled_for_new_sessions;
 pub(crate) use owner_dirty_scheduler::{
     MethodRoleOwnerDirtyScheduler, OwnerSolveOutcome, begin_owner_dependency_reads,
     record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
@@ -36,8 +36,7 @@ pub(crate) use owner_dirty_scheduler::{
 };
 #[cfg(test)]
 pub(crate) use owner_dirty_scheduler::{
-    OwnerPredictionReason, with_owner_dirty_scheduler_disabled_for_new_sessions,
-    with_owner_dirty_scheduler_for_new_sessions,
+    OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions,
 };
 #[cfg(test)]
 pub(crate) use owner_dirty_scheduler::{

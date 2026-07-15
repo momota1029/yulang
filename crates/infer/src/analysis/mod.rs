@@ -103,7 +103,7 @@ use session::CandidateSettlementFact;
 use session::MethodRoleOwnerDirtyScheduler;
 #[cfg(test)]
 use session::ShadowDirtyOracle;
-pub use session::with_owner_dirty_scheduler_benchmark_for_new_sessions;
+pub use session::with_owner_dirty_scheduler_disabled_for_new_sessions;
 #[cfg(test)]
 pub(crate) use session::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
@@ -111,10 +111,7 @@ pub(crate) use session::{
     Stage0PendingWorkInventory, Stage0QuantifyEvent, with_shadow_dirty_oracle_for_new_sessions,
 };
 #[cfg(test)]
-pub(crate) use session::{
-    OwnerPredictionReason, with_owner_dirty_scheduler_disabled_for_new_sessions,
-    with_owner_dirty_scheduler_for_new_sessions,
-};
+pub(crate) use session::{OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions};
 pub(crate) use session::{
     record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
     record_owner_dependency_read, record_owner_method_taint_read,

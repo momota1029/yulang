@@ -961,6 +961,101 @@ closeout) remains.
   5. any early-fallback/generalization reuse proposal is scoped separately rather than activated
      as cleanup.
 
+#### Stage 7 complete: project closeout (2026-07-16)
+
+**Project complete.** All five Stage 7 exit criteria are satisfied:
+
+1. The `df1c23f3` whole-session guard is unchanged and remains the top-level fast path. Owner-level
+   dirty scheduling still acts only inside forced method-role passes.
+2. The test-only exact-snapshot shadow oracle remains independent of the production journal
+   scheduler, and the always-solve comparison remains available. Cleanup did not replace either
+   side with a comparison against the scheduler's own recorder.
+3. Settled/resolved owners still remove their records and reverse subscriptions, and a new explicit
+   session-lifecycle test now proves that records, dependency keys, reverse edges, and journal
+   activation do not survive session finish into a fresh `AnalysisSession`.
+4. The project keeps call rate, owner-solve time, and end-to-end wall time distinct. The approximately
+   97.78% Markdown clean-CALL rate was never a claim that 97.78% of clean-TIME or complete compile
+   time would disappear: Stage 3 measured the clean owners at about 95.52% of owner-solve time, while
+   Stage 6's fixed default-on implementation reduced end-to-end Markdown `build_poly` by 5.799%.
+   Stage 6's discarded first activation measured only 3.14% end-to-end improvement despite a 73.92%
+   `method_role_solve` improvement because session-wide journal overhead consumed the gain. High
+   clean-call rate is evidence for scheduling opportunity, not a substitute for time-weighted and
+   wall-time measurement.
+5. Early fallback, intermediate generalization reuse, finer demand identity, incremental method
+   taint, and constraint-replay deduplication remain explicitly separate future projects. None was
+   folded into Stage 7 cleanup.
+
+The Stage 5 CLI spelling is resolved as follows. `--owner-dirty-scheduler-benchmark` is now a true
+no-op, retained only so commands and scripts originating in Stages 5/6 continue to parse without a
+compatibility break. `--owner-dirty-scheduler-always-solve` is the new, explicitly named rollback and
+debugging control: for one invocation it forces the unchanged pre-Stage-6 always-solve owner loop.
+It does not change the default; owner-level dirty scheduling remains active by default in production.
+
+Cleanup removed the unused Stage 1 `SessionLocalOwnerReadCollector` prototype and its dedicated
+tests, approximately 168 lines. Stages 2-6 had fully superseded that prototype with the real owner
+collector, typed mutation outboxes, reverse subscriptions, lifecycle cleanup, adversaries, and
+production scheduler. This was the only redundancy proven strongly enough to remove.
+
+The following pieces were deliberately retained even though they can look redundant. Their
+redundancy was not established, so they are candidates for a **FUTURE** audit, not conclusions of
+this cleanup:
+
+- the independent exact-snapshot shadow oracle, which remains the non-journal correctness oracle;
+- the mutation-contract matrix and harness, which audit the vocabulary independently of production
+  mutation routing;
+- `capture_serial`, whose ordering/audit role has not been proven redundant with generations and
+  drained serial state; and
+- the current outbox synchronization path, whose pass-boundary and same-pass mutation-ordering
+  obligations make mechanical consolidation unsafe without a dedicated trace/audit.
+
+Separate future projects, explicitly out of scope here:
+
+1. **Early-fallback production activation.** The 2026-07-14 project remains deferred. It is still
+   blocked on true incremental/differential role-solver scheduling across the broader early-fallback
+   lifecycle, not merely owner scheduling inside the method-role pass.
+2. **Intermediate generalization iteration reuse.** The earlier profiling finding around redundant
+   `generalize_collect_roles`/`generalize_collect_dominance` work requires a different reachability
+   and mutation frontier from this project's method-role-pass-scoped owner frontier.
+3. **Finer, stable per-demand candidate identity.** This is a larger, finer-grained scheduling
+   project. Stages 3/4/5/6 deliberately kept `SelectionUse.parent` as the stable unit instead of
+   taking on demand split/merge and prerequisite identity.
+4. **Incremental method taint.** The shared method-taint index rebuild remains once per forced pass
+   and was not reduced, exactly as deferred in Section 5.5. Avoiding it needs its own incremental
+   taint graph and lifecycle proof.
+5. **Constraint-replay deduplication.** Earlier profiling found approximately 87% duplicate replay
+   entries. This is more correctness-sensitive than scheduling unchanged terminal owners and needs
+   a separate investigation before any mutation or replay suppression is attempted.
+
+The eight-stage implementation history is:
+
+| Stage | Final history | Discarded attempt / lesson |
+| --- | --- | --- |
+| 0 | `a6f55699` | Locked the time-weighted characterization and drift evidence before production work. |
+| 1 | `9e8e583e` | Defined the dependency vocabulary and independent mutation-contract harness. |
+| 2 | `c77ef953` | Second attempt. The first attempt, recorded in `1ede6ac7`, was discarded after an unbounded, unconsumed outbox caused about 11% overhead and exposed the wrong low-level-to-high-level module dependency. |
+| 3 | `3d81caf3` | Added the journal-backed scheduler in shadow mode; a naive pass-only recording window had collapsed the clean rate and was rejected. |
+| 4 | `e959c96c` | Enabled test-only real skipping and established full-session semantic parity plus dependency adversaries. |
+| 5 | `bb80e98a` + `aa4033b8` | Second attempt and approved cap enforcement. The first attempt, recorded in `9b5ed806`, was discarded after production constraint-read hooks were found still test-gated and the working tree became unstable under an unmanaged concurrent writer. |
+| 6 | `72467f78` | Second attempt. The first default-on activation was discarded after missing the Markdown wall-time gate; subscription-aware journal emission and removal of duplicate synchronization closed the real overhead. |
+| 7 | This closeout commit (`docs(role-solve): complete owner-level dirty scheduling project (Stage 7)`) | Removed only proven dead code, resolved the CLI rollback surface, added the session-finish lifecycle test, and recorded project closure. The commit cannot self-embed its own hash; the hash is the matching entry in Git history and the closeout handoff. |
+
+The cumulative measured direction for Yumark Markdown cold-compile `build_poly` is approximately
+35.7s at the start of this long performance session, approximately 14.36s after the eight standalone
+fixes `3fcb9cc1` through `51e9a722`, and a representative approximately 5.37s after the fixed Stage 6
+default-on owner scheduler. These values come from different measurement sessions/environments over
+a very long working session. They are directional milestones, not one controlled continuous A/B
+benchmark; the same-time alternating comparisons and Section 6.2 percentages remain the appropriate
+evidence for individual activation decisions.
+
+One operational lesson applies to future work in this same tooling/environment. A client-side Codex
+timeout does not reliably terminate the underlying process. Unmanaged processes repeatedly continued
+executing and writing to the repository after the client had timed out during Stages 2, 3, 4, and
+both Stage 5 attempts, matching the session's broader pattern. Future sessions must treat a timeout as
+an unknown live writer: check running work where possible, then re-check `git log`, `git status`, and
+`git diff --stat` before recovery or verification, and repeat those checks during long runs. A report
+or benchmark observed while the tree changed underneath it has no trustworthy provenance and must be
+rerun against a fixed commit.
+
 ## 9. Acceptance oracles
 
 ### Oracle D0: independent terminal-outcome shadow

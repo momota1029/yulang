@@ -35,7 +35,6 @@ static ACTIVE_OWNER_READ_CAPTURE_COUNT: AtomicUsize = AtomicUsize::new(0);
 enum OwnerDirtySchedulingMode {
     #[default]
     ProductionSkips,
-    #[cfg(test)]
     Disabled,
     #[cfg(test)]
     ShadowAlwaysSolve,
@@ -400,7 +399,6 @@ impl MethodRoleOwnerDirtyScheduler {
                 budget: budget_for_new_session(),
                 ..Self::default()
             }),
-            #[cfg(test)]
             OwnerDirtySchedulingMode::Disabled => None,
             #[cfg(test)]
             OwnerDirtySchedulingMode::ShadowAlwaysSolve => Some(Self::default()),
@@ -1347,15 +1345,6 @@ impl AnalysisSession {
     }
 }
 
-/// Backward-compatible Stage 5 benchmark scope.
-///
-/// Stage 6 makes this the process default, so the scope is intentionally an inert no-op for
-/// scheduling behavior. Keeping it avoids breaking existing benchmark scripts; Stage 7 may remove
-/// the duplicate API and CLI flag after compatibility review.
-pub fn with_owner_dirty_scheduler_benchmark_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
-    with_new_session_mode(OwnerDirtySchedulingMode::ProductionSkips, f)
-}
-
 fn with_new_session_mode<T>(mode: OwnerDirtySchedulingMode, f: impl FnOnce() -> T) -> T {
     struct ModeGuard(OwnerDirtySchedulingMode);
     impl Drop for ModeGuard {
@@ -1374,8 +1363,11 @@ pub(crate) fn with_owner_dirty_scheduler_for_new_sessions<T>(f: impl FnOnce() ->
     with_new_session_mode(OwnerDirtySchedulingMode::ShadowAlwaysSolve, f)
 }
 
-#[cfg(test)]
-pub(crate) fn with_owner_dirty_scheduler_disabled_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
+/// Run newly created sessions through the unchanged always-solve owner loop.
+///
+/// This is the explicit rollback/control route for scheduler regression debugging and paired
+/// performance measurements. It does not alter the default production mode.
+pub fn with_owner_dirty_scheduler_disabled_for_new_sessions<T>(f: impl FnOnce() -> T) -> T {
     with_new_session_mode(OwnerDirtySchedulingMode::Disabled, f)
 }
 
