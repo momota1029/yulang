@@ -88,6 +88,7 @@ pub(crate) fn coalesce_role_constraints(
 pub(crate) fn coalesce_role_constraints_recording_merge_constraints(
     constraints: Vec<CompactRoleConstraint>,
 ) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
+    let mut constraints = constraints.into_iter().map(Some).collect::<Vec<_>>();
     let mut out = Vec::new();
     let mut merge_constraints = Vec::new();
     let mut visited = vec![false; constraints.len()];
@@ -105,16 +106,25 @@ pub(crate) fn coalesce_role_constraints_recording_merge_constraints(
                 if visited[other] {
                     continue;
                 }
-                if role_constraints_share_input_vars(&constraints[current], &constraints[other]) {
+                if role_constraints_share_input_vars(
+                    constraints[current]
+                        .as_ref()
+                        .expect("current role component member must be present"),
+                    constraints[other]
+                        .as_ref()
+                        .expect("unvisited role constraint must be present"),
+                ) {
                     visited[other] = true;
                     component.push(other);
                 }
             }
         }
         out.push(merge_role_constraint_component(
-            component
-                .into_iter()
-                .map(|index| constraints[index].clone()),
+            component.into_iter().map(|index| {
+                constraints[index]
+                    .take()
+                    .expect("role component member must be moved exactly once")
+            }),
             &mut merge_constraints,
         ));
     }

@@ -59,7 +59,13 @@ pub(crate) fn collect_interval_dominance_constraints_with_metrics(
     }
     let mut out = Vec::new();
     for interval in &scan.intervals {
-        push_subtype_constraint(&mut out, interval.lower.clone(), interval.upper.clone());
+        if !subtype_constraint_is_trivial(interval.lower, interval.upper) {
+            push_subtype_constraint_unchecked(
+                &mut out,
+                interval.lower.clone(),
+                interval.upper.clone(),
+            );
+        }
         collect_interval_dominance_constraint(
             interval.lower,
             interval.upper,
@@ -499,9 +505,21 @@ pub(super) fn push_subtype_constraint(
     lower: CompactType,
     upper: CompactType,
 ) {
-    if lower.is_empty() || upper.is_empty() || lower == upper {
+    if subtype_constraint_is_trivial(&lower, &upper) {
         return;
     }
+    push_subtype_constraint_unchecked(out, lower, upper);
+}
+
+fn subtype_constraint_is_trivial(lower: &CompactType, upper: &CompactType) -> bool {
+    lower.is_empty() || upper.is_empty() || lower == upper
+}
+
+fn push_subtype_constraint_unchecked(
+    out: &mut Vec<CompactSubtypeConstraint>,
+    lower: CompactType,
+    upper: CompactType,
+) {
     out.push(CompactSubtypeConstraint {
         key: CompactSubtypeConstraintKey {
             lower: lower.clone(),

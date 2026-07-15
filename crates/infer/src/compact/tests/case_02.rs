@@ -792,6 +792,32 @@ fn interval_dominance_generates_subtype_for_single_lower_variable() {
 }
 
 #[test]
+fn interval_dominance_rejects_identical_interval_sides() {
+    let side = CompactType::from_con(CompactCon {
+        path: vec!["nested".into()],
+        args: vec![CompactBounds::Con {
+            path: vec!["leaf".into()],
+            args: Vec::new(),
+        }],
+    });
+    let root = CompactRoot::default();
+    let roles = vec![CompactRoleConstraint {
+        role: vec!["Ord".into()],
+        inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+            lower: side.clone(),
+            upper: side,
+        })],
+        associated: Vec::new(),
+    }];
+
+    let (constraints, metrics) = collect_interval_dominance_constraints_with_metrics(&root, &roles);
+
+    assert!(constraints.is_empty());
+    assert_eq!(metrics.interval_inputs, 1);
+    assert_eq!(metrics.generated_constraints, 0);
+}
+
+#[test]
 fn interval_dominance_does_not_emit_associated_constraints() {
     let lower = TypeVar(1);
     let upper = TypeVar(2);

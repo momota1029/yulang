@@ -105,6 +105,83 @@ fn role_constraint_could_resolve_requires_concrete_information_for_every_input()
 }
 
 #[test]
+fn coalesce_singleton_role_constraint_preserves_predicate_and_sorts_associated_types() {
+    let constraint = CompactRoleConstraint {
+        role: vec!["TestRole".into()],
+        inputs: vec![nominal_role_arg("input", Vec::new())],
+        associated: vec![
+            CompactRoleAssociatedType {
+                name: "Zed".into(),
+                value: nominal_role_arg("zed", Vec::new()),
+            },
+            CompactRoleAssociatedType {
+                name: "Alpha".into(),
+                value: nominal_role_arg("alpha", Vec::new()),
+            },
+        ],
+    };
+
+    let coalesced = coalesce_role_constraints(vec![constraint]);
+
+    assert_eq!(coalesced.len(), 1);
+    assert_eq!(coalesced[0].role, vec!["TestRole"]);
+    assert_eq!(
+        coalesced[0].inputs,
+        vec![nominal_role_arg("input", Vec::new())]
+    );
+    assert_eq!(
+        coalesced[0]
+            .associated
+            .iter()
+            .map(|associated| associated.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Alpha", "Zed"]
+    );
+    assert_eq!(
+        coalesced[0].associated[0].value,
+        nominal_role_arg("alpha", Vec::new())
+    );
+    assert_eq!(
+        coalesced[0].associated[1].value,
+        nominal_role_arg("zed", Vec::new())
+    );
+}
+
+#[test]
+fn coalesce_multi_member_component_still_merges_and_sorts_associated_types() {
+    let shared = TypeVar(1);
+    let first = CompactRoleConstraint {
+        role: vec!["TestRole".into()],
+        inputs: vec![identity_role_arg(shared)],
+        associated: vec![CompactRoleAssociatedType {
+            name: "Zed".into(),
+            value: nominal_role_arg("zed", Vec::new()),
+        }],
+    };
+    let second = CompactRoleConstraint {
+        role: vec!["TestRole".into()],
+        inputs: vec![identity_role_arg(shared)],
+        associated: vec![CompactRoleAssociatedType {
+            name: "Alpha".into(),
+            value: nominal_role_arg("alpha", Vec::new()),
+        }],
+    };
+
+    let coalesced = coalesce_role_constraints(vec![first, second]);
+
+    assert_eq!(coalesced.len(), 1);
+    assert_eq!(coalesced[0].inputs, vec![identity_role_arg(shared)]);
+    assert_eq!(
+        coalesced[0]
+            .associated
+            .iter()
+            .map(|associated| associated.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Alpha", "Zed"]
+    );
+}
+
+#[test]
 fn candidate_precheck_rejects_definite_non_first_head_mismatch_before_deep_match() {
     let mut infer = Arena::new();
     let node_var = infer.fresh_type_var();
