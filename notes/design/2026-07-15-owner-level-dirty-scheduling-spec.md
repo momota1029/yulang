@@ -835,6 +835,52 @@ Stage 3, Stage 4, and this Stage 5 attempt), and Stage 5 in particular showed a 
 well after the client-side timeout that originally triggered recovery, and even after an initial
 `git reset --hard`.
 
+#### Stage 5 second attempt (2026-07-16): correctness gap fixed, activation gates pass
+
+A corrected attempt promoted the production-side constraint-dependency read hooks alongside the
+scheduler under the same off-by-default benchmark flag (`--owner-dirty-scheduler-benchmark`,
+`GlobalOptions.owner_dirty_scheduler_benchmark: bool`, defaulting to `false`), fixing the gap found in
+the first attempt. A new non-test `record_owner_dependency_read` collector now captures all six
+constraint-level dependency kinds (`ConstraintBounds`/`ConstraintNeighbors`/`ConstraintSubtractFacts`/
+`ConstraintLevel`/`ConstraintBirthLevel`/`ConstraintPrePopFamilies`) from real production read sites,
+reachable end-to-end when the benchmark flag is enabled, while remaining a complete no-op when it is
+not. Verification confirmed the previously-telltale unused-import/unused-constructor compiler warnings
+are gone -- direct evidence the hooks are now genuinely wired rather than merely defined.
+
+Verification (independent, maximally skeptical, with the tree checked for stability at multiple points
+throughout -- no unmanaged concurrent writes were observed this time): `cargo check -p infer`/
+`-p yulang` compiled cleanly with zero warnings; `cargo test -p infer --lib` showed 798 passed / 5
+known-unrelated Yumark DefId-ordering failures (baseline after Stage 4 was 795 passed / 5 known
+failures -- 3 new tests, zero regressions); a release build succeeded; the default (flag-off) path
+produced a byte-identical SHA-256 to a fresh same-time rebuild of the last known-good commit; and,
+notably, running WITH the benchmark flag enabled produced byte-identical compiled output to the
+flag-off path as well, confirming the scheduler changes scheduling only, never semantics.
+
+Section 6.2's activation performance gates were measured on real release builds (5 alternating pairs
+each) and all passed, several by a wide margin: Markdown `method_role_solve` mean dropped 72.14%
+(gate: >=50%); complete method-role-pass mean (including taint rebuild) dropped 63.53% (gate: >=30%);
+Markdown cold `build_poly` mean dropped 8.08% (gate: >=5%); HTML, repository-std-only, and showcase
+`build_poly` means dropped 20.37%, 18.83%, and 15.37% respectively -- all improvements, not the
+regressions the gate merely required staying under 2% of.
+
+Route counters for the Markdown fixture: 89 whole-pass skips, 7,359 clean-owner skips, 167 dirty
+solves, 0 full fallbacks (no `InvalidateAll` conditions were hit in these fixtures).
+
+Peak resource usage was measured across all four representative fixtures (Markdown/HTML/
+repository-std-only/showcase) to inform absolute cap selection, per spec Section 5.9's requirement
+that these come from real measurement:
+
+| Workload | Owners | Dependency keys | Per-owner deps (max) | Reverse edges | Journal burst (max) | Retained bytes (approx) |
+|---|---:|---:|---:|---:|---:|---:|
+| Markdown | 78 | 26,811 | 213 | 2,884 | 60,424 | 5,495,913 |
+| HTML | 78 | 26,822 | 213 | 2,884 | 60,424 | 5,503,170 |
+| Repository std-only | 74 | 23,878 | 213 | 2,812 | 60,424 | 5,487,738 |
+| Showcase | 79 | 25,210 | 213 | 2,860 | 62,163 | 5,509,277 |
+
+No absolute caps are enforced yet -- all cap fields remain unset (`None`) pending explicit human
+approval per spec Section 5.9. This is the one open item before Stage 5 can be considered fully
+closed; Stage 6 (default production activation) should not begin until caps are approved and wired.
+
 ### Stage 6: fail-closed production activation
 
 - Size: S-M.
