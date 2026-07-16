@@ -394,6 +394,79 @@ review after shadow evidence.
   9. the Stage 0 performance and memory gates still appear attainable after measuring real lookup,
      equality, storage, and fresh-applied-filtering overhead. Otherwise stop before activation.
 
+#### Stage 1 complete (2026-07-16): exact shadow parity and gate re-measurement
+
+Stage 1 landed in three test-only slices: `0a2d52b1` added the exact shadow oracle,
+`2a8a7782` added the bounded fail-closed cache and adversaries, and `4c51d287` completed the
+acceptance-set and isolated-paired production-parity coverage. Production still unconditionally
+uses the full-solve result. Stage 2 has not started and still requires the separate explicit human
+decision specified below.
+
+All nine Stage 1 exit criteria are met:
+
+1. The complete nine-case acceptance set produced 1,019 would-be hits, 1,019 exact recursive-result
+   matches, and zero result mismatches.
+2. Focused unresolved, ambiguous, newly-resolved, and already-applied witnesses exercise live
+   applied filtering. The acceptance run reported zero disposition, state-delta, or full-path
+   mismatches.
+3. Isolated shadow-off/shadow-on runs matched finalized schemes, residual predicates, diagnostics,
+   unresolved selections, generalization restart/SCC order, poly surfaces, compiled lowering
+   surfaces, and runtime-lowered surfaces exactly. The two branches use separate lowering sessions.
+4. The explicit `E/A/M/D/C` miss classifications all retain the unconditional full solve. The
+   acceptance set observed 113 epoch, 2,011 demand, and 964 lifecycle misses. The full-solve call
+   is structurally upstream of all shadow comparisons, so supplemental-epoch/main/candidate
+   mismatches cannot suppress it either.
+5. Nested and shared prerequisites, ambiguity, and cycle termination have focused exact-result and
+   live-application witnesses, with zero shadow mismatches.
+6. Entry/byte cap exhaustion, incomplete entries, generation overflow, unavailable guards,
+   unwitnessable epochs, and non-quiescent boundaries all clear or disable reuse and fail closed.
+7. The instrumentation is `#[cfg(test)]`-gated, the production-selected result remains the
+   unconditional full-solve result, and isolated parity fixes restart counts and SCC event order.
+8. The exhaustive retained-entry identity audit fixes the key to structural `E/A/M/D/C` fields;
+   path/name/fixture strings, Debug text, and `DefId` constants are reporting data only.
+9. The fresh measurements below leave the approved absolute caps with substantial headroom and
+   show that the measured hit/storage costs remain below the full-solve time available to remove.
+
+A fresh `RUSTC_WRAPPER= cargo build --release -p yulang` succeeded. The established one-shot
+no-cache release measurements were:
+
+| Fixture | Internal total | `analysis.generalize_resolve_roles` | External wall | Max RSS |
+| --- | ---: | ---: | ---: | ---: |
+| Yumark Markdown | 5.775 s | 1.930 s | 5.90 s | 448,568 KiB |
+| Yumark HTML | 1.153 s | 12.3 ms | 1.25 s | 216,604 KiB |
+| Repository std only | 1.034 s | 7.3 ms | 1.08 s | 200,164 KiB |
+| Showcase | 1.150 s | 8.3 ms | 1.21 s | 203,944 KiB |
+
+These release measurements contain no Stage 1 snapshot work: the module, session state, and
+generalization wiring are all compiled out outside `cfg(test)`. They are current production timing
+context, not a shadow-on/shadow-off release A/B. The Markdown total and role phase remain in the
+same broad range as Section 1's earlier one-shot values; the differences cannot be attributed to
+test-only Stage 1 code.
+
+The shadow overhead was therefore re-measured through the acceptance-set test's own instrumentation.
+Across all nine cases, the would-be-hit full solves accounted for 1.733425 s. The explicitly timed
+snapshot dimensions were 13.537 ms for demand plus `E/A/M/C` lookup/equality, 47.309 ms for exact
+result equality, 699.150 ms for two fresh-applied applications per hit, 18.552 ms for disposition
+comparison, 0.333 ms for state-delta comparison, 104.663 ms for 2,124 snapshot clones, and 1.943 ms
+for retention accounting. Their 885.487 ms sum is below the measured 1.733425 s full-solve
+opportunity. It is not a claim about total test wall overhead: Debug-size formatting and report
+allocation are not separately timed. A Stage 2 production hit should also be cheaper than this
+shadow path because it will not perform the oracle result/disposition/state comparisons and will
+apply the retained result once rather than twice.
+
+Peak retention was 6 entries and 20,653,144 Debug-proxy bytes against the approved absolute caps of
+64 entries and 128 MiB (134,217,728 bytes), with zero acceptance-set cap fallbacks. The retained-byte
+peak is 24 bytes above Stage 0's 20,653,120-byte observation, exactly consistent with the three
+Markdown `proof` snapshots each replacing the original 8-byte raw candidate generation with the
+16-byte fail-closed generation/unavailable/overflowed guard; it is not compact-tree growth and still
+leaves about 6.5x byte headroom. This proxy is deliberately not allocator-retained RSS.
+
+Section 8 records qualitative activation requirements but still leaves numerical release
+improvement/no-regression thresholds as TBD. Stage 1 criterion 9 is satisfied as an attainability
+gate by the measured mechanism margin and cap headroom; Stage 2 planning must turn those TBDs into
+an explicitly approved same-time alternating release gate before production activation. This
+closeout does not authorize or begin Stage 2.
+
 ### Stage 2: fail-closed production activation
 
 - Size: S-M.
