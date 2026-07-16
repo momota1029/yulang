@@ -3,6 +3,7 @@ use super::*;
 use super::stage0_tests::{fixture_source, repository_std_loaded, root_value_def};
 use crate::analysis::{
     GeneralizeSnapshotCharacterizationReport,
+    with_generalize_role_snapshot_always_solve_for_new_sessions,
     with_generalize_snapshot_characterization_for_new_sessions,
 };
 use poly::expr::SelectId;
@@ -133,7 +134,7 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
 }
 
 #[test]
-fn stage1_shadow_instrumentation_has_exact_isolated_production_parity() {
+fn stage2_production_snapshot_reuse_has_exact_isolated_always_solve_parity() {
     let cases = [
         CharacterizationCase::fixture(
             "markdown",
@@ -144,34 +145,42 @@ fn stage1_shadow_instrumentation_has_exact_isolated_production_parity() {
     ];
 
     for case in cases {
-        // These are deliberately separate full lowering invocations. The disabled branch cannot
-        // observe any cache entry, applied-state mutation, or report owned by the enabled branch.
-        let mut without_shadow = case.lower();
+        // These are deliberately separate full lowering invocations. The always-solve branch
+        // cannot observe any cache entry or applied-state mutation owned by the production branch.
+        let mut production = case.lower();
         assert!(
-            without_shadow
+            production
                 .session
                 .generalize_snapshot_characterization_report()
                 .is_none(),
-            "{}: the control session unexpectedly enabled the shadow oracle",
+            "{}: production unexpectedly enabled the test-only shadow oracle",
             case.name,
         );
-
-        let mut with_shadow =
-            with_generalize_snapshot_characterization_for_new_sessions(|| case.lower());
-        let report = with_shadow
-            .session
-            .generalize_snapshot_characterization_report()
-            .expect("paired shadow session must carry the exact oracle");
-        assert_report_invariants(case.name, &report);
+        let production_timing = production.session.timing();
         assert!(
-            report.roots.iter().any(|root| root.would_be_hits > 0),
-            "{}: paired shadow run did not exercise a would-be hit",
+            production_timing.generalize_role_snapshot_hits > 0,
+            "{}: production run did not exercise an exact hit",
             case.name,
         );
 
-        let without_shadow = ProductionParitySnapshot::capture(&mut without_shadow);
-        let with_shadow = ProductionParitySnapshot::capture(&mut with_shadow);
-        without_shadow.assert_eq(case.name, &with_shadow);
+        let mut always_solve =
+            with_generalize_role_snapshot_always_solve_for_new_sessions(|| case.lower());
+        let always_solve_timing = always_solve.session.timing();
+        assert_eq!(
+            always_solve_timing.generalize_role_snapshot_hits, 0,
+            "{}: rollback control unexpectedly reused a snapshot",
+            case.name,
+        );
+        assert!(
+            always_solve_timing.generalize_role_snapshot_full_solves
+                > production_timing.generalize_role_snapshot_full_solves,
+            "{}: exact production hits did not remove recursive full solves",
+            case.name,
+        );
+
+        let production = ProductionParitySnapshot::capture(&mut production);
+        let always_solve = ProductionParitySnapshot::capture(&mut always_solve);
+        production.assert_eq(case.name, &always_solve);
     }
 }
 

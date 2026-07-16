@@ -32,8 +32,8 @@ use matchers::*;
 use rewrite::*;
 #[cfg(test)]
 pub(crate) use snapshot_characterization::{
-    PureRoleDemandObservation, PureRoleDemandOutcome, ShadowRoleDemandApplication,
-    ShadowRoleStateDelta, apply_pure_role_demand_outcome, capture_pure_role_demand_observations,
+    PureRoleDemandObservation, ShadowRoleDemandApplication, ShadowRoleStateDelta,
+    apply_pure_role_demand_outcome, capture_pure_role_demand_observations,
     shadow_applications_from_full_solve,
 };
 use taint::*;
@@ -66,6 +66,8 @@ pub(crate) struct RoleResolveStats {
     pub prerequisite_candidate_matches: usize,
     pub candidate_cache_hits: usize,
     pub candidate_cache_misses: usize,
+    pub exact_snapshot_hits: usize,
+    pub exact_snapshot_full_solves: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +87,34 @@ pub(crate) enum RoleDemandDisposition {
 pub(crate) struct RoleResolveDispositionOutput {
     pub output: RoleResolveOutput,
     pub dispositions: Vec<RoleDemandDisposition>,
+}
+
+/// The complete recursive result for one normalized demand, before live `applied` membership is
+/// read. Exact snapshots retain only this value and always rebuild the disposition below.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum PureRoleDemandOutcome {
+    Resolved(RoleResolution),
+    Unresolved { candidate_matches: usize },
+}
+
+/// Loop-local exact snapshot boundary supplied by generalization.
+///
+/// Implementations must return `None` for every uncertain guard or budget state. A hit supplies
+/// only the pure recursive result; this solver remains responsible for the current-state
+/// disposition and output ordering.
+pub(crate) trait ExactRoleSolveSnapshots {
+    fn lookup(
+        &mut self,
+        main: &CompactRoot,
+        demand: &CompactRoleConstraint,
+    ) -> Option<PureRoleDemandOutcome>;
+
+    fn retain(
+        &mut self,
+        main: &CompactRoot,
+        demand: &CompactRoleConstraint,
+        outcome: &PureRoleDemandOutcome,
+    );
 }
 
 #[cfg(test)]
@@ -164,10 +194,12 @@ pub(crate) fn resolve_role_constraints_with_stats(
         impls,
         applied,
         &FxHashMap::default(),
+        None,
     )
     .output
 }
 
+#[cfg(test)]
 pub(crate) fn resolve_role_constraints_with_stats_and_dispositions(
     machine: &ConstraintMachine,
     main: &CompactRoot,
@@ -182,6 +214,26 @@ pub(crate) fn resolve_role_constraints_with_stats_and_dispositions(
         impls,
         applied,
         &FxHashMap::default(),
+        None,
+    )
+}
+
+pub(crate) fn resolve_role_constraints_with_stats_dispositions_and_exact_snapshots(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+    snapshots: &mut dyn ExactRoleSolveSnapshots,
+) -> RoleResolveDispositionOutput {
+    resolve_role_constraints_with_method_taint_stats_inner::<true, false>(
+        machine,
+        main,
+        constraints,
+        impls,
+        applied,
+        &FxHashMap::default(),
+        Some(snapshots),
     )
 }
 
@@ -200,6 +252,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats(
         impls,
         applied,
         method_taint,
+        None,
     )
     .output
 }
@@ -219,6 +272,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint_stats_recording_owner_d
         impls,
         applied,
         method_taint,
+        None,
     )
     .output
 }
@@ -233,6 +287,7 @@ fn resolve_role_constraints_with_method_taint_stats_inner<
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+    mut exact_snapshots: Option<&mut dyn ExactRoleSolveSnapshots>,
 ) -> RoleResolveDispositionOutput {
     let mut out = Vec::new();
     let mut dispositions = if RECORD_DISPOSITIONS {
@@ -244,85 +299,115 @@ fn resolve_role_constraints_with_method_taint_stats_inner<
     let main_polarity = MainPolarity::collect(main);
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
-        #[cfg(test)]
-        snapshot_characterization::begin_demand(constraint);
         stats.demands += 1;
-        if RECORD_OWNER_DEPENDENCIES {
-            crate::analysis::record_owner_candidate_bucket_read(&constraint.role);
-        }
-        #[cfg(test)]
-        snapshot_characterization::record_candidate_bucket(&constraint.role);
-        let impl_candidates = impls.candidates(&constraint.role);
-        stats.candidate_scans += impl_candidates.len();
-        let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
-            constraint,
-            &main_polarity,
-            method_taint,
-        );
-        let mut candidates = Vec::new();
-        for candidate in impl_candidates {
-            if let Some(candidate) = resolve_role_candidate::<RECORD_OWNER_DEPENDENCIES>(
-                machine,
-                constraint,
-                concrete_inputs.as_deref(),
-                candidate,
-                &main_polarity,
-                method_taint,
-                impls,
-                &mut candidate_cache,
-                &mut FxHashSet::default(),
-                &mut stats,
-            ) {
-                candidates.push(candidate);
-            }
-        }
-        stats.candidate_matches += candidates.len();
-        if candidates.len() != 1 {
-            if candidates.len() > 1 {
-                stats.ambiguous_demands += 1;
-            }
-            if RECORD_DISPOSITIONS {
-                dispositions.push(RoleDemandDisposition::Unresolved {
-                    candidate_matches: candidates.len(),
-                });
+        let cached_outcome = exact_snapshots
+            .as_deref_mut()
+            .and_then(|snapshots| snapshots.lookup(main, constraint));
+        let exact_snapshot_hit = cached_outcome.is_some();
+        let pure_outcome = if let Some(outcome) = cached_outcome {
+            stats.exact_snapshot_hits += 1;
+            outcome
+        } else {
+            stats.exact_snapshot_full_solves += usize::from(exact_snapshots.is_some());
+            #[cfg(test)]
+            snapshot_characterization::begin_demand(constraint);
+            if RECORD_OWNER_DEPENDENCIES {
+                crate::analysis::record_owner_candidate_bucket_read(&constraint.role);
             }
             #[cfg(test)]
-            snapshot_characterization::record_unresolved(candidates.len());
-            continue;
-        }
-        let resolved = candidates.into_iter().next().expect("candidate");
-        let key = RoleResolutionKey {
-            demand: constraint.clone(),
-            candidate: resolved.candidate.clone(),
-        };
-        if RECORD_OWNER_DEPENDENCIES {
-            crate::analysis::record_owner_applied_resolution_read(&key, applied.contains(&key));
-        }
-        #[cfg(test)]
-        snapshot_characterization::record_resolved(
-            &key,
-            constraint,
-            &resolved.candidate,
-            &resolved.solved_prerequisites,
-            &resolved.residual_prerequisites,
-        );
-        if applied.contains(&key) {
-            stats.already_applied += 1;
-            if RECORD_DISPOSITIONS {
-                dispositions.push(RoleDemandDisposition::AlreadyApplied { key });
+            snapshot_characterization::record_candidate_bucket(&constraint.role);
+            let impl_candidates = impls.candidates(&constraint.role);
+            stats.candidate_scans += impl_candidates.len();
+            let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
+                constraint,
+                &main_polarity,
+                method_taint,
+            );
+            let mut candidates = Vec::new();
+            for candidate in impl_candidates {
+                if let Some(candidate) = resolve_role_candidate::<RECORD_OWNER_DEPENDENCIES>(
+                    machine,
+                    constraint,
+                    concrete_inputs.as_deref(),
+                    candidate,
+                    &main_polarity,
+                    method_taint,
+                    impls,
+                    &mut candidate_cache,
+                    &mut FxHashSet::default(),
+                    &mut stats,
+                ) {
+                    candidates.push(candidate);
+                }
             }
-            continue;
+            stats.candidate_matches += candidates.len();
+            if candidates.len() != 1 {
+                if candidates.len() > 1 {
+                    stats.ambiguous_demands += 1;
+                }
+                #[cfg(test)]
+                snapshot_characterization::record_unresolved(candidates.len());
+                PureRoleDemandOutcome::Unresolved {
+                    candidate_matches: candidates.len(),
+                }
+            } else {
+                let resolved = candidates.into_iter().next().expect("candidate");
+                let key = RoleResolutionKey {
+                    demand: constraint.clone(),
+                    candidate: resolved.candidate.clone(),
+                };
+                if RECORD_OWNER_DEPENDENCIES {
+                    crate::analysis::record_owner_applied_resolution_read(
+                        &key,
+                        applied.contains(&key),
+                    );
+                }
+                #[cfg(test)]
+                snapshot_characterization::record_resolved(
+                    &key,
+                    constraint,
+                    &resolved.candidate,
+                    &resolved.solved_prerequisites,
+                    &resolved.residual_prerequisites,
+                );
+                PureRoleDemandOutcome::Resolved(RoleResolution {
+                    key,
+                    demand: constraint.clone(),
+                    candidate: resolved.candidate,
+                    solved_prerequisites: resolved.solved_prerequisites,
+                    residual_prerequisites: resolved.residual_prerequisites,
+                })
+            }
+        };
+        if !exact_snapshot_hit && let Some(snapshots) = exact_snapshots.as_deref_mut() {
+            snapshots.retain(main, constraint, &pure_outcome);
         }
-        if RECORD_DISPOSITIONS {
-            dispositions.push(RoleDemandDisposition::NewlyResolved { key: key.clone() });
+
+        match pure_outcome {
+            PureRoleDemandOutcome::Unresolved { candidate_matches } => {
+                if candidate_matches > 1 && exact_snapshot_hit {
+                    stats.ambiguous_demands += 1;
+                }
+                if RECORD_DISPOSITIONS {
+                    dispositions.push(RoleDemandDisposition::Unresolved { candidate_matches });
+                }
+            }
+            PureRoleDemandOutcome::Resolved(resolution) => {
+                let key = resolution.key.clone();
+                if applied.contains(&key) {
+                    stats.already_applied += 1;
+                    if RECORD_DISPOSITIONS {
+                        dispositions.push(RoleDemandDisposition::AlreadyApplied { key });
+                    }
+                } else {
+                    if RECORD_DISPOSITIONS {
+                        dispositions
+                            .push(RoleDemandDisposition::NewlyResolved { key: key.clone() });
+                    }
+                    out.push(resolution);
+                }
+            }
         }
-        out.push(RoleResolution {
-            key,
-            demand: constraint.clone(),
-            candidate: resolved.candidate,
-            solved_prerequisites: resolved.solved_prerequisites,
-            residual_prerequisites: resolved.residual_prerequisites,
-        });
     }
     RoleResolveDispositionOutput {
         output: RoleResolveOutput {

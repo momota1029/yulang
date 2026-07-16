@@ -142,7 +142,17 @@ fn main() {
     // Stage 7's explicitly named rollback/debug route selects always-solve mode. The retained
     // Stage 5 benchmark spelling is parsed below as a compatibility no-op.
     if options.owner_dirty_scheduler_always_solve {
-        infer::analysis::with_owner_dirty_scheduler_disabled_for_new_sessions(run_command);
+        infer::analysis::with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
+            if options.generalize_role_snapshot_always_solve {
+                infer::analysis::with_generalize_role_snapshot_always_solve_for_new_sessions(
+                    run_command,
+                );
+            } else {
+                run_command();
+            }
+        });
+    } else if options.generalize_role_snapshot_always_solve {
+        infer::analysis::with_generalize_role_snapshot_always_solve_for_new_sessions(run_command);
     } else {
         run_command();
     }
@@ -156,6 +166,7 @@ struct GlobalOptions {
     use_cache: bool,
     runtime_phase_timings: bool,
     owner_dirty_scheduler_always_solve: bool,
+    generalize_role_snapshot_always_solve: bool,
 }
 
 impl Default for GlobalOptions {
@@ -167,6 +178,7 @@ impl Default for GlobalOptions {
             use_cache: true,
             runtime_phase_timings: false,
             owner_dirty_scheduler_always_solve: false,
+            generalize_role_snapshot_always_solve: false,
         }
     }
 }
@@ -271,6 +283,12 @@ struct RuntimeRoleResolutionTelemetry {
     prerequisite_candidate_matches: usize,
     candidate_cache_hits: usize,
     candidate_cache_misses: usize,
+    exact_snapshot_hits: usize,
+    exact_snapshot_full_solves: usize,
+    exact_snapshot_misses: usize,
+    exact_snapshot_cap_fallbacks: usize,
+    exact_snapshot_peak_entries: usize,
+    exact_snapshot_peak_retained_debug_bytes: usize,
 }
 
 impl RuntimeRoleResolutionTelemetry {
@@ -312,6 +330,13 @@ impl RuntimeRoleResolutionTelemetry {
             prerequisite_candidate_matches: analysis.role_resolve_prerequisite_candidate_matches,
             candidate_cache_hits: analysis.role_resolve_candidate_cache_hits,
             candidate_cache_misses: analysis.role_resolve_candidate_cache_misses,
+            exact_snapshot_hits: analysis.generalize_role_snapshot_hits,
+            exact_snapshot_full_solves: analysis.generalize_role_snapshot_full_solves,
+            exact_snapshot_misses: analysis.generalize_role_snapshot_misses,
+            exact_snapshot_cap_fallbacks: analysis.generalize_role_snapshot_cap_fallbacks,
+            exact_snapshot_peak_entries: analysis.generalize_role_snapshot_peak_entries,
+            exact_snapshot_peak_retained_debug_bytes: analysis
+                .generalize_role_snapshot_peak_retained_debug_bytes,
         }
     }
 }
@@ -516,6 +541,9 @@ fn parse_global_options(
             Some("--owner-dirty-scheduler-benchmark") => {}
             Some("--owner-dirty-scheduler-always-solve") => {
                 options.owner_dirty_scheduler_always_solve = true;
+            }
+            Some("--generalize-role-snapshot-always-solve") => {
+                options.generalize_role_snapshot_always_solve = true;
             }
             Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
@@ -1302,6 +1330,30 @@ fn print_runtime_evidence_phase_timings(
         eprintln!(
             "  run.analysis.role_resolve.owner_dirty.global_cap_fallbacks: {}",
             role.global_cap_fallbacks
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.hits: {}",
+            role.exact_snapshot_hits
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.full_solves: {}",
+            role.exact_snapshot_full_solves
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.misses: {}",
+            role.exact_snapshot_misses
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.cap_fallbacks: {}",
+            role.exact_snapshot_cap_fallbacks
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.peak_entries: {}",
+            role.exact_snapshot_peak_entries
+        );
+        eprintln!(
+            "  run.analysis.role_resolve.exact_snapshot.peak_retained_debug_bytes: {}",
+            role.exact_snapshot_peak_retained_debug_bytes
         );
         eprintln!("  run.analysis.role_resolve.demands: {}", role.demands);
         eprintln!(
@@ -3565,5 +3617,17 @@ mod tests {
 
         assert!(options.owner_dirty_scheduler_always_solve);
         assert_eq!(args, VecDeque::from([OsString::from("run")]));
+    }
+
+    #[test]
+    fn generalize_role_snapshot_always_solve_flag_selects_the_rollback_control() {
+        let (options, args) = parse_global_options(VecDeque::from([
+            OsString::from("--generalize-role-snapshot-always-solve"),
+            OsString::from("check-poly"),
+        ]))
+        .expect("parse generalize snapshot always-solve flag");
+
+        assert!(options.generalize_role_snapshot_always_solve);
+        assert_eq!(args, VecDeque::from([OsString::from("check-poly")]));
     }
 }

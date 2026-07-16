@@ -109,8 +109,7 @@ pub(crate) struct IndexedRoleImplTable {
     table: RoleImplTable,
     impl_role_buckets: FxHashMap<DefId, Vec<Vec<String>>>,
     mutations: MethodRoleMutationOutbox,
-    #[cfg(test)]
-    snapshot_characterization_generation: u64,
+    exact_snapshot_generation: u64,
 }
 
 impl IndexedRoleImplTable {
@@ -119,8 +118,7 @@ impl IndexedRoleImplTable {
     }
 
     pub(crate) fn insert(&mut self, candidate: RoleImplCandidate) {
-        #[cfg(test)]
-        self.advance_snapshot_characterization_generation();
+        self.advance_exact_snapshot_generation();
         let journal_active = self.mutations.is_active();
         let audit = journal_active.then(|| self.mutations.generation());
         let indexed_or_observed_role =
@@ -153,8 +151,7 @@ impl IndexedRoleImplTable {
         if prerequisites.is_empty() {
             return;
         }
-        #[cfg(test)]
-        self.advance_snapshot_characterization_generation();
+        self.advance_exact_snapshot_generation();
         let journal_active = self.mutations.is_active();
         let roles = journal_active.then(|| self.role_buckets_for_impl(impl_def).to_vec());
         let audit = journal_active.then(|| self.mutations.generation());
@@ -178,8 +175,7 @@ impl IndexedRoleImplTable {
         requirement: DefId,
         implementation: DefId,
     ) {
-        #[cfg(test)]
-        self.advance_snapshot_characterization_generation();
+        self.advance_exact_snapshot_generation();
         let journal_active = self.mutations.is_active();
         let roles = journal_active.then(|| self.role_buckets_for_impl(impl_def).to_vec());
         let audit = journal_active.then(|| self.mutations.generation());
@@ -237,17 +233,14 @@ impl IndexedRoleImplTable {
         self.mutations.is_active()
     }
 
-    #[cfg(test)]
-    pub(crate) fn snapshot_characterization_generation(&self) -> u64 {
-        self.snapshot_characterization_generation
+    pub(crate) fn exact_snapshot_generation(&self) -> u64 {
+        self.exact_snapshot_generation
     }
 
-    #[cfg(test)]
-    fn advance_snapshot_characterization_generation(&mut self) {
-        self.snapshot_characterization_generation = self
-            .snapshot_characterization_generation
-            .checked_add(1)
-            .expect("test-only candidate generation must not overflow");
+    fn advance_exact_snapshot_generation(&mut self) {
+        // Saturation makes the production guard permanently unavailable instead of allowing a
+        // wrapped generation to authorize a false hit.
+        self.exact_snapshot_generation = self.exact_snapshot_generation.saturating_add(1);
     }
 }
 
@@ -285,10 +278,10 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_candidate_generation_covers_every_mutable_table_api() {
+    fn exact_snapshot_candidate_generation_covers_every_mutable_table_api() {
         let mut table = IndexedRoleImplTable::new();
         let impl_def = DefId(7);
-        let initial = table.snapshot_characterization_generation();
+        let initial = table.exact_snapshot_generation();
         table.insert(RoleImplCandidate {
             impl_def: Some(impl_def),
             role: vec!["Display".into()],
@@ -297,7 +290,7 @@ mod tests {
             prerequisites: Vec::new(),
             methods: Vec::new(),
         });
-        let after_insert = table.snapshot_characterization_generation();
+        let after_insert = table.exact_snapshot_generation();
         assert!(
             after_insert > initial,
             "candidate addition/order must advance"
@@ -311,7 +304,7 @@ mod tests {
                 associated: Vec::new(),
             }],
         );
-        let after_prerequisite = table.snapshot_characterization_generation();
+        let after_prerequisite = table.exact_snapshot_generation();
         assert!(
             after_prerequisite > after_insert,
             "recursive prerequisite extension must advance"
@@ -319,7 +312,7 @@ mod tests {
 
         table.add_method_for_impl(impl_def, DefId(8), DefId(9));
         assert!(
-            table.snapshot_characterization_generation() > after_prerequisite,
+            table.exact_snapshot_generation() > after_prerequisite,
             "the only remaining mutable candidate API is conservatively guarded"
         );
     }

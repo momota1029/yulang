@@ -1,8 +1,8 @@
-//! Test-only exact-snapshot characterization for generalization role solving.
+//! Independent test-only exact-snapshot audit for generalization role solving.
 //!
-//! Every production solve still runs. This oracle retains exact E/M/D/C/A-shaped snapshots only to
-//! measure repeat opportunities, structural equality cost, cloning cost, and bounded-lifetime
-//! storage. Debug byte lengths are an explicit structural proxy, not allocator-retained bytes.
+//! The audit scope forces the always-full-solve control, then retains its own E/M/D/C/A-shaped
+//! snapshots to compare every would-be hit with the fresh recursive result. Debug byte lengths are
+//! an explicit structural proxy, not allocator-retained bytes.
 
 #![allow(
     dead_code,
@@ -329,19 +329,24 @@ impl GeneralizeSnapshotCharacterizationOracle {
 pub(crate) fn with_generalize_snapshot_characterization_for_new_sessions<T>(
     run: impl FnOnce() -> T,
 ) -> T {
-    ENABLE_NEW_ORACLES.with(|enabled| {
-        let previous = enabled.replace(true);
-        struct Restore<'a> {
-            enabled: &'a Cell<bool>,
-            previous: bool,
-        }
-        impl Drop for Restore<'_> {
-            fn drop(&mut self) {
-                self.enabled.set(self.previous);
+    // The independent audit must always observe a fresh full solve. Production activation is
+    // verified separately through isolated enabled/always-solve parity, so this scope disables
+    // production reuse while retaining the Stage 1 oracle as an independent result comparison.
+    with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
+        ENABLE_NEW_ORACLES.with(|enabled| {
+            let previous = enabled.replace(true);
+            struct Restore<'a> {
+                enabled: &'a Cell<bool>,
+                previous: bool,
             }
-        }
-        let _restore = Restore { enabled, previous };
-        run()
+            impl Drop for Restore<'_> {
+                fn drop(&mut self) {
+                    self.enabled.set(self.previous);
+                }
+            }
+            let _restore = Restore { enabled, previous };
+            run()
+        })
     })
 }
 

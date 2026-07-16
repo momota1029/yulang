@@ -165,8 +165,7 @@ impl ConstraintMachine {
         self.method_role_mutations.is_active()
     }
 
-    #[cfg(test)]
-    pub(crate) fn pending_constraint_work_for_test(&self) -> usize {
+    pub(crate) fn pending_constraint_work(&self) -> usize {
         self.queue.len()
     }
 

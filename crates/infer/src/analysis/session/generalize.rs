@@ -18,6 +18,8 @@ impl AnalysisSession {
         let trace = analysis_trace_mode();
         let start = Instant::now();
         let mut metrics = GeneralizeRootMetrics::default();
+        let mut exact_role_snapshots =
+            GeneralizeRoleSnapshotRoot::new(self.generalize_role_snapshot_reuse_enabled);
         #[cfg(test)]
         let mut snapshot_characterization = self
             .generalize_snapshot_characterization
@@ -224,54 +226,74 @@ impl AnalysisSession {
                     self.timing
                         .record_generalize_role_resolve_inputs(roles.len());
                     metrics.record_role_resolve_inputs(roles.len());
+                    let constraint_epoch = self.infer.constraints().epoch();
+                    let supplemental_epoch =
+                        self.infer.constraints().role_solve_supplemental_epoch();
+                    let candidate_generation = self.role_impls.exact_snapshot_generation();
+                    let pending_constraint_work =
+                        self.infer.constraints().pending_constraint_work();
+                    let pending_constraint_events = self.infer.constraints().events().len();
+                    let pending_analysis_work = self.work.len();
+                    let mut exact_snapshot_boundary = exact_role_snapshots.boundary(
+                        constraint_epoch,
+                        supplemental_epoch,
+                        candidate_generation,
+                        pending_constraint_work,
+                        pending_constraint_events,
+                        pending_analysis_work,
+                    );
                     #[cfg(test)]
                     let (resolved, pure_observations, batch_solve_time) =
                         if snapshot_characterization.is_some() {
                             let solve_started = Instant::now();
                             let (resolved, pure_observations) =
                                 crate::role_solve::capture_pure_role_demand_observations(|| {
-                                    resolve_role_constraints_with_stats_and_dispositions(
+                                    resolve_role_constraints_with_stats_dispositions_and_exact_snapshots(
                                         self.infer.constraints(),
                                         &role_compact,
                                         &roles,
                                         &self.role_impls,
                                         &applied_roles,
+                                        &mut exact_snapshot_boundary,
                                     )
                                 });
                             (resolved, pure_observations, solve_started.elapsed())
                         } else {
                             (
-                                resolve_role_constraints_with_stats_and_dispositions(
+                                resolve_role_constraints_with_stats_dispositions_and_exact_snapshots(
                                     self.infer.constraints(),
                                     &role_compact,
                                     &roles,
                                     &self.role_impls,
                                     &applied_roles,
+                                    &mut exact_snapshot_boundary,
                                 ),
                                 Vec::new(),
                                 Duration::ZERO,
                             )
                         };
                     #[cfg(not(test))]
-                    let resolved = resolve_role_constraints_with_stats_and_dispositions(
-                        self.infer.constraints(),
-                        &role_compact,
-                        &roles,
-                        &self.role_impls,
-                        &applied_roles,
-                    );
+                    let resolved =
+                        resolve_role_constraints_with_stats_dispositions_and_exact_snapshots(
+                            self.infer.constraints(),
+                            &role_compact,
+                            &roles,
+                            &self.role_impls,
+                            &applied_roles,
+                            &mut exact_snapshot_boundary,
+                        );
                     #[cfg(test)]
                     if let Some(observation) = snapshot_characterization.as_mut() {
                         observation.observe_solve_boundary(
                             generalize_iteration,
                             generalize_snapshot_characterization::GeneralizeSnapshotConstraintEpoch::capture(
-                                self.infer.constraints().epoch(),
+                                constraint_epoch,
                             ),
                             generalize_snapshot_characterization::GeneralizeSnapshotSupplementalEpoch::capture(
-                                self.infer.constraints().role_solve_supplemental_epoch(),
+                                supplemental_epoch,
                             ),
                             generalize_snapshot_characterization::GeneralizeSnapshotCandidateGuard::capture_generation(
-                                self.role_impls.snapshot_characterization_generation(),
+                                candidate_generation,
                             ),
                             &role_compact,
                             &roles,
@@ -279,9 +301,9 @@ impl AnalysisSession {
                             &resolved,
                             &applied_roles,
                             batch_solve_time,
-                            self.infer.constraints().pending_constraint_work_for_test(),
-                            self.infer.constraints().events().len(),
-                            self.work.len(),
+                            pending_constraint_work,
+                            pending_constraint_events,
+                            pending_analysis_work,
                         );
                     }
                     self.timing.record_role_resolve_stats(resolved.output.stats);
@@ -543,6 +565,8 @@ impl AnalysisSession {
             .extend(applied_merge_constraints);
         self.cache_interface_applied_subtype_constraints
             .extend(applied_subtype_constraints);
+        self.timing
+            .record_generalize_role_snapshot(exact_role_snapshots.report());
         #[cfg(test)]
         if let Some(observation) = snapshot_characterization
             && let Some(oracle) = self.generalize_snapshot_characterization.as_mut()

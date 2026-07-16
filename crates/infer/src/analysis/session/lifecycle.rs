@@ -54,6 +54,8 @@ impl AnalysisSession {
             #[cfg(test)]
             generalize_snapshot_characterization:
                 GeneralizeSnapshotCharacterizationOracle::for_new_session(),
+            generalize_role_snapshot_reuse_enabled:
+                generalize_role_snapshot_reuse_enabled_for_new_session(),
             owner_dirty_scheduler: MethodRoleOwnerDirtyScheduler::for_new_session(),
             owner_dirty_scheduler_journal: None,
             #[cfg(test)]

@@ -1,8 +1,8 @@
-//! Test-only observation of the pure per-demand recursive result.
+//! Test-only observation of a fresh pure per-demand recursive result.
 //!
-//! The production solver still performs every solve and chooses every disposition. This module
-//! records the result immediately before the live `applied` membership read, so characterization
-//! can prove that recursive candidate construction is independent of applied-state timing.
+//! The independent audit scope disables production reuse before this observer runs. This module
+//! records each full result immediately before the live `applied` membership read, so the audit can
+//! prove that recursive candidate construction is independent of applied-state timing.
 
 use super::*;
 
@@ -18,12 +18,6 @@ pub(crate) struct PureRoleDemandObservation {
     pub(crate) outcome: PureRoleDemandOutcome,
     pub(crate) candidate_buckets: Vec<Vec<String>>,
     pub(crate) solve_time: crate::time::Duration,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum PureRoleDemandOutcome {
-    Resolved(RoleResolution),
-    Unresolved { candidate_matches: usize },
 }
 
 /// The live disposition and publication delta obtained by applying one pure recursive result to

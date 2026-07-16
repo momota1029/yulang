@@ -6,7 +6,9 @@
 
 use crate::time::Duration;
 
-use super::{AnalysisWork, GeneralizeRootMetrics, SelectionTarget};
+use super::{
+    AnalysisWork, GeneralizeRoleSnapshotRootReport, GeneralizeRootMetrics, SelectionTarget,
+};
 use crate::compact::IntervalDominanceMetrics;
 use crate::role_solve::RoleResolveStats;
 use crate::scc::SccStats;
@@ -186,6 +188,12 @@ pub struct AnalysisTiming {
     pub role_resolve_prerequisite_candidate_matches: usize,
     pub role_resolve_candidate_cache_hits: usize,
     pub role_resolve_candidate_cache_misses: usize,
+    pub generalize_role_snapshot_hits: usize,
+    pub generalize_role_snapshot_full_solves: usize,
+    pub generalize_role_snapshot_misses: usize,
+    pub generalize_role_snapshot_cap_fallbacks: usize,
+    pub generalize_role_snapshot_peak_entries: usize,
+    pub generalize_role_snapshot_peak_retained_debug_bytes: usize,
     pub generalize_merge_constraints: usize,
     pub generalize_subtype_constraints: usize,
     pub generalize_cast_batches: usize,
@@ -593,6 +601,22 @@ impl AnalysisTiming {
         self.role_resolve_prerequisite_candidate_matches += stats.prerequisite_candidate_matches;
         self.role_resolve_candidate_cache_hits += stats.candidate_cache_hits;
         self.role_resolve_candidate_cache_misses += stats.candidate_cache_misses;
+        self.generalize_role_snapshot_hits += stats.exact_snapshot_hits;
+        self.generalize_role_snapshot_full_solves += stats.exact_snapshot_full_solves;
+    }
+
+    pub(super) fn record_generalize_role_snapshot(
+        &mut self,
+        report: GeneralizeRoleSnapshotRootReport,
+    ) {
+        self.generalize_role_snapshot_misses += report.misses;
+        self.generalize_role_snapshot_cap_fallbacks += report.cap_fallbacks;
+        self.generalize_role_snapshot_peak_entries = self
+            .generalize_role_snapshot_peak_entries
+            .max(report.peak_entries);
+        self.generalize_role_snapshot_peak_retained_debug_bytes = self
+            .generalize_role_snapshot_peak_retained_debug_bytes
+            .max(report.peak_retained_debug_bytes);
     }
 
     pub(super) fn record_generalize_component_shape(

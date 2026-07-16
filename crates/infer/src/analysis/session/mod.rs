@@ -6,6 +6,7 @@ mod dirty_scheduling_contract;
 #[cfg(test)]
 mod early_fallback_classifier;
 mod generalize;
+mod generalize_role_snapshot;
 #[cfg(test)]
 mod generalize_snapshot_characterization;
 mod instantiate;
@@ -28,6 +29,11 @@ pub(crate) use dirty_scheduling_contract::DependencyKeyKind;
 pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
+};
+pub use generalize_role_snapshot::with_generalize_role_snapshot_always_solve_for_new_sessions;
+pub(super) use generalize_role_snapshot::{
+    GeneralizeRoleSnapshotRoot, GeneralizeRoleSnapshotRootReport,
+    generalize_role_snapshot_reuse_enabled_for_new_session,
 };
 #[cfg(test)]
 pub(crate) use generalize_snapshot_characterization::{

@@ -82,7 +82,8 @@ use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints_recording_merge_constraints,
     resolve_role_constraints, resolve_role_constraints_with_method_taint_stats,
     resolve_role_constraints_with_method_taint_stats_recording_owner_dependencies,
-    resolve_role_constraints_with_stats_and_dispositions, role_constraint_could_resolve,
+    resolve_role_constraints_with_stats_dispositions_and_exact_snapshots,
+    role_constraint_could_resolve,
 };
 use crate::roles::{
     IndexedRoleImplTable, RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg,
@@ -100,11 +101,13 @@ use method_taint::{
 };
 use projection::role_impl_member_projection_substitutions;
 use session::CandidateSettlementFact;
+use session::GeneralizeRoleSnapshotRootReport;
 #[cfg(test)]
 use session::GeneralizeSnapshotCharacterizationOracle;
 use session::MethodRoleOwnerDirtyScheduler;
 #[cfg(test)]
 use session::ShadowDirtyOracle;
+pub use session::with_generalize_role_snapshot_always_solve_for_new_sessions;
 pub use session::with_owner_dirty_scheduler_disabled_for_new_sessions;
 #[cfg(test)]
 pub(crate) use session::{
@@ -183,6 +186,7 @@ pub struct AnalysisSession {
     shadow_dirty_oracle: Option<ShadowDirtyOracle>,
     #[cfg(test)]
     generalize_snapshot_characterization: Option<GeneralizeSnapshotCharacterizationOracle>,
+    generalize_role_snapshot_reuse_enabled: bool,
     owner_dirty_scheduler: Option<MethodRoleOwnerDirtyScheduler>,
     owner_dirty_scheduler_journal: Option<MethodRoleMutationJournalActivation>,
     #[cfg(test)]
