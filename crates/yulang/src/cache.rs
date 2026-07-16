@@ -4723,8 +4723,7 @@ mod tests {
         };
         lowering
             .session
-            .role_impls
-            .insert(poly::roles::RoleImplCandidate {
+            .register_role_impl_candidate(poly::roles::RoleImplCandidate {
                 impl_def: None,
                 role: vec!["UnclosedArtifactCandidate".into()],
                 inputs: vec![head_input],
@@ -4878,8 +4877,7 @@ mod tests {
         let candidate_role = vec!["OracleA2Role".to_string()];
         lowering
             .session
-            .role_impls
-            .insert(poly::roles::RoleImplCandidate {
+            .register_role_impl_candidate(poly::roles::RoleImplCandidate {
                 impl_def: None,
                 role: candidate_role.clone(),
                 inputs: vec![candidate_head],
