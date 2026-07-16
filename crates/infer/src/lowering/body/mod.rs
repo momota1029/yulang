@@ -2,6 +2,8 @@
 
 pub(super) mod act;
 pub(super) mod error_decl;
+#[cfg(test)]
+mod generalize_snapshot_characterization_tests;
 pub(super) mod impl_decl;
 pub(super) mod methods;
 pub(super) mod register;

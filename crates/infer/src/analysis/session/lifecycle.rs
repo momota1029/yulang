@@ -51,6 +51,9 @@ impl AnalysisSession {
             candidate_settlement_safety_witness: None,
             #[cfg(test)]
             shadow_dirty_oracle: ShadowDirtyOracle::for_new_session(),
+            #[cfg(test)]
+            generalize_snapshot_characterization:
+                GeneralizeSnapshotCharacterizationOracle::for_new_session(),
             owner_dirty_scheduler: MethodRoleOwnerDirtyScheduler::for_new_session(),
             owner_dirty_scheduler_journal: None,
             #[cfg(test)]

@@ -162,6 +162,11 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
+    pub(crate) fn pending_constraint_work_for_test(&self) -> usize {
+        self.queue.len()
+    }
+
+    #[cfg(test)]
     pub(crate) fn method_role_mutations(&self) -> &[MethodRoleMutation] {
         self.method_role_mutations.mutations()
     }

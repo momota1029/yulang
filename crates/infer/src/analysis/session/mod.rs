@@ -6,6 +6,8 @@ mod dirty_scheduling_contract;
 #[cfg(test)]
 mod early_fallback_classifier;
 mod generalize;
+#[cfg(test)]
+mod generalize_snapshot_characterization;
 mod instantiate;
 mod lifecycle;
 mod owner_dirty_scheduler;
@@ -26,6 +28,12 @@ pub(crate) use dirty_scheduling_contract::DependencyKeyKind;
 pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
+};
+#[cfg(test)]
+pub(crate) use generalize_snapshot_characterization::{
+    GeneralizeSnapshotCharacterizationOracle, GeneralizeSnapshotCharacterizationReport,
+    GeneralizeSnapshotRootObservation, GeneralizeSnapshotRootReport,
+    with_generalize_snapshot_characterization_for_new_sessions,
 };
 pub(super) use owner_dirty_scheduler::OwnerScheduleDecision;
 pub use owner_dirty_scheduler::with_owner_dirty_scheduler_disabled_for_new_sessions;

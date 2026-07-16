@@ -109,6 +109,8 @@ pub(crate) struct IndexedRoleImplTable {
     table: RoleImplTable,
     impl_role_buckets: FxHashMap<DefId, Vec<Vec<String>>>,
     mutations: MethodRoleMutationOutbox,
+    #[cfg(test)]
+    snapshot_characterization_generation: u64,
 }
 
 impl IndexedRoleImplTable {
@@ -117,6 +119,8 @@ impl IndexedRoleImplTable {
     }
 
     pub(crate) fn insert(&mut self, candidate: RoleImplCandidate) {
+        #[cfg(test)]
+        self.advance_snapshot_characterization_generation();
         let journal_active = self.mutations.is_active();
         let audit = journal_active.then(|| self.mutations.generation());
         let indexed_or_observed_role =
@@ -149,6 +153,8 @@ impl IndexedRoleImplTable {
         if prerequisites.is_empty() {
             return;
         }
+        #[cfg(test)]
+        self.advance_snapshot_characterization_generation();
         let journal_active = self.mutations.is_active();
         let roles = journal_active.then(|| self.role_buckets_for_impl(impl_def).to_vec());
         let audit = journal_active.then(|| self.mutations.generation());
@@ -172,6 +178,8 @@ impl IndexedRoleImplTable {
         requirement: DefId,
         implementation: DefId,
     ) {
+        #[cfg(test)]
+        self.advance_snapshot_characterization_generation();
         let journal_active = self.mutations.is_active();
         let roles = journal_active.then(|| self.role_buckets_for_impl(impl_def).to_vec());
         let audit = journal_active.then(|| self.mutations.generation());
@@ -228,6 +236,19 @@ impl IndexedRoleImplTable {
     pub(crate) fn method_role_mutation_journal_active(&self) -> bool {
         self.mutations.is_active()
     }
+
+    #[cfg(test)]
+    pub(crate) fn snapshot_characterization_generation(&self) -> u64 {
+        self.snapshot_characterization_generation
+    }
+
+    #[cfg(test)]
+    fn advance_snapshot_characterization_generation(&mut self) {
+        self.snapshot_characterization_generation = self
+            .snapshot_characterization_generation
+            .checked_add(1)
+            .expect("test-only candidate generation must not overflow");
+    }
 }
 
 impl Deref for IndexedRoleImplTable {
@@ -261,6 +282,46 @@ mod tests {
         assert!(table.epoch().as_u64() > 0);
         assert_eq!(table.epoch_for_owner(owner), table.epoch());
         assert_eq!(table.epoch_for_owner(other).as_u64(), 0);
+    }
+
+    #[test]
+    fn snapshot_candidate_generation_covers_every_mutable_table_api() {
+        let mut table = IndexedRoleImplTable::new();
+        let impl_def = DefId(7);
+        let initial = table.snapshot_characterization_generation();
+        table.insert(RoleImplCandidate {
+            impl_def: Some(impl_def),
+            role: vec!["Display".into()],
+            inputs: Vec::new(),
+            associated: Vec::new(),
+            prerequisites: Vec::new(),
+            methods: Vec::new(),
+        });
+        let after_insert = table.snapshot_characterization_generation();
+        assert!(
+            after_insert > initial,
+            "candidate addition/order must advance"
+        );
+
+        table.extend_prerequisites_for_impl(
+            impl_def,
+            [RoleConstraint {
+                role: vec!["Prerequisite".into()],
+                inputs: Vec::new(),
+                associated: Vec::new(),
+            }],
+        );
+        let after_prerequisite = table.snapshot_characterization_generation();
+        assert!(
+            after_prerequisite > after_insert,
+            "recursive prerequisite extension must advance"
+        );
+
+        table.add_method_for_impl(impl_def, DefId(8), DefId(9));
+        assert!(
+            table.snapshot_characterization_generation() > after_prerequisite,
+            "the only remaining mutable candidate API is conservatively guarded"
+        );
     }
 }
 

@@ -392,6 +392,116 @@ fn failed_constructor_candidate_does_not_poison_next_role_candidate() {
 }
 
 #[test]
+fn pure_recursive_result_is_independent_of_live_applied_membership() {
+    let mut machine = ConstraintMachine::new();
+    let prerequisite_input = raw_nominal_role_arg(&mut machine, "fragment");
+    let mut prerequisite_candidate = raw_role_candidate(vec![prerequisite_input]);
+    prerequisite_candidate.role = vec!["Prerequisite".into()];
+    let mut candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "document")]);
+    candidate.prerequisites.push(RoleConstraint {
+        role: vec!["Prerequisite".into()],
+        inputs: vec![prerequisite_input],
+        associated: Vec::new(),
+    });
+    let mut impls = RoleImplTable::new();
+    impls.insert(prerequisite_candidate);
+    impls.insert(candidate);
+    let demand = role_constraint(vec![nominal_role_arg("document", Vec::new())]);
+
+    let (first, first_pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+    let key = first.output.resolutions[0].key.clone();
+    let prerequisite_key = first.output.resolutions[0].solved_prerequisites[0]
+        .key
+        .clone();
+    let applied = FxHashSet::from_iter([key.clone(), prerequisite_key]);
+    let (second, second_pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &applied,
+        )
+    });
+
+    assert_eq!(first_pure.len(), 1);
+    assert_eq!(second_pure.len(), 1);
+    assert_eq!(first_pure[0].demand, second_pure[0].demand);
+    assert_eq!(first_pure[0].outcome, second_pure[0].outcome);
+    assert_eq!(
+        first_pure[0].candidate_buckets,
+        second_pure[0].candidate_buckets
+    );
+    assert!(matches!(
+        first.dispositions.as_slice(),
+        [RoleDemandDisposition::NewlyResolved { key: observed }] if observed == &key
+    ));
+    assert!(matches!(
+        second.dispositions.as_slice(),
+        [RoleDemandDisposition::AlreadyApplied { key: observed }] if observed == &key
+    ));
+    assert_eq!(first.output.resolutions.len(), 1);
+    assert!(second.output.resolutions.is_empty());
+}
+
+#[test]
+fn snapshot_constraint_epoch_misses_row_match_candidate_bound_mutation() {
+    let mut machine = ConstraintMachine::new();
+    let candidate_var = TypeVar(0);
+    machine.register_type_var(candidate_var, TypeLevel::root());
+    let mut candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "document")]);
+    let associated_lower = machine.alloc_pos(Pos::Var(candidate_var));
+    let associated_upper = machine.alloc_neg(Neg::Var(candidate_var));
+    candidate
+        .associated
+        .push(crate::roles::RoleAssociatedConstraint {
+            name: "Item".into(),
+            value: RoleConstraintArg {
+                lower: associated_lower,
+                upper: associated_upper,
+            },
+        });
+    let mut impls = RoleImplTable::new();
+    impls.insert(candidate);
+    let demand = role_constraint(vec![nominal_role_arg("document", Vec::new())]);
+
+    let lower_item = machine.alloc_pos(Pos::Con(vec!["effect_a".into()], Vec::new()));
+    let lower_row = machine.alloc_pos(Pos::Row(vec![lower_item]));
+    machine.constrain_subtype(lower_row, associated_upper);
+    let before = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        std::slice::from_ref(&demand),
+        &impls,
+        &FxHashSet::default(),
+    );
+    let epoch = machine.epoch();
+    let upper_a = machine.alloc_neg(Neg::Con(vec!["effect_a".into()], Vec::new()));
+    let upper_b = machine.alloc_neg(Neg::Con(vec!["effect_b".into()], Vec::new()));
+    let upper_tail = machine.alloc_neg(Neg::Top);
+    let upper_row = machine.alloc_neg(Neg::Row(vec![upper_a, upper_b], upper_tail));
+    machine.constrain_subtype(associated_lower, upper_row);
+    assert_eq!(machine.epoch(), epoch);
+    let after = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        std::slice::from_ref(&demand),
+        &impls,
+        &FxHashSet::default(),
+    );
+
+    assert_ne!(before, after);
+}
+
+#[test]
 fn raw_candidate_precheck_rejects_definite_head_mismatch_before_compaction() {
     let mut machine = ConstraintMachine::new();
     let candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "html_format")]);

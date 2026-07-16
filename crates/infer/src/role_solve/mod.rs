@@ -5,6 +5,8 @@
 
 mod matchers;
 mod rewrite;
+#[cfg(test)]
+mod snapshot_characterization;
 mod taint;
 #[cfg(test)]
 mod tests;
@@ -28,6 +30,10 @@ use poly::types::{BuiltinType, RecordField, TypeVar};
 
 use matchers::*;
 use rewrite::*;
+#[cfg(test)]
+pub(crate) use snapshot_characterization::{
+    PureRoleDemandObservation, PureRoleDemandOutcome, capture_pure_role_demand_observations,
+};
 use taint::*;
 use vars::*;
 
@@ -236,10 +242,14 @@ fn resolve_role_constraints_with_method_taint_stats_inner<
     let main_polarity = MainPolarity::collect(main);
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
+        #[cfg(test)]
+        snapshot_characterization::begin_demand(constraint);
         stats.demands += 1;
         if RECORD_OWNER_DEPENDENCIES {
             crate::analysis::record_owner_candidate_bucket_read(&constraint.role);
         }
+        #[cfg(test)]
+        snapshot_characterization::record_candidate_bucket(&constraint.role);
         let impl_candidates = impls.candidates(&constraint.role);
         stats.candidate_scans += impl_candidates.len();
         let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
@@ -274,6 +284,8 @@ fn resolve_role_constraints_with_method_taint_stats_inner<
                     candidate_matches: candidates.len(),
                 });
             }
+            #[cfg(test)]
+            snapshot_characterization::record_unresolved(candidates.len());
             continue;
         }
         let resolved = candidates.into_iter().next().expect("candidate");
@@ -284,6 +296,14 @@ fn resolve_role_constraints_with_method_taint_stats_inner<
         if RECORD_OWNER_DEPENDENCIES {
             crate::analysis::record_owner_applied_resolution_read(&key, applied.contains(&key));
         }
+        #[cfg(test)]
+        snapshot_characterization::record_resolved(
+            &key,
+            constraint,
+            &resolved.candidate,
+            &resolved.solved_prerequisites,
+            &resolved.residual_prerequisites,
+        );
         if applied.contains(&key) {
             stats.already_applied += 1;
             if RECORD_DISPOSITIONS {
@@ -493,6 +513,8 @@ fn resolve_candidate_prerequisites<const RECORD_OWNER_DEPENDENCIES: bool>(
         if RECORD_OWNER_DEPENDENCIES {
             crate::analysis::record_owner_candidate_bucket_read(&prerequisite.role);
         }
+        #[cfg(test)]
+        snapshot_characterization::record_candidate_bucket(&prerequisite.role);
         let impl_candidates = impls.candidates(&prerequisite.role);
         stats.prerequisite_candidate_scans += impl_candidates.len();
         let concrete_inputs = role_concrete_input_bounds::<RECORD_OWNER_DEPENDENCIES>(
