@@ -995,6 +995,33 @@ contracts = [
 ]
 
 [[case]]
+name = "file_ref_lines_each_update_chain_unsupported_host"
+file = "regressions/runtime/file_ref_lines_each_update_chain_unsupported_host.yu"
+kind = "run"
+std = "repo"
+host = "unsupported"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unsupported-host-capability]: host capability std::io::file::file is not available in this runtime",
+  "hint: use a host that grants this capability or handle the capability with a mock effect handler",
+]
+contracts = [
+  "runtime-error",
+  "runtime-failure",
+  "diagnostics",
+  "standard-api",
+  "stable-api",
+  "str",
+  "file",
+  "file-resource",
+  "host-act",
+  "host.unsupported",
+  "std.nondet",
+  "refs",
+]
+
+[[case]]
 name = "file_ref_lines_each_replace_once_method_native"
 file = "regressions/runtime/file_ref_lines_each_replace_once_method_native.yu"
 kind = "run"

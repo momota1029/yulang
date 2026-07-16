@@ -196,9 +196,15 @@ The branch work is still structured by `nondet.each`, but each branch reads and
 updates the same handler-extent buffer through `ambient_get` / `ambient_set`.
 The final flush remains tied to successful handler-extent completion.
 
-The current executable evidence for this line-editing idiom is native-only.
-Cross-host parity for source mocks or unsupported-host diagnostics is a future
-slice and is not claimed by this section.
+The executable update-chain evidence now spans all three host shapes:
+`file_ref_lines_each_update_chain_native` runs against the native CLI host,
+`file_ref_lines_each_update_chain_mock` handles the ambient file act in source
+under `--host unsupported`, and
+`file_ref_lines_each_update_chain_unsupported_host` fixes the clean capability
+denial when no handler or native grant is available. The native and source-mock
+cases execute the same `file::text` / `&doc.lines.each` / `.update` / `.list`
+idiom. In the unsupported-host case, `file::text` performs its eager
+`ambient_touch` first, so capability denial happens before any line access.
 
 ## Out Of Scope
 

@@ -204,7 +204,8 @@ public surface:
   covers the Stage 1 state-passing protocol cases, native load/store/meta,
   native typed operation/helper/invalid-path failure, native `text_with`
   commit/rollback/nondet/nested session cases, file/meta/ambient
-  unsupported-host capability failure, and native ambient missing-file
+  unsupported-host capability failure, the native/source-mock/unsupported-host
+  ambient line-edit update chain, and native ambient missing-file
   `host-io-error` failure.
   Full `--contract file-resource` remains the archive-smoke and local validation
   gate because it is materially heavier than a release smoke.
@@ -292,8 +293,8 @@ public surface:
   public `ref { get, update_effect }` view backed by local `$buffer` state is
   executable. The same source has a CLI std-prefix cache regression so cached
   execution keeps matching a full build.
-- `tests/yulang/cases.toml` includes native-only line editing cases for the
-  unscoped ambient ref idiom: `file_value_lines_each_guard_replace_native`,
+- `tests/yulang/cases.toml` includes native line editing cases for the unscoped
+  ambient ref idiom: `file_value_lines_each_guard_replace_native`,
   `file_ref_lines_each_update_chain_native`,
   `file_ref_lines_each_replace_once_method_native`,
   `file_ref_lines_index_chain_native`,
@@ -302,9 +303,16 @@ public surface:
   unscoped `file::text` supplies one handler-extent ambient buffer that
   `&doc.lines.each` branches share through `ambient_get` / `ambient_set`. This
   is intentionally different from scoped managed lenses, where each branch owns
-  a local snapshot buffer and commits on normal branch exit. The native line
-  cases are current evidence for the nondet each editing idiom; cross-host
-  parity is not claimed by this evidence slice.
+  a local snapshot buffer and commits on normal branch exit.
+- The exact update-chain idiom now has three-host evidence:
+  `file_ref_lines_each_update_chain_native`,
+  `file_ref_lines_each_update_chain_mock`, and
+  `file_ref_lines_each_update_chain_unsupported_host`. The source-mock case
+  handles `ambient_touch` / `ambient_get` / `ambient_set` under
+  `--host unsupported` and reaches the same edited buffer as native. The
+  unsupported-host case fixes `yulang.unsupported-host-capability` and its mock
+  handler hint; eager `ambient_touch` fails before `&doc.lines.each` can access
+  the buffer.
 
 Those canaries now form the `stable-api` protocol center for Contract v1 File
 Resource. They close the Stage 2 typed ambient and snapshot raw-compat blockers
@@ -367,18 +375,21 @@ Release evidence should run the focused smoke set through `scripts/release-smoke
 and the full tag filter through archive smoke with the packaged binary and
 bundled standard library.
 
-As of the Stage 2 closeout implementation on 2026-07-03, the local checkout
+As of the Stage 2 closeout implementation on 2026-07-03 and the ambient
+line-edit cross-host closure on 2026-07-16, the local checkout
 passes the filtered `file-resource` subset with source mock handlers, native CLI
 protocol cases, native nondet/nested `text_with` parity, native
 missing/file/directory metadata coverage, native typed operation-failure
 coverage, integrated `file::ambient_*` handler-extent coverage, typed
 missing-path `file::text` creation, and structured out-of-protocol
-`file::ambient_get` / `file::ambient_set` failure coverage. The latest local
-full tag run reports `contract cases ok: 69`, and the focused release smoke now
-also includes console host-act denial, mock routing, public-signature canaries,
-the integrated ambient file act cases, and focused state-protocol sugar cases.
-Release/archive smoke also passes against the packaged binary and
-bundled standard library for the same `file-resource` subset.
+`file::ambient_get` / `file::ambient_set` failure coverage. The update-chain
+line-editing idiom is covered on the native host, through a source mock, and by
+unsupported-host capability denial before line access. The verified local full
+tag run reports `contract cases ok: 75`, and the focused release smoke includes
+that three-host family alongside console host-act denial, mock routing,
+public-signature canaries, the integrated ambient file act cases, and focused
+state-protocol sugar cases. Release smoke passes against the fresh release
+binary and its installed bundled standard library.
 
 ## Rollback Conditions
 

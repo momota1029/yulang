@@ -247,6 +247,9 @@ if [[ "$contract_smoke" != "0" ]]; then
     file_text_with_native_undet_last_write_wins
     file_text_with_native_nested_cross_file
     file_text_with_native_nested_state_var
+    file_ref_lines_each_update_chain_native
+    file_ref_lines_each_update_chain_mock
+    file_ref_lines_each_update_chain_unsupported_host
     file_unsupported_host
     file_meta_unsupported_host
     file_read_text_unsupported_host

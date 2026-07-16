@@ -1,9 +1,9 @@
 # Contract v1: File / Host Resource priority memo
 
 Status: this memo is now a status snapshot, not a broad next-slice plan.
-The core file-resource contract is largely closed. The immediate remaining
-slice is narrow: source-mock and unsupported-host parity for the unscoped
-ambient line-editing idiom (`$doc.lines.each` style).
+The core file-resource contract and its last immediate parity slice are closed.
+No further immediate Contract v1 file-resource slice is queued here; broader
+work remains in the post-v1 deferred list below.
 
 ## DONE
 
@@ -35,15 +35,18 @@ Closed work:
   double respond, and native TCP startup alpha.
 - Release smoke covers representative file-resource, host-act, manifest, and
   state-protocol sugar cases.
+- Ambient line-editing parity closed on 2026-07-16: the existing native and
+  source-mock update-chain cases now have an unsupported-host sibling at
+  [`file_ref_lines_each_update_chain_unsupported_host.yu`](../../tests/yulang/regressions/runtime/file_ref_lines_each_update_chain_unsupported_host.yu).
 
-## NEXT SLICE
+## NEXT SLICE — CLOSED 2026-07-16
 
-- Add source-mock and unsupported-host parity for the unscoped ambient
-  line-editing idiom (`$doc.lines.each` style).
+- Source-mock and unsupported-host parity for the unscoped ambient line-editing
+  idiom (`$doc.lines.each` style) is closed.
 
-This is the only immediate Contract v1 file-resource follow-up in this memo.
-Do not reopen the full file-resource contract or start bytes / range /
-directory / server expansion as part of this slice.
+No replacement immediate slice is named in this memo. Do not promote bytes /
+range / directory / server expansion from the deferred list without a separate
+priority decision.
 
 ## DEFERRED / POST-V1
 

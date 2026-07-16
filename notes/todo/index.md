@@ -7,15 +7,16 @@
 
 今やるべきことは「公開して触れる状態」を作るための順番で見る。
 
-### 次の contract slice
+### Contract v1 file-resource の現在地
 
 - `contract-v1-file-resource-priority.md`
   - Contract v1 File / Host Resource の core file-resource / host-act /
-    manifest / server first slices は概ね閉じた。現状証拠と残りの範囲は
+    manifest / server first slices と、最後の ambient line-editing
+    cross-host parity slice は閉じた。現状証拠と残りの範囲は
     この memo を見る。
-  - 直近の slice は unscoped ambient line-editing idiom
-    (`$doc.lines.each` style) の source-mock / unsupported-host parity に絞る。
-    bytes / range、directory、残りの server、static route Stage 1 は post-v1。
+  - 現在、次の immediate file-resource slice は queued されていない。
+    bytes / range、directory、残りの server、static route Stage 1 は
+    `DEFERRED / POST-V1` のままであり、自動的に次の slice とはしない。
 
 ### 既存の公開準備 track
 

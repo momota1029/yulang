@@ -1057,12 +1057,12 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 ## 今すぐやる slice
 
-現在の immediate Contract v1 slice は、unscoped ambient line-editing idiom
-（`$doc.lines.each` style）の source-mock / unsupported-host parity である。
-順序と範囲は `notes/todo/index.md` の「次の contract slice」と
-`notes/todo/contract-v1-file-resource-priority.md` の「NEXT SLICE」を見る。
-既存の意味論は `notes/design/2026-07-02-file-session-boundary-plan.md` と
-`notes/design/2026-07-03-contract-v1-stage2-closeout.md` を参照し、ここでは実装計画を重複させない。
+Contract v1 file-resource track には、現在これ以上の immediate slice は
+queued されていない。unscoped ambient line-editing idiom
+（`$doc.lines.each` style）の cross-host parity は 2026-07-16 に閉じた。
+現状と明示的に保留された範囲は
+`notes/todo/contract-v1-file-resource-priority.md` の「NEXT SLICE — CLOSED」と
+「DEFERRED / POST-V1」を見る。deferred 項目を次の slice として自動昇格しない。
 
 ## 守る不変条件
 
