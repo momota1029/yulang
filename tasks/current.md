@@ -1057,53 +1057,12 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 ## 今すぐやる slice
 
-2026-06-17〜2026-06-19 の control VM frame runtime / performance slice は
-`tasks/done/2026-06-19-control-vm-frame-runtime-history.md` へ退避した。
-現在のactive sliceはcanonical cache interface Option 1 Stage 5 artifact integrationである。Stage 2の
-boundary capture、joint compact/freeze、poly arena freezeとtyped/runtime production
-handoffに続き、Stage 3 §6.1 Import once、§6.2 Scheme instantiate、§6.3 Role candidate fresheningと
-Oracle A1 binder lifetime Exit witnessまで完了した。Stage 4 slice 1ではcandidate head-local / known `B`
-inventoryとprerequisite-only varの明示的なunclassified inventoryを追加し、slice 2ではstrict rejection
-方針の下でhead + prerequisites + reachable `B` carrierのper-candidate joint compact normalizationと
-post-substitution inventory rewriteを完了した。slice 3ではunit-batch strict rejectionの下でnormalized
-candidateのcenterless structural freeze、associated name ordering、binder-normalized prerequisite structural
-sort / dedup、methods / shared-var preservationを完了した。slice 4ではscheme / boundaryとfrozen candidatesの
-common handoff、poly arena上のhead binders + unit `B` closure再検証、一括candidate installを完了し、Stage 4
-全体を閉じた。Stage 5 slice 1ではunit boundaryを一度だけcaptureしてscheme / boundary draftとcandidate batchを
-作り、同じpoly arena上でfreeze / closure validationした後にtyped/runtimeへ分岐するcommon constructorを完成
-させた。次はnon-empty boundary artifactのcanonical fingerprint / format / production encode/decodeを有効化する
-slice 2へ進む。slice 2aではraw binder / arena ID / entry順に依存しない保守的structural fingerprintを追加し、
-曖昧なrecursive rootは`None`で拒否した。この拒否は恒久的なcache miss方針とし、完全なcanonical SCC方式は
-Stage 6で実害が計測された場合だけ再検討する。slice 2bではcache formatを19へbumpし、旧18 / 17、未知・
-truncateされたformat wordを安全なmissへ倒した。production payloadは引き続きempty boundaryで、既存のfresh
-cache routeは不変である。slice 2cではserialize後に独立するtyped/runtime arenaのcanonical structural keyを
-byte完全一致で比較し、一致後だけfingerprintへ縮約するpublic agreement入口を追加した。既存routeには未接続で
-ある。slice 2dではproduction writerをcanonical handoffへ接続し、成功時はnon-empty、構造的失敗時はempty
-artifactを保存するfail-closed経路と、decoder / manifest / mergeのexact agreementを有効化した。reuse safety gate
-は無変更である。Oracle A2ではproduction format 19の実byte round trip後にfresh sessionへboundaryをimportし、
-decode前後の`SchemeAlphaView`一致、`Q/R`のper-use freshness、`B`のsession共有、scheme/candidate間の`B`一致を
-固定した。Oracle Bでは小さいclosed suffix controlについて明示的`std-prefix-hit`、scheme / candidate alpha同値、
-runtime同値を確認した。しかしMarkdownはcanonical `B` tableを参照しない現行safety gateにより`full-miss`のままで、
-曖昧なroute許容を明示的`full-miss` characterizationへ変更した。Oracle B全体とStage 5 exitはMarkdown hit待ちで
-blockedである。Stage 6 slice 1の実artifact telemetryではrepository std boundary entriesが`0`と判明したが、
-slice 2で`std.control.nondet.nondet.#act-method:once`の`FreezeProducedConstraint`によるstructural failure fallbackと
-判明した。bounded post-stack-cleanup dominance re-checkで`once`は通過したが、次のfirst failureは
-`std::core::fmt::Debug`の2-tuple impl candidate normalizationが生成する未適用Tuple wrapper mergeだった。Tuple
-direct-child implicationでこれを解消した後、次のfirst failureは`lib/std/data/list.yu`の`impl (list 'a): Index int`
-と当初推定したcandidateの未適用subtype constraint一件（merge `0` / subtype `1`）へ進んだ。調査で実体は
-`impl (ref 'e (list 'a)): Index int`と確定し、candidate constraintsがnormalization前から通常apply laneを一度も
-通っていない別根のlifecycle / proof-boundary問題と判明した。三つの修正案は2026-07-12 16:00以降のユーザ判断まで
-保留した。Stage 6のcold/warm role-resolution telemetryでは、Yumark role controlのcold / warm role時間が
-`548.8ms / 16.1ms`、top-level candidate scansが`6178 / 90`へ減る一方、病的再帰の直接指標であるprerequisite
-candidate scansは`300 / 720`へ増えることを確認した。boundary size、canonical validator cost / structured outcome、
-fallback shadow、cold/warm role counterの観測配線は揃ったが、repository stdがlegacy emptyへfallbackする現状では
-Stage 6 exitを満たさない。Stage 5の残件だったmerge / malformed-artifact testsは、non-empty boundary scopeの
-disjoint remap、対称graphのfail-closed、input-order-independent fingerprint、format 19 round trip、hash整合後の
-duplicate binder拒否までtest-onlyで完了した。Stage 6 canonical/empty shadowはnon-empty minimal std上のOracle B smallで
-routeを変えず実行できたが、candidate scans `4 / 4`、prerequisite scans `0 / 0`で、このfixtureはimported `B`をrole
-prerequisiteで消費しないため性能効果にはinconclusiveだった。次の設計判断は保留中のIndex candidate lifecycle /
-proof boundaryであり、ユーザ承認まで実装しない。program-sensitive fallbackの退役判断とsafety gate変更はStage 7まで
-行わない。
+現在の immediate Contract v1 slice は、unscoped ambient line-editing idiom
+（`$doc.lines.each` style）の source-mock / unsupported-host parity である。
+順序と範囲は `notes/todo/index.md` の「次の contract slice」と
+`notes/todo/contract-v1-file-resource-priority.md` の「NEXT SLICE」を見る。
+既存の意味論は `notes/design/2026-07-02-file-session-boundary-plan.md` と
+`notes/design/2026-07-03-contract-v1-stage2-closeout.md` を参照し、ここでは実装計画を重複させない。
 
 ## 守る不変条件
 

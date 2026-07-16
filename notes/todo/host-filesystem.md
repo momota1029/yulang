@@ -6,10 +6,16 @@
 設計参照:
 
 - `spec/2026-07-01-file-resource-api.md`
+- `spec/2026-07-02-io-resource-api.md`
+- `notes/design/2026-07-03-contract-v1-stage2-closeout.md`
 - `notes/design/error-handling-plan.md`
 
 2026-07-01 時点の現行方針は `spec/2026-07-01-file-resource-api.md` を優先する。
 この TODO の `File-backed str 案` は、その前段の設計メモとして読む。
+
+2026-07-16 時点では、下記の `std::fs` `opt` / `bool` surface、「まず error handling」、
+「最初の安定 slice」候補は、着地済みの Contract v1 `std::io::file` contract により
+resolved / superseded である。directory / range / metadata / lock などの問いは引き続き open。
 
 ## File-backed str 案(2026-05-23編集)
 
@@ -90,7 +96,7 @@ for line in text.lines:
   - ひとつの editable string 内では記録順。
   - 同じ path を複数 editable string が持つ場合は未定義寄りでよい。
 
-## 現在の状態
+## 現在の状態（historical; Contract v1 により superseded）
 
 - `std::console` は `print` / `println` を提供する。
 - `std::fs` は最初の最小 native-host surface として存在する。
@@ -103,7 +109,7 @@ for line in text.lines:
 - native CLI / basic host は Rust `std::fs` 経由で `std::fs` request を処理する。
 - wasm / playground は今のところ filesystem request を unresolved のまま残す。
 
-## まず error handling
+## まず error handling（resolved / superseded）
 
 - `result` の安定化や `std::fs` 拡張より先に、`error` sugar を固める。
 - `std::fs` は `error fs_err:` の暫定 prototype を持つ。
@@ -142,7 +148,7 @@ for line in text.lines:
 - 将来の package / script sandboxing
 - unsupported host capabilities に対する明確な diagnostics
 
-## 最初の安定 slice 候補
+## 最初の安定 slice 候補（superseded）
 
 - `path` decision.
 - `error fs_err:` と host failure mapping の安定化。

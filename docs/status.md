@@ -275,9 +275,9 @@ The columns trace a value through the pipeline:
   manifest coverage. Check-stage cases carry structured CLI/LSP/playground
   payloads; runtime-failure cases pin the user-facing code and hint text,
   including representative unsupported-host capability failures.
-  Role/method diagnostics use the specialization oracle as a narrow
-  `SourceDiagnostic` bridge until role impl satisfaction has a dedicated
-  check-stage owner.
+  Since 2026-07-03, role/method diagnostics have used the dedicated,
+  emission-free `specialize::role_method_check` check-stage owner to produce
+  `SourceDiagnostic`; the run path still reports `SpecializeError`.
 
 ## Reporting gaps
 

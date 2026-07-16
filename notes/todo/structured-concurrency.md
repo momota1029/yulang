@@ -72,15 +72,19 @@
    - 2026-07-03: scheduler unit test では parent extent close の child /
      descendant drop を固定済み。serve / file transaction 統合 fixture は未着手。
 6. fixture: double respond は dynamic failure になる。
+   - mock-server first slice で one-shot `respond` と typed `net_err::closed` failure を
+     executable contract として固定済み。
 7. 実行中分岐の協調的 drop は次 slice。
 
 残りの実装境界:
 
-- in-process server driver がまだ無いため、accept branch / request resource /
-  respond slot の executable contract は未着手。
+- in-process mock-server driver と accept branch / request resource / one-shot respond の
+  executable contract は first slice で着地済み。
+- 実行中 server branch の協調的キャンセルは未着手。
 - file managed lens rollback との結合は、server driver が suspended branch を作れるように
   なってから fixture 化する。
-- double respond は respond slot 型 / runtime representation が入ってから固定する。
+- native / unsupported host の contract、自然な termination、timeout、backpressure など、
+  broader server lifecycle は引き続き open。
 
 ## やってはいけないこと
 

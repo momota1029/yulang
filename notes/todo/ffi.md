@@ -56,16 +56,19 @@ FFI は少なくとも二層に分けて考える。
 - `notes/design/2026-07-03-host-manifest-compiler-production-plan.md` に従い、
   `pub host act` 宣言から compiler-produced host manifest を生成し、runtime
   registry は plan manifest × registration set を解決する形になった。
-- 現在 registry に載っている public host surface は file / console / clock。
+- 現在 registry に載っている public host surface は file / console / clock / net。
   file と console は unsupported-host / source handler mock / native host route の
   contract canary を持つ。clock は wall-clock `now` の native / unsupported /
   source mock canary を持つ。
+  net は in-process mock-server driver、suspend multi-shot `accept`、one-shot
+  `respond`、typed double-response failure の first slice まで着地済み。
 - Resolved runtime host operations retain their manifest `act_id` /
   `operation_id` / replay `column` / deterministic `symbol`. A panicking host
   implementation reports a structured Host ABI failure that includes `column`
   and `symbol`.
-- 未着手: server / socket、random、band 単位の外部実装注入、Native ABI FFI
-  としての dylib / C ABI / static link、suspend tier の実行経路。
+- server / socket track は未着手ではないが、native socket の安定 contract、
+  unsupported-host denial、broader lifecycle は open。引き続き未着手なのは random、
+  band 単位の外部実装注入、Native ABI FFI としての dylib / C ABI / static link。
 
 ### Native ABI FFI
 

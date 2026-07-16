@@ -14,7 +14,7 @@
 - `error fs_err:` は enum と act operation をまとめて定義する最小 sugar として入っている。
 - error constructor は data constructor と effect operation の両方として使える。
 - `fail` は `std::prelude` の先頭側で `prefix(fail)` として export される。parser/lower の keyword や特例ではない。
-- 最終形は `pub prefix(fail) = \e -> e.throw`。`Throw 'e` role に associated effect row `throws` を入れて、role 経由でも effect が握りつぶされないようにする。現在の identity 実装はその準備が終わるまでの placeholder。
+- `pub prefix(fail) = \e -> e.throw` と `Throw 'e` role の associated effect row `throws` は着地済みで、public contract に含まれる。
 - `not` / `return` / `last` / `next` / `redo` は parser builtin ではなく prelude の operator export として扱う。
 - list の末尾取得は `xs.last` を優先し、`last xs` という関数呼び出し互換は持たない。
 - `die` / `warn` / `say` は Perl/Raku 系の scripting convenience として別枠で扱う。
@@ -30,14 +30,9 @@
 TODO:
 
 - `from` entry の collision rule と diagnostics を固める。
-- `Throw 'e` role に associated effect row `throws` を入れる。role declaration の `ret_eff` を empty に固定している経路を、associated effect 変数に差し替える。
-- `pub prefix(fail) = \e -> e.throw` への切替。transparent operator wrapper として call site で展開する経路を確認する。
 - `die` / `warn` / `say` の std placement と host behavior を決める。
 - `Cast` を role、builtin relation、syntax-directed conversion のどれにするか決める。
 - `enum` variant の `from` grammar と collision rule を決める。
-- `E::up` の signature と desugaring を最終化する。
-- `E::wrap` の集約対象を `from` リンク先 error にも広げる。
-- `error E:` から `impl Display E` を auto 生成する。生成形 (field 名なし variant / payload 付き variant) の整え方を決める。
 - constructor-like effect arms の handler syntax を決める。
 - `never` が user-facing signature にどう現れるか決める。
 - `E::wrap` で `never` 計算を包む時に成功側型をどう明示・既定化するか決める。
@@ -66,13 +61,9 @@ TODO:
 
 ## Result type
 
-- `result 'ok 'err = ok 'ok | err 'err` は `std::result` に追加済み。
+- `result 'ok 'err = ok 'ok | err 'err` は `std::data::result` に追加済み。
 - `result` は最初の error mechanism ではなく、effectful computation を value に閉じる方法として扱う。
-- `std::result` には `map` / `and_then` / `unwrap_or` を追加済み。
-- helper function を決める。
-  - `map_err`
-  - `or_else`
-  - `E::wrap` 以外の error effects と result values の変換
+- `std::data::result` の `map` / `and_then` / `unwrap_or` は着地済みで、stable result-helper contract に含まれる。
 
 ## Casts
 
