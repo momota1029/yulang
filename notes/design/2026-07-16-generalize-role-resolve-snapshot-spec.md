@@ -21,13 +21,14 @@ is exactly unchanged. The intended production rule is:
 ```text
 snapshot = (
   constraint_epoch,
+  role_solve_supplemental_epoch,
   post_floor_normalized_main,
   normalized_demand,
   candidate_table_guard,
   exact_recursive_solve_result,
 )
 
-same constraint epoch
+same constraint and role-solve-supplemental epochs
 and same post-floor normalized main
 and same normalized demand
 and unchanged candidate table
@@ -85,13 +86,14 @@ Iterations 2 and 3 are necessary under the current algorithm because each change
 following unchanged:
 
 - the constraint epoch;
+- the role-solve supplemental epoch;
 - the post-floor main `CompactRoot`;
 - the previous normalized demand.
 
 Iteration 4 therefore re-executes an already fully processed solver state after the iteration-3
 state change has been incorporated. The candidate-table guard remains an explicit precondition of
 the proposed cache and must be validated across the generalization boundary in Stage 0; it is not
-silently inferred from the three comparisons above.
+silently inferred from the four comparisons above.
 
 ### 2.3 Necessary work versus removable work
 
@@ -133,6 +135,8 @@ The normalized demand itself is the exact identity. Version 1 does not introduce
 Let a full solve at the existing post-floor role-resolution boundary observe:
 
 - `E`: the current constraint epoch;
+- `A`: the role-solve supplemental epoch covering solver-observable mutations deliberately absent
+  from the legacy epoch;
 - `M`: the exact post-floor normalized main `CompactRoot` consumed by the solver;
 - `D`: the exact normalized demand consumed by the solver;
 - `C`: an exact witness that the role-impl candidate table and recursive prerequisite definitions
@@ -140,10 +144,10 @@ Let a full solve at the existing post-floor role-resolution boundary observe:
 - `R`: the exact pure unique-candidate and recursive-prerequisite result, including deterministic
   unresolved, ambiguous, cycle, and nested-prerequisite outcomes represented by the current solver.
 
-A later solve may use `R` only when current values `E'`, `M'`, `D'`, and `C'` satisfy:
+A later solve may use `R` only when current values `E'`, `A'`, `M'`, `D'`, and `C'` satisfy:
 
 ```text
-E' == E && M' == M && D' == D && C' == C
+E' == E && A' == A && M' == M && D' == D && C' == C
 ```
 
 Equality of `M` and `D` is structural equality of the actual normalized values, not equality of a
@@ -163,7 +167,7 @@ against the current `applied` set.
 This yields the required split:
 
 ```text
-exact recursive candidate solve: reusable under E/M/D/C equality
+exact recursive candidate solve: reusable under E/M/D/C/A equality
 current applied membership and state publication: always live
 ```
 
@@ -200,6 +204,7 @@ Conceptually, each entry contains:
 ```rust
 struct PerDemandExactSolveSnapshot {
     constraint_epoch: ConstraintEpoch,
+    role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     post_floor_main: CompactRoot,
     normalized_demand: /* existing normalized demand type */,
     candidate_guard: CandidateTableGuard,
@@ -224,12 +229,12 @@ The intended path is:
 ```text
 normalize/floor main through the unchanged path
 normalize demand through the unchanged path
-read current constraint epoch and candidate-table guard
+read current constraint and role-solve-supplemental epochs plus candidate-table guard
 
 exact snapshot match?
   no:
     run the unchanged full recursive solve
-    retain its pure result with E/M/D/C, subject to the cache budget
+    retain its pure result with E/M/D/C/A, subject to the cache budget
   yes:
     reuse the stored pure result
 
@@ -275,7 +280,7 @@ a new shared compact representation is not an implementation technique for this 
 
 The full solver is the fallback and the oracle. The cache is ineligible when:
 
-- the constraint epoch differs or cannot be read at the exact boundary;
+- either constraint epoch differs or cannot witness unchanged state at the exact boundary;
 - the post-floor main differs structurally;
 - the normalized demand differs structurally;
 - the candidate generation differs, overflows, is unavailable, or its immutability invariant is
@@ -316,8 +321,8 @@ design review before owner scheduling expands into generalization.
 
 The 2026-07-16 constraint-replay investigation found that its high duplicate counters describe
 already-rejected transitive-closure rediscovery, not removable local replay work. This snapshot
-project neither changes constraint evidence nor suppresses replay. Constraint epoch equality is a
-reuse guard, not a new replay policy.
+project neither changes constraint evidence nor suppresses replay. Paired constraint and
+supplemental epoch equality is a reuse guard, not a new replay policy.
 
 ## 6. Staged implementation plan
 
@@ -336,7 +341,7 @@ review after shadow evidence.
 - Approval class: characterization only; no production behavior change.
 - Changes: extend observation-only tracing across more roots and the complete representative
   fixture set. Reproduce the iteration-3-to-4 equality witness, inventory every input read by the
-  recursive solver, validate the constraint-epoch boundary, decide candidate generation versus
+  recursive solver, validate the paired constraint-epoch boundary, decide candidate generation versus
   enforced immutability, and measure equality/retention costs and cache cardinality. Establish
   numerical performance and memory gates from controlled measurements; values not already in this
   document are TBD until this stage.
@@ -347,9 +352,9 @@ review after shadow evidence.
      rename/module-move variants, with per-root and per-demand counts rather than only the one
      `DefId(167)` trace;
   3. every mutable input capable of changing the recursive candidate result maps to `E`, `M`, `D`,
-     or `C`; no unclassified solver input remains;
-  4. constraint epoch equality is proven to cover every solver-observable constraint mutation at
-     this boundary, including the absence of pending work;
+     `C`, or the Stage 0-selected supplemental `A`; no unclassified solver input remains;
+  4. equality of `E` and `A` is proven to cover every solver-observable constraint mutation at
+     this boundary, including the absence of pending work and events;
   5. candidate-table immutability is mechanically established, or a complete generation contract
      and its mutation inventory are selected;
   6. the exact boundary between pure recursive result and live applied/disposition state is
@@ -447,22 +452,22 @@ No expected type or scheme may be rewritten merely to match cached output.
 
 ### T0: exact-key hit parity
 
-Construct a demand where epoch, post-floor main, normalized demand, and candidate guard are exactly
-unchanged. Solve once, then compare cached and full paths from the same current state. Require exact
+Construct a demand where both epochs, post-floor main, normalized demand, and candidate guard are
+exactly unchanged. Solve once, then compare cached and full paths from the same current state. Require exact
 recursive resolution-tree equality, disposition-set equality, state-delta equality, and final-scheme
 equality.
 
 Cover repeated results which are resolved, unresolved, and ambiguous. A successful cache lookup is
 not sufficient unless the independent full solve produces the same exact result.
 
-### T1: constraint-epoch miss matrix
+### T1: paired constraint-epoch miss matrix
 
-Keep main, demand, and candidate table unchanged while changing the constraint epoch through a
-solver-observable constraint mutation. The cache must miss. Include a control where all guards stay
-unchanged and the same entry hits.
+Keep main, demand, and candidate table unchanged while changing either `E` or `A` through its
+corresponding solver-observable constraint mutation. The cache must miss. Include a control where
+all guards stay unchanged and the same entry hits.
 
-If Stage 0 finds an observable constraint mutation that does not advance the selected epoch, Stage
-2 is blocked; the test expectation must not be weakened to accept reuse.
+If a future observable constraint mutation advances neither selected epoch, Stage 2 is blocked;
+the test expectation must not be weakened to accept reuse.
 
 ### T2: structural main and demand miss matrix
 
@@ -536,8 +541,8 @@ surface names, paths, fixture identity, or the trace's raw `DefId` values.
 
 ### T9: fail-closed and budget adversaries
 
-Exercise missing entries, partial entries, epoch mismatch, main mismatch, demand mismatch, candidate
-guard mismatch/unavailability, generation overflow, cap exhaustion, and cache-lifetime escape. Every
+Exercise missing entries, partial entries, either epoch mismatch, main mismatch, demand mismatch,
+candidate guard mismatch/unavailability, generation overflow, cap exhaustion, and cache-lifetime escape. Every
 case must run the full solver and preserve source behavior. A cap test must also show that the cache
 does not replace exact values with a lossy key after exhaustion.
 
@@ -572,7 +577,7 @@ Debug/timing telemetry should distinguish:
 
 - full recursive solves;
 - exact snapshot hits;
-- misses by epoch, main, demand, candidate guard, lifecycle, and budget category;
+- misses by legacy epoch, supplemental epoch, main, demand, candidate guard, lifecycle, and budget category;
 - full-solve and exact-equality time;
 - snapshot insert/replace/clear counts;
 - current and peak entries and retained bytes;
@@ -612,8 +617,9 @@ generalization, owner-scheduling, or final-filter exact-reuse changes.
 
 ## 11. Rejected alternatives
 
-1. **Reuse on constraint epoch alone.** Iteration inputs include the post-floor main, normalized
-   demand, and candidate table. Epoch equality alone is insufficient.
+1. **Reuse on constraint epoch alone.** The legacy epoch omits four solver-observable mutation
+   classes, and iteration inputs also include the post-floor main, normalized demand, and candidate
+   table. Legacy epoch equality alone is insufficient.
 2. **Use a hash, Debug string, size, or pointer as exact identity.** These can reject work cheaply
    but cannot authorize a correctness-sensitive hit.
 3. **Cache the applied disposition or replay old mutations.** Applied membership changes across
@@ -668,9 +674,11 @@ The following are deliberately not guessed:
 
 1. **Candidate guard choice.** Stage 0 decides between a complete generation and mechanically
    enforced root-local immutability. If neither is complete, stop.
-2. **Constraint epoch completeness.** The selected epoch must cover all state read by the recursive
-   solve at the chosen boundary. If it does not, adding a broad mutation journal is outside this
-   project and requires a size/risk review.
+2. **Constraint witness completeness (confirmed in Stage 0).** Bare `ConstraintEpoch` is incomplete
+   and cannot safely absorb all missing mutations because existing production consumers give it
+   control-flow semantics. The selected exact witness is `E` plus the narrow
+   `RoleSolveSupplementalEpoch` (`A`). Adding a broad mutation journal remains outside this project
+   and requires a size/risk review.
 3. **Exact result boundary.** Applied membership must be downstream of the reusable pure result. If
    moving it there requires a semantic solver rewrite, stop before Stage 1.
 4. **Storage and comparison cost.** Exact retained values may be large. Entry/byte caps and equality
@@ -706,7 +714,7 @@ upward revision performed inside implementation.
 
 The per-demand exact solve snapshot project is complete only when:
 
-- the exact `E/M/D/C` input contract is documented and executable;
+- the exact `E/M/D/C/A` input contract is documented and executable;
 - candidate-table stability is enforced by a complete generation or immutability mechanism;
 - every hit uses structural main/demand equality, never only a hash or identity shortcut;
 - the cached result is a complete pure recursive solve result;

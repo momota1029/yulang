@@ -24,6 +24,7 @@ impl ConstraintMachine {
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
             epoch: ConstraintEpoch::default(),
+            role_solve_supplemental_epoch: RoleSolveSupplementalEpoch::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
             replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
         }
@@ -67,7 +68,7 @@ impl ConstraintMachine {
 
     pub fn register_type_var(&mut self, var: TypeVar, level: TypeLevel) {
         if self.levels.register_recording_change(var, level) {
-            self.bump_epoch();
+            self.bump_role_solve_supplemental_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations.record_many([
                     DependencyKey::ConstraintLevel(var),
@@ -123,6 +124,10 @@ impl ConstraintMachine {
 
     pub fn epoch(&self) -> ConstraintEpoch {
         self.epoch
+    }
+
+    pub fn role_solve_supplemental_epoch(&self) -> RoleSolveSupplementalEpoch {
+        self.role_solve_supplemental_epoch
     }
 
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
@@ -537,6 +542,13 @@ impl ConstraintMachine {
     pub(in crate::constraints) fn bump_epoch(&mut self) -> ConstraintEpoch {
         self.epoch.bump();
         self.epoch
+    }
+
+    pub(in crate::constraints) fn bump_role_solve_supplemental_epoch(
+        &mut self,
+    ) -> RoleSolveSupplementalEpoch {
+        self.role_solve_supplemental_epoch.bump();
+        self.role_solve_supplemental_epoch
     }
 
     pub(in crate::constraints) fn fresh_internal_type_var_at(

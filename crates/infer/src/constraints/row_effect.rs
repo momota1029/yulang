@@ -219,9 +219,13 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return false;
         }
-        // Keep the selective row-match replay policy below unchanged. Epoch publication only
-        // makes this already-effective projected-bound mutation externally observable.
-        self.record_effective_bounds_mutation(source);
+        // Keep this mutation outside the legacy replay/lifecycle epoch: changing that epoch can
+        // alter existing production audit paths. The supplemental role-solve witness is inert.
+        self.bump_role_solve_supplemental_epoch();
+        if self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintBounds(source));
+        }
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,

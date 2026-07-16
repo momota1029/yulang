@@ -185,6 +185,10 @@ fn assert_markdown_proof_witness(root: &crate::analysis::GeneralizeSnapshotRootR
     assert_eq!(iteration_4.new_resolution_count, 0);
     assert!(iteration_4.exact_repeat_count > 0);
     assert_eq!(iteration_3.constraint_epoch, iteration_4.constraint_epoch);
+    assert_eq!(
+        iteration_3.role_solve_supplemental_epoch,
+        iteration_4.role_solve_supplemental_epoch
+    );
     assert_eq!(iteration_3.candidate_guard, iteration_4.candidate_guard);
     assert!(root.demands.iter().any(|demand| {
         demand.observations.iter().any(|observation| {
@@ -193,6 +197,7 @@ fn assert_markdown_proof_witness(root: &crate::analysis::GeneralizeSnapshotRootR
                 && observation.exact_repeat
                 && observation.demand_equal
                 && observation.epoch_equal
+                && observation.supplemental_epoch_equal
                 && observation.main_equal
                 && observation.candidate_guard_equal
                 && observation.result_equal
@@ -333,9 +338,10 @@ fn print_case_report(
         if label == "proof" {
             for boundary in &root.solve_boundaries {
                 eprintln!(
-                    "generalize snapshot proof-boundary {case}: iteration={} epoch={:?} candidate={} demands={} new={} exact-repeat={} main={{debug-bytes:{}, nodes:{}}} pending={{constraint-work:{}, constraint-events:{}, analysis-work:{}}}",
+                    "generalize snapshot proof-boundary {case}: iteration={} epoch={:?} supplemental-epoch={:?} candidate={} demands={} new={} exact-repeat={} main={{debug-bytes:{}, nodes:{}}} pending={{constraint-work:{}, constraint-events:{}, analysis-work:{}}}",
                     boundary.iteration,
                     boundary.constraint_epoch,
+                    boundary.role_solve_supplemental_epoch,
                     boundary.candidate_guard,
                     boundary.demand_count,
                     boundary.new_resolution_count,

@@ -265,6 +265,7 @@ impl AnalysisSession {
                         observation.observe_solve_boundary(
                             generalize_iteration,
                             self.infer.constraints().epoch(),
+                            self.infer.constraints().role_solve_supplemental_epoch(),
                             self.role_impls.snapshot_characterization_generation(),
                             &role_compact,
                             &roles,

@@ -1,6 +1,6 @@
 //! Test-only exact-snapshot characterization for generalization role solving.
 //!
-//! Every production solve still runs. This oracle retains exact E/M/D/C-shaped snapshots only to
+//! Every production solve still runs. This oracle retains exact E/M/D/C/A-shaped snapshots only to
 //! measure repeat opportunities, structural equality cost, cloning cost, and bounded-lifetime
 //! storage. Debug byte lengths are an explicit structural proxy, not allocator-retained bytes.
 
@@ -14,6 +14,7 @@ use super::*;
 use std::cell::Cell;
 use std::mem::size_of;
 
+use crate::constraints::RoleSolveSupplementalEpoch;
 use crate::role_solve::{
     PureRoleDemandObservation, PureRoleDemandOutcome, RoleDemandDisposition,
     RoleResolveDispositionOutput,
@@ -61,6 +62,7 @@ pub(crate) struct GeneralizeSnapshotRootReport {
 pub(crate) struct GeneralizeSnapshotSolveBoundary {
     pub(crate) iteration: usize,
     pub(crate) constraint_epoch: ConstraintEpoch,
+    pub(crate) role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     pub(crate) candidate_guard: u64,
     pub(crate) demand_count: usize,
     pub(crate) new_resolution_count: usize,
@@ -94,6 +96,7 @@ pub(crate) struct GeneralizeSnapshotDemandSolve {
     pub(crate) exact_repeat: bool,
     pub(crate) demand_equal: bool,
     pub(crate) epoch_equal: bool,
+    pub(crate) supplemental_epoch_equal: bool,
     pub(crate) main_equal: bool,
     pub(crate) candidate_guard_equal: bool,
     pub(crate) result_equal: bool,
@@ -228,6 +231,7 @@ impl GeneralizeSnapshotRootObservation {
         &mut self,
         iteration: usize,
         constraint_epoch: ConstraintEpoch,
+        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
         candidate_guard: u64,
         main: &CompactRoot,
         normalized_demands: &[CompactRoleConstraint],
@@ -249,6 +253,7 @@ impl GeneralizeSnapshotRootObservation {
         let main_debug_bytes = format!("{main:?}").len();
         let main_nodes = super::compact_shape_metrics(main).nodes;
         let boundary_eligible = constraint_epoch.can_witness_unchanged_state()
+            && role_solve_supplemental_epoch.can_witness_unchanged_state()
             && pending_constraint_work == 0
             && pending_constraint_events == 0;
         let mut boundary_exact_repeats = 0;
@@ -261,6 +266,7 @@ impl GeneralizeSnapshotRootObservation {
             let observation = self.observe_demand(
                 iteration,
                 constraint_epoch,
+                role_solve_supplemental_epoch,
                 candidate_guard,
                 main,
                 main_nodes,
@@ -273,6 +279,7 @@ impl GeneralizeSnapshotRootObservation {
         self.solve_boundaries.push(GeneralizeSnapshotSolveBoundary {
             iteration,
             constraint_epoch,
+            role_solve_supplemental_epoch,
             candidate_guard,
             demand_count: normalized_demands.len(),
             new_resolution_count: resolved.output.resolutions.len(),
@@ -291,6 +298,7 @@ impl GeneralizeSnapshotRootObservation {
         &mut self,
         iteration: usize,
         constraint_epoch: ConstraintEpoch,
+        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
         candidate_guard: u64,
         main: &CompactRoot,
         main_nodes: usize,
@@ -312,6 +320,7 @@ impl GeneralizeSnapshotRootObservation {
 
         let demand_equal = matching_index.is_some();
         let mut epoch_equal = false;
+        let mut supplemental_epoch_equal = false;
         let mut main_equal = false;
         let mut candidate_guard_equal = false;
         let mut result_equal = false;
@@ -319,6 +328,8 @@ impl GeneralizeSnapshotRootObservation {
             let entry = &self.entries[index];
             let started = Instant::now();
             epoch_equal = entry.constraint_epoch == constraint_epoch;
+            supplemental_epoch_equal =
+                entry.role_solve_supplemental_epoch == role_solve_supplemental_epoch;
             self.comparison_cost.epoch_time += started.elapsed();
             self.comparison_cost.epoch_comparisons += 1;
 
@@ -332,7 +343,7 @@ impl GeneralizeSnapshotRootObservation {
             self.comparison_cost.candidate_guard_time += started.elapsed();
             self.comparison_cost.candidate_guard_comparisons += 1;
 
-            if epoch_equal && main_equal && candidate_guard_equal {
+            if epoch_equal && supplemental_epoch_equal && main_equal && candidate_guard_equal {
                 let started = Instant::now();
                 result_equal = entry.result == pure.outcome;
                 self.comparison_cost.result_time += started.elapsed();
@@ -343,6 +354,7 @@ impl GeneralizeSnapshotRootObservation {
         let exact_repeat = boundary_eligible
             && demand_equal
             && epoch_equal
+            && supplemental_epoch_equal
             && main_equal
             && candidate_guard_equal
             && result_equal;
@@ -403,6 +415,7 @@ impl GeneralizeSnapshotRootObservation {
             exact_repeat,
             demand_equal,
             epoch_equal,
+            supplemental_epoch_equal,
             main_equal,
             candidate_guard_equal,
             result_equal,
@@ -417,6 +430,7 @@ impl GeneralizeSnapshotRootObservation {
                 matching_index,
                 slot,
                 constraint_epoch,
+                role_solve_supplemental_epoch,
                 candidate_guard,
                 main,
                 main_nodes,
@@ -432,6 +446,7 @@ impl GeneralizeSnapshotRootObservation {
         matching_index: Option<usize>,
         slot: usize,
         constraint_epoch: ConstraintEpoch,
+        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
         candidate_guard: u64,
         main: &CompactRoot,
         main_nodes: usize,
@@ -450,6 +465,7 @@ impl GeneralizeSnapshotRootObservation {
 
         let accounting_started = Instant::now();
         let debug_bytes = size_of::<ConstraintEpoch>()
+            + size_of::<RoleSolveSupplementalEpoch>()
             + size_of::<u64>()
             + format!("{main:?}").len()
             + format!("{demand:?}").len()
@@ -458,6 +474,7 @@ impl GeneralizeSnapshotRootObservation {
         let entry = ExactSnapshotEntry {
             slot,
             constraint_epoch,
+            role_solve_supplemental_epoch,
             main,
             demand,
             candidate_guard,
@@ -521,6 +538,7 @@ impl GeneralizeSnapshotRootObservation {
 struct ExactSnapshotEntry {
     slot: usize,
     constraint_epoch: ConstraintEpoch,
+    role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     main: CompactRoot,
     demand: CompactRoleConstraint,
     candidate_guard: u64,

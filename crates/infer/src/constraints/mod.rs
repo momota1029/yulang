@@ -67,6 +67,7 @@ pub struct ConstraintMachine {
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
     epoch: ConstraintEpoch,
+    role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
     replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
 }
@@ -83,6 +84,27 @@ impl ConstraintEpoch {
     ///
     /// The counter saturates instead of wrapping. Once saturated, later mutations cannot be
     /// distinguished, so correctness-sensitive reuse must treat the epoch as unavailable.
+    pub fn can_witness_unchanged_state(self) -> bool {
+        self.0 != u64::MAX
+    }
+
+    fn bump(&mut self) {
+        self.0 = self.0.saturating_add(1);
+    }
+}
+
+/// Supplemental witness for role-solver inputs intentionally omitted from `ConstraintEpoch`.
+///
+/// This counter has no replay, lifecycle-audit, or cache semantics. A role-solve snapshot must
+/// compare it together with `ConstraintEpoch`; neither counter is complete by itself.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RoleSolveSupplementalEpoch(u64);
+
+impl RoleSolveSupplementalEpoch {
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+
     pub fn can_witness_unchanged_state(self) -> bool {
         self.0 != u64::MAX
     }

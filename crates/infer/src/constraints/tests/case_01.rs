@@ -60,29 +60,32 @@ fn constraint_epoch_advances_only_for_new_constraint_state() {
 }
 
 #[test]
-fn constraint_epoch_covers_level_registration_and_lowering() {
+fn role_solve_supplemental_epoch_covers_level_registration_and_lowering() {
     let mut machine = ConstraintMachine::new();
     let var = TypeVar(0);
+    let epoch = machine.epoch();
 
     machine.register_type_var(var, TypeLevel::root().child());
-    let registered = machine.epoch();
+    let registered = machine.role_solve_supplemental_epoch();
+    assert_eq!(machine.epoch(), epoch);
     assert!(registered.as_u64() > 0);
 
     machine.register_type_var(var, TypeLevel::root());
     assert_eq!(
-        machine.epoch(),
+        machine.role_solve_supplemental_epoch(),
         registered,
         "re-registration is not a mutation"
     );
 
     let pos = machine.alloc_pos(Pos::Var(var));
     machine.extrude_pos(pos, TypeLevel::root());
-    assert!(machine.epoch() > registered);
+    assert_eq!(machine.epoch(), epoch);
+    assert!(machine.role_solve_supplemental_epoch() > registered);
     assert_eq!(machine.level_of(var), TypeLevel::root());
 }
 
 #[test]
-fn constraint_epoch_covers_upper_row_pruning_and_neighbor_removal() {
+fn role_solve_supplemental_epoch_covers_upper_row_pruning_and_neighbor_removal() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let tail_var = TypeVar(1);
@@ -94,13 +97,15 @@ fn constraint_epoch_covers_upper_row_pruning_and_neighbor_removal() {
     machine.add_upper_bound(source, row, ConstraintWeights::empty());
     assert!(machine.var_neighbors(source).any(|var| var == tail_var));
     let epoch = machine.epoch();
+    let supplemental_epoch = machine.role_solve_supplemental_epoch();
     let var_epoch = machine.bounds().of(source).expect("source bounds").epoch();
 
     machine.prune_upper_rows_subsumed_by_reduced_upper(source, tail);
 
-    assert!(machine.epoch() > epoch);
+    assert_eq!(machine.epoch(), epoch);
+    assert!(machine.role_solve_supplemental_epoch() > supplemental_epoch);
     let bounds = machine.bounds().of(source).expect("source bounds");
-    assert!(bounds.epoch() > var_epoch);
+    assert_eq!(bounds.epoch(), var_epoch);
     assert!(bounds.uppers().is_empty());
     assert!(!machine.var_neighbors(source).any(|var| var == tail_var));
 }
@@ -109,6 +114,8 @@ fn constraint_epoch_covers_upper_row_pruning_and_neighbor_removal() {
 fn saturated_constraint_epoch_cannot_witness_unchanged_state() {
     assert!(!ConstraintEpoch(u64::MAX).can_witness_unchanged_state());
     assert!(ConstraintEpoch(u64::MAX - 1).can_witness_unchanged_state());
+    assert!(!RoleSolveSupplementalEpoch(u64::MAX).can_witness_unchanged_state());
+    assert!(RoleSolveSupplementalEpoch(u64::MAX - 1).can_witness_unchanged_state());
 }
 
 #[test]

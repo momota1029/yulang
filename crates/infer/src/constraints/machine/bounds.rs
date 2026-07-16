@@ -129,8 +129,8 @@ impl ConstraintMachine {
 
     /// Publish one effective mutation of the exact projected bound vectors.
     ///
-    /// This is deliberately independent of replay. Callers include ordinary insertion,
-    /// evidence promotion, upper-row pruning, and selective no-replay row matching.
+    /// This is deliberately independent of replay. Callers are the ordinary and evidence bound
+    /// insertions already represented by the legacy global and per-variable epochs.
     pub(in crate::constraints) fn record_effective_bounds_mutation(&mut self, var: TypeVar) {
         if self.method_role_mutations.is_active() {
             self.method_role_mutations
@@ -608,7 +608,11 @@ impl ConstraintMachine {
             self.unrecord_neg_bound_var_neighbors(source, upper);
         }
         if bounds_changed {
-            self.record_effective_bounds_mutation(source);
+            self.bump_role_solve_supplemental_epoch();
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .record(DependencyKey::ConstraintBounds(source));
+            }
         }
     }
 
@@ -944,7 +948,7 @@ impl ConstraintMachine {
         }
         let level_lowered = self.levels.lower_to(var, ctx.target);
         if level_lowered {
-            self.bump_epoch();
+            self.bump_role_solve_supplemental_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations
                     .record(DependencyKey::ConstraintLevel(var));
