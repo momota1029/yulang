@@ -636,13 +636,13 @@ Activation is acceptable only if:
 - no missing input is represented as `Any`, `Never`, predicate deletion, or cached success; and
 - hit count, role-solve time, and end-to-end time are measured and reported separately.
 
-### Stage 2 numerical release-gate proposal (2026-07-16; pending Claude/user confirmation)
+### Stage 2 numerical release gates (approved by Claude/user on 2026-07-16)
 
-The following thresholds are proposed for the separate Stage 2 activation review. They are not
-recorded as already approved. They use only the Stage 0/1 measurements above and the original
-diagnosis: Markdown's removable iteration-4 solve was approximately 0.95-0.99 seconds of an
-approximately 1.87-1.93-second `analysis.generalize_resolve_roles` phase and an approximately
-5.3-5.9-second full compile.
+The following thresholds were approved before the separate Stage 2 production-activation work
+began. They use only the Stage 0/1 measurements above and the original diagnosis: Markdown's
+removable iteration-4 solve was approximately 0.95-0.99 seconds of an approximately
+1.87-1.93-second `analysis.generalize_resolve_roles` phase and an approximately 5.3-5.9-second full
+compile.
 
 Measure five same-time alternating release pairs per fixture, reversing enabled/always-full-solve
 order between successive pairs. Each command uses the same no-cache route and fresh process
@@ -678,6 +678,43 @@ small denominators make them a noise amplifier; their end-to-end bound is the fi
 Failure of either Markdown improvement threshold, any individual control-fixture no-regression
 threshold, or either absolute memory cap stops activation. A high hit count alone cannot override a
 failed time or memory gate, and the thresholds must not be weakened after observing Stage 2 output.
+
+### Stage 2 activation verification (2026-07-16; release gate failed)
+
+Correctness verification passed before performance measurement. The isolated production versus
+always-full-solve parity test covered Markdown and HTML in separate sessions and preserved final
+schemes, residual predicates, diagnostics, selections, restart/SCC order, lowering, poly output,
+and runtime output exactly; production recorded exact hits and fewer full solves. The independent
+test-only shadow audit remained enabled as a full-solve assurance path and again reported 1,019
+would-be hits, 1,019 exact matches, and zero result, disposition, state-delta, or full-path
+mismatches. `cargo test -p infer --lib -- --test-threads=1` finished with 831 passed and only the
+five pre-existing `mark_expr_block_*` failures.
+
+The release binary was rebuilt with `RUSTC_WRAPPER= cargo build --release -p yulang`. Each fixture
+then ran in a fresh process with cache disabled. Five pairs used enabled/always-solve order for odd
+pairs and always-solve/enabled order for even pairs. Markdown, HTML, and showcase used the runtime
+route; repository-std-only used the same repository std plus trivial-root runtime route represented
+by `tests/yulang/support/empty.yu`. The table reports arithmetic means of the compiler's internal
+timings; a positive change is an improvement and a negative change is a regression.
+
+| Fixture | Enabled total | Always-solve total | Total change | Enabled role phase | Always-solve role phase | Role change | Gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Yumark Markdown | 7.6860 s | 7.6344 s | -0.676% | 2.7974 s | 2.7686 s | -1.040% | **Fail:** requires at least +10% total and +35% role |
+| Yumark HTML | 1.4264 s | 1.4308 s | +0.308% | 15.10 ms | 16.88 ms | +10.545% | Pass: total did not regress |
+| repository-std-only | 1.2370 s | 1.2086 s | -2.350% | 8.82 ms | 8.72 ms | -1.147% | **Fail:** 2.350% regression exceeds 2% bound |
+| showcase | 1.2070 s | 1.3766 s | +12.320% | 9.10 ms | 9.58 ms | +5.010% | Pass: total did not regress |
+
+Supporting external observations were mean wall time of enabled/always-solve 8.024/7.980 seconds
+for Markdown, 1.754/1.740 seconds for HTML, 1.384/1.352 seconds for repository-std-only, and
+1.416/1.596 seconds for showcase. Maximum observed RSS in the same mode order was 447,580/447,344
+KiB, 218,160/218,228 KiB, 202,480/202,476 KiB, and 205,716/205,884 KiB respectively.
+
+Every enabled release run recorded six exact hits and no cap fallback. Peak loop-local retention
+was six entries and 19,764 Debug-proxy bytes, below the 64-entry and 128-MiB caps; always-solve runs
+recorded zero hits and zero retained entries. The two Markdown improvement gates and the
+repository-std-only control gate therefore reject this activation candidate for release despite
+correctness parity and budget compliance. The approved thresholds were not changed after observing
+the result.
 
 ## 9. Diagnostics and telemetry
 
