@@ -2,9 +2,9 @@
 
 Date: 2026-07-16
 
-Status: draft staged feasibility and implementation design for Claude/user review. This document
-does not approve implementation, does not change role-resolution semantics, and does not amend any
-signed role-system specification.
+Status: **closed for now after Stage 3 hardening (2026-07-17)**. Exact reuse is retained behind the
+explicit opt-in because the Stage 2 release gate failed; always-full-solve remains the production
+default. This document does not amend any signed role-system specification.
 
 ## 1. Purpose
 
@@ -517,6 +517,55 @@ closeout does not authorize or begin Stage 2.
      redundancy proof; and
   8. the 95.3x compact-tree expansion and generalization iteration reuse remain explicitly deferred.
 
+#### Stage 3 complete (2026-07-17): hardened held/opt-in closeout
+
+Stage 3 was explicitly adapted to the failed Stage 2 release gate. This is not hardening of an
+active-by-default feature: always-full-solve remains the production default, exact reuse remains
+available only through `--generalize-role-snapshot-enable-reuse`, and the project is **closed for
+now** in that held state. All eight adapted exit criteria are addressed:
+
+1. The independent test-only oracle remains a separately owned `E/A/M/D/C` comparator which forces
+   always-full-solve. Its nine-case acceptance test still reports 1,019 would-be hits, 1,019 exact
+   matches, and zero result, disposition, state-delta, or full-path mismatches. The oracle module and
+   invariant documentation now state that it and the full-solve control are continuing assurance,
+   not removable activation scaffolding.
+2. Production constructs one `GeneralizeRoleSnapshotRoot` as a stack-local value at the start of
+   each `generalize_root_with_prepasses_and_metrics` call. A focused regression now retains an entry,
+   leaves one root normally and through unwind, then proves that each fresh root begins with zero
+   entries, zero retained bytes, a clean report, and no hit for either prior demand.
+3. Focused production-cache tests assert that `GeneralizeRoleSnapshotBudget::default` is exactly 64
+   entries and 128 MiB of the approved Debug-size proxy. The 64th distinct entry is accepted, the
+   65th disables and clears that root, and an addition at the exact 128-MiB ceiling does the same.
+   The existing non-quiescent and synthetic-cap adversary continues to prove full-solve fallback.
+4. A rollback drill enters the reuse opt-in, nests
+   `with_generalize_role_snapshot_always_solve_for_new_sessions`, observes reuse disabled for the
+   nested scope, and observes the opt-in restored afterward. Existing unwind restoration and
+   isolated reuse/always-solve full-pipeline parity remain separate checks.
+5. Runtime phase timing continues to emit separate `exact_snapshot.hits`, `.full_solves`, `.misses`,
+   `.cap_fallbacks`, `.peak_entries`, and `.peak_retained_debug_bytes` values. The isolated parity
+   oracle compares lowering errors and compiler diagnostics as well as schemes and runtime surfaces;
+   snapshot telemetry remains timing/debug output and creates no source diagnostic.
+6. Stage 2's paired record keeps hit count separate from `analysis.generalize_resolve_roles` and
+   `run.build_poly`: explicitly enabled Markdown measured 146 hits alongside +39.967% role-phase and
+   +17.320% end-to-end gains. The control-fixture regressions are likewise recorded independently,
+   so hit count cannot stand in for realized time savings.
+7. No exact comparator, candidate guard, independent oracle, or always-full-solve path was removed.
+   The maintained invariant requires a dedicated redundancy review before removing these controls.
+8. The approximately 95.3x compact-tree expansion and the repeated
+   `generalize_collect_roles` / `generalize_collect_dominance` work remain explicitly deferred and
+   unimplemented. A separately designed cheap-demand-admission-policy project is the identified path
+   to reconsider default activation, but it was not started here.
+
+Verification completed with six focused production-cache tests passing; the independent acceptance
+oracle passing at 1,019/1,019 exact matches and zero mismatches; `cargo test -p infer --lib`
+finishing with 834 passed and only the five pre-existing Yumark `DefId(64)` versus `DefId(63)`
+failures; and the full `yulang` package finishing 299 lib, 10 binary, and 135 CLI integration tests
+with zero failures under a clean writable HOME and serialized environment-sensitive tests.
+
+This held closeout does not claim that Section 15's activation-performance completion gate passed.
+It records a trustworthy retained implementation and oracle after that gate failed, without
+weakening the approved thresholds or changing the always-solve default.
+
 ## 7. Test plan and acceptance oracles
 
 Correctness tests compare the cached path with the unchanged full solver. Performance counters are
@@ -858,9 +907,9 @@ The following are deliberately not guessed:
    moving it there requires a semantic solver rewrite, stop before Stage 1.
 4. **Storage and comparison cost.** Exact retained values may be large. Entry/byte caps and equality
    costs are TBD until Stage 0; lossy identity is not a fallback.
-5. **Numerical activation gates (proposal recorded; approval pending).** Section 8 now records the
-   Stage 0/1-measurement-grounded 10% Markdown end-to-end, 35% Markdown role-phase, and 2% per-control
-   no-regression proposal. Claude/user confirmation remains required before activation is final.
+5. **Numerical activation gates (resolved).** Section 8 records the approved 10% Markdown
+   end-to-end, 35% Markdown role-phase, and 2% per-control no-regression gates. Stage 2 passed both
+   Markdown thresholds but failed two control-fixture bounds, so reuse remains held/default-off.
 6. **Breadth of the opportunity.** Stage 0 must find exact repeats across more roots/fixtures than
    the single `proof` witness. If it is fixture-specific, stop rather than add a special case.
 
@@ -909,5 +958,6 @@ The per-demand exact solve snapshot project is complete only when:
 Design synthesis: Codex (gpt-5.6-sol), 2026-07-16 session, based on the completed read-only
 investigation supplied for this task.
 
-Implementation approval is pending Claude/user review. This attribution records the draft
-specification only; it is not a Claude signature and does not approve any implementation stage.
+This attribution records the initial draft specification only; it is not a Claude signature and
+does not amend the later user-authorized implementation, gate decisions, or held Stage 3 closeout
+recorded inline above.

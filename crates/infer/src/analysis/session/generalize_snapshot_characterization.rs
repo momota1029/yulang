@@ -3,6 +3,8 @@
 //! The audit scope forces the always-full-solve control, then retains its own E/M/D/C/A-shaped
 //! snapshots to compare every would-be hit with the fresh recursive result. Debug byte lengths are
 //! an explicit structural proxy, not allocator-retained bytes.
+//! This oracle is continuing correctness assurance, not activation scaffolding; removing it or its
+//! forced full-solve control requires a dedicated redundancy review.
 
 #![allow(
     dead_code,

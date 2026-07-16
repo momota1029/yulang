@@ -409,6 +409,87 @@ mod tests {
     }
 
     #[test]
+    fn fresh_roots_never_inherit_completed_or_aborted_root_entries() {
+        {
+            let mut completed_root = GeneralizeRoleSnapshotRoot::new(true);
+            retain_test_snapshot(&mut completed_root, &demand("Completed"));
+            assert_eq!(completed_root.entries.len(), 1);
+        }
+
+        let mut after_completion = GeneralizeRoleSnapshotRoot::new(true);
+        assert_fresh_root(&after_completion);
+        assert_snapshot_absent(&mut after_completion, &demand("Completed"));
+
+        let unwind = std::panic::catch_unwind(|| {
+            let mut aborted_root = GeneralizeRoleSnapshotRoot::new(true);
+            retain_test_snapshot(&mut aborted_root, &demand("Aborted"));
+            assert_eq!(aborted_root.entries.len(), 1);
+            panic!("abort one root after retaining an exact snapshot");
+        });
+        assert!(unwind.is_err());
+
+        let mut after_abort = GeneralizeRoleSnapshotRoot::new(true);
+        assert_fresh_root(&after_abort);
+        assert_snapshot_absent(&mut after_abort, &demand("Aborted"));
+    }
+
+    #[test]
+    fn production_default_entry_and_byte_caps_fail_closed() {
+        let production_budget = GeneralizeRoleSnapshotBudget::default();
+        assert_eq!(production_budget.max_entries, MAX_RETAINED_SNAPSHOT_ENTRIES);
+        assert_eq!(MAX_RETAINED_SNAPSHOT_ENTRIES, 64);
+        assert_eq!(
+            production_budget.max_retained_debug_bytes,
+            MAX_RETAINED_SNAPSHOT_DEBUG_BYTES
+        );
+        assert_eq!(MAX_RETAINED_SNAPSHOT_DEBUG_BYTES, 128 * 1024 * 1024);
+
+        let mut entry_capped = GeneralizeRoleSnapshotRoot::new(true);
+        for index in 0..MAX_RETAINED_SNAPSHOT_ENTRIES {
+            retain_test_snapshot(&mut entry_capped, &demand(&format!("Role{index}")));
+            assert!(!entry_capped.reuse_disabled);
+        }
+        assert_eq!(entry_capped.entries.len(), MAX_RETAINED_SNAPSHOT_ENTRIES);
+        assert_eq!(
+            entry_capped.report().peak_entries,
+            MAX_RETAINED_SNAPSHOT_ENTRIES
+        );
+        assert_eq!(entry_capped.report().cap_fallbacks, 0);
+
+        retain_test_snapshot(&mut entry_capped, &demand("RoleOverEntryCap"));
+        assert!(entry_capped.reuse_disabled);
+        assert!(entry_capped.entries.is_empty());
+        assert_eq!(entry_capped.retained_debug_bytes, 0);
+        assert_eq!(entry_capped.report().cap_fallbacks, 1);
+        assert_eq!(
+            entry_capped.report().peak_entries,
+            MAX_RETAINED_SNAPSHOT_ENTRIES
+        );
+
+        let mut byte_capped = GeneralizeRoleSnapshotRoot::new(true);
+        // Seed the accounting at the exact production ceiling instead of allocating a 128-MiB
+        // Debug string in a unit test. Retaining any additional complete entry must disable and
+        // clear this root through the same production projection path.
+        byte_capped.entries.push(ExactSnapshotEntry {
+            constraint_epoch: ConstraintEpoch::default(),
+            role_solve_supplemental_epoch: RoleSolveSupplementalEpoch::default(),
+            main: CompactRoot::default(),
+            demand: demand("RoleAtByteCap"),
+            candidate_guard: ExactSnapshotCandidateGuard::Generation(0),
+            outcome: PureRoleDemandOutcome::Unresolved {
+                candidate_matches: 0,
+            },
+            retained_debug_bytes: MAX_RETAINED_SNAPSHOT_DEBUG_BYTES,
+        });
+        byte_capped.retained_debug_bytes = MAX_RETAINED_SNAPSHOT_DEBUG_BYTES;
+        retain_test_snapshot(&mut byte_capped, &demand("RoleOverByteCap"));
+        assert!(byte_capped.reuse_disabled);
+        assert!(byte_capped.entries.is_empty());
+        assert_eq!(byte_capped.retained_debug_bytes, 0);
+        assert_eq!(byte_capped.report().cap_fallbacks, 1);
+    }
+
+    #[test]
     fn new_sessions_default_to_always_solve_and_mode_scopes_are_unwind_safe() {
         assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
         with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
@@ -426,6 +507,60 @@ mod tests {
             assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
         });
         assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+    }
+
+    #[test]
+    fn nested_always_solve_scope_is_a_working_reuse_rollback() {
+        assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+        with_generalize_role_snapshot_reuse_enabled_for_new_sessions(|| {
+            assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
+            with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
+                assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+            });
+            assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
+        });
+        assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+    }
+
+    fn retain_test_snapshot(root: &mut GeneralizeRoleSnapshotRoot, demand: &CompactRoleConstraint) {
+        let mut boundary = root.boundary(
+            ConstraintEpoch::default(),
+            RoleSolveSupplementalEpoch::default(),
+            0,
+            0,
+            0,
+        );
+        boundary.retain(
+            &CompactRoot::default(),
+            demand,
+            &PureRoleDemandOutcome::Unresolved {
+                candidate_matches: 0,
+            },
+        );
+    }
+
+    fn assert_fresh_root(root: &GeneralizeRoleSnapshotRoot) {
+        assert!(root.entries.is_empty());
+        assert_eq!(root.retained_debug_bytes, 0);
+        assert!(!root.reuse_disabled);
+        assert_eq!(root.report().misses, 0);
+        assert_eq!(root.report().cap_fallbacks, 0);
+        assert_eq!(root.report().peak_entries, 0);
+        assert_eq!(root.report().peak_retained_debug_bytes, 0);
+    }
+
+    fn assert_snapshot_absent(
+        root: &mut GeneralizeRoleSnapshotRoot,
+        demand: &CompactRoleConstraint,
+    ) {
+        let mut boundary = root.boundary(
+            ConstraintEpoch::default(),
+            RoleSolveSupplementalEpoch::default(),
+            0,
+            0,
+            0,
+        );
+        assert!(boundary.lookup(&CompactRoot::default(), demand).is_none());
     }
 
     fn demand(role: &str) -> CompactRoleConstraint {
