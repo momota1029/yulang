@@ -453,7 +453,7 @@ fn pure_recursive_result_is_independent_of_live_applied_membership() {
 }
 
 #[test]
-fn snapshot_constraint_epoch_misses_row_match_candidate_bound_mutation() {
+fn snapshot_constraint_epoch_covers_row_match_candidate_bound_mutation() {
     let mut machine = ConstraintMachine::new();
     let candidate_var = TypeVar(0);
     machine.register_type_var(candidate_var, TypeLevel::root());
@@ -483,13 +483,61 @@ fn snapshot_constraint_epoch_misses_row_match_candidate_bound_mutation() {
         &impls,
         &FxHashSet::default(),
     );
+    let unchanged = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        std::slice::from_ref(&demand),
+        &impls,
+        &FxHashSet::default(),
+    );
+    assert_eq!(unchanged, before);
     let epoch = machine.epoch();
     let upper_a = machine.alloc_neg(Neg::Con(vec!["effect_a".into()], Vec::new()));
     let upper_b = machine.alloc_neg(Neg::Con(vec!["effect_b".into()], Vec::new()));
     let upper_tail = machine.alloc_neg(Neg::Top);
     let upper_row = machine.alloc_neg(Neg::Row(vec![upper_a, upper_b], upper_tail));
     machine.constrain_subtype(associated_lower, upper_row);
-    assert_eq!(machine.epoch(), epoch);
+    assert_ne!(machine.epoch(), epoch);
+    let after = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        std::slice::from_ref(&demand),
+        &impls,
+        &FxHashSet::default(),
+    );
+
+    assert_ne!(before, after);
+}
+
+#[test]
+fn snapshot_constraint_epoch_covers_candidate_level_registration() {
+    let mut machine = ConstraintMachine::new();
+    let lower_var = TypeVar(0);
+    let upper_var = TypeVar(1);
+    let mut candidate = raw_role_candidate(vec![raw_nominal_role_arg(&mut machine, "document")]);
+    candidate
+        .associated
+        .push(crate::roles::RoleAssociatedConstraint {
+            name: "Item".into(),
+            value: RoleConstraintArg {
+                lower: machine.alloc_pos(Pos::Var(lower_var)),
+                upper: machine.alloc_neg(Neg::Var(upper_var)),
+            },
+        });
+    let mut impls = RoleImplTable::new();
+    impls.insert(candidate);
+    let demand = role_constraint(vec![nominal_role_arg("document", Vec::new())]);
+
+    let before = resolve_role_constraints_with_stats(
+        &machine,
+        &CompactRoot::default(),
+        std::slice::from_ref(&demand),
+        &impls,
+        &FxHashSet::default(),
+    );
+    let epoch = machine.epoch();
+    machine.register_type_var(lower_var, TypeLevel::root().child());
+    assert_ne!(machine.epoch(), epoch);
     let after = resolve_role_constraints_with_stats(
         &machine,
         &CompactRoot::default(),

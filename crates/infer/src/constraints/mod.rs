@@ -79,6 +79,14 @@ impl ConstraintEpoch {
         self.0
     }
 
+    /// Whether equality with this value can prove that no observed mutation occurred.
+    ///
+    /// The counter saturates instead of wrapping. Once saturated, later mutations cannot be
+    /// distinguished, so correctness-sensitive reuse must treat the epoch as unavailable.
+    pub fn can_witness_unchanged_state(self) -> bool {
+        self.0 != u64::MAX
+    }
+
     fn bump(&mut self) {
         self.0 = self.0.saturating_add(1);
     }
@@ -118,14 +126,6 @@ struct TypeLevels {
 impl TypeLevels {
     fn new() -> Self {
         Self::default()
-    }
-
-    fn register(&mut self, var: TypeVar, level: TypeLevel) {
-        let index = var.0 as usize;
-        ensure_slot(&mut self.vars, index);
-        ensure_slot(&mut self.births, index);
-        self.vars[index].get_or_insert(level);
-        self.births[index].get_or_insert(level);
     }
 
     fn register_recording_change(&mut self, var: TypeVar, level: TypeLevel) -> bool {

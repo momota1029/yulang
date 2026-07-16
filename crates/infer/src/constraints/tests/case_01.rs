@@ -60,6 +60,58 @@ fn constraint_epoch_advances_only_for_new_constraint_state() {
 }
 
 #[test]
+fn constraint_epoch_covers_level_registration_and_lowering() {
+    let mut machine = ConstraintMachine::new();
+    let var = TypeVar(0);
+
+    machine.register_type_var(var, TypeLevel::root().child());
+    let registered = machine.epoch();
+    assert!(registered.as_u64() > 0);
+
+    machine.register_type_var(var, TypeLevel::root());
+    assert_eq!(
+        machine.epoch(),
+        registered,
+        "re-registration is not a mutation"
+    );
+
+    let pos = machine.alloc_pos(Pos::Var(var));
+    machine.extrude_pos(pos, TypeLevel::root());
+    assert!(machine.epoch() > registered);
+    assert_eq!(machine.level_of(var), TypeLevel::root());
+}
+
+#[test]
+fn constraint_epoch_covers_upper_row_pruning_and_neighbor_removal() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let tail_var = TypeVar(1);
+    machine.register_type_var(source, TypeLevel::root());
+    machine.register_type_var(tail_var, TypeLevel::root());
+    let item = machine.alloc_neg(Neg::Con(vec!["effect".into()], Vec::new()));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let row = machine.alloc_neg(Neg::Row(vec![item], tail));
+    machine.add_upper_bound(source, row, ConstraintWeights::empty());
+    assert!(machine.var_neighbors(source).any(|var| var == tail_var));
+    let epoch = machine.epoch();
+    let var_epoch = machine.bounds().of(source).expect("source bounds").epoch();
+
+    machine.prune_upper_rows_subsumed_by_reduced_upper(source, tail);
+
+    assert!(machine.epoch() > epoch);
+    let bounds = machine.bounds().of(source).expect("source bounds");
+    assert!(bounds.epoch() > var_epoch);
+    assert!(bounds.uppers().is_empty());
+    assert!(!machine.var_neighbors(source).any(|var| var == tail_var));
+}
+
+#[test]
+fn saturated_constraint_epoch_cannot_witness_unchanged_state() {
+    assert!(!ConstraintEpoch(u64::MAX).can_witness_unchanged_state());
+    assert!(ConstraintEpoch(u64::MAX - 1).can_witness_unchanged_state());
+}
+
+#[test]
 fn constraint_weights_replay_keeps_exact_pop_count_and_stack_sequence() {
     let id = SubtractId(0);
     let io = Subtractability::Set(vec!["io".into()], Vec::new());

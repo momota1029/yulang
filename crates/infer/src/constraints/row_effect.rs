@@ -219,12 +219,9 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return false;
         }
-        if self.method_role_mutations.is_active() {
-            // This path intentionally avoids replay and the legacy bounds epoch. Emit from the
-            // actual vector update so the journal still observes prune-and-insert changes.
-            self.method_role_mutations
-                .record(DependencyKey::ConstraintBounds(source));
-        }
+        // Keep the selective row-match replay policy below unchanged. Epoch publication only
+        // makes this already-effective projected-bound mutation externally observable.
+        self.record_effective_bounds_mutation(source);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,

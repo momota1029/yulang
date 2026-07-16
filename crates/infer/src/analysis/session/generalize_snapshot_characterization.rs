@@ -248,7 +248,9 @@ impl GeneralizeSnapshotRootObservation {
 
         let main_debug_bytes = format!("{main:?}").len();
         let main_nodes = super::compact_shape_metrics(main).nodes;
-        let boundary_eligible = pending_constraint_work == 0 && pending_constraint_events == 0;
+        let boundary_eligible = constraint_epoch.can_witness_unchanged_state()
+            && pending_constraint_work == 0
+            && pending_constraint_events == 0;
         let mut boundary_exact_repeats = 0;
         for ((demand, pure), disposition) in normalized_demands
             .iter()

@@ -50,12 +50,7 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
-        if self.method_role_mutations.is_active() {
-            self.method_role_mutations
-                .record(DependencyKey::ConstraintBounds(target));
-        }
-        let epoch = self.bump_epoch();
-        self.bounds.record_var_epoch(target, epoch);
+        self.record_effective_bounds_mutation(target);
         let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
@@ -103,12 +98,7 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
-        if self.method_role_mutations.is_active() {
-            self.method_role_mutations
-                .record(DependencyKey::ConstraintBounds(source));
-        }
-        let epoch = self.bump_epoch();
-        self.bounds.record_var_epoch(source, epoch);
+        self.record_effective_bounds_mutation(source);
         let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
@@ -135,6 +125,19 @@ impl ConstraintMachine {
             replay.prefiltered,
             replay.prefilter_duplicate,
         );
+    }
+
+    /// Publish one effective mutation of the exact projected bound vectors.
+    ///
+    /// This is deliberately independent of replay. Callers include ordinary insertion,
+    /// evidence promotion, upper-row pruning, and selective no-replay row matching.
+    pub(in crate::constraints) fn record_effective_bounds_mutation(&mut self, var: TypeVar) {
+        if self.method_role_mutations.is_active() {
+            self.method_role_mutations
+                .record(DependencyKey::ConstraintBounds(var));
+        }
+        let epoch = self.bump_epoch();
+        self.bounds.record_var_epoch(var, epoch);
     }
 
     fn check_and_erase_lower_left_filter(
@@ -484,23 +487,13 @@ impl ConstraintMachine {
                 .bounds
                 .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
             {
-                if self.method_role_mutations.is_active() {
-                    self.method_role_mutations
-                        .record(DependencyKey::ConstraintBounds(target));
-                }
-                let epoch = self.bump_epoch();
-                self.bounds.record_var_epoch(target, epoch);
+                self.record_effective_bounds_mutation(target);
             }
             if self
                 .bounds
                 .add_evidence_upper(source, constraint.upper, constraint.weights)
             {
-                if self.method_role_mutations.is_active() {
-                    self.method_role_mutations
-                        .record(DependencyKey::ConstraintBounds(source));
-                }
-                let epoch = self.bump_epoch();
-                self.bounds.record_var_epoch(source, epoch);
+                self.record_effective_bounds_mutation(source);
             }
         }
     }
@@ -614,11 +607,8 @@ impl ConstraintMachine {
         for upper in removed {
             self.unrecord_neg_bound_var_neighbors(source, upper);
         }
-        if bounds_changed && self.method_role_mutations.is_active() {
-            // Pruning predates the per-variable bounds epoch. Publish from the authoritative
-            // vector mutation instead of inferring invalidation from that incomplete epoch.
-            self.method_role_mutations
-                .record(DependencyKey::ConstraintBounds(source));
+        if bounds_changed {
+            self.record_effective_bounds_mutation(source);
         }
     }
 
@@ -953,9 +943,12 @@ impl ConstraintMachine {
             return;
         }
         let level_lowered = self.levels.lower_to(var, ctx.target);
-        if level_lowered && self.method_role_mutations.is_active() {
-            self.method_role_mutations
-                .record(DependencyKey::ConstraintLevel(var));
+        if level_lowered {
+            self.bump_epoch();
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .record(DependencyKey::ConstraintLevel(var));
+            }
         }
         let bounds = self
             .bounds

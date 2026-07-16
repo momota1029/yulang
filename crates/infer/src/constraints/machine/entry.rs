@@ -66,15 +66,14 @@ impl ConstraintMachine {
     }
 
     pub fn register_type_var(&mut self, var: TypeVar, level: TypeLevel) {
-        if self.method_role_mutations.is_active() {
-            if self.levels.register_recording_change(var, level) {
+        if self.levels.register_recording_change(var, level) {
+            self.bump_epoch();
+            if self.method_role_mutations.is_active() {
                 self.method_role_mutations.record_many([
                     DependencyKey::ConstraintLevel(var),
                     DependencyKey::ConstraintBirthLevel(var),
                 ]);
             }
-        } else {
-            self.levels.register(var, level);
         }
         self.next_internal_type_var = self.next_internal_type_var.max(var.0.saturating_add(1));
     }
