@@ -32,7 +32,9 @@ use matchers::*;
 use rewrite::*;
 #[cfg(test)]
 pub(crate) use snapshot_characterization::{
-    PureRoleDemandObservation, PureRoleDemandOutcome, capture_pure_role_demand_observations,
+    PureRoleDemandObservation, PureRoleDemandOutcome, ShadowRoleDemandApplication,
+    ShadowRoleStateDelta, apply_pure_role_demand_outcome, capture_pure_role_demand_observations,
+    shadow_applications_from_full_solve,
 };
 use taint::*;
 use vars::*;

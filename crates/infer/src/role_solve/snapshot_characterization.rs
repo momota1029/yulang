@@ -26,6 +26,84 @@ pub(crate) enum PureRoleDemandOutcome {
     Unresolved { candidate_matches: usize },
 }
 
+/// The live disposition and publication delta obtained by applying one pure recursive result to
+/// the current `applied` set.
+///
+/// This is deliberately derived afresh on every shadow lookup. The retained snapshot owns only
+/// the recursive result; it never retains an old newly-resolved/already-applied classification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ShadowRoleDemandApplication {
+    pub(crate) disposition: RoleDemandDisposition,
+    pub(crate) state_delta: ShadowRoleStateDelta,
+}
+
+/// Exact inputs that the unchanged generalization disposition path would publish for one demand.
+///
+/// `resolutions` is the top-level production delta. The remaining fields make the recursive
+/// applied-membership and constraint-publication consequences explicit for shadow comparison.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ShadowRoleStateDelta {
+    pub(crate) resolutions: Vec<RoleResolution>,
+    pub(crate) applied_resolution_keys: Vec<RoleResolutionKey>,
+    pub(crate) applied_demands: Vec<CompactRoleConstraint>,
+    pub(crate) residual_prerequisites: Vec<CompactRoleConstraint>,
+    pub(crate) equal_role_args: Vec<(CompactRoleArg, CompactRoleArg)>,
+}
+
+pub(crate) fn apply_pure_role_demand_outcome(
+    outcome: &PureRoleDemandOutcome,
+    applied: &FxHashSet<RoleResolutionKey>,
+) -> ShadowRoleDemandApplication {
+    match outcome {
+        PureRoleDemandOutcome::Unresolved { candidate_matches } => ShadowRoleDemandApplication {
+            disposition: RoleDemandDisposition::Unresolved {
+                candidate_matches: *candidate_matches,
+            },
+            state_delta: ShadowRoleStateDelta::default(),
+        },
+        PureRoleDemandOutcome::Resolved(resolution) if applied.contains(&resolution.key) => {
+            ShadowRoleDemandApplication {
+                disposition: RoleDemandDisposition::AlreadyApplied {
+                    key: resolution.key.clone(),
+                },
+                state_delta: ShadowRoleStateDelta::default(),
+            }
+        }
+        PureRoleDemandOutcome::Resolved(resolution) => ShadowRoleDemandApplication {
+            disposition: RoleDemandDisposition::NewlyResolved {
+                key: resolution.key.clone(),
+            },
+            state_delta: shadow_state_delta(std::slice::from_ref(resolution)),
+        },
+    }
+}
+
+pub(crate) fn shadow_applications_from_full_solve(
+    dispositions: &[RoleDemandDisposition],
+    resolutions: &[RoleResolution],
+) -> Option<Vec<ShadowRoleDemandApplication>> {
+    let mut resolutions = resolutions.iter();
+    let mut applications = Vec::with_capacity(dispositions.len());
+    for disposition in dispositions {
+        let demand_resolutions = match disposition {
+            RoleDemandDisposition::NewlyResolved { key } => {
+                let resolution = resolutions.next()?;
+                if resolution.key != *key {
+                    return None;
+                }
+                vec![resolution.clone()]
+            }
+            RoleDemandDisposition::AlreadyApplied { .. }
+            | RoleDemandDisposition::Unresolved { .. } => Vec::new(),
+        };
+        applications.push(ShadowRoleDemandApplication {
+            disposition: disposition.clone(),
+            state_delta: shadow_state_delta(&demand_resolutions),
+        });
+    }
+    resolutions.next().is_none().then_some(applications)
+}
+
 #[derive(Default)]
 struct ActiveObservation {
     completed: Vec<PureRoleDemandObservation>,
@@ -162,6 +240,56 @@ fn finish_demand(outcome: PureRoleDemandOutcome, solve_time: crate::time::Durati
             solve_time,
         });
     });
+}
+
+fn shadow_state_delta(resolutions: &[RoleResolution]) -> ShadowRoleStateDelta {
+    let mut delta = ShadowRoleStateDelta {
+        resolutions: resolutions.to_vec(),
+        ..ShadowRoleStateDelta::default()
+    };
+    for resolution in resolutions {
+        delta.applied_resolution_keys.push(resolution.key.clone());
+        collect_applied_demands(resolution, &mut delta.applied_demands);
+        collect_publication_delta(resolution, &mut delta);
+    }
+    delta
+}
+
+fn collect_applied_demands(
+    resolution: &RoleResolution,
+    applied_demands: &mut Vec<CompactRoleConstraint>,
+) {
+    applied_demands.push(resolution.demand.clone());
+    for prerequisite in &resolution.solved_prerequisites {
+        collect_applied_demands(prerequisite, applied_demands);
+    }
+}
+
+fn collect_publication_delta(resolution: &RoleResolution, delta: &mut ShadowRoleStateDelta) {
+    for prerequisite in &resolution.solved_prerequisites {
+        collect_publication_delta(prerequisite, delta);
+    }
+    delta
+        .residual_prerequisites
+        .extend(resolution.residual_prerequisites.iter().cloned());
+    delta.equal_role_args.extend(
+        resolution
+            .demand
+            .inputs
+            .iter()
+            .zip(&resolution.candidate.inputs)
+            .map(|(demand, candidate)| (demand.clone(), candidate.clone())),
+    );
+    delta
+        .equal_role_args
+        .extend(resolution.demand.associated.iter().filter_map(|demand| {
+            resolution
+                .candidate
+                .associated
+                .iter()
+                .find(|candidate| candidate.name == demand.name)
+                .map(|candidate| (demand.value.clone(), candidate.value.clone()))
+        }));
 }
 
 struct ObservationGuard {

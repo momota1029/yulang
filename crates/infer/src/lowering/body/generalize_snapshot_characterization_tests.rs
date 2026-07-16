@@ -126,8 +126,23 @@ fn assert_report_invariants(case: &str, report: &GeneralizeSnapshotCharacterizat
     for root in &report.roots {
         assert_eq!(
             root.exact_result_mismatches, 0,
-            "{case} {:?}: equal E/M/D/C changed the pure result",
+            "{case} {:?}: equal E/A/M/D/C changed the pure result",
             root.def
+        );
+        assert_eq!(
+            (
+                root.shadow_disposition_mismatches,
+                root.shadow_state_delta_mismatches,
+                root.shadow_full_path_mismatches,
+            ),
+            (0, 0, 0),
+            "{case} {:?}: exact snapshot shadow application diverged",
+            root.def,
+        );
+        assert_eq!(
+            root.would_be_hits, root.exact_repeats,
+            "{case} {:?}: every would-be hit must verify exactly",
+            root.def,
         );
         assert!(
             root.solve_boundaries.iter().all(|boundary| {
@@ -194,6 +209,7 @@ fn assert_markdown_proof_witness(root: &crate::analysis::GeneralizeSnapshotRootR
         demand.observations.iter().any(|observation| {
             observation.iteration == 4
                 && observation.boundary_eligible
+                && observation.would_be_hit
                 && observation.exact_repeat
                 && observation.demand_equal
                 && observation.epoch_equal
@@ -201,6 +217,9 @@ fn assert_markdown_proof_witness(root: &crate::analysis::GeneralizeSnapshotRootR
                 && observation.main_equal
                 && observation.candidate_guard_equal
                 && observation.result_equal
+                && observation.disposition_equal
+                && observation.state_delta_equal
+                && observation.full_path_equal
         })
     }));
 }

@@ -450,6 +450,34 @@ fn pure_recursive_result_is_independent_of_live_applied_membership() {
     ));
     assert_eq!(first.output.resolutions.len(), 1);
     assert!(second.output.resolutions.is_empty());
+
+    let cached_new = apply_pure_role_demand_outcome(&first_pure[0].outcome, &FxHashSet::default());
+    let full_new =
+        shadow_applications_from_full_solve(&first.dispositions, &first.output.resolutions)
+            .expect("full newly-resolved dispositions must align with production deltas")
+            .remove(0);
+    assert_eq!(cached_new, full_new);
+    assert_eq!(cached_new.state_delta.applied_resolution_keys, vec![key]);
+    assert_eq!(cached_new.state_delta.applied_demands.len(), 2);
+    assert!(cached_new.state_delta.residual_prerequisites.is_empty());
+    assert_eq!(cached_new.state_delta.equal_role_args.len(), 2);
+    let duplicate_applications = shadow_applications_from_full_solve(
+        &[first.dispositions[0].clone(), first.dispositions[0].clone()],
+        &[
+            first.output.resolutions[0].clone(),
+            first.output.resolutions[0].clone(),
+        ],
+    )
+    .expect("full batch order, not key uniqueness, aligns repeated dispositions");
+    assert_eq!(duplicate_applications, vec![cached_new.clone(), cached_new]);
+
+    let cached_applied = apply_pure_role_demand_outcome(&first_pure[0].outcome, &applied);
+    let full_applied =
+        shadow_applications_from_full_solve(&second.dispositions, &second.output.resolutions)
+            .expect("full already-applied disposition has an empty production delta")
+            .remove(0);
+    assert_eq!(cached_applied, full_applied);
+    assert_eq!(cached_applied.state_delta, ShadowRoleStateDelta::default());
 }
 
 #[test]

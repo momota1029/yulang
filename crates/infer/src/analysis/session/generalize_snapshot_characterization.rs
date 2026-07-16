@@ -17,7 +17,8 @@ use std::mem::size_of;
 use crate::constraints::RoleSolveSupplementalEpoch;
 use crate::role_solve::{
     PureRoleDemandObservation, PureRoleDemandOutcome, RoleDemandDisposition,
-    RoleResolveDispositionOutput,
+    RoleResolveDispositionOutput, ShadowRoleDemandApplication, apply_pure_role_demand_outcome,
+    shadow_applications_from_full_solve,
 };
 
 thread_local! {
@@ -52,7 +53,11 @@ pub(crate) struct GeneralizeSnapshotRootReport {
     pub(crate) peak_entries: usize,
     pub(crate) peak_retained_debug_bytes: usize,
     pub(crate) peak_retained_main_nodes: usize,
+    pub(crate) would_be_hits: usize,
     pub(crate) exact_result_mismatches: usize,
+    pub(crate) shadow_disposition_mismatches: usize,
+    pub(crate) shadow_state_delta_mismatches: usize,
+    pub(crate) shadow_full_path_mismatches: usize,
     pub(crate) boundaries_with_pending_constraint_work: usize,
     pub(crate) boundaries_with_pending_constraint_events: usize,
     pub(crate) boundaries_with_pending_analysis_work: usize,
@@ -93,6 +98,7 @@ pub(crate) struct GeneralizeSnapshotDemandReport {
 pub(crate) struct GeneralizeSnapshotDemandSolve {
     pub(crate) iteration: usize,
     pub(crate) boundary_eligible: bool,
+    pub(crate) would_be_hit: bool,
     pub(crate) exact_repeat: bool,
     pub(crate) demand_equal: bool,
     pub(crate) epoch_equal: bool,
@@ -100,6 +106,9 @@ pub(crate) struct GeneralizeSnapshotDemandSolve {
     pub(crate) main_equal: bool,
     pub(crate) candidate_guard_equal: bool,
     pub(crate) result_equal: bool,
+    pub(crate) disposition_equal: bool,
+    pub(crate) state_delta_equal: bool,
+    pub(crate) full_path_equal: bool,
     pub(crate) solve_time: Duration,
     pub(crate) disposition: &'static str,
     pub(crate) candidate_bucket_count: usize,
@@ -117,6 +126,12 @@ pub(crate) struct GeneralizeSnapshotComparisonCost {
     pub(crate) candidate_guard_time: Duration,
     pub(crate) result_comparisons: usize,
     pub(crate) result_time: Duration,
+    pub(crate) fresh_applied_filters: usize,
+    pub(crate) fresh_applied_filter_time: Duration,
+    pub(crate) disposition_comparisons: usize,
+    pub(crate) disposition_time: Duration,
+    pub(crate) state_delta_comparisons: usize,
+    pub(crate) state_delta_time: Duration,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -187,7 +202,11 @@ pub(crate) struct GeneralizeSnapshotRootObservation {
     peak_entries: usize,
     peak_retained_debug_bytes: usize,
     peak_retained_main_nodes: usize,
+    would_be_hits: usize,
     exact_result_mismatches: usize,
+    shadow_disposition_mismatches: usize,
+    shadow_state_delta_mismatches: usize,
+    shadow_full_path_mismatches: usize,
     boundaries_with_pending_constraint_work: usize,
     boundaries_with_pending_constraint_events: usize,
     boundaries_with_pending_analysis_work: usize,
@@ -215,7 +234,11 @@ impl GeneralizeSnapshotRootObservation {
             peak_entries: 0,
             peak_retained_debug_bytes: 0,
             peak_retained_main_nodes: 0,
+            would_be_hits: 0,
             exact_result_mismatches: 0,
+            shadow_disposition_mismatches: 0,
+            shadow_state_delta_mismatches: 0,
+            shadow_full_path_mismatches: 0,
             boundaries_with_pending_constraint_work: 0,
             boundaries_with_pending_constraint_events: 0,
             boundaries_with_pending_analysis_work: 0,
@@ -237,6 +260,7 @@ impl GeneralizeSnapshotRootObservation {
         normalized_demands: &[CompactRoleConstraint],
         pure: &[PureRoleDemandObservation],
         resolved: &RoleResolveDispositionOutput,
+        applied: &FxHashSet<crate::role_solve::RoleResolutionKey>,
         batch_solve_time: Duration,
         pending_constraint_work: usize,
         pending_constraint_events: usize,
@@ -256,11 +280,16 @@ impl GeneralizeSnapshotRootObservation {
             && role_solve_supplemental_epoch.can_witness_unchanged_state()
             && pending_constraint_work == 0
             && pending_constraint_events == 0;
+        let full_applications = shadow_applications_from_full_solve(
+            &resolved.dispositions,
+            &resolved.output.resolutions,
+        );
         let mut boundary_exact_repeats = 0;
-        for ((demand, pure), disposition) in normalized_demands
+        for (index, ((demand, pure), disposition)) in normalized_demands
             .iter()
             .zip(pure)
             .zip(&resolved.dispositions)
+            .enumerate()
         {
             assert_eq!(demand, &pure.demand);
             let observation = self.observe_demand(
@@ -272,6 +301,10 @@ impl GeneralizeSnapshotRootObservation {
                 main_nodes,
                 pure,
                 disposition,
+                full_applications
+                    .as_ref()
+                    .and_then(|applications| applications.get(index)),
+                applied,
                 boundary_eligible,
             );
             boundary_exact_repeats += usize::from(observation.exact_repeat);
@@ -304,6 +337,8 @@ impl GeneralizeSnapshotRootObservation {
         main_nodes: usize,
         pure: &PureRoleDemandObservation,
         disposition: &RoleDemandDisposition,
+        full_application: Option<&ShadowRoleDemandApplication>,
+        applied: &FxHashSet<crate::role_solve::RoleResolutionKey>,
         boundary_eligible: bool,
     ) -> GeneralizeSnapshotDemandSolve {
         let mut matching_index = None;
@@ -324,6 +359,9 @@ impl GeneralizeSnapshotRootObservation {
         let mut main_equal = false;
         let mut candidate_guard_equal = false;
         let mut result_equal = false;
+        let mut disposition_equal = false;
+        let mut state_delta_equal = false;
+        let mut full_path_equal = false;
         if let Some(index) = matching_index {
             let entry = &self.entries[index];
             let started = Instant::now();
@@ -343,21 +381,52 @@ impl GeneralizeSnapshotRootObservation {
             self.comparison_cost.candidate_guard_time += started.elapsed();
             self.comparison_cost.candidate_guard_comparisons += 1;
 
-            if epoch_equal && supplemental_epoch_equal && main_equal && candidate_guard_equal {
+            let would_be_hit = boundary_eligible
+                && epoch_equal
+                && supplemental_epoch_equal
+                && main_equal
+                && candidate_guard_equal;
+            if would_be_hit {
+                self.would_be_hits += 1;
                 let started = Instant::now();
                 result_equal = entry.result == pure.outcome;
                 self.comparison_cost.result_time += started.elapsed();
                 self.comparison_cost.result_comparisons += 1;
                 self.exact_result_mismatches += usize::from(!result_equal);
+
+                let started = Instant::now();
+                let cached_application = apply_pure_role_demand_outcome(&entry.result, applied);
+                let fresh_application = apply_pure_role_demand_outcome(&pure.outcome, applied);
+                self.comparison_cost.fresh_applied_filter_time += started.elapsed();
+                self.comparison_cost.fresh_applied_filters += 2;
+
+                let started = Instant::now();
+                disposition_equal = full_application
+                    .is_some_and(|full| cached_application.disposition == full.disposition);
+                self.comparison_cost.disposition_time += started.elapsed();
+                self.comparison_cost.disposition_comparisons += 1;
+                self.shadow_disposition_mismatches += usize::from(!disposition_equal);
+
+                let started = Instant::now();
+                state_delta_equal = full_application
+                    .is_some_and(|full| cached_application.state_delta == full.state_delta);
+                self.comparison_cost.state_delta_time += started.elapsed();
+                self.comparison_cost.state_delta_comparisons += 1;
+                self.shadow_state_delta_mismatches += usize::from(!state_delta_equal);
+
+                full_path_equal = full_application.is_some_and(|full| fresh_application == *full);
+                self.shadow_full_path_mismatches += usize::from(!full_path_equal);
             }
         }
-        let exact_repeat = boundary_eligible
+        let would_be_hit = boundary_eligible
             && demand_equal
             && epoch_equal
             && supplemental_epoch_equal
             && main_equal
-            && candidate_guard_equal
-            && result_equal;
+            && candidate_guard_equal;
+        let exact_repeat = would_be_hit && result_equal;
+        let exact_repeat =
+            exact_repeat && disposition_equal && state_delta_equal && full_path_equal;
 
         let slot = if let Some(index) = matching_index {
             self.entries[index].slot
@@ -412,6 +481,7 @@ impl GeneralizeSnapshotRootObservation {
         let observation = GeneralizeSnapshotDemandSolve {
             iteration,
             boundary_eligible,
+            would_be_hit,
             exact_repeat,
             demand_equal,
             epoch_equal,
@@ -419,13 +489,16 @@ impl GeneralizeSnapshotRootObservation {
             main_equal,
             candidate_guard_equal,
             result_equal,
+            disposition_equal,
+            state_delta_equal,
+            full_path_equal,
             solve_time: pure.solve_time,
             disposition: disposition_name(disposition),
             candidate_bucket_count: pure.candidate_buckets.len(),
         };
         demand_report.observations.push(observation.clone());
 
-        if !exact_repeat && boundary_eligible {
+        if !would_be_hit && boundary_eligible {
             self.retain_snapshot(
                 matching_index,
                 slot,
@@ -526,7 +599,11 @@ impl GeneralizeSnapshotRootObservation {
             peak_entries: self.peak_entries,
             peak_retained_debug_bytes: self.peak_retained_debug_bytes,
             peak_retained_main_nodes: self.peak_retained_main_nodes,
+            would_be_hits: self.would_be_hits,
             exact_result_mismatches: self.exact_result_mismatches,
+            shadow_disposition_mismatches: self.shadow_disposition_mismatches,
+            shadow_state_delta_mismatches: self.shadow_state_delta_mismatches,
+            shadow_full_path_mismatches: self.shadow_full_path_mismatches,
             boundaries_with_pending_constraint_work: self.boundaries_with_pending_constraint_work,
             boundaries_with_pending_constraint_events: self
                 .boundaries_with_pending_constraint_events,

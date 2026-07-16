@@ -271,6 +271,7 @@ impl AnalysisSession {
                             &roles,
                             &pure_observations,
                             &resolved,
+                            &applied_roles,
                             batch_solve_time,
                             self.infer.constraints().pending_constraint_work_for_test(),
                             self.infer.constraints().events().len(),
