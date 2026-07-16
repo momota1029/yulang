@@ -162,6 +162,16 @@ fn stage2_production_snapshot_reuse_has_exact_isolated_always_solve_parity() {
             "{}: production run did not exercise an exact hit",
             case.name,
         );
+        if case.name == "markdown" {
+            assert!(
+                production_timing.generalize_role_snapshot_hits > 100,
+                "Markdown production reuse missed the characterized proof-root repeats",
+            );
+            assert!(
+                production_timing.generalize_role_snapshot_peak_retained_debug_bytes > 20_000_000,
+                "Markdown production reuse never retained the characterized large proof snapshot",
+            );
+        }
 
         let mut always_solve =
             with_generalize_role_snapshot_always_solve_for_new_sessions(|| case.lower());

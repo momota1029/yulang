@@ -679,9 +679,12 @@ Failure of either Markdown improvement threshold, any individual control-fixture
 threshold, or either absolute memory cap stops activation. A high hit count alone cannot override a
 failed time or memory gate, and the thresholds must not be weakened after observing Stage 2 output.
 
-### Stage 2 activation verification (2026-07-16; release gate failed)
+### Preliminary Stage 2 activation verification (2026-07-16; superseded by Slice C)
 
-Correctness verification passed before performance measurement. The isolated production versus
+This five-pair run exposed the production hit-count concern which triggered the more rigorous
+Slice C diagnosis. Its implementation and timing results are retained as the pre-fix record, but
+they are not the final Stage 2 decision data. Correctness verification passed before performance
+measurement. The isolated production versus
 always-full-solve parity test covered Markdown and HTML in separate sessions and preserved final
 schemes, residual predicates, diagnostics, selections, restart/SCC order, lowering, poly output,
 and runtime output exactly; production recorded exact hits and fewer full solves. The independent
@@ -715,6 +718,14 @@ recorded zero hits and zero retained entries. The two Markdown improvement gates
 repository-std-only control gate therefore reject this activation candidate for release despite
 correctness parity and budget compliance. The approved thresholds were not changed after observing
 the result.
+
+The completed Slice C investigation is recorded in
+`2026-07-16-generalize-role-resolve-snapshot-stage2-slice-c.md`. It found that the six hits above
+were only 217.285 microseconds of cheap repeats and that a production-only pending-analysis-queue
+guard falsely excluded the expensive Markdown `proof` repeat. Removing that non-input guard made
+Markdown pass both approved improvement thresholds, but a ten-pair rerun still failed the
+repository-std-only and showcase 2% no-regression gates. Stage 2 production activation therefore
+remains held; the preliminary table above must not be used as the final mechanism diagnosis.
 
 ## 9. Diagnostics and telemetry
 

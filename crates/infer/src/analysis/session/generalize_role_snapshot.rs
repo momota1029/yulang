@@ -115,13 +115,14 @@ impl GeneralizeRoleSnapshotRoot {
         candidate_generation: u64,
         pending_constraint_work: usize,
         pending_constraint_events: usize,
-        pending_analysis_work: usize,
     ) -> GeneralizeRoleSnapshotBoundary<'_> {
+        // The session analysis queue is deliberately absent here: the pure recursive solver
+        // cannot read it, and Stage 0 tracked its length only as observational context. Constraint
+        // work and events are solver-state boundary guards and must remain drained.
         let guard = if !constraint_epoch.can_witness_unchanged_state()
             || !role_solve_supplemental_epoch.can_witness_unchanged_state()
             || pending_constraint_work != 0
             || pending_constraint_events != 0
-            || pending_analysis_work != 0
         {
             None
         } else {
@@ -332,7 +333,6 @@ mod tests {
             7,
             0,
             0,
-            0,
         );
         assert!(first.lookup(&main, &demand).is_none());
         first.retain(&main, &demand, &outcome);
@@ -344,7 +344,6 @@ mod tests {
             7,
             0,
             0,
-            0,
         );
         assert_eq!(same.lookup(&main, &demand), Some(outcome.clone()));
         drop(same);
@@ -353,7 +352,6 @@ mod tests {
             ConstraintEpoch::default(),
             RoleSolveSupplementalEpoch::default(),
             8,
-            0,
             0,
             0,
         );
@@ -380,7 +378,6 @@ mod tests {
             0,
             1,
             0,
-            0,
         );
         non_quiescent.retain(&main, &demand, &outcome);
         assert!(non_quiescent.lookup(&main, &demand).is_none());
@@ -389,7 +386,6 @@ mod tests {
         let mut capped = root.boundary(
             ConstraintEpoch::default(),
             RoleSolveSupplementalEpoch::default(),
-            0,
             0,
             0,
             0,

@@ -233,6 +233,7 @@ impl AnalysisSession {
                     let pending_constraint_work =
                         self.infer.constraints().pending_constraint_work();
                     let pending_constraint_events = self.infer.constraints().events().len();
+                    #[cfg(test)]
                     let pending_analysis_work = self.work.len();
                     let mut exact_snapshot_boundary = exact_role_snapshots.boundary(
                         constraint_epoch,
@@ -240,7 +241,6 @@ impl AnalysisSession {
                         candidate_generation,
                         pending_constraint_work,
                         pending_constraint_events,
-                        pending_analysis_work,
                     );
                     #[cfg(test)]
                     let (resolved, pure_observations, batch_solve_time) =
