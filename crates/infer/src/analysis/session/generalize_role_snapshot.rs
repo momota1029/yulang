@@ -14,22 +14,33 @@ use crate::role_solve::{ExactRoleSolveSnapshots, PureRoleDemandOutcome};
 
 thread_local! {
     static NEW_SESSION_MODE: Cell<GeneralizeRoleSnapshotMode> = const {
-        Cell::new(GeneralizeRoleSnapshotMode::ProductionReuse)
+        Cell::new(GeneralizeRoleSnapshotMode::AlwaysSolve)
     };
 }
 
 /// Run newly created sessions through the unchanged always-full-solve generalization path.
 ///
-/// This is the rollback and paired-verification control. It changes only exact snapshot
-/// eligibility; normalization, disposition, publication, and restart behavior remain unchanged.
+/// Always-solve is currently the production default because Stage 2's release gate failed. This
+/// explicit, default-confirming scope remains available as a stable rollback and paired-verification
+/// control; it changes only exact snapshot eligibility.
 pub fn with_generalize_role_snapshot_always_solve_for_new_sessions<T>(
     run: impl FnOnce() -> T,
 ) -> T {
     with_new_session_mode(GeneralizeRoleSnapshotMode::AlwaysSolve, run)
 }
 
+/// Opt newly created sessions into exact role-snapshot reuse for experiments and benchmarks.
+///
+/// The implementation and telemetry are retained for follow-up work, but reuse is held behind this
+/// explicit scope because Stage 2's production release gate failed.
+pub fn with_generalize_role_snapshot_reuse_enabled_for_new_sessions<T>(
+    run: impl FnOnce() -> T,
+) -> T {
+    with_new_session_mode(GeneralizeRoleSnapshotMode::ReuseEnabled, run)
+}
+
 pub(crate) fn generalize_role_snapshot_reuse_enabled_for_new_session() -> bool {
-    NEW_SESSION_MODE.with(|mode| mode.get() == GeneralizeRoleSnapshotMode::ProductionReuse)
+    NEW_SESSION_MODE.with(|mode| mode.get() == GeneralizeRoleSnapshotMode::ReuseEnabled)
 }
 
 /// Stage 0 observed at most 6 entries in one root; the approved production cap retains the 64-entry
@@ -41,7 +52,7 @@ const MAX_RETAINED_SNAPSHOT_DEBUG_BYTES: usize = 128 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GeneralizeRoleSnapshotMode {
-    ProductionReuse,
+    ReuseEnabled,
     AlwaysSolve,
 }
 
@@ -398,16 +409,23 @@ mod tests {
     }
 
     #[test]
-    fn always_solve_new_session_override_is_scoped_and_unwind_safe() {
-        assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
-        let unwind = std::panic::catch_unwind(|| {
-            with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
-                assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
-                panic!("exercise exact snapshot always-solve override cleanup");
-            });
+    fn new_sessions_default_to_always_solve_and_mode_scopes_are_unwind_safe() {
+        assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+        with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
+            assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
         });
-        assert!(unwind.is_err());
-        assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
+        with_generalize_role_snapshot_reuse_enabled_for_new_sessions(|| {
+            assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
+            let unwind = std::panic::catch_unwind(|| {
+                with_generalize_role_snapshot_always_solve_for_new_sessions(|| {
+                    assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
+                    panic!("exercise exact snapshot always-solve override cleanup");
+                });
+            });
+            assert!(unwind.is_err());
+            assert!(generalize_role_snapshot_reuse_enabled_for_new_session());
+        });
+        assert!(!generalize_role_snapshot_reuse_enabled_for_new_session());
     }
 
     fn demand(role: &str) -> CompactRoleConstraint {

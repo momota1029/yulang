@@ -30,10 +30,13 @@ pub(crate) use early_fallback_classifier::{
     CandidateIndependentFallbackClassification, CandidateIndependentFallbackRejection,
     CandidateIndependentFallbackSelection,
 };
-pub use generalize_role_snapshot::with_generalize_role_snapshot_always_solve_for_new_sessions;
 pub(super) use generalize_role_snapshot::{
     GeneralizeRoleSnapshotRoot, GeneralizeRoleSnapshotRootReport,
     generalize_role_snapshot_reuse_enabled_for_new_session,
+};
+pub use generalize_role_snapshot::{
+    with_generalize_role_snapshot_always_solve_for_new_sessions,
+    with_generalize_role_snapshot_reuse_enabled_for_new_sessions,
 };
 #[cfg(test)]
 pub(crate) use generalize_snapshot_characterization::{

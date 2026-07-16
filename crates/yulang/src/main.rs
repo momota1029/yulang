@@ -139,22 +139,29 @@ fn main() {
         }
         _ => print_usage_and_exit(&program),
     };
+    let run_with_generalize_role_snapshot_mode = || {
+        // Keep the existing always-solve spelling as the default-confirming control. If both
+        // controls are present, always-solve wins rather than weakening its established meaning.
+        if options.generalize_role_snapshot_always_solve {
+            infer::analysis::with_generalize_role_snapshot_always_solve_for_new_sessions(
+                run_command,
+            );
+        } else if options.generalize_role_snapshot_enable_reuse {
+            infer::analysis::with_generalize_role_snapshot_reuse_enabled_for_new_sessions(
+                run_command,
+            );
+        } else {
+            run_command();
+        }
+    };
     // Stage 7's explicitly named rollback/debug route selects always-solve mode. The retained
     // Stage 5 benchmark spelling is parsed below as a compatibility no-op.
     if options.owner_dirty_scheduler_always_solve {
-        infer::analysis::with_owner_dirty_scheduler_disabled_for_new_sessions(|| {
-            if options.generalize_role_snapshot_always_solve {
-                infer::analysis::with_generalize_role_snapshot_always_solve_for_new_sessions(
-                    run_command,
-                );
-            } else {
-                run_command();
-            }
-        });
-    } else if options.generalize_role_snapshot_always_solve {
-        infer::analysis::with_generalize_role_snapshot_always_solve_for_new_sessions(run_command);
+        infer::analysis::with_owner_dirty_scheduler_disabled_for_new_sessions(
+            run_with_generalize_role_snapshot_mode,
+        );
     } else {
-        run_command();
+        run_with_generalize_role_snapshot_mode();
     }
 }
 
@@ -167,6 +174,7 @@ struct GlobalOptions {
     runtime_phase_timings: bool,
     owner_dirty_scheduler_always_solve: bool,
     generalize_role_snapshot_always_solve: bool,
+    generalize_role_snapshot_enable_reuse: bool,
 }
 
 impl Default for GlobalOptions {
@@ -179,6 +187,7 @@ impl Default for GlobalOptions {
             runtime_phase_timings: false,
             owner_dirty_scheduler_always_solve: false,
             generalize_role_snapshot_always_solve: false,
+            generalize_role_snapshot_enable_reuse: false,
         }
     }
 }
@@ -544,6 +553,9 @@ fn parse_global_options(
             }
             Some("--generalize-role-snapshot-always-solve") => {
                 options.generalize_role_snapshot_always_solve = true;
+            }
+            Some("--generalize-role-snapshot-enable-reuse") => {
+                options.generalize_role_snapshot_enable_reuse = true;
             }
             Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
@@ -3628,6 +3640,19 @@ mod tests {
         .expect("parse generalize snapshot always-solve flag");
 
         assert!(options.generalize_role_snapshot_always_solve);
+        assert_eq!(args, VecDeque::from([OsString::from("check-poly")]));
+    }
+
+    #[test]
+    fn generalize_role_snapshot_enable_reuse_flag_selects_the_opt_in() {
+        let (options, args) = parse_global_options(VecDeque::from([
+            OsString::from("--generalize-role-snapshot-enable-reuse"),
+            OsString::from("check-poly"),
+        ]))
+        .expect("parse generalize snapshot reuse opt-in flag");
+
+        assert!(options.generalize_role_snapshot_enable_reuse);
+        assert!(!options.generalize_role_snapshot_always_solve);
         assert_eq!(args, VecDeque::from([OsString::from("check-poly")]));
     }
 }

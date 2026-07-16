@@ -4,6 +4,7 @@ use super::stage0_tests::{fixture_source, repository_std_loaded, root_value_def}
 use crate::analysis::{
     GeneralizeSnapshotCharacterizationReport,
     with_generalize_role_snapshot_always_solve_for_new_sessions,
+    with_generalize_role_snapshot_reuse_enabled_for_new_sessions,
     with_generalize_snapshot_characterization_for_new_sessions,
 };
 use poly::expr::SelectId;
@@ -134,7 +135,7 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
 }
 
 #[test]
-fn stage2_production_snapshot_reuse_has_exact_isolated_always_solve_parity() {
+fn stage2_snapshot_reuse_opt_in_has_exact_isolated_always_solve_parity() {
     let cases = [
         CharacterizationCase::fixture(
             "markdown",
@@ -145,31 +146,34 @@ fn stage2_production_snapshot_reuse_has_exact_isolated_always_solve_parity() {
     ];
 
     for case in cases {
-        // These are deliberately separate full lowering invocations. The always-solve branch
-        // cannot observe any cache entry or applied-state mutation owned by the production branch.
-        let mut production = case.lower();
+        // These are deliberately separate, explicitly scoped full lowering invocations. The
+        // always-solve branch cannot observe any cache entry or applied-state mutation owned by
+        // the reuse-enabled branch.
+        let mut reuse_enabled =
+            with_generalize_role_snapshot_reuse_enabled_for_new_sessions(|| case.lower());
         assert!(
-            production
+            reuse_enabled
                 .session
                 .generalize_snapshot_characterization_report()
                 .is_none(),
-            "{}: production unexpectedly enabled the test-only shadow oracle",
+            "{}: reuse opt-in unexpectedly enabled the test-only shadow oracle",
             case.name,
         );
-        let production_timing = production.session.timing();
+        let reuse_enabled_timing = reuse_enabled.session.timing();
         assert!(
-            production_timing.generalize_role_snapshot_hits > 0,
-            "{}: production run did not exercise an exact hit",
+            reuse_enabled_timing.generalize_role_snapshot_hits > 0,
+            "{}: reuse opt-in did not exercise an exact hit",
             case.name,
         );
         if case.name == "markdown" {
             assert!(
-                production_timing.generalize_role_snapshot_hits > 100,
-                "Markdown production reuse missed the characterized proof-root repeats",
+                reuse_enabled_timing.generalize_role_snapshot_hits > 100,
+                "Markdown reuse opt-in missed the characterized proof-root repeats",
             );
             assert!(
-                production_timing.generalize_role_snapshot_peak_retained_debug_bytes > 20_000_000,
-                "Markdown production reuse never retained the characterized large proof snapshot",
+                reuse_enabled_timing.generalize_role_snapshot_peak_retained_debug_bytes
+                    > 20_000_000,
+                "Markdown reuse opt-in never retained the characterized large proof snapshot",
             );
         }
 
@@ -183,14 +187,14 @@ fn stage2_production_snapshot_reuse_has_exact_isolated_always_solve_parity() {
         );
         assert!(
             always_solve_timing.generalize_role_snapshot_full_solves
-                > production_timing.generalize_role_snapshot_full_solves,
-            "{}: exact production hits did not remove recursive full solves",
+                > reuse_enabled_timing.generalize_role_snapshot_full_solves,
+            "{}: exact reuse hits did not remove recursive full solves",
             case.name,
         );
 
-        let production = ProductionParitySnapshot::capture(&mut production);
+        let reuse_enabled = ProductionParitySnapshot::capture(&mut reuse_enabled);
         let always_solve = ProductionParitySnapshot::capture(&mut always_solve);
-        production.assert_eq(case.name, &always_solve);
+        reuse_enabled.assert_eq(case.name, &always_solve);
     }
 }
 

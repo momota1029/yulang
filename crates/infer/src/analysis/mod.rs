@@ -107,7 +107,6 @@ use session::GeneralizeSnapshotCharacterizationOracle;
 use session::MethodRoleOwnerDirtyScheduler;
 #[cfg(test)]
 use session::ShadowDirtyOracle;
-pub use session::with_generalize_role_snapshot_always_solve_for_new_sessions;
 pub use session::with_owner_dirty_scheduler_disabled_for_new_sessions;
 #[cfg(test)]
 pub(crate) use session::{
@@ -128,6 +127,10 @@ pub(crate) use session::{
 pub(crate) use session::{
     record_owner_birth_level_read, record_owner_bound_read, record_owner_level_read,
     record_owner_neighbor_read, record_owner_pre_pop_read, record_owner_subtract_read,
+};
+pub use session::{
+    with_generalize_role_snapshot_always_solve_for_new_sessions,
+    with_generalize_role_snapshot_reuse_enabled_for_new_sessions,
 };
 pub use timing::AnalysisTiming;
 use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};

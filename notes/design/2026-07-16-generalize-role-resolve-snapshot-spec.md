@@ -727,6 +727,20 @@ Markdown pass both approved improvement thresholds, but a ten-pair rerun still f
 repository-std-only and showcase 2% no-regression gates. Stage 2 production activation therefore
 remains held; the preliminary table above must not be used as the final mechanism diagnosis.
 
+### Stage 2 held-default correction (2026-07-16)
+
+The failed final gate is now reflected in the implementation default. New sessions use the
+always-full-solve path unless reuse is explicitly selected with
+`--generalize-role-snapshot-enable-reuse`. The pre-existing
+`--generalize-role-snapshot-always-solve` control keeps the same meaning and is a
+default-confirming no-op rather than being repurposed.
+
+A fresh release Markdown run verified 0 hits and 612 full solves for both the bare/default route and
+the explicit always-solve route. The new reuse opt-in reproduced 146 hits, 466 full solves, six peak
+entries, and 20,653,144 peak Debug-proxy bytes. The full implementation, independent oracle,
+telemetry, caps, and corrected false-miss guard are retained for a separately designed
+cheap-demand-admission follow-up; reuse is not production-default behavior.
+
 ## 9. Diagnostics and telemetry
 
 This is internal scheduling. Cache hits, misses, cap fallback, and shadow disagreement are not source
@@ -748,9 +762,11 @@ not branch on those strings or IDs.
 
 ## 10. Rollback and compatibility
 
-Stages 0 and 1 leave the production-selected full-solve path unchanged. Stage 2 is the first
-production behavior change. The always-full-solve control remains available through Stage 3 and as
-continuing regression assurance.
+Stages 0 and 1 leave the production-selected full-solve path unchanged. Stage 2 was the first
+production behavior change, but its final performance gate failed and the production default has
+been returned to always-full-solve. The existing always-solve control remains available as a stable,
+default-confirming spelling and continuing regression assurance; exact reuse requires the separate
+`--generalize-role-snapshot-enable-reuse` opt-in.
 
 One false-reuse counterexample is sufficient for immediate rollback. A false reuse means that an
 eligible cache entry returns a recursive resolution result, current-state disposition set, state

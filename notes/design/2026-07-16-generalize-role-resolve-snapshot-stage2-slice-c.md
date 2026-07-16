@@ -80,6 +80,11 @@ target/release/yulang [--generalize-role-snapshot-always-solve] \
   --std-root lib --no-cache --runtime-phase-timings run FIXTURE
 ```
 
+At the measured activation commit, the bare invocation selected reuse and the flag selected the
+always-solve control. After the held-default correction recorded below, the equivalent enabled
+invocation requires `--generalize-role-snapshot-enable-reuse`; a bare invocation and the retained
+`--generalize-role-snapshot-always-solve` spelling both select always-solve.
+
 The fixtures were Markdown, HTML, `tests/yulang/support/empty.yu` for repository-std-only, and
 `examples/showcase.yu`. Ten pairs were measured per fixture. Odd pairs ran enabled then
 always-solve; even pairs ran always-solve then enabled. The decision values are internal
@@ -205,3 +210,26 @@ approved Stage 2 release gate is **not met**. Production activation from `61eb2b
 pushed as the default. Keep the always-full-solve path as the production default, retaining the
 exact implementation, independent oracle, telemetry, and false-miss regression for a separately
 designed cheap-demand admission follow-up. No Stage 3 work is authorized by this result.
+
+## Held-default correction applied
+
+The implementation now matches that recommendation. Newly created sessions select always-full-solve
+by default, while exact snapshot reuse is available only through the explicitly named
+`--generalize-role-snapshot-enable-reuse` experimental/benchmark flag. The existing
+`--generalize-role-snapshot-always-solve` flag keeps its established meaning and is now a
+default-confirming no-op; it was not silently repurposed.
+
+A fresh release build and three no-cache Markdown runs verified the polarity at the actual CLI
+boundary:
+
+| Invocation | Hits | Full solves | Peak entries | Peak Debug bytes |
+| --- | ---: | ---: | ---: | ---: |
+| bare (production default) | 0 | 612 | 0 | 0 |
+| `--generalize-role-snapshot-always-solve` | 0 | 612 | 0 | 0 |
+| `--generalize-role-snapshot-enable-reuse` | 146 | 466 | 6 | 20,653,144 |
+
+The reuse-enabled/always-solve isolated parity test still passes with both branches explicitly
+scoped. The full infer lib suite again finished with 831 passed and only the five pre-existing
+Yumark `DefId(64)` versus `DefId(63)` failures, and the two focused CLI parsing tests passed. The
+exact implementation, independent oracle, telemetry, and Slice C false-miss guard remain intact for
+a separately designed cheap-demand admission follow-up.
