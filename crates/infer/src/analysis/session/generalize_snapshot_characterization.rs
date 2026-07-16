@@ -170,6 +170,61 @@ pub(crate) struct GeneralizeSnapshotRootReport {
     pub(crate) boundaries_with_pending_analysis_work: usize,
 }
 
+impl GeneralizeSnapshotRootReport {
+    pub(crate) fn epoch_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::ConstraintEpochUnwitnessable)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::ConstraintEpochMismatch)
+    }
+
+    pub(crate) fn supplemental_epoch_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::SupplementalEpochUnwitnessable)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::SupplementalEpochMismatch)
+    }
+
+    pub(crate) fn main_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::MainMismatch)
+    }
+
+    pub(crate) fn demand_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::DemandMismatch)
+    }
+
+    pub(crate) fn candidate_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::CandidateGuardUnavailable)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::CandidateGuardOverflow)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::CandidateGuardMismatch)
+    }
+
+    pub(crate) fn cap_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::BudgetExhausted)
+    }
+
+    pub(crate) fn lifecycle_misses(&self) -> usize {
+        self.miss_reasons
+            .count(GeneralizeSnapshotMissReason::PendingConstraintWork)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::PendingConstraintEvents)
+            + self
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::IncompleteEntry)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct GeneralizeSnapshotSolveBoundary {
     pub(crate) iteration: usize,
@@ -1151,6 +1206,53 @@ mod tests {
             last_observation(&byte_capped).miss_reason,
             Some(GeneralizeSnapshotMissReason::BudgetExhausted)
         );
+    }
+
+    #[test]
+    fn cache_identity_is_only_the_exact_structural_emadc_values() {
+        let demand = demand("typed-demand-path");
+        let separately_allocated_equal_demand = demand.clone();
+        let reporting_def = DefId(37);
+        let mut observation = GeneralizeSnapshotRootObservation::new(reporting_def);
+        observe_default(&mut observation, 1, &demand);
+
+        {
+            // Keep this exhaustive: adding a new retained field makes the audit fail to compile
+            // until its identity role is reviewed. `slot`, `result`, and retained sizes are
+            // payload/accounting; the exact key is E/A/M/D/C below.
+            let ExactSnapshotEntry {
+                slot,
+                constraint_epoch,
+                role_solve_supplemental_epoch,
+                main,
+                demand: retained_demand,
+                candidate_generation,
+                result,
+                retained_debug_bytes,
+                retained_main_nodes,
+            } = &mut observation.entries[0];
+            assert_eq!(*slot, 0);
+            assert_eq!(*constraint_epoch, ConstraintEpoch::default());
+            assert_eq!(
+                *role_solve_supplemental_epoch,
+                RoleSolveSupplementalEpoch::default()
+            );
+            assert_eq!(main, &CompactRoot::default());
+            assert_eq!(retained_demand, &separately_allocated_equal_demand);
+            assert_eq!(*candidate_generation, 0);
+            assert!(result.complete().is_some());
+
+            // Debug-derived values are budget telemetry only. Deliberately corrupting them must
+            // not affect exact identity or the shadow comparison.
+            *retained_debug_bytes = usize::MAX;
+            *retained_main_nodes = usize::MAX;
+        }
+
+        observe_default(&mut observation, 2, &separately_allocated_equal_demand);
+        let repeated = last_observation(&observation);
+        assert!(repeated.would_be_hit);
+        assert!(repeated.exact_repeat);
+        assert_eq!(observation.def, reporting_def);
     }
 
     fn observe_default(

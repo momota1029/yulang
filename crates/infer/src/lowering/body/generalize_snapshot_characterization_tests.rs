@@ -5,6 +5,8 @@ use crate::analysis::{
     GeneralizeSnapshotCharacterizationReport,
     with_generalize_snapshot_characterization_for_new_sessions,
 };
+use poly::expr::SelectId;
+use poly::types::RolePredicate;
 
 #[test]
 fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_set() {
@@ -61,6 +63,7 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
     let mut roots_with_repeats = 0usize;
     let mut non_proof_roots_with_repeats = 0usize;
     let mut proof_witness_checked = false;
+    let mut measurements = AcceptanceSetMeasurements::default();
     for case in cases {
         let baseline_started = Instant::now();
         let baseline = case.lower();
@@ -83,6 +86,7 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
             .generalize_snapshot_characterization_report()
             .expect("enabled session must carry exact-snapshot characterization");
         assert_report_invariants(case.name, &report);
+        measurements.record(&report);
         assert_eq!(
             finalized_scheme_snapshot(&output),
             finalized_scheme_snapshot(&baseline),
@@ -125,6 +129,119 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
         roots_with_repeats > 1 && non_proof_roots_with_repeats > 0,
         "exact repeats must occur in multiple roots, including a non-proof root"
     );
+    measurements.print();
+}
+
+#[test]
+fn stage1_shadow_instrumentation_has_exact_isolated_production_parity() {
+    let cases = [
+        CharacterizationCase::fixture(
+            "markdown",
+            "std_prefix_yumark_markdown_workload.yu",
+            Some("proof"),
+        ),
+        CharacterizationCase::fixture("html", "std_prefix_yumark_html_fallback.yu", Some("proof")),
+    ];
+
+    for case in cases {
+        // These are deliberately separate full lowering invocations. The disabled branch cannot
+        // observe any cache entry, applied-state mutation, or report owned by the enabled branch.
+        let mut without_shadow = case.lower();
+        assert!(
+            without_shadow
+                .session
+                .generalize_snapshot_characterization_report()
+                .is_none(),
+            "{}: the control session unexpectedly enabled the shadow oracle",
+            case.name,
+        );
+
+        let mut with_shadow =
+            with_generalize_snapshot_characterization_for_new_sessions(|| case.lower());
+        let report = with_shadow
+            .session
+            .generalize_snapshot_characterization_report()
+            .expect("paired shadow session must carry the exact oracle");
+        assert_report_invariants(case.name, &report);
+        assert!(
+            report.roots.iter().any(|root| root.would_be_hits > 0),
+            "{}: paired shadow run did not exercise a would-be hit",
+            case.name,
+        );
+
+        let without_shadow = ProductionParitySnapshot::capture(&mut without_shadow);
+        let with_shadow = ProductionParitySnapshot::capture(&mut with_shadow);
+        without_shadow.assert_eq(case.name, &with_shadow);
+    }
+}
+
+#[derive(Default)]
+struct AcceptanceSetMeasurements {
+    would_be_hits: usize,
+    exact_matches: usize,
+    result_mismatches: usize,
+    disposition_mismatches: usize,
+    state_delta_mismatches: usize,
+    full_path_mismatches: usize,
+    epoch_misses: usize,
+    supplemental_epoch_misses: usize,
+    main_misses: usize,
+    demand_misses: usize,
+    candidate_misses: usize,
+    cap_misses: usize,
+    lifecycle_misses: usize,
+    peak_entries: usize,
+    peak_retained_debug_bytes: usize,
+}
+
+impl AcceptanceSetMeasurements {
+    fn record(&mut self, report: &GeneralizeSnapshotCharacterizationReport) {
+        for root in &report.roots {
+            self.would_be_hits += root.would_be_hits;
+            self.exact_matches += root.exact_repeats;
+            self.result_mismatches += root.exact_result_mismatches;
+            self.disposition_mismatches += root.shadow_disposition_mismatches;
+            self.state_delta_mismatches += root.shadow_state_delta_mismatches;
+            self.full_path_mismatches += root.shadow_full_path_mismatches;
+            self.epoch_misses += root.epoch_misses();
+            self.supplemental_epoch_misses += root.supplemental_epoch_misses();
+            self.main_misses += root.main_misses();
+            self.demand_misses += root.demand_misses();
+            self.candidate_misses += root.candidate_misses();
+            self.cap_misses += root.cap_misses();
+            self.lifecycle_misses += root.lifecycle_misses();
+            self.peak_entries = self.peak_entries.max(root.peak_entries);
+            self.peak_retained_debug_bytes = self
+                .peak_retained_debug_bytes
+                .max(root.peak_retained_debug_bytes);
+        }
+    }
+
+    fn print(&self) {
+        let mismatches = self.result_mismatches
+            + self.disposition_mismatches
+            + self.state_delta_mismatches
+            + self.full_path_mismatches;
+        eprintln!(
+            "generalize snapshot acceptance total: would-be-hits={} exact-matches={} mismatches={} mismatch-dimensions={{result:{}, disposition:{}, state-delta:{}, full-path:{}}} misses={{epoch:{}, supplemental-epoch:{}, main:{}, demand:{}, candidate:{}, cap:{}, lifecycle:{}}} peaks={{entries:{}, retained-debug-bytes:{}}}",
+            self.would_be_hits,
+            self.exact_matches,
+            mismatches,
+            self.result_mismatches,
+            self.disposition_mismatches,
+            self.state_delta_mismatches,
+            self.full_path_mismatches,
+            self.epoch_misses,
+            self.supplemental_epoch_misses,
+            self.main_misses,
+            self.demand_misses,
+            self.candidate_misses,
+            self.cap_misses,
+            self.lifecycle_misses,
+            self.peak_entries,
+            self.peak_retained_debug_bytes,
+        );
+    }
 }
 
 fn assert_report_invariants(case: &str, report: &GeneralizeSnapshotCharacterizationReport) {
@@ -261,6 +378,249 @@ fn finalized_scheme_snapshot(output: &BodyLowering) -> Vec<(DefId, String, Strin
         .collect::<Vec<_>>();
     schemes.sort_by_key(|(def, _, _)| def.0);
     schemes
+}
+
+struct ProductionParitySnapshot {
+    finalized_schemes: Vec<(DefId, String, String)>,
+    residual_role_predicates: Vec<(DefId, Vec<RolePredicate>)>,
+    unresolved_selections: Vec<(SelectId, SelectionUse)>,
+    generalization_restarts: GeneralizationRestartCensus,
+    scc_stats: crate::scc::SccStats,
+    scc_events: Vec<crate::scc::SccEvent>,
+    lowering_errors: Vec<BodyLoweringError>,
+    diagnostics: crate::check::PolyCheckReport,
+    poly_dump: String,
+    poly_raw_dump: String,
+    namespace: crate::CompiledNamespaceSurface,
+    lowering_surface: crate::CompiledLoweringSurface,
+    runtime_arena_dump: String,
+    runtime_raw_arena_dump: String,
+    runtime_boundary: crate::CompiledBoundaryInterface,
+    runtime_labels: poly::dump::DumpLabels,
+    runtime_modules: Vec<crate::CompiledRuntimeModuleDef>,
+    runtime_values: Vec<crate::CompiledRuntimeValueDef>,
+}
+
+impl ProductionParitySnapshot {
+    fn capture(output: &mut BodyLowering) -> Self {
+        let finalized_schemes = finalized_scheme_snapshot(output);
+        let mut residual_role_predicates = output
+            .session
+            .poly
+            .defs
+            .iter()
+            .filter_map(|(def, item)| match item {
+                Def::Let {
+                    scheme: Some(scheme),
+                    ..
+                } => Some((def, scheme.role_predicates.clone())),
+                Def::Mod { .. } | Def::Let { .. } | Def::Arg => None,
+            })
+            .collect::<Vec<_>>();
+        residual_role_predicates.sort_by_key(|(def, _)| def.0);
+
+        let mut unresolved_selections = output
+            .session
+            .selections
+            .iter()
+            .map(|(select, use_site)| (select, *use_site))
+            .collect::<Vec<_>>();
+        unresolved_selections.sort_by_key(|(select, _)| select.0);
+
+        let timing = output.session.timing();
+        let generalization_restarts = GeneralizationRestartCensus::from_timing(timing);
+        let scc_stats = output.session.scc.stats();
+        let lowering_errors = output.errors.clone();
+        let diagnostics = crate::check::summarize_lowering(output);
+        let poly_dump = poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels);
+        let poly_raw_dump =
+            poly::dump::dump_arena_raw_with_labels(&output.session.poly, &output.labels);
+        let namespace = crate::CompiledNamespaceSurface::from_module_table(&output.modules);
+        let lowering_surface =
+            crate::CompiledLoweringSurface::from_module_table(&output.modules, &namespace);
+        let runtime =
+            crate::CompiledRuntimeSurface::from_lowering_with_namespace(output, &namespace);
+        let runtime_arena_dump =
+            poly::dump::dump_arena_with_labels(&runtime.arena, &runtime.labels);
+        let runtime_raw_arena_dump =
+            poly::dump::dump_arena_raw_with_labels(&runtime.arena, &runtime.labels);
+        let scc_events = output.session.take_scc_events();
+
+        Self {
+            finalized_schemes,
+            residual_role_predicates,
+            unresolved_selections,
+            generalization_restarts,
+            scc_stats,
+            scc_events,
+            lowering_errors,
+            diagnostics,
+            poly_dump,
+            poly_raw_dump,
+            namespace,
+            lowering_surface,
+            runtime_arena_dump,
+            runtime_raw_arena_dump,
+            runtime_boundary: runtime.boundary,
+            runtime_labels: runtime.labels,
+            runtime_modules: runtime.modules,
+            runtime_values: runtime.values,
+        }
+    }
+
+    fn assert_eq(&self, case: &str, with_shadow: &Self) {
+        assert_eq!(
+            with_shadow.finalized_schemes, self.finalized_schemes,
+            "{case}: finalized schemes diverged"
+        );
+        assert_eq!(
+            with_shadow.residual_role_predicates, self.residual_role_predicates,
+            "{case}: residual role predicates diverged"
+        );
+        assert_eq!(
+            with_shadow.unresolved_selections, self.unresolved_selections,
+            "{case}: selections diverged"
+        );
+        assert_eq!(
+            with_shadow.generalization_restarts, self.generalization_restarts,
+            "{case}: generalization restart census diverged"
+        );
+        assert_eq!(
+            with_shadow.scc_stats, self.scc_stats,
+            "{case}: SCC scheduling counters diverged"
+        );
+        assert_eq!(
+            with_shadow.scc_events, self.scc_events,
+            "{case}: SCC event order diverged"
+        );
+        assert_eq!(
+            with_shadow.lowering_errors, self.lowering_errors,
+            "{case}: lowering errors diverged"
+        );
+        assert_eq!(
+            with_shadow.diagnostics, self.diagnostics,
+            "{case}: diagnostics diverged"
+        );
+        assert_text_eq(
+            case,
+            "poly surface dump",
+            &self.poly_dump,
+            &with_shadow.poly_dump,
+        );
+        assert_text_eq(
+            case,
+            "poly raw dump",
+            &self.poly_raw_dump,
+            &with_shadow.poly_raw_dump,
+        );
+        assert_eq!(
+            with_shadow.namespace, self.namespace,
+            "{case}: compiled namespace surface diverged"
+        );
+        assert_eq!(
+            with_shadow.lowering_surface, self.lowering_surface,
+            "{case}: compiled lowering surface diverged"
+        );
+        assert_text_eq(
+            case,
+            "compiled runtime arena",
+            &self.runtime_arena_dump,
+            &with_shadow.runtime_arena_dump,
+        );
+        assert_text_eq(
+            case,
+            "compiled runtime raw arena",
+            &self.runtime_raw_arena_dump,
+            &with_shadow.runtime_raw_arena_dump,
+        );
+        assert_eq!(
+            with_shadow.runtime_boundary, self.runtime_boundary,
+            "{case}: compiled runtime boundary diverged"
+        );
+        assert_eq!(
+            with_shadow.runtime_labels, self.runtime_labels,
+            "{case}: compiled runtime labels diverged"
+        );
+        assert_eq!(
+            with_shadow.runtime_modules, self.runtime_modules,
+            "{case}: compiled runtime modules diverged"
+        );
+        assert_eq!(
+            with_shadow.runtime_values, self.runtime_values,
+            "{case}: compiled runtime values diverged"
+        );
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct GeneralizationRestartCensus {
+    iterations: usize,
+    merge_restarts: usize,
+    subtype_restarts: usize,
+    cast_restarts: usize,
+    role_restarts: usize,
+    roots_with_restarts: usize,
+    max_iterations_per_root: usize,
+    max_restarts_per_root: usize,
+    top_root: Option<DefId>,
+    top_iterations: usize,
+    top_constraint_epoch_start: u64,
+    top_constraint_epoch_end: u64,
+    top_role_epoch_start: u64,
+    top_role_epoch_end: u64,
+    top_total_restarts: usize,
+    top_merge_restarts: usize,
+    top_subtype_restarts: usize,
+    top_cast_restarts: usize,
+    top_role_restarts: usize,
+}
+
+impl GeneralizationRestartCensus {
+    fn from_timing(timing: crate::analysis::AnalysisTiming) -> Self {
+        Self {
+            iterations: timing.generalize_iterations,
+            merge_restarts: timing.generalize_merge_restarts,
+            subtype_restarts: timing.generalize_subtype_restarts,
+            cast_restarts: timing.generalize_cast_restarts,
+            role_restarts: timing.generalize_role_restarts,
+            roots_with_restarts: timing.quantify_generalize_roots_with_restarts,
+            max_iterations_per_root: timing.quantify_generalize_max_iterations_per_root,
+            max_restarts_per_root: timing.quantify_generalize_max_restarts_per_root,
+            top_root: timing.generalize_top_restart_root,
+            top_iterations: timing.generalize_top_restart_iterations,
+            top_constraint_epoch_start: timing.generalize_top_restart_constraint_epoch_start,
+            top_constraint_epoch_end: timing.generalize_top_restart_constraint_epoch_end,
+            top_role_epoch_start: timing.generalize_top_restart_role_epoch_start,
+            top_role_epoch_end: timing.generalize_top_restart_role_epoch_end,
+            top_total_restarts: timing.generalize_top_restart_total_restarts,
+            top_merge_restarts: timing.generalize_top_restart_merge_restarts,
+            top_subtype_restarts: timing.generalize_top_restart_subtype_restarts,
+            top_cast_restarts: timing.generalize_top_restart_cast_restarts,
+            top_role_restarts: timing.generalize_top_restart_role_restarts,
+        }
+    }
+}
+
+fn assert_text_eq(case: &str, dimension: &str, without_shadow: &str, with_shadow: &str) {
+    if without_shadow == with_shadow {
+        return;
+    }
+    let line = without_shadow
+        .lines()
+        .zip(with_shadow.lines())
+        .position(|(without_shadow, with_shadow)| without_shadow != with_shadow)
+        .unwrap_or_else(|| {
+            without_shadow
+                .lines()
+                .count()
+                .min(with_shadow.lines().count())
+        });
+    let without_shadow_line = without_shadow.lines().nth(line).unwrap_or("<end>");
+    let with_shadow_line = with_shadow.lines().nth(line).unwrap_or("<end>");
+    panic!(
+        "{case}: {dimension} diverged at line {}\nwithout shadow: {without_shadow_line}\nwith shadow: {with_shadow_line}",
+        line + 1,
+    );
 }
 
 fn print_case_report(
