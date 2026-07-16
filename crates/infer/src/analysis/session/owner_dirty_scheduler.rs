@@ -1,5 +1,8 @@
 //! Journal-backed owner scheduler for production method-role passes.
 //!
+//! Maintained contract: `docs/infer-solver-invariants.md`,
+//! `Owner-Level Dirty Scheduling`.
+//!
 //! Stage 6 enables clean terminal owner reuse for every new session. Tests retain explicit
 //! always-solve and Stage 3 shadow modes, and the independent exact-snapshot oracle remains a
 //! separate check on production scheduler predictions.

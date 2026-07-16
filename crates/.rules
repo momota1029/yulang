@@ -1,0 +1,87 @@
+# crates/ Agent Notes
+
+リポジトリ直下の `.rules`（= `AGENTS.md`）が全体規約の本体である。
+この文書はそれを置き換えない。`crates/` 配下で作業するときの土地勘と、
+世代をまたいだ事故を防ぐための補足だけを書く。
+
+## 現行 workspace と archive（最重要）
+
+`crates/` は新世代 workspace の置き場所である。
+旧実装は 2026-06-14 に `archive/crates/` へ移動し、workspace member から外した。
+
+- **現行世代（現在の主戦場）**: `sources` → `infer` → `poly`、入口は `yulang`。
+  - `sources`: ファイル収集と CST 入力の層。
+  - `infer`: CST から `poly` IR と型情報を作る作業 crate。constraint machine、
+    use-site 型 table、selection watcher、open SCC graph など「推論中に増える状態」はここ。
+  - `poly`: 最終的に読まれる構造と解決結果だけを持つ。推論中の中間状態を持ち込まない。
+  - `yulang`: 現行 CLI / LSP 入口。`check` / `build` / `run` / `dump` / `parse` /
+    `install std` / `cache` / `realm freeze` / `server` と debug commands を持つ。
+  - `parser`: 共有 parser。
+  - `list-tree`: mono/control runtime の list 実装共有 crate。
+- **旧世代（参照用 archive）**: `archive/crates/yulang-sources` / `archive/crates/yulang-infer` / `archive/crates/yulang-typed-ir` /
+  `yulang-elaborate` / `yulang-monomorphize` / `yulang-runtime-*` / `yulang-vm` など、
+  旧 `yulang` CLI にぶら下がっていた pipeline 一式。
+
+旧世代は原則としてビルド対象にしない。参照・比較のために読むだけにする。
+型推論・lowering・runtime・LSP の新規作業は現行世代側で行う。
+
+## 共有 crate の扱い
+
+`parser` は現行 pipeline の共有基盤である（`rowan` CST）。
+ここを変えると parser を読む全 crate に波及するため、変更時は parser と現行世代のテストを確認する。
+parser のテスト群（stmt/expr/pat/type/mark/trivia grammar）を落としたまま進めない。
+
+新世代 crate（`sources` / `infer` / `poly` / `yulang`）から旧世代 crate への依存を
+新しく張らない。旧世代の都合を新世代の型に漏らさない。
+
+## 仕様の源泉
+
+新世代の実装根拠は `spec/` の文書である（stack 重み subtraction、role system、
+method selection、invariant sandwich、syntax design）。
+**旧実装は仕様ではない**。旧 `yulang-infer` には後付けの保護機構
+（boundary vars、level 保護、extra_rigid、packing 無効化などの対症療法）が積もっており、
+それらを新世代へ移植しない。挙動が食い違ったら、まず spec と手計算で正解を確かめてから
+どちらが間違いか判断する。spec に書かれていない判断をしたら、コードでなく spec か
+`notes/design/` に追記する。
+
+## ビルドとテスト
+
+- 新世代の確認: `cargo run -q -p yulang -- dump-poly <file.yu>` または `dump-poly-std`。
+  `-std` 付きは `lib/std` を自動探索して prelude 込みで流す。
+- 新世代のテストは各 crate 内の inline `#[test]` にある。
+  `cargo test -p sources -p infer -p poly -p yulang` で世代単位に回せる。
+- workspace 全体の `cargo test` を、作業差分を全部 stash した素の base で回さない
+  （ハング修正が差分側にあると base がハングする）。差分は維持し、`-p` で対象を絞る。
+- テスト期待値を実装出力に合わせて書き換えない（詳細はルートの `.rules`）。
+  dump-poly 系の snapshot が変わったら、それが意図した型の変化かを先に確認する。
+
+## Owner-Level Dirty Scheduling の必須確認
+
+次を変更する前に、`docs/infer-solver-invariants.md` の `Owner-Level Dirty Scheduling` を読む。
+
+- `crates/infer/src/constraints/**`
+- `crates/infer/src/compact/**`
+- `crates/infer/src/role_solve/**`
+- `crates/infer/src/roles.rs`
+- `crates/infer/src/uses.rs`
+- `crates/infer/src/scc.rs` / `crates/infer/src/scc/**`
+- `crates/infer/src/analysis/method_taint.rs`
+- `crates/infer/src/analysis/session/**`
+
+「owner solver が新しい mutable state を読むか」「既に観測している値が新しい経路で変化できるか」を必ず問う。
+どちらかが該当する場合は、production read capture、typed mutation emission、contract matrix、adversarial test
+をすべて更新する。一つでも未対応なら、merge 前に影響 path の owner-level scheduling を無効化して fail closed
+にする。
+
+## archive を触るとき
+
+- `archive/crates/` は参照用であり、通常の修正対象ではない。
+- archive のコードを現行実装へ移す場合は、構造や仕様を読み取り、現行 crate の責務に合わせて書き直す。
+- archive 内の path dependency は workspace 外の参照用として残っており、単体ビルド可能性は保証しない。
+
+## 迷ったら
+
+- 型変数を fresh に増やす・個別分岐を足す前に、まず設計者の見立てを聞く。
+- 不動点計算のような重たい反復を infer に足さない。一回の線形パスで設計する。
+- 「どの crate の責務か」で迷ったら: 推論中に変化する状態は `infer`、
+  確定した結果は `poly`、入力の調達は `sources`、CLI 配線は `yulang`。

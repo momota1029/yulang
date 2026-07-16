@@ -134,6 +134,96 @@ callback や data field 由来の residual を、たまたま内側にある han
 `ref.update` はこの契約の canary である。
 `r.update_effect()` の `ref_update` は local handler が処理するが、callback `f v` の effect は local handler に奪われず、method の residual へ残る。
 
+## Owner-Level Dirty Scheduling
+
+owner-level dirty scheduling は、forced method-role pass 内で terminal owner の再実行を省くための
+内部最適化である。scheduling unit は厳密に `SelectionUse.parent` とする。cached terminal record を
+clean とみなして skip してよいのは、前回の solve が観測したすべての可変 resource が不変であり、
+それ以後の関連 mutation がすべて欠落なく反映されている場合だけである。再利用時にも record は
+現在の unresolved-selection membership に対応していなければならない。owner の順序は deterministic
+なまま保ち、一つの forced pass で同じ owner を二度実行しない。
+
+cache / replay してよい outcome は `RootUnavailable` と `NoProgress` だけである。`Progress` は cache
+にも replay にも入れない。false dirty は実行時間を失うだけだが、false clean は実際の role resolution
+を抑止する correctness bug になる。この非対称性を review の重みにも反映し、clean 判定側を強く疑う。
+
+owner solve の結果へ影響しうる可変 resource は、
+`crates/infer/src/constraints/mutation.rs` にある current typed vocabulary で表す。このファイルを live な
+一覧の source of truth とし、別の文書へ variant 一覧を複製しない。すべての effective observable
+mutation は、authoritative mutator で対応する typed key または `InvalidateAll` を emit する。
+authoritative な executable inventory は
+`crates/infer/src/analysis/session/dirty_scheduling_contract.rs` の 25 行 mutation-contract matrix であり、
+表をこの文書へ複製しない。
+
+typed enum と test matrix が存在するだけでは coverage にならない。production owner solve は、
+`#[cfg(test)]` に閉じない production-reachable path を通して実際の read を記録する。Stage 5 の最初の
+attempt は production scheduler に対して constraint read hook だけを test-gated のまま残し、この
+soundness gap を作った。二度目の attempt は observation chain 全体を production wiring へ接続して直した。
+今後 compact / role solver / candidate / taint に新しい read を足すときは、次を一つの chain として揃える。
+
+- typed dependency を追加する。
+- production-reachable な recording path を追加する。
+- authoritative mutator で mutation coverage を追加する。
+- positive / negative / removal-replacement test を追加する。
+- 該当する場合は independent shadow oracle の coverage を追加する。
+
+この chain を閉じられない path では owner skip を無効のままにし、fail closed にする。未使用の hook を
+定義しただけでは coverage とみなさない。
+
+関係するすべての outbox は同時に active とし、同期状態を保つ。journal は各 owner の eligibility 判定前と、
+solve 自身の新しい terminal record を publish する前に drain する。serial continuity と generation stamp を
+検査し、journal の loss / truncation、overflow、audit disagreement、inactive-window drift、contract mismatch
+のいずれかがあれば、変更前と同じ full owner pass へ倒す。先の owner が起こした mutation は同じ pass の
+後続 owner を wake する。後続 owner が起こした mutation は、先に実行済みの owner を次の pass にだけ dirty
+として残す。
+
+subscription-aware emission は、共有 subscription set がすべての live terminal record の dependency key
+の正確な union である場合だけ sound である。reverse subscription と mutation-outbox subscription は一緒に
+更新し、record の publish は古い dependency set を atomically replace する。owner の remove / replace /
+settle では subscription も外す。すべての effective mutation は subscription filter より先に coarse audit
+generation を進め、journal entry を emit しない場合も例外にしない。既存 record の key は、その record へ
+影響する後続 mutation より先に subscribe 済みでなければならない。mutation を filter してよいのは、現在
+eligibility を持つ reusable record がその exact key に一つも依存しない場合だけである。ここで `unsubscribed` は
+「この mutation を観測しうる reusable record がない」を意味し、「event listener がたまたまいない」を
+意味しない。これは Stage 6 で確定した subscription-aware emission の前提である。
+
+method taint は forced pass ごとに一度 rebuild し、deterministic に normalize して eligibility 判定前に
+diff する。変化した queried entry は `MethodTaint` を emit し、その projection から到達する selection は
+`Selection` dependency に含める。incremental method-taint はこの scheduler の範囲外である。
+
+record と raw ID は session-local であり、serialize しない。owner が resolve する、settle / quantify される、
+unresolved membership を失う、progress する、replace される、cap に達する、または session が終わるとき、
+record と reverse edge を残さない。
+
+既存の coarse whole-session guard は最初の fast path として残す。この guard の削除、または owner scheduler を
+generalization / early fallback に使う拡張は別の design review を必要とし、cleanup として黙って混ぜない。
+
+cap exhaustion は silent success にせず fail closed にする。per-owner dependency cap を超えた owner は
+non-cacheable とする。cap category は owner count、per-owner dependency count、global dependency-key count、
+reverse-edge count、journal-burst size、retained-byte budget である。このうち global cap の exhaustion は
+reusable eligibility を clear / disable し、full owner loop へ戻す。現在の数値は
+`crates/infer/src/analysis/session/owner_dirty_scheduler.rs` の `OwnerDirtySchedulerBudget::default` と同 module の
+focused test を source of truth とし、この文書では固定しない。
+
+independent exact-snapshot shadow oracle、always-solve control mode、mutation-contract matrix / harness、
+representative fixture の semantic paired run は、歴史的 scaffolding ではなく継続的な assurance として残す。
+いずれかを削除するには、redundancy を示す専用 review が必要である。一件でも false-clean counterexample が
+見つかったら、影響 path の owner skip を無効にし、失敗例を regression test として保存し、欠けた dependency
+または mutation を authoritative layer で直す。全 fixture set で mismatch が再び zero になるまで再有効化しない。
+fixture / path / name 固有の特別扱いで直してはいけない。
+
+early-fallback activation、intermediate generalization iteration reuse、owner より細かい stable per-demand
+scheduling identity、incremental method-taint は明示的な deferred scope であり、この invariant に黙って
+取り込まない。constraint-replay deduplication も 2026-07-16 に negative finding として調査を閉じている。
+根拠は `notes/design/2026-07-16-constraint-replay-dedup-investigation.md` に置く。
+
+実装上の主な場所:
+
+- `crates/infer/src/constraints/mutation.rs`
+- `crates/infer/src/analysis/session/owner_dirty_scheduler.rs`
+- `crates/infer/src/analysis/session/dirty_scheduling_contract.rs`
+- `notes/design/2026-07-15-owner-level-dirty-scheduling-spec.md`（historical design / provenance。maintained checklist ではない）
+
 ## Standard-Library Canaries
 
 次の public signature は、solver 不変量の canary として扱う。
@@ -245,12 +335,18 @@ public signature golden test は、見た目だけではなく次を守る。
 期待値は現在の実装出力に合わせて書き換えない。
 `α [undet; β] -> [β] α` のような residual は、principal surface の一部として扱う。
 
+- owner dirty scheduler の independent exact-snapshot shadow oracle と always-solve control は parity を保ち、
+  mutation-contract matrix / harness の全行が authoritative emission と一致し続けることを確認する。
+- representative fixture では scheduled / always-solve の semantic paired run を継続し、結果の mismatch を
+  zero のまま保つ。これは導入時だけの validation ではない。
+
 ## Open Questions
 
 - private tail / private stack id が public scheme へ残ったことを検出する dedicated assert を generalize 境界に置くか。
 - local helper wildcard evidence の close / projection を、data-position function tail と同じ名前で扱うか、別の境界として分けるか。
 - same-boundary alias-cycle subsumption の停止性説明を、研究メモ側でどこまで formalize するか。
 - stable playground と nightly playground を release tag / branch とどう対応させるか。
+- 現行 test coverage に加え、non-`cfg(test)` wiring を通して scheduled / always-solve owner behavior を比較する、より強い production-wired end-to-end CI canary を置くか（未承認の deferred decision）。
 
 ## Do Not
 
@@ -262,3 +358,6 @@ public signature golden test は、見た目だけではなく次を守る。
 - same-boundary subsumption を型等式として説明しない。
 - golden test の期待値を、実装の現在出力に合わせて弱くしない。
 - solver metrics と solver 最適化を同じ変更で混ぜない。
+- owner scheduler の cap exhaustion を silent success として扱わず、full owner loop へ fail closed にする。
+- 新しい constraint-solver mutable read を `#[cfg(test)]` 専用 hook だけで production scheduler へ接続しない。
+- 別の design review なしに owner-level dirty scheduling を early fallback / generalization へ拡張しない。

@@ -1,5 +1,8 @@
 //! Subscription-aware mutation journal for method-role dirty scheduling.
 //!
+//! Maintained contract: `docs/infer-solver-invariants.md`,
+//! `Owner-Level Dirty Scheduling`.
+//!
 //! The constraint machine owns the low-level vocabulary and outbox. Higher analysis layers may
 //! publish the same typed mutations, but the constraint core never depends on analysis
 //! orchestration. Journaling is inactive by default. Once the owner scheduler opens its persistent

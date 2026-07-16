@@ -1,5 +1,8 @@
 //! Test contract for owner-level dirty scheduling.
 //!
+//! Maintained contract: `docs/infer-solver-invariants.md`,
+//! `Owner-Level Dirty Scheduling`.
+//!
 //! Stage 2 promotes the typed vocabulary and activation-scoped outbox to `constraints::mutation`.
 //! This independent matrix still describes every effective mutation kind, but it neither makes an
 //! owner-skip decision nor duplicates the production journal implementation.
