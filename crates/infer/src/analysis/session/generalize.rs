@@ -264,9 +264,15 @@ impl AnalysisSession {
                     if let Some(observation) = snapshot_characterization.as_mut() {
                         observation.observe_solve_boundary(
                             generalize_iteration,
-                            self.infer.constraints().epoch(),
-                            self.infer.constraints().role_solve_supplemental_epoch(),
-                            self.role_impls.snapshot_characterization_generation(),
+                            generalize_snapshot_characterization::GeneralizeSnapshotConstraintEpoch::capture(
+                                self.infer.constraints().epoch(),
+                            ),
+                            generalize_snapshot_characterization::GeneralizeSnapshotSupplementalEpoch::capture(
+                                self.infer.constraints().role_solve_supplemental_epoch(),
+                            ),
+                            generalize_snapshot_characterization::GeneralizeSnapshotCandidateGuard::capture_generation(
+                                self.role_impls.snapshot_characterization_generation(),
+                            ),
                             &role_compact,
                             &roles,
                             &pure_observations,

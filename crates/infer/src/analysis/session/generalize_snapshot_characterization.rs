@@ -21,8 +21,111 @@ use crate::role_solve::{
     shadow_applications_from_full_solve,
 };
 
+/// Stage 0 observed at most 6 entries in one root. The owner scheduler's established 8-10x
+/// practice therefore rounds this loop-local limit up to 64 entries.
+const MAX_RETAINED_SNAPSHOT_ENTRIES: usize = 64;
+
+/// Stage 0's structural retained-byte proxy peaked at 20,653,120 bytes. 128 MiB leaves about 6.5x
+/// headroom while still placing an absolute bound around the large owned compact trees seen in the
+/// Markdown witness.
+const MAX_RETAINED_SNAPSHOT_DEBUG_BYTES: usize = 128 * 1024 * 1024;
+
+const SNAPSHOT_MISS_REASON_COUNT: usize = 14;
+
 thread_local! {
     static ENABLE_NEW_ORACLES: Cell<bool> = const { Cell::new(false) };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GeneralizeSnapshotConstraintEpoch {
+    Witness(ConstraintEpoch),
+    Unavailable,
+}
+
+impl GeneralizeSnapshotConstraintEpoch {
+    pub(crate) fn capture(epoch: ConstraintEpoch) -> Self {
+        if epoch.can_witness_unchanged_state() {
+            Self::Witness(epoch)
+        } else {
+            Self::Unavailable
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GeneralizeSnapshotSupplementalEpoch {
+    Witness(RoleSolveSupplementalEpoch),
+    Unavailable,
+}
+
+impl GeneralizeSnapshotSupplementalEpoch {
+    pub(crate) fn capture(epoch: RoleSolveSupplementalEpoch) -> Self {
+        if epoch.can_witness_unchanged_state() {
+            Self::Witness(epoch)
+        } else {
+            Self::Unavailable
+        }
+    }
+}
+
+/// The test-only generation is complete because every mutation API for `IndexedRoleImplTable`
+/// advances it. `Unavailable` represents a future boundary where that invariant cannot be proven;
+/// `Overflowed` prevents a saturated generation from authorizing equality forever.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GeneralizeSnapshotCandidateGuard {
+    Generation(u64),
+    Unavailable,
+    Overflowed,
+}
+
+impl GeneralizeSnapshotCandidateGuard {
+    pub(crate) fn capture_generation(generation: u64) -> Self {
+        if generation == u64::MAX {
+            Self::Overflowed
+        } else {
+            Self::Generation(generation)
+        }
+    }
+}
+
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GeneralizeSnapshotMissReason {
+    ConstraintEpochUnwitnessable,
+    SupplementalEpochUnwitnessable,
+    PendingConstraintWork,
+    PendingConstraintEvents,
+    CandidateGuardUnavailable,
+    CandidateGuardOverflow,
+    BudgetExhausted,
+    DemandMismatch,
+    IncompleteEntry,
+    ConstraintEpochMismatch,
+    SupplementalEpochMismatch,
+    MainMismatch,
+    CandidateGuardMismatch,
+    ShadowVerificationMismatch,
+}
+
+impl GeneralizeSnapshotMissReason {
+    fn index(self) -> usize {
+        self as usize
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct GeneralizeSnapshotMissReasonCounts {
+    counts: [usize; SNAPSHOT_MISS_REASON_COUNT],
+}
+
+impl GeneralizeSnapshotMissReasonCounts {
+    fn record(&mut self, reason: GeneralizeSnapshotMissReason) {
+        self.counts[reason.index()] += 1;
+    }
+
+    pub(crate) fn count(&self, reason: GeneralizeSnapshotMissReason) -> usize {
+        self.counts[reason.index()]
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -53,6 +156,10 @@ pub(crate) struct GeneralizeSnapshotRootReport {
     pub(crate) peak_entries: usize,
     pub(crate) peak_retained_debug_bytes: usize,
     pub(crate) peak_retained_main_nodes: usize,
+    pub(crate) retained_entries_at_finish: usize,
+    pub(crate) retained_debug_bytes_at_finish: usize,
+    pub(crate) cap_exhaustions: usize,
+    pub(crate) miss_reasons: GeneralizeSnapshotMissReasonCounts,
     pub(crate) would_be_hits: usize,
     pub(crate) exact_result_mismatches: usize,
     pub(crate) shadow_disposition_mismatches: usize,
@@ -66,9 +173,9 @@ pub(crate) struct GeneralizeSnapshotRootReport {
 #[derive(Debug, Clone)]
 pub(crate) struct GeneralizeSnapshotSolveBoundary {
     pub(crate) iteration: usize,
-    pub(crate) constraint_epoch: ConstraintEpoch,
-    pub(crate) role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
-    pub(crate) candidate_guard: u64,
+    pub(crate) constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+    pub(crate) role_solve_supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+    pub(crate) candidate_guard: GeneralizeSnapshotCandidateGuard,
     pub(crate) demand_count: usize,
     pub(crate) new_resolution_count: usize,
     pub(crate) exact_repeat_count: usize,
@@ -99,6 +206,7 @@ pub(crate) struct GeneralizeSnapshotDemandSolve {
     pub(crate) iteration: usize,
     pub(crate) boundary_eligible: bool,
     pub(crate) would_be_hit: bool,
+    pub(crate) miss_reason: Option<GeneralizeSnapshotMissReason>,
     pub(crate) exact_repeat: bool,
     pub(crate) demand_equal: bool,
     pub(crate) epoch_equal: bool,
@@ -182,11 +290,45 @@ pub(crate) fn with_generalize_snapshot_characterization_for_new_sessions<T>(
     })
 }
 
+#[derive(Debug, Clone, Copy)]
+struct GeneralizeSnapshotBudget {
+    max_entries: usize,
+    max_retained_debug_bytes: usize,
+}
+
+impl Default for GeneralizeSnapshotBudget {
+    fn default() -> Self {
+        Self {
+            max_entries: MAX_RETAINED_SNAPSHOT_ENTRIES,
+            max_retained_debug_bytes: MAX_RETAINED_SNAPSHOT_DEBUG_BYTES,
+        }
+    }
+}
+
+#[derive(Default)]
+struct GeneralizeSnapshotDemandComparison {
+    matching_index: Option<usize>,
+    demand_equal: bool,
+    epoch_equal: bool,
+    supplemental_epoch_equal: bool,
+    main_equal: bool,
+    candidate_guard_equal: bool,
+    result_equal: bool,
+    disposition_equal: bool,
+    state_delta_equal: bool,
+    full_path_equal: bool,
+    would_be_hit: bool,
+    exact_repeat: bool,
+    boundary_miss_reason: Option<GeneralizeSnapshotMissReason>,
+    miss_reason: Option<GeneralizeSnapshotMissReason>,
+}
+
 pub(crate) struct GeneralizeSnapshotRootObservation {
     def: DefId,
     loop_iterations: usize,
+    budget: GeneralizeSnapshotBudget,
+    reuse_disabled: Option<GeneralizeSnapshotMissReason>,
     entries: Vec<ExactSnapshotEntry>,
-    demand_identities: Vec<CompactRoleConstraint>,
     demands: Vec<GeneralizeSnapshotDemandReport>,
     solve_boundaries: Vec<GeneralizeSnapshotSolveBoundary>,
     exact_repeats: usize,
@@ -202,6 +344,8 @@ pub(crate) struct GeneralizeSnapshotRootObservation {
     peak_entries: usize,
     peak_retained_debug_bytes: usize,
     peak_retained_main_nodes: usize,
+    cap_exhaustions: usize,
+    miss_reasons: GeneralizeSnapshotMissReasonCounts,
     would_be_hits: usize,
     exact_result_mismatches: usize,
     shadow_disposition_mismatches: usize,
@@ -214,11 +358,16 @@ pub(crate) struct GeneralizeSnapshotRootObservation {
 
 impl GeneralizeSnapshotRootObservation {
     pub(crate) fn new(def: DefId) -> Self {
+        Self::with_budget(def, GeneralizeSnapshotBudget::default())
+    }
+
+    fn with_budget(def: DefId, budget: GeneralizeSnapshotBudget) -> Self {
         Self {
             def,
             loop_iterations: 0,
+            budget,
+            reuse_disabled: None,
             entries: Vec::new(),
-            demand_identities: Vec::new(),
             demands: Vec::new(),
             solve_boundaries: Vec::new(),
             exact_repeats: 0,
@@ -234,6 +383,8 @@ impl GeneralizeSnapshotRootObservation {
             peak_entries: 0,
             peak_retained_debug_bytes: 0,
             peak_retained_main_nodes: 0,
+            cap_exhaustions: 0,
+            miss_reasons: GeneralizeSnapshotMissReasonCounts::default(),
             would_be_hits: 0,
             exact_result_mismatches: 0,
             shadow_disposition_mismatches: 0,
@@ -253,9 +404,9 @@ impl GeneralizeSnapshotRootObservation {
     pub(crate) fn observe_solve_boundary(
         &mut self,
         iteration: usize,
-        constraint_epoch: ConstraintEpoch,
-        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
-        candidate_guard: u64,
+        constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+        role_solve_supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+        candidate_guard: GeneralizeSnapshotCandidateGuard,
         main: &CompactRoot,
         normalized_demands: &[CompactRoleConstraint],
         pure: &[PureRoleDemandObservation],
@@ -276,10 +427,13 @@ impl GeneralizeSnapshotRootObservation {
 
         let main_debug_bytes = format!("{main:?}").len();
         let main_nodes = super::compact_shape_metrics(main).nodes;
-        let boundary_eligible = constraint_epoch.can_witness_unchanged_state()
-            && role_solve_supplemental_epoch.can_witness_unchanged_state()
-            && pending_constraint_work == 0
-            && pending_constraint_events == 0;
+        let boundary_miss_reason = boundary_miss_reason(
+            constraint_epoch,
+            role_solve_supplemental_epoch,
+            candidate_guard,
+            pending_constraint_work,
+            pending_constraint_events,
+        );
         let full_applications = shadow_applications_from_full_solve(
             &resolved.dispositions,
             &resolved.output.resolutions,
@@ -305,7 +459,8 @@ impl GeneralizeSnapshotRootObservation {
                     .as_ref()
                     .and_then(|applications| applications.get(index)),
                 applied,
-                boundary_eligible,
+                main_debug_bytes,
+                boundary_miss_reason,
             );
             boundary_exact_repeats += usize::from(observation.exact_repeat);
         }
@@ -330,122 +485,209 @@ impl GeneralizeSnapshotRootObservation {
     fn observe_demand(
         &mut self,
         iteration: usize,
-        constraint_epoch: ConstraintEpoch,
-        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
-        candidate_guard: u64,
+        constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+        role_solve_supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+        candidate_guard: GeneralizeSnapshotCandidateGuard,
         main: &CompactRoot,
         main_nodes: usize,
         pure: &PureRoleDemandObservation,
         disposition: &RoleDemandDisposition,
         full_application: Option<&ShadowRoleDemandApplication>,
         applied: &FxHashSet<crate::role_solve::RoleResolutionKey>,
-        boundary_eligible: bool,
+        main_debug_bytes: usize,
+        boundary_miss_reason: Option<GeneralizeSnapshotMissReason>,
     ) -> GeneralizeSnapshotDemandSolve {
-        let mut matching_index = None;
-        for (index, entry) in self.entries.iter().enumerate() {
-            let started = Instant::now();
-            let equal = entry.demand == pure.demand;
-            self.comparison_cost.demand_time += started.elapsed();
-            self.comparison_cost.demand_comparisons += 1;
-            if equal {
-                matching_index = Some(index);
-                break;
+        let mut comparison = GeneralizeSnapshotDemandComparison {
+            boundary_miss_reason,
+            miss_reason: self.reuse_disabled.or(boundary_miss_reason),
+            ..GeneralizeSnapshotDemandComparison::default()
+        };
+        if comparison.miss_reason.is_none() {
+            for (index, entry) in self.entries.iter().enumerate() {
+                let started = Instant::now();
+                let equal = entry.demand == pure.demand;
+                self.comparison_cost.demand_time += started.elapsed();
+                self.comparison_cost.demand_comparisons += 1;
+                if equal {
+                    comparison.matching_index = Some(index);
+                    break;
+                }
             }
         }
+        comparison.demand_equal = comparison.matching_index.is_some();
 
-        let demand_equal = matching_index.is_some();
-        let mut epoch_equal = false;
-        let mut supplemental_epoch_equal = false;
-        let mut main_equal = false;
-        let mut candidate_guard_equal = false;
-        let mut result_equal = false;
-        let mut disposition_equal = false;
-        let mut state_delta_equal = false;
-        let mut full_path_equal = false;
-        if let Some(index) = matching_index {
+        if comparison.miss_reason.is_none()
+            && let Some(index) = comparison.matching_index
+        {
             let entry = &self.entries[index];
-            let started = Instant::now();
-            epoch_equal = entry.constraint_epoch == constraint_epoch;
-            supplemental_epoch_equal =
-                entry.role_solve_supplemental_epoch == role_solve_supplemental_epoch;
-            self.comparison_cost.epoch_time += started.elapsed();
-            self.comparison_cost.epoch_comparisons += 1;
+            let Some(cached_result) = entry.result.complete() else {
+                comparison.miss_reason = Some(GeneralizeSnapshotMissReason::IncompleteEntry);
+                return self.finish_demand_observation(
+                    iteration,
+                    constraint_epoch,
+                    role_solve_supplemental_epoch,
+                    candidate_guard,
+                    main,
+                    main_nodes,
+                    main_debug_bytes,
+                    pure,
+                    disposition,
+                    comparison,
+                );
+            };
+            if let (
+                GeneralizeSnapshotConstraintEpoch::Witness(current_constraint_epoch),
+                GeneralizeSnapshotSupplementalEpoch::Witness(current_supplemental_epoch),
+                GeneralizeSnapshotCandidateGuard::Generation(current_candidate_generation),
+            ) = (
+                constraint_epoch,
+                role_solve_supplemental_epoch,
+                candidate_guard,
+            ) {
+                let started = Instant::now();
+                comparison.epoch_equal = entry.constraint_epoch == current_constraint_epoch;
+                comparison.supplemental_epoch_equal =
+                    entry.role_solve_supplemental_epoch == current_supplemental_epoch;
+                self.comparison_cost.epoch_time += started.elapsed();
+                self.comparison_cost.epoch_comparisons += 1;
 
-            let started = Instant::now();
-            main_equal = entry.main == *main;
-            self.comparison_cost.main_time += started.elapsed();
-            self.comparison_cost.main_comparisons += 1;
+                let started = Instant::now();
+                comparison.main_equal = entry.main == *main;
+                self.comparison_cost.main_time += started.elapsed();
+                self.comparison_cost.main_comparisons += 1;
 
-            let started = Instant::now();
-            candidate_guard_equal = entry.candidate_guard == candidate_guard;
-            self.comparison_cost.candidate_guard_time += started.elapsed();
-            self.comparison_cost.candidate_guard_comparisons += 1;
+                let started = Instant::now();
+                comparison.candidate_guard_equal =
+                    entry.candidate_generation == current_candidate_generation;
+                self.comparison_cost.candidate_guard_time += started.elapsed();
+                self.comparison_cost.candidate_guard_comparisons += 1;
+            }
 
-            let would_be_hit = boundary_eligible
-                && epoch_equal
-                && supplemental_epoch_equal
-                && main_equal
-                && candidate_guard_equal;
-            if would_be_hit {
+            comparison.miss_reason = if !comparison.epoch_equal {
+                Some(GeneralizeSnapshotMissReason::ConstraintEpochMismatch)
+            } else if !comparison.supplemental_epoch_equal {
+                Some(GeneralizeSnapshotMissReason::SupplementalEpochMismatch)
+            } else if !comparison.main_equal {
+                Some(GeneralizeSnapshotMissReason::MainMismatch)
+            } else if !comparison.candidate_guard_equal {
+                Some(GeneralizeSnapshotMissReason::CandidateGuardMismatch)
+            } else {
+                None
+            };
+
+            if comparison.miss_reason.is_none() {
+                comparison.would_be_hit = true;
                 self.would_be_hits += 1;
                 let started = Instant::now();
-                result_equal = entry.result == pure.outcome;
+                comparison.result_equal = cached_result == &pure.outcome;
                 self.comparison_cost.result_time += started.elapsed();
                 self.comparison_cost.result_comparisons += 1;
-                self.exact_result_mismatches += usize::from(!result_equal);
+                self.exact_result_mismatches += usize::from(!comparison.result_equal);
 
                 let started = Instant::now();
-                let cached_application = apply_pure_role_demand_outcome(&entry.result, applied);
+                let cached_application = apply_pure_role_demand_outcome(cached_result, applied);
                 let fresh_application = apply_pure_role_demand_outcome(&pure.outcome, applied);
                 self.comparison_cost.fresh_applied_filter_time += started.elapsed();
                 self.comparison_cost.fresh_applied_filters += 2;
 
                 let started = Instant::now();
-                disposition_equal = full_application
+                comparison.disposition_equal = full_application
                     .is_some_and(|full| cached_application.disposition == full.disposition);
                 self.comparison_cost.disposition_time += started.elapsed();
                 self.comparison_cost.disposition_comparisons += 1;
-                self.shadow_disposition_mismatches += usize::from(!disposition_equal);
+                self.shadow_disposition_mismatches += usize::from(!comparison.disposition_equal);
 
                 let started = Instant::now();
-                state_delta_equal = full_application
+                comparison.state_delta_equal = full_application
                     .is_some_and(|full| cached_application.state_delta == full.state_delta);
                 self.comparison_cost.state_delta_time += started.elapsed();
                 self.comparison_cost.state_delta_comparisons += 1;
-                self.shadow_state_delta_mismatches += usize::from(!state_delta_equal);
+                self.shadow_state_delta_mismatches += usize::from(!comparison.state_delta_equal);
 
-                full_path_equal = full_application.is_some_and(|full| fresh_application == *full);
-                self.shadow_full_path_mismatches += usize::from(!full_path_equal);
+                comparison.full_path_equal =
+                    full_application.is_some_and(|full| fresh_application == *full);
+                self.shadow_full_path_mismatches += usize::from(!comparison.full_path_equal);
+
+                comparison.exact_repeat = comparison.result_equal
+                    && comparison.disposition_equal
+                    && comparison.state_delta_equal
+                    && comparison.full_path_equal;
+                if comparison.exact_repeat {
+                    comparison.miss_reason = None;
+                } else {
+                    comparison.miss_reason =
+                        Some(GeneralizeSnapshotMissReason::ShadowVerificationMismatch);
+                    self.disable_reuse(GeneralizeSnapshotMissReason::ShadowVerificationMismatch);
+                }
             }
+        } else if comparison.miss_reason.is_none() {
+            comparison.miss_reason = Some(GeneralizeSnapshotMissReason::DemandMismatch);
         }
-        let would_be_hit = boundary_eligible
-            && demand_equal
-            && epoch_equal
-            && supplemental_epoch_equal
-            && main_equal
-            && candidate_guard_equal;
-        let exact_repeat = would_be_hit && result_equal;
-        let exact_repeat =
-            exact_repeat && disposition_equal && state_delta_equal && full_path_equal;
 
-        let slot = if let Some(index) = matching_index {
-            self.entries[index].slot
-        } else if let Some(index) = self
-            .demand_identities
-            .iter()
-            .position(|demand| demand == &pure.demand)
-        {
-            index
-        } else {
-            self.demands.len()
-        };
+        self.finish_demand_observation(
+            iteration,
+            constraint_epoch,
+            role_solve_supplemental_epoch,
+            candidate_guard,
+            main,
+            main_nodes,
+            main_debug_bytes,
+            pure,
+            disposition,
+            comparison,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish_demand_observation(
+        &mut self,
+        iteration: usize,
+        constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+        role_solve_supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+        candidate_guard: GeneralizeSnapshotCandidateGuard,
+        main: &CompactRoot,
+        main_nodes: usize,
+        main_debug_bytes: usize,
+        pure: &PureRoleDemandObservation,
+        disposition: &RoleDemandDisposition,
+        mut comparison: GeneralizeSnapshotDemandComparison,
+    ) -> GeneralizeSnapshotDemandSolve {
+        let slot = comparison
+            .matching_index
+            .and_then(|index| self.entries.get(index).map(|entry| entry.slot))
+            .unwrap_or(self.demands.len());
         let demand_debug_bytes = format!("{:?}", pure.demand).len();
         let result_debug_bytes = format!("{:?}", pure.outcome).len();
+
+        if !comparison.would_be_hit
+            && comparison.boundary_miss_reason.is_none()
+            && self.reuse_disabled.is_none()
+            && !self.retain_snapshot(
+                comparison.matching_index,
+                slot,
+                constraint_epoch,
+                role_solve_supplemental_epoch,
+                candidate_guard,
+                main,
+                main_nodes,
+                main_debug_bytes,
+                demand_debug_bytes,
+                result_debug_bytes,
+                pure,
+            )
+        {
+            comparison.miss_reason = Some(GeneralizeSnapshotMissReason::BudgetExhausted);
+        }
+
+        if let Some(reason) = comparison.miss_reason {
+            self.miss_reasons.record(reason);
+        }
+        let boundary_eligible =
+            self.reuse_disabled.is_none() && comparison.boundary_miss_reason.is_none();
         let demand_report = if let Some(report) = self.demands.get_mut(slot) {
             report
         } else {
             assert_eq!(slot, self.demands.len());
-            self.demand_identities.push(pure.demand.clone());
             self.demands.push(GeneralizeSnapshotDemandReport {
                 slot,
                 role: pure.demand.role.clone(),
@@ -467,7 +709,7 @@ impl GeneralizeSnapshotRootObservation {
             demand_report.max_demand_debug_bytes.max(demand_debug_bytes);
         demand_report.max_result_debug_bytes =
             demand_report.max_result_debug_bytes.max(result_debug_bytes);
-        if exact_repeat {
+        if comparison.exact_repeat {
             self.exact_repeats += 1;
             self.exact_repeat_solve_time += pure.solve_time;
             demand_report.exact_repeats += 1;
@@ -481,35 +723,23 @@ impl GeneralizeSnapshotRootObservation {
         let observation = GeneralizeSnapshotDemandSolve {
             iteration,
             boundary_eligible,
-            would_be_hit,
-            exact_repeat,
-            demand_equal,
-            epoch_equal,
-            supplemental_epoch_equal,
-            main_equal,
-            candidate_guard_equal,
-            result_equal,
-            disposition_equal,
-            state_delta_equal,
-            full_path_equal,
+            would_be_hit: comparison.would_be_hit,
+            miss_reason: comparison.miss_reason,
+            exact_repeat: comparison.exact_repeat,
+            demand_equal: comparison.demand_equal,
+            epoch_equal: comparison.epoch_equal,
+            supplemental_epoch_equal: comparison.supplemental_epoch_equal,
+            main_equal: comparison.main_equal,
+            candidate_guard_equal: comparison.candidate_guard_equal,
+            result_equal: comparison.result_equal,
+            disposition_equal: comparison.disposition_equal,
+            state_delta_equal: comparison.state_delta_equal,
+            full_path_equal: comparison.full_path_equal,
             solve_time: pure.solve_time,
             disposition: disposition_name(disposition),
             candidate_bucket_count: pure.candidate_buckets.len(),
         };
         demand_report.observations.push(observation.clone());
-
-        if !would_be_hit && boundary_eligible {
-            self.retain_snapshot(
-                matching_index,
-                slot,
-                constraint_epoch,
-                role_solve_supplemental_epoch,
-                candidate_guard,
-                main,
-                main_nodes,
-                pure,
-            );
-        }
         observation
     }
 
@@ -518,13 +748,68 @@ impl GeneralizeSnapshotRootObservation {
         &mut self,
         matching_index: Option<usize>,
         slot: usize,
-        constraint_epoch: ConstraintEpoch,
-        role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
-        candidate_guard: u64,
+        constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+        role_solve_supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+        candidate_guard: GeneralizeSnapshotCandidateGuard,
         main: &CompactRoot,
         main_nodes: usize,
+        main_debug_bytes: usize,
+        demand_debug_bytes: usize,
+        result_debug_bytes: usize,
         pure: &PureRoleDemandObservation,
-    ) {
+    ) -> bool {
+        let (
+            GeneralizeSnapshotConstraintEpoch::Witness(constraint_epoch),
+            GeneralizeSnapshotSupplementalEpoch::Witness(role_solve_supplemental_epoch),
+            GeneralizeSnapshotCandidateGuard::Generation(candidate_generation),
+        ) = (
+            constraint_epoch,
+            role_solve_supplemental_epoch,
+            candidate_guard,
+        )
+        else {
+            return false;
+        };
+
+        let accounting_started = Instant::now();
+        let debug_bytes = [
+            size_of::<ConstraintEpoch>(),
+            size_of::<RoleSolveSupplementalEpoch>(),
+            size_of::<GeneralizeSnapshotCandidateGuard>(),
+            main_debug_bytes,
+            demand_debug_bytes,
+            result_debug_bytes,
+        ]
+        .into_iter()
+        .try_fold(0usize, usize::checked_add);
+        let previous_debug_bytes = matching_index
+            .and_then(|index| self.entries.get(index))
+            .map(|entry| entry.retained_debug_bytes)
+            .unwrap_or(0);
+        let projected_entries = if matching_index.is_some() {
+            Some(self.entries.len())
+        } else {
+            self.entries.len().checked_add(1)
+        };
+        let projected_debug_bytes = debug_bytes.and_then(|debug_bytes| {
+            self.retained_debug_bytes
+                .checked_sub(previous_debug_bytes)
+                .and_then(|retained| retained.checked_add(debug_bytes))
+        });
+        self.retention_accounting_time += accounting_started.elapsed();
+        let within_budget =
+            projected_entries
+                .zip(projected_debug_bytes)
+                .is_some_and(|(entries, bytes)| {
+                    entries <= self.budget.max_entries
+                        && bytes <= self.budget.max_retained_debug_bytes
+                });
+        if !within_budget {
+            self.cap_exhaustions += 1;
+            self.disable_reuse(GeneralizeSnapshotMissReason::BudgetExhausted);
+            return false;
+        }
+
         let started = Instant::now();
         let main = main.clone();
         self.clone_cost.main_time += started.elapsed();
@@ -532,25 +817,18 @@ impl GeneralizeSnapshotRootObservation {
         let demand = pure.demand.clone();
         self.clone_cost.demand_time += started.elapsed();
         let started = Instant::now();
-        let result = pure.outcome.clone();
+        let result = ExactSnapshotResult::Complete(pure.outcome.clone());
         self.clone_cost.result_time += started.elapsed();
         self.clone_cost.snapshots += 1;
 
-        let accounting_started = Instant::now();
-        let debug_bytes = size_of::<ConstraintEpoch>()
-            + size_of::<RoleSolveSupplementalEpoch>()
-            + size_of::<u64>()
-            + format!("{main:?}").len()
-            + format!("{demand:?}").len()
-            + format!("{result:?}").len();
-        self.retention_accounting_time += accounting_started.elapsed();
+        let debug_bytes = debug_bytes.expect("validated snapshot byte projection");
         let entry = ExactSnapshotEntry {
             slot,
             constraint_epoch,
             role_solve_supplemental_epoch,
             main,
             demand,
-            candidate_guard,
+            candidate_generation,
             result,
             retained_debug_bytes: debug_bytes,
             retained_main_nodes: main_nodes,
@@ -580,6 +858,14 @@ impl GeneralizeSnapshotRootObservation {
             .peak_retained_debug_bytes
             .max(self.retained_debug_bytes);
         self.peak_retained_main_nodes = self.peak_retained_main_nodes.max(self.retained_main_nodes);
+        true
+    }
+
+    fn disable_reuse(&mut self, reason: GeneralizeSnapshotMissReason) {
+        self.entries.clear();
+        self.retained_debug_bytes = 0;
+        self.retained_main_nodes = 0;
+        self.reuse_disabled = Some(reason);
     }
 
     fn finish(self) -> GeneralizeSnapshotRootReport {
@@ -599,6 +885,10 @@ impl GeneralizeSnapshotRootObservation {
             peak_entries: self.peak_entries,
             peak_retained_debug_bytes: self.peak_retained_debug_bytes,
             peak_retained_main_nodes: self.peak_retained_main_nodes,
+            retained_entries_at_finish: self.entries.len(),
+            retained_debug_bytes_at_finish: self.retained_debug_bytes,
+            cap_exhaustions: self.cap_exhaustions,
+            miss_reasons: self.miss_reasons,
             would_be_hits: self.would_be_hits,
             exact_result_mismatches: self.exact_result_mismatches,
             shadow_disposition_mismatches: self.shadow_disposition_mismatches,
@@ -618,10 +908,48 @@ struct ExactSnapshotEntry {
     role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     main: CompactRoot,
     demand: CompactRoleConstraint,
-    candidate_guard: u64,
-    result: PureRoleDemandOutcome,
+    candidate_generation: u64,
+    result: ExactSnapshotResult,
     retained_debug_bytes: usize,
     retained_main_nodes: usize,
+}
+
+enum ExactSnapshotResult {
+    Complete(PureRoleDemandOutcome),
+    Incomplete,
+}
+
+impl ExactSnapshotResult {
+    fn complete(&self) -> Option<&PureRoleDemandOutcome> {
+        match self {
+            Self::Complete(result) => Some(result),
+            Self::Incomplete => None,
+        }
+    }
+}
+
+fn boundary_miss_reason(
+    constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+    supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+    candidate_guard: GeneralizeSnapshotCandidateGuard,
+    pending_constraint_work: usize,
+    pending_constraint_events: usize,
+) -> Option<GeneralizeSnapshotMissReason> {
+    if constraint_epoch == GeneralizeSnapshotConstraintEpoch::Unavailable {
+        Some(GeneralizeSnapshotMissReason::ConstraintEpochUnwitnessable)
+    } else if supplemental_epoch == GeneralizeSnapshotSupplementalEpoch::Unavailable {
+        Some(GeneralizeSnapshotMissReason::SupplementalEpochUnwitnessable)
+    } else if pending_constraint_work > 0 {
+        Some(GeneralizeSnapshotMissReason::PendingConstraintWork)
+    } else if pending_constraint_events > 0 {
+        Some(GeneralizeSnapshotMissReason::PendingConstraintEvents)
+    } else if candidate_guard == GeneralizeSnapshotCandidateGuard::Unavailable {
+        Some(GeneralizeSnapshotMissReason::CandidateGuardUnavailable)
+    } else if candidate_guard == GeneralizeSnapshotCandidateGuard::Overflowed {
+        Some(GeneralizeSnapshotMissReason::CandidateGuardOverflow)
+    } else {
+        None
+    }
 }
 
 fn disposition_name(disposition: &RoleDemandDisposition) -> &'static str {
@@ -629,6 +957,281 @@ fn disposition_name(disposition: &RoleDemandDisposition) -> &'static str {
         RoleDemandDisposition::NewlyResolved { .. } => "newly-resolved",
         RoleDemandDisposition::AlreadyApplied { .. } => "already-applied",
         RoleDemandDisposition::Unresolved { .. } => "unresolved",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::role_solve::{RoleResolveOutput, RoleResolveStats};
+
+    #[test]
+    fn unwitnessable_epochs_and_non_quiescent_boundaries_never_become_would_be_hits() {
+        let demand = demand("epoch-boundary");
+        let mut observation = GeneralizeSnapshotRootObservation::new(DefId(0));
+        observe_unresolved(
+            &mut observation,
+            1,
+            &demand,
+            GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+            GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+            GeneralizeSnapshotCandidateGuard::Generation(0),
+            0,
+            0,
+        );
+
+        let adversaries = [
+            (
+                GeneralizeSnapshotConstraintEpoch::Unavailable,
+                GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+                0,
+                0,
+                GeneralizeSnapshotMissReason::ConstraintEpochUnwitnessable,
+            ),
+            (
+                GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+                GeneralizeSnapshotSupplementalEpoch::Unavailable,
+                0,
+                0,
+                GeneralizeSnapshotMissReason::SupplementalEpochUnwitnessable,
+            ),
+            (
+                GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+                GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+                1,
+                0,
+                GeneralizeSnapshotMissReason::PendingConstraintWork,
+            ),
+            (
+                GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+                GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+                0,
+                1,
+                GeneralizeSnapshotMissReason::PendingConstraintEvents,
+            ),
+        ];
+        for (offset, (epoch, supplemental, pending_work, pending_events, reason)) in
+            adversaries.into_iter().enumerate()
+        {
+            observe_unresolved(
+                &mut observation,
+                offset + 2,
+                &demand,
+                epoch,
+                supplemental,
+                GeneralizeSnapshotCandidateGuard::Generation(0),
+                pending_work,
+                pending_events,
+            );
+            let observed = last_observation(&observation);
+            assert!(!observed.boundary_eligible);
+            assert!(!observed.would_be_hit);
+            assert!(!observed.exact_repeat);
+            assert_eq!(observed.miss_reason, Some(reason));
+            assert_eq!(observation.miss_reasons.count(reason), 1);
+        }
+        assert_eq!(observation.would_be_hits, 0);
+        assert_eq!(observation.entries.len(), 1);
+    }
+
+    #[test]
+    fn unavailable_and_overflowed_candidate_guards_fail_closed() {
+        let demand = demand("candidate-guard");
+        let mut observation = GeneralizeSnapshotRootObservation::new(DefId(0));
+        observe_default(&mut observation, 1, &demand);
+
+        for (iteration, guard, reason) in [
+            (
+                2,
+                GeneralizeSnapshotCandidateGuard::Unavailable,
+                GeneralizeSnapshotMissReason::CandidateGuardUnavailable,
+            ),
+            (
+                3,
+                GeneralizeSnapshotCandidateGuard::capture_generation(u64::MAX),
+                GeneralizeSnapshotMissReason::CandidateGuardOverflow,
+            ),
+        ] {
+            observe_unresolved(
+                &mut observation,
+                iteration,
+                &demand,
+                GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+                GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+                guard,
+                0,
+                0,
+            );
+            let observed = last_observation(&observation);
+            assert!(!observed.boundary_eligible);
+            assert!(!observed.would_be_hit);
+            assert_eq!(observed.miss_reason, Some(reason));
+            assert_eq!(observation.miss_reasons.count(reason), 1);
+        }
+        assert_eq!(observation.entries.len(), 1);
+    }
+
+    #[test]
+    fn incomplete_entry_is_rejected_then_atomically_replaced_by_the_full_result() {
+        let demand = demand("partial-entry");
+        let mut observation = GeneralizeSnapshotRootObservation::new(DefId(0));
+        observe_default(&mut observation, 1, &demand);
+        observation.entries[0].result = ExactSnapshotResult::Incomplete;
+
+        observe_default(&mut observation, 2, &demand);
+        let rejected = last_observation(&observation);
+        assert!(!rejected.would_be_hit);
+        assert_eq!(
+            rejected.miss_reason,
+            Some(GeneralizeSnapshotMissReason::IncompleteEntry)
+        );
+        assert_eq!(observation.comparison_cost.result_comparisons, 0);
+        assert_eq!(
+            observation
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::IncompleteEntry),
+            1
+        );
+        assert!(observation.entries[0].result.complete().is_some());
+
+        observe_default(&mut observation, 3, &demand);
+        let verified = last_observation(&observation);
+        assert!(verified.would_be_hit);
+        assert!(verified.exact_repeat);
+        assert_eq!(verified.miss_reason, None);
+    }
+
+    #[test]
+    fn entry_and_byte_caps_clear_and_disable_the_root_cache() {
+        let first = demand("first");
+        let second = demand("second");
+        let mut entry_capped = GeneralizeSnapshotRootObservation::with_budget(
+            DefId(0),
+            GeneralizeSnapshotBudget {
+                max_entries: 1,
+                max_retained_debug_bytes: usize::MAX,
+            },
+        );
+        observe_default(&mut entry_capped, 1, &first);
+        assert_eq!(entry_capped.entries.len(), 1);
+        observe_default(&mut entry_capped, 2, &second);
+        assert!(entry_capped.entries.is_empty());
+        assert_eq!(entry_capped.retained_debug_bytes, 0);
+        assert_eq!(entry_capped.cap_exhaustions, 1);
+        assert_eq!(
+            last_observation(&entry_capped).miss_reason,
+            Some(GeneralizeSnapshotMissReason::BudgetExhausted)
+        );
+        observe_default(&mut entry_capped, 3, &first);
+        assert!(!last_observation(&entry_capped).would_be_hit);
+        assert_eq!(
+            last_observation(&entry_capped).miss_reason,
+            Some(GeneralizeSnapshotMissReason::BudgetExhausted)
+        );
+        assert!(entry_capped.entries.is_empty());
+        assert_eq!(
+            entry_capped
+                .miss_reasons
+                .count(GeneralizeSnapshotMissReason::BudgetExhausted),
+            2
+        );
+
+        let mut byte_capped = GeneralizeSnapshotRootObservation::with_budget(
+            DefId(1),
+            GeneralizeSnapshotBudget {
+                max_entries: MAX_RETAINED_SNAPSHOT_ENTRIES,
+                max_retained_debug_bytes: 0,
+            },
+        );
+        observe_default(&mut byte_capped, 1, &first);
+        assert_eq!(byte_capped.cap_exhaustions, 1);
+        assert!(byte_capped.entries.is_empty());
+        assert_eq!(
+            last_observation(&byte_capped).miss_reason,
+            Some(GeneralizeSnapshotMissReason::BudgetExhausted)
+        );
+    }
+
+    fn observe_default(
+        observation: &mut GeneralizeSnapshotRootObservation,
+        iteration: usize,
+        demand: &CompactRoleConstraint,
+    ) {
+        observe_unresolved(
+            observation,
+            iteration,
+            demand,
+            GeneralizeSnapshotConstraintEpoch::Witness(ConstraintEpoch::default()),
+            GeneralizeSnapshotSupplementalEpoch::Witness(RoleSolveSupplementalEpoch::default()),
+            GeneralizeSnapshotCandidateGuard::Generation(0),
+            0,
+            0,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn observe_unresolved(
+        observation: &mut GeneralizeSnapshotRootObservation,
+        iteration: usize,
+        demand: &CompactRoleConstraint,
+        constraint_epoch: GeneralizeSnapshotConstraintEpoch,
+        supplemental_epoch: GeneralizeSnapshotSupplementalEpoch,
+        candidate_guard: GeneralizeSnapshotCandidateGuard,
+        pending_work: usize,
+        pending_events: usize,
+    ) {
+        let pure = [PureRoleDemandObservation {
+            demand: demand.clone(),
+            outcome: PureRoleDemandOutcome::Unresolved {
+                candidate_matches: 0,
+            },
+            candidate_buckets: vec![demand.role.clone()],
+            solve_time: Duration::ZERO,
+        }];
+        let resolved = RoleResolveDispositionOutput {
+            output: RoleResolveOutput {
+                resolutions: Vec::new(),
+                stats: RoleResolveStats::default(),
+            },
+            dispositions: vec![RoleDemandDisposition::Unresolved {
+                candidate_matches: 0,
+            }],
+        };
+        observation.observe_solve_boundary(
+            iteration,
+            constraint_epoch,
+            supplemental_epoch,
+            candidate_guard,
+            &CompactRoot::default(),
+            std::slice::from_ref(demand),
+            &pure,
+            &resolved,
+            &FxHashSet::default(),
+            Duration::ZERO,
+            pending_work,
+            pending_events,
+            0,
+        );
+    }
+
+    fn last_observation(
+        observation: &GeneralizeSnapshotRootObservation,
+    ) -> &GeneralizeSnapshotDemandSolve {
+        observation
+            .demands
+            .iter()
+            .flat_map(|demand| &demand.observations)
+            .max_by_key(|observation| observation.iteration)
+            .expect("one demand observation")
+    }
+
+    fn demand(name: &str) -> CompactRoleConstraint {
+        CompactRoleConstraint {
+            role: vec![name.into()],
+            inputs: Vec::new(),
+            associated: Vec::new(),
+        }
     }
 }
 

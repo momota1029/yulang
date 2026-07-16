@@ -481,6 +481,252 @@ fn pure_recursive_result_is_independent_of_live_applied_membership() {
 }
 
 #[test]
+fn pure_recursive_result_preserves_nested_solved_and_residual_prerequisites() {
+    let mut machine = ConstraintMachine::new();
+    let direct = named_raw_role_candidate(&mut machine, "Direct", "fragment");
+    let inner = named_raw_role_candidate(&mut machine, "Inner", "atom");
+    let mut nested = named_raw_role_candidate(&mut machine, "Nested", "layer");
+    nested
+        .prerequisites
+        .push(named_raw_role_constraint(&mut machine, "Inner", "atom"));
+    nested.prerequisites.push(named_raw_role_constraint(
+        &mut machine,
+        "MissingNested",
+        "nested-residual",
+    ));
+    let mut top = named_raw_role_candidate(&mut machine, "Top", "document");
+    top.prerequisites.push(named_raw_role_constraint(
+        &mut machine,
+        "Direct",
+        "fragment",
+    ));
+    top.prerequisites
+        .push(named_raw_role_constraint(&mut machine, "Nested", "layer"));
+    top.prerequisites.push(named_raw_role_constraint(
+        &mut machine,
+        "MissingTop",
+        "top-residual",
+    ));
+    let mut impls = RoleImplTable::new();
+    impls.insert(direct);
+    impls.insert(inner);
+    impls.insert(nested);
+    impls.insert(top);
+    let demand = named_compact_role_constraint("Top", "document");
+
+    let (full, pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+
+    assert_eq!(full.output.stats.prerequisite_demands, 5);
+    assert_eq!(full.output.stats.prerequisite_candidate_scans, 3);
+    assert_eq!(full.output.stats.prerequisite_candidate_matches, 3);
+    assert_eq!(full.output.resolutions.len(), 1);
+    let resolution = &full.output.resolutions[0];
+    assert_eq!(
+        resolution
+            .solved_prerequisites
+            .iter()
+            .map(|resolution| resolution.demand.role[0].as_str())
+            .collect::<Vec<_>>(),
+        vec!["Direct", "Nested"],
+    );
+    assert_eq!(resolution.residual_prerequisites[0].role, ["MissingTop"]);
+    let nested = &resolution.solved_prerequisites[1];
+    assert_eq!(nested.solved_prerequisites[0].demand.role, ["Inner"]);
+    assert_eq!(nested.residual_prerequisites[0].role, ["MissingNested"]);
+    assert_eq!(
+        pure[0].candidate_buckets,
+        vec![
+            vec!["Top".to_string()],
+            vec!["Direct".to_string()],
+            vec!["Nested".to_string()],
+            vec!["Inner".to_string()],
+            vec!["MissingNested".to_string()],
+            vec!["MissingTop".to_string()],
+        ]
+    );
+
+    let cached = apply_pure_role_demand_outcome(&pure[0].outcome, &FxHashSet::default());
+    let fresh = shadow_applications_from_full_solve(&full.dispositions, &full.output.resolutions)
+        .expect("full nested result aligns with its live disposition")
+        .remove(0);
+    assert_eq!(cached, fresh);
+    assert_eq!(cached.state_delta.applied_demands.len(), 4);
+    assert_eq!(
+        cached
+            .state_delta
+            .residual_prerequisites
+            .iter()
+            .map(|prerequisite| prerequisite.role[0].as_str())
+            .collect::<Vec<_>>(),
+        vec!["MissingNested", "MissingTop"]
+    );
+}
+
+#[test]
+fn pure_recursive_result_preserves_shared_prerequisite_for_each_top_level_demand() {
+    let mut machine = ConstraintMachine::new();
+    let shared = named_raw_role_candidate(&mut machine, "Shared", "fragment");
+    let mut first = named_raw_role_candidate(&mut machine, "First", "first-document");
+    first.prerequisites.push(named_raw_role_constraint(
+        &mut machine,
+        "Shared",
+        "fragment",
+    ));
+    let mut second = named_raw_role_candidate(&mut machine, "Second", "second-document");
+    second.prerequisites.push(named_raw_role_constraint(
+        &mut machine,
+        "Shared",
+        "fragment",
+    ));
+    let mut impls = RoleImplTable::new();
+    impls.insert(shared);
+    impls.insert(first);
+    impls.insert(second);
+    let demands = [
+        named_compact_role_constraint("First", "first-document"),
+        named_compact_role_constraint("Second", "second-document"),
+    ];
+
+    let (full, pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            &demands,
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+
+    assert_eq!(full.output.stats.prerequisite_demands, 2);
+    assert_eq!(full.output.stats.prerequisite_candidate_scans, 2);
+    assert_eq!(full.output.stats.prerequisite_candidate_matches, 2);
+    assert_eq!(full.output.resolutions.len(), 2);
+    assert_eq!(pure.len(), 2);
+    assert_eq!(
+        full.output.resolutions[0].solved_prerequisites[0].key,
+        full.output.resolutions[1].solved_prerequisites[0].key,
+    );
+    let fresh = shadow_applications_from_full_solve(&full.dispositions, &full.output.resolutions)
+        .expect("both full top-level results align with their dispositions");
+    for (pure, fresh) in pure.iter().zip(fresh) {
+        assert_eq!(
+            apply_pure_role_demand_outcome(&pure.outcome, &FxHashSet::default()),
+            fresh,
+        );
+    }
+}
+
+#[test]
+fn pure_recursive_result_preserves_ambiguous_candidate_count() {
+    let mut machine = ConstraintMachine::new();
+    let first = named_raw_role_candidate(&mut machine, "Ambiguous", "document");
+    let second = named_raw_role_candidate(&mut machine, "Ambiguous", "document");
+    let mut impls = RoleImplTable::new();
+    impls.insert(first);
+    impls.insert(second);
+    let demand = named_compact_role_constraint("Ambiguous", "document");
+
+    let (full, pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+
+    assert_eq!(full.output.stats.candidate_matches, 2);
+    assert_eq!(full.output.stats.ambiguous_demands, 1);
+    assert!(full.output.resolutions.is_empty());
+    assert!(matches!(
+        pure[0].outcome,
+        PureRoleDemandOutcome::Unresolved {
+            candidate_matches: 2
+        }
+    ));
+    let cached = apply_pure_role_demand_outcome(&pure[0].outcome, &FxHashSet::default());
+    let fresh = shadow_applications_from_full_solve(&full.dispositions, &full.output.resolutions)
+        .expect("ambiguous full result has no publication delta")
+        .remove(0);
+    assert_eq!(cached, fresh);
+    assert_eq!(cached.state_delta, ShadowRoleStateDelta::default());
+}
+
+#[test]
+fn pure_recursive_result_preserves_existing_cycle_termination_as_a_residual() {
+    let mut machine = ConstraintMachine::new();
+    let mut cyclic = named_raw_role_candidate(&mut machine, "Cycle", "document");
+    cyclic
+        .prerequisites
+        .push(named_raw_role_constraint(&mut machine, "Cycle", "document"));
+    let mut impls = RoleImplTable::new();
+    impls.insert(cyclic);
+    let demand = named_compact_role_constraint("Cycle", "document");
+
+    let (full, pure) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+
+    assert_eq!(full.output.stats.prerequisite_demands, 1);
+    assert_eq!(full.output.stats.prerequisite_candidate_scans, 1);
+    assert_eq!(full.output.stats.prerequisite_candidate_matches, 0);
+    let resolution = &full.output.resolutions[0];
+    assert!(resolution.solved_prerequisites.is_empty());
+    assert_eq!(resolution.residual_prerequisites, vec![demand.clone()]);
+    let cached = apply_pure_role_demand_outcome(&pure[0].outcome, &FxHashSet::default());
+    let fresh = shadow_applications_from_full_solve(&full.dispositions, &full.output.resolutions)
+        .expect("cycle-terminated full result aligns with its disposition")
+        .remove(0);
+    assert_eq!(cached, fresh);
+}
+
+#[test]
+fn pure_observation_discards_an_incomplete_demand_after_unwind() {
+    let demand = named_compact_role_constraint("Partial", "document");
+    let unwind = std::panic::catch_unwind(|| {
+        capture_pure_role_demand_observations(|| {
+            snapshot_characterization::begin_demand(&demand);
+            panic!("interrupt the pure solve before publication");
+        });
+    });
+    assert!(unwind.is_err());
+
+    let mut machine = ConstraintMachine::new();
+    let candidate = named_raw_role_candidate(&mut machine, "Partial", "document");
+    let mut impls = RoleImplTable::new();
+    impls.insert(candidate);
+    let (_, completed) = capture_pure_role_demand_observations(|| {
+        resolve_role_constraints_with_stats_and_dispositions(
+            &machine,
+            &CompactRoot::default(),
+            std::slice::from_ref(&demand),
+            &impls,
+            &FxHashSet::default(),
+        )
+    });
+    assert_eq!(completed.len(), 1);
+    assert!(matches!(
+        completed[0].outcome,
+        PureRoleDemandOutcome::Resolved(_)
+    ));
+}
+
+#[test]
 fn snapshot_supplemental_epoch_covers_row_match_candidate_bound_mutation() {
     let mut machine = ConstraintMachine::new();
     let candidate_var = TypeVar(0);
@@ -729,6 +975,36 @@ fn raw_role_candidate(inputs: Vec<RoleConstraintArg>) -> RoleImplCandidate {
         associated: Vec::new(),
         prerequisites: Vec::new(),
         methods: Vec::new(),
+    }
+}
+
+fn named_raw_role_candidate(
+    machine: &mut ConstraintMachine,
+    role: &str,
+    input: &str,
+) -> RoleImplCandidate {
+    let mut candidate = raw_role_candidate(vec![raw_nominal_role_arg(machine, input)]);
+    candidate.role = vec![role.into()];
+    candidate
+}
+
+fn named_raw_role_constraint(
+    machine: &mut ConstraintMachine,
+    role: &str,
+    input: &str,
+) -> RoleConstraint {
+    RoleConstraint {
+        role: vec![role.into()],
+        inputs: vec![raw_nominal_role_arg(machine, input)],
+        associated: Vec::new(),
+    }
+}
+
+fn named_compact_role_constraint(role: &str, input: &str) -> CompactRoleConstraint {
+    CompactRoleConstraint {
+        role: vec![role.into()],
+        inputs: vec![nominal_role_arg(input, Vec::new())],
+        associated: Vec::new(),
     }
 }
 

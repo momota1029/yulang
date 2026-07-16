@@ -83,6 +83,12 @@ fn stage0_characterizes_exact_generalize_role_snapshots_across_the_acceptance_se
             .generalize_snapshot_characterization_report()
             .expect("enabled session must carry exact-snapshot characterization");
         assert_report_invariants(case.name, &report);
+        assert_eq!(
+            finalized_scheme_snapshot(&output),
+            finalized_scheme_snapshot(&baseline),
+            "{}: enabling the shadow oracle changed production-selected schemes",
+            case.name,
+        );
 
         let proof = case.proof.map(|name| root_value_def(&output.modules, name));
         if let Some(proof) = proof {
@@ -144,6 +150,13 @@ fn assert_report_invariants(case: &str, report: &GeneralizeSnapshotCharacterizat
             "{case} {:?}: every would-be hit must verify exactly",
             root.def,
         );
+        assert_eq!(
+            root.cap_exhaustions, 0,
+            "{case} {:?}: approved shadow budget rejected an acceptance-set root",
+            root.def,
+        );
+        assert!(root.retained_entries_at_finish <= root.peak_entries);
+        assert!(root.retained_debug_bytes_at_finish <= root.peak_retained_debug_bytes);
         assert!(
             root.solve_boundaries.iter().all(|boundary| {
                 boundary.exact_repeat_count == 0
@@ -175,6 +188,9 @@ fn assert_report_invariants(case: &str, report: &GeneralizeSnapshotCharacterizat
                 root.def,
                 demand.slot
             );
+            assert!(demand.observations.iter().all(|observation| {
+                observation.exact_repeat == observation.miss_reason.is_none()
+            }));
         }
     }
 }
@@ -220,8 +236,31 @@ fn assert_markdown_proof_witness(root: &crate::analysis::GeneralizeSnapshotRootR
                 && observation.disposition_equal
                 && observation.state_delta_equal
                 && observation.full_path_equal
+                && observation.miss_reason.is_none()
         })
     }));
+}
+
+fn finalized_scheme_snapshot(output: &BodyLowering) -> Vec<(DefId, String, String)> {
+    let mut schemes = output
+        .session
+        .poly
+        .defs
+        .iter()
+        .filter_map(|(def, item)| match item {
+            Def::Let {
+                scheme: Some(scheme),
+                ..
+            } => Some((
+                def,
+                poly::dump::format_scheme(&output.session.poly.typ, scheme),
+                poly::dump::dump_scheme_raw(&output.session.poly.typ, scheme),
+            )),
+            Def::Mod { .. } | Def::Let { .. } | Def::Arg => None,
+        })
+        .collect::<Vec<_>>();
+    schemes.sort_by_key(|(def, _, _)| def.0);
+    schemes
 }
 
 fn print_case_report(
@@ -357,7 +396,7 @@ fn print_case_report(
         if label == "proof" {
             for boundary in &root.solve_boundaries {
                 eprintln!(
-                    "generalize snapshot proof-boundary {case}: iteration={} epoch={:?} supplemental-epoch={:?} candidate={} demands={} new={} exact-repeat={} main={{debug-bytes:{}, nodes:{}}} pending={{constraint-work:{}, constraint-events:{}, analysis-work:{}}}",
+                    "generalize snapshot proof-boundary {case}: iteration={} epoch={:?} supplemental-epoch={:?} candidate={:?} demands={} new={} exact-repeat={} main={{debug-bytes:{}, nodes:{}}} pending={{constraint-work:{}, constraint-events:{}, analysis-work:{}}}",
                     boundary.iteration,
                     boundary.constraint_epoch,
                     boundary.role_solve_supplemental_epoch,
