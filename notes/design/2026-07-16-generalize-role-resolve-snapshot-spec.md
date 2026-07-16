@@ -636,10 +636,48 @@ Activation is acceptable only if:
 - no missing input is represented as `Any`, `Never`, predicate deletion, or cached success; and
 - hit count, role-solve time, and end-to-end time are measured and reported separately.
 
-Stage 0 must set the numerical release gates and fixed-overhead budgets from same-environment
-controlled measurements. Those values are **TBD, to be measured in Stage 0**; this document does
-not invent thresholds from the single diagnostic trace. A high hit count alone cannot activate the
-cache if equality, cloning, or retention overhead erases the wall-time gain.
+### Stage 2 numerical release-gate proposal (2026-07-16; pending Claude/user confirmation)
+
+The following thresholds are proposed for the separate Stage 2 activation review. They are not
+recorded as already approved. They use only the Stage 0/1 measurements above and the original
+diagnosis: Markdown's removable iteration-4 solve was approximately 0.95-0.99 seconds of an
+approximately 1.87-1.93-second `analysis.generalize_resolve_roles` phase and an approximately
+5.3-5.9-second full compile.
+
+Measure five same-time alternating release pairs per fixture, reversing enabled/always-full-solve
+order between successive pairs. Each command uses the same no-cache route and fresh process
+conditions. The gate compares arithmetic means from the paired run set; external process wall time
+and max RSS are reported as supporting observations, while the compiler's internal
+`run.build_poly` / `check total` and phase timings are the release decisions.
+
+- Yumark Markdown must improve its mean internal cold `run.build_poly` / `check total` by at least
+  10% with exact snapshot activation enabled relative to always-full-solve mode.
+- Yumark Markdown must improve its mean `analysis.generalize_resolve_roles` time by at least 35%.
+- Yumark HTML, repository-std-only, and showcase must each stay at or below a 2% mean internal cold
+  `run.build_poly` / `check total` regression. Improvements are allowed; the bound is one-sided.
+- Peak loop-local retention must remain within the already approved absolute caps of 64 entries and
+  128 MiB of the Stage 0/1 Debug-size proxy, with no cap fallback in the four release fixtures.
+
+The 10% end-to-end threshold asks the activation to retain at least roughly 0.53-0.59 seconds of the
+0.95-0.99-second duplicate-solve opportunity. The 35% phase threshold asks it to remove at least
+roughly 0.65-0.68 seconds from the 1.87-1.93-second role phase. Both leave explicit room for exact
+lookup/equality, bounded snapshot retention, result access, and ordinary timing noise, but reject an
+implementation which consumes most of the measured opportunity. Stage 1 measured 1.733425 seconds
+of would-be-hit full solves across the acceptance set versus 13.537 milliseconds of key
+lookup/equality and 104.663 milliseconds of snapshot cloning; its heavier shadow-only result,
+disposition, and state comparisons do not run on an ordinary Stage 2 production hit.
+
+The 2% control bound follows the measured opportunity distribution rather than assuming a speedup:
+HTML, repository-std-only, and showcase spent only 7.3-12.3 milliseconds in the role phase and
+showed near-zero would-be-hit activity for this duplicate pattern. Activation should therefore be a
+wash on their approximately 1.03-1.15-second internal totals. A larger regression is evidence of
+fixed miss-path or lifecycle overhead and stops activation even if Markdown passes. Percentage
+gates are deliberately not applied to those fixtures' 7-12-millisecond role subphases because such
+small denominators make them a noise amplifier; their end-to-end bound is the fixed-overhead gate.
+
+Failure of either Markdown improvement threshold, any individual control-fixture no-regression
+threshold, or either absolute memory cap stops activation. A high hit count alone cannot override a
+failed time or memory gate, and the thresholds must not be weakened after observing Stage 2 output.
 
 ## 9. Diagnostics and telemetry
 
@@ -756,8 +794,9 @@ The following are deliberately not guessed:
    moving it there requires a semantic solver rewrite, stop before Stage 1.
 4. **Storage and comparison cost.** Exact retained values may be large. Entry/byte caps and equality
    costs are TBD until Stage 0; lossy identity is not a fallback.
-5. **Numerical activation gates.** Release timing thresholds and control-fixture noise budgets are
-   TBD until Stage 0 controlled measurement and approval.
+5. **Numerical activation gates (proposal recorded; approval pending).** Section 8 now records the
+   Stage 0/1-measurement-grounded 10% Markdown end-to-end, 35% Markdown role-phase, and 2% per-control
+   no-regression proposal. Claude/user confirmation remains required before activation is final.
 6. **Breadth of the opportunity.** Stage 0 must find exact repeats across more roots/fixtures than
    the single `proof` witness. If it is fixture-specific, stop rather than add a special case.
 
