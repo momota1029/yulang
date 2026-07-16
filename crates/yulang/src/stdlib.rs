@@ -282,6 +282,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         relative_path: "std/text/str.yu",
         source: include_str!("../../../lib/std/text/str.yu"),
     },
+    EmbeddedStdFile {
+        relative_path: "std/text/yumark.yu",
+        source: include_str!("../../../lib/std/text/yumark.yu"),
+    },
 ];
 
 #[cfg(test)]
