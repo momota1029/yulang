@@ -17,7 +17,7 @@ mod skip_parity_tests;
 mod stage0_tests;
 pub(super) mod type_decl;
 #[cfg(test)]
-mod yumark_shadow_tests;
+mod yumark_tests;
 
 use super::*;
 use crate::analysis::AnalysisTiming;

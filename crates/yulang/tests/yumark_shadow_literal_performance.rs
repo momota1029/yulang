@@ -1,24 +1,20 @@
-//! Real-literal-scale oracle for Shadow Stage 1 Slice 3.
+//! Resource-limited real-literal-scale oracle for production Yumark lowering.
 //!
-//! Slices 1-2 establish byte parity between the CURRENT and shadow routes at
-//! safe scale.  At this larger scale, putting the literal in a named,
-//! let-generalized definition exposes a pre-existing CURRENT-route memory
-//! exhaustion bug.  This file therefore proves two narrower facts: the shadow
-//! route compiles, specializes, and renders sane HTML and Markdown for the
-//! real-scale literal, while the CURRENT route still reproduces its documented
-//! failure inside a resource-limited worker.
+//! Algebra passing is now the only production route. This test retains the
+//! Shadow Stage 1 fixture and its hard process limits to ensure that a named,
+//! let-generalized real document compiles, specializes, and renders in both
+//! formats without recreating the retired recursive-role memory failure. It
+//! does not claim that the underlying role solver bug is fixed.
 
 #![cfg(unix)]
 
-use infer::lowering::with_yumark_algebra_shadow_lowering;
 use mono_runtime::Value;
-use sources::{Name, Path, SourceFile};
 use std::fs;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path as FsPath, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use yulang::{CollectedSource, collect_local_sources_with_std};
+use yulang::collect_local_sources_with_std;
 
 const TEST_ADDRESS_SPACE_LIMIT_BYTES: libc::rlim_t = 3 * 1024 * 1024 * 1024;
 const RESOURCE_LIMIT_WORKER_ENV: &str = "YULANG_YUMARK_RESOURCE_LIMIT_WORKER";
@@ -27,27 +23,18 @@ const KNOWN_MEMORY_BUG_REPORT: &str =
     "notes/bugs/2026-07-17-yumark-generalization-memory-exhaustion.md";
 
 #[test]
-fn real_literal_shadow_route_compiles_and_renders_successfully() {
+fn real_literal_production_route_compiles_and_renders_successfully() {
     enforce_yumark_test_resource_limits();
     if run_in_resource_limited_worker(
-        "real_literal_shadow_route_compiles_and_renders_successfully",
-        WorkerExpectation::Success,
+        "real_literal_production_route_compiles_and_renders_successfully",
     ) {
         return;
     }
 
-    let html_entry = write_fixture_entry("shadow-html", LoweringRoute::Shadow, RenderFormat::Html);
-    let markdown_entry = write_fixture_entry(
-        "shadow-markdown",
-        LoweringRoute::Shadow,
-        RenderFormat::Markdown,
-    );
-    let (html, markdown) = run_with_large_stack(move || {
-        (
-            run_route(&html_entry, LoweringRoute::Shadow),
-            run_route(&markdown_entry, LoweringRoute::Shadow),
-        )
-    });
+    let html_entry = write_fixture_entry("production-html", RenderFormat::Html);
+    let markdown_entry = write_fixture_entry("production-markdown", RenderFormat::Markdown);
+    let (html, markdown) =
+        run_with_large_stack(move || (run_route(&html_entry), run_route(&markdown_entry)));
 
     assert!(html.contains("<h1>"));
     assert!(html.contains("Shadow lowering at real literal scale"));
@@ -57,51 +44,16 @@ fn real_literal_shadow_route_compiles_and_renders_successfully() {
     assert!(markdown.contains("```yulang"));
 }
 
-#[test]
-fn real_literal_current_route_reproduces_documented_memory_exhaustion() {
-    enforce_yumark_test_resource_limits();
-    if run_in_resource_limited_worker(
-        "real_literal_current_route_reproduces_documented_memory_exhaustion",
-        WorkerExpectation::CurrentAddressSpaceExhaustion,
-    ) {
-        return;
-    }
-
-    let entry = write_fixture_entry(
-        "current-memory-exhaustion",
-        LoweringRoute::Current,
-        RenderFormat::Markdown,
-    );
-    run_with_large_stack(move || check_current_route(&entry));
-}
-
-#[derive(Clone, Copy)]
-enum WorkerExpectation {
-    Success,
-    CurrentAddressSpaceExhaustion,
-}
-
-#[derive(Clone, Copy)]
-enum LoweringRoute {
-    Current,
-    Shadow,
-}
-
 #[derive(Clone, Copy)]
 enum RenderFormat {
     Html,
     Markdown,
 }
 
-fn run_route(entry: &FsPath, route: LoweringRoute) -> String {
-    let files = collect_route_sources(entry, route);
-    let build = match route {
-        LoweringRoute::Current => yulang::build_poly_from_collected_sources(files),
-        LoweringRoute::Shadow => {
-            with_yumark_algebra_shadow_lowering(|| yulang::build_poly_from_collected_sources(files))
-        }
-    }
-    .expect("compile real Yumark literal");
+fn run_route(entry: &FsPath) -> String {
+    let files = collect_local_sources_with_std(entry).expect("collect repository std");
+    let build =
+        yulang::build_poly_from_collected_sources(files).expect("compile real Yumark literal");
     build.ensure_runtime_ready().expect("lowering diagnostics");
 
     let program = specialize::specialize(&build.arena).expect("specialize real Yumark literal");
@@ -113,40 +65,9 @@ fn run_route(entry: &FsPath, route: LoweringRoute) -> String {
     }
 }
 
-fn check_current_route(entry: &FsPath) {
-    let loaded = load_sources(collect_route_sources(entry, LoweringRoute::Current));
-    let check = infer::check::check_loaded_files(&loaded).expect("check real Yumark literal");
-    assert_eq!(check.report.totals.lowering_errors, 0);
-}
-
-fn collect_route_sources(entry: &FsPath, route: LoweringRoute) -> Vec<CollectedSource> {
-    let mut files = collect_local_sources_with_std(entry).expect("collect repository std");
-    if matches!(route, LoweringRoute::Shadow) {
-        let path = repository_root().join("lib/std/text/yumark_algebra_shadow.yu");
-        files.push(CollectedSource::new(
-            path.clone(),
-            module_path(&["std", "text", "yumark_algebra_shadow"]),
-            fs::read_to_string(path).expect("read shadow algebra"),
-        ));
-    }
-    files
-}
-
-fn load_sources(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
-    let source_files = files
-        .iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path.clone(),
-            source: file.source.clone(),
-        })
-        .collect();
-    let band_paths = files.into_iter().map(|file| file.band_path).collect();
-    sources::load_with_band_paths_timed(source_files, band_paths).0
-}
-
-fn write_fixture_entry(label: &str, route: LoweringRoute, format: RenderFormat) -> PathBuf {
+fn write_fixture_entry(label: &str, format: RenderFormat) -> PathBuf {
     let root = std::env::temp_dir().join(format!(
-        "yulang-yumark-shadow-literal-{label}-{}",
+        "yulang-yumark-literal-{label}-{}",
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock after epoch")
@@ -156,22 +77,12 @@ fn write_fixture_entry(label: &str, route: LoweringRoute, format: RenderFormat) 
     std::os::unix::fs::symlink(repository_root().join("lib"), root.join("lib"))
         .expect("link repository std");
     let literal = fs::read_to_string(fixture_path()).expect("read real-literal fixture");
-    let (render_prefix, render_suffix) = match (route, format) {
-        (LoweringRoute::Current, RenderFormat::Html) => (
+    let (render_prefix, render_suffix) = match format {
+        RenderFormat::Html => (
             "std::text::yumark::html_tag (std::text::yumark::render_html_doc (",
             "))",
         ),
-        (LoweringRoute::Shadow, RenderFormat::Html) => (
-            "std::text::yumark::html_tag (std::text::yumark_algebra_shadow::render_html_doc (",
-            "))",
-        ),
-        (LoweringRoute::Current, RenderFormat::Markdown) => {
-            ("std::text::yumark::render_markdown_doc (", ")")
-        }
-        (LoweringRoute::Shadow, RenderFormat::Markdown) => (
-            "std::text::yumark_algebra_shadow::render_markdown_doc (",
-            ")",
-        ),
+        RenderFormat::Markdown => ("std::text::yumark::render_markdown_doc (", ")"),
     };
     let source = format!("my proof() = {render_prefix}\n{literal}\n{render_suffix}\nproof()\n");
     let entry = root.join("main.yu");
@@ -186,15 +97,6 @@ fn fixture_path() -> PathBuf {
 
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-fn module_path(segments: &[&str]) -> Path {
-    Path {
-        segments: segments
-            .iter()
-            .map(|segment| Name((*segment).to_string()))
-            .collect(),
-    }
 }
 
 fn run_with_large_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 'static) -> T {
@@ -246,10 +148,9 @@ fn enforce_yumark_test_resource_limits() {
     }
 }
 
-/// Returns `true` in the harness process after the worker produced its
-/// expected outcome and `false` in the worker process, where the caller should
-/// perform the route-specific test.
-fn run_in_resource_limited_worker(test_name: &str, expected: WorkerExpectation) -> bool {
+/// Returns `true` in the harness process after the worker succeeded and
+/// `false` in the worker process, where the caller performs the compile/run.
+fn run_in_resource_limited_worker(test_name: &str) -> bool {
     if std::env::var_os(RESOURCE_LIMIT_WORKER_ENV).is_some() {
         return false;
     }
@@ -269,34 +170,16 @@ fn run_in_resource_limited_worker(test_name: &str, expected: WorkerExpectation) 
         stdout.contains("running 1 test"),
         "resource-limited Yumark worker did not select {test_name}:\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
-
-    match expected {
-        WorkerExpectation::Success => {
-            if output.status.success() {
-                return true;
-            }
-            if output.status.signal() == Some(libc::SIGABRT) {
-                panic!(
-                    "{ADDRESS_SPACE_SAFETY_FAILURE} while compiling the SHADOW route for this fixture -- the known bug in {KNOWN_MEMORY_BUG_REPORT} only explains the CURRENT route, so this is a new shadow regression\nworker stderr:\n{stderr}"
-                );
-            }
-            panic!(
-                "resource-limited Yumark worker failed with {} while running {test_name}:\nstdout:\n{stdout}\nstderr:\n{stderr}",
-                output.status
-            );
-        }
-        WorkerExpectation::CurrentAddressSpaceExhaustion => {
-            assert!(
-                output.status.signal() == Some(libc::SIGABRT)
-                    && stderr.contains("memory allocation of")
-                    && stderr.contains("failed"),
-                "expected the CURRENT route to {ADDRESS_SPACE_SAFETY_FAILURE}, reproducing {KNOWN_MEMORY_BUG_REPORT}; instead the worker exited with {}:\nstdout:\n{stdout}\nstderr:\n{stderr}",
-                output.status
-            );
-            eprintln!(
-                "{ADDRESS_SPACE_SAFETY_FAILURE} while checking the CURRENT route, reproducing the known bug documented in {KNOWN_MEMORY_BUG_REPORT}"
-            );
-            true
-        }
+    if output.status.success() {
+        return true;
     }
+    if output.status.signal() == Some(libc::SIGABRT) {
+        panic!(
+            "{ADDRESS_SPACE_SAFETY_FAILURE} while compiling the production algebra-passing route; {KNOWN_MEMORY_BUG_REPORT} only documents the retired recursive-role path, so this is a new regression\nworker stderr:\n{stderr}"
+        );
+    }
+    panic!(
+        "resource-limited Yumark worker failed with {} while running {test_name}:\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        output.status
+    );
 }

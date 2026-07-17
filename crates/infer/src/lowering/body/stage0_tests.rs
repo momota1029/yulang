@@ -680,9 +680,7 @@ fn collect_yu_files(directory: &FsPath, files: &mut Vec<PathBuf>) {
         let path = entry.expect("read repository std entry").path();
         if path.is_dir() {
             collect_yu_files(&path, files);
-        } else if path.extension().and_then(|extension| extension.to_str()) == Some("yu")
-            && path.file_name().and_then(|name| name.to_str()) != Some("yumark_algebra_shadow.yu")
-        {
+        } else if path.extension().and_then(|extension| extension.to_str()) == Some("yu") {
             files.push(path);
         }
     }

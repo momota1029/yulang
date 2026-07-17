@@ -510,9 +510,9 @@ fn run_with_std_matches_evidence_on_core_smoke_suite() {
 
 #[cfg(unix)]
 #[test]
-fn yumark_nil_text_shadow_matches_current_html_and_markdown_bytes() {
-    let current_entry = write_main_with_std(
-        "yumark-nil-text-current-output",
+fn yumark_nil_text_renders_expected_html_and_markdown_bytes() {
+    let entry = write_main_with_std(
+        "yumark-nil-text-output",
         concat!(
             "use std::text::yumark::*\n",
             "my empty = '[]\n",
@@ -523,37 +523,15 @@ fn yumark_nil_text_shadow_matches_current_html_and_markdown_bytes() {
             "render_markdown_doc plain\n",
         ),
     );
-    let current = run_mono_from_entry_with_std(&current_entry).unwrap();
-
-    let shadow_entry = write_main_with_std(
-        "yumark-nil-text-shadow-output",
-        concat!(
-            "use std::text::yumark::html_tag\n",
-            "use std::text::yumark_algebra_shadow::*\n",
-            "my empty = '[]\n",
-            "my plain = '[hello world]\n",
-            "html_tag (render_html_doc empty)\n",
-            "render_markdown_doc empty\n",
-            "html_tag (render_html_doc plain)\n",
-            "render_markdown_doc plain\n",
-        ),
-    );
-    let shadow = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
-        run_mono_with_yumark_shadow_std(&shadow_entry)
-    });
-    let restored = run_mono_from_entry_with_std(&current_entry).unwrap();
+    let output = run_mono_from_entry_with_std(&entry).unwrap();
 
     let expected = "run roots [\"\", \"\", \"<span>hello world</span>\", \"hello world\"]\n";
-    assert_eq!(current.text, expected);
-    assert_eq!(shadow.text, expected);
-    assert_eq!(shadow.values, current.values);
-    assert_eq!(restored.text, current.text);
-    assert_eq!(restored.values, current.values);
+    assert_eq!(output.text, expected);
 }
 
 #[cfg(unix)]
 #[test]
-fn yumark_full_static_shadow_matches_current_html_and_markdown_bytes() {
+fn yumark_full_static_renders_consistently_with_minimal_and_repository_std() {
     let literal = concat!(
         "'{## Static vocabulary\n",
         "Paragraph with *emphasis* and **strong**.\n",
@@ -568,39 +546,29 @@ fn yumark_full_static_shadow_matches_current_html_and_markdown_bytes() {
         "> quoted\n",
         "}\n",
     );
-    let current_entry = write_main_with_std(
-        "yumark-full-static-current-output",
+    let entry = write_main_with_std(
+        "yumark-full-static-output",
         &format!(
             "use std::text::yumark::*\nmy rich = {literal}html_tag (render_html_doc rich)\nrender_markdown_doc rich\n"
         ),
     );
-    let shadow_entry = write_main_with_std(
-        "yumark-full-static-shadow-output",
-        &format!(
-            "use std::text::yumark::html_tag\nuse std::text::yumark_algebra_shadow::*\nmy rich = {literal}html_tag (render_html_doc rich)\nrender_markdown_doc rich\n"
-        ),
-    );
-    let (current, shadow, restored) = run_with_vm_test_stack(move || {
-        let current = run_mono_with_minimal_yumark_std(&current_entry, false).text;
-        let shadow = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
-            run_mono_with_minimal_yumark_std(&shadow_entry, true).text
-        });
-        let restored = run_mono_with_minimal_yumark_std(&current_entry, false).text;
-        (current, shadow, restored)
+    let (minimal, repository) = run_with_vm_test_stack(move || {
+        let minimal = run_mono_with_minimal_yumark_std(&entry).text;
+        let repository = run_mono_from_entry_with_std(&entry).unwrap().text;
+        (minimal, repository)
     });
 
-    assert_eq!(shadow, current);
-    assert_eq!(restored, current);
+    assert_eq!(minimal, repository);
 }
 
 #[cfg(unix)]
 #[test]
-fn yumark_full_static_shadow_construction_does_not_force_interpretation_effects() {
+fn yumark_full_static_construction_does_not_force_interpretation_effects() {
     let entry = write_main_with_std(
-        "yumark-full-static-shadow-inert",
+        "yumark-full-static-inert",
         concat!(
             "use std::text::str::str\n",
-            "use std::text::yumark_algebra_shadow::{yumark_algebra}\n",
+            "use std::text::yumark::{yumark_algebra}\n",
             "act full_static_construction_probe:\n",
             "  our fire: () -> str\n",
             "struct effect_repr {\n",
@@ -664,18 +632,13 @@ fn yumark_full_static_shadow_construction_does_not_force_interpretation_effects(
         ),
     );
 
-    let output_text = run_with_vm_test_stack(move || {
-        infer::lowering::with_yumark_algebra_shadow_lowering(|| {
-            run_mono_with_minimal_yumark_std(&entry, true)
-        })
-        .text
-    });
+    let output_text = run_with_vm_test_stack(move || run_mono_with_minimal_yumark_std(&entry).text);
 
     assert_eq!(output_text, "run roots [\"\"]\n");
 }
 
 #[cfg(unix)]
-fn run_mono_with_minimal_yumark_std(entry: &FsPath, include_shadow: bool) -> RunMonoOutput {
+fn run_mono_with_minimal_yumark_std(entry: &FsPath) -> RunMonoOutput {
     let mut files = collect_local_sources(entry).unwrap();
     let root = entry.parent().expect("Yumark test entry parent");
     let mut push = |segments: &[&str], source: &str| {
@@ -754,26 +717,16 @@ fn run_mono_with_minimal_yumark_std(entry: &FsPath, include_shadow: bool) -> Run
             include_str!("../../../../../lib/std/text/yumark.yu")
         ),
     );
-    if include_shadow {
-        push(
-            &["std", "text", "yumark_algebra_shadow"],
-            &format!(
-                "use std::core::ops::*\n{}",
-                include_str!("../../../../../lib/std/text/yumark_algebra_shadow.yu")
-            ),
-        );
-    }
-
     run_mono_from_sources(files).unwrap()
 }
 
 #[cfg(unix)]
 #[test]
-fn yumark_nil_text_shadow_construction_does_not_force_interpretation_effects() {
+fn yumark_nil_text_construction_does_not_force_interpretation_effects() {
     let entry = write_main_with_std(
-        "yumark-nil-text-shadow-inert",
+        "yumark-nil-text-inert",
         concat!(
-            "use std::text::yumark_algebra_shadow::{yumark_algebra}\n",
+            "use std::text::yumark::{yumark_algebra}\n",
             "struct effect_repr {\n",
             "  marker: str,\n",
             "  run: () -> [std::time::clock] str,\n",
@@ -825,9 +778,7 @@ fn yumark_nil_text_shadow_construction_does_not_force_interpretation_effects() {
         ),
     );
 
-    let output = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
-        run_mono_with_yumark_shadow_std(&entry)
-    });
+    let output = run_mono_from_entry_with_std(&entry).unwrap();
 
     assert_eq!(output.text, "run roots [\"hello world\"]\n");
 }

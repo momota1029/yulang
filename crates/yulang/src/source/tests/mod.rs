@@ -65,24 +65,6 @@ fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, EvidenceTestOu
     (mono, evidence)
 }
 
-#[cfg(unix)]
-fn run_mono_with_yumark_shadow_std(entry: &FsPath) -> RunMonoOutput {
-    let mut files = collect_local_sources_with_std(entry).unwrap();
-    let shadow_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../lib/std/text/yumark_algebra_shadow.yu");
-    files.push(CollectedSource::new(
-        shadow_path.clone(),
-        Path {
-            segments: ["std", "text", "yumark_algebra_shadow"]
-                .into_iter()
-                .map(|segment| Name(segment.to_string()))
-                .collect(),
-        },
-        fs::read_to_string(shadow_path).unwrap(),
-    ));
-    run_mono_from_sources(files).unwrap()
-}
-
 fn run_with_vm_test_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 'static) -> T {
     std::thread::Builder::new()
         .stack_size(16 * 1024 * 1024)
