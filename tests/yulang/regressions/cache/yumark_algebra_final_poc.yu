@@ -8,7 +8,7 @@
 
 pub struct yumark_algebra 'repr {
     nil: () -> 'repr,
-    cons: ('repr, 'repr) -> 'repr,
+    cons: 'repr -> 'repr -> 'repr,
     text: str -> 'repr,
     container: 'repr -> 'repr,
     inline: 'repr -> 'repr,
