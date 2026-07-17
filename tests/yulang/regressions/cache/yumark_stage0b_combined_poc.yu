@@ -1,0 +1,17 @@
+// Stage 0B combined positive driver.  The real-vocabulary document is selected
+// through YumarkFormat, and each supported pointwise combination is executed.
+
+use mod yumark_stage0b_common::*
+
+my html_document = render_html_doc(yumark_stage0b_document)
+my markdown_document = render_markdown_doc(yumark_stage0b_document)
+my html_supported = render_html_doc(html_and_both)
+my markdown_supported = render_markdown_doc(markdown_and_both)
+
+(
+    html_document.tag,
+    html_document.body,
+    markdown_document,
+    html_supported.body,
+    markdown_supported,
+)

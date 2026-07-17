@@ -1,0 +1,9 @@
+// Expected failure at this final HTML selection: all_three requires the absent
+// SupportsFormat markdown_only_capability html_format fact.
+// Exact run diagnostic:
+// compile error [yulang.unresolved-method]: no role implementation satisfies this method call
+//   detail: unresolved typeclass method d74 for receiver yumark_stage0b_common::markdown_only_capability -> yumark_stage0b_common::html_format -> unit
+//   hint: add or import an impl for the receiver type, or call a method supported by that value
+use mod yumark_stage0b_common::*
+
+render_html_doc(all_three)

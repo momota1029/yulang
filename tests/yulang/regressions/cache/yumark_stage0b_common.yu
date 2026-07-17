@@ -1,0 +1,458 @@
+// Shared Stage 0B definitions.  The standalone drivers beside this module
+// select positive and negative format/capability cases without duplicating
+// the real-vocabulary document.
+
+pub struct yumark_algebra 'repr {
+    nil: () -> 'repr,
+    cons: 'repr -> 'repr -> 'repr,
+    doc: 'repr -> 'repr,
+    text: str -> 'repr,
+    paragraph: 'repr -> 'repr,
+    heading: str -> int -> 'repr -> 'repr,
+    blank_line: str -> 'repr,
+    section_close: str -> 'repr -> 'repr,
+    list_block: bool -> 'repr -> 'repr,
+    list_item: str -> 'repr -> 'repr,
+    list_item_body: 'repr -> 'repr,
+    code_fence: str -> str -> 'repr,
+    quote_block: 'repr -> 'repr,
+    emphasis: 'repr -> 'repr,
+    strong: 'repr -> 'repr,
+    injected: injection_payload -> 'repr,
+}
+
+// Section 4.1 names fifteen slots even though it calls the vocabulary
+// sixteen-slot.  `injected` is the sixteenth operation from the characterized
+// proof workload and is also the Section 8.3 finite per-format-thunk experiment.
+pub struct injection_payload {
+    html: () -> html_node,
+    markdown: () -> str,
+}
+
+pub struct html_format { marker: str }
+pub struct markdown_format { marker: str }
+pub struct html_node { tag: str, body: str }
+
+pub struct html_only_capability { marker: str }
+pub struct markdown_only_capability { marker: str }
+pub struct html_markdown_capability { marker: str }
+
+pub role YumarkFormat 'format:
+    type repr
+    our format.stage0b_algebra: () -> yumark_algebra repr
+
+pub role SupportsFormat 'capability 'format:
+    our capability.supports_stage0b_format: 'format -> ()
+
+pub html_format_value(): html_format = html_format { marker: "html" }
+
+pub markdown_format_value(): markdown_format =
+    markdown_format { marker: "markdown" }
+
+// Every combinator receives one format marker and one algebra.  Recursive
+// children are evaluated with exactly those same values.
+pub nil(format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.nil()
+
+pub text(value: str, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.text(value)
+
+pub cons(head, tail, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.cons(head(format, algebra), tail(format, algebra))
+
+pub doc(children, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.doc(children(format, algebra))
+
+pub paragraph(children, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.paragraph(children(format, algebra))
+
+pub heading(marker: str, level: int, children,
+            format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.heading(marker, level, children(format, algebra))
+
+pub blank_line(marker: str, format: 'format,
+               algebra: yumark_algebra 'repr): 'repr =
+    algebra.blank_line(marker)
+
+pub section_close(marker: str, children,
+                  format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.section_close(marker, children(format, algebra))
+
+pub list_block(ordered: bool, items,
+               format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_block(ordered, items(format, algebra))
+
+pub list_item(marker: str, children,
+              format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_item(marker, children(format, algebra))
+
+pub list_item_body(children, format: 'format,
+                   algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_item_body(children(format, algebra))
+
+pub code_fence(info: str, body: str, format: 'format,
+               algebra: yumark_algebra 'repr): 'repr =
+    algebra.code_fence(info, body)
+
+pub quote_block(children, format: 'format,
+                algebra: yumark_algebra 'repr): 'repr =
+    algebra.quote_block(children(format, algebra))
+
+pub emphasis(children, format: 'format,
+             algebra: yumark_algebra 'repr): 'repr =
+    algebra.emphasis(children(format, algebra))
+
+pub strong(children, format: 'format,
+           algebra: yumark_algebra 'repr): 'repr =
+    algebra.strong(children(format, algebra))
+
+pub injected(payload: injection_payload, format: 'format,
+             algebra: yumark_algebra 'repr): 'repr =
+    algebra.injected(payload)
+
+// 28 binary cons operations + 15 unary containers + 29 terminals = 72
+// algebra operations and 71 representation-typed edges.  Unlike Stage 0A,
+// every real structural and inline operation has its own algebra slot.
+pub yumark_stage0b_document(format: 'format,
+                            algebra: yumark_algebra 'repr): 'repr =
+    doc(
+        cons(
+            heading(
+                "# ",
+                1,
+                cons(text("Typed Static Yumark Vocabulary"), nil),
+            ),
+            cons(
+                paragraph(
+                    cons(
+                        text("A paragraph with "),
+                        cons(
+                            emphasis(cons(text("emphasis"), nil)),
+                            cons(
+                                text(" and "),
+                                cons(
+                                    strong(cons(text("strong text"), nil)),
+                                    cons(text("."), nil),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                cons(
+                    blank_line("\n"),
+                    cons(
+                        list_block(
+                            false,
+                            cons(
+                                list_item(
+                                    "- ",
+                                    cons(
+                                        list_item_body(
+                                            cons(
+                                                text("first item with "),
+                                                cons(
+                                                    emphasis(
+                                                        cons(text("inline style"), nil),
+                                                    ),
+                                                    nil,
+                                                ),
+                                            ),
+                                        ),
+                                        nil,
+                                    ),
+                                ),
+                                cons(
+                                    list_item(
+                                        "- ",
+                                        cons(
+                                            list_item_body(
+                                                cons(
+                                                    strong(
+                                                        cons(text("second item"), nil),
+                                                    ),
+                                                    nil,
+                                                ),
+                                            ),
+                                            nil,
+                                        ),
+                                    ),
+                                    nil,
+                                ),
+                            ),
+                        ),
+                        cons(
+                            code_fence("text", "line one\nline two"),
+                            cons(
+                                quote_block(
+                                    cons(
+                                        paragraph(
+                                            cons(
+                                                text("quoted paragraph with "),
+                                                cons(
+                                                    injected(injection_payload_value()),
+                                                    nil,
+                                                ),
+                                            ),
+                                        ),
+                                        nil,
+                                    ),
+                                ),
+                                cons(
+                                    section_close(
+                                        "#.",
+                                        cons(text(" close current section"), nil),
+                                    ),
+                                    nil,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        format,
+        algebra,
+    )
+
+pub cat2(left: str, right: str): str =
+    std::text::str::concat left right
+
+pub cat3(a: str, b: str, c: str): str =
+    cat2(cat2(a, b), c)
+
+pub cat4(a: str, b: str, c: str, d: str): str =
+    cat2(cat3(a, b, c), d)
+
+pub html_tag(node: html_node): str =
+    if node.tag == "fragment":
+        node.body
+    else:
+        cat4(cat3("<", node.tag, ">"), node.body, "</", cat2(node.tag, ">"))
+
+pub html_nil(): html_node =
+    html_node { tag: "fragment", body: "" }
+
+pub html_cons(head: html_node, tail: html_node): html_node =
+    html_node { tag: "fragment", body: cat2(html_tag(head), html_tag(tail)) }
+
+pub html_doc(child: html_node): html_node =
+    html_node { tag: "article", body: html_tag(child) }
+
+pub html_text(value: str): html_node =
+    html_node { tag: "span", body: value }
+
+pub html_paragraph(child: html_node): html_node =
+    html_node { tag: "p", body: html_tag(child) }
+
+pub html_heading(marker: str, level: int, child: html_node): html_node =
+    html_node {
+        tag: cat2("h", std::int::to_string(level)),
+        body: cat2(marker, html_tag(child)),
+    }
+
+pub html_blank_line(marker: str): html_node =
+    html_node { tag: "br", body: marker }
+
+pub html_section_close(marker: str, child: html_node): html_node =
+    html_node { tag: "section-close", body: cat2(marker, html_tag(child)) }
+
+pub html_list_block(ordered: bool, items: html_node): html_node =
+    html_node {
+        tag: if ordered: "ol" else: "ul",
+        body: html_tag(items),
+    }
+
+pub html_list_item(marker: str, child: html_node): html_node =
+    html_node { tag: "li", body: cat2(marker, html_tag(child)) }
+
+pub html_list_item_body(child: html_node): html_node =
+    html_node { tag: "item-body", body: html_tag(child) }
+
+pub html_code_fence(info: str, body: str): html_node =
+    html_node { tag: "pre", body: cat3(info, ":", body) }
+
+pub html_quote_block(child: html_node): html_node =
+    html_node { tag: "blockquote", body: html_tag(child) }
+
+pub html_emphasis(child: html_node): html_node =
+    html_node { tag: "em", body: html_tag(child) }
+
+pub html_strong(child: html_node): html_node =
+    html_node { tag: "strong", body: html_tag(child) }
+
+pub html_injected(payload: injection_payload): html_node =
+    payload.html()
+
+pub html_algebra(): yumark_algebra html_node = yumark_algebra {
+    nil: html_nil,
+    cons: html_cons,
+    doc: html_doc,
+    text: html_text,
+    paragraph: html_paragraph,
+    heading: html_heading,
+    blank_line: html_blank_line,
+    section_close: html_section_close,
+    list_block: html_list_block,
+    list_item: html_list_item,
+    list_item_body: html_list_item_body,
+    code_fence: html_code_fence,
+    quote_block: html_quote_block,
+    emphasis: html_emphasis,
+    strong: html_strong,
+    injected: html_injected,
+}
+
+pub markdown_nil(): str = ""
+
+pub markdown_cons(head: str, tail: str): str = cat2(head, tail)
+
+pub markdown_doc(child: str): str = child
+
+pub markdown_text(value: str): str = value
+
+pub markdown_paragraph(child: str): str = cat2(child, "\n\n")
+
+pub markdown_heading(marker: str, level: int, child: str): str =
+    if level > 0: cat3(marker, child, "\n\n") else: child
+
+pub markdown_blank_line(marker: str): str = marker
+
+pub markdown_section_close(marker: str, child: str): str =
+    cat3(marker, child, "\n")
+
+pub markdown_list_block(ordered: bool, items: str): str =
+    if ordered: cat2("ordered:\n", items) else: cat2(items, "\n")
+
+pub markdown_list_item(marker: str, child: str): str =
+    cat3(marker, child, "\n")
+
+pub markdown_list_item_body(child: str): str = child
+
+pub markdown_code_fence(info: str, body: str): str =
+    cat2(cat4("```", info, "\n", body), "\n```\n\n")
+
+pub markdown_quote_block(child: str): str = cat3("> ", child, "\n")
+
+pub markdown_emphasis(child: str): str = cat3("*", child, "*")
+
+pub markdown_strong(child: str): str = cat3("**", child, "**")
+
+pub markdown_injected(payload: injection_payload): str =
+    payload.markdown()
+
+pub markdown_algebra(): yumark_algebra str = yumark_algebra {
+    nil: markdown_nil,
+    cons: markdown_cons,
+    doc: markdown_doc,
+    text: markdown_text,
+    paragraph: markdown_paragraph,
+    heading: markdown_heading,
+    blank_line: markdown_blank_line,
+    section_close: markdown_section_close,
+    list_block: markdown_list_block,
+    list_item: markdown_list_item,
+    list_item_body: markdown_list_item_body,
+    code_fence: markdown_code_fence,
+    quote_block: markdown_quote_block,
+    emphasis: markdown_emphasis,
+    strong: markdown_strong,
+    injected: markdown_injected,
+}
+
+pub injection_html(): html_node =
+    html_node { tag: "aside", body: "backend-native HTML injection" }
+
+pub injection_markdown(): str =
+    "_backend-native Markdown injection_"
+
+pub injection_payload_value(): injection_payload = injection_payload {
+    html: injection_html,
+    markdown: injection_markdown,
+}
+
+// Both format mappings are direct: repr is selected once and neither
+// implementation has a role prerequisite.
+impl html_format: YumarkFormat:
+    type repr = html_node
+    our format.stage0b_algebra _ = html_algebra()
+
+impl markdown_format: YumarkFormat:
+    type repr = str
+    our format.stage0b_algebra _ = markdown_algebra()
+
+// These four facts are the complete pointwise support matrix.  Every
+// implementation is direct and prerequisite-free.
+impl html_only_capability: SupportsFormat html_format:
+    our capability.supports_stage0b_format _ = ()
+
+impl markdown_only_capability: SupportsFormat markdown_format:
+    our capability.supports_stage0b_format _ = ()
+
+impl html_markdown_capability: SupportsFormat html_format:
+    our capability.supports_stage0b_format _ = ()
+
+impl html_markdown_capability: SupportsFormat markdown_format:
+    our capability.supports_stage0b_format _ = ()
+
+// This is the single flat selection boundary.  All document nodes receive the
+// one algebra returned by the selected marker's YumarkFormat implementation.
+pub run_yumark(format: 'format, document) =
+    where 'format: YumarkFormat
+    document(format, format.stage0b_algebra())
+
+pub render_html_doc(document): html_node =
+    run_yumark(html_format_value(), document)
+
+pub render_markdown_doc(document): str =
+    run_yumark(markdown_format_value(), document)
+
+pub html_only_fragment(format: 'format,
+                       algebra: yumark_algebra 'repr): 'repr =
+    where html_only_capability: SupportsFormat 'format
+    my capability = html_only_capability { marker: "html-only" }
+    my _ = capability.supports_stage0b_format(format)
+    paragraph(cons(text("HTML-only fragment"), nil), format, algebra)
+
+pub markdown_only_fragment(format: 'format,
+                           algebra: yumark_algebra 'repr): 'repr =
+    where markdown_only_capability: SupportsFormat 'format
+    my capability = markdown_only_capability { marker: "markdown-only" }
+    my _ = capability.supports_stage0b_format(format)
+    paragraph(cons(text("Markdown-only fragment"), nil), format, algebra)
+
+pub both_fragment(format: 'format,
+                  algebra: yumark_algebra 'repr): 'repr =
+    where html_markdown_capability: SupportsFormat 'format
+    my capability = html_markdown_capability { marker: "html-markdown" }
+    my _ = capability.supports_stage0b_format(format)
+    paragraph(
+        cons(strong(cons(text("shared fragment"), nil)), nil),
+        format,
+        algebra,
+    )
+
+// Composition retains independent pointwise predicates.  No combined marker
+// or document-shaped SupportsFormat receiver is created.
+pub html_and_both(format: 'format,
+                  algebra: yumark_algebra 'repr): 'repr =
+    where html_only_capability: SupportsFormat 'format
+    where html_markdown_capability: SupportsFormat 'format
+    cons(html_only_fragment, both_fragment, format, algebra)
+
+pub markdown_and_both(format: 'format,
+                      algebra: yumark_algebra 'repr): 'repr =
+    where markdown_only_capability: SupportsFormat 'format
+    where html_markdown_capability: SupportsFormat 'format
+    cons(markdown_only_fragment, both_fragment, format, algebra)
+
+pub all_three(format: 'format,
+              algebra: yumark_algebra 'repr): 'repr =
+    where html_only_capability: SupportsFormat 'format
+    where markdown_only_capability: SupportsFormat 'format
+    where html_markdown_capability: SupportsFormat 'format
+    cons(
+        html_only_fragment,
+        cons(markdown_only_fragment, both_fragment),
+        format,
+        algebra,
+    )

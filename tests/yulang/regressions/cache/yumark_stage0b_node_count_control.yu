@@ -1,0 +1,28 @@
+// Structural control for Stage 0B.  This doubles the 72-operation builder and
+// joins the two runs with one additional cons: 145 operations / 144 edges.
+// The four selection sites and the capability combinations are identical to
+// yumark_stage0b_combined_poc.yu.
+
+use mod yumark_stage0b_common::*
+
+pub doubled_document(format: 'format,
+                     algebra: yumark_algebra 'repr): 'repr =
+    cons(
+        yumark_stage0b_document,
+        yumark_stage0b_document,
+        format,
+        algebra,
+    )
+
+my html_document = render_html_doc(doubled_document)
+my markdown_document = render_markdown_doc(doubled_document)
+my html_supported = render_html_doc(html_and_both)
+my markdown_supported = render_markdown_doc(markdown_and_both)
+
+(
+    html_document.tag,
+    html_document.body,
+    markdown_document,
+    html_supported.body,
+    markdown_supported,
+)

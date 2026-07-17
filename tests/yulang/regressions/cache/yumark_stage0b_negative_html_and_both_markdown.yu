@@ -1,0 +1,9 @@
+// Expected failure at this final Markdown selection: no direct
+// SupportsFormat html_only_capability markdown_format implementation exists.
+// Exact run diagnostic:
+// compile error [yulang.unresolved-method]: no role implementation satisfies this method call
+//   detail: unresolved typeclass method d74 for receiver yumark_stage0b_common::html_only_capability -> yumark_stage0b_common::markdown_format -> unit
+//   hint: add or import an impl for the receiver type, or call a method supported by that value
+use mod yumark_stage0b_common::*
+
+render_markdown_doc(html_and_both)

@@ -1,0 +1,52 @@
+// Stage 0B injection experiment.  This exercises both existing-feature
+// directions from design Section 8.3 with payloads useful to real renderers.
+
+use mod yumark_stage0b_common::*
+
+// Direction 1: one backend-neutral code payload interpreted by each backend.
+struct portable_code_payload { language: str, body: str }
+
+struct portable_injection_algebra 'repr {
+    injected_code: portable_code_payload -> 'repr,
+}
+
+my portable_code(): portable_code_payload = portable_code_payload {
+    language: "yu",
+    body: "my answer = 42",
+}
+
+my html_portable_code(payload: portable_code_payload): html_node =
+    html_node {
+        tag: "pre",
+        body: cat4("language-", payload.language, ":", payload.body),
+    }
+
+my markdown_portable_code(payload: portable_code_payload): str =
+    cat2(cat4("```", payload.language, "\n", payload.body), "\n```\n")
+
+my html_portable_injection_algebra(): portable_injection_algebra html_node =
+    portable_injection_algebra { injected_code: html_portable_code }
+
+my markdown_portable_injection_algebra(): portable_injection_algebra str =
+    portable_injection_algebra { injected_code: markdown_portable_code }
+
+my portable_injection(algebra: portable_injection_algebra 'repr): 'repr =
+    algebra.injected_code(portable_code())
+
+my neutral_html = portable_injection(html_portable_injection_algebra())
+my neutral_markdown = portable_injection(markdown_portable_injection_algebra())
+
+// Direction 2: finite per-format thunks produce genuinely native values and
+// are forced only by the selected interpreter slot.
+my native_payload = injection_payload_value()
+my native_html = html_injected(native_payload)
+my native_markdown = markdown_injected(native_payload)
+
+(
+    neutral_html.tag,
+    neutral_html.body,
+    neutral_markdown,
+    native_html.tag,
+    native_html.body,
+    native_markdown,
+)

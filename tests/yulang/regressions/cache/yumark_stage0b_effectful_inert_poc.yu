@@ -1,0 +1,120 @@
+// Stage 0B effect experiment: the algebra constructs executable thunks.
+// Building the document is pure; clock effects occur only when `run` is
+// invoked on the selected representation.
+//
+// check-poly-std, dump-mono-std, and evidence-VM run succeed.  The current
+// interpreter and run-mono-std routes leave the host clock request unhandled;
+// this fixture intentionally preserves that Stage 0B backend-parity finding.
+
+use mod yumark_stage0b_common::*
+
+struct effect_format { marker: str }
+
+struct effectful_repr {
+    run: () -> [std::time::clock] str,
+}
+
+my effect_format_value(): effect_format =
+    effect_format { marker: "effectful" }
+
+my effect_nil(): effectful_repr =
+    effectful_repr { run: \() -> "" }
+
+my effect_cons(head: effectful_repr, tail: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat2(head.run(), tail.run()) }
+
+my effect_doc(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<doc>", child.run(), "</doc>") }
+
+my effect_text(value: str): effectful_repr = effectful_repr {
+    run: \() ->
+        my stamp = (std::time::clock::now()).show
+        cat4("<text at=", stamp, ">", cat2(value, "</text>"))
+}
+
+my effect_paragraph(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<p>", child.run(), "</p>") }
+
+my effect_heading(marker: str, level: int,
+                  child: effectful_repr): effectful_repr =
+    effectful_repr {
+        run: \() ->
+            cat4("<heading>", marker, std::int::to_string(level),
+                 cat2(child.run(), "</heading>"))
+    }
+
+my effect_blank_line(marker: str): effectful_repr =
+    effectful_repr { run: \() -> cat3("<blank>", marker, "</blank>") }
+
+my effect_section_close(marker: str,
+                        child: effectful_repr): effectful_repr =
+    effectful_repr {
+        run: \() -> cat4("<close>", marker, child.run(), "</close>"),
+    }
+
+my effect_list_block(ordered: bool,
+                     items: effectful_repr): effectful_repr =
+    effectful_repr {
+        run: \() ->
+            if ordered:
+                cat3("<ol>", items.run(), "</ol>")
+            else:
+                cat3("<ul>", items.run(), "</ul>")
+    }
+
+my effect_list_item(marker: str,
+                    child: effectful_repr): effectful_repr =
+    effectful_repr {
+        run: \() -> cat4("<li>", marker, child.run(), "</li>"),
+    }
+
+my effect_list_item_body(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<item>", child.run(), "</item>") }
+
+my effect_code_fence(info: str, body: str): effectful_repr =
+    effectful_repr {
+        run: \() -> cat4("<code>", info, ":", cat2(body, "</code>")),
+    }
+
+my effect_quote_block(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<quote>", child.run(), "</quote>") }
+
+my effect_emphasis(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<em>", child.run(), "</em>") }
+
+my effect_strong(child: effectful_repr): effectful_repr =
+    effectful_repr { run: \() -> cat3("<strong>", child.run(), "</strong>") }
+
+my effect_injected(payload: injection_payload): effectful_repr =
+    effectful_repr {
+        run: \() -> cat3("<injected>", payload.markdown(), "</injected>"),
+    }
+
+my effect_algebra(): yumark_algebra effectful_repr = yumark_algebra {
+    nil: effect_nil,
+    cons: effect_cons,
+    doc: effect_doc,
+    text: effect_text,
+    paragraph: effect_paragraph,
+    heading: effect_heading,
+    blank_line: effect_blank_line,
+    section_close: effect_section_close,
+    list_block: effect_list_block,
+    list_item: effect_list_item,
+    list_item_body: effect_list_item_body,
+    code_fence: effect_code_fence,
+    quote_block: effect_quote_block,
+    emphasis: effect_emphasis,
+    strong: effect_strong,
+    injected: effect_injected,
+}
+
+impl effect_format: YumarkFormat:
+    type repr = effectful_repr
+    our format.stage0b_algebra _ = effect_algebra()
+
+// This binding constructs only nested thunks and has no clock effect.
+my constructed = run_yumark(effect_format_value(), yumark_stage0b_document)
+
+// The effect is forced exactly here.
+constructed.run()
