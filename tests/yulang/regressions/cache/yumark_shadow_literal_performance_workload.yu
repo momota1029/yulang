@@ -1,0 +1,37 @@
+// Shadow Stage 1 Slice 3 real-literal workload.
+//
+// This is one real apostrophe-literal Yumark document, not a hand-built
+// cons/leaf tree.  Its three heading levels, styled paragraphs, two list
+// items, quote, and code fence lower to more than 70 static algebra
+// operations, matching the scale and vocabulary of the characterized proof
+// root.  The paired tests place this expression directly inside a named,
+// route-specific proof root: shadow must render it successfully, while CURRENT
+// must reproduce its separately documented, resource-limited exhaustion bug.
+
+'{# Shadow lowering at real literal scale
+A production paragraph carries *real emphasis* and **real strong text** through the parser.
+
+## Nested structure
+A second paragraph keeps *inline emphasis* while introducing the list below.
+- first item crosses the list item body boundary
+- second item keeps the sibling structure comparable
+
+The first follow-up paragraph keeps the document broad without adding a new syntax kind.
+
+The second follow-up paragraph keeps the same ordinary paragraph shape.
+
+The third follow-up paragraph exercises another sibling cons edge.
+
+The fourth follow-up paragraph remains plain static source text.
+
+The fifth follow-up paragraph brings the real role tree to proof-root scale.
+
+### Deeper evidence
+> A quoted paragraph remains part of the same literal document.
+```yulang
+my answer = 40 + 2
+answer
+```
+A closing paragraph keeps **strong closure** after the fenced block.
+#.
+}

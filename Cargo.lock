@@ -1379,6 +1379,7 @@ dependencies = [
  "evidence-vm",
  "im",
  "infer",
+ "libc",
  "mono-runtime",
  "parser",
  "poly",
