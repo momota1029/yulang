@@ -4286,13 +4286,15 @@ fn candidate_independent_fallback_early_resolution_proves_real_std_census_and_pr
     expected_infix.sort_by(|left, right| left.0.cmp(&right.0));
     assert_eq!(infix_census, expected_infix);
 
-    assert_eq!(explicit_methods, 133);
+    // Algebra-only Yumark has two format impl methods in place of the former
+    // thirty-node YumarkRender impl methods, so the std census is 28 smaller.
+    assert_eq!(explicit_methods, 105);
     assert_eq!(
         repository_std_role_impl_method_count(&disabled.modules),
-        133
+        105
     );
-    assert_eq!(captured_methods, 129);
-    assert_eq!(unchanged_ordinary, 43);
+    assert_eq!(captured_methods, 101);
+    assert_eq!(unchanged_ordinary, 21);
     changed_locations.sort();
     assert_eq!(
         changed_locations,
@@ -4315,7 +4317,7 @@ fn candidate_independent_fallback_early_resolution_proves_real_std_census_and_pr
             "std::core::fmt:121",
             "std::core::fmt:127",
             "std::core::fmt:133",
-            "std::text::yumark:145",
+            "std::text::yumark:243",
             "std::time:144",
         ],
     );

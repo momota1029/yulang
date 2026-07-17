@@ -248,8 +248,10 @@ fn assert_early_fallback_census(
         }
     }
     helped.sort_by_key(|def| def.0);
-    assert_eq!(explicit, 133, "{mode}: explicit method census drifted");
-    assert_eq!(captured, 129, "{mode}: captured method census drifted");
+    // Algebra-only Yumark has two format impl methods in place of the former
+    // thirty-node YumarkRender impl methods, so the std census is 28 smaller.
+    assert_eq!(explicit, 105, "{mode}: explicit method census drifted");
+    assert_eq!(captured, 101, "{mode}: captured method census drifted");
     assert_eq!(helped.len(), 7, "{mode}: helped-method census drifted");
 
     let parse_error = production

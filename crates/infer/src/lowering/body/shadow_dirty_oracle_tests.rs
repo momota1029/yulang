@@ -10,33 +10,35 @@ use crate::constraints::{ConstraintWeights, LeftConstraintWeight, RightConstrain
 
 #[test]
 fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
+    // The algebra-only public Yumark replaces thirty YumarkRender impl methods
+    // with two YumarkFormat impl methods, shrinking these repository-std scans.
     let cases = [
         ShadowOracleCase::fixture(
             "markdown",
             "std_prefix_yumark_markdown_workload.yu",
             Some("proof"),
             Some("render_markdown_doc"),
-            100,
-            7_526,
-            7_359,
+            94,
+            6_969,
+            6_803,
         ),
         ShadowOracleCase::fixture(
             "html",
             "std_prefix_yumark_html_fallback.yu",
             Some("proof"),
             Some("render_html_doc"),
-            100,
-            7_526,
-            7_359,
+            94,
+            6_969,
+            6_803,
         ),
         ShadowOracleCase {
             name: "repository-std-only",
             source: "use std::prelude::*\nmod std;\n".to_string(),
             target: None,
             workload_owner_label: None,
-            expected_forced_passes: Some(91),
-            expected_owner_checks: Some(6_480),
-            expected_predicted_clean: Some(6_317),
+            expected_forced_passes: Some(85),
+            expected_owner_checks: Some(5_956),
+            expected_predicted_clean: Some(5_794),
         },
         ShadowOracleCase {
             name: "repository-showcase",
@@ -191,8 +193,8 @@ fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
                 case.name
             );
             let workload_owner = workload_owner.as_ref().expect("checked above");
-            assert_eq!(workload_owner.owner_checks, 95, "{}", case.name);
-            assert_eq!(workload_owner.predicted_clean, 94, "{}", case.name);
+            assert_eq!(workload_owner.owner_checks, 89, "{}", case.name);
+            assert_eq!(workload_owner.predicted_clean, 88, "{}", case.name);
         }
         let dependency_summary = dependency_cardinality_summary(&report.dependency_cardinalities);
         let clean_time_percentage = duration_percentage(
