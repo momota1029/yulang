@@ -510,6 +510,92 @@ fn run_with_std_matches_evidence_on_core_smoke_suite() {
 
 #[cfg(unix)]
 #[test]
+fn yumark_nil_text_shadow_matches_current_html_and_markdown_bytes() {
+    let current_entry = write_main_with_std(
+        "yumark-nil-text-current-output",
+        concat!(
+            "use std::text::yumark::*\n",
+            "my empty = '[]\n",
+            "my plain = '[hello world]\n",
+            "html_tag (render_html_doc empty)\n",
+            "render_markdown_doc empty\n",
+            "html_tag (render_html_doc plain)\n",
+            "render_markdown_doc plain\n",
+        ),
+    );
+    let current = run_mono_from_entry_with_std(&current_entry).unwrap();
+
+    let shadow_entry = write_main_with_std(
+        "yumark-nil-text-shadow-output",
+        concat!(
+            "use std::text::yumark::html_tag\n",
+            "use std::text::yumark_algebra_shadow::*\n",
+            "my empty = '[]\n",
+            "my plain = '[hello world]\n",
+            "html_tag (render_html_doc empty)\n",
+            "render_markdown_doc empty\n",
+            "html_tag (render_html_doc plain)\n",
+            "render_markdown_doc plain\n",
+        ),
+    );
+    let shadow = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
+        run_mono_with_yumark_shadow_std(&shadow_entry)
+    });
+    let restored = run_mono_from_entry_with_std(&current_entry).unwrap();
+
+    let expected = "run roots [\"\", \"\", \"<span>hello world</span>\", \"hello world\"]\n";
+    assert_eq!(current.text, expected);
+    assert_eq!(shadow.text, expected);
+    assert_eq!(shadow.values, current.values);
+    assert_eq!(restored.text, current.text);
+    assert_eq!(restored.values, current.values);
+}
+
+#[cfg(unix)]
+#[test]
+fn yumark_nil_text_shadow_construction_does_not_force_interpretation_effects() {
+    let entry = write_main_with_std(
+        "yumark-nil-text-shadow-inert",
+        concat!(
+            "use std::text::yumark_algebra_shadow::{yumark_algebra}\n",
+            "struct effect_repr {\n",
+            "  marker: str,\n",
+            "  run: () -> [std::time::clock] str,\n",
+            "}\n",
+            "my effect_nil(): effect_repr = effect_repr {\n",
+            "  marker: \"\",\n",
+            "  run: \\() -> \"\",\n",
+            "}\n",
+            "my effect_cons(head: effect_repr, tail: effect_repr): effect_repr = effect_repr {\n",
+            "  marker: std::text::str::concat head.marker tail.marker,\n",
+            "  run: \\() -> std::text::str::concat (head.run()) (tail.run()),\n",
+            "}\n",
+            "my effect_text(value: str): effect_repr = effect_repr {\n",
+            "  marker: value,\n",
+            "  run: \\() ->\n",
+            "    my _ = std::time::clock::now()\n",
+            "    value\n",
+            "}\n",
+            "my effect_algebra(): yumark_algebra effect_repr = yumark_algebra {\n",
+            "  nil: effect_nil,\n",
+            "  cons: effect_cons,\n",
+            "  text: effect_text,\n",
+            "}\n",
+            "my document = '[hello world]\n",
+            "my selected = document((), effect_algebra())\n",
+            "selected.marker\n",
+        ),
+    );
+
+    let output = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
+        run_mono_with_yumark_shadow_std(&entry)
+    });
+
+    assert_eq!(output.text, "run roots [\"hello world\"]\n");
+}
+
+#[cfg(unix)]
+#[test]
 fn run_with_std_runs_list_view_raw_node() {
     let root = temp_root("run-std-list-view-raw-node");
     let _ = fs::remove_dir_all(&root);

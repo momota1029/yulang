@@ -1,0 +1,76 @@
+// Internal Shadow Stage 1 algebra for the nil/cons/text lowering slice.
+// This module is intentionally absent from std::text's public module list.
+
+use std::text::str::str
+use std::text::yumark::{
+    html_format, markdown_format, html_node,
+    html_format_value, markdown_format_value, html_tag,
+}
+
+pub struct yumark_algebra 'repr {
+    nil: () -> 'repr,
+    cons: 'repr -> 'repr -> 'repr,
+    text: str -> 'repr,
+}
+
+pub role YumarkAlgebraShadowFormat 'format:
+    type repr
+    our format.yumark_algebra_shadow: () -> yumark_algebra repr
+
+pub nil(format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.nil()
+
+pub cons(head, tail, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.cons(head(format, algebra), tail(format, algebra))
+
+pub text(value: str, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.text(value)
+
+my html_nil(): html_node =
+    html_node { tag: "fragment", body: "" }
+
+my html_cons(head: html_node, tail: html_node): html_node =
+    html_node {
+        tag: "fragment",
+        body: std::text::str::concat (html_tag head) (html_tag tail),
+    }
+
+my html_text(value: str): html_node =
+    html_node { tag: "span", body: value }
+
+pub html_algebra(): yumark_algebra html_node = yumark_algebra {
+    nil: html_nil,
+    cons: html_cons,
+    text: html_text,
+}
+
+my markdown_nil(): str = ""
+
+my markdown_cons(head: str, tail: str): str =
+    std::text::str::concat head tail
+
+my markdown_text(value: str): str = value
+
+pub markdown_algebra(): yumark_algebra str = yumark_algebra {
+    nil: markdown_nil,
+    cons: markdown_cons,
+    text: markdown_text,
+}
+
+impl html_format: YumarkAlgebraShadowFormat:
+    type repr = html_node
+    our format.yumark_algebra_shadow _ = html_algebra()
+
+impl markdown_format: YumarkAlgebraShadowFormat:
+    type repr = str
+    our format.yumark_algebra_shadow _ = markdown_algebra()
+
+pub run_yumark(format: 'format, document) =
+    where 'format: YumarkAlgebraShadowFormat
+    document(format, format.yumark_algebra_shadow())
+
+pub render_html_doc(document): html_node =
+    run_yumark(html_format_value(), document)
+
+pub render_markdown_doc(document): str =
+    run_yumark(markdown_format_value(), document)

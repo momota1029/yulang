@@ -30,6 +30,9 @@ mod signature_match;
 mod string_lit;
 mod yumark_lit;
 
+#[doc(hidden)]
+pub use yumark_lit::with_yumark_algebra_shadow_lowering;
+
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};

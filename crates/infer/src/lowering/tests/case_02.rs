@@ -289,6 +289,40 @@ fn mark_expr_empty_inline_lowers_to_yumark_nil() {
 }
 
 #[test]
+fn mark_expr_shadow_scope_redirects_only_inline_nil_text_and_restores_default() {
+    let source = "pub main = '[hello world]\n";
+    let current = lower_yumark_main_with_shadow_std(source);
+    assert!(current.errors.is_empty(), "{:?}", current.errors);
+    let current_dump = poly::dump::dump_arena_with_labels(&current.session.poly, &current.labels);
+    let current_heads = assert_yumark_chain(&current, yumark_main_body(&current), 1);
+    assert_text_leaf_application(&current, current_heads[0], "hello world");
+
+    let shadow = with_yumark_algebra_shadow_lowering(|| lower_yumark_main_with_shadow_std(source));
+    assert!(shadow.errors.is_empty(), "{:?}", shadow.errors);
+    assert_shadow_yumark_chain(&shadow, yumark_main_body(&shadow), "hello world");
+
+    let shadow_empty = with_yumark_algebra_shadow_lowering(|| {
+        lower_yumark_main_with_shadow_std("pub main = '[]\n")
+    });
+    assert!(shadow_empty.errors.is_empty(), "{:?}", shadow_empty.errors);
+    assert_shadow_yumark_ref(&shadow_empty, yumark_main_body(&shadow_empty), "nil");
+
+    let rich = with_yumark_algebra_shadow_lowering(|| {
+        lower_yumark_main_with_shadow_std("pub main = '[plain *em*]\n")
+    });
+    assert!(rich.errors.is_empty(), "{:?}", rich.errors);
+    let rich_heads = assert_yumark_chain(&rich, yumark_main_body(&rich), 2);
+    assert_text_leaf_application(&rich, rich_heads[0], "plain ");
+    assert_yumark_ctor(&rich, rich_heads[1], "emphasis_leaf");
+
+    let restored = lower_yumark_main_with_shadow_std(source);
+    assert!(restored.errors.is_empty(), "{:?}", restored.errors);
+    let restored_dump =
+        poly::dump::dump_arena_with_labels(&restored.session.poly, &restored.labels);
+    assert_eq!(restored_dump, current_dump);
+}
+
+#[test]
 fn mark_expr_inline_emphasis_and_strong_lower_to_container_leaves() {
     let output = lower_yumark_main("pub main = '[plain *em* **strong**]\n");
 
@@ -469,6 +503,11 @@ fn lower_yumark_main(src: &str) -> BodyLowering {
     lower_binding_bodies(&root, lower)
 }
 
+fn lower_yumark_main_with_shadow_std(src: &str) -> BodyLowering {
+    let (root, lower) = lower_with_text_yumark_shadow_std(src);
+    lower_binding_bodies(&root, lower)
+}
+
 fn yumark_main_body(output: &BodyLowering) -> ExprId {
     let module = output.modules.root_id();
     let main = output.modules.value_decls(module, &Name("main".into()))[0].def;
@@ -547,6 +586,34 @@ fn assert_nil_application(output: &BodyLowering, expr: ExprId) {
         output.session.poly.expr(arg),
         Expr::Lit(Lit::Unit)
     ));
+}
+
+fn assert_shadow_yumark_chain(output: &BodyLowering, expr: ExprId, expected_text: &str) {
+    let cons = text_yumark_shadow_def(&output.modules, "cons");
+    let text = text_yumark_shadow_def(&output.modules, "text");
+    let (cons_partial, tail) = match output.session.poly.expr(expr) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected shadow cons application"),
+    };
+    let head = match output.session.poly.expr(cons_partial) {
+        Expr::App(callee, arg) => {
+            assert_eq!(root_ref_target(&output.session, *callee), Some(cons));
+            *arg
+        }
+        _ => panic!("expected partial shadow cons application"),
+    };
+    let (callee, value) = match output.session.poly.expr(head) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected shadow text application"),
+    };
+    assert_eq!(root_ref_target(&output.session, callee), Some(text));
+    assert_str_lit(output, value, expected_text);
+    assert_shadow_yumark_ref(output, tail, "nil");
+}
+
+fn assert_shadow_yumark_ref(output: &BodyLowering, expr: ExprId, name: &str) {
+    let expected = text_yumark_shadow_def(&output.modules, name);
+    assert_eq!(root_ref_target(&output.session, expr), Some(expected));
 }
 
 fn assert_str_lit(output: &BodyLowering, expr: ExprId, expected: &str) {
