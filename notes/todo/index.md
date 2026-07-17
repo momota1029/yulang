@@ -38,6 +38,8 @@
    - `yulang-editor` を playground と LS の共有 editor surface にする。
    - `.list` などの巨大型や内部 evidence が hover に漏れないようにする。
    - Zed dev extension から `yulang server` を使う導線を保つ。
+   - doc-comment Markdown の lazy per-hover Yumark 評価は、単発なら数値的に
+     再検討可能になったが、API prerequisite が未解決の探索項目として保留する。
 4. `release.md`
    - cargo 前提の起動・配布から離れ、binary/std/playground/LS artifact を release 単位にする。
    - `yulang install std`、cache 互換、Zed/LS binary discovery を release smoke として固定する。
