@@ -998,3 +998,235 @@ before production migration begins.
   machinery, direct pointwise support predicates, and the approximately 304.5-microsecond / four-fact
   flat-role measurement. Stage 0B must turn the relevant flat-role and capability cases into retained
   reproducible fixtures.
+
+## 13. Shadow Stage 1 complete (2026-07-17): closeout and migration decision proposal
+
+Shadow Stage 1 is complete as a validation project. It does **not** activate algebra-passing
+lowering, change the public stdlib, authorize a compatibility policy, or close the separately
+tracked CURRENT-route memory-exhaustion bug. The production default remains the typed cons tree
+until the user chooses a migration path from section 13.5.
+
+### 13.1 Slice results
+
+Shadow Stage 1 landed in three production-inactive slices:
+
+1. **Slice 1 — nil/text-only shadow lowering (`cdb8d0a8`).** The internal lowering scope redirected
+   only empty and plain-text literals to the algebra-passing vocabulary. HTML and Markdown output
+   was byte-identical to CURRENT, leaving the shadow scope restored byte-identical CURRENT poly and
+   runtime results, and an effectful representation proved that document construction remained
+   inert: interpretation effects were not forced until the selected representation was run. The
+   scope was hidden, had no CLI entry, and did not change the parser or public default.
+2. **Slice 2 — full currently lowerable static vocabulary (`5c89ed9a`).** The shadow grew to cover
+   emphasis, strong, paragraphs, headings, blank lines, section closes, lists and list internals,
+   code fences, quotes, text, cons, and nil. One rich literal produced byte-identical HTML and
+   Markdown through CURRENT and shadow. Comparing a plain document with that rich document left
+   flat format-role demands, scans, and matches unchanged and kept prerequisite demands, scans, and
+   matches at zero. An intermediate generated partial application exposed a real
+   `ConflictingTypeCandidates` specialization conflict between `str` and `html_node`; the slice was
+   not accepted with that regression. Eta-expanding every generated document into explicit format
+   and algebra lambdas restored ordinary representation generalization and independent HTML and
+   Markdown specialization before commit.
+3. **Slice 3 — real-literal scale (`b67db4f5`).** A real apostrophe literal with more than 70 static
+   algebra operations, matching the vocabulary and scale of the characterized `proof` root, was
+   placed inside an ordinary named/generalized definition. The shadow route compiled,
+   specialized, and rendered structurally sane HTML and Markdown cleanly and promptly under a hard
+   process resource limit. The corresponding CURRENT route did not reach a parity result: during
+   check/generalization it exhausted memory and aborted. An independent 4 GiB-limited run crossed
+   4 GiB RSS and failed after about 51 seconds; the retained regression now fails closed inside a
+   child process with a 3 GiB address-space limit and core dumps disabled. This is a genuine,
+   severe, previously undiscovered production bug in a completely ordinary usage pattern, not a
+   shadow defect.
+
+The Slice 3 failure is documented separately in
+`notes/bugs/2026-07-17-yumark-generalization-memory-exhaustion.md`. Its solver-level root cause and
+fix are explicitly outside this migration project. The quarantined regression must retain its OS
+resource limits, and a future migration must not claim to have fixed the CURRENT solver merely
+because ordinary literals stop entering that path.
+
+### 13.2 What Stage 1 now proves
+
+The completed evidence supports three distinct conclusions:
+
+1. **Correct output.** At safe paired scale, nil/text and rich static literals have exact byte
+   parity for both renderers. At real-document scale, where CURRENT cannot complete, shadow still
+   compiles, specializes, and renders both representations with the expected structural markers.
+   The latter is a success/safety oracle, not a false byte-parity claim.
+2. **Dramatically lower compile cost.** The 72-operation Stage 0A and full-vocabulary Stage 0B
+   controls measured 98.7-99.675% reductions in role-resolution time relative to the current
+   role-shaped workload, while the retained rich shadow comparison confirms zero growth in
+   prerequisite role scans as document vocabulary grows. Slice 3 cannot honestly report another
+   paired percentage because CURRENT exhausts memory before completing. That non-completion makes
+   the practical real-document difference larger, not a reason to invent a timing ratio.
+3. **Categorically safer for realistic documents.** The current implementation can terminate the
+   compiler through multi-gigabyte memory exhaustion when an ordinary real-sized literal is used in
+   a named definition. The algebra-passing shadow cannot trigger this failure class because it
+   never constructs or resolves the per-node recursive role tree. It is therefore not merely a
+   faster equivalent path; for this realistic workload shape it removes the mechanism which makes
+   CURRENT unsafe.
+
+Taken together, Stage 0B and Shadow Stage 1 have closed the core validation gap identified in
+section 10: the existing-feature algebra-passing design works through actual lowering, preserves
+output and construction inertness at paired scale, stays flat as the static vocabulary grows, and
+survives the real scale at which CURRENT crashes. Migration is now well-motivated for basic compiler
+safety as well as performance. This is an honest reason to migrate, not evidence that the migration
+itself is trivial or that its public API choices have already been made.
+
+### 13.3 Remaining migration work and decisions
+
+Making the shadow architecture the production default is still a meaningful engineering project.
+At minimum it must:
+
+- replace or reorganize `lib/std/text/yumark.yu` so its public implementation is the nominal
+  algebra plus HTML and Markdown algebra values rather than the recursive `YumarkRender` tree;
+- change `crates/infer/src/lowering/yumark_lit.rs` so eta-expanded algebra-passing builders are the
+  default for supported literals, while retaining an explicit test/rollback control long enough to
+  compare routes;
+- settle the public spelling of the algebra, builder combinators, format selection, and render
+  wrappers. The common literal-facing source can remain as small as:
+
+  ```yu
+  use std::text::yumark::{html_tag, render_html_doc, render_markdown_doc}
+
+  my article = '{# Algebra-passing Yumark
+  A document remains an ordinary let-generalized value.
+  #.
+  }
+
+  html_tag (render_html_doc article)
+  render_markdown_doc article
+  ```
+
+  Internally, `article` is an eta-expanded rank-1 builder and both calls instantiate it separately;
+  it is not a `cons_cell` / `doc_leaf` value;
+- decide what happens to source which directly constructs `cons_cell`, `doc_leaf`, or the other
+  leaf structs, and ensure no compatibility adapter rebuilds the recursive tree for new builders;
+- choose one of section 8.3's validated injection directions: a backend-neutral algebra operation
+  or a finite payload with one monomorphic thunk per supported format. Stage 0B proved both
+  directions are expressible, but Shadow Stage 1 still rejects `YmCommand` and `YmInlineExpr` and
+  did not carry either direction through real lowering; and
+- settle the public effect-row shape and parity gate. Stage 0B proved construction inertness and
+  effectful execution under the evidence VM, while also recording the pre-existing legacy
+  interpreter/mono-runtime effect-handling gap. Shadow Stage 1 revalidated inert construction but
+  did not establish complete effectful real-lowering or VM/native parity.
+
+Injection and effects may either be explicit prerequisites for the default switch or explicitly
+deferred unsupported features, but that product decision must be made before the migration is
+described as full public parity. It must not be hidden inside a supposedly mechanical flip.
+
+### 13.4 Repository compatibility inventory
+
+A repository-wide search for `cons_cell` and `doc_leaf` found one tracked consumer which imports the
+actual public stdlib and manually constructs a tree:
+
+- `tests/yulang/regressions/cache/std_prefix_role_equivalence.yu` builds a small `doc_leaf` /
+  `cons` / leaf-struct canary against `std::text::yumark`.
+
+The other matches do not establish further public-API consumers. The two
+`std_prefix_yumark_*` performance workloads and the two `examples/yumark_typed_*_poc.yu` files
+declare private copies of the old vocabulary; they characterize the old architecture rather than
+importing its public types. `examples/yumark_lowering_plain_text_poc.yu` uses only an apostrophe
+literal and render wrappers. No other tracked `.yu` source both imports `std::text::yumark` and
+manually constructs a typed tree.
+
+This makes the known in-repository source migration small, but it says nothing about untracked or
+external users. Because `cons_cell` and the leaf structs are public today, absence of another repo
+consumer is evidence for blast-radius estimation, not proof that a breaking switch is harmless.
+
+### 13.5 Concrete migration paths for user decision
+
+All three paths below make the new path production-quality rather than exposing the test-only
+shadow module as-is. They differ in compatibility policy and activation timing.
+
+#### Option A — direct clean switch
+
+Make algebra-passing literals and algebras the only public Yumark model in the migration change.
+Keep the familiar `render_html_doc` / `render_markdown_doc` convenience calls where their behavior
+fits, but remove the public typed-tree structs, recursive role, and manual-tree constructors rather
+than carrying a legacy runtime. Update the one in-repository public-API canary to an algebra-builder
+equivalent and retain separate historical workload fixtures for solver regression coverage.
+
+Tradeoffs:
+
+- shortest implementation and test matrix, with no unsafe legacy path left looking supported;
+- quickest route to making ordinary named literals safe by default;
+- clearest long-term API and no temporary names to remove later;
+- immediate source break for any external direct `cons_cell` / `doc_leaf` / leaf-struct construction;
+  and
+- weakest source-level rollback story if unknown users depend on typed-tree extension.
+
+This path is most defensible if Yumark's current public construction API is explicitly experimental
+and a clean break is acceptable.
+
+#### Option B — default switch with a bounded compatibility layer (recommended balance, not decided)
+
+Make algebra passing the default immediately after the focused migration gates pass. Preserve the
+ordinary literal and render-wrapper surface above. Familiar constructor *functions* may remain as
+deprecated builder combinators where their signatures can honestly return builders. Move the old
+concrete structs, recursive `YumarkRender`, and old render entrypoints into a proposed explicit
+deprecated `std::text::yumark_legacy` manual-construction module for one announced compatibility
+window. Do not adapt a new builder to the legacy tree or choose the legacy path by inspecting names
+or inferred shapes.
+
+Tradeoffs:
+
+- removes the crash mechanism from the default literal path while retaining a deliberate escape
+  hatch for manual-tree code;
+- gives external users a concrete rewrite window and keeps rollback evidence available;
+- preserves common literal-facing source even though direct struct-literal construction needs an
+  import/path change;
+- temporarily maintains two implementations and two focused regression surfaces;
+- leaves the known memory-exhaustion mechanism reachable in the deprecated legacy path, so that
+  path must be documented as manual-only and unsafe for large named trees; and
+- requires an explicit removal date or review gate, otherwise “temporary” becomes permanent dual
+  architecture.
+
+Given the severe default-path bug and the small known repo blast radius, this is the strongest
+current recommendation: it moves safe ordinary usage promptly without pretending that a public
+typed-tree API never existed. The recommendation does not authorize the choice.
+
+#### Option C — extended side-by-side period with an explicit compiler/project mode
+
+Publish the algebra module and wrappers while retaining CURRENT as the default, and add an explicit
+toolchain or project switch which selects matching lowering and stdlib surfaces as one mode. Run
+the paired corpus under both modes, seek external compatibility evidence, and return for a second
+activation decision before changing the default. After activation, the switch could temporarily
+serve as rollback rather than silently selecting a route per expression.
+
+Tradeoffs:
+
+- strongest observation window for unknown external direct-tree users and easiest whole-mode
+  rollback;
+- allows injection/effect decisions and diagnostics to mature before activation;
+- keeps the known crash-prone implementation as the ordinary default for longer, which is a real
+  safety cost rather than a neutral delay;
+- adds configuration, documentation, and a doubled compatibility matrix to a design whose core
+  parity is already established; and
+- risks two public Yumark dialects and long-lived mode-dependent types if the activation date is not
+  fixed up front.
+
+This path is justified only if unknown external compatibility risk is judged more important than
+promptly removing the demonstrated default-path safety hazard.
+
+### 13.6 Updated migration-only size and risk
+
+This estimate is specifically for turning the proven algebra-passing path into the production
+stdlib/lowering default. It is separate from section 9's **M / medium** core-design estimate and
+does not re-estimate the already completed Stage 0B/Shadow Stage 1 investigation.
+
+| Migration policy | Size | Risk | Dominant risk |
+| --- | ---: | ---: | --- |
+| Option A: clean direct switch, static vocabulary | S-M | medium | Public source break and complete parity corpus |
+| Option B: default switch plus bounded legacy layer | M | medium | Dual API ownership, deprecation boundary, legacy safety warning |
+| Option C: extended side-by-side compiler/project mode | M-L | medium-high | Mode-coupled lowering/stdlib behavior and doubled test matrix |
+
+For any option, including injection and effectful interpretation as day-one parity rather than an
+explicitly deferred surface raises the actual migration to approximately **M-L / medium-high**,
+consistent with section 9's complete-migration estimate. The known static-vocabulary default flip
+is no longer high algorithmic risk: its generated builder shape, specialization repair, output,
+flat role cost, and real-scale safety have all been exercised. Its remaining risk is public API and
+compatibility work, plus the unchosen injection/effect contract.
+
+**OPEN DECISION — explicit user sign-off required:** choose Option A, B, or C; choose whether
+injection and full effect parity gate the default switch or remain explicitly deferred; and choose
+the lifetime, if any, of the old typed-tree API. No migration step begins and no public stdlib or
+lowering default changes until that decision is made.
