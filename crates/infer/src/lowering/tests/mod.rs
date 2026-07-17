@@ -30,13 +30,6 @@ fn lower_with_text_yumark_std(src: &str) -> (Cst, Lower) {
     (root, lower)
 }
 
-fn lower_with_text_yumark_shadow_std(src: &str) -> (Cst, Lower) {
-    let source = text_yumark_shadow_std_source(src);
-    let root = parse(&source);
-    let lower = crate::module_map::lower_module_map_with_source(&root, &source);
-    (root, lower)
-}
-
 fn text_yumark_std_source(src: &str) -> String {
     format!(
         concat!(
@@ -45,36 +38,6 @@ fn text_yumark_std_source(src: &str) -> String {
             "    pub mod str:\n",
             "      pub type str\n",
             "    pub mod yumark:\n",
-            "      use std::text::str::str\n",
-            "      pub struct nil_cell {{ marker: str }}\n",
-            "      pub struct cons_cell 'head 'tail {{ head: 'head, tail: 'tail }}\n",
-            "      pub struct doc_leaf 'children {{ children: 'children }}\n",
-            "      pub struct text_leaf {{ value: str }}\n",
-            "      pub struct paragraph_leaf 'children {{ children: 'children }}\n",
-            "      pub struct heading_leaf 'children {{ marker: str, level: int, children: 'children }}\n",
-            "      pub struct blank_line_leaf {{ marker: str }}\n",
-            "      pub struct section_close_leaf 'children {{ marker: str, children: 'children }}\n",
-            "      pub struct list_block_leaf 'items {{ ordered: bool, items: 'items }}\n",
-            "      pub struct list_item_leaf 'children {{ marker: str, children: 'children }}\n",
-            "      pub struct list_item_body_leaf 'children {{ children: 'children }}\n",
-            "      pub struct code_fence_leaf {{ info: str, body: str }}\n",
-            "      pub struct quote_block_leaf 'children {{ children: 'children }}\n",
-            "      pub struct emphasis_leaf 'children {{ children: 'children }}\n",
-            "      pub struct strong_leaf 'children {{ children: 'children }}\n",
-            "      pub nil() = nil_cell {{ marker: \"nil\" }}\n",
-            "      pub cons head tail = cons_cell {{ head: head, tail: tail }}\n",
-            "{}",
-        ),
-        src
-    )
-}
-
-fn text_yumark_shadow_std_source(src: &str) -> String {
-    let current = text_yumark_std_source("");
-    format!(
-        concat!(
-            "{}",
-            "    pub mod yumark_algebra_shadow:\n",
             "      pub nil format algebra = algebra\n",
             "      pub cons head tail format algebra = algebra\n",
             "      pub text value format algebra = algebra\n",
@@ -91,7 +54,7 @@ fn text_yumark_shadow_std_source(src: &str) -> String {
             "      pub strong children format algebra = algebra\n",
             "{}",
         ),
-        current, src,
+        src
     )
 }
 
@@ -220,16 +183,6 @@ fn text_yumark_def(modules: &ModuleTable, name: &str) -> DefId {
     modules
         .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
         .unwrap_or_else(|| panic!("std text yumark value {name}"))
-}
-
-fn text_yumark_shadow_def(modules: &ModuleTable, name: &str) -> DefId {
-    let path = ["std", "text", "yumark_algebra_shadow", name]
-        .into_iter()
-        .map(|segment| Name(segment.to_string()))
-        .collect::<Vec<_>>();
-    modules
-        .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
-        .unwrap_or_else(|| panic!("std text Yumark shadow value {name}"))
 }
 
 fn control_flow_loop_for_in_def(modules: &ModuleTable) -> DefId {

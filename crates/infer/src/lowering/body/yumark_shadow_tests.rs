@@ -1,22 +1,18 @@
 use super::*;
 
 #[test]
-fn yumark_full_static_shadow_role_scans_stop_at_flat_format_selection() {
-    let plain = minimal_shadow_loaded(concat!(
-        "use std::text::yumark::html_tag\n",
-        "use std::text::yumark_algebra_shadow::*\n",
+fn yumark_full_static_role_scans_stop_at_flat_format_selection() {
+    let plain = minimal_yumark_loaded(concat!(
+        "use std::text::yumark::*\n",
         "my plain = '[hello world]\n",
         "html_tag (render_html_doc plain)\n",
         "render_markdown_doc plain\n",
     ));
-    let plain = crate::lowering::with_yumark_algebra_shadow_lowering(|| {
-        lower_loaded_files(&plain).expect("lower plain shadow source")
-    });
+    let plain = lower_loaded_files(&plain).expect("lower plain Yumark source");
     assert!(plain.errors.is_empty(), "{:?}", plain.errors);
 
-    let rich = minimal_shadow_loaded(concat!(
-        "use std::text::yumark::html_tag\n",
-        "use std::text::yumark_algebra_shadow::*\n",
+    let rich = minimal_yumark_loaded(concat!(
+        "use std::text::yumark::*\n",
         "my rich = '{## Static vocabulary\n",
         "Paragraph with *emphasis* and **strong**.\n",
         "\n",
@@ -32,18 +28,16 @@ fn yumark_full_static_shadow_role_scans_stop_at_flat_format_selection() {
         "html_tag (render_html_doc rich)\n",
         "render_markdown_doc rich\n",
     ));
-    let rich = crate::lowering::with_yumark_algebra_shadow_lowering(|| {
-        lower_loaded_files(&rich).expect("lower rich shadow source")
-    });
+    let rich = lower_loaded_files(&rich).expect("lower rich Yumark source");
     assert!(rich.errors.is_empty(), "{:?}", rich.errors);
 
     // This source universe contains exactly one role, the two-candidate flat
-    // YumarkAlgebraShadowFormat mapping. Any prerequisite scan would therefore
+    // YumarkFormat mapping. Any prerequisite scan would therefore
     // be recursive format evidence rather than unrelated stdlib traffic.
     let plain_stats = plain.timing.analysis;
     let rich_stats = rich.timing.analysis;
     eprintln!(
-        "Yumark shadow role scans: plain demands/scans/matches={}/{}/{} prerequisite={}/{}/{}; rich demands/scans/matches={}/{}/{} prerequisite={}/{}/{}",
+        "Yumark role scans: plain demands/scans/matches={}/{}/{} prerequisite={}/{}/{}; rich demands/scans/matches={}/{}/{} prerequisite={}/{}/{}",
         plain_stats.role_resolve_demands,
         plain_stats.role_resolve_candidate_scans,
         plain_stats.role_resolve_candidate_matches,
@@ -77,10 +71,31 @@ fn yumark_full_static_shadow_role_scans_stop_at_flat_format_selection() {
     assert_eq!(rich_stats.role_resolve_prerequisite_candidate_matches, 0);
 }
 
-fn minimal_shadow_loaded(root: &str) -> Vec<LoadedFile> {
+fn minimal_yumark_loaded(root: &str) -> Vec<LoadedFile> {
     sources::load(vec![
         source_file(&[], root),
-        source_file(&["std"], "pub mod text;\npub mod int;\npub mod control;\n"),
+        source_file(
+            &["std"],
+            "pub mod core;\npub mod text;\npub mod int;\npub mod control;\n",
+        ),
+        source_file(&["std", "core"], "pub mod cmp;\npub mod ops;\n"),
+        source_file(
+            &["std", "core", "cmp"],
+            concat!(
+                "use std::text::str::str\n",
+                "pub role Eq 'a:\n",
+                "  pub a.eq: 'a -> bool\n",
+                "impl str: Eq:\n",
+                "  our x.eq y = std::text::str::eq x y\n",
+            ),
+        ),
+        source_file(
+            &["std", "core", "ops"],
+            concat!(
+                "use std::core::cmp::*\n",
+                "pub infix (==) 3.0.0 3.0.1 = \\x -> \\y -> x.eq y\n",
+            ),
+        ),
         source_file(
             &["std", "int"],
             concat!(
@@ -96,37 +111,25 @@ fn minimal_shadow_loaded(root: &str) -> Vec<LoadedFile> {
         ),
         source_file(
             &["std", "text"],
-            concat!(
-                "pub mod str;\n",
-                "pub mod yumark;\n",
-                "mod yumark_algebra_shadow;\n",
-            ),
+            concat!("pub mod str;\n", "pub mod yumark;\n",),
         ),
         source_file(
             &["std", "text", "str"],
             concat!(
                 "pub type str\n",
                 "pub concat(left: str, right: str): str = left\n",
+                "pub eq(left: str, right: str): bool = true\n",
             ),
         ),
         source_file(
             &["std", "text", "yumark"],
-            concat!(
-                "use std::text::str::str\n",
-                "pub struct html_format { marker: str }\n",
-                "pub struct markdown_format { marker: str }\n",
-                "pub struct html_node { tag: str, body: str }\n",
-                "pub html_format_value(): html_format = html_format { marker: \"html\" }\n",
-                "pub markdown_format_value(): markdown_format = markdown_format { marker: \"markdown\" }\n",
-                "pub html_tag(node: html_node): str = node.body\n",
+            &format!(
+                "use std::core::ops::*\n{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../lib/std/text/yumark.yu"
+                ))
             ),
-        ),
-        source_file(
-            &["std", "text", "yumark_algebra_shadow"],
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../lib/std/text/yumark_algebra_shadow.yu"
-            )),
         ),
     ])
 }
