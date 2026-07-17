@@ -1,0 +1,178 @@
+// Stage 0A semantic oracle for the weak, rank-1 Yumark design.
+//
+// The document below mirrors the characterized proof root: 28 binary cons
+// applications, 15 unary wrappers, 29 terminal text/nil operations, and thus
+// 72 algebra operations connected by 71 representation-typed edges.  It uses
+// only ordinary functions, records, and let-generalization; no Yumark role or
+// associated representation type participates in construction.
+
+pub struct yumark_algebra 'repr {
+    nil: () -> 'repr,
+    cons: ('repr, 'repr) -> 'repr,
+    text: str -> 'repr,
+    container: 'repr -> 'repr,
+    inline: 'repr -> 'repr,
+}
+
+pub yumark_final_document(algebra: yumark_algebra 'repr): 'repr =
+    algebra.container(
+        algebra.cons(
+            algebra.container(
+                algebra.cons(
+                    algebra.text("Typed Static Yumark Vocabulary"),
+                    algebra.nil(),
+                ),
+            ),
+            algebra.cons(
+                algebra.container(
+                    algebra.cons(
+                        algebra.text("A paragraph with "),
+                        algebra.cons(
+                            algebra.inline(
+                                algebra.cons(
+                                    algebra.text("emphasis"),
+                                    algebra.nil(),
+                                ),
+                            ),
+                            algebra.cons(
+                                algebra.text(" and "),
+                                algebra.cons(
+                                    algebra.inline(
+                                        algebra.cons(
+                                            algebra.text("strong text"),
+                                            algebra.nil(),
+                                        ),
+                                    ),
+                                    algebra.cons(
+                                        algebra.text("."),
+                                        algebra.nil(),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                algebra.cons(
+                    algebra.text("\n"),
+                    algebra.cons(
+                        algebra.container(
+                            algebra.cons(
+                                algebra.container(
+                                    algebra.cons(
+                                        algebra.container(
+                                            algebra.cons(
+                                                algebra.text("first item with "),
+                                                algebra.cons(
+                                                    algebra.inline(
+                                                        algebra.cons(
+                                                            algebra.text("inline style"),
+                                                            algebra.nil(),
+                                                        ),
+                                                    ),
+                                                    algebra.nil(),
+                                                ),
+                                            ),
+                                        ),
+                                        algebra.nil(),
+                                    ),
+                                ),
+                                algebra.cons(
+                                    algebra.container(
+                                        algebra.cons(
+                                            algebra.container(
+                                                algebra.cons(
+                                                    algebra.inline(
+                                                        algebra.cons(
+                                                            algebra.text("second item"),
+                                                            algebra.nil(),
+                                                        ),
+                                                    ),
+                                                    algebra.nil(),
+                                                ),
+                                            ),
+                                            algebra.nil(),
+                                        ),
+                                    ),
+                                    algebra.nil(),
+                                ),
+                            ),
+                        ),
+                        algebra.cons(
+                            algebra.text("```text\nline one\nline two\n```"),
+                            algebra.cons(
+                                algebra.container(
+                                    algebra.cons(
+                                        algebra.container(
+                                            algebra.cons(
+                                                algebra.text("quoted paragraph with "),
+                                                algebra.cons(
+                                                    algebra.text("injected content"),
+                                                    algebra.nil(),
+                                                ),
+                                            ),
+                                        ),
+                                        algebra.nil(),
+                                    ),
+                                ),
+                                algebra.cons(
+                                    algebra.container(
+                                        algebra.cons(
+                                            algebra.text(" close current section"),
+                                            algebra.nil(),
+                                        ),
+                                    ),
+                                    algebra.nil(),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+struct html_node { tag: str, body: str }
+
+my html_nil(): html_node = html_node { tag: "fragment", body: "" }
+
+my html_cons(head: html_node, tail: html_node): html_node =
+    html_node { tag: head.tag, body: tail.body }
+
+my html_text(value: str): html_node = html_node { tag: "span", body: value }
+
+my html_container(child: html_node): html_node =
+    html_node { tag: "section", body: child.body }
+
+my html_inline(child: html_node): html_node =
+    html_node { tag: "em", body: child.body }
+
+my html_algebra(): yumark_algebra html_node = yumark_algebra {
+    nil: html_nil,
+    cons: html_cons,
+    text: html_text,
+    container: html_container,
+    inline: html_inline,
+}
+
+my markdown_nil(): str = ""
+
+my markdown_cons(head: str, tail: str): str = if true: head else: tail
+
+my markdown_text(value: str): str = value
+
+my markdown_container(child: str): str = child
+
+my markdown_inline(child: str): str = child
+
+my markdown_algebra(): yumark_algebra str = yumark_algebra {
+    nil: markdown_nil,
+    cons: markdown_cons,
+    text: markdown_text,
+    container: markdown_container,
+    inline: markdown_inline,
+}
+
+my html_document: html_node = yumark_final_document(html_algebra())
+my markdown_document: str = yumark_final_document(markdown_algebra())
+
+markdown_document
