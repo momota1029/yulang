@@ -1,4 +1,4 @@
-// Internal Shadow Stage 1 algebra for the nil/cons/text lowering slice.
+// Internal Shadow Stage 1 algebra for the current static lowering vocabulary.
 // This module is intentionally absent from std::text's public module list.
 
 use std::text::str::str
@@ -11,6 +11,17 @@ pub struct yumark_algebra 'repr {
     nil: () -> 'repr,
     cons: 'repr -> 'repr -> 'repr,
     text: str -> 'repr,
+    paragraph: 'repr -> 'repr,
+    heading: str -> int -> 'repr -> 'repr,
+    blank_line: str -> 'repr,
+    section_close: str -> 'repr -> 'repr,
+    list_block: bool -> 'repr -> 'repr,
+    list_item: str -> 'repr -> 'repr,
+    list_item_body: 'repr -> 'repr,
+    code_fence: str -> str -> 'repr,
+    quote_block: 'repr -> 'repr,
+    emphasis: 'repr -> 'repr,
+    strong: 'repr -> 'repr,
 }
 
 pub role YumarkAlgebraShadowFormat 'format:
@@ -26,6 +37,49 @@ pub cons(head, tail, format: 'format, algebra: yumark_algebra 'repr): 'repr =
 pub text(value: str, format: 'format, algebra: yumark_algebra 'repr): 'repr =
     algebra.text(value)
 
+pub paragraph(children, format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.paragraph(children(format, algebra))
+
+pub heading(marker: str, level: int, children,
+            format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.heading(marker, level, children(format, algebra))
+
+pub blank_line(marker: str, format: 'format,
+               algebra: yumark_algebra 'repr): 'repr =
+    algebra.blank_line(marker)
+
+pub section_close(marker: str, children,
+                  format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.section_close(marker, children(format, algebra))
+
+pub list_block(ordered: bool, items,
+               format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_block(ordered, items(format, algebra))
+
+pub list_item(marker: str, children,
+              format: 'format, algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_item(marker, children(format, algebra))
+
+pub list_item_body(children, format: 'format,
+                   algebra: yumark_algebra 'repr): 'repr =
+    algebra.list_item_body(children(format, algebra))
+
+pub code_fence(info: str, body: str, format: 'format,
+               algebra: yumark_algebra 'repr): 'repr =
+    algebra.code_fence(info, body)
+
+pub quote_block(children, format: 'format,
+                algebra: yumark_algebra 'repr): 'repr =
+    algebra.quote_block(children(format, algebra))
+
+pub emphasis(children, format: 'format,
+             algebra: yumark_algebra 'repr): 'repr =
+    algebra.emphasis(children(format, algebra))
+
+pub strong(children, format: 'format,
+           algebra: yumark_algebra 'repr): 'repr =
+    algebra.strong(children(format, algebra))
+
 my html_nil(): html_node =
     html_node { tag: "fragment", body: "" }
 
@@ -38,10 +92,68 @@ my html_cons(head: html_node, tail: html_node): html_node =
 my html_text(value: str): html_node =
     html_node { tag: "span", body: value }
 
+my html_paragraph(children: html_node): html_node =
+    html_node { tag: "p", body: html_tag children }
+
+my html_heading(marker: str, level: int, children: html_node): html_node =
+    html_node {
+        tag: std::text::str::concat "h" (std::int::to_string level),
+        body: html_tag children,
+    }
+
+my html_blank_line(marker: str): html_node =
+    html_node { tag: "br", body: marker }
+
+my html_section_close(marker: str, children: html_node): html_node =
+    html_node {
+        tag: "section-close",
+        body: std::text::str::concat marker (html_tag children),
+    }
+
+my html_list_block(ordered: bool, items: html_node): html_node =
+    html_node {
+        tag: if ordered: "ol" else: "ul",
+        body: html_tag items,
+    }
+
+my html_list_item(marker: str, children: html_node): html_node =
+    html_node { tag: "li", body: html_tag children }
+
+my html_list_item_body(children: html_node): html_node =
+    html_node { tag: "item-body", body: html_tag children }
+
+my html_code_fence(info: str, body: str): html_node =
+    my info_node = html_node { tag: "code-info", body: info }
+    my body_node = html_node { tag: "code", body: body }
+    html_node {
+        tag: "pre",
+        body: std::text::str::concat (html_tag info_node) (html_tag body_node),
+    }
+
+my html_quote_block(children: html_node): html_node =
+    html_node { tag: "blockquote", body: html_tag children }
+
+my html_emphasis(children: html_node): html_node =
+    html_node { tag: "em", body: html_tag children }
+
+my html_strong(children: html_node): html_node =
+    html_node { tag: "strong", body: html_tag children }
+
 pub html_algebra(): yumark_algebra html_node = yumark_algebra {
     nil: html_nil,
     cons: html_cons,
     text: html_text,
+    paragraph: html_paragraph,
+    heading: html_heading,
+    blank_line: html_blank_line,
+    section_close: html_section_close,
+    list_block: html_list_block,
+    list_item: html_list_item,
+    list_item_body: html_list_item_body,
+    code_fence: html_code_fence,
+    quote_block: html_quote_block,
+    emphasis: html_emphasis,
+    strong: html_strong,
 }
 
 my markdown_nil(): str = ""
@@ -51,10 +163,54 @@ my markdown_cons(head: str, tail: str): str =
 
 my markdown_text(value: str): str = value
 
+my markdown_paragraph(children: str): str =
+    std::text::str::concat children "\n\n"
+
+my markdown_heading(marker: str, level: int, children: str): str =
+    std::text::str::concat (std::text::str::concat marker children) "\n\n"
+
+my markdown_blank_line(marker: str): str = marker
+
+my markdown_section_close(marker: str, children: str): str =
+    std::text::str::concat (std::text::str::concat marker children) "\n"
+
+my markdown_list_block(ordered: bool, items: str): str =
+    std::text::str::concat items "\n"
+
+my markdown_list_item(marker: str, children: str): str =
+    std::text::str::concat (std::text::str::concat marker children) "\n"
+
+my markdown_list_item_body(children: str): str = children
+
+my markdown_code_fence(info: str, body: str): str =
+    my opening = std::text::str::concat (std::text::str::concat "```" info) "\n"
+    my fenced = std::text::str::concat (std::text::str::concat opening body) "\n```\n\n"
+    fenced
+
+my markdown_quote_block(children: str): str =
+    std::text::str::concat (std::text::str::concat "> " children) "\n"
+
+my markdown_emphasis(children: str): str =
+    std::text::str::concat (std::text::str::concat "*" children) "*"
+
+my markdown_strong(children: str): str =
+    std::text::str::concat (std::text::str::concat "**" children) "**"
+
 pub markdown_algebra(): yumark_algebra str = yumark_algebra {
     nil: markdown_nil,
     cons: markdown_cons,
     text: markdown_text,
+    paragraph: markdown_paragraph,
+    heading: markdown_heading,
+    blank_line: markdown_blank_line,
+    section_close: markdown_section_close,
+    list_block: markdown_list_block,
+    list_item: markdown_list_item,
+    list_item_body: markdown_list_item_body,
+    code_fence: markdown_code_fence,
+    quote_block: markdown_quote_block,
+    emphasis: markdown_emphasis,
+    strong: markdown_strong,
 }
 
 impl html_format: YumarkAlgebraShadowFormat:

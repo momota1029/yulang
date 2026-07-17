@@ -553,6 +553,222 @@ fn yumark_nil_text_shadow_matches_current_html_and_markdown_bytes() {
 
 #[cfg(unix)]
 #[test]
+fn yumark_full_static_shadow_matches_current_html_and_markdown_bytes() {
+    let literal = concat!(
+        "'{## Static vocabulary\n",
+        "Paragraph with *emphasis* and **strong**.\n",
+        "\n",
+        "#.\n",
+        "- bullet *item*\n",
+        "1. numbered **item**\n",
+        "```text\n",
+        "line one\n",
+        "line two\n",
+        "```\n",
+        "> quoted\n",
+        "}\n",
+    );
+    let current_entry = write_main_with_std(
+        "yumark-full-static-current-output",
+        &format!(
+            "use std::text::yumark::*\nmy rich = {literal}html_tag (render_html_doc rich)\nrender_markdown_doc rich\n"
+        ),
+    );
+    let shadow_entry = write_main_with_std(
+        "yumark-full-static-shadow-output",
+        &format!(
+            "use std::text::yumark::html_tag\nuse std::text::yumark_algebra_shadow::*\nmy rich = {literal}html_tag (render_html_doc rich)\nrender_markdown_doc rich\n"
+        ),
+    );
+    let (current, shadow, restored) = run_with_vm_test_stack(move || {
+        let current = run_mono_with_minimal_yumark_std(&current_entry, false).text;
+        let shadow = infer::lowering::with_yumark_algebra_shadow_lowering(|| {
+            run_mono_with_minimal_yumark_std(&shadow_entry, true).text
+        });
+        let restored = run_mono_with_minimal_yumark_std(&current_entry, false).text;
+        (current, shadow, restored)
+    });
+
+    assert_eq!(shadow, current);
+    assert_eq!(restored, current);
+}
+
+#[cfg(unix)]
+#[test]
+fn yumark_full_static_shadow_construction_does_not_force_interpretation_effects() {
+    let entry = write_main_with_std(
+        "yumark-full-static-shadow-inert",
+        concat!(
+            "use std::text::str::str\n",
+            "use std::text::yumark_algebra_shadow::{yumark_algebra}\n",
+            "act full_static_construction_probe:\n",
+            "  our fire: () -> str\n",
+            "struct effect_repr {\n",
+            "  marker: str,\n",
+            "  run: () -> [full_static_construction_probe] str,\n",
+            "}\n",
+            "my effect_value(): effect_repr = effect_repr {\n",
+            "  marker: \"\",\n",
+            "  run: \\() -> full_static_construction_probe::fire(),\n",
+            "}\n",
+            "my effect_nil(): effect_repr = effect_repr {\n",
+            "  marker: \"\",\n",
+            "  run: \\() -> \"\",\n",
+            "}\n",
+            "my effect_cons(head: effect_repr, tail: effect_repr): effect_repr = effect_repr {\n",
+            "  marker: std::text::str::concat head.marker tail.marker,\n",
+            "  run: \\() -> std::text::str::concat (head.run()) (tail.run()),\n",
+            "}\n",
+            "my effect_text(value: str): effect_repr = effect_value()\n",
+            "my effect_paragraph(children: effect_repr): effect_repr = children\n",
+            "my effect_heading(marker: str, level: int, children: effect_repr): effect_repr = children\n",
+            "my effect_blank_line(marker: str): effect_repr = effect_value()\n",
+            "my effect_section_close(marker: str, children: effect_repr): effect_repr = children\n",
+            "my effect_list_block(ordered: bool, items: effect_repr): effect_repr = items\n",
+            "my effect_list_item(marker: str, children: effect_repr): effect_repr = children\n",
+            "my effect_list_item_body(children: effect_repr): effect_repr = children\n",
+            "my effect_code_fence(info: str, body: str): effect_repr = effect_value()\n",
+            "my effect_quote_block(children: effect_repr): effect_repr = children\n",
+            "my effect_emphasis(children: effect_repr): effect_repr = children\n",
+            "my effect_strong(children: effect_repr): effect_repr = children\n",
+            "my effect_algebra(): yumark_algebra effect_repr = yumark_algebra {\n",
+            "  nil: effect_nil,\n",
+            "  cons: effect_cons,\n",
+            "  text: effect_text,\n",
+            "  paragraph: effect_paragraph,\n",
+            "  heading: effect_heading,\n",
+            "  blank_line: effect_blank_line,\n",
+            "  section_close: effect_section_close,\n",
+            "  list_block: effect_list_block,\n",
+            "  list_item: effect_list_item,\n",
+            "  list_item_body: effect_list_item_body,\n",
+            "  code_fence: effect_code_fence,\n",
+            "  quote_block: effect_quote_block,\n",
+            "  emphasis: effect_emphasis,\n",
+            "  strong: effect_strong,\n",
+            "}\n",
+            "my document = '{## Static vocabulary\n",
+            "Paragraph with *emphasis* and **strong**.\n",
+            "\n",
+            "#.\n",
+            "- bullet *item*\n",
+            "1. numbered **item**\n",
+            "```text\n",
+            "line one\n",
+            "line two\n",
+            "```\n",
+            "> quoted\n",
+            "}\n",
+            "my selected = document((), effect_algebra())\n",
+            "selected.marker\n",
+        ),
+    );
+
+    let output_text = run_with_vm_test_stack(move || {
+        infer::lowering::with_yumark_algebra_shadow_lowering(|| {
+            run_mono_with_minimal_yumark_std(&entry, true)
+        })
+        .text
+    });
+
+    assert_eq!(output_text, "run roots [\"\"]\n");
+}
+
+#[cfg(unix)]
+fn run_mono_with_minimal_yumark_std(entry: &FsPath, include_shadow: bool) -> RunMonoOutput {
+    let mut files = collect_local_sources(entry).unwrap();
+    let root = entry.parent().expect("Yumark test entry parent");
+    let mut push = |segments: &[&str], source: &str| {
+        files.push(CollectedSource::new(
+            root.join(format!("{}.yu", segments.join("-"))),
+            Path {
+                segments: segments
+                    .iter()
+                    .map(|segment| Name((*segment).to_string()))
+                    .collect(),
+            },
+            source.to_string(),
+        ));
+    };
+
+    push(
+        &["std"],
+        "pub mod core;\npub mod control;\npub mod int;\npub mod text;\n",
+    );
+    push(&["std", "core"], "pub mod cmp;\npub mod ops;\n");
+    push(
+        &["std", "core", "cmp"],
+        concat!(
+            "use std::text::str::str\n",
+            "pub role Eq 'a:\n",
+            "  pub a.eq: 'a -> bool\n",
+            "impl str: Eq:\n",
+            "  our x.eq y = std::text::str::eq x y\n",
+        ),
+    );
+    push(
+        &["std", "core", "ops"],
+        concat!(
+            "use std::core::cmp::*\n",
+            "pub infix (==) 3.0.0 3.0.1 = \\x -> \\y -> x.eq y\n",
+        ),
+    );
+    push(&["std", "control"], "pub mod junction;\n");
+    push(
+        &["std", "control", "junction"],
+        concat!(
+            "pub act junction:\n",
+            "  my or: () -> bool\n",
+            "  my and: () -> bool\n",
+            "  my ret: bool -> never\n",
+            "  pub junction(x: [_] _) = catch x:\n",
+            "    or(), k -> case junction(k true):\n",
+            "      true -> true\n",
+            "      _ -> junction(k false)\n",
+            "    and(), k -> case junction(k true):\n",
+            "      true -> junction(k false)\n",
+            "      _ -> false\n",
+            "    ret b, _ -> b\n",
+        ),
+    );
+    push(
+        &["std", "int"],
+        concat!(
+            "use std::text::str::str\n",
+            "pub to_string: int -> str = builtin_op::int_to_string\n",
+        ),
+    );
+    push(&["std", "text"], "pub mod str;\npub mod yumark;\n");
+    push(
+        &["std", "text", "str"],
+        concat!(
+            "pub type str\n",
+            "pub concat: str -> str -> str = builtin_op::string_concat\n",
+            "pub eq: str -> str -> bool = builtin_op::string_eq\n",
+        ),
+    );
+    push(
+        &["std", "text", "yumark"],
+        &format!(
+            "use std::core::ops::*\n{}",
+            include_str!("../../../../../lib/std/text/yumark.yu")
+        ),
+    );
+    if include_shadow {
+        push(
+            &["std", "text", "yumark_algebra_shadow"],
+            &format!(
+                "use std::core::ops::*\n{}",
+                include_str!("../../../../../lib/std/text/yumark_algebra_shadow.yu")
+            ),
+        );
+    }
+
+    run_mono_from_sources(files).unwrap()
+}
+
+#[cfg(unix)]
+#[test]
 fn yumark_nil_text_shadow_construction_does_not_force_interpretation_effects() {
     let entry = write_main_with_std(
         "yumark-nil-text-shadow-inert",
@@ -576,10 +792,32 @@ fn yumark_nil_text_shadow_construction_does_not_force_interpretation_effects() {
             "    my _ = std::time::clock::now()\n",
             "    value\n",
             "}\n",
+            "my effect_paragraph(children: effect_repr): effect_repr = children\n",
+            "my effect_heading(marker: str, level: int, children: effect_repr): effect_repr = children\n",
+            "my effect_blank_line(marker: str): effect_repr = effect_text(marker)\n",
+            "my effect_section_close(marker: str, children: effect_repr): effect_repr = children\n",
+            "my effect_list_block(ordered: bool, items: effect_repr): effect_repr = items\n",
+            "my effect_list_item(marker: str, children: effect_repr): effect_repr = children\n",
+            "my effect_list_item_body(children: effect_repr): effect_repr = children\n",
+            "my effect_code_fence(info: str, body: str): effect_repr = effect_text(body)\n",
+            "my effect_quote_block(children: effect_repr): effect_repr = children\n",
+            "my effect_emphasis(children: effect_repr): effect_repr = children\n",
+            "my effect_strong(children: effect_repr): effect_repr = children\n",
             "my effect_algebra(): yumark_algebra effect_repr = yumark_algebra {\n",
             "  nil: effect_nil,\n",
             "  cons: effect_cons,\n",
             "  text: effect_text,\n",
+            "  paragraph: effect_paragraph,\n",
+            "  heading: effect_heading,\n",
+            "  blank_line: effect_blank_line,\n",
+            "  section_close: effect_section_close,\n",
+            "  list_block: effect_list_block,\n",
+            "  list_item: effect_list_item,\n",
+            "  list_item_body: effect_list_item_body,\n",
+            "  code_fence: effect_code_fence,\n",
+            "  quote_block: effect_quote_block,\n",
+            "  emphasis: effect_emphasis,\n",
+            "  strong: effect_strong,\n",
             "}\n",
             "my document = '[hello world]\n",
             "my selected = document((), effect_algebra())\n",

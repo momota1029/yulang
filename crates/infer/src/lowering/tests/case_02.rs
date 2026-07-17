@@ -289,31 +289,73 @@ fn mark_expr_empty_inline_lowers_to_yumark_nil() {
 }
 
 #[test]
-fn mark_expr_shadow_scope_redirects_only_inline_nil_text_and_restores_default() {
-    let source = "pub main = '[hello world]\n";
+fn mark_expr_shadow_scope_redirects_full_static_vocabulary_and_restores_default() {
+    let source = concat!(
+        "pub main = '{## Static vocabulary\n",
+        "Paragraph with *emphasis* and **strong**.\n",
+        "\n",
+        "#.\n",
+        "- bullet *item*\n",
+        "1. numbered **item**\n",
+        "```text\n",
+        "line one\n",
+        "line two\n",
+        "```\n",
+        "> quoted\n",
+        "}\n",
+    );
     let current = lower_yumark_main_with_shadow_std(source);
     assert!(current.errors.is_empty(), "{:?}", current.errors);
     let current_dump = poly::dump::dump_arena_with_labels(&current.session.poly, &current.labels);
-    let current_heads = assert_yumark_chain(&current, yumark_main_body(&current), 1);
-    assert_text_leaf_application(&current, current_heads[0], "hello world");
+    let current_heads = assert_yumark_chain(&current, yumark_main_body(&current), 10);
+    assert_yumark_ctor(&current, current_heads[0], "heading_leaf");
+    assert_yumark_ctor(&current, current_heads[1], "paragraph_leaf");
+    assert_text_leaf_application(&current, current_heads[2], "\n\n");
+    assert_yumark_ctor(&current, current_heads[3], "blank_line_leaf");
+    assert_yumark_ctor(&current, current_heads[4], "section_close_leaf");
+    assert_yumark_ctor(&current, current_heads[5], "list_block_leaf");
+    assert_yumark_ctor(&current, current_heads[6], "list_block_leaf");
+    assert_yumark_ctor(&current, current_heads[7], "code_fence_leaf");
+    assert_text_leaf_application(&current, current_heads[8], "\n");
+    assert_yumark_ctor(&current, current_heads[9], "quote_block_leaf");
 
     let shadow = with_yumark_algebra_shadow_lowering(|| lower_yumark_main_with_shadow_std(source));
     assert!(shadow.errors.is_empty(), "{:?}", shadow.errors);
-    assert_shadow_yumark_chain(&shadow, yumark_main_body(&shadow), "hello world");
+    let shadow_document = shadow_yumark_document(&shadow, yumark_main_body(&shadow));
+    let shadow_heads = assert_shadow_yumark_chain(&shadow, shadow_document, 10);
+    assert_shadow_yumark_call(&shadow, shadow_heads[0], "heading", 3);
+
+    let paragraph = assert_shadow_yumark_call(&shadow, shadow_heads[1], "paragraph", 1);
+    let paragraph_children = assert_shadow_yumark_chain(&shadow, paragraph[0], 5);
+    assert_shadow_yumark_call(&shadow, paragraph_children[0], "text", 1);
+    assert_shadow_yumark_call(&shadow, paragraph_children[1], "emphasis", 1);
+    assert_shadow_yumark_call(&shadow, paragraph_children[3], "strong", 1);
+
+    assert_shadow_yumark_call(&shadow, shadow_heads[2], "text", 1);
+    assert_shadow_yumark_call(&shadow, shadow_heads[3], "blank_line", 1);
+    assert_shadow_yumark_call(&shadow, shadow_heads[4], "section_close", 2);
+
+    for list in &shadow_heads[5..=6] {
+        let list = assert_shadow_yumark_call(&shadow, *list, "list_block", 2);
+        let items = assert_shadow_yumark_chain(&shadow, list[1], 1);
+        let item = assert_shadow_yumark_call(&shadow, items[0], "list_item", 2);
+        let bodies = assert_shadow_yumark_chain(&shadow, item[1], 1);
+        assert_shadow_yumark_call(&shadow, bodies[0], "list_item_body", 1);
+    }
+
+    assert_shadow_yumark_call(&shadow, shadow_heads[7], "code_fence", 2);
+    assert_shadow_yumark_call(&shadow, shadow_heads[8], "text", 1);
+    assert_shadow_yumark_call(&shadow, shadow_heads[9], "quote_block", 1);
 
     let shadow_empty = with_yumark_algebra_shadow_lowering(|| {
         lower_yumark_main_with_shadow_std("pub main = '[]\n")
     });
     assert!(shadow_empty.errors.is_empty(), "{:?}", shadow_empty.errors);
-    assert_shadow_yumark_ref(&shadow_empty, yumark_main_body(&shadow_empty), "nil");
-
-    let rich = with_yumark_algebra_shadow_lowering(|| {
-        lower_yumark_main_with_shadow_std("pub main = '[plain *em*]\n")
-    });
-    assert!(rich.errors.is_empty(), "{:?}", rich.errors);
-    let rich_heads = assert_yumark_chain(&rich, yumark_main_body(&rich), 2);
-    assert_text_leaf_application(&rich, rich_heads[0], "plain ");
-    assert_yumark_ctor(&rich, rich_heads[1], "emphasis_leaf");
+    assert_shadow_yumark_ref(
+        &shadow_empty,
+        shadow_yumark_document(&shadow_empty, yumark_main_body(&shadow_empty)),
+        "nil",
+    );
 
     let restored = lower_yumark_main_with_shadow_std(source);
     assert!(restored.errors.is_empty(), "{:?}", restored.errors);
@@ -464,38 +506,18 @@ fn mark_expr_block_rich_document_lowers_static_vocab_without_bespoke_shape() {
 
 #[test]
 fn mark_expr_command_still_rejects_as_unsupported() {
-    let (root, lower) = lower_with_text_yumark_std("pub main = '{\\cmd;\n}\n");
-    let output = lower_binding_bodies(&root, lower);
-
-    assert!(output.errors.iter().any(|error| {
-        matches!(
-            error,
-            BodyLoweringError::Expr {
-                error: LoweringError::UnsupportedSyntax {
-                    kind: SyntaxKind::YmCommand,
-                },
-                ..
-            }
-        )
-    }));
+    assert_yumark_unsupported_under_current_and_shadow(
+        "pub main = '{\\cmd;\n}\n",
+        SyntaxKind::YmCommand,
+    );
 }
 
 #[test]
 fn mark_expr_inline_expr_still_rejects_as_unsupported() {
-    let (root, lower) = lower_with_text_yumark_std("pub main = '{[hello]\n}\n");
-    let output = lower_binding_bodies(&root, lower);
-
-    assert!(output.errors.iter().any(|error| {
-        matches!(
-            error,
-            BodyLoweringError::Expr {
-                error: LoweringError::UnsupportedSyntax {
-                    kind: SyntaxKind::YmInlineExpr,
-                },
-                ..
-            }
-        )
-    }));
+    assert_yumark_unsupported_under_current_and_shadow(
+        "pub main = '{[hello]\n}\n",
+        SyntaxKind::YmInlineExpr,
+    );
 }
 
 fn lower_yumark_main(src: &str) -> BodyLowering {
@@ -588,32 +610,96 @@ fn assert_nil_application(output: &BodyLowering, expr: ExprId) {
     ));
 }
 
-fn assert_shadow_yumark_chain(output: &BodyLowering, expr: ExprId, expected_text: &str) {
+fn assert_shadow_yumark_chain(
+    output: &BodyLowering,
+    mut expr: ExprId,
+    expected_len: usize,
+) -> Vec<ExprId> {
     let cons = text_yumark_shadow_def(&output.modules, "cons");
-    let text = text_yumark_shadow_def(&output.modules, "text");
-    let (cons_partial, tail) = match output.session.poly.expr(expr) {
-        Expr::App(callee, arg) => (*callee, *arg),
-        _ => panic!("expected shadow cons application"),
+    let mut heads = Vec::new();
+    for _ in 0..expected_len {
+        let (cons_partial, tail) = match output.session.poly.expr(expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected shadow cons application"),
+        };
+        let head = match output.session.poly.expr(cons_partial) {
+            Expr::App(callee, arg) => {
+                assert_eq!(root_ref_target(&output.session, *callee), Some(cons));
+                *arg
+            }
+            _ => panic!("expected partial shadow cons application"),
+        };
+        heads.push(head);
+        expr = tail;
+    }
+    assert_shadow_yumark_ref(output, expr, "nil");
+    heads
+}
+
+fn shadow_yumark_document(output: &BodyLowering, expr: ExprId) -> ExprId {
+    let format_body = match output.session.poly.expr(expr) {
+        Expr::Lambda(_, body) => *body,
+        _ => panic!("expected shadow format lambda"),
     };
-    let head = match output.session.poly.expr(cons_partial) {
-        Expr::App(callee, arg) => {
-            assert_eq!(root_ref_target(&output.session, *callee), Some(cons));
-            *arg
+    let algebra_body = match output.session.poly.expr(format_body) {
+        Expr::Lambda(_, body) => *body,
+        _ => panic!("expected shadow algebra lambda"),
+    };
+    let (with_format, _) = match output.session.poly.expr(algebra_body) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected shadow document algebra application"),
+    };
+    match output.session.poly.expr(with_format) {
+        Expr::App(document, _) => *document,
+        _ => panic!("expected shadow document format application"),
+    }
+}
+
+fn assert_shadow_yumark_call(
+    output: &BodyLowering,
+    mut expr: ExprId,
+    name: &str,
+    arity: usize,
+) -> Vec<ExprId> {
+    let expected = text_yumark_shadow_def(&output.modules, name);
+    let mut args = Vec::with_capacity(arity);
+    for _ in 0..arity {
+        match output.session.poly.expr(expr) {
+            Expr::App(callee, arg) => {
+                args.push(*arg);
+                expr = *callee;
+            }
+            _ => panic!("expected shadow {name} application"),
         }
-        _ => panic!("expected partial shadow cons application"),
-    };
-    let (callee, value) = match output.session.poly.expr(head) {
-        Expr::App(callee, arg) => (*callee, *arg),
-        _ => panic!("expected shadow text application"),
-    };
-    assert_eq!(root_ref_target(&output.session, callee), Some(text));
-    assert_str_lit(output, value, expected_text);
-    assert_shadow_yumark_ref(output, tail, "nil");
+    }
+    args.reverse();
+    assert_eq!(root_ref_target(&output.session, expr), Some(expected));
+    args
 }
 
 fn assert_shadow_yumark_ref(output: &BodyLowering, expr: ExprId, name: &str) {
     let expected = text_yumark_shadow_def(&output.modules, name);
     assert_eq!(root_ref_target(&output.session, expr), Some(expected));
+}
+
+fn assert_yumark_unsupported_under_current_and_shadow(source: &str, kind: SyntaxKind) {
+    let current = lower_yumark_main_with_shadow_std(source);
+    assert_yumark_unsupported(&current, kind);
+
+    let shadow = with_yumark_algebra_shadow_lowering(|| lower_yumark_main_with_shadow_std(source));
+    assert_yumark_unsupported(&shadow, kind);
+}
+
+fn assert_yumark_unsupported(output: &BodyLowering, kind: SyntaxKind) {
+    assert!(output.errors.iter().any(|error| {
+        matches!(
+            error,
+            BodyLoweringError::Expr {
+                error: LoweringError::UnsupportedSyntax { kind: actual },
+                ..
+            } if *actual == kind
+        )
+    }));
 }
 
 fn assert_str_lit(output: &BodyLowering, expr: ExprId, expected: &str) {

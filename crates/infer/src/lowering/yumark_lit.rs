@@ -5,10 +5,10 @@
 //! constructor, and container children are lowered recursively into their own
 //! concrete cons-chain shape.
 //!
-//! Shadow Stage 1 can redirect only inline literals made solely from
-//! `nil`/`cons`/`text` to an internal algebra-passing vocabulary. The scope is
-//! opt-in, is not wired to any CLI surface, and leaves every other literal on
-//! the production target.
+//! Shadow Stage 1 can redirect literals made solely from the currently
+//! lowerable static vocabulary to an internal algebra-passing target. The
+//! scope is opt-in, is not wired to any CLI surface, and leaves unsupported
+//! commands and inline expressions on the production rejection path.
 
 use super::*;
 use std::cell::Cell;
@@ -17,7 +17,7 @@ thread_local! {
     static SHADOW_ALGEBRA_LOWERING: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Run Yumark nil/text literals through the internal algebra-passing target.
+/// Run static Yumark literals through the internal algebra-passing target.
 ///
 /// This narrow scope exists for paired compiler tests and experiments. It is
 /// deliberately absent from the public CLI, and restores the previous mode on
@@ -69,8 +69,8 @@ impl YumarkSequenceOptions {
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_mark_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         let doc = mark_expr_doc(node)?;
-        if shadow_algebra_lowering_enabled() && is_inline_nil_text_literal(node, &doc) {
-            self.lower_yumark_plain_text_shadow(&doc)
+        if shadow_algebra_lowering_enabled() && is_static_yumark_literal(&doc) {
+            self.lower_yumark_static_shadow(&doc)
         } else {
             self.lower_yumark_doc(&doc)
         }
@@ -83,103 +83,276 @@ impl<'a> ExprLowerer<'a> {
         self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)
     }
 
-    fn lower_yumark_plain_text_shadow(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        self.lower_yumark_sequence_with_target(
-            node,
-            YumarkSequenceOptions::INLINE,
-            YumarkLoweringTarget::AlgebraShadow,
+    fn lower_yumark_static_shadow(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        // Eta-expand the generated builder so one let-bound literal can be
+        // selected at multiple representation types without value restriction.
+        self.lower_yumark_builder_lambda(
+            Name("#yumark-shadow-format".to_string()),
+            |lowerer, format| {
+                lowerer.lower_yumark_builder_lambda(
+                    Name("#yumark-shadow-algebra".to_string()),
+                    |lowerer, algebra| {
+                        let document = lowerer.lower_yumark_sequence_with_target(
+                            node,
+                            YumarkSequenceOptions::INLINE,
+                            YumarkLoweringTarget::AlgebraShadow,
+                        )?;
+                        let format =
+                            lowerer.lower_local_name(format.name.clone(), format.clone(), None);
+                        let algebra = lowerer.lower_local_name(algebra.name.clone(), algebra, None);
+                        let document = lowerer.make_app(document, format);
+                        Ok(lowerer.make_app(document, algebra))
+                    },
+                )
+            },
         )
     }
 
-    fn lower_yumark_node(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_builder_lambda(
+        &mut self,
+        param_name: Name,
+        lower_body: impl FnOnce(&mut Self, LocalBinding) -> Result<Computation, LoweringError>,
+    ) -> Result<Computation, LoweringError> {
+        let param_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            param_name,
+            param_value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        let Pat::Var(param_def) = self.session.poly.pat(pat) else {
+            unreachable!("Yumark builder parameter should lower to a variable pattern");
+        };
+        if let Some(use_site) = self.session.local_defs.get_mut(*param_def) {
+            use_site.role = LocalDefRole::Input;
+        }
+        let param = self
+            .locals
+            .last()
+            .cloned()
+            .expect("Yumark builder parameter should be the last local");
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let previous_level = self.session.infer.enter_child_level();
+        let previous_local_generalize_boundary = self.local_generalize_boundary;
+        self.local_generalize_boundary = previous_level;
+        let body_result = lower_body(self, param);
+        self.local_generalize_boundary = previous_local_generalize_boundary;
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("Yumark builder predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Anonymous,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_yumark_node(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
         match node.kind() {
-            SyntaxKind::YmDoc => self.lower_yumark_doc(node),
-            SyntaxKind::YmParagraph => self.lower_yumark_paragraph(node),
-            SyntaxKind::YmEmphasis => self.lower_yumark_container("emphasis_leaf", node),
-            SyntaxKind::YmStrong => self.lower_yumark_container("strong_leaf", node),
-            SyntaxKind::YmHeading => self.lower_yumark_heading(node),
+            SyntaxKind::YmDoc => {
+                self.lower_yumark_sequence_with_target(node, YumarkSequenceOptions::INLINE, target)
+            }
+            SyntaxKind::YmParagraph => self.lower_yumark_paragraph(node, target),
+            SyntaxKind::YmEmphasis => {
+                self.lower_yumark_container("emphasis_leaf", "emphasis", node, target)
+            }
+            SyntaxKind::YmStrong => {
+                self.lower_yumark_container("strong_leaf", "strong", node, target)
+            }
+            SyntaxKind::YmHeading => self.lower_yumark_heading(node, target),
             SyntaxKind::YmBlankLine => {
                 let marker = self.string_value("\n".to_string());
-                self.yumark_leaf("blank_line_leaf", vec![("marker", marker)])
+                self.yumark_static_operation(
+                    "blank_line_leaf",
+                    "blank_line",
+                    vec![("marker", marker)],
+                    target,
+                )
             }
-            SyntaxKind::YmSectionClose => self.lower_yumark_section_close(node),
-            SyntaxKind::YmList => self.lower_yumark_list(node),
-            SyntaxKind::YmListItem => self.lower_yumark_list_item(node),
-            SyntaxKind::YmListItemBody => self.lower_yumark_list_item_body(node),
-            SyntaxKind::YmCodeFence => self.lower_yumark_code_fence(node),
-            SyntaxKind::YmQuoteBlock => self.lower_yumark_container("quote_block_leaf", node),
+            SyntaxKind::YmSectionClose => self.lower_yumark_section_close(node, target),
+            SyntaxKind::YmList => self.lower_yumark_list(node, target),
+            SyntaxKind::YmListItem => self.lower_yumark_list_item(node, target),
+            SyntaxKind::YmListItemBody => self.lower_yumark_list_item_body(node, target),
+            SyntaxKind::YmCodeFence => self.lower_yumark_code_fence(node, target),
+            SyntaxKind::YmQuoteBlock => {
+                self.lower_yumark_container("quote_block_leaf", "quote_block", node, target)
+            }
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
     }
 
-    fn lower_yumark_paragraph(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
-        self.yumark_leaf("paragraph_leaf", vec![("children", children)])
+    fn lower_yumark_paragraph(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
+        let children = self.lower_yumark_sequence_with_target(
+            node,
+            YumarkSequenceOptions::BLOCK_CONTENT,
+            target,
+        )?;
+        self.yumark_static_operation(
+            "paragraph_leaf",
+            "paragraph",
+            vec![("children", children)],
+            target,
+        )
     }
 
     fn lower_yumark_container(
         &mut self,
         constructor: &str,
+        operation: &str,
         node: &Cst,
+        target: YumarkLoweringTarget,
     ) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)?;
-        self.yumark_leaf(constructor, vec![("children", children)])
+        let children =
+            self.lower_yumark_sequence_with_target(node, YumarkSequenceOptions::INLINE, target)?;
+        self.yumark_static_operation(constructor, operation, vec![("children", children)], target)
     }
 
-    fn lower_yumark_heading(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_heading(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(node, &[SyntaxKind::YmHashSigil])?;
         let level = marker.chars().take_while(|ch| *ch == '#').count() as i64;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT)?;
+        let children = self.lower_yumark_sequence_with_target(
+            node,
+            YumarkSequenceOptions::LINE_CONTENT,
+            target,
+        )?;
         let marker = self.string_value(marker);
         let level = self.int_value(level);
-        self.yumark_leaf(
+        self.yumark_static_operation(
             "heading_leaf",
+            "heading",
             vec![("marker", marker), ("level", level), ("children", children)],
+            target,
         )
     }
 
-    fn lower_yumark_section_close(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_section_close(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(node, &[SyntaxKind::YmHashDotSigil])?;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT)?;
+        let children = self.lower_yumark_sequence_with_target(
+            node,
+            YumarkSequenceOptions::LINE_CONTENT,
+            target,
+        )?;
         let marker = self.string_value(marker);
-        self.yumark_leaf(
+        self.yumark_static_operation(
             "section_close_leaf",
+            "section_close",
             vec![("marker", marker), ("children", children)],
+            target,
         )
     }
 
-    fn lower_yumark_list(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let items = self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)?;
+    fn lower_yumark_list(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
+        let items =
+            self.lower_yumark_sequence_with_target(node, YumarkSequenceOptions::INLINE, target)?;
         let ordered = self.lower_bool(list_is_ordered(node));
-        self.yumark_leaf(
+        self.yumark_static_operation(
             "list_block_leaf",
+            "list_block",
             vec![("ordered", ordered), ("items", items)],
+            target,
         )
     }
 
-    fn lower_yumark_list_item(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_list_item(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(
             node,
             &[SyntaxKind::YmListDashSigil, SyntaxKind::YmListNumSigil],
         )?;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
+        let children = self.lower_yumark_sequence_with_target(
+            node,
+            YumarkSequenceOptions::BLOCK_CONTENT,
+            target,
+        )?;
         let marker = self.string_value(marker);
-        self.yumark_leaf(
+        self.yumark_static_operation(
             "list_item_leaf",
+            "list_item",
             vec![("marker", marker), ("children", children)],
+            target,
         )
     }
 
-    fn lower_yumark_list_item_body(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
-        self.yumark_leaf("list_item_body_leaf", vec![("children", children)])
+    fn lower_yumark_list_item_body(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
+        let children = self.lower_yumark_sequence_with_target(
+            node,
+            YumarkSequenceOptions::BLOCK_CONTENT,
+            target,
+        )?;
+        self.yumark_static_operation(
+            "list_item_body_leaf",
+            "list_item_body",
+            vec![("children", children)],
+            target,
+        )
     }
 
-    fn lower_yumark_code_fence(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_code_fence(
+        &mut self,
+        node: &Cst,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
         let (info, body) = self.code_fence_raw_source(node)?;
         let info = self.string_value(info);
         let body = self.string_value(body);
-        self.yumark_leaf("code_fence_leaf", vec![("info", info), ("body", body)])
+        self.yumark_static_operation(
+            "code_fence_leaf",
+            "code_fence",
+            vec![("info", info), ("body", body)],
+            target,
+        )
     }
 
     fn lower_yumark_sequence(
@@ -215,7 +388,7 @@ impl<'a> ExprLowerer<'a> {
                         continue;
                     }
                     self.flush_yumark_text(&mut text, &mut lowered, options, target)?;
-                    lowered.push(self.lower_yumark_node(&child)?);
+                    lowered.push(self.lower_yumark_node(&child, target)?);
                 }
             }
         }
@@ -305,6 +478,25 @@ impl<'a> ExprLowerer<'a> {
         Ok(self.make_app(constructor, payload))
     }
 
+    fn yumark_static_operation(
+        &mut self,
+        constructor: &str,
+        operation: &str,
+        fields: Vec<(&str, Computation)>,
+        target: YumarkLoweringTarget,
+    ) -> Result<Computation, LoweringError> {
+        match target {
+            YumarkLoweringTarget::TypedConsTree => self.yumark_leaf(constructor, fields),
+            YumarkLoweringTarget::AlgebraShadow => {
+                let mut call = self.yumark_operation_ref(operation, target)?;
+                for (_, value) in fields {
+                    call = self.make_app(call, value);
+                }
+                Ok(call)
+            }
+        }
+    }
+
     fn yumark_ref(&mut self, name: &str) -> Result<Computation, LoweringError> {
         self.lower_std_value_ref(crate::std_paths::text_yumark_value(name))
     }
@@ -334,13 +526,30 @@ fn shadow_algebra_lowering_enabled() -> bool {
     SHADOW_ALGEBRA_LOWERING.with(Cell::get)
 }
 
-fn is_inline_nil_text_literal(node: &Cst, doc: &Cst) -> bool {
+fn is_static_yumark_literal(node: &Cst) -> bool {
+    if node.kind() == SyntaxKind::YmCodeFence {
+        // A Yulang fence contains ordinary language CST nodes, but current
+        // lowering intentionally preserves its body as raw static text.
+        return true;
+    }
+    if !matches!(
+        node.kind(),
+        SyntaxKind::YmDoc
+            | SyntaxKind::YmParagraph
+            | SyntaxKind::YmEmphasis
+            | SyntaxKind::YmStrong
+            | SyntaxKind::YmHeading
+            | SyntaxKind::YmBlankLine
+            | SyntaxKind::YmSectionClose
+            | SyntaxKind::YmList
+            | SyntaxKind::YmListItem
+            | SyntaxKind::YmListItemBody
+            | SyntaxKind::YmQuoteBlock
+    ) {
+        return false;
+    }
     node.children()
-        .next()
-        .is_some_and(|body| body.kind() == SyntaxKind::MarkInlineBody)
-        && doc
-            .children()
-            .all(|child| is_empty_yumark_paragraph(&child))
+        .all(|child| is_static_yumark_literal(&child))
 }
 
 fn yumark_algebra_shadow_value(name: &str) -> Vec<String> {
