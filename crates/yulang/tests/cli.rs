@@ -4302,7 +4302,7 @@ fn std_prefix_oracle_b_small_shadows_canonical_boundary_against_empty_import() {
 }
 
 #[test]
-fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
+fn compatible_std_prefix_cache_preserves_yumark_builder_runtime_behavior() {
     let root = temp_root("run-std-prefix-role-equivalence");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
@@ -4311,8 +4311,8 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
     fs::write(&seed, "\"seed\"\n").unwrap();
     let entry = repo_yulang_fixture("regressions/cache/std_prefix_role_equivalence.yu");
 
-    // Yumark's nested cons chain resolves a role-polymorphic std definition in
-    // the user suffix. Internal redundant predicates may differ across these
+    // The user suffix keeps an algebra builder generalized until HTML format
+    // selection. Internal cache-boundary constraints may differ across these
     // routes; the deterministic public behavior must not.
     let cold = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -4330,7 +4330,7 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
     assert_role_resolution_metrics_present(&cold);
     assert_eq!(
         stdout(&cold),
-        "run roots [\"<article><span>cache</span><strong><span> boundary</span></strong></article>\"]\n"
+        "run roots [\"<span>cache</span><strong><span> boundary</span></strong>\"]\n"
     );
 
     let seed_output = yulang_command()
@@ -4370,12 +4370,10 @@ fn compatible_std_prefix_cache_preserves_role_polymorphic_runtime_behavior() {
         "run.analysis.role_resolve.prerequisite_candidate_scans",
     );
     eprintln!(
-        "Stage 6 role-equivalence prerequisite candidate scans: cold={cold_expansions}, warm={warm_expansions}"
+        "Yumark builder prerequisite candidate scans: cold={cold_expansions}, warm={warm_expansions}"
     );
-    assert!(
-        cold_expansions > 0 && warm_expansions > 0,
-        "the cold/warm control must exercise recursive prerequisite candidate expansion"
-    );
+    assert_eq!(cold_expansions, 0);
+    assert_eq!(warm_expansions, 0);
 
     let _ = fs::remove_dir_all(&root);
 }
