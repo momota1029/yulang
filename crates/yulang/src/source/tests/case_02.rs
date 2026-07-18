@@ -2423,6 +2423,49 @@ fn hover_entry_source_reports_ref_target_type() {
     );
 }
 
+const EFFECT_OPERATION_HOVER_SOURCE: &str =
+    "act choose:\n  our pick: int -> bool\nmy result = choose::pick 1\n";
+
+#[test]
+fn hover_entry_source_reports_effect_operation_decl_type() {
+    let hover = hover_entry_source("main.yu", EFFECT_OPERATION_HOVER_SOURCE, 18)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover,
+        SourceHover {
+            range: SourceRange { start: 18, end: 22 },
+            contents: "pick: int -> [choose] bool".to_string(),
+            documentation: None,
+        }
+    );
+    assert_public_type_display_has_no_private_markers(
+        &hover.contents,
+        "effect operation declaration hover",
+    );
+}
+
+#[test]
+fn hover_entry_source_reports_effect_operation_ref_type() {
+    let hover = hover_entry_source("main.yu", EFFECT_OPERATION_HOVER_SOURCE, 56)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover,
+        SourceHover {
+            range: SourceRange { start: 56, end: 60 },
+            contents: "pick: int -> [choose] bool".to_string(),
+            documentation: None,
+        }
+    );
+    assert_public_type_display_has_no_private_markers(
+        &hover.contents,
+        "effect operation reference hover",
+    );
+}
+
 #[test]
 fn definition_entry_source_reports_ref_target() {
     let root = temp_root("definition-entry-source-ref");

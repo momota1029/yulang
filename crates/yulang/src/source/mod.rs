@@ -2104,10 +2104,11 @@ fn source_hover_from_check(
         let Some(target) = check.lowering.session.poly.ref_target(reference) else {
             continue;
         };
+        let range = effect_operation_reference_range(check, reference, target, span.range);
         push_best_hover(
             &mut best,
-            hover_for_def(check, &format_context, target, span.range),
-            span.range,
+            hover_for_def(check, &format_context, target, range),
+            range,
         );
     }
     for (select, span) in check.lowering.session.selections.source_spans() {
@@ -2520,6 +2521,9 @@ fn hover_for_def(
     def: poly::expr::DefId,
     range: SourceRange,
 ) -> Option<SourceHover> {
+    if let Some(hover) = hover_for_effect_operation(check, format_context, def, range) {
+        return Some(hover);
+    }
     let Some(poly::expr::Def::Let {
         scheme: Some(scheme),
         ..
@@ -2538,6 +2542,72 @@ fn hover_for_def(
         contents: format!("{label}: {ty}"),
         documentation: doc_comment_hover_draft(check, def),
     })
+}
+
+fn hover_for_effect_operation(
+    check: &infer::check::PolyCheckOutput,
+    format_context: &HoverFormatContext<'_>,
+    def: poly::expr::DefId,
+    range: SourceRange,
+) -> Option<SourceHover> {
+    let operation = check.lowering.session.poly.effect_operations.get(&def)?;
+    let raw_label = check.lowering.labels.def_label(def)?;
+    if hover_label_is_hidden(raw_label) {
+        return None;
+    }
+    let poly::expr::Def::Let {
+        scheme: Some(scheme),
+        ..
+    } = check.lowering.session.poly.defs.get(def)?
+    else {
+        return None;
+    };
+    let label = operation.path.last()?;
+    let ty = format_context.format_scheme(scheme);
+    Some(SourceHover {
+        range,
+        contents: format!("{label}: {ty}"),
+        documentation: doc_comment_hover_draft(check, def),
+    })
+}
+
+fn effect_operation_reference_range(
+    check: &infer::check::PolyCheckOutput,
+    reference: poly::expr::RefId,
+    target: poly::expr::DefId,
+    range: SourceRange,
+) -> SourceRange {
+    if !check
+        .lowering
+        .session
+        .poly
+        .effect_operations
+        .contains_key(&target)
+    {
+        return range;
+    }
+    let Some(reference_label) = check
+        .lowering
+        .labels
+        .ref_labels()
+        .find_map(|(id, label)| (id == reference).then_some(label))
+    else {
+        return range;
+    };
+    let operation_label = reference_label
+        .rsplit_once("::")
+        .map(|(_, operation)| operation)
+        .unwrap_or(reference_label);
+    let Some(end) = range.start.checked_add(reference_label.len()) else {
+        return range;
+    };
+    let Some(start) = end.checked_sub(operation_label.len()) else {
+        return range;
+    };
+    if end > range.end {
+        return range;
+    }
+    SourceRange { start, end }
 }
 
 fn hover_for_local_def(

@@ -2226,6 +2226,49 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn hover_for_source_reports_effect_operation_at_reference() {
+        let root = temp_root("hover-effect-operation-reference");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "act choose:\n  our pick: int -> bool\nmy result = choose::pick 1\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 2,
+                character: 20,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 2,
+                    character: 20,
+                },
+                end: Position {
+                    line: 2,
+                    character: 24,
+                },
+            })
+        );
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "```yulang\npick: int -> [choose] bool\n```".to_string(),
+            })
+        );
+    }
+
+    #[test]
     fn lsp_hover_for_source_hover_limits_large_payloads() {
         let source = "my x = 1\n";
         let long_type = format!("x: {}int", "int -> ".repeat(300));
