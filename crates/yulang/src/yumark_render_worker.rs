@@ -106,6 +106,16 @@ fn start_worker_with_renderer(
     Ok(DocCommentRenderWorker { jobs })
 }
 
+#[cfg(test)]
+pub(crate) fn start_doc_comment_render_worker_for_test(
+    cache_capacity: usize,
+    renderer: impl FnMut(&DocCommentRenderInput) -> Result<String, YumarkLiteralEvaluationError>
+    + Send
+    + 'static,
+) -> io::Result<DocCommentRenderWorker> {
+    start_worker_with_renderer(cache_capacity, renderer)
+}
+
 fn run_worker(
     requests: mpsc::Receiver<DocCommentRenderJob>,
     cache_capacity: usize,

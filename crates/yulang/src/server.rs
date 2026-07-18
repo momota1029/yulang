@@ -13,8 +13,8 @@ use yulang_editor::text as editor_text;
 
 use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
 use crate::{
-    SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin, SourceHover,
-    SourceHoverDocumentationDraft, SourceLocation, SourceRange, SourceRename,
+    DocCommentRenderWorker, SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin,
+    SourceHover, SourceHoverDocumentationDraft, SourceLocation, SourceRange, SourceRename,
 };
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -30,6 +30,7 @@ struct Backend {
     request_cache: Arc<Mutex<HashMap<LspRequestCacheKey, LspRequestCacheValue>>>,
     analysis_slots: Arc<Semaphore>,
     request_slots: Arc<Semaphore>,
+    doc_comment_render_worker: Option<DocCommentRenderWorker>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -566,6 +567,7 @@ enum LspHoverDraft {
     Source(LspSourceHoverDraft),
 }
 
+#[cfg(test)]
 impl LspHoverDraft {
     fn into_static_hover(self) -> Hover {
         match self {
@@ -583,11 +585,17 @@ struct LspSourceHoverDraft {
 }
 
 impl LspSourceHoverDraft {
+    #[cfg(test)]
     fn into_static_hover(self) -> Hover {
-        let documentation_markdown = self
+        self.into_hover_with_lazy_markdown(None)
+    }
+
+    fn into_hover_with_lazy_markdown(self, lazy_markdown: Option<String>) -> Hover {
+        let fallback_markdown = self
             .documentation
             .as_ref()
             .map(|documentation| documentation.fallback_markdown.as_str());
+        let documentation_markdown = lazy_markdown.as_deref().or(fallback_markdown);
         let value = lsp_hover_markdown_value(&self.signature, documentation_markdown);
         Hover {
             contents: HoverContents::Markup(MarkupContent {
@@ -597,6 +605,32 @@ impl LspSourceHoverDraft {
             range: Some(self.range),
         }
     }
+}
+
+async fn resolve_lsp_hover_draft(
+    draft: LspHoverDraft,
+    worker: Option<DocCommentRenderWorker>,
+    deadline: tokio::time::Instant,
+) -> Hover {
+    let mut source_draft = match draft {
+        LspHoverDraft::Diagnostic(hover) => return hover,
+        LspHoverDraft::Source(source_draft) => source_draft,
+    };
+    let lazy_render_input = source_draft
+        .documentation
+        .as_mut()
+        .and_then(|documentation| documentation.lazy_render_input.take());
+    let lazy_markdown = match (worker, lazy_render_input) {
+        (Some(worker), Some(input)) => {
+            let handle = tokio::task::spawn_blocking(move || worker.render(input));
+            match tokio::time::timeout_at(deadline, handle).await {
+                Ok(Ok(Ok(markdown))) => Some(markdown),
+                Ok(Ok(Err(_))) | Ok(Err(_)) | Err(_) => None,
+            }
+        }
+        _ => None,
+    };
+    source_draft.into_hover_with_lazy_markdown(lazy_markdown)
 }
 
 fn lsp_hover_draft_for_source_hover(
@@ -949,14 +983,24 @@ impl LanguageServer for Backend {
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
+        // Source analysis and deferred doc rendering share the existing
+        // request budget; the draft retains static bytes if rendering times out.
+        let deadline = tokio::time::Instant::now() + LSP_REQUEST_TIMEOUT;
         let handle = tokio::task::spawn_blocking(move || {
-            let _permit = permit;
             hover_draft_for_source(&path, source, position, &options)
         });
-        let hover = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
-            Ok(Ok(hover)) => hover.map(LspHoverDraft::into_static_hover),
+        let draft = match tokio::time::timeout_at(deadline, handle).await {
+            Ok(Ok(draft)) => draft,
             Ok(Err(_)) | Err(_) => None,
         };
+        let hover = match draft {
+            Some(draft) => Some(
+                resolve_lsp_hover_draft(draft, self.doc_comment_render_worker.clone(), deadline)
+                    .await,
+            ),
+            None => None,
+        };
+        drop(permit);
         if self.current_analysis_version(&uri) == key.version {
             self.store_request(key, LspRequestCacheValue::Hover(hover.clone()));
         }
@@ -1143,7 +1187,8 @@ impl LanguageServer for Backend {
 pub async fn serve(std_root: Option<PathBuf>) {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(|client| Backend {
+    let doc_comment_render_worker = DocCommentRenderWorker::start().ok();
+    let (service, socket) = LspService::new(move |client| Backend {
         client,
         std_root,
         documents: Arc::new(Mutex::new(HashMap::new())),
@@ -1151,6 +1196,7 @@ pub async fn serve(std_root: Option<PathBuf>) {
         request_cache: Arc::new(Mutex::new(HashMap::new())),
         analysis_slots: Arc::new(Semaphore::new(1)),
         request_slots: Arc::new(Semaphore::new(2)),
+        doc_comment_render_worker,
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
@@ -2387,6 +2433,133 @@ my got = make(1).norm2
         }
     }
 
+    #[tokio::test]
+    async fn safe_source_hover_uses_the_resident_lazy_worker_and_its_cache() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let renderer_calls = calls.clone();
+        let worker =
+            crate::yumark_render_worker::start_doc_comment_render_worker_for_test(4, move |_| {
+                renderer_calls.fetch_add(1, Ordering::SeqCst);
+                Ok("rendered by lazy worker\n\n".to_string())
+            })
+            .unwrap();
+        let draft =
+            source_hover_draft_fixture("hover-lazy-worker-cache", "-- safe docs\nmy x: int = 1\n");
+
+        for _ in 0..2 {
+            let hover = resolve_lsp_hover_draft(
+                draft.clone(),
+                Some(worker.clone()),
+                tokio::time::Instant::now() + Duration::from_secs(1),
+            )
+            .await;
+            assert_eq!(
+                hover.contents,
+                HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "```yulang\nx: int\n```\n\nrendered by lazy worker\n\n".to_string(),
+                })
+            );
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn unsafe_source_hovers_skip_the_lazy_worker() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let renderer_calls = calls.clone();
+        let worker =
+            crate::yumark_render_worker::start_doc_comment_render_worker_for_test(4, move |_| {
+                renderer_calls.fetch_add(1, Ordering::SeqCst);
+                Ok("must not render".to_string())
+            })
+            .unwrap();
+        for (name, source) in [
+            ("delimiter", "-- before } after\nmy x: int = 1\n"),
+            ("inline-expression", "-- ![alt](url)\nmy x: int = 1\n"),
+            ("command", "-- \\cmd\nmy x: int = 1\n"),
+        ] {
+            let draft =
+                source_hover_draft_fixture(&format!("hover-unsafe-skips-worker-{name}"), source);
+            let expected = draft.clone().into_static_hover().contents;
+            let hover = resolve_lsp_hover_draft(
+                draft,
+                Some(worker.clone()),
+                tokio::time::Instant::now() + Duration::from_secs(1),
+            )
+            .await;
+
+            assert_eq!(hover.contents, expected, "{name}");
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn lazy_worker_failure_or_unavailability_preserves_static_hover() {
+        let worker =
+            crate::yumark_render_worker::start_doc_comment_render_worker_for_test(4, |_| {
+                Err(crate::YumarkLiteralEvaluationError::UnexpectedRootCount { actual: 0 })
+            })
+            .unwrap();
+        let draft = source_hover_draft_fixture(
+            "hover-lazy-worker-fallback",
+            "-- **safe** docs\nmy x: int = 1\n",
+        );
+        let expected = HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: "```yulang\nx: int\n```\n\n**safe** docs\n\n".to_string(),
+        });
+
+        let failed = resolve_lsp_hover_draft(
+            draft.clone(),
+            Some(worker),
+            tokio::time::Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+        let unavailable = resolve_lsp_hover_draft(
+            draft,
+            None,
+            tokio::time::Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+
+        assert_eq!(failed.contents, expected);
+        assert_eq!(unavailable.contents, expected);
+    }
+
+    #[tokio::test]
+    async fn lazy_worker_timeout_preserves_static_hover() {
+        let worker =
+            crate::yumark_render_worker::start_doc_comment_render_worker_for_test(4, |_| {
+                std::thread::sleep(Duration::from_millis(25));
+                Ok("late lazy output".to_string())
+            })
+            .unwrap();
+        let draft = source_hover_draft_fixture(
+            "hover-lazy-worker-timeout",
+            "-- safe docs\nmy x: int = 1\n",
+        );
+
+        let hover = resolve_lsp_hover_draft(
+            draft,
+            Some(worker),
+            tokio::time::Instant::now() + Duration::from_millis(1),
+        )
+        .await;
+
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "```yulang\nx: int\n```\n\nsafe docs\n\n".to_string(),
+            })
+        );
+    }
+
     #[test]
     fn hover_for_source_reports_diagnostic_summary_at_error_range() {
         let root = temp_root("hover-diagnostic-summary");
@@ -3158,6 +3331,29 @@ my got = make(1).norm2
         ));
         let _ = std::fs::remove_dir_all(&root);
         root
+    }
+
+    fn source_hover_draft_fixture(name: &str, source: &str) -> LspHoverDraft {
+        let root = temp_root(name);
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        let binding_line = source
+            .lines()
+            .position(|line| line.starts_with("my x:"))
+            .expect("source fixture should contain the hovered binding");
+        hover_draft_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: binding_line as u32,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .expect("source fixture should produce a hover draft")
     }
 
     fn workspace_std_root() -> PathBuf {
