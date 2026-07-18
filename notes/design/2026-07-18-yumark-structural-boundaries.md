@@ -2,15 +2,14 @@
 
 Date: 2026-07-18
 
-Status: **approved semantic target; implementation pending**. This note is the source of truth for
-the two boundary-semantics changes below. The decisions were confirmed by the user on 2026-07-18
-after investigation of the parser, lowering, standard-library renderers, doc-comment association,
-fixtures, and history. Slice 1 records the target and characterizes the old behavior; it does not
-change parser, lowering, or rendering behavior.
+Status: **implemented and verified**. This note is the source of truth for the two
+boundary-semantics changes below. The decisions were confirmed by the user on 2026-07-18 after
+investigation of the parser, lowering, standard-library renderers, doc-comment association,
+fixtures, and history. Section 5 preserves the pre-change characterization as historical evidence;
+section 7 records the completed implementation.
 
-The converged Yumark design remains historically intact. A later implementation slice will append
-a cross-referencing amendment to `2026-07-17-yumark-converged-design.md` rather than silently
-rewriting it.
+The converged Yumark design remains historically intact. Its dated amendment cross-references this
+note rather than silently rewriting the pre-amendment record.
 
 ## 1. The two mismatches
 
@@ -141,3 +140,34 @@ parser and lowering slices. They are evidence for the migration, not the final s
 - Do not perform the line-doc merge in `module_map`, the static renderer, the lazy-render mapping,
   or the future hover cache.
 - Do not resume language-server integration until these source semantics and parity are complete.
+
+## 7. Implementation record
+
+The boundary migration landed in five independently verified commits:
+
+1. `9a241468` (`test: characterize Yumark structural boundaries`) documented the approved target
+   and pinned the old parser and rendering behavior before the semantic switch.
+2. `a6886e28` (`feat: identify structural Yumark blank boundaries`) added the sequence-level CST
+   normalizer which recognizes a parser-generated `YmBlankLine` and its duplicated adjacent
+   newline boundary as one structural span.
+3. `3e1d4947` (`feat: make Yumark source blank lines structural`) wired that normalizer into
+   production lowering and static doc rendering. Parser-generated blank lines now emit no algebra
+   operation, while direct `blank_line(...)` builder calls retain their original rendering.
+4. `fa076484` (`feat(parser): parse line doc continuations structurally`) made contiguous `--`
+   lines one lossless `DocCommentDecl` / `YmDoc`, with subsequent `--` markers represented as
+   structural `LineDocPrefix` tokens. Cross-line inline syntax now parses before any downstream
+   doc association or rendering.
+5. `9f61e04e` (`fix(infer): align line doc rendering with continuations`) taught doc consumers to
+   discard `LineDocPrefix` as structural syntax and re-pinned static rendering, owned render input,
+   cache identity, and lazy-evaluation parity around one logical line-doc unit.
+
+The final behavior satisfies section 4: ordinary source blank lines are structural at every
+position; contiguous line docs preserve exact LF/CRLF source while sharing one logical Yumark
+document; split inline syntax crosses continuation prefixes; block docs and real blank source lines
+still terminate a line-doc run; static and lazy Markdown rendering agree byte-for-byte; and the
+explicit public spacer builder remains visible and unchanged.
+
+The retained real-literal workload
+`tests/yulang/regressions/cache/yumark_shadow_literal_performance_workload.yu` now lowers to 128
+static Yumark algebra calls and no `blank_line` call. Its historical “more than 70 operations” scale
+claim therefore remains accurate after this amendment.

@@ -125,7 +125,7 @@ impl std::error::Error for YumarkLiteralEvaluationError {}
 mod tests {
     use super::*;
 
-    use infer::doc_comment_render_input::DocCommentRenderInput;
+    use infer::doc_comment_render_input::{DocCommentRenderInput, DocUnitLiteralMappingError};
 
     #[test]
     fn warm_embedded_std_evaluator_runs_one_ordinary_yumark_literal() {
@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn per_unit_lazy_doc_render_matches_static_renderer_bytes() {
+    fn logical_unit_lazy_doc_render_matches_static_renderer_bytes() {
         std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn(|| {
@@ -237,10 +237,21 @@ mod tests {
                     Ok("'{\nparagraph\n}".to_string())
                 );
                 assert!(continued.units()[0].static_fallback_markdown().is_none());
+
+                let (empty, expected) = doc_render_case("--\nmy x = 1\n");
+                assert_eq!(empty.units().len(), 1);
+                assert_eq!(
+                    empty.units()[0].to_synthetic_yumark_literal(),
+                    Err(DocUnitLiteralMappingError::EmptyOrBoundaryOnlyUnit)
+                );
+                assert_eq!(
+                    empty.units()[0].static_fallback_markdown(),
+                    Some(expected.as_str())
+                );
             })
-            .expect("spawn per-unit doc renderer test thread")
+            .expect("spawn logical-unit doc renderer test thread")
             .join()
-            .expect("per-unit doc renderer test thread");
+            .expect("logical-unit doc renderer test thread");
     }
 
     fn doc_render_case(source: &str) -> (DocCommentRenderInput, String) {

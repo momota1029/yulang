@@ -1230,3 +1230,34 @@ compatibility work, plus the unchosen injection/effect contract.
 injection and full effect parity gate the default switch or remain explicitly deferred; and choose
 the lifetime, if any, of the old typed-tree API. No migration step begins and no public stdlib or
 lowering default changes until that decision is made.
+
+## 14. Amendment (2026-07-18): structural Yumark source boundaries
+
+This section amends the source-boundary semantics recorded above without rewriting their historical
+development record. The authoritative rationale, exact invariants, pre-change characterization,
+and implementation trail live in
+`notes/design/2026-07-18-yumark-structural-boundaries.md`.
+
+Two source boundaries are now structural rather than independently rendered content:
+
+- Every parser-generated `YmBlankLine`, including leading, trailing, repeated, whitespace-only, and
+  quote-contained forms, is discarded together with its duplicated adjacent newline boundary
+  during lowering. A source blank line separates paragraphs but emits no `blank_line`, `text`, or
+  other algebra call. Consecutive paragraphs are ordinary `paragraph` values joined by `cons`.
+- A contiguous run of `--` line-doc comments parses as one lossless `DocCommentDecl` containing one
+  `YmDoc`. Each subsequent `--` is a structural `LineDocPrefix` token distinct from the logical
+  newline, so inline syntax and paragraph continuation can span physical line-doc lines. A real
+  blank source line or a block-doc delimiter still ends the run.
+
+The public `blank_line` algebra operation, builder, and HTML/Markdown renderers remain unchanged.
+They are available to explicit direct builder calls, but ordinary literal and doc-comment source
+syntax no longer generates that operation. This amendment adds no manual-spacer source syntax.
+
+The byte-parity and operation-vocabulary claims in the pre-amendment Shadow Stage 1 record describe
+the historical source semantics used by those comparisons. In particular, references above to
+ordinary blank-line lowering and paired CURRENT/shadow bytes are pre-amendment baselines, not a
+requirement to preserve visible blank-line calls in new ordinary-source output. The 72-operation
+Stage 0A/Stage 0B hand-built algebra controls remain valid because their explicit builder calls are
+unaffected. The retained real-literal workload currently lowers to 128 static Yumark algebra calls,
+with no `blank_line` call, so its “more than 70 operations” scale characterization also remains
+accurate.
