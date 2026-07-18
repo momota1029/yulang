@@ -151,6 +151,27 @@ mod tests {
     }
 
     #[test]
+    fn characterizes_current_visible_ordinary_blank_line_operation() {
+        let (continued, separated) = std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(|| {
+                let continued =
+                    evaluate_yumark_literal_markdown_with_embedded_std("'{first\nsecond\n}")
+                        .expect("evaluate continued paragraph");
+                let separated =
+                    evaluate_yumark_literal_markdown_with_embedded_std("'{first\n\nsecond\n}")
+                        .expect("evaluate blank-line-separated paragraphs");
+                (continued, separated)
+            })
+            .expect("spawn Yumark evaluator test thread")
+            .join()
+            .expect("Yumark evaluator test thread");
+
+        assert_eq!(continued, "first\nsecond\n\n");
+        assert_eq!(separated, "first\n\n\n\n\nsecond\n\n");
+    }
+
+    #[test]
     fn per_unit_lazy_doc_render_matches_static_renderer_bytes() {
         std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)

@@ -281,6 +281,63 @@ mod tests {
     }
 
     #[test]
+    fn characterizes_physical_line_docs_as_independent_declarations() {
+        for (source, expected_declarations) in [
+            ("-- first\n-- second\nmy value = 1\n", 2),
+            ("-- first\r\n-- second\r\nmy value = 1\r\n", 2),
+            ("-- first\n--\n-- second\nmy value = 1\n", 3),
+        ] {
+            let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+            let declarations = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::DocCommentDecl)
+                .collect::<Vec<_>>();
+
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(declarations.len(), expected_declarations, "{source:?}");
+            assert!(declarations.iter().all(|decl| {
+                decl.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::YmDoc)
+                    .count()
+                    == 1
+            }));
+        }
+    }
+
+    #[test]
+    fn characterizes_split_line_doc_inline_syntax_as_physically_bounded() {
+        let source = "-- [link\n-- here](add)\nmy value = 1\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let declarations = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::DocCommentDecl)
+            .collect::<Vec<_>>();
+
+        // Recovery closes the incomplete inline node at the physical doc
+        // boundary and currently duplicates its buffered text/trivia.
+        assert_eq!(
+            root.text().to_string(),
+            "-- [linklink\n\n-- here](add)\nmy value = 1\n"
+        );
+        assert_eq!(declarations.len(), 2);
+        assert_eq!(
+            declarations[0]
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::YmInlineExpr)
+                .expect("first physical line has an incomplete inline node")
+                .text()
+                .to_string(),
+            "[linklink\n"
+        );
+        assert!(
+            declarations[1]
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::YmInlineExpr),
+            "the second physical line cannot complete the first declaration's inline node"
+        );
+    }
+
+    #[test]
     fn parse_module_preserves_block_doc_comment_text_ranges() {
         let source =
             "---\n# Title\nA *soft* doc.\n\n- item\n```text\nbody\n```\n---\nmy value = 1\n";

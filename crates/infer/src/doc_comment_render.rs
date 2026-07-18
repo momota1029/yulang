@@ -365,6 +365,46 @@ mod tests {
     }
 
     #[test]
+    fn characterizes_current_independent_line_doc_unit_boundaries() {
+        let cases = [
+            (
+                "stacked LF",
+                "-- first\n-- second\nmy x = 1\n",
+                2,
+                "first\n\nsecond\n\n",
+            ),
+            (
+                "stacked CRLF",
+                "-- first\r\n-- second\r\nmy x = 1\r\n",
+                2,
+                "first\n\nsecond\n\n",
+            ),
+            (
+                "split inline construct",
+                "-- [link\n-- here](add)\nmy x = 1\n",
+                2,
+                "[linklink\n\n\nhere](add)\n\n",
+            ),
+            (
+                "empty physical unit",
+                "-- first\n--\n-- second\nmy x = 1\n",
+                3,
+                "first\n\n--second\n\n",
+            ),
+        ];
+
+        for (name, source, expected_units, expected_rendered) in cases {
+            let doc = value_doc(source);
+            assert_eq!(doc.units().len(), expected_units, "{name}");
+            assert_eq!(
+                render_doc_comment_markdown(&doc),
+                expected_rendered,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
     fn renders_emphasis() {
         assert_eq!(render_value_doc("-- *soft*\nmy x = 1\n"), "*soft*\n\n");
     }
