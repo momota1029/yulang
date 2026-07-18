@@ -156,10 +156,11 @@ fn trailing_yumark_blank_boundary_trivia_ranges(node: &Cst) -> Vec<rowan::TextRa
 }
 
 fn token_is_yumark_blank_boundary_trivia(token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
-    matches!(
-        token.kind(),
-        SyntaxKind::Space | SyntaxKind::YmNewline | SyntaxKind::QuotePrefix
-    ) && token.text().chars().any(|ch| matches!(ch, '\n' | '\r'))
+    token.kind() == SyntaxKind::LineDocPrefix
+        || (matches!(
+            token.kind(),
+            SyntaxKind::Space | SyntaxKind::YmNewline | SyntaxKind::QuotePrefix
+        ) && token.text().chars().any(|ch| matches!(ch, '\n' | '\r')))
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -685,6 +686,45 @@ mod boundary_normalization_tests {
                 (SyntaxKind::YmNewline, "\n"),
                 (SyntaxKind::YmNewline, "\n"),
             ],
+        );
+    }
+
+    #[test]
+    fn normalizes_line_doc_prefixes_inside_blank_boundary() {
+        let source = "-- first\n--\n-- second\nmy x = 1\n";
+        let root = SyntaxNode::new_root(parser::parse_module_to_green(source));
+        let doc = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::YmDoc)
+            .expect("line doc comment should contain YmDoc");
+        let normalization = normalize_yumark_sequence_blank_boundaries(&doc);
+        let [boundary] = normalization.structural_blank_boundaries.as_slice() else {
+            panic!(
+                "expected one line-doc blank boundary, got {:?}",
+                normalization.structural_blank_boundaries
+            );
+        };
+        let actual_trivia = boundary
+            .trivia_ranges
+            .iter()
+            .map(|range| {
+                let token = doc
+                    .descendants_with_tokens()
+                    .filter_map(NodeOrToken::into_token)
+                    .find(|token| token.text_range() == *range)
+                    .unwrap_or_else(|| panic!("missing boundary token at {range:?}"));
+                (token.kind(), token.text().to_string())
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual_trivia,
+            [
+                (SyntaxKind::YmNewline, "\n".to_string()),
+                (SyntaxKind::LineDocPrefix, "--".to_string()),
+                (SyntaxKind::YmNewline, "\n".to_string()),
+                (SyntaxKind::LineDocPrefix, "-- ".to_string()),
+            ]
         );
     }
 

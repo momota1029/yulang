@@ -583,16 +583,12 @@ fn doc_comment_static_renderer_matches_production_markdown_vocabulary() {
             .collect::<Vec<_>>()
             .join(", ")
     );
-    // Fence and quote use the same public builders emitted by literal lowering.
-    // This keeps the oracle on renderer parity: normalizing a terminal block
-    // literal's structural separator belongs to the later doc-to-source slice.
+    // Contiguous line docs share one ordinary paragraph literal. Fence and
+    // quote use the same public builders emitted by literal lowering.
     let production_source = concat!(
         "use std::text::yumark::*\n",
-        "use std::text::str::{concat}\n",
         "render_markdown_doc ('{paragraph\n})\n",
-        "my first_unit = render_markdown_doc ('{first\n})\n",
-        "my second_unit = render_markdown_doc ('{second\n})\n",
-        "concat first_unit second_unit\n",
+        "render_markdown_doc ('{first\nsecond\n})\n",
         "render_markdown_doc ('{## Heading\n})\n",
         "render_markdown_doc ('{- first\n- second\n})\n",
         "render_markdown_doc (code_fence \"text\" \"alpha\\nbeta\")\n",

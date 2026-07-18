@@ -125,7 +125,7 @@ impl std::error::Error for YumarkLiteralEvaluationError {}
 mod tests {
     use super::*;
 
-    use infer::doc_comment_render_input::{DocCommentRenderInput, DocUnitLiteralMappingError};
+    use infer::doc_comment_render_input::DocCommentRenderInput;
 
     #[test]
     fn warm_embedded_std_evaluator_runs_one_ordinary_yumark_literal() {
@@ -202,7 +202,7 @@ mod tests {
             .spawn(|| {
                 let cases = [
                     ("paragraph", "-- paragraph\nmy x = 1\n"),
-                    ("stacked units", "-- first\n-- second\nmy x = 1\n"),
+                    ("line continuation", "-- first\n-- second\nmy x = 1\n"),
                     ("multi-line paragraph", "---\nalpha\nbeta\n---\nmy x = 1\n"),
                     ("heading", "---\n## Heading\n---\nmy x = 1\n"),
                     ("list", "---\n- first\n- second\n---\nmy x = 1\n"),
@@ -219,7 +219,7 @@ mod tests {
                     ),
                     ("empty unit", "--\nmy x = 1\n"),
                     ("terminal blank line", "---\nalpha\n\n---\nmy x = 1\n"),
-                    ("mixed fallback", "--\n-- paragraph\nmy x = 1\n"),
+                    ("empty line separator", "--\n-- paragraph\nmy x = 1\n"),
                 ];
 
                 for (name, source) in cases {
@@ -230,14 +230,13 @@ mod tests {
                     assert_eq!(actual, expected, "{name}");
                 }
 
-                let (mixed, _) = doc_render_case("--\n-- paragraph\nmy x = 1\n");
+                let (continued, _) = doc_render_case("--\n-- paragraph\nmy x = 1\n");
+                assert_eq!(continued.units().len(), 1);
                 assert_eq!(
-                    mixed.units()[0].to_synthetic_yumark_literal(),
-                    Err(DocUnitLiteralMappingError::EmptyOrBoundaryOnlyUnit)
+                    continued.units()[0].to_synthetic_yumark_literal(),
+                    Ok("'{\nparagraph\n}".to_string())
                 );
-                assert_eq!(mixed.units()[0].static_fallback_markdown(), Some("--"));
-                assert!(mixed.units()[1].to_synthetic_yumark_literal().is_ok());
-                assert!(mixed.units()[1].static_fallback_markdown().is_none());
+                assert!(continued.units()[0].static_fallback_markdown().is_none());
             })
             .expect("spawn per-unit doc renderer test thread")
             .join()

@@ -5,6 +5,7 @@
 //! runtime concatenates rendered unit outputs in their original order.
 
 use parser::lex::SyntaxKind;
+use rowan::NodeOrToken;
 
 use crate::doc_comment_render::{
     doc_comment_is_safe_for_yumark_literal_reparse, render_doc_unit_markdown,
@@ -18,8 +19,9 @@ pub struct DocCommentRenderInput {
 }
 
 impl DocCommentRenderInput {
-    /// Copy the exact body fragments of a doc comment accepted by the Slice 1
-    /// safe-subset check.
+    /// Copy the exact logical bodies of a doc comment accepted by the Slice 1
+    /// safe-subset check. Lossless line-doc continuation prefixes stay in the
+    /// CST but are not literal body content.
     ///
     /// Joining fragments and normalizing their boundaries are deliberately
     /// deferred to literal construction.
@@ -59,7 +61,7 @@ impl DocCommentRenderInputKey {
     }
 }
 
-/// One doc-comment unit with its delimiter-free, unnormalized source body.
+/// One logical doc-comment unit with its delimiter-free, unnormalized body.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DocCommentRenderInputUnit {
     kind: DocCommentKind,
@@ -133,7 +135,14 @@ impl DocCommentRenderInputUnit {
             .children()
             .filter(|child| child.kind() == SyntaxKind::YmDoc)
         {
-            body_source.push_str(&doc.text().to_string());
+            for token in doc
+                .descendants_with_tokens()
+                .filter_map(NodeOrToken::into_token)
+            {
+                if token.kind() != SyntaxKind::LineDocPrefix {
+                    body_source.push_str(token.text());
+                }
+            }
         }
         let literal_closing_boundary = literal_closing_boundary(unit, &body_source);
         let static_fallback_markdown = literal_closing_boundary
@@ -243,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_unit_sequence_and_exact_unmapped_body_sources() {
+    fn preserves_unit_sequence_and_exact_logical_body_sources() {
         let cases = [
             (
                 "single line",
@@ -292,10 +301,7 @@ mod tests {
 
         assert_eq!(
             unit_contents(&render_input("-- first\n-- second\nmy x = 1\n")),
-            vec![
-                (DocCommentKind::Line, " first"),
-                (DocCommentKind::Line, " second"),
-            ]
+            vec![(DocCommentKind::Line, " first\nsecond")]
         );
     }
 

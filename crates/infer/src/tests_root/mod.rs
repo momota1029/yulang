@@ -51,22 +51,16 @@ fn doc_comment_line_attaches_to_following_binding() {
 }
 
 #[test]
-fn consecutive_line_doc_comments_stack_for_following_binding() {
+fn contiguous_line_doc_comments_attach_as_one_logical_unit() {
     let lower = lower_source("-- first\n-- second\nmy x = 1\n");
     let x = value_def(&lower, "x");
     let doc = lower
         .modules
         .def_doc_comment(x)
-        .expect("stacked line doc comments should attach to x");
+        .expect("contiguous line doc comment should attach to x");
 
-    assert_eq!(
-        doc_unit_kinds(doc),
-        vec![DocCommentKind::Line, DocCommentKind::Line]
-    );
-    assert_eq!(
-        doc_unit_texts(doc),
-        vec!["-- first".to_string(), "-- second".to_string()]
-    );
+    assert_eq!(doc_unit_kinds(doc), vec![DocCommentKind::Line]);
+    assert_eq!(doc_unit_texts(doc), vec!["-- first\n-- second".to_string()]);
 }
 
 #[test]

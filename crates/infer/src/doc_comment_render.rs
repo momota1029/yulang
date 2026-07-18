@@ -137,13 +137,13 @@ fn render_yumark_node(node: &Cst, normalization: &YumarkSequenceNormalization) -
             rendered.push('\n');
             rendered
         }
-        _ => node.text().to_string(),
+        _ => raw_yumark_source(node),
     }
 }
 
 fn render_heading(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     let Some(marker) = token_text(node, &[SyntaxKind::YmHashSigil]) else {
-        return node.text().to_string();
+        return raw_yumark_source(node);
     };
     let mut rendered = marker;
     rendered.push_str(&render_sequence(
@@ -157,7 +157,7 @@ fn render_heading(node: &Cst, normalization: &YumarkSequenceNormalization) -> St
 
 fn render_section_close(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     let Some(marker) = token_text(node, &[SyntaxKind::YmHashDotSigil]) else {
-        return node.text().to_string();
+        return raw_yumark_source(node);
     };
     let mut rendered = marker;
     rendered.push_str(&render_sequence(
@@ -174,7 +174,7 @@ fn render_list_item(node: &Cst, normalization: &YumarkSequenceNormalization) -> 
         node,
         &[SyntaxKind::YmListDashSigil, SyntaxKind::YmListNumSigil],
     ) else {
-        return node.text().to_string();
+        return raw_yumark_source(node);
     };
     let mut children = render_sequence(node, SequenceOptions::BLOCK_CONTENT, normalization);
     trim_trailing_line_breaks(&mut children);
@@ -185,7 +185,7 @@ fn render_list_item(node: &Cst, normalization: &YumarkSequenceNormalization) -> 
 }
 
 fn render_code_fence(node: &Cst) -> String {
-    let text = node.text().to_string();
+    let text = raw_yumark_source(node);
     let Some((info, body)) = split_code_fence_node_text(&text) else {
         return text;
     };
@@ -237,7 +237,7 @@ fn render_sequence(
                         child_rendered.ends_with('\n') || child_rendered.ends_with('\r');
                     rendered.push_str(&child_rendered);
                 } else {
-                    let raw = child.text().to_string();
+                    let raw = raw_yumark_source(&child);
                     skip_newlines_after_child = raw.ends_with('\n') || raw.ends_with('\r');
                     rendered.push_str(&raw);
                 }
@@ -246,6 +246,22 @@ fn render_sequence(
     }
     flush_text(&mut rendered, &mut text, options);
     rendered
+}
+
+/// Preserve unsupported Yumark source byte-for-byte except for line-doc
+/// continuation decoration, which is lossless CST structure rather than
+/// logical document content.
+fn raw_yumark_source(node: &Cst) -> String {
+    let mut source = String::new();
+    for token in node
+        .descendants_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+    {
+        if token.kind() != SyntaxKind::LineDocPrefix {
+            source.push_str(token.text());
+        }
+    }
+    source
 }
 
 fn trim_doc_comment_boundary(rendered: &mut String, kind: DocCommentKind) {
@@ -348,6 +364,7 @@ fn token_is_yumark_syntax(kind: SyntaxKind) -> bool {
             | SyntaxKind::YmFenceSigil
             | SyntaxKind::YmDocBlockSigil
             | SyntaxKind::QuotePrefix
+            | SyntaxKind::LineDocPrefix
             | SyntaxKind::YmNewline
     )
 }
@@ -390,39 +407,39 @@ mod tests {
     }
 
     #[test]
-    fn renders_consecutive_line_doc_units_in_source_order() {
+    fn renders_contiguous_line_docs_as_one_continued_paragraph() {
         assert_eq!(
             render_value_doc("-- first\n-- second\nmy x = 1\n"),
-            "first\n\nsecond\n\n"
+            "first\nsecond\n\n"
         );
     }
 
     #[test]
-    fn characterizes_current_independent_line_doc_unit_boundaries() {
+    fn renders_contiguous_line_doc_boundaries_as_logical_yumark_lines() {
         let cases = [
             (
                 "stacked LF",
                 "-- first\n-- second\nmy x = 1\n",
-                2,
-                "first\n\nsecond\n\n",
+                1,
+                "first\nsecond\n\n",
             ),
             (
                 "stacked CRLF",
                 "-- first\r\n-- second\r\nmy x = 1\r\n",
-                2,
-                "first\n\nsecond\n\n",
+                1,
+                "first\r\nsecond\n\n",
             ),
             (
                 "split inline construct",
                 "-- [link\n-- here](add)\nmy x = 1\n",
-                2,
-                "[linklink\n\n\nhere](add)\n\n",
+                1,
+                "[link\nhere](add)\n\n",
             ),
             (
                 "empty physical unit",
                 "-- first\n--\n-- second\nmy x = 1\n",
-                3,
-                "first\n\n--second\n\n",
+                1,
+                "first\n\nsecond\n\n",
             ),
         ];
 
@@ -435,6 +452,14 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    #[test]
+    fn renders_link_split_across_line_doc_continuations_as_raw_markdown() {
+        assert_eq!(
+            render_value_doc("-- [link\n-- here](add)\nmy x = 1\n"),
+            "[link\nhere](add)\n\n"
+        );
     }
 
     #[test]
