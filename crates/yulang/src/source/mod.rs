@@ -1314,7 +1314,14 @@ impl SourceTextAnalysis {
 pub struct SourceHover {
     pub range: SourceRange,
     pub contents: String,
-    pub documentation_markdown: Option<String>,
+    pub documentation: Option<SourceHoverDocumentationDraft>,
+}
+
+/// Static hover bytes plus an optional owned input for deferred Yumark rendering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceHoverDocumentationDraft {
+    pub fallback_markdown: String,
+    pub lazy_render_input: Option<infer::doc_comment_render_input::DocCommentRenderInput>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2529,7 +2536,7 @@ fn hover_for_def(
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
-        documentation_markdown: doc_comment_markdown(check, def),
+        documentation: doc_comment_hover_draft(check, def),
     })
 }
 
@@ -2555,7 +2562,7 @@ fn hover_for_local_def(
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
-        documentation_markdown: None,
+        documentation: None,
     })
 }
 
@@ -2592,7 +2599,7 @@ fn hover_for_resolved_selection_value(
             check.lowering.session.poly.select(select).name,
             format_context.format_value_type(use_site.selected_value)
         ),
-        documentation_markdown: None,
+        documentation: None,
     })
 }
 
@@ -2622,7 +2629,7 @@ fn hover_for_selected_method(
     Some(SourceHover {
         range,
         contents: format!("{label}: {}", format_context.format_scheme(scheme)),
-        documentation_markdown: doc_comment_markdown(check, def),
+        documentation: doc_comment_hover_draft(check, def),
     })
 }
 
@@ -2634,16 +2641,23 @@ fn hover_label_is_hidden(label: &str) -> bool {
     })
 }
 
-fn doc_comment_markdown(
+fn doc_comment_hover_draft(
     check: &infer::check::PolyCheckOutput,
     def: poly::expr::DefId,
-) -> Option<String> {
-    check
-        .lowering
-        .modules
-        .def_doc_comment(def)
-        .map(infer::doc_comment_render::render_doc_comment_markdown)
-        .filter(|doc| !doc.is_empty())
+) -> Option<SourceHoverDocumentationDraft> {
+    let doc = check.lowering.modules.def_doc_comment(def)?;
+    let fallback_markdown = infer::doc_comment_render::render_doc_comment_markdown(doc);
+    if fallback_markdown.is_empty() {
+        return None;
+    }
+    let lazy_render_input =
+        infer::doc_comment_render::doc_comment_is_safe_for_yumark_literal_reparse(doc).then(|| {
+            infer::doc_comment_render_input::DocCommentRenderInput::from_safe_doc_comment(doc)
+        });
+    Some(SourceHoverDocumentationDraft {
+        fallback_markdown,
+        lazy_render_input,
+    })
 }
 
 struct HoverFormatContext<'a> {

@@ -13,8 +13,8 @@ use yulang_editor::text as editor_text;
 
 use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
 use crate::{
-    SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin, SourceHover, SourceLocation,
-    SourceRange, SourceRename,
+    SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin, SourceHover,
+    SourceHoverDocumentationDraft, SourceLocation, SourceRange, SourceRename,
 };
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -366,14 +366,24 @@ fn diagnostics_for_source(
     }
 }
 
+fn hover_draft_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    options: &crate::StdSourceOptions,
+) -> Option<LspHoverDraft> {
+    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    hover_for_analysis(path, &source, &analysis, position)
+}
+
+#[cfg(test)]
 fn hover_for_source(
     path: &Path,
     source: String,
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Option<Hover> {
-    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
-    hover_for_analysis(path, &source, &analysis, position)
+    hover_draft_for_source(path, source, position, options).map(LspHoverDraft::into_static_hover)
 }
 
 fn definition_for_source(
@@ -425,18 +435,18 @@ fn hover_for_analysis(
     source: &str,
     analysis: &SourceTextAnalysis,
     position: Position,
-) -> Option<Hover> {
+) -> Option<LspHoverDraft> {
     if let Some(hover) = diagnostic_hover_for_analysis(path, source, analysis, position) {
-        return Some(hover);
+        return Some(LspHoverDraft::Diagnostic(hover));
     }
 
     let byte_offset = position_to_byte_offset(source, position)?;
     let hover = analysis.hover(byte_offset)?;
-    Some(lsp_hover_for_source_hover(
+    Some(LspHoverDraft::Source(lsp_hover_draft_for_source_hover(
         source,
         hover,
         analysis.root_has_implicit_prelude(),
-    ))
+    )))
 }
 
 fn diagnostic_hover_for_analysis(
@@ -541,23 +551,63 @@ fn rename_for_analysis(
     workspace_edit_for_source_rename(path, source, rename, analysis.root_has_implicit_prelude())
 }
 
+#[cfg(test)]
 fn lsp_hover_for_source_hover(
     source: &str,
     hover: SourceHover,
     root_has_implicit_prelude: bool,
 ) -> Hover {
-    let contents = lsp_hover_source_contents(&hover.contents);
-    let value = lsp_hover_markdown_value(&contents, hover.documentation_markdown.as_deref());
-    Hover {
-        contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value,
-        }),
-        range: Some(lsp_range_for_root_source(
-            source,
-            hover.range,
-            root_has_implicit_prelude,
-        )),
+    lsp_hover_draft_for_source_hover(source, hover, root_has_implicit_prelude).into_static_hover()
+}
+
+#[derive(Debug, Clone)]
+enum LspHoverDraft {
+    Diagnostic(Hover),
+    Source(LspSourceHoverDraft),
+}
+
+impl LspHoverDraft {
+    fn into_static_hover(self) -> Hover {
+        match self {
+            Self::Diagnostic(hover) => hover,
+            Self::Source(hover) => hover.into_static_hover(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct LspSourceHoverDraft {
+    range: Range,
+    signature: String,
+    documentation: Option<SourceHoverDocumentationDraft>,
+}
+
+impl LspSourceHoverDraft {
+    fn into_static_hover(self) -> Hover {
+        let documentation_markdown = self
+            .documentation
+            .as_ref()
+            .map(|documentation| documentation.fallback_markdown.as_str());
+        let value = lsp_hover_markdown_value(&self.signature, documentation_markdown);
+        Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value,
+            }),
+            range: Some(self.range),
+        }
+    }
+}
+
+fn lsp_hover_draft_for_source_hover(
+    source: &str,
+    hover: SourceHover,
+    root_has_implicit_prelude: bool,
+) -> LspSourceHoverDraft {
+    LspSourceHoverDraft {
+        range: lsp_range_for_root_source(source, hover.range, root_has_implicit_prelude),
+        signature: lsp_hover_source_contents(&hover.contents),
+        documentation: hover.documentation,
     }
 }
 
@@ -901,10 +951,10 @@ impl LanguageServer for Backend {
         };
         let handle = tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            hover_for_source(&path, source, position, &options)
+            hover_draft_for_source(&path, source, position, &options)
         });
         let hover = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
-            Ok(Ok(hover)) => hover,
+            Ok(Ok(hover)) => hover.map(LspHoverDraft::into_static_hover),
             Ok(Err(_)) | Err(_) => None,
         };
         if self.current_analysis_version(&uri) == key.version {
@@ -2138,7 +2188,7 @@ my got = make(1).norm2
             SourceHover {
                 range: SourceRange { start: 3, end: 4 },
                 contents: long_type,
-                documentation_markdown: None,
+                documentation: None,
             },
             false,
         );
@@ -2260,6 +2310,81 @@ my got = make(1).norm2
                 .to_string(),
             })
         );
+    }
+
+    #[test]
+    fn source_hover_draft_preserves_legacy_static_bytes_for_safe_and_unsafe_docs() {
+        let root = temp_root("hover-doc-draft-static-parity");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        let options = crate::StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        };
+        let cases = [
+            (
+                "safe static doc",
+                "-- **safe** docs\nmy x: int = 1\n",
+                Position {
+                    line: 1,
+                    character: 3,
+                },
+                true,
+                "```yulang\nx: int\n```\n\n**safe** docs\n\n",
+            ),
+            (
+                "unsafe inline-expression doc",
+                "-- ![alt](url)\nmy x: int = 1\n",
+                Position {
+                    line: 1,
+                    character: 3,
+                },
+                false,
+                "```yulang\nx: int\n```\n\n![alt](url)\n\n",
+            ),
+            (
+                "unsafe delimiter doc",
+                "-- before } after\nmy x: int = 1\n",
+                Position {
+                    line: 1,
+                    character: 3,
+                },
+                false,
+                "```yulang\nx: int\n```\n\nbefore } after\n\n",
+            ),
+        ];
+
+        for (name, source, position, expects_lazy_input, expected_markdown) in cases {
+            let draft = hover_draft_for_source(
+                &root.join("main.yu"),
+                source.to_string(),
+                position,
+                &options,
+            )
+            .unwrap_or_else(|| panic!("{name}: expected hover draft"));
+            let LspHoverDraft::Source(source_draft) = draft else {
+                panic!("{name}: expected source hover draft");
+            };
+            let documentation = source_draft
+                .documentation
+                .as_ref()
+                .unwrap_or_else(|| panic!("{name}: expected documentation draft"));
+            assert_eq!(
+                documentation.lazy_render_input.is_some(),
+                expects_lazy_input,
+                "{name}"
+            );
+
+            let hover = LspHoverDraft::Source(source_draft).into_static_hover();
+            assert_eq!(
+                hover.contents,
+                HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: expected_markdown.to_string(),
+                }),
+                "{name}"
+            );
+        }
     }
 
     #[test]
