@@ -6,7 +6,7 @@ use crate::{
 };
 use chasa::{
     parser::SkipParserOnce as _,
-    prelude::{any, choice, from_fn_mut, item, many_skip, none_of, one_of, tag},
+    prelude::{any, choice, from_fn, from_fn_mut, item, many_skip, none_of, one_of, tag},
 };
 use smallvec::{SmallVec, smallvec};
 
@@ -14,6 +14,14 @@ pub fn scan_trivia<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Trivi
     let mut max_quote_depth = i.env.mark_quote_depth;
     let mut trivias: SmallVec<[TriviaPart; 1]> = smallvec![];
     loop {
+        if i.env.line_doc_continuation
+            && let Some((newline, prefix)) = i.maybe(from_fn(scan_line_doc_continuation))?
+        {
+            trivias.push(TriviaPart::new(TriviaKind::Space, newline));
+            trivias.push(TriviaPart::new(TriviaKind::LineDocPrefix, prefix));
+            continue;
+        }
+
         let line_sp = choice((
             (tag("//"), many_skip(none_of("\r\n")))
                 .to(TriviaKind::LineComment)
@@ -21,7 +29,11 @@ pub fn scan_trivia<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Trivi
             from_fn_mut(|i| quoted_space(i, &mut max_quote_depth)).with_seq(),
         ));
         if let Some((kind, text)) = i.maybe(line_sp)? {
-            trivias.push(TriviaPart::new(kind, text))
+            let reaches_physical_line_end = text.as_ref().contains(['\r', '\n']);
+            trivias.push(TriviaPart::new(kind, text));
+            if i.env.line_doc_continuation && reaches_physical_line_end {
+                break;
+            }
         } else if i
             .maybe_fn(|i| block_comment(i, &mut trivias, &mut max_quote_depth))?
             .is_none()
@@ -34,6 +46,31 @@ pub fn scan_trivia<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Trivi
         i.env.state.line_indent = indent
     }
     return Some(trivia);
+}
+
+/// Reads one physical line boundary followed by a contiguous `--` document
+/// prefix. The logical newline and the source-only prefix deliberately remain
+/// separate CST tokens. Leading indentation on the continuation line belongs
+/// to the prefix decoration rather than to document content.
+fn scan_line_doc_continuation<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<(Box<str>, Box<str>)> {
+    let newline_start = i.input.checkpoint();
+    i.many_skip(one_of(" \t"))?;
+    let line_end = choice((tag("\r\n"), one_of("\r\n"))).skip();
+    i.skip(line_end)?;
+    let prefix_start = i.input.checkpoint();
+
+    i.many_skip(one_of(" \t"))?;
+    i.skip(tag("--"))?;
+    i.not(item('-'))?;
+    let _ = i.maybe(one_of(" \t"))?;
+    let prefix_end = i.input.checkpoint();
+
+    Some((
+        I::seq(newline_start, prefix_start.clone()).as_ref().into(),
+        I::seq(prefix_start, prefix_end).as_ref().into(),
+    ))
 }
 
 fn quoted_space<I: EventInput, S: EventSink>(

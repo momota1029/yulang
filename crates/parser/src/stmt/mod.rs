@@ -6,7 +6,7 @@ use crate::EventInput;
 use crate::context::In;
 use crate::expr::{parse_expr_from_nud, scan::scan_stmt_head_nud};
 use crate::lex::{Lex, SyntaxKind, Trivia, TriviaInfo};
-use crate::mark::parse::{parse_doc_body_pub, parse_inline};
+use crate::mark::parse::parse_doc_body_pub;
 use crate::mark::scan::{BlockNudTag, MarkNudTag};
 use crate::parse::emit_invalid;
 use crate::pat::scan::{PatNudTag, scan_pat_nud, scan_visibility_pat_nud};
@@ -112,13 +112,23 @@ pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
     }
 
     i.env.state.sink.start(SyntaxKind::YmDoc);
-    i.env.inline = true;
-    i.env.state.sink.start(SyntaxKind::YmParagraph);
-    let inline_stop = parse_inline(i.rb())?;
-    i.env.state.sink.finish();
-    i.env.state.sink.finish();
-    i.env.state.sink.finish();
-    let info = match inline_stop.trivia.info() {
+    let previous_line_doc_continuation = i.env.line_doc_continuation;
+    i.env.line_doc_continuation = true;
+    i.env.inline = false;
+    let doc_stop = parse_doc_body_pub(i.rb())?;
+    i.env.line_doc_continuation = previous_line_doc_continuation;
+    i.env.state.sink.finish(); // YmDoc
+    i.env.state.sink.finish(); // DocCommentDecl
+
+    i.env.state.sink.trivia(&doc_stop.trivia);
+    let trailing = i.run(scan_trivia).unwrap_or_else(Trivia::empty);
+    let terminal_info = if trailing.info() == TriviaInfo::None {
+        doc_stop.trivia.info()
+    } else {
+        trailing.info()
+    };
+    i.env.state.sink.trivia(&trailing);
+    let info = match terminal_info {
         TriviaInfo::Newline {
             indent,
             quote_level,
@@ -130,7 +140,6 @@ pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
         },
         other => other,
     };
-    i.env.state.sink.trivia(&inline_stop.trivia);
     Some(info)
 }
 

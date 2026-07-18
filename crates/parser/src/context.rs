@@ -44,6 +44,9 @@ pub struct Env<'a, S: EventSink> {
     #[reborrow(clone)]
     pub yumark_option: YumarkOption,
     pub inline: bool,
+    /// A `--` document body may continue through a structural prefix on the
+    /// next physical source line.
+    pub line_doc_continuation: bool,
     pub ml_arg: bool,
     /// ヘッダ先読みモード。op_def の body を読み捨てる。
     pub header_only: bool,
@@ -67,6 +70,7 @@ impl<'a, S: EventSink> Env<'a, S> {
             },
             ml_arg: false,
             inline: false,
+            line_doc_continuation: false,
             header_only: false,
             stop,
         }

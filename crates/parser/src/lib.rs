@@ -281,11 +281,11 @@ mod tests {
     }
 
     #[test]
-    fn characterizes_physical_line_docs_as_independent_declarations() {
-        for (source, expected_declarations) in [
-            ("-- first\n-- second\nmy value = 1\n", 2),
-            ("-- first\r\n-- second\r\nmy value = 1\r\n", 2),
-            ("-- first\n--\n-- second\nmy value = 1\n", 3),
+    fn contiguous_line_docs_form_one_lossless_logical_document() {
+        for (source, expected_prefixes, expected_paragraphs, expected_blank_lines) in [
+            ("-- first\n-- second\nmy value = 1\n", 1, 1, 0),
+            ("-- first\r\n-- second\r\nmy value = 1\r\n", 1, 1, 0),
+            ("-- first\n--\n-- second\nmy value = 1\n", 2, 2, 1),
         ] {
             let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
             let declarations = root
@@ -294,18 +294,46 @@ mod tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(root.text().to_string(), source);
-            assert_eq!(declarations.len(), expected_declarations, "{source:?}");
-            assert!(declarations.iter().all(|decl| {
-                decl.descendants()
+            assert_eq!(declarations.len(), 1, "{source:?}");
+            let declaration = &declarations[0];
+            assert_eq!(
+                declaration
+                    .descendants()
                     .filter(|node| node.kind() == SyntaxKind::YmDoc)
-                    .count()
-                    == 1
-            }));
+                    .count(),
+                1,
+                "{source:?}"
+            );
+            assert_eq!(
+                declaration
+                    .descendants_with_tokens()
+                    .filter_map(NodeOrToken::into_token)
+                    .filter(|token| token.kind() == SyntaxKind::LineDocPrefix)
+                    .count(),
+                expected_prefixes,
+                "{source:?}"
+            );
+            assert_eq!(
+                declaration
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::YmParagraph)
+                    .count(),
+                expected_paragraphs,
+                "{source:?}"
+            );
+            assert_eq!(
+                declaration
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::YmBlankLine)
+                    .count(),
+                expected_blank_lines,
+                "{source:?}"
+            );
         }
     }
 
     #[test]
-    fn characterizes_split_line_doc_inline_syntax_as_physically_bounded() {
+    fn split_line_doc_inline_syntax_parses_across_structural_prefix() {
         let source = "-- [link\n-- here](add)\nmy value = 1\n";
         let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
         let declarations = root
@@ -313,27 +341,67 @@ mod tests {
             .filter(|node| node.kind() == SyntaxKind::DocCommentDecl)
             .collect::<Vec<_>>();
 
-        // Recovery closes the incomplete inline node at the physical doc
-        // boundary and currently duplicates its buffered text/trivia.
-        assert_eq!(
-            root.text().to_string(),
-            "-- [linklink\n\n-- here](add)\nmy value = 1\n"
-        );
-        assert_eq!(declarations.len(), 2);
-        assert_eq!(
-            declarations[0]
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::YmInlineExpr)
-                .expect("first physical line has an incomplete inline node")
-                .text()
-                .to_string(),
-            "[linklink\n"
-        );
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(declarations.len(), 1);
+        let inline = declarations[0]
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::YmInlineExpr)
+            .expect("split link should form one inline expression");
+        assert_eq!(inline.text().to_string(), "[link\n-- here](add)");
         assert!(
-            declarations[1]
+            inline
                 .descendants()
-                .all(|node| node.kind() != SyntaxKind::YmInlineExpr),
-            "the second physical line cannot complete the first declaration's inline node"
+                .any(|node| node.kind() == SyntaxKind::YmLinkDest),
+            "the destination should belong to the cross-line inline expression"
+        );
+        let prefixes = inline
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .filter(|token| token.kind() == SyntaxKind::LineDocPrefix)
+            .map(|token| token.text().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(prefixes, ["-- "]);
+    }
+
+    #[test]
+    fn real_blank_line_and_block_doc_delimiter_end_line_doc_continuation() {
+        for source in [
+            "-- first\n\n-- second\nmy value = 1\n",
+            "-- first\n---\n# Block\n---\nmy value = 1\n",
+        ] {
+            let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+            let declarations = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::DocCommentDecl)
+                .collect::<Vec<_>>();
+
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(declarations.len(), 2, "{source:?}");
+            assert!(
+                declarations[0]
+                    .descendants_with_tokens()
+                    .filter_map(NodeOrToken::into_token)
+                    .all(|token| token.kind() != SyntaxKind::LineDocPrefix),
+                "the terminating source boundary must not become a continuation prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn line_doc_continuation_prefix_preserves_indentation_and_crlf() {
+        let source = "  -- first\r\n  -- second\r\n  my value = 1\r\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let prefix = root
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|token| token.kind() == SyntaxKind::LineDocPrefix)
+            .expect("indented CRLF continuation prefix");
+
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(prefix.text(), "  -- ");
+        assert_eq!(
+            usize::from(prefix.text_range().start()),
+            source.find("  -- second").unwrap()
         );
     }
 

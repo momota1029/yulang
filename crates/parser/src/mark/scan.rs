@@ -27,6 +27,7 @@ pub enum InlineNudTag {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockNudTag {
     LineEnd,
+    DocLineEnd,
     NewParagraph,
     Dequote { quote_level: usize, indent: usize },
     DocBlockClose,
@@ -176,6 +177,16 @@ pub fn scan_mark<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark> {
                         quote_level,
                         indent,
                     }),
+                }
+            } else if i.env.line_doc_continuation
+                && !trivia
+                    .parts()
+                    .iter()
+                    .any(|part| part.kind == crate::lex::TriviaKind::LineDocPrefix)
+            {
+                MarkNud {
+                    lex: None,
+                    tag: MarkNudTag::Block(BlockNudTag::DocLineEnd),
                 }
             } else if i.env.inline {
                 MarkNud {

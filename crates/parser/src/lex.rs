@@ -8,6 +8,7 @@ pub enum TriviaKind {
     BlockCommentText,
     BlockCommentEnd,
     QuotePrefix,
+    LineDocPrefix,
 }
 impl From<TriviaKind> for SyntaxKind {
     fn from(kind: TriviaKind) -> Self {
@@ -18,6 +19,7 @@ impl From<TriviaKind> for SyntaxKind {
             TriviaKind::BlockCommentStart => SyntaxKind::BlockCommentStart,
             TriviaKind::BlockCommentEnd => SyntaxKind::BlockCommentEnd,
             TriviaKind::QuotePrefix => SyntaxKind::QuotePrefix,
+            TriviaKind::LineDocPrefix => SyntaxKind::LineDocPrefix,
         }
     }
 }
@@ -117,6 +119,7 @@ pub enum SyntaxKind {
     QuotePrefix = 5,
     DocComment = 6,
     BlockComment = 7,
+    LineDocPrefix = 8,
 
     // tokens
     Trivia = 100,

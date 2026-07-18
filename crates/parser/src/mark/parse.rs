@@ -87,9 +87,16 @@ fn is_terminal(mark: &Mark) -> bool {
     matches!(
         mark.nud.tag,
         MarkNudTag::Block(
-            BlockNudTag::InputEnd | BlockNudTag::Dequote { .. } | BlockNudTag::DocBlockClose
+            BlockNudTag::InputEnd
+                | BlockNudTag::Dequote { .. }
+                | BlockNudTag::DocBlockClose
+                | BlockNudTag::DocLineEnd
         )
     )
+}
+
+fn is_doc_line_end(mark: &Mark) -> bool {
+    matches!(mark.nud.tag, MarkNudTag::Block(BlockNudTag::DocLineEnd))
 }
 
 struct CommandGroupEnd {
@@ -366,7 +373,7 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                     if matches!(stop.nud.tag, MarkNudTag::Inline(InlineNudTag::Emphasis)) {
                         // inner が text を emit 済み; 閉じ sigil のみ emit
                         emit_nud_lex(&mut i, &stop);
-                    } else {
+                    } else if !is_doc_line_end(&stop) {
                         emit_mark(&mut i, &stop);
                     }
                     i.env.state.sink.finish();
@@ -388,7 +395,7 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                     i.env.stop.remove(&SyntaxKind::YmStrongSigil);
                     if matches!(stop.nud.tag, MarkNudTag::Inline(InlineNudTag::Strong)) {
                         emit_nud_lex(&mut i, &stop);
-                    } else {
+                    } else if !is_doc_line_end(&stop) {
                         emit_mark(&mut i, &stop);
                     }
                     i.env.state.sink.finish();
@@ -409,7 +416,7 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                     ) {
                         emit_nud_lex(&mut i, &inner); // BracketR "]"
                         parse_bracket_led(i.rb())?;
-                    } else {
+                    } else if !is_doc_line_end(&inner) {
                         emit_mark(&mut i, &inner);
                     }
                     i.env.state.sink.finish(); // YmInlineExpr
@@ -454,7 +461,7 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                         ) {
                             emit_nud_lex(&mut i, &inner); // BracketR "]"
                             parse_bracket_led(i.rb())?;
-                        } else {
+                        } else if !is_doc_line_end(&inner) {
                             emit_mark(&mut i, &inner);
                         }
                         i.env.state.sink.finish(); // YmInlineExpr
@@ -487,16 +494,29 @@ fn parse_paragraph<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark>
         MarkNudTag::Block(_) => {
             if first.text.is_empty() {
                 // text なし = 構造的な区切り: trivia を YmNewline として emit
-                emit_trivia_only(&mut i, &first);
+                if !is_doc_line_end(&first) {
+                    emit_trivia_only(&mut i, &first);
+                }
             } else {
                 // text あり = paragraph として wrap する
                 i.env.state.sink.start(SyntaxKind::YmParagraph);
-                emit_text_trivia(&mut i, &first);
+                if i.env.line_doc_continuation
+                    && matches!(
+                        first.nud.tag,
+                        MarkNudTag::Block(BlockNudTag::DocLineEnd | BlockNudTag::NewParagraph)
+                    )
+                {
+                    i.env.state.sink.push(SyntaxKind::YmText, &first.text);
+                } else {
+                    emit_text_trivia(&mut i, &first);
+                }
                 i.env.state.sink.finish();
             }
             return Some(first);
         }
-        MarkNudTag::Inline(InlineNudTag::CloseBrace | InlineNudTag::CloseBracket) => {
+        MarkNudTag::Inline(InlineNudTag::CloseBrace | InlineNudTag::CloseBracket)
+            if !i.env.line_doc_continuation =>
+        {
             // ブロック doc の閉じ区切り: 空段落を作って返す
             i.env.state.sink.start(SyntaxKind::YmParagraph);
             i.env.state.sink.finish();
@@ -519,8 +539,10 @@ fn parse_paragraph<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark>
         MarkNudTag::Inline(InlineNudTag::Newline { .. }) => {
             i.env.state.sink.start(SyntaxKind::YmParagraph);
             let stop = parse_inline_impl(i.rb(), Some(first))?;
-            for part in stop.trivia.parts() {
-                i.env.state.sink.push(part.kind.into(), &part.text);
+            if !is_doc_line_end(&stop) {
+                for part in stop.trivia.parts() {
+                    i.env.state.sink.push(part.kind.into(), &part.text);
+                }
             }
             i.env.state.sink.finish();
             Some(stop)
@@ -771,9 +793,10 @@ pub fn parse_block_nud<I: EventInput, S: EventSink>(mut i: In<I, S>, mark: Mark)
                 emit_nud_lex(&mut i, &mark);
                 Some(mark)
             }
-            BlockNudTag::InputEnd | BlockNudTag::Dequote { .. } | BlockNudTag::LineEnd => {
-                Some(mark)
-            }
+            BlockNudTag::InputEnd
+            | BlockNudTag::Dequote { .. }
+            | BlockNudTag::LineEnd
+            | BlockNudTag::DocLineEnd => Some(mark),
         },
         MarkNudTag::Inline(_) => unreachable!("parse_block_nud に Inline nud"),
     }
@@ -786,7 +809,10 @@ pub fn parse_block_nud<I: EventInput, S: EventSink>(mut i: In<I, S>, mark: Mark)
 fn parse_doc_body<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<Mark> {
     loop {
         let stop = parse_paragraph(i.rb())?;
-        if matches!(stop.nud.tag, MarkNudTag::Block(_)) && !stop.text.is_empty() {
+        if matches!(stop.nud.tag, MarkNudTag::Block(_))
+            && !stop.text.is_empty()
+            && !is_doc_line_end(&stop)
+        {
             emit_trivia_only(&mut i, &stop);
         }
         if is_terminal(&stop) {
