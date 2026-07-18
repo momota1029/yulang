@@ -529,6 +529,70 @@ fn yumark_nil_text_renders_expected_html_and_markdown_bytes() {
     assert_eq!(output.text, expected);
 }
 
+#[test]
+fn doc_comment_static_renderer_matches_production_markdown_vocabulary() {
+    fn render_static_doc(source: &str) -> String {
+        let loaded = sources::load(vec![sources::SourceFile {
+            module_path: sources::Path::default(),
+            source: source.to_string(),
+        }]);
+        let lower = infer::lowering::lower_loaded_files(&loaded).expect("lower doc fixture");
+        let root = lower.modules.root_id();
+        let def = lower.modules.value_decls(root, &sources::Name("x".into()))[0].def;
+        let doc = lower
+            .modules
+            .def_doc_comment(def)
+            .expect("doc comment should attach to x");
+        infer::doc_comment_render::render_doc_comment_markdown(doc)
+    }
+
+    let static_renderings = [
+        render_static_doc("-- paragraph\nmy x = 1\n"),
+        render_static_doc("-- first\n-- second\nmy x = 1\n"),
+        render_static_doc("---\n## Heading\n---\nmy x = 1\n"),
+        render_static_doc("---\n- first\n- second\n---\nmy x = 1\n"),
+        render_static_doc("---\n```text\nalpha\nbeta\n```\n---\nmy x = 1\n"),
+        render_static_doc("---\n> quoted\n---\nmy x = 1\n"),
+        render_static_doc("---\r\nalpha\r\nbeta\r\n---\r\nmy x = 1\r\n"),
+        render_static_doc("--  leading and trailing  \nmy x = 1\n"),
+    ];
+    let expected = format!(
+        "run roots [{}]\n",
+        static_renderings
+            .iter()
+            .map(|rendered| format!("{rendered:?}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    // Fence and quote use the same public builders emitted by literal lowering.
+    // This keeps the oracle on renderer parity: normalizing a terminal block
+    // literal's structural separator belongs to the later doc-to-source slice.
+    let production_source = concat!(
+        "use std::text::yumark::*\n",
+        "use std::text::str::{concat}\n",
+        "render_markdown_doc ('{paragraph\n})\n",
+        "my first_unit = render_markdown_doc ('{first\n})\n",
+        "my second_unit = render_markdown_doc ('{second\n})\n",
+        "concat first_unit second_unit\n",
+        "render_markdown_doc ('{## Heading\n})\n",
+        "render_markdown_doc ('{- first\n- second\n})\n",
+        "render_markdown_doc (code_fence \"text\" \"alpha\\nbeta\")\n",
+        "render_markdown_doc (quote_block (paragraph (text \"quoted\")))\n",
+        "render_markdown_doc ('{alpha\r\nbeta\r\n})\n",
+        "render_markdown_doc ('{ leading and trailing\n})\n",
+    );
+    let production = run_with_vm_test_stack(move || {
+        run_evidence_from_source_text_with_embedded_std(
+            "<doc-comment-render-parity>",
+            production_source,
+        )
+        .expect("run production Yumark Markdown renderer")
+        .text
+    });
+
+    assert_eq!(production, expected);
+}
+
 #[cfg(unix)]
 #[test]
 fn yumark_full_static_renders_consistently_with_minimal_and_repository_std() {

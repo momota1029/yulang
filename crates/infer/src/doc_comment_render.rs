@@ -17,6 +17,33 @@ pub fn render_doc_comment_markdown(doc: &DocComment) -> String {
     doc.units().iter().map(render_doc_unit_markdown).collect()
 }
 
+/// Whether this comment can be reparsed through an ordinary Yumark literal.
+///
+/// The lazy renderer starts with a deliberately narrow subset. Literal
+/// delimiter characters could change where the synthetic literal ends, while
+/// commands and inline expressions are not supported by production Yumark
+/// lowering yet. Callers must keep using the static renderer for either case.
+pub fn doc_comment_is_safe_for_yumark_literal_reparse(doc: &DocComment) -> bool {
+    doc.units().iter().all(|unit| {
+        unit.node()
+            .descendants_with_tokens()
+            .all(|item| match item {
+                NodeOrToken::Node(node) => !matches!(
+                    node.kind(),
+                    SyntaxKind::YmCommand | SyntaxKind::YmInlineExpr
+                ),
+                NodeOrToken::Token(token) => {
+                    token.kind() != SyntaxKind::YmBackslash
+                        && !token.text().chars().any(is_yumark_literal_delimiter)
+                }
+            })
+    })
+}
+
+fn is_yumark_literal_delimiter(ch: char) -> bool {
+    matches!(ch, '{' | '}' | '[' | ']')
+}
+
 #[derive(Clone, Copy)]
 struct SequenceOptions {
     include_newlines: bool,
@@ -305,15 +332,20 @@ mod tests {
     use sources::Name;
 
     fn render_value_doc(src: &str) -> String {
+        let doc = value_doc(src);
+        render_doc_comment_markdown(&doc)
+    }
+
+    fn value_doc(src: &str) -> DocComment {
         let cst = SyntaxNode::new_root(parser::parse_module_to_green(src));
         let lower = crate::module_map::lower_module_map_with_source(&cst, src);
         let root = lower.modules.root_id();
         let def = lower.modules.value_decls(root, &Name("x".into()))[0].def;
-        let doc = lower
+        lower
             .modules
             .def_doc_comment(def)
-            .expect("doc comment should attach to x");
-        render_doc_comment_markdown(doc)
+            .expect("doc comment should attach to x")
+            .clone()
     }
 
     #[test]
@@ -419,5 +451,40 @@ mod tests {
             render_value_doc("-- ![alt](url)\nmy x = 1\n"),
             "![alt](url)\n\n"
         );
+    }
+
+    #[test]
+    fn lazy_literal_reparse_accepts_only_static_delimiter_safe_docs() {
+        let safe = value_doc(
+            "---\n# Title\nA *static* paragraph.\n\n- item\n```text\nbody\n```\n> quote\n---\nmy x = 1\n",
+        );
+
+        assert!(doc_comment_is_safe_for_yumark_literal_reparse(&safe));
+    }
+
+    #[test]
+    fn lazy_literal_reparse_rejects_every_literal_delimiter_character() {
+        for delimiter in ['{', '}', '[', ']'] {
+            let src = format!("-- before {delimiter} after\nmy x = 1\n");
+            let doc = value_doc(&src);
+            assert!(
+                !doc_comment_is_safe_for_yumark_literal_reparse(&doc),
+                "delimiter {delimiter:?} must select the static fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn lazy_literal_reparse_rejects_commands_and_inline_expressions() {
+        for src in [
+            "---\n\\cmd\n---\nmy x = 1\n",
+            "---\n[inline]\n---\nmy x = 1\n",
+        ] {
+            let doc = value_doc(src);
+            assert!(
+                !doc_comment_is_safe_for_yumark_literal_reparse(&doc),
+                "dynamic Yumark syntax must select the static fallback: {src:?}"
+            );
+        }
     }
 }
