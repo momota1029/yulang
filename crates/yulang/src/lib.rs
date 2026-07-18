@@ -10,6 +10,11 @@ pub mod server;
 pub mod source;
 pub mod stdlib;
 mod time;
+mod yumark_eval;
+
+pub use yumark_eval::{
+    YumarkLiteralEvaluationError, evaluate_yumark_literal_markdown_with_embedded_std,
+};
 
 pub use source::{
     AnalyzeSourceOutput, BuildControlOutput, BuildPolyAndCompiledUnitOutput, BuildPolyOutput,
