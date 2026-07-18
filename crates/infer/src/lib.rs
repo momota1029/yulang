@@ -22,6 +22,7 @@ mod compiled_runtime;
 mod compiled_typed;
 pub mod constraints;
 pub mod doc_comment_render;
+pub mod doc_comment_render_input;
 pub mod dump;
 pub mod generalize;
 pub mod host_acts;
@@ -164,7 +165,7 @@ impl DocCommentUnit {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum DocCommentKind {
     Line,
     Block,
