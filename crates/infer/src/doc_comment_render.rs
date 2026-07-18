@@ -67,7 +67,7 @@ impl SequenceOptions {
     };
 }
 
-fn render_doc_unit_markdown(unit: &DocCommentUnit) -> String {
+pub(crate) fn render_doc_unit_markdown(unit: &DocCommentUnit) -> String {
     let mut rendered = String::new();
     for doc in unit
         .node()

@@ -13,7 +13,8 @@ mod time;
 mod yumark_eval;
 
 pub use yumark_eval::{
-    YumarkLiteralEvaluationError, evaluate_yumark_literal_markdown_with_embedded_std,
+    YumarkLiteralEvaluationError, evaluate_doc_comment_render_input_markdown_with_embedded_std,
+    evaluate_yumark_literal_markdown_with_embedded_std,
 };
 
 pub use source::{

@@ -1,12 +1,14 @@
-//! Owned, cache-ready input for lazy Yumark doc-comment rendering.
+//! Owned, cache-ready input and per-unit literal mapping for lazy Yumark docs.
 //!
-//! This module preserves source fragments without deciding how to join or
-//! delimit them. Synthetic ordinary-literal construction belongs to the next
-//! mapping stage.
+//! Unit sources are never joined: each successful mapping becomes one ordinary
+//! literal, while typed failures retain that unit's static fallback bytes. The
+//! runtime concatenates rendered unit outputs in their original order.
 
 use parser::lex::SyntaxKind;
 
-use crate::doc_comment_render::doc_comment_is_safe_for_yumark_literal_reparse;
+use crate::doc_comment_render::{
+    doc_comment_is_safe_for_yumark_literal_reparse, render_doc_unit_markdown,
+};
 use crate::{DocComment, DocCommentKind, DocCommentUnit};
 
 /// An owned safe-subset doc comment awaiting Yumark literal construction.
@@ -62,6 +64,8 @@ impl DocCommentRenderInputKey {
 pub struct DocCommentRenderInputUnit {
     kind: DocCommentKind,
     body_source: String,
+    literal_closing_boundary: Result<LiteralClosingBoundary, DocUnitLiteralMappingError>,
+    static_fallback_markdown: Option<String>,
 }
 
 impl DocCommentRenderInputUnit {
@@ -73,6 +77,55 @@ impl DocCommentRenderInputUnit {
         &self.body_source
     }
 
+    /// Construct one ordinary Yumark literal for this unit.
+    ///
+    /// The closing brace replaces the doc-comment delimiter boundary. Blocks
+    /// whose grammar needs a line terminator keep exactly one. Fence and quote
+    /// parsers also require that separator; their extra rendered boundary is
+    /// identified separately by [`Self::rendered_markdown_suffix_to_trim`].
+    pub fn to_synthetic_yumark_literal(&self) -> Result<String, DocUnitLiteralMappingError> {
+        self.literal_closing_boundary?;
+        let mut body = self.body_source.as_str();
+        match self.kind {
+            DocCommentKind::Line => {
+                body = body.strip_prefix(' ').unwrap_or(body);
+            }
+            DocCommentKind::Block => {
+                while let Some(rest) = body.strip_prefix("\r\n") {
+                    body = rest;
+                }
+                while let Some(rest) = body.strip_prefix('\n') {
+                    body = rest;
+                }
+            }
+        }
+
+        let line_ending = if body.ends_with("\r\n") { "\r\n" } else { "\n" };
+        body = body.trim_end_matches(['\r', '\n']);
+
+        let mut literal = String::with_capacity(body.len() + line_ending.len() + 3);
+        literal.push_str("'{");
+        literal.push_str(body);
+        literal.push_str(line_ending);
+        literal.push('}');
+        Ok(literal)
+    }
+
+    /// Renderer suffix contributed by the synthetic literal boundary.
+    pub fn rendered_markdown_suffix_to_trim(
+        &self,
+    ) -> Result<&'static str, DocUnitLiteralMappingError> {
+        match self.literal_closing_boundary? {
+            LiteralClosingBoundary::LineTerminated => Ok(""),
+            LiteralClosingBoundary::StructuralSeparator => Ok("\n"),
+        }
+    }
+
+    /// Static bytes for this unit when literal construction is unavailable.
+    pub fn static_fallback_markdown(&self) -> Option<&str> {
+        self.static_fallback_markdown.as_deref()
+    }
+
     fn from_doc_comment_unit(unit: &DocCommentUnit) -> Self {
         let mut body_source = String::new();
         for doc in unit
@@ -82,10 +135,74 @@ impl DocCommentRenderInputUnit {
         {
             body_source.push_str(&doc.text().to_string());
         }
+        let literal_closing_boundary = literal_closing_boundary(unit, &body_source);
+        let static_fallback_markdown = literal_closing_boundary
+            .is_err()
+            .then(|| render_doc_unit_markdown(unit));
         Self {
             kind: unit.kind(),
             body_source,
+            literal_closing_boundary,
+            static_fallback_markdown,
         }
+    }
+}
+
+/// Why an otherwise syntax-safe doc unit cannot become an ordinary literal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DocUnitLiteralMappingError {
+    EmptyOrBoundaryOnlyUnit,
+    MissingTerminalStructure,
+    UnsupportedTerminalStructure { kind: SyntaxKind },
+}
+
+impl std::fmt::Display for DocUnitLiteralMappingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyOrBoundaryOnlyUnit => {
+                f.write_str("doc unit contains no literal-renderable content")
+            }
+            Self::MissingTerminalStructure => f.write_str("doc unit has no terminal Yumark node"),
+            Self::UnsupportedTerminalStructure { kind } => {
+                write!(f, "unsupported terminal Yumark structure {kind:?}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for DocUnitLiteralMappingError {}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum LiteralClosingBoundary {
+    LineTerminated,
+    StructuralSeparator,
+}
+
+fn literal_closing_boundary(
+    unit: &DocCommentUnit,
+    body_source: &str,
+) -> Result<LiteralClosingBoundary, DocUnitLiteralMappingError> {
+    if body_source.chars().all(char::is_whitespace) {
+        return Err(DocUnitLiteralMappingError::EmptyOrBoundaryOnlyUnit);
+    }
+
+    let terminal_kind = unit
+        .node()
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::YmDoc)
+        .flat_map(|doc| doc.children())
+        .last()
+        .map(|node| node.kind())
+        .ok_or(DocUnitLiteralMappingError::MissingTerminalStructure)?;
+    match terminal_kind {
+        SyntaxKind::YmParagraph
+        | SyntaxKind::YmHeading
+        | SyntaxKind::YmList
+        | SyntaxKind::YmSectionClose => Ok(LiteralClosingBoundary::LineTerminated),
+        SyntaxKind::YmCodeFence | SyntaxKind::YmQuoteBlock => {
+            Ok(LiteralClosingBoundary::StructuralSeparator)
+        }
+        kind => Err(DocUnitLiteralMappingError::UnsupportedTerminalStructure { kind }),
     }
 }
 
