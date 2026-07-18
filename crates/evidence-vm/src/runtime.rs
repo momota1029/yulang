@@ -64,6 +64,15 @@ pub struct RuntimeEvidenceRunOutput {
 }
 
 impl RuntimeEvidenceRunOutput {
+    pub fn single_string_value(&self) -> Result<&str, RuntimeEvidenceSingleStringError> {
+        let [value] = self.values.as_slice() else {
+            return Err(RuntimeEvidenceSingleStringError::ValueCount {
+                actual: self.values.len(),
+            });
+        };
+        runtime_evidence_string_value(value).ok_or(RuntimeEvidenceSingleStringError::NonStringValue)
+    }
+
     pub fn roots_text_with_labels(&self, labels: Option<&poly::dump::DumpLabels>) -> String {
         format!(
             "run roots {}\n",
@@ -101,6 +110,33 @@ impl RuntimeEvidenceRunOutput {
             .iter()
             .map(|value| format_value_with_display_context(value, labels, display))
             .collect()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeEvidenceSingleStringError {
+    ValueCount { actual: usize },
+    NonStringValue,
+}
+
+impl fmt::Display for RuntimeEvidenceSingleStringError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ValueCount { actual } => {
+                write!(f, "expected one runtime value, got {actual}")
+            }
+            Self::NonStringValue => write!(f, "expected the runtime value to be a string"),
+        }
+    }
+}
+
+impl std::error::Error for RuntimeEvidenceSingleStringError {}
+
+fn runtime_evidence_string_value(value: &RuntimeEvidenceValue) -> Option<&str> {
+    match value {
+        RuntimeEvidenceValue::Str(value) => Some(value),
+        RuntimeEvidenceValue::Marked { value, .. } => runtime_evidence_string_value(value.as_ref()),
+        _ => None,
     }
 }
 
@@ -25643,6 +25679,64 @@ mod tests {
     };
 
     static LAST_ROOT_SIDE_EFFECT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    fn output_with_values(values: Vec<RuntimeEvidenceValue>) -> RuntimeEvidenceRunOutput {
+        RuntimeEvidenceRunOutput {
+            values,
+            last_root_produced_value: false,
+            stdout: String::new(),
+            evidence_stats: RuntimeEvidenceRunStats::default(),
+        }
+    }
+
+    #[test]
+    fn single_string_value_returns_plain_string_without_formatting() {
+        let output = output_with_values(vec![RuntimeEvidenceValue::Str("raw\ntext".into())]);
+
+        assert_eq!(output.single_string_value(), Ok("raw\ntext"));
+    }
+
+    #[test]
+    fn single_string_value_unwraps_nested_marked_strings() {
+        let value = RuntimeEvidenceValue::Marked {
+            value: shared(RuntimeEvidenceValue::Marked {
+                value: shared(RuntimeEvidenceValue::Str("nested".into())),
+                markers: Rc::from([]),
+            }),
+            markers: Rc::from([]),
+        };
+        let output = output_with_values(vec![value]);
+
+        assert_eq!(output.single_string_value(), Ok("nested"));
+    }
+
+    #[test]
+    fn single_string_value_rejects_a_non_string_value() {
+        let output = output_with_values(vec![RuntimeEvidenceValue::Int(1)]);
+
+        assert_eq!(
+            output.single_string_value(),
+            Err(RuntimeEvidenceSingleStringError::NonStringValue)
+        );
+    }
+
+    #[test]
+    fn single_string_value_rejects_zero_or_multiple_values() {
+        let empty = output_with_values(Vec::new());
+        let multiple = output_with_values(vec![
+            RuntimeEvidenceValue::Str("first".into()),
+            RuntimeEvidenceValue::Str("second".into()),
+        ]);
+
+        assert_eq!(
+            empty.single_string_value(),
+            Err(RuntimeEvidenceSingleStringError::ValueCount { actual: 0 })
+        );
+        assert_eq!(
+            multiple.single_string_value(),
+            Err(RuntimeEvidenceSingleStringError::ValueCount { actual: 2 })
+        );
+    }
 
     #[test]
     fn runtime_host_operation_denied_by_context_reports_unsupported_capability() {
