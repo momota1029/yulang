@@ -151,24 +151,48 @@ mod tests {
     }
 
     #[test]
-    fn characterizes_current_visible_ordinary_blank_line_operation() {
-        let (continued, separated) = std::thread::Builder::new()
+    fn parser_generated_blank_lines_are_structural_in_every_position() {
+        let renderings = std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn(|| {
-                let continued =
-                    evaluate_yumark_literal_markdown_with_embedded_std("'{first\nsecond\n}")
-                        .expect("evaluate continued paragraph");
-                let separated =
-                    evaluate_yumark_literal_markdown_with_embedded_std("'{first\n\nsecond\n}")
-                        .expect("evaluate blank-line-separated paragraphs");
-                (continued, separated)
+                [
+                    ("continued", "'{first\nsecond\n}"),
+                    ("between", "'{first\n\nsecond\n}"),
+                    ("leading", "'{\n\nfirst\n}"),
+                    ("trailing", "'{first\n\n}"),
+                    ("multiple", "'{first\n\n\nsecond\n}"),
+                    ("whitespace-only", "'{first\n  \nsecond\n}"),
+                    ("inside quote", "'{> foo\n>\n> bar\n}"),
+                    ("CRLF", "'{first\r\n\r\nsecond\r\n}"),
+                ]
+                .map(|(name, literal)| {
+                    (
+                        name,
+                        evaluate_yumark_literal_markdown_with_embedded_std(literal)
+                            .unwrap_or_else(|error| panic!("{name}: {error}")),
+                    )
+                })
             })
             .expect("spawn Yumark evaluator test thread")
             .join()
             .expect("Yumark evaluator test thread");
 
-        assert_eq!(continued, "first\nsecond\n\n");
-        assert_eq!(separated, "first\n\n\n\n\nsecond\n\n");
+        let expected = [
+            ("continued", "first\nsecond\n\n"),
+            ("between", "first\n\nsecond\n\n"),
+            ("leading", "first\n\n"),
+            ("trailing", "first\n\n"),
+            ("multiple", "first\n\nsecond\n\n"),
+            ("whitespace-only", "first\n\nsecond\n\n"),
+            // The fourth terminal newline is the pre-existing quote-closing
+            // boundary, not a parser-generated blank-line operation.
+            ("inside quote", "> foo\n\nbar\n\n\n\n"),
+            ("CRLF", "first\n\nsecond\n\n"),
+        ];
+        for ((name, actual), (expected_name, expected)) in renderings.into_iter().zip(expected) {
+            assert_eq!(name, expected_name);
+            assert_eq!(actual, expected, "{name}");
+        }
     }
 
     #[test]
@@ -184,6 +208,10 @@ mod tests {
                     ("list", "---\n- first\n- second\n---\nmy x = 1\n"),
                     ("fence", "---\n```text\nalpha\nbeta\n```\n---\nmy x = 1\n"),
                     ("quote", "---\n> quoted\n---\nmy x = 1\n"),
+                    (
+                        "quote structural blank",
+                        "---\n> first\n>\n> second\n---\nmy x = 1\n",
+                    ),
                     ("CRLF", "---\r\nalpha\r\nbeta\r\n---\r\nmy x = 1\r\n"),
                     (
                         "boundary whitespace",

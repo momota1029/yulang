@@ -2244,12 +2244,14 @@ my got = make(1).norm2
             hover.contents,
             HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
+                // Ordinary source blank lines separate paragraphs without
+                // contributing an additional visible blank-line operation.
                 value: concat!(
                     "```yulang\n",
                     "x: int\n",
                     "```\n\n",
                     "# Title\n\n",
-                    "A *soft* doc.\n\n\n",
+                    "A *soft* doc.\n\n",
                     "- item\n\n",
                     "```text\n",
                     "body\n",

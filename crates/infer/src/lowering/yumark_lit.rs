@@ -36,14 +36,11 @@ impl YumarkSequenceOptions {
 /// trivia in the preceding child and as direct sequence trivia immediately
 /// before a zero-width `YmBlankLine`. Keeping those ranges together lets the
 /// lowering path discard the boundary once without rewriting the parser CST.
-// Slice 2 deliberately lands this mechanism before production lowering uses it.
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct YumarkSequenceNormalization {
+pub(crate) struct YumarkSequenceNormalization {
     pub(super) structural_blank_boundaries: Vec<YumarkStructuralBlankBoundary>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct YumarkStructuralBlankBoundary {
     pub(super) range: rowan::TextRange,
@@ -52,8 +49,7 @@ pub(super) struct YumarkStructuralBlankBoundary {
 }
 
 /// Identify parser-generated blank nodes and every adjacent duplicate of
-/// their source boundary. This is intentionally not wired into lowering yet.
-#[allow(dead_code)]
+/// their source boundary in one sequence.
 pub(super) fn normalize_yumark_sequence_blank_boundaries(
     node: &Cst,
 ) -> YumarkSequenceNormalization {
@@ -116,7 +112,33 @@ pub(super) fn normalize_yumark_sequence_blank_boundaries(
     }
 }
 
-#[allow(dead_code)]
+pub(crate) fn normalize_yumark_tree_blank_boundaries(node: &Cst) -> YumarkSequenceNormalization {
+    let mut normalization = normalize_yumark_sequence_blank_boundaries(node);
+    for descendant in node.descendants().filter(|descendant| descendant != node) {
+        normalization.structural_blank_boundaries.extend(
+            normalize_yumark_sequence_blank_boundaries(&descendant).structural_blank_boundaries,
+        );
+    }
+    normalization
+}
+
+impl YumarkSequenceNormalization {
+    pub(crate) fn is_structural_trivia(&self, token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
+        self.structural_blank_boundaries.iter().any(|boundary| {
+            boundary.range.contains_range(token.text_range())
+                && boundary.trivia_ranges.contains(&token.text_range())
+        })
+    }
+
+    pub(crate) fn is_structural_blank_line(&self, node: &Cst) -> bool {
+        node.kind() == SyntaxKind::YmBlankLine
+            && self.structural_blank_boundaries.iter().any(|boundary| {
+                boundary.range.contains_range(node.text_range())
+                    && boundary.blank_line_range == node.text_range()
+            })
+    }
+}
+
 fn trailing_yumark_blank_boundary_trivia_ranges(node: &Cst) -> Vec<rowan::TextRange> {
     let tokens = node
         .descendants_with_tokens()
@@ -133,7 +155,6 @@ fn trailing_yumark_blank_boundary_trivia_ranges(node: &Cst) -> Vec<rowan::TextRa
     ranges
 }
 
-#[allow(dead_code)]
 fn token_is_yumark_blank_boundary_trivia(token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
     matches!(
         token.kind(),
@@ -154,8 +175,12 @@ impl<'a> ExprLowerer<'a> {
             lowerer.lower_yumark_builder_lambda(
                 Name("#yumark-algebra".to_string()),
                 |lowerer, algebra| {
-                    let document =
-                        lowerer.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)?;
+                    let normalization = normalize_yumark_tree_blank_boundaries(node);
+                    let document = lowerer.lower_yumark_sequence(
+                        node,
+                        YumarkSequenceOptions::INLINE,
+                        &normalization,
+                    )?;
                     let format =
                         lowerer.lower_local_name(format.name.clone(), format.clone(), None);
                     let algebra = lowerer.lower_local_name(algebra.name.clone(), algebra, None);
@@ -230,29 +255,41 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
-    fn lower_yumark_node(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_node(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
         match node.kind() {
-            SyntaxKind::YmDoc => self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE),
-            SyntaxKind::YmParagraph => self.lower_yumark_paragraph(node),
-            SyntaxKind::YmEmphasis => self.lower_yumark_container("emphasis", node),
-            SyntaxKind::YmStrong => self.lower_yumark_container("strong", node),
-            SyntaxKind::YmHeading => self.lower_yumark_heading(node),
-            SyntaxKind::YmBlankLine => {
-                let marker = self.string_value("\n".to_string());
-                self.yumark_static_operation("blank_line", vec![("marker", marker)])
+            SyntaxKind::YmDoc => {
+                self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE, normalization)
             }
-            SyntaxKind::YmSectionClose => self.lower_yumark_section_close(node),
-            SyntaxKind::YmList => self.lower_yumark_list(node),
-            SyntaxKind::YmListItem => self.lower_yumark_list_item(node),
-            SyntaxKind::YmListItemBody => self.lower_yumark_list_item_body(node),
+            SyntaxKind::YmParagraph => self.lower_yumark_paragraph(node, normalization),
+            SyntaxKind::YmEmphasis => self.lower_yumark_container("emphasis", node, normalization),
+            SyntaxKind::YmStrong => self.lower_yumark_container("strong", node, normalization),
+            SyntaxKind::YmHeading => self.lower_yumark_heading(node, normalization),
+            SyntaxKind::YmBlankLine => {
+                unreachable!("parser-generated Yumark blank lines are normalized structurally")
+            }
+            SyntaxKind::YmSectionClose => self.lower_yumark_section_close(node, normalization),
+            SyntaxKind::YmList => self.lower_yumark_list(node, normalization),
+            SyntaxKind::YmListItem => self.lower_yumark_list_item(node, normalization),
+            SyntaxKind::YmListItemBody => self.lower_yumark_list_item_body(node, normalization),
             SyntaxKind::YmCodeFence => self.lower_yumark_code_fence(node),
-            SyntaxKind::YmQuoteBlock => self.lower_yumark_container("quote_block", node),
+            SyntaxKind::YmQuoteBlock => {
+                self.lower_yumark_container("quote_block", node, normalization)
+            }
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
     }
 
-    fn lower_yumark_paragraph(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
+    fn lower_yumark_paragraph(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT, normalization)?;
         self.yumark_static_operation("paragraph", vec![("children", children)])
     }
 
@@ -260,15 +297,22 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         operation: &str,
         node: &Cst,
+        normalization: &YumarkSequenceNormalization,
     ) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)?;
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE, normalization)?;
         self.yumark_static_operation(operation, vec![("children", children)])
     }
 
-    fn lower_yumark_heading(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_heading(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(node, &[SyntaxKind::YmHashSigil])?;
         let level = marker.chars().take_while(|ch| *ch == '#').count() as i64;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT)?;
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT, normalization)?;
         let marker = self.string_value(marker);
         let level = self.int_value(level);
         self.yumark_static_operation(
@@ -277,9 +321,14 @@ impl<'a> ExprLowerer<'a> {
         )
     }
 
-    fn lower_yumark_section_close(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_section_close(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(node, &[SyntaxKind::YmHashDotSigil])?;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT)?;
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::LINE_CONTENT, normalization)?;
         let marker = self.string_value(marker);
         self.yumark_static_operation(
             "section_close",
@@ -287,18 +336,28 @@ impl<'a> ExprLowerer<'a> {
         )
     }
 
-    fn lower_yumark_list(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let items = self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE)?;
+    fn lower_yumark_list(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
+        let items =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::INLINE, normalization)?;
         let ordered = self.lower_bool(list_is_ordered(node));
         self.yumark_static_operation("list_block", vec![("ordered", ordered), ("items", items)])
     }
 
-    fn lower_yumark_list_item(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_yumark_list_item(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
         let marker = required_token_text(
             node,
             &[SyntaxKind::YmListDashSigil, SyntaxKind::YmListNumSigil],
         )?;
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT, normalization)?;
         let marker = self.string_value(marker);
         self.yumark_static_operation(
             "list_item",
@@ -306,8 +365,13 @@ impl<'a> ExprLowerer<'a> {
         )
     }
 
-    fn lower_yumark_list_item_body(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        let children = self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT)?;
+    fn lower_yumark_list_item_body(
+        &mut self,
+        node: &Cst,
+        normalization: &YumarkSequenceNormalization,
+    ) -> Result<Computation, LoweringError> {
+        let children =
+            self.lower_yumark_sequence(node, YumarkSequenceOptions::BLOCK_CONTENT, normalization)?;
         self.yumark_static_operation("list_item_body", vec![("children", children)])
     }
 
@@ -322,6 +386,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         options: YumarkSequenceOptions,
+        normalization: &YumarkSequenceNormalization,
     ) -> Result<Computation, LoweringError> {
         let mut lowered = Vec::new();
         let mut text = String::new();
@@ -329,6 +394,9 @@ impl<'a> ExprLowerer<'a> {
             match item {
                 NodeOrToken::Token(token) => {
                     let kind = token.kind();
+                    if normalization.is_structural_trivia(&token) {
+                        continue;
+                    }
                     if token_is_yumark_text(kind, options.include_newlines) {
                         text.push_str(token.text());
                     } else if token_is_yumark_syntax(kind) {
@@ -338,11 +406,13 @@ impl<'a> ExprLowerer<'a> {
                     }
                 }
                 NodeOrToken::Node(child) => {
-                    if is_empty_yumark_paragraph(&child) {
+                    if normalization.is_structural_blank_line(&child)
+                        || is_empty_yumark_paragraph(&child)
+                    {
                         continue;
                     }
                     self.flush_yumark_text(&mut text, &mut lowered, options)?;
-                    lowered.push(self.lower_yumark_node(&child)?);
+                    lowered.push(self.lower_yumark_node(&child, normalization)?);
                 }
             }
         }

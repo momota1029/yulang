@@ -9,6 +9,7 @@ use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
 
+use crate::lowering::{YumarkSequenceNormalization, normalize_yumark_tree_blank_boundaries};
 use crate::{DocComment, DocCommentKind, DocCommentUnit};
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -74,7 +75,8 @@ pub(crate) fn render_doc_unit_markdown(unit: &DocCommentUnit) -> String {
         .children()
         .filter(|child| child.kind() == SyntaxKind::YmDoc)
     {
-        rendered.push_str(&render_yumark_node(&doc));
+        let normalization = normalize_yumark_tree_blank_boundaries(&doc);
+        rendered.push_str(&render_yumark_node(&doc, &normalization));
     }
     if rendered.is_empty() {
         unit.node().text().to_string()
@@ -84,40 +86,54 @@ pub(crate) fn render_doc_unit_markdown(unit: &DocCommentUnit) -> String {
     }
 }
 
-fn render_yumark_node(node: &Cst) -> String {
+fn render_yumark_node(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     match node.kind() {
-        SyntaxKind::YmDoc => render_sequence(node, SequenceOptions::INLINE),
+        SyntaxKind::YmDoc => render_sequence(node, SequenceOptions::INLINE, normalization),
         SyntaxKind::YmParagraph => {
-            let mut rendered = render_sequence(node, SequenceOptions::BLOCK_CONTENT);
+            let mut rendered = render_sequence(node, SequenceOptions::BLOCK_CONTENT, normalization);
             rendered.push_str("\n\n");
             rendered
         }
         SyntaxKind::YmEmphasis => {
             let mut rendered = String::from("*");
-            rendered.push_str(&render_sequence(node, SequenceOptions::INLINE));
+            rendered.push_str(&render_sequence(
+                node,
+                SequenceOptions::INLINE,
+                normalization,
+            ));
             rendered.push('*');
             rendered
         }
         SyntaxKind::YmStrong => {
             let mut rendered = String::from("**");
-            rendered.push_str(&render_sequence(node, SequenceOptions::INLINE));
+            rendered.push_str(&render_sequence(
+                node,
+                SequenceOptions::INLINE,
+                normalization,
+            ));
             rendered.push_str("**");
             rendered
         }
-        SyntaxKind::YmHeading => render_heading(node),
-        SyntaxKind::YmBlankLine => "\n".to_string(),
-        SyntaxKind::YmSectionClose => render_section_close(node),
+        SyntaxKind::YmHeading => render_heading(node, normalization),
+        SyntaxKind::YmBlankLine => String::new(),
+        SyntaxKind::YmSectionClose => render_section_close(node, normalization),
         SyntaxKind::YmList => {
-            let mut rendered = render_sequence(node, SequenceOptions::INLINE);
+            let mut rendered = render_sequence(node, SequenceOptions::INLINE, normalization);
             rendered.push('\n');
             rendered
         }
-        SyntaxKind::YmListItem => render_list_item(node),
-        SyntaxKind::YmListItemBody => render_sequence(node, SequenceOptions::BLOCK_CONTENT),
+        SyntaxKind::YmListItem => render_list_item(node, normalization),
+        SyntaxKind::YmListItemBody => {
+            render_sequence(node, SequenceOptions::BLOCK_CONTENT, normalization)
+        }
         SyntaxKind::YmCodeFence => render_code_fence(node),
         SyntaxKind::YmQuoteBlock => {
             let mut rendered = String::from("> ");
-            rendered.push_str(&render_sequence(node, SequenceOptions::INLINE));
+            rendered.push_str(&render_sequence(
+                node,
+                SequenceOptions::INLINE,
+                normalization,
+            ));
             rendered.push('\n');
             rendered
         }
@@ -125,34 +141,42 @@ fn render_yumark_node(node: &Cst) -> String {
     }
 }
 
-fn render_heading(node: &Cst) -> String {
+fn render_heading(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     let Some(marker) = token_text(node, &[SyntaxKind::YmHashSigil]) else {
         return node.text().to_string();
     };
     let mut rendered = marker;
-    rendered.push_str(&render_sequence(node, SequenceOptions::LINE_CONTENT));
+    rendered.push_str(&render_sequence(
+        node,
+        SequenceOptions::LINE_CONTENT,
+        normalization,
+    ));
     rendered.push_str("\n\n");
     rendered
 }
 
-fn render_section_close(node: &Cst) -> String {
+fn render_section_close(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     let Some(marker) = token_text(node, &[SyntaxKind::YmHashDotSigil]) else {
         return node.text().to_string();
     };
     let mut rendered = marker;
-    rendered.push_str(&render_sequence(node, SequenceOptions::LINE_CONTENT));
+    rendered.push_str(&render_sequence(
+        node,
+        SequenceOptions::LINE_CONTENT,
+        normalization,
+    ));
     rendered.push('\n');
     rendered
 }
 
-fn render_list_item(node: &Cst) -> String {
+fn render_list_item(node: &Cst, normalization: &YumarkSequenceNormalization) -> String {
     let Some(marker) = token_text(
         node,
         &[SyntaxKind::YmListDashSigil, SyntaxKind::YmListNumSigil],
     ) else {
         return node.text().to_string();
     };
-    let mut children = render_sequence(node, SequenceOptions::BLOCK_CONTENT);
+    let mut children = render_sequence(node, SequenceOptions::BLOCK_CONTENT, normalization);
     trim_trailing_line_breaks(&mut children);
     let mut rendered = marker;
     rendered.push_str(&children);
@@ -173,7 +197,11 @@ fn render_code_fence(node: &Cst) -> String {
     rendered
 }
 
-fn render_sequence(node: &Cst, options: SequenceOptions) -> String {
+fn render_sequence(
+    node: &Cst,
+    options: SequenceOptions,
+    normalization: &YumarkSequenceNormalization,
+) -> String {
     let mut rendered = String::new();
     let mut text = String::new();
     let mut skip_newlines_after_child = false;
@@ -181,6 +209,9 @@ fn render_sequence(node: &Cst, options: SequenceOptions) -> String {
         match item {
             NodeOrToken::Token(token) => {
                 let kind = token.kind();
+                if normalization.is_structural_trivia(&token) {
+                    continue;
+                }
                 if skip_newlines_after_child && kind == SyntaxKind::YmNewline {
                     continue;
                 }
@@ -194,12 +225,14 @@ fn render_sequence(node: &Cst, options: SequenceOptions) -> String {
                 }
             }
             NodeOrToken::Node(child) => {
-                if is_empty_yumark_paragraph(&child) {
+                if normalization.is_structural_blank_line(&child)
+                    || is_empty_yumark_paragraph(&child)
+                {
                     continue;
                 }
                 flush_text(&mut rendered, &mut text, options);
                 if is_supported_yumark_node(child.kind()) {
-                    let child_rendered = render_yumark_node(&child);
+                    let child_rendered = render_yumark_node(&child, normalization);
                     skip_newlines_after_child =
                         child_rendered.ends_with('\n') || child_rendered.ends_with('\r');
                     rendered.push_str(&child_rendered);
@@ -423,11 +456,40 @@ mod tests {
     }
 
     #[test]
-    fn renders_blank_line_between_paragraphs() {
-        assert_eq!(
-            render_value_doc("---\nfirst\n\nsecond\n---\nmy x = 1\n"),
-            "first\n\n\nsecond\n\n"
-        );
+    fn renders_all_parser_generated_blank_boundaries_structurally() {
+        let cases = [
+            (
+                "between paragraphs",
+                "---\nfirst\n\nsecond\n---\nmy x = 1\n",
+                "first\n\nsecond\n\n",
+            ),
+            ("leading", "---\n\nfirst\n---\nmy x = 1\n", "first\n\n"),
+            ("trailing", "---\nfirst\n\n---\nmy x = 1\n", "first\n\n"),
+            (
+                "multiple",
+                "---\nfirst\n\n\nsecond\n---\nmy x = 1\n",
+                "first\n\nsecond\n\n",
+            ),
+            (
+                "whitespace-only",
+                "---\nfirst\n  \nsecond\n---\nmy x = 1\n",
+                "first\n\nsecond\n\n",
+            ),
+            (
+                "inside quote",
+                "---\n> first\n>\n> second\n---\nmy x = 1\n",
+                "> first\n\nsecond\n\n\n",
+            ),
+            (
+                "CRLF",
+                "---\r\nfirst\r\n\r\nsecond\r\n---\r\nmy x = 1\r\n",
+                "first\n\nsecond\n\n",
+            ),
+        ];
+
+        for (name, source, expected) in cases {
+            assert_eq!(render_value_doc(source), expected, "{name}");
+        }
     }
 
     #[test]
@@ -473,7 +535,7 @@ mod tests {
             render_value_doc(
                 "---\n# Title\nA *soft* and **strong** paragraph.\n\n- item one\n- item **two**\n```text\nbody\n```\n> quoted\n#.\n---\nmy x = 1\n",
             ),
-            "# Title\n\nA *soft* and **strong** paragraph.\n\n\n- item one\n\n- item **two**\n\n```text\nbody\n```\n\n> quoted\n\n\n#.\n"
+            "# Title\n\nA *soft* and **strong** paragraph.\n\n- item one\n\n- item **two**\n\n```text\nbody\n```\n\n> quoted\n\n\n#.\n"
         );
     }
 

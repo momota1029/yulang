@@ -30,6 +30,8 @@ mod signature_match;
 mod string_lit;
 mod yumark_lit;
 
+pub(crate) use yumark_lit::{YumarkSequenceNormalization, normalize_yumark_tree_blank_boundaries};
+
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};

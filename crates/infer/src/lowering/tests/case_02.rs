@@ -306,7 +306,8 @@ fn mark_expr_lowers_full_static_vocabulary_to_algebra_builder() {
     );
     let output = lower_yumark_main(source);
     assert!(output.errors.is_empty(), "{:?}", output.errors);
-    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 10);
+    // Ordinary blank source lines are structural and contribute no algebra node.
+    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 8);
     assert_yumark_ctor(&output, heads[0], "heading");
 
     let paragraph = assert_yumark_ctor(&output, heads[1], "paragraph");
@@ -315,11 +316,9 @@ fn mark_expr_lowers_full_static_vocabulary_to_algebra_builder() {
     assert_yumark_ctor(&output, paragraph_children[1], "emphasis");
     assert_yumark_ctor(&output, paragraph_children[3], "strong");
 
-    assert_yumark_ctor(&output, heads[2], "text");
-    assert_yumark_ctor(&output, heads[3], "blank_line");
-    assert_yumark_ctor(&output, heads[4], "section_close");
+    assert_yumark_ctor(&output, heads[2], "section_close");
 
-    for list in &heads[5..=6] {
+    for list in &heads[3..=4] {
         let list = assert_yumark_ctor(&output, *list, "list_block");
         let items = assert_yumark_chain(&output, field(&list, "items"), 1);
         let item = assert_yumark_ctor(&output, items[0], "list_item");
@@ -327,9 +326,9 @@ fn mark_expr_lowers_full_static_vocabulary_to_algebra_builder() {
         assert_yumark_ctor(&output, bodies[0], "list_item_body");
     }
 
-    assert_yumark_ctor(&output, heads[7], "code_fence");
-    assert_yumark_ctor(&output, heads[8], "text");
-    assert_yumark_ctor(&output, heads[9], "quote_block");
+    assert_yumark_ctor(&output, heads[5], "code_fence");
+    assert_yumark_ctor(&output, heads[6], "text");
+    assert_yumark_ctor(&output, heads[7], "quote_block");
 }
 
 #[test]
@@ -364,21 +363,18 @@ fn mark_expr_block_paragraph_lowers_to_paragraph_operation() {
 }
 
 #[test]
-fn mark_expr_block_heading_blank_line_and_section_close_lower_to_static_leaves() {
+fn mark_expr_block_structural_blank_line_emits_no_algebra_leaf() {
     let output = lower_yumark_main("pub main = '{# Title\n\n#.\n}\n");
 
     assert!(output.errors.is_empty(), "{:?}", output.errors);
-    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 3);
+    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 2);
     let heading = assert_yumark_ctor(&output, heads[0], "heading");
     assert_str_lit(&output, field(&heading, "marker"), "# ");
     assert_int_lit(&output, field(&heading, "level"), 1);
     let heading_children = assert_yumark_chain(&output, field(&heading, "children"), 1);
     assert_text_leaf_application(&output, heading_children[0], "Title");
 
-    let blank = assert_yumark_ctor(&output, heads[1], "blank_line");
-    assert_str_lit(&output, field(&blank, "marker"), "\n");
-
-    let close = assert_yumark_ctor(&output, heads[2], "section_close");
+    let close = assert_yumark_ctor(&output, heads[1], "section_close");
     assert_str_lit(&output, field(&close, "marker"), "#.");
     assert_nil_application(&output, field(&close, "children"));
 }
@@ -465,16 +461,15 @@ fn mark_expr_block_rich_document_lowers_static_vocab_without_bespoke_shape() {
     );
 
     assert!(output.errors.is_empty(), "{:?}", output.errors);
-    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 9);
+    // The paragraph separator remains in the CST but not in the algebra chain.
+    let heads = assert_yumark_chain(&output, yumark_main_body(&output), 7);
     assert_yumark_ctor(&output, heads[0], "heading");
     assert_yumark_ctor(&output, heads[1], "paragraph");
-    assert_text_leaf_application(&output, heads[2], "\n\n");
-    assert_yumark_ctor(&output, heads[3], "blank_line");
-    assert_yumark_ctor(&output, heads[4], "list_block");
-    assert_yumark_ctor(&output, heads[5], "list_block");
-    assert_yumark_ctor(&output, heads[6], "code_fence");
-    assert_text_leaf_application(&output, heads[7], "\n");
-    assert_yumark_ctor(&output, heads[8], "quote_block");
+    assert_yumark_ctor(&output, heads[2], "list_block");
+    assert_yumark_ctor(&output, heads[3], "list_block");
+    assert_yumark_ctor(&output, heads[4], "code_fence");
+    assert_text_leaf_application(&output, heads[5], "\n");
+    assert_yumark_ctor(&output, heads[6], "quote_block");
 }
 
 #[test]

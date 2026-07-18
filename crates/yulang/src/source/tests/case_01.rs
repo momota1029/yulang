@@ -529,6 +529,25 @@ fn yumark_nil_text_renders_expected_html_and_markdown_bytes() {
     assert_eq!(output.text, expected);
 }
 
+#[cfg(unix)]
+#[test]
+fn explicit_yumark_blank_line_builder_remains_visible() {
+    let entry = write_main_with_std(
+        "yumark-explicit-blank-line-output",
+        concat!(
+            "use std::text::yumark::*\n",
+            "html_tag (render_html_doc (blank_line \"manual-spacer\"))\n",
+            "render_markdown_doc (blank_line \"manual-spacer\")\n",
+        ),
+    );
+    let output = run_mono_from_entry_with_std(&entry).unwrap();
+
+    assert_eq!(
+        output.text,
+        "run roots [\"<br>manual-spacer</br>\", \"manual-spacer\"]\n"
+    );
+}
+
 #[test]
 fn doc_comment_static_renderer_matches_production_markdown_vocabulary() {
     fn render_static_doc(source: &str) -> String {
