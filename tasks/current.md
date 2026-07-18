@@ -13,6 +13,17 @@
 作業規約は `/.rules`（= `AGENTS.md`）と `crates/.rules` を見る。
 旧実装は仕様ではない。挙動が食い違ったら spec と手計算で正解を確かめる。
 
+## 現在地（2026-07-18）: Yumark static core / thin path closeout
+
+Yumark は algebra-passing production migration、lazy per-hover evaluation の LS live 接続、
+structural blank-line / line-doc-continuation の言語意味論修正まで完了した。
+現状と残件は `notes/todo/yumark.md`、設計と履歴の参照先は
+`notes/design/2026-07-17-yumark-converged-design.md`、
+`notes/design/2026-07-18-yumark-structural-boundaries.md`、
+`notes/design/2026-07-08-yumark-value-model-tagless-final.md`、
+`notes/bugs/2026-07-17-yumark-generalization-memory-exhaustion.md` とし、
+このファイルには詳細を重複させない。
+
 ## 現在地（2026-06-23）: hardening phase
 
 `ref.update` / directed stack weight の修正で、public type boundary、row-tail polarity、
@@ -1051,9 +1062,9 @@ effect subtraction の主性と colored soundness の定式化が更新された
 5. 高速化は計測を先に置く。
    - phase timing、intern 候補、cache hit/miss、Rowan cost を測ってから触る。
    - 詳細: `notes/todo/static-analysis-speed.md`
-6. Yumark は value model から決める。
-   - syntax parse 済みの先、AST/IR/type/runtime/playground 表示を設計する。
-   - 詳細: `notes/todo/yumark.md`
+6. Yumark の「value model から作る」候補は完了した。
+   - static core / thin path の到達点と、command / injection、span-carrying diagnostics、
+     playground preview の明示的な残件は `notes/todo/yumark.md` を見る。
 
 ## 今すぐやる slice
 

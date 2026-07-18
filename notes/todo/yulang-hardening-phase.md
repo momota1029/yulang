@@ -1,5 +1,12 @@
 # Yulang Hardening Phase
 
+> **状態注記（2026-07-18）:** このファイルの active-priority framing は後続作業へ
+> supersede / absorb された。ここで求めた metrics、public signature canaries、solver
+> invariant document は実装・文書化済み。後続の owner-level dirty scheduling と
+> per-demand generalization role snapshot を含む solver hardening は、現行の契約上の
+> source of truth である `docs/infer-solver-invariants.md` で追跡する。以下は historical
+> record として残す。
+
 2026-06-23 からしばらくは、Yulang を「アドホックに動く言語」から
 「理論の不変量に守られて動く言語」へ寄せる hardening phase として扱う。
 

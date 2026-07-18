@@ -250,8 +250,15 @@ The columns trace a value through the pipeline:
   are covered. Regex-style lazy quantifiers are intentionally rejected by the
   active `rule` lowering; multi-item interpolation and runtime exposure are
   still incomplete.
-- Quoted Yumark expressions (`'[...]` / `'{...}`) parse, but the active infer
-  lowering does not assign them a value model yet.
+- Quoted Yumark expressions (`'[...]` / `'{...}`) now use the production
+  algebra-passing value model and full static-vocabulary lowering, with HTML
+  and Markdown algebras in `lib/std/text/yumark.yu`. The LS lazy per-hover path
+  is live for its safe doc-comment subset, backed by a resident warm evaluator
+  and static fallback. `YmCommand` / `YmInlineExpr` injection remains
+  unsupported, Yumark algebra operations do not yet carry source spans, and a
+  dedicated playground preview has not been built. Making lazy hover the
+  default / primary policy is an intentionally deferred product decision, not
+  a technical blocker.
 - The compiled-unit cache is part of the normal CLI route, including exact
   full-source artifacts, std prefixes, and conservative source-unit prefixes.
   A realm is a versioned resolution space, and a band is an import/build island
