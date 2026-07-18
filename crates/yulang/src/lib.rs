@@ -11,10 +11,16 @@ pub mod source;
 pub mod stdlib;
 mod time;
 mod yumark_eval;
+#[cfg(not(target_arch = "wasm32"))]
+mod yumark_render_worker;
 
 pub use yumark_eval::{
     YumarkLiteralEvaluationError, evaluate_doc_comment_render_input_markdown_with_embedded_std,
     evaluate_yumark_literal_markdown_with_embedded_std,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use yumark_render_worker::{
+    DEFAULT_DOC_COMMENT_RENDER_CACHE_CAPACITY, DocCommentRenderWorker, DocCommentRenderWorkerError,
 };
 
 pub use source::{
