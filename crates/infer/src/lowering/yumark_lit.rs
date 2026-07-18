@@ -30,6 +30,117 @@ impl YumarkSequenceOptions {
     };
 }
 
+/// Structural blank-line boundaries found in one Yumark CST sequence.
+///
+/// The parser currently emits the same source boundary both as trailing
+/// trivia in the preceding child and as direct sequence trivia immediately
+/// before a zero-width `YmBlankLine`. Keeping those ranges together lets the
+/// lowering path discard the boundary once without rewriting the parser CST.
+// Slice 2 deliberately lands this mechanism before production lowering uses it.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct YumarkSequenceNormalization {
+    pub(super) structural_blank_boundaries: Vec<YumarkStructuralBlankBoundary>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct YumarkStructuralBlankBoundary {
+    pub(super) range: rowan::TextRange,
+    pub(super) trivia_ranges: Vec<rowan::TextRange>,
+    pub(super) blank_line_range: rowan::TextRange,
+}
+
+/// Identify parser-generated blank nodes and every adjacent duplicate of
+/// their source boundary. This is intentionally not wired into lowering yet.
+#[allow(dead_code)]
+pub(super) fn normalize_yumark_sequence_blank_boundaries(
+    node: &Cst,
+) -> YumarkSequenceNormalization {
+    let items = node.children_with_tokens().collect::<Vec<_>>();
+    let mut structural_blank_boundaries = Vec::new();
+
+    for (blank_index, item) in items.iter().enumerate() {
+        let NodeOrToken::Node(blank_line) = item else {
+            continue;
+        };
+        if blank_line.kind() != SyntaxKind::YmBlankLine {
+            continue;
+        }
+
+        let mut direct_left = blank_index;
+        let mut direct_left_ranges = Vec::new();
+        while let Some(NodeOrToken::Token(token)) = direct_left
+            .checked_sub(1)
+            .and_then(|index| items.get(index))
+        {
+            if !token_is_yumark_blank_boundary_trivia(token) {
+                break;
+            }
+            direct_left -= 1;
+            direct_left_ranges.push(token.text_range());
+        }
+        direct_left_ranges.reverse();
+
+        let mut trivia_ranges = direct_left
+            .checked_sub(1)
+            .and_then(|index| items.get(index))
+            .and_then(NodeOrToken::as_node)
+            .map(trailing_yumark_blank_boundary_trivia_ranges)
+            .unwrap_or_default();
+        trivia_ranges.extend(direct_left_ranges);
+
+        let mut direct_right = blank_index + 1;
+        while let Some(NodeOrToken::Token(token)) = items.get(direct_right) {
+            if !token_is_yumark_blank_boundary_trivia(token) {
+                break;
+            }
+            trivia_ranges.push(token.text_range());
+            direct_right += 1;
+        }
+
+        let blank_line_range = blank_line.text_range();
+        let mut range = blank_line.text_range();
+        for trivia_range in &trivia_ranges {
+            range = range.cover(*trivia_range);
+        }
+        structural_blank_boundaries.push(YumarkStructuralBlankBoundary {
+            range,
+            trivia_ranges,
+            blank_line_range,
+        });
+    }
+
+    YumarkSequenceNormalization {
+        structural_blank_boundaries,
+    }
+}
+
+#[allow(dead_code)]
+fn trailing_yumark_blank_boundary_trivia_ranges(node: &Cst) -> Vec<rowan::TextRange> {
+    let tokens = node
+        .descendants_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .collect::<Vec<_>>();
+    let mut ranges = Vec::new();
+    for token in tokens.into_iter().rev() {
+        if !token_is_yumark_blank_boundary_trivia(&token) {
+            break;
+        }
+        ranges.push(token.text_range());
+    }
+    ranges.reverse();
+    ranges
+}
+
+#[allow(dead_code)]
+fn token_is_yumark_blank_boundary_trivia(token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
+    matches!(
+        token.kind(),
+        SyntaxKind::Space | SyntaxKind::YmNewline | SyntaxKind::QuotePrefix
+    ) && token.text().chars().any(|ch| matches!(ch, '\n' | '\r'))
+}
+
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_mark_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         let doc = mark_expr_doc(node)?;
@@ -416,5 +527,173 @@ fn token_is_yumark_syntax(kind: SyntaxKind) -> bool {
 fn trim_trailing_line_breaks(text: &mut String) {
     while text.ends_with('\n') || text.ends_with('\r') {
         text.pop();
+    }
+}
+
+#[cfg(test)]
+mod boundary_normalization_tests {
+    use super::*;
+
+    fn parsed_yumark_doc(body: &str) -> Cst {
+        let source = format!("pub main = '{{{body}}}\n");
+        let root = SyntaxNode::new_root(parser::parse_module_to_green(&source));
+        root.descendants()
+            .find(|node| node.kind() == SyntaxKind::YmDoc)
+            .expect("ordinary Yumark literal should contain YmDoc")
+    }
+
+    fn assert_single_structural_boundary(
+        body: &str,
+        sequence_kind: SyntaxKind,
+        expected_trivia: &[(SyntaxKind, &str)],
+    ) {
+        let doc = parsed_yumark_doc(body);
+        let sequence = if doc.kind() == sequence_kind {
+            doc
+        } else {
+            doc.descendants()
+                .find(|node| node.kind() == sequence_kind)
+                .unwrap_or_else(|| panic!("missing {sequence_kind:?} in {body:?}"))
+        };
+        let normalization = normalize_yumark_sequence_blank_boundaries(&sequence);
+        let [boundary] = normalization.structural_blank_boundaries.as_slice() else {
+            panic!(
+                "expected one structural blank boundary in {body:?}, got {:?}",
+                normalization.structural_blank_boundaries
+            );
+        };
+
+        let blank_line = sequence
+            .children()
+            .find(|node| node.kind() == SyntaxKind::YmBlankLine)
+            .expect("sequence should contain YmBlankLine");
+        assert_eq!(boundary.blank_line_range, blank_line.text_range());
+
+        let actual_trivia = boundary
+            .trivia_ranges
+            .iter()
+            .map(|range| {
+                let token = sequence
+                    .descendants_with_tokens()
+                    .filter_map(NodeOrToken::into_token)
+                    .find(|token| token.text_range() == *range)
+                    .unwrap_or_else(|| panic!("missing boundary token at {range:?}"));
+                (token.kind(), token.text().to_string())
+            })
+            .collect::<Vec<_>>();
+        let expected_trivia = expected_trivia
+            .iter()
+            .map(|(kind, text)| (*kind, (*text).to_string()))
+            .collect::<Vec<_>>();
+        assert_eq!(actual_trivia, expected_trivia, "{body:?}");
+
+        for ranges in boundary.trivia_ranges.windows(2) {
+            assert_eq!(ranges[0].end(), ranges[1].start(), "{body:?}");
+        }
+        let first = boundary
+            .trivia_ranges
+            .first()
+            .expect("characterized boundaries carry parser trivia");
+        let last = boundary
+            .trivia_ranges
+            .last()
+            .expect("characterized boundaries carry parser trivia");
+        assert_eq!(boundary.range.start(), first.start(), "{body:?}");
+        assert_eq!(boundary.range.end(), last.end(), "{body:?}");
+        assert_eq!(blank_line.text_range().start(), boundary.range.end());
+        assert_eq!(blank_line.text_range().end(), boundary.range.end());
+    }
+
+    #[test]
+    fn normalizes_paragraph_to_paragraph_blank_boundary() {
+        assert_single_structural_boundary(
+            "first\n\nsecond\n",
+            SyntaxKind::YmDoc,
+            &[
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+            ],
+        );
+    }
+
+    #[test]
+    fn normalizes_leading_blank_boundary() {
+        assert_single_structural_boundary(
+            "\n\nfirst\n",
+            SyntaxKind::YmDoc,
+            &[(SyntaxKind::YmNewline, "\n"), (SyntaxKind::YmNewline, "\n")],
+        );
+    }
+
+    #[test]
+    fn normalizes_trailing_blank_boundary() {
+        assert_single_structural_boundary(
+            "first\n\n",
+            SyntaxKind::YmDoc,
+            &[
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+            ],
+        );
+    }
+
+    #[test]
+    fn normalizes_multiple_consecutive_blank_lines_as_one_boundary() {
+        assert_single_structural_boundary(
+            "first\n\n\nsecond\n",
+            SyntaxKind::YmDoc,
+            &[
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+                (SyntaxKind::YmNewline, "\n"),
+            ],
+        );
+    }
+
+    #[test]
+    fn normalizes_whitespace_only_blank_line_boundary() {
+        assert_single_structural_boundary(
+            "first\n  \nsecond\n",
+            SyntaxKind::YmDoc,
+            &[
+                (SyntaxKind::Space, "\n  "),
+                (SyntaxKind::Space, "\n"),
+                (SyntaxKind::YmNewline, "\n  "),
+                (SyntaxKind::YmNewline, "\n"),
+            ],
+        );
+    }
+
+    #[test]
+    fn normalizes_blank_boundary_inside_quote() {
+        assert_single_structural_boundary(
+            "> foo\n>\n> bar\n",
+            SyntaxKind::YmQuoteBlock,
+            &[
+                (SyntaxKind::QuotePrefix, "\n>\n> "),
+                (SyntaxKind::QuotePrefix, "\n>\n> "),
+            ],
+        );
+    }
+
+    #[test]
+    fn normalizes_crlf_blank_boundary() {
+        assert_single_structural_boundary(
+            "first\r\n\r\nsecond\r\n",
+            SyntaxKind::YmDoc,
+            &[
+                (SyntaxKind::Space, "\r\n"),
+                (SyntaxKind::Space, "\r\n"),
+                (SyntaxKind::YmNewline, "\r\n"),
+                (SyntaxKind::YmNewline, "\r\n"),
+            ],
+        );
     }
 }
