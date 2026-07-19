@@ -273,6 +273,52 @@ fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
 }
 
 #[test]
+fn specialize_missing_record_field_diagnostic_uses_selection_source_span() {
+    let source = "{ a: 1 }.b\n";
+    let mut output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
+        .expect("missing-record-field canary should lower");
+    let error = specialize::specialize(&output.arena)
+        .expect_err("missing-record-field canary should fail specialization");
+    let select = match &error {
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    select: Some(select),
+                    ..
+                }),
+            ..
+        } => *select,
+        _ => panic!("expected missing-record-field selection origin, got {error:?}"),
+    };
+    let field_start = source.find('b').expect("source field token");
+    let span = output
+        .selection_provenance
+        .selection_span(select)
+        .expect("selection should retain its source span")
+        .clone();
+
+    assert_eq!(
+        span.range,
+        SourceRange {
+            start: field_start,
+            end: field_start + 1,
+        }
+    );
+    let routed = specialize_route_error(error.clone(), &output);
+    let RouteError::SpecializeDiagnostic { context, .. } = routed else {
+        panic!("missing-record-field selection should produce a ranged route error");
+    };
+    assert_eq!(context.range, span.range);
+    assert!(context.related.is_empty());
+
+    output.selection_provenance = infer::lowering::SelectionProvenanceTable::default();
+    assert!(matches!(
+        specialize_route_error(error, &output),
+        RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype { .. })
+    ));
+}
+
+#[test]
 fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
     let output = build_poly_from_collected_sources(vec![collected(
         "main.yu",

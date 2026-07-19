@@ -879,11 +879,7 @@ pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
                 }),
             ..
         }) => {
-            let actual = if actual_fields.is_empty() {
-                "no fields".to_string()
-            } else {
-                format!("fields {}", actual_fields.join(", "))
-            };
+            let actual = describe_actual_record_fields(actual_fields);
             format!(
                 "compile error [yulang.unsatisfied-subtype]: record is missing field `{field}`\n  detail: {error}\n  hint: add `{field}` to this record or use a value that provides it; actual record has {actual}"
             )
@@ -919,15 +915,35 @@ fn format_ranged_specialize_error(
     context: &yulang::source::SpecializeDiagnosticContext,
 ) -> String {
     let (code, message, hint) = match error {
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    field,
+                    actual_fields,
+                    ..
+                }),
+            ..
+        } => {
+            let actual = describe_actual_record_fields(actual_fields);
+            (
+                "yulang.unsatisfied-subtype",
+                format!("record is missing field `{field}`"),
+                format!(
+                    "add `{field}` to this record or use a value that provides it; actual record has {actual}"
+                ),
+            )
+        }
         specialize::SpecializeError::UnresolvedTypeclassMethod { .. } => (
             "yulang.unresolved-method",
-            "no role implementation satisfies this method call",
-            "add or import an impl for the receiver type, or call a method supported by that value",
+            "no role implementation satisfies this method call".to_string(),
+            "add or import an impl for the receiver type, or call a method supported by that value"
+                .to_string(),
         ),
         specialize::SpecializeError::AmbiguousTypeclassMethod { .. } => (
             "yulang.ambiguous-method",
-            "more than one role implementation satisfies this method call",
-            "make the receiver type more specific or keep only one matching impl in scope",
+            "more than one role implementation satisfies this method call".to_string(),
+            "make the receiver type more specific or keep only one matching impl in scope"
+                .to_string(),
         ),
         _ => return error.to_string(),
     };
@@ -936,11 +952,19 @@ fn format_ranged_specialize_error(
         code: Some(code.to_string()),
         label: None,
         range: Some(context.range),
-        message: message.to_string(),
-        hint: Some(hint.to_string()),
+        message,
+        hint: Some(hint),
         related: context.related.clone(),
     };
     format_specialize_source_diagnostic(&diagnostic, &context.source, error)
+}
+
+fn describe_actual_record_fields(actual_fields: &[String]) -> String {
+    if actual_fields.is_empty() {
+        "no fields".to_string()
+    } else {
+        format!("fields {}", actual_fields.join(", "))
+    }
 }
 
 fn format_specialize_source_diagnostic(

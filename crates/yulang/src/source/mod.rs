@@ -1567,19 +1567,34 @@ fn specialize_diagnostic_context(
     error: &specialize::SpecializeError,
     output: &BuildPolyOutput,
 ) -> Option<SpecializeDiagnosticContext> {
-    let (expr, candidates) = match error {
+    let (select, candidates) = match error {
         specialize::SpecializeError::UnresolvedTypeclassMethod { expr, .. } => {
-            (*expr, &[][..])
+            let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(*expr as usize)?
+            else {
+                return None;
+            };
+            (*select, &[][..])
         }
         specialize::SpecializeError::AmbiguousTypeclassMethod {
             expr, candidates, ..
-        } => (*expr, candidates.as_slice()),
+        } => {
+            let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(*expr as usize)?
+            else {
+                return None;
+            };
+            (*select, candidates.as_slice())
+        }
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    select: Some(select),
+                    ..
+                }),
+            ..
+        } => (*select, &[][..]),
         _ => return None,
     };
-    let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(expr as usize)? else {
-        return None;
-    };
-    let selection_span = output.selection_provenance.selection_span(*select)?;
+    let selection_span = output.selection_provenance.selection_span(select)?;
     let source = output
         .diagnostic_sources
         .source_for_span(selection_span)?

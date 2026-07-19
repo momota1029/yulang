@@ -1925,6 +1925,9 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "compile error [yulang.unsatisfied-subtype]: record is missing field `b`",
+  "--> line 1, column 10",
+  "1 | { a: 1 }.b",
+  "|          ^",
   "hint: add `b` to this record or use a value that provides it; actual record has fields a",
 ]
 contracts = ["runtime-error", "compile-error", "diagnostics", "records"]

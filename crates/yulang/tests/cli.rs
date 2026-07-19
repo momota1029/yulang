@@ -836,7 +836,7 @@ fn compatible_run_reports_pattern_mismatch_hint() {
 }
 
 #[test]
-fn compatible_run_reports_unsatisfied_subtype_hint() {
+fn compatible_run_reports_missing_record_field_source_range_and_hint() {
     let entry = write_entry("run-unsatisfied-subtype", "{ a: 1 }.b\n");
 
     let output = yulang_command()
@@ -860,6 +860,10 @@ fn compatible_run_reports_unsatisfied_subtype_hint() {
     assert!(
         stderr
             .contains("compile error [yulang.unsatisfied-subtype]: record is missing field `b`\n"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("    --> line 1, column 10\n    1 | { a: 1 }.b\n      |          ^"),
         "{stderr}"
     );
     assert!(
