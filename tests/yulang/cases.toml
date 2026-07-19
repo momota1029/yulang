@@ -1960,7 +1960,7 @@ expect_stderr_contains = [
   "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call",
   "--> line 10, column 3",
   "10 | 1.foo",
-  "note: matching impl method candidate",
+  "note: matching impl method candidate: R.foo",
   "--> line 5, column 11",
   "--> line 8, column 11",
   "hint: make the receiver type more specific or keep only one matching impl in scope",
@@ -1997,7 +1997,7 @@ expect_stderr = ""
 expect_stdout_contains = [
   "error [yulang.ambiguous-method]: foo: more than one role implementation satisfies this method call",
   "hint: make the receiver type more specific or keep only one matching impl in scope",
-  "note: matching impl method candidate",
+  "note: matching impl method candidate: R.foo",
 ]
 expect_diagnostic_code = "yulang.ambiguous-method"
 expect_diagnostic_severity = "error"

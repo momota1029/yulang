@@ -968,9 +968,13 @@ fn compatible_run_reports_ambiguous_method_source_range_candidates_and_hint() {
     );
     assert_eq!(
         stderr
-            .matches("note: matching impl method candidate:")
+            .matches("note: matching impl method candidate: R.foo")
             .count(),
         2,
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("note: matching impl method candidate: d"),
         "{stderr}"
     );
     assert!(

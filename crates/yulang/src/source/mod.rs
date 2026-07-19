@@ -1638,13 +1638,8 @@ fn specialize_diagnostic_context(
             if span.file != selection_span.file {
                 return None;
             }
-            let label = output
-                .labels
-                .def_label(candidate)
-                .map(str::to_string)
-                .unwrap_or_else(|| format!("d{}", candidate.0));
             Some(SourceDiagnosticRelated {
-                message: format!("matching impl method candidate: {label}"),
+                message: role_method_candidate_message(&output.arena, &output.labels, candidate),
                 range: span.range,
                 origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
             })
@@ -3308,19 +3303,37 @@ fn role_method_candidate_related(
         .iter()
         .filter_map(|candidate| {
             let range = check.lowering.modules.def_source_range(*candidate)?;
-            let label = check
-                .lowering
-                .labels
-                .def_label(*candidate)
-                .map(str::to_string)
-                .unwrap_or_else(|| format!("d{}", candidate.0));
             Some(SourceDiagnosticRelated {
-                message: format!("matching impl method candidate: {label}"),
+                message: role_method_candidate_message(
+                    &check.lowering.session.poly,
+                    &check.lowering.labels,
+                    *candidate,
+                ),
                 range,
                 origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
             })
         })
         .collect()
+}
+
+fn role_method_candidate_message(
+    arena: &poly::expr::Arena,
+    labels: &poly::dump::DumpLabels,
+    candidate: poly::expr::DefId,
+) -> String {
+    let label = labels.def_label(candidate).or_else(|| {
+        arena.role_impls.iter().find_map(|role_impl| {
+            role_impl
+                .methods
+                .iter()
+                .find(|method| method.implementation == candidate)
+                .and_then(|method| labels.def_label(method.requirement))
+        })
+    });
+    label.map_or_else(
+        || "matching impl method candidate".to_string(),
+        |label| format!("matching impl method candidate: {label}"),
+    )
 }
 
 fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Option<&'static str> {
