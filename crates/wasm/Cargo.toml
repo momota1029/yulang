@@ -7,7 +7,9 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+control-ir = { path = "../control-ir" }
 evidence-vm = { path = "../evidence-vm" }
+mono-runtime = { path = "../mono-runtime" }
 parser = { path = "../parser" }
 poly = { path = "../poly" }
 rowan = "0.15"

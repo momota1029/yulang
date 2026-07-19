@@ -230,8 +230,8 @@ route "???" .say
     fn assert_type_annotation_mismatch_diagnostic(diagnostic: &Diagnostic) {
         assert_eq!(diagnostic.label.as_deref(), Some("x"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
-        assert_eq!(diagnostic.start, 3);
-        assert_eq!(diagnostic.end, 4);
+        assert_eq!(diagnostic.start, Some(3));
+        assert_eq!(diagnostic.end, Some(4));
         assert_eq!(diagnostic.message, "type mismatch: bool is not int");
         assert_eq!(diagnostic.hint, None);
         assert_eq!(diagnostic.related.len(), 2);
@@ -915,7 +915,7 @@ pub compose2(f, g, x) = f g(x)
     }
 
     #[test]
-    fn run_inner_runtime_error_stays_message_diagnostic() {
+    fn run_inner_runtime_error_returns_structured_diagnostic() {
         clear_std_cache();
         let source = diagnostics_fixture("not_callable_error");
         let output = run_inner(source);
@@ -923,19 +923,81 @@ pub compose2(f, g, x) = f g(x)
         assert!(!output.ok, "{output:?}");
         assert_eq!(output.diagnostics.len(), 1);
         let diagnostic = &output.diagnostics[0];
-        assert_eq!(diagnostic.code, None);
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.not-callable"));
         assert_eq!(diagnostic.label, None);
-        assert_eq!(diagnostic.hint, None);
-        assert_eq!(diagnostic.start, 0);
-        assert_eq!(diagnostic.end, source.len());
-        assert!(diagnostic.related.is_empty(), "{diagnostic:?}");
-        assert!(
-            diagnostic
-                .message
-                .contains("runtime-evidence-run not a function: 1"),
-            "{diagnostic:?}"
+        assert_eq!(
+            diagnostic.hint.as_deref(),
+            Some(
+                "check the expression before the argument; calls are written as `f x` or `f(...)`"
+            )
         );
+        assert_eq!(diagnostic.start, Some(7));
+        assert_eq!(diagnostic.end, Some(8));
+        assert_eq!(diagnostic.message, "tried to call a non-function value 1");
+        assert_eq!(diagnostic.related.len(), 1, "{diagnostic:?}");
+        assert_eq!(diagnostic.related[0].message, "application occurs here");
+        assert_eq!(diagnostic.related[0].start, 7);
+        assert_eq!(diagnostic.related[0].end, 11);
+        assert_eq!(diagnostic.related[0].origin.as_deref(), Some("expression"));
         assert_eq!(output.errors, vec![diagnostic.message.clone()]);
+    }
+
+    #[test]
+    fn run_inner_embedded_std_runtime_error_keeps_user_range() {
+        clear_std_cache();
+        let source = "std::int::add 1 2 3\n";
+        let output = run_inner(source);
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.not-callable"));
+        assert_eq!(diagnostic.message, "tried to call a non-function value 3");
+        assert_eq!(diagnostic.start, Some(0));
+        assert_eq!(diagnostic.end, Some(18));
+        assert_eq!(diagnostic.related.len(), 1, "{diagnostic:?}");
+        assert_eq!(diagnostic.related[0].start, 0);
+        assert_eq!(diagnostic.related[0].end, source.len());
+    }
+
+    #[test]
+    fn run_inner_runtime_error_without_site_omits_range() {
+        clear_std_cache();
+        let output = run_inner("std::int::div 1 0\n");
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.divide-by-zero"));
+        assert_eq!(diagnostic.start, None);
+        assert_eq!(diagnostic.end, None);
+        assert_eq!(diagnostic.message, "attempted to divide by zero");
+        assert_eq!(
+            diagnostic.hint.as_deref(),
+            Some("check the divisor before division")
+        );
+        assert!(diagnostic.related.is_empty(), "{diagnostic:?}");
+    }
+
+    #[test]
+    fn mono_runtime_error_uses_structured_diagnostic_without_range() {
+        let error = WasmRuntimeError::Route(yulang::RouteError::Runtime(
+            mono_runtime::RuntimeError::PatternMismatch,
+        ));
+        let RuntimeSourceDiagnostic {
+            diagnostic,
+            range_offset,
+        } = error.into_source_diagnostic();
+
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.pattern-mismatch"));
+        assert_eq!(diagnostic.range, None);
+        assert_eq!(diagnostic.message, "no pattern matched the value");
+        assert_eq!(
+            diagnostic.hint.as_deref(),
+            Some("add a fallback pattern such as `_ -> ...`")
+        );
+        assert!(diagnostic.related.is_empty(), "{diagnostic:?}");
+        assert_eq!(range_offset, 0);
     }
 
     #[test]
@@ -949,8 +1011,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.type-mismatch")
         );
-        assert_eq!(output.diagnostics[0].start, 3);
-        assert_eq!(output.diagnostics[0].end, 4);
+        assert_eq!(output.diagnostics[0].start, Some(3));
+        assert_eq!(output.diagnostics[0].end, Some(4));
         assert_eq!(
             output.diagnostics[0].message,
             "type mismatch: bool is not int"
@@ -990,8 +1052,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(diagnostic.label.as_deref(), Some("x"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.type-mismatch"));
         let label_start = source.find("x:").unwrap();
-        assert_eq!(diagnostic.start, label_start);
-        assert_eq!(diagnostic.end, label_start + "x".len());
+        assert_eq!(diagnostic.start, Some(label_start));
+        assert_eq!(diagnostic.end, Some(label_start + "x".len()));
         assert_eq!(diagnostic.message, "type mismatch: bool is not int");
         assert_eq!(diagnostic.related.len(), 2);
         let annotation_start = source.find("int").unwrap();
@@ -1025,8 +1087,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(output.diagnostics[0].label, None);
         assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
         let eof_offset = source.find('\n').unwrap();
-        assert_eq!(output.diagnostics[0].start, eof_offset);
-        assert_eq!(output.diagnostics[0].end, eof_offset);
+        assert_eq!(output.diagnostics[0].start, Some(eof_offset));
+        assert_eq!(output.diagnostics[0].end, Some(eof_offset));
         assert_eq!(
             output.diagnostics[0].message,
             "syntax error: unexpected end of input"
@@ -1037,8 +1099,8 @@ pub compose2(f, g, x) = f g(x)
             Some("yulang.missing-local-binding-body")
         );
         let name_start = source.find('x').unwrap();
-        assert_eq!(output.diagnostics[1].start, name_start);
-        assert_eq!(output.diagnostics[1].end, name_start + "x".len());
+        assert_eq!(output.diagnostics[1].start, Some(name_start));
+        assert_eq!(output.diagnostics[1].end, Some(name_start + "x".len()));
         assert_eq!(
             output.diagnostics[1].message,
             "binding `x` is missing a body expression"
@@ -1061,8 +1123,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.unresolved-type")
         );
-        assert_eq!(output.diagnostics[0].start, 6);
-        assert_eq!(output.diagnostics[0].end, 18);
+        assert_eq!(output.diagnostics[0].start, Some(6));
+        assert_eq!(output.diagnostics[0].end, Some(18));
         assert_eq!(
             output.diagnostics[0].message,
             "unresolved type name: missing_type"
@@ -1085,8 +1147,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.unresolved-value")
         );
-        assert_eq!(output.diagnostics[0].start, 12);
-        assert_eq!(output.diagnostics[0].end, 19);
+        assert_eq!(output.diagnostics[0].start, Some(12));
+        assert_eq!(output.diagnostics[0].end, Some(19));
         assert_eq!(
             output.diagnostics[0].message,
             "unresolved value name: missing"
@@ -1109,8 +1171,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.top-level-mutable-binding")
         );
-        assert_eq!(output.diagnostics[0].start, 3);
-        assert_eq!(output.diagnostics[0].end, 5);
+        assert_eq!(output.diagnostics[0].start, Some(3));
+        assert_eq!(output.diagnostics[0].end, Some(5));
         assert_eq!(
             output.diagnostics[0].message,
             "top-level mutable binding $x is not supported; move it into a block or function body"
@@ -1132,8 +1194,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.unsupported-type-syntax")
         );
-        assert_eq!(output.diagnostics[0].start, 6);
-        assert_eq!(output.diagnostics[0].end, 25);
+        assert_eq!(output.diagnostics[0].start, Some(6));
+        assert_eq!(output.diagnostics[0].end, Some(25));
         assert_eq!(
             output.diagnostics[0].message,
             "unsupported type annotation syntax: TypeRecord"
@@ -1148,8 +1210,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(output.diagnostics.len(), 1);
         assert_eq!(output.diagnostics[0].label, None);
         assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
-        assert_eq!(output.diagnostics[0].start, 9);
-        assert_eq!(output.diagnostics[0].end, 9);
+        assert_eq!(output.diagnostics[0].start, Some(9));
+        assert_eq!(output.diagnostics[0].end, Some(9));
         assert_eq!(
             output.diagnostics[0].message,
             "syntax error: unexpected end of input"
@@ -1164,8 +1226,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(output.diagnostics.len(), 1);
         assert_eq!(output.diagnostics[0].label, None);
         assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
-        assert_eq!(output.diagnostics[0].start, 9);
-        assert_eq!(output.diagnostics[0].end, 10);
+        assert_eq!(output.diagnostics[0].start, Some(9));
+        assert_eq!(output.diagnostics[0].end, Some(10));
         assert_eq!(
             output.diagnostics[0].message,
             "syntax error: unexpected token"
@@ -1183,8 +1245,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.missing-index-argument")
         );
-        assert_eq!(output.diagnostics[0].start, 3);
-        assert_eq!(output.diagnostics[0].end, 5);
+        assert_eq!(output.diagnostics[0].start, Some(3));
+        assert_eq!(output.diagnostics[0].end, Some(5));
         assert_eq!(
             output.diagnostics[0].message,
             "index expression is missing an argument"
@@ -1233,8 +1295,8 @@ pub compose2(f, g, x) = f g(x)
             assert_eq!(diagnostic.severity, DiagnosticSeverity::Error, "{fixture}");
             assert_eq!(diagnostic.label, None, "{fixture}");
             assert_eq!(diagnostic.code.as_deref(), Some(code), "{fixture}");
-            assert_eq!(diagnostic.start, start, "{fixture}");
-            assert_eq!(diagnostic.end, end, "{fixture}");
+            assert_eq!(diagnostic.start, Some(start), "{fixture}");
+            assert_eq!(diagnostic.end, Some(end), "{fixture}");
             assert_eq!(diagnostic.message, message, "{fixture}");
             assert_eq!(diagnostic.hint.as_deref(), hint, "{fixture}");
             assert!(diagnostic.related.is_empty(), "{fixture}");
@@ -1252,8 +1314,8 @@ pub compose2(f, g, x) = f g(x)
             output.diagnostics[0].code.as_deref(),
             Some("yulang.unsupported-rule-lazy-quantifier")
         );
-        assert_eq!(output.diagnostics[0].start, 18);
-        assert_eq!(output.diagnostics[0].end, 20);
+        assert_eq!(output.diagnostics[0].start, Some(18));
+        assert_eq!(output.diagnostics[0].end, Some(20));
         assert_eq!(
             output.diagnostics[0].message,
             "rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition"
@@ -1306,8 +1368,8 @@ pub compose2(f, g, x) = f g(x)
             assert_eq!(diagnostic.severity, DiagnosticSeverity::Error, "{fixture}");
             assert_eq!(diagnostic.label, None, "{fixture}");
             assert_eq!(diagnostic.code.as_deref(), Some(code), "{fixture}");
-            assert_eq!(diagnostic.start, start, "{fixture}");
-            assert_eq!(diagnostic.end, end, "{fixture}");
+            assert_eq!(diagnostic.start, Some(start), "{fixture}");
+            assert_eq!(diagnostic.end, Some(end), "{fixture}");
             assert_eq!(diagnostic.message, message, "{fixture}");
             assert_eq!(diagnostic.hint.as_deref(), hint, "{fixture}");
             assert!(diagnostic.related.is_empty(), "{fixture}");
@@ -1324,8 +1386,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
         assert_eq!(diagnostic.label.as_deref(), Some("show"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.unresolved-method"));
-        assert_eq!(diagnostic.start, 10);
-        assert_eq!(diagnostic.end, 14);
+        assert_eq!(diagnostic.start, Some(10));
+        assert_eq!(diagnostic.end, Some(14));
         assert!(
             diagnostic
                 .message
@@ -1350,8 +1412,8 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
         assert_eq!(diagnostic.label.as_deref(), Some("foo"));
         assert_eq!(diagnostic.code.as_deref(), Some("yulang.ambiguous-method"));
-        assert_eq!(diagnostic.start, 97);
-        assert_eq!(diagnostic.end, 100);
+        assert_eq!(diagnostic.start, Some(97));
+        assert_eq!(diagnostic.end, Some(100));
         assert!(
             diagnostic
                 .message

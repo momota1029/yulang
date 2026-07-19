@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt;
 
 use parser::sink::YulangLanguage;
 use poly::expr::{Def, Vis};
@@ -325,14 +324,24 @@ fn run_with_embedded_std_fallback(
             if let Some(output) = run_output_from_lowering_diagnostics(source, &std_error) {
                 return output;
             }
-            let message = match no_std_error {
-                Some(no_std_error) => format!(
-                    "{std_error}\n\nwithout embedded std, the earlier error was: {no_std_error}"
-                ),
-                None => std_error.to_string(),
-            };
-            RunOutput::from_error(message, source.len())
+            let error = preferred_runtime_error(std_error, no_std_error);
+            RunOutput::from_runtime_error(error, source.len())
         }
+    }
+}
+
+fn preferred_runtime_error(
+    embedded_std_error: WasmRuntimeError,
+    no_std_error: Option<WasmRuntimeError>,
+) -> WasmRuntimeError {
+    match no_std_error {
+        Some(no_std_error)
+            if no_std_error.has_stable_diagnostic()
+                || !embedded_std_error.has_stable_diagnostic() =>
+        {
+            no_std_error
+        }
+        _ => embedded_std_error,
     }
 }
 
@@ -370,10 +379,11 @@ fn run_evidence_from_source_text_with_embedded_std(
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let output = match embedded_full_std_artifact() {
         Some(artifact) => {
-            let poly = yulang::build_poly_from_embedded_std_compiled_unit_artifact(
+            let mut poly = yulang::build_poly_from_embedded_std_compiled_unit_artifact(
                 artifact,
                 source.to_string(),
             )?;
+            attach_playground_runtime_diagnostic_source(&mut poly, source);
             build_named_runtime_from_poly(poly)?
         }
         None => {
@@ -392,10 +402,14 @@ fn run_evidence_from_source_text_with_playground_std(
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let poly = match embedded_playground_std_artifact() {
-        Some(artifact) => yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
-            artifact,
-            source.to_string(),
-        )?,
+        Some(artifact) => {
+            let mut poly = yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
+                artifact,
+                source.to_string(),
+            )?;
+            attach_playground_runtime_diagnostic_source(&mut poly, source);
+            poly
+        }
         None => yulang::build_poly_from_source_text_with_embedded_playground_std(
             PLAYGROUND_ENTRY,
             source.to_string(),
@@ -403,6 +417,15 @@ fn run_evidence_from_source_text_with_playground_std(
     };
     let output = build_named_runtime_from_poly(poly)?;
     run_built_evidence_program(output, print_nth_label)
+}
+
+fn attach_playground_runtime_diagnostic_source(output: &mut yulang::BuildPolyOutput, source: &str) {
+    let root = yulang::CollectedSource::new(
+        PLAYGROUND_ENTRY.into(),
+        Default::default(),
+        format!("{}{source}", yulang::IMPLICIT_PRELUDE_IMPORT),
+    );
+    output.diagnostic_sources = yulang::RuntimeDiagnosticSources::from_collected_sources(&[root]);
 }
 
 fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
@@ -527,11 +550,22 @@ fn run_built_evidence_program(
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
-    let output = evidence_vm::run_program_with_plan_print_nth_label(
+    let output = match evidence_vm::run_program_with_plan_print_nth_label(
         &build.output.program,
         &plan,
         print_nth_label,
-    )?;
+    ) {
+        Ok(output) => output,
+        Err(error) => {
+            let diagnostic = runtime_evidence_source_diagnostic(
+                &error,
+                &build.output.application_provenance,
+                &build.output.selection_provenance,
+                &build.output.diagnostic_sources,
+            );
+            return Err(WasmRuntimeError::Runtime(diagnostic));
+        }
+    };
     let runtime_display = build.display.runtime_evidence_context();
     let all_root_value_texts =
         output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
@@ -739,7 +773,7 @@ struct WasmRuntimeOutput {
 #[derive(Debug)]
 enum WasmRuntimeError {
     Route(yulang::RouteError),
-    Runtime(evidence_vm::RuntimeEvidenceRunError),
+    Runtime(RuntimeSourceDiagnostic),
 }
 
 impl From<yulang::RouteError> for WasmRuntimeError {
@@ -748,19 +782,345 @@ impl From<yulang::RouteError> for WasmRuntimeError {
     }
 }
 
-impl From<evidence_vm::RuntimeEvidenceRunError> for WasmRuntimeError {
-    fn from(error: evidence_vm::RuntimeEvidenceRunError) -> Self {
-        Self::Runtime(error)
+impl WasmRuntimeError {
+    fn has_stable_diagnostic(&self) -> bool {
+        matches!(
+            self,
+            Self::Runtime(_) | Self::Route(yulang::RouteError::Runtime(_))
+        )
+    }
+
+    fn into_source_diagnostic(self) -> RuntimeSourceDiagnostic {
+        match self {
+            Self::Route(yulang::RouteError::Runtime(error)) => {
+                mono_runtime_source_diagnostic(&error)
+            }
+            Self::Route(error) => RuntimeSourceDiagnostic::new(None, error.to_string(), None),
+            Self::Runtime(diagnostic) => diagnostic,
+        }
     }
 }
 
-impl fmt::Display for WasmRuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Route(error) => write!(f, "{error}"),
-            Self::Runtime(error) => write!(f, "{error}"),
+#[derive(Debug)]
+struct RuntimeSourceDiagnostic {
+    diagnostic: yulang::SourceDiagnostic,
+    range_offset: usize,
+}
+
+impl RuntimeSourceDiagnostic {
+    fn new(code: Option<&str>, message: String, hint: Option<&str>) -> Self {
+        Self {
+            diagnostic: yulang::SourceDiagnostic {
+                severity: yulang::SourceDiagnosticSeverity::Error,
+                code: code.map(str::to_string),
+                label: None,
+                range: None,
+                message,
+                hint: hint.map(str::to_string),
+                related: Vec::new(),
+            },
+            range_offset: 0,
         }
     }
+}
+
+fn runtime_evidence_source_diagnostic(
+    error: &evidence_vm::RuntimeEvidenceRunError,
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    selection_provenance: &yulang::RuntimeSelectionProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> RuntimeSourceDiagnostic {
+    match error {
+        evidence_vm::RuntimeEvidenceRunError::EscapedEffect { site, path } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.unhandled-effect"),
+                format!("unhandled effect request {}", path.join("::")),
+                Some("handle this computation with a matching effect handler before running it"),
+            );
+            runtime_application_diagnostic(
+                diagnostic,
+                *site,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { site, path } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.unsupported-host-capability"),
+                format!(
+                    "host capability {} is not available in this runtime",
+                    path.join("::")
+                ),
+                Some(
+                    "use a host that grants this capability or handle the capability with a mock effect handler",
+                ),
+            );
+            runtime_application_diagnostic(
+                diagnostic,
+                *site,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::HostIoError {
+            operation,
+            path,
+            kind,
+        } => RuntimeSourceDiagnostic::new(
+            Some("yulang.host-io-error"),
+            format!(
+                "host operation {} failed for {path} ({kind})",
+                operation.join("::")
+            ),
+            Some(
+                "check that the target path exists and that this process has the required file permissions",
+            ),
+        ),
+        evidence_vm::RuntimeEvidenceRunError::HostAbiError { operation, message } => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.host-abi-error"),
+                format!("host operation {} failed ({message})", operation.join("::")),
+                Some("this host implementation returned a value outside its ABI contract"),
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::NotFunction { site, value } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.not-callable"),
+                format!("tried to call a non-function value {value}"),
+                Some(
+                    "check the expression before the argument; calls are written as `f x` or `f(...)`",
+                ),
+            );
+            runtime_application_diagnostic(
+                diagnostic,
+                *site,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::NotRecord { site, value } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.not-record"),
+                format!("tried to read fields from non-record value {value}"),
+                Some("use `.field` only on record values"),
+            );
+            runtime_selection_diagnostic(
+                diagnostic,
+                *site,
+                selection_provenance,
+                diagnostic_sources,
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::PatternMismatch => RuntimeSourceDiagnostic::new(
+            Some("yulang.pattern-mismatch"),
+            "no pattern matched the value".to_string(),
+            Some("add a fallback pattern such as `_ -> ...`"),
+        ),
+        evidence_vm::RuntimeEvidenceRunError::MissingRecordField(name) => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.missing-field"),
+                format!("record does not contain field `{name}`"),
+                Some("check the field name or provide a record value with this field"),
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::DivideByZero => RuntimeSourceDiagnostic::new(
+            Some("yulang.divide-by-zero"),
+            "attempted to divide by zero".to_string(),
+            Some("check the divisor before division"),
+        ),
+        evidence_vm::RuntimeEvidenceRunError::NotThunk(value) => RuntimeSourceDiagnostic::new(
+            Some("yulang.runtime-internal"),
+            format!("expected a delayed computation, got {value}"),
+            Some("report this with the source program if it came from normal `yulang run`"),
+        ),
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedExpr(feature) => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.unsupported-runtime-feature"),
+                format!("unsupported expression in runtime: {feature}"),
+                Some("try the interpreter oracle or reduce this source to a smaller report"),
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedPrimitive(op) => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.unsupported-runtime-feature"),
+                format!("unsupported primitive in runtime: {op:?}"),
+                Some("this primitive is not available in the selected runtime"),
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::MissingExpr(_)
+        | evidence_vm::RuntimeEvidenceRunError::MissingInstance(_)
+        | evidence_vm::RuntimeEvidenceRunError::MismatchedInstanceSlot { .. }
+        | evidence_vm::RuntimeEvidenceRunError::RecursiveInstance(_)
+        | evidence_vm::RuntimeEvidenceRunError::UnboundLocal(_)
+        | evidence_vm::RuntimeEvidenceRunError::PrintNthNondetTerminal => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.runtime-internal"),
+                error.to_string(),
+                Some("report this with the source program if it came from normal `yulang run`"),
+            )
+        }
+    }
+}
+
+fn runtime_application_diagnostic(
+    mut diagnostic: RuntimeSourceDiagnostic,
+    site: Option<control_ir::ExprId>,
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> RuntimeSourceDiagnostic {
+    let Some(site) = site else {
+        return diagnostic;
+    };
+    let Some(provenance) = application_provenance.resolve(site) else {
+        return diagnostic;
+    };
+    if provenance.callee_span.file != provenance.application_span.file {
+        return diagnostic;
+    }
+    let Some(source) = diagnostic_sources.source_for_span(&provenance.callee_span) else {
+        return diagnostic;
+    };
+
+    diagnostic.diagnostic.range = Some(provenance.callee_span.range);
+    diagnostic.diagnostic.related = vec![yulang::SourceDiagnosticRelated {
+        message: "application occurs here".to_string(),
+        range: provenance.application_span.range,
+        origin: Some(yulang::SourceDiagnosticRelatedOrigin::Expression),
+    }];
+    diagnostic.range_offset = source.source.range_offset;
+    diagnostic
+}
+
+fn runtime_selection_diagnostic(
+    mut diagnostic: RuntimeSourceDiagnostic,
+    site: Option<control_ir::ExprId>,
+    selection_provenance: &yulang::RuntimeSelectionProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> RuntimeSourceDiagnostic {
+    let Some(site) = site else {
+        return diagnostic;
+    };
+    let Some(provenance) = selection_provenance.resolve(site) else {
+        return diagnostic;
+    };
+    let Some(source) = diagnostic_sources.source_for_span(provenance) else {
+        return diagnostic;
+    };
+
+    diagnostic.diagnostic.range = Some(provenance.range);
+    diagnostic.range_offset = source.source.range_offset;
+    diagnostic
+}
+
+fn mono_runtime_source_diagnostic(error: &mono_runtime::RuntimeError) -> RuntimeSourceDiagnostic {
+    match error {
+        mono_runtime::RuntimeError::UnhandledEffect { path } => RuntimeSourceDiagnostic::new(
+            Some("yulang.unhandled-effect"),
+            format!("unhandled effect request {}", path.join("::")),
+            Some("handle this computation with a matching effect handler before running it"),
+        ),
+        mono_runtime::RuntimeError::NotFunction { value } => RuntimeSourceDiagnostic::new(
+            Some("yulang.not-callable"),
+            format!(
+                "tried to call a non-function value {}",
+                format_mono_runtime_value(value)
+            ),
+            Some(
+                "check the expression before the argument; calls are written as `f x` or `f(...)`",
+            ),
+        ),
+        mono_runtime::RuntimeError::ExpectedRecord { value } => RuntimeSourceDiagnostic::new(
+            Some("yulang.not-record"),
+            format!(
+                "tried to read fields from non-record value {}",
+                format_mono_runtime_value(value)
+            ),
+            Some("use `.field` only on record values"),
+        ),
+        mono_runtime::RuntimeError::MissingRecordField { name } => RuntimeSourceDiagnostic::new(
+            Some("yulang.missing-field"),
+            format!("record does not contain field `{name}`"),
+            Some("check the field name or provide a record value with this field"),
+        ),
+        mono_runtime::RuntimeError::PatternMismatch
+        | mono_runtime::RuntimeError::NoMatchingCase => RuntimeSourceDiagnostic::new(
+            Some("yulang.pattern-mismatch"),
+            "no pattern matched the value".to_string(),
+            Some("add a fallback pattern such as `_ -> ...`"),
+        ),
+        mono_runtime::RuntimeError::NonBoolGuard { value } => RuntimeSourceDiagnostic::new(
+            Some("yulang.non-bool-guard"),
+            format!(
+                "case guard returned non-bool value {}",
+                format_mono_runtime_value(value)
+            ),
+            Some("make the guard return true or false"),
+        ),
+        mono_runtime::RuntimeError::ExpectedInt { value } => {
+            mono_runtime_type_diagnostic("int", value)
+        }
+        mono_runtime::RuntimeError::ExpectedFloat { value } => {
+            mono_runtime_type_diagnostic("float", value)
+        }
+        mono_runtime::RuntimeError::ExpectedBool { value } => {
+            mono_runtime_type_diagnostic("bool", value)
+        }
+        mono_runtime::RuntimeError::ExpectedList { value } => {
+            mono_runtime_type_diagnostic("list", value)
+        }
+        mono_runtime::RuntimeError::ExpectedBytes { value } => {
+            mono_runtime_type_diagnostic("bytes", value)
+        }
+        mono_runtime::RuntimeError::UnsupportedExpr { feature }
+        | mono_runtime::RuntimeError::UnsupportedPattern { feature }
+        | mono_runtime::RuntimeError::UnsupportedBoundary { feature } => {
+            RuntimeSourceDiagnostic::new(
+                Some("yulang.unsupported-runtime-feature"),
+                format!("unsupported runtime feature: {feature}"),
+                Some("try the interpreter oracle or reduce this source to a smaller report"),
+            )
+        }
+        mono_runtime::RuntimeError::MissingPrimitiveContext { op }
+        | mono_runtime::RuntimeError::UnsupportedPrimitive { op } => RuntimeSourceDiagnostic::new(
+            Some("yulang.unsupported-runtime-feature"),
+            format!("unsupported primitive in runtime: {op:?}"),
+            Some("this primitive is not available in the selected runtime"),
+        ),
+        mono_runtime::RuntimeError::ExpectedFunctionType
+        | mono_runtime::RuntimeError::NotThunk { .. }
+        | mono_runtime::RuntimeError::MissingInstance { .. }
+        | mono_runtime::RuntimeError::MismatchedInstanceSlot { .. }
+        | mono_runtime::RuntimeError::RecursiveInstance { .. }
+        | mono_runtime::RuntimeError::UnboundLocal { .. }
+        | mono_runtime::RuntimeError::MissingContinuation { .. }
+        | mono_runtime::RuntimeError::UnresolvedSelect { .. } => RuntimeSourceDiagnostic::new(
+            Some("yulang.runtime-internal"),
+            error.to_string(),
+            Some("report this with the source program if it came from normal `yulang run`"),
+        ),
+    }
+}
+
+fn mono_runtime_type_diagnostic(
+    expected: &str,
+    value: &mono_runtime::Value,
+) -> RuntimeSourceDiagnostic {
+    RuntimeSourceDiagnostic::new(
+        Some("yulang.runtime-type"),
+        format!(
+            "expected {expected}, got {}",
+            format_mono_runtime_value(value)
+        ),
+        Some("check the value passed to this operation"),
+    )
+}
+
+fn format_mono_runtime_value(value: &mono_runtime::Value) -> String {
+    let text = yulang::format_run_mono_values(std::slice::from_ref(value));
+    text.strip_prefix("run roots [")
+        .and_then(|text| text.strip_suffix("]\n"))
+        .unwrap_or(text.trim())
+        .to_string()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -823,8 +1183,10 @@ pub struct Diagnostic {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
-    pub start: usize,
-    pub end: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<usize>,
     pub related: Vec<DiagnosticRelated>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
@@ -961,7 +1323,13 @@ impl RunOutput {
         }
     }
 
-    fn from_error(message: String, source_len: usize) -> Self {
+    fn from_runtime_error(error: WasmRuntimeError, source_len: usize) -> Self {
+        let RuntimeSourceDiagnostic {
+            diagnostic,
+            range_offset,
+        } = error.into_source_diagnostic();
+        let diagnostic = diagnostic_from_source_diagnostic(&diagnostic, source_len, range_offset);
+        let message = diagnostic.message.clone();
         Self {
             ok: false,
             file_count: 0,
@@ -975,7 +1343,7 @@ impl RunOutput {
                 source_cache_misses: 1,
                 used_embedded_std: false,
             }),
-            diagnostics: vec![Diagnostic::error(message.clone(), source_len)],
+            diagnostics: vec![diagnostic],
             errors: vec![message],
             cache_safe: false,
         }
@@ -1033,10 +1401,22 @@ fn diagnostics_from_source_diagnostics(
     diagnostics
         .iter()
         .map(|diagnostic| {
-            let diagnostic = editor_diagnostic_for_source_diagnostic(diagnostic);
-            Diagnostic::from_editor_diagnostic(&diagnostic, source_len)
+            diagnostic_from_source_diagnostic(
+                diagnostic,
+                source_len,
+                yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN,
+            )
         })
         .collect()
+}
+
+fn diagnostic_from_source_diagnostic(
+    diagnostic: &yulang::SourceDiagnostic,
+    source_len: usize,
+    range_offset: usize,
+) -> Diagnostic {
+    let diagnostic = editor_diagnostic_for_source_diagnostic(diagnostic);
+    Diagnostic::from_editor_diagnostic(&diagnostic, source_len, range_offset)
 }
 
 impl Diagnostic {
@@ -1046,8 +1426,8 @@ impl Diagnostic {
             code: None,
             message,
             hint: None,
-            start: 0,
-            end: source_len,
+            start: Some(0),
+            end: Some(source_len),
             related: Vec::new(),
             label: None,
         }
@@ -1056,23 +1436,24 @@ impl Diagnostic {
     fn from_editor_diagnostic(
         diagnostic: &editor_diagnostics::Diagnostic,
         source_len: usize,
+        range_offset: usize,
     ) -> Self {
-        let (start, end) = diagnostic
+        let range = diagnostic
             .range
-            .map(|range| playground_diagnostic_range(range, source_len))
-            .unwrap_or((0, source_len));
+            .map(|range| playground_diagnostic_range(range, source_len, range_offset));
         Self {
             severity: DiagnosticSeverity::from_editor(diagnostic.severity),
             code: diagnostic.code.clone(),
             message: diagnostic.message.clone(),
             hint: diagnostic.hint.clone(),
-            start,
-            end,
+            start: range.map(|(start, _)| start),
+            end: range.map(|(_, end)| end),
             related: diagnostic
                 .related
                 .iter()
                 .map(|related| {
-                    let (start, end) = playground_diagnostic_range(related.range, source_len);
+                    let (start, end) =
+                        playground_diagnostic_range(related.range, source_len, range_offset);
                     DiagnosticRelated {
                         message: related.message.clone(),
                         start,
@@ -1153,9 +1534,12 @@ fn diagnostic_origin_code(origin: editor_diagnostics::RelatedOrigin) -> String {
     origin.playground_code().to_string()
 }
 
-fn playground_diagnostic_range(range: editor_text::ByteRange, source_len: usize) -> (usize, usize) {
-    let range =
-        editor_text::subtract_prefix_saturating(range, yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN);
+fn playground_diagnostic_range(
+    range: editor_text::ByteRange,
+    source_len: usize,
+    range_offset: usize,
+) -> (usize, usize) {
+    let range = editor_text::subtract_prefix_saturating(range, range_offset);
     let range = editor_text::clamp_byte_range_to_len(range, source_len);
     (range.start, range.end)
 }
