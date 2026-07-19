@@ -82,10 +82,11 @@ pub fn std_file_count() -> usize {
 pub fn colorize_inner(source: &str) -> ColorizeOutput {
     let spans = colorize_with_playground_op_table(source)
         .unwrap_or_else(|| colorize_with_default_op_table(source));
+    let diagnostics = check_inner(source).diagnostics;
     ColorizeOutput {
         ok: true,
         spans,
-        diagnostics: Vec::new(),
+        diagnostics,
         source_len: source.len(),
     }
 }

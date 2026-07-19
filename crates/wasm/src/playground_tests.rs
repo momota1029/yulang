@@ -730,6 +730,17 @@ point { x: 3, y: 4 } .norm2
     }
 
     #[test]
+    fn colorize_inner_returns_check_diagnostics() {
+        let source = diagnostics_fixture("type_annotation_mismatch");
+        let output = colorize_inner(source);
+        let check = check_inner(source);
+
+        assert!(output.ok, "{output:?}");
+        assert!(!output.diagnostics.is_empty(), "{output:?}");
+        assert_eq!(output.diagnostics, check.diagnostics);
+    }
+
+    #[test]
     fn run_inner_caches_repeated_source() {
         clear_std_cache();
         let first = run_inner("my id x = x\nid(42)\n");
