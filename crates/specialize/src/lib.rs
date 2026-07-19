@@ -205,6 +205,7 @@ pub enum UnsatisfiedSubtypeOrigin {
     MissingRecordField {
         field: String,
         actual_fields: Vec<String>,
+        select: Option<poly_expr::SelectId>,
     },
 }
 

@@ -333,6 +333,7 @@ fn record_literal_missing_required_field_reports_origin() {
             Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
                 field: missing_field,
                 actual_fields,
+                select,
             }),
     } = err
     else {
@@ -342,6 +343,35 @@ fn record_literal_missing_required_field_reports_origin() {
     assert_eq!(upper, Type::Record(expected));
     assert_eq!(missing_field, "b");
     assert_eq!(actual_fields, vec!["a"]);
+    assert_eq!(select, None);
+}
+
+#[test]
+fn record_field_select_missing_required_field_retains_select_origin() {
+    let mut arena = poly_expr::Arena::new();
+    let field_value = arena.add_expr(poly_expr::Expr::Lit(poly_expr::Lit::Int(1)));
+    let record = arena.add_expr(poly_expr::Expr::Record {
+        fields: vec![("a".into(), field_value)],
+        spread: poly_expr::RecordSpread::None,
+    });
+    let select = arena.add_select("b");
+    arena.resolve_select(select, poly_expr::SelectResolution::RecordField);
+    let selection = arena.add_expr(poly_expr::Expr::Select(record, select));
+    let mut solver = TaskSolver::new(&arena);
+
+    let err = solver.expr(selection).unwrap_err();
+
+    assert!(matches!(
+        err,
+        SpecializeError::UnsatisfiedSubtype {
+            origin: Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
+                field,
+                actual_fields,
+                select: Some(actual_select),
+            }),
+            ..
+        } if field == "b" && actual_fields == ["a"] && actual_select == select
+    ));
 }
 
 #[test]
@@ -925,7 +955,7 @@ fn assert_unsatisfied_subtype(error: SpecializeError, lower: Type, upper: Type) 
     let SpecializeError::UnsatisfiedSubtype {
         lower: actual_lower,
         upper: actual_upper,
-        ..
+        origin: None,
     } = error
     else {
         panic!("expected unsatisfied subtype, got {error:?}");

@@ -579,6 +579,7 @@ impl<'a> TaskSolver<'a> {
                 origin: Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
                     field: missing.name.clone(),
                     actual_fields: typed.iter().map(|field| field.name.clone()).collect(),
+                    select: None,
                 }),
             });
         }
@@ -629,14 +630,16 @@ impl<'a> TaskSolver<'a> {
         match select_data.resolution {
             Some(poly_expr::SelectResolution::RecordField) => {
                 let field = self.graph.fresh_value();
-                let (_, base_effect) = self.consume_expr_value(
-                    base,
-                    Type::Record(vec![TypeField {
-                        name: select_data.name.clone(),
-                        value: field.clone(),
-                        optional: false,
-                    }]),
-                )?;
+                let (_, base_effect) = self
+                    .consume_expr_value(
+                        base,
+                        Type::Record(vec![TypeField {
+                            name: select_data.name.clone(),
+                            value: field.clone(),
+                            optional: false,
+                        }]),
+                    )
+                    .map_err(|error| attach_missing_record_field_select(error, select))?;
                 let result = self.runtime_shape(base_effect.clone(), field)?;
                 if !base_effect.is_pure_effect() && matches!(result, Type::Thunk { .. }) {
                     self.mark_raw_thunk_computation(expr);
@@ -716,6 +719,33 @@ impl<'a> TaskSolver<'a> {
                 ret: Box::new(parts.ret.clone()),
             },
         })
+    }
+}
+
+fn attach_missing_record_field_select(
+    error: SpecializeError,
+    select: poly_expr::SelectId,
+) -> SpecializeError {
+    match error {
+        SpecializeError::UnsatisfiedSubtype {
+            lower,
+            upper,
+            origin:
+                Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    field,
+                    actual_fields,
+                    select: None,
+                }),
+        } => SpecializeError::UnsatisfiedSubtype {
+            lower,
+            upper,
+            origin: Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
+                field,
+                actual_fields,
+                select: Some(select),
+            }),
+        },
+        error => error,
     }
 }
 

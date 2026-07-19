@@ -875,6 +875,7 @@ pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
                 Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
                     field,
                     actual_fields,
+                    ..
                 }),
             ..
         }) => {
