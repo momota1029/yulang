@@ -283,8 +283,6 @@ pub(super) fn format_check_poly_output(
         }
     }
 
-    write_check_diagnostics(&mut out, check, &report.diagnostics);
-
     out
 }
 
@@ -326,8 +324,6 @@ pub(super) fn format_check_poly_module_output(
             let _ = writeln!(out, "  d{}: {}", item.def.0, item.label);
         }
     }
-
-    write_check_diagnostics(&mut out, check, &module.diagnostics);
 
     out
 }
@@ -2266,22 +2262,6 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         "  analysis.role_resolve_candidate_cache_misses: {}",
         analysis.role_resolve_candidate_cache_misses
     );
-}
-
-pub(super) fn write_check_diagnostics(
-    out: &mut String,
-    check: &infer::check::PolyCheckOutput,
-    diagnostics: &[infer::check::CheckDiagnostic],
-) {
-    if diagnostics.is_empty() {
-        return;
-    }
-    let _ = writeln!(out, "lowering errors:");
-    for diagnostic in diagnostics {
-        let label = diagnostic.label.as_deref().unwrap_or("<unowned>");
-        let error = &check.lowering.errors[diagnostic.error_index];
-        let _ = writeln!(out, "  {label}: {}", format_body_lowering_error(error));
-    }
 }
 
 pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {

@@ -1066,6 +1066,31 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
 }
 
 #[test]
+fn check_stats_do_not_repeat_structured_diagnostics() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/type_annotation_mismatch.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("--infer-phase-timings")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("timing:\n"), "{stdout}");
+    assert!(!stdout.contains("\nlowering errors:\n"), "{stdout}");
+    assert_eq!(
+        stdout.matches("type mismatch: bool is not int").count(),
+        1,
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_diagnostics_source_frame_uses_user_source_with_std_root() {
     let entry = write_entry("diagnostics-source-frame-std-root", "my x: int = true\n");
 
