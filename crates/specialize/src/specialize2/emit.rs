@@ -5,6 +5,15 @@ impl Specializer2 {
         Self::default()
     }
 
+    pub(super) fn with_source_applications(
+        source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
+    ) -> Self {
+        Self {
+            source_applications: source_applications.into_iter().collect(),
+            ..Self::default()
+        }
+    }
+
     pub(super) fn specialize(self, arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
         Ok(self.specialize_with_runtime_evidence(arena)?.program)
     }
@@ -19,6 +28,7 @@ impl Specializer2 {
                 poly_expr::RuntimeRoot::Expr(expr) => {
                     let root_index = roots.len() as u32;
                     let expr_id = *expr;
+                    self.active_task = Some(ApplicationSpecializationTask::Root { root_index });
                     let solved = TaskSolver::solve_root_expr(arena, expr_id)?;
                     self.runtime_evidence.push_solved_task(
                         arena,
@@ -32,6 +42,7 @@ impl Specializer2 {
                     let expr = self.emit_expr_typed(arena, &solved, expr_id);
                     self.force_block_tail_exprs.remove(&expr_id);
                     let expr = expr?;
+                    self.active_task = None;
                     Root::Expr(force_emitted_expr_if_thunk(
                         solved.actual_type_of(expr_id),
                         expr,
@@ -151,7 +162,11 @@ impl Specializer2 {
                 },
                 &solved,
             );
+            self.active_task = Some(ApplicationSpecializationTask::Instance {
+                instance: pending.id,
+            });
             let mut body = self.emit_expr(arena, &solved, pending.body)?;
+            self.active_task = None;
             body = wrap_stack_handler_marker(&pending.marker_signature_ty, body);
             self.instances[pending.id.0 as usize] = Some(Instance {
                 id: pending.id,
@@ -292,7 +307,18 @@ impl Specializer2 {
                 ExprKind::Block(self.emit_block(arena, solved, expr, stmts, *tail)?)
             }
         };
-        let expr_out = Expr::new(kind);
+        let mut expr_out = Expr::new(kind);
+        if matches!(arena.expr(expr), PolyExpr::App(_, _))
+            && self.source_applications.contains(&expr)
+        {
+            let task = self
+                .active_task
+                .expect("source application emission should have an active specialization task");
+            expr_out = expr_out.with_application_provenance(ApplicationProvenanceTag {
+                task,
+                poly_expr: expr.0,
+            });
+        }
         let mut expr_out = EmittedExpr::pure(expr_out, raw_expr_value_type(arena, solved, expr));
         if raw_expr_is_computation(arena, solved, expr) {
             expr_out =

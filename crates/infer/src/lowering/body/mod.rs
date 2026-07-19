@@ -99,8 +99,7 @@ impl BodyLowering {
         &self.prefix_runtime
     }
 
-    #[cfg(test)]
-    pub(crate) fn application_provenance(&self) -> &ApplicationProvenanceTable {
+    pub fn application_provenance(&self) -> &ApplicationProvenanceTable {
         &self.application_provenance
     }
 

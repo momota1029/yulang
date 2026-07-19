@@ -8,8 +8,8 @@ use crate::{ModuleId, SourceSpan};
 /// An absent entry is an explicitly unowned application produced by lowering/desugaring rather
 /// than by surface application syntax. Source ownership is assigned only while the matching CST
 /// nodes are still available; it is never reconstructed from the finished expression tree.
-#[derive(Debug, Default)]
-pub(crate) struct ApplicationProvenanceTable {
+#[derive(Debug, Clone, Default)]
+pub struct ApplicationProvenanceTable {
     entries: FxHashMap<ExprId, ApplicationProvenance>,
 }
 
@@ -22,28 +22,30 @@ impl ApplicationProvenanceTable {
         self.entries.insert(expr, provenance)
     }
 
-    #[cfg(test)]
-    pub(crate) fn get(&self, expr: ExprId) -> Option<&ApplicationProvenance> {
+    pub fn get(&self, expr: ExprId) -> Option<&ApplicationProvenance> {
         self.entries.get(&expr)
     }
 
-    #[cfg(test)]
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (ExprId, &ApplicationProvenance)> {
+    pub fn iter(&self) -> impl Iterator<Item = (ExprId, &ApplicationProvenance)> {
         self.entries
             .iter()
             .map(|(expr, provenance)| (*expr, provenance))
     }
+
+    pub fn expr_ids(&self) -> impl Iterator<Item = ExprId> + '_ {
+        self.entries.keys().copied()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ApplicationProvenance {
-    pub(crate) origin: ApplicationOrigin,
-    pub(crate) module: ModuleId,
-    pub(crate) application_span: SourceSpan,
-    pub(crate) callee_span: SourceSpan,
+pub struct ApplicationProvenance {
+    pub origin: ApplicationOrigin,
+    pub module: ModuleId,
+    pub application_span: SourceSpan,
+    pub callee_span: SourceSpan,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ApplicationOrigin {
+pub enum ApplicationOrigin {
     Source,
 }

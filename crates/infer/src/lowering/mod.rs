@@ -86,7 +86,7 @@ use crate::{
     TypeMethodReceiver, append_loaded_files_to_lower, append_root_loaded_file_to_lower,
     binding_type_expr, lower_loaded_file_csts_module_map,
 };
-pub(crate) use application_provenance::{
+pub use application_provenance::{
     ApplicationOrigin, ApplicationProvenance, ApplicationProvenanceTable,
 };
 use body::signature_helpers::*;

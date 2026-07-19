@@ -83,6 +83,16 @@ pub fn specialize_with_runtime_evidence(
     specialize2::specialize_with_runtime_evidence(arena)
 }
 
+pub fn specialize_with_runtime_evidence_and_application_provenance(
+    arena: &poly_expr::Arena,
+    source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
+) -> Result<SpecializeOutput, SpecializeError> {
+    specialize2::specialize_with_runtime_evidence_and_application_provenance(
+        arena,
+        source_applications,
+    )
+}
+
 pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     specialize2::specialize(arena)
 }

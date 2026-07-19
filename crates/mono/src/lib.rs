@@ -173,12 +173,38 @@ fn guard_marker_default_foreign_path() -> bool {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Expr {
     pub kind: ExprKind,
+    /// Sparse source-application identity carried only between lowering stages.
+    ///
+    /// Source spans live in infer's side table. This tag deliberately stays out of serialized
+    /// mono artifacts until that table has an artifact representation of its own.
+    #[serde(skip)]
+    pub application_provenance: Option<ApplicationProvenanceTag>,
 }
 
 impl Expr {
     pub fn new(kind: ExprKind) -> Self {
-        Self { kind }
+        Self {
+            kind,
+            application_provenance: None,
+        }
     }
+
+    pub fn with_application_provenance(mut self, tag: ApplicationProvenanceTag) -> Self {
+        self.application_provenance = Some(tag);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ApplicationProvenanceTag {
+    pub task: ApplicationSpecializationTask,
+    pub poly_expr: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ApplicationSpecializationTask {
+    Root { root_index: u32 },
+    Instance { instance: InstanceId },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

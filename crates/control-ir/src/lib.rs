@@ -5,9 +5,12 @@
 
 #![forbid(unsafe_code)]
 
+mod application_provenance;
 mod evidence_ir;
 mod ir;
 mod lower;
+
+pub use application_provenance::ApplicationProvenanceTable;
 
 pub use evidence_ir::{
     ControlAdapterEvidence, ControlDelayedBoundary, ControlDelayedBoundaryKind,
@@ -20,4 +23,4 @@ pub use ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, Instance, InstanceId, Pat, Program, RecordField,
     RecordSpread, Root, SelectResolution, Stmt,
 };
-pub use lower::{LowerError, lower};
+pub use lower::{LowerError, LowerOutput, lower, lower_with_application_provenance};

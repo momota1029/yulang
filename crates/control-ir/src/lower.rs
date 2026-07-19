@@ -2,13 +2,26 @@
 
 use std::fmt;
 
+use crate::ApplicationProvenanceTable;
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, Instance, InstanceId, Pat, Program, RecordField,
     RecordPatField, RecordSpread, Root, SelectResolution, Stmt,
 };
 
 pub fn lower(program: &mono::Program) -> Result<Program, LowerError> {
+    Ok(lower_with_application_provenance(program)?.program)
+}
+
+pub fn lower_with_application_provenance(
+    program: &mono::Program,
+) -> Result<LowerOutput, LowerError> {
     Lowerer::default().lower_program(program)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LowerOutput {
+    pub program: Program,
+    pub application_provenance: ApplicationProvenanceTable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,10 +49,11 @@ impl std::error::Error for LowerError {}
 #[derive(Debug, Default)]
 struct Lowerer {
     exprs: Vec<Expr>,
+    application_provenance: ApplicationProvenanceTable,
 }
 
 impl Lowerer {
-    fn lower_program(mut self, program: &mono::Program) -> Result<Program, LowerError> {
+    fn lower_program(mut self, program: &mono::Program) -> Result<LowerOutput, LowerError> {
         let roots = program
             .roots
             .iter()
@@ -51,10 +65,13 @@ impl Lowerer {
             .enumerate()
             .map(|(index, instance)| self.lower_instance(index, instance))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Program {
-            roots,
-            instances,
-            exprs: self.exprs,
+        Ok(LowerOutput {
+            program: Program {
+                roots,
+                instances,
+                exprs: self.exprs,
+            },
+            application_provenance: self.application_provenance,
         })
     }
 
@@ -215,6 +232,17 @@ impl Lowerer {
             MonoExpr::Block(block) => Expr::Block(self.lower_block(block)?),
         };
         let id = ExprId(self.exprs.len() as u32);
+        if let Some(tag) = expr.application_provenance {
+            debug_assert!(
+                matches!(lowered, Expr::Apply { .. }),
+                "application provenance must only be attached to mono Apply nodes"
+            );
+            let previous = self.application_provenance.insert(id, tag);
+            debug_assert!(
+                previous.is_none(),
+                "fresh control site cannot be tagged twice"
+            );
+        }
         self.exprs.push(lowered);
         Ok(id)
     }
@@ -348,4 +376,133 @@ fn convert_def(def: mono::DefId) -> DefId {
 
 fn convert_instance(instance: mono::InstanceId) -> InstanceId {
     InstanceId(instance.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use mono::{ApplicationSpecializationTask, ExprKind};
+
+    use super::*;
+
+    #[test]
+    fn source_not_callable_application_reaches_its_final_control_site() {
+        let source = "my a = 1 2\na\n";
+        let lowering = lower_source(source);
+        let source_provenance = lowering.application_provenance();
+        let mut captured_entries = source_provenance.iter();
+        let (poly_expr, captured) = captured_entries
+            .next()
+            .expect("not-callable canary should have one source application");
+        assert!(captured_entries.next().is_none());
+
+        let specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+            &lowering.session.poly,
+            source_provenance.expr_ids(),
+        )
+        .expect("not-callable canary should specialize");
+        let mono_apply = specialized
+            .program
+            .instances
+            .iter()
+            .map(|instance| &instance.body)
+            .find(|expr| expr.application_provenance.is_some())
+            .expect("source application should tag its mono Apply");
+        assert!(matches!(mono_apply.kind, ExprKind::Apply(_, _)));
+        let mono_tag = mono_apply
+            .application_provenance
+            .expect("tagged mono Apply");
+        assert_eq!(mono_tag.poly_expr, poly_expr.0);
+        assert!(matches!(
+            mono_tag.task,
+            ApplicationSpecializationTask::Instance { .. }
+        ));
+
+        let control = lower_with_application_provenance(&specialized.program)
+            .expect("tagged mono program should lower");
+        assert_eq!(
+            lower(&specialized.program).expect("legacy lowering should still succeed"),
+            control.program,
+            "capturing the side table must not change the control program"
+        );
+        let mut control_entries = control.application_provenance.iter();
+        let (site, control_tag) = control_entries
+            .next()
+            .expect("not-callable canary should have one tagged control Apply");
+        assert!(control_entries.next().is_none());
+        assert!(matches!(
+            control.program.exprs[site.0 as usize],
+            Expr::Apply { .. }
+        ));
+        assert_eq!(control_tag, mono_tag);
+
+        let resolved = source_provenance
+            .iter()
+            .find_map(|(expr, provenance)| (expr.0 == control_tag.poly_expr).then_some(provenance))
+            .expect("control tag should resolve in infer's source table");
+        assert_eq!(resolved, captured);
+        assert_eq!(
+            source_text(source, resolved.application_span.range),
+            "1 2\n"
+        );
+        assert_eq!(source_text(source, resolved.callee_span.range), "1");
+    }
+
+    #[test]
+    fn one_generic_body_application_has_distinct_tags_in_two_instance_tasks() {
+        let source = concat!(
+            "my call f x = f x\n",
+            "my id x = x\n",
+            "(call(id)(1), call(id)(true))\n",
+        );
+        let lowering = lower_source(source);
+        let source_provenance = lowering.application_provenance();
+        let (body_application, _) = source_provenance
+            .iter()
+            .find(|(_, provenance)| {
+                source_text(source, provenance.application_span.range).trim_end() == "f x"
+            })
+            .expect("generic body source application");
+
+        let specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+            &lowering.session.poly,
+            source_provenance.expr_ids(),
+        )
+        .expect("two generic call instances should specialize");
+        let control = lower_with_application_provenance(&specialized.program)
+            .expect("tagged generic instances should lower");
+        let tags = control
+            .application_provenance
+            .iter()
+            .filter_map(|(site, tag)| (tag.poly_expr == body_application.0).then_some((site, tag)))
+            .collect::<Vec<_>>();
+
+        assert_eq!(tags.len(), 2, "the generic body should be emitted twice");
+        assert_ne!(tags[0].0, tags[1].0, "control Apply sites are fresh");
+        assert_ne!(tags[0].1.task, tags[1].1.task, "tasks must not conflate");
+        assert!(tags.iter().all(|(site, tag)| {
+            matches!(control.program.exprs[site.0 as usize], Expr::Apply { .. })
+                && matches!(tag.task, ApplicationSpecializationTask::Instance { .. })
+                && source_provenance
+                    .iter()
+                    .any(|(expr, _)| expr.0 == tag.poly_expr)
+        }));
+    }
+
+    fn lower_source(source: &str) -> infer::lowering::BodyLowering {
+        let files = sources::load(vec![sources::SourceFile {
+            module_path: sources::Path::default(),
+            source: source.to_string(),
+        }]);
+        let output = infer::dump::dump_loaded_files(&files).expect("source should lower");
+        assert!(
+            output.lowering.errors.is_empty(),
+            "body lowering errors: {:?}",
+            output.lowering.errors
+        );
+        output.lowering
+    }
+
+    fn source_text(source: &str, range: sources::SourceRange) -> &str {
+        &source[range.start..range.end]
+    }
 }

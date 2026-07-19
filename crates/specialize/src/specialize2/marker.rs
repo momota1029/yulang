@@ -143,7 +143,8 @@ pub(super) fn stack_handler_marker_path_from_record_spread(
 }
 
 pub(super) fn wrap_stack_handler_marker_body(path: Vec<String>, body: Expr) -> Expr {
-    match body.kind {
+    let application_provenance = body.application_provenance;
+    let wrapped = match body.kind {
         ExprKind::Lambda(param, lambda_body) => Expr::new(ExprKind::Lambda(
             param,
             Box::new(wrap_stack_handler_marker_body(path, *lambda_body)),
@@ -247,6 +248,11 @@ pub(super) fn wrap_stack_handler_marker_body(path: Vec<String>, body: Expr) -> E
                 .collect(),
         }),
         other => Expr::new(other),
+    };
+    if let Some(tag) = application_provenance {
+        wrapped.with_application_provenance(tag)
+    } else {
+        wrapped
     }
 }
 
