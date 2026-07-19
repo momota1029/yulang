@@ -188,6 +188,52 @@ fn build_poly_without_std_records_attached_role_impl_method_mappings() {
 }
 
 #[test]
+fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
+    let source = "role R 'a:\n    our a.foo: int\n\nimpl int: R:\n    our x.foo = 1\n\nimpl int: R:\n    our x.foo = 2\n\n1.foo\n";
+    let output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
+        .expect("role-method canary should lower");
+    let error = match specialize::specialize(&output.arena) {
+        Ok(_) => panic!("ambiguous role-method canary should fail specialization"),
+        Err(error) => error,
+    };
+    let specialize::SpecializeError::AmbiguousTypeclassMethod {
+        expr, candidates, ..
+    } = error
+    else {
+        panic!("expected ambiguous role-method error, got {error:?}");
+    };
+    let poly::expr::Expr::Select(_, select) = output.arena.expr(poly::expr::ExprId(expr)) else {
+        panic!("role-method error should retain its source Select expression");
+    };
+    let field_start = source.rfind(".foo").expect("source field token") + 1;
+    let span = output
+        .selection_provenance
+        .selection_span(*select)
+        .expect("resolved selection should retain its source span");
+
+    assert_eq!(
+        span.range,
+        SourceRange {
+            start: field_start,
+            end: field_start + "foo".len(),
+        }
+    );
+    assert_eq!(span.file, Path::default());
+    assert_eq!(candidates.len(), 2);
+    for candidate in candidates {
+        let candidate = poly::expr::DefId(candidate.0);
+        assert!(
+            output
+                .selection_provenance
+                .definition_span(candidate)
+                .is_some(),
+            "candidate d{} should retain its declaration span",
+            candidate.0
+        );
+    }
+}
+
+#[test]
 fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
     let files = vec![collected(
         "main.yu",
@@ -211,6 +257,7 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
     assert_eq!(restored.file_count, output.poly.file_count);
     assert_eq!(restored.arena.defs.len(), output.poly.arena.defs.len());
     assert_eq!(restored.labels, output.poly.labels);
+    assert!(restored.selection_provenance.is_empty());
     assert!(
         output
             .compiled_unit

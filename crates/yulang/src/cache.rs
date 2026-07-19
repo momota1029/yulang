@@ -22,7 +22,7 @@ use crate::source::{
 };
 use crate::time::{Duration, Instant};
 
-const POLY_CACHE_FORMAT: u32 = 9;
+const POLY_CACHE_FORMAT: u32 = 10;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 10;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
@@ -126,6 +126,7 @@ impl ArtifactCache {
         Ok(Some(CachedPolyArtifact {
             arena: envelope.arena,
             application_provenance: envelope.application_provenance,
+            selection_provenance: envelope.selection_provenance,
             labels: envelope.labels,
             host_manifest: envelope.host_manifest,
             file_count: envelope.file_count,
@@ -143,6 +144,7 @@ impl ArtifactCache {
             format: POLY_CACHE_FORMAT,
             arena: &artifact.arena,
             application_provenance: &artifact.application_provenance,
+            selection_provenance: &artifact.selection_provenance,
             labels: &artifact.labels,
             host_manifest: &artifact.host_manifest,
             file_count: artifact.file_count,
@@ -377,6 +379,7 @@ pub struct CachedControlArtifact {
 pub struct CachedPolyArtifact {
     pub arena: poly::expr::Arena,
     pub application_provenance: infer::lowering::ApplicationProvenanceTable,
+    pub selection_provenance: infer::lowering::SelectionProvenanceTable,
     pub labels: poly::dump::DumpLabels,
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub file_count: usize,
@@ -3579,6 +3582,7 @@ impl std::error::Error for CacheError {}
 struct PolyCacheEnvelope<
     T = poly::expr::Arena,
     P = infer::lowering::ApplicationProvenanceTable,
+    S = infer::lowering::SelectionProvenanceTable,
     L = poly::dump::DumpLabels,
     H = Option<poly::host_manifest::HostActManifest>,
     E = Vec<String>,
@@ -3586,6 +3590,7 @@ struct PolyCacheEnvelope<
     format: u32,
     arena: T,
     application_provenance: P,
+    selection_provenance: S,
     labels: L,
     #[serde(default)]
     host_manifest: H,
@@ -3728,7 +3733,7 @@ trait CacheEnvelope {
     fn format(&self) -> u32;
 }
 
-impl<T, L, H, E> CacheEnvelope for PolyCacheEnvelope<T, L, H, E> {
+impl<T, P, S, L, H, E> CacheEnvelope for PolyCacheEnvelope<T, P, S, L, H, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -4452,9 +4457,25 @@ mod tests {
         let root = temp_root("poly-round-trip");
         let cache = ArtifactCache::new(&root);
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
+        let source_file = sources::Path {
+            segments: vec![sources::Name("main".to_string())],
+        };
+        let selection_span = infer::SourceSpan {
+            file: source_file.clone(),
+            range: sources::SourceRange { start: 9, end: 12 },
+        };
+        let definition_span = infer::SourceSpan {
+            file: source_file,
+            range: sources::SourceRange { start: 20, end: 23 },
+        };
+        let selection_provenance = infer::lowering::SelectionProvenanceTable::from_source_spans(
+            [(poly::expr::SelectId(3), selection_span.clone())],
+            [(poly::expr::DefId(4), definition_span.clone())],
+        );
         let artifact = CachedPolyArtifact {
             arena: poly::expr::Arena::new(),
             application_provenance: infer::lowering::ApplicationProvenanceTable::default(),
+            selection_provenance,
             labels: poly::dump::DumpLabels::new(),
             host_manifest: None,
             file_count: 1,
@@ -4466,6 +4487,18 @@ mod tests {
 
         assert_eq!(restored.file_count, artifact.file_count);
         assert_eq!(restored.errors, artifact.errors);
+        assert_eq!(
+            restored
+                .selection_provenance
+                .selection_span(poly::expr::SelectId(3)),
+            Some(&selection_span)
+        );
+        assert_eq!(
+            restored
+                .selection_provenance
+                .definition_span(poly::expr::DefId(4)),
+            Some(&definition_span)
+        );
         assert!(cache.poly_artifact_path(key).is_file());
         assert_eq!(cache.poly_artifact_path(key).extension().unwrap(), "yuir");
 

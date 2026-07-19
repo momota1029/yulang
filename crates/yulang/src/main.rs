@@ -2313,6 +2313,7 @@ fn build_poly_with_cache_timed(
             yulang::BuildPolyOutput {
                 arena: cached.arena,
                 application_provenance: cached.application_provenance,
+                selection_provenance: cached.selection_provenance,
                 diagnostic_sources: yulang::RuntimeDiagnosticSources::from_collected_sources(
                     &files,
                 ),
@@ -2389,6 +2390,7 @@ fn build_poly_full_miss_with_cache_timed(
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         application_provenance: poly.application_provenance,
+        selection_provenance: poly.selection_provenance,
         labels: poly.labels,
         host_manifest: poly.host_manifest,
         file_count: poly.file_count,
@@ -2400,6 +2402,7 @@ fn build_poly_full_miss_with_cache_timed(
     yulang::BuildPolyOutput {
         arena: artifact.arena,
         application_provenance: artifact.application_provenance,
+        selection_provenance: artifact.selection_provenance,
         diagnostic_sources,
         labels: artifact.labels,
         host_manifest: artifact.host_manifest,
@@ -2801,6 +2804,7 @@ fn write_poly_artifact_from_output(
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         application_provenance: poly.application_provenance,
+        selection_provenance: poly.selection_provenance,
         labels: poly.labels,
         host_manifest: poly.host_manifest,
         file_count: poly.file_count,
@@ -2812,6 +2816,7 @@ fn write_poly_artifact_from_output(
     yulang::BuildPolyOutput {
         arena: artifact.arena,
         application_provenance: artifact.application_provenance,
+        selection_provenance: artifact.selection_provenance,
         diagnostic_sources,
         labels: artifact.labels,
         host_manifest: artifact.host_manifest,

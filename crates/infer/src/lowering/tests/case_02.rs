@@ -1276,6 +1276,11 @@ fn string_interpolation_lowers_to_show_and_concat() {
         session.poly.ref_target(expr_ref(&session, receiver)),
         Some(x)
     );
+    assert_eq!(
+        session.selections.source_span(show),
+        None,
+        "desugared interpolation selection must remain source-unowned"
+    );
 }
 
 #[test]

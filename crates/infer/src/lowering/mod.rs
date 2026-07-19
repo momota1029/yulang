@@ -26,6 +26,7 @@ mod neg_signature;
 mod pattern;
 mod record_lit;
 mod rule_lit;
+mod selection_provenance;
 mod signature_effect;
 mod signature_match;
 mod string_lit;
@@ -102,6 +103,7 @@ use expr_syntax::*;
 use local::*;
 pub use neg_signature::NegSignatureBuildError;
 use neg_signature::*;
+pub use selection_provenance::SelectionProvenanceTable;
 use signature_match::{
     builtin_annotation_mismatch, compact_type_matches_signature,
     compact_type_matches_signature_shape,

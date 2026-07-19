@@ -272,6 +272,7 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
     let loaded = load_collected_sources(files.clone());
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     let lowering_timing = lowering.timing;
     let errors = lowering
         .errors
@@ -290,6 +291,7 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
             poly: BuildPolyOutput {
                 arena: lowering.session.poly,
                 application_provenance,
+                selection_provenance,
                 diagnostic_sources,
                 labels: lowering.labels,
                 host_manifest: Some(host_manifest),
@@ -308,6 +310,7 @@ pub fn build_poly_from_compiled_unit_artifact(
     BuildPolyOutput {
         arena: artifact.runtime.arena,
         application_provenance: infer::lowering::ApplicationProvenanceTable::default(),
+        selection_provenance: infer::lowering::SelectionProvenanceTable::default(),
         diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: artifact.runtime.labels,
         host_manifest: None,
@@ -323,10 +326,12 @@ pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
     let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&suffix);
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
     let application_provenance = output.lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&output.lowering);
     let host_manifest = host_manifest_from_lowering(&output.lowering)?;
     Ok(BuildPolyOutput {
         arena: output.lowering.session.poly,
         application_provenance,
+        selection_provenance,
         diagnostic_sources,
         labels: output.lowering.labels,
         host_manifest: Some(host_manifest),
@@ -393,11 +398,13 @@ fn build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(
     );
     let host_manifest = host_manifest_from_compiled_unit_artifact(&compiled_unit)?;
     let application_provenance = output.lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&output.lowering);
     Ok((
         BuildPolyAndCompiledUnitOutput {
             poly: BuildPolyOutput {
                 arena: output.lowering.session.poly,
                 application_provenance,
+                selection_provenance,
                 diagnostic_sources,
                 labels: output.lowering.labels,
                 host_manifest: Some(host_manifest),
@@ -463,6 +470,22 @@ fn host_manifest_from_lowering(
     let typed = infer::CompiledTypedSurface::from_lowering(lowering, &namespace);
     infer::host_acts::host_act_manifest_from_compiled(&namespace, &lowering_surface, &typed)
         .map_err(RouteError::HostActManifest)
+}
+
+fn selection_provenance_from_lowering(
+    lowering: &infer::lowering::BodyLowering,
+) -> infer::lowering::SelectionProvenanceTable {
+    infer::lowering::SelectionProvenanceTable::from_source_spans(
+        lowering
+            .session
+            .selections
+            .source_spans()
+            .map(|(select, span)| (select, span.clone())),
+        lowering
+            .modules
+            .def_source_spans()
+            .map(|(def, span)| (def, span.clone())),
+    )
 }
 
 fn host_manifest_from_compiled_unit_artifact(
@@ -1101,9 +1124,11 @@ pub fn build_poly_from_source_text_with_embedded_std(
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         application_provenance,
+        selection_provenance,
         diagnostic_sources,
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
@@ -1124,9 +1149,11 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         application_provenance,
+        selection_provenance,
         diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
@@ -1160,9 +1187,11 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         application_provenance,
+        selection_provenance,
         diagnostic_sources,
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
@@ -1184,9 +1213,11 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
         application_provenance,
+        selection_provenance,
         diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
@@ -1443,6 +1474,7 @@ pub struct BuildControlOutput {
 pub struct BuildPolyOutput {
     pub arena: poly::expr::Arena,
     pub application_provenance: infer::lowering::ApplicationProvenanceTable,
+    pub selection_provenance: infer::lowering::SelectionProvenanceTable,
     pub diagnostic_sources: RuntimeDiagnosticSources,
     pub labels: poly::dump::DumpLabels,
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
@@ -3602,10 +3634,12 @@ fn build_poly_from_loaded_files_with_lowering_timing(
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
     let application_provenance = lowering.application_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
     Ok((
         BuildPolyOutput {
             arena: lowering.session.poly,
             application_provenance,
+            selection_provenance,
             diagnostic_sources: RuntimeDiagnosticSources::default(),
             labels: lowering.labels,
             host_manifest: Some(host_manifest),
