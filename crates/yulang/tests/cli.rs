@@ -622,8 +622,8 @@ fn compatible_run_reports_unhandled_effect_hint() {
 }
 
 #[test]
-fn compatible_run_reports_not_callable_hint() {
-    let entry = write_entry("run-not-callable", "my x = 1 2\nx\n");
+fn compatible_run_reports_not_callable_source_ranges_and_hint() {
+    let entry = write_entry("run-not-callable", "my a = 1 2\na\n");
 
     let output = yulang_command()
         .arg("--no-prelude")
@@ -645,13 +645,25 @@ fn compatible_run_reports_not_callable_hint() {
     let stderr = stderr(&output);
     assert!(
         stderr.contains(
-            "runtime error [yulang.not-callable]: tried to call a non-function value 1\n"
+            "runtime error [yulang.not-callable]: tried to call a non-function value 1\n\
+             \x20   --> line 1, column 8\n\
+             \x20   1 | my a = 1 2\n\
+             \x20     |        ^\n"
         ),
         "{stderr}"
     );
     assert!(
         stderr.contains(
             "hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "note: application occurs here\n\
+             \x20   --> line 1, column 8\n\
+             \x20   1 | my a = 1 2\n\
+             \x20     |        ^^^"
         ),
         "{stderr}"
     );

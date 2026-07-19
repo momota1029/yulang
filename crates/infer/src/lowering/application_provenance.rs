@@ -1,5 +1,6 @@
 use poly::expr::ExprId;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{ModuleId, SourceSpan};
 
@@ -8,7 +9,7 @@ use crate::{ModuleId, SourceSpan};
 /// An absent entry is an explicitly unowned application produced by lowering/desugaring rather
 /// than by surface application syntax. Source ownership is assigned only while the matching CST
 /// nodes are still available; it is never reconstructed from the finished expression tree.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplicationProvenanceTable {
     entries: FxHashMap<ExprId, ApplicationProvenance>,
 }
@@ -37,7 +38,7 @@ impl ApplicationProvenanceTable {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplicationProvenance {
     pub origin: ApplicationOrigin,
     pub module: ModuleId,
@@ -45,7 +46,7 @@ pub struct ApplicationProvenance {
     pub callee_span: SourceSpan,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApplicationOrigin {
     Source,
 }

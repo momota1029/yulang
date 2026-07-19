@@ -441,6 +441,8 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
         let yulang::BuildControlOutput {
             program,
             runtime_evidence,
+            application_provenance,
+            diagnostic_sources,
             labels,
             file_count: _,
             errors,
@@ -538,7 +540,14 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
         let output = match run_result {
             Ok(output) => output,
             Err(error) => {
-                eprintln!("{}", format_runtime_evidence_run_error(&error));
+                eprintln!(
+                    "{}",
+                    format_runtime_evidence_run_error(
+                        &error,
+                        &application_provenance,
+                        &diagnostic_sources,
+                    )
+                );
                 process::exit(1);
             }
         };
@@ -563,7 +572,11 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
     })
 }
 
-fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunError) -> String {
+fn format_runtime_evidence_run_error(
+    error: &evidence_vm::RuntimeEvidenceRunError,
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
     match error {
         evidence_vm::RuntimeEvidenceRunError::EscapedEffect(path) => format!(
             "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
@@ -585,9 +598,14 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
             "runtime error [yulang.host-abi-error]: host operation {} failed ({message})\n  hint: this host implementation returned a value outside its ABI contract",
             operation.join("::")
         ),
-        evidence_vm::RuntimeEvidenceRunError::NotFunction(value) => format!(
-            "runtime error [yulang.not-callable]: tried to call a non-function value {value}\n  hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
-        ),
+        evidence_vm::RuntimeEvidenceRunError::NotFunction { site, value } => {
+            format_not_callable_error(
+                *site,
+                value,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
         evidence_vm::RuntimeEvidenceRunError::NotRecord(value) => format!(
             "runtime error [yulang.not-record]: tried to read fields from non-record value {value}\n  hint: use `.field` only on record values"
         ),
@@ -618,6 +636,73 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
             "runtime error [yulang.runtime-internal]: {error}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
     }
+}
+
+fn format_not_callable_error(
+    site: Option<control_ir::ExprId>,
+    value: &str,
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
+    const CODE: &str = "yulang.not-callable";
+    const HINT: &str =
+        "check the expression before the argument; calls are written as `f x` or `f(...)`";
+    let message = format!("tried to call a non-function value {value}");
+    let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
+
+    let Some(site) = site else {
+        return fallback();
+    };
+    let Some(provenance) = application_provenance.resolve(site) else {
+        return fallback();
+    };
+    if provenance.callee_span.file != provenance.application_span.file {
+        return fallback();
+    }
+    let Some(source) = diagnostic_sources.source_for_span(&provenance.callee_span) else {
+        return fallback();
+    };
+    let diagnostic = yulang::SourceDiagnostic {
+        severity: yulang::SourceDiagnosticSeverity::Error,
+        code: Some(CODE.to_string()),
+        label: None,
+        range: Some(provenance.callee_span.range),
+        message,
+        hint: Some(HINT.to_string()),
+        related: vec![yulang::SourceDiagnosticRelated {
+            message: "application occurs here".to_string(),
+            range: provenance.application_span.range,
+            origin: Some(yulang::SourceDiagnosticRelatedOrigin::Expression),
+        }],
+    };
+    format_runtime_source_diagnostic(&diagnostic, &source.source)
+}
+
+fn format_runtime_source_diagnostic(
+    diagnostic: &yulang::SourceDiagnostic,
+    source: &yulang::CheckDiagnosticSource,
+) -> String {
+    let code = diagnostic.code.as_deref().unwrap_or("yulang.runtime");
+    let mut rendered = format!("runtime error [{code}]: {}", diagnostic.message);
+    if let Some(range) = diagnostic.range
+        && let Some(frame) = format_source_frame(Some(source), range)
+    {
+        rendered.push('\n');
+        rendered.push_str(&frame);
+    }
+    if let Some(hint) = &diagnostic.hint {
+        rendered.push_str("\n  hint: ");
+        rendered.push_str(hint);
+    }
+    for related in &diagnostic.related {
+        rendered.push_str("\n  note: ");
+        rendered.push_str(&related.message);
+        if let Some(frame) = format_source_frame(Some(source), related.range) {
+            rendered.push('\n');
+            rendered.push_str(&frame);
+        }
+    }
+    rendered
 }
 
 // The VM runtimes still have recursive eval/apply paths. CLI execution isolates
@@ -951,30 +1036,35 @@ fn source_diagnostic_severity_name(severity: yulang::SourceDiagnosticSeverity) -
 }
 
 fn print_source_frame(source: Option<&yulang::CheckDiagnosticSource>, range: yulang::SourceRange) {
+    if let Some(frame) = format_source_frame(source, range) {
+        println!("{frame}");
+    }
+}
+
+fn format_source_frame(
+    source: Option<&yulang::CheckDiagnosticSource>,
+    range: yulang::SourceRange,
+) -> Option<String> {
     let Some(source) = source else {
-        return;
+        return None;
     };
     let Some(range) = diagnostic_display_range(source, range) else {
-        return;
+        return None;
     };
     let Some(frame) = source_frame(&source.source, range) else {
-        return;
+        return None;
     };
     let number_width = frame.line_number.to_string().len();
-    println!(
-        "    --> line {}, column {}",
-        frame.line_number, frame.column_number
-    );
-    println!(
-        "    {:>number_width$} | {}",
-        frame.line_number, frame.line_text
-    );
-    println!(
-        "    {:>number_width$} | {}{}",
+    Some(format!(
+        "    --> line {}, column {}\n    {:>number_width$} | {}\n    {:>number_width$} | {}{}",
+        frame.line_number,
+        frame.column_number,
+        frame.line_number,
+        frame.line_text,
         "",
         " ".repeat(frame.marker_start),
         "^".repeat(frame.marker_len)
-    );
+    ))
 }
 
 fn diagnostic_display_range(

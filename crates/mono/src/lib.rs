@@ -195,13 +195,13 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ApplicationProvenanceTag {
     pub task: ApplicationSpecializationTask,
     pub poly_expr: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ApplicationSpecializationTask {
     Root { root_index: u32 },
     Instance { instance: InstanceId },

@@ -1868,7 +1868,9 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "runtime error [yulang.not-callable]: tried to call a non-function value 1",
+  "    --> line 1, column 8\n    1 | my x = 1 2\n      |        ^",
   "hint: check the expression before the argument; calls are written as `f x` or `f(...)`",
+  "note: application occurs here\n    --> line 1, column 8\n    1 | my x = 1 2\n      |        ^^^",
 ]
 contracts = ["runtime-error", "runtime-failure", "diagnostics", "calls"]
 

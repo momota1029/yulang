@@ -831,7 +831,9 @@ fn build_control_path_with_optional_source_key_cache(
     }
     abort_run_on_parse_diagnostics(&files);
 
-    if let Some(output) = cached {
+    if let Some(mut output) = cached {
+        output.diagnostic_sources =
+            yulang::RuntimeDiagnosticSources::from_collected_sources(&files);
         return output;
     }
 
@@ -874,6 +876,8 @@ fn read_control_from_source_key_index(
     Some(yulang::BuildControlOutput {
         program: cached.program,
         runtime_evidence: cached.runtime_evidence,
+        application_provenance: cached.application_provenance,
+        diagnostic_sources: yulang::RuntimeDiagnosticSources::default(),
         labels: cached.labels,
         file_count: cached.file_count,
         errors: cached.errors,
@@ -944,6 +948,10 @@ fn build_control_with_source_key_timed(
             return yulang::BuildControlOutput {
                 program: cached.program,
                 runtime_evidence: cached.runtime_evidence,
+                application_provenance: cached.application_provenance,
+                diagnostic_sources: yulang::RuntimeDiagnosticSources::from_collected_sources(
+                    &files,
+                ),
                 labels: cached.labels,
                 file_count: cached.file_count,
                 errors: cached.errors,
@@ -981,6 +989,7 @@ fn build_control_with_source_key_timed(
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
         runtime_evidence: output.runtime_evidence.clone(),
+        application_provenance: output.application_provenance.clone(),
         labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
@@ -1026,8 +1035,8 @@ fn build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let control_lower_start = Instant::now();
-    let program = match control_ir::lower(&specialized.program) {
-        Ok(program) => program,
+    let lowered = match control_ir::lower_with_application_provenance(&specialized.program) {
+        Ok(lowered) => lowered,
         Err(error) => {
             eprintln!("{error}");
             process::exit(1);
@@ -1038,8 +1047,13 @@ fn build_control_from_poly_output_with_optional_mono_cache(
     }
 
     yulang::BuildControlOutput {
-        program,
+        program: lowered.program,
         runtime_evidence: specialized.runtime_evidence,
+        application_provenance: yulang::RuntimeApplicationProvenance::new(
+            poly.application_provenance,
+            lowered.application_provenance,
+        ),
+        diagnostic_sources: poly.diagnostic_sources,
         labels: poly.labels,
         file_count: poly.file_count,
         errors: poly.errors,
@@ -1056,8 +1070,11 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let specialize_start = Instant::now();
-    let mut specialized =
-        specialize::specialize_with_runtime_evidence(&poly.arena).map_err(|_| ())?;
+    let mut specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+        &poly.arena,
+        poly.application_provenance.expr_ids(),
+    )
+    .map_err(|_| ())?;
     specialized.runtime_evidence.host_manifest = poly.host_manifest.clone();
     specialized
         .runtime_evidence
@@ -1067,7 +1084,8 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let control_lower_start = Instant::now();
-    let program = control_ir::lower(&specialized.program).map_err(|_| ())?;
+    let lowered =
+        control_ir::lower_with_application_provenance(&specialized.program).map_err(|_| ())?;
     if let Some(timings) = timings.as_deref_mut() {
         timings.control_lower = control_lower_start.elapsed();
     }
@@ -1084,8 +1102,13 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     Ok(yulang::BuildControlOutput {
-        program,
+        program: lowered.program,
         runtime_evidence: specialized.runtime_evidence,
+        application_provenance: yulang::RuntimeApplicationProvenance::new(
+            poly.application_provenance,
+            lowered.application_provenance,
+        ),
+        diagnostic_sources: poly.diagnostic_sources,
         labels: poly.labels,
         file_count: poly.file_count,
         errors: poly.errors,
@@ -1129,7 +1152,10 @@ fn specialize_control_program(
     mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
 ) -> specialize::SpecializeOutput {
     abort_on_runtime_lowering_errors(&poly.errors);
-    let mut output = match specialize::specialize_with_runtime_evidence(&poly.arena) {
+    let mut output = match specialize::specialize_with_runtime_evidence_and_application_provenance(
+        &poly.arena,
+        poly.application_provenance.expr_ids(),
+    ) {
         Ok(output) => output,
         Err(error) => exit_on_specialize_error(error),
     };
@@ -2286,6 +2312,10 @@ fn build_poly_with_cache_timed(
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::PolyHit);
             yulang::BuildPolyOutput {
                 arena: cached.arena,
+                application_provenance: cached.application_provenance,
+                diagnostic_sources: yulang::RuntimeDiagnosticSources::from_collected_sources(
+                    &files,
+                ),
                 labels: cached.labels,
                 host_manifest: cached.host_manifest,
                 file_count: cached.file_count,
@@ -2304,10 +2334,12 @@ fn build_poly_with_cache_timed(
                 Ok(None) => {}
                 Err(error) => eprintln!("warning: {error}"),
             }
-            if let Some((output, cache_kind)) =
+            if let Some((mut output, cache_kind)) =
                 build_poly_from_source_unit_prefix_cache(&files, key, cache, timings.as_deref_mut())
             {
                 record_runtime_build_cache(&mut timings, cache_kind);
+                output.diagnostic_sources =
+                    yulang::RuntimeDiagnosticSources::from_collected_sources(&files);
                 return output;
             }
             build_poly_full_miss_with_cache_timed(files, key, cache, timings.as_deref_mut())
@@ -2353,8 +2385,10 @@ fn build_poly_full_miss_with_cache_timed(
     }
     write_source_unit_closure_artifacts(&files, cache);
     let poly = output.poly;
+    let diagnostic_sources = poly.diagnostic_sources;
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
+        application_provenance: poly.application_provenance,
         labels: poly.labels,
         host_manifest: poly.host_manifest,
         file_count: poly.file_count,
@@ -2365,6 +2399,8 @@ fn build_poly_full_miss_with_cache_timed(
     }
     yulang::BuildPolyOutput {
         arena: artifact.arena,
+        application_provenance: artifact.application_provenance,
+        diagnostic_sources,
         labels: artifact.labels,
         host_manifest: artifact.host_manifest,
         file_count: artifact.file_count,
@@ -2761,8 +2797,10 @@ fn write_poly_artifact_from_output(
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
 ) -> yulang::BuildPolyOutput {
+    let diagnostic_sources = poly.diagnostic_sources;
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
+        application_provenance: poly.application_provenance,
         labels: poly.labels,
         host_manifest: poly.host_manifest,
         file_count: poly.file_count,
@@ -2773,6 +2811,8 @@ fn write_poly_artifact_from_output(
     }
     yulang::BuildPolyOutput {
         arena: artifact.arena,
+        application_provenance: artifact.application_provenance,
+        diagnostic_sources,
         labels: artifact.labels,
         host_manifest: artifact.host_manifest,
         file_count: artifact.file_count,

@@ -16,6 +16,7 @@ use std::fs;
 use std::io;
 use std::path::{Path as FsPath, PathBuf};
 
+use serde::{Deserialize, Serialize};
 use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
 use crate::stdlib::{
@@ -267,8 +268,10 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
     ),
     RouteError,
 > {
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
     let loaded = load_collected_sources(files.clone());
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let application_provenance = lowering.application_provenance().clone();
     let lowering_timing = lowering.timing;
     let errors = lowering
         .errors
@@ -286,6 +289,8 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
         BuildPolyAndCompiledUnitOutput {
             poly: BuildPolyOutput {
                 arena: lowering.session.poly,
+                application_provenance,
+                diagnostic_sources,
                 labels: lowering.labels,
                 host_manifest: Some(host_manifest),
                 file_count: loaded.len(),
@@ -302,6 +307,8 @@ pub fn build_poly_from_compiled_unit_artifact(
 ) -> BuildPolyOutput {
     BuildPolyOutput {
         arena: artifact.runtime.arena,
+        application_provenance: infer::lowering::ApplicationProvenanceTable::default(),
+        diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: artifact.runtime.labels,
         host_manifest: None,
         file_count: artifact.manifest.files.len(),
@@ -313,10 +320,14 @@ pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
     prefix: crate::cache::CachedCompiledUnitArtifact,
     suffix: Vec<CollectedSource>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&suffix);
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
+    let application_provenance = output.lowering.application_provenance().clone();
     let host_manifest = host_manifest_from_lowering(&output.lowering)?;
     Ok(BuildPolyOutput {
         arena: output.lowering.session.poly,
+        application_provenance,
+        diagnostic_sources,
         labels: output.lowering.labels,
         host_manifest: Some(host_manifest),
         file_count: output.file_count,
@@ -365,6 +376,7 @@ fn build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(
     ),
     RouteError,
 > {
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
     let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
     debug_assert_eq!(output.file_count, files.len());
     let lowering_timing = output.lowering.timing;
@@ -380,10 +392,13 @@ fn build_poly_and_compiled_unit_from_compiled_unit_prefix_with_timing(
         crate::cache::source_cache_key(&files),
     );
     let host_manifest = host_manifest_from_compiled_unit_artifact(&compiled_unit)?;
+    let application_provenance = output.lowering.application_provenance().clone();
     Ok((
         BuildPolyAndCompiledUnitOutput {
             poly: BuildPolyOutput {
                 arena: output.lowering.session.poly,
+                application_provenance,
+                diagnostic_sources,
                 labels: output.lowering.labels,
                 host_manifest: Some(host_manifest),
                 file_count: output.file_count,
@@ -466,16 +481,25 @@ pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
 ) -> Result<BuildControlOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let mut specialized = specialize::specialize_with_runtime_evidence(&output.arena)
-        .map_err(RouteError::Specialize)?;
+    let mut specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+        &output.arena,
+        output.application_provenance.expr_ids(),
+    )
+    .map_err(RouteError::Specialize)?;
     specialized.runtime_evidence.host_manifest = output.host_manifest.clone();
     specialized
         .runtime_evidence
         .attach_static_route_profile(&output.arena, &specialized.program);
-    let program = control_ir::lower(&specialized.program).map_err(RouteError::ControlLower)?;
+    let lowered = control_ir::lower_with_application_provenance(&specialized.program)
+        .map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
-        program,
+        program: lowered.program,
         runtime_evidence: specialized.runtime_evidence,
+        application_provenance: RuntimeApplicationProvenance::new(
+            output.application_provenance.clone(),
+            lowered.application_provenance,
+        ),
+        diagnostic_sources: output.diagnostic_sources.clone(),
         labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
@@ -1059,18 +1083,28 @@ pub fn dump_mono_from_source_text_with_embedded_std(
 }
 
 pub fn build_poly_from_source_text_with_embedded_std(
-    _entry: impl AsRef<FsPath>,
+    entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
-    let (lowering, file_count) = embedded_std_lowering_with_root(source.into())?;
+    let source = source.into();
+    let diagnostic_sources =
+        RuntimeDiagnosticSources::from_collected_sources(&[CollectedSource::new(
+            entry.as_ref().to_path_buf(),
+            Path::default(),
+            source_with_implicit_prelude_only(source.clone()),
+        )]);
+    let (lowering, file_count) = embedded_std_lowering_with_root(source)?;
     let errors = lowering
         .errors
         .iter()
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
+        application_provenance,
+        diagnostic_sources,
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
         file_count,
@@ -1089,8 +1123,11 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
+        application_provenance,
+        diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
         file_count,
@@ -1105,18 +1142,28 @@ pub fn warm_embedded_std_compiled_unit_artifact_prefix(
 }
 
 pub fn build_poly_from_source_text_with_embedded_playground_std(
-    _entry: impl AsRef<FsPath>,
+    entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
-    let (lowering, file_count) = embedded_playground_std_lowering_with_root(source.into())?;
+    let source = source.into();
+    let diagnostic_sources =
+        RuntimeDiagnosticSources::from_collected_sources(&[CollectedSource::new(
+            entry.as_ref().to_path_buf(),
+            Path::default(),
+            source_with_implicit_prelude_only(source.clone()),
+        )]);
+    let (lowering, file_count) = embedded_playground_std_lowering_with_root(source)?;
     let errors = lowering
         .errors
         .iter()
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
+        application_provenance,
+        diagnostic_sources,
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
         file_count,
@@ -1136,8 +1183,11 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
     Ok(BuildPolyOutput {
         arena: lowering.session.poly,
+        application_provenance,
+        diagnostic_sources: RuntimeDiagnosticSources::default(),
         labels: lowering.labels,
         host_manifest: Some(host_manifest),
         file_count,
@@ -1382,6 +1432,8 @@ pub enum SourceDiagnosticSeverity {
 pub struct BuildControlOutput {
     pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
+    pub application_provenance: RuntimeApplicationProvenance,
+    pub diagnostic_sources: RuntimeDiagnosticSources,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
@@ -1390,11 +1442,70 @@ pub struct BuildControlOutput {
 
 pub struct BuildPolyOutput {
     pub arena: poly::expr::Arena,
+    pub application_provenance: infer::lowering::ApplicationProvenanceTable,
+    pub diagnostic_sources: RuntimeDiagnosticSources,
     pub labels: poly::dump::DumpLabels,
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
+}
+
+/// Sparse source identity retained alongside the runtime control program.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeApplicationProvenance {
+    source: infer::lowering::ApplicationProvenanceTable,
+    control: control_ir::ApplicationProvenanceTable,
+}
+
+impl RuntimeApplicationProvenance {
+    pub fn new(
+        source: infer::lowering::ApplicationProvenanceTable,
+        control: control_ir::ApplicationProvenanceTable,
+    ) -> Self {
+        Self { source, control }
+    }
+
+    pub fn resolve(
+        &self,
+        site: control_ir::ExprId,
+    ) -> Option<&infer::lowering::ApplicationProvenance> {
+        let tag = self.control.get(site)?;
+        self.source.get(poly::expr::ExprId(tag.poly_expr))
+    }
+}
+
+/// Source texts and filesystem identities used only when rendering runtime diagnostics.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RuntimeDiagnosticSources {
+    source_index: SourceFileIndex,
+}
+
+impl RuntimeDiagnosticSources {
+    pub fn from_collected_sources(files: &[CollectedSource]) -> Self {
+        Self {
+            source_index: SourceFileIndex::from_collected_sources(files),
+        }
+    }
+
+    pub fn source_for_span(&self, span: &infer::SourceSpan) -> Option<RuntimeDiagnosticSource> {
+        let location = self.source_index.location_for_span(span)?;
+        let source = self.source_index.source_for_location(&location)?;
+        let range_offset = implicit_source_prefix_len(source);
+        Some(RuntimeDiagnosticSource {
+            path: location.path,
+            source: CheckDiagnosticSource {
+                source: source.get(range_offset..).unwrap_or_default().to_string(),
+                range_offset,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeDiagnosticSource {
+    pub path: PathBuf,
+    pub source: CheckDiagnosticSource,
 }
 
 impl BuildPolyOutput {
@@ -1847,7 +1958,15 @@ fn check_diagnostic_source(loaded: &[sources::LoadedFile]) -> Option<CheckDiagno
         .iter()
         .find(|file| file.module_path.segments.is_empty())?;
     let source = root.source.as_str();
-    let range_offset = if source.starts_with(IMPLICIT_PRELUDE_IMPORT)
+    let range_offset = implicit_source_prefix_len(source);
+    Some(CheckDiagnosticSource {
+        source: source.get(range_offset..).unwrap_or_default().to_string(),
+        range_offset,
+    })
+}
+
+fn implicit_source_prefix_len(source: &str) -> usize {
+    if source.starts_with(IMPLICIT_PRELUDE_IMPORT)
         && source
             .get(IMPLICIT_PRELUDE_IMPORT.len()..)
             .is_some_and(|rest| rest.starts_with(IMPLICIT_STD_MODULE_DECL))
@@ -1857,11 +1976,7 @@ fn check_diagnostic_source(loaded: &[sources::LoadedFile]) -> Option<CheckDiagno
         IMPLICIT_PRELUDE_IMPORT.len()
     } else {
         0
-    };
-    Some(CheckDiagnosticSource {
-        source: source.get(range_offset..).unwrap_or_default().to_string(),
-        range_offset,
-    })
+    }
 }
 
 fn source_text_analysis_from_files(
@@ -2845,6 +2960,7 @@ fn source_range_contains(range: SourceRange, byte_offset: usize) -> bool {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct SourceFileIndex {
     paths_by_module: HashMap<Path, PathBuf>,
     sources_by_path: HashMap<PathBuf, String>,
@@ -3452,13 +3568,20 @@ fn specialize_mono_from_poly_output(
 }
 
 fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutput, RouteError> {
-    build_poly_from_loaded_files(load_collected_sources(files))
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
+    let mut output = build_poly_from_loaded_files(load_collected_sources(files))?;
+    output.diagnostic_sources = diagnostic_sources;
+    Ok(output)
 }
 
 fn build_poly_from_sources_with_lowering_timing(
     files: Vec<CollectedSource>,
 ) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
-    build_poly_from_loaded_files_with_lowering_timing(load_collected_sources(files))
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
+    let (mut output, timing) =
+        build_poly_from_loaded_files_with_lowering_timing(load_collected_sources(files))?;
+    output.diagnostic_sources = diagnostic_sources;
+    Ok((output, timing))
 }
 
 pub fn build_poly_from_loaded_files(
@@ -3478,9 +3601,12 @@ fn build_poly_from_loaded_files_with_lowering_timing(
         .map(format_body_lowering_error)
         .collect();
     let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
     Ok((
         BuildPolyOutput {
             arena: lowering.session.poly,
+            application_provenance,
+            diagnostic_sources: RuntimeDiagnosticSources::default(),
             labels: lowering.labels,
             host_manifest: Some(host_manifest),
             file_count: loaded.len(),

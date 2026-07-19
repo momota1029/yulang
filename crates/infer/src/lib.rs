@@ -127,7 +127,7 @@ struct ModuleNode {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 struct ModuleDeclId(usize);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub file: ModulePath,
     pub range: SourceRange,

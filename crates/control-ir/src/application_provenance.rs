@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use mono::ApplicationProvenanceTag;
+use serde::{Deserialize, Serialize};
 
 use crate::ExprId;
 
 /// Sparse bridge from final control-IR apply sites to their specialization origin.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplicationProvenanceTable {
     entries: HashMap<ExprId, ApplicationProvenanceTag>,
 }

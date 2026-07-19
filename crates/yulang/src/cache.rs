@@ -22,9 +22,9 @@ use crate::source::{
 };
 use crate::time::{Duration, Instant};
 
-const POLY_CACHE_FORMAT: u32 = 8;
+const POLY_CACHE_FORMAT: u32 = 9;
 const MONO_CACHE_FORMAT: u32 = 1;
-const CONTROL_CACHE_FORMAT: u32 = 9;
+const CONTROL_CACHE_FORMAT: u32 = 10;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
 #[cfg(test)]
 const EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
@@ -125,6 +125,7 @@ impl ArtifactCache {
         };
         Ok(Some(CachedPolyArtifact {
             arena: envelope.arena,
+            application_provenance: envelope.application_provenance,
             labels: envelope.labels,
             host_manifest: envelope.host_manifest,
             file_count: envelope.file_count,
@@ -141,6 +142,7 @@ impl ArtifactCache {
         let envelope = PolyCacheEnvelope {
             format: POLY_CACHE_FORMAT,
             arena: &artifact.arena,
+            application_provenance: &artifact.application_provenance,
             labels: &artifact.labels,
             host_manifest: &artifact.host_manifest,
             file_count: artifact.file_count,
@@ -194,6 +196,7 @@ impl ArtifactCache {
         Ok(Some(CachedControlArtifact {
             program: envelope.program,
             runtime_evidence: envelope.runtime_evidence,
+            application_provenance: envelope.application_provenance,
             labels: envelope.labels,
             file_count: envelope.file_count,
             errors: envelope.errors,
@@ -210,6 +213,7 @@ impl ArtifactCache {
             format: CONTROL_CACHE_FORMAT,
             program: &artifact.program,
             runtime_evidence: &artifact.runtime_evidence,
+            application_provenance: &artifact.application_provenance,
             labels: &artifact.labels,
             file_count: artifact.file_count,
             errors: &artifact.errors,
@@ -364,6 +368,7 @@ impl ArtifactCache {
 pub struct CachedControlArtifact {
     pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
+    pub application_provenance: crate::RuntimeApplicationProvenance,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     pub errors: Vec<String>,
@@ -371,6 +376,7 @@ pub struct CachedControlArtifact {
 
 pub struct CachedPolyArtifact {
     pub arena: poly::expr::Arena,
+    pub application_provenance: infer::lowering::ApplicationProvenanceTable,
     pub labels: poly::dump::DumpLabels,
     pub host_manifest: Option<poly::host_manifest::HostActManifest>,
     pub file_count: usize,
@@ -3572,12 +3578,14 @@ impl std::error::Error for CacheError {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PolyCacheEnvelope<
     T = poly::expr::Arena,
+    P = infer::lowering::ApplicationProvenanceTable,
     L = poly::dump::DumpLabels,
     H = Option<poly::host_manifest::HostActManifest>,
     E = Vec<String>,
 > {
     format: u32,
     arena: T,
+    application_provenance: P,
     labels: L,
     #[serde(default)]
     host_manifest: H,
@@ -3597,12 +3605,14 @@ struct MonoCacheEnvelope<T = specialize::mono::Program, E = Vec<String>> {
 struct ControlCacheEnvelope<
     T = control_ir::Program,
     R = specialize::RuntimeEvidenceSurface,
+    P = crate::RuntimeApplicationProvenance,
     L = poly::dump::DumpLabels,
     E = Vec<String>,
 > {
     format: u32,
     program: T,
     runtime_evidence: R,
+    application_provenance: P,
     labels: L,
     file_count: usize,
     errors: E,
@@ -4334,6 +4344,7 @@ mod tests {
         let artifact = CachedControlArtifact {
             program: control_ir::Program::default(),
             runtime_evidence: nonempty_runtime_evidence_surface(),
+            application_provenance: crate::RuntimeApplicationProvenance::default(),
             labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
@@ -4347,6 +4358,54 @@ mod tests {
         assert_eq!(
             cache.control_artifact_path(key).extension().unwrap(),
             "yuvm"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn control_cache_preserves_runtime_application_provenance() {
+        let root = temp_root("control-application-provenance");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "my a = 1 2\na\n")];
+        let key = source_cache_key(&files);
+        let poly = crate::build_poly_from_collected_sources(files).unwrap();
+        let control = crate::build_control_from_poly_output(&poly).unwrap();
+        let site = control
+            .program
+            .exprs
+            .iter()
+            .position(|expr| matches!(expr, control_ir::Expr::Apply { .. }))
+            .map(|index| control_ir::ExprId(index as u32))
+            .expect("the canary must lower to a control apply");
+        let expected = control
+            .application_provenance
+            .resolve(site)
+            .cloned()
+            .expect("the control apply must resolve to source provenance");
+        let artifact = CachedControlArtifact {
+            program: control.program,
+            runtime_evidence: control.runtime_evidence,
+            application_provenance: control.application_provenance,
+            labels: control.labels,
+            file_count: control.file_count,
+            errors: control.errors,
+        };
+
+        cache.write_control_artifact(key, &artifact).unwrap();
+        let restored = cache.read_control_artifact(key).unwrap().unwrap();
+
+        assert_eq!(
+            restored.application_provenance.resolve(site),
+            Some(&expected)
+        );
+        assert_eq!(
+            expected.callee_span.range,
+            sources::SourceRange { start: 7, end: 8 }
+        );
+        assert_eq!(
+            expected.application_span.range,
+            sources::SourceRange { start: 7, end: 11 }
         );
 
         let _ = fs::remove_dir_all(root);
@@ -4395,6 +4454,7 @@ mod tests {
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedPolyArtifact {
             arena: poly::expr::Arena::new(),
+            application_provenance: infer::lowering::ApplicationProvenanceTable::default(),
             labels: poly::dump::DumpLabels::new(),
             host_manifest: None,
             file_count: 1,

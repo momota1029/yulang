@@ -9045,7 +9045,10 @@ pub enum RuntimeEvidenceRunError {
         path: String,
         kind: &'static str,
     },
-    NotFunction(String),
+    NotFunction {
+        site: Option<ExprId>,
+        value: String,
+    },
     NotThunk(String),
     NotRecord(String),
     MissingRecordField(String),
@@ -9101,7 +9104,9 @@ impl fmt::Display for RuntimeEvidenceRunError {
                 "runtime-evidence-run host I/O error: {} failed for {path} ({kind})",
                 operation.join("::")
             ),
-            Self::NotFunction(value) => write!(f, "runtime-evidence-run not a function: {value}"),
+            Self::NotFunction { value, .. } => {
+                write!(f, "runtime-evidence-run not a function: {value}")
+            }
             Self::NotThunk(value) => write!(f, "runtime-evidence-run not a thunk: {value}"),
             Self::NotRecord(value) => write!(f, "runtime-evidence-run not a record: {value}"),
             Self::MissingRecordField(name) => {
@@ -18101,7 +18106,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     |runner| runner.apply_value_result_inner(site, value.clone(), arg),
                 )
             }
-            value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
+            value => Err(RuntimeEvidenceRunError::NotFunction {
+                site,
+                value: format_value(value),
+            }),
         }
     }
 
@@ -25735,6 +25743,30 @@ mod tests {
         assert_eq!(
             multiple.single_string_value(),
             Err(RuntimeEvidenceSingleStringError::ValueCount { actual: 2 })
+        );
+    }
+
+    #[test]
+    fn not_function_retains_the_control_apply_site() {
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(2))],
+            exprs: vec![
+                Expr::Lit(Lit::Int(1)),
+                Expr::Lit(Lit::Int(2)),
+                Expr::Apply {
+                    callee: ExprId(0),
+                    arg: ExprId(1),
+                },
+            ],
+            ..Program::default()
+        };
+
+        assert_eq!(
+            run_program(&program),
+            Err(RuntimeEvidenceRunError::NotFunction {
+                site: Some(ExprId(2)),
+                value: "1".to_string(),
+            })
         );
     }
 
