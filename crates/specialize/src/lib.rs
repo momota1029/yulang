@@ -296,33 +296,21 @@ impl fmt::Display for SpecializeError {
             }
             Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
-            Self::UnresolvedTypeclassMethod {
-                member, receiver, ..
-            } => {
+            Self::UnresolvedTypeclassMethod { receiver, .. } => {
                 write!(
                     f,
-                    "unresolved typeclass method d{} for receiver {}",
-                    member.0,
+                    "no role implementation satisfies this method call for receiver {}",
                     mono::dump::dump_type(receiver),
                 )
             }
             Self::AmbiguousTypeclassMethod {
-                member,
                 receiver,
-                candidates,
                 ..
             } => {
-                let candidates = candidates
-                    .iter()
-                    .map(|candidate| format!("d{}", candidate.0))
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 write!(
                     f,
-                    "ambiguous typeclass method d{} for receiver {}: {}",
-                    member.0,
+                    "more than one role implementation satisfies this method call for receiver {}",
                     mono::dump::dump_type(receiver),
-                    candidates,
                 )
             }
             Self::InternalMissingInstance { instance } => {

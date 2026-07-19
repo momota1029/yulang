@@ -910,7 +910,7 @@ fn compatible_run_reports_unresolved_method_source_range_and_hint() {
         "{stderr}"
     );
     assert!(
-        stderr.contains("detail: unresolved typeclass method"),
+        stderr.contains("detail: no role implementation satisfies this method call"),
         "{stderr}"
     );
     assert!(
@@ -959,7 +959,7 @@ fn compatible_run_reports_ambiguous_method_source_range_candidates_and_hint() {
         "{stderr}"
     );
     assert!(
-        stderr.contains("detail: ambiguous typeclass method"),
+        stderr.contains("detail: more than one role implementation satisfies this method call"),
         "{stderr}"
     );
     assert!(
