@@ -204,7 +204,9 @@ TODO:
 - README は短く保つ。
 - README から playground、examples、design notes へ導線を張る。
 - LSP は crates.io install 後に `yulang server` で起動できることを書く。
-- Zed extension は公開前でも dev install で使えることを書く。
+- [x] Zed extension は公開前でも dev install で使えることを書く
+  （[English](../../web/docs/guide/install.md#zed-development-extension) /
+  [日本語](../../web/docs/ja/guide/install.md#zed-development-extension)）。
 - filesystem semantics が固まった後に host effects docs を追加する。
 - `error` / `result` の方向を実装した後に error handling docs を追加する。
 - 現在の実装と一致する known limitations を追加する。

@@ -114,6 +114,21 @@ It searches the worktree environment, `~/.yulang/bin`, and `~/.cargo/bin`.
 The source copy is kept under `yulang-zed/` and mirrored to the separate
 extension repository.
 
+### Zed development extension
+
+Fetch the extension source from the repository submodule:
+
+```sh
+git submodule update --init yulang-zed
+```
+
+In Zed, open the command palette, run `zed: install dev extension`, and select
+the `yulang-zed/` directory.
+
+The extension requires `yulang server` to be discoverable on `PATH`. If the
+binary is elsewhere, set `lsp.yulang.binary.path` in Zed settings as described
+in the [extension README](https://github.com/momota1029/yulang-zed#language-server).
+
 The repository is a Rust workspace. The main crates are:
 
 | Crate | Purpose |
