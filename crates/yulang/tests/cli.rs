@@ -1041,7 +1041,7 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1086,7 +1086,7 @@ fn public_diagnostics_source_frame_uses_user_source_with_std_root() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains("    --> line 1, column 4\n    1 | my x: int = true\n      |    ^\n"),
@@ -1108,7 +1108,7 @@ fn public_diagnostics_check_reports_unresolved_value_name() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1142,7 +1142,7 @@ fn public_diagnostics_check_reports_unresolved_type_name() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1177,7 +1177,7 @@ fn public_diagnostics_check_reports_unsupported_type_syntax() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1205,7 +1205,7 @@ fn public_diagnostics_check_reports_top_level_mutable_binding() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1235,7 +1235,7 @@ fn public_diagnostics_check_reports_rule_lazy_quantifier() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1265,7 +1265,7 @@ fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1294,7 +1294,7 @@ fn public_diagnostics_check_reports_trailing_operator_syntax() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains("diagnostics:\n  error [yulang.syntax]: syntax error: unexpected token\n"),
@@ -1357,7 +1357,7 @@ fn public_diagnostics_check_reports_missing_local_binding_body() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1400,7 +1400,7 @@ fn public_diagnostics_check_reports_catch_missing_arm_body() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1428,7 +1428,7 @@ fn public_diagnostics_check_reports_catch_missing_scrutinee() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -1456,7 +1456,7 @@ fn public_diagnostics_check_reports_catch_missing_arm_pattern() {
         .output()
         .unwrap();
 
-    assert_success(&output);
+    assert_failure(&output);
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
@@ -7597,6 +7597,16 @@ fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {
 fn assert_success(output: &Output) {
     assert!(
         output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(output),
+        stderr(output)
+    );
+}
+
+fn assert_failure(output: &Output) {
+    assert!(
+        !output.status.success(),
         "status: {}\nstdout:\n{}\nstderr:\n{}",
         output.status,
         stdout(output),

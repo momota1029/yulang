@@ -575,15 +575,26 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
     let path = require_one_path(program, args);
     print_cst_if_requested(options, &path);
     if options.no_prelude {
-        run_route(yulang::check_poly_from_entry(path), print_check_poly_output);
+        run_route(yulang::check_poly_from_entry(path), finish_compatible_check);
         return;
     }
 
     let source_options = options.std_source_options();
     run_route(
         yulang::check_poly_from_entry_with_std_options(path, &source_options),
-        print_check_poly_output,
+        finish_compatible_check,
     );
+}
+
+fn finish_compatible_check(output: &yulang::CheckPolyOutput) {
+    print_check_poly_output(output);
+    if output
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == yulang::SourceDiagnosticSeverity::Error)
+    {
+        process::exit(1);
+    }
 }
 
 fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
