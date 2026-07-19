@@ -1188,7 +1188,7 @@ fn public_diagnostics_check_reports_unsupported_type_syntax() {
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
-            "diagnostics:\n  error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord\n"
+            "diagnostics:\n  error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: record type annotation\n"
         ),
         "{stdout}"
     );

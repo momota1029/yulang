@@ -1209,7 +1209,7 @@ pub compose2(f, g, x) = f g(x)
         assert_eq!(output.diagnostics[0].end, Some(25));
         assert_eq!(
             output.diagnostics[0].message,
-            "unsupported type annotation syntax: TypeRecord"
+            "unsupported type annotation syntax: record type annotation"
         );
     }
 

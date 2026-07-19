@@ -2079,7 +2079,7 @@ expect_success = false
 std = "none"
 expect_stderr = ""
 expect_stdout_contains = [
-  "error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord",
+  "error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: record type annotation",
   "hint: use a supported type annotation form and keep effect rows in effect position",
 ]
 expect_diagnostic_code = "yulang.unsupported-type-syntax"

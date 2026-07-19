@@ -1999,7 +1999,60 @@ impl fmt::Display for RouteError {
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
             RouteError::HostActManifest(error) => {
-                write!(f, "failed to build host act manifest: {error:?}")
+                write!(f, "failed to build host act manifest: ")?;
+                match error {
+                    infer::host_acts::HostActManifestBuildError::MissingHostOperationScheme {
+                        act_id,
+                        operation_id,
+                    } => write!(
+                        f,
+                        "host operation `{act_id}.{operation_id}` has no compiled type scheme"
+                    ),
+                    infer::host_acts::HostActManifestBuildError::UnknownRawCompatOverride {
+                        act_id,
+                        operation_id,
+                    } => write!(
+                        f,
+                        "raw-compatible host operation `{act_id}.{operation_id}` is not declared"
+                    ),
+                    infer::host_acts::HostActManifestBuildError::Manifest(error) => match error {
+                        poly::host_manifest::HostManifestError::DuplicateAct { act_id } => {
+                            write!(f, "host act `{act_id}` is declared more than once")
+                        }
+                        poly::host_manifest::HostManifestError::DuplicateOperation {
+                            act_id,
+                            operation_id,
+                        } => write!(
+                            f,
+                            "host operation `{act_id}.{operation_id}` is declared more than once"
+                        ),
+                        poly::host_manifest::HostManifestError::DuplicateOperationPath { path } => {
+                            write!(
+                                f,
+                                "host operation path `{}` is used more than once",
+                                path.join("::")
+                            )
+                        }
+                        poly::host_manifest::HostManifestError::UnknownAct {
+                            act_id,
+                            operation_id,
+                        } => write!(
+                            f,
+                            "host operation `{act_id}.{operation_id}` references undeclared host act `{act_id}`"
+                        ),
+                        poly::host_manifest::HostManifestError::OperationPathOutsideAct {
+                            act_id,
+                            operation_id,
+                            act_path,
+                            operation_path,
+                        } => write!(
+                            f,
+                            "host operation `{act_id}.{operation_id}` path `{}` is outside host act path `{}`",
+                            operation_path.join("::"),
+                            act_path.join("::")
+                        ),
+                    },
+                }
             }
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::SpecializeDiagnostic { error, .. } => write!(f, "{error}"),
