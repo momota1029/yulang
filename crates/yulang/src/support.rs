@@ -582,10 +582,14 @@ fn format_runtime_evidence_run_error(
             "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
             path.join("::")
         ),
-        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { path, .. } => format!(
-            "runtime error [yulang.unsupported-host-capability]: host capability {} is not available in this runtime\n  hint: use a host that grants this capability or handle the capability with a mock effect handler",
-            path.join("::")
-        ),
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { site, path } => {
+            format_unsupported_host_capability_error(
+                *site,
+                path,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
         evidence_vm::RuntimeEvidenceRunError::HostIoError {
             operation,
             path,
@@ -650,32 +654,79 @@ fn format_not_callable_error(
     let message = format!("tried to call a non-function value {value}");
     let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
 
+    format_ranged_application_runtime_error(
+        site,
+        CODE,
+        &message,
+        HINT,
+        application_provenance,
+        diagnostic_sources,
+    )
+    .unwrap_or_else(fallback)
+}
+
+fn format_unsupported_host_capability_error(
+    site: Option<control_ir::ExprId>,
+    path: &[String],
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
+    const CODE: &str = "yulang.unsupported-host-capability";
+    const HINT: &str = "use a host that grants this capability or handle the capability with a mock effect handler";
+    let message = format!(
+        "host capability {} is not available in this runtime",
+        path.join("::")
+    );
+    let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
+
+    format_ranged_application_runtime_error(
+        site,
+        CODE,
+        &message,
+        HINT,
+        application_provenance,
+        diagnostic_sources,
+    )
+    .unwrap_or_else(fallback)
+}
+
+fn format_ranged_application_runtime_error(
+    site: Option<control_ir::ExprId>,
+    code: &str,
+    message: &str,
+    hint: &str,
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> Option<String> {
     let Some(site) = site else {
-        return fallback();
+        return None;
     };
     let Some(provenance) = application_provenance.resolve(site) else {
-        return fallback();
+        return None;
     };
     if provenance.callee_span.file != provenance.application_span.file {
-        return fallback();
+        return None;
     }
     let Some(source) = diagnostic_sources.source_for_span(&provenance.callee_span) else {
-        return fallback();
+        return None;
     };
     let diagnostic = yulang::SourceDiagnostic {
         severity: yulang::SourceDiagnosticSeverity::Error,
-        code: Some(CODE.to_string()),
+        code: Some(code.to_string()),
         label: None,
         range: Some(provenance.callee_span.range),
-        message,
-        hint: Some(HINT.to_string()),
+        message: message.to_string(),
+        hint: Some(hint.to_string()),
         related: vec![yulang::SourceDiagnosticRelated {
             message: "application occurs here".to_string(),
             range: provenance.application_span.range,
             origin: Some(yulang::SourceDiagnosticRelatedOrigin::Expression),
         }],
     };
-    format_runtime_source_diagnostic(&diagnostic, &source.source)
+    Some(format_runtime_source_diagnostic(
+        &diagnostic,
+        &source.source,
+    ))
 }
 
 fn format_runtime_source_diagnostic(

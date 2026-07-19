@@ -670,6 +670,60 @@ fn compatible_run_reports_not_callable_source_ranges_and_hint() {
 }
 
 #[test]
+fn compatible_run_reports_unsupported_host_capability_source_ranges() {
+    let entry = write_entry(
+        "run-unsupported-host-capability",
+        "std::time::clock::now()\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--host")
+        .arg("unsupported")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains(
+            "runtime error [yulang.unsupported-host-capability]: host capability std::time::clock is not available in this runtime\n\
+             \x20   --> line 1, column 1\n\
+             \x20   1 | std::time::clock::now()\n\
+             \x20     | ^^^^^^^^^^^^^^^^^^^^^\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: use a host that grants this capability or handle the capability with a mock effect handler"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "note: application occurs here\n\
+             \x20   --> line 1, column 1\n\
+             \x20   1 | std::time::clock::now()\n\
+             \x20     | ^^^^^^^^^^^^^^^^^^^^^^^"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
     let entry = write_entry("run-interpreter-not-callable", "my x = 1 2\nx\n");
 
