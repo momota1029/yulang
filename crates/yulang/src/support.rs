@@ -579,7 +579,7 @@ fn format_runtime_evidence_run_error(
     diagnostic_sources: &yulang::RuntimeDiagnosticSources,
 ) -> String {
     match error {
-        evidence_vm::RuntimeEvidenceRunError::EscapedEffect(path) => format!(
+        evidence_vm::RuntimeEvidenceRunError::EscapedEffect { path, .. } => format!(
             "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
             path.join("::")
         ),

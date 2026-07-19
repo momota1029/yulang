@@ -5818,6 +5818,7 @@ impl EvidenceEffectSignal {
 
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceDirectAbortive {
+    site: Option<ExprId>,
     handler: ExprId,
     path: Rc<[String]>,
     payload: SharedValue,
@@ -5825,8 +5826,14 @@ struct EvidenceDirectAbortive {
 }
 
 impl EvidenceDirectAbortive {
-    fn static_handler(handler: ExprId, path: Rc<[String]>, payload: SharedValue) -> Self {
+    fn static_handler(
+        site: Option<ExprId>,
+        handler: ExprId,
+        path: Rc<[String]>,
+        payload: SharedValue,
+    ) -> Self {
         Self {
+            site,
             handler,
             path,
             payload,
@@ -5846,6 +5853,7 @@ enum EvidenceDirectAbortiveCloseCert {
 
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceDirectTailResumptive {
+    site: Option<ExprId>,
     handler: ExprId,
     path: Rc<[String]>,
     payload: SharedValue,
@@ -5855,12 +5863,14 @@ struct EvidenceDirectTailResumptive {
 
 impl EvidenceDirectTailResumptive {
     fn with_hygiene(
+        site: Option<ExprId>,
         handler: ExprId,
         path: Rc<[String]>,
         payload: SharedValue,
         hygiene: EvidenceSignalHygiene,
     ) -> Self {
         Self {
+            site,
             handler,
             path,
             payload,
@@ -5893,7 +5903,7 @@ impl EvidenceDirectTailResumptive {
 
     fn into_request(self, route: EvidenceEffectRoute) -> EvidenceRequest {
         EvidenceRequest {
-            site: None,
+            site: self.site,
             path: self.path,
             payload: self.payload,
             route,
@@ -9037,7 +9047,10 @@ pub enum RuntimeEvidenceRunError {
     UnboundLocal(DefId),
     UnsupportedExpr(&'static str),
     UnsupportedPrimitive(PrimitiveOp),
-    EscapedEffect(Vec<String>),
+    EscapedEffect {
+        site: Option<ExprId>,
+        path: Vec<String>,
+    },
     UnsupportedHostCapability {
         site: Option<ExprId>,
         path: Vec<String>,
@@ -9086,7 +9099,7 @@ impl fmt::Display for RuntimeEvidenceRunError {
             Self::UnsupportedPrimitive(op) => {
                 write!(f, "runtime-evidence-run unsupported primitive: {op:?}")
             }
-            Self::EscapedEffect(path) => write!(
+            Self::EscapedEffect { path, .. } => write!(
                 f,
                 "runtime-evidence-run escaped effect request: {}",
                 path.join("::")
@@ -11112,6 +11125,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         evidence: EffectThunkEvidence,
     ) -> EvidenceDirectTailResumptive {
         EvidenceDirectTailResumptive {
+            site: evidence.site,
             handler,
             path,
             payload,
@@ -11130,7 +11144,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let hygiene = self
             .signal_hygiene_with_active_markers(&path)
             .with_operation_visibility(evidence.visibility);
-        EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
+        EvidenceDirectTailResumptive::with_hygiene(evidence.site, handler, path, payload, hygiene)
     }
 
     fn provider_permission_guarded_direct_tail_resumptive(
@@ -11176,7 +11190,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceFullScanHygieneSnapshot::from_hygiene(&full_scan_hygiene),
             );
         }
-        EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
+        EvidenceDirectTailResumptive::with_hygiene(evidence.site, handler, path, payload, hygiene)
     }
 
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
@@ -14609,14 +14623,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.handle_escaped_request(request)
             }
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.site,
+                    path: call.path.to_vec(),
+                })
             }
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.site,
+                    path: call.path.to_vec(),
+                })
             }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => Err(
-                RuntimeEvidenceRunError::EscapedEffect(call.request().path.to_vec()),
-            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.request().site,
+                    path: call.request().path.to_vec(),
+                })
+            }
         }
     }
 
@@ -14684,9 +14707,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.mark_print_nth_nondet_auto_drive_for_current_result();
                     return Err(RuntimeEvidenceRunError::PrintNthNondetTerminal);
                 }
-                Err(RuntimeEvidenceRunError::EscapedEffect(
-                    request.path.to_vec(),
-                ))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: request.site,
+                    path: request.path.to_vec(),
+                })
             }
         }
     }
@@ -14755,14 +14779,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.handle_escaped_request_for_print_nth_side_effect(request)
             }
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.site,
+                    path: call.path.to_vec(),
+                })
             }
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.site,
+                    path: call.path.to_vec(),
+                })
             }
-            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => Err(
-                RuntimeEvidenceRunError::EscapedEffect(call.request().path.to_vec()),
-            ),
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: call.request().site,
+                    path: call.request().path.to_vec(),
+                })
+            }
         }
     }
 
@@ -14795,9 +14828,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.mark_print_nth_nondet_auto_drive_for_current_result();
                     return Ok(PrintNthSideEffectResolution::Terminal);
                 }
-                Err(RuntimeEvidenceRunError::EscapedEffect(
-                    request.path.to_vec(),
-                ))
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: request.site,
+                    path: request.path.to_vec(),
+                })
             }
         }
     }
@@ -21569,7 +21603,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return Ok(EvidenceEvalResult::request(request));
             }
             return Ok(EvidenceEvalResult::direct_abortive(
-                EvidenceDirectAbortive::static_handler(handler, path.clone(), payload),
+                EvidenceDirectAbortive::static_handler(
+                    evidence.site,
+                    handler,
+                    path.clone(),
+                    payload,
+                ),
             ));
         }
         if let EvidenceEffectRoute::Direct {
@@ -25784,6 +25823,108 @@ mod tests {
     }
 
     #[test]
+    fn escaped_effect_retains_ordinary_effect_thunk_apply_site() {
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(4))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: other_unhandled_effect_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                Expr::Coerce {
+                    source: Type::Any,
+                    target: Type::Any,
+                    expr: ExprId(2),
+                },
+                force_effect_expr(ExprId(3), Type::Any),
+            ],
+            ..Program::default()
+        };
+
+        assert_eq!(
+            run_program(&program),
+            Err(RuntimeEvidenceRunError::EscapedEffect {
+                site: Some(ExprId(2)),
+                path: other_unhandled_effect_path(),
+            })
+        );
+    }
+
+    #[test]
+    fn escaped_effect_retains_optimized_force_effect_call_site() {
+        let program = other_unhandled_effect_program();
+        let runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        assert!(matches!(
+            runner.runtime_exprs[3],
+            RuntimeEvidenceExpr::ForceEffectCall {
+                site: ExprId(2),
+                ..
+            }
+        ));
+
+        assert_eq!(
+            run_program(&program),
+            Err(RuntimeEvidenceRunError::EscapedEffect {
+                site: Some(ExprId(2)),
+                path: other_unhandled_effect_path(),
+            })
+        );
+    }
+
+    #[test]
+    fn escaped_direct_effect_signals_retain_apply_site() {
+        let program = Program::default();
+        let site = ExprId(17);
+        for (execution, resumptive, request_free_yield) in [
+            (
+                EvidenceVmOperationExecutionPlan::DirectAbortive,
+                false,
+                false,
+            ),
+            (
+                EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                true,
+                true,
+            ),
+        ] {
+            let mut runner =
+                RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+            let result = runner
+                .force_effect_result(
+                    shared_path(&other_unhandled_effect_path()),
+                    shared(RuntimeEvidenceValue::Unit),
+                    EvidenceEffectRoute::Direct {
+                        handler: ExprId(3),
+                        resumptive,
+                        execution,
+                        request_free_yield,
+                    },
+                    EffectThunkEvidence {
+                        site: Some(site),
+                        route_cert: EvidenceRouteCert::None,
+                        visibility: None,
+                        known_operation: None,
+                        static_route: None,
+                    },
+                )
+                .expect("direct effect route should produce a signal");
+
+            assert_eq!(
+                runner.resolve_eval_result(result),
+                Err(RuntimeEvidenceRunError::EscapedEffect {
+                    site: Some(site),
+                    path: other_unhandled_effect_path(),
+                })
+            );
+        }
+    }
+
+    #[test]
     fn unsupported_host_capability_retains_ordinary_effect_thunk_apply_site() {
         let program = Program {
             roots: vec![Root::Expr(ExprId(4))],
@@ -26109,6 +26250,7 @@ mod tests {
             .eval_tail_expr_result(branch_root, &mut env)
             .expect("branch program should produce an eval result");
         let branch = assert_generic_request_path(branch, &nondet_branch_path());
+        assert_eq!(branch.site, Some(ExprId(2)));
         assert!(!branch.continuation.is_identity());
 
         let reject_program = nondet_reject_program();
@@ -26120,7 +26262,8 @@ mod tests {
         let reject = runner
             .eval_tail_expr_result(reject_root, &mut env)
             .expect("reject program should produce an eval result");
-        assert_generic_request_path(reject, &nondet_reject_path());
+        let reject = assert_generic_request_path(reject, &nondet_reject_path());
+        assert_eq!(reject.site, Some(ExprId(2)));
     }
 
     #[test]
@@ -26259,7 +26402,10 @@ mod tests {
 
         assert_eq!(
             error,
-            RuntimeEvidenceRunError::EscapedEffect(nondet_branch_path())
+            RuntimeEvidenceRunError::EscapedEffect {
+                site: Some(ExprId(2)),
+                path: nondet_branch_path(),
+            }
         );
         assert_eq!(runner.host_state.stdout, "");
     }
@@ -26280,7 +26426,10 @@ mod tests {
 
         assert_eq!(
             default_error,
-            RuntimeEvidenceRunError::EscapedEffect(other_unhandled_effect_path())
+            RuntimeEvidenceRunError::EscapedEffect {
+                site: Some(ExprId(2)),
+                path: other_unhandled_effect_path(),
+            }
         );
         assert_eq!(print_nth_error, default_error);
     }
@@ -30938,6 +31087,7 @@ mod tests {
             blocked,
         });
         EvidenceDirectTailResumptive::with_hygiene(
+            None,
             ExprId(20),
             shared_path(&request_path),
             shared(RuntimeEvidenceValue::Unit),
