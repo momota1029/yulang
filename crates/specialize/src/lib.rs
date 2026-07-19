@@ -224,54 +224,56 @@ pub enum UnsatisfiedSubtypeOrigin {
 impl fmt::Display for SpecializeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingDef { def } => write!(f, "missing def d{}", def.0),
-            Self::MissingScheme { def } => write!(f, "missing scheme for d{}", def.0),
-            Self::MissingBody { def } => write!(f, "missing body for d{}", def.0),
-            Self::UnsupportedDefKind { def, kind } => {
-                write!(f, "unsupported def kind for d{}: {kind:?}", def.0)
+            Self::MissingDef { .. } => write!(f, "missing definition"),
+            Self::MissingScheme { .. } => write!(f, "missing type scheme"),
+            Self::MissingBody { .. } => write!(f, "missing definition body"),
+            Self::UnsupportedDefKind { kind, .. } => {
+                write!(f, "unsupported definition kind: {}", format_def_kind(*kind))
             }
-            Self::UnsupportedSchemeFeature { def, feature } => {
-                write!(f, "unsupported scheme feature for d{}: {feature:?}", def.0,)
+            Self::UnsupportedSchemeFeature { feature, .. } => {
+                write!(
+                    f,
+                    "unsupported type scheme feature: {}",
+                    format_scheme_feature(*feature),
+                )
             }
             Self::ConflictingTypeSubstitution {
-                def,
-                var,
-                existing,
-                incoming,
+                existing, incoming, ..
             } => {
                 write!(
                     f,
-                    "conflicting type substitution for d{} 't{}: {} vs {}",
-                    def.0,
-                    var,
+                    "conflicting type substitution: {} vs {}",
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
             }
             Self::ConflictingExprType {
-                expr,
                 role,
                 existing,
                 incoming,
+                ..
             } => {
                 write!(
                     f,
-                    "conflicting {role:?} expression type for e{expr}: {} vs {}",
+                    "conflicting {} expression type: {} vs {}",
+                    format_expr_type_role(*role),
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
             }
-            Self::MissingExprType { expr, role } => {
-                write!(f, "missing {role:?} expression type for e{expr}")
+            Self::MissingExprType { role, .. } => {
+                write!(
+                    f,
+                    "missing {} expression type",
+                    format_expr_type_role(*role)
+                )
             }
             Self::ConflictingTypeCandidates {
-                slot,
-                existing,
-                incoming,
+                existing, incoming, ..
             } => {
                 write!(
                     f,
-                    "conflicting type candidates for slot {slot}: {} vs {}",
+                    "conflicting type candidates: {} vs {}",
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
@@ -284,8 +286,8 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(upper),
                 )
             }
-            Self::UndeterminedTypeSlot { slot } => {
-                write!(f, "could not determine concrete type for slot {slot}")
+            Self::UndeterminedTypeSlot { .. } => {
+                write!(f, "could not determine concrete type")
             }
             Self::UnresolvedStackWeight { ty } => {
                 write!(
@@ -294,8 +296,8 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(ty),
                 )
             }
-            Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
-            Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
+            Self::InvalidTypeSlot { .. } => write!(f, "invalid type slot"),
+            Self::UnresolvedRef { .. } => write!(f, "unresolved reference"),
             Self::UnresolvedTypeclassMethod { receiver, .. } => {
                 write!(
                     f,
@@ -303,21 +305,40 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(receiver),
                 )
             }
-            Self::AmbiguousTypeclassMethod {
-                receiver,
-                ..
-            } => {
+            Self::AmbiguousTypeclassMethod { receiver, .. } => {
                 write!(
                     f,
                     "more than one role implementation satisfies this method call for receiver {}",
                     mono::dump::dump_type(receiver),
                 )
             }
-            Self::InternalMissingInstance { instance } => {
-                write!(f, "internal missing mono instance m{}", instance.0)
+            Self::InternalMissingInstance { .. } => {
+                write!(f, "internal specialization instance is missing")
             }
         }
     }
 }
 
 impl std::error::Error for SpecializeError {}
+
+fn format_def_kind(kind: DefKind) -> &'static str {
+    match kind {
+        DefKind::Module => "module",
+        DefKind::Let => "value binding",
+        DefKind::Arg => "argument",
+    }
+}
+
+fn format_scheme_feature(feature: SchemeFeature) -> &'static str {
+    match feature {
+        SchemeFeature::RolePredicates => "role predicates",
+        SchemeFeature::RecursiveBounds => "recursive bounds",
+    }
+}
+
+fn format_expr_type_role(role: ExprTypeRole) -> &'static str {
+    match role {
+        ExprTypeRole::Actual => "actual",
+        ExprTypeRole::Expected => "expected",
+    }
+}
