@@ -1938,6 +1938,9 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
+  "--> line 1, column 11",
+  "1 | (\\x -> x).show",
+  "|           ^^^^",
   "hint: add or import an impl for the receiver type, or call a method supported by that value",
 ]
 contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
@@ -1951,6 +1954,11 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call",
+  "--> line 10, column 3",
+  "10 | 1.foo",
+  "note: matching impl method candidate",
+  "--> line 5, column 11",
+  "--> line 8, column 11",
   "hint: make the receiver type more specific or keep only one matching impl in scope",
 ]
 contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]

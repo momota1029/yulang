@@ -190,17 +190,17 @@ fn build_poly_without_std_records_attached_role_impl_method_mappings() {
 #[test]
 fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
     let source = "role R 'a:\n    our a.foo: int\n\nimpl int: R:\n    our x.foo = 1\n\nimpl int: R:\n    our x.foo = 2\n\n1.foo\n";
-    let output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
+    let mut output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
         .expect("role-method canary should lower");
     let error = match specialize::specialize(&output.arena) {
         Ok(_) => panic!("ambiguous role-method canary should fail specialization"),
         Err(error) => error,
     };
-    let specialize::SpecializeError::AmbiguousTypeclassMethod {
-        expr, candidates, ..
-    } = error
-    else {
-        panic!("expected ambiguous role-method error, got {error:?}");
+    let (expr, candidates) = match &error {
+        specialize::SpecializeError::AmbiguousTypeclassMethod {
+            expr, candidates, ..
+        } => (*expr, candidates.clone()),
+        _ => panic!("expected ambiguous role-method error, got {error:?}"),
     };
     let poly::expr::Expr::Select(_, select) = output.arena.expr(poly::expr::ExprId(expr)) else {
         panic!("role-method error should retain its source Select expression");
@@ -231,6 +231,73 @@ fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
             candidate.0
         );
     }
+
+    let routed = specialize_route_error(error.clone(), &output);
+    let RouteError::SpecializeDiagnostic { context, .. } = routed else {
+        panic!("same-file role-method candidates should produce a ranged route error");
+    };
+    assert_eq!(context.range, span.range);
+    assert_eq!(context.related.len(), 2);
+
+    let candidates = match &error {
+        specialize::SpecializeError::AmbiguousTypeclassMethod { candidates, .. } => candidates,
+        _ => unreachable!(),
+    };
+    let selection_span = span.clone();
+    let first_candidate = poly::expr::DefId(candidates[0].0);
+    let second_candidate = poly::expr::DefId(candidates[1].0);
+    let first_span = output
+        .selection_provenance
+        .definition_span(first_candidate)
+        .unwrap()
+        .clone();
+    let mut cross_file_span = output
+        .selection_provenance
+        .definition_span(second_candidate)
+        .unwrap()
+        .clone();
+    cross_file_span.file = path_from_segments(&["dependency"]);
+    output.selection_provenance = infer::lowering::SelectionProvenanceTable::from_source_spans(
+        [(*select, selection_span)],
+        [
+            (first_candidate, first_span),
+            (second_candidate, cross_file_span),
+        ],
+    );
+    assert!(matches!(
+        specialize_route_error(error, &output),
+        RouteError::Specialize(
+            specialize::SpecializeError::AmbiguousTypeclassMethod { .. }
+        )
+    ));
+}
+
+#[test]
+fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
+    let output = build_poly_from_collected_sources(vec![collected(
+        "main.yu",
+        &[],
+        "my value = 1\nvalue\n",
+    )])
+    .expect("non-select fallback canary should lower");
+    let expr = output
+        .arena
+        .exprs()
+        .iter()
+        .position(|expr| matches!(expr, poly::expr::Expr::Var(_)))
+        .expect("canary should contain a Var expression") as u32;
+    let error = specialize::SpecializeError::UnresolvedTypeclassMethod {
+        expr,
+        member: specialize::mono::DefId(0),
+        receiver: specialize::mono::Type::Any,
+    };
+
+    assert!(matches!(
+        specialize_route_error(error, &output),
+        RouteError::Specialize(
+            specialize::SpecializeError::UnresolvedTypeclassMethod { .. }
+        )
+    ));
 }
 
 #[test]

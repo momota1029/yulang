@@ -1130,7 +1130,7 @@ fn specialize_mono_program(
 
     let program = match specialize::specialize(&poly.arena) {
         Ok(program) => program,
-        Err(error) => exit_on_specialize_error(error),
+        Err(error) => exit_on_specialize_error(error, poly),
     };
 
     if let Some((cache, key)) = mono_cache {
@@ -1157,7 +1157,7 @@ fn specialize_control_program(
         poly.application_provenance.expr_ids(),
     ) {
         Ok(output) => output,
-        Err(error) => exit_on_specialize_error(error),
+        Err(error) => exit_on_specialize_error(error, poly),
     };
     output.runtime_evidence.host_manifest = poly.host_manifest.clone();
     output
@@ -1178,11 +1178,12 @@ fn specialize_control_program(
     output
 }
 
-fn exit_on_specialize_error(error: specialize::SpecializeError) -> ! {
-    eprintln!(
-        "{}",
-        format_route_error(&yulang::RouteError::Specialize(error))
-    );
+fn exit_on_specialize_error(
+    error: specialize::SpecializeError,
+    poly: &yulang::BuildPolyOutput,
+) -> ! {
+    let error = yulang::source::specialize_route_error(error, poly);
+    eprintln!("{}", format_route_error(&error));
     process::exit(1);
 }
 

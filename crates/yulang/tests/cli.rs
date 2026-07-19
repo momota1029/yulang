@@ -873,7 +873,7 @@ fn compatible_run_reports_unsatisfied_subtype_hint() {
 }
 
 #[test]
-fn compatible_run_reports_unresolved_method_hint() {
+fn compatible_run_reports_unresolved_method_source_range_and_hint() {
     let entry = write_entry("run-unresolved-method", "(\\x -> x).show\n");
 
     let output = yulang_command()
@@ -907,6 +907,12 @@ fn compatible_run_reports_unresolved_method_hint() {
     );
     assert!(
         stderr.contains(
+            "    --> line 1, column 11\n    1 | (\\x -> x).show\n      |           ^^^^"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
             "hint: add or import an impl for the receiver type, or call a method supported by that value"
         ),
         "{stderr}"
@@ -914,7 +920,7 @@ fn compatible_run_reports_unresolved_method_hint() {
 }
 
 #[test]
-fn compatible_run_reports_ambiguous_method_hint() {
+fn compatible_run_reports_ambiguous_method_source_range_candidates_and_hint() {
     let entry = write_entry(
         "run-ambiguous-method",
         "role R 'a:\n    our a.foo: int\n\nimpl int: R:\n    our x.foo = 1\n\nimpl int: R:\n    our x.foo = 2\n\n1.foo\n",
@@ -946,6 +952,29 @@ fn compatible_run_reports_ambiguous_method_hint() {
     );
     assert!(
         stderr.contains("detail: ambiguous typeclass method"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("    --> line 10, column 3\n    10 | 1.foo\n       |   ^^^"),
+        "{stderr}"
+    );
+    assert_eq!(
+        stderr
+            .matches("note: matching impl method candidate:")
+            .count(),
+        2,
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "    --> line 5, column 11\n    5 |     our x.foo = 1\n      |           ^^^"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "    --> line 8, column 11\n    8 |     our x.foo = 2\n      |           ^^^"
+        ),
         "{stderr}"
     );
     assert!(

@@ -508,7 +508,7 @@ pub fn build_control_from_poly_output(
         &output.arena,
         output.application_provenance.expr_ids(),
     )
-    .map_err(RouteError::Specialize)?;
+    .map_err(|error| specialize_route_error(error, output))?;
     specialized.runtime_evidence.host_manifest = output.host_manifest.clone();
     specialized
         .runtime_evidence
@@ -1483,6 +1483,13 @@ pub struct BuildPolyOutput {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpecializeDiagnosticContext {
+    pub source: CheckDiagnosticSource,
+    pub range: SourceRange,
+    pub related: Vec<SourceDiagnosticRelated>,
+}
+
 /// Sparse source identity retained alongside the runtime control program.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeApplicationProvenance {
@@ -1544,6 +1551,64 @@ impl BuildPolyOutput {
     pub fn ensure_runtime_ready(&self) -> Result<(), RouteError> {
         reject_runtime_lowering_errors(&self.errors)
     }
+}
+
+pub fn specialize_route_error(
+    error: specialize::SpecializeError,
+    output: &BuildPolyOutput,
+) -> RouteError {
+    let Some(context) = specialize_diagnostic_context(&error, output) else {
+        return RouteError::Specialize(error);
+    };
+    RouteError::SpecializeDiagnostic { error, context }
+}
+
+fn specialize_diagnostic_context(
+    error: &specialize::SpecializeError,
+    output: &BuildPolyOutput,
+) -> Option<SpecializeDiagnosticContext> {
+    let (expr, candidates) = match error {
+        specialize::SpecializeError::UnresolvedTypeclassMethod { expr, .. } => {
+            (*expr, &[][..])
+        }
+        specialize::SpecializeError::AmbiguousTypeclassMethod {
+            expr, candidates, ..
+        } => (*expr, candidates.as_slice()),
+        _ => return None,
+    };
+    let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(expr as usize)? else {
+        return None;
+    };
+    let selection_span = output.selection_provenance.selection_span(*select)?;
+    let source = output
+        .diagnostic_sources
+        .source_for_span(selection_span)?
+        .source;
+    let related = candidates
+        .iter()
+        .map(|candidate| {
+            let candidate = poly::expr::DefId(candidate.0);
+            let span = output.selection_provenance.definition_span(candidate)?;
+            if span.file != selection_span.file {
+                return None;
+            }
+            let label = output
+                .labels
+                .def_label(candidate)
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("d{}", candidate.0));
+            Some(SourceDiagnosticRelated {
+                message: format!("matching impl method candidate: {label}"),
+                range: span.range,
+                origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(SpecializeDiagnosticContext {
+        source,
+        range: selection_span.range,
+        related,
+    })
 }
 
 pub struct BuildPolyAndCompiledUnitOutput {
@@ -1724,6 +1789,10 @@ pub enum RouteError {
     Lower(infer::LoadedFilesError),
     HostActManifest(infer::host_acts::HostActManifestBuildError),
     Specialize(specialize::SpecializeError),
+    SpecializeDiagnostic {
+        error: specialize::SpecializeError,
+        context: SpecializeDiagnosticContext,
+    },
     Runtime(mono_runtime::RuntimeError),
     ControlLower(control_ir::LowerError),
 }
@@ -1887,6 +1956,7 @@ impl fmt::Display for RouteError {
                 write!(f, "failed to build host act manifest: {error:?}")
             }
             RouteError::Specialize(error) => write!(f, "{error}"),
+            RouteError::SpecializeDiagnostic { error, .. } => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
             RouteError::ControlLower(error) => write!(f, "{error}"),
         }
@@ -3590,7 +3660,8 @@ fn specialize_mono_from_poly_output(
     output: BuildPolyOutput,
 ) -> Result<SpecializedMonoOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
+    let program = specialize::specialize(&output.arena)
+        .map_err(|error| specialize_route_error(error, &output))?;
     Ok(SpecializedMonoOutput {
         program,
         labels: output.labels,

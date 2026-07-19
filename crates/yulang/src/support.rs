@@ -867,6 +867,9 @@ pub(super) fn format_runtime_lowering_errors(errors: &[String]) -> String {
 
 pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
     match error {
+        yulang::RouteError::SpecializeDiagnostic { error, context } => {
+            format_ranged_specialize_error(error, context)
+        }
         yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {
             origin:
                 Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
@@ -908,6 +911,68 @@ pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
         yulang::RouteError::Runtime(error) => format_mono_runtime_error(error),
         _ => error.to_string(),
     }
+}
+
+fn format_ranged_specialize_error(
+    error: &specialize::SpecializeError,
+    context: &yulang::source::SpecializeDiagnosticContext,
+) -> String {
+    let (code, message, hint) = match error {
+        specialize::SpecializeError::UnresolvedTypeclassMethod { .. } => (
+            "yulang.unresolved-method",
+            "no role implementation satisfies this method call",
+            "add or import an impl for the receiver type, or call a method supported by that value",
+        ),
+        specialize::SpecializeError::AmbiguousTypeclassMethod { .. } => (
+            "yulang.ambiguous-method",
+            "more than one role implementation satisfies this method call",
+            "make the receiver type more specific or keep only one matching impl in scope",
+        ),
+        _ => return error.to_string(),
+    };
+    let diagnostic = yulang::SourceDiagnostic {
+        severity: yulang::SourceDiagnosticSeverity::Error,
+        code: Some(code.to_string()),
+        label: None,
+        range: Some(context.range),
+        message: message.to_string(),
+        hint: Some(hint.to_string()),
+        related: context.related.clone(),
+    };
+    format_specialize_source_diagnostic(&diagnostic, &context.source, error)
+}
+
+fn format_specialize_source_diagnostic(
+    diagnostic: &yulang::SourceDiagnostic,
+    source: &yulang::CheckDiagnosticSource,
+    error: &specialize::SpecializeError,
+) -> String {
+    let code = diagnostic
+        .code
+        .as_deref()
+        .unwrap_or("yulang.specialize");
+    let mut rendered = format!("compile error [{code}]: {}", diagnostic.message);
+    if let Some(range) = diagnostic.range
+        && let Some(frame) = format_source_frame(Some(source), range)
+    {
+        rendered.push('\n');
+        rendered.push_str(&frame);
+    }
+    rendered.push_str("\n  detail: ");
+    rendered.push_str(&error.to_string());
+    if let Some(hint) = &diagnostic.hint {
+        rendered.push_str("\n  hint: ");
+        rendered.push_str(hint);
+    }
+    for related in &diagnostic.related {
+        rendered.push_str("\n  note: ");
+        rendered.push_str(&related.message);
+        if let Some(frame) = format_source_frame(Some(source), related.range) {
+            rendered.push('\n');
+            rendered.push_str(&frame);
+        }
+    }
+    rendered
 }
 
 pub(super) fn format_mono_runtime_error(error: &mono_runtime::RuntimeError) -> String {
