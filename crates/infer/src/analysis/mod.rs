@@ -72,6 +72,7 @@ use crate::instantiate::{
     instantiate_validated_imported_scheme_witness, seed_imported_boundary,
     validate_imported_scheme_for_instantiation,
 };
+use crate::lowering::ApplicationProvenanceTable;
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
     TypeMethodTable,
@@ -148,6 +149,8 @@ pub use work::{AnalysisDiagnostic, AnalysisWork, SelectionTarget};
 /// それぞれの責務を分けたまま、event queue で進行を同期する。
 pub struct AnalysisSession {
     pub poly: PolyArena,
+    /// Lowering-owned staging table kept beside the arena whose `ExprId`s key it.
+    pub(crate) application_provenance: ApplicationProvenanceTable,
     pub infer: InferArena,
     pub local_defs: LocalDefUseTable,
     pub refs: RefUseTable,

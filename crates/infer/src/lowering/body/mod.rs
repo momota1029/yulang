@@ -33,6 +33,7 @@ pub struct BodyLowering {
     pub labels: DumpLabels,
     pub errors: Vec<BodyLoweringError>,
     pub timing: BodyLoweringTiming,
+    application_provenance: ApplicationProvenanceTable,
     pub(crate) role_impl_conformance_contracts:
         Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
     #[cfg(test)]
@@ -99,6 +100,11 @@ impl BodyLowering {
     }
 
     #[cfg(test)]
+    pub(crate) fn application_provenance(&self) -> &ApplicationProvenanceTable {
+        &self.application_provenance
+    }
+
+    #[cfg(test)]
     pub(crate) fn role_impl_conformance_contracts(
         &self,
     ) -> &[crate::role_impl_conformance::RoleImplConformanceContract] {
@@ -127,6 +133,8 @@ impl BodyLowering {
         // Source conformance is consumed before artifact/prefix construction in later stages.
         // Prefixes contain already-compiled units, so they do not carry source contracts forward.
         let _role_impl_conformance_contracts = self.role_impl_conformance_contracts;
+        // Arena IDs imported from a compiled prefix have no source-CST owner in the new lowering.
+        let _application_provenance = self.application_provenance;
         BodyLoweringPrefix {
             poly: self.session.poly,
             boundary: crate::CompiledBoundaryInterface::empty(),
@@ -1411,6 +1419,7 @@ impl BodyLowerer {
         session.finalize_poly_role_impls();
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();
+        let application_provenance = std::mem::take(&mut session.application_provenance);
         let mut errors = self.errors;
         errors.extend(deferred_result_annotation_errors(
             &session,
@@ -1434,6 +1443,7 @@ impl BodyLowerer {
                 constraint: constraint_timing,
                 ..BodyLoweringTiming::default()
             },
+            application_provenance,
             role_impl_conformance_contracts: self.role_impl_conformance_contracts,
             #[cfg(test)]
             receiverless_conformance_shadow: self.receiverless_conformance_shadow,

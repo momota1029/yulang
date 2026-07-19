@@ -90,12 +90,18 @@ impl<'a> ExprLowerer<'a> {
             );
         }
 
-        let (mut acc, tail_start) = match expr_path_prefix(&items) {
+        let (mut acc, mut acc_source_range, tail_start) = match expr_path_prefix(&items) {
             Some((path, consumed)) if path.len() > 1 => (
                 self.lower_path_name_at(&path, item_slice_source_range(&items[..consumed]))?,
+                item_slice_text_range(&items[..consumed])
+                    .expect("a qualified expression path has source items"),
                 consumed,
             ),
-            _ => (self.lower_head(head.clone(), head_lambda_scope)?, 1),
+            _ => (
+                self.lower_head(head.clone(), head_lambda_scope)?,
+                item_text_range(head),
+                1,
+            ),
         };
         if let Some(pipe_arg) = pipe_arg {
             acc = self.make_app(acc, pipe_arg.expr);
@@ -111,6 +117,7 @@ impl<'a> ExprLowerer<'a> {
                 NodeOrToken::Node(child) if child.kind() == SyntaxKind::Field => {
                     let (name, path_tail_len) =
                         qualified_field_selection_name(child, &items[index + 1..])?;
+                    let tail_end = index + 1 + path_tail_len;
                     acc = if path_tail_len == 0 {
                         self.lower_field_selection(acc, child)?
                     } else {
@@ -120,10 +127,16 @@ impl<'a> ExprLowerer<'a> {
                             super::tail::field_source_range(child),
                         )
                     };
-                    index += 1 + path_tail_len;
+                    let field_source_range = item_slice_text_range(&items[index..tail_end])
+                        .expect("a field tail has source items");
+                    acc_source_range = acc_source_range.cover(field_source_range);
+                    index = tail_end;
                     continue;
                 }
-                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, child)?,
+                NodeOrToken::Node(child) => {
+                    acc = self.lower_tail_node(acc, child, acc_source_range)?;
+                    acc_source_range = acc_source_range.cover(child.text_range());
+                }
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
                 }
@@ -143,6 +156,11 @@ impl<'a> ExprLowerer<'a> {
         stop_kind: Option<SyntaxKind>,
     ) -> Result<Computation, LoweringError> {
         let mut payloads = Vec::new();
+        let mut acc_source_range = item_text_range(
+            items
+                .first()
+                .expect("a poly variant expression chain has a head"),
+        );
         while let Some(NodeOrToken::Node(node)) = items.get(tail_start) {
             if !matches!(node.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC) {
                 break;
@@ -158,6 +176,7 @@ impl<'a> ExprLowerer<'a> {
                     payloads.push(self.lower_expr(&arg)?);
                 }
             }
+            acc_source_range = acc_source_range.cover(node.text_range());
             tail_start += 1;
         }
 
@@ -210,7 +229,10 @@ impl<'a> ExprLowerer<'a> {
                 {
                     break;
                 }
-                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, child)?,
+                NodeOrToken::Node(child) => {
+                    acc = self.lower_tail_node(acc, child, acc_source_range)?;
+                    acc_source_range = acc_source_range.cover(child.text_range());
+                }
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
                 }

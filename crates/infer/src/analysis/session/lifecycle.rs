@@ -13,6 +13,7 @@ impl AnalysisSession {
         let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
         let mut session = Self {
             poly,
+            application_provenance: ApplicationProvenanceTable::default(),
             infer,
             local_defs: LocalDefUseTable::new(),
             refs: RefUseTable::new(),

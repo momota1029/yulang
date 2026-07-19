@@ -9,10 +9,11 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         acc: Computation,
         node: &Cst,
+        callee_source_range: TextRange,
     ) -> Result<Computation, LoweringError> {
         match node.kind() {
             SyntaxKind::ApplyML | SyntaxKind::ApplyC | SyntaxKind::ApplyColon => {
-                self.apply_arguments(acc, node)
+                self.apply_arguments(acc, node, callee_source_range)
             }
             SyntaxKind::Field => self.lower_field_selection(acc, node),
             SyntaxKind::ProjectionTuple => self.lower_projection_tuple_tail(acc, node),
@@ -89,15 +90,35 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         mut callee: Computation,
         node: &Cst,
+        mut callee_source_range: TextRange,
     ) -> Result<Computation, LoweringError> {
         let args = self.apply_argument_exprs(callee, node);
         if args.is_empty() {
             let unit = self.unit_expr();
-            return Ok(self.make_app(callee, unit));
+            let application_source_range = callee_source_range.cover(node.text_range());
+            return Ok(self.make_source_app(
+                callee,
+                unit,
+                application_source_range,
+                callee_source_range,
+            ));
         }
-        for arg in args {
+        let arg_count = args.len();
+        for (index, arg) in args.into_iter().enumerate() {
+            let argument_source_range = if index + 1 == arg_count {
+                node.text_range()
+            } else {
+                arg.text_range()
+            };
+            let application_source_range = callee_source_range.cover(argument_source_range);
             let lowered_arg = self.lower_expr(&arg)?;
-            callee = self.make_app(callee, lowered_arg);
+            callee = self.make_source_app(
+                callee,
+                lowered_arg,
+                application_source_range,
+                callee_source_range,
+            );
+            callee_source_range = application_source_range;
         }
         Ok(callee)
     }
@@ -397,6 +418,10 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
+    /// Build an application without assigning source ownership.
+    ///
+    /// Desugaring helpers use this entrypoint deliberately. Surface application syntax must go
+    /// through `make_source_app` while its CST ranges are still in hand.
     pub(in crate::lowering) fn make_app(
         &mut self,
         callee: Computation,
@@ -433,6 +458,38 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
+    }
+
+    fn make_source_app(
+        &mut self,
+        callee: Computation,
+        arg: Computation,
+        application_source_range: TextRange,
+        callee_source_range: TextRange,
+    ) -> Computation {
+        let application = self.make_app(callee, arg);
+        let application_span = self.source_span(Some(crate::source_range_from_text_range(
+            application_source_range,
+        )));
+        let callee_span = self.source_span(Some(crate::source_range_from_text_range(
+            callee_source_range,
+        )));
+        if let (Some(application_span), Some(callee_span)) = (application_span, callee_span) {
+            let previous = self.session.application_provenance.insert(
+                application.expr,
+                ApplicationProvenance {
+                    origin: ApplicationOrigin::Source,
+                    module: self.module,
+                    application_span,
+                    callee_span,
+                },
+            );
+            debug_assert!(
+                previous.is_none(),
+                "each arena-local application is assigned source provenance at most once"
+            );
+        }
+        application
     }
 
     fn local_callee_call_projection(

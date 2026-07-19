@@ -16,6 +16,19 @@ pub(super) fn item_source_range(item: &CstItem) -> SourceRange {
     }
 }
 
+pub(super) fn item_text_range(item: &CstItem) -> TextRange {
+    match item {
+        NodeOrToken::Node(node) => node.text_range(),
+        NodeOrToken::Token(token) => token.text_range(),
+    }
+}
+
+pub(super) fn item_slice_text_range(items: &[CstItem]) -> Option<TextRange> {
+    let first = item_text_range(items.first()?);
+    let last = item_text_range(items.last()?);
+    Some(first.cover(last))
+}
+
 pub(super) fn item_slice_source_range(items: &[CstItem]) -> Option<SourceRange> {
     let first = item_source_range(items.first()?);
     let last = item_source_range(items.last()?);

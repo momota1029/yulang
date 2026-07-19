@@ -307,6 +307,7 @@ fn build_neg_signature_field_type(src: &str, type_name: &str, field_name: &str) 
         .signature
 }
 
+mod application_provenance;
 mod case_01;
 mod case_02;
 mod case_03;

@@ -125,6 +125,8 @@ impl<'a> ExprLowerer<'a> {
             .filter(|item| !item_is_trivia(item))
             .collect::<Vec<_>>();
         let (name, consumed) = projected_selection_name(&items)?;
+        let mut acc_source_range = item_slice_text_range(&items[..consumed])
+            .expect("a projected selection has source items");
         let mut acc = self.lower_synthetic_selection_at(
             receiver,
             name,
@@ -136,6 +138,7 @@ impl<'a> ExprLowerer<'a> {
                 NodeOrToken::Node(child) if child.kind() == SyntaxKind::Field => {
                     let (name, path_tail_len) =
                         qualified_field_selection_name(child, &items[index + 1..])?;
+                    let tail_end = index + 1 + path_tail_len;
                     acc = if path_tail_len == 0 {
                         self.lower_field_selection(acc, child)?
                     } else {
@@ -145,10 +148,16 @@ impl<'a> ExprLowerer<'a> {
                             super::tail::field_source_range(child),
                         )
                     };
-                    index += 1 + path_tail_len;
+                    let field_source_range = item_slice_text_range(&items[index..tail_end])
+                        .expect("a projected field tail has source items");
+                    acc_source_range = acc_source_range.cover(field_source_range);
+                    index = tail_end;
                     continue;
                 }
-                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, child)?,
+                NodeOrToken::Node(child) => {
+                    acc = self.lower_tail_node(acc, child, acc_source_range)?;
+                    acc_source_range = acc_source_range.cover(child.text_range());
+                }
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
                 }

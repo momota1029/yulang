@@ -37,7 +37,10 @@ pub(crate) fn first_ident_or_sigil(node: &Cst) -> Option<Name> {
 }
 
 pub(crate) fn node_source_range(node: &Cst) -> SourceRange {
-    let range = node.text_range();
+    source_range_from_text_range(node.text_range())
+}
+
+pub(crate) fn source_range_from_text_range(range: rowan::TextRange) -> SourceRange {
     SourceRange {
         start: usize::from(range.start()),
         end: usize::from(range.end()),
@@ -94,11 +97,7 @@ fn token_source_range_for_name(
 }
 
 pub(crate) fn token_source_range(token: &rowan::SyntaxToken<YulangLanguage>) -> SourceRange {
-    let range = token.text_range();
-    SourceRange {
-        start: usize::from(range.start()),
-        end: usize::from(range.end()),
-    }
+    source_range_from_text_range(token.text_range())
 }
 
 /// `Binding → BindingHeader → Pattern` から module value として登録する名前を読む。

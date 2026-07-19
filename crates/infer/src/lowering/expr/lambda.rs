@@ -201,8 +201,12 @@ impl<'a> ExprLowerer<'a> {
         receiver: LocalBinding,
     ) -> Result<Computation, LoweringError> {
         let mut acc = self.lower_local_name(receiver.name.clone(), receiver, None);
+        let mut acc_source_range = None;
         for child in node.children() {
-            acc = self.lower_tail_node(acc, &child)?;
+            let child_source_range = child.text_range();
+            let callee_source_range = acc_source_range.unwrap_or(child_source_range);
+            acc = self.lower_tail_node(acc, &child, callee_source_range)?;
+            acc_source_range = Some(callee_source_range.cover(child_source_range));
         }
         Ok(acc)
     }

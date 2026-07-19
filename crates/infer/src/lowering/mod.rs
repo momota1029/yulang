@@ -10,6 +10,7 @@
 
 use std::sync::Arc;
 
+mod application_provenance;
 mod body;
 mod builtin_op;
 mod cast_scheme;
@@ -34,7 +35,7 @@ pub(crate) use yumark_lit::{YumarkSequenceNormalization, normalize_yumark_tree_b
 
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
-use rowan::{NodeOrToken, SyntaxNode};
+use rowan::{NodeOrToken, SyntaxNode, TextRange};
 use serde::{Deserialize, Serialize};
 use sources::{LoadedFile, Name, Path, SourceRange};
 
@@ -84,6 +85,9 @@ use crate::{
     SyntheticSubLabelActUse, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl,
     TypeMethodReceiver, append_loaded_files_to_lower, append_root_loaded_file_to_lower,
     binding_type_expr, lower_loaded_file_csts_module_map,
+};
+pub(crate) use application_provenance::{
+    ApplicationOrigin, ApplicationProvenance, ApplicationProvenanceTable,
 };
 use body::signature_helpers::*;
 use cast_scheme::{CastScheme, build_cast_scheme_from_ann};
