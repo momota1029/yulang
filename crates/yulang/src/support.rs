@@ -579,10 +579,14 @@ fn format_runtime_evidence_run_error(
     diagnostic_sources: &yulang::RuntimeDiagnosticSources,
 ) -> String {
     match error {
-        evidence_vm::RuntimeEvidenceRunError::EscapedEffect { path, .. } => format!(
-            "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
-            path.join("::")
-        ),
+        evidence_vm::RuntimeEvidenceRunError::EscapedEffect { site, path } => {
+            format_unhandled_effect_error(
+                *site,
+                path,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
         evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { site, path } => {
             format_unsupported_host_capability_error(
                 *site,
@@ -641,6 +645,29 @@ fn format_runtime_evidence_run_error(
             "runtime error [yulang.runtime-internal]: {error}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
     }
+}
+
+fn format_unhandled_effect_error(
+    site: Option<control_ir::ExprId>,
+    path: &[String],
+    application_provenance: &yulang::RuntimeApplicationProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
+    const CODE: &str = "yulang.unhandled-effect";
+    const HINT: &str =
+        "handle this computation with a matching effect handler before running it";
+    let message = format!("unhandled effect request {}", path.join("::"));
+    let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
+
+    format_ranged_application_runtime_error(
+        site,
+        CODE,
+        &message,
+        HINT,
+        application_provenance,
+        diagnostic_sources,
+    )
+    .unwrap_or_else(fallback)
 }
 
 fn format_not_callable_error(

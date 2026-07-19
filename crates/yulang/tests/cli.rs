@@ -582,15 +582,14 @@ fn compatible_run_native_tcp_server_echoes_two_connections() {
 }
 
 #[test]
-fn compatible_run_reports_unhandled_effect_hint() {
+fn compatible_run_reports_unhandled_effect_source_ranges_and_hint() {
     let entry = write_entry(
-        "run-unhandled-nondet-effect",
-        "use std::control::nondet::*\n\neach [1, 2]\n",
+        "run-unhandled-effect",
+        "pub act stop:\n  our now: () -> int\n\nstop::now()\n",
     );
 
     let output = yulang_command()
-        .arg("--std-root")
-        .arg(repo_lib_root())
+        .arg("--no-prelude")
         .arg("--no-cache")
         .arg("run")
         .arg("--print-roots")
@@ -609,13 +608,25 @@ fn compatible_run_reports_unhandled_effect_hint() {
     let stderr = stderr(&output);
     assert!(
         stderr.contains(
-            "runtime error [yulang.unhandled-effect]: unhandled effect request std::control::nondet::nondet::branch\n"
+            "runtime error [yulang.unhandled-effect]: unhandled effect request stop::now\n\
+             \x20   --> line 4, column 1\n\
+             \x20   4 | stop::now()\n\
+             \x20     | ^^^^^^^^^\n"
         ),
         "{stderr}"
     );
     assert!(
         stderr.contains(
             "hint: handle this computation with a matching effect handler before running it"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "note: application occurs here\n\
+             \x20   --> line 4, column 1\n\
+             \x20   4 | stop::now()\n\
+             \x20     | ^^^^^^^^^^^"
         ),
         "{stderr}"
     );
