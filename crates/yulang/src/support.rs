@@ -615,7 +615,7 @@ fn format_runtime_evidence_run_error(
                 diagnostic_sources,
             )
         }
-        evidence_vm::RuntimeEvidenceRunError::NotRecord(value) => format!(
+        evidence_vm::RuntimeEvidenceRunError::NotRecord { value, .. } => format!(
             "runtime error [yulang.not-record]: tried to read fields from non-record value {value}\n  hint: use `.field` only on record values"
         ),
         evidence_vm::RuntimeEvidenceRunError::PatternMismatch => {

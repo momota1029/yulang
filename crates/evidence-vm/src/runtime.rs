@@ -1110,6 +1110,7 @@ enum RuntimeEvidenceExpr {
         payloads: Rc<[ExprId]>,
     },
     Select {
+        site: ExprId,
         base: ExprId,
         name: String,
         resolution: Option<SelectResolution>,
@@ -9069,7 +9070,10 @@ pub enum RuntimeEvidenceRunError {
         value: String,
     },
     NotThunk(String),
-    NotRecord(String),
+    NotRecord {
+        site: Option<ExprId>,
+        value: String,
+    },
     MissingRecordField(String),
     PatternMismatch,
     DivideByZero,
@@ -9127,7 +9131,9 @@ impl fmt::Display for RuntimeEvidenceRunError {
                 write!(f, "runtime-evidence-run not a function: {value}")
             }
             Self::NotThunk(value) => write!(f, "runtime-evidence-run not a thunk: {value}"),
-            Self::NotRecord(value) => write!(f, "runtime-evidence-run not a record: {value}"),
+            Self::NotRecord { value, .. } => {
+                write!(f, "runtime-evidence-run not a record: {value}")
+            }
             Self::MissingRecordField(name) => {
                 write!(f, "runtime-evidence-run missing record field: {name}")
             }
@@ -9467,6 +9473,7 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 name,
                 resolution,
             } => RuntimeEvidenceExpr::Select {
+                site: ExprId(index as u32),
                 base: *base,
                 name: name.clone(),
                 resolution: resolution.clone(),
@@ -15474,13 +15481,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 );
             }
             RuntimeEvidenceExpr::Select {
+                site,
                 base,
                 name,
                 resolution,
             } => {
                 let name = name.clone();
                 let resolution = resolution.clone();
-                return self.eval_select_result(*base, &name, &resolution, env);
+                return self.eval_select_result(*site, *base, &name, &resolution, env);
             }
             RuntimeEvidenceExpr::Case { expr, scrutinee } => {
                 let arms = self.static_case_arms(*expr);
@@ -17867,6 +17875,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn eval_select_result(
         &mut self,
+        site: ExprId,
         base: ExprId,
         name: &str,
         resolution: &Option<SelectResolution>,
@@ -17874,8 +17883,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match self.eval_expr_result(base, env)? {
             EvidenceEvalResult::Value(base) => {
-                self.apply_select_base_result(base, name, resolution)
+                self.apply_select_base_result(Some(site), base, name, resolution)
             }
+            // Selection provenance is intentionally immediate-only for now. Suspended bases keep
+            // the existing site-free continuation shape and therefore fall back to `site: None`.
             EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => Ok(
                 EvidenceEvalResult::request(self.append_request_continuation(
                     request,
@@ -17912,14 +17923,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn apply_select_base_result(
         &mut self,
+        site: Option<ExprId>,
         base: SharedValue,
         name: &str,
         resolution: &Option<SelectResolution>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match resolution {
-            Some(SelectResolution::RecordField) | None => {
-                record_field(base.as_ref(), name).map(EvidenceEvalResult::Value)
-            }
+            Some(SelectResolution::RecordField) | None => record_field(base.as_ref(), name)
+                .map_err(|error| attach_not_record_site(error, site))
+                .map(EvidenceEvalResult::Value),
             Some(SelectResolution::Method { instance }) => {
                 let method = self.eval_instance(*instance)?;
                 self.apply_value_result(None, method, base)
@@ -18803,7 +18815,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 resolution,
                 next,
             } => {
-                let result = self.apply_select_base_result(value, &name, &resolution)?;
+                let result = self.apply_select_base_result(None, value, &name, &resolution)?;
                 self.continue_result(result, next)
             }
             EvidenceContinuationFrame::BlockStmt {
@@ -19679,7 +19691,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.eval_poly_variant_payloads_result(tag.clone(), values, rest, &mut env)
             }
             EvidenceEvalDeltaFramePlan::SelectBase { name, resolution } => {
-                self.apply_select_base_result(value, name, resolution)
+                self.apply_select_base_result(None, value, name, resolution)
             }
             EvidenceEvalDeltaFramePlan::BlockStmt {
                 resume,
@@ -24961,7 +24973,22 @@ fn record_fields(
         RuntimeEvidenceValue::DataConstructor { payloads, .. } if payloads.len() == 1 => {
             record_fields(payloads[0].as_ref())
         }
-        value => Err(RuntimeEvidenceRunError::NotRecord(format_value(value))),
+        value => Err(RuntimeEvidenceRunError::NotRecord {
+            site: None,
+            value: format_value(value),
+        }),
+    }
+}
+
+fn attach_not_record_site(
+    error: RuntimeEvidenceRunError,
+    site: Option<ExprId>,
+) -> RuntimeEvidenceRunError {
+    match error {
+        RuntimeEvidenceRunError::NotRecord { value, .. } => {
+            RuntimeEvidenceRunError::NotRecord { site, value }
+        }
+        error => error,
     }
 }
 
@@ -25817,6 +25844,30 @@ mod tests {
             run_program(&program),
             Err(RuntimeEvidenceRunError::NotFunction {
                 site: Some(ExprId(2)),
+                value: "1".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn immediate_not_record_retains_the_control_select_site() {
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(1))],
+            exprs: vec![
+                Expr::Lit(Lit::Int(1)),
+                Expr::Select {
+                    base: ExprId(0),
+                    name: "a".to_string(),
+                    resolution: Some(SelectResolution::RecordField),
+                },
+            ],
+            ..Program::default()
+        };
+
+        assert_eq!(
+            run_program(&program),
+            Err(RuntimeEvidenceRunError::NotRecord {
+                site: Some(ExprId(1)),
                 value: "1".to_string(),
             })
         );
