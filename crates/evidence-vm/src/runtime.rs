@@ -1439,6 +1439,7 @@ struct EvidenceProviderGrantGate {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EffectThunkEvidence {
+    site: Option<ExprId>,
     route_cert: EvidenceRouteCert,
     visibility: Option<RuntimeEvidenceOperationVisibility>,
     known_operation: Option<RuntimeEvidenceKnownOperationCall>,
@@ -5793,6 +5794,7 @@ enum EvidenceGuardSkip {
 
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceRequest {
+    site: Option<ExprId>,
     path: Rc<[String]>,
     payload: SharedValue,
     route: EvidenceEffectRoute,
@@ -5891,6 +5893,7 @@ impl EvidenceDirectTailResumptive {
 
     fn into_request(self, route: EvidenceEffectRoute) -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: self.path,
             payload: self.payload,
             route,
@@ -9035,7 +9038,10 @@ pub enum RuntimeEvidenceRunError {
     UnsupportedExpr(&'static str),
     UnsupportedPrimitive(PrimitiveOp),
     EscapedEffect(Vec<String>),
-    UnsupportedHostCapability(Vec<String>),
+    UnsupportedHostCapability {
+        site: Option<ExprId>,
+        path: Vec<String>,
+    },
     HostAbiError {
         operation: Vec<String>,
         message: String,
@@ -9085,7 +9091,7 @@ impl fmt::Display for RuntimeEvidenceRunError {
                 "runtime-evidence-run escaped effect request: {}",
                 path.join("::")
             ),
-            Self::UnsupportedHostCapability(path) => write!(
+            Self::UnsupportedHostCapability { path, .. } => write!(
                 f,
                 "runtime-evidence-run unsupported host capability: {}",
                 path.join("::")
@@ -10893,6 +10899,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         resolved_route: EvidenceResolvedEffectRoute,
     ) -> EffectThunkEvidence {
         EffectThunkEvidence {
+            site,
             route_cert: self.effect_route_cert(resolved_route.origin),
             visibility: resolved_route.visibility,
             known_operation: site
@@ -14865,9 +14872,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.handle_runtime_host_multi_shot_operation(operation, request)
                 }
             },
-            RuntimeHostRequestResolution::UnsupportedCapability(failure) => Err(
-                RuntimeEvidenceRunError::UnsupportedHostCapability(failure.act_path_strings()),
-            ),
+            RuntimeHostRequestResolution::UnsupportedCapability(failure) => {
+                Err(RuntimeEvidenceRunError::UnsupportedHostCapability {
+                    site: request.site,
+                    path: failure.act_path_strings(),
+                })
+            }
         }
     }
 
@@ -21547,6 +21557,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 // nested calls to the same handler body, so keep this path on generic request
                 // routing where active markers can hide the dynamically-nearest handler.
                 let mut request = EvidenceRequest {
+                    site: evidence.site,
                     path,
                     payload,
                     route: EvidenceEffectRoute::Unhandled,
@@ -21616,6 +21627,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 // Fall through to the generic request path.
             } else {
                 let mut request = EvidenceRequest {
+                    site: evidence.site,
                     path: path.clone(),
                     payload,
                     route,
@@ -21630,6 +21642,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
         let mut request = EvidenceRequest {
+            site: evidence.site,
             path,
             payload,
             route,
@@ -25771,6 +25784,68 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_host_capability_retains_ordinary_effect_thunk_apply_site() {
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(4))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: clock_now_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                Expr::Coerce {
+                    source: Type::Any,
+                    target: Type::Any,
+                    expr: ExprId(2),
+                },
+                force_effect_expr(ExprId(3), Type::Any),
+            ],
+            ..Program::default()
+        };
+        let mut runner = unsupported_clock_runner(&program);
+        assert!(matches!(
+            runner.runtime_exprs[4],
+            RuntimeEvidenceExpr::ForceThunk { .. }
+        ));
+
+        assert_eq!(runner.run(), Err(unsupported_clock_error(Some(ExprId(2)))));
+    }
+
+    #[test]
+    fn unsupported_host_capability_retains_optimized_force_effect_call_site() {
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(3))],
+            exprs: vec![
+                Expr::Lit(Lit::Unit),
+                Expr::EffectOp {
+                    def: None,
+                    path: clock_now_path(),
+                },
+                Expr::Apply {
+                    callee: ExprId(1),
+                    arg: ExprId(0),
+                },
+                force_effect_expr(ExprId(2), Type::Any),
+            ],
+            ..Program::default()
+        };
+        let mut runner = unsupported_clock_runner(&program);
+        assert!(matches!(
+            runner.runtime_exprs[3],
+            RuntimeEvidenceExpr::ForceEffectCall {
+                site: ExprId(2),
+                ..
+            }
+        ));
+
+        assert_eq!(runner.run(), Err(unsupported_clock_error(Some(ExprId(2)))));
+    }
+
+    #[test]
     fn runtime_host_operation_denied_by_context_reports_unsupported_capability() {
         let program = Program::default();
         let context = RuntimeEvidenceRunContext::default().without_native_host_operations();
@@ -25785,6 +25860,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -25804,12 +25880,10 @@ mod tests {
         };
         assert_eq!(
             error,
-            RuntimeEvidenceRunError::UnsupportedHostCapability(vec![
-                "std".into(),
-                "io".into(),
-                "file".into(),
-                "file".into()
-            ])
+            RuntimeEvidenceRunError::UnsupportedHostCapability {
+                site: None,
+                path: vec!["std".into(), "io".into(), "file".into(), "file".into()],
+            }
         );
     }
 
@@ -25884,6 +25958,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -25922,6 +25997,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -26223,6 +26299,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "time".to_string(),
@@ -26257,6 +26334,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "test".to_string(),
                 "host".to_string(),
@@ -26293,6 +26371,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -26344,6 +26423,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "test".to_string(),
                 "host".to_string(),
@@ -26781,6 +26861,7 @@ mod tests {
             }],
         );
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "test".to_string(),
                 "host".to_string(),
@@ -26984,6 +27065,7 @@ mod tests {
 
     fn fake_server_accept_request() -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -27003,6 +27085,7 @@ mod tests {
 
     fn console_out_write_request(text: &str) -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -27236,6 +27319,7 @@ mod tests {
 
     fn fake_server_respond_request(slot: SharedValue, response: &[u8]) -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "std".to_string(),
                 "io".to_string(),
@@ -27430,6 +27514,37 @@ mod tests {
         )
     }
 
+    fn unsupported_clock_runner(program: &Program) -> RuntimeEvidenceRunner<'_> {
+        let context = RuntimeEvidenceRunContext::default().without_native_host_operations();
+        let mut runner = RuntimeEvidenceRunner::new(program, context);
+        runner.host_registry = RuntimeHostRegistry::with_manifest_and_registrations(
+            false,
+            Some(clock_now_host_manifest()),
+            vec![HostOpRegistration {
+                act_id: "std.time.clock",
+                operation_id: "now",
+                f: host_clock_now,
+            }],
+        );
+        runner
+    }
+
+    fn unsupported_clock_error(site: Option<ExprId>) -> RuntimeEvidenceRunError {
+        RuntimeEvidenceRunError::UnsupportedHostCapability {
+            site,
+            path: vec!["std".into(), "time".into(), "clock".into()],
+        }
+    }
+
+    fn clock_now_path() -> Vec<String> {
+        vec![
+            "std".to_string(),
+            "time".to_string(),
+            "clock".to_string(),
+            "now".to_string(),
+        ]
+    }
+
     fn custom_host_manifest() -> poly::host_manifest::HostActManifest {
         single_operation_host_manifest(
             "test.host.bridge",
@@ -27549,6 +27664,7 @@ mod tests {
 
     fn custom_host_request() -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: shared_path(&[
                 "test".to_string(),
                 "host".to_string(),
@@ -27616,6 +27732,7 @@ mod tests {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         let request = EvidenceRequest {
+            site: None,
             path: shared_path(&["out".to_string(), "say".to_string()]),
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,
@@ -29654,6 +29771,7 @@ mod tests {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         let request = EvidenceRequest {
+            site: None,
             path: Rc::from(vec!["op".to_string()].into_boxed_slice()),
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,
@@ -30631,6 +30749,7 @@ mod tests {
         runner.active_provider_envs.push(frame);
         let grant_id = runner.record_provider_grant(grant);
         let evidence = EffectThunkEvidence {
+            site: None,
             route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
             visibility: None,
             known_operation: None,
@@ -30642,6 +30761,7 @@ mod tests {
         assert!(runner.route_allows_routed_yield(
             true,
             EffectThunkEvidence {
+                site: None,
                 route_cert: EvidenceRouteCert::None,
                 visibility: None,
                 known_operation: None,
@@ -30686,6 +30806,7 @@ mod tests {
                     request_free_yield: false,
                 },
                 EffectThunkEvidence {
+                    site: None,
                     route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
                     visibility: Some(RuntimeEvidenceOperationVisibility::provider_grant(7)),
                     known_operation: None,
@@ -30770,6 +30891,7 @@ mod tests {
 
     fn request_fixture(family: &str, operation: &str) -> EvidenceRequest {
         EvidenceRequest {
+            site: None,
             path: shared_path(&[family.to_string(), operation.to_string()]),
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,

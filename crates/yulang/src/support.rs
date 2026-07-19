@@ -582,7 +582,7 @@ fn format_runtime_evidence_run_error(
             "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
             path.join("::")
         ),
-        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability(path) => format!(
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { path, .. } => format!(
             "runtime error [yulang.unsupported-host-capability]: host capability {} is not available in this runtime\n  hint: use a host that grants this capability or handle the capability with a mock effect handler",
             path.join("::")
         ),

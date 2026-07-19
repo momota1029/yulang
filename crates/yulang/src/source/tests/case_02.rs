@@ -271,7 +271,7 @@ fn compiled_unit_prefix_host_manifest_reaches_runtime_capability_boundary() {
             .expect_err("unregistered generated host operation should fail at capability boundary");
 
     match error {
-        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability(path) => {
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedHostCapability { path, .. } => {
             assert_eq!(path, vec!["dep".to_string(), "bridge".to_string()]);
         }
         other => panic!("expected unsupported host capability, got {other:?}"),
