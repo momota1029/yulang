@@ -1,5 +1,6 @@
 use super::*;
 use std::io::IsTerminal as _;
+use unicode_width::UnicodeWidthStr;
 
 pub(super) fn parse_build_args(
     program: &str,
@@ -1153,8 +1154,8 @@ fn source_frame(source: &str, range: yulang::SourceRange) -> Option<SourceFrame>
         .unwrap_or(source.len());
     let range_start = range.start.clamp(line_start, line_end);
     let range_end = range.end.clamp(range_start, line_end);
-    let marker_start = source[line_start..range_start].chars().count();
-    let marker_len = source[range_start..range_end].chars().count().max(1);
+    let marker_start = diagnostic_display_width(&source[line_start..range_start]);
+    let marker_len = diagnostic_display_width(&source[range_start..range_end]).max(1);
     Some(SourceFrame {
         line_number: line_index + 1,
         column_number: marker_start + 1,
@@ -1162,6 +1163,13 @@ fn source_frame(source: &str, range: yulang::SourceRange) -> Option<SourceFrame>
         marker_start,
         marker_len,
     })
+}
+
+fn diagnostic_display_width(text: &str) -> usize {
+    // Regular width() keeps EAW Ambiguous characters on standard non-CJK width.
+    let display_width = text.split('\t').map(UnicodeWidthStr::width).sum::<usize>();
+    // Tabs keep the prior one-column approximation; tab-stop expansion is out of scope here.
+    display_width + text.matches('\t').count()
 }
 
 fn source_line_starts(source: &str) -> Vec<usize> {
@@ -1217,4 +1225,76 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} [--std-root <path>] dump-poly-std-raw <path>");
     eprintln!("       {program} [--std-root <path>] dump-poly-std-in-raw <path> <module>");
     process::exit(2);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_frame_uses_terminal_display_width_for_cjk() {
+        let source = "my 日本語 = 値(1)";
+        let start = source.find('値').unwrap();
+        let range = yulang::SourceRange {
+            start,
+            end: start + '値'.len_utf8(),
+        };
+
+        let frame = source_frame(source, range).unwrap();
+        assert_eq!(frame.line_number, 1);
+        assert_eq!(frame.column_number, 13);
+        assert_eq!(frame.marker_start, 12);
+        assert_eq!(frame.marker_len, 2);
+        assert_eq!(
+            format_source_frame(Some(&diagnostic_source(source)), range).unwrap(),
+            format!(
+                "    --> line 1, column 13\n    1 | {source}\n      | {}^^",
+                " ".repeat(12)
+            )
+        );
+    }
+
+    #[test]
+    fn source_frame_uses_terminal_display_width_for_fullwidth_punctuation() {
+        let source = "my x = （value）";
+        let start = source.find('（').unwrap();
+        let range = yulang::SourceRange {
+            start,
+            end: start + '（'.len_utf8(),
+        };
+
+        let frame = source_frame(source, range).unwrap();
+        assert_eq!(frame.column_number, 8);
+        assert_eq!(frame.marker_start, 7);
+        assert_eq!(frame.marker_len, 2);
+        assert_eq!(
+            format_source_frame(Some(&diagnostic_source(source)), range).unwrap(),
+            format!(
+                "    --> line 1, column 8\n    1 | {source}\n      | {}^^",
+                " ".repeat(7)
+            )
+        );
+    }
+
+    #[test]
+    fn source_frame_keeps_ascii_output_byte_identical() {
+        let source = "my a = 1 2\n";
+        let start = source.find('1').unwrap();
+        let range = yulang::SourceRange {
+            start,
+            end: start + 1,
+        };
+
+        assert_eq!(
+            format_source_frame(Some(&diagnostic_source(source)), range).unwrap(),
+            "    --> line 1, column 8\n    1 | my a = 1 2\n      |        ^"
+        );
+    }
+
+    fn diagnostic_source(source: &str) -> yulang::CheckDiagnosticSource {
+        yulang::CheckDiagnosticSource {
+            source: source.to_string(),
+            range_offset: 0,
+        }
+    }
 }

@@ -23,6 +23,7 @@ parser = { path = "../parser" }
 toml = "0.8"
 yulang-editor = { path = "../yulang-editor" }
 unicode-ident = "1.0.12"
+unicode-width = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["full"] }
