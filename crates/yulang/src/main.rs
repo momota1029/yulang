@@ -171,6 +171,7 @@ struct GlobalOptions {
     no_prelude: bool,
     show_cst: bool,
     use_cache: bool,
+    infer_phase_timings: bool,
     runtime_phase_timings: bool,
     owner_dirty_scheduler_always_solve: bool,
     generalize_role_snapshot_always_solve: bool,
@@ -184,6 +185,7 @@ impl Default for GlobalOptions {
             no_prelude: false,
             show_cst: false,
             use_cache: true,
+            infer_phase_timings: false,
             runtime_phase_timings: false,
             owner_dirty_scheduler_always_solve: false,
             generalize_role_snapshot_always_solve: false,
@@ -545,6 +547,9 @@ fn parse_global_options(
             Some("--runtime-phase-timings") => {
                 options.runtime_phase_timings = true;
             }
+            Some("--infer-phase-timings") => {
+                options.infer_phase_timings = true;
+            }
             // Stage 6 made this Stage 5 opt-in spelling a no-op. Keep accepting it without
             // changing behavior so older benchmark commands retain their original meaning.
             Some("--owner-dirty-scheduler-benchmark") => {}
@@ -557,7 +562,7 @@ fn parse_global_options(
             Some("--generalize-role-snapshot-enable-reuse") => {
                 options.generalize_role_snapshot_enable_reuse = true;
             }
-            Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
+            Some("--verbose-ir") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
                 if args.pop_front().is_none() {
                     return Err(format!("{arg:?} requires a value"));
@@ -575,19 +580,24 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
     let path = require_one_path(program, args);
     print_cst_if_requested(options, &path);
     if options.no_prelude {
-        run_route(yulang::check_poly_from_entry(path), finish_compatible_check);
+        run_route(yulang::check_poly_from_entry(path), |output| {
+            finish_compatible_check(output, options.infer_phase_timings)
+        });
         return;
     }
 
     let source_options = options.std_source_options();
     run_route(
         yulang::check_poly_from_entry_with_std_options(path, &source_options),
-        finish_compatible_check,
+        |output| finish_compatible_check(output, options.infer_phase_timings),
     );
 }
 
-fn finish_compatible_check(output: &yulang::CheckPolyOutput) {
-    print_check_poly_output(output);
+fn finish_compatible_check(output: &yulang::CheckPolyOutput, print_stats: bool) {
+    print_check_diagnostics_summary(&output.diagnostics, output.diagnostic_source.as_ref());
+    if print_stats {
+        print!("{}", output.text);
+    }
     if output
         .diagnostics
         .iter()

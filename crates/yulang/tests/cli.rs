@@ -1006,10 +1006,7 @@ fn compatible_check_accepts_explicit_std_root() {
         .unwrap();
 
     assert_success(&output);
-    let stdout = stdout(&output);
-    assert!(stdout.contains("check-poly-std\n"), "{stdout}");
-    assert!(stdout.contains("files: 3\n"), "{stdout}");
-    assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
+    assert_eq!(stdout(&output), "");
 }
 
 #[test]
@@ -1024,9 +1021,7 @@ fn compatible_check_no_prelude_uses_local_source_only() {
         .unwrap();
 
     assert_success(&output);
-    let stdout = stdout(&output);
-    assert!(stdout.contains("check-poly\n"), "{stdout}");
-    assert!(stdout.contains("files: 1\n"), "{stdout}");
+    assert_eq!(stdout(&output), "");
 }
 
 #[test]
@@ -1065,11 +1060,8 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains("  x: type mismatch: bool is not int\n"),
-        "{stdout}"
-    );
+    assert!(!stdout.contains("timing:\n"), "{stdout}");
+    assert!(!stdout.contains("constraint.drain:"), "{stdout}");
     assert_eq!(stderr(&output), "");
 }
 
@@ -1122,11 +1114,6 @@ fn public_diagnostics_check_reports_unresolved_value_name() {
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains("  result: unresolved value name: missing\n"),
-        "{stdout}"
-    );
     assert_eq!(stderr(&output), "");
 }
 
@@ -1156,11 +1143,6 @@ fn public_diagnostics_check_reports_unresolved_type_name() {
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains("  x: unresolved type name: missing_type\n"),
-        "{stdout}"
-    );
     assert_eq!(stderr(&output), "");
 }
 
@@ -1183,11 +1165,6 @@ fn public_diagnostics_check_reports_unsupported_type_syntax() {
         stdout.contains(
             "diagnostics:\n  error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord\n"
         ),
-        "{stdout}"
-    );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains("  x: unsupported type annotation syntax: TypeRecord\n"),
         "{stdout}"
     );
     assert_eq!(stderr(&output), "");
@@ -1213,13 +1190,6 @@ fn public_diagnostics_check_reports_top_level_mutable_binding() {
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains(
-            "  $x: top-level mutable binding $x is not supported; move it into a block or function body\n"
-        ),
-        "{stdout}"
-    );
     assert_eq!(stderr(&output), "");
 }
 
@@ -1240,13 +1210,6 @@ fn public_diagnostics_check_reports_rule_lazy_quantifier() {
     assert!(
         stdout.contains(
             "diagnostics:\n  error [yulang.unsupported-rule-lazy-quantifier]: p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition\n"
-        ),
-        "{stdout}"
-    );
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains(
-            "  p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition\n"
         ),
         "{stdout}"
     );
@@ -1277,8 +1240,6 @@ fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
         stdout.contains("    --> line 1, column 10\n    1 | my x = (1\n      |          ^\n"),
         "{stdout}"
     );
-    assert!(stdout.contains("check-poly\n"), "{stdout}");
-    assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
     assert_eq!(stderr(&output), "");
 }
 
@@ -1304,8 +1265,6 @@ fn public_diagnostics_check_reports_trailing_operator_syntax() {
         stdout.contains("    --> line 1, column 10\n    1 | my x = 1 +\n      |          ^\n"),
         "{stdout}"
     );
-    assert!(stdout.contains("check-poly\n"), "{stdout}");
-    assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
     assert_eq!(stderr(&output), "");
 }
 
@@ -1377,12 +1336,6 @@ fn public_diagnostics_check_reports_missing_local_binding_body() {
     );
     assert!(
         stdout.contains("    --> line 1, column 4\n    1 | my x =\n      |    ^\n"),
-        "{stdout}"
-    );
-    assert!(stdout.contains("check-poly\n"), "{stdout}");
-    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
-    assert!(
-        stdout.contains("  x: binding `x` is missing a body expression\n"),
         "{stdout}"
     );
     assert_eq!(stderr(&output), "");
@@ -1490,6 +1443,8 @@ fn compatible_global_cst_and_timing_flags_are_accepted() {
     let stdout = stdout(&output);
     assert!(stdout.contains("Root\n"), "{stdout}");
     assert!(stdout.contains("check-poly\n"), "{stdout}");
+    assert!(stdout.contains("timing:\n"), "{stdout}");
+    assert!(stdout.contains("constraint.drain:"), "{stdout}");
 }
 
 #[test]
