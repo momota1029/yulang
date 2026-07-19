@@ -14,6 +14,17 @@ impl Specializer2 {
         }
     }
 
+    pub(super) fn with_source_provenance(
+        source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
+        source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
+    ) -> Self {
+        Self {
+            source_applications: source_applications.into_iter().collect(),
+            source_selections: source_selections.into_iter().collect(),
+            ..Self::default()
+        }
+    }
+
     pub(super) fn specialize(self, arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
         Ok(self.specialize_with_runtime_evidence(arena)?.program)
     }
@@ -317,6 +328,17 @@ impl Specializer2 {
             expr_out = expr_out.with_application_provenance(ApplicationProvenanceTag {
                 task,
                 poly_expr: expr.0,
+            });
+        }
+        if let PolyExpr::Select(_, select) = arena.expr(expr)
+            && self.source_selections.contains(select)
+        {
+            let task = self
+                .active_task
+                .expect("source selection emission should have an active specialization task");
+            expr_out = expr_out.with_selection_provenance(SelectionProvenanceTag {
+                task,
+                select: select.0,
             });
         }
         let mut expr_out = EmittedExpr::pure(expr_out, raw_expr_value_type(arena, solved, expr));

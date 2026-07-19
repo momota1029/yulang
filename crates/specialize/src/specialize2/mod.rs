@@ -10,7 +10,8 @@ use mono::{
     ApplicationProvenanceTag, ApplicationSpecializationTask, Block, CaseArm, CatchArm,
     ComputationType, EffectFamilies, EffectFamily, EffectiveThunkType, Expr, ExprKind, Instance,
     InstanceId, InstanceSource, Pat, Program, RecordField, RecordSpread, Root, SelectResolution,
-    Signature, StackWeight, StackWeightEntry, Stmt, Type, TypeField, TypeVariant,
+    SelectionProvenanceTag, Signature, StackWeight, StackWeightEntry, Stmt, Type, TypeField,
+    TypeVariant,
 };
 use poly::expr as poly_expr;
 
@@ -67,6 +68,15 @@ pub(crate) fn specialize_with_runtime_evidence_and_application_provenance(
         .specialize_with_runtime_evidence(arena)
 }
 
+pub(crate) fn specialize_with_runtime_evidence_and_source_provenance(
+    arena: &poly_expr::Arena,
+    source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
+    source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
+) -> Result<SpecializeOutput, SpecializeError> {
+    Specializer2::with_source_provenance(source_applications, source_selections)
+        .specialize_with_runtime_evidence(arena)
+}
+
 pub(crate) fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     Specializer2::new().specialize(arena)
 }
@@ -84,6 +94,7 @@ struct Specializer2 {
     force_block_tail_exprs: HashSet<poly_expr::ExprId>,
     runtime_evidence: RuntimeEvidenceSurface,
     source_applications: HashSet<poly_expr::ExprId>,
+    source_selections: HashSet<poly_expr::SelectId>,
     active_task: Option<ApplicationSpecializationTask>,
 }
 

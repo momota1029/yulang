@@ -1070,9 +1070,12 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
     }
 
     let specialize_start = Instant::now();
-    let mut specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+    let mut specialized = specialize::specialize_with_runtime_evidence_and_source_provenance(
         &poly.arena,
         poly.application_provenance.expr_ids(),
+        poly.selection_provenance
+            .selection_spans()
+            .map(|(select, _)| select),
     )
     .map_err(|_| ())?;
     specialized.runtime_evidence.host_manifest = poly.host_manifest.clone();
@@ -1152,9 +1155,12 @@ fn specialize_control_program(
     mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
 ) -> specialize::SpecializeOutput {
     abort_on_runtime_lowering_errors(&poly.errors);
-    let mut output = match specialize::specialize_with_runtime_evidence_and_application_provenance(
+    let mut output = match specialize::specialize_with_runtime_evidence_and_source_provenance(
         &poly.arena,
         poly.application_provenance.expr_ids(),
+        poly.selection_provenance
+            .selection_spans()
+            .map(|(select, _)| select),
     ) {
         Ok(output) => output,
         Err(error) => exit_on_specialize_error(error, poly),

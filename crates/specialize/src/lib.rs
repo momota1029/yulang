@@ -93,6 +93,18 @@ pub fn specialize_with_runtime_evidence_and_application_provenance(
     )
 }
 
+pub fn specialize_with_runtime_evidence_and_source_provenance(
+    arena: &poly_expr::Arena,
+    source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
+    source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
+) -> Result<SpecializeOutput, SpecializeError> {
+    specialize2::specialize_with_runtime_evidence_and_source_provenance(
+        arena,
+        source_applications,
+        source_selections,
+    )
+}
+
 pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     specialize2::specialize(arena)
 }

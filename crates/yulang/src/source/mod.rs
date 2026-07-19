@@ -504,9 +504,13 @@ pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
 ) -> Result<BuildControlOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let mut specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
+    let mut specialized = specialize::specialize_with_runtime_evidence_and_source_provenance(
         &output.arena,
         output.application_provenance.expr_ids(),
+        output
+            .selection_provenance
+            .selection_spans()
+            .map(|(select, _)| select),
     )
     .map_err(|error| specialize_route_error(error, output))?;
     specialized.runtime_evidence.host_manifest = output.host_manifest.clone();

@@ -2,11 +2,11 @@
 
 use std::fmt;
 
-use crate::ApplicationProvenanceTable;
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, Instance, InstanceId, Pat, Program, RecordField,
     RecordPatField, RecordSpread, Root, SelectResolution, Stmt,
 };
+use crate::{ApplicationProvenanceTable, SelectionProvenanceTable};
 
 pub fn lower(program: &mono::Program) -> Result<Program, LowerError> {
     Ok(lower_with_application_provenance(program)?.program)
@@ -22,6 +22,7 @@ pub fn lower_with_application_provenance(
 pub struct LowerOutput {
     pub program: Program,
     pub application_provenance: ApplicationProvenanceTable,
+    pub selection_provenance: SelectionProvenanceTable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +51,7 @@ impl std::error::Error for LowerError {}
 struct Lowerer {
     exprs: Vec<Expr>,
     application_provenance: ApplicationProvenanceTable,
+    selection_provenance: SelectionProvenanceTable,
 }
 
 impl Lowerer {
@@ -72,6 +74,7 @@ impl Lowerer {
                 exprs: self.exprs,
             },
             application_provenance: self.application_provenance,
+            selection_provenance: self.selection_provenance,
         })
     }
 
@@ -232,12 +235,23 @@ impl Lowerer {
             MonoExpr::Block(block) => Expr::Block(self.lower_block(block)?),
         };
         let id = ExprId(self.exprs.len() as u32);
-        if let Some(tag) = expr.application_provenance {
+        if let Some(tag) = expr.application_provenance() {
             debug_assert!(
                 matches!(lowered, Expr::Apply { .. }),
                 "application provenance must only be attached to mono Apply nodes"
             );
             let previous = self.application_provenance.insert(id, tag);
+            debug_assert!(
+                previous.is_none(),
+                "fresh control site cannot be tagged twice"
+            );
+        }
+        if let Some(tag) = expr.selection_provenance() {
+            debug_assert!(
+                matches!(lowered, Expr::Select { .. }),
+                "selection provenance must only be attached to mono Select nodes"
+            );
+            let previous = self.selection_provenance.insert(id, tag);
             debug_assert!(
                 previous.is_none(),
                 "fresh control site cannot be tagged twice"
@@ -405,11 +419,11 @@ mod tests {
             .instances
             .iter()
             .map(|instance| &instance.body)
-            .find(|expr| expr.application_provenance.is_some())
+            .find(|expr| expr.application_provenance().is_some())
             .expect("source application should tag its mono Apply");
         assert!(matches!(mono_apply.kind, ExprKind::Apply(_, _)));
         let mono_tag = mono_apply
-            .application_provenance
+            .application_provenance()
             .expect("tagged mono Apply");
         assert_eq!(mono_tag.poly_expr, poly_expr.0);
         assert!(matches!(
@@ -445,6 +459,67 @@ mod tests {
             "1 2\n"
         );
         assert_eq!(source_text(source, resolved.callee_span.range), "1");
+    }
+
+    #[test]
+    fn source_not_record_selection_reaches_its_final_control_site() {
+        let source = "my a = 1.a\na\n";
+        let lowering = lower_source(source);
+        let mut source_selections = lowering.session.selections.source_spans();
+        let (select, captured) = source_selections
+            .next()
+            .expect("not-record canary should have one source selection");
+        assert!(source_selections.next().is_none());
+        assert_eq!(source_text(source, captured.range), "a");
+
+        let specialized = specialize::specialize_with_runtime_evidence_and_source_provenance(
+            &lowering.session.poly,
+            lowering.application_provenance().expr_ids(),
+            [select],
+        )
+        .expect("not-record canary should specialize");
+        let mono_select = specialized
+            .program
+            .instances
+            .iter()
+            .map(|instance| &instance.body)
+            .find(|expr| expr.selection_provenance().is_some())
+            .expect("source selection should tag its mono Select");
+        assert!(matches!(mono_select.kind, ExprKind::Select { .. }));
+        let mono_tag = mono_select
+            .selection_provenance()
+            .expect("tagged mono Select");
+        assert_eq!(mono_tag.select, select.0);
+        assert!(matches!(
+            mono_tag.task,
+            ApplicationSpecializationTask::Instance { .. }
+        ));
+
+        let control = lower_with_application_provenance(&specialized.program)
+            .expect("tagged mono program should lower");
+        assert_eq!(
+            lower(&specialized.program).expect("legacy lowering should still succeed"),
+            control.program,
+            "capturing the side table must not change the control program"
+        );
+        let mut control_entries = control.selection_provenance.iter();
+        let (site, control_tag) = control_entries
+            .next()
+            .expect("not-record canary should have one tagged control Select");
+        assert!(control_entries.next().is_none());
+        assert!(matches!(
+            control.program.exprs[site.0 as usize],
+            Expr::Select { .. }
+        ));
+        assert_eq!(control_tag, mono_tag);
+
+        let resolved = lowering
+            .session
+            .selections
+            .source_spans()
+            .find_map(|(select, span)| (select.0 == control_tag.select).then_some(span))
+            .expect("control tag should resolve in infer's source table");
+        assert_eq!(resolved, captured);
     }
 
     #[test]

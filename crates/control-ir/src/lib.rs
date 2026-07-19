@@ -9,8 +9,10 @@ mod application_provenance;
 mod evidence_ir;
 mod ir;
 mod lower;
+mod selection_provenance;
 
 pub use application_provenance::ApplicationProvenanceTable;
+pub use selection_provenance::SelectionProvenanceTable;
 
 pub use evidence_ir::{
     ControlAdapterEvidence, ControlDelayedBoundary, ControlDelayedBoundaryKind,
