@@ -443,6 +443,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
             program,
             runtime_evidence,
             application_provenance,
+            selection_provenance,
             diagnostic_sources,
             labels,
             file_count: _,
@@ -546,6 +547,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
                     format_runtime_evidence_run_error(
                         &error,
                         &application_provenance,
+                        &selection_provenance,
                         &diagnostic_sources,
                     )
                 );
@@ -576,6 +578,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
 fn format_runtime_evidence_run_error(
     error: &evidence_vm::RuntimeEvidenceRunError,
     application_provenance: &yulang::RuntimeApplicationProvenance,
+    selection_provenance: &yulang::RuntimeSelectionProvenance,
     diagnostic_sources: &yulang::RuntimeDiagnosticSources,
 ) -> String {
     match error {
@@ -615,9 +618,9 @@ fn format_runtime_evidence_run_error(
                 diagnostic_sources,
             )
         }
-        evidence_vm::RuntimeEvidenceRunError::NotRecord { value, .. } => format!(
-            "runtime error [yulang.not-record]: tried to read fields from non-record value {value}\n  hint: use `.field` only on record values"
-        ),
+        evidence_vm::RuntimeEvidenceRunError::NotRecord { site, value } => {
+            format_not_record_error(*site, value, selection_provenance, diagnostic_sources)
+        }
         evidence_vm::RuntimeEvidenceRunError::PatternMismatch => {
             "runtime error [yulang.pattern-mismatch]: no pattern matched the value\n  hint: add a fallback pattern such as `_ -> ...`".to_string()
         }
@@ -750,6 +753,54 @@ fn format_ranged_application_runtime_error(
             range: provenance.application_span.range,
             origin: Some(yulang::SourceDiagnosticRelatedOrigin::Expression),
         }],
+    };
+    Some(format_runtime_source_diagnostic(
+        &diagnostic,
+        &source.source,
+    ))
+}
+
+fn format_not_record_error(
+    site: Option<control_ir::ExprId>,
+    value: &str,
+    selection_provenance: &yulang::RuntimeSelectionProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
+    const CODE: &str = "yulang.not-record";
+    const HINT: &str = "use `.field` only on record values";
+    let message = format!("tried to read fields from non-record value {value}");
+    let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
+
+    format_ranged_selection_runtime_error(
+        site,
+        CODE,
+        &message,
+        HINT,
+        selection_provenance,
+        diagnostic_sources,
+    )
+    .unwrap_or_else(fallback)
+}
+
+fn format_ranged_selection_runtime_error(
+    site: Option<control_ir::ExprId>,
+    code: &str,
+    message: &str,
+    hint: &str,
+    selection_provenance: &yulang::RuntimeSelectionProvenance,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> Option<String> {
+    let site = site?;
+    let provenance = selection_provenance.resolve(site)?;
+    let source = diagnostic_sources.source_for_span(provenance)?;
+    let diagnostic = yulang::SourceDiagnostic {
+        severity: yulang::SourceDiagnosticSeverity::Error,
+        code: Some(code.to_string()),
+        label: None,
+        range: Some(provenance.range),
+        message: message.to_string(),
+        hint: Some(hint.to_string()),
+        related: Vec::new(),
     };
     Some(format_runtime_source_diagnostic(
         &diagnostic,

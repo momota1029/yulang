@@ -1899,6 +1899,7 @@ expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
   "runtime error [yulang.not-record]: tried to read fields from non-record value 1",
+  "    --> line 1, column 3\n    1 | 1.a\n      |   ^",
   "hint: use `.field` only on record values",
 ]
 contracts = ["runtime-error", "runtime-failure", "diagnostics", "records"]

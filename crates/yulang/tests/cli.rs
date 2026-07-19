@@ -770,7 +770,7 @@ fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
 }
 
 #[test]
-fn compatible_run_reports_not_record_hint() {
+fn compatible_run_reports_not_record_range_and_hint() {
     let entry = write_entry("run-not-record", "1.a\n");
 
     let output = yulang_command()
@@ -795,6 +795,10 @@ fn compatible_run_reports_not_record_hint() {
         stderr.contains(
             "runtime error [yulang.not-record]: tried to read fields from non-record value 1\n"
         ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("    --> line 1, column 3\n    1 | 1.a\n      |   ^"),
         "{stderr}"
     );
     assert!(

@@ -526,6 +526,10 @@ pub fn build_control_from_poly_output(
             output.application_provenance.clone(),
             lowered.application_provenance,
         ),
+        selection_provenance: RuntimeSelectionProvenance::new(
+            output.selection_provenance.clone(),
+            lowered.selection_provenance,
+        ),
         diagnostic_sources: output.diagnostic_sources.clone(),
         labels: output.labels.clone(),
         file_count: output.file_count,
@@ -1468,6 +1472,7 @@ pub struct BuildControlOutput {
     pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub application_provenance: RuntimeApplicationProvenance,
+    pub selection_provenance: RuntimeSelectionProvenance,
     pub diagnostic_sources: RuntimeDiagnosticSources,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
@@ -1515,6 +1520,28 @@ impl RuntimeApplicationProvenance {
     ) -> Option<&infer::lowering::ApplicationProvenance> {
         let tag = self.control.get(site)?;
         self.source.get(poly::expr::ExprId(tag.poly_expr))
+    }
+}
+
+/// Sparse source selection identity retained alongside the runtime control program.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeSelectionProvenance {
+    source: infer::lowering::SelectionProvenanceTable,
+    control: control_ir::SelectionProvenanceTable,
+}
+
+impl RuntimeSelectionProvenance {
+    pub fn new(
+        source: infer::lowering::SelectionProvenanceTable,
+        control: control_ir::SelectionProvenanceTable,
+    ) -> Self {
+        Self { source, control }
+    }
+
+    pub fn resolve(&self, site: control_ir::ExprId) -> Option<&infer::SourceSpan> {
+        let tag = self.control.get(site)?;
+        self.source
+            .selection_span(poly::expr::SelectId(tag.select))
     }
 }
 

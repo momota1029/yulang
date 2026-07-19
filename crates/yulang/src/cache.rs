@@ -24,7 +24,7 @@ use crate::time::{Duration, Instant};
 
 const POLY_CACHE_FORMAT: u32 = 10;
 const MONO_CACHE_FORMAT: u32 = 1;
-const CONTROL_CACHE_FORMAT: u32 = 10;
+const CONTROL_CACHE_FORMAT: u32 = 11;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
 #[cfg(test)]
 const EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
@@ -199,6 +199,7 @@ impl ArtifactCache {
             program: envelope.program,
             runtime_evidence: envelope.runtime_evidence,
             application_provenance: envelope.application_provenance,
+            selection_provenance: envelope.selection_provenance,
             labels: envelope.labels,
             file_count: envelope.file_count,
             errors: envelope.errors,
@@ -216,6 +217,7 @@ impl ArtifactCache {
             program: &artifact.program,
             runtime_evidence: &artifact.runtime_evidence,
             application_provenance: &artifact.application_provenance,
+            selection_provenance: &artifact.selection_provenance,
             labels: &artifact.labels,
             file_count: artifact.file_count,
             errors: &artifact.errors,
@@ -371,6 +373,7 @@ pub struct CachedControlArtifact {
     pub program: control_ir::Program,
     pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub application_provenance: crate::RuntimeApplicationProvenance,
+    pub selection_provenance: crate::RuntimeSelectionProvenance,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     pub errors: Vec<String>,
@@ -3611,6 +3614,7 @@ struct ControlCacheEnvelope<
     T = control_ir::Program,
     R = specialize::RuntimeEvidenceSurface,
     P = crate::RuntimeApplicationProvenance,
+    S = crate::RuntimeSelectionProvenance,
     L = poly::dump::DumpLabels,
     E = Vec<String>,
 > {
@@ -3618,6 +3622,7 @@ struct ControlCacheEnvelope<
     program: T,
     runtime_evidence: R,
     application_provenance: P,
+    selection_provenance: S,
     labels: L,
     file_count: usize,
     errors: E,
@@ -4350,6 +4355,7 @@ mod tests {
             program: control_ir::Program::default(),
             runtime_evidence: nonempty_runtime_evidence_surface(),
             application_provenance: crate::RuntimeApplicationProvenance::default(),
+            selection_provenance: crate::RuntimeSelectionProvenance::default(),
             labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
@@ -4392,6 +4398,7 @@ mod tests {
             program: control.program,
             runtime_evidence: control.runtime_evidence,
             application_provenance: control.application_provenance,
+            selection_provenance: control.selection_provenance,
             labels: control.labels,
             file_count: control.file_count,
             errors: control.errors,
@@ -4411,6 +4418,48 @@ mod tests {
         assert_eq!(
             expected.application_span.range,
             sources::SourceRange { start: 7, end: 11 }
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn control_cache_preserves_runtime_selection_provenance() {
+        let root = temp_root("control-selection-provenance");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "my a = 1.a\na\n")];
+        let key = source_cache_key(&files);
+        let poly = crate::build_poly_from_collected_sources(files).unwrap();
+        let control = crate::build_control_from_poly_output(&poly).unwrap();
+        let site = control
+            .program
+            .exprs
+            .iter()
+            .position(|expr| matches!(expr, control_ir::Expr::Select { .. }))
+            .map(|index| control_ir::ExprId(index as u32))
+            .expect("the canary must lower to a control select");
+        let expected = control
+            .selection_provenance
+            .resolve(site)
+            .cloned()
+            .expect("the control select must resolve to source provenance");
+        let artifact = CachedControlArtifact {
+            program: control.program,
+            runtime_evidence: control.runtime_evidence,
+            application_provenance: control.application_provenance,
+            selection_provenance: control.selection_provenance,
+            labels: control.labels,
+            file_count: control.file_count,
+            errors: control.errors,
+        };
+
+        cache.write_control_artifact(key, &artifact).unwrap();
+        let restored = cache.read_control_artifact(key).unwrap().unwrap();
+
+        assert_eq!(restored.selection_provenance.resolve(site), Some(&expected));
+        assert_eq!(
+            expected.range,
+            sources::SourceRange { start: 9, end: 10 }
         );
 
         let _ = fs::remove_dir_all(root);

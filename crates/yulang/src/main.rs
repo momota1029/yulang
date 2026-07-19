@@ -877,6 +877,7 @@ fn read_control_from_source_key_index(
         program: cached.program,
         runtime_evidence: cached.runtime_evidence,
         application_provenance: cached.application_provenance,
+        selection_provenance: cached.selection_provenance,
         diagnostic_sources: yulang::RuntimeDiagnosticSources::default(),
         labels: cached.labels,
         file_count: cached.file_count,
@@ -949,6 +950,7 @@ fn build_control_with_source_key_timed(
                 program: cached.program,
                 runtime_evidence: cached.runtime_evidence,
                 application_provenance: cached.application_provenance,
+                selection_provenance: cached.selection_provenance,
                 diagnostic_sources: yulang::RuntimeDiagnosticSources::from_collected_sources(
                     &files,
                 ),
@@ -990,6 +992,7 @@ fn build_control_with_source_key_timed(
         program: output.program.clone(),
         runtime_evidence: output.runtime_evidence.clone(),
         application_provenance: output.application_provenance.clone(),
+        selection_provenance: output.selection_provenance.clone(),
         labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
@@ -1053,6 +1056,10 @@ fn build_control_from_poly_output_with_optional_mono_cache(
             poly.application_provenance,
             lowered.application_provenance,
         ),
+        selection_provenance: yulang::RuntimeSelectionProvenance::new(
+            poly.selection_provenance,
+            lowered.selection_provenance,
+        ),
         diagnostic_sources: poly.diagnostic_sources,
         labels: poly.labels,
         file_count: poly.file_count,
@@ -1110,6 +1117,10 @@ fn try_build_control_from_poly_output_with_optional_mono_cache(
         application_provenance: yulang::RuntimeApplicationProvenance::new(
             poly.application_provenance,
             lowered.application_provenance,
+        ),
+        selection_provenance: yulang::RuntimeSelectionProvenance::new(
+            poly.selection_provenance,
+            lowered.selection_provenance,
         ),
         diagnostic_sources: poly.diagnostic_sources,
         labels: poly.labels,
