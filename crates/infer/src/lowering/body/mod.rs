@@ -965,6 +965,7 @@ pub enum BodyLoweringError {
         error: LoweringError,
     },
     RootExpr {
+        file: Path,
         error: LoweringError,
     },
     Analysis(AnalysisDiagnostic),
@@ -1886,7 +1887,10 @@ impl BodyLowerer {
                     .runtime_roots
                     .push(poly::expr::RuntimeRoot::Expr(computation.expr));
             }
-            Err(error) => self.errors.push(BodyLoweringError::RootExpr { error }),
+            Err(error) => self.errors.push(BodyLoweringError::RootExpr {
+                file: self.source_file.clone(),
+                error,
+            }),
         }
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));

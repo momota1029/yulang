@@ -823,6 +823,7 @@ impl RuntimeSourceDiagnostic {
                 severity: yulang::SourceDiagnosticSeverity::Error,
                 code: code.map(str::to_string),
                 label: None,
+                file: None,
                 range: None,
                 message,
                 hint: hint.map(str::to_string),
@@ -849,6 +850,7 @@ fn ranged_specialize_source_diagnostic(
     }
 
     let mut diagnostic = specialize_source_diagnostic(error)?;
+    diagnostic.diagnostic.file = Some(context.file.clone());
     diagnostic.diagnostic.range = Some(context.range);
     diagnostic.diagnostic.related = context.related.clone();
     diagnostic.range_offset = context.source.range_offset;
@@ -1072,9 +1074,11 @@ fn runtime_application_diagnostic(
         return diagnostic;
     };
 
+    diagnostic.diagnostic.file = Some(provenance.callee_span.file.clone());
     diagnostic.diagnostic.range = Some(provenance.callee_span.range);
     diagnostic.diagnostic.related = vec![yulang::SourceDiagnosticRelated {
         message: "application occurs here".to_string(),
+        file: provenance.application_span.file.clone(),
         range: provenance.application_span.range,
         origin: Some(yulang::SourceDiagnosticRelatedOrigin::Expression),
     }];
@@ -1098,6 +1102,7 @@ fn runtime_selection_diagnostic(
         return diagnostic;
     };
 
+    diagnostic.diagnostic.file = Some(provenance.file.clone());
     diagnostic.diagnostic.range = Some(provenance.range);
     diagnostic.range_offset = source.source.range_offset;
     diagnostic

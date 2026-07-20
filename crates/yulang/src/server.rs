@@ -293,15 +293,24 @@ fn diagnostics_for_analysis(
 fn editor_diagnostic_for_source_diagnostic(
     diagnostic: SourceDiagnostic,
 ) -> editor_diagnostics::Diagnostic {
+    let SourceDiagnostic {
+        severity,
+        code,
+        label,
+        file: _,
+        range,
+        message,
+        hint,
+        related,
+    } = diagnostic;
     editor_diagnostics::Diagnostic {
-        severity: editor_diagnostic_severity(diagnostic.severity),
-        code: diagnostic.code,
-        label: diagnostic.label,
-        range: diagnostic.range.map(byte_range_for_source_range),
-        message: diagnostic.message,
-        hint: diagnostic.hint,
-        related: diagnostic
-            .related
+        severity: editor_diagnostic_severity(severity),
+        code,
+        label,
+        range: range.map(byte_range_for_source_range),
+        message,
+        hint,
+        related: related
             .into_iter()
             .map(editor_related_diagnostic_for_source_related)
             .collect(),
@@ -311,10 +320,16 @@ fn editor_diagnostic_for_source_diagnostic(
 fn editor_related_diagnostic_for_source_related(
     related: SourceDiagnosticRelated,
 ) -> editor_diagnostics::RelatedDiagnostic {
+    let SourceDiagnosticRelated {
+        message,
+        file: _,
+        range,
+        origin,
+    } = related;
     editor_diagnostics::RelatedDiagnostic {
-        message: related.message,
-        range: byte_range_for_source_range(related.range),
-        origin: related.origin.map(editor_related_origin_for_source_origin),
+        message,
+        range: byte_range_for_source_range(range),
+        origin: origin.map(editor_related_origin_for_source_origin),
     }
 }
 

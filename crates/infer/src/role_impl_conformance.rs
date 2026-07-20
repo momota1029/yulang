@@ -17,12 +17,12 @@ use poly::expr::{Arena as PolyArena, Def, DefId};
 use poly::types::TypeVar;
 use sources::SourceRange;
 
-use crate::ModuleTable;
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
 #[cfg(test)]
 use crate::casts::CastTable;
 use crate::constraints::ConstraintEpoch;
 use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
+use crate::{ModuleTable, SourceSpan};
 
 #[cfg(test)]
 pub(crate) fn capture_receiverless_actual_view(
@@ -56,7 +56,7 @@ pub(crate) fn capture_receiver_actual_view(
 pub(crate) struct RoleImplConformanceContract {
     pub(crate) impl_def: DefId,
     pub(crate) role: Vec<String>,
-    pub(crate) source: SourceRange,
+    pub(crate) source: SourceSpan,
     pub(crate) universal_binders: Vec<ImplUniversalBinder>,
     pub(crate) inputs: Vec<DeclaredType>,
     pub(crate) associated: Vec<AssociatedAssignment>,
@@ -79,7 +79,7 @@ impl RoleImplConformanceContract {
     pub(crate) fn capture(
         impl_def: DefId,
         role: Vec<String>,
-        source: SourceRange,
+        source: SourceSpan,
         role_input_names: Vec<String>,
         inputs: Vec<AnnType>,
         associated: Vec<AssociatedAssignment>,
@@ -713,7 +713,7 @@ pub(crate) struct RoleImplMethodContract {
     pub(crate) name: String,
     pub(crate) provision: RoleImplMethodProvision,
     pub(crate) declared_requirement: Option<DeclaredRoleMethodRequirement>,
-    pub(crate) source: Option<SourceRange>,
+    pub(crate) source: Option<SourceSpan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -730,7 +730,7 @@ pub(crate) enum RoleImplMethodProvision {
     },
     Default {
         implementation: DefId,
-        source: Option<SourceRange>,
+        source: Option<SourceSpan>,
     },
     Missing,
 }
@@ -739,7 +739,7 @@ pub(crate) enum RoleImplMethodProvision {
 pub(crate) struct RoleImplMethodImplementation {
     pub(crate) def: DefId,
     pub(crate) name: String,
-    pub(crate) source: SourceRange,
+    pub(crate) source: SourceSpan,
     pub(crate) order: u32,
     pub(crate) residual_prerequisites: Option<RoleImplMethodResidualPrerequisites>,
 }
@@ -1169,7 +1169,7 @@ pub(crate) struct RoleImplMethodRequirementCapture {
     pub(crate) name: String,
     pub(crate) signature: Option<SignatureType>,
     pub(crate) has_default_body: bool,
-    pub(crate) source: Option<SourceRange>,
+    pub(crate) source: Option<SourceSpan>,
     pub(crate) order: u32,
 }
 

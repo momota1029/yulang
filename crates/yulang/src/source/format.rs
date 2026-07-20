@@ -2287,8 +2287,9 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
         infer::lowering::BodyLoweringError::Expr { error, .. } => format_lowering_error(error),
         infer::lowering::BodyLoweringError::RootExpr {
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
+            ..
         } => format!("unresolved value name in root expression: {}", name.0),
-        infer::lowering::BodyLoweringError::RootExpr { error } => format_lowering_error(error),
+        infer::lowering::BodyLoweringError::RootExpr { error, .. } => format_lowering_error(error),
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,

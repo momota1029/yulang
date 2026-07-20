@@ -201,8 +201,12 @@ impl BodyLowerer {
             .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
         let contract_source = self
             .modules
-            .def_source_range(impl_def)
-            .unwrap_or_else(|| crate::node_source_range(node));
+            .def_source_span(impl_def)
+            .cloned()
+            .unwrap_or_else(|| SourceSpan {
+                file: self.source_file.clone(),
+                range: crate::node_source_range(node),
+            });
         let contract_requirements = self
             .modules
             .role_methods(spec.role)
@@ -217,7 +221,7 @@ impl BodyLowerer {
                         &self.session.poly,
                         method.def,
                     ),
-                    source: self.modules.def_source_range(method.def),
+                    source: self.modules.def_source_span(method.def).cloned(),
                     order: method.order.index(),
                 },
             )
@@ -234,7 +238,8 @@ impl BodyLowerer {
                             name: method.name.0.clone(),
                             source: self
                                 .modules
-                                .def_source_range(method.def)
+                                .def_source_span(method.def)
+                                .cloned()
                                 .unwrap_or_else(|| contract_source.clone()),
                             order: method.order.index(),
                             residual_prerequisites: None,

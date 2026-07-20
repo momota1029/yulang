@@ -1437,11 +1437,14 @@ pub struct SourceTextEdit {
     pub new_text: String,
 }
 
+pub type SourceFileIdentity = sources::Path;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
     pub severity: SourceDiagnosticSeverity,
     pub code: Option<String>,
     pub label: Option<String>,
+    pub file: Option<SourceFileIdentity>,
     pub range: Option<SourceRange>,
     pub message: String,
     pub hint: Option<String>,
@@ -1451,6 +1454,7 @@ pub struct SourceDiagnostic {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnosticRelated {
     pub message: String,
+    pub file: SourceFileIdentity,
     pub range: SourceRange,
     pub origin: Option<SourceDiagnosticRelatedOrigin>,
 }
@@ -1495,6 +1499,7 @@ pub struct BuildPolyOutput {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpecializeDiagnosticContext {
     pub source: CheckDiagnosticSource,
+    pub file: SourceFileIdentity,
     pub range: SourceRange,
     pub related: Vec<SourceDiagnosticRelated>,
 }
@@ -1635,11 +1640,9 @@ fn specialize_diagnostic_context(
         .map(|candidate| {
             let candidate = poly::expr::DefId(candidate.0);
             let span = output.selection_provenance.definition_span(candidate)?;
-            if span.file != selection_span.file {
-                return None;
-            }
             Some(SourceDiagnosticRelated {
                 message: role_method_candidate_message(&output.arena, &output.labels, candidate),
+                file: span.file.clone(),
                 range: span.range,
                 origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
             })
@@ -1647,6 +1650,7 @@ fn specialize_diagnostic_context(
         .collect::<Option<Vec<_>>>()?;
     Some(SpecializeDiagnosticContext {
         source,
+        file: selection_span.file.clone(),
         range: selection_span.range,
         related,
     })
@@ -2212,6 +2216,7 @@ fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceD
                 severity: SourceDiagnosticSeverity::Error,
                 code: Some("yulang.syntax".to_string()),
                 label: None,
+                file: Some(root.module_path.clone()),
                 range: Some(range),
                 message: if node.text().is_empty() {
                     "syntax error: unexpected end of input".to_string()
@@ -3199,18 +3204,21 @@ fn source_diagnostics_from_check(
         .iter()
         .map(|diagnostic| {
             let error = &check.lowering.errors[diagnostic.error_index];
+            let span =
+                body_lowering_error_source_span(error, &check.lowering.modules).or_else(|| {
+                    diagnostic
+                        .def
+                        .and_then(|def| check.lowering.modules.def_source_span(def).cloned())
+                });
             SourceDiagnostic {
                 severity: SourceDiagnosticSeverity::Error,
                 code: body_lowering_error_code(error).map(str::to_string),
                 label: diagnostic.label.clone(),
-                range: body_lowering_error_source_range(error).or_else(|| {
-                    diagnostic
-                        .def
-                        .and_then(|def| check.lowering.modules.def_source_range(def))
-                }),
+                file: span.as_ref().map(|span| span.file.clone()),
+                range: span.as_ref().map(|span| span.range),
                 message: format_body_lowering_error(error),
                 hint: body_lowering_error_hint(error),
-                related: body_lowering_error_related(error),
+                related: body_lowering_error_related(error, &check.lowering.modules),
             }
         })
         .collect()
@@ -3240,12 +3248,14 @@ fn source_diagnostic_from_role_method_check_outcome(
     check: &infer::check::PolyCheckOutput,
     outcome: specialize::RoleMethodCheckOutcome,
 ) -> Option<SourceDiagnostic> {
+    let span = role_method_select_source_span(check, outcome.select);
     match outcome.resolution {
         specialize::RoleMethodCheckResolution::Unresolved => Some(SourceDiagnostic {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.unresolved-method".to_string()),
             label: role_method_diagnostic_label(check, outcome.select),
-            range: role_method_select_source_range(check, outcome.select),
+            file: span.as_ref().map(|span| span.file.clone()),
+            range: span.as_ref().map(|span| span.range),
             message: format!(
                 "no role implementation satisfies this method call for receiver {}",
                 specialize::mono::dump::dump_type(&outcome.receiver)
@@ -3260,7 +3270,8 @@ fn source_diagnostic_from_role_method_check_outcome(
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.ambiguous-method".to_string()),
             label: role_method_diagnostic_label(check, outcome.select),
-            range: role_method_select_source_range(check, outcome.select),
+            file: span.as_ref().map(|span| span.file.clone()),
+            range: span.as_ref().map(|span| span.range),
             message: format!(
                 "more than one role implementation satisfies this method call for receiver {}",
                 specialize::mono::dump::dump_type(&outcome.receiver)
@@ -3276,16 +3287,16 @@ fn source_diagnostic_from_role_method_check_outcome(
     }
 }
 
-fn role_method_select_source_range(
+fn role_method_select_source_span(
     check: &infer::check::PolyCheckOutput,
     select: poly::expr::SelectId,
-) -> Option<SourceRange> {
+) -> Option<infer::SourceSpan> {
     check
         .lowering
         .session
         .selections
         .source_span(select)
-        .map(|span| span.range)
+        .cloned()
 }
 
 fn role_method_diagnostic_label(
@@ -3302,14 +3313,15 @@ fn role_method_candidate_related(
     candidates
         .iter()
         .filter_map(|candidate| {
-            let range = check.lowering.modules.def_source_range(*candidate)?;
+            let span = check.lowering.modules.def_source_span(*candidate)?;
             Some(SourceDiagnosticRelated {
                 message: role_method_candidate_message(
                     &check.lowering.session.poly,
                     &check.lowering.labels,
                     *candidate,
                 ),
-                range,
+                file: span.file.clone(),
+                range: span.range,
                 origin: Some(SourceDiagnosticRelatedOrigin::ImplCandidate),
             })
         })
@@ -3339,7 +3351,7 @@ fn role_method_candidate_message(
 fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Option<&'static str> {
     match error {
         infer::lowering::BodyLoweringError::Expr { error, .. }
-        | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_code(error),
+        | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_code(error),
         infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("yulang.missing-local-binding-body")
@@ -3443,13 +3455,24 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
     }
 }
 
-fn body_lowering_error_source_range(
+fn body_lowering_error_source_span(
     error: &infer::lowering::BodyLoweringError,
-) -> Option<SourceRange> {
+    modules: &infer::ModuleTable,
+) -> Option<infer::SourceSpan> {
     match error {
-        infer::lowering::BodyLoweringError::Expr { error, .. }
-        | infer::lowering::BodyLoweringError::RootExpr { error } => {
-            lowering_error_source_range(error)
+        infer::lowering::BodyLoweringError::Expr { def, error, .. } => {
+            let range = lowering_error_source_range(error)?;
+            let span = modules.def_source_span(*def)?;
+            Some(infer::SourceSpan {
+                file: span.file.clone(),
+                range,
+            })
+        }
+        infer::lowering::BodyLoweringError::RootExpr { file, error } => {
+            lowering_error_source_range(error).map(|range| infer::SourceSpan {
+                file: file.clone(),
+                range,
+            })
         }
         infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
         | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
@@ -3461,7 +3484,15 @@ fn body_lowering_error_source_range(
 
 fn body_lowering_error_related(
     error: &infer::lowering::BodyLoweringError,
+    modules: &infer::ModuleTable,
 ) -> Vec<SourceDiagnosticRelated> {
+    let file = match error {
+        infer::lowering::BodyLoweringError::Expr { def, .. } => {
+            modules.def_source_span(*def).map(|span| span.file.clone())
+        }
+        infer::lowering::BodyLoweringError::RootExpr { file, .. } => Some(file.clone()),
+        _ => None,
+    };
     match error {
         infer::lowering::BodyLoweringError::Expr {
             error:
@@ -3481,11 +3512,16 @@ fn body_lowering_error_related(
                     actual_range,
                     expected_range,
                 },
+            ..
         } => {
+            let Some(file) = file else {
+                return Vec::new();
+            };
             let mut related = Vec::new();
             if let Some(range) = expected_range {
                 related.push(SourceDiagnosticRelated {
                     message: format!("expected type comes from this type annotation: {expected}"),
+                    file: file.clone(),
                     range: *range,
                     origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
                 });
@@ -3493,6 +3529,7 @@ fn body_lowering_error_related(
             if let Some(range) = actual_range {
                 related.push(SourceDiagnosticRelated {
                     message: format!("actual type comes from this expression: {actual}"),
+                    file,
                     range: *range,
                     origin: Some(SourceDiagnosticRelatedOrigin::Expression),
                 });
@@ -3506,7 +3543,7 @@ fn body_lowering_error_related(
 fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Option<String> {
     match error {
         infer::lowering::BodyLoweringError::Expr { error, .. }
-        | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_hint(error),
+        | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_hint(error),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("write a body expression after `=`".to_string())
         }
