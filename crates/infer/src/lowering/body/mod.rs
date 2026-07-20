@@ -1144,7 +1144,6 @@ fn unavailable_receiver_actual_view(
             reason.clone(),
         ),
         effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
-        #[cfg(test)]
         tail_parameter_count: None,
     }
 }
@@ -1157,7 +1156,6 @@ fn unavailable_receiverless_actual_view(
             reason.clone(),
         ),
         effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
-        #[cfg(test)]
         parameter_count: None,
     }
 }
@@ -1230,7 +1228,6 @@ fn capture_pending_actual_view(
     }
 }
 
-#[cfg(test)]
 fn attach_receiver_tail_parameter_count(
     view: &mut PendingRoleImplActualView,
     pending: &PendingRoleImplConformance,
@@ -1689,7 +1686,6 @@ impl BodyLowerer {
                     let view = pending.actual_view.clone().unwrap_or_else(|| {
                         capture_pending_actual_view(self.session.infer.constraints(), pending)
                     });
-                    #[cfg(test)]
                     let view = {
                         let mut view = view;
                         attach_receiver_tail_parameter_count(&mut view, pending);

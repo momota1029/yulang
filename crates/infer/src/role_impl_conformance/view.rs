@@ -282,7 +282,6 @@ pub(crate) enum ActualMethodConformanceView {
 pub(crate) struct ActualReceiverlessMethodConformanceView {
     pub(crate) value: ActualMethodConformanceView,
     pub(crate) effect: ActualMethodConformanceView,
-    #[cfg(test)]
     pub(crate) parameter_count: Option<usize>,
 }
 
@@ -292,7 +291,6 @@ pub(crate) struct ActualReceiverlessMethodConformanceView {
 pub(crate) struct ActualReceiverMethodConformanceView {
     pub(crate) value: ActualMethodConformanceView,
     pub(crate) effect: ActualMethodConformanceView,
-    #[cfg(test)]
     pub(crate) tail_parameter_count: Option<usize>,
 }
 
@@ -879,13 +877,10 @@ pub(super) fn capture_receiverless_method_actual_view(
                 effect: ActualMethodConformanceView::Unavailable(
                     ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
                 ),
-                #[cfg(test)]
                 parameter_count: Some(parameter_count),
             };
         }
     };
-    #[cfg(not(test))]
-    let _ = parameter_count;
     let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
     let value_compact = compact_type_var(machine, value);
     let effect_compact = compact_type_var(machine, effect);
@@ -911,7 +906,6 @@ pub(super) fn capture_receiverless_method_actual_view(
     ActualReceiverlessMethodConformanceView {
         value,
         effect,
-        #[cfg(test)]
         parameter_count: Some(parameter_count),
     }
 }
@@ -948,7 +942,6 @@ pub(super) fn capture_receiver_actual_view(
                 effect: ActualMethodConformanceView::Unavailable(
                     ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
                 ),
-                #[cfg(test)]
                 tail_parameter_count: None,
             };
         }
@@ -988,7 +981,6 @@ pub(super) fn capture_receiver_actual_view(
     ActualReceiverMethodConformanceView {
         value,
         effect,
-        #[cfg(test)]
         tail_parameter_count: None,
     }
 }
