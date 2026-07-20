@@ -20,6 +20,10 @@ use crate::{
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
 const LSP_ANALYSIS_DEBOUNCE: Duration = Duration::from_millis(150);
+const LSP_ANALYSIS_RETRY_INITIAL_DELAY: Duration = Duration::from_millis(200);
+const LSP_ANALYSIS_RETRY_BACKOFF_MULTIPLIER: u32 = 2;
+const LSP_ANALYSIS_RETRY_MAX_DELAY: Duration = Duration::from_millis(400);
+const LSP_ANALYSIS_MAX_ATTEMPTS: usize = 8;
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LSP_HOVER_CONTENT_CHAR_LIMIT: usize = 1200;
 
@@ -103,43 +107,82 @@ impl Backend {
         let slots = Arc::clone(&self.analysis_slots);
         tokio::spawn(async move {
             tokio::time::sleep(LSP_ANALYSIS_DEBOUNCE).await;
-            if !is_current_analysis_version(&versions, &uri, version) {
-                return;
-            }
-            let source = documents
-                .lock()
-                .unwrap()
-                .get(&uri)
-                .cloned()
-                .or_else(|| std::fs::read_to_string(&path).ok());
-            let Some(source) = source else {
-                return;
-            };
-            let result = run_diagnostics_with_timeout(slots, path, source, options).await;
-            if !is_current_analysis_version(&versions, &uri, version) {
-                return;
-            }
-            match result {
-                DiagnosticsRunResult::Completed(diagnostics) => {
-                    client.publish_diagnostics(uri, diagnostics, None).await;
+            let mut attempt = 1;
+            let mut retry_delay = LSP_ANALYSIS_RETRY_INITIAL_DELAY;
+            let mut logged_failure = false;
+            loop {
+                if !is_current_analysis_version(&versions, &uri, version) {
+                    return;
                 }
-                DiagnosticsRunResult::Busy => {}
-                DiagnosticsRunResult::TimedOut => {
+                let source = documents
+                    .lock()
+                    .unwrap()
+                    .get(&uri)
+                    .cloned()
+                    .or_else(|| std::fs::read_to_string(&path).ok());
+                let Some(source) = source else {
+                    return;
+                };
+                let result = run_diagnostics_with_timeout(
+                    Arc::clone(&slots),
+                    path.clone(),
+                    source,
+                    options.clone(),
+                )
+                .await;
+                if !is_current_analysis_version(&versions, &uri, version) {
+                    return;
+                }
+                match result {
+                    DiagnosticsRunResult::Completed(diagnostics) => {
+                        client.publish_diagnostics(uri, diagnostics, None).await;
+                        return;
+                    }
+                    DiagnosticsRunResult::Busy => {}
+                    DiagnosticsRunResult::TimedOut if !logged_failure => {
+                        client
+                            .log_message(
+                                MessageType::WARNING,
+                                "Yulang diagnostics timed out; retrying automatically",
+                            )
+                            .await;
+                        logged_failure = true;
+                    }
+                    DiagnosticsRunResult::WorkerFailed(error) if !logged_failure => {
+                        client
+                            .log_message(
+                                MessageType::ERROR,
+                                format!(
+                                    "Yulang diagnostics worker failed; retrying automatically: {error}"
+                                ),
+                            )
+                            .await;
+                        logged_failure = true;
+                    }
+                    DiagnosticsRunResult::TimedOut | DiagnosticsRunResult::WorkerFailed(_) => {}
+                }
+                if attempt >= LSP_ANALYSIS_MAX_ATTEMPTS {
                     client
                         .log_message(
                             MessageType::WARNING,
-                            "Yulang diagnostics timed out; editor features remain available",
+                            format!(
+                                "Yulang diagnostics could not be refreshed after {attempt} attempts; editor features remain available"
+                            ),
                         )
                         .await;
+                    return;
                 }
-                DiagnosticsRunResult::WorkerFailed(error) => {
-                    client
-                        .log_message(
-                            MessageType::ERROR,
-                            format!("Yulang diagnostics worker failed: {error}"),
-                        )
-                        .await;
+                if !is_current_analysis_version(&versions, &uri, version) {
+                    return;
                 }
+                tokio::time::sleep(retry_delay).await;
+                if !is_current_analysis_version(&versions, &uri, version) {
+                    return;
+                }
+                retry_delay = retry_delay
+                    .saturating_mul(LSP_ANALYSIS_RETRY_BACKOFF_MULTIPLIER)
+                    .min(LSP_ANALYSIS_RETRY_MAX_DELAY);
+                attempt += 1;
             }
         });
     }
@@ -1379,6 +1422,10 @@ fn semantic_tokens_for_source(source: &str) -> Vec<SemanticToken> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{Value, json};
+    use tokio::io::{
+        AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf,
+    };
 
     fn assert_diagnostic_code(diagnostic: &Diagnostic, expected: &str) {
         assert_eq!(
@@ -3856,6 +3903,228 @@ my got = make(1).norm2
         .await;
 
         assert!(matches!(result, DiagnosticsRunResult::Busy), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn scheduled_diagnostics_retry_after_busy_and_publish() {
+        let root = lsp_test_workspace("diagnostics-retry-after-busy");
+        let entry = root.join("main.yu");
+        let uri = Url::from_file_path(&entry).unwrap();
+        let slots = Arc::new(Semaphore::new(1));
+        let occupied = slots.clone().try_acquire_owned().unwrap();
+        let mut harness =
+            DiagnosticsScheduleTestHarness::start(Some(root.join("lib")), Arc::clone(&slots)).await;
+
+        harness.did_open(uri.clone(), "my x =\n").await;
+        tokio::time::sleep(LSP_ANALYSIS_DEBOUNCE + Duration::from_millis(50)).await;
+        drop(occupied);
+
+        let message = harness.recv(Duration::from_secs(5)).await;
+        assert_eq!(
+            message.get("method").and_then(Value::as_str),
+            Some("textDocument/publishDiagnostics"),
+            "{message:?}"
+        );
+        let params: PublishDiagnosticsParams =
+            serde_json::from_value(message["params"].clone()).unwrap();
+        assert_eq!(params.uri, uri);
+        assert!(!params.diagnostics.is_empty(), "{params:?}");
+    }
+
+    #[tokio::test]
+    async fn closing_document_during_diagnostics_retry_prevents_later_publish() {
+        let root = lsp_test_workspace("diagnostics-close-during-retry");
+        let entry = root.join("main.yu");
+        std::fs::write(&entry, "my x =\n").unwrap();
+        let uri = Url::from_file_path(&entry).unwrap();
+        let slots = Arc::new(Semaphore::new(1));
+        let occupied = slots.clone().try_acquire_owned().unwrap();
+        let mut harness =
+            DiagnosticsScheduleTestHarness::start(Some(root.join("lib")), Arc::clone(&slots)).await;
+
+        harness.did_open(uri.clone(), "my x =\n").await;
+        tokio::time::sleep(LSP_ANALYSIS_DEBOUNCE + Duration::from_millis(50)).await;
+        harness.did_close(uri.clone()).await;
+
+        let close_message = harness.recv(Duration::from_secs(1)).await;
+        assert_eq!(
+            close_message.get("method").and_then(Value::as_str),
+            Some("textDocument/publishDiagnostics"),
+            "{close_message:?}"
+        );
+        let params: PublishDiagnosticsParams =
+            serde_json::from_value(close_message["params"].clone()).unwrap();
+        assert_eq!(params.uri, uri);
+        assert!(params.diagnostics.is_empty(), "{params:?}");
+
+        drop(occupied);
+        let unexpected = harness.recv_within(Duration::from_secs(1)).await;
+        assert_eq!(unexpected, None, "diagnostics published after close");
+    }
+
+    #[tokio::test]
+    async fn scheduled_diagnostics_stop_after_retry_budget() {
+        let root = lsp_test_workspace("diagnostics-retry-budget");
+        let entry = root.join("main.yu");
+        let uri = Url::from_file_path(&entry).unwrap();
+        let slots = Arc::new(Semaphore::new(1));
+        let _occupied = slots.clone().try_acquire_owned().unwrap();
+        let mut harness =
+            DiagnosticsScheduleTestHarness::start(Some(root.join("lib")), Arc::clone(&slots)).await;
+
+        harness.did_open(uri, "my x =\n").await;
+
+        let message = harness.recv(Duration::from_secs(5)).await;
+        assert_eq!(
+            message.get("method").and_then(Value::as_str),
+            Some("window/logMessage"),
+            "{message:?}"
+        );
+        let params: LogMessageParams = serde_json::from_value(message["params"].clone()).unwrap();
+        assert_eq!(params.typ, MessageType::WARNING);
+        assert_eq!(
+            params.message,
+            format!(
+                "Yulang diagnostics could not be refreshed after {LSP_ANALYSIS_MAX_ATTEMPTS} attempts; editor features remain available"
+            )
+        );
+        let unexpected = harness.recv_within(Duration::from_millis(250)).await;
+        assert_eq!(unexpected, None, "more than one exhaustion message emitted");
+    }
+
+    struct DiagnosticsScheduleTestHarness {
+        reader: BufReader<ReadHalf<DuplexStream>>,
+        writer: WriteHalf<DuplexStream>,
+        server_task: tokio::task::JoinHandle<()>,
+    }
+
+    impl DiagnosticsScheduleTestHarness {
+        async fn start(std_root: Option<PathBuf>, analysis_slots: Arc<Semaphore>) -> Self {
+            let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+            let (client_reader, client_writer) = tokio::io::split(client_io);
+            let (server_reader, server_writer) = tokio::io::split(server_io);
+            let (service, socket) = LspService::new(move |client| Backend {
+                client,
+                std_root,
+                documents: Arc::new(Mutex::new(HashMap::new())),
+                analysis_versions: Arc::new(Mutex::new(HashMap::new())),
+                request_cache: Arc::new(Mutex::new(HashMap::new())),
+                analysis_slots,
+                request_slots: Arc::new(Semaphore::new(2)),
+                doc_comment_render_worker: None,
+            });
+            let server_task =
+                tokio::spawn(Server::new(server_reader, server_writer, socket).serve(service));
+            let mut harness = Self {
+                reader: BufReader::new(client_reader),
+                writer: client_writer,
+                server_task,
+            };
+            harness
+                .send(json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": { "capabilities": {} },
+                }))
+                .await;
+            let response = harness.recv(Duration::from_secs(1)).await;
+            assert_eq!(response.get("id").and_then(Value::as_u64), Some(1));
+            assert!(response.get("result").is_some(), "{response:?}");
+            harness
+                .send(json!({
+                    "jsonrpc": "2.0",
+                    "method": "initialized",
+                    "params": {},
+                }))
+                .await;
+            let initialized_log = harness.recv(Duration::from_secs(1)).await;
+            assert_eq!(
+                initialized_log.get("method").and_then(Value::as_str),
+                Some("window/logMessage"),
+                "{initialized_log:?}"
+            );
+            harness
+        }
+
+        async fn did_open(&mut self, uri: Url, text: &str) {
+            self.send(json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "yulang",
+                        "version": 1,
+                        "text": text,
+                    }
+                },
+            }))
+            .await;
+        }
+
+        async fn did_close(&mut self, uri: Url) {
+            self.send(json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/didClose",
+                "params": {
+                    "textDocument": { "uri": uri }
+                },
+            }))
+            .await;
+        }
+
+        async fn send(&mut self, message: Value) {
+            let body = serde_json::to_vec(&message).unwrap();
+            let header = format!("Content-Length: {}\r\n\r\n", body.len());
+            self.writer.write_all(header.as_bytes()).await.unwrap();
+            self.writer.write_all(&body).await.unwrap();
+            self.writer.flush().await.unwrap();
+        }
+
+        async fn recv(&mut self, wait: Duration) -> Value {
+            tokio::time::timeout(wait, self.read_message())
+                .await
+                .expect("timed out waiting for LSP test message")
+        }
+
+        async fn recv_within(&mut self, wait: Duration) -> Option<Value> {
+            tokio::time::timeout(wait, self.read_message()).await.ok()
+        }
+
+        async fn read_message(&mut self) -> Value {
+            let mut content_length = None;
+            loop {
+                let mut header = String::new();
+                let read = self.reader.read_line(&mut header).await.unwrap();
+                assert_ne!(read, 0, "LSP test server closed its output");
+                if header == "\r\n" {
+                    break;
+                }
+                if let Some((name, value)) = header.split_once(':')
+                    && name.eq_ignore_ascii_case("Content-Length")
+                {
+                    content_length = Some(value.trim().parse::<usize>().unwrap());
+                }
+            }
+            let mut body = vec![0; content_length.expect("LSP message needs Content-Length")];
+            self.reader.read_exact(&mut body).await.unwrap();
+            serde_json::from_slice(&body).unwrap()
+        }
+    }
+
+    impl Drop for DiagnosticsScheduleTestHarness {
+        fn drop(&mut self) {
+            self.server_task.abort();
+        }
+    }
+
+    fn lsp_test_workspace(name: &str) -> PathBuf {
+        let root = temp_root(name);
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        root
     }
 
     fn temp_root(name: &str) -> PathBuf {
