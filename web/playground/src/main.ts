@@ -825,12 +825,14 @@ function renderRunOutput(): void {
     result.classList.toggle("is-error", !output.ok);
     types.classList.toggle("is-error", !output.ok);
     if (output.ok) {
-        result.textContent = formatRunOutput(output);
+        result.replaceChildren(formatRunOutput(output));
         types.textContent = formatTypes(output.types);
     } else {
-        result.textContent = output.diagnostics
-            .map((diagnostic) => formatDiagnostic(diagnostic, source))
-            .join("\n");
+        result.replaceChildren(
+            ...output.diagnostics.map((diagnostic) =>
+                renderDiagnostic(diagnostic, source),
+            ),
+        );
         types.textContent = "";
     }
 }
@@ -1191,35 +1193,166 @@ function reportColorizeFallback(error: unknown): void {
     console.warn("Yulang colorizer failed; rendering plain source", error);
 }
 
-function formatDiagnostic(diagnostic: Diagnostic, source: string): string {
-    const code = diagnostic.code ? ` [${diagnostic.code}]` : "";
-    const message = diagnostic.label
-        ? `${diagnostic.label}: ${diagnostic.message}`
-        : diagnostic.message;
-    const range =
+function renderDiagnostic(
+    diagnostic: Diagnostic,
+    source: string,
+): HTMLElement {
+    const element = diagnosticElement("diagnostic");
+    const header = diagnosticElement("diagnostic-header");
+    header.append(
+        diagnosticElement(
+            "diagnostic-severity",
+            diagnostic.severity,
+        ),
+    );
+    if (diagnostic.code) {
+        header.append(diagnosticElement("diagnostic-code", diagnostic.code));
+    }
+    element.append(header);
+
+    const message = diagnosticElement("diagnostic-message");
+    if (diagnostic.label) {
+        message.append(
+            diagnosticElement("diagnostic-label", `${diagnostic.label}:`),
+            " ",
+        );
+    }
+    message.append(
+        diagnosticElement("diagnostic-message-text", diagnostic.message),
+    );
+    element.append(message);
+
+    if (
         typeof diagnostic.start === "number" &&
         typeof diagnostic.end === "number"
-            ? `\n  ${formatSourceRange(diagnostic.start, diagnostic.end, source)}`
-            : "";
-    const hint = diagnostic.hint ? `\n  hint: ${diagnostic.hint}` : "";
-    const related =
-        diagnostic.related.length === 0
-            ? ""
-            : diagnostic.related
-                  .map((item) => `\n  - ${formatRelatedDiagnostic(item, source)}`)
-                  .join("");
-    return `${diagnostic.severity}${code}: ${message}${range}${hint}${related}`;
+    ) {
+        element.append(
+            renderDiagnosticSourceFrame(
+                source,
+                diagnostic.start,
+                diagnostic.end,
+            ),
+        );
+    }
+
+    if (diagnostic.hint) {
+        const hint = diagnosticElement("diagnostic-hint");
+        hint.append(
+            diagnosticElement("diagnostic-hint-label", "hint:"),
+            " ",
+            diagnosticElement("diagnostic-hint-text", diagnostic.hint),
+        );
+        element.append(hint);
+    }
+
+    if (diagnostic.related.length > 0) {
+        const related = diagnosticElement("diagnostic-related");
+        related.append(
+            diagnosticElement("diagnostic-related-heading", "Related"),
+        );
+        for (const item of diagnostic.related) {
+            related.append(renderRelatedDiagnostic(item, source));
+        }
+        element.append(related);
+    }
+
+    return element;
 }
 
-function formatRelatedDiagnostic(
+function renderRelatedDiagnostic(
     related: DiagnosticRelated,
     source: string,
-): string {
-    const origin = related.origin
-        ? `; ${formatRelatedOrigin(related.origin)}`
-        : "";
-    const range = formatSourceRange(related.start, related.end, source);
-    return `${related.message} (${range}${origin})`;
+): HTMLElement {
+    const element = diagnosticElement("diagnostic-related-item");
+    const description = diagnosticElement("diagnostic-related-description");
+    description.append(
+        diagnosticElement("diagnostic-related-message", related.message),
+    );
+    if (related.origin) {
+        description.append(
+            " ",
+            diagnosticElement(
+                "diagnostic-related-origin",
+                `(${formatRelatedOrigin(related.origin)})`,
+            ),
+        );
+    }
+    element.append(
+        description,
+        renderDiagnosticSourceFrame(source, related.start, related.end),
+    );
+    return element;
+}
+
+function renderDiagnosticSourceFrame(
+    source: string,
+    start: number,
+    end: number,
+): HTMLElement {
+    const frameData = extractSourceFrame(source, start, end);
+    const frame = diagnosticElement("diagnostic-source-frame");
+    const sourceRow = diagnosticElement("diagnostic-source-row");
+    const lineNumber = diagnosticElement(
+        "diagnostic-source-gutter",
+        String(frameData.lineNumber),
+    );
+    lineNumber.setAttribute("aria-hidden", "true");
+    const sourceText = document.createElement("code");
+    sourceText.className = "diagnostic-source-text";
+    sourceText.textContent = frameData.lineText;
+    sourceRow.append(lineNumber, sourceText);
+
+    const markerRow = diagnosticElement(
+        "diagnostic-source-row diagnostic-source-marker-row",
+    );
+    const markerGutter = diagnosticElement("diagnostic-source-gutter");
+    const marker = document.createElement("code");
+    marker.className = "diagnostic-source-marker";
+    marker.setAttribute("aria-hidden", "true");
+    marker.append(
+        diagnosticElement(
+            "diagnostic-source-marker-prefix",
+            frameData.lineText.slice(0, frameData.startColumn),
+        ),
+        diagnosticElement(
+            "diagnostic-source-underline",
+            frameData.lineText.slice(
+                frameData.startColumn,
+                frameData.endColumn,
+            ) || " ",
+        ),
+    );
+    markerRow.setAttribute("aria-hidden", "true");
+    markerRow.append(markerGutter, marker);
+    frame.append(sourceRow, markerRow);
+
+    if (frameData.continuedLineCount > 0) {
+        const truncationRow = diagnosticElement(
+            "diagnostic-source-row diagnostic-source-truncation-row",
+        );
+        const truncationGutter = diagnosticElement("diagnostic-source-gutter");
+        truncationGutter.setAttribute("aria-hidden", "true");
+        const lines = frameData.continuedLineCount === 1 ? "line" : "lines";
+        truncationRow.append(
+            truncationGutter,
+            diagnosticElement(
+                "diagnostic-source-truncation",
+                `+${frameData.continuedLineCount} more ${lines}`,
+            ),
+        );
+        frame.append(truncationRow);
+    }
+
+    return frame;
+}
+
+function diagnosticElement(className: string, text?: string): HTMLSpanElement {
+    const element = document.createElement("span");
+    element.className = className;
+    if (text !== undefined) {
+        element.textContent = text;
+    }
+    return element;
 }
 
 function formatRelatedOrigin(origin: DiagnosticRelatedOrigin): string {
@@ -1287,21 +1420,6 @@ function extractSourceFrame(
             endPosition.line - startPosition.line,
         ),
     };
-}
-
-function formatSourceRange(start: number, end: number, source: string): string {
-    const startPosition = sourcePositionAtByteOffset(source, start);
-    const endPosition = sourcePositionAtByteOffset(source, end);
-    if (
-        startPosition.line === endPosition.line &&
-        startPosition.column === endPosition.column
-    ) {
-        return `line ${startPosition.line}:${startPosition.column}`;
-    }
-    if (startPosition.line === endPosition.line) {
-        return `line ${startPosition.line}:${startPosition.column}-${endPosition.column}`;
-    }
-    return `line ${startPosition.line}:${startPosition.column}-line ${endPosition.line}:${endPosition.column}`;
 }
 
 function sourcePositionAtByteOffset(
