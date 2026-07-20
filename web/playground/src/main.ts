@@ -1390,7 +1390,11 @@ function extractSourceFrame(
     const endOffset = Math.max(startOffset, clampSourceByteOffset(end));
     const startPosition = sourcePositionAtByteOffset(source, startOffset);
     const endPosition = sourcePositionAtByteOffset(source, endOffset);
-    const lineStart = source.lastIndexOf("\n", startPosition.index - 1) + 1;
+    const previousLineBreak =
+        startPosition.index === 0
+            ? -1
+            : source.lastIndexOf("\n", startPosition.index - 1);
+    const lineStart = previousLineBreak + 1;
     const nextLineBreak = source.indexOf("\n", startPosition.index);
     let lineEnd = nextLineBreak === -1 ? source.length : nextLineBreak;
     if (lineEnd > lineStart && source.charCodeAt(lineEnd - 1) === 0x0d) {
