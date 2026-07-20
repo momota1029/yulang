@@ -292,16 +292,21 @@ pub(crate) struct ActualReceiverMethodConformanceView {
     pub(crate) value: ActualMethodConformanceView,
     pub(crate) effect: ActualMethodConformanceView,
     pub(crate) tail_parameter_count: Option<usize>,
+    pub(crate) builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
 }
 
 /// The one non-atomic actual shape whose constructor identities are useful to Stage 4's later
 /// cast-policy comparison. This remains capture metadata; it is not itself a conformance verdict.
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ActualBuiltinNominalPair {
     builtin: BuiltinType,
     nominal_path: Vec<String>,
     nominal_args: Vec<CompactBounds>,
+}
+
+struct ActualMethodConformanceCapture {
+    outward: ActualMethodConformanceView,
+    builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
 }
 
 #[cfg(test)]
@@ -858,6 +863,7 @@ pub(super) fn capture_receiverless_actual_view(
     let compact = compact_type_var(machine, anchor);
     binder_identities.register_method_recursive_vars(compact.rec_vars.iter().map(|rec| rec.var));
     capture_receiverless_actual_view_from_compact(machine, anchor, &compact, &mut binder_identities)
+        .outward
 }
 
 pub(super) fn capture_receiverless_method_actual_view(
@@ -896,7 +902,8 @@ pub(super) fn capture_receiverless_method_actual_view(
         value,
         &value_compact,
         &mut binder_identities,
-    );
+    )
+    .outward;
     let effect = capture_receiver_effect_actual_view(
         machine,
         effect,
@@ -915,12 +922,16 @@ fn capture_receiverless_actual_view_from_compact(
     anchor: TypeVar,
     compact: &CompactRoot,
     binder_identities: &mut ActualBinderIdentityResolver<'_>,
-) -> ActualMethodConformanceView {
+) -> ActualMethodConformanceCapture {
     let mut normalizer =
         ActualFirstOrderNormalizer::new(binder_identities, anchor, machine, &compact.rec_vars);
-    match normalizer.root_view(&compact.root) {
+    let outward = match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
+    };
+    ActualMethodConformanceCapture {
+        outward,
+        builtin_nominal_pair: normalizer.builtin_nominal_pair,
     }
 }
 
@@ -930,8 +941,6 @@ pub(super) fn capture_receiver_actual_view(
     effect: TypeVar,
     bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
 ) -> ActualReceiverMethodConformanceView {
-    #[cfg(test)]
-    let bridge_result = bridge;
     let bridge = match bridge {
         Ok(bridge) => bridge,
         Err(reason) => {
@@ -943,6 +952,7 @@ pub(super) fn capture_receiver_actual_view(
                     ActualMethodConformanceViewUnavailable::MissingBinderBridge(reason.clone()),
                 ),
                 tail_parameter_count: None,
+                builtin_nominal_pair: None,
             };
         }
     };
@@ -969,8 +979,8 @@ pub(super) fn capture_receiver_actual_view(
         machine,
         value_anchor,
         &value_compact,
-        bridge_result,
-        value.clone(),
+        value.outward.clone(),
+        value.builtin_nominal_pair.is_some(),
     );
     let effect = capture_receiver_effect_actual_view(
         machine,
@@ -979,29 +989,11 @@ pub(super) fn capture_receiver_actual_view(
         &mut binder_identities,
     );
     ActualReceiverMethodConformanceView {
-        value,
+        value: value.outward,
         effect,
         tail_parameter_count: None,
+        builtin_nominal_pair: value.builtin_nominal_pair,
     }
-}
-
-/// Read the Stage 4 builtin/nominal capture metadata without consulting cast policy or mutating
-/// the settled constraint machine. The ordinary capture result deliberately remains
-/// `Unavailable(NonAtomicSurface)` until the comparison-level C1-b slice consumes this shape.
-#[cfg(test)]
-pub(crate) fn capture_actual_builtin_nominal_pair(
-    machine: &ConstraintMachine,
-    anchor: TypeVar,
-    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
-) -> Option<ActualBuiltinNominalPair> {
-    let bridge = bridge.as_ref().ok()?;
-    let mut binder_identities = ActualBinderIdentityResolver::new(bridge);
-    let compact = compact_type_var(machine, anchor);
-    binder_identities.register_method_recursive_vars(compact.rec_vars.iter().map(|rec| rec.var));
-    let mut normalizer =
-        ActualFirstOrderNormalizer::new(&mut binder_identities, anchor, machine, &compact.rec_vars);
-    let _ = normalizer.root_view(&compact.root);
-    normalizer.builtin_nominal_pair
 }
 
 /// Project a settled body-effect lower surface into the first-order relation. Bare unweighted
@@ -1184,8 +1176,8 @@ fn record_concrete_anchor_actual_witness(
     machine: &ConstraintMachine,
     anchor: TypeVar,
     compact: &CompactRoot,
-    bridge: &Result<RoleImplConformanceBinderBridge, RoleImplConformanceBinderBridgeUnavailable>,
     outward: ActualMethodConformanceView,
+    c1a_capture_present: bool,
 ) {
     let capture_enabled =
         CONCRETE_ANCHOR_ACTUAL_WITNESSES.with(|witnesses| witnesses.borrow().is_some());
@@ -1228,8 +1220,6 @@ fn record_concrete_anchor_actual_witness(
             }
         })
         .collect();
-    let c1a_capture_present =
-        capture_actual_builtin_nominal_pair(machine, anchor, bridge).is_some();
     let mut witness = ConcreteAnchorActualWitness {
         anchor,
         raw_variables,
@@ -1306,7 +1296,6 @@ struct ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
     recursive_views: rustc_hash::FxHashMap<TypeVar, ConformanceTypeView>,
     projecting_recursive_bounds: bool,
     exact_equivalence_classes: ExactEquivalenceClasses<'resolver>,
-    #[cfg(test)]
     builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
 }
 
@@ -1318,7 +1307,6 @@ enum ActualFirstOrderTypeShape<'a> {
         ignored_var: Option<TypeVar>,
         candidate_count: usize,
     },
-    #[cfg(test)]
     BuiltinNominalPair {
         builtin: BuiltinType,
         nominal_path: &'a [String],
@@ -1370,7 +1358,6 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
-            #[cfg(test)]
             builtin_nominal_pair: None,
         }
     }
@@ -1387,7 +1374,6 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
-            #[cfg(test)]
             builtin_nominal_pair: None,
         }
     }
@@ -1481,7 +1467,6 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
                 ignored_var,
                 candidate_count,
             } => self.resolve_raw_variable_candidates(vars, ignored_var, candidate_count),
-            #[cfg(test)]
             ActualFirstOrderTypeShape::BuiltinNominalPair {
                 builtin,
                 nominal_path,
@@ -1674,7 +1659,6 @@ fn project_actual_first_order_type_shape<'a>(
             candidate_count: raw_variable_count,
         });
     }
-    #[cfg(test)]
     if alternative_count == 2
         && raw_variable_count == 0
         && !ty.never

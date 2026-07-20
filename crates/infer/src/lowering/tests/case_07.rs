@@ -1953,7 +1953,6 @@ fn generic_role_impl_conformance_stage4_obs_cast_selection_has_no_capture_record
 fn generic_role_impl_conformance_stage4_c1a_preserves_only_the_builtin_nominal_cast_shape() {
     use crate::role_impl_conformance::view::{
         ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        capture_actual_builtin_nominal_pair,
     };
     use crate::role_impl_conformance::{RoleImplMethodActualSurface, ShadowConformanceOutcome};
 
@@ -1995,32 +1994,17 @@ fn generic_role_impl_conformance_stage4_c1a_preserves_only_the_builtin_nominal_c
         Some(RoleImplMethodActualSurface::Receiver(_))
     ));
 
-    let result = receiver_body_result_anchor(&output, member);
-    let pair = capture_actual_builtin_nominal_pair(
-        output.session.infer.constraints(),
-        result,
-        &contract.binder_bridge,
-    )
-    .expect("the exact int/frac surface must retain its structural pair");
-    assert_eq!(pair.builtin(), BuiltinType::Int);
-    assert_eq!(
-        pair.nominal_path(),
-        [
-            "std".to_string(),
-            "num".to_string(),
-            "frac".to_string(),
-            "frac".to_string(),
-        ],
-    );
-    assert!(pair.nominal_args().is_empty());
+    let pair = actual
+        .builtin_nominal_pair
+        .as_ref()
+        .expect("the exact int/frac surface must retain its structural pair");
+    assert_int_frac_builtin_nominal_pair(pair);
 }
 
 #[test]
 fn generic_role_impl_conformance_stage4_c1a_does_not_capture_eq4_raw_variable_candidates() {
     use crate::role_impl_conformance::RoleImplMethodProvision;
-    use crate::role_impl_conformance::view::{
-        ActualMethodConformanceView, capture_actual_builtin_nominal_pair,
-    };
+    use crate::role_impl_conformance::view::ActualMethodConformanceView;
 
     let output = lower_conformance_fixture(fixture_source("explicit-a-same-a"));
     let [contract] = output.role_impl_conformance_contracts() else {
@@ -2051,12 +2035,7 @@ fn generic_role_impl_conformance_stage4_c1a_does_not_capture_eq4_raw_variable_ca
     assert!(compact.root.builtins.is_empty());
     assert!(compact.root.cons.is_empty());
     assert!(
-        capture_actual_builtin_nominal_pair(
-            output.session.infer.constraints(),
-            result,
-            &contract.binder_bridge,
-        )
-        .is_none(),
+        actual.builtin_nominal_pair.is_none(),
         "the all-raw EQ4 shape must remain RawVariableCandidates",
     );
 }
@@ -2067,7 +2046,6 @@ fn generic_role_impl_conformance_stage4_c1a_rejects_two_nominal_alternatives() {
     use crate::role_impl_conformance::RoleImplConformanceBinderBridge;
     use crate::role_impl_conformance::view::{
         ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        capture_actual_builtin_nominal_pair,
     };
 
     let mut machine = ConstraintMachine::new();
@@ -2085,13 +2063,15 @@ fn generic_role_impl_conformance_stage4_c1a_rejects_two_nominal_alternatives() {
         inferred_associated: Vec::new(),
     });
 
+    let actual =
+        crate::role_impl_conformance::capture_receiver_actual_view(&machine, root, root, &bridge);
     assert_eq!(
-        crate::role_impl_conformance::capture_receiverless_actual_view(&machine, root, &bridge),
+        actual.value,
         ActualMethodConformanceView::Unavailable(
             ActualMethodConformanceViewUnavailable::NonAtomicSurface,
         ),
     );
-    assert!(capture_actual_builtin_nominal_pair(&machine, root, &bridge).is_none());
+    assert!(actual.builtin_nominal_pair.is_none());
 }
 
 #[test]
@@ -2132,6 +2112,12 @@ fn generic_role_impl_conformance_stage4_c1b_accepts_unique_cast_for_both_capture
                 ),
                 "the annotated body must consume C1-a's pair seam",
             );
+            assert_int_frac_builtin_nominal_pair(
+                actual
+                    .builtin_nominal_pair
+                    .as_ref()
+                    .expect("annotated cast shape must retain the original pair"),
+            );
         } else {
             assert_eq!(
                 actual.value,
@@ -2140,6 +2126,7 @@ fn generic_role_impl_conformance_stage4_c1b_accepts_unique_cast_for_both_capture
                 )),
                 "the unannotated body must use the clean comparison path",
             );
+            assert!(actual.builtin_nominal_pair.is_none());
         }
         assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
     }
@@ -2187,6 +2174,12 @@ fn generic_role_impl_conformance_stage4_c1b_rejects_ambiguous_cast_for_both_capt
                     ActualMethodConformanceViewUnavailable::NonAtomicSurface,
                 ),
             );
+            assert_int_frac_builtin_nominal_pair(
+                actual
+                    .builtin_nominal_pair
+                    .as_ref()
+                    .expect("annotated ambiguous cast shape must retain the original pair"),
+            );
         } else {
             assert_eq!(
                 actual.value,
@@ -2194,6 +2187,7 @@ fn generic_role_impl_conformance_stage4_c1b_rejects_ambiguous_cast_for_both_capt
                     BuiltinType::Int,
                 )),
             );
+            assert!(actual.builtin_nominal_pair.is_none());
         }
         assert_eq!(pair.outcome, ShadowConformanceOutcome::AmbiguousCast);
     }
@@ -7934,6 +7928,22 @@ fn role_impl_cast_fixture(method: &str, ambiguous: bool) -> String {
     )
 }
 
+fn assert_int_frac_builtin_nominal_pair(
+    pair: &crate::role_impl_conformance::view::ActualBuiltinNominalPair,
+) {
+    assert_eq!(pair.builtin(), BuiltinType::Int);
+    assert_eq!(
+        pair.nominal_path(),
+        [
+            "std".to_string(),
+            "num".to_string(),
+            "frac".to_string(),
+            "frac".to_string(),
+        ],
+    );
+    assert!(pair.nominal_args().is_empty());
+}
+
 fn receiver_body_result_anchor(output: &BodyLowering, member: DefId) -> TypeVar {
     let actual = persisted_receiver_actual_view(output, member);
     let tail_parameter_count = actual
@@ -7972,33 +7982,7 @@ fn shadow_conformance_pairs_with_residuals(
     casts: &crate::casts::CastTable,
     residuals: &[crate::role_impl_conformance::view::RoleImplMethodResidualPrerequisitesView],
 ) -> Vec<crate::role_impl_conformance::ShadowConformancePair> {
-    use crate::role_impl_conformance::RoleImplMethodActualSurface;
-    use crate::role_impl_conformance::view::{
-        ActualMethodConformanceView, ActualMethodConformanceViewUnavailable,
-        capture_actual_builtin_nominal_pair,
-    };
-
-    contract.shadow_conformance_pairs(&output.modules, residuals, casts, |implementation| {
-        let actual = contract.actual_method_view(implementation)?;
-        let RoleImplMethodActualSurface::Receiver(receiver) = &actual.surface else {
-            return None;
-        };
-        if receiver.tail_parameter_count.is_none()
-            || !matches!(
-                receiver.value,
-                ActualMethodConformanceView::Unavailable(
-                    ActualMethodConformanceViewUnavailable::NonAtomicSurface
-                )
-            )
-        {
-            return None;
-        }
-        capture_actual_builtin_nominal_pair(
-            output.session.infer.constraints(),
-            receiver_body_result_anchor(output, implementation),
-            &contract.binder_bridge,
-        )
-    })
+    contract.shadow_conformance_pairs(&output.modules, residuals, casts)
 }
 
 fn characterize_contract(source: &str) -> String {

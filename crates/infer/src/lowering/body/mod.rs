@@ -1145,6 +1145,7 @@ fn unavailable_receiver_actual_view(
         ),
         effect: crate::role_impl_conformance::ActualMethodConformanceView::Unavailable(reason),
         tail_parameter_count: None,
+        builtin_nominal_pair: None,
     }
 }
 

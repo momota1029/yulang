@@ -244,7 +244,6 @@ impl RoleImplConformanceContract {
         modules: &ModuleTable,
         residuals: &[view::RoleImplMethodResidualPrerequisitesView],
         casts: &CastTable,
-        mut captured_builtin_nominal_pair: impl FnMut(DefId) -> Option<view::ActualBuiltinNominalPair>,
     ) -> Vec<ShadowConformancePair> {
         let declared_role = self.declared_view(modules);
         let mut pairs = Vec::new();
@@ -282,7 +281,6 @@ impl RoleImplConformanceContract {
                             &declared_role.advertised_prerequisites,
                             residual,
                             casts,
-                            captured_builtin_nominal_pair(implementation.def).as_ref(),
                         )
                     }));
                 }
@@ -298,7 +296,6 @@ impl RoleImplConformanceContract {
                         &declared_role.advertised_prerequisites,
                         None,
                         casts,
-                        None,
                     ));
                 }
             }
@@ -1001,7 +998,6 @@ fn build_shadow_conformance_pair(
     advertised_prerequisites: &[view::DeclaredRolePredicateView],
     residual_prerequisites: Option<&view::RoleImplMethodResidualPrerequisitesView>,
     casts: &CastTable,
-    captured_builtin_nominal_pair: Option<&view::ActualBuiltinNominalPair>,
 ) -> ShadowConformancePair {
     let outcome = classify_shadow_conformance_pair(
         implementation,
@@ -1009,7 +1005,6 @@ fn build_shadow_conformance_pair(
         declared_effect.as_ref(),
         actual.as_ref(),
         casts,
-        captured_builtin_nominal_pair,
     );
     let predicate_outcome = classify_shadow_predicate_conformance_pair(
         implementation,
@@ -1076,7 +1071,6 @@ fn classify_shadow_conformance_pair(
     declared_effect: Option<&view::DeclaredTypeView>,
     actual: Option<&RoleImplMethodActualSurface>,
     casts: &CastTable,
-    captured_builtin_nominal_pair: Option<&view::ActualBuiltinNominalPair>,
 ) -> ShadowConformanceOutcome {
     if implementation.is_none() || declared.is_none() || actual.is_none() {
         return ShadowConformanceOutcome::NotCaptured;
@@ -1139,7 +1133,7 @@ fn classify_shadow_conformance_pair(
         if !matches!(declared_effect, Some(view::DeclaredTypeView::Available(_))) {
             return ShadowConformanceOutcome::Unavailable;
         }
-        let Some(captured) = captured_builtin_nominal_pair else {
+        let Some(captured) = actual_receiver.builtin_nominal_pair.as_ref() else {
             return ShadowConformanceOutcome::Unavailable;
         };
         match view::captured_builtin_nominal_cast_lookup(casts, captured, requirement) {
@@ -1568,7 +1562,6 @@ mod tests {
             declared_effect,
             actual,
             &CastTable::new(),
-            None,
         )
     }
 
