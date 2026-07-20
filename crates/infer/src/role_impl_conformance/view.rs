@@ -5,18 +5,16 @@
 //! structure stays explicit rather than re-entering the solver.
 
 use poly::expr::DefId;
-use poly::types::{BuiltinType, TypeVar};
 #[cfg(test)]
-use poly::types::{Neg, Pos};
+use poly::types::Pos;
+use poly::types::{BuiltinType, Neg, TypeVar};
 
 use super::{
     AssociatedAssignment, AssociatedInferenceBinderId, ContractTypeRef, DeclaredType,
     ImplUniversalBinderId, RoleImplConformanceBinderBridge,
     RoleImplConformanceBinderBridgeUnavailable, RoleImplConformanceContract,
-    RoleRequirementSubstitutionSlot, SignatureType,
+    RoleRequirementSubstitutionSlot, SignatureEffectAtom, SignatureEffectRow, SignatureType,
 };
-#[cfg(test)]
-use super::{SignatureEffectAtom, SignatureEffectRow};
 use crate::annotation::AnnType;
 #[cfg(test)]
 use crate::casts::CastTable;
@@ -134,7 +132,6 @@ pub(crate) enum ConformanceTypeView {
         args: Vec<ConformanceTypeView>,
     },
     Tuple(Vec<ConformanceTypeView>),
-    #[cfg(test)]
     EffectSet(Vec<ConformanceTypeView>),
 }
 
@@ -446,7 +443,6 @@ fn visible_cast_lookup_by_path(
     }
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DeclaredReceiverMethodConformanceView {
     pub(crate) value: DeclaredTypeView,
@@ -460,7 +456,6 @@ pub(crate) enum ActualMethodConformanceViewUnavailable {
     NonAtomicSurface,
     WeightedVariable,
     AmbiguousBinderBridge(TypeVar),
-    #[cfg(test)]
     AmbiguousExactClassIdentity(Vec<TypeVar>),
     NonExactInvariantArgument,
     UnsupportedFunction,
@@ -716,7 +711,6 @@ pub(super) fn receiver_result_is_first_order(
 
 /// Align a receiverless inner-body snapshot with exactly the measured number of declared curried
 /// parameter layers. Unlike receiver alignment, there is no leading receiver layer to consume.
-#[cfg(test)]
 pub(crate) fn declared_receiverless_method_view(
     contract: &RoleImplConformanceContract,
     modules: &ModuleTable,
@@ -756,7 +750,6 @@ pub(crate) fn declared_receiverless_method_view(
 /// Align a receiver requirement with its captured body-value surface. The actual descriptor owns
 /// the measured tail arity; the declared signature is accepted only when its complete clean
 /// function prefix contains exactly one receiver layer plus that many tail-parameter layers.
-#[cfg(test)]
 pub(crate) fn declared_receiver_result_view(
     contract: &RoleImplConformanceContract,
     modules: &ModuleTable,
@@ -779,7 +772,6 @@ pub(crate) fn declared_receiver_result_view(
 /// Return the receiver body's value/effect requirement after validating the measured tail arity.
 /// Effect rows stay deliberately first-order: closed rows are representable, while row tails and
 /// wildcards remain structured `Unavailable` values.
-#[cfg(test)]
 pub(crate) fn declared_receiver_method_view(
     contract: &RoleImplConformanceContract,
     modules: &ModuleTable,
@@ -817,7 +809,6 @@ pub(crate) fn declared_receiver_method_view(
     })
 }
 
-#[cfg(test)]
 fn signature_effect_view(
     contract: &RoleImplConformanceContract,
     modules: &ModuleTable,
@@ -911,14 +902,6 @@ pub(super) fn capture_receiverless_method_actual_view(
         &value_compact,
         &mut binder_identities,
     );
-    #[cfg(not(test))]
-    let effect = capture_receiverless_actual_view_from_compact(
-        machine,
-        effect,
-        &effect_compact,
-        &mut binder_identities,
-    );
-    #[cfg(test)]
     let effect = capture_receiver_effect_actual_view(
         machine,
         effect,
@@ -934,17 +917,13 @@ pub(super) fn capture_receiverless_method_actual_view(
 }
 
 fn capture_receiverless_actual_view_from_compact(
-    _machine: &ConstraintMachine,
+    machine: &ConstraintMachine,
     anchor: TypeVar,
     compact: &CompactRoot,
     binder_identities: &mut ActualBinderIdentityResolver<'_>,
 ) -> ActualMethodConformanceView {
-    #[cfg(not(test))]
     let mut normalizer =
-        ActualFirstOrderNormalizer::new(binder_identities, anchor, &compact.rec_vars);
-    #[cfg(test)]
-    let mut normalizer =
-        ActualFirstOrderNormalizer::new(binder_identities, anchor, _machine, &compact.rec_vars);
+        ActualFirstOrderNormalizer::new(binder_identities, anchor, machine, &compact.rec_vars);
     match normalizer.root_view(&compact.root) {
         Ok(view) => ActualMethodConformanceView::Available(view),
         Err(reason) => ActualMethodConformanceView::Unavailable(reason),
@@ -1000,14 +979,6 @@ pub(super) fn capture_receiver_actual_view(
         bridge_result,
         value.clone(),
     );
-    #[cfg(not(test))]
-    let effect = capture_receiverless_actual_view_from_compact(
-        machine,
-        effect,
-        &effect_compact,
-        &mut binder_identities,
-    );
-    #[cfg(test)]
     let effect = capture_receiver_effect_actual_view(
         machine,
         effect,
@@ -1044,7 +1015,6 @@ pub(crate) fn capture_actual_builtin_nominal_pair(
 /// Project a settled body-effect lower surface into the first-order relation. Bare unweighted
 /// positive aliases carry no effect atom of their own; concrete row items do. This is one finite
 /// structural pass over the captured compact tree and never mutates the solver.
-#[cfg(test)]
 fn capture_receiver_effect_actual_view(
     machine: &ConstraintMachine,
     anchor: TypeVar,
@@ -1115,10 +1085,9 @@ fn capture_receiver_effect_actual_view(
 
 /// Read-only SCC index for the empty-weight variable projection of a constraint machine.
 ///
-/// In test builds this supplies the Stage 3 exact-equivalence collapse. Each reachable variable is
-/// visited once by Tarjan's algorithm, and completed classes are memoized for subsequent queries
-/// against the same settled machine.
-#[cfg(test)]
+/// This supplies the Stage 3 exact-equivalence collapse. Each reachable variable is visited once
+/// by Tarjan's algorithm, and completed classes are memoized for subsequent queries against the
+/// same settled machine.
 pub(crate) struct ExactEquivalenceClasses<'a> {
     machine: &'a ConstraintMachine,
     next_index: usize,
@@ -1127,7 +1096,6 @@ pub(crate) struct ExactEquivalenceClasses<'a> {
     classes: rustc_hash::FxHashMap<TypeVar, Vec<TypeVar>>,
 }
 
-#[cfg(test)]
 impl<'a> ExactEquivalenceClasses<'a> {
     pub(crate) fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
@@ -1331,7 +1299,6 @@ fn empty_weight_class_upper_nominals(
     nominals
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy)]
 struct ExactEquivalenceNode {
     index: usize,
@@ -1346,7 +1313,6 @@ struct ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
     recursive_bounds: rustc_hash::FxHashMap<TypeVar, &'compact CompactBounds>,
     recursive_views: rustc_hash::FxHashMap<TypeVar, ConformanceTypeView>,
     projecting_recursive_bounds: bool,
-    #[cfg(test)]
     exact_equivalence_classes: ExactEquivalenceClasses<'resolver>,
     #[cfg(test)]
     builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
@@ -1391,31 +1357,10 @@ struct ActualBinderIdentityResolver<'a> {
     method_quantifiers: rustc_hash::FxHashMap<TypeVar, u32>,
     method_recursive_vars: rustc_hash::FxHashSet<TypeVar>,
     method_recursive: rustc_hash::FxHashMap<TypeVar, u32>,
-    #[cfg(test)]
     exact_class_identities: rustc_hash::FxHashMap<TypeVar, ConformanceBinder>,
 }
 
 impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge, 'compact> {
-    #[cfg(not(test))]
-    fn new(
-        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
-        root_anchor: TypeVar,
-        recursive_vars: &'compact [CompactRecursiveVar],
-    ) -> Self {
-        Self {
-            root_anchor: Some(root_anchor),
-            binder_identities,
-            recursive_order: recursive_vars.iter().map(|rec| rec.var).collect(),
-            recursive_bounds: recursive_vars
-                .iter()
-                .map(|rec| (rec.var, &rec.bounds))
-                .collect(),
-            recursive_views: rustc_hash::FxHashMap::default(),
-            projecting_recursive_bounds: false,
-        }
-    }
-
-    #[cfg(test)]
     fn new(
         binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
         root_anchor: TypeVar,
@@ -1433,26 +1378,11 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
+            #[cfg(test)]
             builtin_nominal_pair: None,
         }
     }
 
-    #[cfg(not(test))]
-    fn new_for_bounds(
-        binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
-        _machine: &'resolver ConstraintMachine,
-    ) -> Self {
-        Self {
-            root_anchor: None,
-            binder_identities,
-            recursive_order: Vec::new(),
-            recursive_bounds: rustc_hash::FxHashMap::default(),
-            recursive_views: rustc_hash::FxHashMap::default(),
-            projecting_recursive_bounds: false,
-        }
-    }
-
-    #[cfg(test)]
     fn new_for_bounds(
         binder_identities: &'resolver mut ActualBinderIdentityResolver<'bridge>,
         machine: &'resolver ConstraintMachine,
@@ -1465,6 +1395,7 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             recursive_views: rustc_hash::FxHashMap::default(),
             projecting_recursive_bounds: false,
             exact_equivalence_classes: ExactEquivalenceClasses::new(machine),
+            #[cfg(test)]
             builtin_nominal_pair: None,
         }
     }
@@ -1597,9 +1528,6 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
         candidate_count: usize,
     ) -> Result<ConformanceTypeView, ActualMethodConformanceViewUnavailable> {
         if candidate_count != 1 {
-            #[cfg(not(test))]
-            return Err(ActualMethodConformanceViewUnavailable::NonAtomicSurface);
-            #[cfg(test)]
             return self.resolve_exact_variable_class(vars, ignored_var);
         }
         let var = vars
@@ -1627,7 +1555,6 @@ impl<'resolver, 'bridge, 'compact> ActualFirstOrderNormalizer<'resolver, 'bridge
             .map(ConformanceTypeView::Binder)
     }
 
-    #[cfg(test)]
     fn resolve_exact_variable_class(
         &mut self,
         vars: &[CompactVar],
@@ -1819,7 +1746,6 @@ impl<'a> ActualBinderIdentityResolver<'a> {
             method_quantifiers: rustc_hash::FxHashMap::default(),
             method_recursive_vars: rustc_hash::FxHashSet::default(),
             method_recursive: rustc_hash::FxHashMap::default(),
-            #[cfg(test)]
             exact_class_identities: rustc_hash::FxHashMap::default(),
         }
     }
@@ -1846,7 +1772,6 @@ impl<'a> ActualBinderIdentityResolver<'a> {
         if let Some(binder) = self.resolve_method_recursive_binder(var) {
             return Ok(binder);
         }
-        #[cfg(test)]
         if let Some(binder) = self.exact_class_identities.get(&var) {
             return Ok(*binder);
         }
@@ -1869,24 +1794,16 @@ impl<'a> ActualBinderIdentityResolver<'a> {
             if mapped.next().is_some() {
                 return Err(ActualMethodConformanceViewUnavailable::AmbiguousBinderBridge(var));
             }
-            #[cfg(test)]
             self.exact_class_identities.insert(var, first);
             return Ok(first);
         }
         let next = self.method_quantifiers.len() as u32;
         let binder = *self.method_quantifiers.entry(var).or_insert(next);
-        #[cfg(not(test))]
-        return Ok(ConformanceBinder::MethodQuantifier(binder));
-        #[cfg(test)]
         let binder = ConformanceBinder::MethodQuantifier(binder);
-        #[cfg(test)]
-        {
-            self.exact_class_identities.insert(var, binder);
-            Ok(binder)
-        }
+        self.exact_class_identities.insert(var, binder);
+        Ok(binder)
     }
 
-    #[cfg(test)]
     fn resolve_class(
         &mut self,
         class: &[TypeVar],
