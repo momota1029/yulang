@@ -220,6 +220,7 @@ pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
         BodyLoweringError::MissingBody { def, .. }
         | BodyLoweringError::NonLetDef { def, .. }
         | BodyLoweringError::Expr { def, .. } => Some(*def),
+        BodyLoweringError::RoleImplAssociatedTypeMismatch { method_def, .. } => Some(*method_def),
         BodyLoweringError::Analysis(error) => error.primary_def(),
     }
 }

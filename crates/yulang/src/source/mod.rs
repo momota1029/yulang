@@ -3219,24 +3219,34 @@ fn source_diagnostics_from_check(
         .iter()
         .map(|diagnostic| {
             let error = &check.lowering.errors[diagnostic.error_index];
-            let span =
-                body_lowering_error_source_span(error, &check.lowering.modules).or_else(|| {
-                    diagnostic
-                        .def
-                        .and_then(|def| check.lowering.modules.def_source_span(def).cloned())
-                });
-            SourceDiagnostic {
-                severity: SourceDiagnosticSeverity::Error,
-                code: body_lowering_error_code(error).map(str::to_string),
-                label: diagnostic.label.clone(),
-                file: span.as_ref().map(|span| span.file.clone()),
-                range: span.as_ref().map(|span| span.range),
-                message: format_body_lowering_error(error),
-                hint: body_lowering_error_hint(error),
-                related: body_lowering_error_related(error, &check.lowering.modules),
-            }
+            source_diagnostic_from_body_lowering_error(
+                error,
+                &check.lowering.modules,
+                diagnostic.def,
+                diagnostic.label.clone(),
+            )
         })
         .collect()
+}
+
+fn source_diagnostic_from_body_lowering_error(
+    error: &infer::lowering::BodyLoweringError,
+    modules: &infer::ModuleTable,
+    def: Option<poly::expr::DefId>,
+    label: Option<String>,
+) -> SourceDiagnostic {
+    let span = body_lowering_error_source_span(error, modules)
+        .or_else(|| def.and_then(|def| modules.def_source_span(def).cloned()));
+    SourceDiagnostic {
+        severity: SourceDiagnosticSeverity::Error,
+        code: body_lowering_error_code(error).map(str::to_string),
+        label,
+        file: span.as_ref().map(|span| span.file.clone()),
+        range: span.as_ref().map(|span| span.range),
+        message: format_body_lowering_error(error),
+        hint: body_lowering_error_hint(error),
+        related: body_lowering_error_related(error, modules),
+    }
 }
 
 fn source_diagnostics_for_check(
@@ -3367,6 +3377,9 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
     match error {
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_code(error),
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => {
+            Some("yulang.role-impl-associated-type-mismatch")
+        }
         infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("yulang.missing-local-binding-body")
@@ -3489,6 +3502,16 @@ fn body_lowering_error_source_span(
                 range,
             })
         }
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
+            associated,
+            impl_source,
+            ..
+        } => Some(
+            associated
+                .first()
+                .map(|site| site.source.clone())
+                .unwrap_or_else(|| impl_source.clone()),
+        ),
         infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
         | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
         | infer::lowering::BodyLoweringError::MissingBody { .. }
@@ -3509,6 +3532,39 @@ fn body_lowering_error_related(
         _ => None,
     };
     match error {
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
+            method,
+            associated,
+            method_source,
+            requirement_source,
+            ..
+        } => {
+            let mut related = associated
+                .iter()
+                .skip(1)
+                .map(|site| SourceDiagnosticRelated {
+                    message: format!("explicit associated type `{}` is assigned here", site.name),
+                    file: site.source.file.clone(),
+                    range: site.source.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
+                })
+                .collect::<Vec<_>>();
+            related.push(SourceDiagnosticRelated {
+                message: format!("impl method `{method}` is implemented here"),
+                file: method_source.file.clone(),
+                range: method_source.range,
+                origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+            });
+            if let Some(source) = requirement_source {
+                related.push(SourceDiagnosticRelated {
+                    message: format!("role requirement for `{method}` is declared here"),
+                    file: source.file.clone(),
+                    range: source.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
+                });
+            }
+            related
+        }
         infer::lowering::BodyLoweringError::Expr {
             error:
                 infer::lowering::LoweringError::TypeMismatch {
@@ -3559,6 +3615,10 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
     match error {
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_hint(error),
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => Some(
+            "change the associated type assignment or make the method signature and body satisfy it"
+                .to_string(),
+        ),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("write a body expression after `=`".to_string())
         }

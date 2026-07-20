@@ -968,7 +968,23 @@ pub enum BodyLoweringError {
         file: Path,
         error: LoweringError,
     },
+    RoleImplAssociatedTypeMismatch {
+        impl_def: DefId,
+        method_def: DefId,
+        role: Vec<String>,
+        method: String,
+        associated: Vec<RoleImplAssociatedDiagnosticSite>,
+        impl_source: SourceSpan,
+        method_source: SourceSpan,
+        requirement_source: Option<SourceSpan>,
+    },
     Analysis(AnalysisDiagnostic),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleImplAssociatedDiagnosticSite {
+    pub name: String,
+    pub source: SourceSpan,
 }
 
 pub(super) struct BodyLowerer {

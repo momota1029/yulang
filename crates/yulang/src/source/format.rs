@@ -2290,6 +2290,27 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             ..
         } => format!("unresolved value name in root expression: {}", name.0),
         infer::lowering::BodyLoweringError::RootExpr { error, .. } => format_lowering_error(error),
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
+            role,
+            method,
+            associated,
+            ..
+        } => {
+            let kind = if associated.len() == 1 {
+                "type"
+            } else {
+                "types"
+            };
+            let associated = associated
+                .iter()
+                .map(|site| format!("`{}`", site.name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "impl method `{method}` does not satisfy explicit associated {kind} {associated} for role `{}`",
+                role.join("::")
+            )
+        }
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,

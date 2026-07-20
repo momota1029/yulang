@@ -2495,6 +2495,184 @@ fn analyze_entry_source_uses_in_memory_root_source() {
 }
 
 #[test]
+fn role_impl_associated_type_mismatch_diagnostic_maps_single_assignment_without_requirement() {
+    let modules = empty_diagnostic_modules();
+    let error = infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
+        impl_def: poly::expr::DefId(10),
+        method_def: poly::expr::DefId(11),
+        role: vec![
+            "std".to_string(),
+            "data".to_string(),
+            "index".to_string(),
+            "Index".to_string(),
+        ],
+        method: "index".to_string(),
+        associated: vec![infer::lowering::RoleImplAssociatedDiagnosticSite {
+            name: "value".to_string(),
+            source: infer::SourceSpan {
+                file: path_from_segments(&["role_impl"]),
+                range: SourceRange { start: 20, end: 24 },
+            },
+        }],
+        impl_source: infer::SourceSpan {
+            file: path_from_segments(&["role_impl"]),
+            range: SourceRange { start: 0, end: 40 },
+        },
+        method_source: infer::SourceSpan {
+            file: path_from_segments(&["role_impl"]),
+            range: SourceRange { start: 30, end: 40 },
+        },
+        requirement_source: None,
+    };
+
+    let diagnostic = source_diagnostic_from_body_lowering_error(&error, &modules, None, None);
+
+    assert_eq!(
+        format_body_lowering_error(&error),
+        "impl method `index` does not satisfy explicit associated type `value` for role `std::data::index::Index`"
+    );
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.role-impl-associated-type-mismatch".to_string()),
+            label: None,
+            file: Some(path_from_segments(&["role_impl"])),
+            range: Some(SourceRange {
+                start: 20,
+                end: 24,
+            }),
+            message: "impl method `index` does not satisfy explicit associated type `value` for role `std::data::index::Index`".to_string(),
+            hint: Some(
+                "change the associated type assignment or make the method signature and body satisfy it"
+                    .to_string(),
+            ),
+            related: vec![SourceDiagnosticRelated {
+                message: "impl method `index` is implemented here".to_string(),
+                file: path_from_segments(&["role_impl"]),
+                range: SourceRange {
+                    start: 30,
+                    end: 40,
+                },
+                origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+            }],
+        }
+    );
+}
+
+#[test]
+fn role_impl_associated_type_mismatch_diagnostic_maps_multiple_assignments_with_requirement() {
+    let modules = empty_diagnostic_modules();
+    let error = infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
+        impl_def: poly::expr::DefId(20),
+        method_def: poly::expr::DefId(21),
+        role: vec!["example".to_string(), "Pair".to_string()],
+        method: "pair".to_string(),
+        associated: vec![
+            infer::lowering::RoleImplAssociatedDiagnosticSite {
+                name: "first".to_string(),
+                source: infer::SourceSpan {
+                    file: path_from_segments(&["impls"]),
+                    range: SourceRange {
+                        start: 100,
+                        end: 103,
+                    },
+                },
+            },
+            infer::lowering::RoleImplAssociatedDiagnosticSite {
+                name: "second".to_string(),
+                source: infer::SourceSpan {
+                    file: path_from_segments(&["impls"]),
+                    range: SourceRange {
+                        start: 110,
+                        end: 114,
+                    },
+                },
+            },
+        ],
+        impl_source: infer::SourceSpan {
+            file: path_from_segments(&["impls"]),
+            range: SourceRange {
+                start: 80,
+                end: 140,
+            },
+        },
+        method_source: infer::SourceSpan {
+            file: path_from_segments(&["impls", "methods"]),
+            range: SourceRange {
+                start: 120,
+                end: 140,
+            },
+        },
+        requirement_source: Some(infer::SourceSpan {
+            file: path_from_segments(&["roles"]),
+            range: SourceRange { start: 50, end: 70 },
+        }),
+    };
+
+    let diagnostic = source_diagnostic_from_body_lowering_error(&error, &modules, None, None);
+
+    assert_eq!(
+        format_body_lowering_error(&error),
+        "impl method `pair` does not satisfy explicit associated types `first`, `second` for role `example::Pair`"
+    );
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.role-impl-associated-type-mismatch".to_string()),
+            label: None,
+            file: Some(path_from_segments(&["impls"])),
+            range: Some(SourceRange {
+                start: 100,
+                end: 103,
+            }),
+            message: "impl method `pair` does not satisfy explicit associated types `first`, `second` for role `example::Pair`".to_string(),
+            hint: Some(
+                "change the associated type assignment or make the method signature and body satisfy it"
+                    .to_string(),
+            ),
+            related: vec![
+                SourceDiagnosticRelated {
+                    message: "explicit associated type `second` is assigned here".to_string(),
+                    file: path_from_segments(&["impls"]),
+                    range: SourceRange {
+                        start: 110,
+                        end: 114,
+                    },
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
+                },
+                SourceDiagnosticRelated {
+                    message: "impl method `pair` is implemented here".to_string(),
+                    file: path_from_segments(&["impls", "methods"]),
+                    range: SourceRange {
+                        start: 120,
+                        end: 140,
+                    },
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                },
+                SourceDiagnosticRelated {
+                    message: "role requirement for `pair` is declared here".to_string(),
+                    file: path_from_segments(&["roles"]),
+                    range: SourceRange { start: 50, end: 70 },
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
+                },
+            ],
+        }
+    );
+}
+
+fn empty_diagnostic_modules() -> infer::ModuleTable {
+    let loaded = sources::load(vec![sources::SourceFile {
+        module_path: Path::default(),
+        source: String::new(),
+    }]);
+    infer::lowering::lower_loaded_files(&loaded)
+        .expect("empty diagnostic fixture should lower")
+        .modules
+}
+
+#[test]
 fn analyze_entry_source_reports_unresolved_name_source_range() {
     let root = temp_root("analyze-entry-source-unresolved-range");
     let _ = fs::remove_dir_all(&root);
