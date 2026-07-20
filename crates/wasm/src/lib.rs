@@ -796,6 +796,14 @@ impl WasmRuntimeError {
             Self::Route(yulang::RouteError::Runtime(error)) => {
                 mono_runtime_source_diagnostic(&error)
             }
+            Self::Route(yulang::RouteError::SpecializeDiagnostic { error, context }) => {
+                ranged_specialize_source_diagnostic(&error, &context)
+                    .unwrap_or_else(|| RuntimeSourceDiagnostic::new(None, error.to_string(), None))
+            }
+            Self::Route(yulang::RouteError::Specialize(error)) => {
+                specialize_source_diagnostic(&error)
+                    .unwrap_or_else(|| RuntimeSourceDiagnostic::new(None, error.to_string(), None))
+            }
             Self::Route(error) => RuntimeSourceDiagnostic::new(None, error.to_string(), None),
             Self::Runtime(diagnostic) => diagnostic,
         }
@@ -822,6 +830,88 @@ impl RuntimeSourceDiagnostic {
             },
             range_offset: 0,
         }
+    }
+}
+
+fn ranged_specialize_source_diagnostic(
+    error: &specialize::SpecializeError,
+    context: &yulang::source::SpecializeDiagnosticContext,
+) -> Option<RuntimeSourceDiagnostic> {
+    if !matches!(
+        error,
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField { .. }),
+            ..
+        } | specialize::SpecializeError::UnresolvedTypeclassMethod { .. }
+            | specialize::SpecializeError::AmbiguousTypeclassMethod { .. }
+    ) {
+        return None;
+    }
+
+    let mut diagnostic = specialize_source_diagnostic(error)?;
+    diagnostic.diagnostic.range = Some(context.range);
+    diagnostic.diagnostic.related = context.related.clone();
+    diagnostic.range_offset = context.source.range_offset;
+    Some(diagnostic)
+}
+
+fn specialize_source_diagnostic(
+    error: &specialize::SpecializeError,
+) -> Option<RuntimeSourceDiagnostic> {
+    match error {
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
+                    field,
+                    actual_fields,
+                    ..
+                }),
+            ..
+        } => {
+            let actual = describe_actual_record_fields(actual_fields);
+            let hint = format!(
+                "add `{field}` to this record or use a value that provides it; actual record has {actual}"
+            );
+            Some(RuntimeSourceDiagnostic::new(
+                Some("yulang.unsatisfied-subtype"),
+                format!("record is missing field `{field}`"),
+                Some(&hint),
+            ))
+        }
+        specialize::SpecializeError::UnsatisfiedSubtype { .. } => {
+            Some(RuntimeSourceDiagnostic::new(
+                Some("yulang.unsatisfied-subtype"),
+                "value does not satisfy the required type or record shape".to_string(),
+                Some("check that the value provides the fields or shape required by this use"),
+            ))
+        }
+        specialize::SpecializeError::UnresolvedTypeclassMethod { .. } => {
+            Some(RuntimeSourceDiagnostic::new(
+                Some("yulang.unresolved-method"),
+                "no role implementation satisfies this method call".to_string(),
+                Some(
+                    "add or import an impl for the receiver type, or call a method supported by that value",
+                ),
+            ))
+        }
+        specialize::SpecializeError::AmbiguousTypeclassMethod { .. } => {
+            Some(RuntimeSourceDiagnostic::new(
+                Some("yulang.ambiguous-method"),
+                "more than one role implementation satisfies this method call".to_string(),
+                Some(
+                    "make the receiver type more specific or keep only one matching impl in scope",
+                ),
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn describe_actual_record_fields(actual_fields: &[String]) -> String {
+    if actual_fields.is_empty() {
+        "no fields".to_string()
+    } else {
+        format!("fields {}", actual_fields.join(", "))
     }
 }
 

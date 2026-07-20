@@ -1012,6 +1012,74 @@ pub compose2(f, g, x) = f g(x)
     }
 
     #[test]
+    fn run_inner_returns_ranged_ambiguous_method_diagnostic_with_named_candidates() {
+        clear_std_cache();
+        let output = run_inner_on_test_stack(diagnostics_fixture("ambiguous_method_error"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(diagnostic.code.as_deref(), Some("yulang.ambiguous-method"));
+        assert_eq!(diagnostic.start, Some(97));
+        assert_eq!(diagnostic.end, Some(100));
+        assert_eq!(diagnostic.related.len(), 2, "{diagnostic:?}");
+        assert_eq!(
+            diagnostic
+                .related
+                .iter()
+                .map(|related| related.message.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "matching impl method candidate: R.foo",
+                "matching impl method candidate: R.foo",
+            ]
+        );
+        assert!(
+            diagnostic
+                .related
+                .iter()
+                .all(|related| related.origin.as_deref() == Some("impl_candidate")),
+            "{diagnostic:?}"
+        );
+    }
+
+    #[test]
+    fn unranged_unsatisfied_subtype_hides_internal_type_dump() {
+        let int = specialize::mono::Type::Con {
+            path: vec!["int".to_string()],
+            args: Vec::new(),
+        };
+        let field = |name: &str| specialize::mono::TypeField {
+            name: name.to_string(),
+            value: int.clone(),
+            optional: false,
+        };
+        let error = WasmRuntimeError::Route(yulang::RouteError::Specialize(
+            specialize::SpecializeError::UnsatisfiedSubtype {
+                lower: specialize::mono::Type::Record(vec![field("x")]),
+                upper: specialize::mono::Type::Record(vec![field("x"), field("y")]),
+                origin: None,
+            },
+        ));
+        let RuntimeSourceDiagnostic { diagnostic, .. } = error.into_source_diagnostic();
+
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("yulang.unsatisfied-subtype")
+        );
+        assert!(
+            !diagnostic
+                .message
+                .contains("unsatisfied subtype constraint:"),
+            "{diagnostic:?}"
+        );
+        assert_eq!(
+            diagnostic.hint.as_deref(),
+            Some("check that the value provides the fields or shape required by this use")
+        );
+    }
+
+    #[test]
     fn check_inner_returns_structured_diagnostic() {
         let output = check_inner(diagnostics_fixture("type_annotation_mismatch"));
 

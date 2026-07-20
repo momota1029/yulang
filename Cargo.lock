@@ -1273,6 +1273,7 @@ dependencies = [
  "rowan",
  "serde",
  "serde-wasm-bindgen",
+ "specialize",
  "wasm-bindgen",
  "yulang",
  "yulang-editor",
