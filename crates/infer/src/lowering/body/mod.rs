@@ -1015,6 +1015,8 @@ pub(super) struct BodyLowerer {
     #[cfg(test)]
     candidate_independent_fallback_early_resolution_enabled: bool,
     #[cfg(test)]
+    explicit_associated_mismatch_enforcement_enabled: bool,
+    #[cfg(test)]
     inactive_receiver_provisional_config: Option<InactiveReceiverProvisionalConfig>,
     #[cfg(test)]
     inactive_receiver_provisional_bindings: FxHashMap<DefId, InactiveReceiverProvisionalBinding>,
@@ -1387,6 +1389,8 @@ impl BodyLowerer {
             #[cfg(test)]
             candidate_independent_fallback_early_resolution_enabled: false,
             #[cfg(test)]
+            explicit_associated_mismatch_enforcement_enabled: false,
+            #[cfg(test)]
             inactive_receiver_provisional_config: None,
             #[cfg(test)]
             inactive_receiver_provisional_bindings: FxHashMap::default(),
@@ -1422,6 +1426,21 @@ impl BodyLowerer {
                 handed_off,
                 "a captured source method residual must belong to its unique contract"
             );
+        }
+        #[cfg(test)]
+        if self.explicit_associated_mismatch_enforcement_enabled {
+            let mismatch_drafts = self
+                .role_impl_conformance_contracts
+                .iter()
+                .flat_map(|contract| {
+                    contract.collect_explicit_associated_mismatch_drafts(
+                        &self.modules,
+                        self.session.infer.constraints(),
+                        &self.session.casts,
+                    )
+                })
+                .collect::<Vec<_>>();
+            self.errors.extend(mismatch_drafts);
         }
         let source_impl_defs = self
             .role_impl_conformance_contracts
@@ -1483,6 +1502,14 @@ impl BodyLowerer {
         enabled: bool,
     ) {
         self.candidate_independent_fallback_early_resolution_enabled = enabled;
+    }
+
+    #[cfg(test)]
+    pub(in crate::lowering) fn set_explicit_associated_mismatch_enforcement_enabled(
+        &mut self,
+        enabled: bool,
+    ) {
+        self.explicit_associated_mismatch_enforcement_enabled = enabled;
     }
 
     #[cfg(test)]
@@ -2505,4 +2532,126 @@ fn top_level_var_binding_source(node: &Cst) -> Option<Name> {
     let mut sources = Vec::new();
     crate::collect_pattern_var_binding_sources(&pattern, &mut sources);
     sources.into_iter().next()
+}
+
+#[cfg(test)]
+mod stage5e_finish_tests {
+    use super::*;
+
+    const EXPLICIT_ASSOCIATED_MISMATCH: &str = concat!(
+        "type box 'a with:\n",
+        "  struct self:\n",
+        "    item: 'a\n",
+        "role Index 'container 'key:\n",
+        "  type value\n",
+        "  our c.index: 'key -> value\n",
+        "impl Index (box 'a) int:\n",
+        "  type value = bool\n",
+        "  our c.index i = c.item\n",
+    );
+
+    const VALID_NESTED_EXPLICIT_ASSOCIATED: &str = concat!(
+        "type list 'a\n",
+        "type box 'a with:\n",
+        "  struct self:\n",
+        "    item: list 'a\n",
+        "role Index 'container 'key:\n",
+        "  type value\n",
+        "  our c.index: 'key -> value\n",
+        "impl Index (box 'a) int:\n",
+        "  type value = list 'a\n",
+        "  our c.index i = c.item\n",
+    );
+
+    #[test]
+    fn stage5e_armed_finish_surfaces_explicit_associated_mismatch_through_check() {
+        let (output, impl_def, method_def) =
+            lower_stage5e_fixture(EXPLICIT_ASSOCIATED_MISMATCH, true);
+
+        let [error] = output.errors.as_slice() else {
+            panic!(
+                "armed finish must publish one mismatch: {:?}",
+                output.errors
+            )
+        };
+        let BodyLoweringError::RoleImplAssociatedTypeMismatch {
+            impl_def: actual_impl,
+            method_def: actual_method,
+            role,
+            method,
+            associated,
+            ..
+        } = error
+        else {
+            panic!("armed finish published the wrong error: {error:?}")
+        };
+        assert_eq!((*actual_impl, *actual_method), (impl_def, method_def));
+        assert_eq!(role, &["Index".to_string()]);
+        assert_eq!(method, "index");
+        assert_eq!(
+            associated
+                .iter()
+                .map(|site| site.name.as_str())
+                .collect::<Vec<_>>(),
+            ["value"],
+        );
+
+        let report = crate::check::summarize_lowering(&output);
+        assert_eq!(report.totals.lowering_errors, 1);
+        let [diagnostic] = report.diagnostics.as_slice() else {
+            panic!("the mismatch must surface as one CheckDiagnostic")
+        };
+        assert_eq!(diagnostic.error_index, 0);
+        assert_eq!(diagnostic.def, Some(method_def));
+        let expected_label = output
+            .labels
+            .def_label(method_def)
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("d{}", method_def.0));
+        assert_eq!(diagnostic.label.as_deref(), Some(expected_label.as_str()),);
+    }
+
+    #[test]
+    fn stage5e_armed_finish_accepts_valid_nested_generic_assignment() {
+        let (output, _, _) = lower_stage5e_fixture(VALID_NESTED_EXPLICIT_ASSOCIATED, true);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(
+            crate::check::summarize_lowering(&output)
+                .diagnostics
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn stage5e_default_finish_keeps_explicit_associated_mismatch_inert() {
+        let (output, _, _) = lower_stage5e_fixture(EXPLICIT_ASSOCIATED_MISMATCH, false);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(
+            crate::check::summarize_lowering(&output)
+                .diagnostics
+                .is_empty()
+        );
+    }
+
+    fn lower_stage5e_fixture(source: &str, arm_enforcement: bool) -> (BodyLowering, DefId, DefId) {
+        let root = SyntaxNode::new_root(parser::parse_module_to_green(source));
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let implementation = &lower.modules.role_impls(module)[0];
+        let impl_def = implementation.def;
+        let method_def = implementation.methods[0].def;
+        let mut lowerer = BodyLowerer::new(lower);
+        if arm_enforcement {
+            lowerer.set_explicit_associated_mismatch_enforcement_enabled(true);
+        }
+        lowerer.lower_block(&root, module);
+        lowerer.lower_synthetic_act_copy_bodies();
+        lowerer.drain_analysis_with_conformance();
+        lowerer
+            .session
+            .resolve_unresolved_selections_as_record_fields();
+        (lowerer.finish(), impl_def, method_def)
+    }
 }
