@@ -881,3 +881,15 @@ Function result annotation and struct field conformance remain separately tracke
 own integration gates pass. Completion of this specification does not declare those issues fixed.
 
 Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-12 session. Whether and when to implement remains a decision for Claude Sonnet 5 and the user; this document is a feasibility and design specification, not an implementation commitment.
+
+### EQ4 production-proof-evidence scope (Resolution, 2026-07-21, Claude-signed)
+
+A read-only investigation examined whether EQ4's exact-equivalence collapse (the Stage 3 addendum mechanism, now production-compiled as of Slices S5-C/S5-D/S5-E) is safe to rely on as production proof evidence for Slice S5-F.
+
+Finding: on the default constraint-solver path, no counterexample was found where EQ4 incorrectly collapses two non-equivalent type variables. Bidirectional empty-weight subtyping (`a <: b` and `b <: a`) is a sound witness of equivalence under the solver's own subtype preorder; EQ4 recognizes this existing invariant rather than introducing new risk. Adversarial test coverage already confirms EQ4 correctly refuses to collapse one-way, weighted, unrelated, multi-bridge, and non-atomic-nominal cases.
+
+One residual scope boundary was identified: the experimental evidence-only constraint-replay prototype (enabled via the `YULANG_REPLAY_EVIDENCE_ONLY_SKIP` environment variable, off by default) has known semantic incompleteness (some propagated evidence, e.g. callback effects and residual rows, can be missing from exported schemes under this mode). No concrete false-collapse example was found even under this mode, but its safety as EQ4 evidence was not independently established, and no EQ4 test exercises it.
+
+Decision: Slice S5-F's production-proof boundary is scoped to the DEFAULT constraint-solver path only. The experimental `YULANG_REPLAY_EVIDENCE_ONLY_SKIP` evidence-only replay mode is explicitly OUT OF SCOPE for Stage 5 conformance enforcement's soundness guarantee — this mode is itself experimental and not relied upon by any other production guarantee in this compiler, so Stage 5 enforcement inherits the same scope limitation rather than needing to independently re-certify it. If this environment variable is ever promoted out of experimental status, Stage 5's EQ4 reliance should be re-examined at that time.
+
+This decision was made by Claude (the supervising agent) with the user's explicit approval, following this project's established discipline of not proceeding past an unresolved soundness question without an explicit, recorded decision.
