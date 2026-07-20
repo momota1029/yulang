@@ -2,10 +2,8 @@ use super::*;
 
 /// Stage 0 characterization oracle for generic role-impl conformance.
 ///
-/// These snapshots deliberately record the current behavior, including invalid
-/// explicit associated assignments which are still accepted. Stage 5 of the
-/// conformance specification will replace those expectations with rejection
-/// witnesses after the proof kernel is connected.
+/// These snapshots include both conforming assignments and the explicit-associated
+/// mismatches rejected by default since Stage 5-F connected the proof kernel.
 #[test]
 fn generic_role_impl_conformance_stage0_symbolic_oracle() {
     for fixture in conformance_fixtures() {
@@ -14,8 +12,7 @@ fn generic_role_impl_conformance_stage0_symbolic_oracle() {
     }
 }
 
-/// Alpha renaming must not change the observable scheme/candidate shape even
-/// before conformance enforcement exists.
+/// Alpha renaming must not change the observable scheme/candidate shape.
 #[test]
 fn generic_role_impl_conformance_stage0_alpha_renaming_oracle() {
     let fixtures = conformance_fixtures();
@@ -192,7 +189,11 @@ fn generic_role_impl_conformance_stage3_eq4_collapses_exact_field_selection_clas
     let expected_effect = ActualMethodConformanceView::Available(ConformanceTypeView::Bottom);
 
     for fixture in fixtures {
-        let output = lower_conformance_fixture(fixture_source(fixture.name));
+        let output = if fixture.outcome == ShadowConformanceOutcome::Mismatch {
+            lower_fixture_with_expected_associated_mismatch(fixture_source(fixture.name))
+        } else {
+            lower_conformance_fixture(fixture_source(fixture.name))
+        };
         let pairs = output
             .role_impl_conformance_contracts()
             .iter()
@@ -1147,7 +1148,9 @@ fn generic_role_impl_conformance_stage4_p1a_predicate_success_does_not_mask_valu
         ShadowConformanceOutcome, ShadowPredicateConformanceOutcome,
     };
 
-    let output = lower_conformance_fixture(fixture_source("explicit-bool-concrete-int"));
+    let output = lower_fixture_with_expected_associated_mismatch(fixture_source(
+        "explicit-bool-concrete-int",
+    ));
     let [contract] = output.role_impl_conformance_contracts() else {
         panic!("expected one Index contract")
     };
@@ -2198,7 +2201,9 @@ fn generic_role_impl_conformance_stage4_c1b_keeps_missing_cast_outcomes_unchange
     use crate::casts::CastTable;
     use crate::role_impl_conformance::ShadowConformanceOutcome;
 
-    let existing = lower_conformance_fixture(fixture_source("explicit-bool-concrete-int"));
+    let existing = lower_fixture_with_expected_associated_mismatch(fixture_source(
+        "explicit-bool-concrete-int",
+    ));
     let [existing_contract] = existing.role_impl_conformance_contracts() else {
         panic!("expected existing mismatch contract")
     };
@@ -2813,9 +2818,9 @@ fn generic_role_impl_conformance_stage2_slice0_characterizes_requirement_contami
     let universal_bool = fixture_source("explicit-bool-universal-a");
     let universal_a = fixture_source("explicit-a-same-a");
 
-    let concrete_bool_scheme = finalized_contract_method_scheme(concrete_bool);
+    let concrete_bool_scheme = finalized_mismatching_contract_method_scheme(concrete_bool);
     let concrete_int_scheme = finalized_contract_method_scheme(&concrete_int);
-    let universal_bool_scheme = finalized_contract_method_scheme(universal_bool);
+    let universal_bool_scheme = finalized_mismatching_contract_method_scheme(universal_bool);
     let universal_a_scheme = finalized_contract_method_scheme(universal_a);
 
     assert_eq!(concrete_bool_scheme, "box 'a -> int -> int");
@@ -7280,13 +7285,13 @@ fn lifecycle_fixtures() -> Vec<LifecycleFixture> {
 }
 
 const EXPLICIT_BOOL_CONCRETE_INT: &str = concat!(
-    "lowering=accepted; check-diagnostics=0\n",
+    "lowering=rejected(1); check-diagnostics=1\n",
     "methods=box 'a -> int -> int\n",
     "infer-candidates=Index(box 'a <: box 'a, int <: int; value=bool <: bool) where [] methods=1 links=assoc/head:[value:0],prereq/head:0\n",
     "poly-candidates=Index(box 'a <: box 'a, int <: int; value=bool <: bool) where [] methods=1 links=assoc/head:[value:0],prereq/head:0",
 );
 const EXPLICIT_BOOL_UNIVERSAL_A: &str = concat!(
-    "lowering=accepted; check-diagnostics=0\n",
+    "lowering=rejected(1); check-diagnostics=1\n",
     "methods=box('a & 'b) -> int -> 'a\n",
     "infer-candidates=Index(box 'a <: box 'a, int <: int; value=bool <: bool) where [] methods=1 links=assoc/head:[value:0],prereq/head:0\n",
     "poly-candidates=Index(box 'a <: box 'a, int <: int; value=bool <: bool) where [] methods=1 links=assoc/head:[value:0],prereq/head:0",
@@ -8094,8 +8099,33 @@ fn lower_conformance_fixture(source: &str) -> BodyLowering {
     output
 }
 
+fn lower_fixture_with_expected_associated_mismatch(source: &str) -> BodyLowering {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let output = lower_binding_bodies(&root, lower);
+    assert!(
+        matches!(
+            output.errors.as_slice(),
+            [BodyLoweringError::RoleImplAssociatedTypeMismatch { .. }]
+        ),
+        "fixture should produce exactly one explicit-associated mismatch: {:?}",
+        output.errors,
+    );
+    output
+}
+
 fn shadow_conformance_pair_dump(source: &str) -> String {
-    let output = lower_conformance_fixture(source);
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let output = lower_binding_bodies(&root, lower);
+    assert!(
+        output.errors.iter().all(|error| matches!(
+            error,
+            BodyLoweringError::RoleImplAssociatedTypeMismatch { .. }
+        )),
+        "shadow fixture produced an unrelated lowering error: {:?}",
+        output.errors,
+    );
     shadow_conformance_pair_dump_from_output(&output)
 }
 
@@ -8187,6 +8217,15 @@ fn first_contract_method_scheme<'a>(
 
 fn finalized_contract_method_scheme(source: &str) -> String {
     let output = lower_conformance_fixture(source);
+    finalized_contract_method_scheme_from_output(&output)
+}
+
+fn finalized_mismatching_contract_method_scheme(source: &str) -> String {
+    let output = lower_fixture_with_expected_associated_mismatch(source);
+    finalized_contract_method_scheme_from_output(&output)
+}
+
+fn finalized_contract_method_scheme_from_output(output: &BodyLowering) -> String {
     let contract = &output.role_impl_conformance_contracts()[0];
     poly::dump::format_scheme(
         &output.session.poly.typ,
