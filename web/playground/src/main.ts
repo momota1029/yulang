@@ -1236,7 +1236,58 @@ function formatRelatedOrigin(origin: DiagnosticRelatedOrigin): string {
 type SourcePosition = {
     line: number;
     column: number;
+    index: number;
 };
+
+type SourceFrame = {
+    lineText: string;
+    lineNumber: number;
+    /** Zero-based UTF-16 offsets into lineText, suitable for String#slice. */
+    startColumn: number;
+    endColumn: number;
+    continuedLineCount: number;
+};
+
+function extractSourceFrame(
+    source: string,
+    start: number,
+    end: number,
+): SourceFrame {
+    const startOffset = clampSourceByteOffset(start);
+    const endOffset = Math.max(startOffset, clampSourceByteOffset(end));
+    const startPosition = sourcePositionAtByteOffset(source, startOffset);
+    const endPosition = sourcePositionAtByteOffset(source, endOffset);
+    const lineStart = source.lastIndexOf("\n", startPosition.index - 1) + 1;
+    const nextLineBreak = source.indexOf("\n", startPosition.index);
+    let lineEnd = nextLineBreak === -1 ? source.length : nextLineBreak;
+    if (lineEnd > lineStart && source.charCodeAt(lineEnd - 1) === 0x0d) {
+        lineEnd -= 1;
+    }
+
+    const lineText = source.slice(lineStart, lineEnd);
+    const startColumn = Math.min(
+        Math.max(0, startPosition.index - lineStart),
+        lineText.length,
+    );
+    const endColumn =
+        startPosition.line === endPosition.line
+            ? Math.min(
+                  Math.max(startColumn, endPosition.index - lineStart),
+                  lineText.length,
+              )
+            : lineText.length;
+
+    return {
+        lineText,
+        lineNumber: startPosition.line,
+        startColumn,
+        endColumn,
+        continuedLineCount: Math.max(
+            0,
+            endPosition.line - startPosition.line,
+        ),
+    };
+}
 
 function formatSourceRange(start: number, end: number, source: string): string {
     const startPosition = sourcePositionAtByteOffset(source, start);
@@ -1261,7 +1312,8 @@ function sourcePositionAtByteOffset(
     let byteOffset = 0;
     let line = 1;
     let column = 1;
-    for (let index = 0; index < source.length; ) {
+    let index = 0;
+    while (index < source.length) {
         const codePoint = source.codePointAt(index);
         if (codePoint === undefined) {
             break;
@@ -1279,7 +1331,7 @@ function sourcePositionAtByteOffset(
             column += 1;
         }
     }
-    return { line, column };
+    return { line, column, index };
 }
 
 function clampSourceByteOffset(offset: number): number {
