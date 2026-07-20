@@ -3237,6 +3237,12 @@ fn source_diagnostic_from_body_lowering_error(
 ) -> SourceDiagnostic {
     let span = body_lowering_error_source_span(error, modules)
         .or_else(|| def.and_then(|def| modules.def_source_span(def).cloned()));
+    let label = match error {
+        infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { method, .. } => {
+            Some(method.clone())
+        }
+        _ => label,
+    };
     SourceDiagnostic {
         severity: SourceDiagnosticSeverity::Error,
         code: body_lowering_error_code(error).map(str::to_string),

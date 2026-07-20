@@ -2495,7 +2495,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
 }
 
 #[test]
-fn role_impl_associated_type_mismatch_diagnostic_maps_single_assignment_without_requirement() {
+fn role_impl_associated_type_mismatch_diagnostic_uses_method_label_without_requirement() {
     let modules = empty_diagnostic_modules();
     let error = infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
         impl_def: poly::expr::DefId(10),
@@ -2525,7 +2525,12 @@ fn role_impl_associated_type_mismatch_diagnostic_maps_single_assignment_without_
         requirement_source: None,
     };
 
-    let diagnostic = source_diagnostic_from_body_lowering_error(&error, &modules, None, None);
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &error,
+        &modules,
+        Some(poly::expr::DefId(11)),
+        Some("d11".to_string()),
+    );
 
     assert_eq!(
         format_body_lowering_error(&error),
@@ -2536,7 +2541,7 @@ fn role_impl_associated_type_mismatch_diagnostic_maps_single_assignment_without_
         SourceDiagnostic {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.role-impl-associated-type-mismatch".to_string()),
-            label: None,
+            label: Some("index".to_string()),
             file: Some(path_from_segments(&["role_impl"])),
             range: Some(SourceRange {
                 start: 20,
@@ -2621,7 +2626,7 @@ fn role_impl_associated_type_mismatch_diagnostic_maps_multiple_assignments_with_
         SourceDiagnostic {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.role-impl-associated-type-mismatch".to_string()),
-            label: None,
+            label: Some("pair".to_string()),
             file: Some(path_from_segments(&["impls"])),
             range: Some(SourceRange {
                 start: 100,
