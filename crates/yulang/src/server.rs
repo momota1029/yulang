@@ -299,7 +299,13 @@ fn lsp_diagnostic_for_source_diagnostic(
     Some(Diagnostic {
         range: range
             .map(|range| lsp_range_for_root_byte_range(source, range, root_has_implicit_prelude))
-            .unwrap_or_default(),
+            .unwrap_or_else(|| {
+                lsp_range_for_root_byte_range(
+                    source,
+                    visible_document_root_byte_range(source, root_has_implicit_prelude),
+                    root_has_implicit_prelude,
+                )
+            }),
         severity: Some(lsp_diagnostic_severity(severity)),
         code: code.map(NumberOrString::String),
         source: Some("yulang".to_string()),
@@ -543,6 +549,7 @@ fn diagnostic_hover_for_analysis(
     Some(lsp_hover_for_diagnostic_at_range(
         diagnostic,
         lsp_range_from_utf16(selection.range),
+        selection.related_index,
     ))
 }
 
@@ -552,14 +559,20 @@ fn lsp_diagnostic_hover_target(
 ) -> editor_hover::DiagnosticHoverTarget {
     editor_hover::DiagnosticHoverTarget {
         range: lsp_range_to_utf16(diagnostic.range),
-        related_ranges: diagnostic
+        related: diagnostic
             .related_information
             .as_ref()
             .map(|related| {
                 related
                     .iter()
-                    .filter(|related| &related.location.uri == hovered_uri)
-                    .map(|related| lsp_range_to_utf16(related.location.range))
+                    .enumerate()
+                    .filter(|(_, related)| &related.location.uri == hovered_uri)
+                    .map(
+                        |(related_index, related)| editor_hover::DiagnosticHoverRelatedTarget {
+                            related_index,
+                            range: lsp_range_to_utf16(related.location.range),
+                        },
+                    )
                     .collect()
             })
             .unwrap_or_default(),
@@ -747,18 +760,41 @@ fn lsp_hover_source_contents(contents: &str) -> String {
     out
 }
 
-fn lsp_hover_for_diagnostic_at_range(diagnostic: Diagnostic, range: Range) -> Hover {
+fn lsp_hover_for_diagnostic_at_range(
+    diagnostic: Diagnostic,
+    range: Range,
+    hovered_related_index: Option<usize>,
+) -> Hover {
     let mut value = String::new();
-    if let Some(code) = diagnostic.code.as_ref().and_then(diagnostic_code_string) {
+    let severity = diagnostic
+        .severity
+        .as_ref()
+        .and_then(diagnostic_severity_label);
+    let code = diagnostic.code.as_ref().and_then(diagnostic_code_string);
+    if severity.is_some() || code.is_some() {
         value.push_str("**");
-        value.push_str(code);
+        if let Some(severity) = severity {
+            value.push_str(severity);
+        }
+        if severity.is_some() && code.is_some() {
+            value.push_str(" · ");
+        }
+        if let Some(code) = code {
+            value.push_str(code);
+        }
         value.push_str("**\n\n");
     }
     value.push_str(&diagnostic.message);
     if let Some(related) = diagnostic.related_information.as_ref() {
-        for related in related.iter().take(3) {
+        for (related_index, related) in related.iter().enumerate() {
             value.push_str("\n\n- ");
+            if Some(related_index) == hovered_related_index {
+                value.push_str("**Hovered related note:** ");
+            }
             value.push_str(&related.message);
+            value.push_str(" — `");
+            value.push_str(&diagnostic_related_location_label(&related.location));
+            value.push('`');
         }
     }
     Hover {
@@ -768,6 +804,29 @@ fn lsp_hover_for_diagnostic_at_range(diagnostic: Diagnostic, range: Range) -> Ho
         }),
         range: Some(range),
     }
+}
+
+fn diagnostic_severity_label(severity: &DiagnosticSeverity) -> Option<&'static str> {
+    if severity == &DiagnosticSeverity::ERROR {
+        Some("Error")
+    } else if severity == &DiagnosticSeverity::WARNING {
+        Some("Warning")
+    } else if severity == &DiagnosticSeverity::INFORMATION {
+        Some("Information")
+    } else if severity == &DiagnosticSeverity::HINT {
+        Some("Hint")
+    } else {
+        None
+    }
+}
+
+fn diagnostic_related_location_label(location: &Location) -> String {
+    format!(
+        "{}:{}:{}",
+        location.uri,
+        location.range.start.line.saturating_add(1),
+        location.range.start.character.saturating_add(1),
+    )
 }
 
 fn diagnostic_code_string(code: &NumberOrString) -> Option<&str> {
@@ -854,6 +913,21 @@ fn lsp_range_for_root_byte_range(
         lsp_range_for_loaded_root_range(source, range)
     } else {
         lsp_range_for_byte_range(source, range)
+    }
+}
+
+fn visible_document_root_byte_range(
+    source: &str,
+    root_has_implicit_prelude: bool,
+) -> editor_text::ByteRange {
+    let start = if root_has_implicit_prelude {
+        crate::source::IMPLICIT_STD_SOURCE_PREFIX_LEN
+    } else {
+        0
+    };
+    editor_text::ByteRange {
+        start,
+        end: start + source.len(),
     }
 }
 
@@ -2281,6 +2355,56 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn diagnostics_without_primary_range_span_visible_document() {
+        let root = temp_root("document-wide-diagnostic-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        let entry = root.join("main.yu");
+        let source = "my value = \"💡\"";
+        let analysis = source_analysis_for_source(
+            &entry,
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+        assert!(analysis.root_has_implicit_prelude());
+
+        let diagnostic = lsp_diagnostic_for_source_diagnostic(
+            &entry,
+            source,
+            &analysis,
+            SourceDiagnostic {
+                severity: crate::SourceDiagnosticSeverity::Error,
+                code: Some("yulang.document".to_string()),
+                label: None,
+                file: Some(analysis.focus_file().clone()),
+                range: None,
+                message: "document-wide diagnostic".to_string(),
+                hint: None,
+                related: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            diagnostic.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 15,
+                },
+            }
+        );
+    }
+
+    #[test]
     fn diagnostics_drop_unresolvable_related_files() {
         let root = temp_root("unresolvable-related-diagnostic");
         let entry = root.join("main.yu");
@@ -2894,6 +3018,11 @@ my got = make(1).norm2
             panic!("expected markdown hover");
         };
         assert!(
+            contents.value.contains("**Error · yulang.type-mismatch**"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
             contents.value.contains("yulang.type-mismatch"),
             "{:?}",
             contents.value
@@ -2957,6 +3086,11 @@ my got = make(1).norm2
             panic!("expected markdown hover");
         };
         assert!(
+            contents.value.contains("**Error · yulang.type-mismatch**"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
             contents.value.contains("yulang.type-mismatch"),
             "{:?}",
             contents.value
@@ -2977,6 +3111,89 @@ my got = make(1).norm2
             contents
                 .value
                 .contains("actual type comes from this expression: int"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains(
+                "- **Hovered related note:** expected type comes from this type annotation: bool"
+            ),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            !contents.value.contains(
+                "- **Hovered related note:** actual type comes from this expression: int"
+            ),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains("main.yu:1:7`"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
+    fn diagnostic_hover_markdown_shows_all_related_notes() {
+        let uri = Url::parse("file:///tmp/main.yu").unwrap();
+        let related_information = (0..4)
+            .map(|index| DiagnosticRelatedInformation {
+                location: Location {
+                    uri: uri.clone(),
+                    range: Range {
+                        start: Position {
+                            line: index,
+                            character: index,
+                        },
+                        end: Position {
+                            line: index,
+                            character: index + 1,
+                        },
+                    },
+                },
+                message: format!("related note {}", index + 1),
+            })
+            .collect();
+        let hover = lsp_hover_for_diagnostic_at_range(
+            Diagnostic {
+                range: Range::default(),
+                severity: Some(DiagnosticSeverity::WARNING),
+                code: Some(NumberOrString::String("yulang.test".to_string())),
+                source: Some("yulang".to_string()),
+                message: "test diagnostic".to_string(),
+                related_information: Some(related_information),
+                ..Default::default()
+            },
+            Range::default(),
+            Some(3),
+        );
+
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("**Warning · yulang.test**"),
+            "{:?}",
+            contents.value
+        );
+        for index in 1..=4 {
+            assert!(
+                contents.value.contains(&format!("related note {index}")),
+                "{:?}",
+                contents.value
+            );
+        }
+        assert!(
+            contents
+                .value
+                .contains("- **Hovered related note:** related note 4"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains("file:///tmp/main.yu:4:4`"),
             "{:?}",
             contents.value
         );
