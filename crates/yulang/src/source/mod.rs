@@ -1394,6 +1394,15 @@ impl SourceTextAnalysis {
         self.root_has_implicit_prelude
     }
 
+    pub(crate) fn focus_file(&self) -> &SourceFileIdentity {
+        &self.focus_module
+    }
+
+    pub(crate) fn source_file(&self, file: &SourceFileIdentity) -> Option<(&FsPath, &str, usize)> {
+        let (path, source) = self.source_index.source_file(file)?;
+        Some((path, source, implicit_source_prefix_len(source)))
+    }
+
     fn loaded_byte_offset(&self, root_byte_offset: usize) -> usize {
         root_byte_offset + self.byte_offset_adjust
     }
@@ -3193,6 +3202,12 @@ impl SourceFileIndex {
 
     fn source_for_location(&self, location: &SourceLocation) -> Option<&str> {
         self.sources_by_path.get(&location.path).map(String::as_str)
+    }
+
+    fn source_file(&self, file: &Path) -> Option<(&FsPath, &str)> {
+        let path = self.paths_by_module.get(file)?;
+        let source = self.sources_by_path.get(path)?;
+        Some((path.as_path(), source.as_str()))
     }
 }
 

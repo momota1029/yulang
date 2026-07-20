@@ -14,7 +14,8 @@ use yulang_editor::text as editor_text;
 use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
 use crate::{
     DocCommentRenderWorker, SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin,
-    SourceHover, SourceHoverDocumentationDraft, SourceLocation, SourceRange, SourceRename,
+    SourceFileIdentity, SourceHover, SourceHoverDocumentationDraft, SourceLocation, SourceRange,
+    SourceRename,
 };
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -243,37 +244,48 @@ fn diagnostics_for_analysis(
     source: &str,
     analysis: &SourceTextAnalysis,
 ) -> Vec<Diagnostic> {
-    let uri = Url::from_file_path(path).ok();
     analysis
         .analyze()
         .diagnostics
         .into_iter()
         .map(editor_diagnostic_for_source_diagnostic)
-        .map(|diagnostic| {
+        .filter_map(|diagnostic| {
+            if diagnostic
+                .file
+                .as_ref()
+                .is_some_and(|file| file != analysis.focus_file())
+            {
+                return None;
+            }
+            let EditorDiagnosticWithFiles {
+                diagnostic,
+                related_files,
+                ..
+            } = diagnostic;
             let message = diagnostic.message_with_label_and_hint();
             let root_has_implicit_prelude = analysis.root_has_implicit_prelude();
             let range = diagnostic.range;
             let severity = diagnostic.severity;
             let code = diagnostic.code;
             let related_diagnostics = diagnostic.related;
-            let related_information = uri.as_ref().and_then(|uri| {
-                let related = related_diagnostics
-                    .into_iter()
-                    .map(|related| DiagnosticRelatedInformation {
-                        location: Location {
-                            uri: uri.clone(),
-                            range: lsp_range_for_root_byte_range(
-                                source,
-                                related.range,
-                                root_has_implicit_prelude,
-                            ),
-                        },
+            let related = related_files
+                .into_iter()
+                .zip(related_diagnostics)
+                .filter_map(|(file, related)| {
+                    Some(DiagnosticRelatedInformation {
+                        location: lsp_location_for_source_diagnostic_related(
+                            path,
+                            source,
+                            analysis,
+                            &file,
+                            related.range,
+                        )?,
                         message: related.message,
                     })
-                    .collect::<Vec<_>>();
-                (!related.is_empty()).then_some(related)
-            });
-            Diagnostic {
+                })
+                .collect::<Vec<_>>();
+            let related_information = (!related.is_empty()).then_some(related);
+            Some(Diagnostic {
                 range: range
                     .map(|range| {
                         lsp_range_for_root_byte_range(source, range, root_has_implicit_prelude)
@@ -285,52 +297,93 @@ fn diagnostics_for_analysis(
                 message,
                 related_information,
                 ..Default::default()
-            }
+            })
         })
         .collect()
 }
 
+struct EditorDiagnosticWithFiles {
+    file: Option<SourceFileIdentity>,
+    diagnostic: editor_diagnostics::Diagnostic,
+    related_files: Vec<SourceFileIdentity>,
+}
+
 fn editor_diagnostic_for_source_diagnostic(
     diagnostic: SourceDiagnostic,
-) -> editor_diagnostics::Diagnostic {
+) -> EditorDiagnosticWithFiles {
     let SourceDiagnostic {
         severity,
         code,
         label,
-        file: _,
+        file,
         range,
         message,
         hint,
         related,
     } = diagnostic;
-    editor_diagnostics::Diagnostic {
-        severity: editor_diagnostic_severity(severity),
-        code,
-        label,
-        range: range.map(byte_range_for_source_range),
-        message,
-        hint,
-        related: related
-            .into_iter()
-            .map(editor_related_diagnostic_for_source_related)
-            .collect(),
+    let (related_files, related) = related
+        .into_iter()
+        .map(editor_related_diagnostic_for_source_related)
+        .unzip();
+    EditorDiagnosticWithFiles {
+        file,
+        diagnostic: editor_diagnostics::Diagnostic {
+            severity: editor_diagnostic_severity(severity),
+            code,
+            label,
+            range: range.map(byte_range_for_source_range),
+            message,
+            hint,
+            related,
+        },
+        related_files,
     }
 }
 
 fn editor_related_diagnostic_for_source_related(
     related: SourceDiagnosticRelated,
-) -> editor_diagnostics::RelatedDiagnostic {
+) -> (SourceFileIdentity, editor_diagnostics::RelatedDiagnostic) {
     let SourceDiagnosticRelated {
         message,
-        file: _,
+        file,
         range,
         origin,
     } = related;
-    editor_diagnostics::RelatedDiagnostic {
-        message,
-        range: byte_range_for_source_range(range),
-        origin: origin.map(editor_related_origin_for_source_origin),
+    (
+        file,
+        editor_diagnostics::RelatedDiagnostic {
+            message,
+            range: byte_range_for_source_range(range),
+            origin: origin.map(editor_related_origin_for_source_origin),
+        },
+    )
+}
+
+fn lsp_location_for_source_diagnostic_related(
+    root_path: &Path,
+    root_source: &str,
+    analysis: &SourceTextAnalysis,
+    file: &SourceFileIdentity,
+    range: editor_text::ByteRange,
+) -> Option<Location> {
+    if file == analysis.focus_file() {
+        return Some(Location {
+            uri: Url::from_file_path(root_path).ok()?,
+            range: lsp_range_for_root_byte_range(
+                root_source,
+                range,
+                analysis.root_has_implicit_prelude(),
+            ),
+        });
     }
+
+    let (path, source, range_offset) = analysis.source_file(file)?;
+    let visible_source = source.get(range_offset..)?;
+    let visible_range = editor_text::subtract_prefix_after_start(range, range_offset);
+    Some(Location {
+        uri: Url::from_file_path(path).ok()?,
+        range: lsp_range_for_byte_range(visible_source, visible_range),
+    })
 }
 
 fn editor_diagnostic_severity(
