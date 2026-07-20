@@ -16,7 +16,6 @@ use super::{
     RoleRequirementSubstitutionSlot, SignatureEffectAtom, SignatureEffectRow, SignatureType,
 };
 use crate::annotation::AnnType;
-#[cfg(test)]
 use crate::casts::CastTable;
 use crate::compact::{
     CompactBounds, CompactRecursiveVar, CompactRoleArg, CompactRoleArgPolarity, CompactRoot,
@@ -57,7 +56,6 @@ pub(crate) struct RoleImplMethodResidualPredicateView {
 /// Exact normalized comparison of one residual predicate against one advertised predicate.
 /// `Unavailable` means their role/arity and every comparable input agree, but at least one input
 /// is unavailable or ambiguous in its wrapper.
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExactRolePredicateMatch {
     Matches,
@@ -137,7 +135,6 @@ pub(crate) enum ConformanceTypeView {
 
 /// Pure first-order implementation-to-requirement relation for the Stage 3 shadow kernel.
 /// Binder ids are interpreted inside the pair's owning contract; no solver identity participates.
-#[cfg(test)]
 pub(crate) fn first_order_conforms(
     implementation: &ConformanceTypeView,
     requirement: &ConformanceTypeView,
@@ -177,7 +174,6 @@ pub(crate) fn first_order_conforms(
     }
 }
 
-#[cfg(test)]
 fn first_order_invariantly_equal(left: &ConformanceTypeView, right: &ConformanceTypeView) -> bool {
     match (left, right) {
         (ConformanceTypeView::Top, ConformanceTypeView::Top)
@@ -217,7 +213,6 @@ fn first_order_invariantly_equal(left: &ConformanceTypeView, right: &Conformance
 
 /// Compare one residual predicate with one advertised predicate under exact normalized
 /// membership. This deliberately does not use the subtype-flavored `first_order_conforms`.
-#[cfg(test)]
 pub(crate) fn exact_role_predicate_match(
     residual: &RoleImplMethodResidualPredicateView,
     advertised: &DeclaredRolePredicateView,
@@ -247,7 +242,6 @@ pub(crate) fn exact_role_predicate_match(
     }
 }
 
-#[cfg(test)]
 fn first_order_effect_sets_equal(
     left: &[ConformanceTypeView],
     right: &[ConformanceTypeView],
@@ -309,7 +303,6 @@ struct ActualMethodConformanceCapture {
     builtin_nominal_pair: Option<ActualBuiltinNominalPair>,
 }
 
-#[cfg(test)]
 impl ActualBuiltinNominalPair {
     pub(crate) fn builtin(&self) -> BuiltinType {
         self.builtin
@@ -378,7 +371,6 @@ pub(crate) fn finish_concrete_anchor_actual_witness_capture() -> Vec<ConcreteAnc
 }
 
 /// Result of consulting the visible value-cast registry for one constructor pair.
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum VisibleCastLookup {
     Missing,
@@ -389,7 +381,6 @@ pub(crate) enum VisibleCastLookup {
 /// Classify a clean first-order mismatch through the visible cast table. The registry is keyed by
 /// constructor paths; argument structure remains part of the captured endpoints but is not
 /// re-inferred by this bounded shadow comparison.
-#[cfg(test)]
 pub(crate) fn visible_cast_lookup(
     casts: &CastTable,
     source: &ConformanceTypeView,
@@ -406,7 +397,6 @@ pub(crate) fn visible_cast_lookup(
 
 /// Consume C1-a's narrow pre/post-cast surface. The nominal half must identify the declared target
 /// before the builtin half may be treated as the actual source of a visible cast.
-#[cfg(test)]
 pub(crate) fn captured_builtin_nominal_cast_lookup(
     casts: &CastTable,
     captured: &ActualBuiltinNominalPair,
@@ -422,7 +412,6 @@ pub(crate) fn captured_builtin_nominal_cast_lookup(
     visible_cast_lookup_by_path(casts, &source_path, &target_path)
 }
 
-#[cfg(test)]
 fn cast_constructor(view: &ConformanceTypeView) -> Option<(Vec<String>, usize)> {
     match view {
         ConformanceTypeView::Builtin(builtin) => {
@@ -433,7 +422,6 @@ fn cast_constructor(view: &ConformanceTypeView) -> Option<(Vec<String>, usize)> 
     }
 }
 
-#[cfg(test)]
 fn visible_cast_lookup_by_path(
     casts: &CastTable,
     source_path: &[String],

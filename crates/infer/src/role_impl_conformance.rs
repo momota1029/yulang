@@ -18,10 +18,12 @@ use poly::types::TypeVar;
 use sources::SourceRange;
 
 use crate::annotation::{AnnEffectAtom, AnnEffectRow, AnnType, AnnTypeVar, AnnTypeVarId};
-#[cfg(test)]
 use crate::casts::CastTable;
-use crate::constraints::ConstraintEpoch;
-use crate::lowering::{SignatureEffectAtom, SignatureEffectRow, SignatureType};
+use crate::constraints::{ConstraintEpoch, ConstraintMachine};
+use crate::lowering::{
+    BodyLoweringError, RoleImplAssociatedDiagnosticSite, SignatureEffectAtom, SignatureEffectRow,
+    SignatureType,
+};
 use crate::{ModuleTable, SourceSpan};
 
 #[cfg(test)]
@@ -153,9 +155,76 @@ impl RoleImplConformanceContract {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn residual_prerequisites_view(
         &self,
-        machine: &crate::constraints::ConstraintMachine,
+        machine: &ConstraintMachine,
     ) -> Vec<view::RoleImplMethodResidualPrerequisitesView> {
         view::build_role_impl_method_residual_prerequisites_view(self, machine)
+    }
+
+    /// Assemble explicit-associated mismatch diagnostics without publishing them. A later
+    /// enforcement slice owns the one-shot `BodyLowerer::finish` wiring.
+    #[allow(
+        dead_code,
+        reason = "S5-D leaves mismatch collection inert until the enforcement-wiring slice"
+    )]
+    pub(crate) fn collect_explicit_associated_mismatch_drafts(
+        &self,
+        modules: &ModuleTable,
+        machine: &ConstraintMachine,
+        casts: &CastTable,
+    ) -> Vec<BodyLoweringError> {
+        let residuals = self.residual_prerequisites_view(machine);
+        self.shadow_conformance_pairs(modules, &residuals, casts)
+            .into_iter()
+            .filter_map(|pair| {
+                if pair.outcome != ShadowConformanceOutcome::Mismatch {
+                    return None;
+                }
+                let implementation = pair.implementation?;
+                let method = self.methods.iter().find(|method| {
+                    method.requirement == pair.requirement && method.name == pair.method_name
+                })?;
+                let referenced_slots = &method
+                    .declared_requirement
+                    .as_ref()?
+                    .referenced_explicit_associated_slots;
+                if referenced_slots.is_empty() {
+                    return None;
+                }
+                let RoleImplMethodProvision::Explicit { implementations } = &method.provision
+                else {
+                    return None;
+                };
+                let implementation = implementations
+                    .iter()
+                    .find(|candidate| candidate.def == implementation)?;
+                let associated = referenced_slots
+                    .iter()
+                    .map(|slot| match self.associated.get(*slot as usize) {
+                        Some(AssociatedAssignment::Explicit { name, source, .. }) => {
+                            Some(RoleImplAssociatedDiagnosticSite {
+                                name: name.clone(),
+                                source: SourceSpan {
+                                    file: self.source.file.clone(),
+                                    range: *source,
+                                },
+                            })
+                        }
+                        Some(AssociatedAssignment::Inferred { .. }) | None => None,
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+
+                Some(BodyLoweringError::RoleImplAssociatedTypeMismatch {
+                    impl_def: self.impl_def,
+                    method_def: implementation.def,
+                    role: self.role.clone(),
+                    method: method.name.clone(),
+                    associated,
+                    impl_source: self.source.clone(),
+                    method_source: implementation.source.clone(),
+                    requirement_source: method.source.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Move one ordinary-generalization residual into its source method contract. This is a
@@ -220,7 +289,6 @@ impl RoleImplConformanceContract {
         true
     }
 
-    #[cfg(test)]
     pub(crate) fn actual_method_view(
         &self,
         implementation: DefId,
@@ -238,7 +306,6 @@ impl RoleImplConformanceContract {
     /// Align every declared role method with each explicit source implementation. Methods without
     /// an explicit provision retain one `NotCaptured` record so the shadow inventory is total over
     /// the declared contract.
-    #[cfg(test)]
     pub(crate) fn shadow_conformance_pairs(
         &self,
         modules: &ModuleTable,
@@ -837,7 +904,6 @@ pub(crate) enum RoleImplMethodActualSurface {
 }
 
 /// Stage 3 shadow classification over aligned declared/actual first-order surfaces.
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ShadowConformanceOutcome {
     Conforms,
@@ -851,7 +917,6 @@ pub(crate) enum ShadowConformanceOutcome {
 /// Declaration-completeness verdict for one method's captured residual prerequisites. This stays
 /// independent from value/effect/cast compatibility so either axis can fail without masking the
 /// other.
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ShadowPredicateConformanceOutcome {
     Conforms,
@@ -859,14 +924,12 @@ pub(crate) enum ShadowPredicateConformanceOutcome {
     NotCaptured,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ShadowPredicateConformanceFailure {
     pub(crate) residual: view::RoleImplMethodResidualPredicateView,
     pub(crate) reason: ShadowPredicateConformanceFailureReason,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ShadowPredicateConformanceFailureReason {
     MissingAdvertisedPrerequisite,
@@ -874,7 +937,6 @@ pub(crate) enum ShadowPredicateConformanceFailureReason {
 }
 
 /// One deterministic declared/actual alignment owned by a source conformance contract.
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ShadowConformancePair {
     pub(crate) requirement: DefId,
@@ -887,13 +949,11 @@ pub(crate) struct ShadowConformancePair {
     pub(crate) predicate_outcome: ShadowPredicateConformanceOutcome,
 }
 
-#[cfg(test)]
 struct ShadowDeclaredSurface {
     value: Option<view::DeclaredTypeView>,
     effect: Option<view::DeclaredTypeView>,
 }
 
-#[cfg(test)]
 fn align_shadow_declared_requirement(
     contract: &RoleImplConformanceContract,
     modules: &ModuleTable,
@@ -988,7 +1048,6 @@ fn align_shadow_declared_requirement(
     }
 }
 
-#[cfg(test)]
 fn build_shadow_conformance_pair(
     method: &RoleImplMethodContract,
     declared: Option<view::DeclaredTypeView>,
@@ -1023,7 +1082,6 @@ fn build_shadow_conformance_pair(
     }
 }
 
-#[cfg(test)]
 fn classify_shadow_predicate_conformance_pair(
     implementation: Option<DefId>,
     advertised: &[view::DeclaredRolePredicateView],
@@ -1064,7 +1122,6 @@ fn classify_shadow_predicate_conformance_pair(
     }
 }
 
-#[cfg(test)]
 fn classify_shadow_conformance_pair(
     implementation: Option<DefId>,
     declared: Option<&view::DeclaredTypeView>,
@@ -1156,7 +1213,6 @@ fn classify_shadow_conformance_pair(
     ShadowConformanceOutcome::Conforms
 }
 
-#[cfg(test)]
 fn actual_surface_value(
     surface: &RoleImplMethodActualSurface,
 ) -> Option<&view::ConformanceTypeView> {
@@ -1172,7 +1228,6 @@ fn actual_surface_value(
     }
 }
 
-#[cfg(test)]
 fn actual_surface_effect(
     surface: &RoleImplMethodActualSurface,
 ) -> Option<&view::ConformanceTypeView> {
@@ -1550,6 +1605,79 @@ mod tests {
 
     use super::*;
 
+    const COLLECTOR_IMPL_DEF: DefId = DefId(10);
+    const COLLECTOR_REQUIREMENT_DEF: DefId = DefId(20);
+    const COLLECTOR_METHOD_DEF: DefId = DefId(30);
+
+    fn collector_source(range: SourceRange) -> SourceSpan {
+        SourceSpan {
+            file: sources::Path {
+                segments: vec![sources::Name("collector".into())],
+            },
+            range,
+        }
+    }
+
+    fn collector_contract(
+        associated_type: AnnType,
+        requirement: SignatureType,
+        actual_value: ActualMethodConformanceView,
+        residual_prerequisites: Option<RoleImplMethodResidualPrerequisites>,
+    ) -> RoleImplConformanceContract {
+        let mut source_binders = Vec::new();
+        collect_ann_type_vars(&associated_type, &mut source_binders);
+        let annotation_solver_vars = source_binders
+            .into_iter()
+            .map(|binder| (binder.id, TypeVar(100 + binder.id.0)))
+            .collect::<FxHashMap<_, _>>();
+        let mut contract = RoleImplConformanceContract::capture(
+            COLLECTOR_IMPL_DEF,
+            vec!["FixtureRole".into()],
+            collector_source(SourceRange { start: 1, end: 10 }),
+            Vec::new(),
+            Vec::new(),
+            vec![AssociatedAssignment::Explicit {
+                name: "item".into(),
+                ty: DeclaredType::new(associated_type),
+                source: SourceRange { start: 20, end: 30 },
+            }],
+            Vec::new(),
+            vec![RoleImplMethodRequirementCapture {
+                requirement: COLLECTOR_REQUIREMENT_DEF,
+                name: "get".into(),
+                signature: Some(requirement),
+                has_default_body: false,
+                source: Some(collector_source(SourceRange { start: 40, end: 50 })),
+                order: 0,
+            }],
+            vec![RoleImplMethodImplementation {
+                def: COLLECTOR_METHOD_DEF,
+                name: "get".into(),
+                source: collector_source(SourceRange { start: 60, end: 70 }),
+                order: 1,
+                residual_prerequisites,
+            }],
+            &annotation_solver_vars,
+        );
+        assert!(contract.handoff_actual_method_view(
+            COLLECTOR_METHOD_DEF,
+            RoleImplMethodActualSurface::Receiverless(ActualReceiverlessMethodConformanceView {
+                value: actual_value,
+                effect: ActualMethodConformanceView::Available(view::ConformanceTypeView::Bottom),
+                parameter_count: Some(0),
+            }),
+        ));
+        contract
+    }
+
+    fn collect_drafts(contract: &RoleImplConformanceContract) -> Vec<BodyLoweringError> {
+        contract.collect_explicit_associated_mismatch_drafts(
+            &ModuleTable::new(),
+            &ConstraintMachine::new(),
+            &CastTable::new(),
+        )
+    }
+
     fn classify_without_casts(
         implementation: Option<DefId>,
         declared: Option<&view::DeclaredTypeView>,
@@ -1563,6 +1691,171 @@ mod tests {
             actual,
             &CastTable::new(),
         )
+    }
+
+    #[test]
+    fn stage5d_collector_drafts_the_motivating_explicit_associated_mismatch() {
+        use poly::types::BuiltinType;
+
+        let contract = collector_contract(
+            AnnType::Builtin(BuiltinType::Bool),
+            SignatureType::Var(crate::lowering::SignatureVar::new("item")),
+            ActualMethodConformanceView::Available(view::ConformanceTypeView::Builtin(
+                BuiltinType::Int,
+            )),
+            None,
+        );
+
+        assert_eq!(
+            collect_drafts(&contract),
+            vec![BodyLoweringError::RoleImplAssociatedTypeMismatch {
+                impl_def: COLLECTOR_IMPL_DEF,
+                method_def: COLLECTOR_METHOD_DEF,
+                role: vec!["FixtureRole".into()],
+                method: "get".into(),
+                associated: vec![RoleImplAssociatedDiagnosticSite {
+                    name: "item".into(),
+                    source: collector_source(SourceRange { start: 20, end: 30 }),
+                }],
+                impl_source: collector_source(SourceRange { start: 1, end: 10 }),
+                method_source: collector_source(SourceRange { start: 60, end: 70 }),
+                requirement_source: Some(collector_source(SourceRange { start: 40, end: 50 })),
+            }],
+        );
+    }
+
+    #[test]
+    fn stage5d_collector_accepts_a_valid_nested_generic_associated_result() {
+        let contract = collector_contract(
+            AnnType::Tuple(vec![AnnType::Var(AnnTypeVar {
+                id: AnnTypeVarId(7),
+                name: "a".into(),
+            })]),
+            SignatureType::Var(crate::lowering::SignatureVar::new("item")),
+            ActualMethodConformanceView::Available(view::ConformanceTypeView::Tuple(vec![
+                view::ConformanceTypeView::Binder(view::ConformanceBinder::Universal(
+                    ImplUniversalBinderId(0),
+                )),
+            ])),
+            None,
+        );
+
+        assert!(collect_drafts(&contract).is_empty());
+    }
+
+    #[test]
+    fn stage5d_collector_ignores_mismatch_without_explicit_associated_relevance() {
+        use poly::types::BuiltinType;
+
+        let contract = collector_contract(
+            AnnType::Builtin(BuiltinType::Bool),
+            SignatureType::Builtin(BuiltinType::Bool),
+            ActualMethodConformanceView::Available(view::ConformanceTypeView::Builtin(
+                BuiltinType::Int,
+            )),
+            None,
+        );
+        let residuals = contract.residual_prerequisites_view(&ConstraintMachine::new());
+        let pairs =
+            contract.shadow_conformance_pairs(&ModuleTable::new(), &residuals, &CastTable::new());
+        let [pair] = pairs.as_slice() else {
+            panic!("one ParseError.merge-style conformance pair")
+        };
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Mismatch);
+        assert!(
+            contract.methods[0]
+                .declared_requirement
+                .as_ref()
+                .expect("declared requirement")
+                .referenced_explicit_associated_slots
+                .is_empty(),
+        );
+        assert!(collect_drafts(&contract).is_empty());
+    }
+
+    #[test]
+    fn stage5d_collector_ignores_predicate_only_nonconformance() {
+        use poly::types::BuiltinType;
+
+        let residual = RoleImplMethodResidualPrerequisites::new(
+            COLLECTOR_IMPL_DEF,
+            vec![crate::roles::RoleConstraint {
+                role: vec!["Eq".into()],
+                inputs: Vec::new(),
+                associated: Vec::new(),
+            }],
+            vec![crate::compact::CompactRoleConstraint {
+                role: vec!["Eq".into()],
+                inputs: Vec::new(),
+                associated: Vec::new(),
+            }],
+        );
+        let contract = collector_contract(
+            AnnType::Builtin(BuiltinType::Bool),
+            SignatureType::Var(crate::lowering::SignatureVar::new("item")),
+            ActualMethodConformanceView::Available(view::ConformanceTypeView::Builtin(
+                BuiltinType::Bool,
+            )),
+            Some(residual),
+        );
+        let machine = ConstraintMachine::new();
+        let residuals = contract.residual_prerequisites_view(&machine);
+        let pairs =
+            contract.shadow_conformance_pairs(&ModuleTable::new(), &residuals, &CastTable::new());
+        let [pair] = pairs.as_slice() else {
+            panic!("one predicate-only conformance pair")
+        };
+        assert_eq!(pair.outcome, ShadowConformanceOutcome::Conforms);
+        assert!(matches!(
+            pair.predicate_outcome,
+            ShadowPredicateConformanceOutcome::NonConforming(_),
+        ));
+        assert!(collect_drafts(&contract).is_empty());
+    }
+
+    #[test]
+    fn stage5d_collector_omits_unavailable_and_ambiguous_verdicts() {
+        use poly::types::BuiltinType;
+
+        let unavailable = collector_contract(
+            AnnType::Builtin(BuiltinType::Bool),
+            SignatureType::Var(crate::lowering::SignatureVar::new("item")),
+            ActualMethodConformanceView::Unavailable(
+                ActualMethodConformanceViewUnavailable::UnsupportedFunction,
+            ),
+            None,
+        );
+        let mut ambiguous = collector_contract(
+            AnnType::Builtin(BuiltinType::Bool),
+            SignatureType::Var(crate::lowering::SignatureVar::new("item")),
+            ActualMethodConformanceView::Available(view::ConformanceTypeView::Builtin(
+                BuiltinType::Bool,
+            )),
+            None,
+        );
+        ambiguous.methods[0]
+            .declared_requirement
+            .as_mut()
+            .expect("declared requirement")
+            .ambiguous_names
+            .push("item".into());
+
+        for (contract, expected) in [
+            (&unavailable, ShadowConformanceOutcome::Unavailable),
+            (&ambiguous, ShadowConformanceOutcome::Ambiguous),
+        ] {
+            let residuals = contract.residual_prerequisites_view(&ConstraintMachine::new());
+            let pairs = contract.shadow_conformance_pairs(
+                &ModuleTable::new(),
+                &residuals,
+                &CastTable::new(),
+            );
+            let [pair] = pairs.as_slice() else {
+                panic!("one unavailable/ambiguous conformance pair")
+            };
+            assert_eq!(pair.outcome, expected);
+            assert!(collect_drafts(contract).is_empty());
+        }
     }
 
     #[test]
