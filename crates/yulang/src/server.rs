@@ -525,9 +525,10 @@ fn diagnostic_hover_for_analysis(
     position: Position,
 ) -> Option<Hover> {
     let diagnostics = diagnostics_for_analysis(path, source, analysis);
+    let hovered_uri = Url::from_file_path(path).ok()?;
     let targets = diagnostics
         .iter()
-        .map(lsp_diagnostic_hover_target)
+        .map(|diagnostic| lsp_diagnostic_hover_target(diagnostic, &hovered_uri))
         .collect::<Vec<_>>();
     let selection =
         editor_hover::select_diagnostic_hover(&targets, lsp_position_to_utf16(position))?;
@@ -538,7 +539,10 @@ fn diagnostic_hover_for_analysis(
     ))
 }
 
-fn lsp_diagnostic_hover_target(diagnostic: &Diagnostic) -> editor_hover::DiagnosticHoverTarget {
+fn lsp_diagnostic_hover_target(
+    diagnostic: &Diagnostic,
+    hovered_uri: &Url,
+) -> editor_hover::DiagnosticHoverTarget {
     editor_hover::DiagnosticHoverTarget {
         range: lsp_range_to_utf16(diagnostic.range),
         related_ranges: diagnostic
@@ -547,6 +551,7 @@ fn lsp_diagnostic_hover_target(diagnostic: &Diagnostic) -> editor_hover::Diagnos
             .map(|related| {
                 related
                     .iter()
+                    .filter(|related| &related.location.uri == hovered_uri)
                     .map(|related| lsp_range_to_utf16(related.location.range))
                     .collect()
             })
