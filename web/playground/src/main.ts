@@ -16,8 +16,8 @@ type Diagnostic = {
     code?: string;
     message: string;
     hint?: string;
-    start: number;
-    end: number;
+    start?: number;
+    end?: number;
     related: DiagnosticRelated[];
     label?: string;
 };
@@ -41,6 +41,11 @@ type RunOutput = {
     types: TypeResult[];
     timings?: RunTimings;
     diagnostics: Diagnostic[];
+};
+
+type CompletedRun = {
+    output: RunOutput;
+    source: string;
 };
 
 type RunTimings = {
@@ -560,7 +565,7 @@ let pendingRenderColor = 0;
 let activeExampleIndex = 0;
 let activeLang = resolveInitialLang();
 let activeTheme: ThemeChoice = resolveInitialTheme();
-let latestRunOutput: RunOutput | undefined;
+let latestRun: CompletedRun | undefined;
 let runGeneration = 0;
 let isRunning = false;
 let nextWorkerRequestId = 0;
@@ -736,7 +741,7 @@ function applyLanguage(): void {
     if (isRunning) {
         result.textContent = t("running");
         types.textContent = t("running");
-    } else if (!latestRunOutput) {
+    } else if (!latestRun) {
         renderNotRunYet();
     }
 }
@@ -792,10 +797,10 @@ async function runSource(): Promise<void> {
         return;
     }
     if (response.ok) {
-        latestRunOutput = response.output;
+        latestRun = { output: response.output, source };
     } else {
         logWorkerRunFailure(response);
-        latestRunOutput = workerErrorOutput(response.message);
+        latestRun = { output: workerErrorOutput(response.message), source };
     }
     isRunning = false;
     updateRunButton();
@@ -806,10 +811,10 @@ function renderRunOutput(): void {
     if (isRunning) {
         return;
     }
-    if (!latestRunOutput) {
+    if (!latestRun) {
         return;
     }
-    const output = latestRunOutput;
+    const { output, source } = latestRun;
     if (output.timings) {
         console.debug("Yulang run timings", output.timings);
     }
@@ -823,7 +828,6 @@ function renderRunOutput(): void {
         result.textContent = formatRunOutput(output);
         types.textContent = formatTypes(output.types);
     } else {
-        const source = sourceInput.value;
         result.textContent = output.diagnostics
             .map((diagnostic) => formatDiagnostic(diagnostic, source))
             .join("\n");
@@ -1021,8 +1025,6 @@ function workerErrorOutput(message: string): RunOutput {
             {
                 severity: "error",
                 message,
-                start: 0,
-                end: 0,
                 related: [],
             },
         ],
@@ -1194,6 +1196,11 @@ function formatDiagnostic(diagnostic: Diagnostic, source: string): string {
     const message = diagnostic.label
         ? `${diagnostic.label}: ${diagnostic.message}`
         : diagnostic.message;
+    const range =
+        typeof diagnostic.start === "number" &&
+        typeof diagnostic.end === "number"
+            ? `\n  ${formatSourceRange(diagnostic.start, diagnostic.end, source)}`
+            : "";
     const hint = diagnostic.hint ? `\n  hint: ${diagnostic.hint}` : "";
     const related =
         diagnostic.related.length === 0
@@ -1201,7 +1208,7 @@ function formatDiagnostic(diagnostic: Diagnostic, source: string): string {
             : diagnostic.related
                   .map((item) => `\n  - ${formatRelatedDiagnostic(item, source)}`)
                   .join("");
-    return `${diagnostic.severity}${code}: ${message}${hint}${related}`;
+    return `${diagnostic.severity}${code}: ${message}${range}${hint}${related}`;
 }
 
 function formatRelatedDiagnostic(
