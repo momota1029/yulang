@@ -95,7 +95,11 @@ pub fn utf16_position_to_byte_offset(source: &str, position: Utf16Position) -> O
 }
 
 pub fn utf16_range_contains_position(range: Utf16Range, position: Utf16Position) -> bool {
-    position_is_at_or_after(position, range.start) && position_is_before(position, range.end)
+    if range.start == range.end {
+        position == range.start
+    } else {
+        position_is_at_or_after(position, range.start) && position_is_before(position, range.end)
+    }
 }
 
 fn clamp_byte_range_to_source(source: &str, range: ByteRange) -> ByteRange {

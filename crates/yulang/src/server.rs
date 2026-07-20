@@ -2813,6 +2813,50 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn hover_for_source_reports_eof_parser_diagnostic_at_empty_range() {
+        let root = temp_root("hover-eof-parser-diagnostic");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x = (1\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 0,
+                character: 9,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 0,
+                    character: 9,
+                },
+                end: Position {
+                    line: 0,
+                    character: 9,
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(contents.value.contains("yulang.syntax"), "{contents:?}");
+        assert!(
+            contents.value.contains("unexpected end of input"),
+            "{contents:?}"
+        );
+    }
+
+    #[test]
     fn hover_for_source_reports_diagnostic_summary_at_error_range() {
         let root = temp_root("hover-diagnostic-summary");
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
