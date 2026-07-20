@@ -2277,8 +2277,14 @@ fn check_poly_source_text_with_embedded_std_reports_type_error() {
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_check_contains(&output, "check-poly-embedded-std\n");
-    assert_check_contains(&output, "lowering errors:\n");
-    assert_check_contains(&output, "x: type mismatch: bool is not int\n");
+    assert_eq!(
+        output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.label.as_deref(), diagnostic.message.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(Some("x"), "type mismatch: bool is not int")]
+    );
 }
 
 #[test]
@@ -2420,8 +2426,14 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     );
     assert_check_contains(&output, "bodyless declarations:\n");
     assert_check_contains(&output, "std.foo.bad\n");
-    assert_check_contains(&output, "lowering errors:\n");
-    assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
+    assert_eq!(
+        output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.label.as_deref(), diagnostic.message.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(Some("std.foo.bad"), "type mismatch: int is not bool")]
+    );
     assert!(!output.text.contains(" = Let {"));
 }
 
@@ -3559,8 +3571,14 @@ fn check_poly_std_in_filters_to_requested_module() {
     assert_check_contains(&output, "  missing schemes: 0\n");
     assert_check_contains(&output, "  bodyless declarations: 1\n");
     assert_check_contains(&output, "  lowering errors: 1 local / 2 total\n");
-    assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
-    assert!(!output.text.contains("std.bar.bad2"));
+    assert_eq!(
+        output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.label.as_deref(), diagnostic.message.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(Some("std.foo.bad"), "type mismatch: int is not bool")]
+    );
 }
 
 #[test]
