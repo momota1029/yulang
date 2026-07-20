@@ -260,16 +260,18 @@ fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
     output.selection_provenance = infer::lowering::SelectionProvenanceTable::from_source_spans(
         [(*select, selection_span)],
         [
-            (first_candidate, first_span),
-            (second_candidate, cross_file_span),
+            (first_candidate, first_span.clone()),
+            (second_candidate, cross_file_span.clone()),
         ],
     );
-    assert!(matches!(
-        specialize_route_error(error, &output),
-        RouteError::Specialize(
-            specialize::SpecializeError::AmbiguousTypeclassMethod { .. }
-        )
-    ));
+    let routed = specialize_route_error(error, &output);
+    let RouteError::SpecializeDiagnostic { context, .. } = routed else {
+        panic!("cross-file role-method candidates should retain a ranged route error");
+    };
+    assert_eq!(context.file, Path::default());
+    assert_eq!(context.related.len(), 2);
+    assert_eq!(context.related[0].file, first_span.file);
+    assert_eq!(context.related[1].file, cross_file_span.file);
 }
 
 #[test]
@@ -2449,6 +2451,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.type-mismatch".to_string()),
             label: Some("x".to_string()),
+            file: Some(Path::default()),
             range: Some(SourceRange {
                 start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 3,
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
@@ -2458,6 +2461,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
             related: vec![
                 SourceDiagnosticRelated {
                     message: "expected type comes from this type annotation: int".to_string(),
+                    file: Path::default(),
                     range: SourceRange {
                         start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 6,
                         end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 9,
@@ -2466,6 +2470,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
                 },
                 SourceDiagnosticRelated {
                     message: "actual type comes from this expression: bool".to_string(),
+                    file: Path::default(),
                     range: SourceRange {
                         start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,
                         end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 16,
@@ -2500,6 +2505,7 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.unresolved-value".to_string()),
             label: Some("result".to_string()),
+            file: Some(Path::default()),
             range: Some(SourceRange {
                 start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 19,
