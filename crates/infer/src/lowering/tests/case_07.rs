@@ -2684,6 +2684,55 @@ fn generic_role_impl_conformance_stage1_slice2_captures_slot_substitution() {
     assert_eq!(dump("alpha-renamed-a"), dump("alpha-renamed-b"),);
 }
 
+#[test]
+fn generic_role_impl_conformance_stage5a_captures_explicit_associated_relevance() {
+    assert_eq!(
+        characterize_associated_relevance(fixture_source("explicit-bool-universal-a")),
+        "index=[value]",
+    );
+    assert_eq!(
+        characterize_associated_relevance(fixture_source("explicit-list-a-nested-binder")),
+        "index=[value]",
+    );
+
+    let nested = lower_conformance_fixture(fixture_source("explicit-list-a-nested-binder"));
+    assert_eq!(
+        nested.role_impl_conformance_contracts()[0]
+            .declared_view(&nested.modules)
+            .methods[0]
+            .referenced_explicit_associated_slots,
+        vec![0],
+    );
+
+    let same_name = concat!(
+        "role Clash 'a:\n",
+        "  type a\n",
+        "  our x.read: a\n",
+        "impl int: Clash:\n",
+        "  type a = int\n",
+        "  our x.read = 1\n",
+    );
+    assert_eq!(
+        characterize_associated_relevance(same_name),
+        "read=[];ambiguous=[a]",
+    );
+
+    let repeated_out_of_order = concat!(
+        "role Relevance 'subject:\n",
+        "  type first\n",
+        "  type second\n",
+        "  our pick: second -> first -> second\n",
+        "impl int: Relevance:\n",
+        "  type first = int\n",
+        "  type second = bool\n",
+    );
+    assert_eq!(
+        characterize_associated_relevance(repeated_out_of_order),
+        "pick=[first,second]",
+        "associated relevance is sorted by stable declaration slot and deduplicated",
+    );
+}
+
 /// Stage 1 exit witness: the immutable contract survives normal lowering, and the impl head,
 /// explicit associated assignment, and substituted method requirement all point at logical U0.
 #[test]
@@ -4007,6 +4056,10 @@ fn role_impl_method_lifecycle_receiverless_plain_parameters_capture_real_parse_e
                 .ends_with(&["text".into(), "parse".into(), "ParseError".into()])
         })
         .expect("std::text::parse::str_error ParseError contract");
+    assert_eq!(
+        contract.associated_relevance_dump(),
+        "merge=[] | unexpected=[item,pos] | expected=[pos] | label=[]",
+    );
     let pairs = shadow_conformance_pairs_from_output(&output, contract);
 
     for method_name in ["unexpected", "expected"] {
@@ -7996,6 +8049,31 @@ fn characterize_method_contract(source: &str) -> String {
         .conformance_contract
         .expect("source role impl contract")
         .method_correspondence_dump()
+}
+
+fn characterize_associated_relevance(source: &str) -> String {
+    let root = parse(source);
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let implementation = lower.modules.role_impls(module)[0].clone();
+    let node = root
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ImplDecl)
+        .expect("root role impl declaration");
+    let mut lowerer = super::super::body::BodyLowerer::new(lower);
+    let context = lowerer
+        .register_role_impl_candidate(
+            &node,
+            implementation.def,
+            implementation.module,
+            implementation.order,
+            None,
+        )
+        .expect("role impl contract capture");
+    context
+        .conformance_contract
+        .expect("source role impl contract")
+        .associated_relevance_dump()
 }
 
 fn lowered_contract_dump(source: &str) -> String {

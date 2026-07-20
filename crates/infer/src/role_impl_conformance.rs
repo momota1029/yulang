@@ -490,6 +490,39 @@ impl RoleImplConformanceContract {
             .join(",");
         format!("{slots}\nmethods=[{methods}] unmatched=[{unmatched}]")
     }
+
+    #[cfg(test)]
+    pub(crate) fn associated_relevance_dump(&self) -> String {
+        self.methods
+            .iter()
+            .map(|method| {
+                let Some(requirement) = &method.declared_requirement else {
+                    return format!("{}=<unannotated>", method.name);
+                };
+                let associated = requirement
+                    .referenced_explicit_associated_slots
+                    .iter()
+                    .map(|slot| {
+                        self.associated
+                            .get(*slot as usize)
+                            .map(|assignment| match assignment {
+                                AssociatedAssignment::Explicit { name, .. }
+                                | AssociatedAssignment::Inferred { name, .. } => name.as_str(),
+                            })
+                            .unwrap_or("<missing>")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let ambiguous = if requirement.ambiguous_names.is_empty() {
+                    String::new()
+                } else {
+                    format!(";ambiguous=[{}]", requirement.ambiguous_names.join(","))
+                };
+                format!("{}=[{associated}]{ambiguous}", method.name)
+            })
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
 }
 
 pub(crate) fn role_method_has_default_body(
@@ -720,6 +753,9 @@ pub(crate) struct RoleImplMethodContract {
 pub(crate) struct DeclaredRoleMethodRequirement {
     pub(crate) signature: SignatureType,
     pub(crate) references: Vec<ContractTypeRef>,
+    /// Sorted, deduplicated declaration-order indices into the owning contract's explicit
+    /// associated assignments.
+    pub(crate) referenced_explicit_associated_slots: Vec<u32>,
     pub(crate) ambiguous_names: Vec<String>,
 }
 
@@ -1192,11 +1228,13 @@ impl RoleRequirementSubstitution {
             .map(|(index, name)| RoleRequirementSubstitutionSlot {
                 name,
                 references: vec![ContractTypeRef::DeclaredInput(index as u32)],
+                explicit_associated_slot: None,
             })
             .collect::<Vec<_>>();
         let associated = associated
             .iter()
-            .map(|assignment| match assignment {
+            .enumerate()
+            .map(|(index, assignment)| match assignment {
                 AssociatedAssignment::Explicit { name, ty, .. } => {
                     let mut source_binders = Vec::new();
                     ty.collect_source_binders(&mut source_binders);
@@ -1214,12 +1252,14 @@ impl RoleRequirementSubstitution {
                     RoleRequirementSubstitutionSlot {
                         name: name.clone(),
                         references,
+                        explicit_associated_slot: Some(index as u32),
                     }
                 }
                 AssociatedAssignment::Inferred { name, binder } => {
                     RoleRequirementSubstitutionSlot {
                         name: name.clone(),
                         references: vec![ContractTypeRef::InferredAssociated(binder.id)],
+                        explicit_associated_slot: None,
                     }
                 }
             })
@@ -1242,7 +1282,7 @@ impl RoleRequirementSubstitution {
         }
     }
 
-    fn references_for_name(&self, name: &str) -> Result<&[ContractTypeRef], ()> {
+    fn slot_for_name(&self, name: &str) -> Result<&RoleRequirementSubstitutionSlot, ()> {
         if self
             .ambiguous_names
             .iter()
@@ -1254,7 +1294,6 @@ impl RoleRequirementSubstitution {
             .iter()
             .chain(self.associated.iter())
             .find(|slot| slot.name == name)
-            .map(|slot| slot.references.as_slice())
             .ok_or(())
     }
 
@@ -1290,6 +1329,9 @@ impl RoleRequirementSubstitution {
 pub(crate) struct RoleRequirementSubstitutionSlot {
     pub(crate) name: String,
     pub(crate) references: Vec<ContractTypeRef>,
+    /// Declaration-order index into `RoleImplConformanceContract::associated`, present only for
+    /// an explicit associated assignment.
+    explicit_associated_slot: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -1341,10 +1383,12 @@ fn capture_method_correspondence(
                 RoleImplMethodProvision::Missing
             };
             let declared_requirement = requirement.signature.clone().map(|signature| {
-                let (references, ambiguous_names) = contract_references(&signature, substitution);
+                let (references, referenced_explicit_associated_slots, ambiguous_names) =
+                    contract_references(&signature, substitution);
                 DeclaredRoleMethodRequirement {
                     signature,
                     references,
+                    referenced_explicit_associated_slots,
                     ambiguous_names,
                 }
             });
@@ -1371,14 +1415,20 @@ fn capture_method_correspondence(
 fn contract_references(
     signature: &SignatureType,
     substitution: &RoleRequirementSubstitution,
-) -> (Vec<ContractTypeRef>, Vec<String>) {
+) -> (Vec<ContractTypeRef>, Vec<u32>, Vec<String>) {
     let mut names = Vec::new();
     collect_signature_var_names(signature, &mut names);
     let mut references = Vec::new();
+    let mut referenced_explicit_associated_slots = Vec::new();
     let mut ambiguous_names = Vec::new();
     for name in names {
-        match substitution.references_for_name(&name) {
-            Ok(slot) => references.extend_from_slice(slot),
+        match substitution.slot_for_name(&name) {
+            Ok(slot) => {
+                references.extend_from_slice(&slot.references);
+                if let Some(index) = slot.explicit_associated_slot {
+                    referenced_explicit_associated_slots.push(index);
+                }
+            }
             Err(())
                 if substitution
                     .ambiguous_names
@@ -1390,9 +1440,15 @@ fn contract_references(
             Err(()) => {}
         }
     }
+    referenced_explicit_associated_slots.sort_unstable();
+    referenced_explicit_associated_slots.dedup();
     ambiguous_names.sort();
     ambiguous_names.dedup();
-    (references, ambiguous_names)
+    (
+        references,
+        referenced_explicit_associated_slots,
+        ambiguous_names,
+    )
 }
 
 fn collect_signature_var_names(signature: &SignatureType, out: &mut Vec<String>) {

@@ -90,6 +90,9 @@ pub(crate) struct DeclaredSubstitutionSlotView {
 pub(crate) struct DeclaredMethodRequirementView {
     pub(crate) name: String,
     pub(crate) requirement: DeclaredTypeView,
+    /// Sorted, deduplicated declaration-order indices into the owning contract's explicit
+    /// associated assignments.
+    pub(crate) referenced_explicit_associated_slots: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -575,6 +578,11 @@ pub(super) fn build_declared_role_impl_view(
                 .unwrap_or(DeclaredTypeView::Unavailable(
                     DeclaredViewUnavailable::UnannotatedRequirement,
                 )),
+            referenced_explicit_associated_slots: method
+                .declared_requirement
+                .as_ref()
+                .map(|requirement| requirement.referenced_explicit_associated_slots.clone())
+                .unwrap_or_default(),
         })
         .collect();
 
