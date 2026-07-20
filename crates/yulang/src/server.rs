@@ -248,58 +248,65 @@ fn diagnostics_for_analysis(
         .analyze()
         .diagnostics
         .into_iter()
-        .map(editor_diagnostic_for_source_diagnostic)
         .filter_map(|diagnostic| {
-            if diagnostic
-                .file
-                .as_ref()
-                .is_some_and(|file| file != analysis.focus_file())
-            {
-                return None;
-            }
-            let EditorDiagnosticWithFiles {
-                diagnostic,
-                related_files,
-                ..
-            } = diagnostic;
-            let message = diagnostic.message_with_label_and_hint();
-            let root_has_implicit_prelude = analysis.root_has_implicit_prelude();
-            let range = diagnostic.range;
-            let severity = diagnostic.severity;
-            let code = diagnostic.code;
-            let related_diagnostics = diagnostic.related;
-            let related = related_files
-                .into_iter()
-                .zip(related_diagnostics)
-                .filter_map(|(file, related)| {
-                    Some(DiagnosticRelatedInformation {
-                        location: lsp_location_for_source_diagnostic_related(
-                            path,
-                            source,
-                            analysis,
-                            &file,
-                            related.range,
-                        )?,
-                        message: related.message,
-                    })
-                })
-                .collect::<Vec<_>>();
-            let related_information = (!related.is_empty()).then_some(related);
-            Some(Diagnostic {
-                range: range
-                    .map(|range| {
-                        lsp_range_for_root_byte_range(source, range, root_has_implicit_prelude)
-                    })
-                    .unwrap_or_default(),
-                severity: Some(lsp_diagnostic_severity(severity)),
-                code: code.map(NumberOrString::String),
-                source: Some("yulang".to_string()),
-                message,
-                related_information,
-                ..Default::default()
-            })
+            lsp_diagnostic_for_source_diagnostic(path, source, analysis, diagnostic)
         })
         .collect()
+}
+
+fn lsp_diagnostic_for_source_diagnostic(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    diagnostic: SourceDiagnostic,
+) -> Option<Diagnostic> {
+    let diagnostic = editor_diagnostic_for_source_diagnostic(diagnostic);
+    if diagnostic
+        .file
+        .as_ref()
+        .is_some_and(|file| file != analysis.focus_file())
+    {
+        return None;
+    }
+    let EditorDiagnosticWithFiles {
+        diagnostic,
+        related_files,
+        ..
+    } = diagnostic;
+    let message = diagnostic.message_with_label_and_hint();
+    let root_has_implicit_prelude = analysis.root_has_implicit_prelude();
+    let range = diagnostic.range;
+    let severity = diagnostic.severity;
+    let code = diagnostic.code;
+    let related_diagnostics = diagnostic.related;
+    let related = related_files
+        .into_iter()
+        .zip(related_diagnostics)
+        .filter_map(|(file, related)| {
+            Some(DiagnosticRelatedInformation {
+                location: lsp_location_for_source_diagnostic_related(
+                    path,
+                    source,
+                    analysis,
+                    &file,
+                    related.range,
+                )?,
+                message: related.message,
+            })
+        })
+        .collect::<Vec<_>>();
+    let related_information = (!related.is_empty()).then_some(related);
+    Some(Diagnostic {
+        range: range
+            .map(|range| lsp_range_for_root_byte_range(source, range, root_has_implicit_prelude))
+            .unwrap_or_default(),
+        severity: Some(lsp_diagnostic_severity(severity)),
+        code: code.map(NumberOrString::String),
+        source: Some("yulang".to_string()),
+        message,
+        related_information,
+        ..Default::default()
+    })
 }
 
 struct EditorDiagnosticWithFiles {
@@ -1343,6 +1350,48 @@ mod tests {
         }
     }
 
+    fn cross_file_ambiguous_method_fixture(
+        name: &str,
+    ) -> (PathBuf, PathBuf, String, crate::StdSourceOptions) {
+        let root = temp_root(name);
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        let entry = root.join("main.yu");
+        let candidates = root.join("candidates.yu");
+        std::fs::write(
+            &candidates,
+            concat!(
+                "pub role R 'a:\n",
+                "    our a.foo: int\n",
+                "\n",
+                "impl int: R:\n",
+                "    our x.foo = 1\n",
+                "\n",
+                "impl int: R:\n",
+                "    our x.foo = 2\n",
+            ),
+        )
+        .unwrap();
+        let source = concat!(
+            "mod candidates;\n",
+            "use candidates::*\n",
+            "my unrelated_0 = 0\n",
+            "my unrelated_1 = 1\n",
+            "my unrelated_2 = 2\n",
+            "my unrelated_3 = 3\n",
+            "my unrelated_4 = 4\n",
+            "my unrelated_5 = 5\n",
+            "my unrelated_6 = 6\n",
+            "1.foo\n",
+        )
+        .to_string();
+        let options = crate::StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        };
+        (entry, candidates, source, options)
+    }
+
     #[test]
     fn semantic_tokens_include_keyword_number_and_string() {
         let tokens = semantic_tokens_for_source("my x = \"hi\"\n1\n");
@@ -2200,6 +2249,93 @@ my got = make(1).norm2
             "{related:?}"
         );
         assert_diagnostic_code(diagnostic, "yulang.ambiguous-method");
+    }
+
+    #[test]
+    fn diagnostics_resolve_cross_file_role_method_candidates() {
+        let (entry, candidates, source, options) =
+            cross_file_ambiguous_method_fixture("cross-file-ambiguous-method-diagnostic");
+        let diagnostics = diagnostics_for_source(&entry, source, &options);
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        let diagnostic = &diagnostics[0];
+        assert_diagnostic_code(diagnostic, "yulang.ambiguous-method");
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("ambiguous method should retain cross-file candidates");
+        let candidates_uri = Url::from_file_path(candidates).unwrap();
+        assert_eq!(related.len(), 2, "{related:?}");
+        assert!(
+            related
+                .iter()
+                .all(|item| item.location.uri == candidates_uri),
+            "{related:?}"
+        );
+        assert!(
+            related
+                .iter()
+                .all(|item| item.location.uri != Url::from_file_path(&entry).unwrap()),
+            "{related:?}"
+        );
+    }
+
+    #[test]
+    fn diagnostics_drop_unresolvable_related_files() {
+        let root = temp_root("unresolvable-related-diagnostic");
+        let entry = root.join("main.yu");
+        let source = "my value = 1\n";
+        let analysis = source_analysis_for_source(
+            &entry,
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("missing-lib")),
+            },
+        )
+        .unwrap();
+        let diagnostic = lsp_diagnostic_for_source_diagnostic(
+            &entry,
+            source,
+            &analysis,
+            SourceDiagnostic {
+                severity: crate::SourceDiagnosticSeverity::Error,
+                code: Some("yulang.test".to_string()),
+                label: None,
+                file: Some(analysis.focus_file().clone()),
+                range: Some(SourceRange { start: 3, end: 8 }),
+                message: "test diagnostic".to_string(),
+                hint: None,
+                related: vec![SourceDiagnosticRelated {
+                    message: "missing related file".to_string(),
+                    file: sources::Path {
+                        segments: vec![sources::Name("missing".to_string())],
+                    },
+                    range: SourceRange { start: 0, end: 1 },
+                    origin: None,
+                }],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(diagnostic.related_information, None, "{diagnostic:?}");
+    }
+
+    #[test]
+    fn diagnostics_exclude_primary_locations_from_other_files() {
+        let root = temp_root("cross-file-primary-diagnostic");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        std::fs::write(root.join("child.yu"), "my broken: bool = 1\n").unwrap();
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            "mod child;\nmy root = 1\n".to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
     }
 
     #[test]
@@ -3071,6 +3207,30 @@ my got = make(1).norm2
             "{:?}",
             contents.value
         );
+    }
+
+    #[test]
+    fn hover_ignores_cross_file_related_ranges_in_current_document() {
+        let (entry, _, source, options) =
+            cross_file_ambiguous_method_fixture("cross-file-related-hover");
+        let diagnostics = diagnostics_for_source(&entry, source.clone(), &options);
+        let related_position = diagnostics[0].related_information.as_ref().unwrap()[0]
+            .location
+            .range
+            .start;
+
+        let hover = hover_for_source(&entry, source, related_position, &options);
+        if let Some(hover) = hover {
+            let HoverContents::Markup(contents) = hover.contents else {
+                panic!("expected markdown hover");
+            };
+            assert!(
+                !contents.value.contains("yulang.ambiguous-method")
+                    && !contents.value.contains("matching impl method candidate"),
+                "cross-file related range triggered diagnostic hover: {:?}",
+                contents.value
+            );
+        }
     }
 
     #[test]
