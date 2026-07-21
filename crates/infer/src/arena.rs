@@ -132,8 +132,11 @@ impl Arena {
         id: SubtractId,
         subtractability: Subtractability,
     ) {
+        let origin = self
+            .alloc_source_boundary(ConstraintOriginKind::Annotation)
+            .origin();
         self.constraints
-            .declared_subtract_fact(effect, id, subtractability);
+            .declared_subtract_fact_with_origin(effect, id, subtractability, origin);
         self.sync_type_ids_with_constraints();
     }
 

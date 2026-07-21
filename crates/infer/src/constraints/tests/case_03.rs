@@ -1,6 +1,134 @@
 use super::*;
 
 #[test]
+fn duplicate_bound_provenance_merges_without_semantic_progress() {
+    let mut machine = ConstraintMachine::new();
+    let first = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let second = machine
+        .alloc_source_boundary(ConstraintOriginKind::Return)
+        .origin();
+    let target = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["value".into()], vec![]));
+
+    machine.constrain_pos_to_var_direct_many([(lower, target)], first);
+    let semantic_epoch = machine.epoch();
+    let provenance_epoch = machine.provenance_epoch();
+    let event_count = machine.events().len();
+    let ConstraintEvent::LowerBoundAdded { record, .. } = machine.events()[0] else {
+        panic!("lower-bound event")
+    };
+
+    machine.constrain_pos_to_var_direct_many([(lower, target)], second);
+
+    assert_eq!(machine.epoch(), semantic_epoch);
+    assert!(machine.provenance_epoch() > provenance_epoch);
+    assert_eq!(machine.events().len(), event_count);
+    let record = machine
+        .bounds()
+        .record(record)
+        .expect("stable bound record");
+    assert_eq!(record.state(), BoundRecordState::Ordinary);
+    assert_eq!(
+        record.derivations(),
+        &[
+            BoundDerivation::Origin(first),
+            BoundDerivation::Origin(second)
+        ]
+    );
+    assert_eq!(
+        machine
+            .timing()
+            .stable_records
+            .lower_duplicate_provenance_merges,
+        1
+    );
+}
+
+#[test]
+fn evidence_promotion_preserves_bound_record_identity() {
+    let mut machine = ConstraintMachine::new();
+    let target = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Var(TypeVar(1)));
+    let weights = ConstraintWeights::empty();
+    let evidence = machine.bounds.add_evidence_lower(
+        target,
+        lower,
+        weights.clone(),
+        BoundDerivation::ReplayEvidence,
+    );
+    machine.record_bound_provenance(evidence, BoundDirection::Lower, true);
+    machine.record_effective_bounds_mutation(target);
+
+    let promoted = machine.bounds.add_lower(
+        target,
+        lower,
+        weights,
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+    machine.record_bound_provenance(promoted, BoundDirection::Lower, false);
+    machine.record_effective_bounds_mutation(target);
+
+    assert_eq!(promoted.id, evidence.id);
+    assert!(promoted.promoted);
+    assert_eq!(
+        machine.bounds().record(promoted.id).unwrap().state(),
+        BoundRecordState::Ordinary
+    );
+    let bounds = machine.bounds().of(target).unwrap();
+    assert_eq!(bounds.evidence_lower_count(), 0);
+    assert_eq!(bounds.lowers().len(), 1);
+    assert_eq!(
+        machine
+            .timing()
+            .stable_records
+            .promotions_identity_preserved,
+        1
+    );
+}
+
+#[test]
+fn duplicate_subtract_declaration_merges_origin_without_semantic_progress() {
+    let mut machine = ConstraintMachine::new();
+    let first = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let second = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let effect = TypeVar(0);
+    let id = SubtractId(0);
+    let fact = SubtractFact {
+        id,
+        subtractability: Subtractability::All,
+    };
+
+    machine.declared_subtract_fact_with_origin(effect, id, Subtractability::All, first);
+    let semantic_epoch = machine.epoch();
+    let provenance_epoch = machine.provenance_epoch();
+    let event_count = machine.events().len();
+    let record = machine
+        .subtracts()
+        .record_id(effect, &fact)
+        .expect("stable fact record");
+
+    machine.declared_subtract_fact_with_origin(effect, id, Subtractability::All, second);
+
+    assert_eq!(machine.epoch(), semantic_epoch);
+    assert!(machine.provenance_epoch() > provenance_epoch);
+    assert_eq!(machine.events().len(), event_count);
+    assert_eq!(machine.subtract_declaration_origins(id), &[first, second]);
+    assert_eq!(
+        machine.subtracts().record(record).unwrap().derivations(),
+        &[
+            SubtractFactDerivation::Declaration(first),
+            SubtractFactDerivation::Declaration(second),
+        ]
+    );
+}
+
+#[test]
 fn duplicate_root_origins_share_one_semantic_record() {
     let mut machine = ConstraintMachine::new();
     let application = machine.alloc_source_boundary(ConstraintOriginKind::ApplicationArgument);

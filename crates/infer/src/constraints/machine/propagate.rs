@@ -110,13 +110,13 @@ impl ConstraintMachine {
                         target,
                         constraint.lower,
                         constraint.weights.clone(),
-                        Some(parent),
+                        BoundDerivation::Constraint(parent),
                     );
                     self.add_upper_bound(
                         source,
                         constraint.upper,
                         constraint.weights,
-                        Some(parent),
+                        BoundDerivation::Constraint(parent),
                     );
                 }
                 Neg::Row(items, tail) => {
@@ -133,14 +133,19 @@ impl ConstraintMachine {
                         source,
                         constraint.upper,
                         constraint.weights,
-                        Some(parent),
+                        BoundDerivation::Constraint(parent),
                     );
                 }
             }
             return;
         }
         if let Neg::Var(target) = self.types.neg(constraint.upper) {
-            self.add_lower_bound(*target, constraint.lower, constraint.weights, Some(parent));
+            self.add_lower_bound(
+                *target,
+                constraint.lower,
+                constraint.weights,
+                BoundDerivation::Constraint(parent),
+            );
             return;
         }
         match (

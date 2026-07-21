@@ -13,7 +13,7 @@ impl ConstraintMachine {
             levels: TypeLevels::new(),
             next_internal_type_var: 0,
             row_residuals: FxHashMap::default(),
-            declared_subtracts: FxHashSet::default(),
+            declared_subtracts: FxHashMap::default(),
             effect_family_paths: FxHashSet::default(),
             row_tail_vars: FxHashSet::default(),
             pre_pop_effect_families: FxHashMap::default(),
@@ -36,6 +36,7 @@ impl ConstraintMachine {
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
             epoch: ConstraintEpoch::default(),
+            provenance_epoch: ProvenanceEpoch::default(),
             role_solve_supplemental_epoch: RoleSolveSupplementalEpoch::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
             replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
@@ -114,6 +115,7 @@ impl ConstraintMachine {
     pub fn timing(&self) -> ConstraintTiming {
         let mut timing = self.timing;
         timing.epoch = self.epoch.as_u64();
+        timing.provenance_epoch = self.provenance_epoch.as_u64();
         timing.canonical_subtype_constraints = self.canonical_constraint_count();
         timing.type_var_count = self.next_internal_type_var as usize;
         timing.row_tail_var_count = self.row_tail_vars.len();
@@ -137,6 +139,10 @@ impl ConstraintMachine {
 
     pub fn epoch(&self) -> ConstraintEpoch {
         self.epoch
+    }
+
+    pub fn provenance_epoch(&self) -> ProvenanceEpoch {
+        self.provenance_epoch
     }
 
     pub fn role_solve_supplemental_epoch(&self) -> RoleSolveSupplementalEpoch {
@@ -333,7 +339,12 @@ impl ConstraintMachine {
         for (lower, target) in bounds {
             self.record_root_origin(origin);
             self.timing.record_constrain_pos_var_direct_call();
-            self.add_lower_bound(target, lower, ConstraintWeights::empty(), None);
+            self.add_lower_bound(
+                target,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            );
         }
         if !self.queue.is_empty() {
             self.drain();
@@ -355,6 +366,7 @@ impl ConstraintMachine {
                     id,
                     subtractability,
                 },
+                derivation: SubtractFactDerivation::Internal(OriginId::unknown_internal()),
             }));
         self.drain();
     }
@@ -368,14 +380,52 @@ impl ConstraintMachine {
         id: SubtractId,
         subtractability: Subtractability,
     ) {
-        if self.declared_subtracts.insert(id) {
+        self.declared_subtract_fact_with_origin(
+            effect,
+            id,
+            subtractability,
+            OriginId::unknown_internal(),
+        );
+    }
+
+    pub fn declared_subtract_fact_with_origin(
+        &mut self,
+        effect: TypeVar,
+        id: SubtractId,
+        subtractability: Subtractability,
+        origin: OriginId,
+    ) {
+        let origins = self.declared_subtracts.entry(id).or_default();
+        let first_declaration = origins.is_empty();
+        if !origins.contains(&origin) {
+            origins.push(origin);
+        }
+        if first_declaration {
             self.bump_epoch();
         }
-        self.subtract_fact(effect, id, subtractability);
+        self.timing.record_subtract_fact_call();
+        self.observe_type_var(effect);
+        self.queue
+            .push_back(ConstraintWork::SubtractFact(QueuedSubtractFact {
+                effect,
+                fact: SubtractFact {
+                    id,
+                    subtractability,
+                },
+                derivation: SubtractFactDerivation::Declaration(origin),
+            }));
+        self.drain();
     }
 
     pub fn subtract_declared(&self, id: SubtractId) -> bool {
-        self.declared_subtracts.contains(&id)
+        self.declared_subtracts.contains_key(&id)
+    }
+
+    pub fn subtract_declaration_origins(&self, id: SubtractId) -> &[OriginId] {
+        self.declared_subtracts
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 
     pub fn register_effect_family_path(&mut self, path: Vec<String>) {
@@ -537,13 +587,18 @@ impl ConstraintMachine {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let existing_record_id = *entry.get();
+                let mut provenance_changed = false;
                 if let Some(origin) = origin {
                     // A second root explains the existing fact without replaying semantic work.
                     let roots =
                         &mut self.constraint_records[existing_record_id.0 as usize].root_origins;
                     if !roots.contains(&origin) {
                         roots.push(origin);
+                        provenance_changed = true;
                     }
+                }
+                if provenance_changed {
+                    self.bump_provenance_epoch();
                 }
                 self.timing.record_subtype_duplicate_admission();
                 return false;
@@ -560,6 +615,9 @@ impl ConstraintMachine {
             root_origins: origin.into_iter().collect(),
             structural_derivations: Vec::new(),
         });
+        if origin.is_some() {
+            self.bump_provenance_epoch();
+        }
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
     }
@@ -585,6 +643,7 @@ impl ConstraintMachine {
                     &mut self.constraint_records[record_id.0 as usize].structural_derivations;
                 if !derivations.contains(&derivation) {
                     derivations.push(derivation);
+                    self.bump_provenance_epoch();
                 }
                 self.timing.record_subtype_duplicate_admission();
                 return false;
@@ -601,6 +660,7 @@ impl ConstraintMachine {
             root_origins: Vec::new(),
             structural_derivations: vec![derivation],
         });
+        self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
     }
@@ -631,6 +691,7 @@ impl ConstraintMachine {
         let derivations = &mut self.constraint_records[record_id.0 as usize].structural_derivations;
         if !derivations.contains(&derivation) {
             derivations.push(derivation);
+            self.bump_provenance_epoch();
         }
     }
 
@@ -743,7 +804,7 @@ impl ConstraintMachine {
                 self.step_subtype(record_id);
             }
             ConstraintWork::SubtractFact(fact) => {
-                self.record_subtract_fact(fact.effect, fact.fact);
+                self.record_subtract_fact(fact.effect, fact.fact, fact.derivation);
             }
         }
     }
@@ -752,17 +813,29 @@ impl ConstraintMachine {
         &mut self,
         effect: TypeVar,
         fact: SubtractFact,
+        derivation: SubtractFactDerivation,
     ) {
         let id = fact.id;
-        if self.subtracts.record(effect, fact) {
+        let insertion = self.subtracts.insert(effect, fact, derivation);
+        if insertion.provenance_changed {
+            self.bump_provenance_epoch();
+        }
+        self.timing.record_subtract_fact_record(
+            insertion.semantic_changed,
+            insertion.provenance_changed && !insertion.semantic_changed,
+        );
+        if insertion.semantic_changed {
             self.timing.record_subtract_fact_added();
             self.bump_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations
                     .record(DependencyKey::ConstraintSubtractFacts(effect));
             }
-            self.events
-                .push(ConstraintEvent::SubtractFactAdded { effect, id });
+            self.events.push(ConstraintEvent::SubtractFactAdded {
+                record: insertion.id,
+                effect,
+                id,
+            });
         }
     }
 
@@ -798,6 +871,11 @@ impl ConstraintMachine {
     pub(in crate::constraints) fn bump_epoch(&mut self) -> ConstraintEpoch {
         self.epoch.bump();
         self.epoch
+    }
+
+    pub(in crate::constraints) fn bump_provenance_epoch(&mut self) -> ProvenanceEpoch {
+        self.provenance_epoch.bump();
+        self.provenance_epoch
     }
 
     pub(in crate::constraints) fn bump_role_solve_supplemental_epoch(

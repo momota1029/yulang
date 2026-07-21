@@ -92,6 +92,8 @@ struct ConstraintCharacterization {
     name: &'static str,
     origin_coverage: ConstraintOriginCoverage,
     structural_coverage: StructuralDerivationCoverage,
+    stable_record_coverage: StableRecordCoverage,
+    provenance_epoch: u64,
     canonical_subtype_constraints: usize,
     subtype_duplicate_admissions: usize,
     subtype_trivial_admissions: usize,
@@ -138,6 +140,8 @@ impl ConstraintCharacterization {
             name,
             origin_coverage: timing.root_origins,
             structural_coverage: timing.structural_derivations,
+            stable_record_coverage: timing.stable_records,
+            provenance_epoch: timing.provenance_epoch,
             canonical_subtype_constraints: timing.canonical_subtype_constraints,
             subtype_duplicate_admissions: timing.subtype_duplicate_admissions,
             subtype_trivial_admissions: timing.subtype_trivial_admissions,
@@ -228,6 +232,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
+            stable_record_coverage: stable_records(113_398, 118_095, 35, 105),
+            provenance_epoch: 287_349,
             canonical_subtype_constraints: 143_046,
             subtype_duplicate_admissions: 13_114,
             subtype_trivial_admissions: 12_098,
@@ -253,6 +259,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
+            stable_record_coverage: stable_records(113_695, 118_447, 35, 106),
+            provenance_epoch: 288_149,
             canonical_subtype_constraints: 143_492,
             subtype_duplicate_admissions: 13_186,
             subtype_trivial_admissions: 12_127,
@@ -281,6 +289,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
+            stable_record_coverage: stable_records(115_034, 119_693, 35, 106),
+            provenance_epoch: 292_329,
             canonical_subtype_constraints: 145_614,
             subtype_duplicate_admissions: 14_132,
             subtype_trivial_admissions: 12_249,
@@ -306,6 +316,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
+            stable_record_coverage: stable_records(118_159, 122_809, 35, 109),
+            provenance_epoch: 299_387,
             canonical_subtype_constraints: 149_487,
             subtype_duplicate_admissions: 13_938,
             subtype_trivial_admissions: 12_622,
@@ -345,6 +357,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
+            stable_record_coverage: stable_records(115_881, 120_504, 35, 109),
+            provenance_epoch: 294_291,
             canonical_subtype_constraints: 146_636,
             subtype_duplicate_admissions: 14_072,
             subtype_trivial_admissions: 12_396,
@@ -411,6 +425,21 @@ fn structural(
         row,
         deferred_multi_parent,
         unknown_rule: 0,
+    }
+}
+
+fn stable_records(
+    ordinary_lower_created: usize,
+    ordinary_upper_created: usize,
+    lower_duplicate_provenance_merges: usize,
+    subtract_fact_records_created: usize,
+) -> StableRecordCoverage {
+    StableRecordCoverage {
+        ordinary_lower_created,
+        ordinary_upper_created,
+        lower_duplicate_provenance_merges,
+        subtract_fact_records_created,
+        ..StableRecordCoverage::default()
     }
 }
 

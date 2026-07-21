@@ -41,14 +41,22 @@ impl ConstraintMachine {
         target: TypeVar,
         pos: PosId,
         weights: ConstraintWeights,
-        producer: Option<ConstraintRecordId>,
+        derivation: BoundDerivation,
     ) {
+        let producer = match derivation {
+            BoundDerivation::Constraint(record) => Some(record),
+            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence => None,
+        };
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
         if self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
             return;
         }
-        if !self.bounds.add_lower(target, pos, weights.clone()) {
+        let insertion = self
+            .bounds
+            .add_lower(target, pos, weights.clone(), derivation);
+        self.record_bound_provenance(insertion, BoundDirection::Lower, false);
+        if !insertion.semantic_changed {
             return;
         }
         self.record_effective_bounds_mutation(target);
@@ -56,6 +64,7 @@ impl ConstraintMachine {
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
+            record: insertion.id,
             producer,
             var: target,
             bound: pos,
@@ -87,8 +96,12 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: ConstraintWeights,
-        producer: Option<ConstraintRecordId>,
+        derivation: BoundDerivation,
     ) {
+        let producer = match derivation {
+            BoundDerivation::Constraint(record) => Some(record),
+            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence => None,
+        };
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
         if self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
@@ -98,13 +111,18 @@ impl ConstraintMachine {
             return;
         }
         self.prune_upper_rows_subsumed_by(source, neg, &weights);
-        if !self.bounds.add_upper(source, neg, weights.clone()) {
+        let insertion = self
+            .bounds
+            .add_upper(source, neg, weights.clone(), derivation);
+        self.record_bound_provenance(insertion, BoundDirection::Upper, false);
+        if !insertion.semantic_changed {
             return;
         }
         self.record_effective_bounds_mutation(source);
         let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
+            record: insertion.id,
             producer,
             var: source,
             bound: neg,
@@ -142,6 +160,24 @@ impl ConstraintMachine {
         }
         let epoch = self.bump_epoch();
         self.bounds.record_var_epoch(var, epoch);
+    }
+
+    pub(in crate::constraints) fn record_bound_provenance(
+        &mut self,
+        insertion: BoundInsertResult,
+        direction: BoundDirection,
+        evidence: bool,
+    ) {
+        if insertion.provenance_changed {
+            self.bump_provenance_epoch();
+        }
+        self.timing.record_bound_record(
+            direction,
+            evidence,
+            insertion.semantic_changed && !insertion.promoted,
+            insertion.provenance_changed && !insertion.semantic_changed,
+            insertion.promoted,
+        );
     }
 
     fn check_and_erase_lower_left_filter(
@@ -487,17 +523,25 @@ impl ConstraintMachine {
                 (Pos::Var(source), Neg::Var(target)) => (*source, *target),
                 _ => continue,
             };
-            if self
-                .bounds
-                .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
-            {
+            let insertion = self.bounds.add_evidence_lower(
+                target,
+                constraint.lower,
+                constraint.weights.clone(),
+                BoundDerivation::ReplayEvidence,
+            );
+            self.record_bound_provenance(insertion, BoundDirection::Lower, true);
+            if insertion.semantic_changed {
                 self.timing.record_evidence_lower_bound_added();
                 self.record_effective_bounds_mutation(target);
             }
-            if self
-                .bounds
-                .add_evidence_upper(source, constraint.upper, constraint.weights)
-            {
+            let insertion = self.bounds.add_evidence_upper(
+                source,
+                constraint.upper,
+                constraint.weights,
+                BoundDerivation::ReplayEvidence,
+            );
+            self.record_bound_provenance(insertion, BoundDirection::Upper, true);
+            if insertion.semantic_changed {
                 self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
             }
@@ -593,22 +637,26 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
     ) {
-        let Some(bounds) = self
-            .bounds
-            .vars
+        let TypeBounds { vars, records, .. } = &mut self.bounds;
+        let Some(bounds) = vars
             .get_mut(source.0 as usize)
             .and_then(|bounds| bounds.as_mut())
         else {
             return;
         };
         let mut removed = Vec::new();
-        bounds.uppers.retain(|upper| {
+        let old_uppers = std::mem::take(&mut bounds.uppers);
+        let old_ids = std::mem::take(&mut bounds.upper_ids);
+        for (id, upper) in old_ids.into_iter().zip(old_uppers) {
             let keep = !upper.weights.is_empty() || !row_tail_matches(&self.types, upper.neg, neg);
-            if !keep {
+            if keep {
+                bounds.upper_ids.push(id);
+                bounds.uppers.push(upper);
+            } else {
                 removed.push(upper.neg);
+                records[id.0 as usize].state = BoundRecordState::Tombstone;
             }
-            keep
-        });
+        }
         let bounds_changed = !removed.is_empty();
         for upper in removed {
             self.unrecord_neg_bound_var_neighbors(source, upper);
@@ -1014,7 +1062,12 @@ mod mutation_tests {
             1
         );
 
-        machine.add_lower_bound(target, lower, ConstraintWeights::empty(), None);
+        machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
         assert!(
             changed_keys(machine.take_method_role_mutations())
                 .contains(&DependencyKey::ConstraintBounds(target))
@@ -1024,7 +1077,12 @@ mod mutation_tests {
             0
         );
 
-        machine.add_upper_bound(source, upper, ConstraintWeights::empty(), None);
+        machine.add_upper_bound(
+            source,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
         assert!(
             changed_keys(machine.take_method_role_mutations())
                 .contains(&DependencyKey::ConstraintBounds(source))

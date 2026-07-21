@@ -6,7 +6,7 @@
 
 use crate::time::Duration;
 
-use super::{ConstraintOriginKind, StructuralDerivationRule};
+use super::{BoundDirection, ConstraintOriginKind, StructuralDerivationRule};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintOriginCoverage {
@@ -32,6 +32,19 @@ pub struct StructuralDerivationCoverage {
     pub row: usize,
     pub deferred_multi_parent: usize,
     pub unknown_rule: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StableRecordCoverage {
+    pub ordinary_lower_created: usize,
+    pub ordinary_upper_created: usize,
+    pub evidence_lower_created: usize,
+    pub evidence_upper_created: usize,
+    pub lower_duplicate_provenance_merges: usize,
+    pub upper_duplicate_provenance_merges: usize,
+    pub promotions_identity_preserved: usize,
+    pub subtract_fact_records_created: usize,
+    pub subtract_fact_duplicate_provenance_merges: usize,
 }
 
 impl ConstraintOriginCoverage {
@@ -63,6 +76,7 @@ impl ConstraintOriginCoverage {
 pub struct ConstraintTiming {
     pub drain: Duration,
     pub epoch: u64,
+    pub provenance_epoch: u64,
     pub type_var_count: usize,
     pub row_tail_var_count: usize,
     pub pos_node_count: usize,
@@ -92,6 +106,7 @@ pub struct ConstraintTiming {
     pub subtype_trivial_admissions: usize,
     pub root_origins: ConstraintOriginCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
+    pub stable_records: StableRecordCoverage,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
     pub row_upper_bounds_added_without_replay: usize,
@@ -260,6 +275,48 @@ impl ConstraintTiming {
 
     pub(super) fn record_structural_deferred_multi_parent(&mut self) {
         self.structural_derivations.deferred_multi_parent += 1;
+    }
+
+    pub(super) fn record_bound_record(
+        &mut self,
+        direction: BoundDirection,
+        evidence: bool,
+        created: bool,
+        duplicate_provenance_merge: bool,
+        promoted: bool,
+    ) {
+        let coverage = &mut self.stable_records;
+        if created {
+            match (direction, evidence) {
+                (BoundDirection::Lower, false) => coverage.ordinary_lower_created += 1,
+                (BoundDirection::Upper, false) => coverage.ordinary_upper_created += 1,
+                (BoundDirection::Lower, true) => coverage.evidence_lower_created += 1,
+                (BoundDirection::Upper, true) => coverage.evidence_upper_created += 1,
+            }
+        }
+        if duplicate_provenance_merge {
+            match direction {
+                BoundDirection::Lower => coverage.lower_duplicate_provenance_merges += 1,
+                BoundDirection::Upper => coverage.upper_duplicate_provenance_merges += 1,
+            }
+        }
+        if promoted {
+            coverage.promotions_identity_preserved += 1;
+        }
+    }
+
+    pub(super) fn record_subtract_fact_record(
+        &mut self,
+        created: bool,
+        duplicate_provenance_merge: bool,
+    ) {
+        if created {
+            self.stable_records.subtract_fact_records_created += 1;
+        }
+        if duplicate_provenance_merge {
+            self.stable_records
+                .subtract_fact_duplicate_provenance_merges += 1;
+        }
     }
 
     pub(super) fn record_subtype_call(&mut self) {

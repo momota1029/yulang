@@ -21,7 +21,14 @@ impl ConstraintMachine {
                 return;
             }
             let row = self.alloc_neg(Neg::Row(items, tail));
-            self.add_upper_bound(source, row, weights, producer);
+            self.add_upper_bound(
+                source,
+                row,
+                weights,
+                producer
+                    .map(BoundDerivation::Constraint)
+                    .unwrap_or(BoundDerivation::Origin(OriginId::unknown_internal())),
+            );
             return;
         }
 
@@ -33,7 +40,14 @@ impl ConstraintMachine {
         };
         if weights.is_empty() {
             let row = self.alloc_neg(Neg::Row(items, tail));
-            self.add_upper_bound(source, row, ConstraintWeights::empty(), producer);
+            self.add_upper_bound(
+                source,
+                row,
+                ConstraintWeights::empty(),
+                producer
+                    .map(BoundDerivation::Constraint)
+                    .unwrap_or(BoundDerivation::Origin(OriginId::unknown_internal())),
+            );
             return;
         }
 
@@ -221,7 +235,14 @@ impl ConstraintMachine {
         } else {
             self.prune_upper_rows_subsumed_by(source, neg, &weights);
         }
-        if !self.bounds.add_upper(source, neg, weights.clone()) {
+        let insertion = self.bounds.add_upper(
+            source,
+            neg,
+            weights.clone(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        self.record_bound_provenance(insertion, BoundDirection::Upper, false);
+        if !insertion.semantic_changed {
             return false;
         }
         self.timing.record_row_upper_bound_added_without_replay();
@@ -234,6 +255,7 @@ impl ConstraintMachine {
         }
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
+            record: insertion.id,
             producer: None,
             var: source,
             bound: neg,

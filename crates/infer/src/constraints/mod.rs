@@ -37,7 +37,7 @@ pub(crate) use mutation::{
 pub use timing::{
     ConstraintOriginCoverage, ConstraintTiming, ReplayDuplicateProfile,
     ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
-    StructuralDerivationCoverage,
+    StableRecordCoverage, StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -57,7 +57,7 @@ pub struct ConstraintMachine {
     levels: TypeLevels,
     next_internal_type_var: u32,
     row_residuals: FxHashMap<RowResidualKey, TypeVar>,
-    declared_subtracts: FxHashSet<SubtractId>,
+    declared_subtracts: FxHashMap<SubtractId, Vec<OriginId>>,
     effect_family_paths: FxHashSet<Vec<String>>,
     row_tail_vars: FxHashSet<TypeVar>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
@@ -71,6 +71,7 @@ pub struct ConstraintMachine {
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
     epoch: ConstraintEpoch,
+    provenance_epoch: ProvenanceEpoch,
     role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
     replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
@@ -88,6 +89,23 @@ impl ConstraintEpoch {
     ///
     /// The counter saturates instead of wrapping. Once saturated, later mutations cannot be
     /// distinguished, so correctness-sensitive reuse must treat the epoch as unavailable.
+    pub fn can_witness_unchanged_state(self) -> bool {
+        self.0 != u64::MAX
+    }
+
+    fn bump(&mut self) {
+        self.0 = self.0.saturating_add(1);
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProvenanceEpoch(u64);
+
+impl ProvenanceEpoch {
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+
     pub fn can_witness_unchanged_state(self) -> bool {
         self.0 != u64::MAX
     }
@@ -219,18 +237,21 @@ impl ExtrudeCtx {
 /// constraint core に直接入り込まず event を介して反応する。
 pub enum ConstraintEvent {
     LowerBoundAdded {
+        record: BoundRecordId,
         producer: Option<ConstraintRecordId>,
         var: TypeVar,
         bound: PosId,
         weights: ConstraintWeights,
     },
     UpperBoundAdded {
+        record: BoundRecordId,
         producer: Option<ConstraintRecordId>,
         var: TypeVar,
         bound: NegId,
         weights: ConstraintWeights,
     },
     SubtractFactAdded {
+        record: SubtractFactRecordId,
         effect: TypeVar,
         id: SubtractId,
     },
@@ -265,6 +286,7 @@ enum EnqueueSubtypeResult {
 struct QueuedSubtractFact {
     effect: TypeVar,
     fact: SubtractFact,
+    derivation: SubtractFactDerivation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -281,6 +303,8 @@ struct RowResidualKey {
 /// 同じ型境界でも重みが違えば別の不等式なので、bounds 側では合成せず exact dedup だけを行う。
 pub struct TypeBounds {
     vars: Vec<Option<VarBounds>>,
+    canonical: FxHashMap<BoundSemanticKey, BoundRecordId>,
+    records: Vec<BoundRecord>,
 }
 
 impl TypeBounds {
@@ -296,50 +320,195 @@ impl TypeBounds {
             .and_then(|bounds| bounds.as_ref())
     }
 
-    fn add_lower(&mut self, var: TypeVar, pos: PosId, weights: ConstraintWeights) -> bool {
-        let bounds = self.bounds_mut(var);
-        let bound = WeightedLowerBound { pos, weights };
-        if !bounds.lower_seen.insert(bound.clone()) {
-            return false;
-        }
-        if bounds.evidence_lower_seen.remove(&bound) {
-            bounds.evidence_lowers.retain(|evidence| evidence != &bound);
-        }
-        bounds.lowers.push(bound);
-        true
+    pub fn record(&self, id: BoundRecordId) -> Option<&BoundRecord> {
+        self.records.get(id.0 as usize)
     }
 
-    fn add_upper(&mut self, var: TypeVar, neg: NegId, weights: ConstraintWeights) -> bool {
-        let bounds = self.bounds_mut(var);
-        let bound = WeightedUpperBound { neg, weights };
-        if !bounds.upper_seen.insert(bound.clone()) {
-            return false;
-        }
-        if bounds.evidence_upper_seen.remove(&bound) {
-            bounds.evidence_uppers.retain(|evidence| evidence != &bound);
-        }
-        bounds.uppers.push(bound);
-        true
+    fn add_lower(
+        &mut self,
+        var: TypeVar,
+        pos: PosId,
+        weights: ConstraintWeights,
+        derivation: BoundDerivation,
+    ) -> BoundInsertResult {
+        self.add_bound(
+            BoundSemanticKey::Lower {
+                owner: var,
+                endpoint: pos,
+                weights: weights.clone(),
+            },
+            BoundDirection::Lower,
+            var,
+            BoundEndpoint::Lower(pos),
+            weights,
+            BoundRecordState::Ordinary,
+            derivation,
+        )
     }
 
-    fn add_evidence_lower(&mut self, var: TypeVar, pos: PosId, weights: ConstraintWeights) -> bool {
-        let bounds = self.bounds_mut(var);
-        let bound = WeightedLowerBound { pos, weights };
-        if bounds.lower_seen.contains(&bound) || !bounds.evidence_lower_seen.insert(bound.clone()) {
-            return false;
-        }
-        bounds.evidence_lowers.push(bound);
-        true
+    fn add_upper(
+        &mut self,
+        var: TypeVar,
+        neg: NegId,
+        weights: ConstraintWeights,
+        derivation: BoundDerivation,
+    ) -> BoundInsertResult {
+        self.add_bound(
+            BoundSemanticKey::Upper {
+                owner: var,
+                endpoint: neg,
+                weights: weights.clone(),
+            },
+            BoundDirection::Upper,
+            var,
+            BoundEndpoint::Upper(neg),
+            weights,
+            BoundRecordState::Ordinary,
+            derivation,
+        )
     }
 
-    fn add_evidence_upper(&mut self, var: TypeVar, neg: NegId, weights: ConstraintWeights) -> bool {
-        let bounds = self.bounds_mut(var);
-        let bound = WeightedUpperBound { neg, weights };
-        if bounds.upper_seen.contains(&bound) || !bounds.evidence_upper_seen.insert(bound.clone()) {
-            return false;
+    fn add_evidence_lower(
+        &mut self,
+        var: TypeVar,
+        pos: PosId,
+        weights: ConstraintWeights,
+        derivation: BoundDerivation,
+    ) -> BoundInsertResult {
+        self.add_bound(
+            BoundSemanticKey::Lower {
+                owner: var,
+                endpoint: pos,
+                weights: weights.clone(),
+            },
+            BoundDirection::Lower,
+            var,
+            BoundEndpoint::Lower(pos),
+            weights,
+            BoundRecordState::Evidence,
+            derivation,
+        )
+    }
+
+    fn add_evidence_upper(
+        &mut self,
+        var: TypeVar,
+        neg: NegId,
+        weights: ConstraintWeights,
+        derivation: BoundDerivation,
+    ) -> BoundInsertResult {
+        self.add_bound(
+            BoundSemanticKey::Upper {
+                owner: var,
+                endpoint: neg,
+                weights: weights.clone(),
+            },
+            BoundDirection::Upper,
+            var,
+            BoundEndpoint::Upper(neg),
+            weights,
+            BoundRecordState::Evidence,
+            derivation,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_bound(
+        &mut self,
+        key: BoundSemanticKey,
+        direction: BoundDirection,
+        owner: TypeVar,
+        endpoint: BoundEndpoint,
+        weights: ConstraintWeights,
+        requested_state: BoundRecordState,
+        derivation: BoundDerivation,
+    ) -> BoundInsertResult {
+        if let Some(id) = self.canonical.get(&key).copied() {
+            let record = &mut self.records[id.0 as usize];
+            let provenance_changed = if record.derivations.contains(&derivation) {
+                false
+            } else {
+                record.derivations.push(derivation);
+                true
+            };
+            let promoted = requested_state == BoundRecordState::Ordinary
+                && record.state == BoundRecordState::Evidence;
+            if promoted {
+                record.state = BoundRecordState::Ordinary;
+                let bounds = self.bounds_mut(owner);
+                match endpoint {
+                    BoundEndpoint::Lower(pos) => {
+                        let bound = WeightedLowerBound { pos, weights };
+                        bounds
+                            .evidence_lower_ids
+                            .retain(|candidate| *candidate != id);
+                        bounds
+                            .evidence_lowers
+                            .retain(|candidate| candidate != &bound);
+                        bounds.lower_ids.push(id);
+                        bounds.lowers.push(bound);
+                    }
+                    BoundEndpoint::Upper(neg) => {
+                        let bound = WeightedUpperBound { neg, weights };
+                        bounds
+                            .evidence_upper_ids
+                            .retain(|candidate| *candidate != id);
+                        bounds
+                            .evidence_uppers
+                            .retain(|candidate| candidate != &bound);
+                        bounds.upper_ids.push(id);
+                        bounds.uppers.push(bound);
+                    }
+                }
+            }
+            return BoundInsertResult {
+                id,
+                semantic_changed: promoted,
+                provenance_changed,
+                promoted,
+            };
         }
-        bounds.evidence_uppers.push(bound);
-        true
+
+        let id = BoundRecordId(self.records.len() as u32);
+        self.canonical.insert(key, id);
+        self.records.push(BoundRecord {
+            direction,
+            owner,
+            endpoint,
+            weights: weights.clone(),
+            state: requested_state,
+            derivations: vec![derivation],
+        });
+        let bounds = self.bounds_mut(owner);
+        match (endpoint, requested_state) {
+            (BoundEndpoint::Lower(pos), BoundRecordState::Ordinary) => {
+                bounds.lower_ids.push(id);
+                bounds.lowers.push(WeightedLowerBound { pos, weights });
+            }
+            (BoundEndpoint::Upper(neg), BoundRecordState::Ordinary) => {
+                bounds.upper_ids.push(id);
+                bounds.uppers.push(WeightedUpperBound { neg, weights });
+            }
+            (BoundEndpoint::Lower(pos), BoundRecordState::Evidence) => {
+                bounds.evidence_lower_ids.push(id);
+                bounds
+                    .evidence_lowers
+                    .push(WeightedLowerBound { pos, weights });
+            }
+            (BoundEndpoint::Upper(neg), BoundRecordState::Evidence) => {
+                bounds.evidence_upper_ids.push(id);
+                bounds
+                    .evidence_uppers
+                    .push(WeightedUpperBound { neg, weights });
+            }
+            (_, BoundRecordState::Tombstone) => unreachable!("new bounds are active"),
+        }
+        BoundInsertResult {
+            id,
+            semantic_changed: true,
+            provenance_changed: true,
+            promoted: false,
+        }
     }
 
     fn bounds_mut(&mut self, var: TypeVar) -> &mut VarBounds {
@@ -369,10 +538,10 @@ pub struct VarBounds {
     uppers: Vec<WeightedUpperBound>,
     evidence_lowers: Vec<WeightedLowerBound>,
     evidence_uppers: Vec<WeightedUpperBound>,
-    lower_seen: FxHashSet<WeightedLowerBound>,
-    upper_seen: FxHashSet<WeightedUpperBound>,
-    evidence_lower_seen: FxHashSet<WeightedLowerBound>,
-    evidence_upper_seen: FxHashSet<WeightedUpperBound>,
+    lower_ids: Vec<BoundRecordId>,
+    upper_ids: Vec<BoundRecordId>,
+    evidence_lower_ids: Vec<BoundRecordId>,
+    evidence_upper_ids: Vec<BoundRecordId>,
 }
 
 impl VarBounds {
@@ -403,6 +572,22 @@ impl VarBounds {
     pub fn evidence_upper_count(&self) -> usize {
         self.evidence_uppers.len()
     }
+
+    pub fn lower_record_ids(&self) -> &[BoundRecordId] {
+        &self.lower_ids
+    }
+
+    pub fn upper_record_ids(&self) -> &[BoundRecordId] {
+        &self.upper_ids
+    }
+
+    pub fn evidence_lower_record_ids(&self) -> &[BoundRecordId] {
+        &self.evidence_lower_ids
+    }
+
+    pub fn evidence_upper_record_ids(&self) -> &[BoundRecordId] {
+        &self.evidence_upper_ids
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -419,6 +604,93 @@ pub struct WeightedUpperBound {
     pub weights: ConstraintWeights,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BoundRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundDirection {
+    Lower,
+    Upper,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundEndpoint {
+    Lower(PosId),
+    Upper(NegId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundRecordState {
+    Evidence,
+    Ordinary,
+    Tombstone,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundDerivation {
+    Constraint(ConstraintRecordId),
+    Origin(OriginId),
+    ReplayEvidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundRecord {
+    direction: BoundDirection,
+    owner: TypeVar,
+    endpoint: BoundEndpoint,
+    weights: ConstraintWeights,
+    state: BoundRecordState,
+    derivations: Vec<BoundDerivation>,
+}
+
+impl BoundRecord {
+    pub fn direction(&self) -> BoundDirection {
+        self.direction
+    }
+
+    pub fn owner(&self) -> TypeVar {
+        self.owner
+    }
+
+    pub fn endpoint(&self) -> BoundEndpoint {
+        self.endpoint
+    }
+
+    pub fn weights(&self) -> &ConstraintWeights {
+        &self.weights
+    }
+
+    pub fn state(&self) -> BoundRecordState {
+        self.state
+    }
+
+    pub fn derivations(&self) -> &[BoundDerivation] {
+        &self.derivations
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum BoundSemanticKey {
+    Lower {
+        owner: TypeVar,
+        endpoint: PosId,
+        weights: ConstraintWeights,
+    },
+    Upper {
+        owner: TypeVar,
+        endpoint: NegId,
+        weights: ConstraintWeights,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BoundInsertResult {
+    id: BoundRecordId,
+    semantic_changed: bool,
+    provenance_changed: bool,
+    promoted: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// effect 変数ごとの `S-subtract` fact。
 ///
@@ -426,6 +698,9 @@ pub struct WeightedUpperBound {
 /// scheme 化や subtract 解釈の段階で読む。
 pub struct SubtractTable {
     facts: FxHashMap<TypeVar, Vec<SubtractFact>>,
+    fact_ids: FxHashMap<TypeVar, Vec<SubtractFactRecordId>>,
+    canonical: FxHashMap<SubtractFactKey, SubtractFactRecordId>,
+    records: Vec<SubtractFactRecord>,
 }
 
 impl SubtractTable {
@@ -439,6 +714,10 @@ impl SubtractTable {
         self.facts.get(&effect).map(Vec::as_slice).unwrap_or(&[])
     }
 
+    pub fn record_ids(&self, effect: TypeVar) -> &[SubtractFactRecordId] {
+        self.fact_ids.get(&effect).map(Vec::as_slice).unwrap_or(&[])
+    }
+
     pub fn fact_by_id(&self, id: SubtractId) -> Option<&SubtractFact> {
         self.facts
             .values()
@@ -446,14 +725,127 @@ impl SubtractTable {
             .find(|fact| fact.id == id)
     }
 
-    fn record(&mut self, effect: TypeVar, fact: SubtractFact) -> bool {
-        let facts = self.facts.entry(effect).or_default();
-        if facts.contains(&fact) {
-            return false;
-        }
-        facts.push(fact);
-        true
+    pub fn record(&self, id: SubtractFactRecordId) -> Option<&SubtractFactRecord> {
+        self.records.get(id.0 as usize)
     }
+
+    #[cfg(test)]
+    fn record_id(&self, effect: TypeVar, fact: &SubtractFact) -> Option<SubtractFactRecordId> {
+        self.canonical
+            .get(&SubtractFactKey {
+                effect,
+                fact: fact.clone(),
+            })
+            .copied()
+    }
+
+    fn insert(
+        &mut self,
+        effect: TypeVar,
+        fact: SubtractFact,
+        derivation: SubtractFactDerivation,
+    ) -> SubtractFactInsertResult {
+        let key = SubtractFactKey {
+            effect,
+            fact: fact.clone(),
+        };
+        if let Some(id) = self.canonical.get(&key).copied() {
+            let record = &mut self.records[id.0 as usize];
+            let provenance_changed = if record.derivations.contains(&derivation) {
+                false
+            } else {
+                record.derivations.push(derivation);
+                true
+            };
+            return SubtractFactInsertResult {
+                id,
+                semantic_changed: false,
+                provenance_changed,
+            };
+        }
+        let id = SubtractFactRecordId(self.records.len() as u32);
+        self.canonical.insert(key.clone(), id);
+        self.records.push(SubtractFactRecord {
+            key,
+            active: true,
+            derivations: vec![derivation],
+            uses: Vec::new(),
+        });
+        self.fact_ids.entry(effect).or_default().push(id);
+        self.facts.entry(effect).or_default().push(fact);
+        SubtractFactInsertResult {
+            id,
+            semantic_changed: true,
+            provenance_changed: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SubtractFactRecordId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SubtractFactKey {
+    effect: TypeVar,
+    fact: SubtractFact,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SubtractFactDerivation {
+    Declaration(OriginId),
+    Import(OriginId),
+    Internal(OriginId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SubtractFactUseRule {
+    Weight,
+    Filter,
+    RowReduction,
+    PayloadInvariant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SubtractFactUse {
+    rule: SubtractFactUseRule,
+    consumer: Option<ConstraintRecordId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubtractFactRecord {
+    key: SubtractFactKey,
+    active: bool,
+    derivations: Vec<SubtractFactDerivation>,
+    uses: Vec<SubtractFactUse>,
+}
+
+impl SubtractFactRecord {
+    pub fn effect(&self) -> TypeVar {
+        self.key.effect
+    }
+
+    pub fn fact(&self) -> &SubtractFact {
+        &self.key.fact
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    pub fn derivations(&self) -> &[SubtractFactDerivation] {
+        &self.derivations
+    }
+
+    pub fn uses(&self) -> &[SubtractFactUse] {
+        &self.uses
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SubtractFactInsertResult {
+    id: SubtractFactRecordId,
+    semantic_changed: bool,
+    provenance_changed: bool,
 }
 
 /// subtype edge の片側に載る stack weight。
@@ -747,7 +1139,7 @@ pub(crate) struct DebugConstraintTraceNode {
     pub(crate) structural_derivations: Vec<StructuralDerivation>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// 1つの `S-subtract` fact。
 ///
 /// `id` は weight として subtype edge に載る識別子、`subtractability` はその ID が表す引き算の内容。

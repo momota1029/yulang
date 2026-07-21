@@ -102,7 +102,16 @@ fn role_solve_supplemental_epoch_covers_upper_row_pruning_and_neighbor_removal()
     let item = machine.alloc_neg(Neg::Con(vec!["effect".into()], Vec::new()));
     let tail = machine.alloc_neg(Neg::Var(tail_var));
     let row = machine.alloc_neg(Neg::Row(vec![item], tail));
-    machine.add_upper_bound(source, row, ConstraintWeights::empty(), None);
+    machine.add_upper_bound(
+        source,
+        row,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+    let ConstraintEvent::UpperBoundAdded { record, .. } = &machine.events()[0] else {
+        panic!("upper-bound event")
+    };
+    let record = *record;
     assert!(machine.var_neighbors(source).any(|var| var == tail_var));
     let epoch = machine.epoch();
     let supplemental_epoch = machine.role_solve_supplemental_epoch();
@@ -115,6 +124,10 @@ fn role_solve_supplemental_epoch_covers_upper_row_pruning_and_neighbor_removal()
     let bounds = machine.bounds().of(source).expect("source bounds");
     assert_eq!(bounds.epoch(), var_epoch);
     assert!(bounds.uppers().is_empty());
+    assert_eq!(
+        machine.bounds().record(record).unwrap().state(),
+        BoundRecordState::Tombstone
+    );
     assert!(!machine.var_neighbors(source).any(|var| var == tail_var));
 }
 
@@ -123,6 +136,7 @@ fn saturated_constraint_epoch_cannot_witness_unchanged_state() {
     assert!(!ConstraintEpoch(u64::MAX).can_witness_unchanged_state());
     assert!(ConstraintEpoch(u64::MAX - 1).can_witness_unchanged_state());
     assert!(!RoleSolveSupplementalEpoch(u64::MAX).can_witness_unchanged_state());
+    assert!(!ProvenanceEpoch(u64::MAX).can_witness_unchanged_state());
     assert!(RoleSolveSupplementalEpoch(u64::MAX - 1).can_witness_unchanged_state());
 }
 
@@ -350,6 +364,7 @@ fn machine_records_subtract_facts_outside_subtype_bounds() {
     assert_eq!(
         machine.take_events(),
         vec![ConstraintEvent::SubtractFactAdded {
+            record: SubtractFactRecordId(0),
             effect,
             id: subtract
         }]
@@ -500,6 +515,7 @@ fn subtype_to_neg_var_drops_weighted_non_effect_terminal_lower_bound() {
     assert_eq!(
         machine.events(),
         &[ConstraintEvent::LowerBoundAdded {
+            record: BoundRecordId(0),
             producer: Some(ConstraintRecordId(0)),
             var: target,
             bound: lower,
@@ -551,6 +567,7 @@ fn subtype_to_neg_var_keeps_weighted_effect_terminal_lower_bound() {
     assert_eq!(
         machine.events(),
         &[ConstraintEvent::LowerBoundAdded {
+            record: BoundRecordId(0),
             producer: Some(ConstraintRecordId(0)),
             var: target,
             bound: lower,
