@@ -7,6 +7,7 @@
 //! 目的は、あとで cache や serialize の境界を考えるときに、`poly` を「結果として読むもの」、
 //! `infer` を「結果を作る途中の機械」として分けられるようにすること。
 
+pub mod cast_resolution;
 pub mod dump;
 pub mod expr;
 pub mod host_manifest;
