@@ -40,6 +40,15 @@ pub(crate) fn find_next_compact_cast(
     }
 
     let key = pairs.iter().find_map(|(key, _, _)| {
+        #[cfg(test)]
+        if !applied.contains(key) {
+            crate::casts::observe_ordinary_cast_resolution(
+                casts,
+                crate::casts::OrdinaryCastShadowSeam::CompactDiscovery,
+                &key.source,
+                &key.target,
+            );
+        }
         if !applied.contains(key) && !casts.candidates(&key.source, &key.target).is_empty() {
             Some(key.clone())
         } else {

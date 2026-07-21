@@ -113,7 +113,8 @@ impl AnalysisSession {
 
         for rule in &self.poly.cast_rules {
             match rule.kind {
-                poly::expr::CastRuleKind::Value => self.casts.insert(
+                poly::expr::CastRuleKind::Value => self.casts.insert_value(
+                    rule.def,
                     rule.source.clone(),
                     rule.target.clone(),
                     rule.scheme.clone(),

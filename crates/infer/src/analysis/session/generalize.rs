@@ -897,6 +897,13 @@ impl AnalysisSession {
         target: &[String],
         weights: crate::constraints::ConstraintWeights,
     ) {
+        #[cfg(test)]
+        crate::casts::observe_ordinary_cast_resolution(
+            &self.casts,
+            crate::casts::OrdinaryCastShadowSeam::NominalConstraint,
+            source,
+            target,
+        );
         let candidates = self.casts.candidates(source, target).to_vec();
         if candidates.is_empty() {
             return;

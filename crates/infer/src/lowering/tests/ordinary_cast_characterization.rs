@@ -1,4 +1,9 @@
 use super::*;
+use crate::casts::{
+    OrdinaryCastShadowOutcome, OrdinaryCastShadowSeam, begin_ordinary_cast_shadow_capture,
+    finish_ordinary_cast_shadow_capture,
+};
+use poly::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candidates};
 use poly::expr::CastRuleKind;
 
 #[test]
@@ -32,6 +37,34 @@ fn missing_ordinary_cast_boundaries_currently_pass_lowering_and_check() {
 
         // Future oracle: Missing. OCAST-F should reject this already-required int -> bool
         // boundary; the general function-result shape audit remains outside this witness.
+    }
+}
+
+#[test]
+fn missing_boundary_shadow_observation_matches_the_ocast_a_oracle() {
+    let cases = [
+        "struct S { x: bool }\nS { x: 42 }\n",
+        "my f(): bool = 42\nf()\n",
+    ];
+
+    for source in cases {
+        begin_ordinary_cast_shadow_capture();
+        let output = lower_source(source);
+        let witnesses = finish_ordinary_cast_shadow_capture()
+            .into_iter()
+            .filter(|witness| {
+                witness.seam == OrdinaryCastShadowSeam::NominalConstraint
+                    && witness.source == ["int".to_string()]
+                    && witness.target == ["bool".to_string()]
+            })
+            .collect::<Vec<_>>();
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(!witnesses.is_empty(), "required int -> bool boundary");
+        assert!(witnesses.iter().all(|witness| {
+            witness.outcome == OrdinaryCastShadowOutcome::Missing
+                && witness.candidate_defs.is_empty()
+        }));
     }
 }
 
@@ -80,6 +113,79 @@ fn source_local_cast_registries_have_cardinality_parity() {
 }
 
 #[test]
+fn source_local_infer_and_poly_classification_match_the_ocast_a_oracle() {
+    let declarations = [
+        "",
+        "pub cast(x: int): target = target { value: x }\n",
+        concat!(
+            "pub cast(x: int): target = target { value: x }\n",
+            "pub cast(x: int): target = target { value: x }\n",
+        ),
+    ];
+
+    for (candidate_count, declarations) in declarations.into_iter().enumerate() {
+        let output = lower_source(&format!("struct target {{ value: int }}\n{declarations}"));
+        let source = ["int".to_string()];
+        let target = ["target".to_string()];
+        let infer_resolution = output.session.casts.resolve_value(&source, &target);
+        let poly_resolution = classify_ordinary_cast_candidates(
+            output.session.poly.cast_rules.iter().filter(|rule| {
+                rule.kind == CastRuleKind::Value && rule.source == source && rule.target == target
+            }),
+        );
+        let expected = match candidate_count {
+            0 => OrdinaryCastShadowOutcome::Missing,
+            1 => OrdinaryCastShadowOutcome::Unique,
+            _ => OrdinaryCastShadowOutcome::Ambiguous,
+        };
+
+        assert_eq!(resolution_outcome(&infer_resolution), expected);
+        assert_eq!(resolution_outcome(&poly_resolution), expected);
+    }
+}
+
+#[test]
+fn source_local_cast_registration_retains_def_without_changing_scheme() {
+    let output = lower_source(concat!(
+        "struct target { value: int }\n",
+        "pub cast(x: int): target = target { value: x }\n",
+    ));
+    let source = ["int".to_string()];
+    let target = ["target".to_string()];
+    let infer_rule = output
+        .session
+        .casts
+        .candidates(&source, &target)
+        .first()
+        .expect("source-local infer value rule");
+    let poly_rule = output
+        .session
+        .poly
+        .cast_rules
+        .iter()
+        .find(|rule| {
+            rule.kind == CastRuleKind::Value && rule.source == source && rule.target == target
+        })
+        .expect("source-local durable value rule");
+
+    assert_eq!(infer_rule.def, Some(poly_rule.def));
+    assert_eq!(infer_rule.scheme.quantifiers, poly_rule.scheme.quantifiers);
+    assert_eq!(
+        infer_rule.scheme.role_predicates,
+        poly_rule.scheme.role_predicates
+    );
+    assert_eq!(
+        infer_rule.scheme.recursive_bounds,
+        poly_rule.scheme.recursive_bounds
+    );
+    assert_eq!(
+        infer_rule.scheme.stack_quantifiers,
+        poly_rule.scheme.stack_quantifiers
+    );
+    assert_eq!(infer_rule.scheme.predicate, poly_rule.scheme.predicate);
+}
+
+#[test]
 fn repository_std_value_cast_pairs_are_each_unique_in_both_registries() {
     let output = lower_repository_std();
     let expected_pairs = [
@@ -125,6 +231,43 @@ fn repository_std_value_cast_pairs_are_each_unique_in_both_registries() {
         );
 
         // Future oracle: Unique. These are the four real-std compatibility canaries for OCAST-F/G.
+    }
+}
+
+#[test]
+fn repository_std_infer_and_poly_classification_are_unique() {
+    let output = lower_repository_std();
+    let expected_pairs = [
+        (
+            vec!["std".into(), "text".into(), "path".into(), "path".into()],
+            vec!["std".into(), "text".into(), "bytes".into(), "bytes".into()],
+        ),
+        (
+            vec!["int".to_string()],
+            vec!["std".into(), "num".into(), "frac".into(), "frac".into()],
+        ),
+        (vec!["int".to_string()], vec!["float".to_string()]),
+        (
+            vec!["std".into(), "num".into(), "frac".into(), "frac".into()],
+            vec!["float".to_string()],
+        ),
+    ];
+
+    for (source, target) in expected_pairs {
+        let OrdinaryCastResolution::Unique(infer_rule) =
+            output.session.casts.resolve_value(&source, &target)
+        else {
+            panic!("std infer cast must be unique: {source:?} -> {target:?}")
+        };
+        let OrdinaryCastResolution::Unique(poly_rule) = classify_ordinary_cast_candidates(
+            output.session.poly.cast_rules.iter().filter(|rule| {
+                rule.kind == CastRuleKind::Value && rule.source == source && rule.target == target
+            }),
+        ) else {
+            panic!("std durable cast must be unique: {source:?} -> {target:?}")
+        };
+
+        assert_eq!(infer_rule.def, Some(poly_rule.def));
     }
 }
 
@@ -181,4 +324,12 @@ fn lower_repository_std() -> BodyLowering {
     let output = crate::lowering::lower_loaded_files(&loaded).expect("lower repository std");
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     output
+}
+
+fn resolution_outcome<R>(resolution: &OrdinaryCastResolution<R>) -> OrdinaryCastShadowOutcome {
+    match resolution {
+        OrdinaryCastResolution::Missing => OrdinaryCastShadowOutcome::Missing,
+        OrdinaryCastResolution::Unique(_) => OrdinaryCastShadowOutcome::Unique,
+        OrdinaryCastResolution::Ambiguous(_) => OrdinaryCastShadowOutcome::Ambiguous,
+    }
 }

@@ -2239,7 +2239,7 @@ fn generic_role_impl_conformance_stage4_c1b_keeps_missing_cast_outcomes_unchange
 }
 
 #[test]
-fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_infer_site() {
+fn generic_role_impl_conformance_stage4_c0_cast_identity_retains_declaration_not_application() {
     let source = concat!(
         "mod std:\n",
         "  pub mod num:\n",
@@ -2270,10 +2270,9 @@ fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_inf
     let [infer_rule] = output.session.casts.candidates(&source_path, &target_path) else {
         panic!("expected one inference cast candidate")
     };
-    assert!(
-        infer_rule.def.is_none(),
-        "the inference lookup retains no declaration/application identity"
-    );
+    let infer_def = infer_rule
+        .def
+        .expect("the inference lookup retains declaration identity");
 
     let poly_rules = output
         .session
@@ -2286,6 +2285,7 @@ fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_inf
         panic!("expected one durable cast declaration")
     };
     assert_eq!(poly_rule.kind, poly::expr::CastRuleKind::Value);
+    assert_eq!(infer_def, poly_rule.def);
 
     let [contract] = output.role_impl_conformance_contracts() else {
         panic!("expected one role impl contract")
@@ -2311,10 +2311,9 @@ fn generic_role_impl_conformance_stage4_c0_cast_identity_is_registry_only_at_inf
         "the inferred method IR should retain the source literal, not a cast edge"
     );
 
-    // The durable `poly.cast_rules` entry identifies the declaration, not an application site. The
-    // method IR has no cast node or link back to `poly_rule.def`, and the inference-side candidate
-    // even has `def: None`. Downstream specialize2 again finds the first global rule, then lowers
-    // that ephemeral choice to an ordinary
+    // Both registries identify the declaration, not an application site. The method IR has no cast
+    // node or link back to `poly_rule.def`. Downstream specialize2 again finds the first global
+    // rule, then lowers that ephemeral choice to an ordinary
     // `Apply(InstanceRef(instance), value)` whose instance source is the rule's `DefId`; neither
     // mono nor runtime evidence tags that application as an implicit cast. Thus the selected def
     // can be reconstructed from the final call plus the original registry, but no durable
@@ -2357,11 +2356,10 @@ fn generic_role_impl_conformance_stage4_c0_visible_cast_lookup_can_be_ambiguous(
     ];
     let infer_candidates = first.session.casts.candidates(&source_path, &target_path);
     assert_eq!(infer_candidates.len(), 2);
-    assert!(
-        infer_candidates
-            .iter()
-            .all(|candidate| candidate.def.is_none())
-    );
+    let infer_candidate_defs = infer_candidates
+        .iter()
+        .map(|candidate| candidate.def.expect("source declaration identity"))
+        .collect::<Vec<_>>();
 
     let poly_candidates = |output: &BodyLowering| {
         output
@@ -2382,14 +2380,21 @@ fn generic_role_impl_conformance_stage4_c0_visible_cast_lookup_can_be_ambiguous(
     let second_candidates = poly_candidates(&second);
     assert_eq!(first_candidates, second_candidates);
     assert_eq!(first_candidates.len(), 2);
+    assert_eq!(
+        infer_candidate_defs,
+        first_candidates
+            .iter()
+            .map(|(def, _)| *def)
+            .collect::<Vec<_>>()
+    );
     assert_ne!(first_candidates[0].0, first_candidates[1].0);
     assert_eq!(first_candidates[0].1, first_candidates[1].1);
 
     // Two ordinary source declarations with the same exact constructor pair are both registered.
     // Lookup is repeatable because the bucket preserves source-lowering insertion order, but it is
-    // not unique and the infer table erases even the two declaration ids. Inference constrains both
-    // schemes; specialize2's `direct_cast_rule` later takes the first matching poly rule. This is a
-    // constructible ambiguity witness, not merely a hand-built CastTable state.
+    // not unique. Both infer candidates retain their declaration ids, while inference still
+    // constrains both schemes and specialize2's `direct_cast_rule` later takes the first matching
+    // poly rule. This is a constructible ambiguity witness, not merely a hand-built CastTable state.
 }
 
 #[test]

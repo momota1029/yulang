@@ -2379,7 +2379,8 @@ impl BodyLowerer {
             root,
         )?;
 
-        self.session.casts.insert(
+        self.session.casts.insert_value(
+            decl.def,
             cast_scheme.source.clone(),
             cast_scheme.target.clone(),
             cast_scheme.scheme.clone(),
