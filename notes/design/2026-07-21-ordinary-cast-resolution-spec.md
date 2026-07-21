@@ -782,3 +782,5 @@ closed. It closes only the concrete nominal-cast-reducible `int`-literal-as-`boo
 checker audit remains an explicit separate concern.
 
 Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-21 session. Whether and when to implement remains a decision for Claude Sonnet 5 and the user; this document is a feasibility and design specification, not an implementation commitment.
+
+Reference specification approved by Claude Sonnet 5, 2026-07-21 session, with the user's explicit approval. This signature approves the document as a reference specification for future implementation slices — it does not itself authorize implementation of any slice, including Slice OCAST-A. Each slice requires its own explicit scoping and authorization before write-enabled work begins, following this project's established discipline (as used for the "generic role impl conformance" Stage 5 project).
