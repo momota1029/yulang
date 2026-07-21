@@ -31,6 +31,38 @@ fn path_from_segments(segments: &[&str]) -> Path {
     }
 }
 
+const IMPLICIT_CAST_DIAGNOSTIC_SOURCE: &str = "my owner = 0\n\
+my cast_one = 1\n\
+my cast_two = 2\n\
+my cast_three = 3\n";
+
+fn implicit_cast_diagnostic_lowering() -> infer::lowering::BodyLowering {
+    let loaded = sources::load(vec![sources::SourceFile {
+        module_path: Path::default(),
+        source: IMPLICIT_CAST_DIAGNOSTIC_SOURCE.to_string(),
+    }]);
+    let lowering = infer::lowering::lower_loaded_files(&loaded)
+        .expect("implicit-cast diagnostic fixture should lower");
+    assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+    lowering
+}
+
+fn labeled_def(labels: &poly::dump::DumpLabels, name: &str) -> poly::expr::DefId {
+    labels
+        .def_labels()
+        .find_map(|(def, label)| {
+            (label == name || label.ends_with(&format!(".{name}"))).then_some(def)
+        })
+        .unwrap_or_else(|| panic!("missing fixture definition label {name:?}"))
+}
+
+fn mono_con(path: &str) -> specialize::mono::Type {
+    specialize::mono::Type::Con {
+        path: vec![path.to_string()],
+        args: Vec::new(),
+    }
+}
+
 fn alias_import(name: &str, path: &[&str], route: sources::UsePathRoute) -> sources::UseImport {
     sources::UseImport::Alias {
         name: Name(name.to_string()),
@@ -346,6 +378,179 @@ fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
             specialize::SpecializeError::UnresolvedTypeclassMethod { .. }
         )
     ));
+}
+
+#[test]
+fn specialize_missing_implicit_cast_diagnostic_maps_optional_definition_owner() {
+    let output = build_poly_from_collected_sources(vec![collected(
+        "main.yu",
+        &[],
+        IMPLICIT_CAST_DIAGNOSTIC_SOURCE,
+    )])
+    .expect("implicit-cast diagnostic fixture should lower");
+    let owner = labeled_def(&output.labels, "owner");
+    let owner_span = output
+        .selection_provenance
+        .definition_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let error = specialize::SpecializeError::UnsatisfiedSubtype {
+        lower: mono_con("int"),
+        upper: mono_con("bool"),
+        origin: Some(specialize::UnsatisfiedSubtypeOrigin::MissingImplicitCast {
+            source: vec!["int".to_string()],
+            target: vec!["bool".to_string()],
+            owner: Some(owner),
+        }),
+    };
+
+    let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&error, &output)
+        .expect("missing-cast error should map to a source diagnostic");
+
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.missing-implicit-cast".to_string()),
+            label: None,
+            file: Some(owner_span.file.clone()),
+            range: Some(owner_span.range),
+            message:
+                "cannot use `int` where `bool` is required: no implicit cast from `int` to `bool`"
+                    .to_string(),
+            hint: Some(
+                "declare a `cast` from `int` to `bool`, or check whether a different type was intended"
+                    .to_string(),
+            ),
+            related: Vec::new(),
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "cannot use `int` where `bool` is required: no implicit cast from `int` to `bool`"
+    );
+
+    let without_owner = specialize::SpecializeError::UnsatisfiedSubtype {
+        lower: mono_con("int"),
+        upper: mono_con("bool"),
+        origin: Some(specialize::UnsatisfiedSubtypeOrigin::MissingImplicitCast {
+            source: vec!["int".to_string()],
+            target: vec!["bool".to_string()],
+            owner: None,
+        }),
+    };
+    let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&without_owner, &output)
+        .expect("unranged missing-cast error should still map");
+    assert_eq!(diagnostic.file, None);
+    assert_eq!(diagnostic.range, None);
+    assert_eq!(
+        diagnostic.code.as_deref(),
+        Some("yulang.missing-implicit-cast")
+    );
+    assert_eq!(diagnostic.message, error.to_string());
+    assert!(diagnostic.related.is_empty());
+}
+
+#[test]
+fn specialize_ambiguous_implicit_cast_diagnostic_maps_candidates_without_raw_ids() {
+    let mut output = build_poly_from_collected_sources(vec![collected(
+        "main.yu",
+        &[],
+        IMPLICIT_CAST_DIAGNOSTIC_SOURCE,
+    )])
+    .expect("implicit-cast diagnostic fixture should lower");
+    let owner = labeled_def(&output.labels, "owner");
+    let candidates = [
+        labeled_def(&output.labels, "cast_one"),
+        labeled_def(&output.labels, "cast_two"),
+        labeled_def(&output.labels, "cast_three"),
+    ];
+    let owner_span = output
+        .selection_provenance
+        .definition_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let candidate_spans = candidates.map(|candidate| {
+        output
+            .selection_provenance
+            .definition_span(candidate)
+            .expect("candidate definition span")
+            .clone()
+    });
+    let mut labels = poly::dump::DumpLabels::new();
+    labels
+        .set_def_label(candidates[0], "example.cast_one")
+        .set_def_label(candidates[1], "example.cast_two")
+        .set_def_label(candidates[2], "example.cast_three");
+    output.labels = labels;
+    let error = specialize::SpecializeError::AmbiguousImplicitCast {
+        actual: mono_con("int"),
+        expected: mono_con("frac"),
+        candidates: candidates.to_vec(),
+        owner: Some(owner),
+    };
+
+    let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&error, &output)
+        .expect("ambiguous-cast error should map to a source diagnostic");
+
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.ambiguous-implicit-cast".to_string()),
+            label: None,
+            file: Some(owner_span.file),
+            range: Some(owner_span.range),
+            message:
+                "implicit cast from `int` to `frac` is ambiguous: 3 visible declarations match"
+                    .to_string(),
+            hint: Some("declare or import only one matching `cast` for this pair".to_string(),),
+            related: vec![
+                SourceDiagnosticRelated {
+                    message: "matching cast declaration: example.cast_one".to_string(),
+                    file: candidate_spans[0].file.clone(),
+                    range: candidate_spans[0].range,
+                    origin: None,
+                },
+                SourceDiagnosticRelated {
+                    message: "matching cast declaration: example.cast_two".to_string(),
+                    file: candidate_spans[1].file.clone(),
+                    range: candidate_spans[1].range,
+                    origin: None,
+                },
+                SourceDiagnosticRelated {
+                    message: "matching cast declaration: example.cast_three".to_string(),
+                    file: candidate_spans[2].file.clone(),
+                    range: candidate_spans[2].range,
+                    origin: None,
+                },
+            ],
+        }
+    );
+    assert_eq!(diagnostic.message, error.to_string());
+
+    let mut labels = poly::dump::DumpLabels::new();
+    labels
+        .set_def_label(candidates[0], "example.cast_one")
+        .set_def_label(candidates[1], "example.cast_two");
+    output.labels = labels;
+    let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&error, &output)
+        .expect("candidate without a label should use the generic message");
+    assert_eq!(diagnostic.related[2].message, "matching cast declaration");
+    let rendered = std::iter::once(diagnostic.message.as_str())
+        .chain(diagnostic.hint.as_deref())
+        .chain(
+            diagnostic
+                .related
+                .iter()
+                .map(|related| related.message.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        !rendered.contains(&format!("d{}", candidates[2].0)),
+        "raw candidate id leaked into diagnostic:\n{rendered}"
+    );
 }
 
 #[test]
@@ -2495,6 +2700,142 @@ fn analyze_entry_source_uses_in_memory_root_source() {
 }
 
 #[test]
+fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
+    let lowering = implicit_cast_diagnostic_lowering();
+    let owner = labeled_def(&lowering.labels, "owner");
+    let owner_span = lowering
+        .modules
+        .def_source_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let error = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
+            source: vec!["example".to_string(), "Source".to_string()],
+            target: vec!["example".to_string(), "Target".to_string()],
+            source_span: Some(owner_span.clone()),
+        },
+    );
+
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &error,
+        &lowering.modules,
+        &lowering.labels,
+        None,
+        None,
+    );
+
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.missing-implicit-cast".to_string()),
+            label: None,
+            file: Some(owner_span.file),
+            range: Some(owner_span.range),
+            message: "cannot use `example::Source` where `example::Target` is required: no implicit cast from `example::Source` to `example::Target`".to_string(),
+            hint: Some(
+                "declare a `cast` from `example::Source` to `example::Target`, or check whether a different type was intended"
+                    .to_string(),
+            ),
+            related: Vec::new(),
+        }
+    );
+
+    let without_span = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
+            source: vec!["example".to_string(), "Source".to_string()],
+            target: vec!["example".to_string(), "Target".to_string()],
+            source_span: None,
+        },
+    );
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &without_span,
+        &lowering.modules,
+        &lowering.labels,
+        None,
+        None,
+    );
+    assert_eq!(diagnostic.file, None);
+    assert_eq!(diagnostic.range, None);
+    assert_eq!(
+        diagnostic.code.as_deref(),
+        Some("yulang.missing-implicit-cast")
+    );
+    assert_eq!(
+        diagnostic.message,
+        format_body_lowering_error(&without_span)
+    );
+    assert!(diagnostic.related.is_empty());
+}
+
+#[test]
+fn analysis_ambiguous_implicit_cast_diagnostic_maps_two_labeled_candidates() {
+    let lowering = implicit_cast_diagnostic_lowering();
+    let owner = labeled_def(&lowering.labels, "owner");
+    let candidates = [
+        labeled_def(&lowering.labels, "cast_one"),
+        labeled_def(&lowering.labels, "cast_two"),
+    ];
+    let owner_span = lowering
+        .modules
+        .def_source_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let candidate_spans = candidates.map(|candidate| {
+        lowering
+            .modules
+            .def_source_span(candidate)
+            .expect("candidate definition span")
+            .clone()
+    });
+    let mut labels = poly::dump::DumpLabels::new();
+    labels
+        .set_def_label(candidates[0], "example.cast_one")
+        .set_def_label(candidates[1], "example.cast_two");
+    let error = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+            source: vec!["int".to_string()],
+            target: vec!["frac".to_string()],
+            candidates: candidates.to_vec(),
+            source_span: Some(owner_span.clone()),
+        },
+    );
+
+    let diagnostic =
+        source_diagnostic_from_body_lowering_error(&error, &lowering.modules, &labels, None, None);
+
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.ambiguous-implicit-cast".to_string()),
+            label: None,
+            file: Some(owner_span.file),
+            range: Some(owner_span.range),
+            message:
+                "implicit cast from `int` to `frac` is ambiguous: 2 visible declarations match"
+                    .to_string(),
+            hint: Some("declare or import only one matching `cast` for this pair".to_string(),),
+            related: vec![
+                SourceDiagnosticRelated {
+                    message: "matching cast declaration: example.cast_one".to_string(),
+                    file: candidate_spans[0].file.clone(),
+                    range: candidate_spans[0].range,
+                    origin: None,
+                },
+                SourceDiagnosticRelated {
+                    message: "matching cast declaration: example.cast_two".to_string(),
+                    file: candidate_spans[1].file.clone(),
+                    range: candidate_spans[1].range,
+                    origin: None,
+                },
+            ],
+        }
+    );
+    assert_eq!(diagnostic.message, format_body_lowering_error(&error));
+}
+
+#[test]
 fn role_impl_associated_type_mismatch_diagnostic_uses_method_label_without_requirement() {
     let modules = empty_diagnostic_modules();
     let error = infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
@@ -2528,6 +2869,7 @@ fn role_impl_associated_type_mismatch_diagnostic_uses_method_label_without_requi
     let diagnostic = source_diagnostic_from_body_lowering_error(
         &error,
         &modules,
+        &poly::dump::DumpLabels::new(),
         Some(poly::expr::DefId(11)),
         Some("d11".to_string()),
     );
@@ -2615,7 +2957,13 @@ fn role_impl_associated_type_mismatch_diagnostic_maps_multiple_assignments_with_
         }),
     };
 
-    let diagnostic = source_diagnostic_from_body_lowering_error(&error, &modules, None, None);
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &error,
+        &modules,
+        &poly::dump::DumpLabels::new(),
+        None,
+        None,
+    );
 
     assert_eq!(
         format_body_lowering_error(&error),

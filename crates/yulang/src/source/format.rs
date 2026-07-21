@@ -2339,7 +2339,59 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
                 format_subtractability(filter)
             )
         }
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::MissingImplicitCast { source, target, .. },
+        ) => format_missing_implicit_cast(source, target),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+                source,
+                target,
+                candidates,
+                ..
+            },
+        ) => {
+            format_ambiguous_implicit_cast(&source.join("::"), &target.join("::"), candidates.len())
+        }
     }
+}
+
+pub(super) fn format_specialize_implicit_cast_error(
+    error: &specialize::SpecializeError,
+) -> Option<String> {
+    match error {
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin:
+                Some(specialize::UnsatisfiedSubtypeOrigin::MissingImplicitCast {
+                    source, target, ..
+                }),
+            ..
+        } => Some(format_missing_implicit_cast(source, target)),
+        specialize::SpecializeError::AmbiguousImplicitCast {
+            actual,
+            expected,
+            candidates,
+            ..
+        } => Some(format_ambiguous_implicit_cast(
+            &specialize::mono::dump::dump_type(actual),
+            &specialize::mono::dump::dump_type(expected),
+            candidates.len(),
+        )),
+        _ => None,
+    }
+}
+
+fn format_missing_implicit_cast(source: &[String], target: &[String]) -> String {
+    let source = source.join("::");
+    let target = target.join("::");
+    format!(
+        "cannot use `{source}` where `{target}` is required: no implicit cast from `{source}` to `{target}`"
+    )
+}
+
+fn format_ambiguous_implicit_cast(source: &str, target: &str, candidate_count: usize) -> String {
+    format!(
+        "implicit cast from `{source}` to `{target}` is ambiguous: {candidate_count} visible declarations match"
+    )
 }
 
 fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {

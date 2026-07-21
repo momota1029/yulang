@@ -188,6 +188,12 @@ pub enum SpecializeError {
         receiver: Type,
         candidates: Vec<DefId>,
     },
+    AmbiguousImplicitCast {
+        actual: Type,
+        expected: Type,
+        candidates: Vec<poly_expr::DefId>,
+        owner: Option<poly_expr::DefId>,
+    },
     InternalMissingInstance {
         instance: InstanceId,
     },
@@ -218,6 +224,11 @@ pub enum UnsatisfiedSubtypeOrigin {
         field: String,
         actual_fields: Vec<String>,
         select: Option<poly_expr::SelectId>,
+    },
+    MissingImplicitCast {
+        source: Vec<String>,
+        target: Vec<String>,
+        owner: Option<poly_expr::DefId>,
     },
 }
 
@@ -278,6 +289,19 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(incoming),
                 )
             }
+            Self::UnsatisfiedSubtype {
+                origin: Some(UnsatisfiedSubtypeOrigin::MissingImplicitCast { source, target, .. }),
+                ..
+            } => {
+                write!(
+                    f,
+                    "cannot use `{}` where `{}` is required: no implicit cast from `{}` to `{}`",
+                    source.join("::"),
+                    target.join("::"),
+                    source.join("::"),
+                    target.join("::"),
+                )
+            }
             Self::UnsatisfiedSubtype { lower, upper, .. } => {
                 write!(
                     f,
@@ -310,6 +334,20 @@ impl fmt::Display for SpecializeError {
                     f,
                     "more than one role implementation satisfies this method call for receiver {}",
                     mono::dump::dump_type(receiver),
+                )
+            }
+            Self::AmbiguousImplicitCast {
+                actual,
+                expected,
+                candidates,
+                ..
+            } => {
+                write!(
+                    f,
+                    "implicit cast from `{}` to `{}` is ambiguous: {} visible declarations match",
+                    mono::dump::dump_type(actual),
+                    mono::dump::dump_type(expected),
+                    candidates.len(),
                 )
             }
             Self::InternalMissingInstance { .. } => {

@@ -6,6 +6,7 @@
 use poly::expr::{DefId, RefId, SelectId, SelectResolution};
 use poly::types::Subtractability;
 
+use crate::SourceSpan;
 use crate::scc::SccInput;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +20,17 @@ pub enum AnalysisDiagnostic {
         effect: Option<Vec<String>>,
         filter: Subtractability,
     },
+    MissingImplicitCast {
+        source: Vec<String>,
+        target: Vec<String>,
+        source_span: Option<SourceSpan>,
+    },
+    AmbiguousImplicitCast {
+        source: Vec<String>,
+        target: Vec<String>,
+        candidates: Vec<DefId>,
+        source_span: Option<SourceSpan>,
+    },
 }
 
 impl AnalysisDiagnostic {
@@ -26,7 +38,9 @@ impl AnalysisDiagnostic {
     pub fn primary_def(&self) -> Option<DefId> {
         match self {
             Self::ComputedFetchCycle { parent, .. } => Some(*parent),
-            Self::EffectFilterViolation { .. } => None,
+            Self::EffectFilterViolation { .. }
+            | Self::MissingImplicitCast { .. }
+            | Self::AmbiguousImplicitCast { .. } => None,
         }
     }
 }

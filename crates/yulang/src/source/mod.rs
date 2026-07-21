@@ -1612,6 +1612,25 @@ fn specialize_diagnostic_context(
     error: &specialize::SpecializeError,
     output: &BuildPolyOutput,
 ) -> Option<SpecializeDiagnosticContext> {
+    if let Some(diagnostic) = source_diagnostic_from_specialize_implicit_cast_error(error, output) {
+        let (Some(file), Some(range)) = (diagnostic.file, diagnostic.range) else {
+            return None;
+        };
+        let source_span = infer::SourceSpan {
+            file: file.clone(),
+            range,
+        };
+        let source = output
+            .diagnostic_sources
+            .source_for_span(&source_span)?
+            .source;
+        return Some(SpecializeDiagnosticContext {
+            source,
+            file,
+            range,
+            related: diagnostic.related,
+        });
+    }
     let (select, candidates) = match error {
         specialize::SpecializeError::UnresolvedTypeclassMethod { expr, .. } => {
             let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(*expr as usize)?
@@ -1663,6 +1682,77 @@ fn specialize_diagnostic_context(
         range: selection_span.range,
         related,
     })
+}
+
+fn source_diagnostic_from_specialize_implicit_cast_error(
+    error: &specialize::SpecializeError,
+    output: &BuildPolyOutput,
+) -> Option<SourceDiagnostic> {
+    let (code, hint, owner, candidates) = match error {
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: Some(specialize::UnsatisfiedSubtypeOrigin::MissingImplicitCast { owner, .. }),
+            ..
+        } => (
+            "yulang.missing-implicit-cast",
+            missing_implicit_cast_hint(error)?,
+            *owner,
+            &[][..],
+        ),
+        specialize::SpecializeError::AmbiguousImplicitCast {
+            owner, candidates, ..
+        } => (
+            "yulang.ambiguous-implicit-cast",
+            "declare or import only one matching `cast` for this pair".to_string(),
+            *owner,
+            candidates.as_slice(),
+        ),
+        _ => return None,
+    };
+    let span = owner.and_then(|owner| output.selection_provenance.definition_span(owner).cloned());
+    Some(SourceDiagnostic {
+        severity: SourceDiagnosticSeverity::Error,
+        code: Some(code.to_string()),
+        label: None,
+        file: span.as_ref().map(|span| span.file.clone()),
+        range: span.as_ref().map(|span| span.range),
+        message: format_specialize_implicit_cast_error(error)?,
+        hint: Some(hint),
+        related: specialize_implicit_cast_candidate_related(output, candidates),
+    })
+}
+
+fn missing_implicit_cast_hint(error: &specialize::SpecializeError) -> Option<String> {
+    let specialize::SpecializeError::UnsatisfiedSubtype {
+        origin:
+            Some(specialize::UnsatisfiedSubtypeOrigin::MissingImplicitCast { source, target, .. }),
+        ..
+    } = error
+    else {
+        return None;
+    };
+    Some(format!(
+        "declare a `cast` from `{}` to `{}`, or check whether a different type was intended",
+        source.join("::"),
+        target.join("::"),
+    ))
+}
+
+fn specialize_implicit_cast_candidate_related(
+    output: &BuildPolyOutput,
+    candidates: &[poly::expr::DefId],
+) -> Vec<SourceDiagnosticRelated> {
+    candidates
+        .iter()
+        .filter_map(|candidate| {
+            let span = output.selection_provenance.definition_span(*candidate)?;
+            Some(SourceDiagnosticRelated {
+                message: implicit_cast_candidate_message(&output.labels, *candidate),
+                file: span.file.clone(),
+                range: span.range,
+                origin: None,
+            })
+        })
+        .collect()
 }
 
 pub struct BuildPolyAndCompiledUnitOutput {
@@ -3222,6 +3312,7 @@ fn source_diagnostics_from_check(
             source_diagnostic_from_body_lowering_error(
                 error,
                 &check.lowering.modules,
+                &check.lowering.labels,
                 diagnostic.def,
                 diagnostic.label.clone(),
             )
@@ -3232,6 +3323,7 @@ fn source_diagnostics_from_check(
 fn source_diagnostic_from_body_lowering_error(
     error: &infer::lowering::BodyLoweringError,
     modules: &infer::ModuleTable,
+    labels: &poly::dump::DumpLabels,
     def: Option<poly::expr::DefId>,
     label: Option<String>,
 ) -> SourceDiagnostic {
@@ -3251,7 +3343,7 @@ fn source_diagnostic_from_body_lowering_error(
         range: span.as_ref().map(|span| span.range),
         message: format_body_lowering_error(error),
         hint: body_lowering_error_hint(error),
-        related: body_lowering_error_related(error, modules),
+        related: body_lowering_error_related(error, modules, labels),
     }
 }
 
@@ -3386,6 +3478,12 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => {
             Some("yulang.role-impl-associated-type-mismatch")
         }
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::MissingImplicitCast { .. },
+        ) => Some("yulang.missing-implicit-cast"),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { .. },
+        ) => Some("yulang.ambiguous-implicit-cast"),
         infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("yulang.missing-local-binding-body")
@@ -3518,6 +3616,10 @@ fn body_lowering_error_source_span(
                 .map(|site| site.source.clone())
                 .unwrap_or_else(|| impl_source.clone()),
         ),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::MissingImplicitCast { source_span, .. }
+            | infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { source_span, .. },
+        ) => source_span.clone(),
         infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
         | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
         | infer::lowering::BodyLoweringError::MissingBody { .. }
@@ -3529,6 +3631,7 @@ fn body_lowering_error_source_span(
 fn body_lowering_error_related(
     error: &infer::lowering::BodyLoweringError,
     modules: &infer::ModuleTable,
+    labels: &poly::dump::DumpLabels,
 ) -> Vec<SourceDiagnosticRelated> {
     let file = match error {
         infer::lowering::BodyLoweringError::Expr { def, .. } => {
@@ -3571,6 +3674,20 @@ fn body_lowering_error_related(
             }
             related
         }
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { candidates, .. },
+        ) => candidates
+            .iter()
+            .filter_map(|candidate| {
+                let span = modules.def_source_span(*candidate)?;
+                Some(SourceDiagnosticRelated {
+                    message: implicit_cast_candidate_message(labels, *candidate),
+                    file: span.file.clone(),
+                    range: span.range,
+                    origin: None,
+                })
+            })
+            .collect(),
         infer::lowering::BodyLoweringError::Expr {
             error:
                 infer::lowering::LoweringError::TypeMismatch {
@@ -3628,8 +3745,28 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("write a body expression after `=`".to_string())
         }
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::MissingImplicitCast { source, target, .. },
+        ) => Some(format!(
+            "declare a `cast` from `{}` to `{}`, or check whether a different type was intended",
+            source.join("::"),
+            target.join("::"),
+        )),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { .. },
+        ) => Some("declare or import only one matching `cast` for this pair".to_string()),
         _ => None,
     }
+}
+
+fn implicit_cast_candidate_message(
+    labels: &poly::dump::DumpLabels,
+    candidate: poly::expr::DefId,
+) -> String {
+    labels.def_label(candidate).map_or_else(
+        || "matching cast declaration".to_string(),
+        |label| format!("matching cast declaration: {label}"),
+    )
 }
 
 fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String> {
