@@ -43,7 +43,11 @@ impl BodyLowerer {
                     match lowerer.lower_pos(&signature) {
                         Ok(predicate) => {
                             let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
-                            self.session.infer.subtype(predicate, root_upper);
+                            self.session.infer.subtype(
+                                predicate,
+                                root_upper,
+                                crate::constraints::OriginId::unknown_internal(),
+                            );
                             self.session.poly.effect_operations.insert(
                                 variant.operation_def,
                                 poly::expr::EffectOperation {

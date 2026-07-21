@@ -181,7 +181,11 @@ impl BodyLowerer {
         match lowered {
             Ok(predicate) => {
                 let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
-                self.session.infer.subtype(predicate, root_upper);
+                self.session.infer.subtype(
+                    predicate,
+                    root_upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 self.session
                     .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: method.def }));
             }
@@ -304,7 +308,11 @@ impl BodyLowerer {
         match lowered {
             Ok(predicate) => {
                 let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
-                self.session.infer.subtype(predicate, root_upper);
+                self.session.infer.subtype(
+                    predicate,
+                    root_upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 self.session
                     .enqueue(AnalysisWork::Scc(SccInput::DefFinished {
                         def: constructor.def,

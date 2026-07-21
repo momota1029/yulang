@@ -47,7 +47,11 @@ fn role_impl_member_residual_roles_become_impl_prerequisites() {
     );
     let root_lower = session.infer.alloc_pos(Pos::Var(item));
     let root_upper = session.infer.alloc_neg(Neg::Var(member_root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
         def: member,
@@ -197,6 +201,7 @@ fn routes_effect_filter_violation_to_analysis_diagnostic() {
             right: RightConstraintWeight::empty(),
         },
         upper,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     session.route_constraint_events();
@@ -710,8 +715,16 @@ fn compact_cast_prepass_normalizes_bidirectional_constructor_pair_once() {
         .infer
         .alloc_pos(Pos::Con(target.clone(), Vec::new()));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(source_lower, root_upper);
-    session.infer.subtype(target_lower, root_upper);
+    session.infer.subtype(
+        source_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    session.infer.subtype(
+        target_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(DefId(0), root);
 
@@ -739,8 +752,16 @@ fn compact_cast_prepass_adds_cast_scheme_payload_constraints() {
         .infer
         .alloc_pos(Pos::Con(target.clone(), vec![target_neu]));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(source_lower, root_upper);
-    session.infer.subtype(target_lower, root_upper);
+    session.infer.subtype(
+        source_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    session.infer.subtype(
+        target_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(DefId(0), root);
 
@@ -801,7 +822,11 @@ fn role_prepass_resolves_concrete_impl_and_constrains_associated_type() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(output));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     session.generalize_root_with_prepasses(owner, root);
 
@@ -880,10 +905,18 @@ fn role_prepass_coalesces_shared_input_roles_before_resolution() {
         .infer
         .alloc_pos(Pos::Con(int_path.clone(), Vec::new()));
     let shared_upper = session.infer.alloc_neg(Neg::Var(shared));
-    session.infer.subtype(shared_lower, shared_upper);
+    session.infer.subtype(
+        shared_lower,
+        shared_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let root_lower = session.infer.alloc_pos(Pos::Var(first_output));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     session.generalize_root_with_prepasses(owner, root);
 
@@ -927,7 +960,11 @@ fn role_prepass_resolves_unary_con_candidate_with_open_payload_bounds() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(payload));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 
@@ -977,7 +1014,11 @@ fn role_prepass_resolves_unary_con_candidate_with_open_payload_and_top_var() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(extra));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 
@@ -1062,7 +1103,11 @@ fn role_prepass_resolves_unary_con_candidate_with_positive_extra_outputs() {
         .infer
         .alloc_pos(Pos::Tuple(vec![first_output, second_output]));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 
@@ -1180,7 +1225,11 @@ fn role_prepass_resolves_receiver_first_concrete_with_negative_extra_inputs() {
         ret: inner,
     });
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(outer, root_upper);
+    session.infer.subtype(
+        outer,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.infer.restore_level(previous_level);
 
     let compact = compact_type_var(session.infer.constraints(), root);
@@ -1260,7 +1309,11 @@ fn role_prepass_does_not_resolve_left_concrete_when_main_var_is_negative() {
         ret: fun_ret,
     });
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(fun, root_upper);
+    session.infer.subtype(
+        fun,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     session.generalize_root_with_prepasses(owner, root);
 
@@ -1332,7 +1385,11 @@ fn role_prepass_selects_parent_and_enqueues_concrete_prerequisite() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(output));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 

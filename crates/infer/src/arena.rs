@@ -7,7 +7,10 @@ use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeIds, TypeVar,
 };
 
-use crate::constraints::{ConstraintMachine, ConstraintTiming, ConstraintWeights, TypeLevel};
+use crate::constraints::{
+    ConstraintMachine, ConstraintOriginKind, ConstraintTiming, ConstraintWeights, OriginId,
+    SourceBoundaryOrigin, TypeLevel,
+};
 
 /// lowering / inference run ごとの作業状態。
 ///
@@ -73,26 +76,43 @@ impl Arena {
         self.constraints.alloc_neu(neu)
     }
 
-    pub fn subtype(&mut self, lower: PosId, upper: NegId) {
-        self.constraints.subtype(lower, upper);
+    pub fn alloc_source_boundary(&mut self, kind: ConstraintOriginKind) -> SourceBoundaryOrigin {
+        self.constraints.alloc_source_boundary(kind)
+    }
+
+    pub fn subtype(&mut self, lower: PosId, upper: NegId, origin: OriginId) {
+        self.constraints.subtype(lower, upper, origin);
         self.sync_type_ids_with_constraints();
     }
 
-    pub fn subtypes(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
-        self.constraints.subtype_many(constraints);
+    pub fn subtypes(
+        &mut self,
+        constraints: impl IntoIterator<Item = (PosId, NegId)>,
+        origin: OriginId,
+    ) {
+        self.constraints.subtype_many(constraints, origin);
         self.sync_type_ids_with_constraints();
     }
 
     pub(crate) fn constrain_pos_to_var_direct_many(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
+        origin: OriginId,
     ) {
-        self.constraints.constrain_pos_to_var_direct_many(bounds);
+        self.constraints
+            .constrain_pos_to_var_direct_many(bounds, origin);
         self.sync_type_ids_with_constraints();
     }
 
-    pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
-        self.constraints.weighted_subtype(lower, weights, upper);
+    pub fn weighted_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        origin: OriginId,
+    ) {
+        self.constraints
+            .weighted_subtype(lower, weights, upper, origin);
         self.sync_type_ids_with_constraints();
     }
 
@@ -195,7 +215,7 @@ mod tests {
         let tail = arena.alloc_neg(Neg::Var(tail));
         let upper = arena.alloc_neg(Neg::Row(vec![item], tail));
 
-        arena.subtype(lower, upper);
+        arena.subtype(lower, upper, OriginId::unknown_internal());
 
         assert_eq!(arena.fresh_type_var(), TypeVar(3));
     }

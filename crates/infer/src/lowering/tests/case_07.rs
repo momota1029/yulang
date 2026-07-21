@@ -483,7 +483,11 @@ fn generic_role_impl_conformance_stage3_eq1_pins_cross_surface_qm_collision_base
         machine.alloc_pos(Pos::Con(vec!["tick".into()], vec![effect_argument_bounds]));
     let effect_row = machine.alloc_pos(Pos::Row(vec![effect_item]));
     let effect_upper = machine.alloc_neg(Neg::Var(effect_anchor));
-    machine.subtype(effect_row, effect_upper);
+    machine.subtype(
+        effect_row,
+        effect_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let bridge = Ok(RoleImplConformanceBinderBridge {
         universals: Vec::new(),
         inferred_associated: Vec::new(),
@@ -1430,7 +1434,11 @@ fn generic_role_impl_conformance_stage4_e1_effect_arguments_reach_eq4_exact_clas
     let flip = machine.alloc_pos(Pos::Con(vec!["flip".into()], Vec::new()));
     let row = machine.alloc_pos(Pos::Row(vec![tick, flip]));
     let effect_upper = machine.alloc_neg(Neg::Var(effect_anchor));
-    machine.subtype(row, effect_upper);
+    machine.subtype(
+        row,
+        effect_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = compact_type_var(&machine, effect_anchor);
     let [row] = compact.root.rows.as_slice() else {
@@ -1671,7 +1679,11 @@ fn generic_role_impl_conformance_stage4_r1_obs_root_recursive_bound_captures_one
     let upper = machine.alloc_neg(Neg::Var(root));
     let argument = machine.alloc_neu(Neu::Bounds(lower, upper));
     let recursive_nominal = machine.alloc_pos(Pos::Con(vec!["loop".into()], vec![argument]));
-    machine.subtype(recursive_nominal, upper);
+    machine.subtype(
+        recursive_nominal,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = crate::compact::compact_type_var(&machine, root);
     assert_eq!(compact.rec_vars.len(), 1, "{compact:?}");
@@ -1800,7 +1812,11 @@ fn generic_role_impl_conformance_stage4_r1_compares_recursive_reference_patterns
         let branch_arg = invariant(&mut machine, second);
         let branch = machine.alloc_pos(Pos::Con(vec!["branch".into()], vec![branch_arg]));
         let second_upper = machine.alloc_neg(Neg::Var(second));
-        machine.subtype(branch, second_upper);
+        machine.subtype(
+            branch,
+            second_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
 
         let order = if swapped {
             [second, first]
@@ -1810,7 +1826,11 @@ fn generic_role_impl_conformance_stage4_r1_compares_recursive_reference_patterns
         let pair_args = order.map(|var| invariant(&mut machine, var)).to_vec();
         let pair = machine.alloc_pos(Pos::Con(vec!["pair".into()], pair_args));
         let first_upper = machine.alloc_neg(Neg::Var(first));
-        machine.subtype(pair, first_upper);
+        machine.subtype(
+            pair,
+            first_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         machine
     }
 
@@ -2056,7 +2076,11 @@ fn generic_role_impl_conformance_stage4_c1a_rejects_two_nominal_alternatives() {
     for path in [["first".to_string()], ["second".to_string()]] {
         let lower = machine.alloc_pos(Pos::Con(path.to_vec(), Vec::new()));
         let upper = machine.alloc_neg(Neg::Var(root));
-        machine.subtype(lower, upper);
+        machine.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
     let compact = crate::compact::compact_type_var(&machine, root);
     assert_eq!(compact.root.cons.len(), 2, "fixture shape: {compact:?}");
@@ -4608,7 +4632,11 @@ fn candidate_independent_fallback_classifier_proves_real_std_operator_wrappers()
         .session
         .infer
         .alloc_neg(Neg::Var(add_use.receiver_value));
-    lowerer.session.infer.subtype(concrete, receiver);
+    lowerer.session.infer.subtype(
+        concrete,
+        receiver,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     assert!(matches!(
         lowerer
             .session
@@ -6539,7 +6567,11 @@ fn slice4a_requirement_plan_witness(
                 let actual = lowerer.fresh_type_var();
                 let before = upper_bound_count(lowerer, actual);
                 let lower = lowerer.alloc_pos(Pos::Var(actual));
-                lowerer.session.infer.subtype(lower, upper);
+                lowerer.session.infer.subtype(
+                    lower,
+                    upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 parameter_connections += upper_bound_count(lowerer, actual) - before;
             }
 
@@ -6715,7 +6747,12 @@ fn add_var_constraint(
 ) {
     let lower = machine.alloc_pos(Pos::Var(lower));
     let upper = machine.alloc_neg(Neg::Var(upper));
-    machine.weighted_subtype(lower, weights, upper);
+    machine.weighted_subtype(
+        lower,
+        weights,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 }
 
 fn bridge_identities_in_class(
@@ -6930,7 +6967,11 @@ fn assert_receiver_requirement_connections(
         let actual = lowerer.fresh_type_var();
         let before = upper_bound_count(lowerer, actual);
         let lower = lowerer.alloc_pos(Pos::Var(actual));
-        lowerer.session.infer.subtype(lower, upper);
+        lowerer.session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         param_connections += upper_bound_count(lowerer, actual) - before;
     }
     assert_eq!(param_connections, param_count);

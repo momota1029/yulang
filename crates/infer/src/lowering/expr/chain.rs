@@ -503,7 +503,11 @@ impl<'a> ExprLowerer<'a> {
             .collect();
         let tail = self.alloc_neg(Neg::Var(result_effect));
         let upper = self.alloc_neg(Neg::Row(handled, tail));
-        self.subtype(Pos::Var(body_effect), upper);
+        self.subtype(
+            Pos::Var(body_effect),
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     fn type_decl_path_segments(&self, decl: &ModuleTypeDecl) -> Vec<String> {

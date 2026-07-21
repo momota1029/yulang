@@ -936,7 +936,11 @@ impl<'a> ExprLowerer<'a> {
             return;
         };
         let upper = self.alloc_neg(Neg::Var(value));
-        self.session.infer.subtype(predicate, upper);
+        self.session.infer.subtype(
+            predicate,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
 
         let operation_path = self
             .modules

@@ -884,7 +884,10 @@ impl AnalysisSession {
 
     pub(super) fn constrain_record_field_selection(&mut self, method_value: TypeVar, name: &str) {
         let constraints = self.record_field_selection_constraints(method_value, name);
-        self.infer.subtypes(constraints);
+        self.infer.subtypes(
+            constraints,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(super) fn record_field_selection_constraints(

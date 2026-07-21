@@ -777,7 +777,9 @@ impl BodyLowerer {
             (pos, role_args)
         };
         let upper = self.session.infer.alloc_neg(Neg::Var(root));
-        self.session.infer.subtype(pos, upper);
+        self.session
+            .infer
+            .subtype(pos, upper, crate::constraints::OriginId::unknown_internal());
 
         let path = self
             .modules

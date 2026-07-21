@@ -1060,7 +1060,11 @@ impl<'a> ExprLowerer<'a> {
                 });
             };
             let parameter_lower = self.alloc_pos(Pos::Var(parameter_value));
-            self.session.infer.subtype(parameter_lower, parameter_upper);
+            self.session.infer.subtype(
+                parameter_lower,
+                parameter_upper,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
 
         let body = self.resume_impl_method_requirement_body(
@@ -1359,13 +1363,17 @@ impl<'a> ExprLowerer<'a> {
         requirement: ImplRequirementBodyConnection,
     ) {
         let effect_lower = self.alloc_pos(Pos::Var(body_effect));
-        self.session
-            .infer
-            .subtype(effect_lower, requirement.effect_upper);
+        self.session.infer.subtype(
+            effect_lower,
+            requirement.effect_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         let value_lower = self.alloc_pos(Pos::Var(body_value));
-        self.session
-            .infer
-            .subtype(value_lower, requirement.value_upper);
+        self.session.infer.subtype(
+            value_lower,
+            requirement.value_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(in crate::lowering) fn connect_impl_method_requirement(
@@ -1417,13 +1425,21 @@ impl<'a> ExprLowerer<'a> {
                 .lower_pos(signature)
                 .map_err(|error| LoweringError::SignatureConstraint { error })?;
             let summary_upper = lowerer.alloc_neg(Neg::Var(summary_root));
-            lowerer.infer.subtype(summary_lower, summary_upper);
+            lowerer.infer.subtype(
+                summary_lower,
+                summary_upper,
+                crate::constraints::OriginId::unknown_internal(),
+            );
             let summary_role = lower_impl_requirement_role_constraint(&mut lowerer, requirement)?;
             (upper, summary_lower, summary_root, summary_role)
         };
         if let Some(upper) = upper {
             let lower = self.session.infer.alloc_pos(Pos::Var(value));
-            self.session.infer.subtype(lower, upper);
+            self.session.infer.subtype(
+                lower,
+                upper,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         let projection = CompactRoot {
             root: compact_pos_surface(self.session.infer.constraints().types(), summary_lower),
@@ -1625,7 +1641,11 @@ impl<'a> ExprLowerer<'a> {
             weight: StackWeight::push(subtract, subtractability),
         });
         let effect_upper = self.alloc_neg(Neg::Var(effect));
-        self.session.infer.subtype(stacked, effect_upper);
+        self.session.infer.subtype(
+            stacked,
+            effect_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         Ok(subtract)
     }
 
@@ -1697,11 +1717,12 @@ impl<'a> ExprLowerer<'a> {
         let body = self.apply_effect_annotation_upcasts(body, &ann);
         let vars = std::mem::take(ann_solver_vars);
         let closed_effect_rows = std::mem::take(ann_closed_effect_rows);
-        let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows(
+        let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows_with_origin_kind(
             &mut self.session.infer,
             self.modules,
             vars,
             closed_effect_rows,
+            crate::constraints::ConstraintOriginKind::Return,
         );
         let result = lowerer
             .connect_computation_detailed(

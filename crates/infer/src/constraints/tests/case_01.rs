@@ -37,7 +37,11 @@ fn constraint_epoch_advances_only_for_new_constraint_state() {
 
     assert_eq!(machine.epoch().as_u64(), 0);
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let after_first = machine.epoch().as_u64();
     let source_epoch = machine.bounds().of(source).unwrap().epoch().as_u64();
     let target_epoch = machine.bounds().of(target).unwrap().epoch().as_u64();
@@ -46,7 +50,11 @@ fn constraint_epoch_advances_only_for_new_constraint_state() {
     assert!(source_epoch > 0);
     assert!(target_epoch > 0);
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(machine.epoch().as_u64(), after_first);
     assert_eq!(
@@ -360,7 +368,11 @@ fn lower_bound_extrudes_deeper_positive_variables_to_target_level() {
     let lower = machine.alloc_pos(Pos::Var(inner));
     let upper = machine.alloc_neg(Neg::Var(target));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(machine.level_of(inner), root);
     let bounds = machine.bounds().of(target).expect("target bounds");
@@ -384,7 +396,11 @@ fn lower_bound_extrudes_secondary_level_variables_to_target_level() {
     let lower = machine.alloc_pos(Pos::Var(inner));
     let upper = machine.alloc_neg(Neg::Var(target));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(machine.level_of(inner), root);
 }
@@ -401,7 +417,11 @@ fn upper_bound_extrudes_deeper_negative_variables_to_source_level() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Var(inner));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(machine.level_of(inner), root);
     let bounds = machine.bounds().of(source).expect("source bounds");
@@ -427,7 +447,11 @@ fn extrusion_recurses_through_neutral_constructor_args_and_existing_bounds() {
     machine.register_type_var(bound_var, child);
     let inner_as_lower = machine.alloc_pos(Pos::Var(inner));
     let bound_var_as_upper = machine.alloc_neg(Neg::Var(bound_var));
-    machine.subtype(inner_as_lower, bound_var_as_upper);
+    machine.subtype(
+        inner_as_lower,
+        bound_var_as_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let arg_lower = machine.alloc_pos(Pos::Var(inner));
     let arg_upper = machine.alloc_neg(Neg::Var(bound_var));
@@ -435,7 +459,11 @@ fn extrusion_recurses_through_neutral_constructor_args_and_existing_bounds() {
     let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![arg]));
     let upper = machine.alloc_neg(Neg::Var(target));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(machine.level_of(inner), root);
     assert_eq!(machine.level_of(bound_var), root);
@@ -453,7 +481,12 @@ fn subtype_to_neg_var_drops_weighted_non_effect_terminal_lower_bound() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(target).expect("target bounds");
     assert_eq!(
@@ -487,7 +520,12 @@ fn subtype_to_neg_var_keeps_weighted_effect_terminal_lower_bound() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(target).expect("target bounds");
     assert_eq!(
@@ -520,7 +558,12 @@ fn pos_var_to_subtype_drops_weighted_non_effect_terminal_upper_bound() {
         right: RightConstraintWeight::from_ids([subtract]),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(source).expect("source bounds");
     assert!(bounds.lowers().is_empty());
@@ -546,7 +589,12 @@ fn pos_var_to_subtype_keeps_weighted_effect_terminal_upper_bound() {
         right: RightConstraintWeight::from_ids([subtract]),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(source).expect("source bounds");
     assert!(bounds.lowers().is_empty());
@@ -574,7 +622,12 @@ fn weighted_var_to_itself_constraint_is_noop() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(lower, weights, upper);
+    machine.weighted_subtype(
+        lower,
+        weights,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.bounds().of(source).is_none());
 }
@@ -592,7 +645,12 @@ fn var_bound_addition_replays_against_opposite_bounds_with_union_weights() {
         right: RightConstraintWeight::empty(),
     };
     let var_neg = machine.alloc_neg(Neg::Var(var));
-    machine.weighted_subtype(lower, lower_weight.clone(), var_neg);
+    machine.weighted_subtype(
+        lower,
+        lower_weight.clone(),
+        var_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let var_pos = machine.alloc_pos(Pos::Var(var));
     let upper_arg_pos = machine.alloc_pos(Pos::Bot);
@@ -603,7 +661,12 @@ fn var_bound_addition_replays_against_opposite_bounds_with_union_weights() {
         left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
-    machine.weighted_subtype(var_pos, upper_weight.clone(), upper);
+    machine.weighted_subtype(
+        var_pos,
+        upper_weight.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower,
@@ -621,11 +684,19 @@ fn var_var_replay_materializes_transitive_edges() {
 
     let a_pos = machine.alloc_pos(Pos::Var(a));
     let b_neg = machine.alloc_neg(Neg::Var(b));
-    machine.subtype(a_pos, b_neg);
+    machine.subtype(
+        a_pos,
+        b_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let b_pos = machine.alloc_pos(Pos::Var(b));
     let c_neg = machine.alloc_neg(Neg::Var(c));
-    machine.subtype(b_pos, c_neg);
+    machine.subtype(
+        b_pos,
+        c_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let c_bounds = machine.bounds().of(c).expect("c should have direct lower");
     assert!(
@@ -643,7 +714,7 @@ fn var_var_replay_materializes_transitive_edges() {
 
     let int = machine.alloc_pos(Pos::Con(vec!["int".into()], vec![]));
     let a_neg = machine.alloc_neg(Neg::Var(a));
-    machine.subtype(int, a_neg);
+    machine.subtype(int, a_neg, crate::constraints::OriginId::unknown_internal());
 
     let c_bounds = machine
         .bounds()
@@ -674,6 +745,7 @@ fn var_var_replay_keeps_balanced_alias_cycle_finite() {
             right: RightConstraintWeight::empty(),
         },
         b_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let b_pos = machine.alloc_pos(Pos::Var(b));
@@ -685,11 +757,16 @@ fn var_var_replay_keeps_balanced_alias_cycle_finite() {
             right: RightConstraintWeight::empty(),
         },
         c_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let c_pos = machine.alloc_pos(Pos::Var(c));
     let a_neg = machine.alloc_neg(Neg::Var(a));
-    machine.subtype(c_pos, a_neg);
+    machine.subtype(
+        c_pos,
+        a_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: a_pos,
@@ -719,11 +796,16 @@ fn var_var_replay_keeps_pop_only_alias_cycle_finite() {
             right: RightConstraintWeight::empty(),
         },
         b_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let b_pos = machine.alloc_pos(Pos::Var(b));
     let a_neg = machine.alloc_neg(Neg::Var(a));
-    machine.subtype(b_pos, a_neg);
+    machine.subtype(
+        b_pos,
+        a_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     for var in [a, b] {
         let Some(bounds) = machine.bounds().of(var) else {
@@ -754,11 +836,16 @@ fn var_var_replay_keeps_push_only_alias_cycle_finite() {
             right: RightConstraintWeight::empty(),
         },
         b_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let b_pos = machine.alloc_pos(Pos::Var(b));
     let a_neg = machine.alloc_neg(Neg::Var(a));
-    machine.subtype(b_pos, a_neg);
+    machine.subtype(
+        b_pos,
+        a_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     for var in [a, b] {
         let Some(bounds) = machine.bounds().of(var) else {
@@ -790,6 +877,7 @@ fn var_var_replay_keeps_distinct_pop_only_boundaries() {
             right: RightConstraintWeight::empty(),
         },
         b_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
     machine.weighted_subtype(
         a_pos,
@@ -798,6 +886,7 @@ fn var_var_replay_keeps_distinct_pop_only_boundaries() {
             right: RightConstraintWeight::empty(),
         },
         b_neg,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let bounds = machine.bounds().of(a).expect("a bounds");
@@ -823,8 +912,17 @@ fn zero_arg_nominal_subtype_deduplicates_weight_insensitive_edges() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(lower, weighted, upper);
-    machine.subtype(lower, upper);
+    machine.weighted_subtype(
+        lower,
+        weighted,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let expected = SubtypeConstraintKey {
         lower,
@@ -852,7 +950,12 @@ fn terminal_non_effect_lower_bound_uses_empty_weight_without_matching_terminal_u
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(bool_lower, weighted, var_upper);
+    machine.weighted_subtype(
+        bool_lower,
+        weighted,
+        var_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(var).expect("var bounds");
     assert!(
@@ -875,7 +978,12 @@ fn terminal_effect_lower_bound_keeps_weight_without_matching_terminal_upper() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(io, weighted.clone(), var_upper);
+    machine.weighted_subtype(
+        io,
+        weighted.clone(),
+        var_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(var).expect("var bounds");
     assert_eq!(
@@ -916,7 +1024,12 @@ fn function_arguments_propagate_with_swapped_weights() {
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg,
@@ -946,7 +1059,12 @@ fn constructor_args_propagate_invariant_neutral_bounds() {
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
 
-    machine.weighted_subtype(lower, weights.clone(), upper);
+    machine.weighted_subtype(
+        lower,
+        weights.clone(),
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_arg_lower,
@@ -967,7 +1085,11 @@ fn mismatched_constructors_emit_nominal_cast_event() {
     let lower = machine.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
     let upper = machine.alloc_neg(Neg::Con(vec!["user_id".into()], Vec::new()));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert_eq!(
         machine.events(),
@@ -995,7 +1117,11 @@ fn neutral_structures_build_regular_upper_and_lower_bounds() {
     let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
     let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_item_lower,
@@ -1026,7 +1152,11 @@ fn record_fields_propagate_matching_field_constraints() {
         optional: false,
     }]));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_x,
@@ -1055,7 +1185,11 @@ fn record_tail_spread_sends_missing_fields_to_tail() {
         optional: false,
     }]));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: tail,
@@ -1072,7 +1206,11 @@ fn variant_payloads_propagate_matching_tag_constraints() {
     let lower = machine.alloc_pos(Pos::PolyVariant(vec![("some".into(), vec![lower_payload])]));
     let upper = machine.alloc_neg(Neg::PolyVariant(vec![("some".into(), vec![upper_payload])]));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_payload,
@@ -1094,7 +1232,11 @@ fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms
     let lower = machine.alloc_pos(Pos::Row(vec![io_pos, fs_pos, row_var]));
     let upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let tail_bounds = machine.bounds().of(TypeVar(1)).expect("upper tail bounds");
     assert!(
@@ -1133,7 +1275,11 @@ fn row_items_keep_non_effect_atoms_direct_for_tail_residuals() {
     let lower = machine.alloc_pos(Pos::Row(vec![unit]));
     let upper = machine.alloc_neg(Neg::Row(vec![], upper_tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let tail_bounds = machine.bounds().of(TypeVar(0)).expect("upper tail bounds");
     assert!(
@@ -1177,7 +1323,11 @@ fn pos_row_variable_items_use_stack_weighted_row_upper_processing() {
     });
     let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let gamma = single_upper_row_tail(&machine, row_var, &["io"]);
     let residual_weights = ConstraintWeights {
@@ -1212,7 +1362,11 @@ fn pos_row_concrete_effect_items_compare_matching_payloads() {
     let lower = machine.alloc_pos(Pos::Row(vec![lower_item]));
     let upper = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_payload_lower,
@@ -1243,7 +1397,11 @@ fn pos_row_concrete_effect_items_match_by_path() {
     let lower = machine.alloc_pos(Pos::Row(vec![lower_item]));
     let upper = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_item,
@@ -1263,7 +1421,11 @@ fn var_to_effect_row_upper_without_stack_weight_stores_raw_row() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let bounds = machine.bounds().of(source).expect("source bounds");
     assert_eq!(

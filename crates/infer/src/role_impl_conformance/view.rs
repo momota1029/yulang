@@ -2144,7 +2144,11 @@ mod tests {
         for (lower, upper) in [(a, b), (b, a), (b, downstream)] {
             let lower = machine.alloc_pos(Pos::Var(lower));
             let upper = machine.alloc_neg(Neg::Var(upper));
-            machine.subtype(lower, upper);
+            machine.subtype(
+                lower,
+                upper,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
 
         let mut classes = ExactEquivalenceClasses::new(&machine);

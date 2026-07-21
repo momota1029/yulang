@@ -636,7 +636,11 @@ impl<'a> ExprLowerer<'a> {
             let param_value = self.fresh_type_var();
             if let Some(Some(upper)) = param_uppers.get(param_index) {
                 let lower = self.alloc_pos(Pos::Var(param_value));
-                self.session.infer.subtype(lower, *upper);
+                self.session.infer.subtype(
+                    lower,
+                    *upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
             }
             let mut annotation = match self.connect_lambda_pattern_annotation(
                 pattern,
@@ -954,7 +958,11 @@ impl<'a> ExprLowerer<'a> {
                     for upper in call_uppers {
                         let upper = self.call_upper_with_body_effect(upper, body_effect);
                         let lower = self.alloc_pos(Pos::Var(projected));
-                        self.session.infer.subtype(lower, upper);
+                        self.session.infer.subtype(
+                            lower,
+                            upper,
+                            crate::constraints::OriginId::unknown_internal(),
+                        );
                     }
                     return self.alloc_neg(Neg::Var(projected));
                 }
@@ -1017,7 +1025,11 @@ impl<'a> ExprLowerer<'a> {
                     Neg::Var(var) => Some(*var),
                     _ => None,
                 };
-                self.subtype(Pos::Var(observed_ret), call_ret);
+                self.subtype(
+                    Pos::Var(observed_ret),
+                    call_ret,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 if let Some(call_ret_var) = call_ret_var {
                     self.subtype_var_to_var(call_ret_var, observed_ret);
                 }

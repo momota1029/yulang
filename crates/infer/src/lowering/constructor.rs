@@ -166,8 +166,16 @@ pub(super) fn constrain_constructor_arg_shapes(infer: &mut crate::Arena, args: &
         let upper = infer.alloc_neg(Neg::Record(upper_fields));
         let value_upper = infer.alloc_neg(Neg::Var(*value));
         let value_lower = infer.alloc_pos(Pos::Var(*value));
-        infer.subtype(lower, value_upper);
-        infer.subtype(value_lower, upper);
+        infer.subtype(
+            lower,
+            value_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+        infer.subtype(
+            value_lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 }
 
@@ -234,7 +242,11 @@ pub(super) fn connect_constructor_arg_signatures(
                 let upper = lowerer
                     .lower_data_neg(signature.as_type())
                     .map_err(|error| LoweringError::SignatureConstraint { error })?;
-                lowerer.infer.subtype(lower, upper);
+                lowerer.infer.subtype(
+                    lower,
+                    upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
             }
             ConstructorArg::Value {
                 signature: None, ..
@@ -246,7 +258,11 @@ pub(super) fn connect_constructor_arg_signatures(
                         let upper = lowerer
                             .lower_data_neg(signature.as_type())
                             .map_err(|error| LoweringError::SignatureConstraint { error })?;
-                        lowerer.infer.subtype(lower, upper);
+                        lowerer.infer.subtype(
+                            lower,
+                            upper,
+                            crate::constraints::OriginId::unknown_internal(),
+                        );
                     }
                 }
             }
@@ -341,12 +357,20 @@ fn connect_constructor_pattern_value_signature(
         .lower_data_pos(signature.as_type())
         .map_err(|error| LoweringError::SignatureConstraint { error })?;
     let value_upper = lowerer.alloc_neg(Neg::Var(value));
-    lowerer.infer.subtype(lower, value_upper);
+    lowerer.infer.subtype(
+        lower,
+        value_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let value_lower = lowerer.alloc_pos(Pos::Var(value));
     let upper = lowerer
         .lower_data_neg(signature.as_type())
         .map_err(|error| LoweringError::SignatureConstraint { error })?;
-    lowerer.infer.subtype(value_lower, upper);
+    lowerer.infer.subtype(
+        value_lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     Ok(())
 }

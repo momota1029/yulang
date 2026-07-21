@@ -6,6 +6,44 @@
 
 use crate::time::Duration;
 
+use super::ConstraintOriginKind;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ConstraintOriginCoverage {
+    pub application_argument: usize,
+    pub annotation: usize,
+    pub return_: usize,
+    pub field: usize,
+    pub assignment: usize,
+    pub internal: usize,
+    pub unknown_internal: usize,
+}
+
+impl ConstraintOriginCoverage {
+    pub fn total(self) -> usize {
+        self.application_argument
+            + self.annotation
+            + self.return_
+            + self.field
+            + self.assignment
+            + self.internal
+            + self.unknown_internal
+    }
+
+    fn record(&mut self, kind: ConstraintOriginKind) {
+        let counter = match kind {
+            ConstraintOriginKind::ApplicationArgument => &mut self.application_argument,
+            ConstraintOriginKind::Annotation => &mut self.annotation,
+            ConstraintOriginKind::Return => &mut self.return_,
+            ConstraintOriginKind::Field => &mut self.field,
+            ConstraintOriginKind::Assignment => &mut self.assignment,
+            ConstraintOriginKind::Internal => &mut self.internal,
+            ConstraintOriginKind::UnknownInternal => &mut self.unknown_internal,
+        };
+        *counter += 1;
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintTiming {
     pub drain: Duration,
@@ -37,6 +75,7 @@ pub struct ConstraintTiming {
     pub canonical_subtype_constraints: usize,
     pub subtype_duplicate_admissions: usize,
     pub subtype_trivial_admissions: usize,
+    pub root_origins: ConstraintOriginCoverage,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
     pub row_upper_bounds_added_without_replay: usize,
@@ -172,6 +211,10 @@ impl ReplayDuplicateProfile {
 }
 
 impl ConstraintTiming {
+    pub(super) fn record_root_origin(&mut self, kind: ConstraintOriginKind) {
+        self.root_origins.record(kind);
+    }
+
     pub(super) fn record_subtype_call(&mut self) {
         self.subtype_calls += 1;
     }

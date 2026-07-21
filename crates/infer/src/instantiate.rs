@@ -670,7 +670,10 @@ impl<'a> SchemeInstantiator<'a> {
             }
         }
         if !constraints.is_empty() {
-            self.target.subtypes(constraints);
+            self.target.subtypes(
+                constraints,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         bounds
     }
@@ -696,7 +699,10 @@ impl<'a> SchemeInstantiator<'a> {
             });
         }
         if !constraints.is_empty() {
-            self.target.subtypes(constraints);
+            self.target.subtypes(
+                constraints,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         bounds
     }

@@ -255,7 +255,11 @@ impl<'a> ExprLowerer<'a> {
             ret_eff,
             ret,
         });
-        self.session.infer.subtype(method, method_upper);
+        self.session.infer.subtype(
+            method,
+            method_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         self.subtype_var_to_var(call_effect, result_effect);
 
         let select = self.session.poly.add_select(name);
@@ -427,6 +431,19 @@ impl<'a> ExprLowerer<'a> {
         callee: Computation,
         arg: Computation,
     ) -> Computation {
+        self.make_app_with_origin(
+            callee,
+            arg,
+            crate::constraints::OriginId::unknown_internal(),
+        )
+    }
+
+    fn make_app_with_origin(
+        &mut self,
+        callee: Computation,
+        arg: Computation,
+        origin: crate::constraints::OriginId,
+    ) -> Computation {
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
         let call_effect = self.fresh_type_var();
@@ -444,14 +461,18 @@ impl<'a> ExprLowerer<'a> {
             ret_eff: return_effect.upper,
             ret: return_value,
         });
-        self.subtype(Pos::Var(callee.value), callee_upper);
+        self.subtype(Pos::Var(callee.value), callee_upper, origin);
         if let Some(erased_upper) = local_callee_erased_upper {
             if let Some(def) = local_callee_def {
                 let frame_index = self.function_frames.len().checked_sub(1);
                 self.record_local_call_upper(def, callee_upper, frame_index);
             }
             let callee_lower = self.alloc_pos(Pos::Var(callee.value));
-            self.session.infer.subtype(callee_lower, erased_upper);
+            self.session.infer.subtype(
+                callee_lower,
+                erased_upper,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         self.subtype_var_to_var(callee.effect, result_effect);
         self.subtype_pos_to_var(return_effect.lower, result_effect);
@@ -467,7 +488,11 @@ impl<'a> ExprLowerer<'a> {
         application_source_range: TextRange,
         callee_source_range: TextRange,
     ) -> Computation {
-        let application = self.make_app(callee, arg);
+        let source_boundary = self
+            .session
+            .infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::ApplicationArgument);
+        let application = self.make_app_with_origin(callee, arg, source_boundary.origin());
         let application_span = self.source_span(Some(crate::source_range_from_text_range(
             application_source_range,
         )));
@@ -670,7 +695,11 @@ impl<'a> ExprLowerer<'a> {
             scheme,
         );
         let upper = self.alloc_neg(Neg::Var(value));
-        self.session.infer.subtype(predicate, upper);
+        self.session.infer.subtype(
+            predicate,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         value
     }
 

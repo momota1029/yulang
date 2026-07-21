@@ -206,7 +206,11 @@ fn role_prepass_selects_parent_even_when_prerequisite_is_missing() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(output));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 
@@ -265,7 +269,11 @@ fn role_prepass_selects_parent_and_keeps_free_prerequisite_residual() {
 
     let root_lower = session.infer.alloc_pos(Pos::Var(output));
     let root_upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(root_lower, root_upper);
+    session.infer.subtype(
+        root_lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let generalized = session.generalize_root_with_prepasses(owner, root);
 
@@ -310,7 +318,11 @@ fn role_impl_member_simplification_runs_before_generalization() {
     session.infer.restore_level(previous);
     let lower = session.infer.alloc_pos(Pos::Var(removed));
     let upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.register_role_impl_member_simplification(
         member,
         CompactSimplification {
@@ -1002,10 +1014,18 @@ fn cache_candidate_joint_normalization_rewrites_closed_head_and_boundary_invento
     let boundary_var = session.infer.fresh_type_var();
     let head_lower = session.infer.alloc_pos(Pos::Var(head));
     let alias_upper = session.infer.alloc_neg(Neg::Var(head_alias));
-    session.infer.subtype(head_lower, alias_upper);
+    session.infer.subtype(
+        head_lower,
+        alias_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let alias_lower = session.infer.alloc_pos(Pos::Var(head_alias));
     let head_upper = session.infer.alloc_neg(Neg::Var(head));
-    session.infer.subtype(alias_lower, head_upper);
+    session.infer.subtype(
+        alias_lower,
+        head_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.role_impls.insert(RoleImplCandidate {
         impl_def: Some(DefId(42)),
         role: vec!["NormalizedCandidate".into()],
@@ -1451,12 +1471,20 @@ fn joint_cache_freeze_keeps_bare_floor_boundary() {
         .infer
         .alloc_pos(Pos::Con(vec!["token".into()], Vec::new()));
     let boundary_upper = session.infer.alloc_neg(Neg::Var(boundary_var));
-    session.infer.subtype(concrete_lower, boundary_upper);
+    session.infer.subtype(
+        concrete_lower,
+        boundary_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let boundary_lower = session.infer.alloc_pos(Pos::Var(boundary_var));
     let concrete_upper = session
         .infer
         .alloc_neg(Neg::Con(vec!["token".into()], Vec::new()));
-    session.infer.subtype(boundary_lower, concrete_upper);
+    session.infer.subtype(
+        boundary_lower,
+        concrete_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.schemes.insert(
         def,
         GeneralizedCompactRoot {
@@ -1751,7 +1779,11 @@ fn add_identity_function_lower_bound(session: &mut AnalysisSession, root: TypeVa
         ret,
     });
     let upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 }
 
 fn lower_repository_std_for_cache_candidate_characterization() -> crate::lowering::BodyLowering {
@@ -1977,7 +2009,11 @@ fn constrain_root_to_vars(session: &mut AnalysisSession, root: TypeVar, vars: &[
         .collect();
     let lower = session.infer.alloc_pos(Pos::Tuple(items));
     let upper = session.infer.alloc_neg(Neg::Var(root));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 }
 
 fn floor_normalized_role_resolution(

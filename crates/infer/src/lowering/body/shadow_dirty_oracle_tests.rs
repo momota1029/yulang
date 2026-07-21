@@ -474,10 +474,26 @@ fn upper_row_pruning_can_escape_the_current_bounds_epoch_fingerprint() {
     let stale = infer.alloc_neg(Neg::Row(vec![stale_item], inner));
     let follower = infer.alloc_neg(Neg::Row(vec![follower_item], stale));
 
-    infer.subtype(source_pos, stale);
-    infer.subtype(source_pos, inner);
-    infer.subtype(source_pos, leaf);
-    infer.subtype(source_pos, follower);
+    infer.subtype(
+        source_pos,
+        stale,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    infer.subtype(
+        source_pos,
+        inner,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    infer.subtype(
+        source_pos,
+        leaf,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    infer.subtype(
+        source_pos,
+        follower,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let before = infer
         .constraints()
@@ -506,6 +522,7 @@ fn upper_row_pruning_can_escape_the_current_bounds_epoch_fingerprint() {
                     right: RightConstraintWeight::empty(),
                 },
                 stale,
+                crate::constraints::OriginId::unknown_internal(),
             );
         });
 
@@ -545,8 +562,16 @@ fn row_effect_no_replay_prune_and_insert_escapes_the_current_bounds_epoch_finger
     let stale_row = infer.alloc_neg(Neg::Row(vec![stale_neg], tail));
     let matching_row = infer.alloc_neg(Neg::Row(vec![matched_neg], tail));
 
-    infer.subtype(matched_row, source_neg);
-    infer.subtype(source_pos, stale_row);
+    infer.subtype(
+        matched_row,
+        source_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    infer.subtype(
+        source_pos,
+        stale_row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let before = infer
         .constraints()
@@ -567,7 +592,11 @@ fn row_effect_no_replay_prune_and_insert_escapes_the_current_bounds_epoch_finger
     let oracle_detected_change = infer
         .constraints_mut()
         .shadow_dirty_oracle_detects_bound_mutation_for_test(source, |machine| {
-            machine.subtype(source_pos, matching_row);
+            machine.subtype(
+                source_pos,
+                matching_row,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         });
 
     let after = infer

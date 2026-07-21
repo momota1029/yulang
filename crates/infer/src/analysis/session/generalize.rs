@@ -868,7 +868,9 @@ impl AnalysisSession {
                 })
                 .collect::<Vec<_>>()
         };
-        self.infer.constraints_mut().constrain_invariant_neus(pairs);
+        self.infer
+            .constraints_mut()
+            .constrain_invariant_neus(pairs, crate::constraints::OriginId::unknown_internal());
     }
 
     pub(super) fn constrain_compact_cast(&mut self, application: &CompactCastApplication) {
@@ -923,8 +925,12 @@ impl AnalysisSession {
                 ret_eff,
                 ret: upper,
             });
-            self.infer
-                .weighted_subtype(predicate, weights.clone(), expected_cast);
+            self.infer.weighted_subtype(
+                predicate,
+                weights.clone(),
+                expected_cast,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
     }
 
@@ -1365,7 +1371,11 @@ mod final_role_reuse_tests {
             .infer
             .alloc_pos(Pos::Con(vec!["epoch_change".into()], Vec::new()));
         let upper = fixture.session.infer.alloc_neg(Neg::Var(changed));
-        fixture.session.infer.subtype(lower, upper);
+        fixture.session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         let changed_constraint_epoch = fixture.session.infer.constraints().epoch();
         assert_ne!(snapshot_constraint_epoch, changed_constraint_epoch);
         assert!(!fixture.snapshot.inputs_match(
@@ -1525,7 +1535,11 @@ mod final_role_reuse_tests {
             .collect();
         let lower = session.infer.alloc_pos(Pos::Tuple(items));
         let upper = session.infer.alloc_neg(Neg::Var(root));
-        session.infer.subtype(lower, upper);
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     fn role_var_arg(infer: &mut crate::arena::Arena, var: TypeVar) -> RoleConstraintArg {

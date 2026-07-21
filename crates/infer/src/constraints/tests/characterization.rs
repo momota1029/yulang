@@ -90,6 +90,7 @@ impl CharacterizationCase {
 #[derive(Debug, PartialEq, Eq)]
 struct ConstraintCharacterization {
     name: &'static str,
+    origin_coverage: ConstraintOriginCoverage,
     canonical_subtype_constraints: usize,
     subtype_duplicate_admissions: usize,
     subtype_trivial_admissions: usize,
@@ -130,6 +131,7 @@ impl ConstraintCharacterization {
         let check_report = format!("{:?}", crate::check::summarize_lowering(output));
         Self {
             name,
+            origin_coverage: timing.root_origins,
             canonical_subtype_constraints: timing.canonical_subtype_constraints,
             subtype_duplicate_admissions: timing.subtype_duplicate_admissions,
             subtype_trivial_admissions: timing.subtype_trivial_admissions,
@@ -216,6 +218,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
+            origin_coverage: origins(1_852, 1_480, 791, 34_160),
             canonical_subtype_constraints: 143_046,
             subtype_duplicate_admissions: 13_114,
             subtype_trivial_admissions: 12_098,
@@ -237,6 +240,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
+            origin_coverage: origins(1_855, 1_480, 791, 34_279),
             canonical_subtype_constraints: 143_492,
             subtype_duplicate_admissions: 13_186,
             subtype_trivial_admissions: 12_127,
@@ -261,6 +265,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
+            origin_coverage: origins(1_868, 1_487, 795, 34_514),
             canonical_subtype_constraints: 145_614,
             subtype_duplicate_admissions: 14_132,
             subtype_trivial_admissions: 12_249,
@@ -282,6 +287,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
+            origin_coverage: origins(1_906, 1_506, 813, 35_642),
             canonical_subtype_constraints: 149_487,
             subtype_duplicate_admissions: 13_938,
             subtype_trivial_admissions: 12_622,
@@ -317,6 +323,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
+            origin_coverage: origins(1_883, 1_497, 801, 34_981),
             canonical_subtype_constraints: 146_636,
             subtype_duplicate_admissions: 14_072,
             subtype_trivial_admissions: 12_396,
@@ -341,6 +348,21 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             check_report_fnv1a64: 10_008_233_950_265_717_320,
         },
     ]
+}
+
+fn origins(
+    application_argument: usize,
+    annotation: usize,
+    return_: usize,
+    unknown_internal: usize,
+) -> ConstraintOriginCoverage {
+    ConstraintOriginCoverage {
+        application_argument,
+        annotation,
+        return_,
+        unknown_internal,
+        ..ConstraintOriginCoverage::default()
+    }
 }
 
 fn replay(

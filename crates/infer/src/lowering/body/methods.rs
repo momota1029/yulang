@@ -439,9 +439,14 @@ impl BodyLowerer {
     }
 
     pub(super) fn constrain_def_body(&mut self, root: TypeVar, body: TypeVar) {
+        let origin = self
+            .session
+            .infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::Return)
+            .origin();
         let body_pos = self.session.infer.alloc_pos(Pos::Var(body));
         let root_neg = self.session.infer.alloc_neg(Neg::Var(root));
-        self.session.infer.subtype(body_pos, root_neg);
+        self.session.infer.subtype(body_pos, root_neg, origin);
     }
 
     pub(super) fn next_value_decl(

@@ -908,7 +908,11 @@ fn negative_filter_stack_effect_projects_set_as_row_prefix() {
     });
     let lower = machine.alloc_pos(Pos::Var(root));
 
-    machine.subtype(lower, upper);
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = compact_negative_type_var_for_scheme(&machine, root);
     let fun = compact.root.funs.first().expect("function upper");

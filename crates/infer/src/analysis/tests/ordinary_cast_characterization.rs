@@ -19,7 +19,11 @@ fn direct_nominal_cast_event_applies_zero_one_or_every_visible_candidate() {
         let upper = session.infer.alloc_neg(Neg::Con(path(TARGET), Vec::new()));
         let before = session.infer.constraints().timing().weighted_subtype_calls;
 
-        session.infer.subtype(lower, upper);
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         assert!(matches!(
             session.infer.constraints().events(),
             [ConstraintEvent::NominalCastNeeded { source, target, .. }]
@@ -69,7 +73,11 @@ fn direct_and_compact_shadow_observations_match_the_ocast_a_oracle() {
         let lower = session.infer.alloc_pos(Pos::Con(path(SOURCE), Vec::new()));
         let upper = session.infer.alloc_neg(Neg::Con(path(TARGET), Vec::new()));
         begin_ordinary_cast_shadow_capture();
-        session.infer.subtype(lower, upper);
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         session.route_constraint_events();
         let direct = finish_ordinary_cast_shadow_capture()
             .into_iter()
@@ -202,10 +210,18 @@ fn repeated_identical_nominal_subtype_constraint_emits_only_one_current_cast_eve
         let upper = session.infer.alloc_neg(Neg::Con(path(TARGET), Vec::new()));
         let before = session.infer.constraints().timing().weighted_subtype_calls;
 
-        session.infer.subtype(lower, upper);
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         session.route_constraint_events();
         let after_first = session.infer.constraints().timing().weighted_subtype_calls;
-        session.infer.subtype(lower, upper);
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         assert!(session.infer.constraints().events().is_empty());
         session.route_constraint_events();
         let after_second = session.infer.constraints().timing().weighted_subtype_calls;
@@ -282,7 +298,11 @@ fn disjoint_looking_same_pair_schemes_are_both_applied_today() {
         .alloc_neg(Neg::Con(path(TARGET), vec![argument]));
     let before = session.infer.constraints().timing().weighted_subtype_calls;
 
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     while !session.infer.constraints().events().is_empty() {
         session.route_constraint_events();
     }

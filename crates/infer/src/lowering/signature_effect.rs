@@ -285,7 +285,11 @@ impl<'a> SignatureLowerer<'a> {
         let private_tail = self.alloc_pos(Pos::Var(private.tail));
         let private_lower = self.alloc_pos(Pos::Row(vec![private_tail]));
         let public_upper = self.alloc_neg(Neg::Var(public_tail));
-        self.infer.subtype(private_lower, public_upper);
+        self.infer.subtype(
+            private_lower,
+            public_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         Ok((
             private.tail,
             StackWeight::push(private.subtract, subtractability),
@@ -339,10 +343,18 @@ impl<'a> SignatureLowerer<'a> {
         }
         let tail_lower = self.alloc_pos(Pos::Var(tail));
         let effect_upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(tail_lower, effect_upper);
+        self.infer.subtype(
+            tail_lower,
+            effect_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         let effect_lower = self.alloc_pos(Pos::Var(effect));
         let tail_upper = self.alloc_neg(Neg::Var(tail));
-        self.infer.subtype(effect_lower, tail_upper);
+        self.infer.subtype(
+            effect_lower,
+            tail_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     fn connect_effect_row_lower(
@@ -359,7 +371,11 @@ impl<'a> SignatureLowerer<'a> {
         }
         let lower = self.lower_effect_row_pos(row)?;
         let effect_upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(lower, effect_upper);
+        self.infer.subtype(
+            lower,
+            effect_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         Ok(())
     }
 

@@ -27,8 +27,16 @@ fn compact_duplicate_constructor_args_generate_constraints() {
     let root_upper = machine.alloc_neg(Neg::Var(root));
     let left_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![left]));
     let right_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![right]));
-    machine.subtype(left_box, root_upper);
-    machine.subtype(right_box, root_upper);
+    machine.subtype(
+        left_box,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.subtype(
+        right_box,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
 
@@ -57,8 +65,16 @@ fn compact_stack_family_and_row_item_coexistence_generate_constraints() {
     let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
     let row = machine.alloc_pos(Pos::Row(vec![row_item]));
     let root_upper = machine.alloc_neg(Neg::Var(root));
-    machine.subtype(stacked_tail, root_upper);
-    machine.subtype(row, root_upper);
+    machine.subtype(
+        stacked_tail,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.subtype(
+        row,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
 
@@ -230,8 +246,16 @@ fn compact_popped_stack_family_still_merges_with_coexisting_row_item() {
     let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
     let row = machine.alloc_pos(Pos::Row(vec![row_item]));
     let root_upper = machine.alloc_neg(Neg::Var(root));
-    machine.subtype(popped_tail, root_upper);
-    machine.subtype(row, root_upper);
+    machine.subtype(
+        popped_tail,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.subtype(
+        row,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
 
@@ -249,7 +273,11 @@ fn compact_neg_row_tail_cycle_keeps_residual_tail_var() {
     let tail_upper = machine.alloc_neg(Neg::Var(tail));
     let row = machine.alloc_neg(Neg::Row(vec![item], tail_upper));
     let tail_lower = machine.alloc_pos(Pos::Var(tail));
-    machine.subtype(tail_lower, row);
+    machine.subtype(
+        tail_lower,
+        row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let mut collector = CompactCollector::new(&machine);
     let compact = collector.compact_neg_row_tail_var(tail, ConstraintWeight::empty());
@@ -272,13 +300,22 @@ fn compact_neg_row_tail_aliases_weighted_var_without_expanding_it() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(source_pos, weights, through_neg);
+    machine.weighted_subtype(
+        source_pos,
+        weights,
+        through_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let item = machine.alloc_neg(Neg::Con(vec!["redo".into()], Vec::new()));
     let row_tail = machine.alloc_neg(Neg::Var(tail));
     let row = machine.alloc_neg(Neg::Row(vec![item], row_tail));
     let through_pos = machine.alloc_pos(Pos::Var(through));
-    machine.subtype(through_pos, row);
+    machine.subtype(
+        through_pos,
+        row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let mut collector = CompactCollector::new(&machine);
     let compact = collector.compact_neg_row_tail_var(source, ConstraintWeight::empty());
@@ -301,7 +338,12 @@ fn compact_negative_var_aliases_pop_only_var_var_bound() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(source_pos, weights, through_neg);
+    machine.weighted_subtype(
+        source_pos,
+        weights,
+        through_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let mut collector = CompactCollector::new(&machine);
     let compact = collector.compact_var_side(source, Polarity::Negative, ConstraintWeight::empty());
@@ -324,13 +366,22 @@ fn compact_neg_row_tail_reaches_pop_only_var_var_bound() {
         right: RightConstraintWeight::empty(),
     };
 
-    machine.weighted_subtype(source_pos, weights, through_neg);
+    machine.weighted_subtype(
+        source_pos,
+        weights,
+        through_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let item = machine.alloc_neg(Neg::Con(vec!["redo".into()], Vec::new()));
     let row_tail = machine.alloc_neg(Neg::Var(tail));
     let row = machine.alloc_neg(Neg::Row(vec![item], row_tail));
     let through_pos = machine.alloc_pos(Pos::Var(through));
-    machine.subtype(through_pos, row);
+    machine.subtype(
+        through_pos,
+        row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let mut collector = CompactCollector::new(&machine);
     let compact = collector.compact_neg_row_tail_var(source, ConstraintWeight::empty());
@@ -348,7 +399,11 @@ fn compact_neg_row_pulls_expanded_tail_rows_into_outer_row() {
     let top = machine.alloc_neg(Neg::Top);
     let redo_row = machine.alloc_neg(Neg::Row(vec![redo_item], top));
     let residual_pos = machine.alloc_pos(Pos::Var(residual));
-    machine.subtype(residual_pos, redo_row);
+    machine.subtype(
+        residual_pos,
+        redo_row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let residual_tail = machine.alloc_neg(Neg::Var(residual));
     let row = machine.alloc_neg(Neg::Row(vec![loop_item], residual_tail));
@@ -376,7 +431,11 @@ fn compact_neg_stack_effect_surfaces_concrete_push_as_row_prefix() {
     let residual = TypeVar(2);
     let effect_pos = machine.alloc_pos(Pos::Var(effect));
     let residual_neg = machine.alloc_neg(Neg::Var(residual));
-    machine.subtype(effect_pos, residual_neg);
+    machine.subtype(
+        effect_pos,
+        residual_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let subtract = SubtractId(0);
     let stack = StackWeight::push(
@@ -432,6 +491,7 @@ fn collect_pushes_weight_into_covariant_type_argument_vars() {
         list,
         ConstraintWeights::empty().with_left(SubtractId(4)),
         root_upper,
+        crate::constraints::OriginId::unknown_internal(),
     );
 
     let compact = compact_type_var(&machine, root);
@@ -470,7 +530,11 @@ fn collect_pushes_weight_into_expanded_covariant_var_bounds() {
     let lower = machine.alloc_pos(Pos::NonSubtract(payload_pos, StackWeight::pop(subtract)));
     let root_upper = machine.alloc_neg(Neg::Var(root));
 
-    machine.subtype(lower, root_upper);
+    machine.subtype(
+        lower,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = compact_type_var(&machine, root);
 
@@ -498,7 +562,11 @@ fn collect_composes_lower_bound_weight_before_outer_weight() {
         weight: ConstraintWeight::push(subtract, Subtractability::Empty),
     });
     let outer_upper = machine.alloc_neg(Neg::Var(outer));
-    machine.subtype(pushed_inner, outer_upper);
+    machine.subtype(
+        pushed_inner,
+        outer_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let outer_pos = machine.alloc_pos(Pos::Var(outer));
     let popped_outer = machine.alloc_pos(Pos::Stack {
@@ -506,7 +574,11 @@ fn collect_composes_lower_bound_weight_before_outer_weight() {
         weight: ConstraintWeight::pop(subtract),
     });
     let root_upper = machine.alloc_neg(Neg::Var(root));
-    machine.subtype(popped_outer, root_upper);
+    machine.subtype(
+        popped_outer,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = compact_type_var(&machine, root);
 
@@ -545,13 +617,21 @@ fn collect_stops_bare_variable_bounds_but_expands_structured_tails() {
     let eta_tail = machine.alloc_neg(Neg::Var(eta));
     let epsilon_row = machine.alloc_neg(Neg::Row(vec![io], eta_tail));
     let epsilon_pos = machine.alloc_pos(Pos::Var(epsilon));
-    machine.subtype(epsilon_pos, epsilon_row);
+    machine.subtype(
+        epsilon_pos,
+        epsilon_row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let flip = machine.alloc_neg(Neg::Con(vec!["flip".into()], Vec::new()));
     let gamma_tail = machine.alloc_neg(Neg::Var(gamma));
     let zeta_row = machine.alloc_neg(Neg::Row(vec![flip], gamma_tail));
     let zeta_pos = machine.alloc_pos(Pos::Var(zeta));
-    machine.subtype(zeta_pos, zeta_row);
+    machine.subtype(
+        zeta_pos,
+        zeta_row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let epsilon_neg = machine.alloc_neg(Neg::Var(epsilon));
     let undet = machine.alloc_neg(Neg::Con(vec!["undet".into()], Vec::new()));
@@ -579,7 +659,11 @@ fn positive_row_variables_are_collected_as_flat_vars() {
     let io_item = machine.alloc_pos(Pos::Con(vec!["io".into()], Vec::new()));
     let row = machine.alloc_pos(Pos::Row(vec![alpha_item, gamma_item, io_item]));
     let root_upper = machine.alloc_neg(Neg::Var(root));
-    machine.subtype(row, root_upper);
+    machine.subtype(
+        row,
+        root_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     let compact = compact_type_var(&machine, root);
 
@@ -645,8 +729,16 @@ fn reachable_role_collect_uses_raw_root_constraint_frontier() {
     let root_neg = machine.alloc_neg(Neg::Var(root_var));
     let role_pos = machine.alloc_pos(Pos::Var(role_var));
     let bridge_neg = machine.alloc_neg(Neg::Var(bridge_var));
-    machine.subtype(bridge_pos, root_neg);
-    machine.subtype(role_pos, bridge_neg);
+    machine.subtype(
+        bridge_pos,
+        root_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.subtype(
+        role_pos,
+        bridge_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let seed = CompactRoot {
         root: CompactType::from_con(CompactCon {
             path: vec!["int".into()],

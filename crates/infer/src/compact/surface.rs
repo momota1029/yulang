@@ -329,7 +329,10 @@ pub(crate) fn apply_compact_merge_constraints(
         let phase = Instant::now();
         if let Some(pairs) = var_only_interval_merge_pairs(&lhs, &rhs) {
             if pairs.len() > VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD {
-                changed |= machine.constrain_var_var_pairs_direct(pairs);
+                changed |= machine.constrain_var_var_pairs_direct(
+                    pairs,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
                 continue;
             }
@@ -341,7 +344,11 @@ pub(crate) fn apply_compact_merge_constraints(
                 finalizer.finalize_bounds(&rhs),
             )
         };
-        changed |= machine.constrain_invariant_neu(lhs_neu, rhs_neu);
+        changed |= machine.constrain_invariant_neu(
+            lhs_neu,
+            rhs_neu,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
     }
     changed
@@ -472,7 +479,11 @@ pub(crate) fn apply_compact_subtype_constraints(
                 finalizer.finalize_neg_type(&upper),
             )
         };
-        changed |= machine.constrain_subtype(lower, upper);
+        changed |= machine.constrain_subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
     changed
 }

@@ -35,8 +35,8 @@ pub(crate) use mutation::{
 };
 
 pub use timing::{
-    ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
-    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
+    ConstraintOriginCoverage, ConstraintTiming, ReplayDuplicateProfile,
+    ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -64,6 +64,8 @@ pub struct ConstraintMachine {
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     canonical_constraints: FxHashMap<SubtypeConstraintKey, ConstraintRecordId>,
     constraint_records: Vec<ConstraintRecord>,
+    origins: Vec<OriginRecord>,
+    source_boundaries: Vec<SourceBoundaryRecord>,
     events: Vec<ConstraintEvent>,
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
@@ -565,9 +567,83 @@ pub struct SubtypeConstraintKey {
 /// 1 inference session 内の canonical subtype constraint record ID。
 pub struct ConstraintRecordId(u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 1 inference session 内の source boundary ID。
+pub struct SourceBoundaryId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 1 inference session 内の root constraint origin ID。
+pub struct OriginId(u32);
+
+impl OriginId {
+    const INTERNAL: Self = Self(0);
+    const UNKNOWN_INTERNAL: Self = Self(1);
+
+    pub fn internal() -> Self {
+        Self::INTERNAL
+    }
+
+    pub fn unknown_internal() -> Self {
+        Self::UNKNOWN_INTERNAL
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ConstraintOriginKind {
+    ApplicationArgument,
+    Annotation,
+    Return,
+    Field,
+    Assignment,
+    Internal,
+    UnknownInternal,
+}
+
+impl ConstraintOriginKind {
+    fn is_source(self) -> bool {
+        matches!(
+            self,
+            Self::ApplicationArgument
+                | Self::Annotation
+                | Self::Return
+                | Self::Field
+                | Self::Assignment
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceBoundaryOrigin {
+    boundary: SourceBoundaryId,
+    origin: OriginId,
+}
+
+impl SourceBoundaryOrigin {
+    pub fn boundary(self) -> SourceBoundaryId {
+        self.boundary
+    }
+
+    pub fn origin(self) -> OriginId {
+        self.origin
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ConstraintRecord {
     key: SubtypeConstraintKey,
+    /// Root leaves are additive metadata and never participate in semantic equality or queueing.
+    root_origins: Vec<OriginId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct OriginRecord {
+    kind: ConstraintOriginKind,
+    source_boundary: Option<SourceBoundaryId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceBoundaryRecord {
+    origin: OriginId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

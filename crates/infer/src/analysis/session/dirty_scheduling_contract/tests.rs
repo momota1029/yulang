@@ -763,7 +763,11 @@ fn real_constraint_mutators_are_silent_inactive_and_publish_compact_observable_k
 
     let source_pos = machine.alloc_pos(Pos::Var(source));
     let target_neg = machine.alloc_neg(Neg::Var(target));
-    machine.subtype(source_pos, target_neg);
+    machine.subtype(
+        source_pos,
+        target_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let mutations = changed_keys(machine.take_method_role_mutations());
     assert!(mutations.contains(&DependencyKey::ConstraintLevel(source)));
     assert!(mutations.contains(&DependencyKey::ConstraintBounds(source)));
@@ -785,7 +789,11 @@ fn real_constraint_mutators_are_silent_inactive_and_publish_compact_observable_k
             Subtractability::Set(vec!["effect".to_owned()], Vec::new()),
         ),
     });
-    machine.subtype(stacked, target_neg);
+    machine.subtype(
+        stacked,
+        target_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     assert!(
         changed_keys(machine.take_method_role_mutations())
             .contains(&DependencyKey::ConstraintPrePopFamilies(target))

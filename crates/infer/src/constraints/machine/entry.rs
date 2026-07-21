@@ -21,6 +21,17 @@ impl ConstraintMachine {
             effect_filter_violations: FxHashSet::default(),
             canonical_constraints: FxHashMap::default(),
             constraint_records: Vec::new(),
+            origins: vec![
+                OriginRecord {
+                    kind: ConstraintOriginKind::Internal,
+                    source_boundary: None,
+                },
+                OriginRecord {
+                    kind: ConstraintOriginKind::UnknownInternal,
+                    source_boundary: None,
+                },
+            ],
+            source_boundaries: Vec::new(),
             events: Vec::new(),
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
@@ -171,6 +182,21 @@ impl ConstraintMachine {
         self.queue.len()
     }
 
+    pub fn alloc_source_boundary(&mut self, kind: ConstraintOriginKind) -> SourceBoundaryOrigin {
+        assert!(
+            kind.is_source(),
+            "internal origins do not have source boundaries"
+        );
+        let boundary = SourceBoundaryId(self.source_boundaries.len() as u32);
+        let origin = OriginId(self.origins.len() as u32);
+        self.origins.push(OriginRecord {
+            kind,
+            source_boundary: Some(boundary),
+        });
+        self.source_boundaries.push(SourceBoundaryRecord { origin });
+        SourceBoundaryOrigin { boundary, origin }
+    }
+
     #[cfg(test)]
     pub(crate) fn method_role_mutations(&self) -> &[MethodRoleMutation] {
         self.method_role_mutations.mutations()
@@ -194,20 +220,25 @@ impl ConstraintMachine {
         self.method_role_mutations.invalidate_all(reason);
     }
 
-    pub fn subtype(&mut self, lower: PosId, upper: NegId) {
+    pub fn subtype(&mut self, lower: PosId, upper: NegId, origin: OriginId) {
         self.timing.record_subtype_call();
-        if self.enqueue_subtype(lower, ConstraintWeights::empty(), upper) || !self.queue.is_empty()
+        if self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin)
+            || !self.queue.is_empty()
         {
             self.drain();
         }
     }
 
-    pub(crate) fn subtype_many(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
+    pub(crate) fn subtype_many(
+        &mut self,
+        constraints: impl IntoIterator<Item = (PosId, NegId)>,
+        origin: OriginId,
+    ) {
         let mut item_count = 0usize;
         let mut queued = false;
         for (lower, upper) in constraints {
             item_count += 1;
-            queued |= self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
+            queued |= self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin);
         }
         self.timing.record_subtype_many_call(item_count);
         if queued || !self.queue.is_empty() {
@@ -215,35 +246,53 @@ impl ConstraintMachine {
         }
     }
 
-    pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
+    pub fn weighted_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        origin: OriginId,
+    ) {
         self.timing.record_weighted_subtype_call();
-        if self.enqueue_subtype(lower, weights, upper) || !self.queue.is_empty() {
+        if self.enqueue_root_subtype(lower, weights, upper, origin) || !self.queue.is_empty() {
             self.drain();
         }
     }
 
-    pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {
+    pub(crate) fn constrain_subtype(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        origin: OriginId,
+    ) -> bool {
         self.timing.record_constrain_subtype_call();
         let constraint_count = self.canonical_constraint_count();
-        if self.enqueue_subtype(lower, ConstraintWeights::empty(), upper) || !self.queue.is_empty()
+        if self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin)
+            || !self.queue.is_empty()
         {
             self.drain();
         }
         self.canonical_constraint_count() != constraint_count
     }
 
-    pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
-        self.constrain_invariant_neus([(lower, upper)])
+    pub(crate) fn constrain_invariant_neu(
+        &mut self,
+        lower: NeuId,
+        upper: NeuId,
+        origin: OriginId,
+    ) -> bool {
+        self.constrain_invariant_neus([(lower, upper)], origin)
     }
 
     pub(crate) fn constrain_invariant_neus(
         &mut self,
         pairs: impl IntoIterator<Item = (NeuId, NeuId)>,
+        origin: OriginId,
     ) -> bool {
         let constraint_count = self.canonical_constraint_count();
         for (lower, upper) in pairs {
             self.timing.record_constrain_invariant_neu_call();
-            self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
+            self.enqueue_root_invariant_neu(lower, upper, ConstraintWeights::empty(), origin);
         }
         if !self.queue.is_empty() {
             self.drain();
@@ -254,6 +303,7 @@ impl ConstraintMachine {
     pub(crate) fn constrain_var_var_pairs_direct(
         &mut self,
         pairs: impl IntoIterator<Item = (TypeVar, TypeVar)>,
+        origin: OriginId,
     ) -> bool {
         let mut pair_count = 0usize;
         let constraint_count = self.canonical_constraint_count();
@@ -265,7 +315,8 @@ impl ConstraintMachine {
             }
             let lower_pos = self.alloc_pos(Pos::Var(lower));
             let upper_neg = self.alloc_neg(Neg::Var(upper));
-            queued |= self.enqueue_subtype(lower_pos, ConstraintWeights::empty(), upper_neg);
+            queued |=
+                self.enqueue_root_subtype(lower_pos, ConstraintWeights::empty(), upper_neg, origin);
         }
         self.timing.record_constrain_var_var_direct_call(pair_count);
         if queued || !self.queue.is_empty() {
@@ -277,8 +328,10 @@ impl ConstraintMachine {
     pub(crate) fn constrain_pos_to_var_direct_many(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
+        origin: OriginId,
     ) {
         for (lower, target) in bounds {
+            self.record_root_origin(origin);
             self.timing.record_constrain_pos_var_direct_call();
             self.add_lower_bound(target, lower, ConstraintWeights::empty());
         }
@@ -376,17 +429,54 @@ impl ConstraintMachine {
         )
     }
 
+    pub(in crate::constraints) fn enqueue_root_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        origin: OriginId,
+    ) -> bool {
+        self.record_root_origin(origin);
+        matches!(
+            self.enqueue_subtype_classified_with_origin(lower, weights, upper, Some(origin)),
+            EnqueueSubtypeResult::Enqueued
+        )
+    }
+
+    fn enqueue_root_invariant_neu(
+        &mut self,
+        lower: NeuId,
+        upper: NeuId,
+        weights: ConstraintWeights,
+        origin: OriginId,
+    ) {
+        let (lower_pos, lower_neg) = self.neu_bounds(lower);
+        let (upper_pos, upper_neg) = self.neu_bounds(upper);
+        self.enqueue_root_subtype(lower_pos, weights.clone(), upper_neg, origin);
+        self.enqueue_root_subtype(upper_pos, weights.swapped(), lower_neg, origin);
+    }
+
     pub(in crate::constraints) fn enqueue_subtype_classified(
         &mut self,
         lower: PosId,
         weights: ConstraintWeights,
         upper: NegId,
     ) -> EnqueueSubtypeResult {
+        self.enqueue_subtype_classified_with_origin(lower, weights, upper, None)
+    }
+
+    fn enqueue_subtype_classified_with_origin(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        origin: Option<OriginId>,
+    ) -> EnqueueSubtypeResult {
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
             return EnqueueSubtypeResult::Trivial;
         };
-        if self.enqueue_canonical_subtype(constraint) {
+        if self.enqueue_canonical_subtype_with_origin(constraint, origin) {
             EnqueueSubtypeResult::Enqueued
         } else {
             EnqueueSubtypeResult::Duplicate
@@ -436,9 +526,25 @@ impl ConstraintMachine {
         &mut self,
         constraint: SubtypeConstraintKey,
     ) -> bool {
+        self.enqueue_canonical_subtype_with_origin(constraint, None)
+    }
+
+    fn enqueue_canonical_subtype_with_origin(
+        &mut self,
+        constraint: SubtypeConstraintKey,
+        origin: Option<OriginId>,
+    ) -> bool {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
-                let _existing_record_id = *entry.get();
+                let existing_record_id = *entry.get();
+                if let Some(origin) = origin {
+                    // A second root explains the existing fact without replaying semantic work.
+                    let roots =
+                        &mut self.constraint_records[existing_record_id.0 as usize].root_origins;
+                    if !roots.contains(&origin) {
+                        roots.push(origin);
+                    }
+                }
                 self.timing.record_subtype_duplicate_admission();
                 return false;
             }
@@ -449,10 +555,26 @@ impl ConstraintMachine {
             }
         };
         self.observe_routing_shadow(&constraint);
-        self.constraint_records
-            .push(ConstraintRecord { key: constraint });
+        self.constraint_records.push(ConstraintRecord {
+            key: constraint,
+            root_origins: origin.into_iter().collect(),
+        });
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
+    }
+
+    fn record_root_origin(&mut self, origin: OriginId) {
+        let record = self
+            .origins
+            .get(origin.0 as usize)
+            .expect("root origin belongs to this constraint session");
+        debug_assert_eq!(
+            record
+                .source_boundary
+                .map(|boundary| self.source_boundaries[boundary.0 as usize].origin),
+            record.source_boundary.map(|_| origin),
+        );
+        self.timing.record_root_origin(record.kind);
     }
 
     fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraintKey) {

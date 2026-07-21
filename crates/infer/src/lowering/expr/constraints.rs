@@ -10,8 +10,16 @@ impl<'a> ExprLowerer<'a> {
         let empty = self.empty_neg_row();
         let effect_upper = self.alloc_neg(Neg::Var(effect));
         let effect_lower = self.alloc_pos(Pos::Var(effect));
-        self.session.infer.subtype(bot, effect_upper);
-        self.session.infer.subtype(effect_lower, empty);
+        self.session.infer.subtype(
+            bot,
+            effect_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+        self.session.infer.subtype(
+            effect_lower,
+            empty,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         effect
     }
 
@@ -27,13 +35,21 @@ impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn constrain_lower(&mut self, var: TypeVar, lower: Pos) {
         let lower = self.alloc_pos(lower);
         let upper = self.alloc_neg(Neg::Var(var));
-        self.session.infer.subtype(lower, upper);
+        self.session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(in crate::lowering) fn constrain_upper(&mut self, var: TypeVar, upper: Neg) {
         let lower = self.alloc_pos(Pos::Var(var));
         let upper = self.alloc_neg(upper);
-        self.session.infer.subtype(lower, upper);
+        self.session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(in crate::lowering) fn constrain_exact_primitive(&mut self, var: TypeVar, name: &str) {
@@ -43,17 +59,30 @@ impl<'a> ExprLowerer<'a> {
 
     pub(in crate::lowering) fn subtype_var_to_var(&mut self, lower: TypeVar, upper: TypeVar) {
         let upper = self.alloc_neg(Neg::Var(upper));
-        self.subtype(Pos::Var(lower), upper);
+        self.subtype(
+            Pos::Var(lower),
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(in crate::lowering) fn subtype_pos_to_var(&mut self, lower: PosId, upper: TypeVar) {
         let upper = self.alloc_neg(Neg::Var(upper));
-        self.session.infer.subtype(lower, upper);
+        self.session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
-    pub(in crate::lowering) fn subtype(&mut self, lower: Pos, upper: NegId) {
+    pub(in crate::lowering) fn subtype(
+        &mut self,
+        lower: Pos,
+        upper: NegId,
+        origin: crate::constraints::OriginId,
+    ) {
         let lower = self.alloc_pos(lower);
-        self.session.infer.subtype(lower, upper);
+        self.session.infer.subtype(lower, upper, origin);
     }
 
     pub(in crate::lowering) fn wrap_pos_with_subtracts(

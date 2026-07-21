@@ -749,7 +749,11 @@ fn snapshot_supplemental_epoch_covers_row_match_candidate_bound_mutation() {
 
     let lower_item = machine.alloc_pos(Pos::Con(vec!["effect_a".into()], Vec::new()));
     let lower_row = machine.alloc_pos(Pos::Row(vec![lower_item]));
-    machine.constrain_subtype(lower_row, associated_upper);
+    machine.constrain_subtype(
+        lower_row,
+        associated_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let before = resolve_role_constraints_with_stats(
         &machine,
         &CompactRoot::default(),
@@ -771,7 +775,11 @@ fn snapshot_supplemental_epoch_covers_row_match_candidate_bound_mutation() {
     let upper_b = machine.alloc_neg(Neg::Con(vec!["effect_b".into()], Vec::new()));
     let upper_tail = machine.alloc_neg(Neg::Top);
     let upper_row = machine.alloc_neg(Neg::Row(vec![upper_a, upper_b], upper_tail));
-    machine.constrain_subtype(associated_lower, upper_row);
+    machine.constrain_subtype(
+        associated_lower,
+        upper_row,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     assert_eq!(machine.epoch(), epoch);
     assert_ne!(machine.role_solve_supplemental_epoch(), supplemental_epoch);
     let after = resolve_role_constraints_with_stats(
@@ -916,8 +924,16 @@ fn raw_and_compacted_candidate_head_prechecks_compose() {
     let html_upper = machine.alloc_neg(Neg::Con(vec!["html_format".into()], Vec::new()));
     let raw_lower = machine.alloc_pos(Pos::Var(var));
     let raw_upper = machine.alloc_neg(Neg::Var(var));
-    machine.constrain_subtype(html_lower, raw_upper);
-    machine.constrain_subtype(raw_lower, html_upper);
+    machine.constrain_subtype(
+        html_lower,
+        raw_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+    machine.constrain_subtype(
+        raw_lower,
+        html_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let candidate = raw_role_candidate(vec![RoleConstraintArg {
         lower: raw_lower,
         upper: raw_upper,

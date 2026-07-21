@@ -848,7 +848,10 @@ impl AnalysisSession {
             resolved_parents.push(use_site.parent);
         }
         let constraint_count = constraints.len();
-        self.infer.subtypes(constraints);
+        self.infer.subtypes(
+            constraints,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         for parent in resolved_parents {
             self.apply_scc_input(SccInput::MethodDependencyResolved { parent });
         }

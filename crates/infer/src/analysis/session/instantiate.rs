@@ -4,7 +4,11 @@ impl AnalysisSession {
     pub(super) fn constrain_open_use(&mut self, target_root: TypeVar, use_value: TypeVar) {
         let target_pos = self.infer.alloc_pos(Pos::Var(target_root));
         let use_neg = self.infer.alloc_neg(Neg::Var(use_value));
-        self.infer.subtype(target_pos, use_neg);
+        self.infer.subtype(
+            target_pos,
+            use_neg,
+            crate::constraints::OriginId::unknown_internal(),
+        );
     }
 
     pub(super) fn quantify_component(&mut self, component: &[DefId], roots: &[TypeVar]) {
@@ -307,11 +311,16 @@ impl AnalysisSession {
         }
         let phase = Instant::now();
         if !direct_lower_predicates.is_empty() {
-            self.infer
-                .constrain_pos_to_var_direct_many(direct_lower_predicates);
+            self.infer.constrain_pos_to_var_direct_many(
+                direct_lower_predicates,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         if !subtype_predicates.is_empty() {
-            self.infer.subtypes(subtype_predicates);
+            self.infer.subtypes(
+                subtype_predicates,
+                crate::constraints::OriginId::unknown_internal(),
+            );
         }
         self.timing
             .record_instantiate_subtype_predicate(phase.elapsed());

@@ -179,7 +179,11 @@ impl<'a> ExprLowerer<'a> {
             LocalEffect::Stack { effect, .. } => {
                 let lower = self.alloc_pos(Pos::Var(source));
                 let upper = self.alloc_neg(Neg::Var(*effect));
-                self.session.infer.subtype(lower, upper);
+                self.session.infer.subtype(
+                    lower,
+                    upper,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
             }
         }
     }

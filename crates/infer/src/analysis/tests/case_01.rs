@@ -22,6 +22,7 @@ fn lower_bound_events_route_receiver_and_ref_payload_select_watchers() {
             right: RightConstraintWeight::empty(),
         },
         upper,
+        crate::constraints::OriginId::unknown_internal(),
     );
     session.route_constraint_events();
 
@@ -57,7 +58,11 @@ fn upper_bound_events_route_receiver_select_watchers_once() {
     let upper = session
         .infer
         .alloc_neg(Neg::Con(vec!["int".into()], Vec::new()));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.route_constraint_events();
 
     assert_eq!(
@@ -70,7 +75,11 @@ fn upper_bound_events_route_receiver_select_watchers_once() {
     let upper = session
         .infer
         .alloc_neg(Neg::Con(vec!["float".into()], Vec::new()));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.route_constraint_events();
 
     assert!(session.work().is_empty());
@@ -118,12 +127,18 @@ fn prepare_test_selection_use(
         ret_eff,
         ret,
     });
-    session.infer.subtype(method, upper);
+    session.infer.subtype(
+        method,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let receiver_effect_pos = session.infer.alloc_pos(Pos::Var(receiver_effect));
     let result_effect_neg = session.infer.alloc_neg(Neg::Var(result_effect));
-    session
-        .infer
-        .subtype(receiver_effect_pos, result_effect_neg);
+    session.infer.subtype(
+        receiver_effect_pos,
+        result_effect_neg,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     SelectionUse {
         parent,
         method_value,
@@ -172,7 +187,11 @@ fn nominal_con_mismatch_applies_registered_cast_scheme() {
     let upper = session
         .infer
         .alloc_neg(Neg::Con(target.clone(), Vec::new()));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.route_constraint_events();
 
     let events = session.infer.constraints().events();
@@ -284,7 +303,11 @@ fn method_selection_resolves_when_receiver_lower_bound_has_method() {
         .infer
         .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
     let upper = session.infer.alloc_neg(Neg::Var(receiver));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.drain_work();
 
     assert_eq!(
@@ -327,7 +350,11 @@ fn method_registration_probes_existing_receiver_lower_bounds() {
         .infer
         .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
     let upper = session.infer.alloc_neg(Neg::Var(receiver));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.drain_work();
 
     assert_eq!(session.poly.select(select).resolution, None);
@@ -367,7 +394,11 @@ fn method_selection_uses_single_receiver_upper_when_lower_is_empty() {
     let upper = session
         .infer
         .alloc_neg(Neg::Con(vec!["int".into()], Vec::new()));
-    session.infer.subtype(lower, upper);
+    session.infer.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
 
     session.drain_work();
 
@@ -408,7 +439,11 @@ fn method_selection_probes_ref_payload_lower_bounds() {
         .infer
         .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
     let payload_upper = session.infer.alloc_neg(Neg::Var(payload));
-    session.infer.subtype(int, payload_upper);
+    session.infer.subtype(
+        int,
+        payload_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     let effect_arg = infer_bounds_neu(&mut session.infer, effect);
     let payload_arg = infer_bounds_neu(&mut session.infer, payload);
     let ref_lower = session.infer.alloc_pos(Pos::Con(
@@ -416,7 +451,11 @@ fn method_selection_probes_ref_payload_lower_bounds() {
         vec![effect_arg, payload_arg],
     ));
     let receiver_upper = session.infer.alloc_neg(Neg::Var(receiver));
-    session.infer.subtype(ref_lower, receiver_upper);
+    session.infer.subtype(
+        ref_lower,
+        receiver_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.drain_work();
 
     assert_eq!(
@@ -452,7 +491,9 @@ fn effect_method_selection_resolves_from_receiver_effect_row_lower_bound() {
         .alloc_pos(Pos::Con(vec!["nondet".into()], Vec::new()));
     let row = session.infer.alloc_pos(Pos::Row(vec![nondet]));
     let upper = session.infer.alloc_neg(Neg::Var(receiver_effect));
-    session.infer.subtype(row, upper);
+    session
+        .infer
+        .subtype(row, upper, crate::constraints::OriginId::unknown_internal());
     session.drain_work();
 
     assert_eq!(
@@ -531,6 +572,7 @@ fn effect_method_selection_resolves_from_receiver_effect_weighted_lower_bound() 
             right: RightConstraintWeight::empty(),
         },
         upper,
+        crate::constraints::OriginId::unknown_internal(),
     );
     session.drain_work();
 
@@ -576,6 +618,7 @@ fn effect_method_selection_ignores_non_effect_receiver_value_weighted_lower_boun
             right: RightConstraintWeight::empty(),
         },
         upper,
+        crate::constraints::OriginId::unknown_internal(),
     );
     session.drain_work();
 
@@ -607,7 +650,11 @@ fn effect_method_selection_reprobes_when_transitive_effect_fact_is_added() {
     session.register_effect_method(vec!["nondet".to_string()], "flip", method);
     let tail = session.infer.alloc_pos(Pos::Var(tail_effect));
     let upper = session.infer.alloc_neg(Neg::Var(receiver_effect));
-    session.infer.subtype(tail, upper);
+    session.infer.subtype(
+        tail,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
     session.drain_work();
 
     assert_eq!(session.poly.select(select).resolution, None);

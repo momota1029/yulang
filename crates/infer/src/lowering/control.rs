@@ -891,14 +891,20 @@ impl<'a> ExprLowerer<'a> {
                 // shallow handlers can surface the resumed effect, while the
                 // stack view drives subtraction hygiene.
                 let full = self.alloc_pos(Pos::Var(effect));
-                self.session.infer.subtype(full, row);
+                self.session.infer.subtype(
+                    full,
+                    row,
+                    crate::constraints::OriginId::unknown_internal(),
+                );
                 let inner = self.alloc_pos(Pos::Var(inner));
                 self.alloc_pos(Pos::Stack { inner, weight })
             }
             Some(LocalEffect::Var(effect)) => self.alloc_pos(Pos::Var(effect)),
             None => self.alloc_pos(Pos::Var(effect)),
         };
-        self.session.infer.subtype(lower, row);
+        self.session
+            .infer
+            .subtype(lower, row, crate::constraints::OriginId::unknown_internal());
     }
 
     fn lower_catch_arm(
@@ -1176,8 +1182,16 @@ impl<'a> ExprLowerer<'a> {
             .map_err(|error| LoweringError::SignatureConstraint { error })?;
         let target_upper = lowerer.infer.alloc_neg(Neg::Var(value));
         let target_lower = lowerer.infer.alloc_pos(Pos::Var(value));
-        lowerer.infer.subtype(lower, target_upper);
-        lowerer.infer.subtype(target_lower, upper);
+        lowerer.infer.subtype(
+            lower,
+            target_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+        lowerer.infer.subtype(
+            target_lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
         Ok(lowerer.into_vars())
     }
 

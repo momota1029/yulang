@@ -7,10 +7,14 @@ pub struct AnnConstraintLowerer<'a> {
     closed_effect_rows: FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     new_var_level: Option<TypeLevel>,
     parameter_function_boundary: bool,
+    origin: crate::constraints::OriginId,
 }
 
 impl<'a> AnnConstraintLowerer<'a> {
     pub fn new(infer: &'a mut InferArena, modules: &'a ModuleTable) -> Self {
+        let origin = infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::Annotation)
+            .origin();
         Self {
             infer,
             modules,
@@ -18,6 +22,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             closed_effect_rows: FxHashMap::default(),
             new_var_level: None,
             parameter_function_boundary: false,
+            origin,
         }
     }
 
@@ -26,6 +31,9 @@ impl<'a> AnnConstraintLowerer<'a> {
         modules: &'a ModuleTable,
         vars: FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Self {
+        let origin = infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::Annotation)
+            .origin();
         Self {
             infer,
             modules,
@@ -33,6 +41,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             closed_effect_rows: FxHashMap::default(),
             new_var_level: None,
             parameter_function_boundary: false,
+            origin,
         }
     }
 
@@ -42,6 +51,23 @@ impl<'a> AnnConstraintLowerer<'a> {
         vars: FxHashMap<AnnTypeVarId, TypeVar>,
         closed_effect_rows: FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     ) -> Self {
+        Self::with_vars_and_closed_effect_rows_with_origin_kind(
+            infer,
+            modules,
+            vars,
+            closed_effect_rows,
+            crate::constraints::ConstraintOriginKind::Annotation,
+        )
+    }
+
+    pub fn with_vars_and_closed_effect_rows_with_origin_kind(
+        infer: &'a mut InferArena,
+        modules: &'a ModuleTable,
+        vars: FxHashMap<AnnTypeVarId, TypeVar>,
+        closed_effect_rows: FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+        origin_kind: crate::constraints::ConstraintOriginKind,
+    ) -> Self {
+        let origin = infer.alloc_source_boundary(origin_kind).origin();
         Self {
             infer,
             modules,
@@ -49,6 +75,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             closed_effect_rows,
             new_var_level: None,
             parameter_function_boundary: false,
+            origin,
         }
     }
 
@@ -58,6 +85,9 @@ impl<'a> AnnConstraintLowerer<'a> {
         vars: FxHashMap<AnnTypeVarId, TypeVar>,
         new_var_level: TypeLevel,
     ) -> Self {
+        let origin = infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::Annotation)
+            .origin();
         Self {
             infer,
             modules,
@@ -65,6 +95,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             closed_effect_rows: FxHashMap::default(),
             new_var_level: Some(new_var_level),
             parameter_function_boundary: false,
+            origin,
         }
     }
 
@@ -99,8 +130,8 @@ impl<'a> AnnConstraintLowerer<'a> {
         let target_upper = self.alloc_neg(Neg::Var(target));
         let target_lower = self.alloc_pos(Pos::Var(target));
         let upper = bounds.neg;
-        self.infer.subtype(bounds.pos, target_upper);
-        self.infer.subtype(target_lower, upper);
+        self.infer.subtype(bounds.pos, target_upper, self.origin);
+        self.infer.subtype(target_lower, upper, self.origin);
         Ok(AnnValueConnection {
             subtracts: bounds.output_subtracts,
         })
@@ -113,7 +144,7 @@ impl<'a> AnnConstraintLowerer<'a> {
     ) -> Result<Vec<StackWeight>, AnnConstraintError> {
         let bounds = self.lower_value_bounds(ann)?;
         let target_lower = self.alloc_pos(Pos::Var(target));
-        self.infer.subtype(target_lower, bounds.neg);
+        self.infer.subtype(target_lower, bounds.neg, self.origin);
         Ok(bounds.output_subtracts)
     }
 
@@ -479,10 +510,10 @@ impl<'a> AnnConstraintLowerer<'a> {
             if tail != effect {
                 let tail_lower = self.alloc_pos(Pos::Var(tail));
                 let effect_upper = self.alloc_neg(Neg::Var(effect));
-                self.infer.subtype(tail_lower, effect_upper);
+                self.infer.subtype(tail_lower, effect_upper, self.origin);
                 let effect_lower = self.alloc_pos(Pos::Var(effect));
                 let tail_upper = self.alloc_neg(Neg::Var(tail));
-                self.infer.subtype(effect_lower, tail_upper);
+                self.infer.subtype(effect_lower, tail_upper, self.origin);
             }
             return Ok(AnnEffectStackConnection {
                 inner: tail,
@@ -502,7 +533,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         let inner_pos = self.alloc_pos(Pos::Var(inner));
         let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
         let upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(stacked, upper);
+        self.infer.subtype(stacked, upper, self.origin);
         let arg_eff = self.alloc_neg(Neg::Var(inner));
         Ok(AnnEffectStackConnection {
             inner,
@@ -524,10 +555,10 @@ impl<'a> AnnConstraintLowerer<'a> {
             if tail != effect {
                 let tail_lower = self.alloc_pos(Pos::Var(tail));
                 let effect_upper = self.alloc_neg(Neg::Var(effect));
-                self.infer.subtype(tail_lower, effect_upper);
+                self.infer.subtype(tail_lower, effect_upper, self.origin);
                 let effect_lower = self.alloc_pos(Pos::Var(effect));
                 let tail_upper = self.alloc_neg(Neg::Var(tail));
-                self.infer.subtype(effect_lower, tail_upper);
+                self.infer.subtype(effect_lower, tail_upper, self.origin);
             }
             return Ok(AnnEffectStackConnection {
                 inner: tail,
@@ -543,7 +574,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         let inner_pos = self.alloc_pos(Pos::Var(inner));
         let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
         let upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(stacked, upper);
+        self.infer.subtype(stacked, upper, self.origin);
         let full_eff = self.alloc_neg(Neg::Var(effect));
         let arg_eff = if effect_row_has_wildcard(row) {
             full_eff
@@ -598,7 +629,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
         let lower = self.lower_effect_row_pos(row)?;
         let effect_upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(lower, effect_upper);
+        self.infer.subtype(lower, effect_upper, self.origin);
         Ok(())
     }
 
@@ -616,10 +647,10 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
         let tail_lower = self.alloc_pos(Pos::Var(tail));
         let effect_upper = self.alloc_neg(Neg::Var(effect));
-        self.infer.subtype(tail_lower, effect_upper);
+        self.infer.subtype(tail_lower, effect_upper, self.origin);
         let effect_lower = self.alloc_pos(Pos::Var(effect));
         let tail_upper = self.alloc_neg(Neg::Var(tail));
-        self.infer.subtype(effect_lower, tail_upper);
+        self.infer.subtype(effect_lower, tail_upper, self.origin);
         Ok(())
     }
 
