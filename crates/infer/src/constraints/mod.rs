@@ -7,6 +7,8 @@
 //! subtract fact table は注釈・データ宣言由来の stack id を記録し、generalize の pruning 入力にする。
 
 mod directed_weight;
+#[allow(dead_code)]
+pub(crate) mod explain;
 mod machine;
 pub(crate) mod mutation;
 mod row_effect;

@@ -1,0 +1,669 @@
+//! Bounded, deterministic traversal of the canonical constraint derivation graph.
+//!
+//! Each record's derivation categories are visited in the order encoded by
+//! `visit_*_edges`; records within a category and parents within a hyperedge keep
+//! their append-only insertion order. Traversal is depth-first pre-order, and a
+//! record is expanded only on its first visit. These rules make a truncated
+//! result stable without sorting or enumerating combinations of proof paths.
+
+use super::*;
+
+const DEFAULT_EXPLANATION_NODES: usize = 512;
+const DEFAULT_EXPLANATION_EDGES: usize = 1_024;
+const DEFAULT_EXPLANATION_DEPTH: usize = 32;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ExplanationBudget {
+    pub(crate) max_nodes: usize,
+    pub(crate) max_edges: usize,
+    pub(crate) max_depth: usize,
+}
+
+impl Default for ExplanationBudget {
+    fn default() -> Self {
+        Self {
+            max_nodes: DEFAULT_EXPLANATION_NODES,
+            max_edges: DEFAULT_EXPLANATION_EDGES,
+            max_depth: DEFAULT_EXPLANATION_DEPTH,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ExplanationNodeId {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+    Origin(OriginId),
+    RowDerivation(RowDerivationId),
+    SubtractFact(SubtractFactRecordId),
+    LowerFilter(LowerFilterRecordId),
+    BoundDisposition(BoundDispositionRecordId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExplanationNode {
+    Constraint {
+        id: ConstraintRecordId,
+        key: SubtypeConstraintKey,
+        replay_provenance: ProvenanceCompleteness,
+    },
+    Bound {
+        id: BoundRecordId,
+        direction: BoundDirection,
+        owner: TypeVar,
+        endpoint: BoundEndpoint,
+        weights: ConstraintWeights,
+        state: BoundRecordState,
+    },
+    Origin {
+        id: OriginId,
+        kind: ConstraintOriginKind,
+        source_boundary: Option<SourceBoundaryId>,
+    },
+    RowDerivation {
+        id: RowDerivationId,
+        rule: RowDerivationRule,
+        retained_items: Vec<NegId>,
+    },
+    SubtractFact {
+        id: SubtractFactRecordId,
+        effect: TypeVar,
+        fact: SubtractFact,
+        active: bool,
+    },
+    LowerFilter {
+        id: LowerFilterRecordId,
+        var: TypeVar,
+        filter: Subtractability,
+    },
+    BoundDisposition {
+        id: BoundDispositionRecordId,
+        direction: BoundDirection,
+        owner: TypeVar,
+        endpoint: BoundEndpoint,
+        weights: ConstraintWeights,
+        disposition: BoundDisposition,
+    },
+}
+
+impl ExplanationNode {
+    pub(crate) fn id(&self) -> ExplanationNodeId {
+        match self {
+            Self::Constraint { id, .. } => ExplanationNodeId::Constraint(*id),
+            Self::Bound { id, .. } => ExplanationNodeId::Bound(*id),
+            Self::Origin { id, .. } => ExplanationNodeId::Origin(*id),
+            Self::RowDerivation { id, .. } => ExplanationNodeId::RowDerivation(*id),
+            Self::SubtractFact { id, .. } => ExplanationNodeId::SubtractFact(*id),
+            Self::LowerFilter { id, .. } => ExplanationNodeId::LowerFilter(*id),
+            Self::BoundDisposition { id, .. } => ExplanationNodeId::BoundDisposition(*id),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExplanationEdge {
+    pub(crate) child: ExplanationNodeId,
+    pub(crate) kind: ExplanationEdgeKind,
+    pub(crate) parents: Vec<ExplanationNodeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExplanationEdgeKind {
+    RootOrigin,
+    Structural(StructuralDerivationRule),
+    BinaryReplay(BinaryReplayDerivation),
+    RowResult(RowDerivationId),
+    Canonicalization(ConstraintCanonicalizationDisposition),
+    Bound(BoundDerivation),
+    Row(RowDerivationRule),
+    LowerFilter,
+    SubtractFact(SubtractFactDerivation),
+    BoundDisposition(BoundDisposition),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ExplanationSourceLeaf {
+    pub(crate) origin: OriginId,
+    pub(crate) boundary: SourceBoundaryId,
+    pub(crate) kind: ConstraintOriginKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExplanationCompleteness {
+    Complete,
+    TruncatedByBudget,
+    IncompleteProvenance,
+    TruncatedAndIncompleteProvenance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExplanationTruncationReason {
+    NodeBudget { limit: usize },
+    EdgeBudget { limit: usize },
+    DepthBudget { limit: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExplanationQueryResult {
+    pub(crate) nodes: Vec<ExplanationNode>,
+    pub(crate) edges: Vec<ExplanationEdge>,
+    pub(crate) source_leaves: Vec<ExplanationSourceLeaf>,
+    pub(crate) completeness: ExplanationCompleteness,
+    pub(crate) truncation: Option<ExplanationTruncationReason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExplanationQueryError {
+    UnknownConstraint(ConstraintRecordId),
+    UnknownBound(BoundRecordId),
+    UnknownBoundDisposition(BoundDispositionRecordId),
+    BoundOwner {
+        expected: TypeVar,
+        actual: TypeVar,
+    },
+    BoundDirection {
+        expected: BoundDirection,
+        actual: BoundDirection,
+    },
+}
+
+impl ConstraintMachine {
+    pub(crate) fn why_constraint(
+        &self,
+        record: ConstraintRecordId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        if self.constraint_records.get(record.0 as usize).is_none() {
+            return Err(ExplanationQueryError::UnknownConstraint(record));
+        }
+        Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::Constraint(record)))
+    }
+
+    pub(crate) fn why_lower_bound(
+        &self,
+        var: TypeVar,
+        record: BoundRecordId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        self.why_bound(var, record, BoundDirection::Lower, budget)
+    }
+
+    pub(crate) fn why_upper_bound(
+        &self,
+        var: TypeVar,
+        record: BoundRecordId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        self.why_bound(var, record, BoundDirection::Upper, budget)
+    }
+
+    pub(crate) fn why_bound_disposition(
+        &self,
+        record: BoundDispositionRecordId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        if self.bound_dispositions.get(record.0 as usize).is_none() {
+            return Err(ExplanationQueryError::UnknownBoundDisposition(record));
+        }
+        Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::BoundDisposition(record)))
+    }
+
+    fn why_bound(
+        &self,
+        var: TypeVar,
+        record: BoundRecordId,
+        direction: BoundDirection,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        let Some(bound) = self.bounds.record(record) else {
+            return Err(ExplanationQueryError::UnknownBound(record));
+        };
+        if bound.owner != var {
+            return Err(ExplanationQueryError::BoundOwner {
+                expected: var,
+                actual: bound.owner,
+            });
+        }
+        if bound.direction != direction {
+            return Err(ExplanationQueryError::BoundDirection {
+                expected: direction,
+                actual: bound.direction,
+            });
+        }
+        Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::Bound(record)))
+    }
+}
+
+struct ExplanationQuery<'a> {
+    machine: &'a ConstraintMachine,
+    budget: ExplanationBudget,
+    nodes: Vec<ExplanationNode>,
+    edges: Vec<ExplanationEdge>,
+    source_leaves: Vec<ExplanationSourceLeaf>,
+    visited: FxHashSet<ExplanationNodeId>,
+    truncation: Option<ExplanationTruncationReason>,
+    underlying_incomplete: bool,
+}
+
+impl<'a> ExplanationQuery<'a> {
+    fn new(machine: &'a ConstraintMachine, budget: ExplanationBudget) -> Self {
+        Self {
+            machine,
+            budget,
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            source_leaves: Vec::new(),
+            visited: FxHashSet::default(),
+            truncation: None,
+            underlying_incomplete: false,
+        }
+    }
+
+    fn run(mut self, root: ExplanationNodeId) -> ExplanationQueryResult {
+        self.visit(root, 0);
+        let completeness = match (self.truncation.is_some(), self.underlying_incomplete) {
+            (false, false) => ExplanationCompleteness::Complete,
+            (true, false) => ExplanationCompleteness::TruncatedByBudget,
+            (false, true) => ExplanationCompleteness::IncompleteProvenance,
+            (true, true) => ExplanationCompleteness::TruncatedAndIncompleteProvenance,
+        };
+        ExplanationQueryResult {
+            nodes: self.nodes,
+            edges: self.edges,
+            source_leaves: self.source_leaves,
+            completeness,
+            truncation: self.truncation,
+        }
+    }
+
+    fn visit(&mut self, id: ExplanationNodeId, depth: usize) {
+        if self.truncation.is_some() || self.visited.contains(&id) {
+            return;
+        }
+        if self.nodes.len() >= self.budget.max_nodes {
+            self.truncation = Some(ExplanationTruncationReason::NodeBudget {
+                limit: self.budget.max_nodes,
+            });
+            return;
+        }
+        let Some(node) = self.node(id) else {
+            self.underlying_incomplete = true;
+            return;
+        };
+        self.visited.insert(id);
+        self.record_source_leaf(&node);
+        self.nodes.push(node);
+
+        if depth >= self.budget.max_depth && self.has_incoming_edges(id) {
+            self.truncation = Some(ExplanationTruncationReason::DepthBudget {
+                limit: self.budget.max_depth,
+            });
+            return;
+        }
+        self.visit_incoming_edges(id, depth);
+    }
+
+    fn push_edge(&mut self, edge: ExplanationEdge, depth: usize) {
+        if self.truncation.is_some() {
+            return;
+        }
+        if self.edges.len() >= self.budget.max_edges {
+            self.truncation = Some(ExplanationTruncationReason::EdgeBudget {
+                limit: self.budget.max_edges,
+            });
+            return;
+        }
+        let parents = edge.parents.clone();
+        self.edges.push(edge);
+        for parent in parents {
+            self.visit(parent, depth + 1);
+            if self.truncation.is_some() {
+                break;
+            }
+        }
+    }
+
+    fn node(&mut self, id: ExplanationNodeId) -> Option<ExplanationNode> {
+        match id {
+            ExplanationNodeId::Constraint(id) => {
+                let record = self.machine.constraint_records.get(id.0 as usize)?;
+                if record.replay_provenance == ProvenanceCompleteness::Incomplete {
+                    self.underlying_incomplete = true;
+                }
+                Some(ExplanationNode::Constraint {
+                    id,
+                    key: record.key.clone(),
+                    replay_provenance: record.replay_provenance,
+                })
+            }
+            ExplanationNodeId::Bound(id) => {
+                let record = self.machine.bounds.record(id)?;
+                Some(ExplanationNode::Bound {
+                    id,
+                    direction: record.direction,
+                    owner: record.owner,
+                    endpoint: record.endpoint,
+                    weights: record.weights.clone(),
+                    state: record.state,
+                })
+            }
+            ExplanationNodeId::Origin(id) => {
+                let record = self.machine.origins.get(id.0 as usize)?;
+                Some(ExplanationNode::Origin {
+                    id,
+                    kind: record.kind,
+                    source_boundary: record.source_boundary,
+                })
+            }
+            ExplanationNodeId::RowDerivation(id) => {
+                let record = self.machine.row_derivations.get(id.0 as usize)?;
+                Some(ExplanationNode::RowDerivation {
+                    id,
+                    rule: record.rule,
+                    retained_items: record.retained_items.clone(),
+                })
+            }
+            ExplanationNodeId::SubtractFact(id) => {
+                let record = self.machine.subtracts.record(id)?;
+                Some(ExplanationNode::SubtractFact {
+                    id,
+                    effect: record.key.effect,
+                    fact: record.key.fact.clone(),
+                    active: record.active,
+                })
+            }
+            ExplanationNodeId::LowerFilter(id) => {
+                let record = self.machine.lower_filter_records.get(id.0 as usize)?;
+                Some(ExplanationNode::LowerFilter {
+                    id,
+                    var: record.var,
+                    filter: record.filter.clone(),
+                })
+            }
+            ExplanationNodeId::BoundDisposition(id) => {
+                let record = self.machine.bound_dispositions.get(id.0 as usize)?;
+                Some(ExplanationNode::BoundDisposition {
+                    id,
+                    direction: record.direction,
+                    owner: record.owner,
+                    endpoint: record.endpoint,
+                    weights: record.weights.clone(),
+                    disposition: record.disposition,
+                })
+            }
+        }
+    }
+
+    fn record_source_leaf(&mut self, node: &ExplanationNode) {
+        let ExplanationNode::Origin {
+            id,
+            kind,
+            source_boundary: Some(boundary),
+        } = *node
+        else {
+            return;
+        };
+        if kind.is_source()
+            && self
+                .machine
+                .source_boundaries
+                .get(boundary.0 as usize)
+                .is_some_and(|record| record.origin == id)
+        {
+            self.source_leaves.push(ExplanationSourceLeaf {
+                origin: id,
+                boundary,
+                kind,
+            });
+        }
+    }
+
+    fn has_incoming_edges(&self, id: ExplanationNodeId) -> bool {
+        match id {
+            ExplanationNodeId::Constraint(id) => self
+                .machine
+                .constraint_records
+                .get(id.0 as usize)
+                .is_some_and(|record| {
+                    !record.root_origins.is_empty()
+                        || !record.structural_derivations.is_empty()
+                        || !record.row_derivations.is_empty()
+                        || !record.replay_derivations.is_empty()
+                        || !record.canonicalization_dispositions.is_empty()
+                }),
+            ExplanationNodeId::Bound(id) => self.machine.bounds.record(id).is_some_and(|record| {
+                !record.derivations.is_empty() || record.disposition.is_some()
+            }),
+            ExplanationNodeId::Origin(_) => false,
+            ExplanationNodeId::RowDerivation(id) => self
+                .machine
+                .row_derivations
+                .get(id.0 as usize)
+                .is_some_and(|record| !record.parents.is_empty()),
+            ExplanationNodeId::SubtractFact(id) => self
+                .machine
+                .subtracts
+                .record(id)
+                .is_some_and(|record| !record.derivations.is_empty()),
+            ExplanationNodeId::LowerFilter(id) => self
+                .machine
+                .lower_filter_records
+                .get(id.0 as usize)
+                .is_some_and(|record| !record.derivations.is_empty()),
+            ExplanationNodeId::BoundDisposition(id) => self
+                .machine
+                .bound_dispositions
+                .get(id.0 as usize)
+                .is_some_and(|record| {
+                    record.derivation.is_some()
+                        || !matches!(record.disposition, BoundDisposition::Trivial(_))
+                }),
+        }
+    }
+
+    fn visit_incoming_edges(&mut self, id: ExplanationNodeId, depth: usize) {
+        match id {
+            ExplanationNodeId::Constraint(id) => self.visit_constraint_edges(id, depth),
+            ExplanationNodeId::Bound(id) => self.visit_bound_edges(id, depth),
+            ExplanationNodeId::Origin(_) => {}
+            ExplanationNodeId::RowDerivation(id) => self.visit_row_edges(id, depth),
+            ExplanationNodeId::SubtractFact(id) => self.visit_subtract_edges(id, depth),
+            ExplanationNodeId::LowerFilter(id) => self.visit_filter_edges(id, depth),
+            ExplanationNodeId::BoundDisposition(id) => self.visit_disposition_edges(id, depth),
+        }
+    }
+
+    fn visit_constraint_edges(&mut self, id: ConstraintRecordId, depth: usize) {
+        let record = self.machine.constraint_records[id.0 as usize].clone();
+        for origin in record.root_origins {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(id),
+                    kind: ExplanationEdgeKind::RootOrigin,
+                    parents: vec![ExplanationNodeId::Origin(origin)],
+                },
+                depth,
+            );
+        }
+        for derivation in record.structural_derivations {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(id),
+                    kind: ExplanationEdgeKind::Structural(derivation.rule),
+                    parents: vec![ExplanationNodeId::Constraint(derivation.parent)],
+                },
+                depth,
+            );
+        }
+        for derivation in record.row_derivations {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(id),
+                    kind: ExplanationEdgeKind::RowResult(derivation),
+                    parents: vec![ExplanationNodeId::RowDerivation(derivation)],
+                },
+                depth,
+            );
+        }
+        for derivation in record.replay_derivations {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(id),
+                    kind: ExplanationEdgeKind::BinaryReplay(derivation),
+                    parents: vec![
+                        ExplanationNodeId::Bound(derivation.lower),
+                        ExplanationNodeId::Bound(derivation.upper),
+                    ],
+                },
+                depth,
+            );
+        }
+        for disposition in record.canonicalization_dispositions {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(id),
+                    kind: ExplanationEdgeKind::Canonicalization(disposition),
+                    parents: Vec::new(),
+                },
+                depth,
+            );
+        }
+    }
+
+    fn visit_bound_edges(&mut self, id: BoundRecordId, depth: usize) {
+        let record = self
+            .machine
+            .bounds
+            .record(id)
+            .expect("visited bound")
+            .clone();
+        for derivation in record.derivations {
+            let parents = self.bound_derivation_parents(derivation);
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Bound(id),
+                    kind: ExplanationEdgeKind::Bound(derivation),
+                    parents,
+                },
+                depth,
+            );
+        }
+        if let Some(disposition) = record.disposition {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::Bound(id),
+                    kind: ExplanationEdgeKind::BoundDisposition(
+                        self.machine.bound_dispositions[disposition.0 as usize].disposition,
+                    ),
+                    parents: vec![ExplanationNodeId::BoundDisposition(disposition)],
+                },
+                depth,
+            );
+        }
+    }
+
+    fn visit_row_edges(&mut self, id: RowDerivationId, depth: usize) {
+        let record = self.machine.row_derivations[id.0 as usize].clone();
+        self.push_edge(
+            ExplanationEdge {
+                child: ExplanationNodeId::RowDerivation(id),
+                kind: ExplanationEdgeKind::Row(record.rule),
+                parents: record.parents.into_iter().map(row_parent_node).collect(),
+            },
+            depth,
+        );
+    }
+
+    fn visit_subtract_edges(&mut self, id: SubtractFactRecordId, depth: usize) {
+        let derivations = self.machine.subtracts.records[id.0 as usize]
+            .derivations
+            .clone();
+        for derivation in derivations {
+            let origin = match derivation {
+                SubtractFactDerivation::Declaration(origin)
+                | SubtractFactDerivation::Import(origin)
+                | SubtractFactDerivation::Internal(origin) => origin,
+            };
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::SubtractFact(id),
+                    kind: ExplanationEdgeKind::SubtractFact(derivation),
+                    parents: vec![ExplanationNodeId::Origin(origin)],
+                },
+                depth,
+            );
+        }
+    }
+
+    fn visit_filter_edges(&mut self, id: LowerFilterRecordId, depth: usize) {
+        let derivations = self.machine.lower_filter_records[id.0 as usize]
+            .derivations
+            .clone();
+        for derivation in derivations {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::LowerFilter(id),
+                    kind: ExplanationEdgeKind::LowerFilter,
+                    parents: derivation
+                        .parents
+                        .into_iter()
+                        .map(row_parent_node)
+                        .collect(),
+                },
+                depth,
+            );
+        }
+    }
+
+    fn visit_disposition_edges(&mut self, id: BoundDispositionRecordId, depth: usize) {
+        let record = self.machine.bound_dispositions[id.0 as usize].clone();
+        let mut parents = record
+            .derivation
+            .into_iter()
+            .flat_map(|derivation| self.bound_derivation_parents(derivation))
+            .collect::<Vec<_>>();
+        match record.disposition {
+            BoundDisposition::Inserted(bound)
+            | BoundDisposition::EquivalentTo(bound)
+            | BoundDisposition::SubsumedBy(bound) => {
+                parents.push(ExplanationNodeId::Bound(bound));
+            }
+            BoundDisposition::Trivial(_) => {}
+        }
+        self.push_edge(
+            ExplanationEdge {
+                child: ExplanationNodeId::BoundDisposition(id),
+                kind: ExplanationEdgeKind::BoundDisposition(record.disposition),
+                parents,
+            },
+            depth,
+        );
+    }
+
+    fn bound_derivation_parents(&mut self, derivation: BoundDerivation) -> Vec<ExplanationNodeId> {
+        match derivation {
+            BoundDerivation::Constraint(parent) => vec![ExplanationNodeId::Constraint(parent)],
+            BoundDerivation::Origin(origin) => vec![ExplanationNodeId::Origin(origin)],
+            BoundDerivation::ReplayEvidence(replay) => vec![
+                ExplanationNodeId::Bound(replay.lower),
+                ExplanationNodeId::Bound(replay.upper),
+            ],
+            BoundDerivation::Row(row) => vec![ExplanationNodeId::RowDerivation(row)],
+            BoundDerivation::IncompleteReplay => {
+                self.underlying_incomplete = true;
+                Vec::new()
+            }
+        }
+    }
+}
+
+fn row_parent_node(parent: RowDerivationParent) -> ExplanationNodeId {
+    match parent {
+        RowDerivationParent::Constraint(id) => ExplanationNodeId::Constraint(id),
+        RowDerivationParent::Bound(id) => ExplanationNodeId::Bound(id),
+        RowDerivationParent::SubtractFact(id) => ExplanationNodeId::SubtractFact(id),
+        RowDerivationParent::RowDerivation(id) => ExplanationNodeId::RowDerivation(id),
+        RowDerivationParent::LowerFilter(id) => ExplanationNodeId::LowerFilter(id),
+        RowDerivationParent::Origin(id) => ExplanationNodeId::Origin(id),
+    }
+}

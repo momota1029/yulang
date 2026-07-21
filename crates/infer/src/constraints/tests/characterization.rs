@@ -4,6 +4,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path as FsPath, PathBuf};
 
+use crate::constraints::explain::{
+    ExplanationBudget, ExplanationCompleteness, ExplanationTruncationReason,
+};
 use crate::constraints::timing::{
     begin_nominal_cast_pair_capture, finish_nominal_cast_pair_capture,
 };
@@ -50,6 +53,89 @@ fn cprov_a_characterizes_constraints_replay_std_and_regressions() {
     }
 
     assert_eq!(actual, expected_characterization());
+}
+
+#[test]
+fn cprov_h_real_std_budget_truncates_without_solver_side_effects() {
+    let output = CharacterizationCase::std_only().lower();
+    assert!(output.errors.is_empty());
+    let machine = output.session.infer.constraints();
+    let record = machine
+        .constraint_records
+        .iter()
+        .position(|record| !record.replay_derivations.is_empty())
+        .map(|index| ConstraintRecordId(index as u32))
+        .expect("repository std has replay-derived constraints");
+    let semantic_epoch = machine.epoch();
+    let provenance_epoch = machine.provenance_epoch();
+    let semantic_count = machine.canonical_constraint_count();
+
+    let node_limited = machine
+        .why_constraint(
+            record,
+            ExplanationBudget {
+                max_nodes: 0,
+                max_edges: 4,
+                max_depth: 4,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        node_limited.completeness,
+        ExplanationCompleteness::TruncatedByBudget
+    );
+    assert_eq!(
+        node_limited.truncation,
+        Some(ExplanationTruncationReason::NodeBudget { limit: 0 })
+    );
+    assert!(node_limited.nodes.is_empty());
+    assert!(node_limited.edges.is_empty());
+
+    let edge_limited = machine
+        .why_constraint(
+            record,
+            ExplanationBudget {
+                max_nodes: 4,
+                max_edges: 0,
+                max_depth: 4,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        edge_limited.completeness,
+        ExplanationCompleteness::TruncatedByBudget
+    );
+    assert_eq!(
+        edge_limited.truncation,
+        Some(ExplanationTruncationReason::EdgeBudget { limit: 0 })
+    );
+    assert_eq!(edge_limited.nodes.len(), 1);
+    assert!(edge_limited.edges.is_empty());
+
+    let depth_limited = machine
+        .why_constraint(
+            record,
+            ExplanationBudget {
+                max_nodes: 4,
+                max_edges: 4,
+                max_depth: 0,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        depth_limited.completeness,
+        ExplanationCompleteness::TruncatedByBudget
+    );
+    assert_eq!(
+        depth_limited.truncation,
+        Some(ExplanationTruncationReason::DepthBudget { limit: 0 })
+    );
+    assert_eq!(depth_limited.nodes.len(), 1);
+    assert!(depth_limited.edges.is_empty());
+
+    assert_eq!(machine.epoch(), semantic_epoch);
+    assert_eq!(machine.provenance_epoch(), provenance_epoch);
+    assert_eq!(machine.canonical_constraint_count(), semantic_count);
 }
 
 #[derive(Clone, Copy)]
