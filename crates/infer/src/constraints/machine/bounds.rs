@@ -12,6 +12,7 @@ type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
 struct BoundReplayAction {
     constraint: SubtypeConstraintKey,
     derivation: BinaryReplayDerivation,
+    canonicalization_disposition: Option<ConstraintCanonicalizationDisposition>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -331,6 +332,9 @@ impl ConstraintMachine {
                     visited_bounds,
                     visited_constraints,
                 ),
+                RowDerivationParent::Origin(origin) => {
+                    origins.insert(origin);
+                }
             }
         }
     }
@@ -350,7 +354,7 @@ impl ConstraintMachine {
             | BoundDerivation::IncompleteReplay => None,
         };
         let pos = self.extrude_pos(pos, self.level_of(target));
-        let weights = self.check_and_erase_lower_left_filter(pos, weights);
+        let weights = self.check_and_erase_lower_left_filter(pos, weights, derivation);
         if let Some(survivor) = self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
             self.record_bound_disposition(
                 BoundDirection::Lower,
@@ -385,7 +389,7 @@ impl ConstraintMachine {
         }
         self.record_effective_bounds_mutation(target);
         let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
-        self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
+        self.constrain_lower_bound_by_registered_filters(target, insertion.id, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
             record: insertion.id,
@@ -431,7 +435,7 @@ impl ConstraintMachine {
             | BoundDerivation::IncompleteReplay => None,
         };
         let neg = self.extrude_neg(neg, self.level_of(source));
-        let weights = self.check_and_erase_upper_left_filter(source, weights);
+        let weights = self.check_and_erase_upper_left_filter(source, weights, derivation);
         if let Some(survivor) = self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
             self.record_bound_disposition(
                 BoundDirection::Upper,
@@ -545,10 +549,17 @@ impl ConstraintMachine {
         &mut self,
         pos: PosId,
         weights: ConstraintWeights,
+        derivation: BoundDerivation,
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
-            self.constrain_weighted_pos_lower_by_filter(pos, &weights, &filter);
+            let mut parents = Self::row_derivation_parents_from_bound(derivation);
+            parents.extend(self.row_derivation_parents(
+                None,
+                &weights,
+                SubtractFactUseRule::Filter,
+            ));
+            self.constrain_weighted_pos_lower_by_filter(pos, &weights, &filter, &parents);
         }
         weights.without_left_filter()
     }
@@ -557,11 +568,18 @@ impl ConstraintMachine {
         &mut self,
         source: TypeVar,
         weights: ConstraintWeights,
+        derivation: BoundDerivation,
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
-            self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter);
-            self.constrain_type_var_lowers_by_filter(source, filter);
+            let mut parents = Self::row_derivation_parents_from_bound(derivation);
+            parents.extend(self.row_derivation_parents(
+                None,
+                &weights,
+                SubtractFactUseRule::Filter,
+            ));
+            self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter, &parents);
+            self.constrain_type_var_lowers_by_filter(source, filter, parents);
         }
         weights.without_left_filter()
     }
@@ -570,37 +588,69 @@ impl ConstraintMachine {
         &mut self,
         var: TypeVar,
         filter: Subtractability,
+        parents: Vec<RowDerivationParent>,
     ) {
         if matches!(filter, Subtractability::All) {
             return;
         }
-        if !self
+        let is_new = self
             .lower_filters
             .entry(var)
             .or_default()
-            .insert(filter.clone())
-        {
+            .insert(filter.clone());
+        let provenance = self
+            .lower_filter_provenance
+            .entry((var, filter.clone()))
+            .or_default();
+        if !provenance.contains(&parents) {
+            provenance.push(parents.clone());
+            self.bump_provenance_epoch();
+        }
+        if !is_new {
             return;
         }
         let lowers = self
             .bounds
             .of(var)
-            .map(|bounds| bounds.lowers.clone())
+            .map(|bounds| {
+                bounds
+                    .lower_record_ids()
+                    .iter()
+                    .copied()
+                    .zip(bounds.lowers().iter().cloned())
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
-        for lower in lowers {
-            self.constrain_weighted_pos_lower_by_filter(lower.pos, &lower.weights, &filter);
+        for (record, lower) in lowers {
+            let mut lower_parents = parents.clone();
+            lower_parents.push(RowDerivationParent::Bound(record));
+            self.constrain_weighted_pos_lower_by_filter(
+                lower.pos,
+                &lower.weights,
+                &filter,
+                &lower_parents,
+            );
         }
     }
 
     fn constrain_lower_bound_by_registered_filters(
         &mut self,
         target: TypeVar,
+        record: BoundRecordId,
         pos: PosId,
         weights: &ConstraintWeights,
     ) {
         let filters = self.lower_filters.get(&target).cloned().unwrap_or_default();
         for filter in filters {
-            self.constrain_weighted_pos_lower_by_filter(pos, weights, &filter);
+            let provenance = self
+                .lower_filter_provenance
+                .get(&(target, filter.clone()))
+                .cloned()
+                .unwrap_or_default();
+            for mut parents in provenance {
+                parents.push(RowDerivationParent::Bound(record));
+                self.constrain_weighted_pos_lower_by_filter(pos, weights, &filter, &parents);
+            }
         }
     }
 
@@ -609,19 +659,21 @@ impl ConstraintMachine {
         pos: PosId,
         weights: &ConstraintWeights,
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) {
         if matches!(filter, Subtractability::All) {
             return;
         }
-        self.constrain_stack_by_filter(&weights.left.to_stack_weight(), filter);
+        self.constrain_stack_by_filter(&weights.left.to_stack_weight(), filter, parents);
         let filter = weights.left.filter_set().clone().intersect(filter.clone());
-        self.constrain_pos_lower_by_filter(pos, &filter);
+        self.constrain_pos_lower_by_filter(pos, &filter, parents);
     }
 
     pub(in crate::constraints) fn constrain_pos_lower_by_filter(
         &mut self,
         pos: PosId,
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) {
         if matches!(filter, Subtractability::All) {
             return;
@@ -629,27 +681,29 @@ impl ConstraintMachine {
         match self.types.pos(pos).clone() {
             Pos::Con(path, args) => {
                 if self.effect_family_paths.contains(&path) {
-                    self.constrain_effect_family_by_filter(&path, &args, filter);
+                    self.constrain_effect_family_by_filter(&path, &args, filter, parents);
                 }
             }
             Pos::Row(items) => {
                 for item in items {
-                    self.constrain_pos_lower_by_filter(item, filter);
+                    self.constrain_pos_lower_by_filter(item, filter, parents);
                 }
             }
             Pos::Stack { inner, weight } => {
-                self.constrain_stack_by_filter(&weight, filter);
-                self.constrain_pos_lower_by_filter(inner, filter);
+                self.constrain_stack_by_filter(&weight, filter, parents);
+                self.constrain_pos_lower_by_filter(inner, filter, parents);
             }
             Pos::NonSubtract(inner, weight) => {
-                self.constrain_stack_by_filter(&weight, filter);
-                self.constrain_pos_lower_by_filter(inner, filter);
+                self.constrain_stack_by_filter(&weight, filter, parents);
+                self.constrain_pos_lower_by_filter(inner, filter, parents);
             }
             Pos::Union(left, right) => {
-                self.constrain_pos_lower_by_filter(left, filter);
-                self.constrain_pos_lower_by_filter(right, filter);
+                self.constrain_pos_lower_by_filter(left, filter, parents);
+                self.constrain_pos_lower_by_filter(right, filter, parents);
             }
-            Pos::Var(var) => self.constrain_type_var_lowers_by_filter(var, filter.clone()),
+            Pos::Var(var) => {
+                self.constrain_type_var_lowers_by_filter(var, filter.clone(), parents.to_vec())
+            }
             Pos::Bot
             | Pos::Fun { .. }
             | Pos::Record(_)
@@ -752,12 +806,15 @@ impl ConstraintMachine {
             weights: weights.clone(),
         };
         let duplicate_profile = self.replay_duplicate_profile(lower, &weights, upper);
+        let canonicalization_disposition =
+            self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             replay.prefiltered += 1;
             replay.stats.trivial += 1;
             replay.trivial_actions.push(BoundReplayAction {
                 constraint: attempted,
                 derivation,
+                canonicalization_disposition,
             });
             return;
         };
@@ -770,6 +827,7 @@ impl ConstraintMachine {
             replay.duplicate_actions.push(BoundReplayAction {
                 constraint,
                 derivation,
+                canonicalization_disposition,
             });
             return;
         }
@@ -778,12 +836,14 @@ impl ConstraintMachine {
             replay.evidence_actions.push(BoundReplayAction {
                 constraint,
                 derivation,
+                canonicalization_disposition,
             });
             return;
         }
         replay.actions.push(BoundReplayAction {
             constraint,
             derivation,
+            canonicalization_disposition,
         });
     }
 
@@ -910,8 +970,13 @@ impl ConstraintMachine {
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
         for action in actions {
+            let constraint = action.constraint.clone();
             let (enqueued, disposition) =
                 self.enqueue_replay_subtype(action.constraint, action.derivation);
+            self.merge_constraint_canonicalization_disposition(
+                &constraint,
+                action.canonicalization_disposition,
+            );
             self.timing.record_replay_derivation_edge(
                 disposition == ReplayDerivationInsert::Inserted,
                 disposition == ReplayDerivationInsert::Duplicate,
@@ -1016,6 +1081,10 @@ impl ConstraintMachine {
                 .get(&action.constraint)
                 .expect("prefiltered replay duplicate remains canonical");
             let disposition = self.merge_replay_derivation(result, action.derivation);
+            self.merge_constraint_canonicalization_disposition(
+                &action.constraint,
+                action.canonicalization_disposition,
+            );
             self.timing.record_replay_derivation_edge(
                 disposition == ReplayDerivationInsert::Inserted,
                 disposition == ReplayDerivationInsert::Duplicate,
@@ -1563,6 +1632,7 @@ mod mutation_tests {
                 upper: BoundRecordId(1),
                 rule: ReplayRule::LowerBoundAdded,
             },
+            canonicalization_disposition: None,
         });
         machine.apply_bound_replay_evidence_actions(actions);
         assert_eq!(

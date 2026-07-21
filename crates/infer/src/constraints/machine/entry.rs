@@ -23,6 +23,7 @@ impl ConstraintMachine {
             row_tail_vars: FxHashSet::default(),
             pre_pop_effect_families: FxHashMap::default(),
             lower_filters: FxHashMap::default(),
+            lower_filter_provenance: FxHashMap::default(),
             effect_filter_violations: FxHashSet::default(),
             canonical_constraints: FxHashMap::default(),
             constraint_records: Vec::new(),
@@ -564,11 +565,14 @@ impl ConstraintMachine {
         upper: NegId,
         origin: Option<OriginId>,
     ) -> EnqueueSubtypeResult {
+        let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
             return EnqueueSubtypeResult::Trivial;
         };
-        if self.enqueue_canonical_subtype_with_origin(constraint, origin) {
+        let enqueued = self.enqueue_canonical_subtype_with_origin(constraint.clone(), origin);
+        self.merge_constraint_canonicalization_disposition(&constraint, disposition);
+        if enqueued {
             EnqueueSubtypeResult::Enqueued
         } else {
             EnqueueSubtypeResult::Duplicate
@@ -601,6 +605,38 @@ impl ConstraintMachine {
             upper,
             weights,
         })
+    }
+
+    pub(in crate::constraints) fn terminal_weight_erasure_disposition(
+        &self,
+        lower: PosId,
+        weights: &ConstraintWeights,
+        upper: NegId,
+    ) -> Option<ConstraintCanonicalizationDisposition> {
+        (!weights.is_empty() && self.has_terminal_subtype_endpoint(lower, upper)).then(|| {
+            ConstraintCanonicalizationDisposition::TerminalWeightErasure {
+                attempted_weights: weights.clone(),
+            }
+        })
+    }
+
+    pub(in crate::constraints) fn merge_constraint_canonicalization_disposition(
+        &mut self,
+        constraint: &SubtypeConstraintKey,
+        disposition: Option<ConstraintCanonicalizationDisposition>,
+    ) {
+        let Some(disposition) = disposition else {
+            return;
+        };
+        let Some(record_id) = self.canonical_constraints.get(constraint).copied() else {
+            return;
+        };
+        let dispositions =
+            &mut self.constraint_records[record_id.0 as usize].canonicalization_dispositions;
+        if !dispositions.contains(&disposition) {
+            dispositions.push(disposition);
+            self.bump_provenance_epoch();
+        }
     }
 
     pub(in crate::constraints) fn canonical_constraint_count(&self) -> usize {
@@ -649,7 +685,7 @@ impl ConstraintMachine {
             ReplayDerivationInsert::Incomplete
         };
         self.constraint_records.push(ConstraintRecord {
-            key: constraint,
+            key: constraint.clone(),
             root_origins: Vec::new(),
             structural_derivations: Vec::new(),
             row_derivations: Vec::new(),
@@ -658,6 +694,7 @@ impl ConstraintMachine {
             } else {
                 Vec::new()
             },
+            canonicalization_dispositions: Vec::new(),
             replay_provenance: if matches!(inserted, ReplayDerivationInsert::Inserted) {
                 ProvenanceCompleteness::Complete
             } else {
@@ -796,11 +833,12 @@ impl ConstraintMachine {
         };
         self.observe_routing_shadow(&constraint);
         self.constraint_records.push(ConstraintRecord {
-            key: constraint,
+            key: constraint.clone(),
             root_origins: origin.into_iter().collect(),
             structural_derivations: Vec::new(),
             row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
+            canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
         if origin.is_some() {
@@ -819,6 +857,7 @@ impl ConstraintMachine {
         rule: StructuralDerivationRule,
     ) -> bool {
         self.timing.record_structural_derivation(rule);
+        let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
             return false;
@@ -833,6 +872,7 @@ impl ConstraintMachine {
                     derivations.push(derivation);
                     self.bump_provenance_epoch();
                 }
+                self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
                 return false;
             }
@@ -844,13 +884,15 @@ impl ConstraintMachine {
         };
         self.observe_routing_shadow(&constraint);
         self.constraint_records.push(ConstraintRecord {
-            key: constraint,
+            key: constraint.clone(),
             root_origins: Vec::new(),
             structural_derivations: vec![derivation],
             row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
+            canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
@@ -916,6 +958,7 @@ impl ConstraintMachine {
         upper: NegId,
         derivation: RowDerivationId,
     ) -> bool {
+        let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
             return false;
@@ -929,6 +972,7 @@ impl ConstraintMachine {
                     derivations.push(derivation);
                     self.bump_provenance_epoch();
                 }
+                self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
                 return false;
             }
@@ -940,13 +984,15 @@ impl ConstraintMachine {
         };
         self.observe_routing_shadow(&constraint);
         self.constraint_records.push(ConstraintRecord {
-            key: constraint,
+            key: constraint.clone(),
             root_origins: Vec::new(),
             structural_derivations: Vec::new(),
             row_derivations: vec![derivation],
             replay_derivations: Vec::new(),
+            canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
@@ -1000,6 +1046,7 @@ impl ConstraintMachine {
                 structural_derivations: record.structural_derivations.clone(),
                 row_derivations: record.row_derivations.clone(),
                 replay_derivations: record.replay_derivations.clone(),
+                canonicalization_dispositions: record.canonicalization_dispositions.clone(),
                 replay_provenance: record.replay_provenance,
             });
         }

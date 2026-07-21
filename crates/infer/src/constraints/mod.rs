@@ -68,6 +68,7 @@ pub struct ConstraintMachine {
     row_tail_vars: FxHashSet<TypeVar>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
+    lower_filter_provenance: FxHashMap<(TypeVar, Subtractability), Vec<Vec<RowDerivationParent>>>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     canonical_constraints: FxHashMap<SubtypeConstraintKey, ConstraintRecordId>,
     constraint_records: Vec<ConstraintRecord>,
@@ -672,6 +673,13 @@ pub enum BoundTrivialReason {
     TerminalWeightErasure,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConstraintCanonicalizationDisposition {
+    TerminalWeightErasure {
+        attempted_weights: ConstraintWeights,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BoundDisposition {
     Inserted(BoundRecordId),
@@ -851,6 +859,7 @@ struct BoundInsertResult {
 pub struct SubtractTable {
     facts: FxHashMap<TypeVar, Vec<SubtractFact>>,
     fact_ids: FxHashMap<TypeVar, Vec<SubtractFactRecordId>>,
+    record_ids_by_subtract: FxHashMap<SubtractId, Vec<SubtractFactRecordId>>,
     canonical: FxHashMap<SubtractFactKey, SubtractFactRecordId>,
     records: Vec<SubtractFactRecord>,
 }
@@ -924,6 +933,10 @@ impl SubtractTable {
             uses: Vec::new(),
         });
         self.fact_ids.entry(effect).or_default().push(id);
+        self.record_ids_by_subtract
+            .entry(fact.id)
+            .or_default()
+            .push(id);
         self.facts.entry(effect).or_default().push(fact);
         SubtractFactInsertResult {
             id,
@@ -1127,6 +1140,7 @@ pub enum RowDerivationParent {
     Bound(BoundRecordId),
     SubtractFact(SubtractFactRecordId),
     RowDerivation(RowDerivationId),
+    Origin(OriginId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1310,6 +1324,7 @@ struct ConstraintRecord {
     structural_derivations: Vec<StructuralDerivation>,
     row_derivations: Vec<RowDerivationId>,
     replay_derivations: Vec<BinaryReplayDerivation>,
+    canonicalization_dispositions: Vec<ConstraintCanonicalizationDisposition>,
     replay_provenance: ProvenanceCompleteness,
 }
 
@@ -1333,6 +1348,7 @@ pub(crate) struct DebugConstraintTraceNode {
     pub(crate) structural_derivations: Vec<StructuralDerivation>,
     pub(crate) row_derivations: Vec<RowDerivationId>,
     pub(crate) replay_derivations: Vec<BinaryReplayDerivation>,
+    pub(crate) canonicalization_dispositions: Vec<ConstraintCanonicalizationDisposition>,
     pub(crate) replay_provenance: ProvenanceCompleteness,
 }
 

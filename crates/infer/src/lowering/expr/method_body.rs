@@ -1834,7 +1834,13 @@ impl<'a> ExprLowerer<'a> {
             self.session
                 .infer
                 .constraints_mut()
-                .constrain_type_var_lowers_by_filter(effect, weight.filter_set().clone());
+                .constrain_type_var_lowers_by_filter(
+                    effect,
+                    weight.filter_set().clone(),
+                    vec![crate::constraints::RowDerivationParent::Origin(
+                        crate::constraints::OriginId::unknown_internal(),
+                    )],
+                );
         }
     }
 

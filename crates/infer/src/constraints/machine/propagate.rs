@@ -38,11 +38,13 @@ impl ConstraintMachine {
         if let Neg::Stack { inner, weight } = self.types.neg(constraint.upper) {
             let inner = *inner;
             let weight = weight.clone();
-            self.constrain_pos_lower_by_filter(constraint.lower, weight.filter_set());
+            let row_parents = [RowDerivationParent::Constraint(parent)];
+            self.constrain_pos_lower_by_filter(constraint.lower, weight.filter_set(), &row_parents);
             let weight = weight.with_filter(Subtractability::All);
-            let stack_filter = self.common_stack_subtractability(weight.active_stack_items());
+            let stack_filter =
+                self.common_stack_subtractability(weight.active_stack_items(), &row_parents);
             if !matches!(stack_filter, Subtractability::Empty) {
-                self.constrain_pos_lower_by_filter(constraint.lower, &stack_filter);
+                self.constrain_pos_lower_by_filter(constraint.lower, &stack_filter, &row_parents);
             }
             self.enqueue_derived_subtype(
                 constraint.lower,

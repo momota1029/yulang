@@ -440,6 +440,25 @@ fn machine_records_subtract_facts_outside_subtype_bounds() {
             id: subtract
         }]
     );
+    let weights = ConstraintWeights {
+        left: LeftConstraintWeight::push(subtract, Subtractability::All),
+        right: RightConstraintWeight::empty(),
+    };
+    assert_eq!(
+        machine.row_derivation_parents(None, &weights, SubtractFactUseRule::Filter),
+        [RowDerivationParent::SubtractFact(SubtractFactRecordId(0))]
+    );
+    assert_eq!(
+        machine
+            .subtracts()
+            .record(SubtractFactRecordId(0))
+            .unwrap()
+            .uses(),
+        [SubtractFactUse {
+            rule: SubtractFactUseRule::Filter,
+            consumer: None,
+        }]
+    );
 }
 
 #[test]
@@ -1053,7 +1072,7 @@ fn terminal_non_effect_lower_bound_uses_empty_weight_without_matching_terminal_u
 
     machine.weighted_subtype(
         bool_lower,
-        weighted,
+        weighted.clone(),
         var_upper,
         crate::constraints::OriginId::unknown_internal(),
     );
@@ -1064,6 +1083,20 @@ fn terminal_non_effect_lower_bound_uses_empty_weight_without_matching_terminal_u
             .lowers()
             .iter()
             .any(|bound| bound.pos == bool_lower && bound.weights.is_empty())
+    );
+    let key = SubtypeConstraintKey {
+        lower: bool_lower,
+        upper: var_upper,
+        weights: ConstraintWeights::empty(),
+    };
+    let record = machine.canonical_constraints[&key];
+    assert_eq!(
+        machine.constraint_records[record.0 as usize].canonicalization_dispositions,
+        [
+            ConstraintCanonicalizationDisposition::TerminalWeightErasure {
+                attempted_weights: weighted,
+            }
+        ]
     );
 }
 

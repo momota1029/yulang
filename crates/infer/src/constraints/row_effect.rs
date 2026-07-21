@@ -3,10 +3,11 @@
 use super::*;
 
 impl ConstraintMachine {
-    fn row_derivation_parents(
-        &self,
+    pub(in crate::constraints) fn row_derivation_parents(
+        &mut self,
         producer: Option<ConstraintRecordId>,
         weights: &ConstraintWeights,
+        use_rule: SubtractFactUseRule,
     ) -> Vec<RowDerivationParent> {
         let mut parents = producer
             .map(RowDerivationParent::Constraint)
@@ -21,24 +22,66 @@ impl ConstraintMachine {
             .collect::<Vec<_>>();
         subtract_ids.sort_by_key(|id| id.0);
         subtract_ids.dedup();
-        for (index, record) in self.subtracts.records.iter().enumerate() {
-            if subtract_ids.contains(&record.fact().id) {
-                parents.push(RowDerivationParent::SubtractFact(SubtractFactRecordId(
-                    index as u32,
-                )));
+        let fact_ids = subtract_ids
+            .into_iter()
+            .flat_map(|id| {
+                self.subtracts
+                    .record_ids_by_subtract
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        let fact_use = SubtractFactUse {
+            rule: use_rule,
+            consumer: producer,
+        };
+        let mut provenance_changed = false;
+        for id in fact_ids {
+            let record = &mut self.subtracts.records[id.0 as usize];
+            if !record.uses.contains(&fact_use) {
+                record.uses.push(fact_use);
+                provenance_changed = true;
             }
+            parents.push(RowDerivationParent::SubtractFact(id));
+        }
+        if provenance_changed {
+            self.bump_provenance_epoch();
         }
         parents
     }
 
-    fn enqueue_unexplained_row_invariant_args(
+    pub(in crate::constraints) fn row_derivation_parents_from_bound(
+        derivation: BoundDerivation,
+    ) -> Vec<RowDerivationParent> {
+        match derivation {
+            BoundDerivation::Constraint(parent) => vec![RowDerivationParent::Constraint(parent)],
+            BoundDerivation::Origin(origin) => vec![RowDerivationParent::Origin(origin)],
+            BoundDerivation::ReplayEvidence(replay) => vec![
+                RowDerivationParent::Bound(replay.lower),
+                RowDerivationParent::Bound(replay.upper),
+            ],
+            BoundDerivation::Row(parent) => vec![RowDerivationParent::RowDerivation(parent)],
+            BoundDerivation::IncompleteReplay => Vec::new(),
+        }
+    }
+
+    fn enqueue_row_invariant_args(
         &mut self,
+        rule: RowDerivationRule,
+        parents: Vec<RowDerivationParent>,
         lower: Vec<NeuId>,
         upper: Vec<NeuId>,
         weights: ConstraintWeights,
     ) {
-        self.timing.record_unexplained_row_path();
-        self.enqueue_invariant_neu_args(lower, upper, weights);
+        let derivation = self.intern_row_derivation(rule, parents, Vec::new());
+        for (lower, upper) in lower.into_iter().zip(upper) {
+            let (lower_pos, lower_neg) = self.neu_bounds(lower);
+            let (upper_pos, upper_neg) = self.neu_bounds(upper);
+            self.enqueue_row_derived_subtype(lower_pos, weights.clone(), upper_neg, derivation);
+            self.enqueue_row_derived_subtype(upper_pos, weights.swapped(), lower_neg, derivation);
+        }
     }
 
     pub(super) fn add_effect_row_upper_bound(
@@ -73,7 +116,13 @@ impl ConstraintMachine {
             return;
         }
 
-        self.constrain_neg_effect_items_by_filter(&items, weights.left.filter_set());
+        let filter_parents =
+            self.row_derivation_parents(producer, &weights, SubtractFactUseRule::Filter);
+        self.constrain_neg_effect_items_by_filter(
+            &items,
+            weights.left.filter_set(),
+            &filter_parents,
+        );
 
         let weights = ConstraintWeights {
             left: weights.left.with_filter(Subtractability::All),
@@ -98,13 +147,18 @@ impl ConstraintMachine {
             return;
         }
 
-        let retained_items = self.intersect_row_items_with_left_stack(items, &weights.left);
-        let retained_items = self.collect_neg_effect_items(retained_items);
+        let row_parents =
+            self.row_derivation_parents(producer, &weights, SubtractFactUseRule::RowReduction);
+        let retained_items =
+            self.intersect_row_items_with_left_stack(items, &weights.left, &row_parents);
+        let retained_items = self.collect_neg_effect_items(retained_items, &row_parents);
         if retained_items.is_empty() {
             let source_pos = self.alloc_pos(Pos::Var(source));
+            let parents =
+                self.row_derivation_parents(producer, &weights, SubtractFactUseRule::RowReduction);
             let derivation = self.intern_row_derivation(
                 RowDerivationRule::WeightedResidual,
-                self.row_derivation_parents(producer, &weights),
+                parents,
                 Vec::new(),
             );
             self.enqueue_row_derived_subtype(
@@ -117,8 +171,11 @@ impl ConstraintMachine {
         }
 
         let retained_families = self.neg_effect_families(&retained_items);
-        let residual_weight = self
-            .subtract_row_items_from_left_stack_weight(&weights.left, retained_families.clone());
+        let residual_weight = self.subtract_row_items_from_left_stack_weight(
+            &weights.left,
+            retained_families.clone(),
+            &row_parents,
+        );
         let key = RowResidualKey {
             source,
             retained_families: sorted_effect_families(retained_families),
@@ -142,9 +199,11 @@ impl ConstraintMachine {
             self.timing.record_row_residual_created();
             (gamma, residual, false)
         };
+        let parents =
+            self.row_derivation_parents(producer, &weights, SubtractFactUseRule::RowReduction);
         let derivation = self.intern_row_derivation(
             RowDerivationRule::WeightedResidual,
-            self.row_derivation_parents(producer, &weights),
+            parents,
             retained_items.clone(),
         );
         let residual_record = &mut self.row_residual_records[residual.0 as usize];
@@ -420,27 +479,39 @@ impl ConstraintMachine {
         &mut self,
         items: Vec<NegId>,
         weight: &LeftConstraintWeight,
+        parents: &[RowDerivationParent],
     ) -> Vec<NegId> {
-        let subtractability = self.common_stack_subtractability(left_active_stack_items(weight));
-        self.intersect_row_items_with_subtractability(items, &subtractability)
+        let subtractability =
+            self.common_stack_subtractability(left_active_stack_items(weight), parents);
+        self.intersect_row_items_with_subtractability(items, &subtractability, parents)
     }
 
     pub(in crate::constraints) fn common_stack_subtractability<'a>(
         &mut self,
         items: impl Iterator<Item = &'a Subtractability>,
+        parents: &[RowDerivationParent],
     ) -> Subtractability {
         let items = items.cloned().collect::<Vec<_>>();
-        self.constrain_duplicate_subtractability_families(&items);
+        self.constrain_duplicate_subtractability_families(&items, parents);
         items
             .into_iter()
             .reduce(intersect_subtractability)
             .unwrap_or(Subtractability::All)
     }
 
-    fn constrain_duplicate_subtractability_families(&mut self, items: &[Subtractability]) {
+    fn constrain_duplicate_subtractability_families(
+        &mut self,
+        items: &[Subtractability],
+        parents: &[RowDerivationParent],
+    ) {
         let mut families = EffectFamilyMap::default();
         for family in items.iter().flat_map(subtractability_families) {
-            self.insert_effect_family(&mut families, family);
+            self.insert_effect_family(
+                &mut families,
+                family,
+                RowDerivationRule::SubtractFactTransformation,
+                parents,
+            );
         }
     }
 
@@ -448,23 +519,29 @@ impl ConstraintMachine {
         &mut self,
         weight: &StackWeight,
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) {
         if matches!(filter, Subtractability::All) {
             return;
         }
         for entry in weight.entries() {
             for subtractability in &entry.stack {
-                self.constrain_subtractability_by_filter(subtractability, filter);
+                self.constrain_subtractability_by_filter(subtractability, filter, parents);
             }
         }
     }
 
-    fn constrain_neg_effect_items_by_filter(&mut self, items: &[NegId], filter: &Subtractability) {
+    fn constrain_neg_effect_items_by_filter(
+        &mut self,
+        items: &[NegId],
+        filter: &Subtractability,
+        parents: &[RowDerivationParent],
+    ) {
         if matches!(filter, Subtractability::All) {
             return;
         }
         for item in items {
-            self.constrain_neg_effect_item_by_filter(*item, filter);
+            self.constrain_neg_effect_item_by_filter(*item, filter, parents);
         }
     }
 
@@ -472,6 +549,7 @@ impl ConstraintMachine {
         &mut self,
         subtractability: &Subtractability,
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) {
         match subtractability {
             Subtractability::Empty => {}
@@ -484,21 +562,26 @@ impl ConstraintMachine {
                 }
             }
             Subtractability::Set(path, args) => {
-                self.constrain_effect_family_by_filter(path, args, filter);
+                self.constrain_effect_family_by_filter(path, args, filter, parents);
             }
             Subtractability::SetMany(families) => {
                 for (path, args) in families {
-                    self.constrain_effect_family_by_filter(path, args, filter);
+                    self.constrain_effect_family_by_filter(path, args, filter, parents);
                 }
             }
         }
     }
 
-    fn constrain_neg_effect_item_by_filter(&mut self, item: NegId, filter: &Subtractability) {
+    fn constrain_neg_effect_item_by_filter(
+        &mut self,
+        item: NegId,
+        filter: &Subtractability,
+        parents: &[RowDerivationParent],
+    ) {
         let Neg::Con(path, args) = self.types.neg(item).clone() else {
             return;
         };
-        self.constrain_effect_family_by_filter(&path, &args, filter);
+        self.constrain_effect_family_by_filter(&path, &args, filter, parents);
     }
 
     pub(in crate::constraints) fn constrain_effect_family_by_filter(
@@ -506,8 +589,9 @@ impl ConstraintMachine {
         path: &[String],
         args: &[NeuId],
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) {
-        if !self.effect_family_passes_filter(path, args, filter) {
+        if !self.effect_family_passes_filter(path, args, filter, parents) {
             self.record_effect_filter_violation(Some(path.to_vec()), filter.clone());
         }
     }
@@ -517,13 +601,16 @@ impl ConstraintMachine {
         path: &[String],
         args: &[NeuId],
         filter: &Subtractability,
+        parents: &[RowDerivationParent],
     ) -> bool {
         match filter {
             Subtractability::All => true,
             Subtractability::Empty => false,
             Subtractability::Set(filter_path, filter_args) => {
                 if filter_path == path {
-                    self.enqueue_unexplained_row_invariant_args(
+                    self.enqueue_row_invariant_args(
+                        RowDerivationRule::FilterInvariant,
+                        parents.to_vec(),
                         args.to_vec(),
                         filter_args.clone(),
                         ConstraintWeights::empty(),
@@ -537,7 +624,9 @@ impl ConstraintMachine {
                 let mut matched = false;
                 for (filter_path, filter_args) in families {
                     if filter_path == path {
-                        self.enqueue_unexplained_row_invariant_args(
+                        self.enqueue_row_invariant_args(
+                            RowDerivationRule::FilterInvariant,
+                            parents.to_vec(),
                             args.to_vec(),
                             filter_args.clone(),
                             ConstraintWeights::empty(),
@@ -549,7 +638,9 @@ impl ConstraintMachine {
             }
             Subtractability::AllExcept(filter_path, filter_args) => {
                 if filter_path == path {
-                    self.enqueue_unexplained_row_invariant_args(
+                    self.enqueue_row_invariant_args(
+                        RowDerivationRule::FilterInvariant,
+                        parents.to_vec(),
                         args.to_vec(),
                         filter_args.clone(),
                         ConstraintWeights::empty(),
@@ -563,7 +654,9 @@ impl ConstraintMachine {
                 let mut excluded = false;
                 for (filter_path, filter_args) in families {
                     if filter_path == path {
-                        self.enqueue_unexplained_row_invariant_args(
+                        self.enqueue_row_invariant_args(
+                            RowDerivationRule::FilterInvariant,
+                            parents.to_vec(),
                             args.to_vec(),
                             filter_args.clone(),
                             ConstraintWeights::empty(),
@@ -597,31 +690,32 @@ impl ConstraintMachine {
         &mut self,
         items: Vec<NegId>,
         subtractability: &Subtractability,
+        parents: &[RowDerivationParent],
     ) -> Vec<NegId> {
         match subtractability {
             Subtractability::All => items,
             Subtractability::Empty => Vec::new(),
             Subtractability::Set(path, args) => items
                 .into_iter()
-                .filter(|item| self.constrain_neg_effect_family_args(*item, path, args))
+                .filter(|item| self.constrain_neg_effect_family_args(*item, path, args, parents))
                 .collect(),
             Subtractability::SetMany(families) => items
                 .into_iter()
                 .filter(|item| {
                     families.iter().any(|(path, args)| {
-                        self.constrain_neg_effect_family_args(*item, path, args)
+                        self.constrain_neg_effect_family_args(*item, path, args, parents)
                     })
                 })
                 .collect(),
             Subtractability::AllExcept(path, args) => items
                 .into_iter()
-                .filter(|item| !self.constrain_neg_effect_family_args(*item, path, args))
+                .filter(|item| !self.constrain_neg_effect_family_args(*item, path, args, parents))
                 .collect(),
             Subtractability::AllExceptMany(families) => items
                 .into_iter()
                 .filter(|item| {
                     !families.iter().any(|(path, args)| {
-                        self.constrain_neg_effect_family_args(*item, path, args)
+                        self.constrain_neg_effect_family_args(*item, path, args, parents)
                     })
                 })
                 .collect(),
@@ -633,6 +727,7 @@ impl ConstraintMachine {
         item: NegId,
         path: &[String],
         args: &[NeuId],
+        parents: &[RowDerivationParent],
     ) -> bool {
         let Neg::Con(item_path, item_args) = self.types.neg(item).clone() else {
             return false;
@@ -640,7 +735,9 @@ impl ConstraintMachine {
         if item_path != path {
             return false;
         }
-        self.enqueue_unexplained_row_invariant_args(
+        self.enqueue_row_invariant_args(
+            RowDerivationRule::PayloadInvariant,
+            parents.to_vec(),
             item_args,
             args.to_vec(),
             ConstraintWeights::empty(),
@@ -648,7 +745,11 @@ impl ConstraintMachine {
         true
     }
 
-    fn collect_neg_effect_items(&mut self, items: Vec<NegId>) -> Vec<NegId> {
+    fn collect_neg_effect_items(
+        &mut self,
+        items: Vec<NegId>,
+        parents: &[RowDerivationParent],
+    ) -> Vec<NegId> {
         let mut by_path = FxHashMap::<Vec<String>, (usize, Vec<NeuId>)>::default();
         let mut out = Vec::new();
         for item in items {
@@ -657,7 +758,9 @@ impl ConstraintMachine {
                 continue;
             };
             if let Some((_, existing_args)) = by_path.get(&path) {
-                self.enqueue_unexplained_row_invariant_args(
+                self.enqueue_row_invariant_args(
+                    RowDerivationRule::PayloadInvariant,
+                    parents.to_vec(),
                     existing_args.clone(),
                     args,
                     ConstraintWeights::empty(),
@@ -683,13 +786,21 @@ impl ConstraintMachine {
         families.into_entries()
     }
 
-    fn insert_effect_family(&mut self, families: &mut EffectFamilyMap, family: EffectFamily) {
+    fn insert_effect_family(
+        &mut self,
+        families: &mut EffectFamilyMap,
+        family: EffectFamily,
+        rule: RowDerivationRule,
+        parents: &[RowDerivationParent],
+    ) {
         if let EffectFamilyInsert::Duplicate {
             existing_args,
             duplicate_args,
         } = families.insert(family)
         {
-            self.enqueue_unexplained_row_invariant_args(
+            self.enqueue_row_invariant_args(
+                rule,
+                parents.to_vec(),
                 existing_args,
                 duplicate_args,
                 ConstraintWeights::empty(),
@@ -700,10 +811,12 @@ impl ConstraintMachine {
     fn collect_effect_families(
         &mut self,
         families: impl IntoIterator<Item = EffectFamily>,
+        rule: RowDerivationRule,
+        parents: &[RowDerivationParent],
     ) -> Vec<EffectFamily> {
         let mut out = EffectFamilyMap::default();
         for family in families {
-            self.insert_effect_family(&mut out, family);
+            self.insert_effect_family(&mut out, family, rule, parents);
         }
         out.into_entries()
     }
@@ -711,8 +824,16 @@ impl ConstraintMachine {
     fn set_effect_families(
         &mut self,
         families: impl IntoIterator<Item = EffectFamily>,
+        parents: &[RowDerivationParent],
     ) -> Subtractability {
-        match self.collect_effect_families(families).as_slice() {
+        match self
+            .collect_effect_families(
+                families,
+                RowDerivationRule::SubtractFactTransformation,
+                parents,
+            )
+            .as_slice()
+        {
             [] => Subtractability::Empty,
             [family] => Subtractability::Set(family.path.clone(), family.args.clone()),
             families => Subtractability::SetMany(
@@ -728,8 +849,16 @@ impl ConstraintMachine {
     fn all_except_effect_families(
         &mut self,
         families: impl IntoIterator<Item = EffectFamily>,
+        parents: &[RowDerivationParent],
     ) -> Subtractability {
-        match self.collect_effect_families(families).as_slice() {
+        match self
+            .collect_effect_families(
+                families,
+                RowDerivationRule::SubtractFactTransformation,
+                parents,
+            )
+            .as_slice()
+        {
             [] => Subtractability::All,
             [family] => Subtractability::AllExcept(family.path.clone(), family.args.clone()),
             families => Subtractability::AllExceptMany(
@@ -746,8 +875,13 @@ impl ConstraintMachine {
         &mut self,
         weight: &LeftConstraintWeight,
         removed: impl IntoIterator<Item = EffectFamily>,
+        parents: &[RowDerivationParent],
     ) -> LeftConstraintWeight {
-        let removed = self.collect_effect_families(removed);
+        let removed = self.collect_effect_families(
+            removed,
+            RowDerivationRule::SubtractFactTransformation,
+            parents,
+        );
         if removed.is_empty() {
             return weight.with_filter(Subtractability::All);
         }
@@ -757,7 +891,7 @@ impl ConstraintMachine {
             out = out.compose(&LeftConstraintWeight::pops(entry.id, entry.leading_pops));
             if entry.pushes > 0 {
                 let family = entry.family.clone().unwrap_or(Subtractability::All);
-                let family = self.subtract_effect_families(family, &removed);
+                let family = self.subtract_effect_families(family, &removed, parents);
                 for _ in 0..entry.pushes {
                     out = out.compose(&LeftConstraintWeight::push(entry.id, family.clone()));
                 }
@@ -770,29 +904,34 @@ impl ConstraintMachine {
         &mut self,
         subtractability: Subtractability,
         removed: &[EffectFamily],
+        parents: &[RowDerivationParent],
     ) -> Subtractability {
         use Subtractability::*;
         match subtractability {
             Empty => Empty,
-            All => self.all_except_effect_families(removed.iter().cloned()),
+            All => self.all_except_effect_families(removed.iter().cloned(), parents),
             Set(path, args) => {
                 let family = EffectFamily { path, args };
                 if let Some(removed) = find_removed_family(&family, removed) {
-                    self.enqueue_unexplained_row_invariant_args(
+                    self.enqueue_row_invariant_args(
+                        RowDerivationRule::SubtractFactTransformation,
+                        parents.to_vec(),
                         family.args,
                         removed.args.clone(),
                         ConstraintWeights::empty(),
                     );
                     Empty
                 } else {
-                    self.set_effect_families([family])
+                    self.set_effect_families([family], parents)
                 }
             }
             SetMany(families) => {
                 let mut remaining = Vec::new();
                 for family in families_from_pairs(families) {
                     if let Some(removed) = find_removed_family(&family, removed) {
-                        self.enqueue_unexplained_row_invariant_args(
+                        self.enqueue_row_invariant_args(
+                            RowDerivationRule::SubtractFactTransformation,
+                            parents.to_vec(),
                             family.args,
                             removed.args.clone(),
                             ConstraintWeights::empty(),
@@ -801,17 +940,19 @@ impl ConstraintMachine {
                         remaining.push(family);
                     }
                 }
-                self.set_effect_families(remaining)
+                self.set_effect_families(remaining, parents)
             }
             AllExcept(path, args) => self.all_except_effect_families(
                 [EffectFamily { path, args }]
                     .into_iter()
                     .chain(removed.iter().cloned()),
+                parents,
             ),
             AllExceptMany(families) => self.all_except_effect_families(
                 families_from_pairs(families)
                     .into_iter()
                     .chain(removed.iter().cloned()),
+                parents,
             ),
         }
     }
