@@ -187,11 +187,13 @@ impl ConstraintMachine {
         let mut origins = FxHashSet::default();
         let mut visited_bounds = FxHashSet::default();
         let mut visited_constraints = FxHashSet::default();
+        let mut visited_lower_filters = FxHashSet::default();
         self.debug_collect_bound_origins(
             start,
             &mut origins,
             &mut visited_bounds,
             &mut visited_constraints,
+            &mut visited_lower_filters,
         );
         let mut origins = origins.into_iter().collect::<Vec<_>>();
         origins.sort_by_key(|origin| origin.0);
@@ -205,6 +207,7 @@ impl ConstraintMachine {
         origins: &mut FxHashSet<OriginId>,
         visited_bounds: &mut FxHashSet<BoundRecordId>,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        visited_lower_filters: &mut FxHashSet<LowerFilterRecordId>,
     ) {
         if !visited_bounds.insert(id) {
             return;
@@ -222,6 +225,7 @@ impl ConstraintMachine {
                     origins,
                     visited_bounds,
                     visited_constraints,
+                    visited_lower_filters,
                 ),
                 BoundDerivation::ReplayEvidence(replay) => {
                     self.debug_collect_bound_origins(
@@ -229,12 +233,14 @@ impl ConstraintMachine {
                         origins,
                         visited_bounds,
                         visited_constraints,
+                        visited_lower_filters,
                     );
                     self.debug_collect_bound_origins(
                         replay.upper,
                         origins,
                         visited_bounds,
                         visited_constraints,
+                        visited_lower_filters,
                     );
                 }
                 BoundDerivation::Row(row) => self.debug_collect_row_origins(
@@ -242,6 +248,7 @@ impl ConstraintMachine {
                     origins,
                     visited_bounds,
                     visited_constraints,
+                    visited_lower_filters,
                 ),
                 BoundDerivation::IncompleteReplay => {}
             }
@@ -255,6 +262,7 @@ impl ConstraintMachine {
         origins: &mut FxHashSet<OriginId>,
         visited_bounds: &mut FxHashSet<BoundRecordId>,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        visited_lower_filters: &mut FxHashSet<LowerFilterRecordId>,
     ) {
         if !visited_constraints.insert(id) {
             return;
@@ -267,10 +275,17 @@ impl ConstraintMachine {
                 origins,
                 visited_bounds,
                 visited_constraints,
+                visited_lower_filters,
             );
         }
         for row in &record.row_derivations {
-            self.debug_collect_row_origins(*row, origins, visited_bounds, visited_constraints);
+            self.debug_collect_row_origins(
+                *row,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            );
         }
         for replay in &record.replay_derivations {
             self.debug_collect_bound_origins(
@@ -278,12 +293,14 @@ impl ConstraintMachine {
                 origins,
                 visited_bounds,
                 visited_constraints,
+                visited_lower_filters,
             );
             self.debug_collect_bound_origins(
                 replay.upper,
                 origins,
                 visited_bounds,
                 visited_constraints,
+                visited_lower_filters,
             );
         }
     }
@@ -295,46 +312,103 @@ impl ConstraintMachine {
         origins: &mut FxHashSet<OriginId>,
         visited_bounds: &mut FxHashSet<BoundRecordId>,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        visited_lower_filters: &mut FxHashSet<LowerFilterRecordId>,
     ) {
         let Some(derivation) = self.row_derivations.get(id.0 as usize) else {
             return;
         };
         for parent in &derivation.parents {
-            match *parent {
-                RowDerivationParent::Constraint(parent) => self.debug_collect_constraint_origins(
-                    parent,
-                    origins,
-                    visited_bounds,
-                    visited_constraints,
-                ),
-                RowDerivationParent::Bound(parent) => self.debug_collect_bound_origins(
-                    parent,
-                    origins,
-                    visited_bounds,
-                    visited_constraints,
-                ),
-                RowDerivationParent::SubtractFact(parent) => {
-                    if let Some(record) = self.subtracts.record(parent) {
-                        for derivation in record.derivations() {
-                            match *derivation {
-                                SubtractFactDerivation::Declaration(origin)
-                                | SubtractFactDerivation::Import(origin)
-                                | SubtractFactDerivation::Internal(origin) => {
-                                    origins.insert(origin);
-                                }
+            self.debug_collect_row_parent_origins(
+                *parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            );
+        }
+    }
+
+    #[cfg(test)]
+    fn debug_collect_row_parent_origins(
+        &self,
+        parent: RowDerivationParent,
+        origins: &mut FxHashSet<OriginId>,
+        visited_bounds: &mut FxHashSet<BoundRecordId>,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        visited_lower_filters: &mut FxHashSet<LowerFilterRecordId>,
+    ) {
+        match parent {
+            RowDerivationParent::Constraint(parent) => self.debug_collect_constraint_origins(
+                parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            ),
+            RowDerivationParent::Bound(parent) => self.debug_collect_bound_origins(
+                parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            ),
+            RowDerivationParent::SubtractFact(parent) => {
+                if let Some(record) = self.subtracts.record(parent) {
+                    for derivation in record.derivations() {
+                        match *derivation {
+                            SubtractFactDerivation::Declaration(origin)
+                            | SubtractFactDerivation::Import(origin)
+                            | SubtractFactDerivation::Internal(origin) => {
+                                origins.insert(origin);
                             }
                         }
                     }
                 }
-                RowDerivationParent::RowDerivation(parent) => self.debug_collect_row_origins(
-                    parent,
+            }
+            RowDerivationParent::RowDerivation(parent) => self.debug_collect_row_origins(
+                parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            ),
+            RowDerivationParent::LowerFilter(parent) => self.debug_collect_lower_filter_origins(
+                parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+                visited_lower_filters,
+            ),
+            RowDerivationParent::Origin(origin) => {
+                origins.insert(origin);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn debug_collect_lower_filter_origins(
+        &self,
+        id: LowerFilterRecordId,
+        origins: &mut FxHashSet<OriginId>,
+        visited_bounds: &mut FxHashSet<BoundRecordId>,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        visited_lower_filters: &mut FxHashSet<LowerFilterRecordId>,
+    ) {
+        if !visited_lower_filters.insert(id) {
+            return;
+        }
+        let Some(record) = self.lower_filter_records.get(id.0 as usize) else {
+            return;
+        };
+        for derivation in &record.derivations {
+            for parent in &derivation.parents {
+                self.debug_collect_row_parent_origins(
+                    *parent,
                     origins,
                     visited_bounds,
                     visited_constraints,
-                ),
-                RowDerivationParent::Origin(origin) => {
-                    origins.insert(origin);
-                }
+                    visited_lower_filters,
+                );
             }
         }
     }
@@ -598,14 +672,7 @@ impl ConstraintMachine {
             .entry(var)
             .or_default()
             .insert(filter.clone());
-        let provenance = self
-            .lower_filter_provenance
-            .entry((var, filter.clone()))
-            .or_default();
-        if !provenance.contains(&parents) {
-            provenance.push(parents.clone());
-            self.bump_provenance_epoch();
-        }
+        let filter_record = self.record_lower_filter_provenance(var, &filter, parents);
         if !is_new {
             return;
         }
@@ -622,8 +689,10 @@ impl ConstraintMachine {
             })
             .unwrap_or_default();
         for (record, lower) in lowers {
-            let mut lower_parents = parents.clone();
-            lower_parents.push(RowDerivationParent::Bound(record));
+            let lower_parents = [
+                RowDerivationParent::LowerFilter(filter_record),
+                RowDerivationParent::Bound(record),
+            ];
             self.constrain_weighted_pos_lower_by_filter(
                 lower.pos,
                 &lower.weights,
@@ -631,6 +700,34 @@ impl ConstraintMachine {
                 &lower_parents,
             );
         }
+    }
+
+    fn record_lower_filter_provenance(
+        &mut self,
+        var: TypeVar,
+        filter: &Subtractability,
+        parents: Vec<RowDerivationParent>,
+    ) -> LowerFilterRecordId {
+        let key = (var, filter.clone());
+        let id = if let Some(id) = self.lower_filter_record_ids.get(&key).copied() {
+            id
+        } else {
+            let id = LowerFilterRecordId(self.lower_filter_records.len() as u32);
+            self.lower_filter_record_ids.insert(key, id);
+            self.lower_filter_records.push(LowerFilterRecord {
+                var,
+                filter: filter.clone(),
+                derivations: Vec::new(),
+            });
+            id
+        };
+        let derivations = &mut self.lower_filter_records[id.0 as usize].derivations;
+        let derivation = LowerFilterDerivation { parents };
+        if !derivations.contains(&derivation) {
+            derivations.push(derivation);
+            self.bump_provenance_epoch();
+        }
+        id
     }
 
     fn constrain_lower_bound_by_registered_filters(
@@ -642,15 +739,12 @@ impl ConstraintMachine {
     ) {
         let filters = self.lower_filters.get(&target).cloned().unwrap_or_default();
         for filter in filters {
-            let provenance = self
-                .lower_filter_provenance
-                .get(&(target, filter.clone()))
-                .cloned()
-                .unwrap_or_default();
-            for mut parents in provenance {
-                parents.push(RowDerivationParent::Bound(record));
-                self.constrain_weighted_pos_lower_by_filter(pos, weights, &filter, &parents);
-            }
+            let filter_record = self.lower_filter_record_ids[&(target, filter.clone())];
+            let parents = [
+                RowDerivationParent::LowerFilter(filter_record),
+                RowDerivationParent::Bound(record),
+            ];
+            self.constrain_weighted_pos_lower_by_filter(pos, weights, &filter, &parents);
         }
     }
 

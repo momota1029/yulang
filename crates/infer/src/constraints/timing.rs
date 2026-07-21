@@ -350,10 +350,6 @@ impl ConstraintTiming {
         }
     }
 
-    pub(super) fn record_unexplained_row_path(&mut self) {
-        self.row_derivations.unexplained_propagation_paths += 1;
-    }
-
     pub(super) fn record_bound_disposition(
         &mut self,
         disposition: super::BoundDisposition,

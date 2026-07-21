@@ -300,17 +300,6 @@ impl ConstraintMachine {
         target
     }
 
-    pub(in crate::constraints) fn enqueue_invariant_neu_args(
-        &mut self,
-        lower_args: Vec<NeuId>,
-        upper_args: Vec<NeuId>,
-        weights: ConstraintWeights,
-    ) {
-        for (lower, upper) in lower_args.into_iter().zip(upper_args) {
-            self.enqueue_invariant_neu(lower, upper, weights.clone());
-        }
-    }
-
     fn enqueue_derived_invariant_neu_args(
         &mut self,
         lower_args: Vec<NeuId>,
@@ -343,18 +332,6 @@ impl ConstraintMachine {
                 },
             );
         }
-    }
-
-    pub(in crate::constraints) fn enqueue_invariant_neu(
-        &mut self,
-        lower: NeuId,
-        upper: NeuId,
-        weights: ConstraintWeights,
-    ) {
-        let (lower_pos, lower_neg) = self.neu_bounds(lower);
-        let (upper_pos, upper_neg) = self.neu_bounds(upper);
-        self.enqueue_subtype(lower_pos, weights.clone(), upper_neg);
-        self.enqueue_subtype(upper_pos, weights.swapped(), lower_neg);
     }
 
     pub(in crate::constraints) fn neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {

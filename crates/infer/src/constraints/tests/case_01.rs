@@ -462,6 +462,52 @@ fn machine_records_subtract_facts_outside_subtype_bounds() {
 }
 
 #[test]
+fn repeated_filter_origins_share_one_canonical_filter_parent() {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    let child = TypeVar(1);
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+
+    machine.constrain_type_var_lowers_by_filter(
+        root,
+        filter.clone(),
+        vec![RowDerivationParent::Origin(OriginId::internal())],
+    );
+    machine.constrain_type_var_lowers_by_filter(
+        root,
+        filter.clone(),
+        vec![RowDerivationParent::Origin(OriginId::unknown_internal())],
+    );
+
+    let child_pos = machine.alloc_pos(Pos::Var(child));
+    let root_neg = machine.alloc_neg(Neg::Var(root));
+    machine.subtype(child_pos, root_neg, OriginId::unknown_internal());
+
+    let root_record = machine.lower_filter_record_ids[&(root, filter.clone())];
+    let child_record = machine.lower_filter_record_ids[&(child, filter)];
+    assert_eq!(
+        machine.lower_filter_records[root_record.0 as usize]
+            .derivations
+            .len(),
+        2
+    );
+    assert_eq!(
+        machine.lower_filter_records[child_record.0 as usize]
+            .derivations
+            .len(),
+        1,
+        "downstream filters reference the canonical upstream fact, not each proof path"
+    );
+    assert!(matches!(
+        machine.lower_filter_records[child_record.0 as usize].derivations[0]
+            .parents
+            .as_slice(),
+        [RowDerivationParent::LowerFilter(found), RowDerivationParent::Bound(_)]
+            if *found == root_record
+    ));
+}
+
+#[test]
 fn lower_bound_extrudes_deeper_positive_variables_to_target_level() {
     let mut machine = ConstraintMachine::new();
     let target = TypeVar(0);

@@ -68,7 +68,8 @@ pub struct ConstraintMachine {
     row_tail_vars: FxHashSet<TypeVar>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
-    lower_filter_provenance: FxHashMap<(TypeVar, Subtractability), Vec<Vec<RowDerivationParent>>>,
+    lower_filter_record_ids: FxHashMap<(TypeVar, Subtractability), LowerFilterRecordId>,
+    lower_filter_records: Vec<LowerFilterRecord>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     canonical_constraints: FxHashMap<SubtypeConstraintKey, ConstraintRecordId>,
     constraint_records: Vec<ConstraintRecord>,
@@ -1135,11 +1136,15 @@ pub struct RowDerivationId(u32);
 pub struct RowResidualRecordId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LowerFilterRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RowDerivationParent {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
     SubtractFact(SubtractFactRecordId),
     RowDerivation(RowDerivationId),
+    LowerFilter(LowerFilterRecordId),
     Origin(OriginId),
 }
 
@@ -1166,6 +1171,18 @@ struct RowResidualRecord {
     key: RowResidualKey,
     gamma: TypeVar,
     derivations: Vec<RowDerivationId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LowerFilterRecord {
+    var: TypeVar,
+    filter: Subtractability,
+    derivations: Vec<LowerFilterDerivation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct LowerFilterDerivation {
+    parents: Vec<RowDerivationParent>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
