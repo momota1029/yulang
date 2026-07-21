@@ -351,15 +351,22 @@ mod tests {
         assert_eq!(program.instances[0].body.kind, ExprKind::Lit(Lit::Int(1)));
     }
 
-    /// Stage 0 characterization for generic role-impl conformance.
+    /// Stage 0 characterization updated for Stage 5 role-impl conformance.
     ///
     /// Infer owns the symbolic scheme/candidate snapshots. This downstream
-    /// witness records the current check/specialize boundary: none of these
-    /// undemanded impl methods is inspected by role-method checking or
-    /// specialization, including the deliberately malformed assignments.
+    /// witness records the current check/specialize boundary: valid undemanded
+    /// impl methods remain invisible to role-method checking and specialization,
+    /// while deliberately malformed assignments stop at lowering.
     #[test]
     fn generic_role_impl_conformance_stage0_specialize_oracle() {
-        for (name, source, expected_roots) in conformance_stage0_sources() {
+        for (name, source, expected_roots, expects_associated_mismatch) in
+            conformance_stage0_sources()
+        {
+            if expects_associated_mismatch {
+                lower_source_with_expected_associated_mismatch(source);
+                continue;
+            }
+
             let lowering = lower_source(source);
             assert!(
                 role_method_check(&lowering.session.poly).is_empty(),
@@ -1081,20 +1088,40 @@ mod tests {
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {
+        let lowering = lower_source_without_error_assertion(source);
+        assert!(
+            lowering.errors.is_empty(),
+            "body lowering errors: {:?}",
+            lowering.errors
+        );
+        lowering
+    }
+
+    fn lower_source_with_expected_associated_mismatch(
+        source: &str,
+    ) -> infer::lowering::BodyLowering {
+        let lowering = lower_source_without_error_assertion(source);
+        assert!(
+            matches!(
+                lowering.errors.as_slice(),
+                [infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. }]
+            ),
+            "fixture should produce exactly one explicit-associated mismatch: {:?}",
+            lowering.errors,
+        );
+        lowering
+    }
+
+    fn lower_source_without_error_assertion(source: &str) -> infer::lowering::BodyLowering {
         let files = sources::load(vec![sources::SourceFile {
             module_path: sources::Path::default(),
             source: source.to_string(),
         }]);
         let output = infer::dump::dump_loaded_files(&files).expect("source should lower");
-        assert!(
-            output.lowering.errors.is_empty(),
-            "body lowering errors: {:?}",
-            output.lowering.errors
-        );
         output.lowering
     }
 
-    fn conformance_stage0_sources() -> Vec<(&'static str, &'static str, usize)> {
+    fn conformance_stage0_sources() -> Vec<(&'static str, &'static str, usize, bool)> {
         let explicit_bool_int = concat!(
             "type box 'a with:\n",
             "  struct self:\n",
@@ -1224,18 +1251,28 @@ mod tests {
             "my unrelated = 1\n",
         );
         vec![
-            ("explicit-bool-concrete-int", explicit_bool_int, 0),
-            ("explicit-bool-universal-a", explicit_bool_a, 0),
-            ("explicit-a-same-a", explicit_a, 0),
-            ("explicit-list-a-nested-binder", explicit_list_a, 0),
-            ("omitted-associated-one-method", omitted_one, 0),
-            ("omitted-associated-shared-two-methods", omitted_two, 0),
-            ("partial-explicit-multiple-associated", partial_explicit, 0),
-            ("residual-prerequisite-absent-present", residual, 0),
-            ("effectful-shared-row-binder", effectful, 0),
-            ("alpha-renamed-a", explicit_a, 0),
-            ("alpha-renamed-b", alpha_b, 0),
-            ("malformed-unused-impl", malformed_unused, 0),
+            ("explicit-bool-concrete-int", explicit_bool_int, 0, true),
+            ("explicit-bool-universal-a", explicit_bool_a, 0, true),
+            ("explicit-a-same-a", explicit_a, 0, false),
+            ("explicit-list-a-nested-binder", explicit_list_a, 0, false),
+            ("omitted-associated-one-method", omitted_one, 0, false),
+            (
+                "omitted-associated-shared-two-methods",
+                omitted_two,
+                0,
+                false,
+            ),
+            (
+                "partial-explicit-multiple-associated",
+                partial_explicit,
+                0,
+                false,
+            ),
+            ("residual-prerequisite-absent-present", residual, 0, false),
+            ("effectful-shared-row-binder", effectful, 0, false),
+            ("alpha-renamed-a", explicit_a, 0, false),
+            ("alpha-renamed-b", alpha_b, 0, false),
+            ("malformed-unused-impl", malformed_unused, 0, true),
         ]
     }
 
