@@ -29,6 +29,16 @@ impl Default for ExplanationBudget {
     }
 }
 
+impl ExplanationBudget {
+    pub(crate) fn ocast_classifier() -> Self {
+        Self {
+            max_nodes: 4_096,
+            max_edges: 8_192,
+            max_depth: 128,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ExplanationNodeId {
     Constraint(ConstraintRecordId),

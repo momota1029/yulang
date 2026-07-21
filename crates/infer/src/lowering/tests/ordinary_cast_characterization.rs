@@ -3,8 +3,41 @@ use crate::casts::{
     OrdinaryCastShadowOutcome, OrdinaryCastShadowSeam, begin_ordinary_cast_shadow_capture,
     finish_ordinary_cast_shadow_capture,
 };
+use crate::constraints::ocast_eligibility::{OcastEligibilityOutcome, OcastIncompleteReason};
 use poly::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candidates};
 use poly::expr::CastRuleKind;
+
+#[test]
+fn cprov_i_uncharacterized_source_paths_fail_closed_as_incomplete() {
+    let cases = [
+        ("annotation", "my x: bool = 42\nx\n"),
+        ("return", "my f(): bool = 42\nf()\n"),
+        ("application", "my f(x: bool): bool = x\nf(42)\n"),
+        ("field", "struct S { x: bool }\nS { x: 42 }\n"),
+    ];
+
+    for (name, source) in cases {
+        let output = lower_source(source);
+        let shadow = output.session.ocast_eligibility_shadow();
+        if name == "annotation" {
+            assert!(
+                shadow.is_empty(),
+                "annotation fixture emits no nominal event"
+            );
+            continue;
+        }
+        assert_eq!(shadow.len(), 1, "{name}: one nominal mismatch");
+        assert!(
+            matches!(
+                shadow[0].outcome,
+                OcastEligibilityOutcome::Incomplete {
+                    reason: OcastIncompleteReason::UnknownOrigin(_)
+                }
+            ),
+            "{name}: unknown alternate ancestry must not become eligible or internal: {shadow:?}"
+        );
+    }
+}
 
 #[test]
 fn missing_ordinary_cast_boundaries_currently_pass_lowering_and_check() {

@@ -11,6 +11,7 @@ mod directed_weight;
 pub(crate) mod explain;
 mod machine;
 pub(crate) mod mutation;
+pub(crate) mod ocast_eligibility;
 mod row_effect;
 #[cfg(test)]
 mod tests;

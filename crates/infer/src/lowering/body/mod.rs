@@ -22,6 +22,7 @@ mod yumark_tests;
 use super::*;
 use crate::analysis::AnalysisTiming;
 use crate::constraints::ConstraintTiming;
+use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::source_range_for_name;
 use register::*;
 use signature_helpers::*;
@@ -595,6 +596,7 @@ pub struct BodyLoweringTiming {
     pub total: Duration,
     pub analysis: AnalysisTiming,
     pub constraint: ConstraintTiming,
+    pub ocast_eligibility: OcastEligibilityMetrics,
 }
 
 /// pass1 の結果へ binding body を書き戻す。
@@ -1442,9 +1444,11 @@ impl BodyLowerer {
             .collect::<Vec<_>>();
         let mut session = self.session;
         session.settle_source_role_impl_candidates(source_impl_defs);
+        session.classify_pending_ocast_eligibility_at_quiescence();
         session.finalize_poly_role_impls();
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();
+        let ocast_eligibility_timing = session.ocast_eligibility_metrics();
         let application_provenance = std::mem::take(&mut session.application_provenance);
         let mut errors = self.errors;
         errors.extend(deferred_result_annotation_errors(
@@ -1467,6 +1471,7 @@ impl BodyLowerer {
             timing: BodyLoweringTiming {
                 analysis: analysis_timing,
                 constraint: constraint_timing,
+                ocast_eligibility: ocast_eligibility_timing,
                 ..BodyLoweringTiming::default()
             },
             application_provenance,

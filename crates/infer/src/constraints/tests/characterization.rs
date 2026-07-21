@@ -7,6 +7,7 @@ use std::path::{Path as FsPath, PathBuf};
 use crate::constraints::explain::{
     ExplanationBudget, ExplanationCompleteness, ExplanationTruncationReason,
 };
+use crate::constraints::ocast_eligibility::{OcastEligibilityOutcome, OcastIncompleteReason};
 use crate::constraints::timing::{
     begin_nominal_cast_pair_capture, finish_nominal_cast_pair_capture,
 };
@@ -45,6 +46,35 @@ fn cprov_a_characterizes_constraints_replay_std_and_regressions() {
             case.name,
             output.errors
         );
+        let nominal_events = output.session.infer.constraint_timing().nominal_cast_events;
+        let ocast = output.session.ocast_eligibility_metrics();
+        assert_eq!(
+            ocast.classified, nominal_events,
+            "{}: every routed nominal event remains visible at quiescence",
+            case.name,
+        );
+        assert_eq!(
+            ocast.classified,
+            ocast.eligible_source_boundary + ocast.internal_only + ocast.incomplete,
+            "{}: shadow classifications partition the pending producers",
+            case.name,
+        );
+        if matches!(
+            case.name,
+            "config-read-false-positive-repro" | "file-rollback-false-positive-repro"
+        ) {
+            assert_eq!(ocast.incomplete, nominal_events);
+            assert_eq!(ocast.eligible_source_boundary, 0);
+            assert_eq!(ocast.internal_only, 0);
+            assert!(output.session.ocast_eligibility_shadow().iter().all(
+                |classification| matches!(
+                    classification.outcome,
+                    OcastEligibilityOutcome::Incomplete {
+                        reason: OcastIncompleteReason::UnknownOrigin(_)
+                    }
+                )
+            ));
+        }
         actual.push(ConstraintCharacterization::capture(
             case.name,
             &output,

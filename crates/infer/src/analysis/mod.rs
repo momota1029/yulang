@@ -56,7 +56,12 @@ pub(crate) use crate::constraints::mutation::{DependencyKey, MethodRoleMutation}
 use crate::constraints::mutation::{
     InvalidateAllReason, MethodRoleMutationActivation, MethodRoleMutationOutbox, MutationGeneration,
 };
-use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
+use crate::constraints::ocast_eligibility::{
+    OcastEligibilityClassification, OcastEligibilityMetrics,
+};
+use crate::constraints::{
+    ConstraintEpoch, ConstraintEvent, ConstraintRecordId, ConstraintWeights, TypeLevel,
+};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     clone_role_impl_candidate_between_arenas, compact_boundary_bound_vars,
@@ -204,6 +209,10 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
+    pending_ocast_producers: Vec<ConstraintRecordId>,
+    pending_ocast_producer_set: FxHashSet<ConstraintRecordId>,
+    ocast_eligibility_shadow: Vec<OcastEligibilityClassification>,
+    ocast_eligibility_metrics: OcastEligibilityMetrics,
     generalize_compact_shadow: Option<GeneralizeCompactShadow>,
     generalize_compact_cache: Option<GeneralizeCompactCache>,
     generalize_role_view_shadow: Option<GeneralizeRoleViewShadow>,

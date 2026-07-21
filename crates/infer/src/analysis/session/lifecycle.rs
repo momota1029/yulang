@@ -68,6 +68,10 @@ impl AnalysisSession {
             diagnostics: Vec::new(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
+            pending_ocast_producers: Vec::new(),
+            pending_ocast_producer_set: FxHashSet::default(),
+            ocast_eligibility_shadow: Vec::new(),
+            ocast_eligibility_metrics: OcastEligibilityMetrics::default(),
             generalize_compact_shadow: GeneralizeCompactShadow::from_env(),
             generalize_compact_cache: GeneralizeCompactCache::from_env(),
             generalize_role_view_shadow: GeneralizeRoleViewShadow::from_env(),
@@ -406,8 +410,11 @@ impl AnalysisSession {
                     source,
                     target,
                     weights,
-                    ..
+                    producer,
                 } => {
+                    if self.pending_ocast_producer_set.insert(producer) {
+                        self.pending_ocast_producers.push(producer);
+                    }
                     self.constrain_nominal_cast(lower, upper, &source, &target, weights);
                 }
                 ConstraintEvent::SubtractFactAdded { effect, .. } => {
@@ -424,6 +431,33 @@ impl AnalysisSession {
         let elapsed = start.elapsed();
         self.timing.record_route_constraints(elapsed, event_count);
         elapsed
+    }
+
+    pub(crate) fn classify_pending_ocast_eligibility_at_quiescence(&mut self) {
+        debug_assert!(
+            !self.has_pending_work(),
+            "OCAST eligibility classification requires constraint quiescence"
+        );
+        let start = Instant::now();
+        for producer in self.pending_ocast_producers.drain(..) {
+            let classification = self.infer.constraints().classify_ocast_eligibility(
+                producer,
+                crate::constraints::explain::ExplanationBudget::ocast_classifier(),
+            );
+            self.ocast_eligibility_metrics.record(&classification);
+            self.ocast_eligibility_shadow.push(classification);
+        }
+        self.pending_ocast_producer_set.clear();
+        self.ocast_eligibility_metrics.elapsed += start.elapsed();
+    }
+
+    #[allow(dead_code, reason = "debug-only CPROV-I shadow query")]
+    pub(crate) fn ocast_eligibility_shadow(&self) -> &[OcastEligibilityClassification] {
+        &self.ocast_eligibility_shadow
+    }
+
+    pub fn ocast_eligibility_metrics(&self) -> OcastEligibilityMetrics {
+        self.ocast_eligibility_metrics
     }
 
     pub(super) fn activate_method_role_mutation_journal(
