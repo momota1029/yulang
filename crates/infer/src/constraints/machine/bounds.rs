@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
 /// the same bounds table, so replay construction must not keep borrowed bound
 /// rows. Existing duplicate/trivial constraints are filtered before this
-/// snapshot to avoid materializing replay actions that `seen` would drop.
-type BoundReplayActions = SmallVec<[SubtypeConstraint; 4]>;
+/// snapshot to avoid materializing replay actions that canonical dedup would drop.
+type BoundReplayActions = SmallVec<[SubtypeConstraintKey; 4]>;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct BoundReplayPlan {
@@ -326,7 +326,7 @@ impl ConstraintMachine {
             replay.stats.trivial += 1;
             return;
         };
-        let seen_before = self.seen.contains(&constraint);
+        let seen_before = self.has_canonical_constraint(&constraint);
         self.observe_weighted_routing_consequence_shadow(&constraint, seen_before);
         if seen_before {
             replay.prefiltered += 1;
@@ -424,7 +424,7 @@ impl ConstraintMachine {
 
     fn observe_weighted_routing_consequence_shadow(
         &self,
-        constraint: &SubtypeConstraint,
+        constraint: &SubtypeConstraintKey,
         seen_before: bool,
     ) {
         let Some(shadow) = &self.replay_routing_shadow else {
@@ -444,7 +444,7 @@ impl ConstraintMachine {
         );
     }
 
-    fn should_store_replay_as_evidence_only(&self, constraint: &SubtypeConstraint) -> bool {
+    fn should_store_replay_as_evidence_only(&self, constraint: &SubtypeConstraintKey) -> bool {
         if !evidence_only_replay_skip_enabled() {
             return false;
         }
@@ -988,7 +988,7 @@ mod mutation_tests {
         let lower = machine.alloc_pos(Pos::Var(source));
         let upper = machine.alloc_neg(Neg::Var(target));
         let mut actions = BoundReplayActions::new();
-        actions.push(SubtypeConstraint {
+        actions.push(SubtypeConstraintKey {
             lower,
             upper,
             weights: ConstraintWeights::empty(),

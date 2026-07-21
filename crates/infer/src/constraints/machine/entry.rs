@@ -19,7 +19,8 @@ impl ConstraintMachine {
             pre_pop_effect_families: FxHashMap::default(),
             lower_filters: FxHashMap::default(),
             effect_filter_violations: FxHashSet::default(),
-            seen: FxHashSet::default(),
+            canonical_constraints: FxHashMap::default(),
+            constraint_records: Vec::new(),
             events: Vec::new(),
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
@@ -102,7 +103,7 @@ impl ConstraintMachine {
     pub fn timing(&self) -> ConstraintTiming {
         let mut timing = self.timing;
         timing.epoch = self.epoch.as_u64();
-        timing.canonical_subtype_constraints = self.seen.len();
+        timing.canonical_subtype_constraints = self.canonical_constraint_count();
         timing.type_var_count = self.next_internal_type_var as usize;
         timing.row_tail_var_count = self.row_tail_vars.len();
         timing.pos_node_count = self.types.pos_len();
@@ -223,12 +224,12 @@ impl ConstraintMachine {
 
     pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {
         self.timing.record_constrain_subtype_call();
-        let seen_len = self.seen.len();
+        let constraint_count = self.canonical_constraint_count();
         if self.enqueue_subtype(lower, ConstraintWeights::empty(), upper) || !self.queue.is_empty()
         {
             self.drain();
         }
-        self.seen.len() != seen_len
+        self.canonical_constraint_count() != constraint_count
     }
 
     pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
@@ -239,7 +240,7 @@ impl ConstraintMachine {
         &mut self,
         pairs: impl IntoIterator<Item = (NeuId, NeuId)>,
     ) -> bool {
-        let seen_len = self.seen.len();
+        let constraint_count = self.canonical_constraint_count();
         for (lower, upper) in pairs {
             self.timing.record_constrain_invariant_neu_call();
             self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
@@ -247,7 +248,7 @@ impl ConstraintMachine {
         if !self.queue.is_empty() {
             self.drain();
         }
-        self.seen.len() != seen_len
+        self.canonical_constraint_count() != constraint_count
     }
 
     pub(crate) fn constrain_var_var_pairs_direct(
@@ -255,7 +256,7 @@ impl ConstraintMachine {
         pairs: impl IntoIterator<Item = (TypeVar, TypeVar)>,
     ) -> bool {
         let mut pair_count = 0usize;
-        let seen_len = self.seen.len();
+        let constraint_count = self.canonical_constraint_count();
         let mut queued = false;
         for (lower, upper) in pairs {
             pair_count += 1;
@@ -270,7 +271,7 @@ impl ConstraintMachine {
         if queued || !self.queue.is_empty() {
             self.drain();
         }
-        self.seen.len() != seen_len
+        self.canonical_constraint_count() != constraint_count
     }
 
     pub(crate) fn constrain_pos_to_var_direct_many(
@@ -397,7 +398,7 @@ impl ConstraintMachine {
         lower: PosId,
         weights: ConstraintWeights,
         upper: NegId,
-    ) -> Option<SubtypeConstraint> {
+    ) -> Option<SubtypeConstraintKey> {
         if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
             return None;
         }
@@ -413,28 +414,48 @@ impl ConstraintMachine {
         } else {
             weights
         };
-        Some(SubtypeConstraint {
+        Some(SubtypeConstraintKey {
             lower,
             upper,
             weights,
         })
     }
 
-    pub(in crate::constraints) fn enqueue_canonical_subtype(
-        &mut self,
-        constraint: SubtypeConstraint,
-    ) -> bool {
-        if self.seen.insert(constraint.clone()) {
-            self.observe_routing_shadow(&constraint);
-            self.queue.push_back(ConstraintWork::Subtype(constraint));
-            true
-        } else {
-            self.timing.record_subtype_duplicate_admission();
-            false
-        }
+    pub(in crate::constraints) fn canonical_constraint_count(&self) -> usize {
+        self.canonical_constraints.len()
     }
 
-    fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraint) {
+    pub(in crate::constraints) fn has_canonical_constraint(
+        &self,
+        constraint: &SubtypeConstraintKey,
+    ) -> bool {
+        self.canonical_constraints.contains_key(constraint)
+    }
+
+    pub(in crate::constraints) fn enqueue_canonical_subtype(
+        &mut self,
+        constraint: SubtypeConstraintKey,
+    ) -> bool {
+        let record_id = match self.canonical_constraints.entry(constraint.clone()) {
+            Entry::Occupied(entry) => {
+                let _existing_record_id = *entry.get();
+                self.timing.record_subtype_duplicate_admission();
+                return false;
+            }
+            Entry::Vacant(entry) => {
+                let record_id = ConstraintRecordId(self.constraint_records.len() as u32);
+                entry.insert(record_id);
+                record_id
+            }
+        };
+        self.observe_routing_shadow(&constraint);
+        self.constraint_records
+            .push(ConstraintRecord { key: constraint });
+        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        true
+    }
+
+    fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraintKey) {
         let Some(shadow) = &self.replay_routing_shadow else {
             return;
         };
@@ -456,7 +477,7 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
     ) -> ConstraintWeights {
         // Terminal subtype checks do not forward weights into child constraints.
-        // Canonicalizing them here keeps the queue/seen set finite without
+        // Canonicalizing them here keeps the queue/semantic index finite without
         // changing bounds or row-subtraction state.
         if self.has_terminal_subtype_endpoint(lower, upper) {
             ConstraintWeights::empty()
@@ -488,7 +509,10 @@ impl ConstraintMachine {
 
     pub(in crate::constraints) fn step(&mut self, work: ConstraintWork) {
         match work {
-            ConstraintWork::Subtype(constraint) => self.step_subtype(constraint),
+            ConstraintWork::Subtype(record_id) => {
+                let constraint = self.constraint_records[record_id.0 as usize].key.clone();
+                self.step_subtype(constraint);
+            }
             ConstraintWork::SubtractFact(fact) => {
                 self.record_subtract_fact(fact.effect, fact.fact);
             }

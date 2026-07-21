@@ -1,7 +1,7 @@
 use super::*;
 
 impl ConstraintMachine {
-    pub(in crate::constraints) fn step_subtype(&mut self, constraint: SubtypeConstraint) {
+    pub(in crate::constraints) fn step_subtype(&mut self, constraint: SubtypeConstraintKey) {
         if matches!(self.types.pos(constraint.lower), Pos::Bot)
             || matches!(self.types.neg(constraint.upper), Neg::Top)
         {

@@ -36,7 +36,7 @@ impl ConstraintDrainTrace {
             subtype_steps: 0,
             subtract_steps: 0,
             initial_queue: machine.queue.len(),
-            initial_seen: machine.seen.len(),
+            initial_seen: machine.canonical_constraint_count(),
             initial_events: machine.events.len(),
             next_report: 10_000,
         }
@@ -58,7 +58,7 @@ impl ConstraintDrainTrace {
                 constraint_work_kind(work),
                 work,
                 machine.queue.len(),
-                machine.seen.len(),
+                machine.canonical_constraint_count(),
                 machine.events.len().saturating_sub(self.initial_events),
                 format_constraint_duration(self.start.elapsed())
             );
@@ -89,7 +89,9 @@ impl ConstraintDrainTrace {
             self.subtract_steps,
             machine.queue.len(),
             self.initial_queue,
-            machine.seen.len().saturating_sub(self.initial_seen),
+            machine
+                .canonical_constraint_count()
+                .saturating_sub(self.initial_seen),
             machine.events.len().saturating_sub(self.initial_events),
             machine.bounds.vars.len(),
             format_constraint_duration(self.start.elapsed())

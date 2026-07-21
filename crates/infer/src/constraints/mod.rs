@@ -16,7 +16,7 @@ mod timing;
 mod trace;
 
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, hash_map::Entry};
 
 use directed_weight::{
     DirectedWeights, LeftConstraintWeight as DirectedLeftConstraintWeight, RightStackWeight,
@@ -62,7 +62,8 @@ pub struct ConstraintMachine {
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
-    seen: FxHashSet<SubtypeConstraint>,
+    canonical_constraints: FxHashMap<SubtypeConstraintKey, ConstraintRecordId>,
+    constraint_records: Vec<ConstraintRecord>,
     events: Vec<ConstraintEvent>,
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
@@ -243,7 +244,7 @@ pub enum ConstraintEvent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ConstraintWork {
-    Subtype(SubtypeConstraint),
+    Subtype(ConstraintRecordId),
     SubtractFact(QueuedSubtractFact),
 }
 
@@ -551,13 +552,22 @@ impl ConstraintWeights {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-/// 1本の weighted subtype constraint。
+/// 1本の canonical weighted subtype constraint の semantic key。
 ///
 /// `lower <: upper` という直接の要求と、その要求が通ってきた subtract weight を一体で持つ。
-pub struct SubtypeConstraint {
+pub struct SubtypeConstraintKey {
     pub lower: PosId,
     pub upper: NegId,
     pub weights: ConstraintWeights,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 1 inference session 内の canonical subtype constraint record ID。
+pub struct ConstraintRecordId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConstraintRecord {
+    key: SubtypeConstraintKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

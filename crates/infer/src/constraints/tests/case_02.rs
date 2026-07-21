@@ -868,12 +868,12 @@ fn effect_row_filter_constrains_matching_payloads() {
 
     machine.weighted_subtype(lower, weights, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_payload_lower,
         upper: upper_payload_upper,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: upper_payload_lower,
         upper: lower_payload_upper,
         weights: ConstraintWeights::empty(),
@@ -915,12 +915,12 @@ fn neg_stack_common_stack_constrains_matching_payloads_across_active_ids() {
 
     machine.weighted_subtype(lower, ConstraintWeights::empty(), upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: first_payload_lower,
         upper: second_payload_upper,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: second_payload_lower,
         upper: first_payload_upper,
         weights: ConstraintWeights::empty(),
@@ -992,12 +992,12 @@ fn neg_stack_filter_is_checked_but_not_stored_as_right_weight() {
     });
     machine.subtype(source_pos, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: source_pos,
         upper: target_neg,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.iter().all(|constraint| {
+    assert!(machine.canonical_constraints.keys().all(|constraint| {
         constraint.upper != target_neg || constraint.weights.right.is_empty()
     }));
 }
@@ -1151,7 +1151,7 @@ fn pure_function_argument_effect_passes_to_return_effect() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights: ConstraintWeights::empty(),
@@ -1197,22 +1197,22 @@ fn pure_function_argument_effect_passes_through_with_right_side_weights() {
 
     machine.weighted_subtype(lower, weights.clone(), upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights: expected_passthrough_weights,
     }));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights: unnormalized_passthrough_weights,
     }));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights,
@@ -1251,12 +1251,12 @@ fn pure_function_argument_effect_passes_outside_return_stack_marker() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff_inner,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.iter().all(|constraint| {
+    assert!(machine.canonical_constraints.keys().all(|constraint| {
         constraint.upper != rhs_ret_eff_inner || constraint.weights.right.is_empty()
     }));
 }

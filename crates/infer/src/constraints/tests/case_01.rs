@@ -605,7 +605,7 @@ fn var_bound_addition_replays_against_opposite_bounds_with_union_weights() {
     };
     machine.weighted_subtype(var_pos, upper_weight.clone(), upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower,
         upper,
         weights: lower_weight.compose_for_replay(&upper_weight),
@@ -691,12 +691,12 @@ fn var_var_replay_keeps_balanced_alias_cycle_finite() {
     let a_neg = machine.alloc_neg(Neg::Var(a));
     machine.subtype(c_pos, a_neg);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: a_pos,
         upper: c_neg,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: c_pos,
         upper: a_neg,
         weights: ConstraintWeights::empty(),
@@ -826,12 +826,19 @@ fn zero_arg_nominal_subtype_deduplicates_weight_insensitive_edges() {
     machine.weighted_subtype(lower, weighted, upper);
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    let expected = SubtypeConstraintKey {
         lower,
         upper,
         weights: ConstraintWeights::empty(),
-    }));
-    assert_eq!(machine.seen.len(), 1);
+    };
+    assert!(machine.has_canonical_constraint(&expected));
+    assert_eq!(machine.canonical_constraint_count(), 1);
+    assert_eq!(machine.constraint_records.len(), 1);
+    let record_id = machine.canonical_constraints[&expected];
+    assert_eq!(
+        machine.constraint_records[record_id.0 as usize].key,
+        expected
+    );
 }
 
 #[test]
@@ -911,12 +918,12 @@ fn function_arguments_propagate_with_swapped_weights() {
 
     machine.weighted_subtype(lower, weights.clone(), upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: rhs_arg,
         upper: lhs_arg,
         weights: weights.swapped(),
     }));
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lhs_ret,
         upper: rhs_ret,
         weights,
@@ -941,13 +948,13 @@ fn constructor_args_propagate_invariant_neutral_bounds() {
 
     machine.weighted_subtype(lower, weights.clone(), upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_arg_lower,
         upper: upper_arg_upper,
         weights: weights.clone(),
     }));
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: upper_arg_lower,
         upper: lower_arg_upper,
         weights: weights.swapped(),
@@ -990,13 +997,13 @@ fn neutral_structures_build_regular_upper_and_lower_bounds() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_item_lower,
         upper: upper_item_upper,
         weights: ConstraintWeights::empty(),
     }));
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: upper_item_lower,
         upper: lower_item_upper,
         weights: ConstraintWeights::empty(),
@@ -1021,7 +1028,7 @@ fn record_fields_propagate_matching_field_constraints() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_x,
         upper: upper_x,
         weights: ConstraintWeights::empty(),
@@ -1050,7 +1057,7 @@ fn record_tail_spread_sends_missing_fields_to_tail() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: tail,
         upper: expected_tail_upper,
         weights: ConstraintWeights::empty(),
@@ -1067,7 +1074,7 @@ fn variant_payloads_propagate_matching_tag_constraints() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_payload,
         upper: upper_payload,
         weights: ConstraintWeights::empty(),
@@ -1100,18 +1107,18 @@ fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms
         }),
         "unmatched concrete row item should flow into the tail as a row: {tail_bounds:?}"
     );
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: row_var,
         upper: upper_tail,
         weights: ConstraintWeights::empty(),
     }));
     let old_row_var_upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: row_var,
         upper: old_row_var_upper,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: io_pos,
         upper: upper_tail,
         weights: ConstraintWeights::empty(),
@@ -1207,17 +1214,17 @@ fn pos_row_concrete_effect_items_compare_matching_payloads() {
 
     machine.subtype(lower, upper);
 
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_payload_lower,
         upper: upper_payload_upper,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(machine.seen.contains(&SubtypeConstraint {
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: upper_payload_lower,
         upper: lower_payload_upper,
         weights: ConstraintWeights::empty(),
     }));
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_item,
         upper: upper_tail,
         weights: ConstraintWeights::empty(),
@@ -1238,7 +1245,7 @@ fn pos_row_concrete_effect_items_match_by_path() {
 
     machine.subtype(lower, upper);
 
-    assert!(!machine.seen.contains(&SubtypeConstraint {
+    assert!(!machine.has_canonical_constraint(&SubtypeConstraintKey {
         lower: lower_item,
         upper: upper_tail,
         weights: ConstraintWeights::empty(),
