@@ -56,7 +56,12 @@ fn evidence_promotion_preserves_bound_record_identity() {
         target,
         lower,
         weights.clone(),
-        BoundDerivation::ReplayEvidence,
+        BoundDerivation::ReplayEvidence(BinaryReplayDerivation {
+            pivot: target,
+            lower: BoundRecordId(0),
+            upper: BoundRecordId(1),
+            rule: ReplayRule::LowerBoundAdded,
+        }),
     );
     machine.record_bound_provenance(evidence, BoundDirection::Lower, true);
     machine.record_effective_bounds_mutation(target);
@@ -86,6 +91,37 @@ fn evidence_promotion_preserves_bound_record_identity() {
             .promotions_identity_preserved,
         1
     );
+}
+
+#[test]
+fn genuine_replay_chain_keeps_both_exact_bound_parents() {
+    let mut machine = ConstraintMachine::new();
+    let origin = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["genuine-lower".into()], vec![]));
+    let upper = machine.alloc_neg(Neg::Con(vec!["genuine-upper".into()], vec![]));
+
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], origin);
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, origin);
+
+    let witnesses = machine
+        .debug_nominal_replay_witnesses(&["genuine-lower".into()], &["genuine-upper".into()]);
+    assert_eq!(witnesses.len(), 1);
+    let witness = &witnesses[0];
+    assert_eq!(witness.edge.derivation.pivot, pivot);
+    assert_eq!(witness.lower.owner, pivot);
+    assert_eq!(witness.upper.owner, pivot);
+    assert!(witness.lower.origins.contains(&origin));
+    assert!(witness.upper.origins.contains(&origin));
+    assert!(witness.lower.source_origins.contains(&origin));
+    assert!(witness.upper.source_origins.contains(&origin));
+
+    let provenance_epoch = machine.provenance_epoch();
+    assert!(!machine.merge_replay_derivation(witness.edge.result, witness.edge.derivation,));
+    assert_eq!(machine.provenance_epoch(), provenance_epoch);
 }
 
 #[test]

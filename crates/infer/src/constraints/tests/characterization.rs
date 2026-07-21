@@ -93,6 +93,7 @@ struct ConstraintCharacterization {
     origin_coverage: ConstraintOriginCoverage,
     structural_coverage: StructuralDerivationCoverage,
     stable_record_coverage: StableRecordCoverage,
+    replay_derivation_coverage: ReplayDerivationCoverage,
     provenance_epoch: u64,
     canonical_subtype_constraints: usize,
     subtype_duplicate_admissions: usize,
@@ -121,6 +122,7 @@ impl ConstraintCharacterization {
         nominal_pairs: Vec<(Vec<String>, Vec<String>)>,
     ) -> Self {
         let timing = output.timing.constraint;
+        assert_cprov_f_replay_witnesses(name, output);
         let nominal_cast_pairs = aggregate_nominal_pairs(nominal_pairs);
         assert_eq!(
             nominal_cast_pairs
@@ -141,6 +143,7 @@ impl ConstraintCharacterization {
             origin_coverage: timing.root_origins,
             structural_coverage: timing.structural_derivations,
             stable_record_coverage: timing.stable_records,
+            replay_derivation_coverage: timing.replay_derivations,
             provenance_epoch: timing.provenance_epoch,
             canonical_subtype_constraints: timing.canonical_subtype_constraints,
             subtype_duplicate_admissions: timing.subtype_duplicate_admissions,
@@ -161,6 +164,56 @@ impl ConstraintCharacterization {
             poly_dump_fnv1a64: fnv1a64(poly_dump.as_bytes()),
             check_report_fnv1a64: fnv1a64(check_report.as_bytes()),
         }
+    }
+}
+
+fn assert_cprov_f_replay_witnesses(name: &str, output: &BodyLowering) {
+    if name == "effect-callback-residual" {
+        let witness = output
+            .session
+            .infer
+            .constraints()
+            .debug_first_shared_source_replay_witness()
+            .expect("existing fixture has a coherent replay chain");
+        assert!(
+            witness
+                .lower
+                .source_origins
+                .iter()
+                .any(|origin| witness.upper.source_origins.contains(origin))
+        );
+        return;
+    }
+    let Some((source, target, expected_count)) = (match name {
+        "config-read-false-positive-repro" => Some(("&blanks#3:3", "&comments#3:2", 9usize)),
+        "file-rollback-false-positive-repro" => Some(("&buffer#5:0", "&store#6:0", 3)),
+        _ => None,
+    }) else {
+        return;
+    };
+    let witnesses = output
+        .session
+        .infer
+        .constraints()
+        .debug_nominal_replay_witnesses(&[source.to_string()], &[target.to_string()]);
+    assert_eq!(witnesses.len(), expected_count, "{name}: replay witnesses");
+    for witness in witnesses {
+        assert_eq!(witness.lower.bound, witness.edge.derivation.lower);
+        assert_eq!(witness.upper.bound, witness.edge.derivation.upper);
+        assert_eq!(witness.lower.owner, witness.edge.derivation.pivot);
+        assert_eq!(witness.upper.owner, witness.edge.derivation.pivot);
+        assert!(matches!(witness.lower.endpoint, BoundEndpoint::Lower(_)));
+        assert!(matches!(witness.upper.endpoint, BoundEndpoint::Upper(_)));
+        assert_ne!(witness.lower.bound, witness.upper.bound);
+        assert_ne!(witness.lower.derivations, witness.upper.derivations);
+        assert!(!witness.lower.origins.is_empty());
+        assert!(!witness.upper.origins.is_empty());
+        // Source-origin coverage is intentionally partial in CPROV-C. When present, retain it in
+        // the query result; exact stable bound parents remain available even for unknown roots.
+        assert!(
+            witness.lower.source_origins.len() <= witness.lower.origins.len()
+                && witness.upper.source_origins.len() <= witness.upper.origins.len()
+        );
     }
 }
 
@@ -224,6 +277,18 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
     })
 }
 
+fn replay_derivations(
+    considered_and_inserted: usize,
+    semantic_duplicate_results: usize,
+) -> ReplayDerivationCoverage {
+    ReplayDerivationCoverage {
+        considered: considered_and_inserted,
+        inserted: considered_and_inserted,
+        deduplicated: 0,
+        semantic_duplicate_results,
+    }
+}
+
 fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
@@ -233,7 +298,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
             stable_record_coverage: stable_records(113_398, 118_095, 35, 105),
-            provenance_epoch: 287_349,
+            replay_derivation_coverage: replay_derivations(880_497, 768_170),
+            provenance_epoch: 1_167_846,
             canonical_subtype_constraints: 143_046,
             subtype_duplicate_admissions: 13_114,
             subtype_trivial_admissions: 12_098,
@@ -260,7 +326,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
             stable_record_coverage: stable_records(113_695, 118_447, 35, 106),
-            provenance_epoch: 288_149,
+            replay_derivation_coverage: replay_derivations(881_247, 768_646),
+            provenance_epoch: 1_169_396,
             canonical_subtype_constraints: 143_492,
             subtype_duplicate_admissions: 13_186,
             subtype_trivial_admissions: 12_127,
@@ -290,7 +357,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
             stable_record_coverage: stable_records(115_034, 119_693, 35, 106),
-            provenance_epoch: 292_329,
+            replay_derivation_coverage: replay_derivations(897_161, 782_849),
+            provenance_epoch: 1_189_490,
             canonical_subtype_constraints: 145_614,
             subtype_duplicate_admissions: 14_132,
             subtype_trivial_admissions: 12_249,
@@ -317,7 +385,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
             stable_record_coverage: stable_records(118_159, 122_809, 35, 109),
-            provenance_epoch: 299_387,
+            replay_derivation_coverage: replay_derivations(906_567, 788_687),
+            provenance_epoch: 1_205_954,
             canonical_subtype_constraints: 149_487,
             subtype_duplicate_admissions: 13_938,
             subtype_trivial_admissions: 12_622,
@@ -358,7 +427,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
             stable_record_coverage: stable_records(115_881, 120_504, 35, 109),
-            provenance_epoch: 294_291,
+            replay_derivation_coverage: replay_derivations(894_141, 779_036),
+            provenance_epoch: 1_188_432,
             canonical_subtype_constraints: 146_636,
             subtype_duplicate_admissions: 14_072,
             subtype_trivial_admissions: 12_396,

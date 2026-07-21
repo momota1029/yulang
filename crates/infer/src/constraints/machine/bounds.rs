@@ -4,9 +4,15 @@ use smallvec::SmallVec;
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
 /// the same bounds table, so replay construction must not keep borrowed bound
-/// rows. Existing duplicate/trivial constraints are filtered before this
-/// snapshot to avoid materializing replay actions that canonical dedup would drop.
-type BoundReplayActions = SmallVec<[SubtypeConstraintKey; 4]>;
+/// rows. Semantic queue admission remains prefiltered, while duplicate/trivial
+/// pairings retain small provenance-only actions so their exact parents are not lost.
+type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BoundReplayAction {
+    constraint: SubtypeConstraintKey,
+    derivation: BinaryReplayDerivation,
+}
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct BoundReplayPlan {
@@ -18,6 +24,8 @@ struct BoundReplayPlan {
     stats: BoundReplayApplyStats,
     actions: BoundReplayActions,
     evidence_actions: BoundReplayActions,
+    duplicate_actions: BoundReplayActions,
+    trivial_actions: BoundReplayActions,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -36,6 +44,192 @@ impl BoundReplayApplyStats {
 }
 
 impl ConstraintMachine {
+    #[cfg(test)]
+    pub(crate) fn debug_nominal_replay_witnesses(
+        &self,
+        source: &[String],
+        target: &[String],
+    ) -> Vec<DebugReplayWitness> {
+        let mut witnesses = Vec::new();
+        for (index, record) in self.constraint_records.iter().enumerate() {
+            let (Pos::Con(record_source, _), Neg::Con(record_target, _)) = (
+                self.types.pos(record.key.lower),
+                self.types.neg(record.key.upper),
+            ) else {
+                continue;
+            };
+            if record_source != source || record_target != target {
+                continue;
+            }
+            let result = ConstraintRecordId(index as u32);
+            for derivation in &record.replay_derivations {
+                witnesses.push(self.debug_replay_witness(result, *derivation));
+            }
+        }
+        witnesses
+    }
+
+    #[cfg(test)]
+    pub(crate) fn debug_first_shared_source_replay_witness(&self) -> Option<DebugReplayWitness> {
+        for (index, record) in self.constraint_records.iter().enumerate() {
+            for derivation in &record.replay_derivations {
+                let witness =
+                    self.debug_replay_witness(ConstraintRecordId(index as u32), *derivation);
+                if witness
+                    .lower
+                    .source_origins
+                    .iter()
+                    .any(|origin| witness.upper.source_origins.contains(origin))
+                {
+                    return Some(witness);
+                }
+            }
+        }
+        None
+    }
+
+    #[cfg(test)]
+    fn debug_replay_witness(
+        &self,
+        result: ConstraintRecordId,
+        derivation: BinaryReplayDerivation,
+    ) -> DebugReplayWitness {
+        let lower_record = self
+            .bounds
+            .record(derivation.lower)
+            .expect("replay lower parent remains stable");
+        let upper_record = self
+            .bounds
+            .record(derivation.upper)
+            .expect("replay upper parent remains stable");
+        let lower_origins = self.debug_bound_origin_ids(derivation.lower);
+        let upper_origins = self.debug_bound_origin_ids(derivation.upper);
+        DebugReplayWitness {
+            edge: ReplayDerivationEdge { result, derivation },
+            lower: DebugReplayParentTrace {
+                bound: derivation.lower,
+                owner: lower_record.owner(),
+                endpoint: lower_record.endpoint(),
+                derivations: lower_record.derivations().to_vec(),
+                source_origins: self.debug_source_origin_ids(&lower_origins),
+                origins: lower_origins,
+            },
+            upper: DebugReplayParentTrace {
+                bound: derivation.upper,
+                owner: upper_record.owner(),
+                endpoint: upper_record.endpoint(),
+                derivations: upper_record.derivations().to_vec(),
+                source_origins: self.debug_source_origin_ids(&upper_origins),
+                origins: upper_origins,
+            },
+        }
+    }
+
+    #[cfg(test)]
+    fn debug_source_origin_ids(&self, origins: &[OriginId]) -> Vec<OriginId> {
+        origins
+            .iter()
+            .copied()
+            .filter(|origin| self.origins[origin.0 as usize].kind.is_source())
+            .collect()
+    }
+
+    #[cfg(test)]
+    fn debug_bound_origin_ids(&self, start: BoundRecordId) -> Vec<OriginId> {
+        let mut origins = FxHashSet::default();
+        let mut visited_bounds = FxHashSet::default();
+        let mut visited_constraints = FxHashSet::default();
+        self.debug_collect_bound_origins(
+            start,
+            &mut origins,
+            &mut visited_bounds,
+            &mut visited_constraints,
+        );
+        let mut origins = origins.into_iter().collect::<Vec<_>>();
+        origins.sort_by_key(|origin| origin.0);
+        origins
+    }
+
+    #[cfg(test)]
+    fn debug_collect_bound_origins(
+        &self,
+        id: BoundRecordId,
+        origins: &mut FxHashSet<OriginId>,
+        visited_bounds: &mut FxHashSet<BoundRecordId>,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+    ) {
+        if !visited_bounds.insert(id) {
+            return;
+        }
+        let Some(record) = self.bounds.record(id) else {
+            return;
+        };
+        for derivation in record.derivations() {
+            match *derivation {
+                BoundDerivation::Origin(origin) => {
+                    origins.insert(origin);
+                }
+                BoundDerivation::Constraint(parent) => self.debug_collect_constraint_origins(
+                    parent,
+                    origins,
+                    visited_bounds,
+                    visited_constraints,
+                ),
+                BoundDerivation::ReplayEvidence(replay) => {
+                    self.debug_collect_bound_origins(
+                        replay.lower,
+                        origins,
+                        visited_bounds,
+                        visited_constraints,
+                    );
+                    self.debug_collect_bound_origins(
+                        replay.upper,
+                        origins,
+                        visited_bounds,
+                        visited_constraints,
+                    );
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn debug_collect_constraint_origins(
+        &self,
+        id: ConstraintRecordId,
+        origins: &mut FxHashSet<OriginId>,
+        visited_bounds: &mut FxHashSet<BoundRecordId>,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+    ) {
+        if !visited_constraints.insert(id) {
+            return;
+        }
+        let record = &self.constraint_records[id.0 as usize];
+        origins.extend(record.root_origins.iter().copied());
+        for structural in &record.structural_derivations {
+            self.debug_collect_constraint_origins(
+                structural.parent,
+                origins,
+                visited_bounds,
+                visited_constraints,
+            );
+        }
+        for replay in &record.replay_derivations {
+            self.debug_collect_bound_origins(
+                replay.lower,
+                origins,
+                visited_bounds,
+                visited_constraints,
+            );
+            self.debug_collect_bound_origins(
+                replay.upper,
+                origins,
+                visited_bounds,
+                visited_constraints,
+            );
+        }
+    }
+
     pub(in crate::constraints) fn add_lower_bound(
         &mut self,
         target: TypeVar,
@@ -45,7 +239,7 @@ impl ConstraintMachine {
     ) {
         let producer = match derivation {
             BoundDerivation::Constraint(record) => Some(record),
-            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence => None,
+            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence(_) => None,
         };
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
@@ -72,7 +266,8 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after lower", target, self.bounds.of(target), &self.types);
 
-        let mut replay = self.lower_bound_replay_actions(target, pos, &weights);
+        let mut replay = self.lower_bound_replay_actions(target, insertion.id, pos, &weights);
+        self.apply_prefiltered_replay_provenance(replay.duplicate_actions, replay.trivial_actions);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
@@ -100,7 +295,7 @@ impl ConstraintMachine {
     ) {
         let producer = match derivation {
             BoundDerivation::Constraint(record) => Some(record),
-            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence => None,
+            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence(_) => None,
         };
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
@@ -130,7 +325,8 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
-        let mut replay = self.upper_bound_replay_actions(source, neg, &weights);
+        let mut replay = self.upper_bound_replay_actions(source, insertion.id, neg, &weights);
+        self.apply_prefiltered_replay_provenance(replay.duplicate_actions, replay.trivial_actions);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
@@ -302,6 +498,7 @@ impl ConstraintMachine {
     fn lower_bound_replay_actions(
         &self,
         target: TypeVar,
+        lower_record: BoundRecordId,
         pos: PosId,
         weights: &ConstraintWeights,
     ) -> BoundReplayPlan {
@@ -314,14 +511,25 @@ impl ConstraintMachine {
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
-        for (index, upper) in bounds.projection_uppers().enumerate() {
+        for (index, (upper_record, upper)) in bounds.projection_upper_records().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
                 replay.var_var += 1;
             }
             replay.generated += 1;
-            self.push_replay_constraint_or_prefilter(pos, replay_weights, upper.neg, &mut replay);
+            self.push_replay_constraint_or_prefilter(
+                pos,
+                replay_weights,
+                upper.neg,
+                BinaryReplayDerivation {
+                    pivot: target,
+                    lower: lower_record,
+                    upper: upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+                &mut replay,
+            );
         }
         replay
     }
@@ -329,6 +537,7 @@ impl ConstraintMachine {
     fn upper_bound_replay_actions(
         &self,
         source: TypeVar,
+        upper_record: BoundRecordId,
         neg: NegId,
         weights: &ConstraintWeights,
     ) -> BoundReplayPlan {
@@ -341,14 +550,25 @@ impl ConstraintMachine {
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("upper", source, replay_input_count);
-        for (index, lower) in bounds.projection_lowers().enumerate() {
+        for (index, (lower_record, lower)) in bounds.projection_lower_records().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, neg) {
                 replay.var_var += 1;
             }
             replay.generated += 1;
-            self.push_replay_constraint_or_prefilter(lower.pos, replay_weights, neg, &mut replay);
+            self.push_replay_constraint_or_prefilter(
+                lower.pos,
+                replay_weights,
+                neg,
+                BinaryReplayDerivation {
+                    pivot: source,
+                    lower: lower_record,
+                    upper: upper_record,
+                    rule: ReplayRule::UpperBoundAdded,
+                },
+                &mut replay,
+            );
         }
         replay
     }
@@ -358,12 +578,22 @@ impl ConstraintMachine {
         lower: PosId,
         weights: ConstraintWeights,
         upper: NegId,
+        derivation: BinaryReplayDerivation,
         replay: &mut BoundReplayPlan,
     ) {
+        let attempted = SubtypeConstraintKey {
+            lower,
+            upper,
+            weights: weights.clone(),
+        };
         let duplicate_profile = self.replay_duplicate_profile(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             replay.prefiltered += 1;
             replay.stats.trivial += 1;
+            replay.trivial_actions.push(BoundReplayAction {
+                constraint: attempted,
+                derivation,
+            });
             return;
         };
         let seen_before = self.has_canonical_constraint(&constraint);
@@ -372,14 +602,24 @@ impl ConstraintMachine {
             replay.prefiltered += 1;
             replay.stats.duplicate += 1;
             replay.prefilter_duplicate.absorb(duplicate_profile);
+            replay.duplicate_actions.push(BoundReplayAction {
+                constraint,
+                derivation,
+            });
             return;
         }
         if self.should_store_replay_as_evidence_only(&constraint) {
             replay.prefiltered += 1;
-            replay.evidence_actions.push(constraint);
+            replay.evidence_actions.push(BoundReplayAction {
+                constraint,
+                derivation,
+            });
             return;
         }
-        replay.actions.push(constraint);
+        replay.actions.push(BoundReplayAction {
+            constraint,
+            derivation,
+        });
     }
 
     fn replay_duplicate_profile(
@@ -504,8 +744,12 @@ impl ConstraintMachine {
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
-        for constraint in actions {
-            if self.enqueue_canonical_subtype(constraint) {
+        for action in actions {
+            let (enqueued, inserted) =
+                self.enqueue_replay_subtype(action.constraint, action.derivation);
+            self.timing
+                .record_replay_derivation_edge(true, inserted, !enqueued);
+            if enqueued {
                 stats.accepted += 1;
             } else {
                 stats.duplicate += 1;
@@ -515,7 +759,8 @@ impl ConstraintMachine {
     }
 
     fn apply_bound_replay_evidence_actions(&mut self, actions: BoundReplayActions) {
-        for constraint in actions {
+        for action in actions {
+            let constraint = action.constraint;
             let (source, target) = match (
                 self.types.pos(constraint.lower),
                 self.types.neg(constraint.upper),
@@ -527,8 +772,9 @@ impl ConstraintMachine {
                 target,
                 constraint.lower,
                 constraint.weights.clone(),
-                BoundDerivation::ReplayEvidence,
+                BoundDerivation::ReplayEvidence(action.derivation),
             );
+            let lower_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Lower, true);
             if insertion.semantic_changed {
                 self.timing.record_evidence_lower_bound_added();
@@ -538,13 +784,43 @@ impl ConstraintMachine {
                 source,
                 constraint.upper,
                 constraint.weights,
-                BoundDerivation::ReplayEvidence,
+                BoundDerivation::ReplayEvidence(action.derivation),
             );
+            let upper_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Upper, true);
             if insertion.semantic_changed {
                 self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
             }
+            self.timing.record_replay_derivation_edge(
+                true,
+                lower_edge_inserted || upper_edge_inserted,
+                false,
+            );
+        }
+    }
+
+    fn apply_prefiltered_replay_provenance(
+        &mut self,
+        duplicates: BoundReplayActions,
+        trivial: BoundReplayActions,
+    ) {
+        for action in duplicates {
+            let result = *self
+                .canonical_constraints
+                .get(&action.constraint)
+                .expect("prefiltered replay duplicate remains canonical");
+            let inserted = self.merge_replay_derivation(result, action.derivation);
+            self.timing
+                .record_replay_derivation_edge(true, inserted, true);
+        }
+        for action in trivial {
+            let inserted = self.intern_replay_drop(ReplayDropRecord {
+                attempted: action.constraint,
+                derivation: action.derivation,
+            });
+            self.timing
+                .record_replay_derivation_edge(true, inserted, false);
         }
     }
 
@@ -1040,10 +1316,18 @@ mod mutation_tests {
         let lower = machine.alloc_pos(Pos::Var(source));
         let upper = machine.alloc_neg(Neg::Var(target));
         let mut actions = BoundReplayActions::new();
-        actions.push(SubtypeConstraintKey {
-            lower,
-            upper,
-            weights: ConstraintWeights::empty(),
+        actions.push(BoundReplayAction {
+            constraint: SubtypeConstraintKey {
+                lower,
+                upper,
+                weights: ConstraintWeights::empty(),
+            },
+            derivation: BinaryReplayDerivation {
+                pivot: target,
+                lower: BoundRecordId(0),
+                upper: BoundRecordId(1),
+                rule: ReplayRule::LowerBoundAdded,
+            },
         });
         machine.apply_bound_replay_evidence_actions(actions);
         assert_eq!(

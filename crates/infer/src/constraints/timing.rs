@@ -47,6 +47,14 @@ pub struct StableRecordCoverage {
     pub subtract_fact_duplicate_provenance_merges: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayDerivationCoverage {
+    pub considered: usize,
+    pub inserted: usize,
+    pub deduplicated: usize,
+    pub semantic_duplicate_results: usize,
+}
+
 impl ConstraintOriginCoverage {
     pub fn total(self) -> usize {
         self.application_argument
@@ -107,6 +115,7 @@ pub struct ConstraintTiming {
     pub root_origins: ConstraintOriginCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
     pub stable_records: StableRecordCoverage,
+    pub replay_derivations: ReplayDerivationCoverage,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
     pub row_upper_bounds_added_without_replay: usize,
@@ -317,6 +326,19 @@ impl ConstraintTiming {
             self.stable_records
                 .subtract_fact_duplicate_provenance_merges += 1;
         }
+    }
+
+    pub(super) fn record_replay_derivation_edge(
+        &mut self,
+        considered: bool,
+        inserted: bool,
+        semantic_duplicate_result: bool,
+    ) {
+        let coverage = &mut self.replay_derivations;
+        coverage.considered += usize::from(considered);
+        coverage.inserted += usize::from(inserted);
+        coverage.deduplicated += usize::from(considered && !inserted);
+        coverage.semantic_duplicate_results += usize::from(semantic_duplicate_result);
     }
 
     pub(super) fn record_subtype_call(&mut self) {

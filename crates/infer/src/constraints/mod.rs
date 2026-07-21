@@ -35,7 +35,7 @@ pub(crate) use mutation::{
 };
 
 pub use timing::{
-    ConstraintOriginCoverage, ConstraintTiming, ReplayDuplicateProfile,
+    ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage, ReplayDuplicateProfile,
     ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
     StableRecordCoverage, StructuralDerivationCoverage,
 };
@@ -65,6 +65,8 @@ pub struct ConstraintMachine {
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     canonical_constraints: FxHashMap<SubtypeConstraintKey, ConstraintRecordId>,
     constraint_records: Vec<ConstraintRecord>,
+    replay_drop_records: Vec<ReplayDropRecord>,
+    replay_drop_index: FxHashMap<ReplayDropRecord, ReplayDropRecordId>,
     origins: Vec<OriginRecord>,
     source_boundaries: Vec<SourceBoundaryRecord>,
     events: Vec<ConstraintEvent>,
@@ -565,6 +567,26 @@ impl VarBounds {
         self.evidence_uppers.iter().chain(self.uppers.iter())
     }
 
+    fn projection_lower_records(
+        &self,
+    ) -> impl Iterator<Item = (BoundRecordId, &WeightedLowerBound)> {
+        self.evidence_lower_ids
+            .iter()
+            .copied()
+            .zip(self.evidence_lowers.iter())
+            .chain(self.lower_ids.iter().copied().zip(self.lowers.iter()))
+    }
+
+    fn projection_upper_records(
+        &self,
+    ) -> impl Iterator<Item = (BoundRecordId, &WeightedUpperBound)> {
+        self.evidence_upper_ids
+            .iter()
+            .copied()
+            .zip(self.evidence_uppers.iter())
+            .chain(self.upper_ids.iter().copied().zip(self.uppers.iter()))
+    }
+
     pub fn evidence_lower_count(&self) -> usize {
         self.evidence_lowers.len()
     }
@@ -630,7 +652,36 @@ pub enum BoundRecordState {
 pub enum BoundDerivation {
     Constraint(ConstraintRecordId),
     Origin(OriginId),
-    ReplayEvidence,
+    ReplayEvidence(BinaryReplayDerivation),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ReplayRule {
+    LowerBoundAdded,
+    UpperBoundAdded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BinaryReplayDerivation {
+    pub pivot: TypeVar,
+    pub lower: BoundRecordId,
+    pub upper: BoundRecordId,
+    pub rule: ReplayRule,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ReplayDerivationEdge {
+    pub result: ConstraintRecordId,
+    pub derivation: BinaryReplayDerivation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ReplayDropRecordId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ReplayDropRecord {
+    attempted: SubtypeConstraintKey,
+    derivation: BinaryReplayDerivation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1117,6 +1168,7 @@ struct ConstraintRecord {
     /// Root leaves are additive metadata and never participate in semantic equality or queueing.
     root_origins: Vec<OriginId>,
     structural_derivations: Vec<StructuralDerivation>,
+    replay_derivations: Vec<BinaryReplayDerivation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1137,6 +1189,26 @@ pub(crate) struct DebugConstraintTraceNode {
     pub(crate) key: SubtypeConstraintKey,
     pub(crate) root_origins: Vec<OriginId>,
     pub(crate) structural_derivations: Vec<StructuralDerivation>,
+    pub(crate) replay_derivations: Vec<BinaryReplayDerivation>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DebugReplayParentTrace {
+    pub(crate) bound: BoundRecordId,
+    pub(crate) owner: TypeVar,
+    pub(crate) endpoint: BoundEndpoint,
+    pub(crate) derivations: Vec<BoundDerivation>,
+    pub(crate) origins: Vec<OriginId>,
+    pub(crate) source_origins: Vec<OriginId>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DebugReplayWitness {
+    pub(crate) edge: ReplayDerivationEdge,
+    pub(crate) lower: DebugReplayParentTrace,
+    pub(crate) upper: DebugReplayParentTrace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

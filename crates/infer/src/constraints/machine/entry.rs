@@ -21,6 +21,8 @@ impl ConstraintMachine {
             effect_filter_violations: FxHashSet::default(),
             canonical_constraints: FxHashMap::default(),
             constraint_records: Vec::new(),
+            replay_drop_records: Vec::new(),
+            replay_drop_index: FxHashMap::default(),
             origins: vec![
                 OriginRecord {
                     kind: ConstraintOriginKind::Internal,
@@ -572,11 +574,59 @@ impl ConstraintMachine {
         self.canonical_constraints.contains_key(constraint)
     }
 
-    pub(in crate::constraints) fn enqueue_canonical_subtype(
+    pub(in crate::constraints) fn enqueue_replay_subtype(
         &mut self,
         constraint: SubtypeConstraintKey,
+        derivation: BinaryReplayDerivation,
+    ) -> (bool, bool) {
+        let record_id = match self.canonical_constraints.entry(constraint.clone()) {
+            Entry::Occupied(entry) => {
+                let record_id = *entry.get();
+                let inserted = self.merge_replay_derivation(record_id, derivation);
+                self.timing.record_subtype_duplicate_admission();
+                return (false, inserted);
+            }
+            Entry::Vacant(entry) => {
+                let record_id = ConstraintRecordId(self.constraint_records.len() as u32);
+                entry.insert(record_id);
+                record_id
+            }
+        };
+        self.observe_routing_shadow(&constraint);
+        self.constraint_records.push(ConstraintRecord {
+            key: constraint,
+            root_origins: Vec::new(),
+            structural_derivations: Vec::new(),
+            replay_derivations: vec![derivation],
+        });
+        self.bump_provenance_epoch();
+        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        (true, true)
+    }
+
+    pub(in crate::constraints) fn merge_replay_derivation(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: BinaryReplayDerivation,
     ) -> bool {
-        self.enqueue_canonical_subtype_with_origin(constraint, None)
+        let derivations = &mut self.constraint_records[result.0 as usize].replay_derivations;
+        if derivations.contains(&derivation) {
+            return false;
+        }
+        derivations.push(derivation);
+        self.bump_provenance_epoch();
+        true
+    }
+
+    pub(in crate::constraints) fn intern_replay_drop(&mut self, record: ReplayDropRecord) -> bool {
+        if self.replay_drop_index.contains_key(&record) {
+            return false;
+        }
+        let id = ReplayDropRecordId(self.replay_drop_records.len() as u32);
+        self.replay_drop_index.insert(record.clone(), id);
+        self.replay_drop_records.push(record);
+        self.bump_provenance_epoch();
+        true
     }
 
     fn enqueue_canonical_subtype_with_origin(
@@ -614,6 +664,7 @@ impl ConstraintMachine {
             key: constraint,
             root_origins: origin.into_iter().collect(),
             structural_derivations: Vec::new(),
+            replay_derivations: Vec::new(),
         });
         if origin.is_some() {
             self.bump_provenance_epoch();
@@ -659,6 +710,7 @@ impl ConstraintMachine {
             key: constraint,
             root_origins: Vec::new(),
             structural_derivations: vec![derivation],
+            replay_derivations: Vec::new(),
         });
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
@@ -741,6 +793,7 @@ impl ConstraintMachine {
                 key: record.key.clone(),
                 root_origins: record.root_origins.clone(),
                 structural_derivations: record.structural_derivations.clone(),
+                replay_derivations: record.replay_derivations.clone(),
             });
         }
         trace
