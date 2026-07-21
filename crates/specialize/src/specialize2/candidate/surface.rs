@@ -624,9 +624,104 @@ pub(in crate::specialize2) fn direct_cast_rule<'a>(
     if source_path == target_path {
         return None;
     }
+    #[cfg(test)]
+    observe_ordinary_cast_resolution(
+        arena,
+        OrdinaryCastShadowSeam::EmissionSelection,
+        source_path,
+        target_path,
+    );
     arena.cast_rules.iter().find(|rule| {
         rule.kind == poly_expr::CastRuleKind::Value
             && rule.source == *source_path
             && rule.target == *target_path
     })
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::specialize2) enum OrdinaryCastShadowSeam {
+    TypeGraphConstraint,
+    EmissionSelection,
+    BooleanSubtypeEvidence,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::specialize2) enum OrdinaryCastShadowOutcome {
+    Missing,
+    Unique,
+    Ambiguous,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::specialize2) struct OrdinaryCastShadowWitness {
+    pub(in crate::specialize2) seam: OrdinaryCastShadowSeam,
+    pub(in crate::specialize2) source: Vec<String>,
+    pub(in crate::specialize2) target: Vec<String>,
+    pub(in crate::specialize2) outcome: OrdinaryCastShadowOutcome,
+    pub(in crate::specialize2) candidate_defs: Vec<poly_expr::DefId>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static ORDINARY_CAST_SHADOW_WITNESSES:
+        std::cell::RefCell<Option<Vec<OrdinaryCastShadowWitness>>> = const {
+            std::cell::RefCell::new(None)
+        };
+}
+
+#[cfg(test)]
+pub(in crate::specialize2) fn begin_ordinary_cast_shadow_capture() {
+    ORDINARY_CAST_SHADOW_WITNESSES.with(|witnesses| {
+        *witnesses.borrow_mut() = Some(Vec::new());
+    });
+}
+
+#[cfg(test)]
+pub(in crate::specialize2) fn finish_ordinary_cast_shadow_capture() -> Vec<OrdinaryCastShadowWitness>
+{
+    ORDINARY_CAST_SHADOW_WITNESSES
+        .with(|witnesses| witnesses.borrow_mut().take().unwrap_or_default())
+}
+
+#[cfg(test)]
+pub(in crate::specialize2) fn observe_ordinary_cast_resolution(
+    arena: &poly_expr::Arena,
+    seam: OrdinaryCastShadowSeam,
+    source: &[String],
+    target: &[String],
+) {
+    let capture_enabled =
+        ORDINARY_CAST_SHADOW_WITNESSES.with(|witnesses| witnesses.borrow().is_some());
+    if !capture_enabled {
+        return;
+    }
+
+    let resolution = arena.resolve_value_cast(source, target);
+    let (outcome, candidate_defs) = match resolution {
+        poly::cast_resolution::OrdinaryCastResolution::Missing => {
+            (OrdinaryCastShadowOutcome::Missing, Vec::new())
+        }
+        poly::cast_resolution::OrdinaryCastResolution::Unique(rule) => {
+            (OrdinaryCastShadowOutcome::Unique, vec![rule.def])
+        }
+        poly::cast_resolution::OrdinaryCastResolution::Ambiguous(rules) => (
+            OrdinaryCastShadowOutcome::Ambiguous,
+            rules.into_iter().map(|rule| rule.def).collect(),
+        ),
+    };
+    let witness = OrdinaryCastShadowWitness {
+        seam,
+        source: source.to_vec(),
+        target: target.to_vec(),
+        outcome,
+        candidate_defs,
+    };
+    ORDINARY_CAST_SHADOW_WITNESSES.with(|witnesses| {
+        if let Some(witnesses) = witnesses.borrow_mut().as_mut() {
+            witnesses.push(witness);
+        }
+    });
 }

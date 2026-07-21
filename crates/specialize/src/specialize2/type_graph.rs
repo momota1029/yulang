@@ -479,6 +479,13 @@ impl<'a> TypeGraph<'a> {
         lower: Type,
         upper: Type,
     ) -> Result<(), SpecializeError> {
+        #[cfg(test)]
+        observe_ordinary_cast_resolution(
+            self.arena,
+            OrdinaryCastShadowSeam::TypeGraphConstraint,
+            source,
+            target,
+        );
         let candidates = self
             .arena
             .cast_rules

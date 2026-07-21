@@ -2,6 +2,7 @@ use num_bigint::BigInt;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
+use crate::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candidates};
 use crate::roles::RoleImplTable;
 use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
 
@@ -193,6 +194,19 @@ impl Arena {
 
     pub fn selects(&self) -> &[Select] {
         &self.selects
+    }
+
+    /// Resolve ordinary value declarations for one exact constructor pair by cardinality.
+    pub fn resolve_value_cast(
+        &self,
+        source: &[String],
+        target: &[String],
+    ) -> OrdinaryCastResolution<&CastRule> {
+        classify_ordinary_cast_candidates(self.cast_rules.iter().filter(|rule| {
+            rule.kind == CastRuleKind::Value
+                && rule.source.as_slice() == source
+                && rule.target.as_slice() == target
+        }))
     }
 
     pub fn root_expr_def(&self, expr: ExprId) -> Option<DefId> {

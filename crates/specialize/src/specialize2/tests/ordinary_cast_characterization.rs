@@ -115,6 +115,127 @@ fn apparently_disjoint_same_pair_schemes_are_not_filtered_for_applicability() {
 }
 
 #[test]
+fn poly_value_cast_adapter_matches_the_ocast_a_cardinality_oracle() {
+    for candidate_count in 0..=3 {
+        let arena = arena_with_generic_casts(candidate_count);
+        let (outcome, candidate_defs) =
+            cast_resolution_witness(arena.resolve_value_cast(&path(SOURCE), &path(TARGET)));
+
+        assert_eq!(outcome, expected_shadow_outcome(candidate_count));
+        assert_eq!(
+            candidate_defs,
+            (0..candidate_count)
+                .map(|index| poly_expr::DefId(index as u32))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn poly_value_cast_adapter_filters_kind_and_exact_paths_before_classification() {
+    let mut arena = arena_with_generic_casts(1);
+    let exact = arena.cast_rules[0].clone();
+    let mut effect_up = exact.clone();
+    effect_up.kind = poly_expr::CastRuleKind::EffectUp;
+    let mut other_source = exact.clone();
+    other_source.source = path(&["other-source"]);
+    let mut other_target = exact.clone();
+    other_target.target = path(&["other-target"]);
+    arena
+        .cast_rules
+        .extend([effect_up, other_source, other_target]);
+
+    let (outcome, candidate_defs) =
+        cast_resolution_witness(arena.resolve_value_cast(&path(SOURCE), &path(TARGET)));
+
+    assert_eq!(outcome, OrdinaryCastShadowOutcome::Unique);
+    assert_eq!(candidate_defs, vec![exact.def]);
+}
+
+#[test]
+fn primary_cast_seam_shadows_match_the_ocast_a_cardinality_oracle() {
+    for candidate_count in 0..=3 {
+        let arena = arena_with_generic_casts(candidate_count);
+        let actual = unary_con(SOURCE, mono_con(&["int"]));
+        let expected = unary_con(TARGET, mono_con(&["int"]));
+        let expected_outcome = expected_shadow_outcome(candidate_count);
+        let expected_defs = (0..candidate_count)
+            .map(|index| poly_expr::DefId(index as u32))
+            .collect::<Vec<_>>();
+
+        begin_ordinary_cast_shadow_capture();
+        let mut graph = TypeGraph::new(&arena);
+        graph
+            .constrain_direct_cast(
+                &path(SOURCE),
+                &path(TARGET),
+                actual.clone(),
+                expected.clone(),
+            )
+            .expect("shadow observation must not change permissive constraint behavior");
+        assert_eq!(
+            type_candidate_subtype(&graph, &actual, &expected),
+            candidate_count > 0
+        );
+        let mut emitter = Specializer2::new();
+        let instance = emitter
+            .cast_boundary_instance(&arena, &actual, &expected)
+            .expect("shadow observation must not change first-match emission behavior");
+        assert_eq!(instance.is_some(), candidate_count > 0);
+        let witnesses = finish_ordinary_cast_shadow_capture();
+
+        assert_primary_shadow_witnesses(&witnesses, expected_outcome, &expected_defs);
+    }
+}
+
+#[test]
+fn primary_ambiguous_shadows_stay_ambiguous_under_registry_order_reversal() {
+    let mut selected_defs = Vec::new();
+    for reverse in [false, true] {
+        let mut arena = arena_with_generic_casts(2);
+        if reverse {
+            arena.cast_rules.reverse();
+        }
+        let actual = unary_con(SOURCE, mono_con(&["int"]));
+        let expected = unary_con(TARGET, mono_con(&["int"]));
+        let expected_defs = if reverse {
+            vec![poly_expr::DefId(1), poly_expr::DefId(0)]
+        } else {
+            vec![poly_expr::DefId(0), poly_expr::DefId(1)]
+        };
+        let (adapter_outcome, adapter_defs) =
+            cast_resolution_witness(arena.resolve_value_cast(&path(SOURCE), &path(TARGET)));
+        assert_eq!(adapter_outcome, OrdinaryCastShadowOutcome::Ambiguous);
+        assert_eq!(adapter_defs, expected_defs);
+
+        begin_ordinary_cast_shadow_capture();
+        let mut graph = TypeGraph::new(&arena);
+        graph
+            .constrain_direct_cast(
+                &path(SOURCE),
+                &path(TARGET),
+                actual.clone(),
+                expected.clone(),
+            )
+            .expect("current constraint behavior still instantiates every candidate");
+        assert!(type_candidate_subtype(&graph, &actual, &expected));
+        selected_defs.push(emission_selected_def(&arena, &actual, &expected));
+        let witnesses = finish_ordinary_cast_shadow_capture();
+
+        assert_primary_shadow_witnesses(
+            &witnesses,
+            OrdinaryCastShadowOutcome::Ambiguous,
+            &expected_defs,
+        );
+    }
+
+    assert_eq!(
+        selected_defs,
+        vec![poly_expr::DefId(0), poly_expr::DefId(1)]
+    );
+}
+
+#[test]
 fn missing_source_boundaries_reach_current_primary_runtime_ir() {
     let cases = [
         (
@@ -286,6 +407,55 @@ fn emission_selected_def(
         .expect("current emission lookup")
         .expect("same-pair candidate should enqueue an instance");
     emitter.pending_instances[0].def
+}
+
+fn expected_shadow_outcome(candidate_count: usize) -> OrdinaryCastShadowOutcome {
+    match candidate_count {
+        0 => OrdinaryCastShadowOutcome::Missing,
+        1 => OrdinaryCastShadowOutcome::Unique,
+        _ => OrdinaryCastShadowOutcome::Ambiguous,
+    }
+}
+
+fn cast_resolution_witness(
+    resolution: poly::cast_resolution::OrdinaryCastResolution<&poly_expr::CastRule>,
+) -> (OrdinaryCastShadowOutcome, Vec<poly_expr::DefId>) {
+    match resolution {
+        poly::cast_resolution::OrdinaryCastResolution::Missing => {
+            (OrdinaryCastShadowOutcome::Missing, Vec::new())
+        }
+        poly::cast_resolution::OrdinaryCastResolution::Unique(rule) => {
+            (OrdinaryCastShadowOutcome::Unique, vec![rule.def])
+        }
+        poly::cast_resolution::OrdinaryCastResolution::Ambiguous(rules) => (
+            OrdinaryCastShadowOutcome::Ambiguous,
+            rules.into_iter().map(|rule| rule.def).collect(),
+        ),
+    }
+}
+
+fn assert_primary_shadow_witnesses(
+    witnesses: &[OrdinaryCastShadowWitness],
+    expected_outcome: OrdinaryCastShadowOutcome,
+    expected_defs: &[poly_expr::DefId],
+) {
+    assert_eq!(witnesses.len(), 3, "one witness per specialize2 seam");
+    for seam in [
+        OrdinaryCastShadowSeam::TypeGraphConstraint,
+        OrdinaryCastShadowSeam::EmissionSelection,
+        OrdinaryCastShadowSeam::BooleanSubtypeEvidence,
+    ] {
+        let matching = witnesses
+            .iter()
+            .filter(|witness| witness.seam == seam)
+            .collect::<Vec<_>>();
+        assert_eq!(matching.len(), 1, "one witness for {seam:?}");
+        let witness = matching[0];
+        assert_eq!(witness.source, path(SOURCE));
+        assert_eq!(witness.target, path(TARGET));
+        assert_eq!(witness.outcome, expected_outcome);
+        assert_eq!(witness.candidate_defs, expected_defs);
+    }
 }
 
 fn unary_con(path_segments: &[&str], argument: Type) -> Type {

@@ -6,6 +6,13 @@ pub(super) fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper:
     }
     match (lower, upper) {
         (Type::Con { path: lower, .. }, Type::Con { path: upper, .. }) if lower != upper => {
+            #[cfg(test)]
+            observe_ordinary_cast_resolution(
+                graph.arena,
+                OrdinaryCastShadowSeam::BooleanSubtypeEvidence,
+                lower,
+                upper,
+            );
             graph.arena.cast_rules.iter().any(|rule| {
                 rule.kind == poly_expr::CastRuleKind::Value
                     && rule.source == *lower
