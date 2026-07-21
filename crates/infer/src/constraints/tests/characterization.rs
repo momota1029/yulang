@@ -313,6 +313,13 @@ fn assert_cprov_f_replay_witnesses(name: &str, output: &BodyLowering) {
         assert_ne!(witness.lower.derivations, witness.upper.derivations);
         assert!(!witness.lower.origins.is_empty());
         assert!(!witness.upper.origins.is_empty());
+        assert!(
+            witness.lower.origins.contains(&OriginId::internal())
+                && witness.upper.origins.contains(&OriginId::internal()),
+            "{name}: synthetic ref/state parents retain Internal roots: lower={:?} upper={:?}",
+            witness.lower.origins,
+            witness.upper.origins,
+        );
         // Source-origin coverage is intentionally partial in CPROV-C. When present, retain it in
         // the query result; exact stable bound parents remain available even for unknown roots.
         assert!(
@@ -440,7 +447,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 1_480, 791, 34_160),
+            origin_coverage: origins(1_852, 1_480, 791, 4, 34_156),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
@@ -470,7 +477,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 1_480, 791, 34_279),
+            origin_coverage: origins(1_855, 1_480, 791, 4, 34_275),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
@@ -503,7 +510,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 1_487, 795, 34_514),
+            origin_coverage: origins(1_868, 1_487, 795, 23, 34_491),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
@@ -533,7 +540,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 1_506, 813, 35_642),
+            origin_coverage: origins(1_906, 1_506, 813, 78, 35_564),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
@@ -577,7 +584,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 1_497, 801, 34_981),
+            origin_coverage: origins(1_883, 1_497, 801, 48, 34_933),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
@@ -616,12 +623,14 @@ fn origins(
     application_argument: usize,
     annotation: usize,
     return_: usize,
+    internal: usize,
     unknown_internal: usize,
 ) -> ConstraintOriginCoverage {
     ConstraintOriginCoverage {
         application_argument,
         annotation,
         return_,
+        internal,
         unknown_internal,
         ..ConstraintOriginCoverage::default()
     }

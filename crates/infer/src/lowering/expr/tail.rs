@@ -210,13 +210,23 @@ impl<'a> ExprLowerer<'a> {
         let effect_arg = self.invariant_var_arg(ref_effect);
         let value_arg = self.invariant_var_arg(expected_value);
         let args = vec![effect_arg, value_arg];
-        self.constrain_lower(
-            reference.value,
-            Pos::Con(crate::std_paths::control_var_ref_type(), args.clone()),
+        let reference_type = self.alloc_pos(Pos::Con(
+            crate::std_paths::control_var_ref_type(),
+            args.clone(),
+        ));
+        let reference_upper = self.alloc_neg(Neg::Var(reference.value));
+        self.session.infer.subtype(
+            reference_type,
+            reference_upper,
+            crate::constraints::OriginId::internal(),
         );
-        self.constrain_upper(
-            reference.value,
-            Neg::Con(crate::std_paths::control_var_ref_type(), args),
+        let reference_lower = self.alloc_pos(Pos::Var(reference.value));
+        let reference_type =
+            self.alloc_neg(Neg::Con(crate::std_paths::control_var_ref_type(), args));
+        self.session.infer.subtype(
+            reference_lower,
+            reference_type,
+            crate::constraints::OriginId::internal(),
         );
 
         let expr = self
@@ -231,7 +241,25 @@ impl<'a> ExprLowerer<'a> {
         receiver: Computation,
         name: String,
     ) -> Computation {
-        self.lower_synthetic_selection_at(receiver, name, None)
+        self.lower_synthetic_selection_at_with_origin(
+            receiver,
+            name,
+            None,
+            crate::constraints::OriginId::unknown_internal(),
+        )
+    }
+
+    pub(in crate::lowering) fn lower_internal_synthetic_selection(
+        &mut self,
+        receiver: Computation,
+        name: String,
+    ) -> Computation {
+        self.lower_synthetic_selection_at_with_origin(
+            receiver,
+            name,
+            None,
+            crate::constraints::OriginId::internal(),
+        )
     }
 
     pub(in crate::lowering) fn lower_synthetic_selection_at(
@@ -239,6 +267,21 @@ impl<'a> ExprLowerer<'a> {
         receiver: Computation,
         name: String,
         source_range: Option<SourceRange>,
+    ) -> Computation {
+        self.lower_synthetic_selection_at_with_origin(
+            receiver,
+            name,
+            source_range,
+            crate::constraints::OriginId::unknown_internal(),
+        )
+    }
+
+    fn lower_synthetic_selection_at_with_origin(
+        &mut self,
+        receiver: Computation,
+        name: String,
+        source_range: Option<SourceRange>,
+        origin: crate::constraints::OriginId,
     ) -> Computation {
         let method_value = self.fresh_type_var();
         let result_value = self.fresh_type_var();
@@ -255,11 +298,7 @@ impl<'a> ExprLowerer<'a> {
             ret_eff,
             ret,
         });
-        self.session.infer.subtype(
-            method,
-            method_upper,
-            crate::constraints::OriginId::unknown_internal(),
-        );
+        self.session.infer.subtype(method, method_upper, origin);
         self.subtype_var_to_var(call_effect, result_effect);
 
         let select = self.session.poly.add_select(name);
@@ -436,6 +475,14 @@ impl<'a> ExprLowerer<'a> {
             arg,
             crate::constraints::OriginId::unknown_internal(),
         )
+    }
+
+    pub(in crate::lowering) fn make_internal_app(
+        &mut self,
+        callee: Computation,
+        arg: Computation,
+    ) -> Computation {
+        self.make_app_with_origin(callee, arg, crate::constraints::OriginId::internal())
     }
 
     fn make_app_with_origin(

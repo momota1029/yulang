@@ -114,9 +114,9 @@ impl<'a> ExprLowerer<'a> {
             }
             Err(error) => return Err(error),
         };
-        let get = self.lower_synthetic_selection(reference, "get".to_string());
+        let get = self.lower_internal_synthetic_selection(reference, "get".to_string());
         let unit = self.unit_expr();
-        Ok(self.make_app(get, unit))
+        Ok(self.make_internal_app(get, unit))
     }
 
     pub(super) fn lower_local_name(

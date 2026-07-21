@@ -284,8 +284,7 @@ impl<'a> ExprLowerer<'a> {
         let boundary = self.local_generalize_boundary;
         let reference = self.lower_var_ref_constructor(local_act, param_value)?;
         let reference_value = self.fresh_type_var();
-        self.subtype_var_to_var(reference.value, reference_value);
-        self.subtype_var_to_var(reference_value, reference.value);
+        self.constrain_internal_var_equality(reference.value, reference_value);
         self.constrain_local_ref_value(local_act, reference_value, param_value)?;
         let (reference_pat, reference_def) = self.bind_let_local_with_def(
             reference_name.clone(),
@@ -623,8 +622,7 @@ impl<'a> ExprLowerer<'a> {
                 .value;
             let reference = self.lower_var_ref_constructor(&binding.local_act, init_value)?;
             let reference_value = self.fresh_type_var();
-            self.subtype_var_to_var(reference.value, reference_value);
-            self.subtype_var_to_var(reference_value, reference.value);
+            self.constrain_internal_var_equality(reference.value, reference_value);
             self.constrain_local_ref_value(&binding.local_act, reference_value, init_value)?;
             let (reference_pat, reference_def) = self.bind_let_local_with_def(
                 binding.reference_name.clone(),
@@ -710,8 +708,7 @@ impl<'a> ExprLowerer<'a> {
 
         let reference = self.lower_var_ref_constructor(&local_act, init_value)?;
         let reference_value = self.fresh_type_var();
-        self.subtype_var_to_var(reference.value, reference_value);
-        self.subtype_var_to_var(reference_value, reference.value);
+        self.constrain_internal_var_equality(reference.value, reference_value);
         self.constrain_local_ref_value(&local_act, reference_value, init_value)?;
         let (reference_pat, reference_def) = self.bind_let_local_with_def(
             reference_name.clone(),
@@ -832,7 +829,7 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         let var_ref = self.lower_var_act_member(act, "var_ref")?;
         let unit = self.unit_expr();
-        let reference = self.make_app(var_ref, unit);
+        let reference = self.make_internal_app(var_ref, unit);
         self.constrain_local_ref_value(act, reference.value, payload)?;
         Ok(reference)
     }
@@ -848,8 +845,8 @@ impl<'a> ExprLowerer<'a> {
         let init = self.lower_name(init_name)?;
         self.subtype_var_to_var(init.value, init_value);
         self.subtype_var_to_var(init_value, init.value);
-        let run_with_init = self.make_app(run, init);
-        Ok(self.make_app(run_with_init, body))
+        let run_with_init = self.make_internal_app(run, init);
+        Ok(self.make_internal_app(run_with_init, body))
     }
 
     pub(in crate::lowering) fn lower_var_act_member(
@@ -1007,15 +1004,41 @@ impl<'a> ExprLowerer<'a> {
         let effect_arg = self.invariant_var_arg(effect);
         let payload_arg = self.invariant_var_arg(payload);
         let args = vec![effect_arg, payload_arg];
-        self.constrain_lower(
-            reference,
-            Pos::Con(crate::std_paths::control_var_ref_type(), args.clone()),
+        let lower = self.alloc_pos(Pos::Con(
+            crate::std_paths::control_var_ref_type(),
+            args.clone(),
+        ));
+        let reference_upper = self.alloc_neg(Neg::Var(reference));
+        self.session.infer.subtype(
+            lower,
+            reference_upper,
+            crate::constraints::OriginId::internal(),
         );
-        self.constrain_upper(
-            reference,
-            Neg::Con(crate::std_paths::control_var_ref_type(), args),
+        let reference_lower = self.alloc_pos(Pos::Var(reference));
+        let upper = self.alloc_neg(Neg::Con(crate::std_paths::control_var_ref_type(), args));
+        self.session.infer.subtype(
+            reference_lower,
+            upper,
+            crate::constraints::OriginId::internal(),
         );
         Ok(())
+    }
+
+    fn constrain_internal_var_equality(&mut self, left: TypeVar, right: TypeVar) {
+        let left_pos = self.alloc_pos(Pos::Var(left));
+        let right_neg = self.alloc_neg(Neg::Var(right));
+        self.session.infer.subtype(
+            left_pos,
+            right_neg,
+            crate::constraints::OriginId::internal(),
+        );
+        let right_pos = self.alloc_pos(Pos::Var(right));
+        let left_neg = self.alloc_neg(Neg::Var(left));
+        self.session.infer.subtype(
+            right_pos,
+            left_neg,
+            crate::constraints::OriginId::internal(),
+        );
     }
 
     pub(in crate::lowering) fn local_var_effect_value(
@@ -1038,10 +1061,22 @@ impl<'a> ExprLowerer<'a> {
         }
         let payload_arg = self.invariant_var_arg(payload);
         let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
-        self.constrain_lower(effect, Pos::Row(vec![lower_item]));
+        let lower_row = self.alloc_pos(Pos::Row(vec![lower_item]));
+        let effect_upper = self.alloc_neg(Neg::Var(effect));
+        self.session.infer.subtype(
+            lower_row,
+            effect_upper,
+            crate::constraints::OriginId::internal(),
+        );
         let upper_item = self.alloc_neg(Neg::Con(path, vec![payload_arg]));
         let upper_tail = self.alloc_neg(Neg::Bot);
-        self.constrain_upper(effect, Neg::Row(vec![upper_item], upper_tail));
+        let effect_lower = self.alloc_pos(Pos::Var(effect));
+        let upper_row = self.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
+        self.session.infer.subtype(
+            effect_lower,
+            upper_row,
+            crate::constraints::OriginId::internal(),
+        );
         Ok(effect)
     }
 
