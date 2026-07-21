@@ -315,6 +315,7 @@ mod case_04;
 mod case_05;
 mod case_06;
 mod case_07;
+mod ordinary_cast_characterization;
 
 use case_01::{
     assert_act_method_receiver_has_self_subtract, assert_method_body_is_receiver_identity,

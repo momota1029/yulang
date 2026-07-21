@@ -16,6 +16,7 @@ use poly::types::{
 mod case_01;
 mod case_02;
 mod case_03;
+mod ordinary_cast_characterization;
 
 use case_03::{
     assert_concrete_role_residual_missing, assert_var_has_exact_bound,

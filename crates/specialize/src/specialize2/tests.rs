@@ -1,5 +1,7 @@
 use super::*;
 
+mod ordinary_cast_characterization;
+
 fn callback_type(first_ret_effect: Type, final_ret_effect: Type) -> Type {
     Type::Fun {
         arg: Box::new(Type::unit()),

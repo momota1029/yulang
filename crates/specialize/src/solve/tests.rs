@@ -5,6 +5,8 @@ use super::{
     meet_type_candidates, solve_expr, unary_type,
 };
 
+mod ordinary_cast_characterization;
+
 #[test]
 fn root_generic_call_gets_types_for_apply_callee_and_arg() {
     let lowering = lower_source("my id x = x\nid(1)\n");
