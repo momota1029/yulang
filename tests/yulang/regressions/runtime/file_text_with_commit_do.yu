@@ -4,7 +4,7 @@ use std::control::var::*
 -- 手書き protocol lambda 版と同一の public 観測になることを固定する。
 
 my edit() =
-    my &text = std::io::file::text_with("/mock", do)
+    my &text = std::io::file::text_with(std::text::path::of_bytes (std::text::str::to_bytes "/mock"), do)
     my before = $text
     &text = before + " scoped"
     (before, $text)

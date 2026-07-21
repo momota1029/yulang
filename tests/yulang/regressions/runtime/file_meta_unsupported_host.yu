@@ -1,1 +1,1 @@
-std::io::file::meta "/tmp/yulang-contract-unsupported-meta"
+std::io::file::meta (std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-contract-unsupported-meta"))

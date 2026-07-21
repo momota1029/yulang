@@ -1,1 +1,1 @@
-std::io::file::exists "/tmp/yulang-contract-unsupported-host"
+std::io::file::exists (std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-contract-unsupported-host"))

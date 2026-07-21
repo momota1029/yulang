@@ -95,4 +95,5 @@ pub get(c: config, section_name: str, key: str): opt str =
 
 -- unstable: Read a file and parse it as this simple config format.
 pub load(path: str): [std::io::file::file, std::io::file::io_err] config =
-    parse (std::io::file::read_text path)
+    parse (std::io::file::read_text:
+        std::text::path::of_bytes (std::text::str::to_bytes path))

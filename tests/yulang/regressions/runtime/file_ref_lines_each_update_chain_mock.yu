@@ -3,7 +3,7 @@ use std::control::var::*
 use std::text::str::*
 
 my edit() =
-    my &doc = std::io::file::text "/mock"
+    my &doc = std::io::file::text (std::text::path::of_bytes (std::text::str::to_bytes "/mock"))
     my touched = ((&doc.lines.each).update \line ->
         line.replace_once "todo:" "done:"
     ).list

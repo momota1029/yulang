@@ -250,7 +250,7 @@ std = "repo"
 expect_stdout = "run roots [(opt::just(\"8080\"), opt::just(\"api\"), opt::just(\"4\"))]\n"
 expect_stderr = ""
 temp_files = [
-  { placeholder = "{{file}}", contents = "port = 8080\n[service]\nname=api\nworkers   =   4\n" },
+  { placeholder = "{{file}}", contents = "port = 8080\n[service]\nname=api\nworkers   =   4\n", as_str = true },
 ]
 contracts = ["runtime", "standard-api", "migration-canary", "preview", "str", "config", "file", "host-act", "host.native"]
 

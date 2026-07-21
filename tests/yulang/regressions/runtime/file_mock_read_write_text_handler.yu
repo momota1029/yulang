@@ -1,8 +1,8 @@
-my read = catch std::io::file::read_text "/mock":
+my read = catch std::io::file::read_text (std::text::path::of_bytes (std::text::str::to_bytes "/mock")):
     std::io::file::file::load path, k -> k (result::ok "start")
     v -> v
 
-my write = catch std::io::file::write_text "/mock" (read + "!"):
+my write = catch std::io::file::write_text (std::text::path::of_bytes (std::text::str::to_bytes "/mock")) (read + "!"):
     std::io::file::file::store (path, text), k -> text
     v -> "unexpected"
 

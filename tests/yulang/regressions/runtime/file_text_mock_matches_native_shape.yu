@@ -11,4 +11,4 @@ my run(backing, x: [_] _) = catch x:
     std::io::file::file::store (path, text), k -> run text: k (result::ok ())
     value -> (value, backing)
 
-(run "start": std::io::file::text_with "/mock" body, direct)
+(run "start": std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/mock")) body, direct)

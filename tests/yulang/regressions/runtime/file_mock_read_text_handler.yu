@@ -1,3 +1,3 @@
-catch std::io::file::read_text "/mock":
+catch std::io::file::read_text (std::text::path::of_bytes (std::text::str::to_bytes "/mock")):
     std::io::file::file::load path, k -> k (result::ok "mock")
     v -> v

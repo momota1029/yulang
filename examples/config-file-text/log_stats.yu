@@ -19,7 +19,7 @@ my add_sample(stats: (int, int, int), line: str): (int, int, int) = case (stats,
     (stats, nil) -> stats
 
 my stats: (int, int, int) =
-    (std::io::file::read_text "examples/config-file-text/access.txt").split "\n"
+    (std::io::file::read_text (std::text::path::of_bytes (std::text::str::to_bytes "examples/config-file-text/access.txt"))).split "\n"
         .fold (0, 0, 0) add_sample
 
 ("api log stats", stats).say

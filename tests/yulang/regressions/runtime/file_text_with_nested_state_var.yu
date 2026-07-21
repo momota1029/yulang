@@ -1,11 +1,11 @@
 use std::control::var::*
 
 my path_eq(a, b): bool =
-    std::text::bytes::eq (std::text::path::to_bytes a) (std::text::path::to_bytes b)
+    std::text::bytes::eq (std::text::path::to_bytes a) (std::text::path::to_bytes (std::text::path::of_bytes (std::text::str::to_bytes b)))
 
-my edit() = std::io::file::text_with "/a": \a0 ->
+my edit() = std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/a")): \a0 ->
     my $a = a0
-    my inner = std::io::file::text_with "/b": \b0 ->
+    my inner = std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/b")): \b0 ->
         my $b = b0
         &b = $b + $a
         &a = $a + "!"

@@ -9,5 +9,5 @@ my run(backing, x: [_] _) = catch x:
     value -> (value, backing)
 
 run "start": edit_err::wrap:
-    std::io::file::text_with "/mock": \text0 ->
+    std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/mock")): \text0 ->
         edit_err::abort.throw

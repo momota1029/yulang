@@ -2,7 +2,7 @@ use std::control::nondet::*
 use std::control::var::*
 use std::text::str::*
 
-my path = "/tmp/yulang-contract-unsupported-file-ref-lines-each-update-chain"
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-contract-unsupported-file-ref-lines-each-update-chain")
 
 my &doc = std::io::file::text path
 

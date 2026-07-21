@@ -1,1 +1,1 @@
-std::io::file::write_text "/tmp/yulang-contract-unsupported-write" "blocked"
+std::io::file::write_text (std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-contract-unsupported-write")) "blocked"

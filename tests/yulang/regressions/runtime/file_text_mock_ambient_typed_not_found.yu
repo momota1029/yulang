@@ -1,5 +1,5 @@
 my result = std::io::file::io_err::wrap:
-    catch (\&text -> $text) (std::io::file::text "/mock"):
+    catch (\&text -> $text) (std::io::file::text (std::text::path::of_bytes (std::text::str::to_bytes "/mock"))):
         std::io::file::file::ambient_touch path, k ->
             k (result::err (std::io::file::io_err::not_found path))
         value -> value

@@ -1,6 +1,6 @@
 use std::control::var::*
 
-my edit() = std::io::file::text_with "/mock": \text0 ->
+my edit() = std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/mock")): \text0 ->
     my $text = text0
     my before = $text
     &text = before + " scoped"

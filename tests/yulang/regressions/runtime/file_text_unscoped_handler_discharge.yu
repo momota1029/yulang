@@ -4,7 +4,7 @@ my edit() = (\&text ->
     my before = $text
     &text = before + "!"
     (before, $text)
-) (std::io::file::text "/mock")
+) (std::io::file::text (std::text::path::of_bytes (std::text::str::to_bytes "/mock")))
 
 my run(backing, x: [_] _) = catch x:
     std::io::file::file::ambient_touch path, k -> run backing: k (result::ok ())

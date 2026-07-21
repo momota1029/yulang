@@ -109,6 +109,8 @@ struct ContractTempFile {
     missing: bool,
     #[serde(default)]
     directory: bool,
+    #[serde(default)]
+    as_str: bool,
     expect_contents: Option<String>,
 }
 
@@ -951,10 +953,12 @@ fn materialize_contract_run_case(
                 )
             });
         }
-        source = source.replace(
-            &temp_file.placeholder,
-            &contract_yulang_string_literal(&path),
-        );
+        let replacement = if temp_file.as_str {
+            contract_yulang_string_literal(&path)
+        } else {
+            contract_yulang_path_expression(&path)
+        };
+        source = source.replace(&temp_file.placeholder, &replacement);
         temp_files.push(MaterializedContractTempFile {
             path,
             expect_contents: temp_file.expect_contents.clone(),
@@ -1425,6 +1429,11 @@ fn contract_temp_root(name: &str) -> PathBuf {
 
 fn contract_yulang_string_literal(path: &Path) -> String {
     format!("{:?}", path.display().to_string())
+}
+
+fn contract_yulang_path_expression(path: &Path) -> String {
+    let literal = contract_yulang_string_literal(path);
+    format!("(std::text::path::of_bytes (std::text::str::to_bytes {literal}))")
 }
 
 fn contract_fail(case: &ContractCase, message: &str) -> ! {

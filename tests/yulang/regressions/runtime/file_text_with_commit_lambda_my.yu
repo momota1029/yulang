@@ -4,7 +4,7 @@ use std::control::var::*
 -- `text_with` の state-passing protocol 型と意味論は変えず、callback 表記だけを変える。
 
 my edit() =
-    std::io::file::text_with "/mock" \my &text ->
+    std::io::file::text_with (std::text::path::of_bytes (std::text::str::to_bytes "/mock")) \my &text ->
         my before = $text
         &text = before + " scoped"
         (before, $text)

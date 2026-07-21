@@ -14,7 +14,9 @@ my read_config(path: str): (int, list (str, str), int, int) =
     my $entries = []
     my $comments = 0
     my $blanks = 0
-    for line in (std::io::file::read_text path).split "\n":
+    my source = std::io::file::read_text:
+        std::text::path::of_bytes (std::text::str::to_bytes path)
+    for line in source.split "\n":
         my clean = line.trim
         if clean == "":
             &blanks = $blanks + 1

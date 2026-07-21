@@ -1,4 +1,4 @@
-my file_meta = catch (std::io::file::meta "/mock-file"):
+my file_meta = catch (std::io::file::meta (std::text::path::of_bytes (std::text::str::to_bytes "/mock-file"))):
     std::io::file::file::meta path, k ->
         k (std::io::file::file_meta {
             kind: std::io::file::file_kind::file,
