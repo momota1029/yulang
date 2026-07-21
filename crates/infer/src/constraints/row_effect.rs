@@ -9,6 +9,7 @@ impl ConstraintMachine {
         items: Vec<NegId>,
         tail: NegId,
         weights: ConstraintWeights,
+        producer: Option<ConstraintRecordId>,
     ) {
         if weights.is_empty() {
             if self.add_unweighted_effect_row_upper_bound_from_existing_lowers(
@@ -16,10 +17,11 @@ impl ConstraintMachine {
                 items.clone(),
                 tail,
             ) {
+                self.timing.record_structural_deferred_multi_parent();
                 return;
             }
             let row = self.alloc_neg(Neg::Row(items, tail));
-            self.add_upper_bound(source, row, weights);
+            self.add_upper_bound(source, row, weights, producer);
             return;
         }
 
@@ -31,7 +33,7 @@ impl ConstraintMachine {
         };
         if weights.is_empty() {
             let row = self.alloc_neg(Neg::Row(items, tail));
-            self.add_upper_bound(source, row, ConstraintWeights::empty());
+            self.add_upper_bound(source, row, ConstraintWeights::empty(), producer);
             return;
         }
 
@@ -232,6 +234,7 @@ impl ConstraintMachine {
         }
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
+            producer: None,
             var: source,
             bound: neg,
             weights: weights.clone(),

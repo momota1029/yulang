@@ -1,7 +1,8 @@
 use super::*;
 
 impl ConstraintMachine {
-    pub(in crate::constraints) fn step_subtype(&mut self, constraint: SubtypeConstraintKey) {
+    pub(in crate::constraints) fn step_subtype(&mut self, parent: ConstraintRecordId) {
+        let constraint = self.constraint_records[parent.0 as usize].key.clone();
         if matches!(self.types.pos(constraint.lower), Pos::Bot)
             || matches!(self.types.neg(constraint.upper), Neg::Top)
         {
@@ -13,20 +14,24 @@ impl ConstraintMachine {
             if let Neg::Var(target) = self.types.neg(constraint.upper) {
                 self.record_pre_pop_effect_families(*target, &weight);
             }
-            self.enqueue_subtype(
+            self.enqueue_derived_subtype(
                 inner,
                 constraint.weights.with_left_prefix(weight),
                 constraint.upper,
+                parent,
+                StructuralDerivationRule::LowerStackNormalization,
             );
             return;
         }
         if let Pos::NonSubtract(pos, weight) = self.types.pos(constraint.lower) {
             let pos = *pos;
             let weight = weight.clone();
-            self.enqueue_subtype(
+            self.enqueue_derived_subtype(
                 pos,
                 constraint.weights.with_left_prefix(weight),
                 constraint.upper,
+                parent,
+                StructuralDerivationRule::LowerNonSubtractNormalization,
             );
             return;
         }
@@ -39,25 +44,59 @@ impl ConstraintMachine {
             if !matches!(stack_filter, Subtractability::Empty) {
                 self.constrain_pos_lower_by_filter(constraint.lower, &stack_filter);
             }
-            self.enqueue_subtype(
+            self.enqueue_derived_subtype(
                 constraint.lower,
                 constraint.weights.with_right_suffix(weight),
                 inner,
+                parent,
+                StructuralDerivationRule::UpperStackNormalization,
             );
             return;
         }
         if let Pos::Union(left, right) = self.types.pos(constraint.lower) {
             let left = *left;
             let right = *right;
-            self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
-            self.enqueue_subtype(right, constraint.weights, constraint.upper);
+            self.enqueue_derived_subtype(
+                left,
+                constraint.weights.clone(),
+                constraint.upper,
+                parent,
+                StructuralDerivationRule::UnionBranch {
+                    branch: StructuralIndex::from_usize(0),
+                },
+            );
+            self.enqueue_derived_subtype(
+                right,
+                constraint.weights,
+                constraint.upper,
+                parent,
+                StructuralDerivationRule::UnionBranch {
+                    branch: StructuralIndex::from_usize(1),
+                },
+            );
             return;
         }
         if let Neg::Intersection(left, right) = self.types.neg(constraint.upper) {
             let left = *left;
             let right = *right;
-            self.enqueue_subtype(constraint.lower, constraint.weights.clone(), left);
-            self.enqueue_subtype(constraint.lower, constraint.weights, right);
+            self.enqueue_derived_subtype(
+                constraint.lower,
+                constraint.weights.clone(),
+                left,
+                parent,
+                StructuralDerivationRule::IntersectionBranch {
+                    branch: StructuralIndex::from_usize(0),
+                },
+            );
+            self.enqueue_derived_subtype(
+                constraint.lower,
+                constraint.weights,
+                right,
+                parent,
+                StructuralDerivationRule::IntersectionBranch {
+                    branch: StructuralIndex::from_usize(1),
+                },
+            );
             return;
         }
         if let Pos::Var(source) = self.types.pos(constraint.lower) {
@@ -67,20 +106,41 @@ impl ConstraintMachine {
                     if source == target {
                         return;
                     }
-                    self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
-                    self.add_upper_bound(source, constraint.upper, constraint.weights);
+                    self.add_lower_bound(
+                        target,
+                        constraint.lower,
+                        constraint.weights.clone(),
+                        Some(parent),
+                    );
+                    self.add_upper_bound(
+                        source,
+                        constraint.upper,
+                        constraint.weights,
+                        Some(parent),
+                    );
                 }
                 Neg::Row(items, tail) => {
-                    self.add_effect_row_upper_bound(source, items, tail, constraint.weights);
+                    self.add_effect_row_upper_bound(
+                        source,
+                        items,
+                        tail,
+                        constraint.weights,
+                        Some(parent),
+                    );
                 }
                 _ => {
-                    self.add_upper_bound(source, constraint.upper, constraint.weights);
+                    self.add_upper_bound(
+                        source,
+                        constraint.upper,
+                        constraint.weights,
+                        Some(parent),
+                    );
                 }
             }
             return;
         }
         if let Neg::Var(target) = self.types.neg(constraint.upper) {
-            self.add_lower_bound(*target, constraint.lower, constraint.weights);
+            self.add_lower_bound(*target, constraint.lower, constraint.weights, Some(parent));
             return;
         }
         match (
@@ -102,25 +162,60 @@ impl ConstraintMachine {
                 },
             ) => {
                 let swapped = constraint.weights.swapped();
-                self.enqueue_subtype(upper_arg, swapped.clone(), arg);
+                self.enqueue_derived_subtype(
+                    upper_arg,
+                    swapped.clone(),
+                    arg,
+                    parent,
+                    StructuralDerivationRule::FunctionArgument,
+                );
                 if matches!(self.types.neg(arg_eff), Neg::Bot) {
                     let passthrough_ret_eff =
                         self.pure_arg_effect_passthrough_target(upper_ret_eff);
-                    self.enqueue_subtype(
+                    self.enqueue_derived_subtype(
                         upper_arg_eff,
                         constraint.weights.both_from_right(),
                         passthrough_ret_eff,
+                        parent,
+                        StructuralDerivationRule::FunctionArgumentEffect {
+                            pure_passthrough: true,
+                        },
                     );
                 } else {
-                    self.enqueue_subtype(upper_arg_eff, swapped, arg_eff);
+                    self.enqueue_derived_subtype(
+                        upper_arg_eff,
+                        swapped,
+                        arg_eff,
+                        parent,
+                        StructuralDerivationRule::FunctionArgumentEffect {
+                            pure_passthrough: false,
+                        },
+                    );
                 }
-                self.enqueue_subtype(ret_eff, constraint.weights.clone(), upper_ret_eff);
-                self.enqueue_subtype(ret, constraint.weights, upper_ret);
+                self.enqueue_derived_subtype(
+                    ret_eff,
+                    constraint.weights.clone(),
+                    upper_ret_eff,
+                    parent,
+                    StructuralDerivationRule::FunctionReturnEffect,
+                );
+                self.enqueue_derived_subtype(
+                    ret,
+                    constraint.weights,
+                    upper_ret,
+                    parent,
+                    StructuralDerivationRule::FunctionReturn,
+                );
             }
             (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
                 if lower_path == upper_path && lower_args.len() == upper_args.len() =>
             {
-                self.enqueue_invariant_neu_args(lower_args, upper_args, constraint.weights);
+                self.enqueue_derived_invariant_neu_args(
+                    lower_args,
+                    upper_args,
+                    constraint.weights,
+                    parent,
+                );
             }
             (Pos::Con(source, _), Neg::Con(target, _)) if source != target => {
                 self.timing.record_nominal_cast_event(&source, &target);
@@ -130,6 +225,7 @@ impl ConstraintMachine {
                     source,
                     target,
                     weights: constraint.weights,
+                    producer: parent,
                 });
             }
             (Pos::Con(path, args), Neg::Row(upper_items, upper_tail)) => {
@@ -139,27 +235,48 @@ impl ConstraintMachine {
                     upper_items,
                     upper_tail,
                     constraint.weights,
+                    parent,
                 );
             }
             (Pos::Record(lower_fields), Neg::Record(upper_fields)) => {
-                self.enqueue_record_fields(lower_fields, upper_fields, constraint.weights);
+                self.enqueue_record_fields(lower_fields, upper_fields, constraint.weights, parent);
             }
             (Pos::RecordTailSpread { fields, tail }, Neg::Record(upper_fields)) => {
-                self.enqueue_record_tail_spread(fields, tail, upper_fields, constraint.weights);
+                self.enqueue_record_tail_spread(
+                    fields,
+                    tail,
+                    upper_fields,
+                    constraint.weights,
+                    parent,
+                );
             }
             (Pos::RecordHeadSpread { tail, fields }, Neg::Record(upper_fields)) => {
-                self.enqueue_record_head_spread(tail, fields, upper_fields, constraint.weights);
+                self.enqueue_record_head_spread(
+                    tail,
+                    fields,
+                    upper_fields,
+                    constraint.weights,
+                    parent,
+                );
             }
             (Pos::PolyVariant(lower_items), Neg::PolyVariant(upper_items)) => {
-                self.enqueue_variant_items(lower_items, upper_items, constraint.weights);
+                self.enqueue_variant_items(lower_items, upper_items, constraint.weights, parent);
             }
             (Pos::Tuple(lowers), Neg::Tuple(uppers)) if lowers.len() == uppers.len() => {
-                for (lower, upper) in lowers.into_iter().zip(uppers) {
-                    self.enqueue_subtype(lower, constraint.weights.clone(), upper);
+                for (index, (lower, upper)) in lowers.into_iter().zip(uppers).enumerate() {
+                    self.enqueue_derived_subtype(
+                        lower,
+                        constraint.weights.clone(),
+                        upper,
+                        parent,
+                        StructuralDerivationRule::TupleElement {
+                            index: StructuralIndex::from_usize(index),
+                        },
+                    );
                 }
             }
             (Pos::Row(items), Neg::Row(upper_items, upper_tail)) => {
-                self.enqueue_row_items(items, upper_items, upper_tail, constraint.weights);
+                self.enqueue_row_items(items, upper_items, upper_tail, constraint.weights, parent);
             }
             _ => {}
         }
@@ -184,6 +301,40 @@ impl ConstraintMachine {
     ) {
         for (lower, upper) in lower_args.into_iter().zip(upper_args) {
             self.enqueue_invariant_neu(lower, upper, weights.clone());
+        }
+    }
+
+    fn enqueue_derived_invariant_neu_args(
+        &mut self,
+        lower_args: Vec<NeuId>,
+        upper_args: Vec<NeuId>,
+        weights: ConstraintWeights,
+        parent: ConstraintRecordId,
+    ) {
+        for (index, (lower, upper)) in lower_args.into_iter().zip(upper_args).enumerate() {
+            let (lower_pos, lower_neg) = self.neu_bounds(lower);
+            let (upper_pos, upper_neg) = self.neu_bounds(upper);
+            let index = StructuralIndex::from_usize(index);
+            self.enqueue_derived_subtype(
+                lower_pos,
+                weights.clone(),
+                upper_neg,
+                parent,
+                StructuralDerivationRule::ConstructorArgument {
+                    index,
+                    direction: InvariantDirection::LowerToUpper,
+                },
+            );
+            self.enqueue_derived_subtype(
+                upper_pos,
+                weights.swapped(),
+                lower_neg,
+                parent,
+                StructuralDerivationRule::ConstructorArgument {
+                    index,
+                    direction: InvariantDirection::UpperToLower,
+                },
+            );
         }
     }
 
@@ -308,15 +459,24 @@ impl ConstraintMachine {
         lower_fields: Vec<RecordField<PosId>>,
         upper_fields: Vec<RecordField<NegId>>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
-        for upper in upper_fields {
+        for (index, upper) in upper_fields.into_iter().enumerate() {
             let Some(lower) = find_record_field(&lower_fields, &upper.name) else {
                 continue;
             };
             if lower.optional && !upper.optional {
                 continue;
             }
-            self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+            self.enqueue_derived_subtype(
+                lower.value,
+                weights.clone(),
+                upper.value,
+                parent,
+                StructuralDerivationRule::RecordField {
+                    index: StructuralIndex::from_usize(index),
+                },
+            );
         }
     }
 
@@ -326,17 +486,46 @@ impl ConstraintMachine {
         tail: PosId,
         upper_fields: Vec<RecordField<NegId>>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
-        for upper in upper_fields {
+        for (index, upper) in upper_fields.into_iter().enumerate() {
+            let index = StructuralIndex::from_usize(index);
             if let Some(lower) = find_record_field(&fields, &upper.name) {
                 if !lower.optional || upper.optional {
-                    self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+                    self.enqueue_derived_subtype(
+                        lower.value,
+                        weights.clone(),
+                        upper.value,
+                        parent,
+                        StructuralDerivationRule::RecordSpreadField {
+                            spread: RecordSpreadKind::Tail,
+                            index,
+                        },
+                    );
                 }
                 let tail_upper = self.singleton_neg_record(optionalized_neg_field(upper));
-                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+                self.enqueue_derived_subtype(
+                    tail,
+                    weights.clone(),
+                    tail_upper,
+                    parent,
+                    StructuralDerivationRule::RecordSpreadTail {
+                        spread: RecordSpreadKind::Tail,
+                        index,
+                    },
+                );
             } else {
                 let tail_upper = self.singleton_neg_record(upper);
-                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+                self.enqueue_derived_subtype(
+                    tail,
+                    weights.clone(),
+                    tail_upper,
+                    parent,
+                    StructuralDerivationRule::RecordSpreadTail {
+                        spread: RecordSpreadKind::Tail,
+                        index,
+                    },
+                );
             }
         }
     }
@@ -347,15 +536,35 @@ impl ConstraintMachine {
         fields: Vec<RecordField<PosId>>,
         upper_fields: Vec<RecordField<NegId>>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
-        for upper in upper_fields {
+        for (index, upper) in upper_fields.into_iter().enumerate() {
+            let index = StructuralIndex::from_usize(index);
             if let Some(lower) = find_record_field(&fields, &upper.name) {
                 if !lower.optional || upper.optional {
-                    self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+                    self.enqueue_derived_subtype(
+                        lower.value,
+                        weights.clone(),
+                        upper.value,
+                        parent,
+                        StructuralDerivationRule::RecordSpreadField {
+                            spread: RecordSpreadKind::Head,
+                            index,
+                        },
+                    );
                 }
             } else {
                 let tail_upper = self.singleton_neg_record(upper);
-                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+                self.enqueue_derived_subtype(
+                    tail,
+                    weights.clone(),
+                    tail_upper,
+                    parent,
+                    StructuralDerivationRule::RecordSpreadTail {
+                        spread: RecordSpreadKind::Head,
+                        index,
+                    },
+                );
             }
         }
     }
@@ -372,8 +581,9 @@ impl ConstraintMachine {
         lower_items: Vec<(String, Vec<PosId>)>,
         upper_items: Vec<(String, Vec<NegId>)>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
-        for (name, lower_payloads) in lower_items {
+        for (variant_index, (name, lower_payloads)) in lower_items.into_iter().enumerate() {
             let Some((_, upper_payloads)) = upper_items
                 .iter()
                 .find(|(upper_name, _)| upper_name == &name)
@@ -383,11 +593,21 @@ impl ConstraintMachine {
             if lower_payloads.len() != upper_payloads.len() {
                 continue;
             }
-            for (lower, upper) in lower_payloads
+            for (payload_index, (lower, upper)) in lower_payloads
                 .into_iter()
                 .zip(upper_payloads.iter().copied())
+                .enumerate()
             {
-                self.enqueue_subtype(lower, weights.clone(), upper);
+                self.enqueue_derived_subtype(
+                    lower,
+                    weights.clone(),
+                    upper,
+                    parent,
+                    StructuralDerivationRule::VariantPayload {
+                        variant_index: StructuralIndex::from_usize(variant_index),
+                        payload_index: StructuralIndex::from_usize(payload_index),
+                    },
+                );
             }
         }
     }
@@ -398,42 +618,88 @@ impl ConstraintMachine {
         upper_items: Vec<NegId>,
         upper_tail: NegId,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
         let mut remaining_upper_items = upper_items;
         let mut variable_items = Vec::new();
         let mut row_tail_items = Vec::new();
         let mut direct_tail_items = Vec::new();
-        for item in items {
+        for (lower_index, item) in items.into_iter().enumerate() {
             if matches!(self.types.pos(item), Pos::Var(_)) {
-                variable_items.push(item);
+                variable_items.push((lower_index, item));
                 continue;
             }
 
-            if let Some(index) = remaining_upper_items
+            if let Some(upper_index) = remaining_upper_items
                 .iter()
                 .position(|upper| self.row_items_can_match(item, *upper))
             {
-                let upper = remaining_upper_items.remove(index);
-                self.enqueue_row_item_match(item, upper, weights.clone());
+                let upper = remaining_upper_items.remove(upper_index);
+                self.enqueue_derived_row_item_match(
+                    item,
+                    upper,
+                    weights.clone(),
+                    parent,
+                    StructuralIndex::from_usize(lower_index),
+                );
             } else if self.pos_is_effect_marker_row_item(item) {
-                row_tail_items.push(item);
+                row_tail_items.push((lower_index, item));
             } else {
-                direct_tail_items.push(item);
-                self.enqueue_subtype(item, weights.clone(), upper_tail);
+                direct_tail_items.push((lower_index, item));
+                self.enqueue_derived_subtype(
+                    item,
+                    weights.clone(),
+                    upper_tail,
+                    parent,
+                    StructuralDerivationRule::RowItem {
+                        index: StructuralIndex::from_usize(lower_index),
+                        route: RowItemRoute::DirectToUpperTail,
+                    },
+                );
             }
         }
 
-        if let Some(lower_tail) = self.pos_row_from_pos_items(row_tail_items.clone()) {
-            self.enqueue_subtype(lower_tail, weights.clone(), upper_tail);
+        if let Some(lower_tail) =
+            self.pos_row_from_pos_items(row_tail_items.iter().map(|(_, item)| *item).collect())
+        {
+            for (derivation_index, (index, _)) in row_tail_items.iter().enumerate() {
+                let rule = StructuralDerivationRule::RowItem {
+                    index: StructuralIndex::from_usize(*index),
+                    route: RowItemRoute::MarkerAggregateToUpperTail,
+                };
+                if derivation_index == 0 {
+                    self.enqueue_derived_subtype(
+                        lower_tail,
+                        weights.clone(),
+                        upper_tail,
+                        parent,
+                        rule,
+                    );
+                } else {
+                    self.merge_structural_derivation(
+                        lower_tail,
+                        weights.clone(),
+                        upper_tail,
+                        parent,
+                        rule,
+                    );
+                }
+            }
         }
 
-        for item in variable_items {
-            if let Some(index) = remaining_upper_items
+        for (lower_index, item) in variable_items {
+            if let Some(upper_index) = remaining_upper_items
                 .iter()
                 .position(|upper| self.row_items_can_match(item, *upper))
             {
-                let upper = remaining_upper_items.remove(index);
-                self.enqueue_row_item_match(item, upper, weights.clone());
+                let upper = remaining_upper_items.remove(upper_index);
+                self.enqueue_derived_row_item_match(
+                    item,
+                    upper,
+                    weights.clone(),
+                    parent,
+                    StructuralIndex::from_usize(lower_index),
+                );
                 continue;
             }
 
@@ -444,11 +710,30 @@ impl ConstraintMachine {
             } else {
                 self.alloc_neg(Neg::Row(remaining_upper_items.clone(), upper_tail))
             };
-            self.enqueue_subtype(item, weights.clone(), upper);
+            self.enqueue_derived_subtype(
+                item,
+                weights.clone(),
+                upper,
+                parent,
+                StructuralDerivationRule::RowItem {
+                    index: StructuralIndex::from_usize(lower_index),
+                    route: RowItemRoute::VariableToRemainingRow,
+                },
+            );
         }
 
-        self.enqueue_upper_tail_to_lower_row_tail(upper_tail, row_tail_items, weights.clone());
-        self.enqueue_upper_tail_to_direct_tail(upper_tail, direct_tail_items, weights);
+        self.enqueue_derived_upper_tail_to_lower_row_tail(
+            upper_tail,
+            row_tail_items,
+            weights.clone(),
+            parent,
+        );
+        self.enqueue_derived_upper_tail_to_direct_tail(
+            upper_tail,
+            direct_tail_items,
+            weights,
+            parent,
+        );
     }
 
     fn pos_row_from_pos_items(&mut self, items: Vec<PosId>) -> Option<PosId> {
@@ -506,6 +791,75 @@ impl ConstraintMachine {
         }
     }
 
+    fn enqueue_derived_row_item_match(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        weights: ConstraintWeights,
+        parent: ConstraintRecordId,
+        item_index: StructuralIndex,
+    ) {
+        match (self.types.pos(lower).clone(), self.types.neg(upper).clone()) {
+            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
+                if lower_path == upper_path =>
+            {
+                self.enqueue_derived_row_item_neu_args(
+                    lower_args, upper_args, weights, parent, item_index,
+                );
+            }
+            (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
+            _ => {
+                self.enqueue_derived_subtype(
+                    lower,
+                    weights,
+                    upper,
+                    parent,
+                    StructuralDerivationRule::RowItem {
+                        index: item_index,
+                        route: RowItemRoute::Matched,
+                    },
+                );
+            }
+        }
+    }
+
+    fn enqueue_derived_row_item_neu_args(
+        &mut self,
+        lower_args: Vec<NeuId>,
+        upper_args: Vec<NeuId>,
+        weights: ConstraintWeights,
+        parent: ConstraintRecordId,
+        item_index: StructuralIndex,
+    ) {
+        for (argument_index, (lower, upper)) in lower_args.into_iter().zip(upper_args).enumerate() {
+            let (lower_pos, lower_neg) = self.neu_bounds(lower);
+            let (upper_pos, upper_neg) = self.neu_bounds(upper);
+            let argument_index = StructuralIndex::from_usize(argument_index);
+            self.enqueue_derived_subtype(
+                lower_pos,
+                weights.clone(),
+                upper_neg,
+                parent,
+                StructuralDerivationRule::RowItemArgument {
+                    item_index,
+                    argument_index,
+                    direction: InvariantDirection::LowerToUpper,
+                },
+            );
+            self.enqueue_derived_subtype(
+                upper_pos,
+                weights.swapped(),
+                lower_neg,
+                parent,
+                StructuralDerivationRule::RowItemArgument {
+                    item_index,
+                    argument_index,
+                    direction: InvariantDirection::UpperToLower,
+                },
+            );
+        }
+    }
+
     pub(in crate::constraints) fn enqueue_row_item_neu_args(
         &mut self,
         lower_args: Vec<NeuId>,
@@ -527,50 +881,92 @@ impl ConstraintMachine {
         upper_items: Vec<NegId>,
         upper_tail: NegId,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
         let Some(upper) = upper_items.into_iter().find(
             |upper| matches!(self.types.neg(*upper), Neg::Con(path, _) if path == &lower_path),
         ) else {
             let lower = self.alloc_pos(Pos::Con(lower_path, lower_args));
-            self.enqueue_subtype(lower, weights, upper_tail);
+            self.enqueue_derived_subtype(
+                lower,
+                weights,
+                upper_tail,
+                parent,
+                StructuralDerivationRule::RowItem {
+                    index: StructuralIndex::from_usize(0),
+                    route: RowItemRoute::DirectToUpperTail,
+                },
+            );
             return;
         };
         let Neg::Con(_, upper_args) = self.types.neg(upper).clone() else {
             return;
         };
-        self.enqueue_row_item_neu_args(lower_args, upper_args, weights);
+        self.enqueue_derived_row_item_neu_args(
+            lower_args,
+            upper_args,
+            weights,
+            parent,
+            StructuralIndex::from_usize(0),
+        );
     }
 
-    pub(in crate::constraints) fn enqueue_upper_tail_to_lower_row_tail(
+    fn enqueue_derived_upper_tail_to_lower_row_tail(
         &mut self,
         upper_tail: NegId,
-        lower_tail_items: Vec<PosId>,
+        lower_tail_items: Vec<(usize, PosId)>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
         let Neg::Var(tail_var) = self.types.neg(upper_tail).clone() else {
             return;
         };
-        let Some(lower_tail) = self.neg_row_from_pos_items(lower_tail_items) else {
+        let Some(lower_tail) =
+            self.neg_row_from_pos_items(lower_tail_items.iter().map(|(_, item)| *item).collect())
+        else {
             return;
         };
         let tail = self.alloc_pos(Pos::Var(tail_var));
-        self.enqueue_subtype(tail, weights, lower_tail);
+        for (derivation_index, (index, _)) in lower_tail_items.into_iter().enumerate() {
+            let rule = StructuralDerivationRule::RowItem {
+                index: StructuralIndex::from_usize(index),
+                route: RowItemRoute::UpperTailToMarkerItems,
+            };
+            if derivation_index == 0 {
+                self.enqueue_derived_subtype(tail, weights.clone(), lower_tail, parent, rule);
+            } else {
+                self.merge_structural_derivation(tail, weights.clone(), lower_tail, parent, rule);
+            }
+        }
     }
 
-    pub(in crate::constraints) fn enqueue_upper_tail_to_direct_tail(
+    fn enqueue_derived_upper_tail_to_direct_tail(
         &mut self,
         upper_tail: NegId,
-        direct_tail_items: Vec<PosId>,
+        direct_tail_items: Vec<(usize, PosId)>,
         weights: ConstraintWeights,
+        parent: ConstraintRecordId,
     ) {
         let Neg::Var(tail_var) = self.types.neg(upper_tail).clone() else {
             return;
         };
-        let Some(lower_tail) = self.neg_direct_tail_from_pos_items(direct_tail_items) else {
+        let Some(lower_tail) = self.neg_direct_tail_from_pos_items(
+            direct_tail_items.iter().map(|(_, item)| *item).collect(),
+        ) else {
             return;
         };
         let tail = self.alloc_pos(Pos::Var(tail_var));
-        self.enqueue_subtype(tail, weights, lower_tail);
+        for (derivation_index, (index, _)) in direct_tail_items.into_iter().enumerate() {
+            let rule = StructuralDerivationRule::RowItem {
+                index: StructuralIndex::from_usize(index),
+                route: RowItemRoute::UpperTailToDirectItems,
+            };
+            if derivation_index == 0 {
+                self.enqueue_derived_subtype(tail, weights.clone(), lower_tail, parent, rule);
+            } else {
+                self.merge_structural_derivation(tail, weights.clone(), lower_tail, parent, rule);
+            }
+        }
     }
 
     pub(in crate::constraints) fn neg_direct_tail_from_pos_items(

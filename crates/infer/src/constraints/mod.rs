@@ -37,6 +37,7 @@ pub(crate) use mutation::{
 pub use timing::{
     ConstraintOriginCoverage, ConstraintTiming, ReplayDuplicateProfile,
     ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
+    StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -218,11 +219,13 @@ impl ExtrudeCtx {
 /// constraint core に直接入り込まず event を介して反応する。
 pub enum ConstraintEvent {
     LowerBoundAdded {
+        producer: Option<ConstraintRecordId>,
         var: TypeVar,
         bound: PosId,
         weights: ConstraintWeights,
     },
     UpperBoundAdded {
+        producer: Option<ConstraintRecordId>,
         var: TypeVar,
         bound: NegId,
         weights: ConstraintWeights,
@@ -232,6 +235,7 @@ pub enum ConstraintEvent {
         id: SubtractId,
     },
     NominalCastNeeded {
+        producer: ConstraintRecordId,
         lower: PosId,
         upper: NegId,
         source: Vec<String>,
@@ -568,6 +572,93 @@ pub struct SubtypeConstraintKey {
 pub struct ConstraintRecordId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StructuralIndex(u32);
+
+impl StructuralIndex {
+    fn from_usize(index: usize) -> Self {
+        Self(u32::try_from(index).expect("structural index fits in u32"))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InvariantDirection {
+    LowerToUpper,
+    UpperToLower,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RecordSpreadKind {
+    Head,
+    Tail,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RowItemRoute {
+    Matched,
+    DirectToUpperTail,
+    MarkerAggregateToUpperTail,
+    VariableToRemainingRow,
+    UpperTailToMarkerItems,
+    UpperTailToDirectItems,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StructuralDerivationRule {
+    LowerStackNormalization,
+    LowerNonSubtractNormalization,
+    UpperStackNormalization,
+    UnionBranch {
+        branch: StructuralIndex,
+    },
+    IntersectionBranch {
+        branch: StructuralIndex,
+    },
+    FunctionArgument,
+    FunctionArgumentEffect {
+        pure_passthrough: bool,
+    },
+    FunctionReturnEffect,
+    FunctionReturn,
+    ConstructorArgument {
+        index: StructuralIndex,
+        direction: InvariantDirection,
+    },
+    TupleElement {
+        index: StructuralIndex,
+    },
+    RecordField {
+        index: StructuralIndex,
+    },
+    RecordSpreadField {
+        spread: RecordSpreadKind,
+        index: StructuralIndex,
+    },
+    RecordSpreadTail {
+        spread: RecordSpreadKind,
+        index: StructuralIndex,
+    },
+    VariantPayload {
+        variant_index: StructuralIndex,
+        payload_index: StructuralIndex,
+    },
+    RowItem {
+        index: StructuralIndex,
+        route: RowItemRoute,
+    },
+    RowItemArgument {
+        item_index: StructuralIndex,
+        argument_index: StructuralIndex,
+        direction: InvariantDirection,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StructuralDerivation {
+    parent: ConstraintRecordId,
+    rule: StructuralDerivationRule,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// 1 inference session 内の source boundary ID。
 pub struct SourceBoundaryId(u32);
 
@@ -633,6 +724,7 @@ struct ConstraintRecord {
     key: SubtypeConstraintKey,
     /// Root leaves are additive metadata and never participate in semantic equality or queueing.
     root_origins: Vec<OriginId>,
+    structural_derivations: Vec<StructuralDerivation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -644,6 +736,15 @@ struct OriginRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SourceBoundaryRecord {
     origin: OriginId,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DebugConstraintTraceNode {
+    pub(crate) record: ConstraintRecordId,
+    pub(crate) key: SubtypeConstraintKey,
+    pub(crate) root_origins: Vec<OriginId>,
+    pub(crate) structural_derivations: Vec<StructuralDerivation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

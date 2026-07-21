@@ -102,7 +102,7 @@ fn role_solve_supplemental_epoch_covers_upper_row_pruning_and_neighbor_removal()
     let item = machine.alloc_neg(Neg::Con(vec!["effect".into()], Vec::new()));
     let tail = machine.alloc_neg(Neg::Var(tail_var));
     let row = machine.alloc_neg(Neg::Row(vec![item], tail));
-    machine.add_upper_bound(source, row, ConstraintWeights::empty());
+    machine.add_upper_bound(source, row, ConstraintWeights::empty(), None);
     assert!(machine.var_neighbors(source).any(|var| var == tail_var));
     let epoch = machine.epoch();
     let supplemental_epoch = machine.role_solve_supplemental_epoch();
@@ -500,11 +500,23 @@ fn subtype_to_neg_var_drops_weighted_non_effect_terminal_lower_bound() {
     assert_eq!(
         machine.events(),
         &[ConstraintEvent::LowerBoundAdded {
+            producer: Some(ConstraintRecordId(0)),
             var: target,
             bound: lower,
             weights: ConstraintWeights::empty()
         }]
     );
+    let ConstraintEvent::LowerBoundAdded {
+        producer: Some(producer),
+        bound,
+        ..
+    } = &machine.events()[0]
+    else {
+        panic!("lower-bound event with a producer record")
+    };
+    let producer = &machine.debug_trace_constraint(*producer)[0];
+    assert_eq!(producer.key.lower, *bound);
+    assert_eq!(producer.key.upper, upper);
 }
 
 #[test]
@@ -539,6 +551,7 @@ fn subtype_to_neg_var_keeps_weighted_effect_terminal_lower_bound() {
     assert_eq!(
         machine.events(),
         &[ConstraintEvent::LowerBoundAdded {
+            producer: Some(ConstraintRecordId(0)),
             var: target,
             bound: lower,
             weights
@@ -1094,6 +1107,7 @@ fn mismatched_constructors_emit_nominal_cast_event() {
     assert_eq!(
         machine.events(),
         &[ConstraintEvent::NominalCastNeeded {
+            producer: ConstraintRecordId(0),
             lower,
             upper,
             source: vec!["int".into()],
@@ -1101,6 +1115,18 @@ fn mismatched_constructors_emit_nominal_cast_event() {
             weights: ConstraintWeights::empty()
         }]
     );
+    let ConstraintEvent::NominalCastNeeded {
+        producer,
+        lower: event_lower,
+        upper: event_upper,
+        ..
+    } = &machine.events()[0]
+    else {
+        panic!("nominal-cast event")
+    };
+    let producer = &machine.debug_trace_constraint(*producer)[0];
+    assert_eq!(producer.key.lower, *event_lower);
+    assert_eq!(producer.key.upper, *event_upper);
 }
 
 #[test]

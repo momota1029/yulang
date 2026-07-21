@@ -406,6 +406,7 @@ impl AnalysisSession {
                     source,
                     target,
                     weights,
+                    ..
                 } => {
                     self.constrain_nominal_cast(lower, upper, &source, &target, weights);
                 }

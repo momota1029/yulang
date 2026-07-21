@@ -333,7 +333,7 @@ impl ConstraintMachine {
         for (lower, target) in bounds {
             self.record_root_origin(origin);
             self.timing.record_constrain_pos_var_direct_call();
-            self.add_lower_bound(target, lower, ConstraintWeights::empty());
+            self.add_lower_bound(target, lower, ConstraintWeights::empty(), None);
         }
         if !self.queue.is_empty() {
             self.drain();
@@ -558,9 +558,80 @@ impl ConstraintMachine {
         self.constraint_records.push(ConstraintRecord {
             key: constraint,
             root_origins: origin.into_iter().collect(),
+            structural_derivations: Vec::new(),
         });
         self.queue.push_back(ConstraintWork::Subtype(record_id));
         true
+    }
+
+    pub(in crate::constraints) fn enqueue_derived_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        parent: ConstraintRecordId,
+        rule: StructuralDerivationRule,
+    ) -> bool {
+        self.timing.record_structural_derivation(rule);
+        let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            self.timing.record_subtype_trivial_admission();
+            return false;
+        };
+        let derivation = StructuralDerivation { parent, rule };
+        let record_id = match self.canonical_constraints.entry(constraint.clone()) {
+            Entry::Occupied(entry) => {
+                let record_id = *entry.get();
+                let derivations =
+                    &mut self.constraint_records[record_id.0 as usize].structural_derivations;
+                if !derivations.contains(&derivation) {
+                    derivations.push(derivation);
+                }
+                self.timing.record_subtype_duplicate_admission();
+                return false;
+            }
+            Entry::Vacant(entry) => {
+                let record_id = ConstraintRecordId(self.constraint_records.len() as u32);
+                entry.insert(record_id);
+                record_id
+            }
+        };
+        self.observe_routing_shadow(&constraint);
+        self.constraint_records.push(ConstraintRecord {
+            key: constraint,
+            root_origins: Vec::new(),
+            structural_derivations: vec![derivation],
+        });
+        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        true
+    }
+
+    pub(in crate::constraints) fn merge_structural_derivation(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        parent: ConstraintRecordId,
+        rule: StructuralDerivationRule,
+    ) {
+        // Aggregate row decomposition can give one semantic child several unary explanations.
+        // The first edge performs normal admission; later edges only extend record metadata so
+        // semantic duplicate/trivial counters and queueing remain byte-identical.
+        self.timing.record_structural_derivation(rule);
+        let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            return;
+        };
+        let Some(record_id) = self.canonical_constraints.get(&constraint).copied() else {
+            debug_assert!(
+                false,
+                "a secondary derivation must follow semantic admission"
+            );
+            return;
+        };
+        let derivation = StructuralDerivation { parent, rule };
+        let derivations = &mut self.constraint_records[record_id.0 as usize].structural_derivations;
+        if !derivations.contains(&derivation) {
+            derivations.push(derivation);
+        }
     }
 
     fn record_root_origin(&mut self, origin: OriginId) {
@@ -575,6 +646,43 @@ impl ConstraintMachine {
             record.source_boundary.map(|_| origin),
         );
         self.timing.record_root_origin(record.kind);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn debug_constraint_record_id(
+        &self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+    ) -> Option<ConstraintRecordId> {
+        let key = self.canonical_subtype_constraint(lower, weights, upper)?;
+        self.canonical_constraints.get(&key).copied()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn debug_trace_constraint(
+        &self,
+        start: ConstraintRecordId,
+    ) -> Vec<DebugConstraintTraceNode> {
+        let mut pending = vec![start];
+        let mut visited = FxHashSet::default();
+        let mut trace = Vec::new();
+        while let Some(record_id) = pending.pop() {
+            if !visited.insert(record_id) {
+                continue;
+            }
+            let record = &self.constraint_records[record_id.0 as usize];
+            for derivation in record.structural_derivations.iter().rev() {
+                pending.push(derivation.parent);
+            }
+            trace.push(DebugConstraintTraceNode {
+                record: record_id,
+                key: record.key.clone(),
+                root_origins: record.root_origins.clone(),
+                structural_derivations: record.structural_derivations.clone(),
+            });
+        }
+        trace
     }
 
     fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraintKey) {
@@ -632,8 +740,7 @@ impl ConstraintMachine {
     pub(in crate::constraints) fn step(&mut self, work: ConstraintWork) {
         match work {
             ConstraintWork::Subtype(record_id) => {
-                let constraint = self.constraint_records[record_id.0 as usize].key.clone();
-                self.step_subtype(constraint);
+                self.step_subtype(record_id);
             }
             ConstraintWork::SubtractFact(fact) => {
                 self.record_subtract_fact(fact.effect, fact.fact);

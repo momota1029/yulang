@@ -6,7 +6,7 @@
 
 use crate::time::Duration;
 
-use super::ConstraintOriginKind;
+use super::{ConstraintOriginKind, StructuralDerivationRule};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintOriginCoverage {
@@ -17,6 +17,21 @@ pub struct ConstraintOriginCoverage {
     pub assignment: usize,
     pub internal: usize,
     pub unknown_internal: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StructuralDerivationCoverage {
+    pub full_unary: usize,
+    pub normalization: usize,
+    pub union_intersection: usize,
+    pub function: usize,
+    pub constructor: usize,
+    pub tuple: usize,
+    pub record: usize,
+    pub variant: usize,
+    pub row: usize,
+    pub deferred_multi_parent: usize,
+    pub unknown_rule: usize,
 }
 
 impl ConstraintOriginCoverage {
@@ -76,6 +91,7 @@ pub struct ConstraintTiming {
     pub subtype_duplicate_admissions: usize,
     pub subtype_trivial_admissions: usize,
     pub root_origins: ConstraintOriginCoverage,
+    pub structural_derivations: StructuralDerivationCoverage,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
     pub row_upper_bounds_added_without_replay: usize,
@@ -213,6 +229,37 @@ impl ReplayDuplicateProfile {
 impl ConstraintTiming {
     pub(super) fn record_root_origin(&mut self, kind: ConstraintOriginKind) {
         self.root_origins.record(kind);
+    }
+
+    pub(super) fn record_structural_derivation(&mut self, rule: StructuralDerivationRule) {
+        let coverage = &mut self.structural_derivations;
+        coverage.full_unary += 1;
+        let counter = match rule {
+            StructuralDerivationRule::LowerStackNormalization
+            | StructuralDerivationRule::LowerNonSubtractNormalization
+            | StructuralDerivationRule::UpperStackNormalization => &mut coverage.normalization,
+            StructuralDerivationRule::UnionBranch { .. }
+            | StructuralDerivationRule::IntersectionBranch { .. } => {
+                &mut coverage.union_intersection
+            }
+            StructuralDerivationRule::FunctionArgument
+            | StructuralDerivationRule::FunctionArgumentEffect { .. }
+            | StructuralDerivationRule::FunctionReturnEffect
+            | StructuralDerivationRule::FunctionReturn => &mut coverage.function,
+            StructuralDerivationRule::ConstructorArgument { .. } => &mut coverage.constructor,
+            StructuralDerivationRule::TupleElement { .. } => &mut coverage.tuple,
+            StructuralDerivationRule::RecordField { .. }
+            | StructuralDerivationRule::RecordSpreadField { .. }
+            | StructuralDerivationRule::RecordSpreadTail { .. } => &mut coverage.record,
+            StructuralDerivationRule::VariantPayload { .. } => &mut coverage.variant,
+            StructuralDerivationRule::RowItem { .. }
+            | StructuralDerivationRule::RowItemArgument { .. } => &mut coverage.row,
+        };
+        *counter += 1;
+    }
+
+    pub(super) fn record_structural_deferred_multi_parent(&mut self) {
+        self.structural_derivations.deferred_multi_parent += 1;
     }
 
     pub(super) fn record_subtype_call(&mut self) {

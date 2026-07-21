@@ -41,6 +41,7 @@ impl ConstraintMachine {
         target: TypeVar,
         pos: PosId,
         weights: ConstraintWeights,
+        producer: Option<ConstraintRecordId>,
     ) {
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
@@ -55,6 +56,7 @@ impl ConstraintMachine {
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
+            producer,
             var: target,
             bound: pos,
             weights: weights.clone(),
@@ -85,6 +87,7 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: ConstraintWeights,
+        producer: Option<ConstraintRecordId>,
     ) {
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
@@ -102,6 +105,7 @@ impl ConstraintMachine {
         let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
+            producer,
             var: source,
             bound: neg,
             weights: weights.clone(),
@@ -1010,7 +1014,7 @@ mod mutation_tests {
             1
         );
 
-        machine.add_lower_bound(target, lower, ConstraintWeights::empty());
+        machine.add_lower_bound(target, lower, ConstraintWeights::empty(), None);
         assert!(
             changed_keys(machine.take_method_role_mutations())
                 .contains(&DependencyKey::ConstraintBounds(target))
@@ -1020,7 +1024,7 @@ mod mutation_tests {
             0
         );
 
-        machine.add_upper_bound(source, upper, ConstraintWeights::empty());
+        machine.add_upper_bound(source, upper, ConstraintWeights::empty(), None);
         assert!(
             changed_keys(machine.take_method_role_mutations())
                 .contains(&DependencyKey::ConstraintBounds(source))
