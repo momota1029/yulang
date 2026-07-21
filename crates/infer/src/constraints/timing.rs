@@ -52,7 +52,16 @@ pub struct ReplayDerivationCoverage {
     pub considered: usize,
     pub inserted: usize,
     pub deduplicated: usize,
+    pub budget_dropped: usize,
     pub semantic_duplicate_results: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayDerivationStorageMetrics {
+    pub bytes_proxy: usize,
+    pub max_incoming_per_record: usize,
+    pub incomplete_records: usize,
+    pub session_incomplete: bool,
 }
 
 impl ConstraintOriginCoverage {
@@ -116,6 +125,7 @@ pub struct ConstraintTiming {
     pub structural_derivations: StructuralDerivationCoverage,
     pub stable_records: StableRecordCoverage,
     pub replay_derivations: ReplayDerivationCoverage,
+    pub replay_derivation_storage: ReplayDerivationStorageMetrics,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
     pub row_upper_bounds_added_without_replay: usize,
@@ -330,14 +340,16 @@ impl ConstraintTiming {
 
     pub(super) fn record_replay_derivation_edge(
         &mut self,
-        considered: bool,
         inserted: bool,
+        deduplicated: bool,
+        budget_dropped: bool,
         semantic_duplicate_result: bool,
     ) {
         let coverage = &mut self.replay_derivations;
-        coverage.considered += usize::from(considered);
+        coverage.considered += 1;
         coverage.inserted += usize::from(inserted);
-        coverage.deduplicated += usize::from(considered && !inserted);
+        coverage.deduplicated += usize::from(deduplicated);
+        coverage.budget_dropped += usize::from(budget_dropped);
         coverage.semantic_duplicate_results += usize::from(semantic_duplicate_result);
     }
 

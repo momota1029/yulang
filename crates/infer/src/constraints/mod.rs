@@ -35,9 +35,10 @@ pub(crate) use mutation::{
 };
 
 pub use timing::{
-    ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage, ReplayDuplicateProfile,
-    ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
-    StableRecordCoverage, StructuralDerivationCoverage,
+    ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage,
+    ReplayDerivationStorageMetrics, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
+    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, StableRecordCoverage,
+    StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -67,6 +68,8 @@ pub struct ConstraintMachine {
     constraint_records: Vec<ConstraintRecord>,
     replay_drop_records: Vec<ReplayDropRecord>,
     replay_drop_index: FxHashMap<ReplayDropRecord, ReplayDropRecordId>,
+    replay_derivation_budget: ReplayDerivationBudget,
+    replay_derivation_storage: ReplayDerivationStorage,
     origins: Vec<OriginRecord>,
     source_boundaries: Vec<SourceBoundaryRecord>,
     events: Vec<ConstraintEvent>,
@@ -324,6 +327,13 @@ impl TypeBounds {
 
     pub fn record(&self, id: BoundRecordId) -> Option<&BoundRecord> {
         self.records.get(id.0 as usize)
+    }
+
+    fn contains_derivation(&self, key: &BoundSemanticKey, derivation: BoundDerivation) -> bool {
+        self.canonical
+            .get(key)
+            .and_then(|id| self.record(*id))
+            .is_some_and(|record| record.derivations.contains(&derivation))
     }
 
     fn add_lower(
@@ -653,6 +663,7 @@ pub enum BoundDerivation {
     Constraint(ConstraintRecordId),
     Origin(OriginId),
     ReplayEvidence(BinaryReplayDerivation),
+    IncompleteReplay,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -682,6 +693,58 @@ pub struct ReplayDropRecordId(u32);
 pub struct ReplayDropRecord {
     attempted: SubtypeConstraintKey,
     derivation: BinaryReplayDerivation,
+}
+
+// Section 9 of the provenance redesign spec records the measurements and safety factors behind
+// these limits. The byte limit is a stable logical-allocation proxy, not allocator-reported RSS.
+const DEFAULT_REPLAY_DERIVATION_BYTES: usize = 64 * 1024 * 1024;
+const DEFAULT_REPLAY_DERIVATIONS_PER_RECORD: usize = 4_096;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProvenanceCompleteness {
+    Complete,
+    Incomplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayDerivationBudget {
+    max_bytes_proxy: usize,
+    max_incoming_per_record: usize,
+}
+
+impl Default for ReplayDerivationBudget {
+    fn default() -> Self {
+        Self {
+            max_bytes_proxy: DEFAULT_REPLAY_DERIVATION_BYTES,
+            max_incoming_per_record: DEFAULT_REPLAY_DERIVATIONS_PER_RECORD,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayDerivationStorage {
+    bytes_proxy: usize,
+    max_incoming_per_record: usize,
+    incomplete_records: usize,
+    completeness: ProvenanceCompleteness,
+}
+
+impl Default for ReplayDerivationStorage {
+    fn default() -> Self {
+        Self {
+            bytes_proxy: 0,
+            max_incoming_per_record: 0,
+            incomplete_records: 0,
+            completeness: ProvenanceCompleteness::Complete,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReplayDerivationInsert {
+    Inserted,
+    Duplicate,
+    Incomplete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1169,6 +1232,7 @@ struct ConstraintRecord {
     root_origins: Vec<OriginId>,
     structural_derivations: Vec<StructuralDerivation>,
     replay_derivations: Vec<BinaryReplayDerivation>,
+    replay_provenance: ProvenanceCompleteness,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1190,6 +1254,7 @@ pub(crate) struct DebugConstraintTraceNode {
     pub(crate) root_origins: Vec<OriginId>,
     pub(crate) structural_derivations: Vec<StructuralDerivation>,
     pub(crate) replay_derivations: Vec<BinaryReplayDerivation>,
+    pub(crate) replay_provenance: ProvenanceCompleteness,
 }
 
 #[cfg(test)]

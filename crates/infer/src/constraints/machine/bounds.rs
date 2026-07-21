@@ -189,6 +189,7 @@ impl ConstraintMachine {
                         visited_constraints,
                     );
                 }
+                BoundDerivation::IncompleteReplay => {}
             }
         }
     }
@@ -239,7 +240,9 @@ impl ConstraintMachine {
     ) {
         let producer = match derivation {
             BoundDerivation::Constraint(record) => Some(record),
-            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence(_) => None,
+            BoundDerivation::Origin(_)
+            | BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::IncompleteReplay => None,
         };
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
@@ -295,7 +298,9 @@ impl ConstraintMachine {
     ) {
         let producer = match derivation {
             BoundDerivation::Constraint(record) => Some(record),
-            BoundDerivation::Origin(_) | BoundDerivation::ReplayEvidence(_) => None,
+            BoundDerivation::Origin(_)
+            | BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::IncompleteReplay => None,
         };
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
@@ -745,10 +750,14 @@ impl ConstraintMachine {
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
         for action in actions {
-            let (enqueued, inserted) =
+            let (enqueued, disposition) =
                 self.enqueue_replay_subtype(action.constraint, action.derivation);
-            self.timing
-                .record_replay_derivation_edge(true, inserted, !enqueued);
+            self.timing.record_replay_derivation_edge(
+                disposition == ReplayDerivationInsert::Inserted,
+                disposition == ReplayDerivationInsert::Duplicate,
+                disposition == ReplayDerivationInsert::Incomplete,
+                !enqueued,
+            );
             if enqueued {
                 stats.accepted += 1;
             } else {
@@ -768,11 +777,46 @@ impl ConstraintMachine {
                 (Pos::Var(source), Neg::Var(target)) => (*source, *target),
                 _ => continue,
             };
+            let replay_derivation = BoundDerivation::ReplayEvidence(action.derivation);
+            let lower_key = BoundSemanticKey::Lower {
+                owner: target,
+                endpoint: constraint.lower,
+                weights: constraint.weights.clone(),
+            };
+            let upper_key = BoundSemanticKey::Upper {
+                owner: source,
+                endpoint: constraint.upper,
+                weights: constraint.weights.clone(),
+            };
+            let lower_derivation_new = !self
+                .bounds
+                .contains_derivation(&lower_key, replay_derivation);
+            let upper_derivation_new = !self
+                .bounds
+                .contains_derivation(&upper_key, replay_derivation);
+            let evidence_bytes = std::mem::size_of::<BinaryReplayDerivation>()
+                * (usize::from(lower_derivation_new) + usize::from(upper_derivation_new));
+            let evidence_complete = self.replay_derivation_session_budget_allows(evidence_bytes);
+            if evidence_complete {
+                self.charge_replay_derivation_bytes(evidence_bytes);
+            } else {
+                self.record_replay_budget_drop(None);
+            }
+            let lower_derivation = if evidence_complete || !lower_derivation_new {
+                replay_derivation
+            } else {
+                BoundDerivation::IncompleteReplay
+            };
+            let upper_derivation = if evidence_complete || !upper_derivation_new {
+                replay_derivation
+            } else {
+                BoundDerivation::IncompleteReplay
+            };
             let insertion = self.bounds.add_evidence_lower(
                 target,
                 constraint.lower,
                 constraint.weights.clone(),
-                BoundDerivation::ReplayEvidence(action.derivation),
+                lower_derivation,
             );
             let lower_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Lower, true);
@@ -784,7 +828,7 @@ impl ConstraintMachine {
                 source,
                 constraint.upper,
                 constraint.weights,
-                BoundDerivation::ReplayEvidence(action.derivation),
+                upper_derivation,
             );
             let upper_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Upper, true);
@@ -793,8 +837,9 @@ impl ConstraintMachine {
                 self.record_effective_bounds_mutation(source);
             }
             self.timing.record_replay_derivation_edge(
-                true,
-                lower_edge_inserted || upper_edge_inserted,
+                evidence_complete && (lower_edge_inserted || upper_edge_inserted),
+                evidence_complete && !(lower_edge_inserted || upper_edge_inserted),
+                !evidence_complete,
                 false,
             );
         }
@@ -810,17 +855,25 @@ impl ConstraintMachine {
                 .canonical_constraints
                 .get(&action.constraint)
                 .expect("prefiltered replay duplicate remains canonical");
-            let inserted = self.merge_replay_derivation(result, action.derivation);
-            self.timing
-                .record_replay_derivation_edge(true, inserted, true);
+            let disposition = self.merge_replay_derivation(result, action.derivation);
+            self.timing.record_replay_derivation_edge(
+                disposition == ReplayDerivationInsert::Inserted,
+                disposition == ReplayDerivationInsert::Duplicate,
+                disposition == ReplayDerivationInsert::Incomplete,
+                true,
+            );
         }
         for action in trivial {
-            let inserted = self.intern_replay_drop(ReplayDropRecord {
+            let disposition = self.intern_replay_drop(ReplayDropRecord {
                 attempted: action.constraint,
                 derivation: action.derivation,
             });
-            self.timing
-                .record_replay_derivation_edge(true, inserted, false);
+            self.timing.record_replay_derivation_edge(
+                disposition == ReplayDerivationInsert::Inserted,
+                disposition == ReplayDerivationInsert::Duplicate,
+                disposition == ReplayDerivationInsert::Incomplete,
+                false,
+            );
         }
     }
 

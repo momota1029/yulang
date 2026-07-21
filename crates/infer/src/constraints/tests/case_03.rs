@@ -120,8 +120,104 @@ fn genuine_replay_chain_keeps_both_exact_bound_parents() {
     assert!(witness.upper.source_origins.contains(&origin));
 
     let provenance_epoch = machine.provenance_epoch();
-    assert!(!machine.merge_replay_derivation(witness.edge.result, witness.edge.derivation,));
+    assert_eq!(
+        machine.merge_replay_derivation(witness.edge.result, witness.edge.derivation),
+        ReplayDerivationInsert::Duplicate
+    );
     assert_eq!(machine.provenance_epoch(), provenance_epoch);
+}
+
+#[test]
+fn replay_provenance_budget_marks_incomplete_without_semantic_changes() {
+    let (baseline, baseline_producer) = replay_budget_fixture(usize::MAX, usize::MAX);
+    let (byte_capped, byte_capped_producer) = replay_budget_fixture(0, usize::MAX);
+    let (record_capped, record_capped_producer) = replay_budget_fixture(usize::MAX, 0);
+
+    for (capped, producer) in [
+        (&byte_capped, byte_capped_producer),
+        (&record_capped, record_capped_producer),
+    ] {
+        assert_eq!(capped.events(), baseline.events());
+        assert_eq!(capped.epoch(), baseline.epoch());
+        let capped_timing = capped.timing();
+        let baseline_timing = baseline.timing();
+        assert_eq!(
+            (
+                capped_timing.canonical_subtype_constraints,
+                capped_timing.subtype_duplicate_admissions,
+                capped_timing.subtype_trivial_admissions,
+                capped_timing.lower_bounds_added,
+                capped_timing.upper_bounds_added,
+                capped_timing.lower_replay_enqueued,
+                capped_timing.upper_replay_enqueued,
+                capped_timing.lower_replay_accepted,
+                capped_timing.upper_replay_accepted,
+                capped_timing.nominal_cast_events,
+            ),
+            (
+                baseline_timing.canonical_subtype_constraints,
+                baseline_timing.subtype_duplicate_admissions,
+                baseline_timing.subtype_trivial_admissions,
+                baseline_timing.lower_bounds_added,
+                baseline_timing.upper_bounds_added,
+                baseline_timing.lower_replay_enqueued,
+                baseline_timing.upper_replay_enqueued,
+                baseline_timing.lower_replay_accepted,
+                baseline_timing.upper_replay_accepted,
+                baseline_timing.nominal_cast_events,
+            )
+        );
+        assert_eq!(
+            capped.replay_provenance_completeness(),
+            ProvenanceCompleteness::Incomplete
+        );
+        assert_eq!(
+            capped.constraint_replay_provenance(producer),
+            Some(ProvenanceCompleteness::Incomplete)
+        );
+        assert_eq!(capped_timing.replay_derivations.budget_dropped, 1);
+        assert_eq!(
+            capped_timing.replay_derivation_storage.incomplete_records,
+            1
+        );
+    }
+
+    assert_eq!(
+        baseline.replay_provenance_completeness(),
+        ProvenanceCompleteness::Complete
+    );
+    assert_eq!(
+        baseline.constraint_replay_provenance(baseline_producer),
+        Some(ProvenanceCompleteness::Complete)
+    );
+}
+
+fn replay_budget_fixture(
+    max_bytes_proxy: usize,
+    max_incoming_per_record: usize,
+) -> (ConstraintMachine, ConstraintRecordId) {
+    let mut machine = ConstraintMachine::new();
+    machine.set_replay_derivation_budget_for_test(max_bytes_proxy, max_incoming_per_record);
+    let origin = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["budget-lower".into()], vec![]));
+    let upper = machine.alloc_neg(Neg::Con(vec!["budget-upper".into()], vec![]));
+
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], origin);
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, origin);
+
+    let producer = machine
+        .events()
+        .iter()
+        .find_map(|event| match event {
+            ConstraintEvent::NominalCastNeeded { producer, .. } => Some(*producer),
+            _ => None,
+        })
+        .expect("replay emits the nominal event even when provenance is capped");
+    (machine, producer)
 }
 
 #[test]

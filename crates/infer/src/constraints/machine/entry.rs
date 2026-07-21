@@ -23,6 +23,8 @@ impl ConstraintMachine {
             constraint_records: Vec::new(),
             replay_drop_records: Vec::new(),
             replay_drop_index: FxHashMap::default(),
+            replay_derivation_budget: ReplayDerivationBudget::default(),
+            replay_derivation_storage: ReplayDerivationStorage::default(),
             origins: vec![
                 OriginRecord {
                     kind: ConstraintOriginKind::Internal,
@@ -114,6 +116,32 @@ impl ConstraintMachine {
         &self.events
     }
 
+    pub fn replay_provenance_completeness(&self) -> ProvenanceCompleteness {
+        self.replay_derivation_storage.completeness
+    }
+
+    pub fn constraint_replay_provenance(
+        &self,
+        record: ConstraintRecordId,
+    ) -> Option<ProvenanceCompleteness> {
+        self.constraint_records
+            .get(record.0 as usize)
+            .map(|record| record.replay_provenance)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_replay_derivation_budget_for_test(
+        &mut self,
+        max_bytes_proxy: usize,
+        max_incoming_per_record: usize,
+    ) {
+        assert_eq!(self.replay_derivation_storage.bytes_proxy, 0);
+        self.replay_derivation_budget = ReplayDerivationBudget {
+            max_bytes_proxy,
+            max_incoming_per_record,
+        };
+    }
+
     pub fn timing(&self) -> ConstraintTiming {
         let mut timing = self.timing;
         timing.epoch = self.epoch.as_u64();
@@ -125,6 +153,13 @@ impl ConstraintMachine {
         timing.neg_node_count = self.types.neg_len();
         timing.neu_node_count = self.types.neu_len();
         timing.type_node_count = self.types.node_len();
+        timing.replay_derivation_storage = ReplayDerivationStorageMetrics {
+            bytes_proxy: self.replay_derivation_storage.bytes_proxy,
+            max_incoming_per_record: self.replay_derivation_storage.max_incoming_per_record,
+            incomplete_records: self.replay_derivation_storage.incomplete_records,
+            session_incomplete: self.replay_derivation_storage.completeness
+                == ProvenanceCompleteness::Incomplete,
+        };
         if let Some(shadow) = &self.replay_frontier_shadow {
             timing.replay_frontier_shadow_lower_var_var = shadow.lower_var_var;
             timing.replay_frontier_shadow_upper_var_var = shadow.upper_var_var;
@@ -578,7 +613,7 @@ impl ConstraintMachine {
         &mut self,
         constraint: SubtypeConstraintKey,
         derivation: BinaryReplayDerivation,
-    ) -> (bool, bool) {
+    ) -> (bool, ReplayDerivationInsert) {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let record_id = *entry.get();
@@ -593,40 +628,134 @@ impl ConstraintMachine {
             }
         };
         self.observe_routing_shadow(&constraint);
+        let inserted = if self
+            .replay_derivation_budget_allows(std::mem::size_of::<BinaryReplayDerivation>(), 1)
+        {
+            self.replay_derivation_storage.bytes_proxy +=
+                std::mem::size_of::<BinaryReplayDerivation>();
+            self.replay_derivation_storage.max_incoming_per_record = self
+                .replay_derivation_storage
+                .max_incoming_per_record
+                .max(1);
+            ReplayDerivationInsert::Inserted
+        } else {
+            self.record_replay_budget_drop(None);
+            self.replay_derivation_storage.incomplete_records += 1;
+            ReplayDerivationInsert::Incomplete
+        };
         self.constraint_records.push(ConstraintRecord {
             key: constraint,
             root_origins: Vec::new(),
             structural_derivations: Vec::new(),
-            replay_derivations: vec![derivation],
+            replay_derivations: if matches!(inserted, ReplayDerivationInsert::Inserted) {
+                vec![derivation]
+            } else {
+                Vec::new()
+            },
+            replay_provenance: if matches!(inserted, ReplayDerivationInsert::Inserted) {
+                ProvenanceCompleteness::Complete
+            } else {
+                ProvenanceCompleteness::Incomplete
+            },
         });
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
-        (true, true)
+        (true, inserted)
     }
 
     pub(in crate::constraints) fn merge_replay_derivation(
         &mut self,
         result: ConstraintRecordId,
         derivation: BinaryReplayDerivation,
-    ) -> bool {
-        let derivations = &mut self.constraint_records[result.0 as usize].replay_derivations;
-        if derivations.contains(&derivation) {
-            return false;
+    ) -> ReplayDerivationInsert {
+        let record = &self.constraint_records[result.0 as usize];
+        if record.replay_derivations.contains(&derivation) {
+            return ReplayDerivationInsert::Duplicate;
         }
-        derivations.push(derivation);
+        let incoming = record.replay_derivations.len().saturating_add(1);
+        if !self.replay_derivation_budget_allows(
+            std::mem::size_of::<BinaryReplayDerivation>(),
+            incoming,
+        ) {
+            self.record_replay_budget_drop(Some(result));
+            return ReplayDerivationInsert::Incomplete;
+        }
+        self.replay_derivation_storage.bytes_proxy += std::mem::size_of::<BinaryReplayDerivation>();
+        self.replay_derivation_storage.max_incoming_per_record = self
+            .replay_derivation_storage
+            .max_incoming_per_record
+            .max(incoming);
+        self.constraint_records[result.0 as usize]
+            .replay_derivations
+            .push(derivation);
         self.bump_provenance_epoch();
-        true
+        ReplayDerivationInsert::Inserted
     }
 
-    pub(in crate::constraints) fn intern_replay_drop(&mut self, record: ReplayDropRecord) -> bool {
+    pub(in crate::constraints) fn intern_replay_drop(
+        &mut self,
+        record: ReplayDropRecord,
+    ) -> ReplayDerivationInsert {
         if self.replay_drop_index.contains_key(&record) {
-            return false;
+            return ReplayDerivationInsert::Duplicate;
         }
+        let bytes =
+            std::mem::size_of::<ReplayDropRecord>() * 2 + std::mem::size_of::<ReplayDropRecordId>();
+        if !self.replay_derivation_session_budget_allows(bytes) {
+            self.record_replay_budget_drop(None);
+            return ReplayDerivationInsert::Incomplete;
+        }
+        self.replay_derivation_storage.bytes_proxy += bytes;
         let id = ReplayDropRecordId(self.replay_drop_records.len() as u32);
         self.replay_drop_index.insert(record.clone(), id);
         self.replay_drop_records.push(record);
         self.bump_provenance_epoch();
-        true
+        ReplayDerivationInsert::Inserted
+    }
+
+    pub(in crate::constraints) fn replay_derivation_budget_allows(
+        &self,
+        bytes: usize,
+        incoming_for_record: usize,
+    ) -> bool {
+        incoming_for_record <= self.replay_derivation_budget.max_incoming_per_record
+            && self.replay_derivation_session_budget_allows(bytes)
+    }
+
+    pub(in crate::constraints) fn replay_derivation_session_budget_allows(
+        &self,
+        bytes: usize,
+    ) -> bool {
+        self.replay_derivation_storage
+            .bytes_proxy
+            .checked_add(bytes)
+            .is_some_and(|total| total <= self.replay_derivation_budget.max_bytes_proxy)
+    }
+
+    pub(in crate::constraints) fn charge_replay_derivation_bytes(&mut self, bytes: usize) {
+        self.replay_derivation_storage.bytes_proxy += bytes;
+    }
+
+    pub(in crate::constraints) fn record_replay_budget_drop(
+        &mut self,
+        record: Option<ConstraintRecordId>,
+    ) {
+        let mut changed = false;
+        if self.replay_derivation_storage.completeness == ProvenanceCompleteness::Complete {
+            self.replay_derivation_storage.completeness = ProvenanceCompleteness::Incomplete;
+            changed = true;
+        }
+        if let Some(record) = record {
+            let record = &mut self.constraint_records[record.0 as usize];
+            if record.replay_provenance == ProvenanceCompleteness::Complete {
+                record.replay_provenance = ProvenanceCompleteness::Incomplete;
+                self.replay_derivation_storage.incomplete_records += 1;
+                changed = true;
+            }
+        }
+        if changed {
+            self.bump_provenance_epoch();
+        }
     }
 
     fn enqueue_canonical_subtype_with_origin(
@@ -665,6 +794,7 @@ impl ConstraintMachine {
             root_origins: origin.into_iter().collect(),
             structural_derivations: Vec::new(),
             replay_derivations: Vec::new(),
+            replay_provenance: ProvenanceCompleteness::Complete,
         });
         if origin.is_some() {
             self.bump_provenance_epoch();
@@ -711,6 +841,7 @@ impl ConstraintMachine {
             root_origins: Vec::new(),
             structural_derivations: vec![derivation],
             replay_derivations: Vec::new(),
+            replay_provenance: ProvenanceCompleteness::Complete,
         });
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
@@ -794,6 +925,7 @@ impl ConstraintMachine {
                 root_origins: record.root_origins.clone(),
                 structural_derivations: record.structural_derivations.clone(),
                 replay_derivations: record.replay_derivations.clone(),
+                replay_provenance: record.replay_provenance,
             });
         }
         trace

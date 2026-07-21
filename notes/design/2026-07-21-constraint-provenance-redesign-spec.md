@@ -724,6 +724,29 @@ If edge storage exceeds the budget chosen in Section 13, the system must preserv
 and mark affected provenance `Incomplete`. It must not change replay, subsumption, or dedup semantics
 to reduce explanation cost without a separate design amendment.
 
+The derivation-edge storage budget is decided as follows:
+
+- one inference session may retain at most 64 MiB of replay derivation logical-byte proxy;
+- one canonical constraint record may retain at most 4,096 incoming replay derivations;
+- the proxy charges `size_of::<BinaryReplayDerivation>()` for a canonical edge, twice that size when
+  an evidence-only replay edge is retained on both bound records, and the arena plus hash-index
+  key/value sizes for a trivial replay drop;
+- exceeding either limit stops only the affected new provenance insertion. Semantic constraint
+  interning, replay, queue admission, events, bounds, subsumption, and dedup continue unchanged;
+- an affected canonical record is marked `Incomplete`; evidence bounds receive an explicit
+  incomplete replay derivation marker; and the session records that some replay provenance is
+  incomplete. Existing retained edges are not discarded.
+
+This policy was chosen from CPROV-F measurements on repository std lowering. A
+`BinaryReplayDerivation` is 16 bytes and the 880,497 replay pairings have a 17.023 MiB logical-byte
+proxy. Capacity slack, the added per-record vector header, the enlarged bound-derivation enum, and
+the trivial-drop hash index bring the stable requested-storage estimate to about 31.286 MiB before
+allocator metadata. Non-empty canonical records have median incoming fan-in 5, p95 27, p99 30, and
+maximum 1,285. Across all five characterization entries, replay edges per canonical constraint range
+from 6.0645 to 6.1612. The 64 MiB session budget is 3.76 times the measured std proxy; the 4,096
+per-record limit is 3.19 times the observed maximum and over 136 times p99. These limits preserve
+complete provenance for the characterized workloads while bounding cross-product pathologies.
+
 ## 10. Implementation stages and slices
 
 All Rust changes are deferred to follow-up tasks. The slices follow the established pattern:
@@ -1001,8 +1024,9 @@ implementation choices. The following points remain open until the named slice:
 3. **Late provenance merge mechanism (during CPROV-E/F).** Choose canonical-graph indirection,
    provenance-only worklist, or a bounded hybrid. The result must settle before quiescent
    classification and must not report semantic progress.
-4. **Derivation-edge storage budget (before CPROV-F closeout).** Choose per-session and optional
-   per-record limits, the exact metrics, and the incomplete marker used when a limit is reached.
+4. **Derivation-edge storage budget — resolved.** Use the 64 MiB session logical-byte proxy and
+   4,096 incoming replay edges per canonical record decided in Section 9. Budget exhaustion marks
+   the affected provenance and session `Incomplete` while semantic work continues unchanged.
 5. **Explanation-query budget and ordering (before CPROV-H).** Choose node, edge, and depth defaults;
    decide whether queries return one deterministic witness first or all stored contributors within
    budget. This does not change replay's requirement to store exact binary pairings.

@@ -138,6 +138,21 @@ impl ConstraintCharacterization {
             timing.structural_derivations.unknown_rule, 0,
             "{name}: structural decomposition escaped the typed rule taxonomy"
         );
+        let expected_replay_bytes_proxy = (timing.lower_replay_accepted
+            + timing.upper_replay_accepted
+            + timing.lower_replay_duplicate
+            + timing.upper_replay_duplicate)
+            * std::mem::size_of::<BinaryReplayDerivation>()
+            + (timing.lower_replay_trivial + timing.upper_replay_trivial)
+                * (std::mem::size_of::<ReplayDropRecord>() * 2
+                    + std::mem::size_of::<ReplayDropRecordId>());
+        assert_eq!(
+            timing.replay_derivation_storage.bytes_proxy, expected_replay_bytes_proxy,
+            "{name}: replay storage proxy"
+        );
+        assert!(!timing.replay_derivation_storage.session_incomplete);
+        assert_eq!(timing.replay_derivation_storage.incomplete_records, 0);
+        assert_eq!(timing.replay_derivations.budget_dropped, 0);
         Self {
             name,
             origin_coverage: timing.root_origins,
@@ -285,6 +300,7 @@ fn replay_derivations(
         considered: considered_and_inserted,
         inserted: considered_and_inserted,
         deduplicated: 0,
+        budget_dropped: 0,
         semantic_duplicate_results,
     }
 }
