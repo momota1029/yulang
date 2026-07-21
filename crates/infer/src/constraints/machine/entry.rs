@@ -13,6 +13,11 @@ impl ConstraintMachine {
             levels: TypeLevels::new(),
             next_internal_type_var: 0,
             row_residuals: FxHashMap::default(),
+            row_residual_record_ids: FxHashMap::default(),
+            row_residual_records: Vec::new(),
+            row_derivations: Vec::new(),
+            row_derivation_index: FxHashMap::default(),
+            bound_dispositions: Vec::new(),
             declared_subtracts: FxHashMap::default(),
             effect_family_paths: FxHashSet::default(),
             row_tail_vars: FxHashSet::default(),
@@ -647,6 +652,7 @@ impl ConstraintMachine {
             key: constraint,
             root_origins: Vec::new(),
             structural_derivations: Vec::new(),
+            row_derivations: Vec::new(),
             replay_derivations: if matches!(inserted, ReplayDerivationInsert::Inserted) {
                 vec![derivation]
             } else {
@@ -793,6 +799,7 @@ impl ConstraintMachine {
             key: constraint,
             root_origins: origin.into_iter().collect(),
             structural_derivations: Vec::new(),
+            row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
@@ -840,6 +847,7 @@ impl ConstraintMachine {
             key: constraint,
             root_origins: Vec::new(),
             structural_derivations: vec![derivation],
+            row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
@@ -876,6 +884,72 @@ impl ConstraintMachine {
             derivations.push(derivation);
             self.bump_provenance_epoch();
         }
+    }
+
+    pub(in crate::constraints) fn intern_row_derivation(
+        &mut self,
+        rule: RowDerivationRule,
+        parents: Vec<RowDerivationParent>,
+        retained_items: Vec<NegId>,
+    ) -> RowDerivationId {
+        let derivation = RowDerivation {
+            rule,
+            parents,
+            retained_items,
+        };
+        if let Some(id) = self.row_derivation_index.get(&derivation).copied() {
+            self.timing.record_row_derivation(rule, false);
+            return id;
+        }
+        let id = RowDerivationId(self.row_derivations.len() as u32);
+        self.row_derivation_index.insert(derivation.clone(), id);
+        self.row_derivations.push(derivation);
+        self.timing.record_row_derivation(rule, true);
+        self.bump_provenance_epoch();
+        id
+    }
+
+    pub(in crate::constraints) fn enqueue_row_derived_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        derivation: RowDerivationId,
+    ) -> bool {
+        let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            self.timing.record_subtype_trivial_admission();
+            return false;
+        };
+        let record_id = match self.canonical_constraints.entry(constraint.clone()) {
+            Entry::Occupied(entry) => {
+                let record_id = *entry.get();
+                let derivations =
+                    &mut self.constraint_records[record_id.0 as usize].row_derivations;
+                if !derivations.contains(&derivation) {
+                    derivations.push(derivation);
+                    self.bump_provenance_epoch();
+                }
+                self.timing.record_subtype_duplicate_admission();
+                return false;
+            }
+            Entry::Vacant(entry) => {
+                let record_id = ConstraintRecordId(self.constraint_records.len() as u32);
+                entry.insert(record_id);
+                record_id
+            }
+        };
+        self.observe_routing_shadow(&constraint);
+        self.constraint_records.push(ConstraintRecord {
+            key: constraint,
+            root_origins: Vec::new(),
+            structural_derivations: Vec::new(),
+            row_derivations: vec![derivation],
+            replay_derivations: Vec::new(),
+            replay_provenance: ProvenanceCompleteness::Complete,
+        });
+        self.bump_provenance_epoch();
+        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        true
     }
 
     fn record_root_origin(&mut self, origin: OriginId) {
@@ -924,6 +998,7 @@ impl ConstraintMachine {
                 key: record.key.clone(),
                 root_origins: record.root_origins.clone(),
                 structural_derivations: record.structural_derivations.clone(),
+                row_derivations: record.row_derivations.clone(),
                 replay_derivations: record.replay_derivations.clone(),
                 replay_provenance: record.replay_provenance,
             });

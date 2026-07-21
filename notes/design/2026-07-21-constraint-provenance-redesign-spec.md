@@ -1013,10 +1013,10 @@ The binary replay parent model, semantic/provenance separation, no full path enu
 append-only scope, and same-session boundary are decided and must not be reopened as incidental
 implementation choices. The following points remain open until the named slice:
 
-1. **Non-replay multi-parent fidelity (before CPROV-D/G).** Replay always retains both exact parents.
-   Decide whether union/intersection/tuple decomposition remains one parent plus a child index, and
-   exactly which row, invariant, or aggregation rules require all contributing parents rather than a
-   single witness.
+1. **Non-replay multi-parent fidelity — resolved.** Union/intersection/tuple decomposition remains one
+   parent plus its typed structural index. CPROV-G represents row/effect-row aggregation as an ordered
+   hyperedge over every exact constraint, bound, and subtract-fact record it consumes; per-input row,
+   filter, and payload transformations retain only their exact contributors rather than an origin union.
 2. **Source boundary taxonomy (before CPROV-C closeout).** The minimum categories are application
    argument, annotation, return, field, assignment, and internal. Decide whether pattern binding,
    constructor payload, handler/effect boundary, explicit cast, or other structured categories are
@@ -1030,8 +1030,9 @@ implementation choices. The following points remain open until the named slice:
 5. **Explanation-query budget and ordering (before CPROV-H).** Choose node, edge, and depth defaults;
    decide whether queries return one deterministic witness first or all stored contributors within
    budget. This does not change replay's requirement to store exact binary pairings.
-6. **Evidence-only replay coverage (before CPROV-F).** Decide whether the optimized evidence-only path
-   receives full derivation edges in CPROV-F or is explicitly incomplete until CPROV-G.
+6. **Evidence-only replay coverage — resolved.** CPROV-F records full binary-parent provenance on
+   both evidence-bound records. Commit `c8559b3f` preserves the exact lower/upper parents without
+   changing evidence-only replay routing or semantic progress.
 7. **Existing source provenance tables (during CPROV-C).** Decide whether
    `ApplicationProvenanceTable` and `SelectionProvenanceTable` are registries behind source-leaf IDs
    or remain separate span tables referenced by a new registry. Do not duplicate source ownership or

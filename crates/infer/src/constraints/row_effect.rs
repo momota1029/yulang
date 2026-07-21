@@ -3,6 +3,44 @@
 use super::*;
 
 impl ConstraintMachine {
+    fn row_derivation_parents(
+        &self,
+        producer: Option<ConstraintRecordId>,
+        weights: &ConstraintWeights,
+    ) -> Vec<RowDerivationParent> {
+        let mut parents = producer
+            .map(RowDerivationParent::Constraint)
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut subtract_ids = weights
+            .left
+            .entries()
+            .iter()
+            .map(|entry| entry.id)
+            .chain(weights.right.entries().iter().map(|entry| entry.id))
+            .collect::<Vec<_>>();
+        subtract_ids.sort_by_key(|id| id.0);
+        subtract_ids.dedup();
+        for (index, record) in self.subtracts.records.iter().enumerate() {
+            if subtract_ids.contains(&record.fact().id) {
+                parents.push(RowDerivationParent::SubtractFact(SubtractFactRecordId(
+                    index as u32,
+                )));
+            }
+        }
+        parents
+    }
+
+    fn enqueue_unexplained_row_invariant_args(
+        &mut self,
+        lower: Vec<NeuId>,
+        upper: Vec<NeuId>,
+        weights: ConstraintWeights,
+    ) {
+        self.timing.record_unexplained_row_path();
+        self.enqueue_invariant_neu_args(lower, upper, weights);
+    }
+
     pub(super) fn add_effect_row_upper_bound(
         &mut self,
         source: TypeVar,
@@ -16,7 +54,10 @@ impl ConstraintMachine {
                 source,
                 items.clone(),
                 tail,
+                producer,
             ) {
+                // Preserve CPROV-D's historical characterization while CPROV-G separately records
+                // that this path now owns an exact multi-parent hyperedge.
                 self.timing.record_structural_deferred_multi_parent();
                 return;
             }
@@ -61,7 +102,17 @@ impl ConstraintMachine {
         let retained_items = self.collect_neg_effect_items(retained_items);
         if retained_items.is_empty() {
             let source_pos = self.alloc_pos(Pos::Var(source));
-            self.enqueue_subtype(source_pos, weights.normalize_directed_mix(), tail);
+            let derivation = self.intern_row_derivation(
+                RowDerivationRule::WeightedResidual,
+                self.row_derivation_parents(producer, &weights),
+                Vec::new(),
+            );
+            self.enqueue_row_derived_subtype(
+                source_pos,
+                weights.normalize_directed_mix(),
+                tail,
+                derivation,
+            );
             return;
         }
 
@@ -73,26 +124,44 @@ impl ConstraintMachine {
             retained_families: sorted_effect_families(retained_families),
             weight: residual_weight.clone(),
         };
-        let gamma = if let Some(gamma) = self.row_residuals.get(&key) {
+        let (gamma, residual, reused) = if let Some(gamma) = self.row_residuals.get(&key) {
             let gamma = *gamma;
+            let residual = self.row_residual_record_ids[&key];
             self.timing.record_row_residual_reused();
-            gamma
+            (gamma, residual, true)
         } else {
             let gamma = self.fresh_internal_type_var_at(self.level_of(source));
-            self.row_residuals.insert(key, gamma);
+            let residual = RowResidualRecordId(self.row_residual_records.len() as u32);
+            self.row_residuals.insert(key.clone(), gamma);
+            self.row_residual_record_ids.insert(key.clone(), residual);
+            self.row_residual_records.push(RowResidualRecord {
+                key,
+                gamma,
+                derivations: Vec::new(),
+            });
             self.timing.record_row_residual_created();
-            gamma
+            (gamma, residual, false)
         };
+        let derivation = self.intern_row_derivation(
+            RowDerivationRule::WeightedResidual,
+            self.row_derivation_parents(producer, &weights),
+            retained_items.clone(),
+        );
+        let residual_record = &mut self.row_residual_records[residual.0 as usize];
+        if !residual_record.derivations.contains(&derivation) {
+            residual_record.derivations.push(derivation);
+        }
+        self.timing.record_row_residual_derivation(reused);
 
         let gamma_neg = self.alloc_neg(Neg::Var(gamma));
         let upper = self.alloc_neg(Neg::Row(retained_items, gamma_neg));
         // Feed the residual row back through the normal subtype path so future
         // upper bounds on gamma can replay into source through the same machinery.
         let source_pos = self.alloc_pos(Pos::Var(source));
-        self.enqueue_subtype(source_pos, ConstraintWeights::empty(), upper);
+        self.enqueue_row_derived_subtype(source_pos, ConstraintWeights::empty(), upper, derivation);
 
         let gamma_pos = self.alloc_pos(Pos::Var(gamma));
-        self.enqueue_subtype(
+        self.enqueue_row_derived_subtype(
             gamma_pos,
             ConstraintWeights {
                 left: residual_weight,
@@ -100,6 +169,7 @@ impl ConstraintMachine {
             }
             .normalize_directed_mix(),
             tail,
+            derivation,
         );
     }
 
@@ -108,32 +178,46 @@ impl ConstraintMachine {
         source: TypeVar,
         items: Vec<NegId>,
         tail: NegId,
+        producer: Option<ConstraintRecordId>,
     ) -> bool {
         if items.is_empty() {
             return false;
         }
-        let lowers = self
-            .bounds
-            .of(source)
-            .map(|bounds| bounds.lowers.clone())
-            .unwrap_or_default();
+        let lowers = self.bounds.of(source).map_or_else(Vec::new, |bounds| {
+            bounds
+                .lower_record_ids()
+                .iter()
+                .copied()
+                .zip(bounds.lowers().iter().cloned())
+                .collect::<Vec<_>>()
+        });
         if lowers.is_empty() {
             return false;
         }
 
         let mut remaining = items.clone();
         let mut matched_lowers = vec![false; lowers.len()];
-        for (index, lower) in lowers.iter().enumerate() {
+        let mut matching_parents = Vec::new();
+        let mut item_matches = Vec::new();
+        for (index, (record, lower)) in lowers.iter().enumerate() {
             if !Self::constraint_weights_are_alias_neutral(&lower.weights) {
                 continue;
             }
             let mut seen = FxHashSet::default();
             let mut local_remaining = items.clone();
-            if self.consume_row_items_from_lower_bound(lower.pos, &mut local_remaining, &mut seen) {
+            if self.consume_row_items_from_lower_bound(
+                lower.pos,
+                &mut local_remaining,
+                &mut seen,
+                &mut item_matches,
+            ) {
                 for consumed in consumed_row_items(&items, &local_remaining) {
                     remove_first_row_item(&mut remaining, consumed);
                 }
                 matched_lowers[index] = true;
+                if !matching_parents.contains(record) {
+                    matching_parents.push(*record);
+                }
             }
         }
         if matched_lowers.iter().all(|matched| !matched) {
@@ -142,15 +226,40 @@ impl ConstraintMachine {
 
         let original_upper = self.effect_row_upper(items, tail);
         let reduced_upper = self.effect_row_upper(remaining, tail);
-        self.store_upper_bound_without_replay(source, reduced_upper, ConstraintWeights::empty());
+        let mut parents = producer
+            .map(RowDerivationParent::Constraint)
+            .into_iter()
+            .collect::<Vec<_>>();
+        parents.extend(matching_parents.into_iter().map(RowDerivationParent::Bound));
+        let aggregate =
+            self.intern_row_derivation(RowDerivationRule::UnweightedReduction, parents, Vec::new());
+        for (lower, upper) in item_matches {
+            let derivation = self.intern_row_derivation(
+                RowDerivationRule::RowItemMatch,
+                vec![RowDerivationParent::RowDerivation(aggregate)],
+                vec![upper],
+            );
+            self.enqueue_row_item_match_from_row(
+                lower,
+                upper,
+                ConstraintWeights::empty(),
+                derivation,
+            );
+        }
+        self.store_upper_bound_without_replay(
+            source,
+            reduced_upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Row(aggregate),
+        );
 
-        for (index, lower) in lowers.into_iter().enumerate() {
+        for (index, (_, lower)) in lowers.into_iter().enumerate() {
             let upper = if matched_lowers[index] {
                 original_upper
             } else {
                 reduced_upper
             };
-            self.enqueue_subtype(lower.pos, lower.weights, upper);
+            self.enqueue_row_derived_subtype(lower.pos, lower.weights, upper, aggregate);
         }
         true
     }
@@ -160,13 +269,19 @@ impl ConstraintMachine {
         pos: PosId,
         remaining: &mut Vec<NegId>,
         seen: &mut FxHashSet<TypeVar>,
+        item_matches: &mut Vec<(PosId, NegId)>,
     ) -> bool {
         match self.types.pos(pos).clone() {
-            Pos::Con(_, _) => self.consume_matching_row_item(pos, remaining),
+            Pos::Con(_, _) => self.consume_matching_row_item(pos, remaining, item_matches),
             Pos::Row(items) => {
                 let mut consumed = false;
                 for item in items {
-                    consumed |= self.consume_row_items_from_lower_bound(item, remaining, seen);
+                    consumed |= self.consume_row_items_from_lower_bound(
+                        item,
+                        remaining,
+                        seen,
+                        item_matches,
+                    );
                 }
                 consumed
             }
@@ -184,7 +299,12 @@ impl ConstraintMachine {
                     if !Self::constraint_weights_are_alias_neutral(&lower.weights) {
                         continue;
                     }
-                    consumed |= self.consume_row_items_from_lower_bound(lower.pos, remaining, seen);
+                    consumed |= self.consume_row_items_from_lower_bound(
+                        lower.pos,
+                        remaining,
+                        seen,
+                        item_matches,
+                    );
                 }
                 consumed
             }
@@ -192,7 +312,12 @@ impl ConstraintMachine {
         }
     }
 
-    fn consume_matching_row_item(&mut self, lower: PosId, remaining: &mut Vec<NegId>) -> bool {
+    fn consume_matching_row_item(
+        &mut self,
+        lower: PosId,
+        remaining: &mut Vec<NegId>,
+        item_matches: &mut Vec<(PosId, NegId)>,
+    ) -> bool {
         let Some(index) = remaining
             .iter()
             .position(|upper| self.row_items_can_match(lower, *upper))
@@ -200,7 +325,7 @@ impl ConstraintMachine {
             return false;
         };
         let upper = remaining.remove(index);
-        self.enqueue_row_item_match(lower, upper, ConstraintWeights::empty());
+        item_matches.push((lower, upper));
         true
     }
 
@@ -225,23 +350,44 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: ConstraintWeights,
+        derivation: BoundDerivation,
     ) -> bool {
         let neg = self.extrude_neg(neg, self.level_of(source));
-        if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+        if let Some(survivor) = self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+            self.record_bound_disposition(
+                BoundDirection::Upper,
+                source,
+                BoundEndpoint::Upper(neg),
+                weights,
+                Some(derivation),
+                BoundDisposition::SubsumedBy(survivor),
+                None,
+            );
             return false;
         }
-        if weights.is_empty() {
-            self.prune_upper_rows_subsumed_by_reduced_upper(source, neg);
+        let pruned = if weights.is_empty() {
+            self.prune_upper_rows_subsumed_by_reduced_upper(source, neg)
         } else {
-            self.prune_upper_rows_subsumed_by(source, neg, &weights);
-        }
-        let insertion = self.bounds.add_upper(
-            source,
-            neg,
-            weights.clone(),
-            BoundDerivation::Origin(OriginId::unknown_internal()),
-        );
+            self.prune_upper_rows_subsumed_by(source, neg, &weights)
+        };
+        let insertion = self
+            .bounds
+            .add_upper(source, neg, weights.clone(), derivation);
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
+        self.record_bound_disposition(
+            BoundDirection::Upper,
+            source,
+            BoundEndpoint::Upper(neg),
+            weights.clone(),
+            Some(derivation),
+            if insertion.semantic_changed {
+                BoundDisposition::Inserted(insertion.id)
+            } else {
+                BoundDisposition::EquivalentTo(insertion.id)
+            },
+            None,
+        );
+        self.record_pruned_bound_dispositions(pruned, insertion.id);
         if !insertion.semantic_changed {
             return false;
         }
@@ -377,7 +523,7 @@ impl ConstraintMachine {
             Subtractability::Empty => false,
             Subtractability::Set(filter_path, filter_args) => {
                 if filter_path == path {
-                    self.enqueue_invariant_neu_args(
+                    self.enqueue_unexplained_row_invariant_args(
                         args.to_vec(),
                         filter_args.clone(),
                         ConstraintWeights::empty(),
@@ -391,7 +537,7 @@ impl ConstraintMachine {
                 let mut matched = false;
                 for (filter_path, filter_args) in families {
                     if filter_path == path {
-                        self.enqueue_invariant_neu_args(
+                        self.enqueue_unexplained_row_invariant_args(
                             args.to_vec(),
                             filter_args.clone(),
                             ConstraintWeights::empty(),
@@ -403,7 +549,7 @@ impl ConstraintMachine {
             }
             Subtractability::AllExcept(filter_path, filter_args) => {
                 if filter_path == path {
-                    self.enqueue_invariant_neu_args(
+                    self.enqueue_unexplained_row_invariant_args(
                         args.to_vec(),
                         filter_args.clone(),
                         ConstraintWeights::empty(),
@@ -417,7 +563,7 @@ impl ConstraintMachine {
                 let mut excluded = false;
                 for (filter_path, filter_args) in families {
                     if filter_path == path {
-                        self.enqueue_invariant_neu_args(
+                        self.enqueue_unexplained_row_invariant_args(
                             args.to_vec(),
                             filter_args.clone(),
                             ConstraintWeights::empty(),
@@ -494,7 +640,11 @@ impl ConstraintMachine {
         if item_path != path {
             return false;
         }
-        self.enqueue_invariant_neu_args(item_args, args.to_vec(), ConstraintWeights::empty());
+        self.enqueue_unexplained_row_invariant_args(
+            item_args,
+            args.to_vec(),
+            ConstraintWeights::empty(),
+        );
         true
     }
 
@@ -507,7 +657,7 @@ impl ConstraintMachine {
                 continue;
             };
             if let Some((_, existing_args)) = by_path.get(&path) {
-                self.enqueue_invariant_neu_args(
+                self.enqueue_unexplained_row_invariant_args(
                     existing_args.clone(),
                     args,
                     ConstraintWeights::empty(),
@@ -539,7 +689,7 @@ impl ConstraintMachine {
             duplicate_args,
         } = families.insert(family)
         {
-            self.enqueue_invariant_neu_args(
+            self.enqueue_unexplained_row_invariant_args(
                 existing_args,
                 duplicate_args,
                 ConstraintWeights::empty(),
@@ -628,7 +778,7 @@ impl ConstraintMachine {
             Set(path, args) => {
                 let family = EffectFamily { path, args };
                 if let Some(removed) = find_removed_family(&family, removed) {
-                    self.enqueue_invariant_neu_args(
+                    self.enqueue_unexplained_row_invariant_args(
                         family.args,
                         removed.args.clone(),
                         ConstraintWeights::empty(),
@@ -642,7 +792,7 @@ impl ConstraintMachine {
                 let mut remaining = Vec::new();
                 for family in families_from_pairs(families) {
                     if let Some(removed) = find_removed_family(&family, removed) {
-                        self.enqueue_invariant_neu_args(
+                        self.enqueue_unexplained_row_invariant_args(
                             family.args,
                             removed.args.clone(),
                             ConstraintWeights::empty(),

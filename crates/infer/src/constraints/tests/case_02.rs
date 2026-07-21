@@ -449,6 +449,29 @@ fn unweighted_row_upper_matches_each_lower_independently() {
         }),
         "source should keep only the residual tail after matching the row item"
     );
+    let aggregate = machine
+        .row_derivations
+        .iter()
+        .find(|edge| {
+            edge.rule == RowDerivationRule::UnweightedReduction
+                && edge
+                    .parents
+                    .iter()
+                    .filter(|parent| matches!(parent, RowDerivationParent::Bound(_)))
+                    .count()
+                    >= 2
+        })
+        .expect("unweighted reduction retains every contributing lower record");
+    assert!(
+        machine.row_derivations.iter().any(|edge| {
+            edge.rule == RowDerivationRule::RowItemMatch
+                && edge.parents.iter().any(|parent| {
+                    matches!(parent, RowDerivationParent::RowDerivation(id)
+                        if machine.row_derivations.get(id.0 as usize) == Some(aggregate))
+                })
+        }),
+        "row-item match should point back to the aggregation hyperedge"
+    );
 }
 
 #[test]
@@ -499,6 +522,24 @@ fn var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails
         residual_weights.clone(),
     );
     assert_weighted_upper_var(&machine, second_gamma, second_tail_var, residual_weights);
+    assert_eq!(machine.row_residual_records.len(), 1);
+    let residual = &machine.row_residual_records[0];
+    assert_eq!(residual.gamma, first_gamma);
+    assert_eq!(residual.derivations.len(), 2);
+    let producers = residual
+        .derivations
+        .iter()
+        .filter_map(|id| {
+            machine.row_derivations[id.0 as usize]
+                .parents
+                .iter()
+                .find_map(|parent| match parent {
+                    RowDerivationParent::Constraint(parent) => Some(*parent),
+                    _ => None,
+                })
+        })
+        .collect::<FxHashSet<_>>();
+    assert_eq!(producers.len(), 2, "gamma reuse keeps per-input edges");
 }
 
 #[test]

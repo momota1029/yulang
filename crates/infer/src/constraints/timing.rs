@@ -6,7 +6,7 @@
 
 use crate::time::Duration;
 
-use super::{BoundDirection, ConstraintOriginKind, StructuralDerivationRule};
+use super::{BoundDirection, ConstraintOriginKind, RowDerivationRule, StructuralDerivationRule};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintOriginCoverage {
@@ -32,6 +32,30 @@ pub struct StructuralDerivationCoverage {
     pub row: usize,
     pub deferred_multi_parent: usize,
     pub unknown_rule: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RowDerivationCoverage {
+    pub residual_created: usize,
+    pub residual_reused: usize,
+    pub unweighted_multi_parent: usize,
+    pub row_item_match: usize,
+    pub filter_invariant: usize,
+    pub payload_invariant: usize,
+    pub subtract_fact_transformation: usize,
+    pub store_without_replay: usize,
+    pub edges_inserted: usize,
+    pub edges_deduplicated: usize,
+    pub unexplained_propagation_paths: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BoundDispositionCoverage {
+    pub inserted: usize,
+    pub equivalent: usize,
+    pub subsumed: usize,
+    pub trivial: usize,
+    pub tombstones: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -123,6 +147,8 @@ pub struct ConstraintTiming {
     pub subtype_trivial_admissions: usize,
     pub root_origins: ConstraintOriginCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
+    pub row_derivations: RowDerivationCoverage,
+    pub bound_dispositions: BoundDispositionCoverage,
     pub stable_records: StableRecordCoverage,
     pub replay_derivations: ReplayDerivationCoverage,
     pub replay_derivation_storage: ReplayDerivationStorageMetrics,
@@ -294,6 +320,53 @@ impl ConstraintTiming {
 
     pub(super) fn record_structural_deferred_multi_parent(&mut self) {
         self.structural_derivations.deferred_multi_parent += 1;
+    }
+
+    pub(super) fn record_row_derivation(&mut self, rule: RowDerivationRule, inserted: bool) {
+        let coverage = &mut self.row_derivations;
+        if inserted {
+            coverage.edges_inserted += 1;
+        } else {
+            coverage.edges_deduplicated += 1;
+        }
+        match rule {
+            RowDerivationRule::WeightedResidual => {}
+            RowDerivationRule::UnweightedReduction => coverage.unweighted_multi_parent += 1,
+            RowDerivationRule::RowItemMatch => coverage.row_item_match += 1,
+            RowDerivationRule::FilterInvariant => coverage.filter_invariant += 1,
+            RowDerivationRule::PayloadInvariant => coverage.payload_invariant += 1,
+            RowDerivationRule::SubtractFactTransformation => {
+                coverage.subtract_fact_transformation += 1
+            }
+            RowDerivationRule::StoreUpperWithoutReplay => coverage.store_without_replay += 1,
+        }
+    }
+
+    pub(super) fn record_row_residual_derivation(&mut self, reused: bool) {
+        if reused {
+            self.row_derivations.residual_reused += 1;
+        } else {
+            self.row_derivations.residual_created += 1;
+        }
+    }
+
+    pub(super) fn record_unexplained_row_path(&mut self) {
+        self.row_derivations.unexplained_propagation_paths += 1;
+    }
+
+    pub(super) fn record_bound_disposition(
+        &mut self,
+        disposition: super::BoundDisposition,
+        tombstone: bool,
+    ) {
+        let coverage = &mut self.bound_dispositions;
+        match disposition {
+            super::BoundDisposition::Inserted(_) => coverage.inserted += 1,
+            super::BoundDisposition::EquivalentTo(_) => coverage.equivalent += 1,
+            super::BoundDisposition::SubsumedBy(_) => coverage.subsumed += 1,
+            super::BoundDisposition::Trivial(_) => coverage.trivial += 1,
+        }
+        coverage.tombstones += usize::from(tombstone);
     }
 
     pub(super) fn record_bound_record(

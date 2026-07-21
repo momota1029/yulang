@@ -132,6 +132,77 @@ fn role_solve_supplemental_epoch_covers_upper_row_pruning_and_neighbor_removal()
 }
 
 #[test]
+fn pruned_bound_tombstone_keeps_event_and_descendant_identities_queryable() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let tail_var = TypeVar(1);
+    let item_path = vec!["effect".into()];
+    let lower = machine.alloc_pos(Pos::Con(item_path.clone(), Vec::new()));
+    let item = machine.alloc_neg(Neg::Con(item_path, Vec::new()));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let row = machine.alloc_neg(Neg::Row(vec![item], tail));
+    machine.add_lower_bound(
+        source,
+        lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+    machine.add_upper_bound(
+        source,
+        row,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+    let row_record = machine
+        .events()
+        .iter()
+        .find_map(|event| match event {
+            ConstraintEvent::UpperBoundAdded { record, bound, .. } if *bound == row => {
+                Some(*record)
+            }
+            _ => None,
+        })
+        .expect("row event record");
+    let descendant = machine
+        .constraint_records
+        .iter()
+        .position(|record| {
+            record
+                .replay_derivations
+                .iter()
+                .any(|edge| edge.upper == row_record)
+        })
+        .expect("row bound replay descendant");
+
+    machine.add_upper_bound(
+        source,
+        tail,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+
+    let tombstone = machine
+        .bounds()
+        .record(row_record)
+        .expect("stable row record");
+    assert_eq!(tombstone.state(), BoundRecordState::Tombstone);
+    let disposition = tombstone.disposition().expect("tombstone disposition");
+    assert!(matches!(
+        machine.bound_dispositions[disposition.0 as usize].disposition,
+        BoundDisposition::SubsumedBy(_)
+    ));
+    assert!(machine.events().iter().any(|event| {
+        matches!(event, ConstraintEvent::UpperBoundAdded { record, .. } if *record == row_record)
+    }));
+    assert!(
+        machine.constraint_records[descendant]
+            .replay_derivations
+            .iter()
+            .any(|edge| edge.upper == row_record)
+    );
+}
+
+#[test]
 fn saturated_constraint_epoch_cannot_witness_unchanged_state() {
     assert!(!ConstraintEpoch(u64::MAX).can_witness_unchanged_state());
     assert!(ConstraintEpoch(u64::MAX - 1).can_witness_unchanged_state());

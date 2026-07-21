@@ -92,6 +92,8 @@ struct ConstraintCharacterization {
     name: &'static str,
     origin_coverage: ConstraintOriginCoverage,
     structural_coverage: StructuralDerivationCoverage,
+    row_coverage: RowDerivationCoverage,
+    bound_disposition_coverage: BoundDispositionCoverage,
     stable_record_coverage: StableRecordCoverage,
     replay_derivation_coverage: ReplayDerivationCoverage,
     provenance_epoch: u64,
@@ -157,6 +159,8 @@ impl ConstraintCharacterization {
             name,
             origin_coverage: timing.root_origins,
             structural_coverage: timing.structural_derivations,
+            row_coverage: timing.row_derivations,
+            bound_disposition_coverage: timing.bound_dispositions,
             stable_record_coverage: timing.stable_records,
             replay_derivation_coverage: timing.replay_derivations,
             provenance_epoch: timing.provenance_epoch,
@@ -305,6 +309,44 @@ fn replay_derivations(
     }
 }
 
+fn row_coverage(
+    residual_created: usize,
+    unweighted_multi_parent: usize,
+    row_item_match: usize,
+    edges_inserted: usize,
+    edges_deduplicated: usize,
+    unexplained_propagation_paths: usize,
+) -> RowDerivationCoverage {
+    RowDerivationCoverage {
+        residual_created,
+        residual_reused: 0,
+        unweighted_multi_parent,
+        row_item_match,
+        filter_invariant: 0,
+        payload_invariant: 0,
+        subtract_fact_transformation: 0,
+        store_without_replay: 0,
+        edges_inserted,
+        edges_deduplicated,
+        unexplained_propagation_paths,
+    }
+}
+
+fn bound_dispositions(
+    inserted: usize,
+    equivalent: usize,
+    subsumed: usize,
+    tombstones: usize,
+) -> BoundDispositionCoverage {
+    BoundDispositionCoverage {
+        inserted,
+        equivalent,
+        subsumed,
+        trivial: 0,
+        tombstones,
+    }
+}
+
 fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
@@ -313,9 +355,11 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
+            row_coverage: row_coverage(70, 51, 102, 189, 51, 429),
+            bound_disposition_coverage: bound_dispositions(231_493, 35, 1_875, 0),
             stable_record_coverage: stable_records(113_398, 118_095, 35, 105),
             replay_derivation_coverage: replay_derivations(880_497, 768_170),
-            provenance_epoch: 1_167_846,
+            provenance_epoch: 1_401_849,
             canonical_subtype_constraints: 143_046,
             subtype_duplicate_admissions: 13_114,
             subtype_trivial_admissions: 12_098,
@@ -341,9 +385,11 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
+            row_coverage: row_coverage(70, 61, 124, 212, 63, 429),
+            bound_disposition_coverage: bound_dispositions(232_142, 35, 1_892, 0),
             stable_record_coverage: stable_records(113_695, 118_447, 35, 106),
             replay_derivation_coverage: replay_derivations(881_247, 768_646),
-            provenance_epoch: 1_169_396,
+            provenance_epoch: 1_404_170,
             canonical_subtype_constraints: 143_492,
             subtype_duplicate_admissions: 13_186,
             subtype_trivial_admissions: 12_127,
@@ -372,9 +418,11 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
+            row_coverage: row_coverage(71, 74, 231, 236, 157, 429),
+            bound_disposition_coverage: bound_dispositions(234_727, 35, 1_898, 5),
             stable_record_coverage: stable_records(115_034, 119_693, 35, 106),
             replay_derivation_coverage: replay_derivations(897_161, 782_849),
-            provenance_epoch: 1_189_490,
+            provenance_epoch: 1_427_036,
             canonical_subtype_constraints: 145_614,
             subtype_duplicate_admissions: 14_132,
             subtype_trivial_admissions: 12_249,
@@ -400,9 +448,11 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
+            row_coverage: row_coverage(74, 91, 231, 277, 136, 429),
+            bound_disposition_coverage: bound_dispositions(240_968, 35, 1_883, 0),
             stable_record_coverage: stable_records(118_159, 122_809, 35, 109),
             replay_derivation_coverage: replay_derivations(906_567, 788_687),
-            provenance_epoch: 1_205_954,
+            provenance_epoch: 1_449_785,
             canonical_subtype_constraints: 149_487,
             subtype_duplicate_admissions: 13_938,
             subtype_trivial_admissions: 12_622,
@@ -442,9 +492,11 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
+            row_coverage: row_coverage(73, 82, 246, 255, 164, 431),
+            bound_disposition_coverage: bound_dispositions(236_385, 35, 1_885, 5),
             stable_record_coverage: stable_records(115_881, 120_504, 35, 109),
             replay_derivation_coverage: replay_derivations(894_141, 779_036),
-            provenance_epoch: 1_188_432,
+            provenance_epoch: 1_427_692,
             canonical_subtype_constraints: 146_636,
             subtype_duplicate_admissions: 14_072,
             subtype_trivial_admissions: 12_396,

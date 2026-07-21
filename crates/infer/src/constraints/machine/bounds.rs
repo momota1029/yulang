@@ -44,6 +44,53 @@ impl BoundReplayApplyStats {
 }
 
 impl ConstraintMachine {
+    pub(in crate::constraints) fn record_bound_disposition(
+        &mut self,
+        direction: BoundDirection,
+        owner: TypeVar,
+        endpoint: BoundEndpoint,
+        weights: ConstraintWeights,
+        derivation: Option<BoundDerivation>,
+        disposition: BoundDisposition,
+        tombstone: Option<BoundRecordId>,
+    ) -> BoundDispositionRecordId {
+        let id = BoundDispositionRecordId(self.bound_dispositions.len() as u32);
+        self.bound_dispositions.push(BoundDispositionRecord {
+            direction,
+            owner,
+            endpoint,
+            weights,
+            derivation,
+            disposition,
+        });
+        if let Some(bound) = tombstone {
+            self.bounds.records[bound.0 as usize].disposition = Some(id);
+        }
+        self.timing
+            .record_bound_disposition(disposition, tombstone.is_some());
+        self.bump_provenance_epoch();
+        id
+    }
+
+    pub(in crate::constraints) fn record_pruned_bound_dispositions(
+        &mut self,
+        removed: Vec<BoundRecordId>,
+        survivor: BoundRecordId,
+    ) {
+        for removed in removed {
+            let record = self.bounds.records[removed.0 as usize].clone();
+            self.record_bound_disposition(
+                record.direction,
+                record.owner,
+                record.endpoint,
+                record.weights,
+                None,
+                BoundDisposition::SubsumedBy(survivor),
+                Some(removed),
+            );
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn debug_nominal_replay_witnesses(
         &self,
@@ -189,6 +236,12 @@ impl ConstraintMachine {
                         visited_constraints,
                     );
                 }
+                BoundDerivation::Row(row) => self.debug_collect_row_origins(
+                    row,
+                    origins,
+                    visited_bounds,
+                    visited_constraints,
+                ),
                 BoundDerivation::IncompleteReplay => {}
             }
         }
@@ -215,6 +268,9 @@ impl ConstraintMachine {
                 visited_constraints,
             );
         }
+        for row in &record.row_derivations {
+            self.debug_collect_row_origins(*row, origins, visited_bounds, visited_constraints);
+        }
         for replay in &record.replay_derivations {
             self.debug_collect_bound_origins(
                 replay.lower,
@@ -231,6 +287,54 @@ impl ConstraintMachine {
         }
     }
 
+    #[cfg(test)]
+    fn debug_collect_row_origins(
+        &self,
+        id: RowDerivationId,
+        origins: &mut FxHashSet<OriginId>,
+        visited_bounds: &mut FxHashSet<BoundRecordId>,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+    ) {
+        let Some(derivation) = self.row_derivations.get(id.0 as usize) else {
+            return;
+        };
+        for parent in &derivation.parents {
+            match *parent {
+                RowDerivationParent::Constraint(parent) => self.debug_collect_constraint_origins(
+                    parent,
+                    origins,
+                    visited_bounds,
+                    visited_constraints,
+                ),
+                RowDerivationParent::Bound(parent) => self.debug_collect_bound_origins(
+                    parent,
+                    origins,
+                    visited_bounds,
+                    visited_constraints,
+                ),
+                RowDerivationParent::SubtractFact(parent) => {
+                    if let Some(record) = self.subtracts.record(parent) {
+                        for derivation in record.derivations() {
+                            match *derivation {
+                                SubtractFactDerivation::Declaration(origin)
+                                | SubtractFactDerivation::Import(origin)
+                                | SubtractFactDerivation::Internal(origin) => {
+                                    origins.insert(origin);
+                                }
+                            }
+                        }
+                    }
+                }
+                RowDerivationParent::RowDerivation(parent) => self.debug_collect_row_origins(
+                    parent,
+                    origins,
+                    visited_bounds,
+                    visited_constraints,
+                ),
+            }
+        }
+    }
+
     pub(in crate::constraints) fn add_lower_bound(
         &mut self,
         target: TypeVar,
@@ -242,17 +346,40 @@ impl ConstraintMachine {
             BoundDerivation::Constraint(record) => Some(record),
             BoundDerivation::Origin(_)
             | BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::Row(_)
             | BoundDerivation::IncompleteReplay => None,
         };
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
-        if self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
+        if let Some(survivor) = self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
+            self.record_bound_disposition(
+                BoundDirection::Lower,
+                target,
+                BoundEndpoint::Lower(pos),
+                weights,
+                Some(derivation),
+                BoundDisposition::SubsumedBy(survivor),
+                None,
+            );
             return;
         }
         let insertion = self
             .bounds
             .add_lower(target, pos, weights.clone(), derivation);
         self.record_bound_provenance(insertion, BoundDirection::Lower, false);
+        self.record_bound_disposition(
+            BoundDirection::Lower,
+            target,
+            BoundEndpoint::Lower(pos),
+            weights.clone(),
+            Some(derivation),
+            if insertion.semantic_changed {
+                BoundDisposition::Inserted(insertion.id)
+            } else {
+                BoundDisposition::EquivalentTo(insertion.id)
+            },
+            None,
+        );
         if !insertion.semantic_changed {
             return;
         }
@@ -300,21 +427,54 @@ impl ConstraintMachine {
             BoundDerivation::Constraint(record) => Some(record),
             BoundDerivation::Origin(_)
             | BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::Row(_)
             | BoundDerivation::IncompleteReplay => None,
         };
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
-        if self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
+        if let Some(survivor) = self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
+            self.record_bound_disposition(
+                BoundDirection::Upper,
+                source,
+                BoundEndpoint::Upper(neg),
+                weights,
+                Some(derivation),
+                BoundDisposition::SubsumedBy(survivor),
+                None,
+            );
             return;
         }
-        if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+        if let Some(survivor) = self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+            self.record_bound_disposition(
+                BoundDirection::Upper,
+                source,
+                BoundEndpoint::Upper(neg),
+                weights,
+                Some(derivation),
+                BoundDisposition::SubsumedBy(survivor),
+                None,
+            );
             return;
         }
-        self.prune_upper_rows_subsumed_by(source, neg, &weights);
+        let pruned = self.prune_upper_rows_subsumed_by(source, neg, &weights);
         let insertion = self
             .bounds
             .add_upper(source, neg, weights.clone(), derivation);
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
+        self.record_bound_disposition(
+            BoundDirection::Upper,
+            source,
+            BoundEndpoint::Upper(neg),
+            weights.clone(),
+            Some(derivation),
+            if insertion.semantic_changed {
+                BoundDisposition::Inserted(insertion.id)
+            } else {
+                BoundDisposition::EquivalentTo(insertion.id)
+            },
+            None,
+        );
+        self.record_pruned_bound_dispositions(pruned, insertion.id);
         if !insertion.semantic_changed {
             return;
         }
@@ -886,28 +1046,39 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: &ConstraintWeights,
-    ) -> bool {
+    ) -> Option<BoundRecordId> {
         if !weights.is_empty() {
-            return false;
+            return None;
         }
         let Some(bounds) = self.bounds.of(source) else {
-            return false;
+            return None;
         };
         if self.source_has_row_tail_boundary(source) {
             return bounds
                 .uppers()
                 .iter()
-                .any(|upper| upper.weights.is_empty() && upper.neg == neg);
+                .zip(bounds.upper_record_ids())
+                .find_map(|(upper, id)| {
+                    (upper.weights.is_empty() && upper.neg == neg).then_some(*id)
+                });
         }
         let Neg::Row(_, tail) = self.types.neg(neg) else {
             return bounds
                 .uppers()
                 .iter()
-                .any(|upper| upper.weights.is_empty() && upper.neg == neg);
+                .zip(bounds.upper_record_ids())
+                .find_map(|(upper, id)| {
+                    (upper.weights.is_empty() && upper.neg == neg).then_some(*id)
+                });
         };
-        bounds.uppers().iter().any(|upper| {
-            upper.weights.is_empty() && self.neg_ids_match_for_row_tail(upper.neg, *tail)
-        })
+        bounds
+            .uppers()
+            .iter()
+            .zip(bounds.upper_record_ids())
+            .find_map(|(upper, id)| {
+                (upper.weights.is_empty() && self.neg_ids_match_for_row_tail(upper.neg, *tail))
+                    .then_some(*id)
+            })
     }
 
     fn lower_var_alias_replay_cycle_subsumed(
@@ -915,16 +1086,21 @@ impl ConstraintMachine {
         target: TypeVar,
         pos: PosId,
         weights: &ConstraintWeights,
-    ) -> bool {
+    ) -> Option<BoundRecordId> {
         if !matches!(self.types.pos(pos), Pos::Var(_))
             || alias_replay_cycle_weight_key(weights).is_none()
         {
-            return false;
+            return None;
         }
-        self.bounds.of(target).is_some_and(|bounds| {
-            bounds.lowers().iter().any(|lower| {
-                lower.pos == pos && alias_replay_cycle_weights_match(&lower.weights, weights)
-            })
+        self.bounds.of(target).and_then(|bounds| {
+            bounds
+                .lowers()
+                .iter()
+                .zip(bounds.lower_record_ids())
+                .find_map(|(lower, id)| {
+                    (lower.pos == pos && alias_replay_cycle_weights_match(&lower.weights, weights))
+                        .then_some(*id)
+                })
         })
     }
 
@@ -933,16 +1109,21 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: &ConstraintWeights,
-    ) -> bool {
+    ) -> Option<BoundRecordId> {
         if !matches!(self.types.neg(neg), Neg::Var(_))
             || alias_replay_cycle_weight_key(weights).is_none()
         {
-            return false;
+            return None;
         }
-        self.bounds.of(source).is_some_and(|bounds| {
-            bounds.uppers().iter().any(|upper| {
-                upper.neg == neg && alias_replay_cycle_weights_match(&upper.weights, weights)
-            })
+        self.bounds.of(source).and_then(|bounds| {
+            bounds
+                .uppers()
+                .iter()
+                .zip(bounds.upper_record_ids())
+                .find_map(|(upper, id)| {
+                    (upper.neg == neg && alias_replay_cycle_weights_match(&upper.weights, weights))
+                        .then_some(*id)
+                })
         })
     }
 
@@ -951,27 +1132,27 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: &ConstraintWeights,
-    ) {
+    ) -> Vec<BoundRecordId> {
         if !weights.is_empty() {
-            return;
+            return Vec::new();
         }
         if self.source_has_row_tail_boundary(source) {
-            return;
+            return Vec::new();
         }
-        self.prune_upper_rows_subsumed_by_reduced_upper(source, neg);
+        self.prune_upper_rows_subsumed_by_reduced_upper(source, neg)
     }
 
     pub(in crate::constraints) fn prune_upper_rows_subsumed_by_reduced_upper(
         &mut self,
         source: TypeVar,
         neg: NegId,
-    ) {
+    ) -> Vec<BoundRecordId> {
         let TypeBounds { vars, records, .. } = &mut self.bounds;
         let Some(bounds) = vars
             .get_mut(source.0 as usize)
             .and_then(|bounds| bounds.as_mut())
         else {
-            return;
+            return Vec::new();
         };
         let mut removed = Vec::new();
         let old_uppers = std::mem::take(&mut bounds.uppers);
@@ -982,13 +1163,13 @@ impl ConstraintMachine {
                 bounds.upper_ids.push(id);
                 bounds.uppers.push(upper);
             } else {
-                removed.push(upper.neg);
+                removed.push((id, upper.neg));
                 records[id.0 as usize].state = BoundRecordState::Tombstone;
             }
         }
         let bounds_changed = !removed.is_empty();
-        for upper in removed {
-            self.unrecord_neg_bound_var_neighbors(source, upper);
+        for (_, upper) in &removed {
+            self.unrecord_neg_bound_var_neighbors(source, *upper);
         }
         if bounds_changed {
             self.bump_role_solve_supplemental_epoch();
@@ -997,6 +1178,7 @@ impl ConstraintMachine {
                     .record(DependencyKey::ConstraintBounds(source));
             }
         }
+        removed.into_iter().map(|(id, _)| id).collect()
     }
 
     pub(in crate::constraints) fn record_pos_bound_var_neighbors(

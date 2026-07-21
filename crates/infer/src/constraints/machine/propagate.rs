@@ -777,6 +777,7 @@ impl ConstraintMachine {
         }
     }
 
+    #[allow(dead_code)]
     pub(in crate::constraints) fn enqueue_row_item_match(
         &mut self,
         lower: PosId,
@@ -792,6 +793,41 @@ impl ConstraintMachine {
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
             _ => {
                 self.enqueue_subtype(lower, weights, upper);
+            }
+        }
+    }
+
+    pub(in crate::constraints) fn enqueue_row_item_match_from_row(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        weights: ConstraintWeights,
+        derivation: RowDerivationId,
+    ) {
+        match (self.types.pos(lower).clone(), self.types.neg(upper).clone()) {
+            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
+                if lower_path == upper_path =>
+            {
+                for (lower, upper) in lower_args.into_iter().zip(upper_args) {
+                    let (lower_pos, lower_neg) = self.neu_bounds(lower);
+                    let (upper_pos, upper_neg) = self.neu_bounds(upper);
+                    self.enqueue_row_derived_subtype(
+                        lower_pos,
+                        weights.clone(),
+                        upper_neg,
+                        derivation,
+                    );
+                    self.enqueue_row_derived_subtype(
+                        upper_pos,
+                        weights.swapped(),
+                        lower_neg,
+                        derivation,
+                    );
+                }
+            }
+            (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
+            _ => {
+                self.enqueue_row_derived_subtype(lower, weights, upper, derivation);
             }
         }
     }
@@ -865,6 +901,7 @@ impl ConstraintMachine {
         }
     }
 
+    #[allow(dead_code)]
     pub(in crate::constraints) fn enqueue_row_item_neu_args(
         &mut self,
         lower_args: Vec<NeuId>,

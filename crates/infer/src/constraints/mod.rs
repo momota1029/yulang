@@ -35,10 +35,10 @@ pub(crate) use mutation::{
 };
 
 pub use timing::{
-    ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage,
+    BoundDispositionCoverage, ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage,
     ReplayDerivationStorageMetrics, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
-    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, StableRecordCoverage,
-    StructuralDerivationCoverage,
+    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage,
+    StableRecordCoverage, StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -58,6 +58,11 @@ pub struct ConstraintMachine {
     levels: TypeLevels,
     next_internal_type_var: u32,
     row_residuals: FxHashMap<RowResidualKey, TypeVar>,
+    row_residual_record_ids: FxHashMap<RowResidualKey, RowResidualRecordId>,
+    row_residual_records: Vec<RowResidualRecord>,
+    row_derivations: Vec<RowDerivation>,
+    row_derivation_index: FxHashMap<RowDerivation, RowDerivationId>,
+    bound_dispositions: Vec<BoundDispositionRecord>,
     declared_subtracts: FxHashMap<SubtractId, Vec<OriginId>>,
     effect_family_paths: FxHashSet<Vec<String>>,
     row_tail_vars: FxHashSet<TypeVar>,
@@ -490,6 +495,7 @@ impl TypeBounds {
             weights: weights.clone(),
             state: requested_state,
             derivations: vec![derivation],
+            disposition: None,
         });
         let bounds = self.bounds_mut(owner);
         match (endpoint, requested_state) {
@@ -640,6 +646,9 @@ pub struct WeightedUpperBound {
 pub struct BoundRecordId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BoundDispositionRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BoundDirection {
     Lower,
     Upper,
@@ -659,10 +668,34 @@ pub enum BoundRecordState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundTrivialReason {
+    TerminalWeightErasure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoundDisposition {
+    Inserted(BoundRecordId),
+    EquivalentTo(BoundRecordId),
+    SubsumedBy(BoundRecordId),
+    Trivial(BoundTrivialReason),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundDispositionRecord {
+    direction: BoundDirection,
+    owner: TypeVar,
+    endpoint: BoundEndpoint,
+    weights: ConstraintWeights,
+    derivation: Option<BoundDerivation>,
+    disposition: BoundDisposition,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BoundDerivation {
     Constraint(ConstraintRecordId),
     Origin(OriginId),
     ReplayEvidence(BinaryReplayDerivation),
+    Row(RowDerivationId),
     IncompleteReplay,
 }
 
@@ -755,6 +788,7 @@ pub struct BoundRecord {
     weights: ConstraintWeights,
     state: BoundRecordState,
     derivations: Vec<BoundDerivation>,
+    disposition: Option<BoundDispositionRecordId>,
 }
 
 impl BoundRecord {
@@ -780,6 +814,10 @@ impl BoundRecord {
 
     pub fn derivations(&self) -> &[BoundDerivation] {
         &self.derivations
+    }
+
+    pub fn disposition(&self) -> Option<BoundDispositionRecordId> {
+        self.disposition
     }
 }
 
@@ -1078,6 +1116,45 @@ pub struct SubtypeConstraintKey {
 pub struct ConstraintRecordId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RowDerivationId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RowResidualRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RowDerivationParent {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+    SubtractFact(SubtractFactRecordId),
+    RowDerivation(RowDerivationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RowDerivationRule {
+    WeightedResidual,
+    UnweightedReduction,
+    RowItemMatch,
+    FilterInvariant,
+    PayloadInvariant,
+    SubtractFactTransformation,
+    StoreUpperWithoutReplay,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RowDerivation {
+    rule: RowDerivationRule,
+    parents: Vec<RowDerivationParent>,
+    retained_items: Vec<NegId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RowResidualRecord {
+    key: RowResidualKey,
+    gamma: TypeVar,
+    derivations: Vec<RowDerivationId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StructuralIndex(u32);
 
 impl StructuralIndex {
@@ -1231,6 +1308,7 @@ struct ConstraintRecord {
     /// Root leaves are additive metadata and never participate in semantic equality or queueing.
     root_origins: Vec<OriginId>,
     structural_derivations: Vec<StructuralDerivation>,
+    row_derivations: Vec<RowDerivationId>,
     replay_derivations: Vec<BinaryReplayDerivation>,
     replay_provenance: ProvenanceCompleteness,
 }
@@ -1253,6 +1331,7 @@ pub(crate) struct DebugConstraintTraceNode {
     pub(crate) key: SubtypeConstraintKey,
     pub(crate) root_origins: Vec<OriginId>,
     pub(crate) structural_derivations: Vec<StructuralDerivation>,
+    pub(crate) row_derivations: Vec<RowDerivationId>,
     pub(crate) replay_derivations: Vec<BinaryReplayDerivation>,
     pub(crate) replay_provenance: ProvenanceCompleteness,
 }
