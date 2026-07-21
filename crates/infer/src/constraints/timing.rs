@@ -34,8 +34,18 @@ pub struct ConstraintTiming {
     pub constrain_var_var_direct_pairs: usize,
     pub constrain_pos_var_direct_calls: usize,
     pub subtract_fact_calls: usize,
+    pub canonical_subtype_constraints: usize,
+    pub subtype_duplicate_admissions: usize,
+    pub subtype_trivial_admissions: usize,
     pub lower_bounds_added: usize,
     pub upper_bounds_added: usize,
+    pub row_upper_bounds_added_without_replay: usize,
+    pub evidence_lower_bounds_added: usize,
+    pub evidence_upper_bounds_added: usize,
+    pub subtract_facts_added: usize,
+    pub row_residuals_created: usize,
+    pub row_residuals_reused: usize,
+    pub nominal_cast_events: usize,
     pub lower_replay_inputs: usize,
     pub upper_replay_inputs: usize,
     pub lower_replay_enqueued: usize,
@@ -196,6 +206,44 @@ impl ConstraintTiming {
         self.subtract_fact_calls += 1;
     }
 
+    pub(super) fn record_subtype_duplicate_admission(&mut self) {
+        self.subtype_duplicate_admissions += 1;
+    }
+
+    pub(super) fn record_subtype_trivial_admission(&mut self) {
+        self.subtype_trivial_admissions += 1;
+    }
+
+    pub(super) fn record_row_upper_bound_added_without_replay(&mut self) {
+        self.row_upper_bounds_added_without_replay += 1;
+    }
+
+    pub(super) fn record_evidence_lower_bound_added(&mut self) {
+        self.evidence_lower_bounds_added += 1;
+    }
+
+    pub(super) fn record_evidence_upper_bound_added(&mut self) {
+        self.evidence_upper_bounds_added += 1;
+    }
+
+    pub(super) fn record_subtract_fact_added(&mut self) {
+        self.subtract_facts_added += 1;
+    }
+
+    pub(super) fn record_row_residual_created(&mut self) {
+        self.row_residuals_created += 1;
+    }
+
+    pub(super) fn record_row_residual_reused(&mut self) {
+        self.row_residuals_reused += 1;
+    }
+
+    pub(super) fn record_nominal_cast_event(&mut self, _source: &[String], _target: &[String]) {
+        self.nominal_cast_events += 1;
+        #[cfg(test)]
+        observe_nominal_cast_pair(_source, _target);
+    }
+
     pub(super) fn record_lower_bound_added(
         &mut self,
         replay_inputs: usize,
@@ -288,4 +336,38 @@ impl ConstraintTiming {
         self.max_initial_queue = self.max_initial_queue.max(initial_queue);
         self.max_work_items = self.max_work_items.max(work_items);
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static NOMINAL_CAST_PAIR_CAPTURE:
+        std::cell::RefCell<Option<Vec<(Vec<String>, Vec<String>)>>> = const {
+            std::cell::RefCell::new(None)
+        };
+}
+
+#[cfg(test)]
+pub(super) fn begin_nominal_cast_pair_capture() {
+    NOMINAL_CAST_PAIR_CAPTURE.with(|capture| {
+        let previous = capture.borrow_mut().replace(Vec::new());
+        assert!(
+            previous.is_none(),
+            "nominal-cast pair capture cannot be nested"
+        );
+    });
+}
+
+#[cfg(test)]
+pub(super) fn finish_nominal_cast_pair_capture() -> Vec<(Vec<String>, Vec<String>)> {
+    NOMINAL_CAST_PAIR_CAPTURE.with(|capture| capture.borrow_mut().take().unwrap_or_default())
+}
+
+#[cfg(test)]
+fn observe_nominal_cast_pair(source: &[String], target: &[String]) {
+    NOMINAL_CAST_PAIR_CAPTURE.with(|capture| {
+        let mut capture = capture.borrow_mut();
+        if let Some(pairs) = capture.as_mut() {
+            pairs.push((source.to_vec(), target.to_vec()));
+        }
+    });
 }

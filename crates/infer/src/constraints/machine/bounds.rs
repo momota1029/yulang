@@ -487,12 +487,14 @@ impl ConstraintMachine {
                 .bounds
                 .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
             {
+                self.timing.record_evidence_lower_bound_added();
                 self.record_effective_bounds_mutation(target);
             }
             if self
                 .bounds
                 .add_evidence_upper(source, constraint.upper, constraint.weights)
             {
+                self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
             }
         }

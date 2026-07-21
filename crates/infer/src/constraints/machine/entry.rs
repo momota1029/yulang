@@ -102,6 +102,7 @@ impl ConstraintMachine {
     pub fn timing(&self) -> ConstraintTiming {
         let mut timing = self.timing;
         timing.epoch = self.epoch.as_u64();
+        timing.canonical_subtype_constraints = self.seen.len();
         timing.type_var_count = self.next_internal_type_var as usize;
         timing.row_tail_var_count = self.row_tail_vars.len();
         timing.pos_node_count = self.types.pos_len();
@@ -381,6 +382,7 @@ impl ConstraintMachine {
         upper: NegId,
     ) -> EnqueueSubtypeResult {
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            self.timing.record_subtype_trivial_admission();
             return EnqueueSubtypeResult::Trivial;
         };
         if self.enqueue_canonical_subtype(constraint) {
@@ -427,6 +429,7 @@ impl ConstraintMachine {
             self.queue.push_back(ConstraintWork::Subtype(constraint));
             true
         } else {
+            self.timing.record_subtype_duplicate_admission();
             false
         }
     }
@@ -499,6 +502,7 @@ impl ConstraintMachine {
     ) {
         let id = fact.id;
         if self.subtracts.record(effect, fact) {
+            self.timing.record_subtract_fact_added();
             self.bump_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations

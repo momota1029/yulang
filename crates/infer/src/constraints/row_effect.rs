@@ -58,10 +58,13 @@ impl ConstraintMachine {
             weight: residual_weight.clone(),
         };
         let gamma = if let Some(gamma) = self.row_residuals.get(&key) {
-            *gamma
+            let gamma = *gamma;
+            self.timing.record_row_residual_reused();
+            gamma
         } else {
             let gamma = self.fresh_internal_type_var_at(self.level_of(source));
             self.row_residuals.insert(key, gamma);
+            self.timing.record_row_residual_created();
             gamma
         };
 
@@ -219,6 +222,7 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return false;
         }
+        self.timing.record_row_upper_bound_added_without_replay();
         // Keep this mutation outside the legacy replay/lifecycle epoch: changing that epoch can
         // alter existing production audit paths. The supplemental role-solve witness is inert.
         self.bump_role_solve_supplemental_epoch();

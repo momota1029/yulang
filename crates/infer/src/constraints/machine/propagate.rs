@@ -123,6 +123,7 @@ impl ConstraintMachine {
                 self.enqueue_invariant_neu_args(lower_args, upper_args, constraint.weights);
             }
             (Pos::Con(source, _), Neg::Con(target, _)) if source != target => {
+                self.timing.record_nominal_cast_event(&source, &target);
                 self.events.push(ConstraintEvent::NominalCastNeeded {
                     lower: constraint.lower,
                     upper: constraint.upper,
