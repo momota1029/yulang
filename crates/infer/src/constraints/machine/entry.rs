@@ -45,6 +45,8 @@ impl ConstraintMachine {
             source_boundaries: Vec::new(),
             generalized_schemes: Vec::new(),
             generalized_witnesses: Vec::new(),
+            scheme_instantiations: Vec::new(),
+            scheme_instantiation_index: FxHashMap::default(),
             events: Vec::new(),
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
@@ -92,6 +94,67 @@ impl ConstraintMachine {
         id: GeneralizedSchemeWitnessId,
     ) -> Option<&GeneralizedSchemeWitness> {
         self.generalized_witnesses.get(id.0 as usize)
+    }
+
+    #[allow(dead_code)] // Debug inspection surface; PUSP-E consumes this record directly.
+    pub(crate) fn scheme_instantiation_record(
+        &self,
+        id: SchemeInstantiationId,
+    ) -> Option<&SchemeInstantiationRecord> {
+        self.scheme_instantiations.get(id.0 as usize)
+    }
+
+    pub(crate) fn intern_scheme_instantiation(
+        &mut self,
+        source: GeneralizedSchemeRecordId,
+        owner: DefId,
+        target: DefId,
+        use_value: TypeVar,
+        completeness: ProvenanceCompleteness,
+    ) -> SchemeInstantiationId {
+        let key = SchemeInstantiationKey {
+            source,
+            owner,
+            target,
+            use_value,
+        };
+        if let Some(id) = self.scheme_instantiation_index.get(&key).copied() {
+            return id;
+        }
+        let id = SchemeInstantiationId(
+            u32::try_from(self.scheme_instantiations.len())
+                .expect("scheme instantiation id fits u32"),
+        );
+        self.scheme_instantiation_index.insert(key, id);
+        self.scheme_instantiations.push(SchemeInstantiationRecord {
+            source,
+            owner,
+            target,
+            use_value,
+            completeness,
+        });
+        self.timing.scheme_instantiations.records += 1;
+        self.bump_provenance_epoch();
+        id
+    }
+
+    pub(crate) fn record_scheme_instantiation_use(
+        &mut self,
+        local: bool,
+        imported: bool,
+        mapped_witnesses: usize,
+    ) {
+        let coverage = &mut self.timing.scheme_instantiations;
+        if imported {
+            coverage.imported_without_bridge += 1;
+        } else if local {
+            coverage.same_session_local += 1;
+        } else {
+            coverage.same_session_batch += 1;
+        }
+        coverage.max_mapped_witnesses_per_instantiation = coverage
+            .max_mapped_witnesses_per_instantiation
+            .max(mapped_witnesses);
     }
 
     pub(crate) fn alloc_generalized_scheme_record(
@@ -414,6 +477,28 @@ impl ConstraintMachine {
         }
     }
 
+    pub(crate) fn subtype_many_with_scheme_instantiation_routes(
+        &mut self,
+        constraints: impl IntoIterator<Item = (PosId, NegId, OriginId, Vec<SchemeInstantiationRoute>)>,
+    ) {
+        let mut item_count = 0usize;
+        let mut queued = false;
+        for (lower, upper, origin, routes) in constraints {
+            item_count += 1;
+            queued |= self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin);
+            if let Some(key) =
+                self.canonical_subtype_constraint(lower, ConstraintWeights::empty(), upper)
+                && let Some(record) = self.canonical_constraints.get(&key).copied()
+            {
+                self.merge_scheme_instantiation_routes(record, routes);
+            }
+        }
+        self.timing.record_subtype_many_call(item_count);
+        if queued || !self.queue.is_empty() {
+            self.drain();
+        }
+    }
+
     pub fn weighted_subtype(
         &mut self,
         lower: PosId,
@@ -493,6 +578,7 @@ impl ConstraintMachine {
         self.canonical_constraint_count() != constraint_count
     }
 
+    #[allow(dead_code)] // Origin-only sibling retained for non-instantiation entrypoints.
     pub(crate) fn constrain_pos_to_var_direct_many(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
@@ -505,6 +591,7 @@ impl ConstraintMachine {
         );
     }
 
+    #[allow(dead_code)] // Origin-only sibling retained for non-instantiation entrypoints.
     pub(crate) fn constrain_pos_to_var_direct_many_with_origins(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar, OriginId)>,
@@ -522,6 +609,114 @@ impl ConstraintMachine {
         if !self.queue.is_empty() {
             self.drain();
         }
+    }
+
+    pub(crate) fn constrain_pos_to_var_direct_many_with_scheme_instantiations(
+        &mut self,
+        bounds: impl IntoIterator<Item = (PosId, TypeVar, OriginId, Vec<SchemeInstantiationDerivation>)>,
+    ) {
+        for (lower, target, origin, derivations) in bounds {
+            self.record_root_origin(origin);
+            self.timing.record_constrain_pos_var_direct_call();
+            self.add_lower_bound(
+                target,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            );
+            self.merge_scheme_instantiations_into_lower_bound(target, lower, derivations);
+        }
+        if !self.queue.is_empty() {
+            self.drain();
+        }
+    }
+
+    fn merge_scheme_instantiation_routes(
+        &mut self,
+        record: ConstraintRecordId,
+        routes: Vec<SchemeInstantiationRoute>,
+    ) {
+        let considered = routes.len();
+        let mut inserted = 0usize;
+        let target = &mut self.constraint_records[record.0 as usize];
+        for route in routes {
+            if route.remaining.0.is_empty() {
+                if !target
+                    .scheme_instantiation_derivations
+                    .contains(&route.derivation)
+                {
+                    target
+                        .scheme_instantiation_derivations
+                        .push(route.derivation);
+                    inserted += 1;
+                }
+            } else if !target.scheme_instantiation_routes.contains(&route) {
+                target.scheme_instantiation_routes.push(route);
+                inserted += 1;
+            }
+        }
+        let coverage = &mut self.timing.scheme_instantiations;
+        coverage.edges_considered += considered;
+        coverage.edges_inserted += inserted;
+        coverage.edges_deduplicated += considered.saturating_sub(inserted);
+        coverage.max_incoming_edges_per_record = coverage.max_incoming_edges_per_record.max(
+            target.scheme_instantiation_derivations.len()
+                + target.scheme_instantiation_routes.len(),
+        );
+        if inserted != 0 {
+            self.bump_provenance_epoch();
+        }
+    }
+
+    fn structural_scheme_routes(
+        &self,
+        parent: ConstraintRecordId,
+        rule: StructuralDerivationRule,
+    ) -> Vec<SchemeInstantiationRoute> {
+        self.constraint_records[parent.0 as usize]
+            .scheme_instantiation_routes
+            .iter()
+            .filter_map(|route| {
+                let advance = matches!(
+                    (route.remaining.0.first(), rule),
+                    (
+                        Some(GeneralizedTypePathStep::FunctionArgument),
+                        StructuralDerivationRule::FunctionArgument
+                    )
+                );
+                let passthrough = matches!(
+                    rule,
+                    StructuralDerivationRule::LowerStackNormalization
+                        | StructuralDerivationRule::LowerNonSubtractNormalization
+                        | StructuralDerivationRule::UpperStackNormalization
+                );
+                (advance || passthrough).then(|| SchemeInstantiationRoute {
+                    derivation: route.derivation.clone(),
+                    remaining: if advance {
+                        route.remaining.without_first()
+                    } else {
+                        route.remaining.clone()
+                    },
+                })
+            })
+            .collect()
+    }
+
+    pub(in crate::constraints) fn scheme_instantiation_derivations_for_constraint(
+        &self,
+        parent: ConstraintRecordId,
+    ) -> Vec<SchemeInstantiationDerivation> {
+        self.constraint_records[parent.0 as usize]
+            .scheme_instantiation_routes
+            .iter()
+            .map(|route| route.derivation.clone())
+            .chain(
+                self.constraint_records[parent.0 as usize]
+                    .scheme_instantiation_derivations
+                    .iter()
+                    .cloned(),
+            )
+            .collect()
     }
 
     pub fn subtract_fact(
@@ -824,6 +1019,8 @@ impl ConstraintMachine {
             } else {
                 Vec::new()
             },
+            scheme_instantiation_derivations: Vec::new(),
+            scheme_instantiation_routes: Vec::new(),
             canonicalization_dispositions: Vec::new(),
             replay_provenance: if matches!(inserted, ReplayDerivationInsert::Inserted) {
                 ProvenanceCompleteness::Complete
@@ -968,6 +1165,8 @@ impl ConstraintMachine {
             structural_derivations: Vec::new(),
             row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
+            scheme_instantiation_derivations: Vec::new(),
+            scheme_instantiation_routes: Vec::new(),
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
@@ -987,6 +1186,7 @@ impl ConstraintMachine {
         rule: StructuralDerivationRule,
     ) -> bool {
         self.timing.record_structural_derivation(rule);
+        let scheme_routes = self.structural_scheme_routes(parent, rule);
         let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
@@ -1002,6 +1202,7 @@ impl ConstraintMachine {
                     derivations.push(derivation);
                     self.bump_provenance_epoch();
                 }
+                self.merge_scheme_instantiation_routes(record_id, scheme_routes);
                 self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
                 return false;
@@ -1019,9 +1220,12 @@ impl ConstraintMachine {
             structural_derivations: vec![derivation],
             row_derivations: Vec::new(),
             replay_derivations: Vec::new(),
+            scheme_instantiation_derivations: Vec::new(),
+            scheme_instantiation_routes: Vec::new(),
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
         self.queue.push_back(ConstraintWork::Subtype(record_id));
@@ -1119,6 +1323,8 @@ impl ConstraintMachine {
             structural_derivations: Vec::new(),
             row_derivations: vec![derivation],
             replay_derivations: Vec::new(),
+            scheme_instantiation_derivations: Vec::new(),
+            scheme_instantiation_routes: Vec::new(),
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });

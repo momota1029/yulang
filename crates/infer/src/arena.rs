@@ -101,6 +101,7 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    #[allow(dead_code)] // Kept as the origin-only sibling of the PUSP-D provenance entrypoint.
     pub(crate) fn subtypes_with_origins(
         &mut self,
         constraints: impl IntoIterator<Item = (PosId, NegId, OriginId)>,
@@ -109,6 +110,23 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub(crate) fn subtypes_with_scheme_instantiation_routes(
+        &mut self,
+        constraints: impl IntoIterator<
+            Item = (
+                PosId,
+                NegId,
+                OriginId,
+                Vec<crate::constraints::SchemeInstantiationRoute>,
+            ),
+        >,
+    ) {
+        self.constraints
+            .subtype_many_with_scheme_instantiation_routes(constraints);
+        self.sync_type_ids_with_constraints();
+    }
+
+    #[allow(dead_code)] // Origin-only callers may still use this without scheme provenance.
     pub(crate) fn constrain_pos_to_var_direct_many(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
@@ -119,12 +137,29 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    #[allow(dead_code)] // Origin-only callers may still use this without scheme provenance.
     pub(crate) fn constrain_pos_to_var_direct_many_with_origins(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar, OriginId)>,
     ) {
         self.constraints
             .constrain_pos_to_var_direct_many_with_origins(bounds);
+        self.sync_type_ids_with_constraints();
+    }
+
+    pub(crate) fn constrain_pos_to_var_direct_many_with_scheme_instantiations(
+        &mut self,
+        bounds: impl IntoIterator<
+            Item = (
+                PosId,
+                TypeVar,
+                OriginId,
+                Vec<crate::constraints::SchemeInstantiationDerivation>,
+            ),
+        >,
+    ) {
+        self.constraints
+            .constrain_pos_to_var_direct_many_with_scheme_instantiations(bounds);
         self.sync_type_ids_with_constraints();
     }
 

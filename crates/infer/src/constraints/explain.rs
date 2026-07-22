@@ -139,6 +139,7 @@ pub(crate) enum ExplanationEdgeKind {
     SubtractFact(SubtractFactDerivation),
     BoundDisposition(BoundDisposition),
     Generalization(GeneralizationDerivationRule),
+    SchemeInstantiation(SchemeInstantiationDerivation),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -198,6 +199,20 @@ impl ConstraintMachine {
             return Err(ExplanationQueryError::UnknownConstraint(record));
         }
         Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::Constraint(record)))
+    }
+
+    pub(super) fn why_constraint_without_scheme_instantiation(
+        &self,
+        record: ConstraintRecordId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        if self.constraint_records.get(record.0 as usize).is_none() {
+            return Err(ExplanationQueryError::UnknownConstraint(record));
+        }
+        Ok(
+            ExplanationQuery::new_without_scheme_instantiation(self, budget)
+                .run(ExplanationNodeId::Constraint(record)),
+        )
     }
 
     pub(crate) fn why_lower_bound(
@@ -275,6 +290,7 @@ struct ExplanationQuery<'a> {
     visited: FxHashSet<ExplanationNodeId>,
     truncation: Option<ExplanationTruncationReason>,
     underlying_incomplete: bool,
+    include_scheme_instantiation: bool,
 }
 
 impl<'a> ExplanationQuery<'a> {
@@ -288,7 +304,17 @@ impl<'a> ExplanationQuery<'a> {
             visited: FxHashSet::default(),
             truncation: None,
             underlying_incomplete: false,
+            include_scheme_instantiation: true,
         }
+    }
+
+    fn new_without_scheme_instantiation(
+        machine: &'a ConstraintMachine,
+        budget: ExplanationBudget,
+    ) -> Self {
+        let mut query = Self::new(machine, budget);
+        query.include_scheme_instantiation = false;
+        query
     }
 
     fn run(mut self, root: ExplanationNodeId) -> ExplanationQueryResult {
@@ -570,6 +596,20 @@ impl<'a> ExplanationQuery<'a> {
                 depth,
             );
         }
+        if self.include_scheme_instantiation {
+            for derivation in record.scheme_instantiation_derivations {
+                self.push_edge(
+                    ExplanationEdge {
+                        child: ExplanationNodeId::Constraint(id),
+                        kind: ExplanationEdgeKind::SchemeInstantiation(derivation.clone()),
+                        parents: vec![ExplanationNodeId::GeneralizedWitness(
+                            derivation.source_witness,
+                        )],
+                    },
+                    depth,
+                );
+            }
+        }
         for disposition in record.canonicalization_dispositions {
             self.push_edge(
                 ExplanationEdge {
@@ -590,7 +630,12 @@ impl<'a> ExplanationQuery<'a> {
             .expect("visited bound")
             .clone();
         for derivation in record.derivations {
-            let parents = self.bound_derivation_parents(derivation);
+            if !self.include_scheme_instantiation
+                && matches!(derivation, BoundDerivation::SchemeInstantiation(_))
+            {
+                continue;
+            }
+            let parents = self.bound_derivation_parents(&derivation);
             self.push_edge(
                 ExplanationEdge {
                     child: ExplanationNodeId::Bound(id),
@@ -672,7 +717,7 @@ impl<'a> ExplanationQuery<'a> {
         let mut parents = record
             .derivation
             .into_iter()
-            .flat_map(|derivation| self.bound_derivation_parents(derivation))
+            .flat_map(|derivation| self.bound_derivation_parents(&derivation))
             .collect::<Vec<_>>();
         match record.disposition {
             BoundDisposition::Inserted(bound)
@@ -720,15 +765,20 @@ impl<'a> ExplanationQuery<'a> {
         }
     }
 
-    fn bound_derivation_parents(&mut self, derivation: BoundDerivation) -> Vec<ExplanationNodeId> {
+    fn bound_derivation_parents(&mut self, derivation: &BoundDerivation) -> Vec<ExplanationNodeId> {
         match derivation {
-            BoundDerivation::Constraint(parent) => vec![ExplanationNodeId::Constraint(parent)],
-            BoundDerivation::Origin(origin) => vec![ExplanationNodeId::Origin(origin)],
+            BoundDerivation::Constraint(parent) => vec![ExplanationNodeId::Constraint(*parent)],
+            BoundDerivation::Origin(origin) => vec![ExplanationNodeId::Origin(*origin)],
             BoundDerivation::ReplayEvidence(replay) => vec![
                 ExplanationNodeId::Bound(replay.lower),
                 ExplanationNodeId::Bound(replay.upper),
             ],
-            BoundDerivation::Row(row) => vec![ExplanationNodeId::RowDerivation(row)],
+            BoundDerivation::Row(row) => vec![ExplanationNodeId::RowDerivation(*row)],
+            BoundDerivation::SchemeInstantiation(derivation) => {
+                vec![ExplanationNodeId::GeneralizedWitness(
+                    derivation.source_witness,
+                )]
+            }
             BoundDerivation::IncompleteReplay => {
                 self.underlying_incomplete = true;
                 Vec::new()

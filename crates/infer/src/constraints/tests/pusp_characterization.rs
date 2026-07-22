@@ -185,6 +185,96 @@ fn pusp_c_quantified_argument_witness_is_path_specific_and_deduplicated() {
 }
 
 #[test]
+fn pusp_d_call_side_query_crosses_instantiation_to_boolean_condition() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    ));
+    let def = subject_def(&output);
+    let parameter = parameter_var(&output, def);
+    let machine = output.session.infer.constraints();
+    let original = *bool_upper_records(machine, parameter)
+        .first()
+        .expect("boolean body requirement has a canonical upper bound");
+    let producer = output
+        .session
+        .ocast_eligibility_shadow()
+        .first()
+        .expect("call creates a nominal cast producer")
+        .producer;
+    let query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("query call-side producer");
+    assert!(query.edges.iter().any(|edge| matches!(
+        edge.kind,
+        crate::constraints::explain::ExplanationEdgeKind::SchemeInstantiation(_)
+            | crate::constraints::explain::ExplanationEdgeKind::Bound(
+                BoundDerivation::SchemeInstantiation(_)
+            )
+    )));
+    assert!(
+        query
+            .nodes
+            .iter()
+            .any(|node| node.id() == ExplanationNodeId::Bound(original))
+    );
+    assert!(query.nodes.iter().any(|node| matches!(
+        node,
+        ExplanationNode::Origin {
+            kind: ConstraintOriginKind::BodyRequirement(BodyRequirementKind::BooleanCondition),
+            ..
+        }
+    )));
+    assert_eq!(query.completeness, ExplanationCompleteness::Complete);
+    eprintln!(
+        "PUSP-D representative query: nodes={} edges={}",
+        query.nodes.len(),
+        query.edges.len()
+    );
+}
+
+#[test]
+fn pusp_d_instantiation_storage_scales_linearly_across_calls() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = pusp_param\n",
+        "subject(1)\n",
+        "subject(false)\n",
+        "subject(\"three\")\n",
+    ));
+    let machine = output.session.infer.constraints();
+    let scheme = output
+        .session
+        .generalized_scheme_record(subject_def(&output))
+        .expect("one shared generalized scheme");
+    let records = machine
+        .scheme_instantiations
+        .iter()
+        .filter(|record| record.source == scheme)
+        .collect::<Vec<_>>();
+    assert_eq!(records.len(), 3);
+    assert_eq!(
+        records
+            .iter()
+            .map(|record| record.use_value)
+            .collect::<FxHashSet<_>>()
+            .len(),
+        3
+    );
+    let coverage = machine.timing().scheme_instantiations;
+    assert_eq!(coverage.same_session_batch, 3);
+    assert_eq!(coverage.imported_without_bridge, 0);
+    assert_eq!(
+        coverage.edges_considered,
+        coverage.edges_inserted + coverage.edges_deduplicated
+    );
+    assert_eq!(coverage.max_mapped_witnesses_per_instantiation, 4);
+    assert_eq!(coverage.max_incoming_edges_per_record, 4);
+}
+
+#[test]
 fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
     const SOURCE: &str = concat!(
         "my subject(pusp_param) = if pusp_param:\n",
@@ -562,22 +652,31 @@ fn expected_baselines() -> [Baseline; 5] {
             "inferred-if-condition",
             &["BoundRecordId(99)"],
             Some(query(
-                19,
-                18,
-                9,
-                4_470_251_554_592_856_540,
-                &["internal", "body-requirement:boolean-condition"],
+                33,
+                39,
+                13,
+                16_697_274_909_257_563_807,
+                &[
+                    "internal",
+                    "unknown-internal",
+                    "body-requirement:boolean-condition",
+                ],
                 1,
-                [true, true, false, true],
+                [true, true, true, true],
             )),
             Some(query(
-                11,
-                9,
-                6,
-                11_821_486_888_323_386_445,
-                &["internal", "application-argument"],
-                1,
-                [true, true, false, false],
+                56,
+                76,
+                19,
+                7_973_532_512_924_181_623,
+                &[
+                    "internal",
+                    "unknown-internal",
+                    "body-requirement:boolean-condition",
+                    "application-argument",
+                ],
+                2,
+                [true, true, true, true],
             )),
             "bool -> int",
             2,
@@ -594,26 +693,33 @@ fn expected_baselines() -> [Baseline; 5] {
             "annotated-parameter-control",
             &["BoundRecordId(17)"],
             Some(query(
-                20,
-                19,
-                9,
-                11_713_936_874_666_769_891,
+                34,
+                40,
+                13,
+                2_057_198_660_181_371_904,
                 &[
                     "annotation",
                     "internal",
+                    "unknown-internal",
                     "body-requirement:boolean-condition",
                 ],
                 2,
-                [true, true, false, true],
+                [true, true, true, true],
             )),
             Some(query(
-                11,
-                9,
-                6,
-                16_270_637_393_438_123_044,
-                &["internal", "application-argument"],
-                1,
-                [true, true, false, false],
+                57,
+                77,
+                19,
+                5_056_574_746_806_254_351,
+                &[
+                    "internal",
+                    "unknown-internal",
+                    "annotation",
+                    "body-requirement:boolean-condition",
+                    "application-argument",
+                ],
+                3,
+                [true, true, true, true],
             )),
             "bool -> int",
             2,
@@ -646,13 +752,17 @@ fn expected_baselines() -> [Baseline; 5] {
             "imported-cache-loaded-callee",
             &["BoundRecordId(90)"],
             Some(query(
-                19,
-                18,
-                9,
-                9_503_474_146_436_603_632,
-                &["internal", "body-requirement:boolean-condition"],
+                33,
+                39,
+                13,
+                13_326_616_529_651_366_205,
+                &[
+                    "internal",
+                    "unknown-internal",
+                    "body-requirement:boolean-condition",
+                ],
                 1,
-                [true, true, false, true],
+                [true, true, true, true],
             )),
             Some(query(
                 12,
@@ -678,26 +788,33 @@ fn expected_baselines() -> [Baseline; 5] {
             "multiple-body-uses",
             &["BoundRecordId(160)"],
             Some(query(
-                35,
-                35,
-                9,
-                6_700_188_920_353_996_193,
+                49,
+                60,
+                13,
+                14_289_704_609_015_011_324,
                 &[
                     "internal",
+                    "unknown-internal",
                     "body-requirement:boolean-condition",
                     "body-requirement:boolean-condition",
                 ],
                 2,
-                [true, true, false, true],
+                [true, true, true, true],
             )),
             Some(query(
-                11,
-                9,
-                6,
-                15_730_201_711_330_801_637,
-                &["internal", "application-argument"],
-                1,
-                [true, true, false, false],
+                74,
+                107,
+                19,
+                9_994_500_403_576_866_678,
+                &[
+                    "internal",
+                    "unknown-internal",
+                    "body-requirement:boolean-condition",
+                    "body-requirement:boolean-condition",
+                    "application-argument",
+                ],
+                3,
+                [true, true, true, true],
             )),
             "bool -> int",
             3,

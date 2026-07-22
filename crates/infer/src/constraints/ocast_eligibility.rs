@@ -158,7 +158,10 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         budget: ExplanationBudget,
     ) -> OcastEligibilityClassification {
-        match self.why_constraint(producer, budget) {
+        // Body-use provenance explains a callee definition; it does not own the call-site cast
+        // boundary. Including it here would let unrelated definition-internal unknown roots change
+        // CPROV-I's already-approved eligibility decision.
+        match self.why_constraint_without_scheme_instantiation(producer, budget) {
             Ok(explanation) => classify_explanation(producer, explanation),
             Err(error) => OcastEligibilityClassification {
                 producer,

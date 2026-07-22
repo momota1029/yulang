@@ -324,24 +324,14 @@ impl AnalysisSession {
         }
         let phase = Instant::now();
         if !direct_lower_predicates.is_empty() {
-            let common_origin = direct_lower_predicates[0].2;
-            if direct_lower_predicates
-                .iter()
-                .all(|(_, _, origin)| *origin == common_origin)
-            {
-                self.infer.constrain_pos_to_var_direct_many(
-                    direct_lower_predicates
-                        .into_iter()
-                        .map(|(lower, target, _)| (lower, target)),
-                    common_origin,
+            self.infer
+                .constrain_pos_to_var_direct_many_with_scheme_instantiations(
+                    direct_lower_predicates,
                 );
-            } else {
-                self.infer
-                    .constrain_pos_to_var_direct_many_with_origins(direct_lower_predicates);
-            }
         }
         if !subtype_predicates.is_empty() {
-            self.infer.subtypes_with_origins(subtype_predicates);
+            self.infer
+                .subtypes_with_scheme_instantiation_routes(subtype_predicates);
         }
         self.timing
             .record_instantiate_subtype_predicate(phase.elapsed());
@@ -352,8 +342,18 @@ impl AnalysisSession {
     fn prepare_instantiated_use(
         &mut self,
         use_site: SccInstantiateUse,
-        direct_lower_predicates: &mut Vec<(PosId, TypeVar, crate::constraints::OriginId)>,
-        subtype_predicates: &mut Vec<(PosId, NegId, crate::constraints::OriginId)>,
+        direct_lower_predicates: &mut Vec<(
+            PosId,
+            TypeVar,
+            crate::constraints::OriginId,
+            Vec<crate::constraints::SchemeInstantiationDerivation>,
+        )>,
+        subtype_predicates: &mut Vec<(
+            PosId,
+            NegId,
+            crate::constraints::OriginId,
+            Vec<crate::constraints::SchemeInstantiationRoute>,
+        )>,
     ) -> bool {
         let SccInstantiateUse {
             parent,
@@ -386,7 +386,26 @@ impl AnalysisSession {
         } else {
             crate::constraints::OriginId::internal()
         };
-        let instantiated = if imported {
+        let generalized_source = (!imported)
+            .then(|| self.generalized_scheme_record(target))
+            .flatten();
+        let witness_inputs = generalized_source
+            .and_then(|source| self.infer.constraints().generalized_scheme_record(source))
+            .into_iter()
+            .flat_map(|record| record.witnesses.iter().copied())
+            .filter_map(|witness| {
+                let record = self
+                    .infer
+                    .constraints()
+                    .generalized_scheme_witness(witness)?;
+                Some(SchemeInstantiationWitnessInput {
+                    witness,
+                    path: record.path.clone(),
+                    completeness: record.completeness,
+                })
+            })
+            .collect::<Vec<_>>();
+        let (instantiated, projected) = if imported {
             let validation = if let Some(validation) = self.imported_scheme_validations.get(&target)
             {
                 validation.clone()
@@ -410,21 +429,54 @@ impl AnalysisSession {
                 );
                 return false;
             }
-            instantiate_validated_imported_scheme_with_roles(
-                &self.poly.typ,
-                &mut self.infer,
-                TypeLevel::secondary(),
-                scheme,
-                &self.imported_boundary,
+            (
+                instantiate_validated_imported_scheme_with_roles(
+                    &self.poly.typ,
+                    &mut self.infer,
+                    TypeLevel::secondary(),
+                    scheme,
+                    &self.imported_boundary,
+                ),
+                crate::instantiate::InstantiatedSchemeProvenance::default(),
             )
         } else {
-            instantiate_scheme_with_roles(
+            instantiate_scheme_with_roles_and_provenance(
                 &self.poly.typ,
                 &mut self.infer,
                 TypeLevel::secondary(),
                 scheme,
+                &witness_inputs,
             )
         };
+        let instantiation = generalized_source.map(|source| {
+            let completeness = if projected.incomplete_witnesses == 0 {
+                ProvenanceCompleteness::Complete
+            } else {
+                ProvenanceCompleteness::Incomplete
+            };
+            self.infer.constraints_mut().intern_scheme_instantiation(
+                source,
+                parent,
+                target,
+                use_value,
+                completeness,
+            )
+        });
+        self.infer
+            .constraints_mut()
+            .record_scheme_instantiation_use(false, imported, projected.mappings.len());
+        let derivations = instantiation
+            .into_iter()
+            .flat_map(|instantiation| {
+                projected.mappings.iter().map(move |mapping| {
+                    crate::constraints::SchemeInstantiationDerivation {
+                        instantiation,
+                        source_witness: mapping.witness,
+                        path: mapping.path.clone(),
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_clone_scheme(elapsed);
         trace_instantiate_phase(trace, "clone scheme", parent, target, elapsed, start);
@@ -449,10 +501,17 @@ impl AnalysisSession {
             self.infer.constraints().types().pos(instantiated.predicate),
         ) {
             self.timing.record_instantiate_direct_lower_predicate();
-            direct_lower_predicates.push((instantiated.predicate, use_value, origin));
+            direct_lower_predicates.push((instantiated.predicate, use_value, origin, derivations));
         } else {
             let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
-            subtype_predicates.push((instantiated.predicate, use_upper, origin));
+            let routes = derivations
+                .into_iter()
+                .map(|derivation| crate::constraints::SchemeInstantiationRoute {
+                    remaining: derivation.path.clone(),
+                    derivation,
+                })
+                .collect();
+            subtype_predicates.push((instantiated.predicate, use_upper, origin, routes));
         }
         let phase = Instant::now();
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);

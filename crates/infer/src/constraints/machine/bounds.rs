@@ -216,12 +216,12 @@ impl ConstraintMachine {
             return;
         };
         for derivation in record.derivations() {
-            match *derivation {
+            match derivation {
                 BoundDerivation::Origin(origin) => {
-                    origins.insert(origin);
+                    origins.insert(*origin);
                 }
                 BoundDerivation::Constraint(parent) => self.debug_collect_constraint_origins(
-                    parent,
+                    *parent,
                     origins,
                     visited_bounds,
                     visited_constraints,
@@ -244,13 +244,13 @@ impl ConstraintMachine {
                     );
                 }
                 BoundDerivation::Row(row) => self.debug_collect_row_origins(
-                    row,
+                    *row,
                     origins,
                     visited_bounds,
                     visited_constraints,
                     visited_lower_filters,
                 ),
-                BoundDerivation::IncompleteReplay => {}
+                BoundDerivation::SchemeInstantiation(_) | BoundDerivation::IncompleteReplay => {}
             }
         }
     }
@@ -420,15 +420,16 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) {
-        let producer = match derivation {
-            BoundDerivation::Constraint(record) => Some(record),
+        let producer = match &derivation {
+            BoundDerivation::Constraint(record) => Some(*record),
             BoundDerivation::Origin(_)
             | BoundDerivation::ReplayEvidence(_)
             | BoundDerivation::Row(_)
+            | BoundDerivation::SchemeInstantiation(_)
             | BoundDerivation::IncompleteReplay => None,
         };
         let pos = self.extrude_pos(pos, self.level_of(target));
-        let weights = self.check_and_erase_lower_left_filter(pos, weights, derivation);
+        let weights = self.check_and_erase_lower_left_filter(pos, weights, &derivation);
         if let Some(survivor) = self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
             self.record_bound_disposition(
                 BoundDirection::Lower,
@@ -443,7 +444,7 @@ impl ConstraintMachine {
         }
         let insertion = self
             .bounds
-            .add_lower(target, pos, weights.clone(), derivation);
+            .add_lower(target, pos, weights.clone(), derivation.clone());
         self.record_bound_provenance(insertion, BoundDirection::Lower, false);
         self.record_bound_disposition(
             BoundDirection::Lower,
@@ -494,6 +495,46 @@ impl ConstraintMachine {
         );
     }
 
+    pub(in crate::constraints) fn merge_scheme_instantiations_into_lower_bound(
+        &mut self,
+        target: TypeVar,
+        lower: PosId,
+        derivations: Vec<SchemeInstantiationDerivation>,
+    ) {
+        let key = BoundSemanticKey::Lower {
+            owner: target,
+            endpoint: lower,
+            weights: ConstraintWeights::empty(),
+        };
+        let Some(id) = self.bounds.canonical.get(&key).copied() else {
+            return;
+        };
+        let record = &mut self.bounds.records[id.0 as usize];
+        let considered = derivations.len();
+        let mut inserted = 0usize;
+        for derivation in derivations {
+            let derivation = BoundDerivation::SchemeInstantiation(derivation);
+            if !record.derivations.contains(&derivation) {
+                record.derivations.push(derivation);
+                inserted += 1;
+            }
+        }
+        let coverage = &mut self.timing.scheme_instantiations;
+        coverage.edges_considered += considered;
+        coverage.edges_inserted += inserted;
+        coverage.edges_deduplicated += considered.saturating_sub(inserted);
+        coverage.max_incoming_edges_per_record = coverage.max_incoming_edges_per_record.max(
+            record
+                .derivations
+                .iter()
+                .filter(|edge| matches!(edge, BoundDerivation::SchemeInstantiation(_)))
+                .count(),
+        );
+        if inserted != 0 {
+            self.bump_provenance_epoch();
+        }
+    }
+
     pub(in crate::constraints) fn add_upper_bound(
         &mut self,
         source: TypeVar,
@@ -501,15 +542,16 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) {
-        let producer = match derivation {
-            BoundDerivation::Constraint(record) => Some(record),
+        let producer = match &derivation {
+            BoundDerivation::Constraint(record) => Some(*record),
             BoundDerivation::Origin(_)
             | BoundDerivation::ReplayEvidence(_)
             | BoundDerivation::Row(_)
+            | BoundDerivation::SchemeInstantiation(_)
             | BoundDerivation::IncompleteReplay => None,
         };
         let neg = self.extrude_neg(neg, self.level_of(source));
-        let weights = self.check_and_erase_upper_left_filter(source, weights, derivation);
+        let weights = self.check_and_erase_upper_left_filter(source, weights, &derivation);
         if let Some(survivor) = self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
             self.record_bound_disposition(
                 BoundDirection::Upper,
@@ -537,7 +579,7 @@ impl ConstraintMachine {
         let pruned = self.prune_upper_rows_subsumed_by(source, neg, &weights);
         let insertion = self
             .bounds
-            .add_upper(source, neg, weights.clone(), derivation);
+            .add_upper(source, neg, weights.clone(), derivation.clone());
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
         self.record_bound_disposition(
             BoundDirection::Upper,
@@ -623,7 +665,7 @@ impl ConstraintMachine {
         &mut self,
         pos: PosId,
         weights: ConstraintWeights,
-        derivation: BoundDerivation,
+        derivation: &BoundDerivation,
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
@@ -642,7 +684,7 @@ impl ConstraintMachine {
         &mut self,
         source: TypeVar,
         weights: ConstraintWeights,
-        derivation: BoundDerivation,
+        derivation: &BoundDerivation,
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
@@ -1109,10 +1151,10 @@ impl ConstraintMachine {
             };
             let lower_derivation_new = !self
                 .bounds
-                .contains_derivation(&lower_key, replay_derivation);
+                .contains_derivation(&lower_key, &replay_derivation);
             let upper_derivation_new = !self
                 .bounds
-                .contains_derivation(&upper_key, replay_derivation);
+                .contains_derivation(&upper_key, &replay_derivation);
             let evidence_bytes = std::mem::size_of::<BinaryReplayDerivation>()
                 * (usize::from(lower_derivation_new) + usize::from(upper_derivation_new));
             let evidence_complete = self.replay_derivation_session_budget_allows(evidence_bytes);
@@ -1122,7 +1164,7 @@ impl ConstraintMachine {
                 self.record_replay_budget_drop(None);
             }
             let lower_derivation = if evidence_complete || !lower_derivation_new {
-                replay_derivation
+                replay_derivation.clone()
             } else {
                 BoundDerivation::IncompleteReplay
             };

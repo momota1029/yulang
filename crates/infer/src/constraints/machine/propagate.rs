@@ -114,6 +114,12 @@ impl ConstraintMachine {
                         constraint.weights.clone(),
                         BoundDerivation::Constraint(parent),
                     );
+                    let scheme = self.scheme_instantiation_derivations_for_constraint(parent);
+                    self.merge_scheme_instantiations_into_lower_bound(
+                        target,
+                        constraint.lower,
+                        scheme,
+                    );
                     self.add_upper_bound(
                         source,
                         constraint.upper,
@@ -142,12 +148,15 @@ impl ConstraintMachine {
             return;
         }
         if let Neg::Var(target) = self.types.neg(constraint.upper) {
+            let target = *target;
             self.add_lower_bound(
-                *target,
+                target,
                 constraint.lower,
                 constraint.weights,
                 BoundDerivation::Constraint(parent),
             );
+            let scheme = self.scheme_instantiation_derivations_for_constraint(parent);
+            self.merge_scheme_instantiations_into_lower_bound(target, constraint.lower, scheme);
             return;
         }
         match (

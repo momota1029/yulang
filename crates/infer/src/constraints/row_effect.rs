@@ -53,16 +53,17 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn row_derivation_parents_from_bound(
-        derivation: BoundDerivation,
+        derivation: &BoundDerivation,
     ) -> Vec<RowDerivationParent> {
         match derivation {
-            BoundDerivation::Constraint(parent) => vec![RowDerivationParent::Constraint(parent)],
-            BoundDerivation::Origin(origin) => vec![RowDerivationParent::Origin(origin)],
+            BoundDerivation::Constraint(parent) => vec![RowDerivationParent::Constraint(*parent)],
+            BoundDerivation::Origin(origin) => vec![RowDerivationParent::Origin(*origin)],
             BoundDerivation::ReplayEvidence(replay) => vec![
                 RowDerivationParent::Bound(replay.lower),
                 RowDerivationParent::Bound(replay.upper),
             ],
-            BoundDerivation::Row(parent) => vec![RowDerivationParent::RowDerivation(parent)],
+            BoundDerivation::Row(parent) => vec![RowDerivationParent::RowDerivation(*parent)],
+            BoundDerivation::SchemeInstantiation(_) => Vec::new(),
             BoundDerivation::IncompleteReplay => Vec::new(),
         }
     }
@@ -431,7 +432,7 @@ impl ConstraintMachine {
         };
         let insertion = self
             .bounds
-            .add_upper(source, neg, weights.clone(), derivation);
+            .add_upper(source, neg, weights.clone(), derivation.clone());
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
         self.record_bound_disposition(
             BoundDirection::Upper,

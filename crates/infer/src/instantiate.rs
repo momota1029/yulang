@@ -11,7 +11,10 @@ use poly::types::{
 use rustc_hash::FxHashMap;
 
 use crate::arena::Arena as InferArena;
-use crate::constraints::TypeLevel;
+use crate::constraints::{
+    GeneralizedSchemeWitnessId, GeneralizedTypePath, GeneralizedTypePathStep,
+    ProvenanceCompleteness, TypeLevel,
+};
 use crate::interface_oracle::ClosureScan;
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
@@ -74,6 +77,7 @@ pub(crate) fn instantiate_scheme(
     instantiator.instantiate_scheme(scheme)
 }
 
+#[allow(dead_code)] // Imported and provenance-free clients retain the semantic-only adapter.
 pub(crate) fn instantiate_scheme_with_roles(
     source: &TypeArena,
     target: &mut InferArena,
@@ -82,6 +86,19 @@ pub(crate) fn instantiate_scheme_with_roles(
 ) -> InstantiatedScheme {
     let mut instantiator = SchemeInstantiator::new(source, target, level);
     instantiator.instantiate_scheme_with_roles(scheme)
+}
+
+pub(crate) fn instantiate_scheme_with_roles_and_provenance(
+    source: &TypeArena,
+    target: &mut InferArena,
+    level: TypeLevel,
+    scheme: &Scheme,
+    witnesses: &[SchemeInstantiationWitnessInput],
+) -> (InstantiatedScheme, InstantiatedSchemeProvenance) {
+    let mut instantiator = SchemeInstantiator::new(source, target, level);
+    let instantiated = instantiator.instantiate_scheme_with_roles(scheme);
+    let provenance = instantiator.project_witnesses(scheme, witnesses);
+    (instantiated, provenance)
 }
 
 pub(crate) fn instantiate_validated_imported_scheme_with_roles(
@@ -137,6 +154,33 @@ pub(crate) struct InstantiatedScheme {
     pub(crate) role_predicates: Vec<RolePredicate>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SchemeInstantiationWitnessInput {
+    pub(crate) witness: GeneralizedSchemeWitnessId,
+    pub(crate) path: GeneralizedTypePath,
+    pub(crate) completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InstantiatedTypePosition {
+    Positive(PosId),
+    Negative(NegId),
+    Neutral(NeuId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InstantiatedWitnessMapping {
+    pub(crate) witness: GeneralizedSchemeWitnessId,
+    pub(crate) path: GeneralizedTypePath,
+    pub(crate) target: InstantiatedTypePosition,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct InstantiatedSchemeProvenance {
+    pub(crate) mappings: Vec<InstantiatedWitnessMapping>,
+    pub(crate) incomplete_witnesses: usize,
+}
+
 pub(crate) struct ImportedInstantiationWitness {
     pub(crate) scheme: Scheme,
 }
@@ -161,6 +205,84 @@ struct SchemeInstantiator<'a> {
 }
 
 impl<'a> SchemeInstantiator<'a> {
+    fn project_witnesses(
+        &self,
+        scheme: &Scheme,
+        witnesses: &[SchemeInstantiationWitnessInput],
+    ) -> InstantiatedSchemeProvenance {
+        let mut result = InstantiatedSchemeProvenance::default();
+        for witness in witnesses {
+            if witness.completeness == ProvenanceCompleteness::Incomplete {
+                result.incomplete_witnesses += 1;
+                continue;
+            }
+            let Some(target) = self.project_path(scheme.predicate, &witness.path) else {
+                result.incomplete_witnesses += 1;
+                continue;
+            };
+            result.mappings.push(InstantiatedWitnessMapping {
+                witness: witness.witness,
+                path: witness.path.clone(),
+                target,
+            });
+        }
+        result
+    }
+
+    fn project_path(
+        &self,
+        root: PosId,
+        path: &GeneralizedTypePath,
+    ) -> Option<InstantiatedTypePosition> {
+        #[allow(dead_code)] // Neutral paths are reserved for later complete PUSP-C witnesses.
+        enum SourcePosition {
+            Pos(PosId),
+            Neg(NegId),
+            Neu(NeuId),
+        }
+        let mut current = SourcePosition::Pos(root);
+        for step in &path.0 {
+            current = match (current, *step) {
+                (SourcePosition::Pos(id), GeneralizedTypePathStep::FunctionArgument) => {
+                    let Pos::Fun { arg, .. } = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*arg)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::FunctionArgument) => {
+                    let Neg::Fun { arg, .. } = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*arg)
+                }
+                (SourcePosition::Neu(id), GeneralizedTypePathStep::FunctionArgument) => {
+                    let Neu::Fun { arg, .. } = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*arg)
+                }
+                _ => return None,
+            };
+        }
+        match current {
+            SourcePosition::Pos(id) => self
+                .pos_nodes
+                .get(&id)
+                .copied()
+                .map(InstantiatedTypePosition::Positive),
+            SourcePosition::Neg(id) => self
+                .neg_nodes
+                .get(&id)
+                .copied()
+                .map(InstantiatedTypePosition::Negative),
+            SourcePosition::Neu(id) => self
+                .neu_nodes
+                .get(&id)
+                .copied()
+                .map(InstantiatedTypePosition::Neutral),
+        }
+    }
+
     fn new(source: &'a TypeArena, target: &'a mut InferArena, level: TypeLevel) -> Self {
         Self {
             source,

@@ -43,7 +43,7 @@ pub use timing::{
     ConstraintTiming, GeneralizedSchemeCoverage, ReplayDerivationCoverage,
     ReplayDerivationStorageMetrics, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
     ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage,
-    StableRecordCoverage, StructuralDerivationCoverage,
+    SchemeInstantiationCoverage, StableRecordCoverage, StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -86,6 +86,8 @@ pub struct ConstraintMachine {
     source_boundaries: Vec<SourceBoundaryRecord>,
     generalized_schemes: Vec<GeneralizedSchemeRecord>,
     generalized_witnesses: Vec<GeneralizedSchemeWitness>,
+    scheme_instantiations: Vec<SchemeInstantiationRecord>,
+    scheme_instantiation_index: FxHashMap<SchemeInstantiationKey, SchemeInstantiationId>,
     events: Vec<ConstraintEvent>,
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
@@ -343,11 +345,11 @@ impl TypeBounds {
         self.records.get(id.0 as usize)
     }
 
-    fn contains_derivation(&self, key: &BoundSemanticKey, derivation: BoundDerivation) -> bool {
+    fn contains_derivation(&self, key: &BoundSemanticKey, derivation: &BoundDerivation) -> bool {
         self.canonical
             .get(key)
             .and_then(|id| self.record(*id))
-            .is_some_and(|record| record.derivations.contains(&derivation))
+            .is_some_and(|record| record.derivations.contains(derivation))
     }
 
     fn add_lower(
@@ -672,6 +674,9 @@ pub struct GeneralizedSchemeRecordId(u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GeneralizedSchemeWitnessId(u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SchemeInstantiationId(u32);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct GeneralizedTypePath(pub Vec<GeneralizedTypePathStep>);
 
@@ -682,6 +687,10 @@ impl GeneralizedTypePath {
 
     pub fn depth(&self) -> usize {
         self.0.len()
+    }
+
+    fn without_first(&self) -> Self {
+        Self(self.0.iter().skip(1).copied().collect())
     }
 }
 
@@ -762,6 +771,36 @@ pub struct GeneralizedSchemeWitness {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemeInstantiationRecord {
+    pub source: GeneralizedSchemeRecordId,
+    pub owner: DefId,
+    pub target: DefId,
+    pub use_value: TypeVar,
+    pub completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SchemeInstantiationDerivation {
+    pub instantiation: SchemeInstantiationId,
+    pub source_witness: GeneralizedSchemeWitnessId,
+    pub path: GeneralizedTypePath,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SchemeInstantiationKey {
+    source: GeneralizedSchemeRecordId,
+    owner: DefId,
+    target: DefId,
+    use_value: TypeVar,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct SchemeInstantiationRoute {
+    pub derivation: SchemeInstantiationDerivation,
+    pub remaining: GeneralizedTypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneralizedWitnessDraft {
     pub path: GeneralizedTypePath,
     pub role: GeneralizedWitnessRole,
@@ -821,12 +860,13 @@ pub struct BoundDispositionRecord {
     disposition: BoundDisposition,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BoundDerivation {
     Constraint(ConstraintRecordId),
     Origin(OriginId),
     ReplayEvidence(BinaryReplayDerivation),
     Row(RowDerivationId),
+    SchemeInstantiation(SchemeInstantiationDerivation),
     IncompleteReplay,
 }
 
@@ -1473,6 +1513,8 @@ struct ConstraintRecord {
     structural_derivations: Vec<StructuralDerivation>,
     row_derivations: Vec<RowDerivationId>,
     replay_derivations: Vec<BinaryReplayDerivation>,
+    scheme_instantiation_derivations: Vec<SchemeInstantiationDerivation>,
+    scheme_instantiation_routes: Vec<SchemeInstantiationRoute>,
     canonicalization_dispositions: Vec<ConstraintCanonicalizationDisposition>,
     replay_provenance: ProvenanceCompleteness,
 }

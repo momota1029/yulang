@@ -50,6 +50,19 @@ pub struct GeneralizedSchemeCoverage {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SchemeInstantiationCoverage {
+    pub records: usize,
+    pub same_session_batch: usize,
+    pub same_session_local: usize,
+    pub imported_without_bridge: usize,
+    pub edges_considered: usize,
+    pub edges_inserted: usize,
+    pub edges_deduplicated: usize,
+    pub max_mapped_witnesses_per_instantiation: usize,
+    pub max_incoming_edges_per_record: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StructuralDerivationCoverage {
     pub full_unary: usize,
     pub normalization: usize,
@@ -180,6 +193,7 @@ pub struct ConstraintTiming {
     pub root_origins: ConstraintOriginCoverage,
     pub body_requirement_origins: BodyRequirementOriginCoverage,
     pub generalized_schemes: GeneralizedSchemeCoverage,
+    pub scheme_instantiations: SchemeInstantiationCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
     pub row_derivations: RowDerivationCoverage,
     pub bound_dispositions: BoundDispositionCoverage,

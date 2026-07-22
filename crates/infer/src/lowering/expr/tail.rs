@@ -774,16 +774,86 @@ impl<'a> ExprLowerer<'a> {
         };
         let value = self.fresh_type_var();
         let level = self.session.infer.current_level();
-        let predicate = crate::instantiate::instantiate_scheme(
-            &self.session.poly.typ,
-            &mut self.session.infer,
-            level,
-            scheme,
-        );
+        let source = self.session.generalized_scheme_record(local.def);
+        let witness_inputs = source
+            .and_then(|source| {
+                self.session
+                    .infer
+                    .constraints()
+                    .generalized_scheme_record(source)
+            })
+            .into_iter()
+            .flat_map(|record| record.witnesses.iter().copied())
+            .filter_map(|witness| {
+                let record = self
+                    .session
+                    .infer
+                    .constraints()
+                    .generalized_scheme_witness(witness)?;
+                Some(crate::instantiate::SchemeInstantiationWitnessInput {
+                    witness,
+                    path: record.path.clone(),
+                    completeness: record.completeness,
+                })
+            })
+            .collect::<Vec<_>>();
+        let (instantiated, projected) =
+            crate::instantiate::instantiate_scheme_with_roles_and_provenance(
+                &self.session.poly.typ,
+                &mut self.session.infer,
+                level,
+                scheme,
+                &witness_inputs,
+            );
+        let predicate = instantiated.predicate;
         let upper = self.alloc_neg(Neg::Var(value));
+        let routes = source
+            .map(|source| {
+                let completeness = if projected.incomplete_witnesses == 0 {
+                    crate::constraints::ProvenanceCompleteness::Complete
+                } else {
+                    crate::constraints::ProvenanceCompleteness::Incomplete
+                };
+                let instantiation = self
+                    .session
+                    .infer
+                    .constraints_mut()
+                    .intern_scheme_instantiation(
+                        source,
+                        self.parent,
+                        local.def,
+                        value,
+                        completeness,
+                    );
+                projected
+                    .mappings
+                    .into_iter()
+                    .map(|mapping| {
+                        let derivation = crate::constraints::SchemeInstantiationDerivation {
+                            instantiation,
+                            source_witness: mapping.witness,
+                            path: mapping.path.clone(),
+                        };
+                        crate::constraints::SchemeInstantiationRoute {
+                            remaining: mapping.path,
+                            derivation,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         self.session
             .infer
-            .subtype(predicate, upper, crate::constraints::OriginId::internal());
+            .constraints_mut()
+            .record_scheme_instantiation_use(true, false, routes.len());
+        self.session
+            .infer
+            .subtypes_with_scheme_instantiation_routes([(
+                predicate,
+                upper,
+                crate::constraints::OriginId::internal(),
+                routes,
+            )]);
         value
     }
 
