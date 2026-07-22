@@ -3,7 +3,10 @@ use crate::casts::{
     OrdinaryCastShadowOutcome, OrdinaryCastShadowSeam, begin_ordinary_cast_shadow_capture,
     finish_ordinary_cast_shadow_capture,
 };
-use crate::constraints::ocast_eligibility::{OcastEligibilityOutcome, OcastIncompleteReason};
+use crate::constraints::ocast_eligibility::{
+    EligibleBoundaryEvidence, OcastEligibilityOutcome, OcastIncompleteReason, ReplaySourceParent,
+};
+use crate::constraints::ConstraintOriginKind;
 use poly::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candidates};
 use poly::expr::CastRuleKind;
 
@@ -31,9 +34,16 @@ fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
             assert!(
                 matches!(
                     shadow[0].outcome,
-                    OcastEligibilityOutcome::InternalOnly { .. }
+                    OcastEligibilityOutcome::EligibleSourceBoundary {
+                        kind: ConstraintOriginKind::ApplicationArgument,
+                        evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                            source_parent: ReplaySourceParent::Upper,
+                            ..
+                        },
+                        ..
+                    }
                 ),
-                "{name}: fully characterized but not coherently boundary-owned: {shadow:?}"
+                "{name}: one source-owned and one internal replay parent: {shadow:?}"
             );
             continue;
         }

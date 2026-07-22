@@ -67,6 +67,17 @@ pub(crate) enum EligibleBoundaryEvidence {
         replay: BinaryReplayDerivation,
         path_to_pair: Vec<ExplanationNodeId>,
     },
+    OneSidedReplayPair {
+        replay: BinaryReplayDerivation,
+        source_parent: ReplaySourceParent,
+        path_to_pair: Vec<ExplanationNodeId>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplaySourceParent {
+    Lower,
+    Upper,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +183,22 @@ fn classify_explanation(
         ExplanationEdgeKind::SubtractFact(SubtractFactDerivation::Import(origin)) => Some(origin),
         _ => None,
     });
+    if let Some(origin) = unknown_origin {
+        return incomplete(
+            producer,
+            visited_nodes,
+            visited_edges,
+            OcastIncompleteReason::UnknownOrigin(origin),
+        );
+    }
+    if let Some(origin) = imported_origin {
+        return incomplete(
+            producer,
+            visited_nodes,
+            visited_edges,
+            OcastIncompleteReason::ImportedFact(origin),
+        );
+    }
 
     let boundary_evidence = explanation
         .source_leaves
@@ -188,20 +215,30 @@ fn classify_explanation(
         })
         .collect::<FxHashMap<_, _>>();
     let contributors = boundary_contributors(&explanation);
-    let owners = coherent_boundary_owners(&explanation, &contributors);
+    let internal_ancestry = internal_ancestry(&explanation);
+    let owners = coherent_boundary_owners(&explanation, &contributors, &internal_ancestry);
     let producer_node = ExplanationNodeId::Constraint(producer);
     let producer_owners = owners.get(&producer_node).cloned().unwrap_or_default();
-
-    if let Some(source) = explanation
+    // A one-sided replay is source-owned only when alternate exact derivations do not bring a
+    // second, independent source obligation into the same canonical producer.
+    let producer_boundaries = explanation
         .source_leaves
         .iter()
-        .find(|leaf| is_eligible_source_kind(leaf.kind) && producer_owners.contains(&leaf.boundary))
-    {
+        .filter(|leaf| is_eligible_source_kind(leaf.kind))
+        .map(|leaf| leaf.boundary)
+        .collect::<FxHashSet<_>>();
+
+    if let Some(source) = explanation.source_leaves.iter().find(|leaf| {
+        is_eligible_source_kind(leaf.kind)
+            && producer_boundaries.len() == 1
+            && producer_owners.contains(&leaf.boundary)
+    }) {
         let Some(evidence) = find_eligible_evidence(
             producer_node,
             source.boundary,
             &owners,
             &contributors,
+            &internal_ancestry,
             &explanation.edges,
         ) else {
             return incomplete(
@@ -224,22 +261,6 @@ fn classify_explanation(
         };
     }
 
-    if let Some(origin) = imported_origin {
-        return incomplete(
-            producer,
-            visited_nodes,
-            visited_edges,
-            OcastIncompleteReason::ImportedFact(origin),
-        );
-    }
-    if let Some(origin) = unknown_origin {
-        return incomplete(
-            producer,
-            visited_nodes,
-            visited_edges,
-            OcastIncompleteReason::UnknownOrigin(origin),
-        );
-    }
     let disjoint = disjoint_replay_evidence(&explanation.edges, &contributors, &boundary_evidence);
     if let Some((replay, lower_boundaries, upper_boundaries)) = disjoint.first {
         return OcastEligibilityClassification {
@@ -283,6 +304,7 @@ fn incomplete(
 fn coherent_boundary_owners(
     explanation: &ExplanationQueryResult,
     contributors: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
+    internal_ancestry: &FxHashSet<ExplanationNodeId>,
 ) -> FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>> {
     let mut owners = FxHashMap::<ExplanationNodeId, FxHashSet<SourceBoundaryId>>::default();
     let mut dependents = FxHashMap::<ExplanationNodeId, Vec<usize>>::default();
@@ -304,7 +326,8 @@ fn coherent_boundary_owners(
     while let Some(parent) = changed.pop_front() {
         for index in dependents.get(&parent).into_iter().flatten() {
             let edge = &explanation.edges[*index];
-            let contribution = edge_boundary_contribution(edge, &owners, contributors);
+            let contribution =
+                edge_boundary_contribution(edge, &owners, contributors, internal_ancestry);
             let child_owners = owners.entry(edge.child).or_default();
             let before = child_owners.len();
             child_owners.extend(contribution);
@@ -314,6 +337,40 @@ fn coherent_boundary_owners(
         }
     }
     owners
+}
+
+fn internal_ancestry(explanation: &ExplanationQueryResult) -> FxHashSet<ExplanationNodeId> {
+    let mut internal = FxHashSet::default();
+    let mut dependents = FxHashMap::<ExplanationNodeId, Vec<usize>>::default();
+    for (index, edge) in explanation.edges.iter().enumerate() {
+        for parent in &edge.parents {
+            dependents.entry(*parent).or_default().push(index);
+        }
+    }
+    let mut changed = VecDeque::new();
+    for node in &explanation.nodes {
+        let ExplanationNode::Origin {
+            id,
+            kind: ConstraintOriginKind::Internal,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        let node = ExplanationNodeId::Origin(*id);
+        if internal.insert(node) {
+            changed.push_back(node);
+        }
+    }
+    while let Some(parent) = changed.pop_front() {
+        for index in dependents.get(&parent).into_iter().flatten() {
+            let child = explanation.edges[*index].child;
+            if internal.insert(child) {
+                changed.push_back(child);
+            }
+        }
+    }
+    internal
 }
 
 fn boundary_contributors(
@@ -356,17 +413,10 @@ fn edge_boundary_contribution(
     edge: &ExplanationEdge,
     owners: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
     contributors: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
+    internal_ancestry: &FxHashSet<ExplanationNodeId>,
 ) -> FxHashSet<SourceBoundaryId> {
-    if replay_pair(&edge.kind).is_some() {
-        let Some((first, rest)) = edge.parents.split_first() else {
-            return FxHashSet::default();
-        };
-        let mut intersection = contributors.get(first).cloned().unwrap_or_default();
-        for parent in rest {
-            let parent_owners = contributors.get(parent).cloned().unwrap_or_default();
-            intersection.retain(|boundary| parent_owners.contains(boundary));
-        }
-        return intersection;
+    if let Some(boundaries) = eligible_replay_boundaries(edge, contributors, internal_ancestry) {
+        return boundaries;
     }
     edge.parents
         .iter()
@@ -374,11 +424,44 @@ fn edge_boundary_contribution(
         .collect()
 }
 
+fn eligible_replay_boundaries(
+    edge: &ExplanationEdge,
+    contributors: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
+    internal_ancestry: &FxHashSet<ExplanationNodeId>,
+) -> Option<FxHashSet<SourceBoundaryId>> {
+    replay_pair(&edge.kind)?;
+    let [lower, upper] = edge.parents.as_slice() else {
+        return Some(FxHashSet::default());
+    };
+    let lower_boundaries = contributors.get(lower).cloned().unwrap_or_default();
+    let upper_boundaries = contributors.get(upper).cloned().unwrap_or_default();
+    let mut eligible = lower_boundaries
+        .intersection(&upper_boundaries)
+        .copied()
+        .collect::<FxHashSet<_>>();
+    if confidently_internal_only(*upper, contributors, internal_ancestry) {
+        eligible.extend(lower_boundaries);
+    }
+    if confidently_internal_only(*lower, contributors, internal_ancestry) {
+        eligible.extend(upper_boundaries);
+    }
+    Some(eligible)
+}
+
+fn confidently_internal_only(
+    node: ExplanationNodeId,
+    contributors: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
+    internal_ancestry: &FxHashSet<ExplanationNodeId>,
+) -> bool {
+    internal_ancestry.contains(&node) && contributors.get(&node).is_none_or(FxHashSet::is_empty)
+}
+
 fn find_eligible_evidence(
     start: ExplanationNodeId,
     boundary: SourceBoundaryId,
     owners: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
     contributors: &FxHashMap<ExplanationNodeId, FxHashSet<SourceBoundaryId>>,
+    internal_ancestry: &FxHashSet<ExplanationNodeId>,
     edges: &[ExplanationEdge],
 ) -> Option<EligibleBoundaryEvidence> {
     let mut current = start;
@@ -390,11 +473,33 @@ fn find_eligible_evidence(
         }
         let edge = edges.iter().find(|edge| {
             edge.child == current
-                && edge_boundary_contribution(edge, owners, contributors).contains(&boundary)
+                && edge_boundary_contribution(edge, owners, contributors, internal_ancestry)
+                    .contains(&boundary)
         })?;
         if let Some(replay) = replay_pair(&edge.kind) {
-            return Some(EligibleBoundaryEvidence::SharedReplayPair {
+            let [lower, upper] = edge.parents.as_slice() else {
+                return None;
+            };
+            let lower_has_boundary = contributors
+                .get(lower)
+                .is_some_and(|set| set.contains(&boundary));
+            let upper_has_boundary = contributors
+                .get(upper)
+                .is_some_and(|set| set.contains(&boundary));
+            if lower_has_boundary && upper_has_boundary {
+                return Some(EligibleBoundaryEvidence::SharedReplayPair {
+                    replay,
+                    path_to_pair: path,
+                });
+            }
+            let source_parent = match (lower_has_boundary, upper_has_boundary) {
+                (true, false) => ReplaySourceParent::Lower,
+                (false, true) => ReplaySourceParent::Upper,
+                _ => return None,
+            };
+            return Some(EligibleBoundaryEvidence::OneSidedReplayPair {
                 replay,
+                source_parent,
                 path_to_pair: path,
             });
         }

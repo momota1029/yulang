@@ -2,6 +2,7 @@ use super::*;
 use crate::constraints::explain::ExplanationBudget;
 use crate::constraints::ocast_eligibility::{
     EligibleBoundaryEvidence, InternalOnlyEvidence, OcastEligibilityOutcome, OcastIncompleteReason,
+    ReplaySourceParent,
 };
 
 #[test]
@@ -25,6 +26,74 @@ fn coherent_replay_requires_one_boundary_on_both_exact_parents() {
             evidence: EligibleBoundaryEvidence::SharedReplayPair { .. },
             ..
         } if boundary == source.boundary()
+    ));
+}
+
+#[test]
+fn internal_replay_parents_are_internal_only() {
+    let mut machine = ConstraintMachine::new();
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
+    let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], OriginId::internal());
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, OriginId::internal());
+    let producer = nominal_producer(&machine);
+
+    let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::InternalOnly {
+            evidence: InternalOnlyEvidence::NoEligibleSourceBoundary
+        }
+    ));
+}
+
+#[test]
+fn one_source_parent_and_one_internal_parent_are_eligible() {
+    let mut machine = ConstraintMachine::new();
+    let source = machine.alloc_source_boundary(ConstraintOriginKind::ApplicationArgument);
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
+    let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], OriginId::internal());
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, source.origin());
+    let producer = nominal_producer(&machine);
+
+    let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::EligibleSourceBoundary {
+            boundary,
+            kind: ConstraintOriginKind::ApplicationArgument,
+            evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                source_parent: ReplaySourceParent::Upper,
+                ..
+            },
+            ..
+        } if boundary == source.boundary()
+    ));
+}
+
+#[test]
+fn one_sided_pair_with_multiple_source_obligations_is_not_eligible() {
+    let mut machine = ConstraintMachine::new();
+    let first = machine.alloc_source_boundary(ConstraintOriginKind::Annotation);
+    let second = machine.alloc_source_boundary(ConstraintOriginKind::ApplicationArgument);
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
+    let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], OriginId::internal());
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, first.origin());
+    machine.subtype(pivot_pos, upper, second.origin());
+    let producer = nominal_producer(&machine);
+
+    let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::InternalOnly { .. }
     ));
 }
 
@@ -82,12 +151,16 @@ fn unwired_field_assignment_and_imported_boundaries_remain_incomplete() {
 }
 
 #[test]
-fn internal_origin_does_not_hide_an_unknown_alternate_derivation() {
+fn source_origin_does_not_hide_an_unknown_alternate_derivation() {
     let mut machine = ConstraintMachine::new();
+    let source = machine.alloc_source_boundary(ConstraintOriginKind::ApplicationArgument);
+    let pivot = TypeVar(0);
     let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
     let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
-    machine.subtype(lower, upper, OriginId::internal());
-    machine.subtype(lower, upper, OriginId::unknown_internal());
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], source.origin());
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], OriginId::unknown_internal());
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    machine.subtype(pivot_pos, upper, OriginId::internal());
     let producer = nominal_producer(&machine);
 
     let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
