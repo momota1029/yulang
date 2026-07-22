@@ -174,6 +174,109 @@ pub(crate) struct ExplanationQueryResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ParameterBodyRequirementProjectionState {
+    MatchedSchemePath,
+    NoSchemeInstantiationBridge,
+    AnchorUnavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ParameterBodyRequirementProjection {
+    pub(crate) producer: ConstraintRecordId,
+    pub(crate) parameter_bound: BoundRecordId,
+    pub(crate) state: ParameterBodyRequirementProjectionState,
+    pub(crate) requirements: Vec<ParameterBodyRequirementWitness>,
+    pub(crate) completeness: ExplanationCompleteness,
+    pub(crate) truncation: Option<ExplanationTruncationReason>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ParameterBodyRequirementWitness {
+    pub(crate) instantiation: SchemeInstantiationId,
+    pub(crate) generalized_witness: GeneralizedSchemeWitnessId,
+    pub(crate) path: GeneralizedTypePath,
+    pub(crate) role: GeneralizedWitnessRole,
+    pub(crate) origin: OriginId,
+    pub(crate) boundary: SourceBoundaryId,
+    pub(crate) kind: BodyRequirementKind,
+    pub(crate) graph_path: Vec<ExplanationNodeId>,
+}
+
+/// Project body-owned requirements from an already-bounded explanation.
+///
+/// `parameter_bound` is the exact replay parent selected by the caller as the callee parameter
+/// side. The projection follows scheme-instantiation bridges reachable below that canonical bound,
+/// then follows each bridge's exact generalized witness path without crossing a nested bridge. It
+/// never scans the query's global source-leaf list for an arbitrary body requirement.
+pub(crate) fn project_parameter_body_requirements(
+    producer: ConstraintRecordId,
+    parameter_bound: BoundRecordId,
+    explanation: &ExplanationQueryResult,
+) -> ParameterBodyRequirementProjection {
+    let root = ExplanationNodeId::Constraint(producer);
+    let anchor = ExplanationNodeId::Bound(parameter_bound);
+    let root_present = explanation.nodes.iter().any(|node| node.id() == root);
+    let anchor_present = explanation.nodes.iter().any(|node| node.id() == anchor);
+    if !root_present || !anchor_present || !is_reachable(explanation, root, anchor) {
+        return ParameterBodyRequirementProjection {
+            producer,
+            parameter_bound,
+            state: ParameterBodyRequirementProjectionState::AnchorUnavailable,
+            requirements: Vec::new(),
+            completeness: explanation.completeness,
+            truncation: explanation.truncation,
+        };
+    }
+
+    let bridges = reachable_scheme_instantiation_bridges(explanation, anchor);
+    let mut requirements = Vec::new();
+    let mut seen = FxHashSet::default();
+    for bridge in &bridges {
+        let Some((derivation, witness_node)) =
+            scheme_instantiation_bridge(explanation, bridge.edge)
+        else {
+            continue;
+        };
+        let ExplanationNode::GeneralizedWitness {
+            id,
+            path,
+            role,
+            completeness: _,
+            scheme: _,
+        } = witness_node
+        else {
+            continue;
+        };
+        // The path on the realized instantiation mapping and the source witness are one identity.
+        // A mismatch here is incomplete provenance, never a reason to select another leaf.
+        if *id != derivation.source_witness || *path != derivation.path {
+            continue;
+        }
+        collect_body_requirements(
+            explanation,
+            derivation,
+            *role,
+            &bridge.path,
+            &mut seen,
+            &mut requirements,
+        );
+    }
+
+    ParameterBodyRequirementProjection {
+        producer,
+        parameter_bound,
+        state: if bridges.is_empty() {
+            ParameterBodyRequirementProjectionState::NoSchemeInstantiationBridge
+        } else {
+            ParameterBodyRequirementProjectionState::MatchedSchemePath
+        },
+        requirements,
+        completeness: explanation.completeness,
+        truncation: explanation.truncation,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExplanationQueryError {
     UnknownConstraint(ConstraintRecordId),
     UnknownBound(BoundRecordId),
@@ -796,4 +899,176 @@ fn row_parent_node(parent: RowDerivationParent) -> ExplanationNodeId {
         RowDerivationParent::LowerFilter(id) => ExplanationNodeId::LowerFilter(id),
         RowDerivationParent::Origin(id) => ExplanationNodeId::Origin(id),
     }
+}
+
+#[derive(Debug)]
+struct NearestSchemeBridge {
+    edge: usize,
+    path: Vec<ExplanationNodeId>,
+}
+
+fn is_reachable(
+    explanation: &ExplanationQueryResult,
+    root: ExplanationNodeId,
+    target: ExplanationNodeId,
+) -> bool {
+    let mut pending = VecDeque::from([root]);
+    let mut visited = FxHashSet::default();
+    while let Some(node) = pending.pop_front() {
+        if !visited.insert(node) {
+            continue;
+        }
+        if node == target {
+            return true;
+        }
+        for parent in explanation
+            .edges
+            .iter()
+            .filter(|edge| edge.child == node)
+            .flat_map(|edge| edge.parents.iter().copied())
+        {
+            pending.push_back(parent);
+        }
+    }
+    false
+}
+
+fn reachable_scheme_instantiation_bridges(
+    explanation: &ExplanationQueryResult,
+    anchor: ExplanationNodeId,
+) -> Vec<NearestSchemeBridge> {
+    let mut pending = VecDeque::from([(anchor, vec![anchor])]);
+    let mut visited = FxHashSet::from_iter([anchor]);
+    let mut bridges = Vec::new();
+    while let Some((node, path)) = pending.pop_front() {
+        for (index, edge) in explanation
+            .edges
+            .iter()
+            .enumerate()
+            .filter(|(_, edge)| edge.child == node)
+        {
+            if is_scheme_instantiation_edge(edge) {
+                bridges.push(NearestSchemeBridge {
+                    edge: index,
+                    path: path.clone(),
+                });
+                continue;
+            }
+            for parent in &edge.parents {
+                if visited.insert(*parent) {
+                    let mut parent_path = path.clone();
+                    parent_path.push(*parent);
+                    pending.push_back((*parent, parent_path));
+                }
+            }
+        }
+    }
+    bridges
+}
+
+fn is_scheme_instantiation_edge(edge: &ExplanationEdge) -> bool {
+    matches!(
+        edge.kind,
+        ExplanationEdgeKind::SchemeInstantiation(_)
+            | ExplanationEdgeKind::Bound(BoundDerivation::SchemeInstantiation(_))
+    )
+}
+
+fn scheme_instantiation_bridge<'a>(
+    explanation: &'a ExplanationQueryResult,
+    edge: usize,
+) -> Option<(&'a SchemeInstantiationDerivation, &'a ExplanationNode)> {
+    let edge = explanation.edges.get(edge)?;
+    let derivation = match &edge.kind {
+        ExplanationEdgeKind::SchemeInstantiation(derivation)
+        | ExplanationEdgeKind::Bound(BoundDerivation::SchemeInstantiation(derivation)) => {
+            derivation
+        }
+        _ => return None,
+    };
+    let witness = explanation.nodes.iter().find(|node| {
+        node.id() == ExplanationNodeId::GeneralizedWitness(derivation.source_witness)
+    })?;
+    Some((derivation, witness))
+}
+
+fn collect_body_requirements(
+    explanation: &ExplanationQueryResult,
+    derivation: &SchemeInstantiationDerivation,
+    role: GeneralizedWitnessRole,
+    prefix: &[ExplanationNodeId],
+    seen: &mut FxHashSet<(SchemeInstantiationId, GeneralizedSchemeWitnessId, OriginId)>,
+    requirements: &mut Vec<ParameterBodyRequirementWitness>,
+) {
+    fn visit(
+        explanation: &ExplanationQueryResult,
+        derivation: &SchemeInstantiationDerivation,
+        role: GeneralizedWitnessRole,
+        node: ExplanationNodeId,
+        path: &mut Vec<ExplanationNodeId>,
+        visited: &mut FxHashSet<ExplanationNodeId>,
+        seen: &mut FxHashSet<(SchemeInstantiationId, GeneralizedSchemeWitnessId, OriginId)>,
+        requirements: &mut Vec<ParameterBodyRequirementWitness>,
+    ) {
+        if !visited.insert(node) {
+            return;
+        }
+        if let Some(ExplanationNode::Origin {
+            id,
+            kind: ConstraintOriginKind::BodyRequirement(kind),
+            source_boundary: Some(boundary),
+        }) = explanation
+            .nodes
+            .iter()
+            .find(|candidate| candidate.id() == node)
+        {
+            if seen.insert((derivation.instantiation, derivation.source_witness, *id)) {
+                requirements.push(ParameterBodyRequirementWitness {
+                    instantiation: derivation.instantiation,
+                    generalized_witness: derivation.source_witness,
+                    path: derivation.path.clone(),
+                    role,
+                    origin: *id,
+                    boundary: *boundary,
+                    kind: *kind,
+                    graph_path: path.clone(),
+                });
+            }
+            return;
+        }
+        for edge in explanation
+            .edges
+            .iter()
+            .filter(|edge| edge.child == node && !is_scheme_instantiation_edge(edge))
+        {
+            for parent in &edge.parents {
+                path.push(*parent);
+                visit(
+                    explanation,
+                    derivation,
+                    role,
+                    *parent,
+                    path,
+                    visited,
+                    seen,
+                    requirements,
+                );
+                path.pop();
+            }
+        }
+    }
+
+    let witness = ExplanationNodeId::GeneralizedWitness(derivation.source_witness);
+    let mut path = prefix.to_vec();
+    path.push(witness);
+    visit(
+        explanation,
+        derivation,
+        role,
+        witness,
+        &mut path,
+        &mut FxHashSet::default(),
+        seen,
+        requirements,
+    );
 }

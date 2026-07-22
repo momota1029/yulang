@@ -3,10 +3,13 @@ use super::*;
 use std::time::{Duration, Instant};
 
 use crate::constraints::explain::{
-    ExplanationBudget, ExplanationCompleteness, ExplanationEdge, ExplanationNode,
-    ExplanationNodeId, ExplanationQueryResult,
+    ExplanationBudget, ExplanationCompleteness, ExplanationEdge, ExplanationEdgeKind,
+    ExplanationNode, ExplanationNodeId, ExplanationQueryResult,
+    ParameterBodyRequirementProjectionState, project_parameter_body_requirements,
 };
-use crate::constraints::ocast_eligibility::OcastEligibilityState;
+use crate::constraints::ocast_eligibility::{
+    EligibleBoundaryEvidence, OcastEligibilityOutcome, OcastEligibilityState, ReplaySourceParent,
+};
 use crate::lowering::{
     BodyLowering, lower_loaded_files, lower_loaded_files_prefix, lower_loaded_files_with_prefix,
 };
@@ -272,6 +275,197 @@ fn pusp_d_instantiation_storage_scales_linearly_across_calls() {
     );
     assert_eq!(coverage.max_mapped_witnesses_per_instantiation, 4);
     assert_eq!(coverage.max_incoming_edges_per_record, 4);
+}
+
+#[test]
+fn pusp_e_path_matches_the_mismatching_parameter_not_an_unrelated_body_leaf() {
+    const SOURCE: &str = concat!(
+        "my subject(first, second) = if first:\n",
+        "  if second:\n",
+        "    1\n",
+        "  else:\n",
+        "    2\n",
+        "else:\n",
+        "  3\n",
+        "subject(42, false)\n",
+    );
+    let output = lower(SOURCE);
+    let machine = output.session.infer.constraints();
+    let (producer, parameter_bound) = eligible_parameter_anchor(&output);
+    let query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("query two-parameter mismatch");
+    let projection = project_parameter_body_requirements(producer, parameter_bound, &query);
+    assert_eq!(
+        projection.state,
+        ParameterBodyRequirementProjectionState::MatchedSchemePath
+    );
+    assert_eq!(projection.completeness, ExplanationCompleteness::Complete);
+    assert_eq!(projection.requirements.len(), 1);
+    assert_eq!(
+        projection.requirements[0].path,
+        GeneralizedTypePath(vec![GeneralizedTypePathStep::FunctionArgument])
+    );
+    assert_eq!(
+        projection.requirements[0].kind,
+        BodyRequirementKind::BooleanCondition
+    );
+    let location = output
+        .session
+        .source_boundary_provenance
+        .body_requirement(projection.requirements[0].boundary)
+        .expect("selected body requirement has a location");
+    let first = JUNCTION_STD.len() + SOURCE.find("if first").unwrap() + "if ".len();
+    assert_eq!(
+        location.use_span.range,
+        sources::SourceRange {
+            start: first,
+            end: first + "first".len(),
+        }
+    );
+    assert_eq!(
+        output
+            .session
+            .infer
+            .constraint_timing()
+            .body_requirement_origins
+            .boolean_condition,
+        2,
+        "the unrelated first-parameter condition exists but is not projected"
+    );
+}
+
+#[test]
+fn pusp_e_projection_is_deterministic_and_retains_alternate_body_uses() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  if pusp_param:\n",
+        "    1\n",
+        "  else:\n",
+        "    2\n",
+        "else:\n",
+        "  3\n",
+        "subject(42)\n",
+    ));
+    let machine = output.session.infer.constraints();
+    let (producer, parameter_bound) = eligible_parameter_anchor(&output);
+    let first_query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("first bounded query");
+    let second_query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("second bounded query");
+    assert_eq!(first_query, second_query);
+    let first = project_parameter_body_requirements(producer, parameter_bound, &first_query);
+    let second = project_parameter_body_requirements(producer, parameter_bound, &second_query);
+    assert_eq!(first, second);
+    assert_eq!(first.requirements.len(), 2);
+    assert_ne!(
+        first.requirements[0].boundary,
+        first.requirements[1].boundary
+    );
+}
+
+#[test]
+fn pusp_e_recursive_parameter_projection_is_cycle_safe() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  subject(pusp_param)\n",
+        "else:\n",
+        "  1\n",
+        "subject(42)\n",
+    ));
+    let machine = output.session.infer.constraints();
+    let (producer, parameter_bound) = eligible_parameter_anchor(&output);
+    let started = Instant::now();
+    let query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("bounded recursive query");
+    let projection = project_parameter_body_requirements(producer, parameter_bound, &query);
+    assert!(started.elapsed() < Duration::from_millis(100));
+    assert_eq!(projection.completeness, ExplanationCompleteness::Complete);
+    assert_eq!(projection.requirements.len(), 1);
+}
+
+#[test]
+fn pusp_e_small_budget_truncates_without_guessing() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    ));
+    let machine = output.session.infer.constraints();
+    let (producer, parameter_bound) = eligible_parameter_anchor(&output);
+    let started = Instant::now();
+    let query = machine
+        .why_constraint(
+            producer,
+            ExplanationBudget {
+                max_nodes: 1,
+                max_edges: 1,
+                max_depth: 1,
+            },
+        )
+        .expect("forced-truncation query");
+    let projection = project_parameter_body_requirements(producer, parameter_bound, &query);
+    assert!(started.elapsed() < Duration::from_millis(100));
+    assert_eq!(
+        projection.completeness,
+        ExplanationCompleteness::TruncatedByBudget
+    );
+    assert_eq!(
+        projection.state,
+        ParameterBodyRequirementProjectionState::AnchorUnavailable
+    );
+    assert!(projection.requirements.is_empty());
+    assert!(projection.truncation.is_some());
+}
+
+#[test]
+fn pusp_e_imported_callee_has_no_body_bridge_and_keeps_call_site_evidence() {
+    let prefix = concat!(
+        "pub subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+    );
+    let prefix_loaded = sources::load(vec![source_file(&format!("{JUNCTION_STD}{prefix}"))]);
+    let cached = lower_loaded_files_prefix(&prefix_loaded).expect("lower imported prefix");
+    let suffix_loaded = sources::load(vec![source_file("subject(42)\n")]);
+    let output = lower_loaded_files_with_prefix(&cached, &suffix_loaded)
+        .expect("lower cached-callee suffix");
+    let machine = output.session.infer.constraints();
+    let producer = output
+        .session
+        .ocast_eligibility_shadow()
+        .first()
+        .expect("imported call creates a nominal mismatch")
+        .producer;
+    let query = machine
+        .why_constraint(producer, ExplanationBudget::ocast_classifier())
+        .expect("query imported call");
+    let replay = query
+        .edges
+        .iter()
+        .find_map(|edge| match edge.kind {
+            ExplanationEdgeKind::BinaryReplay(replay) => Some(replay),
+            _ => None,
+        })
+        .expect("imported mismatch has an exact replay pair");
+    let projection = project_parameter_body_requirements(producer, replay.upper, &query);
+    assert_eq!(
+        projection.state,
+        ParameterBodyRequirementProjectionState::NoSchemeInstantiationBridge
+    );
+    assert!(projection.requirements.is_empty());
+    assert!(
+        query
+            .source_leaves
+            .iter()
+            .any(|leaf| { leaf.kind == ConstraintOriginKind::ApplicationArgument })
+    );
 }
 
 #[test]
@@ -972,6 +1166,40 @@ fn bool_upper_records(machine: &ConstraintMachine, var: TypeVar) -> Vec<BoundRec
             matches!(machine.types().neg(*neg), Neg::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
         })
         .collect()
+}
+
+fn eligible_parameter_anchor(output: &BodyLowering) -> (ConstraintRecordId, BoundRecordId) {
+    let classification = output
+        .session
+        .ocast_eligibility_shadow()
+        .iter()
+        .find(|classification| {
+            matches!(
+                classification.outcome,
+                OcastEligibilityOutcome::EligibleSourceBoundary {
+                    evidence: EligibleBoundaryEvidence::OneSidedReplayPair { .. },
+                    ..
+                }
+            )
+        })
+        .expect("fixture creates an eligible nominal mismatch");
+    let OcastEligibilityOutcome::EligibleSourceBoundary {
+        evidence:
+            EligibleBoundaryEvidence::OneSidedReplayPair {
+                replay,
+                source_parent,
+                ..
+            },
+        ..
+    } = &classification.outcome
+    else {
+        panic!("fixture must have one-sided replay evidence: {classification:#?}");
+    };
+    let parameter_bound = match source_parent {
+        ReplaySourceParent::Lower => replay.lower,
+        ReplaySourceParent::Upper => replay.upper,
+    };
+    (classification.producer, parameter_bound)
 }
 
 fn body_requirement_leaf(query: &ExplanationQueryResult) -> (OriginId, SourceBoundaryId) {
