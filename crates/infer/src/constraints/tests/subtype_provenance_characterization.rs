@@ -146,7 +146,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             lower,
             upper,
             origin,
-        } = specialize::specialize(&output.session.poly).expect_err(case.name)
+        } = specialize::specialize(&output.session.poly, output.subtype_provenance())
+            .expect_err(case.name)
         else {
             panic!("{}: expected UnsatisfiedSubtype", case.name);
         };
@@ -222,7 +223,8 @@ fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
         lower: lower_mono,
         upper: upper_mono,
         origin,
-    } = specialize::specialize(&output.session.poly).expect_err("nested record must fail")
+    } = specialize::specialize(&output.session.poly, output.subtype_provenance())
+        .expect_err("nested record must fail")
     else {
         panic!("expected general UnsatisfiedSubtype");
     };
@@ -287,7 +289,11 @@ fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
     let suffix = sources::load(vec![source_file("g (1, 2, 3)\n")]);
     let cached_call = lower_loaded_files_with_prefix(&cached, &suffix).expect("lower cached call");
     let SpecializeError::UnsatisfiedSubtype { origin, .. } =
-        specialize::specialize(&cached_call.session.poly).expect_err("cached call must fail")
+        specialize::specialize(
+            &cached_call.session.poly,
+            cached_call.subtype_provenance(),
+        )
+        .expect_err("cached call must fail")
     else {
         panic!("expected cached UnsatisfiedSubtype");
     };
@@ -595,7 +601,8 @@ fn missing_record_field_remains_the_existing_covered_control() {
     assert!(output.errors.is_empty(), "{:?}", output.errors);
 
     let SpecializeError::UnsatisfiedSubtype { origin, .. } =
-        specialize::specialize(&output.session.poly).expect_err("missing field must fail")
+        specialize::specialize(&output.session.poly, output.subtype_provenance())
+            .expect_err("missing field must fail")
     else {
         panic!("expected UnsatisfiedSubtype");
     };

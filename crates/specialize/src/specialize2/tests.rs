@@ -602,7 +602,8 @@ fn record_literal_missing_required_field_reports_origin() {
         spread: poly_expr::RecordSpread::None,
     });
     let expected = vec![field("b", int_type(), false)];
-    let mut solver = TaskSolver::new(&arena);
+    let sidecar = SubtypeProvenanceSidecar::empty();
+    let mut solver = TaskSolver::new(&arena, &sidecar);
 
     let err = solver
         .expr_with_value_consumer(record, &Type::Record(expected.clone()))
@@ -639,7 +640,8 @@ fn record_field_select_missing_required_field_retains_select_origin() {
     let select = arena.add_select("b");
     arena.resolve_select(select, poly_expr::SelectResolution::RecordField);
     let selection = arena.add_expr(poly_expr::Expr::Select(record, select));
-    let mut solver = TaskSolver::new(&arena);
+    let sidecar = SubtypeProvenanceSidecar::empty();
+    let mut solver = TaskSolver::new(&arena, &sidecar);
 
     let err = solver.expr(selection).unwrap_err();
 

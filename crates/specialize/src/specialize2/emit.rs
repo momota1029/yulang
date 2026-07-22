@@ -1,28 +1,39 @@
 use super::*;
 
-impl Specializer2 {
-    pub(super) fn new() -> Self {
-        Self::default()
+impl<'a> Specializer2<'a> {
+    pub(super) fn new(sidecar: &'a SubtypeProvenanceSidecar) -> Self {
+        Self {
+            sidecar,
+            instances: Vec::new(),
+            instance_by_key: HashMap::new(),
+            pending_instances: VecDeque::new(),
+            local_defs: HashMap::new(),
+            force_block_tail_exprs: HashSet::new(),
+            runtime_evidence: RuntimeEvidenceSurface::default(),
+            source_applications: HashSet::new(),
+            source_selections: HashSet::new(),
+            active_task: None,
+        }
     }
 
     pub(super) fn with_source_applications(
+        sidecar: &'a SubtypeProvenanceSidecar,
         source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
     ) -> Self {
-        Self {
-            source_applications: source_applications.into_iter().collect(),
-            ..Self::default()
-        }
+        let mut specializer = Self::new(sidecar);
+        specializer.source_applications = source_applications.into_iter().collect();
+        specializer
     }
 
     pub(super) fn with_source_provenance(
+        sidecar: &'a SubtypeProvenanceSidecar,
         source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
         source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
     ) -> Self {
-        Self {
-            source_applications: source_applications.into_iter().collect(),
-            source_selections: source_selections.into_iter().collect(),
-            ..Self::default()
-        }
+        let mut specializer = Self::new(sidecar);
+        specializer.source_applications = source_applications.into_iter().collect();
+        specializer.source_selections = source_selections.into_iter().collect();
+        specializer
     }
 
     pub(super) fn specialize(self, arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
@@ -40,7 +51,7 @@ impl Specializer2 {
                     let root_index = roots.len() as u32;
                     let expr_id = *expr;
                     self.active_task = Some(ApplicationSpecializationTask::Root { root_index });
-                    let solved = TaskSolver::solve_root_expr(arena, expr_id)?;
+                    let solved = TaskSolver::solve_root_expr(arena, self.sidecar, expr_id)?;
                     self.runtime_evidence.push_solved_task(
                         arena,
                         RuntimeEvidenceTaskOwner::RootExpr {
@@ -94,7 +105,8 @@ impl Specializer2 {
         def: poly_expr::DefId,
     ) -> Result<InstanceId, SpecializeError> {
         let body = let_body(arena, def)?;
-        let signature = TaskSolver::solve_computed_def_signature(arena, def, body)?;
+        let signature =
+            TaskSolver::solve_computed_def_signature(arena, self.sidecar, def, body)?;
         self.ensure_def_instance(arena, def, signature)
     }
 
@@ -160,6 +172,7 @@ impl Specializer2 {
             }
             let solved = TaskSolver::solve_def_body(
                 arena,
+                self.sidecar,
                 pending.def,
                 pending.body,
                 pending.inference_signature_ty,

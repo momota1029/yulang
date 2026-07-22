@@ -5,12 +5,41 @@ mod tests {
         RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind,
         RuntimeEvidenceStaticRoute, RuntimeEvidenceStaticRouteDynamicReason,
         RuntimeEvidenceStaticRouteResolution, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
-        boundary_expr, boundary_expr_with_hygiene, hygiene, role_method_check, specialize,
-        specialize_roots, specialize_with_runtime_evidence, specialize2,
+        boundary_expr, boundary_expr_with_hygiene, hygiene, specialize_roots,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
     };
+
+    fn specialize(arena: &poly::expr::Arena) -> Result<mono::Program, crate::SpecializeError> {
+        crate::specialize(
+            arena,
+            &poly::provenance::SubtypeProvenanceSidecar::empty(),
+        )
+    }
+
+    fn specialize2(arena: &poly::expr::Arena) -> Result<mono::Program, crate::SpecializeError> {
+        crate::specialize2(
+            arena,
+            &poly::provenance::SubtypeProvenanceSidecar::empty(),
+        )
+    }
+
+    fn specialize_with_runtime_evidence(
+        arena: &poly::expr::Arena,
+    ) -> Result<crate::SpecializeOutput, crate::SpecializeError> {
+        crate::specialize_with_runtime_evidence(
+            arena,
+            &poly::provenance::SubtypeProvenanceSidecar::empty(),
+        )
+    }
+
+    fn role_method_check(arena: &poly::expr::Arena) -> Vec<crate::RoleMethodCheckOutcome> {
+        crate::role_method_check(
+            arena,
+            &poly::provenance::SubtypeProvenanceSidecar::empty(),
+        )
+    }
 
     #[test]
     fn empty_arena_specializes_to_empty_program() {

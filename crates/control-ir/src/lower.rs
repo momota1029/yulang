@@ -411,6 +411,7 @@ mod tests {
 
         let specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
             &lowering.session.poly,
+            lowering.subtype_provenance(),
             source_provenance.expr_ids(),
         )
         .expect("not-callable canary should specialize");
@@ -474,6 +475,7 @@ mod tests {
 
         let specialized = specialize::specialize_with_runtime_evidence_and_source_provenance(
             &lowering.session.poly,
+            lowering.subtype_provenance(),
             lowering.application_provenance().expr_ids(),
             [select],
         )
@@ -540,6 +542,7 @@ mod tests {
 
         let specialized = specialize::specialize_with_runtime_evidence_and_application_provenance(
             &lowering.session.poly,
+            lowering.subtype_provenance(),
             source_provenance.expr_ids(),
         )
         .expect("two generic call instances should specialize");

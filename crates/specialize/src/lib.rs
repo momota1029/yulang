@@ -24,6 +24,7 @@ use mono::{
     Program, RangeConstructors, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
+use poly::provenance::SubtypeProvenanceSidecar;
 
 pub(crate) use lib_support::boundary::*;
 pub(crate) use lib_support::convert::*;
@@ -73,44 +74,58 @@ struct InstanceKey {
     ty: Type,
 }
 
-pub fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
-    specialize2::specialize(arena)
+pub fn specialize(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> Result<Program, SpecializeError> {
+    specialize2::specialize(arena, sidecar)
 }
 
 pub fn specialize_with_runtime_evidence(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
 ) -> Result<SpecializeOutput, SpecializeError> {
-    specialize2::specialize_with_runtime_evidence(arena)
+    specialize2::specialize_with_runtime_evidence(arena, sidecar)
 }
 
 pub fn specialize_with_runtime_evidence_and_application_provenance(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
     source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
 ) -> Result<SpecializeOutput, SpecializeError> {
     specialize2::specialize_with_runtime_evidence_and_application_provenance(
         arena,
+        sidecar,
         source_applications,
     )
 }
 
 pub fn specialize_with_runtime_evidence_and_source_provenance(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
     source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
     source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
 ) -> Result<SpecializeOutput, SpecializeError> {
     specialize2::specialize_with_runtime_evidence_and_source_provenance(
         arena,
+        sidecar,
         source_applications,
         source_selections,
     )
 }
 
-pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
-    specialize2::specialize(arena)
+pub fn specialize2(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> Result<Program, SpecializeError> {
+    specialize2::specialize(arena, sidecar)
 }
 
-pub fn role_method_check(arena: &poly_expr::Arena) -> Vec<RoleMethodCheckOutcome> {
-    specialize2::role_method_check(arena)
+pub fn role_method_check(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> Vec<RoleMethodCheckOutcome> {
+    specialize2::role_method_check(arena, sidecar)
 }
 
 pub fn specialize_roots(

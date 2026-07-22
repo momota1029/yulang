@@ -224,7 +224,7 @@ fn build_poly_preserves_role_method_selection_and_candidate_source_spans() {
     let source = "role R 'a:\n    our a.foo: int\n\nimpl int: R:\n    our x.foo = 1\n\nimpl int: R:\n    our x.foo = 2\n\n1.foo\n";
     let mut output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
         .expect("role-method canary should lower");
-    let error = match specialize::specialize(&output.arena) {
+    let error = match specialize::specialize(&output.arena, &output.subtype_provenance) {
         Ok(_) => panic!("ambiguous role-method canary should fail specialization"),
         Err(error) => error,
     };
@@ -311,7 +311,7 @@ fn specialize_missing_record_field_diagnostic_uses_selection_source_span() {
     let source = "{ a: 1 }.b\n";
     let mut output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
         .expect("missing-record-field canary should lower");
-    let error = specialize::specialize(&output.arena)
+    let error = specialize::specialize(&output.arena, &output.subtype_provenance)
         .expect_err("missing-record-field canary should fail specialization");
     let select = match &error {
         specialize::SpecializeError::UnsatisfiedSubtype {

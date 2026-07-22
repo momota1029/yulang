@@ -5,7 +5,11 @@ impl RoleMethodChecker {
         Self::default()
     }
 
-    pub(super) fn check(mut self, arena: &poly_expr::Arena) -> Vec<RoleMethodCheckOutcome> {
+    pub(super) fn check(
+        mut self,
+        arena: &poly_expr::Arena,
+        sidecar: &SubtypeProvenanceSidecar,
+    ) -> Vec<RoleMethodCheckOutcome> {
         let mut pending = VecDeque::new();
         for root in &arena.runtime_roots {
             match root {
@@ -13,11 +17,13 @@ impl RoleMethodChecker {
                     self.extend_task(
                         arena,
                         &mut pending,
-                        TaskSolver::check_root_expr_role_methods(arena, *expr),
+                        TaskSolver::check_root_expr_role_methods(arena, sidecar, *expr),
                     );
                 }
                 poly_expr::RuntimeRoot::ComputedDef(def) => {
-                    if let Ok((body, signature)) = computed_def_body_signature(arena, *def) {
+                    if let Ok((body, signature)) =
+                        computed_def_body_signature(arena, sidecar, *def)
+                    {
                         pending.push_back((*def, body, signature));
                     }
                 }
@@ -31,7 +37,7 @@ impl RoleMethodChecker {
             self.extend_task(
                 arena,
                 &mut pending,
-                TaskSolver::check_def_body_signature_role_methods(arena, body, key.ty),
+                TaskSolver::check_def_body_signature_role_methods(arena, sidecar, body, key.ty),
             );
         }
         self.outcomes
@@ -126,9 +132,10 @@ fn let_body_if_instance(
 
 fn computed_def_body_signature(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
     def: poly_expr::DefId,
 ) -> Result<(poly_expr::ExprId, Type), SpecializeError> {
     let body = let_body(arena, def)?;
-    let signature = TaskSolver::solve_computed_def_signature(arena, def, body)?;
+    let signature = TaskSolver::solve_computed_def_signature(arena, sidecar, def, body)?;
     Ok((body, signature))
 }

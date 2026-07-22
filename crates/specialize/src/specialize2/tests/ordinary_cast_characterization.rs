@@ -37,7 +37,8 @@ fn primary_cast_seams_characterize_zero_one_and_two_candidates() {
             candidate_count > 0
         );
 
-        let mut emitter = Specializer2::new();
+        let sidecar = SubtypeProvenanceSidecar::empty();
+        let mut emitter = Specializer2::new(&sidecar);
         let instance = emitter
             .cast_boundary_instance(&arena, &actual, &expected)
             .expect("current emission lookup should not report cardinality errors");
@@ -177,7 +178,8 @@ fn primary_cast_seam_shadows_match_the_ocast_a_cardinality_oracle() {
             type_candidate_subtype(&graph, &actual, &expected),
             candidate_count > 0
         );
-        let mut emitter = Specializer2::new();
+        let sidecar = SubtypeProvenanceSidecar::empty();
+        let mut emitter = Specializer2::new(&sidecar);
         let instance = emitter
             .cast_boundary_instance(&arena, &actual, &expected)
             .expect("shadow observation must not change first-match emission behavior");
@@ -255,7 +257,10 @@ fn missing_source_boundaries_reach_current_primary_runtime_ir() {
     for (name, source, type_fragment, value_fragment) in cases {
         let lowering = lower_source(source);
         assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
-        let program = crate::specialize(&lowering.session.poly)
+        let program = crate::specialize(
+            &lowering.session.poly,
+            lowering.subtype_provenance(),
+        )
             .unwrap_or_else(|error| panic!("{name}: current specialization failed: {error}"));
         let dump = mono::dump::dump_program(&program);
 
@@ -401,7 +406,8 @@ fn emission_selected_def(
     actual: &Type,
     expected: &Type,
 ) -> poly_expr::DefId {
-    let mut emitter = Specializer2::new();
+    let sidecar = SubtypeProvenanceSidecar::empty();
+    let mut emitter = Specializer2::new(&sidecar);
     emitter
         .cast_boundary_instance(arena, actual, expected)
         .expect("current emission lookup")
@@ -485,8 +491,11 @@ fn lower_source(source: &str) -> infer::lowering::BodyLowering {
 fn mono_dump_for_source(source: &str) -> String {
     let lowering = lower_source(source);
     assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
-    let program =
-        crate::specialize(&lowering.session.poly).expect("current source should specialize");
+    let program = crate::specialize(
+        &lowering.session.poly,
+        lowering.subtype_provenance(),
+    )
+    .expect("current source should specialize");
     mono::dump::dump_program(&program)
 }
 

@@ -14,7 +14,9 @@ use mono::{
     TypeVariant,
 };
 use poly::expr as poly_expr;
-use poly::provenance::{ProvenanceAnchor, ProvenanceCompleteness, TypePositionStep};
+use poly::provenance::{
+    ProvenanceAnchor, ProvenanceCompleteness, SubtypeProvenanceSidecar, TypePositionStep,
+};
 
 use crate::{
     ExprTypeRole, RoleMethodCheckOutcome, RoleMethodCheckResolution, SpecializeError,
@@ -57,37 +59,46 @@ use runtime_shape::*;
 
 pub(crate) fn specialize_with_runtime_evidence(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
 ) -> Result<SpecializeOutput, SpecializeError> {
-    Specializer2::new().specialize_with_runtime_evidence(arena)
+    Specializer2::new(sidecar).specialize_with_runtime_evidence(arena)
 }
 
 pub(crate) fn specialize_with_runtime_evidence_and_application_provenance(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
     source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
 ) -> Result<SpecializeOutput, SpecializeError> {
-    Specializer2::with_source_applications(source_applications)
+    Specializer2::with_source_applications(sidecar, source_applications)
         .specialize_with_runtime_evidence(arena)
 }
 
 pub(crate) fn specialize_with_runtime_evidence_and_source_provenance(
     arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
     source_applications: impl IntoIterator<Item = poly_expr::ExprId>,
     source_selections: impl IntoIterator<Item = poly_expr::SelectId>,
 ) -> Result<SpecializeOutput, SpecializeError> {
-    Specializer2::with_source_provenance(source_applications, source_selections)
+    Specializer2::with_source_provenance(sidecar, source_applications, source_selections)
         .specialize_with_runtime_evidence(arena)
 }
 
-pub(crate) fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
-    Specializer2::new().specialize(arena)
+pub(crate) fn specialize(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> Result<Program, SpecializeError> {
+    Specializer2::new(sidecar).specialize(arena)
 }
 
-pub(crate) fn role_method_check(arena: &poly_expr::Arena) -> Vec<RoleMethodCheckOutcome> {
-    RoleMethodChecker::new().check(arena)
+pub(crate) fn role_method_check(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> Vec<RoleMethodCheckOutcome> {
+    RoleMethodChecker::new().check(arena, sidecar)
 }
 
-#[derive(Default)]
-struct Specializer2 {
+struct Specializer2<'a> {
+    sidecar: &'a SubtypeProvenanceSidecar,
     instances: Vec<Option<Instance>>,
     instance_by_key: HashMap<InstanceKey, InstanceId>,
     pending_instances: VecDeque<PendingInstance>,
@@ -251,6 +262,8 @@ impl LocalLetBindingType {
 
 struct TaskSolver<'a> {
     arena: &'a poly_expr::Arena,
+    #[allow(dead_code)] // SUBP-I-1 stores the cold-build sidecar for later shadow root wiring.
+    sidecar: &'a SubtypeProvenanceSidecar,
     graph: TypeGraph<'a>,
     exprs: HashMap<poly_expr::ExprId, ExprType>,
     locals: HashMap<poly_expr::DefId, Type>,

@@ -71,7 +71,8 @@ fn legacy_specialize_roots_emits_a_bare_boundary_even_for_a_unique_cast() {
     let root = arena.ref_target(*reference).expect("resolved y definition");
 
     let legacy = crate::specialize_roots(arena, [root]).expect("legacy unique cast route");
-    let primary = crate::specialize(arena).expect("primary unique cast route");
+    let primary = crate::specialize(arena, lowering.subtype_provenance())
+        .expect("primary unique cast route");
     let legacy = mono::dump::dump_program(&legacy);
     let primary = mono::dump::dump_program(&primary);
 

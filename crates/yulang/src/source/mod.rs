@@ -513,6 +513,7 @@ pub fn build_control_from_poly_output(
     output.ensure_runtime_ready()?;
     let mut specialized = specialize::specialize_with_runtime_evidence_and_source_provenance(
         &output.arena,
+        &output.subtype_provenance,
         output.application_provenance.expr_ids(),
         output
             .selection_provenance
@@ -3377,7 +3378,10 @@ fn source_diagnostics_for_check(
 fn role_method_diagnostics_from_check(
     check: &infer::check::PolyCheckOutput,
 ) -> Vec<SourceDiagnostic> {
-    specialize::role_method_check(&check.lowering.session.poly)
+    specialize::role_method_check(
+        &check.lowering.session.poly,
+        check.lowering.subtype_provenance(),
+    )
         .into_iter()
         .filter_map(|outcome| source_diagnostic_from_role_method_check_outcome(check, outcome))
         .collect()
@@ -4110,7 +4114,10 @@ fn specialize_mono_from_poly_output(
     output: BuildPolyOutput,
 ) -> Result<SpecializedMonoOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let program = specialize::specialize(&output.arena)
+    let program = specialize::specialize(
+        &output.arena,
+        &poly::provenance::SubtypeProvenanceSidecar::empty(),
+    )
         .map_err(|error| specialize_route_error(error, &output))?;
     Ok(SpecializedMonoOutput {
         program,

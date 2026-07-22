@@ -56,7 +56,8 @@ fn run_route(entry: &FsPath) -> String {
         yulang::build_poly_from_collected_sources(files).expect("compile real Yumark literal");
     build.ensure_runtime_ready().expect("lowering diagnostics");
 
-    let program = specialize::specialize(&build.arena).expect("specialize real Yumark literal");
+    let program = specialize::specialize(&build.arena, &build.subtype_provenance)
+        .expect("specialize real Yumark literal");
     let mut values = mono_runtime::run_program(&program).expect("run real Yumark literal");
     assert_eq!(values.len(), 1, "expected one rendered root");
     match values.pop().expect("rendered root") {

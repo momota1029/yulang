@@ -6,9 +6,10 @@ mod finish;
 impl<'a> TaskSolver<'a> {
     pub(super) fn solve_root_expr(
         arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
         expr: poly_expr::ExprId,
     ) -> Result<SolvedTask, SpecializeError> {
-        let mut solver = Self::new(arena);
+        let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(expr);
         solver.expr(expr)?;
         solver.finish()
@@ -16,9 +17,10 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn check_root_expr_role_methods(
         arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
         expr: poly_expr::ExprId,
     ) -> Result<RoleMethodCheckTask, SpecializeError> {
-        let mut solver = Self::new(arena);
+        let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(expr);
         solver.expr(expr)?;
         solver.finish_role_method_check()
@@ -26,11 +28,12 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn solve_def_body(
         arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
         _def: poly_expr::DefId,
         body: poly_expr::ExprId,
         signature: Type,
     ) -> Result<SolvedTask, SpecializeError> {
-        let mut solver = Self::new(arena);
+        let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(body);
         let actual = solver.expr_with_signature(body, signature.clone())?;
         solver.consume_expr(body, signature.clone())?;
@@ -40,10 +43,11 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn check_def_body_signature_role_methods(
         arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
         body: poly_expr::ExprId,
         signature: Type,
     ) -> Result<RoleMethodCheckTask, SpecializeError> {
-        let mut solver = Self::new(arena);
+        let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(body);
         solver.check_def_body_with_signature(body, signature)
     }
@@ -61,6 +65,7 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn solve_computed_def_signature(
         arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
         def: poly_expr::DefId,
         body: poly_expr::ExprId,
     ) -> Result<Type, SpecializeError> {
@@ -73,7 +78,7 @@ impl<'a> TaskSolver<'a> {
                 def: convert_def(def),
             });
         };
-        let mut solver = Self::new(arena);
+        let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(body);
         let signature = solver.instantiate_scheme(def, scheme)?;
         let actual = solver.expr(body)?;
@@ -91,9 +96,13 @@ impl<'a> TaskSolver<'a> {
         Ok(forced_computation_value_type(actual))
     }
 
-    pub(super) fn new(arena: &'a poly_expr::Arena) -> Self {
+    pub(super) fn new(
+        arena: &'a poly_expr::Arena,
+        sidecar: &'a SubtypeProvenanceSidecar,
+    ) -> Self {
         Self {
             arena,
+            sidecar,
             graph: TypeGraph::new(arena),
             exprs: HashMap::new(),
             locals: HashMap::new(),
