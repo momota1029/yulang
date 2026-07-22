@@ -35,6 +35,7 @@ pub struct BodyLowering {
     pub errors: Vec<BodyLoweringError>,
     pub timing: BodyLoweringTiming,
     application_provenance: ApplicationProvenanceTable,
+    subtype_provenance: poly::provenance::SubtypeProvenanceSidecar,
     pub(crate) role_impl_conformance_contracts:
         Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
     #[cfg(test)]
@@ -102,6 +103,10 @@ impl BodyLowering {
 
     pub fn application_provenance(&self) -> &ApplicationProvenanceTable {
         &self.application_provenance
+    }
+
+    pub fn subtype_provenance(&self) -> &poly::provenance::SubtypeProvenanceSidecar {
+        &self.subtype_provenance
     }
 
     #[cfg(test)]
@@ -1447,6 +1452,7 @@ impl BodyLowerer {
         let classified = session.classify_pending_ocast_eligibility_at_quiescence();
         session.activate_eligible_ocast_diagnostics(classified);
         session.finalize_poly_role_impls();
+        let subtype_provenance = session.build_subtype_provenance_sidecar();
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();
         let ocast_eligibility_timing = session.ocast_eligibility_metrics();
@@ -1476,6 +1482,7 @@ impl BodyLowerer {
                 ..BodyLoweringTiming::default()
             },
             application_provenance,
+            subtype_provenance,
             role_impl_conformance_contracts: self.role_impl_conformance_contracts,
             #[cfg(test)]
             receiverless_conformance_shadow: self.receiverless_conformance_shadow,

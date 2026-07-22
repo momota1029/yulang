@@ -12,6 +12,7 @@ mod generalize_snapshot_characterization;
 mod instantiate;
 mod lifecycle;
 mod ocast_activation;
+mod occurrence_provenance;
 mod owner_dirty_scheduler;
 mod selection;
 #[cfg(test)]

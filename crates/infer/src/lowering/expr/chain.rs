@@ -10,10 +10,20 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
-        match node.kind() {
+        let computation = match node.kind() {
             SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
             _ => self.lower_atom_with_lambda_scope(node, lambda_scope),
-        }
+        }?;
+        self.session.register_type_occurrence_bounds(
+            crate::constraints::TypeOccurrenceKey {
+                owner: crate::constraints::TypeOccurrenceOwner::Expression(computation.expr),
+                role: crate::constraints::TypeOccurrenceRole::ExpressionActual,
+                path: poly::provenance::TypePositionPath::default(),
+            },
+            computation.value,
+            crate::constraints::BoundDirection::Lower,
+        );
+        Ok(computation)
     }
 
     pub(in crate::lowering) fn lower_expr_chain(

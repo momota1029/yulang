@@ -311,8 +311,36 @@ impl<'a> ExprLowerer<'a> {
         let var_bindings = self.prepare_var_pattern_bindings(&pattern)?;
         let pat =
             self.lower_match_pattern_with_var_bindings(&pattern, pattern_value, &var_bindings)?;
+        let input_bounds_before = self
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(pattern_value)
+            .map(|bounds| bounds.upper_record_ids().to_vec())
+            .unwrap_or_default();
         self.subtype_var_to_var(scrutinee_value, pattern_value);
         self.subtype_var_to_var(pattern_value, scrutinee_value);
+        let input_roots = self
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(pattern_value)
+            .into_iter()
+            .flat_map(|bounds| bounds.upper_record_ids().iter().copied())
+            .filter(|record| !input_bounds_before.contains(record))
+            .map(crate::constraints::OccurrenceProvenanceRoot::Bound)
+            .collect::<Vec<_>>();
+        self.session.register_type_occurrence_roots(
+            crate::constraints::TypeOccurrenceKey {
+                owner: crate::constraints::TypeOccurrenceOwner::Pattern(pat),
+                role: crate::constraints::TypeOccurrenceRole::PatternInput,
+                path: poly::provenance::TypePositionPath::default(),
+            },
+            input_roots,
+            crate::constraints::ProvenanceCompleteness::Complete,
+        );
 
         let guard_node = arm_guard_expr(arm);
         if guard_node.is_some() && !var_bindings.is_empty() {

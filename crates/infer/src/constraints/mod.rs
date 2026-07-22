@@ -668,6 +668,22 @@ pub struct WeightedUpperBound {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BoundRecordId(u32);
 
+pub use poly::provenance::{
+    OccurrenceProvenance, TypeOccurrenceKey, TypeOccurrenceOwner, TypeOccurrenceRole,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum OccurrenceProvenanceRoot {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PendingOccurrenceProvenance {
+    pub(crate) roots: Vec<OccurrenceProvenanceRoot>,
+    pub(crate) completeness: ProvenanceCompleteness,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GeneralizedSchemeRecordId(u32);
 

@@ -13,7 +13,8 @@ use poly::expr::{Def, Expr, Pat};
 use poly::provenance::{
     PortableBodyRequirementKind, PortableByteRange, PortableConstraintOriginKind,
     PortableProvenanceNodeKind, PortableProvenanceTruncation, PortableSourceLocation,
-    ProvenanceCompleteness as PortableCompleteness,
+    ProvenanceCompleteness as PortableCompleteness, TypeOccurrenceKey, TypeOccurrenceOwner,
+    TypeOccurrenceRole, TypePositionPath,
 };
 use poly::types::{Neg, Pos};
 use rustc_hash::FxHashSet;
@@ -467,6 +468,123 @@ fn subp_b_forced_budget_exhaustion_is_prompt_and_explicit() {
     );
     assert_eq!(export.snapshot.nodes().len(), 1);
     assert!(export.snapshot.edges().is_empty());
+}
+
+#[test]
+fn subp_d_fresh_expression_and_pattern_occurrences_resolve_portable_anchors() {
+    let tuple = lower("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
+    let argument = tuple
+        .session
+        .poly
+        .root_exprs
+        .iter()
+        .find_map(|expr| match tuple.session.poly.expr(*expr) {
+            Expr::App(_, argument) => Some(*argument),
+            _ => None,
+        })
+        .expect("tuple fixture has a source application argument");
+    for role in [
+        TypeOccurrenceRole::ExpressionActual,
+        TypeOccurrenceRole::ExpressionExpected,
+    ] {
+        let provenance = tuple
+            .subtype_provenance()
+            .occurrences
+            .get(&TypeOccurrenceKey {
+                owner: TypeOccurrenceOwner::Expression(argument),
+                role,
+                path: TypePositionPath::default(),
+            })
+            .expect("fresh argument occurrence is owned");
+        assert!(!provenance.anchors.is_empty(), "{role:?}: {provenance:?}");
+        assert!(provenance.anchors.iter().all(|anchor| tuple
+            .subtype_provenance()
+            .snapshot
+            .anchor(*anchor)
+            .is_some()));
+    }
+
+    let variant = lower("case :some 1:\n  :none -> 0\n");
+    let (scrutinee, pat) = variant
+        .session
+        .poly
+        .root_exprs
+        .iter()
+        .find_map(|expr| match variant.session.poly.expr(*expr) {
+            Expr::Case(scrutinee, arms) => Some((*scrutinee, arms[0].pat)),
+            _ => None,
+        })
+        .expect("variant fixture has a source case");
+    for (owner, role) in [
+        (
+            TypeOccurrenceOwner::Expression(scrutinee),
+            TypeOccurrenceRole::ExpressionActual,
+        ),
+        (
+            TypeOccurrenceOwner::Pattern(pat),
+            TypeOccurrenceRole::PatternRequirement,
+        ),
+        (
+            TypeOccurrenceOwner::Pattern(pat),
+            TypeOccurrenceRole::PatternInput,
+        ),
+    ] {
+        let provenance = variant
+            .subtype_provenance()
+            .occurrences
+            .get(&TypeOccurrenceKey {
+                owner,
+                role,
+                path: TypePositionPath::default(),
+            })
+            .expect("fresh case occurrence is owned");
+        assert!(!provenance.anchors.is_empty());
+    }
+}
+
+#[test]
+fn subp_d_occurrence_identity_does_not_collapse_equal_expression_types() {
+    let output = lower("(1, 1)\n");
+    assert_eq!(
+        (0..output.session.infer.constraints().types().pos_len())
+            .filter(|index| matches!(
+                output
+                    .session
+                    .infer
+                    .constraints()
+                    .types()
+                    .pos(poly::types::PosId(*index as u32)),
+                Pos::Con(path, _) if path.len() == 1 && path[0] == "int"
+            ))
+            .count(),
+        1,
+        "both literal occurrences share the one hash-consed int node",
+    );
+    let tuple = output
+        .session
+        .poly
+        .root_exprs
+        .iter()
+        .find_map(|expr| match output.session.poly.expr(*expr) {
+            Expr::Tuple(items) => Some(items.clone()),
+            _ => None,
+        })
+        .expect("fixture has tuple expression");
+    assert_eq!(tuple.len(), 2);
+    let keys = tuple
+        .iter()
+        .map(|expr| TypeOccurrenceKey {
+            owner: TypeOccurrenceOwner::Expression(*expr),
+            role: TypeOccurrenceRole::ExpressionActual,
+            path: TypePositionPath::default(),
+        })
+        .collect::<Vec<_>>();
+    assert_ne!(keys[0], keys[1]);
+    assert!(keys.iter().all(|key| output
+        .subtype_provenance()
+        .occurrences
+        .get(key)
+        .is_some()));
 }
 
 /// The common record-literal failure is not part of the general `origin: None`

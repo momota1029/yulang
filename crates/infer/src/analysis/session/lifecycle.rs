@@ -95,6 +95,7 @@ impl AnalysisSession {
             schemes: FxHashMap::default(),
             generalized_scheme_records: FxHashMap::default(),
             generalized_scheme_generations: FxHashMap::default(),
+            type_occurrence_provenance: FxHashMap::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),
             scc_events: Vec::new(),

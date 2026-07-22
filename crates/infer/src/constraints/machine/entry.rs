@@ -89,6 +89,15 @@ impl ConstraintMachine {
         self.generalized_schemes.get(id.0 as usize)
     }
 
+    pub(crate) fn generalized_scheme_records_iter(
+        &self,
+    ) -> impl Iterator<Item = (GeneralizedSchemeRecordId, &GeneralizedSchemeRecord)> {
+        self.generalized_schemes
+            .iter()
+            .enumerate()
+            .map(|(index, record)| (GeneralizedSchemeRecordId(index as u32), record))
+    }
+
     pub(crate) fn generalized_scheme_witness(
         &self,
         id: GeneralizedSchemeWitnessId,
@@ -1377,8 +1386,7 @@ impl ConstraintMachine {
         self.timing.record_root_origin(record.kind);
     }
 
-    #[cfg(test)]
-    pub(crate) fn debug_constraint_record_id(
+    pub(crate) fn constraint_record_id(
         &self,
         lower: PosId,
         weights: ConstraintWeights,
@@ -1386,6 +1394,16 @@ impl ConstraintMachine {
     ) -> Option<ConstraintRecordId> {
         let key = self.canonical_subtype_constraint(lower, weights, upper)?;
         self.canonical_constraints.get(&key).copied()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn debug_constraint_record_id(
+        &self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+    ) -> Option<ConstraintRecordId> {
+        self.constraint_record_id(lower, weights, upper)
     }
 
     #[cfg(test)]

@@ -5,6 +5,9 @@
 
 use std::mem::size_of;
 
+use crate::expr::{DefId, ExprId, PatId};
+use rustc_hash::FxHashMap;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypePositionIndex(u32);
 
@@ -61,6 +64,100 @@ pub enum TypePositionStep {
     },
     RowTail,
     RecursiveBound(TypePositionIndex),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeOccurrenceKey {
+    pub owner: TypeOccurrenceOwner,
+    pub role: TypeOccurrenceRole,
+    pub path: TypePositionPath,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypeOccurrenceOwner {
+    Definition(DefId),
+    Expression(ExprId),
+    Pattern(PatId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypeOccurrenceRole {
+    DefinitionPredicate,
+    DefinitionRecursiveLower(TypePositionIndex),
+    DefinitionRecursiveUpper(TypePositionIndex),
+    ExpressionActual,
+    ExpressionExpected,
+    PatternInput,
+    PatternRequirement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OccurrenceProvenance {
+    pub anchors: Vec<ProvenanceAnchor>,
+    pub completeness: ProvenanceCompleteness,
+}
+
+/// Sparse occurrence ownership kept adjacent to, but outside, semantic poly IR.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TypeOccurrenceProvenanceTable {
+    entries: Vec<(TypeOccurrenceKey, OccurrenceProvenance)>,
+    index: FxHashMap<TypeOccurrenceKey, usize>,
+}
+
+impl TypeOccurrenceProvenanceTable {
+    pub fn get(&self, key: &TypeOccurrenceKey) -> Option<&OccurrenceProvenance> {
+        self.index
+            .get(key)
+            .and_then(|index| self.entries.get(*index))
+            .map(|(_, provenance)| provenance)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&TypeOccurrenceKey, &OccurrenceProvenance)> {
+        self.entries.iter().map(|(key, value)| (key, value))
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn insert(&mut self, key: TypeOccurrenceKey, provenance: OccurrenceProvenance) {
+        if let Some(index) = self.index.get(&key).copied() {
+            self.entries[index].1 = provenance;
+            return;
+        }
+        let index = self.entries.len();
+        self.entries.push((key.clone(), provenance));
+        self.index.insert(key, index);
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SubtypeProvenanceMetrics {
+    pub occurrence_count: usize,
+    pub anchor_count: usize,
+    pub complete_occurrences: usize,
+    pub incomplete_occurrences: usize,
+    pub snapshot_nodes: usize,
+    pub snapshot_edges: usize,
+    pub snapshot_logical_bytes: usize,
+}
+
+/// Cold-build provenance payload. It is intentionally not serializable and never enters caches.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SubtypeProvenanceSidecar {
+    pub snapshot: PortableProvenanceSnapshot,
+    pub occurrences: TypeOccurrenceProvenanceTable,
+    pub metrics: SubtypeProvenanceMetrics,
+}
+
+impl SubtypeProvenanceSidecar {
+    pub fn empty() -> Self {
+        Self::default()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

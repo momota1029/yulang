@@ -572,12 +572,14 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
         output.poly.arena.defs.len()
     );
     assert_eq!(output.compiled_unit.runtime.labels, output.poly.labels);
+    assert!(!output.poly.subtype_provenance.occurrences.is_empty());
     let restored = build_poly_from_compiled_unit_artifact(output.compiled_unit.clone());
     assert_eq!(restored.errors, output.poly.errors);
     assert_eq!(restored.file_count, output.poly.file_count);
     assert_eq!(restored.arena.defs.len(), output.poly.arena.defs.len());
     assert_eq!(restored.labels, output.poly.labels);
     assert!(restored.selection_provenance.is_empty());
+    assert!(restored.subtype_provenance.occurrences.is_empty());
     assert!(
         output
             .compiled_unit
@@ -598,6 +600,13 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
     let prefix = build_poly_and_compiled_unit_from_collected_sources(prefix_files)
         .unwrap()
         .compiled_unit;
+    let prefix_defs = prefix
+        .runtime
+        .arena
+        .defs
+        .iter()
+        .map(|(def, _)| def)
+        .collect::<std::collections::HashSet<_>>();
     let suffix_files = vec![
         collected("main.yu", &[], "mod local;\nuse local::*\ny\n"),
         collected("local.yu", &["local"], "use ops::*\npub y = x\n"),
@@ -607,6 +616,13 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
         build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files).unwrap();
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     assert_eq!(output.file_count, 4);
+    assert!(!output.subtype_provenance.occurrences.is_empty());
+    assert!(output.subtype_provenance.occurrences.iter().all(|(key, _)| {
+        !matches!(
+            key.owner,
+            poly::provenance::TypeOccurrenceOwner::Definition(def) if prefix_defs.contains(&def)
+        )
+    }));
     let build = build_control_from_poly_output(&output).unwrap();
     let output = run_built_evidence_on_vm_test_stack(build);
 

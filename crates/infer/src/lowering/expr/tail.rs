@@ -486,6 +486,7 @@ impl<'a> ExprLowerer<'a> {
             arg,
             crate::constraints::OriginId::internal(),
             None,
+            false,
         )
     }
 
@@ -499,6 +500,7 @@ impl<'a> ExprLowerer<'a> {
             arg,
             crate::constraints::OriginId::internal(),
             None,
+            false,
         )
     }
 
@@ -513,6 +515,7 @@ impl<'a> ExprLowerer<'a> {
             arg,
             crate::constraints::OriginId::internal(),
             Some(additional_origin),
+            false,
         )
     }
 
@@ -522,7 +525,7 @@ impl<'a> ExprLowerer<'a> {
         arg: Computation,
         origin: crate::constraints::OriginId,
     ) -> Computation {
-        self.make_app_with_origins(callee, arg, origin, None)
+        self.make_app_with_origins(callee, arg, origin, None, true)
     }
 
     fn make_app_with_origins(
@@ -531,6 +534,7 @@ impl<'a> ExprLowerer<'a> {
         arg: Computation,
         origin: crate::constraints::OriginId,
         additional_origin: Option<crate::constraints::OriginId>,
+        capture_source_expected: bool,
     ) -> Computation {
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
@@ -551,6 +555,29 @@ impl<'a> ExprLowerer<'a> {
         });
         let callee_lower = self.alloc_pos(Pos::Var(callee.value));
         self.session.infer.subtype(callee_lower, callee_upper, origin);
+        if capture_source_expected {
+            let expected_roots = self
+                .session
+                .infer
+                .constraints()
+                .constraint_record_id(
+                    callee_lower,
+                    crate::constraints::ConstraintWeights::empty(),
+                    callee_upper,
+                )
+                .into_iter()
+                .map(crate::constraints::OccurrenceProvenanceRoot::Constraint)
+                .collect::<Vec<_>>();
+            self.session.register_type_occurrence_roots(
+                crate::constraints::TypeOccurrenceKey {
+                    owner: crate::constraints::TypeOccurrenceOwner::Expression(arg.expr),
+                    role: crate::constraints::TypeOccurrenceRole::ExpressionExpected,
+                    path: poly::provenance::TypePositionPath::default(),
+                },
+                expected_roots,
+                crate::constraints::ProvenanceCompleteness::Complete,
+            );
+        }
         if let Some(additional_origin) = additional_origin {
             let attached = self
                 .session

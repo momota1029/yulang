@@ -2351,6 +2351,7 @@ fn build_poly_with_cache_timed(
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::PolyHit);
             yulang::BuildPolyOutput {
                 arena: cached.arena,
+                subtype_provenance: poly::provenance::SubtypeProvenanceSidecar::empty(),
                 application_provenance: cached.application_provenance,
                 selection_provenance: cached.selection_provenance,
                 diagnostic_sources: yulang::RuntimeDiagnosticSources::from_collected_sources(
@@ -2426,6 +2427,7 @@ fn build_poly_full_miss_with_cache_timed(
     write_source_unit_closure_artifacts(&files, cache);
     let poly = output.poly;
     let diagnostic_sources = poly.diagnostic_sources;
+    let subtype_provenance = poly.subtype_provenance;
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         application_provenance: poly.application_provenance,
@@ -2440,6 +2442,7 @@ fn build_poly_full_miss_with_cache_timed(
     }
     yulang::BuildPolyOutput {
         arena: artifact.arena,
+        subtype_provenance,
         application_provenance: artifact.application_provenance,
         selection_provenance: artifact.selection_provenance,
         diagnostic_sources,
@@ -2840,6 +2843,7 @@ fn write_poly_artifact_from_output(
     cache: &yulang::cache::ArtifactCache,
 ) -> yulang::BuildPolyOutput {
     let diagnostic_sources = poly.diagnostic_sources;
+    let subtype_provenance = poly.subtype_provenance;
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         application_provenance: poly.application_provenance,
@@ -2854,6 +2858,7 @@ fn write_poly_artifact_from_output(
     }
     yulang::BuildPolyOutput {
         arena: artifact.arena,
+        subtype_provenance,
         application_provenance: artifact.application_provenance,
         selection_provenance: artifact.selection_provenance,
         diagnostic_sources,

@@ -29,13 +29,23 @@ impl<'a> ExprLowerer<'a> {
         local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
-        self.lower_pattern_with_ignored_tails(
+        let pat = self.lower_pattern_with_ignored_tails(
             node,
             value,
             local_effect,
             call_return_effect,
             IgnoredPatternTails::default(),
-        )
+        )?;
+        self.session.register_type_occurrence_bounds(
+            crate::constraints::TypeOccurrenceKey {
+                owner: crate::constraints::TypeOccurrenceOwner::Pattern(pat),
+                role: crate::constraints::TypeOccurrenceRole::PatternRequirement,
+                path: poly::provenance::TypePositionPath::default(),
+            },
+            value,
+            crate::constraints::BoundDirection::Lower,
+        );
+        Ok(pat)
     }
 
     fn lower_pattern_with_ignored_tails(
