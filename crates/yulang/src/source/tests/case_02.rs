@@ -1494,7 +1494,7 @@ use std::control::nondet::*
 use std::control::var::*
 use std::text::str::*
 
-my path = "/tmp/yulang-source-ref-lines-each-update-chain.txt"
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-source-ref-lines-each-update-chain.txt")
 
 my &doc = std::io::file::text path
 
