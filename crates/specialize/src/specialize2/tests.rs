@@ -297,6 +297,40 @@ fn concrete_subtype_rejects_tuple_length_mismatch() {
     assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
 }
 
+/// SUBP-A characterization: semantic queue ownership is currently only the
+/// `(lower type, lower weight, upper type, upper weight)` key. Distinct future
+/// occurrence owners for the same semantic relation would therefore converge
+/// on one queued item and must merge provenance without requeueing it.
+#[test]
+fn subtype_constraint_queue_deduplicates_identical_semantic_occurrences() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower_child = Type::Tuple(vec![int_type(), int_type(), int_type()]);
+    let upper_child = Type::Tuple(vec![int_type(), int_type()]);
+    let lower = Type::Tuple(vec![lower_child.clone(), lower_child.clone()]);
+    let upper = Type::Tuple(vec![upper_child.clone(), upper_child.clone()]);
+
+    graph
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert_unsatisfied_subtype(
+        graph.solve_constraints().unwrap_err(),
+        lower_child.clone(),
+        upper_child.clone(),
+    );
+
+    // One outer relation plus one child relation: the two distinct tuple-element
+    // positions generated the same semantic child key and converged in the set.
+    assert_eq!(graph.queued_constraints.len(), 2);
+    let queued = graph
+        .queued_constraints
+        .iter()
+        .find(|constraint| constraint.lower == lower_child && constraint.upper == upper_child)
+        .expect("one canonical child relation");
+    assert!(queued.lower_weight.entries.is_empty());
+    assert!(queued.upper_weight.entries.is_empty());
+}
+
 #[test]
 fn concrete_subtype_rejects_missing_required_record_field() {
     let arena = poly_expr::Arena::new();

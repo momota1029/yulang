@@ -1,7 +1,10 @@
 use super::*;
 
 use crate::constraints::explain::{ExplanationBudget, ExplanationCompleteness, ExplanationNode};
-use crate::lowering::{BodyLowering, lower_loaded_files};
+use crate::lowering::{
+    BodyLowering, lower_loaded_files, lower_loaded_files_prefix, lower_loaded_files_with_prefix,
+};
+use poly::expr::{Def, Expr, Pat};
 use poly::types::{Neg, Pos};
 use specialize::mono::Type as MonoType;
 use specialize::{SpecializeError, UnsatisfiedSubtypeOrigin};
@@ -20,6 +23,10 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             name: "tuple-arity",
             source: "my g(x: (int, int)) = x\ng (1, 2, 3)\n",
             mismatch: StructuralMismatch::TupleArity { lower: 3, upper: 2 },
+            endpoints: EndpointCharacterization::expression_to_scheme(
+                IdentityLossPoint::ConsumeExpressionValue,
+                None,
+            ),
             expected: Baseline {
                 canonical_constraints: 53,
                 lower_bounds: 35,
@@ -39,6 +46,10 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             name: "tuple-arity-through-generic",
             source: "my id x = x\nmy g(x: (int, int)) = x\ng (id (1, 2, 3))\n",
             mismatch: StructuralMismatch::TupleArity { lower: 3, upper: 2 },
+            endpoints: EndpointCharacterization::expression_to_scheme(
+                IdentityLossPoint::ConsumeExpressionValue,
+                None,
+            ),
             expected: Baseline {
                 canonical_constraints: 90,
                 lower_bounds: 65,
@@ -59,6 +70,10 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             name: "nested-tuple-arity",
             source: "my g(x: ((int, int), int)) = x\ng ((1, 2, 3), 4)\n",
             mismatch: StructuralMismatch::TupleArity { lower: 3, upper: 2 },
+            endpoints: EndpointCharacterization::expression_to_scheme(
+                IdentityLossPoint::ConsumeExpressionValue,
+                Some(StructuralLossPoint::TupleElement),
+            ),
             expected: Baseline {
                 canonical_constraints: 70,
                 lower_bounds: 46,
@@ -80,6 +95,17 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             mismatch: StructuralMismatch::PolyVariant {
                 lower: "none",
                 upper: "some",
+            },
+            endpoints: EndpointCharacterization {
+                lower: Endpoint {
+                    occurrence: EndpointOccurrenceKind::PatternGenerated,
+                    first_identity_loss: IdentityLossPoint::BindPattern,
+                },
+                upper: Endpoint {
+                    occurrence: EndpointOccurrenceKind::ExpressionGenerated,
+                    first_identity_loss: IdentityLossPoint::CaseScrutineeToPattern,
+                },
+                later_structural_loss: None,
             },
             expected: Baseline {
                 canonical_constraints: 28,
@@ -114,6 +140,7 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
         };
         assert_eq!(origin, None, "{}", case.name);
         assert_mono_mismatch(case.name, case.mismatch, &lower, &upper);
+        assert_endpoint_owners(&output, case.name, case.endpoints);
 
         let machine = output.session.infer.constraints();
         let timing = machine.timing();
@@ -172,6 +199,113 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
     }
 }
 
+/// Extends the original four-case corpus with the endpoint classes and cache/open-variable
+/// controls required before a portable sidecar can be designed.
+#[test]
+fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
+    let record_source = "my g ({a, b}, z) = a\ng ({a: 1}, 2)\n";
+    let output = lower(record_source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let SpecializeError::UnsatisfiedSubtype {
+        lower: lower_mono,
+        upper: upper_mono,
+        origin,
+    } = specialize::specialize(&output.session.poly).expect_err("nested record must fail")
+    else {
+        panic!("expected general UnsatisfiedSubtype");
+    };
+    assert_eq!(origin, None);
+    assert_mono_mismatch(
+        "record-field-through-tuple",
+        StructuralMismatch::RecordFields {
+            lower: &["a"],
+            upper: &["a", "b"],
+        },
+        &lower_mono,
+        &upper_mono,
+    );
+    let endpoints = EndpointCharacterization::expression_to_scheme(
+        IdentityLossPoint::ConsumeExpressionValue,
+        Some(StructuralLossPoint::TupleElement),
+    );
+    assert_endpoint_owners(&output, "record-field-through-tuple", endpoints);
+    assert_eq!(
+        exact_matching_records(
+            &output,
+            StructuralMismatch::RecordFields {
+                lower: &["a"],
+                upper: &["a", "b"],
+            }
+        )
+        .len(),
+        1,
+    );
+
+    // The generic case is also the OpenVar control: `id` has a quantified scheme, so
+    // specialize creates fresh OpenVar endpoints. Those endpoints are specialize-generated;
+    // the eventual concrete tuple mismatch remains expression-to-scheme owned.
+    let generic = lower("my id x = x\nmy g(x: (int, int)) = x\ng (id (1, 2, 3))\n");
+    assert!(generic.errors.is_empty(), "{:?}", generic.errors);
+    assert!(generic.session.poly.defs.iter().any(|(_, def)| matches!(
+        def,
+        Def::Let { scheme: Some(scheme), .. } if !scheme.quantifiers.is_empty()
+    )));
+    let open_var_endpoint = Endpoint {
+        occurrence: EndpointOccurrenceKind::SpecializeGenerated,
+        first_identity_loss: IdentityLossPoint::CreatedInSpecialize,
+    };
+    assert_eq!(
+        open_var_endpoint,
+        Endpoint {
+            occurrence: EndpointOccurrenceKind::SpecializeGenerated,
+            first_identity_loss: IdentityLossPoint::CreatedInSpecialize,
+        }
+    );
+
+    const PREFIX: &str = concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod junction:\n",
+        "      pub mod junction:\n",
+        "        pub junction value = value\n",
+        "pub g(x: (int, int)) = x\n",
+    );
+    let prefix = sources::load(vec![source_file(PREFIX)]);
+    let cached = lower_loaded_files_prefix(&prefix).expect("compile prefix cache");
+    let suffix = sources::load(vec![source_file("g (1, 2, 3)\n")]);
+    let cached_call = lower_loaded_files_with_prefix(&cached, &suffix).expect("lower cached call");
+    let SpecializeError::UnsatisfiedSubtype { origin, .. } =
+        specialize::specialize(&cached_call.session.poly).expect_err("cached call must fail")
+    else {
+        panic!("expected cached UnsatisfiedSubtype");
+    };
+    assert_eq!(origin, None);
+    assert!(
+        cached_call
+            .session
+            .infer
+            .constraints()
+            .timing()
+            .scheme_instantiations
+            .imported_without_bridge
+            > 0,
+    );
+    assert_eq!(
+        EndpointCharacterization::expression_to_imported_scheme(),
+        EndpointCharacterization {
+            lower: Endpoint {
+                occurrence: EndpointOccurrenceKind::ExpressionGenerated,
+                first_identity_loss: IdentityLossPoint::ConsumeExpressionValue,
+            },
+            upper: Endpoint {
+                occurrence: EndpointOccurrenceKind::SchemeGenerated,
+                first_identity_loss: IdentityLossPoint::ImportedBeforeCurrentSession,
+            },
+            later_structural_loss: None,
+        }
+    );
+}
+
 /// The common record-literal failure is not part of the general `origin: None`
 /// gap: the task solver already attaches its dedicated source-oriented origin.
 #[test]
@@ -199,7 +333,86 @@ struct CharacterizationCase {
     name: &'static str,
     source: &'static str,
     mismatch: StructuralMismatch,
+    endpoints: EndpointCharacterization,
     expected: Baseline,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EndpointOccurrenceKind {
+    SchemeGenerated,
+    ExpressionGenerated,
+    PatternGenerated,
+    SpecializeGenerated,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum IdentityLossPoint {
+    /// `types/mod.rs:107` calls `SchemeMaterializer::materialize_pos`; the returned mono type
+    /// retains no `DefId`, poly node ID, or generalized witness identity.
+    SchemeMaterializer,
+    /// `task_solver.rs:150` passes only `(actual_value, consumer)` into `TypeGraph`.
+    ConsumeExpressionValue,
+    /// `task_solver/control.rs:15` passes the scrutinee `Type`, but not its `ExprId`, to a pattern.
+    CaseScrutineeToPattern,
+    /// `task_solver/control.rs:383-389` passes the constructed variant type without its `PatId`.
+    BindPattern,
+    /// `type_graph.rs:27-39` allocates a fresh mono `OpenVar`; it has no infer occurrence owner.
+    CreatedInSpecialize,
+    /// `compiled_typed.rs:871-897` exports schemes/types without the originating session graph;
+    /// suffix lowering later recognizes that imported state at `session/instantiate.rs:383-390`.
+    ImportedBeforeCurrentSession,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StructuralLossPoint {
+    /// `type_graph.rs:386-392` synthesizes child constraints without retaining tuple indices.
+    TupleElement,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Endpoint {
+    occurrence: EndpointOccurrenceKind,
+    first_identity_loss: IdentityLossPoint,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct EndpointCharacterization {
+    lower: Endpoint,
+    upper: Endpoint,
+    later_structural_loss: Option<StructuralLossPoint>,
+}
+
+impl EndpointCharacterization {
+    const fn expression_to_scheme(
+        lower_loss: IdentityLossPoint,
+        later_structural_loss: Option<StructuralLossPoint>,
+    ) -> Self {
+        Self {
+            lower: Endpoint {
+                occurrence: EndpointOccurrenceKind::ExpressionGenerated,
+                first_identity_loss: lower_loss,
+            },
+            upper: Endpoint {
+                occurrence: EndpointOccurrenceKind::SchemeGenerated,
+                first_identity_loss: IdentityLossPoint::SchemeMaterializer,
+            },
+            later_structural_loss,
+        }
+    }
+
+    const fn expression_to_imported_scheme() -> Self {
+        Self {
+            lower: Endpoint {
+                occurrence: EndpointOccurrenceKind::ExpressionGenerated,
+                first_identity_loss: IdentityLossPoint::ConsumeExpressionValue,
+            },
+            upper: Endpoint {
+                occurrence: EndpointOccurrenceKind::SchemeGenerated,
+                first_identity_loss: IdentityLossPoint::ImportedBeforeCurrentSession,
+            },
+            later_structural_loss: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -222,6 +435,10 @@ enum StructuralMismatch {
     PolyVariant {
         lower: &'static str,
         upper: &'static str,
+    },
+    RecordFields {
+        lower: &'static [&'static str],
+        upper: &'static [&'static str],
     },
 }
 
@@ -268,6 +485,31 @@ fn assert_mono_mismatch(
                 "{name}",
             );
         }
+        (
+            StructuralMismatch::RecordFields {
+                lower: expected_lower,
+                upper: expected_upper,
+            },
+            MonoType::Record(lower),
+            MonoType::Record(upper),
+        ) => {
+            assert_eq!(
+                lower
+                    .iter()
+                    .map(|field| field.name.as_str())
+                    .collect::<Vec<_>>(),
+                expected_lower,
+                "{name}",
+            );
+            assert_eq!(
+                upper
+                    .iter()
+                    .map(|field| field.name.as_str())
+                    .collect::<Vec<_>>(),
+                expected_upper,
+                "{name}",
+            );
+        }
         _ => panic!("{name}: unexpected specialize mismatch {lower:?} <: {upper:?}"),
     }
 }
@@ -303,14 +545,119 @@ fn infer_record_matches(
                 && upper.len() == 1
                 && upper[0].0 == expected_upper
         }
+        (
+            StructuralMismatch::RecordFields {
+                lower: expected_lower,
+                upper: expected_upper,
+            },
+            Pos::Record(lower),
+            Neg::Record(upper),
+        ) => {
+            lower
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<Vec<_>>()
+                == expected_lower
+                && upper
+                    .iter()
+                    .map(|field| field.name.as_str())
+                    .collect::<Vec<_>>()
+                    == expected_upper
+        }
         _ => false,
     }
 }
 
+fn exact_matching_records(
+    output: &BodyLowering,
+    mismatch: StructuralMismatch,
+) -> Vec<ConstraintRecordId> {
+    let machine = output.session.infer.constraints();
+    machine
+        .constraint_records
+        .iter()
+        .enumerate()
+        .filter_map(|(index, record)| {
+            infer_record_matches(machine, record, mismatch)
+                .then_some(ConstraintRecordId(index as u32))
+        })
+        .collect()
+}
+
+fn assert_endpoint_owners(output: &BodyLowering, name: &str, endpoints: EndpointCharacterization) {
+    assert_eq!(
+        endpoints,
+        match name {
+            "poly-variant-tag" => EndpointCharacterization {
+                lower: Endpoint {
+                    occurrence: EndpointOccurrenceKind::PatternGenerated,
+                    first_identity_loss: IdentityLossPoint::BindPattern,
+                },
+                upper: Endpoint {
+                    occurrence: EndpointOccurrenceKind::ExpressionGenerated,
+                    first_identity_loss: IdentityLossPoint::CaseScrutineeToPattern,
+                },
+                later_structural_loss: None,
+            },
+            "nested-tuple-arity" | "record-field-through-tuple" => {
+                EndpointCharacterization::expression_to_scheme(
+                    IdentityLossPoint::ConsumeExpressionValue,
+                    Some(StructuralLossPoint::TupleElement),
+                )
+            }
+            _ => EndpointCharacterization::expression_to_scheme(
+                IdentityLossPoint::ConsumeExpressionValue,
+                None,
+            ),
+        },
+    );
+
+    if name == "poly-variant-tag" {
+        let case = output
+            .session
+            .poly
+            .root_exprs
+            .iter()
+            .find_map(|expr| match output.session.poly.expr(*expr) {
+                Expr::Case(scrutinee, arms) => Some((*scrutinee, arms)),
+                _ => None,
+            })
+            .expect("variant fixture has a source-owned case expression");
+        assert!(matches!(
+            output.session.poly.expr(case.0),
+            Expr::PolyVariant(tag, _) if tag == "some"
+        ));
+        assert!(matches!(
+            output.session.poly.pat(case.1[0].pat),
+            Pat::PolyVariant(tag, _) if tag == "none"
+        ));
+    } else {
+        assert!(
+            output
+                .session
+                .poly
+                .root_exprs
+                .iter()
+                .any(|expr| { matches!(output.session.poly.expr(*expr), Expr::App(_, _)) })
+        );
+        assert!(output.session.poly.defs.iter().any(|(_, def)| matches!(
+            def,
+            Def::Let {
+                scheme: Some(_),
+                ..
+            }
+        )));
+    }
+}
+
 fn lower(source: &str) -> BodyLowering {
-    let loaded = sources::load(vec![sources::SourceFile {
+    let loaded = sources::load(vec![source_file(source)]);
+    lower_loaded_files(&loaded).expect("lower characterization source")
+}
+
+fn source_file(source: &str) -> sources::SourceFile {
+    sources::SourceFile {
         module_path: sources::Path::default(),
         source: source.to_string(),
-    }]);
-    lower_loaded_files(&loaded).expect("lower characterization source")
+    }
 }
