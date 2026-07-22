@@ -2713,6 +2713,21 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
             source: vec!["example".to_string(), "Source".to_string()],
             target: vec!["example".to_string(), "Target".to_string()],
             source_span: Some(owner_span.clone()),
+            explanation: Some(infer::analysis::DiagnosticTypeExplanation {
+                source: vec!["example".to_string(), "Source".to_string()],
+                target: vec!["example".to_string(), "Target".to_string()],
+                derivation: infer::analysis::DiagnosticTypeDerivation::OneSidedReplayPair,
+                related_sites: vec![
+                    infer::analysis::DiagnosticTypeExplanationSite {
+                        role: infer::analysis::DiagnosticTypeExplanationSiteRole::InferredExpression,
+                        source_span: owner_span.clone(),
+                    },
+                    infer::analysis::DiagnosticTypeExplanationSite {
+                        role: infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee,
+                        source_span: owner_span.clone(),
+                    },
+                ],
+            }),
         },
     );
 
@@ -2730,14 +2745,28 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
             severity: SourceDiagnosticSeverity::Error,
             code: Some("yulang.missing-implicit-cast".to_string()),
             label: None,
-            file: Some(owner_span.file),
+            file: Some(owner_span.file.clone()),
             range: Some(owner_span.range),
             message: "cannot use `example::Source` where `example::Target` is required: no implicit cast from `example::Source` to `example::Target`".to_string(),
             hint: Some(
                 "declare a `cast` from `example::Source` to `example::Target`, or check whether a different type was intended"
                     .to_string(),
             ),
-            related: Vec::new(),
+            related: vec![
+                SourceDiagnosticRelated {
+                    message: "type `example::Source` is inferred from this argument".to_string(),
+                    file: owner_span.file.clone(),
+                    range: owner_span.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                },
+                SourceDiagnosticRelated {
+                    message: "this callee requires an argument compatible with `example::Target`"
+                        .to_string(),
+                    file: owner_span.file.clone(),
+                    range: owner_span.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                },
+            ],
         }
     );
 
@@ -2746,6 +2775,7 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
             source: vec!["example".to_string(), "Source".to_string()],
             target: vec!["example".to_string(), "Target".to_string()],
             source_span: None,
+            explanation: None,
         },
     );
     let diagnostic = source_diagnostic_from_body_lowering_error(

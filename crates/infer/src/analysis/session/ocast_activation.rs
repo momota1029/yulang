@@ -9,8 +9,17 @@ use poly::expr::DefId;
 use poly::types::{NegId, PosId};
 
 use crate::casts::CastTable;
-use crate::constraints::ocast_eligibility::OcastEligibilityState;
-use crate::constraints::{ConstraintRecordId, ConstraintWeights};
+use crate::analysis::{
+    DiagnosticTypeDerivation, DiagnosticTypeExplanation, DiagnosticTypeExplanationSite,
+    DiagnosticTypeExplanationSiteRole,
+};
+use crate::constraints::ocast_eligibility::{
+    EligibleBoundaryDiagnosticKind, OcastEligibilityClassification, OcastEligibilityOutcome,
+    OcastEligibilityState,
+};
+use crate::constraints::{
+    ConstraintOriginKind, ConstraintRecordId, ConstraintWeights, SourceBoundaryId,
+};
 
 use super::super::{AnalysisDiagnostic, AnalysisSession};
 
@@ -28,16 +37,32 @@ pub(crate) struct PendingNominalCastRequest {
 pub(crate) struct ClassifiedNominalCastRequest {
     request: PendingNominalCastRequest,
     eligibility: OcastEligibilityState,
+    eligible_boundary: Option<EligibleBoundaryDiagnosticEvidence>,
 }
 
 impl ClassifiedNominalCastRequest {
     pub(super) fn new(
         request: PendingNominalCastRequest,
-        eligibility: OcastEligibilityState,
+        classification: &OcastEligibilityClassification,
     ) -> Self {
+        let eligible_boundary = match &classification.outcome {
+            OcastEligibilityOutcome::EligibleSourceBoundary {
+                boundary,
+                kind,
+                evidence,
+                ..
+            } => Some(EligibleBoundaryDiagnosticEvidence {
+                boundary: *boundary,
+                kind: *kind,
+                derivation: evidence.diagnostic_kind(),
+            }),
+            OcastEligibilityOutcome::InternalOnly { .. }
+            | OcastEligibilityOutcome::Incomplete { .. } => None,
+        };
         Self {
             request,
-            eligibility,
+            eligibility: classification.state(),
+            eligible_boundary,
         }
     }
 
@@ -47,12 +72,25 @@ impl ClassifiedNominalCastRequest {
     }
 
     pub(super) fn into_eligible(self) -> Option<EligibleNominalCastRequest> {
-        (self.eligibility == OcastEligibilityState::EligibleSourceBoundary)
-            .then_some(EligibleNominalCastRequest(self.request))
+        let evidence = self.eligible_boundary?;
+        Some(EligibleNominalCastRequest {
+            request: self.request,
+            evidence,
+        })
     }
 }
 
-pub(super) struct EligibleNominalCastRequest(PendingNominalCastRequest);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EligibleBoundaryDiagnosticEvidence {
+    boundary: SourceBoundaryId,
+    kind: ConstraintOriginKind,
+    derivation: EligibleBoundaryDiagnosticKind,
+}
+
+pub(super) struct EligibleNominalCastRequest {
+    request: PendingNominalCastRequest,
+    evidence: EligibleBoundaryDiagnosticEvidence,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum OcastActivationDecision {
@@ -72,7 +110,7 @@ pub(super) fn plan_eligible_ocast_activation(
     request: &EligibleNominalCastRequest,
     casts: &CastTable,
 ) -> OcastActivationDecision {
-    let request = &request.0;
+    let request = &request.request;
     match casts.resolve_value(&request.source, &request.target) {
         OrdinaryCastResolution::Missing => OcastActivationDecision::MissingCast {
             source: request.source.clone(),
@@ -111,11 +149,14 @@ impl AnalysisSession {
             match plan_eligible_ocast_activation(&request, &self.casts) {
                 OcastActivationDecision::NoAction => {}
                 OcastActivationDecision::MissingCast { source, target } => {
+                    let (source_span, explanation) =
+                        self.missing_cast_explanation(&request, &source, &target);
                     self.diagnostics
                         .push(AnalysisDiagnostic::MissingImplicitCast {
                             source,
                             target,
-                            source_span: None,
+                            source_span,
+                            explanation,
                         });
                 }
                 OcastActivationDecision::AmbiguousCast {
@@ -133,6 +174,48 @@ impl AnalysisSession {
                 }
             }
         }
+    }
+
+    fn missing_cast_explanation(
+        &self,
+        request: &EligibleNominalCastRequest,
+        source: &[String],
+        target: &[String],
+    ) -> (Option<crate::SourceSpan>, Option<DiagnosticTypeExplanation>) {
+        if request.evidence.kind != ConstraintOriginKind::ApplicationArgument {
+            return (None, None);
+        }
+        let Some(provenance) = self
+            .source_boundary_provenance
+            .application_argument(request.evidence.boundary)
+        else {
+            return (None, None);
+        };
+        let derivation = match request.evidence.derivation {
+            EligibleBoundaryDiagnosticKind::RootRelation => DiagnosticTypeDerivation::RootRelation,
+            EligibleBoundaryDiagnosticKind::SharedReplayPair => {
+                DiagnosticTypeDerivation::SharedReplayPair
+            }
+            EligibleBoundaryDiagnosticKind::OneSidedReplayPair => {
+                DiagnosticTypeDerivation::OneSidedReplayPair
+            }
+        };
+        let explanation = DiagnosticTypeExplanation {
+            source: source.to_vec(),
+            target: target.to_vec(),
+            derivation,
+            related_sites: vec![
+                DiagnosticTypeExplanationSite {
+                    role: DiagnosticTypeExplanationSiteRole::InferredExpression,
+                    source_span: provenance.argument_span.clone(),
+                },
+                DiagnosticTypeExplanationSite {
+                    role: DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee,
+                    source_span: provenance.callee_span.clone(),
+                },
+            ],
+        };
+        (Some(provenance.application_span.clone()), Some(explanation))
     }
 }
 
@@ -170,6 +253,7 @@ mod tests {
                 source: path(SOURCE),
                 target: path(TARGET),
                 source_span: None,
+                explanation: None,
             }]
         );
     }

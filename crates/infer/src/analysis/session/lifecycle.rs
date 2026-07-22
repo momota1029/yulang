@@ -14,6 +14,7 @@ impl AnalysisSession {
         let mut session = Self {
             poly,
             application_provenance: ApplicationProvenanceTable::default(),
+            source_boundary_provenance: SourceBoundaryProvenanceTable::default(),
             infer,
             local_defs: LocalDefUseTable::new(),
             refs: RefUseTable::new(),
@@ -454,10 +455,9 @@ impl AnalysisSession {
                 request.producer,
                 crate::constraints::explain::ExplanationBudget::ocast_classifier(),
             );
-            let eligibility = classification.state();
             self.ocast_eligibility_metrics.record(&classification);
+            classified.push(ClassifiedNominalCastRequest::new(request, &classification));
             self.ocast_eligibility_shadow.push(classification);
-            classified.push(ClassifiedNominalCastRequest::new(request, eligibility));
         }
         self.pending_ocast_producer_set.clear();
         self.ocast_eligibility_metrics.elapsed += start.elapsed();

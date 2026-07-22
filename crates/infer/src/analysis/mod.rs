@@ -77,7 +77,7 @@ use crate::instantiate::{
     instantiate_validated_imported_scheme_witness, seed_imported_boundary,
     validate_imported_scheme_for_instantiation,
 };
-use crate::lowering::ApplicationProvenanceTable;
+use crate::lowering::{ApplicationProvenanceTable, SourceBoundaryProvenanceTable};
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
     TypeMethodTable,
@@ -146,7 +146,10 @@ use trace::{
     trace_constraint_events, trace_instantiate_phase, trace_scheme_requested,
     trace_select_bound_limit, trace_select_requested,
 };
-pub use work::{AnalysisDiagnostic, AnalysisWork, SelectionTarget};
+pub use work::{
+    AnalysisDiagnostic, AnalysisWork, DiagnosticTypeDerivation, DiagnosticTypeExplanation,
+    DiagnosticTypeExplanationSite, DiagnosticTypeExplanationSiteRole, SelectionTarget,
+};
 
 /// 推論中の複数 machine を束ねる session。
 ///
@@ -157,6 +160,8 @@ pub struct AnalysisSession {
     pub poly: PolyArena,
     /// Lowering-owned staging table kept beside the arena whose `ExprId`s key it.
     pub(crate) application_provenance: ApplicationProvenanceTable,
+    /// Source locations for source-boundary IDs; never part of constraint semantics.
+    pub(crate) source_boundary_provenance: SourceBoundaryProvenanceTable,
     pub infer: InferArena,
     pub local_defs: LocalDefUseTable,
     pub refs: RefUseTable,

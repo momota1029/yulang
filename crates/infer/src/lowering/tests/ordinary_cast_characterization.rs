@@ -64,15 +64,57 @@ fn live_application_cast_diagnostics_follow_zero_one_two_cardinality() {
     let function_and_call = "my f(x: bool): bool = x\nf(42)\n";
 
     let missing = lower_source(function_and_call);
+    let [BodyLoweringError::Analysis(
+        crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+            source,
+            target,
+            source_span: Some(source_span),
+            explanation: Some(explanation),
+        },
+    )] = missing.errors.as_slice()
+    else {
+        panic!(
+            "expected one explained missing-cast diagnostic: {:?}",
+            missing.errors
+        );
+    };
+    assert_eq!(source, &["int".to_string()]);
+    assert_eq!(target, &["bool".to_string()]);
+    assert_eq!(explanation.source, *source);
+    assert_eq!(explanation.target, *target);
     assert_eq!(
+        explanation.derivation,
+        crate::analysis::DiagnosticTypeDerivation::OneSidedReplayPair
+    );
+    assert_eq!(
+        explanation
+            .related_sites
+            .iter()
+            .map(|site| site.role)
+            .collect::<Vec<_>>(),
+        vec![
+            crate::analysis::DiagnosticTypeExplanationSiteRole::InferredExpression,
+            crate::analysis::DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee,
+        ]
+    );
+    assert_eq!(
+        &function_and_call[source_span.range.start..source_span.range.end],
+        "f(42)\n"
+    );
+    assert_eq!(
+        &function_and_call[explanation.related_sites[0].source_span.range.start
+            ..explanation.related_sites[0].source_span.range.end],
+        "42"
+    );
+    assert_eq!(
+        &function_and_call[explanation.related_sites[1].source_span.range.start
+            ..explanation.related_sites[1].source_span.range.end],
+        "f"
+    );
+    assert_eq!(
+        lower_source(function_and_call).errors,
         missing.errors,
-        vec![BodyLoweringError::Analysis(
-            crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
-                source: vec!["int".into()],
-                target: vec!["bool".into()],
-                source_span: None,
-            }
-        )]
+        "explanation order and spans are deterministic"
     );
 
     let unique = lower_source(&format!("cast(x: int): bool = false\n{function_and_call}"));

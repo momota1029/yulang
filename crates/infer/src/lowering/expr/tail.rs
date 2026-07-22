@@ -101,14 +101,16 @@ impl<'a> ExprLowerer<'a> {
                 unit,
                 application_source_range,
                 callee_source_range,
+                None,
             ));
         }
         let arg_count = args.len();
         for (index, arg) in args.into_iter().enumerate() {
+            let argument_boundary_source_range = arg.text_range();
             let argument_source_range = if index + 1 == arg_count {
                 node.text_range()
             } else {
-                arg.text_range()
+                argument_boundary_source_range
             };
             let application_source_range = callee_source_range.cover(argument_source_range);
             let lowered_arg = self.lower_expr(&arg)?;
@@ -117,6 +119,7 @@ impl<'a> ExprLowerer<'a> {
                 lowered_arg,
                 application_source_range,
                 callee_source_range,
+                Some(argument_boundary_source_range),
             );
             callee_source_range = application_source_range;
         }
@@ -546,6 +549,7 @@ impl<'a> ExprLowerer<'a> {
         arg: Computation,
         application_source_range: TextRange,
         callee_source_range: TextRange,
+        argument_source_range: Option<TextRange>,
     ) -> Computation {
         let source_boundary = self
             .session
@@ -558,7 +562,11 @@ impl<'a> ExprLowerer<'a> {
         let callee_span = self.source_span(Some(crate::source_range_from_text_range(
             callee_source_range,
         )));
-        if let (Some(application_span), Some(callee_span)) = (application_span, callee_span) {
+        let argument_span = argument_source_range
+            .and_then(|range| self.source_span(Some(crate::source_range_from_text_range(range))));
+        if let (Some(application_span), Some(callee_span)) =
+            (application_span.clone(), callee_span.clone())
+        {
             let previous = self.session.application_provenance.insert(
                 application.expr,
                 ApplicationProvenance {
@@ -571,6 +579,25 @@ impl<'a> ExprLowerer<'a> {
             debug_assert!(
                 previous.is_none(),
                 "each arena-local application is assigned source provenance at most once"
+            );
+        }
+        if let (Some(application_span), Some(callee_span), Some(argument_span)) =
+            (application_span, callee_span, argument_span)
+        {
+            let inserted = self
+                .session
+                .source_boundary_provenance
+                .insert_application_argument(
+                    source_boundary.boundary(),
+                    ApplicationArgumentBoundaryProvenance {
+                        application_span,
+                        callee_span,
+                        argument_span,
+                    },
+                );
+            debug_assert!(
+                inserted,
+                "each source boundary is assigned source provenance at most once"
             );
         }
         application

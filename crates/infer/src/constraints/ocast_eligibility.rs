@@ -74,6 +74,24 @@ pub(crate) enum EligibleBoundaryEvidence {
     },
 }
 
+impl EligibleBoundaryEvidence {
+    /// Preserve the classifier's already-bounded witness shape without exposing graph identities.
+    pub(crate) fn diagnostic_kind(&self) -> EligibleBoundaryDiagnosticKind {
+        match self {
+            Self::RootRelation { .. } => EligibleBoundaryDiagnosticKind::RootRelation,
+            Self::SharedReplayPair { .. } => EligibleBoundaryDiagnosticKind::SharedReplayPair,
+            Self::OneSidedReplayPair { .. } => EligibleBoundaryDiagnosticKind::OneSidedReplayPair,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EligibleBoundaryDiagnosticKind {
+    RootRelation,
+    SharedReplayPair,
+    OneSidedReplayPair,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ReplaySourceParent {
     Lower,

@@ -9,6 +9,36 @@ use poly::types::Subtractability;
 use crate::SourceSpan;
 use crate::scc::SccInput;
 
+/// Bounded derivation evidence projected into source-facing diagnostic data.
+///
+/// Constraint, bound, and type-variable identities intentionally do not cross this boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiagnosticTypeExplanation {
+    pub source: Vec<String>,
+    pub target: Vec<String>,
+    pub derivation: DiagnosticTypeDerivation,
+    pub related_sites: Vec<DiagnosticTypeExplanationSite>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticTypeDerivation {
+    RootRelation,
+    SharedReplayPair,
+    OneSidedReplayPair,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiagnosticTypeExplanationSite {
+    pub role: DiagnosticTypeExplanationSiteRole,
+    pub source_span: SourceSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticTypeExplanationSiteRole {
+    InferredExpression,
+    RequiredApplicationCallee,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnalysisDiagnostic {
     ComputedFetchCycle {
@@ -24,6 +54,7 @@ pub enum AnalysisDiagnostic {
         source: Vec<String>,
         target: Vec<String>,
         source_span: Option<SourceSpan>,
+        explanation: Option<DiagnosticTypeExplanation>,
     },
     AmbiguousImplicitCast {
         source: Vec<String>,

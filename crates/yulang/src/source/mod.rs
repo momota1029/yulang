@@ -3675,6 +3675,38 @@ fn body_lowering_error_related(
             related
         }
         infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                explanation: Some(explanation),
+                ..
+            },
+        ) => explanation
+            .related_sites
+            .iter()
+            .map(|site| {
+                let message = match site.role {
+                    infer::analysis::DiagnosticTypeExplanationSiteRole::InferredExpression => {
+                        format!(
+                            "type `{}` is inferred from this argument",
+                            explanation.source.join("::")
+                        )
+                    }
+                    infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee =>
+                    {
+                        format!(
+                            "this callee requires an argument compatible with `{}`",
+                            explanation.target.join("::")
+                        )
+                    }
+                };
+                SourceDiagnosticRelated {
+                    message,
+                    file: site.source_span.file.clone(),
+                    range: site.source_span.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                }
+            })
+            .collect(),
+        infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { candidates, .. },
         ) => candidates
             .iter()
