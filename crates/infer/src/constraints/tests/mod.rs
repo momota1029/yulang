@@ -6,5 +6,6 @@ mod case_03;
 mod characterization;
 mod explain;
 mod ocast_eligibility;
+mod pusp_characterization;
 
 use case_02::{assert_single_weighted_upper_var, residual_stack_weight, single_upper_row_tail};
