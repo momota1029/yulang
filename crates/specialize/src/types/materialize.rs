@@ -1,6 +1,64 @@
 use super::*;
 
+const MAX_MATERIALIZED_PROVENANCE_PATHS: usize = 256;
+
 impl<'a> SchemeMaterializer<'a> {
+    #[allow(dead_code)] // SUBP-F will seed positive TypeGraph roots through this companion.
+    pub(super) fn materialize_pos_with_provenance(
+        &self,
+        id: PosId,
+        context: TypeContext,
+        sidecar: &SubtypeProvenanceSidecar,
+        owner: TypeOccurrenceOwner,
+        role: TypeOccurrenceRole,
+    ) -> Result<MaterializedTypeWithProvenance, SpecializeError> {
+        // Semantic materialization remains the sole source of truth. The adjacent collector below
+        // reads only the source poly graph and the frozen sidecar; it cannot affect this result.
+        let ty = self.materialize_pos(id, context)?;
+        let mut collector = MaterializationProvenanceCollector::new(sidecar, owner, role);
+        collector.project_pos(self, id, TypePositionPath::default());
+        Ok(MaterializedTypeWithProvenance {
+            ty,
+            provenance: collector.finish(),
+        })
+    }
+
+    #[allow(dead_code)] // SUBP-F will seed negative TypeGraph roots through this companion.
+    pub(super) fn materialize_neg_with_provenance(
+        &self,
+        id: NegId,
+        context: TypeContext,
+        sidecar: &SubtypeProvenanceSidecar,
+        owner: TypeOccurrenceOwner,
+        role: TypeOccurrenceRole,
+    ) -> Result<MaterializedTypeWithProvenance, SpecializeError> {
+        let ty = self.materialize_neg(id, context)?;
+        let mut collector = MaterializationProvenanceCollector::new(sidecar, owner, role);
+        collector.project_neg(self, id, TypePositionPath::default());
+        Ok(MaterializedTypeWithProvenance {
+            ty,
+            provenance: collector.finish(),
+        })
+    }
+
+    #[allow(dead_code)] // SUBP-F will seed invariant TypeGraph roots through this companion.
+    pub(super) fn materialize_neu_with_provenance(
+        &self,
+        id: NeuId,
+        context: TypeContext,
+        sidecar: &SubtypeProvenanceSidecar,
+        owner: TypeOccurrenceOwner,
+        role: TypeOccurrenceRole,
+    ) -> Result<MaterializedTypeWithProvenance, SpecializeError> {
+        let ty = self.materialize_neu(id, context)?;
+        let mut collector = MaterializationProvenanceCollector::new(sidecar, owner, role);
+        collector.project_neu(self, id, TypePositionPath::default());
+        Ok(MaterializedTypeWithProvenance {
+            ty,
+            provenance: collector.finish(),
+        })
+    }
+
     pub(super) fn materialize_pos(
         &self,
         id: PosId,
@@ -535,4 +593,455 @@ impl<'a> SchemeMaterializer<'a> {
                 .default_type()
         })
     }
+}
+
+struct MaterializationProvenanceCollector<'a> {
+    sidecar: &'a SubtypeProvenanceSidecar,
+    owner: TypeOccurrenceOwner,
+    role: TypeOccurrenceRole,
+    positions: Vec<MaterializedPositionProvenance>,
+    completeness: ProvenanceCompleteness,
+    exhausted: bool,
+}
+
+impl<'a> MaterializationProvenanceCollector<'a> {
+    fn new(
+        sidecar: &'a SubtypeProvenanceSidecar,
+        owner: TypeOccurrenceOwner,
+        role: TypeOccurrenceRole,
+    ) -> Self {
+        Self {
+            sidecar,
+            owner,
+            role,
+            positions: Vec::new(),
+            completeness: ProvenanceCompleteness::Complete,
+            exhausted: false,
+        }
+    }
+
+    fn finish(self) -> MaterializedTypeProvenance {
+        MaterializedTypeProvenance {
+            positions: self.positions,
+            completeness: self.completeness,
+        }
+    }
+
+    fn record_owned_path(&mut self, path: &TypePositionPath) {
+        let key = poly::provenance::TypeOccurrenceKey {
+            owner: self.owner,
+            role: self.role,
+            path: path.clone(),
+        };
+        let Some(occurrence) = self.sidecar.occurrences.get(&key) else {
+            return;
+        };
+        self.insert_or_merge(path, &occurrence.anchors, occurrence.completeness);
+    }
+
+    fn mark_incomplete(&mut self, path: &TypePositionPath) {
+        self.completeness = ProvenanceCompleteness::Incomplete;
+        self.insert_or_merge(path, &[], ProvenanceCompleteness::Incomplete);
+    }
+
+    fn insert_or_merge(
+        &mut self,
+        path: &TypePositionPath,
+        anchors: &[ProvenanceAnchor],
+        completeness: ProvenanceCompleteness,
+    ) {
+        if let Some(position) = self.positions.iter_mut().find(|item| item.path == *path) {
+            for anchor in anchors {
+                if !position.anchors.contains(anchor) {
+                    position.anchors.push(*anchor);
+                }
+            }
+            if completeness == ProvenanceCompleteness::Incomplete {
+                position.completeness = ProvenanceCompleteness::Incomplete;
+                self.completeness = ProvenanceCompleteness::Incomplete;
+            }
+            return;
+        }
+        if self.positions.len() >= MAX_MATERIALIZED_PROVENANCE_PATHS {
+            self.completeness = ProvenanceCompleteness::Incomplete;
+            self.exhausted = true;
+            return;
+        }
+        if completeness == ProvenanceCompleteness::Incomplete {
+            self.completeness = ProvenanceCompleteness::Incomplete;
+        }
+        self.positions.push(MaterializedPositionProvenance {
+            path: path.clone(),
+            anchors: anchors.to_vec(),
+            completeness,
+        });
+    }
+
+    fn project_pos(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        id: PosId,
+        path: TypePositionPath,
+    ) {
+        if self.exhausted {
+            return;
+        }
+        self.record_owned_path(&path);
+        match materializer.arena.pos(id) {
+            Pos::Bot if materializer.track_empty_bounds => self.mark_incomplete(&path),
+            Pos::Var(var) if materializer.substitution.contains_key(var) => {
+                self.mark_incomplete(&path)
+            }
+            Pos::Con(_, args) => self.project_neu_args(materializer, args, &path),
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                if materializer.function_materialization == FunctionMaterialization::Runtime {
+                    self.mark_incomplete(&path);
+                } else {
+                    self.project_neg(
+                        materializer,
+                        *arg,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionArgument),
+                    );
+                    self.project_neg(
+                        materializer,
+                        *arg_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionArgumentEffect,
+                        ),
+                    );
+                    self.project_pos(
+                        materializer,
+                        *ret_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionReturnEffect,
+                        ),
+                    );
+                    self.project_pos(
+                        materializer,
+                        *ret,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionReturn),
+                    );
+                }
+            }
+            Pos::Record(fields) => {
+                for (index, field) in fields.iter().enumerate() {
+                    self.project_pos(materializer, field.value, record_field_path(&path, index));
+                }
+            }
+            Pos::PolyVariant(items) => {
+                for (item, (_, payloads)) in items.iter().enumerate() {
+                    for (payload, value) in payloads.iter().enumerate() {
+                        self.project_pos(
+                            materializer,
+                            *value,
+                            variant_payload_path(&path, item, payload),
+                        );
+                    }
+                }
+            }
+            Pos::Tuple(items) => {
+                for (index, value) in items.iter().enumerate() {
+                    self.project_pos(materializer, *value, tuple_path(&path, index));
+                }
+            }
+            Pos::Row(items) => self.project_pos_row(materializer, items, &path),
+            Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::Stack { .. }
+            | Pos::NonSubtract(..)
+            | Pos::Union(..) => self.mark_incomplete(&path),
+            Pos::Bot | Pos::Var(_) => {}
+        }
+    }
+
+    fn project_neg(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        id: NegId,
+        path: TypePositionPath,
+    ) {
+        if self.exhausted {
+            return;
+        }
+        self.record_owned_path(&path);
+        match materializer.arena.neg(id) {
+            Neg::Top if materializer.track_empty_bounds => self.mark_incomplete(&path),
+            Neg::Var(var) if materializer.substitution.contains_key(var) => {
+                self.mark_incomplete(&path)
+            }
+            Neg::Con(_, args) => self.project_neu_args(materializer, args, &path),
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                if materializer.function_materialization == FunctionMaterialization::Runtime {
+                    self.mark_incomplete(&path);
+                } else {
+                    self.project_pos(
+                        materializer,
+                        *arg,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionArgument),
+                    );
+                    self.project_pos(
+                        materializer,
+                        *arg_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionArgumentEffect,
+                        ),
+                    );
+                    self.project_neg(
+                        materializer,
+                        *ret_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionReturnEffect,
+                        ),
+                    );
+                    self.project_neg(
+                        materializer,
+                        *ret,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionReturn),
+                    );
+                }
+            }
+            Neg::Record(fields) => {
+                for (index, field) in fields.iter().enumerate() {
+                    self.project_neg(materializer, field.value, record_field_path(&path, index));
+                }
+            }
+            Neg::PolyVariant(items) => {
+                for (item, (_, payloads)) in items.iter().enumerate() {
+                    for (payload, value) in payloads.iter().enumerate() {
+                        self.project_neg(
+                            materializer,
+                            *value,
+                            variant_payload_path(&path, item, payload),
+                        );
+                    }
+                }
+            }
+            Neg::Tuple(items) => {
+                for (index, value) in items.iter().enumerate() {
+                    self.project_neg(materializer, *value, tuple_path(&path, index));
+                }
+            }
+            Neg::Row(items, tail) => {
+                for (item, value) in items.iter().enumerate() {
+                    self.project_neg_row_item(materializer, *value, item, &path);
+                }
+                self.project_neg(
+                    materializer,
+                    *tail,
+                    child_path(&path, poly::provenance::TypePositionStep::RowTail),
+                );
+            }
+            Neg::Stack { .. } | Neg::Intersection(..) => self.mark_incomplete(&path),
+            Neg::Top | Neg::Bot | Neg::Var(_) => {}
+        }
+    }
+
+    fn project_neu(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        id: NeuId,
+        path: TypePositionPath,
+    ) {
+        if self.exhausted {
+            return;
+        }
+        self.record_owned_path(&path);
+        match materializer.arena.neu(id) {
+            Neu::Bounds(lower, upper) => {
+                if materializer.inline_bound_substitution.contains_key(&id) {
+                    self.mark_incomplete(&path);
+                    return;
+                }
+                let has_lower = !matches!(materializer.arena.pos(*lower), Pos::Bot);
+                let has_upper = !matches!(materializer.arena.neg(*upper), Neg::Top);
+                match (has_lower, has_upper) {
+                    (true, false) => self.project_pos(materializer, *lower, path),
+                    (false, true) => self.project_neg(materializer, *upper, path),
+                    _ => self.mark_incomplete(&path),
+                }
+            }
+            Neu::Con(_, args) => self.project_neu_args(materializer, args, &path),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                if materializer.function_materialization == FunctionMaterialization::Runtime {
+                    self.mark_incomplete(&path);
+                } else {
+                    self.project_neu(
+                        materializer,
+                        *arg,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionArgument),
+                    );
+                    self.project_neu(
+                        materializer,
+                        *arg_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionArgumentEffect,
+                        ),
+                    );
+                    self.project_neu(
+                        materializer,
+                        *ret_eff,
+                        child_path(
+                            &path,
+                            poly::provenance::TypePositionStep::FunctionReturnEffect,
+                        ),
+                    );
+                    self.project_neu(
+                        materializer,
+                        *ret,
+                        child_path(&path, poly::provenance::TypePositionStep::FunctionReturn),
+                    );
+                }
+            }
+            Neu::Record(fields) => {
+                for (index, field) in fields.iter().enumerate() {
+                    self.project_neu(materializer, field.value, record_field_path(&path, index));
+                }
+            }
+            Neu::PolyVariant(items) => {
+                for (item, (_, payloads)) in items.iter().enumerate() {
+                    for (payload, value) in payloads.iter().enumerate() {
+                        self.project_neu(
+                            materializer,
+                            *value,
+                            variant_payload_path(&path, item, payload),
+                        );
+                    }
+                }
+            }
+            Neu::Tuple(items) => {
+                for (index, value) in items.iter().enumerate() {
+                    self.project_neu(materializer, *value, tuple_path(&path, index));
+                }
+            }
+        }
+    }
+
+    fn project_neu_args(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        args: &[NeuId],
+        path: &TypePositionPath,
+    ) {
+        for (argument, value) in args.iter().enumerate() {
+            let step = poly::provenance::TypePositionStep::ConstructorArgument {
+                alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                argument: poly::provenance::TypePositionIndex::from_usize(argument),
+            };
+            self.project_neu(materializer, *value, child_path(path, step));
+        }
+    }
+
+    fn project_pos_row(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        items: &[PosId],
+        path: &TypePositionPath,
+    ) {
+        for (item, value) in items.iter().enumerate() {
+            let Pos::Con(_, args) = materializer.arena.pos(*value) else {
+                self.mark_incomplete(path);
+                continue;
+            };
+            for (argument, value) in args.iter().enumerate() {
+                self.project_neu(
+                    materializer,
+                    *value,
+                    row_item_argument_path(path, item, argument),
+                );
+            }
+        }
+    }
+
+    fn project_neg_row_item(
+        &mut self,
+        materializer: &SchemeMaterializer<'_>,
+        value: NegId,
+        item: usize,
+        path: &TypePositionPath,
+    ) {
+        let Neg::Con(_, args) = materializer.arena.neg(value) else {
+            self.mark_incomplete(path);
+            return;
+        };
+        for (argument, value) in args.iter().enumerate() {
+            self.project_neu(
+                materializer,
+                *value,
+                row_item_argument_path(path, item, argument),
+            );
+        }
+    }
+}
+
+fn child_path(
+    path: &TypePositionPath,
+    step: poly::provenance::TypePositionStep,
+) -> TypePositionPath {
+    let mut out = path.clone();
+    out.push(step);
+    out
+}
+
+fn tuple_path(path: &TypePositionPath, index: usize) -> TypePositionPath {
+    child_path(
+        path,
+        poly::provenance::TypePositionStep::TupleElement(
+            poly::provenance::TypePositionIndex::from_usize(index),
+        ),
+    )
+}
+
+fn record_field_path(path: &TypePositionPath, field: usize) -> TypePositionPath {
+    child_path(
+        path,
+        poly::provenance::TypePositionStep::RecordField {
+            alternative: poly::provenance::TypePositionIndex::from_usize(0),
+            field: poly::provenance::TypePositionIndex::from_usize(field),
+        },
+    )
+}
+
+fn variant_payload_path(path: &TypePositionPath, item: usize, payload: usize) -> TypePositionPath {
+    child_path(
+        path,
+        poly::provenance::TypePositionStep::VariantPayload {
+            alternative: poly::provenance::TypePositionIndex::from_usize(0),
+            item: poly::provenance::TypePositionIndex::from_usize(item),
+            payload: poly::provenance::TypePositionIndex::from_usize(payload),
+        },
+    )
+}
+
+fn row_item_argument_path(
+    path: &TypePositionPath,
+    item: usize,
+    argument: usize,
+) -> TypePositionPath {
+    child_path(
+        path,
+        poly::provenance::TypePositionStep::RowItemArgument {
+            item: poly::provenance::TypePositionIndex::from_usize(item),
+            argument: poly::provenance::TypePositionIndex::from_usize(argument),
+        },
+    )
 }
