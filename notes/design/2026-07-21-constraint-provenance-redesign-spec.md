@@ -926,8 +926,8 @@ Size: S-M. Risk: critical.
 
 This is a separate follow-up slice requiring explicit authorization. Activate ordinary-cast
 `Missing | Unique | Ambiguous` enforcement only for the eligibility states allowed by the approved
-policy. The policy for `Incomplete`/unknown provenance—fail open or fail closed—is an explicit open
-decision and is not resolved by this document.
+policy. Per Section 13 decision 8, `Incomplete`/unknown provenance is fail open: it does not produce
+a missing- or ambiguous-cast diagnostic and retains today's permissive pre-activation behavior.
 
 Activation must retain the ordinary-cast specification's classifier and diagnostic rules. It must not
 add fixture/name-based exceptions or infer source eligibility from constructor shape alone.
@@ -974,7 +974,8 @@ Before CPROV-I closes:
 
 Before CPROV-J begins:
 
-- the `Incomplete` fail-open/fail-closed policy is explicitly approved;
+- [x] the `Incomplete` policy is explicitly approved as fail open and recorded in Section 13
+  decision 8;
 - OCAST shadow results are stable across cold/warm/cache routes in supported same-session scope;
 - no provenance field participates in semantic equality or progress;
 - ordinary-cast activation and rollback are a separate diff from provenance recording.
@@ -1037,9 +1038,11 @@ implementation choices. The following points remain open until the named slice:
    `ApplicationProvenanceTable` and `SelectionProvenanceTable` are registries behind source-leaf IDs
    or remain separate span tables referenced by a new registry. Do not duplicate source ownership or
    make those tables semantic solver dependencies.
-8. **Incomplete OCAST policy (before CPROV-J).** Decide whether `Incomplete`/`UnknownInternal` is fail
-   open, fail closed, or split by boundary kind. This is a source-semantic policy and cannot be
-   inferred from shadow counts alone.
+8. **Incomplete OCAST policy — resolved.** CPROV-J treats `Incomplete`/`UnknownInternal` as fail open:
+   it emits no missing- or ambiguous-cast diagnostic and preserves today's permissive behavior. The
+   acceptance corpus already has zero `Incomplete`; for rare residual cases, rejecting legitimate
+   code because provenance is truncated, imported, or not yet wired is the greater risk than missing
+   a genuine cast soundness gap.
 
 The following are deferred by scope, not awaiting implementation choices:
 
