@@ -6,6 +6,64 @@
 use std::mem::size_of;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TypePositionIndex(u32);
+
+impl TypePositionIndex {
+    pub fn from_usize(index: usize) -> Self {
+        Self(u32::try_from(index).expect("type-position index fits in u32"))
+    }
+
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct TypePositionPath(pub Vec<TypePositionStep>);
+
+impl TypePositionPath {
+    pub fn push(&mut self, step: TypePositionStep) {
+        self.0.push(step);
+    }
+
+    pub fn depth(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn without_first(&self) -> Self {
+        Self(self.0.iter().skip(1).copied().collect())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypePositionStep {
+    FunctionArgument,
+    FunctionArgumentEffect,
+    FunctionReturnEffect,
+    FunctionReturn,
+    ConstructorArgument {
+        alternative: TypePositionIndex,
+        argument: TypePositionIndex,
+    },
+    TupleElement(TypePositionIndex),
+    RecordField {
+        alternative: TypePositionIndex,
+        field: TypePositionIndex,
+    },
+    VariantPayload {
+        alternative: TypePositionIndex,
+        item: TypePositionIndex,
+        payload: TypePositionIndex,
+    },
+    RowItemArgument {
+        item: TypePositionIndex,
+        argument: TypePositionIndex,
+    },
+    RowTail,
+    RecursiveBound(TypePositionIndex),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProvenanceAnchor(u32);
 
 impl ProvenanceAnchor {

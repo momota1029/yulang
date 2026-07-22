@@ -177,8 +177,12 @@ pub(crate) struct InstantiatedWitnessMapping {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct InstantiatedSchemeProvenance {
+    /// PUSP's shipped function-argument mappings, consumed by the live constraint graph.
     pub(crate) mappings: Vec<InstantiatedWitnessMapping>,
     pub(crate) incomplete_witnesses: usize,
+    /// SUBP structural mappings stay adjacent and inert until the cold-build sidecar slice.
+    pub(crate) structural_mappings: Vec<InstantiatedWitnessMapping>,
+    pub(crate) incomplete_structural_witnesses: usize,
 }
 
 pub(crate) struct ImportedInstantiationWitness {
@@ -212,19 +216,41 @@ impl<'a> SchemeInstantiator<'a> {
     ) -> InstantiatedSchemeProvenance {
         let mut result = InstantiatedSchemeProvenance::default();
         for witness in witnesses {
+            let legacy = witness
+                .path
+                .0
+                .iter()
+                .all(|step| matches!(step, GeneralizedTypePathStep::FunctionArgument))
+                || matches!(
+                    witness.path.0.as_slice(),
+                    [GeneralizedTypePathStep::RecursiveBound(_)]
+                );
             if witness.completeness == ProvenanceCompleteness::Incomplete {
-                result.incomplete_witnesses += 1;
+                if legacy {
+                    result.incomplete_witnesses += 1;
+                } else {
+                    result.incomplete_structural_witnesses += 1;
+                }
                 continue;
             }
             let Some(target) = self.project_path(scheme.predicate, &witness.path) else {
-                result.incomplete_witnesses += 1;
+                if legacy {
+                    result.incomplete_witnesses += 1;
+                } else {
+                    result.incomplete_structural_witnesses += 1;
+                }
                 continue;
             };
-            result.mappings.push(InstantiatedWitnessMapping {
+            let mapping = InstantiatedWitnessMapping {
                 witness: witness.witness,
                 path: witness.path.clone(),
                 target,
-            });
+            };
+            if legacy {
+                result.mappings.push(mapping);
+            } else {
+                result.structural_mappings.push(mapping);
+            }
         }
         result
     }
@@ -260,6 +286,210 @@ impl<'a> SchemeInstantiator<'a> {
                         return None;
                     };
                     SourcePosition::Neu(*arg)
+                }
+                (SourcePosition::Pos(id), GeneralizedTypePathStep::FunctionArgumentEffect) => {
+                    let Pos::Fun { arg_eff, .. } = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*arg_eff)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::FunctionArgumentEffect) => {
+                    let Neg::Fun { arg_eff, .. } = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*arg_eff)
+                }
+                (SourcePosition::Neu(id), GeneralizedTypePathStep::FunctionArgumentEffect) => {
+                    let Neu::Fun { arg_eff, .. } = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*arg_eff)
+                }
+                (SourcePosition::Pos(id), GeneralizedTypePathStep::FunctionReturnEffect) => {
+                    let Pos::Fun { ret_eff, .. } = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*ret_eff)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::FunctionReturnEffect) => {
+                    let Neg::Fun { ret_eff, .. } = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*ret_eff)
+                }
+                (SourcePosition::Neu(id), GeneralizedTypePathStep::FunctionReturnEffect) => {
+                    let Neu::Fun { ret_eff, .. } = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*ret_eff)
+                }
+                (SourcePosition::Pos(id), GeneralizedTypePathStep::FunctionReturn) => {
+                    let Pos::Fun { ret, .. } = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*ret)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::FunctionReturn) => {
+                    let Neg::Fun { ret, .. } = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*ret)
+                }
+                (SourcePosition::Neu(id), GeneralizedTypePathStep::FunctionReturn) => {
+                    let Neu::Fun { ret, .. } = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*ret)
+                }
+                (
+                    SourcePosition::Pos(id),
+                    GeneralizedTypePathStep::ConstructorArgument {
+                        alternative,
+                        argument,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Pos::Con(_, args) = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*args.get(argument.index())?)
+                }
+                (
+                    SourcePosition::Neg(id),
+                    GeneralizedTypePathStep::ConstructorArgument {
+                        alternative,
+                        argument,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Neg::Con(_, args) = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*args.get(argument.index())?)
+                }
+                (
+                    SourcePosition::Neu(id),
+                    GeneralizedTypePathStep::ConstructorArgument {
+                        alternative,
+                        argument,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Neu::Con(_, args) = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*args.get(argument.index())?)
+                }
+                (SourcePosition::Pos(id), GeneralizedTypePathStep::TupleElement(index)) => {
+                    let Pos::Tuple(items) = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*items.get(index.index())?)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::TupleElement(index)) => {
+                    let Neg::Tuple(items) = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*items.get(index.index())?)
+                }
+                (SourcePosition::Neu(id), GeneralizedTypePathStep::TupleElement(index)) => {
+                    let Neu::Tuple(items) = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*items.get(index.index())?)
+                }
+                (
+                    SourcePosition::Pos(id),
+                    GeneralizedTypePathStep::RecordField { alternative, field },
+                ) if alternative.index() == 0 => {
+                    let Pos::Record(fields) = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(fields.get(field.index())?.value)
+                }
+                (
+                    SourcePosition::Neg(id),
+                    GeneralizedTypePathStep::RecordField { alternative, field },
+                ) if alternative.index() == 0 => {
+                    let Neg::Record(fields) = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(fields.get(field.index())?.value)
+                }
+                (
+                    SourcePosition::Neu(id),
+                    GeneralizedTypePathStep::RecordField { alternative, field },
+                ) if alternative.index() == 0 => {
+                    let Neu::Record(fields) = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(fields.get(field.index())?.value)
+                }
+                (
+                    SourcePosition::Pos(id),
+                    GeneralizedTypePathStep::VariantPayload {
+                        alternative,
+                        item,
+                        payload,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Pos::PolyVariant(items) = self.source.pos(id) else {
+                        return None;
+                    };
+                    SourcePosition::Pos(*items.get(item.index())?.1.get(payload.index())?)
+                }
+                (
+                    SourcePosition::Neg(id),
+                    GeneralizedTypePathStep::VariantPayload {
+                        alternative,
+                        item,
+                        payload,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Neg::PolyVariant(items) = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*items.get(item.index())?.1.get(payload.index())?)
+                }
+                (
+                    SourcePosition::Neu(id),
+                    GeneralizedTypePathStep::VariantPayload {
+                        alternative,
+                        item,
+                        payload,
+                    },
+                ) if alternative.index() == 0 => {
+                    let Neu::PolyVariant(items) = self.source.neu(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*items.get(item.index())?.1.get(payload.index())?)
+                }
+                (
+                    SourcePosition::Pos(id),
+                    GeneralizedTypePathStep::RowItemArgument { item, argument },
+                ) => {
+                    let Pos::Row(items) = self.source.pos(id) else {
+                        return None;
+                    };
+                    let Pos::Con(_, args) = self.source.pos(*items.get(item.index())?) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*args.get(argument.index())?)
+                }
+                (
+                    SourcePosition::Neg(id),
+                    GeneralizedTypePathStep::RowItemArgument { item, argument },
+                ) => {
+                    let Neg::Row(items, _) = self.source.neg(id) else {
+                        return None;
+                    };
+                    let Neg::Con(_, args) = self.source.neg(*items.get(item.index())?) else {
+                        return None;
+                    };
+                    SourcePosition::Neu(*args.get(argument.index())?)
+                }
+                (SourcePosition::Neg(id), GeneralizedTypePathStep::RowTail) => {
+                    let Neg::Row(_, tail) = self.source.neg(id) else {
+                        return None;
+                    };
+                    SourcePosition::Neg(*tail)
                 }
                 _ => return None,
             };

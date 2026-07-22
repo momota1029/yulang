@@ -692,6 +692,26 @@ impl GeneralizedTypePath {
     fn without_first(&self) -> Self {
         Self(self.0.iter().skip(1).copied().collect())
     }
+
+    pub fn to_type_position_path(&self) -> poly::provenance::TypePositionPath {
+        poly::provenance::TypePositionPath(
+            self.0
+                .iter()
+                .copied()
+                .map(GeneralizedTypePathStep::to_type_position_step)
+                .collect(),
+        )
+    }
+
+    pub fn from_type_position_path(path: &poly::provenance::TypePositionPath) -> Self {
+        Self(
+            path.0
+                .iter()
+                .copied()
+                .map(GeneralizedTypePathStep::from_type_position_step)
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -720,6 +740,85 @@ pub enum GeneralizedTypePathStep {
     },
     RowTail,
     RecursiveBound(StructuralIndex),
+}
+
+impl GeneralizedTypePathStep {
+    fn to_type_position_step(self) -> poly::provenance::TypePositionStep {
+        use poly::provenance::{TypePositionIndex, TypePositionStep};
+        let index = |value: StructuralIndex| TypePositionIndex::from_usize(value.0 as usize);
+        match self {
+            Self::FunctionArgument => TypePositionStep::FunctionArgument,
+            Self::FunctionArgumentEffect => TypePositionStep::FunctionArgumentEffect,
+            Self::FunctionReturnEffect => TypePositionStep::FunctionReturnEffect,
+            Self::FunctionReturn => TypePositionStep::FunctionReturn,
+            Self::ConstructorArgument {
+                alternative,
+                argument,
+            } => TypePositionStep::ConstructorArgument {
+                alternative: index(alternative),
+                argument: index(argument),
+            },
+            Self::TupleElement(value) => TypePositionStep::TupleElement(index(value)),
+            Self::RecordField { alternative, field } => TypePositionStep::RecordField {
+                alternative: index(alternative),
+                field: index(field),
+            },
+            Self::VariantPayload {
+                alternative,
+                item,
+                payload,
+            } => TypePositionStep::VariantPayload {
+                alternative: index(alternative),
+                item: index(item),
+                payload: index(payload),
+            },
+            Self::RowItemArgument { item, argument } => TypePositionStep::RowItemArgument {
+                item: index(item),
+                argument: index(argument),
+            },
+            Self::RowTail => TypePositionStep::RowTail,
+            Self::RecursiveBound(value) => TypePositionStep::RecursiveBound(index(value)),
+        }
+    }
+
+    fn from_type_position_step(step: poly::provenance::TypePositionStep) -> Self {
+        use poly::provenance::TypePositionStep;
+        let index =
+            |value: poly::provenance::TypePositionIndex| StructuralIndex::from_usize(value.index());
+        match step {
+            TypePositionStep::FunctionArgument => Self::FunctionArgument,
+            TypePositionStep::FunctionArgumentEffect => Self::FunctionArgumentEffect,
+            TypePositionStep::FunctionReturnEffect => Self::FunctionReturnEffect,
+            TypePositionStep::FunctionReturn => Self::FunctionReturn,
+            TypePositionStep::ConstructorArgument {
+                alternative,
+                argument,
+            } => Self::ConstructorArgument {
+                alternative: index(alternative),
+                argument: index(argument),
+            },
+            TypePositionStep::TupleElement(value) => Self::TupleElement(index(value)),
+            TypePositionStep::RecordField { alternative, field } => Self::RecordField {
+                alternative: index(alternative),
+                field: index(field),
+            },
+            TypePositionStep::VariantPayload {
+                alternative,
+                item,
+                payload,
+            } => Self::VariantPayload {
+                alternative: index(alternative),
+                item: index(item),
+                payload: index(payload),
+            },
+            TypePositionStep::RowItemArgument { item, argument } => Self::RowItemArgument {
+                item: index(item),
+                argument: index(argument),
+            },
+            TypePositionStep::RowTail => Self::RowTail,
+            TypePositionStep::RecursiveBound(value) => Self::RecursiveBound(index(value)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1353,6 +1452,10 @@ pub struct StructuralIndex(u32);
 impl StructuralIndex {
     pub(crate) fn from_usize(index: usize) -> Self {
         Self(u32::try_from(index).expect("structural index fits in u32"))
+    }
+
+    pub(crate) fn index(self) -> usize {
+        self.0 as usize
     }
 }
 

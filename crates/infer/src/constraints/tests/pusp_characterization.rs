@@ -188,6 +188,104 @@ fn pusp_c_quantified_argument_witness_is_path_specific_and_deduplicated() {
 }
 
 #[test]
+fn subp_c_tuple_record_and_variant_witnesses_keep_exact_canonical_parents() {
+    let index = StructuralIndex::from_usize;
+    let cases = [
+        (
+            "tuple",
+            "my subject((first, second)) = first\nsubject((1, false))\n",
+            GeneralizedTypePath(vec![
+                GeneralizedTypePathStep::FunctionArgument,
+                GeneralizedTypePathStep::TupleElement(index(0)),
+            ]),
+            BoundRecordId(26),
+        ),
+        (
+            "record",
+            "my subject({first, second}) = first\nsubject({first: 1, second: false})\n",
+            GeneralizedTypePath(vec![
+                GeneralizedTypePathStep::FunctionArgument,
+                GeneralizedTypePathStep::RecordField {
+                    alternative: index(0),
+                    field: index(0),
+                },
+            ]),
+            BoundRecordId(26),
+        ),
+        (
+            "variant",
+            "my subject(value) = case value:\n  :some payload -> payload\n  :none -> 0\nsubject(:some 1)\n",
+            GeneralizedTypePath(vec![
+                GeneralizedTypePathStep::FunctionArgument,
+                GeneralizedTypePathStep::VariantPayload {
+                    alternative: index(0),
+                    item: index(0),
+                    payload: index(0),
+                },
+            ]),
+            BoundRecordId(33),
+        ),
+    ];
+
+    for (name, source, path, original) in cases {
+        let output = lower(source);
+        let machine = output.session.infer.constraints();
+        let scheme_id = output
+            .session
+            .generalized_scheme_record(subject_def(&output))
+            .expect("same-session generalized scheme");
+        let scheme = machine
+            .generalized_scheme_record(scheme_id)
+            .expect("generalized scheme record");
+        let witness_id = *scheme
+            .witnesses
+            .iter()
+            .find(|id| {
+                let witness = machine.generalized_scheme_witness(**id).unwrap();
+                witness.path == path && witness.role == GeneralizedWitnessRole::UpperBound
+            })
+            .unwrap_or_else(|| panic!("{name}: exact structural witness"));
+        let witness = machine.generalized_scheme_witness(witness_id).unwrap();
+        assert_eq!(
+            witness.completeness,
+            ProvenanceCompleteness::Complete,
+            "{name}"
+        );
+        assert!(
+            witness
+                .incoming
+                .iter()
+                .any(|edge| edge.parents == vec![GeneralizationParent::Bound(original)]),
+            "{name}: {witness:?}"
+        );
+        let query = machine
+            .why_generalized_witness(witness_id, ExplanationBudget::default())
+            .expect("query structural witness");
+        assert!(
+            query
+                .nodes
+                .iter()
+                .any(|node| node.id() == ExplanationNodeId::Bound(original)),
+            "{name}"
+        );
+
+        let portable = path.to_type_position_path();
+        assert_eq!(
+            GeneralizedTypePath::from_type_position_path(&portable),
+            path,
+            "{name}: shared path conversion is lossless"
+        );
+        let cloned_types = output.session.poly.typ.clone();
+        assert_eq!(
+            cloned_types.node_len(),
+            output.session.poly.typ.node_len(),
+            "{name}: arena cloning does not enter path identity"
+        );
+        assert_eq!(portable, path.to_type_position_path(), "{name}");
+    }
+}
+
+#[test]
 fn pusp_d_call_side_query_crosses_instantiation_to_boolean_condition() {
     let output = lower(concat!(
         "my subject(pusp_param) = if pusp_param:\n",
