@@ -63,6 +63,49 @@ pub struct SchemeInstantiationCoverage {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PortableSnapshotNodeKindMetrics {
+    pub(crate) constraints: usize,
+    pub(crate) bounds: usize,
+    pub(crate) origins: usize,
+    pub(crate) row_derivations: usize,
+    pub(crate) subtract_facts: usize,
+    pub(crate) lower_filters: usize,
+    pub(crate) bound_dispositions: usize,
+    pub(crate) generalized_witnesses: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PortableSnapshotEdgeKindMetrics {
+    pub(crate) root_origins: usize,
+    pub(crate) structural: usize,
+    pub(crate) binary_replay: usize,
+    pub(crate) row_results: usize,
+    pub(crate) canonicalization: usize,
+    pub(crate) bounds: usize,
+    pub(crate) rows: usize,
+    pub(crate) lower_filters: usize,
+    pub(crate) subtract_facts: usize,
+    pub(crate) bound_dispositions: usize,
+    pub(crate) generalization: usize,
+    pub(crate) scheme_instantiation: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PortableSnapshotExportMetrics {
+    pub(crate) nodes: PortableSnapshotNodeKindMetrics,
+    pub(crate) edges: PortableSnapshotEdgeKindMetrics,
+    pub(crate) node_references_considered: usize,
+    pub(crate) node_references_deduplicated: usize,
+    pub(crate) edge_references_considered: usize,
+    pub(crate) edge_references_deduplicated: usize,
+    pub(crate) shared_parent_nodes: usize,
+    pub(crate) shared_parent_references: usize,
+    pub(crate) logical_bytes_proxy: usize,
+    pub(crate) max_nodes_per_anchor: usize,
+    pub(crate) max_edges_per_anchor: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StructuralDerivationCoverage {
     pub full_unary: usize,
     pub normalization: usize,

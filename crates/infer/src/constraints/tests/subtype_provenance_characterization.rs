@@ -1,11 +1,22 @@
 use super::*;
 
-use crate::constraints::explain::{ExplanationBudget, ExplanationCompleteness, ExplanationNode};
+use std::time::{Duration, Instant};
+
+use crate::constraints::explain::{
+    ExplanationBudget, ExplanationCompleteness, ExplanationNode, PortableProvenanceExportBudget,
+    PortableProvenanceExportRoot,
+};
 use crate::lowering::{
     BodyLowering, lower_loaded_files, lower_loaded_files_prefix, lower_loaded_files_with_prefix,
 };
 use poly::expr::{Def, Expr, Pat};
+use poly::provenance::{
+    PortableBodyRequirementKind, PortableByteRange, PortableConstraintOriginKind,
+    PortableProvenanceNodeKind, PortableProvenanceTruncation, PortableSourceLocation,
+    ProvenanceCompleteness as PortableCompleteness,
+};
 use poly::types::{Neg, Pos};
+use rustc_hash::FxHashSet;
 use specialize::mono::Type as MonoType;
 use specialize::{SpecializeError, UnsatisfiedSubtypeOrigin};
 
@@ -304,6 +315,158 @@ fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
             later_structural_loss: None,
         }
     );
+}
+
+#[test]
+fn subp_b_portable_exports_match_local_explanation_topology() {
+    let cases = [
+        (
+            "tuple-arity",
+            "my g(x: (int, int)) = x\ng (1, 2, 3)\n",
+            ConstraintRecordId(45),
+        ),
+        (
+            "tuple-arity-through-generic",
+            "my id x = x\nmy g(x: (int, int)) = x\ng (id (1, 2, 3))\n",
+            ConstraintRecordId(89),
+        ),
+        (
+            "nested-tuple-arity",
+            "my g(x: ((int, int), int)) = x\ng ((1, 2, 3), 4)\n",
+            ConstraintRecordId(69),
+        ),
+        (
+            "poly-variant-tag",
+            "case :some 1:\n  :none -> 0\n",
+            ConstraintRecordId(21),
+        ),
+    ];
+    for (name, source, record) in cases {
+        assert_portable_export_parity(name, source, record);
+    }
+
+    let record_source = "my g ({a, b}, z) = a\ng ({a: 1}, 2)\n";
+    let output = lower(record_source);
+    let record_matches = exact_matching_records(
+        &output,
+        StructuralMismatch::RecordFields {
+            lower: &["a"],
+            upper: &["a", "b"],
+        },
+    );
+    let [record] = record_matches.as_slice() else {
+        panic!("record control must retain one exact canonical record");
+    };
+    assert_portable_export_parity("record-field-through-tuple", record_source, *record);
+}
+
+#[test]
+fn subp_b_multi_root_export_deduplicates_shared_ancestry() {
+    let output = lower("my id x = x\nmy g(x: (int, int)) = x\ng (id (1, 2, 3))\n");
+    let machine = output.session.infer.constraints();
+    let root = ConstraintRecordId(89);
+    let first = machine
+        .why_constraint(root, ExplanationBudget::default())
+        .expect("constraint query");
+    let (bound, owner, direction) = first
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            ExplanationNode::Bound {
+                id,
+                owner,
+                direction,
+                ..
+            } => Some((*id, *owner, *direction)),
+            _ => None,
+        })
+        .expect("replay explanation contains a bound");
+    let second = match direction {
+        BoundDirection::Lower => {
+            machine.why_lower_bound(owner, bound, ExplanationBudget::default())
+        }
+        BoundDirection::Upper => {
+            machine.why_upper_bound(owner, bound, ExplanationBudget::default())
+        }
+    }
+    .expect("bound query");
+    let expected_nodes = first
+        .nodes
+        .iter()
+        .chain(&second.nodes)
+        .map(ExplanationNode::id)
+        .collect::<FxHashSet<_>>();
+    let expected_edges = first
+        .edges
+        .iter()
+        .chain(&second.edges)
+        .cloned()
+        .collect::<FxHashSet<_>>();
+    let export = machine
+        .export_portable_provenance(
+            &[
+                PortableProvenanceExportRoot::Constraint(root),
+                PortableProvenanceExportRoot::Bound(bound),
+            ],
+            PortableProvenanceExportBudget::default(),
+            |boundary, kind| portable_source_location(&output, boundary, kind),
+        )
+        .expect("multi-root export");
+
+    assert_eq!(export.snapshot.nodes().len(), expected_nodes.len());
+    assert_eq!(export.snapshot.edges().len(), expected_edges.len());
+    assert_eq!(export.root_anchors.len(), 2);
+    assert!(export.root_anchors.iter().all(Option::is_some));
+    assert!(export.metrics.node_references_deduplicated > 0);
+    assert!(export.metrics.edge_references_deduplicated > 0);
+    assert!(export.metrics.shared_parent_nodes > 0);
+    assert_eq!(
+        export
+            .snapshot
+            .nodes()
+            .iter()
+            .map(|node| node.id)
+            .collect::<FxHashSet<_>>()
+            .len(),
+        export.snapshot.nodes().len(),
+    );
+}
+
+#[test]
+fn subp_b_forced_budget_exhaustion_is_prompt_and_explicit() {
+    let output = lower("my id x = x\nmy g(x: (int, int)) = x\ng (id (1, 2, 3))\n");
+    let machine = output.session.infer.constraints();
+    let budget = PortableProvenanceExportBudget {
+        max_nodes_per_anchor: 1,
+        ..PortableProvenanceExportBudget::default()
+    };
+    let started = Instant::now();
+    let export = machine
+        .export_portable_provenance(
+            &[PortableProvenanceExportRoot::Constraint(
+                ConstraintRecordId(89),
+            )],
+            budget,
+            |boundary, kind| portable_source_location(&output, boundary, kind),
+        )
+        .expect("bounded export");
+
+    assert!(started.elapsed() < Duration::from_millis(100));
+    assert_eq!(
+        export.snapshot.completeness(),
+        PortableCompleteness::Incomplete
+    );
+    assert_eq!(
+        export.snapshot.truncation(),
+        Some(PortableProvenanceTruncation::NodeBudget { limit: 1 })
+    );
+    let anchor = export.root_anchors[0].expect("root node fits in one-node budget");
+    assert_eq!(
+        export.snapshot.anchor(anchor).unwrap().completeness,
+        PortableCompleteness::Incomplete,
+    );
+    assert_eq!(export.snapshot.nodes().len(), 1);
+    assert!(export.snapshot.edges().is_empty());
 }
 
 /// The common record-literal failure is not part of the general `origin: None`
@@ -647,6 +810,151 @@ fn assert_endpoint_owners(output: &BodyLowering, name: &str, endpoints: Endpoint
                 ..
             }
         )));
+    }
+}
+
+fn assert_portable_export_parity(name: &str, source: &str, record: ConstraintRecordId) {
+    let output = lower(source);
+    let machine = output.session.infer.constraints();
+    let local = machine
+        .why_constraint(record, ExplanationBudget::default())
+        .expect("local explanation");
+    let export = machine
+        .export_portable_provenance(
+            &[PortableProvenanceExportRoot::Constraint(record)],
+            PortableProvenanceExportBudget::default(),
+            |boundary, kind| portable_source_location(&output, boundary, kind),
+        )
+        .expect("portable export");
+    assert_eq!(
+        local.completeness,
+        ExplanationCompleteness::Complete,
+        "{name}"
+    );
+    assert_eq!(
+        export.snapshot.completeness(),
+        PortableCompleteness::Complete,
+        "{name}"
+    );
+    assert_eq!(export.snapshot.nodes().len(), local.nodes.len(), "{name}");
+    assert_eq!(export.snapshot.edges().len(), local.edges.len(), "{name}");
+    let local_source_boundaries = local
+        .source_leaves
+        .iter()
+        .map(|leaf| leaf.boundary)
+        .collect::<FxHashSet<_>>();
+    assert_eq!(
+        export.snapshot.source_sites().len(),
+        local_source_boundaries.len(),
+        "{name}",
+    );
+    let local_origins = local
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            ExplanationNode::Origin { kind, .. } => Some(portable_test_origin(*kind)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let portable_origins = export
+        .snapshot
+        .nodes()
+        .iter()
+        .filter_map(|node| match node.kind {
+            PortableProvenanceNodeKind::Origin { kind, .. } => Some(kind),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(portable_origins, local_origins, "{name}");
+    let anchor = export.root_anchors[0].expect("one exported anchor");
+    let anchor = export.snapshot.anchor(anchor).unwrap();
+    assert_eq!(
+        anchor.completeness,
+        PortableCompleteness::Complete,
+        "{name}"
+    );
+    assert!(matches!(
+        export.snapshot.node(anchor.node).unwrap().kind,
+        PortableProvenanceNodeKind::Constraint { .. }
+    ));
+    assert_eq!(
+        export.metrics.nodes.constraints
+            + export.metrics.nodes.bounds
+            + export.metrics.nodes.origins
+            + export.metrics.nodes.row_derivations
+            + export.metrics.nodes.subtract_facts
+            + export.metrics.nodes.lower_filters
+            + export.metrics.nodes.bound_dispositions
+            + export.metrics.nodes.generalized_witnesses,
+        export.snapshot.nodes().len(),
+        "{name}",
+    );
+    assert_eq!(
+        export.metrics.logical_bytes_proxy,
+        export.snapshot.logical_bytes_proxy(),
+        "{name}",
+    );
+}
+
+fn portable_source_location(
+    output: &BodyLowering,
+    boundary: SourceBoundaryId,
+    kind: ConstraintOriginKind,
+) -> Option<PortableSourceLocation> {
+    let span = match kind {
+        ConstraintOriginKind::ApplicationArgument => output
+            .session
+            .source_boundary_provenance
+            .application_argument(boundary)
+            .map(|provenance| &provenance.argument_span),
+        ConstraintOriginKind::BodyRequirement(_) => output
+            .session
+            .source_boundary_provenance
+            .body_requirement(boundary)
+            .map(|provenance| &provenance.use_span),
+        _ => None,
+    }?;
+    Some(PortableSourceLocation {
+        module: span
+            .file
+            .segments
+            .iter()
+            .map(|name| name.0.clone())
+            .collect(),
+        range: PortableByteRange {
+            start: u32::try_from(span.range.start).ok()?,
+            end: u32::try_from(span.range.end).ok()?,
+        },
+    })
+}
+
+fn portable_test_origin(kind: ConstraintOriginKind) -> PortableConstraintOriginKind {
+    match kind {
+        ConstraintOriginKind::ApplicationArgument => {
+            PortableConstraintOriginKind::ApplicationArgument
+        }
+        ConstraintOriginKind::Annotation => PortableConstraintOriginKind::Annotation,
+        ConstraintOriginKind::Return => PortableConstraintOriginKind::Return,
+        ConstraintOriginKind::Field => PortableConstraintOriginKind::Field,
+        ConstraintOriginKind::Assignment => PortableConstraintOriginKind::Assignment,
+        ConstraintOriginKind::BodyRequirement(kind) => {
+            PortableConstraintOriginKind::BodyRequirement(match kind {
+                BodyRequirementKind::BooleanCondition => {
+                    PortableBodyRequirementKind::BooleanCondition
+                }
+                BodyRequirementKind::OperatorOperand { operand } => {
+                    PortableBodyRequirementKind::OperatorOperand { operand: operand.0 }
+                }
+                BodyRequirementKind::PatternGuard => PortableBodyRequirementKind::PatternGuard,
+                BodyRequirementKind::CalleeArgument { argument } => {
+                    PortableBodyRequirementKind::CalleeArgument {
+                        argument: argument.0,
+                    }
+                }
+            })
+        }
+        ConstraintOriginKind::Internal => PortableConstraintOriginKind::Internal,
+        ConstraintOriginKind::UnknownInternal => PortableConstraintOriginKind::UnknownInternal,
     }
 }
 

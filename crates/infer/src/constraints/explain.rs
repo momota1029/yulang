@@ -7,6 +7,23 @@
 //! result stable without sorting or enumerating combinations of proof paths.
 
 use super::*;
+use poly::provenance::{
+    PortableAnchorRecord, PortableBodyRequirementKind, PortableBoundDerivationKind,
+    PortableBoundDirection, PortableBoundDispositionKind, PortableBoundState,
+    PortableConstraintOriginKind, PortableGeneralizationDerivationRule,
+    PortableGeneralizedWitnessRole, PortableInvariantDirection, PortableProvenanceEdge,
+    PortableProvenanceEdgeKind, PortableProvenanceNode, PortableProvenanceNodeId,
+    PortableProvenanceNodeKind, PortableProvenanceSnapshot, PortableProvenanceSnapshotBuilder,
+    PortableProvenanceTruncation, PortableRecordSpreadKind, PortableRowDerivationRule,
+    PortableRowItemRoute, PortableSourceLocation, PortableSourceRole, PortableSourceSite,
+    PortableSourceSiteId, PortableStructuralDerivationRule, PortableSubtractFactDerivationKind,
+    ProvenanceAnchor, ProvenanceCompleteness as PortableCompleteness,
+};
+use rustc_hash::FxHashMap;
+
+use super::timing::{
+    PortableSnapshotEdgeKindMetrics, PortableSnapshotExportMetrics, PortableSnapshotNodeKindMetrics,
+};
 
 const DEFAULT_EXPLANATION_NODES: usize = 512;
 const DEFAULT_EXPLANATION_EDGES: usize = 1_024;
@@ -127,14 +144,14 @@ impl ExplanationNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ExplanationEdge {
     pub(crate) child: ExplanationNodeId,
     pub(crate) kind: ExplanationEdgeKind,
     pub(crate) parents: Vec<ExplanationNodeId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ExplanationEdgeKind {
     RootOrigin,
     Structural(StructuralDerivationRule),
@@ -179,6 +196,67 @@ pub(crate) struct ExplanationQueryResult {
     pub(crate) source_leaves: Vec<ExplanationSourceLeaf>,
     pub(crate) completeness: ExplanationCompleteness,
     pub(crate) truncation: Option<ExplanationTruncationReason>,
+}
+
+const DEFAULT_PORTABLE_EXPORT_ANCHORS: usize = 64;
+const DEFAULT_PORTABLE_EXPORT_NODES: usize = 4_096;
+const DEFAULT_PORTABLE_EXPORT_EDGES: usize = 8_192;
+const DEFAULT_PORTABLE_EXPORT_DEPTH: usize = 128;
+const DEFAULT_PORTABLE_EXPORT_NODES_PER_ANCHOR: usize = 512;
+const DEFAULT_PORTABLE_EXPORT_EDGES_PER_ANCHOR: usize = 1_024;
+const DEFAULT_PORTABLE_EXPORT_PARENT_FAN_IN: usize = 64;
+const DEFAULT_PORTABLE_EXPORT_SOURCE_SITES: usize = 1_024;
+const DEFAULT_PORTABLE_EXPORT_LOGICAL_BYTES: usize = 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PortableProvenanceExportBudget {
+    pub(crate) max_anchors: usize,
+    pub(crate) max_nodes: usize,
+    pub(crate) max_edges: usize,
+    pub(crate) max_depth: usize,
+    pub(crate) max_nodes_per_anchor: usize,
+    pub(crate) max_edges_per_anchor: usize,
+    pub(crate) max_parents_per_edge: usize,
+    pub(crate) max_source_sites: usize,
+    pub(crate) max_logical_bytes: usize,
+}
+
+impl Default for PortableProvenanceExportBudget {
+    fn default() -> Self {
+        Self {
+            max_anchors: DEFAULT_PORTABLE_EXPORT_ANCHORS,
+            max_nodes: DEFAULT_PORTABLE_EXPORT_NODES,
+            max_edges: DEFAULT_PORTABLE_EXPORT_EDGES,
+            max_depth: DEFAULT_PORTABLE_EXPORT_DEPTH,
+            max_nodes_per_anchor: DEFAULT_PORTABLE_EXPORT_NODES_PER_ANCHOR,
+            max_edges_per_anchor: DEFAULT_PORTABLE_EXPORT_EDGES_PER_ANCHOR,
+            max_parents_per_edge: DEFAULT_PORTABLE_EXPORT_PARENT_FAN_IN,
+            max_source_sites: DEFAULT_PORTABLE_EXPORT_SOURCE_SITES,
+            max_logical_bytes: DEFAULT_PORTABLE_EXPORT_LOGICAL_BYTES,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PortableProvenanceExportRoot {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+}
+
+impl PortableProvenanceExportRoot {
+    fn node(self) -> ExplanationNodeId {
+        match self {
+            Self::Constraint(id) => ExplanationNodeId::Constraint(id),
+            Self::Bound(id) => ExplanationNodeId::Bound(id),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PortableProvenanceExport {
+    pub(crate) snapshot: PortableProvenanceSnapshot,
+    pub(crate) root_anchors: Vec<Option<ProvenanceAnchor>>,
+    pub(crate) metrics: PortableSnapshotExportMetrics,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -350,6 +428,240 @@ pub(crate) enum ExplanationQueryError {
 }
 
 impl ConstraintMachine {
+    /// Export a deterministic, globally deduplicated closure from explicit infer records.
+    ///
+    /// SUBP-B accepts record IDs directly as a stand-in for occurrence ownership. SUBP-C/D will
+    /// select these roots from occurrence tables; the graph export and portable identity stay the
+    /// same. Every per-root closure is produced by the existing CPROV-H visitor, then merged and
+    /// reindexed here. This function never interprets derivations independently.
+    pub(crate) fn export_portable_provenance(
+        &self,
+        roots: &[PortableProvenanceExportRoot],
+        budget: PortableProvenanceExportBudget,
+        mut source_location: impl FnMut(
+            SourceBoundaryId,
+            ConstraintOriginKind,
+        ) -> Option<PortableSourceLocation>,
+    ) -> Result<PortableProvenanceExport, ExplanationQueryError> {
+        let mut builder = PortableProvenanceSnapshotBuilder::new();
+        let mut node_ids = FxHashMap::<ExplanationNodeId, PortableProvenanceNodeId>::default();
+        let mut edge_ids = FxHashMap::<ExplanationEdge, ()>::default();
+        let mut source_sites = FxHashMap::<SourceBoundaryId, PortableSourceSiteId>::default();
+        let mut metrics = PortableSnapshotExportMetrics::default();
+        let mut root_anchors = Vec::with_capacity(roots.len());
+
+        for (root_index, root) in roots.iter().copied().enumerate() {
+            if root_index >= budget.max_anchors {
+                builder.mark_incomplete(PortableProvenanceTruncation::AnchorBudget {
+                    limit: budget.max_anchors,
+                });
+                root_anchors.extend((root_index..roots.len()).map(|_| None));
+                break;
+            }
+            self.validate_portable_root(root)?;
+            if builder.logical_bytes_proxy() + std::mem::size_of::<PortableAnchorRecord>()
+                > budget.max_logical_bytes
+            {
+                builder.mark_incomplete(PortableProvenanceTruncation::LogicalBytesBudget {
+                    limit: budget.max_logical_bytes,
+                });
+                root_anchors.push(None);
+                continue;
+            }
+
+            let query = ExplanationQuery::new(
+                self,
+                ExplanationBudget {
+                    max_nodes: budget.max_nodes_per_anchor,
+                    max_edges: budget.max_edges_per_anchor,
+                    max_depth: budget.max_depth,
+                },
+            )
+            .run(root.node());
+            metrics.max_nodes_per_anchor = metrics.max_nodes_per_anchor.max(query.nodes.len());
+            metrics.max_edges_per_anchor = metrics.max_edges_per_anchor.max(query.edges.len());
+            let mut anchor_complete = query.completeness == ExplanationCompleteness::Complete;
+            if !anchor_complete {
+                builder.mark_incomplete(portable_query_incompleteness(&query));
+            }
+
+            for node in &query.nodes {
+                metrics.node_references_considered += 1;
+                if node_ids.contains_key(&node.id()) {
+                    metrics.node_references_deduplicated += 1;
+                    continue;
+                }
+                if builder.node_count() >= budget.max_nodes {
+                    builder.mark_incomplete(PortableProvenanceTruncation::NodeBudget {
+                        limit: budget.max_nodes,
+                    });
+                    anchor_complete = false;
+                    break;
+                }
+                let source_site = if let ExplanationNode::Origin {
+                    kind,
+                    source_boundary: Some(boundary),
+                    ..
+                } = node
+                    && portable_source_role(*kind).is_some()
+                {
+                    if let Some(existing) = source_sites.get(boundary).copied() {
+                        Some(existing)
+                    } else if builder.source_site_count() >= budget.max_source_sites {
+                        builder.mark_incomplete(PortableProvenanceTruncation::SourceSiteBudget {
+                            limit: budget.max_source_sites,
+                        });
+                        anchor_complete = false;
+                        None
+                    } else {
+                        let site = PortableSourceSite {
+                            role: portable_source_role(*kind).expect("source kind checked"),
+                            location: source_location(*boundary, *kind),
+                        };
+                        if builder.logical_bytes_proxy() + site.logical_bytes_proxy()
+                            > budget.max_logical_bytes
+                        {
+                            builder.mark_incomplete(
+                                PortableProvenanceTruncation::LogicalBytesBudget {
+                                    limit: budget.max_logical_bytes,
+                                },
+                            );
+                            anchor_complete = false;
+                            None
+                        } else {
+                            let portable = builder.push_source_site(site);
+                            source_sites.insert(*boundary, portable);
+                            Some(portable)
+                        }
+                    }
+                } else {
+                    None
+                };
+                let portable = portable_node(node, source_site);
+                if builder.logical_bytes_proxy() + portable.logical_bytes_proxy()
+                    > budget.max_logical_bytes
+                {
+                    builder.mark_incomplete(PortableProvenanceTruncation::LogicalBytesBudget {
+                        limit: budget.max_logical_bytes,
+                    });
+                    anchor_complete = false;
+                    break;
+                }
+                let portable_id = builder.push_node(portable.kind);
+                node_ids.insert(node.id(), portable_id);
+                record_portable_node_kind(&mut metrics.nodes, portable.kind);
+            }
+
+            for edge in &query.edges {
+                metrics.edge_references_considered += 1;
+                if edge_ids.contains_key(edge) {
+                    metrics.edge_references_deduplicated += 1;
+                    continue;
+                }
+                if edge.parents.len() > budget.max_parents_per_edge {
+                    builder.mark_incomplete(PortableProvenanceTruncation::ParentFanInBudget {
+                        limit: budget.max_parents_per_edge,
+                    });
+                    anchor_complete = false;
+                    continue;
+                }
+                if builder.edge_count() >= budget.max_edges {
+                    builder.mark_incomplete(PortableProvenanceTruncation::EdgeBudget {
+                        limit: budget.max_edges,
+                    });
+                    anchor_complete = false;
+                    break;
+                }
+                let Some(child) = node_ids.get(&edge.child).copied() else {
+                    anchor_complete = false;
+                    continue;
+                };
+                let parents = edge
+                    .parents
+                    .iter()
+                    .map(|parent| node_ids.get(parent).copied())
+                    .collect::<Option<Vec<_>>>();
+                let Some(parents) = parents else {
+                    anchor_complete = false;
+                    continue;
+                };
+                let portable_kind = portable_edge_kind(&edge.kind);
+                let portable = PortableProvenanceEdge {
+                    id: poly::provenance::PortableProvenanceEdgeId::from_index(
+                        builder.edge_count(),
+                    ),
+                    child,
+                    kind: portable_kind,
+                    parents,
+                };
+                if builder.logical_bytes_proxy() + portable.logical_bytes_proxy()
+                    > budget.max_logical_bytes
+                {
+                    builder.mark_incomplete(PortableProvenanceTruncation::LogicalBytesBudget {
+                        limit: budget.max_logical_bytes,
+                    });
+                    anchor_complete = false;
+                    break;
+                }
+                builder.push_edge(portable.child, portable.kind, portable.parents);
+                edge_ids.insert(edge.clone(), ());
+                record_portable_edge_kind(&mut metrics.edges, portable_kind);
+            }
+
+            let root_node = node_ids.get(&root.node()).copied();
+            let anchor = root_node.map(|node| {
+                builder.push_anchor(PortableAnchorRecord {
+                    node,
+                    completeness: if anchor_complete {
+                        PortableCompleteness::Complete
+                    } else {
+                        PortableCompleteness::Incomplete
+                    },
+                })
+            });
+            if !anchor_complete || anchor.is_none() {
+                builder.mark_incomplete(builder_truncation_fallback(
+                    &query,
+                    budget.max_logical_bytes,
+                ));
+            }
+            root_anchors.push(anchor);
+        }
+
+        let snapshot = builder.finish();
+        let mut parent_references = FxHashMap::<PortableProvenanceNodeId, usize>::default();
+        for parent in snapshot.edges().iter().flat_map(|edge| edge.parents.iter()) {
+            *parent_references.entry(*parent).or_default() += 1;
+        }
+        for count in parent_references.into_values().filter(|count| *count > 1) {
+            metrics.shared_parent_nodes += 1;
+            metrics.shared_parent_references += count;
+        }
+        metrics.logical_bytes_proxy = snapshot.logical_bytes_proxy();
+        Ok(PortableProvenanceExport {
+            snapshot,
+            root_anchors,
+            metrics,
+        })
+    }
+
+    fn validate_portable_root(
+        &self,
+        root: PortableProvenanceExportRoot,
+    ) -> Result<(), ExplanationQueryError> {
+        match root {
+            PortableProvenanceExportRoot::Constraint(record)
+                if self.constraint_records.get(record.0 as usize).is_none() =>
+            {
+                Err(ExplanationQueryError::UnknownConstraint(record))
+            }
+            PortableProvenanceExportRoot::Bound(record) if self.bounds.record(record).is_none() => {
+                Err(ExplanationQueryError::UnknownBound(record))
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub(crate) fn why_constraint(
         &self,
         record: ConstraintRecordId,
@@ -944,6 +1256,389 @@ impl<'a> ExplanationQuery<'a> {
                 Vec::new()
             }
         }
+    }
+}
+
+fn portable_query_incompleteness(query: &ExplanationQueryResult) -> PortableProvenanceTruncation {
+    match query.truncation {
+        Some(ExplanationTruncationReason::NodeBudget { limit }) => {
+            PortableProvenanceTruncation::NodeBudget { limit }
+        }
+        Some(ExplanationTruncationReason::EdgeBudget { limit }) => {
+            PortableProvenanceTruncation::EdgeBudget { limit }
+        }
+        Some(ExplanationTruncationReason::DepthBudget { limit }) => {
+            PortableProvenanceTruncation::DepthBudget { limit }
+        }
+        None => PortableProvenanceTruncation::UnderlyingIncomplete,
+    }
+}
+
+fn builder_truncation_fallback(
+    query: &ExplanationQueryResult,
+    logical_bytes_limit: usize,
+) -> PortableProvenanceTruncation {
+    if query.completeness == ExplanationCompleteness::Complete {
+        PortableProvenanceTruncation::LogicalBytesBudget {
+            limit: logical_bytes_limit,
+        }
+    } else {
+        portable_query_incompleteness(query)
+    }
+}
+
+fn portable_node(
+    node: &ExplanationNode,
+    source_site: Option<PortableSourceSiteId>,
+) -> PortableProvenanceNode {
+    let kind = match node {
+        ExplanationNode::Constraint {
+            replay_provenance, ..
+        } => PortableProvenanceNodeKind::Constraint {
+            replay_complete: *replay_provenance == ProvenanceCompleteness::Complete,
+        },
+        ExplanationNode::Bound {
+            direction,
+            weights,
+            state,
+            ..
+        } => PortableProvenanceNodeKind::Bound {
+            direction: portable_bound_direction(*direction),
+            state: match state {
+                BoundRecordState::Evidence => PortableBoundState::Evidence,
+                BoundRecordState::Ordinary => PortableBoundState::Ordinary,
+                BoundRecordState::Tombstone => PortableBoundState::Tombstone,
+            },
+            weighted: !weights.is_empty(),
+        },
+        ExplanationNode::Origin { kind, .. } => PortableProvenanceNodeKind::Origin {
+            kind: portable_origin_kind(*kind),
+            source_site,
+        },
+        ExplanationNode::RowDerivation { rule, .. } => PortableProvenanceNodeKind::RowDerivation {
+            rule: portable_row_rule(*rule),
+        },
+        ExplanationNode::SubtractFact { active, .. } => {
+            PortableProvenanceNodeKind::SubtractFact { active: *active }
+        }
+        ExplanationNode::LowerFilter { .. } => PortableProvenanceNodeKind::LowerFilter,
+        ExplanationNode::BoundDisposition { disposition, .. } => {
+            PortableProvenanceNodeKind::BoundDisposition {
+                kind: portable_disposition(*disposition),
+            }
+        }
+        ExplanationNode::GeneralizedWitness {
+            path,
+            role,
+            completeness,
+            ..
+        } => PortableProvenanceNodeKind::GeneralizedWitness {
+            role: portable_witness_role(*role),
+            path_depth: u32::try_from(path.depth()).expect("generalized path depth fits in u32"),
+            complete: *completeness == ProvenanceCompleteness::Complete,
+        },
+    };
+    PortableProvenanceNode {
+        id: PortableProvenanceNodeId::from_index(0),
+        kind,
+    }
+}
+
+fn portable_edge_kind(kind: &ExplanationEdgeKind) -> PortableProvenanceEdgeKind {
+    match kind {
+        ExplanationEdgeKind::RootOrigin => PortableProvenanceEdgeKind::RootOrigin,
+        ExplanationEdgeKind::Structural(rule) => {
+            PortableProvenanceEdgeKind::Structural(portable_structural_rule(*rule))
+        }
+        ExplanationEdgeKind::BinaryReplay(_) => PortableProvenanceEdgeKind::BinaryReplay,
+        ExplanationEdgeKind::RowResult(_) => PortableProvenanceEdgeKind::RowResult,
+        ExplanationEdgeKind::Canonicalization(_) => PortableProvenanceEdgeKind::Canonicalization,
+        ExplanationEdgeKind::Bound(derivation) => {
+            PortableProvenanceEdgeKind::Bound(match derivation {
+                BoundDerivation::Constraint(_) => PortableBoundDerivationKind::Constraint,
+                BoundDerivation::Origin(_) => PortableBoundDerivationKind::Origin,
+                BoundDerivation::ReplayEvidence(_) => PortableBoundDerivationKind::ReplayEvidence,
+                BoundDerivation::Row(_) => PortableBoundDerivationKind::Row,
+                BoundDerivation::SchemeInstantiation(_) => {
+                    PortableBoundDerivationKind::SchemeInstantiation
+                }
+                BoundDerivation::IncompleteReplay => PortableBoundDerivationKind::IncompleteReplay,
+            })
+        }
+        ExplanationEdgeKind::Row(rule) => PortableProvenanceEdgeKind::Row(portable_row_rule(*rule)),
+        ExplanationEdgeKind::LowerFilter => PortableProvenanceEdgeKind::LowerFilter,
+        ExplanationEdgeKind::SubtractFact(derivation) => {
+            PortableProvenanceEdgeKind::SubtractFact(match derivation {
+                SubtractFactDerivation::Declaration(_) => {
+                    PortableSubtractFactDerivationKind::Declaration
+                }
+                SubtractFactDerivation::Import(_) => PortableSubtractFactDerivationKind::Import,
+                SubtractFactDerivation::Internal(_) => PortableSubtractFactDerivationKind::Internal,
+            })
+        }
+        ExplanationEdgeKind::BoundDisposition(disposition) => {
+            PortableProvenanceEdgeKind::BoundDisposition(portable_disposition(*disposition))
+        }
+        ExplanationEdgeKind::Generalization(rule) => {
+            PortableProvenanceEdgeKind::Generalization(match rule {
+                GeneralizationDerivationRule::BoundCollection => {
+                    PortableGeneralizationDerivationRule::BoundCollection
+                }
+                GeneralizationDerivationRule::StructuralProjection => {
+                    PortableGeneralizationDerivationRule::StructuralProjection
+                }
+                GeneralizationDerivationRule::VariableSubstitution => {
+                    PortableGeneralizationDerivationRule::VariableSubstitution
+                }
+                GeneralizationDerivationRule::SandwichSimplification => {
+                    PortableGeneralizationDerivationRule::SandwichSimplification
+                }
+                GeneralizationDerivationRule::RecursiveBoundExtraction => {
+                    PortableGeneralizationDerivationRule::RecursiveBoundExtraction
+                }
+                GeneralizationDerivationRule::Finalization => {
+                    PortableGeneralizationDerivationRule::Finalization
+                }
+            })
+        }
+        ExplanationEdgeKind::SchemeInstantiation(_) => {
+            PortableProvenanceEdgeKind::SchemeInstantiation
+        }
+    }
+}
+
+fn portable_bound_direction(direction: BoundDirection) -> PortableBoundDirection {
+    match direction {
+        BoundDirection::Lower => PortableBoundDirection::Lower,
+        BoundDirection::Upper => PortableBoundDirection::Upper,
+    }
+}
+
+fn portable_witness_role(role: GeneralizedWitnessRole) -> PortableGeneralizedWitnessRole {
+    match role {
+        GeneralizedWitnessRole::ConstraintRelation => {
+            PortableGeneralizedWitnessRole::ConstraintRelation
+        }
+        GeneralizedWitnessRole::LowerBound => PortableGeneralizedWitnessRole::LowerBound,
+        GeneralizedWitnessRole::UpperBound => PortableGeneralizedWitnessRole::UpperBound,
+        GeneralizedWitnessRole::RecursiveLowerBound => {
+            PortableGeneralizedWitnessRole::RecursiveLowerBound
+        }
+        GeneralizedWitnessRole::RecursiveUpperBound => {
+            PortableGeneralizedWitnessRole::RecursiveUpperBound
+        }
+    }
+}
+
+fn portable_row_rule(rule: RowDerivationRule) -> PortableRowDerivationRule {
+    match rule {
+        RowDerivationRule::WeightedResidual => PortableRowDerivationRule::WeightedResidual,
+        RowDerivationRule::UnweightedReduction => PortableRowDerivationRule::UnweightedReduction,
+        RowDerivationRule::RowItemMatch => PortableRowDerivationRule::RowItemMatch,
+        RowDerivationRule::FilterInvariant => PortableRowDerivationRule::FilterInvariant,
+        RowDerivationRule::PayloadInvariant => PortableRowDerivationRule::PayloadInvariant,
+        RowDerivationRule::SubtractFactTransformation => {
+            PortableRowDerivationRule::SubtractFactTransformation
+        }
+        RowDerivationRule::StoreUpperWithoutReplay => {
+            PortableRowDerivationRule::StoreUpperWithoutReplay
+        }
+    }
+}
+
+fn portable_disposition(disposition: BoundDisposition) -> PortableBoundDispositionKind {
+    match disposition {
+        BoundDisposition::Inserted(_) => PortableBoundDispositionKind::Inserted,
+        BoundDisposition::EquivalentTo(_) => PortableBoundDispositionKind::Equivalent,
+        BoundDisposition::SubsumedBy(_) => PortableBoundDispositionKind::Subsumed,
+        BoundDisposition::Trivial(_) => PortableBoundDispositionKind::Trivial,
+    }
+}
+
+fn portable_structural_rule(rule: StructuralDerivationRule) -> PortableStructuralDerivationRule {
+    match rule {
+        StructuralDerivationRule::LowerStackNormalization => {
+            PortableStructuralDerivationRule::LowerStackNormalization
+        }
+        StructuralDerivationRule::LowerNonSubtractNormalization => {
+            PortableStructuralDerivationRule::LowerNonSubtractNormalization
+        }
+        StructuralDerivationRule::UpperStackNormalization => {
+            PortableStructuralDerivationRule::UpperStackNormalization
+        }
+        StructuralDerivationRule::UnionBranch { branch } => {
+            PortableStructuralDerivationRule::UnionBranch { branch: branch.0 }
+        }
+        StructuralDerivationRule::IntersectionBranch { branch } => {
+            PortableStructuralDerivationRule::IntersectionBranch { branch: branch.0 }
+        }
+        StructuralDerivationRule::FunctionArgument => {
+            PortableStructuralDerivationRule::FunctionArgument
+        }
+        StructuralDerivationRule::FunctionArgumentEffect { pure_passthrough } => {
+            PortableStructuralDerivationRule::FunctionArgumentEffect { pure_passthrough }
+        }
+        StructuralDerivationRule::FunctionReturnEffect => {
+            PortableStructuralDerivationRule::FunctionReturnEffect
+        }
+        StructuralDerivationRule::FunctionReturn => {
+            PortableStructuralDerivationRule::FunctionReturn
+        }
+        StructuralDerivationRule::ConstructorArgument { index, direction } => {
+            PortableStructuralDerivationRule::ConstructorArgument {
+                index: index.0,
+                direction: portable_invariant_direction(direction),
+            }
+        }
+        StructuralDerivationRule::TupleElement { index } => {
+            PortableStructuralDerivationRule::TupleElement { index: index.0 }
+        }
+        StructuralDerivationRule::RecordField { index } => {
+            PortableStructuralDerivationRule::RecordField { index: index.0 }
+        }
+        StructuralDerivationRule::RecordSpreadField { spread, index } => {
+            PortableStructuralDerivationRule::RecordSpreadField {
+                spread: portable_record_spread(spread),
+                index: index.0,
+            }
+        }
+        StructuralDerivationRule::RecordSpreadTail { spread, index } => {
+            PortableStructuralDerivationRule::RecordSpreadTail {
+                spread: portable_record_spread(spread),
+                index: index.0,
+            }
+        }
+        StructuralDerivationRule::VariantPayload {
+            variant_index,
+            payload_index,
+        } => PortableStructuralDerivationRule::VariantPayload {
+            variant_index: variant_index.0,
+            payload_index: payload_index.0,
+        },
+        StructuralDerivationRule::RowItem { index, route } => {
+            PortableStructuralDerivationRule::RowItem {
+                index: index.0,
+                route: portable_row_route(route),
+            }
+        }
+        StructuralDerivationRule::RowItemArgument {
+            item_index,
+            argument_index,
+            direction,
+        } => PortableStructuralDerivationRule::RowItemArgument {
+            item_index: item_index.0,
+            argument_index: argument_index.0,
+            direction: portable_invariant_direction(direction),
+        },
+    }
+}
+
+fn portable_invariant_direction(direction: InvariantDirection) -> PortableInvariantDirection {
+    match direction {
+        InvariantDirection::LowerToUpper => PortableInvariantDirection::LowerToUpper,
+        InvariantDirection::UpperToLower => PortableInvariantDirection::UpperToLower,
+    }
+}
+
+fn portable_record_spread(spread: RecordSpreadKind) -> PortableRecordSpreadKind {
+    match spread {
+        RecordSpreadKind::Head => PortableRecordSpreadKind::Head,
+        RecordSpreadKind::Tail => PortableRecordSpreadKind::Tail,
+    }
+}
+
+fn portable_row_route(route: RowItemRoute) -> PortableRowItemRoute {
+    match route {
+        RowItemRoute::Matched => PortableRowItemRoute::Matched,
+        RowItemRoute::DirectToUpperTail => PortableRowItemRoute::DirectToUpperTail,
+        RowItemRoute::MarkerAggregateToUpperTail => {
+            PortableRowItemRoute::MarkerAggregateToUpperTail
+        }
+        RowItemRoute::VariableToRemainingRow => PortableRowItemRoute::VariableToRemainingRow,
+        RowItemRoute::UpperTailToMarkerItems => PortableRowItemRoute::UpperTailToMarkerItems,
+        RowItemRoute::UpperTailToDirectItems => PortableRowItemRoute::UpperTailToDirectItems,
+    }
+}
+
+fn portable_origin_kind(kind: ConstraintOriginKind) -> PortableConstraintOriginKind {
+    match kind {
+        ConstraintOriginKind::ApplicationArgument => {
+            PortableConstraintOriginKind::ApplicationArgument
+        }
+        ConstraintOriginKind::Annotation => PortableConstraintOriginKind::Annotation,
+        ConstraintOriginKind::Return => PortableConstraintOriginKind::Return,
+        ConstraintOriginKind::Field => PortableConstraintOriginKind::Field,
+        ConstraintOriginKind::Assignment => PortableConstraintOriginKind::Assignment,
+        ConstraintOriginKind::BodyRequirement(kind) => {
+            PortableConstraintOriginKind::BodyRequirement(portable_body_requirement_kind(kind))
+        }
+        ConstraintOriginKind::Internal => PortableConstraintOriginKind::Internal,
+        ConstraintOriginKind::UnknownInternal => PortableConstraintOriginKind::UnknownInternal,
+    }
+}
+
+fn portable_source_role(kind: ConstraintOriginKind) -> Option<PortableSourceRole> {
+    match kind {
+        ConstraintOriginKind::ApplicationArgument => Some(PortableSourceRole::ApplicationArgument),
+        ConstraintOriginKind::Annotation => Some(PortableSourceRole::Annotation),
+        ConstraintOriginKind::Return => Some(PortableSourceRole::Return),
+        ConstraintOriginKind::Field => Some(PortableSourceRole::Field),
+        ConstraintOriginKind::Assignment => Some(PortableSourceRole::Assignment),
+        ConstraintOriginKind::BodyRequirement(kind) => Some(PortableSourceRole::BodyRequirement(
+            portable_body_requirement_kind(kind),
+        )),
+        ConstraintOriginKind::Internal | ConstraintOriginKind::UnknownInternal => None,
+    }
+}
+
+fn portable_body_requirement_kind(kind: BodyRequirementKind) -> PortableBodyRequirementKind {
+    match kind {
+        BodyRequirementKind::BooleanCondition => PortableBodyRequirementKind::BooleanCondition,
+        BodyRequirementKind::OperatorOperand { operand } => {
+            PortableBodyRequirementKind::OperatorOperand { operand: operand.0 }
+        }
+        BodyRequirementKind::PatternGuard => PortableBodyRequirementKind::PatternGuard,
+        BodyRequirementKind::CalleeArgument { argument } => {
+            PortableBodyRequirementKind::CalleeArgument {
+                argument: argument.0,
+            }
+        }
+    }
+}
+
+fn record_portable_node_kind(
+    metrics: &mut PortableSnapshotNodeKindMetrics,
+    kind: PortableProvenanceNodeKind,
+) {
+    match kind {
+        PortableProvenanceNodeKind::Constraint { .. } => metrics.constraints += 1,
+        PortableProvenanceNodeKind::Bound { .. } => metrics.bounds += 1,
+        PortableProvenanceNodeKind::Origin { .. } => metrics.origins += 1,
+        PortableProvenanceNodeKind::RowDerivation { .. } => metrics.row_derivations += 1,
+        PortableProvenanceNodeKind::SubtractFact { .. } => metrics.subtract_facts += 1,
+        PortableProvenanceNodeKind::LowerFilter => metrics.lower_filters += 1,
+        PortableProvenanceNodeKind::BoundDisposition { .. } => metrics.bound_dispositions += 1,
+        PortableProvenanceNodeKind::GeneralizedWitness { .. } => metrics.generalized_witnesses += 1,
+    }
+}
+
+fn record_portable_edge_kind(
+    metrics: &mut PortableSnapshotEdgeKindMetrics,
+    kind: PortableProvenanceEdgeKind,
+) {
+    match kind {
+        PortableProvenanceEdgeKind::RootOrigin => metrics.root_origins += 1,
+        PortableProvenanceEdgeKind::Structural(_) => metrics.structural += 1,
+        PortableProvenanceEdgeKind::BinaryReplay => metrics.binary_replay += 1,
+        PortableProvenanceEdgeKind::RowResult => metrics.row_results += 1,
+        PortableProvenanceEdgeKind::Canonicalization => metrics.canonicalization += 1,
+        PortableProvenanceEdgeKind::Bound(_) => metrics.bounds += 1,
+        PortableProvenanceEdgeKind::Row(_) => metrics.rows += 1,
+        PortableProvenanceEdgeKind::LowerFilter => metrics.lower_filters += 1,
+        PortableProvenanceEdgeKind::SubtractFact(_) => metrics.subtract_facts += 1,
+        PortableProvenanceEdgeKind::BoundDisposition(_) => metrics.bound_dispositions += 1,
+        PortableProvenanceEdgeKind::Generalization(_) => metrics.generalization += 1,
+        PortableProvenanceEdgeKind::SchemeInstantiation => metrics.scheme_instantiation += 1,
     }
 }
 
