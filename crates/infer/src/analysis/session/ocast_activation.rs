@@ -1,8 +1,8 @@
-//! Inert preparation for quiescent ordinary-cast activation.
+//! Quiescent ordinary-cast diagnostic activation.
 //!
-//! This module retains the exact nominal event payload beside its settled eligibility and can plan
-//! the cardinality outcome for an eligible request. Production diagnostic routing is deliberately
-//! absent until the separately reviewable CPROV-J activation commit.
+//! This module retains the exact nominal event payload beside its settled eligibility, plans the
+//! cast-table cardinality outcome, and emits diagnostics only for proven source boundaries. The
+//! solver's eager candidate instantiation remains unchanged; activation is a diagnostic overlay.
 
 use poly::cast_resolution::OrdinaryCastResolution;
 use poly::expr::DefId;
@@ -11,6 +11,8 @@ use poly::types::{NegId, PosId};
 use crate::casts::CastTable;
 use crate::constraints::ocast_eligibility::OcastEligibilityState;
 use crate::constraints::{ConstraintRecordId, ConstraintWeights};
+
+use super::super::{AnalysisDiagnostic, AnalysisSession};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PendingNominalCastRequest {
@@ -44,7 +46,6 @@ impl ClassifiedNominalCastRequest {
         self.eligibility
     }
 
-    #[allow(dead_code, reason = "CPROV-J commit 2 consumes eligible requests")]
     pub(super) fn into_eligible(self) -> Option<EligibleNominalCastRequest> {
         (self.eligibility == OcastEligibilityState::EligibleSourceBoundary)
             .then_some(EligibleNominalCastRequest(self.request))
@@ -67,7 +68,6 @@ pub(super) enum OcastActivationDecision {
     },
 }
 
-#[allow(dead_code, reason = "CPROV-J commit 2 activates this tested planner")]
 pub(super) fn plan_eligible_ocast_activation(
     request: &EligibleNominalCastRequest,
     casts: &CastTable,
@@ -97,6 +97,45 @@ pub(super) fn plan_eligible_ocast_activation(
     }
 }
 
+impl AnalysisSession {
+    pub(crate) fn activate_eligible_ocast_diagnostics(
+        &mut self,
+        classified: Vec<ClassifiedNominalCastRequest>,
+    ) {
+        for classified in classified {
+            let Some(request) = classified.into_eligible() else {
+                // Internal-only requests are not source cast boundaries. Incomplete provenance is
+                // deliberately fail-open, so neither state reaches cardinality resolution.
+                continue;
+            };
+            match plan_eligible_ocast_activation(&request, &self.casts) {
+                OcastActivationDecision::NoAction => {}
+                OcastActivationDecision::MissingCast { source, target } => {
+                    self.diagnostics
+                        .push(AnalysisDiagnostic::MissingImplicitCast {
+                            source,
+                            target,
+                            source_span: None,
+                        });
+                }
+                OcastActivationDecision::AmbiguousCast {
+                    source,
+                    target,
+                    candidates,
+                } => {
+                    self.diagnostics
+                        .push(AnalysisDiagnostic::AmbiguousImplicitCast {
+                            source,
+                            target,
+                            candidates,
+                            source_span: None,
+                        });
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use poly::expr::Arena as PolyArena;
@@ -111,8 +150,9 @@ mod tests {
 
     #[test]
     fn eligible_missing_cast_plans_missing_decision() {
-        let (session, classified) = classified_request(TestOrigin::Eligible);
+        let (mut session, classified) = classified_request(TestOrigin::Eligible);
         let eligible = classified
+            .clone()
             .into_eligible()
             .expect("eligible source boundary");
 
@@ -123,6 +163,15 @@ mod tests {
                 target: path(TARGET),
             }
         );
+        session.activate_eligible_ocast_diagnostics(vec![classified]);
+        assert_eq!(
+            session.take_diagnostics(),
+            vec![AnalysisDiagnostic::MissingImplicitCast {
+                source: path(SOURCE),
+                target: path(TARGET),
+                source_span: None,
+            }]
+        );
     }
 
     #[test]
@@ -130,6 +179,7 @@ mod tests {
         let (mut session, classified) = classified_request(TestOrigin::Eligible);
         insert_cast(&mut session, 10);
         let eligible = classified
+            .clone()
             .into_eligible()
             .expect("eligible source boundary");
 
@@ -137,19 +187,24 @@ mod tests {
             plan_eligible_ocast_activation(&eligible, &session.casts),
             OcastActivationDecision::NoAction
         );
+        session.activate_eligible_ocast_diagnostics(vec![classified]);
+        assert!(session.take_diagnostics().is_empty());
     }
 
     #[test]
     fn eligible_ambiguous_cast_candidates_are_sorted_by_definition_identity() {
-        let decisions = [[20, 10], [10, 20]].map(|order| {
+        let results = [[20, 10], [10, 20]].map(|order| {
             let (mut session, classified) = classified_request(TestOrigin::Eligible);
             for def in order {
                 insert_cast(&mut session, def);
             }
             let eligible = classified
+                .clone()
                 .into_eligible()
                 .expect("eligible source boundary");
-            plan_eligible_ocast_activation(&eligible, &session.casts)
+            let decision = plan_eligible_ocast_activation(&eligible, &session.casts);
+            session.activate_eligible_ocast_diagnostics(vec![classified]);
+            (decision, session.take_diagnostics())
         });
 
         let expected = OcastActivationDecision::AmbiguousCast {
@@ -157,18 +212,54 @@ mod tests {
             target: path(TARGET),
             candidates: vec![DefId(10), DefId(20)],
         };
-        assert_eq!(decisions, [expected.clone(), expected]);
+        let expected_diagnostic = AnalysisDiagnostic::AmbiguousImplicitCast {
+            source: path(SOURCE),
+            target: path(TARGET),
+            candidates: vec![DefId(10), DefId(20)],
+            source_span: None,
+        };
+        assert_eq!(results[0].0, expected);
+        assert_eq!(results[1].0, results[0].0);
+        assert_eq!(
+            results.map(|(_, diagnostics)| diagnostics),
+            [vec![expected_diagnostic.clone()], vec![expected_diagnostic]]
+        );
     }
 
     #[test]
     fn non_eligible_classifications_cannot_be_passed_to_the_planner() {
-        let (_, internal) = classified_request(TestOrigin::Internal);
+        let (mut internal_session, internal) = classified_request(TestOrigin::Internal);
         assert_eq!(internal.eligibility(), OcastEligibilityState::InternalOnly);
-        assert!(internal.into_eligible().is_none());
+        assert!(internal.clone().into_eligible().is_none());
+        internal_session.activate_eligible_ocast_diagnostics(vec![internal]);
+        assert!(internal_session.take_diagnostics().is_empty());
 
-        let (_, incomplete) = classified_request(TestOrigin::Unknown);
+        let (mut incomplete_session, incomplete) = classified_request(TestOrigin::Unknown);
         assert_eq!(incomplete.eligibility(), OcastEligibilityState::Incomplete);
-        assert!(incomplete.into_eligible().is_none());
+        assert!(incomplete.clone().into_eligible().is_none());
+        incomplete_session.activate_eligible_ocast_diagnostics(vec![incomplete]);
+        assert!(incomplete_session.take_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn repeated_canonical_missing_producer_emits_one_diagnostic() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let origin = session
+            .infer
+            .alloc_source_boundary(ConstraintOriginKind::ApplicationArgument)
+            .origin();
+        let lower = session.infer.alloc_pos(Pos::Con(path(SOURCE), Vec::new()));
+        let upper = session.infer.alloc_neg(Neg::Con(path(TARGET), Vec::new()));
+
+        session.infer.subtype(lower, upper, origin);
+        session.route_constraint_events();
+        session.infer.subtype(lower, upper, origin);
+        session.route_constraint_events();
+
+        let classified = session.classify_pending_ocast_eligibility_at_quiescence();
+        assert_eq!(classified.len(), 1);
+        session.activate_eligible_ocast_diagnostics(classified);
+        assert_eq!(session.take_diagnostics().len(), 1);
     }
 
     #[derive(Clone, Copy)]
@@ -180,6 +271,14 @@ mod tests {
 
     fn classified_request(origin: TestOrigin) -> (AnalysisSession, ClassifiedNominalCastRequest) {
         let mut session = AnalysisSession::new(PolyArena::new());
+        let classified = classified_request_with_origin(&mut session, origin);
+        (session, classified)
+    }
+
+    fn classified_request_with_origin(
+        session: &mut AnalysisSession,
+        origin: TestOrigin,
+    ) -> ClassifiedNominalCastRequest {
         let origin = match origin {
             TestOrigin::Eligible => session
                 .infer
@@ -194,7 +293,7 @@ mod tests {
         session.route_constraint_events();
         let mut classified = session.classify_pending_ocast_eligibility_at_quiescence();
         assert_eq!(classified.len(), 1);
-        (session, classified.pop().unwrap())
+        classified.pop().unwrap()
     }
 
     fn insert_cast(session: &mut AnalysisSession, def: u32) {

@@ -3,10 +3,10 @@ use crate::casts::{
     OrdinaryCastShadowOutcome, OrdinaryCastShadowSeam, begin_ordinary_cast_shadow_capture,
     finish_ordinary_cast_shadow_capture,
 };
+use crate::constraints::ConstraintOriginKind;
 use crate::constraints::ocast_eligibility::{
     EligibleBoundaryEvidence, OcastEligibilityOutcome, OcastIncompleteReason, ReplaySourceParent,
 };
-use crate::constraints::ConstraintOriginKind;
 use poly::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candidates};
 use poly::expr::CastRuleKind;
 
@@ -57,6 +57,49 @@ fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
             "{name}: unknown alternate ancestry must not become eligible or internal: {shadow:?}"
         );
     }
+}
+
+#[test]
+fn live_application_cast_diagnostics_follow_zero_one_two_cardinality() {
+    let function_and_call = "my f(x: bool): bool = x\nf(42)\n";
+
+    let missing = lower_source(function_and_call);
+    assert_eq!(
+        missing.errors,
+        vec![BodyLoweringError::Analysis(
+            crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                source: vec!["int".into()],
+                target: vec!["bool".into()],
+                source_span: None,
+            }
+        )]
+    );
+
+    let unique = lower_source(&format!("cast(x: int): bool = false\n{function_and_call}"));
+    assert!(unique.errors.is_empty(), "{:?}", unique.errors);
+
+    let ambiguous = lower_source(&format!(
+        concat!(
+            "cast(x: int): bool = false\n",
+            "cast(x: int): bool = true\n",
+            "{}",
+        ),
+        function_and_call
+    ));
+    assert!(matches!(
+        ambiguous.errors.as_slice(),
+        [BodyLoweringError::Analysis(
+            crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+                source,
+                target,
+                candidates,
+                source_span: None,
+            }
+        )] if source == &["int".to_string()]
+            && target == &["bool".to_string()]
+            && candidates.len() == 2
+            && candidates.windows(2).all(|pair| pair[0].0 <= pair[1].0)
+    ));
 }
 
 #[test]
