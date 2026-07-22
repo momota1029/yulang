@@ -1444,7 +1444,7 @@ impl BodyLowerer {
             .collect::<Vec<_>>();
         let mut session = self.session;
         session.settle_source_role_impl_candidates(source_impl_defs);
-        session.classify_pending_ocast_eligibility_at_quiescence();
+        drop(session.classify_pending_ocast_eligibility_at_quiescence());
         session.finalize_poly_role_impls();
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();

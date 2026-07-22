@@ -68,7 +68,7 @@ impl AnalysisSession {
             diagnostics: Vec::new(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
-            pending_ocast_producers: Vec::new(),
+            pending_ocast_requests: Vec::new(),
             pending_ocast_producer_set: FxHashSet::default(),
             ocast_eligibility_shadow: Vec::new(),
             ocast_eligibility_metrics: OcastEligibilityMetrics::default(),
@@ -413,7 +413,14 @@ impl AnalysisSession {
                     producer,
                 } => {
                     if self.pending_ocast_producer_set.insert(producer) {
-                        self.pending_ocast_producers.push(producer);
+                        self.pending_ocast_requests.push(PendingNominalCastRequest {
+                            producer,
+                            lower,
+                            upper,
+                            source: source.clone(),
+                            target: target.clone(),
+                            weights: weights.clone(),
+                        });
                     }
                     self.constrain_nominal_cast(lower, upper, &source, &target, weights);
                 }
@@ -433,22 +440,28 @@ impl AnalysisSession {
         elapsed
     }
 
-    pub(crate) fn classify_pending_ocast_eligibility_at_quiescence(&mut self) {
+    pub(crate) fn classify_pending_ocast_eligibility_at_quiescence(
+        &mut self,
+    ) -> Vec<ClassifiedNominalCastRequest> {
         debug_assert!(
             !self.has_pending_work(),
             "OCAST eligibility classification requires constraint quiescence"
         );
         let start = Instant::now();
-        for producer in self.pending_ocast_producers.drain(..) {
+        let mut classified = Vec::with_capacity(self.pending_ocast_requests.len());
+        for request in self.pending_ocast_requests.drain(..) {
             let classification = self.infer.constraints().classify_ocast_eligibility(
-                producer,
+                request.producer,
                 crate::constraints::explain::ExplanationBudget::ocast_classifier(),
             );
+            let eligibility = classification.state();
             self.ocast_eligibility_metrics.record(&classification);
             self.ocast_eligibility_shadow.push(classification);
+            classified.push(ClassifiedNominalCastRequest::new(request, eligibility));
         }
         self.pending_ocast_producer_set.clear();
         self.ocast_eligibility_metrics.elapsed += start.elapsed();
+        classified
     }
 
     #[allow(dead_code, reason = "debug-only CPROV-I shadow query")]

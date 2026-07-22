@@ -11,6 +11,7 @@ mod generalize_role_snapshot;
 mod generalize_snapshot_characterization;
 mod instantiate;
 mod lifecycle;
+mod ocast_activation;
 mod owner_dirty_scheduler;
 mod selection;
 #[cfg(test)]
@@ -44,6 +45,7 @@ pub(crate) use generalize_snapshot_characterization::{
     GeneralizeSnapshotRootObservation, GeneralizeSnapshotRootReport,
     with_generalize_snapshot_characterization_for_new_sessions,
 };
+pub(crate) use ocast_activation::{ClassifiedNominalCastRequest, PendingNominalCastRequest};
 pub(super) use owner_dirty_scheduler::OwnerScheduleDecision;
 pub use owner_dirty_scheduler::with_owner_dirty_scheduler_disabled_for_new_sessions;
 pub(crate) use owner_dirty_scheduler::{

@@ -111,6 +111,7 @@ use session::GeneralizeRoleSnapshotRootReport;
 #[cfg(test)]
 use session::GeneralizeSnapshotCharacterizationOracle;
 use session::MethodRoleOwnerDirtyScheduler;
+use session::PendingNominalCastRequest;
 #[cfg(test)]
 use session::ShadowDirtyOracle;
 pub use session::with_owner_dirty_scheduler_disabled_for_new_sessions;
@@ -209,7 +210,7 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
-    pending_ocast_producers: Vec<ConstraintRecordId>,
+    pending_ocast_requests: Vec<PendingNominalCastRequest>,
     pending_ocast_producer_set: FxHashSet<ConstraintRecordId>,
     ocast_eligibility_shadow: Vec<OcastEligibilityClassification>,
     ocast_eligibility_metrics: OcastEligibilityMetrics,
