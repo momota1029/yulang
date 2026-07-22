@@ -1265,6 +1265,103 @@ Exit witness: all initial failures have correct shadow lower/upper anchors; nest
 unrelated siblings; duplicate semantic constraints merge alternate edges without semantic requeue;
 storage and timing remain within the approved budget; specialize output is unchanged.
 
+**Implementation note added after SUBP-F landed (`9be09b6e`).** The canonical provenance table,
+structural propagation, dedup-merge safety, and budget management described above were implemented
+and proved entirely with synthetic `MaterializedTypeWithProvenance` values in tests. Attempting to
+satisfy Section 7.2 ("resolve the matching definition/expression/pattern occurrence ... attach its
+materialized anchor set") against real compilation revealed that no production call site can reach
+that data yet: `SubtypeProvenanceSidecar` reaches `BuildPolyOutput` (Section 6.5) but is dropped at
+the first specialize entry call (`crates/yulang/src/source/mod.rs:514`) and never reaches
+`Specializer2`, `TaskSolver`, or the four scheme-instantiation functions that build
+`InstantiatedScheme`. `constrain_materialized_subtype` therefore remains dead-code-annotated,
+exercised only by tests. SUBP-F's own exit witness ("specialize output is unchanged") is satisfied;
+the additional public-API threading needed to reach Section 7.2 in production is factored out as
+Slice SUBP-I below, inserted into the dependency order between SUBP-F and SUBP-G.
+
+### Slice SUBP-I: materialized provenance sidecar threading through specialize's public API and task roots
+
+Size: L-XL, staged as three sub-slices (I-1/I-2/I-3); a fourth family of sites is an explicit
+deferred follow-up (I-4), not part of this slice. Risk: high across I-1/I-2, high approaching
+critical for I-3 (it is the first slice where real occurrence identity reaches
+`constrain_materialized_subtype`, though it changes no dedup/merge/structural-propagation logic
+proven in SUBP-F).
+
+**Motivation.** See the implementation note above. This slice closes the gap between "shadow
+infrastructure exists" and "Section 7.2's touchpoint is satisfied in production," without touching
+the dedup/merge/structural-propagation logic SUBP-F already proved safe.
+
+#### I-1: public API and struct storage plumbing (shadow only)
+
+Add a required `&SubtypeProvenanceSidecar` parameter (not `Option` -- follow the existing
+`SubtypeProvenanceSidecar::empty()` precedent already used at the cache-restoration route,
+`crates/yulang/src/source/mod.rs:314`) to the six public `specialize` functions that reach
+`Specializer2`/`TaskSolver`: `specialize`, `specialize_with_runtime_evidence`,
+`specialize_with_runtime_evidence_and_application_provenance`,
+`specialize_with_runtime_evidence_and_source_provenance`, `specialize2`, `role_method_check`. Thread
+it through `Specializer2::with_source_provenance` and `TaskSolver::new`, storing it as
+`sidecar: &'a SubtypeProvenanceSidecar` beside the existing `arena: &'a poly_expr::Arena`. Update
+`crates/yulang/src/source/mod.rs:514` (the current drop point) and the mono-only route at `:4113` to
+pass `&output.subtype_provenance` / `SubtypeProvenanceSidecar::empty()` respectively.
+
+Nothing reads the sidecar's contents at this stage -- this proves the plumbing compiles and is
+semantically inert (identical instances, identical output, identical contract suite) before any
+consumption logic is added.
+
+Exit witness: sidecar reaches `TaskSolver` at every real call site; specialize's output, instance
+count, and emitted programs are byte-identical to pre-I-1; full contract suite unchanged.
+
+#### I-2: `InstantiatedScheme` materialized provenance (shadow only)
+
+The four scheme-instantiation functions (`instantiate_scheme_with_fresh_and_roles`,
+`instantiate_principal_scheme_for_inference_with_fresh_and_roles`,
+`instantiate_scheme_with_expected_fresh_and_roles`,
+`instantiate_monomorphic_scheme_with_fresh_and_roles`) switch from `materialize_pos`/
+`materialize_neg`/`materialize_neu` to the SUBP-E `_with_provenance` companions and additionally
+return the projected `MaterializedTypeProvenance`.
+
+`InstantiatedScheme` currently derives `Hash, Eq`; confirm at implementation time whether that
+equality participates in any dedup key. Do not add a provenance-bearing field directly to
+`InstantiatedScheme` -- return provenance as an adjacent value (a wrapper or tuple, mirroring
+`MaterializedTypeWithProvenance`'s existing "semantic value plus unhashed adjacent metadata" shape)
+so `InstantiatedScheme`'s own `Hash`/`Eq` derivation is untouched. This follows Section 4.1 directly:
+semantic and provenance identity must not entangle.
+
+Exit witness: a characterization test fixes `InstantiatedScheme`'s `Hash`/`Eq` output as unchanged;
+the four instantiation functions produce byte-identical `ty` values; the new provenance wrapper is
+constructed but not yet consumed outside tests.
+
+#### I-3: root wiring for owner-compatible task roots
+
+Using the call-site classification gathered during this slice's investigation, replace
+`constrain_subtype`/`constrain_weighted_subtype` with `constrain_materialized_subtype` at each site
+where an owner-compatible, unambiguous occurrence identity is already in scope without new plumbing:
+definition-body and computed-def signature roots (`task_solver.rs:37,81`); expression actual/consumer
+chains (`task_solver.rs:129,143,150,219,387,402`); let-binding and literal/tuple/list/variant-pattern
+roots (`task_solver/control.rs:211,216,340,354,366,383`); reference-pattern scrutinee
+(`task_solver/control.rs:533`). Resolve through the sidecar's sparse occurrence table; a missing
+table entry for a specific `(owner, role, path)` key is expected and must produce an
+incomplete/no-anchor root, not an error or a panic.
+
+Explicitly out of scope for I-3, deferred to I-4: `task_solver.rs:58` (no `DefId` in scope for the
+signature side), `task_solver/control.rs:283` (lambda's own `ExprId`/`DefId` not in scope),
+`task_solver/control.rs:442,456,489,516` (parent record/constructor `PatId` lost before these
+calls), `task_solver.rs:536`'s upper endpoint (ambiguous between child-expression and
+outer-record-path representations). These need an identity-plumbing design decision, not mechanical
+wiring.
+
+Exit witness: for at least the def-body, expression-actual, and pattern-input root families, an
+end-to-end test against real lowered source (not only synthetic `materialized_root()` helpers) shows
+a non-empty, correct anchor on `subtype_provenance_records`/`shadow_subtype_failures`; specialize's
+output remains byte-identical; the full regression suite (specialize, infer, cross-crate build, both
+known false-positive repros, contract suite) passes unchanged.
+
+#### I-4 (explicitly deferred, separate future slice)
+
+The container-identity-missing sites listed above need a design decision: whether to thread parent
+record/constructor/lambda identity down through pattern and lambda solving so I-3's mechanism can
+reach them, or whether those roots remain permanently-incomplete provenance. Do not resolve this
+inside SUBP-I; it is recorded as open decision 15 in Section 13.
+
 ### Slice SUBP-G: bounded portable query and diagnostic projection
 
 Size: M-L. Risk: high.
@@ -1311,6 +1408,7 @@ SUBP-A occurrence characterization
     -> SUBP-D expression/pattern ownership and cold-build sidecar
     -> SUBP-E materialization projection shadow
     -> SUBP-F TypeGraph propagation and failure-anchor shadow
+    -> SUBP-I sidecar threading through specialize's public API and task roots
     -> SUBP-G bounded portable query and diagnostic projection
     -> SUBP-H additive diagnostic integration
 ```
@@ -1331,6 +1429,15 @@ Before SUBP-F closes:
 - open-variable gaps are enumerated;
 - edge and logical-byte budgets are approved;
 - scaling tests rule out proof-path combinations.
+
+Before SUBP-I closes:
+
+- every public `specialize` entry point threads the sidecar (or its canonical empty value) without
+  behavior change through I-1;
+- `InstantiatedScheme`'s `Hash`/`Eq` output is unchanged after I-2;
+- at least the def-body, expression-actual, and pattern-input root families show real non-empty
+  anchors sourced from actual compilation, not only synthetic test helpers;
+- the I-4 site list is recorded, not silently dropped or guessed at.
 
 Before SUBP-H begins:
 
@@ -1419,6 +1526,11 @@ The following points remain open for the named slices:
 10. **Diagnostic wording and primary location (SUBP-H).** Preserve the existing mismatch message;
     decide the additional related-information wording and which complete endpoint, if any, owns the
     primary span.
+15. **Container-identity-missing task roots (SUBP-I, deferred as I-4).** `task_solver.rs:58,536` and
+    `task_solver/control.rs:283,442,456,489,516` lose the parent record/constructor/lambda identity
+    before they construct a subtype root. Decide whether to thread that identity down through pattern
+    and lambda solving so these sites can reach `constrain_materialized_subtype`, or accept them as
+    permanently-incomplete provenance. Not resolved by SUBP-I proper.
 
 The following are deferred by scope, not open implementation choices:
 
@@ -1471,3 +1583,5 @@ slice requires separate authorization and review.
 Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-22 session. Whether and when to implement remains a decision for Claude Sonnet 5 and the user; this document is a feasibility and design specification, not an implementation commitment.
 
 Reference specification approved by Claude Sonnet 5, 2026-07-22 session, with the user's explicit approval. This signature approves the document as a reference specification for future implementation slices — it does not itself authorize implementation of any slice, including Slice SUBP-A. Each slice requires its own explicit scoping and authorization before write-enabled work begins, following this project's established discipline (as used for the constraint-provenance-redesign project's CPROV-A..J slices and the parameter-use-site-provenance project's PUSP-A..F slices).
+
+**Amendment, 2026-07-23 session.** SUBP-A through SUBP-F implemented and pushed (`bbddd3b3`..`9be09b6e`). Attempting to wire SUBP-F's shadow infrastructure into real production call sites (per Section 7.2) surfaced a public-API threading gap not characterized in the original document: the sidecar built through SUBP-D/E never reaches `Specializer2`/`TaskSolver`/`InstantiatedScheme` in production. Investigation was delegated to Codex (gpt-5.6-sol, read-only); Slice SUBP-I (public API and task-root sidecar threading, staged I-1/I-2/I-3, with I-4 explicitly deferred as open decision 15) was designed by Claude Sonnet 5 from that report and inserted into the dependency order between SUBP-F and SUBP-G, following the same per-slice authorization discipline as the rest of this document. Approved by the user's explicit request to proceed with this design.
