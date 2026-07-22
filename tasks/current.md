@@ -16,16 +16,15 @@
   provenance-gatedで発火し、同一sessionで到達できる場合はcallee bodyの制約元も説明する。
 - 現在、実装を承認済みの次sliceはない。
 
-## 次に必要な判断
+## 次の track
 
-`notes/todo/index.md` に二つの未統合な順序が残っている。実装を始める前に、
-どちらを現行の優先順位とするかhuman decisionで決める。
+優先順位は `notes/todo/index.md` の numbered 0〜8「既存の公開準備 track」を正本とする。
+item 0 の hardening は historical / superseded、item 1 の testing は mature but ongoing で、
+主な未決事項である Yulang-facing test API は直近の判断対象ではない。
 
-- 公開準備track 0〜8: hardening、testing、diagnostics、language server、release、
-  static-analysis speed、performance localization、Yumark、research consultation。
-- 「近い優先順位」: Yumark残件を明示した上で、次の新規候補をREPLとする。
-
-決定後、選んだtrackから一つの具体的sliceだけをこのファイルへ移す。
+次に調査して具体的な slice を決める track は item 2 の
+[`notes/todo/diagnostics-docs.md`](../notes/todo/diagnostics-docs.md) とする。
+具体的な slice の選定は別の follow-up investigation で行う。
 
 ## 大きい未完trackの入口
 
