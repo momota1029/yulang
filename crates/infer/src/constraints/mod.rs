@@ -24,6 +24,7 @@ use std::collections::{VecDeque, hash_map::Entry};
 use directed_weight::{
     DirectedWeights, LeftConstraintWeight as DirectedLeftConstraintWeight, RightStackWeight,
 };
+use poly::expr::DefId;
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
     TypeArena, TypeVar,
@@ -39,10 +40,10 @@ pub(crate) use mutation::{
 
 pub use timing::{
     BodyRequirementOriginCoverage, BoundDispositionCoverage, ConstraintOriginCoverage,
-    ConstraintTiming, ReplayDerivationCoverage, ReplayDerivationStorageMetrics,
-    ReplayDuplicateProfile, ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics,
-    ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage, StableRecordCoverage,
-    StructuralDerivationCoverage,
+    ConstraintTiming, GeneralizedSchemeCoverage, ReplayDerivationCoverage,
+    ReplayDerivationStorageMetrics, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
+    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage,
+    StableRecordCoverage, StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -83,6 +84,8 @@ pub struct ConstraintMachine {
     replay_derivation_storage: ReplayDerivationStorage,
     origins: Vec<OriginRecord>,
     source_boundaries: Vec<SourceBoundaryRecord>,
+    generalized_schemes: Vec<GeneralizedSchemeRecord>,
+    generalized_witnesses: Vec<GeneralizedSchemeWitness>,
     events: Vec<ConstraintEvent>,
     method_role_mutations: MethodRoleMutationOutbox,
     timing: ConstraintTiming,
@@ -599,6 +602,12 @@ impl VarBounds {
             .chain(self.lower_ids.iter().copied().zip(self.lowers.iter()))
     }
 
+    pub(crate) fn generalized_projection_lowers(
+        &self,
+    ) -> impl Iterator<Item = (BoundRecordId, &WeightedLowerBound)> {
+        self.projection_lower_records()
+    }
+
     fn projection_upper_records(
         &self,
     ) -> impl Iterator<Item = (BoundRecordId, &WeightedUpperBound)> {
@@ -607,6 +616,12 @@ impl VarBounds {
             .copied()
             .zip(self.evidence_uppers.iter())
             .chain(self.upper_ids.iter().copied().zip(self.uppers.iter()))
+    }
+
+    pub(crate) fn generalized_projection_uppers(
+        &self,
+    ) -> impl Iterator<Item = (BoundRecordId, &WeightedUpperBound)> {
+        self.projection_upper_records()
     }
 
     pub fn evidence_lower_count(&self) -> usize {
@@ -650,6 +665,109 @@ pub struct WeightedUpperBound {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BoundRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GeneralizedSchemeRecordId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GeneralizedSchemeWitnessId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct GeneralizedTypePath(pub Vec<GeneralizedTypePathStep>);
+
+impl GeneralizedTypePath {
+    pub(crate) fn push(&mut self, step: GeneralizedTypePathStep) {
+        self.0.push(step);
+    }
+
+    pub fn depth(&self) -> usize {
+        self.0.len()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GeneralizedTypePathStep {
+    FunctionArgument,
+    FunctionArgumentEffect,
+    FunctionReturnEffect,
+    FunctionReturn,
+    ConstructorArgument {
+        alternative: StructuralIndex,
+        argument: StructuralIndex,
+    },
+    TupleElement(StructuralIndex),
+    RecordField {
+        alternative: StructuralIndex,
+        field: StructuralIndex,
+    },
+    VariantPayload {
+        alternative: StructuralIndex,
+        item: StructuralIndex,
+        payload: StructuralIndex,
+    },
+    RowItemArgument {
+        item: StructuralIndex,
+        argument: StructuralIndex,
+    },
+    RowTail,
+    RecursiveBound(StructuralIndex),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GeneralizedWitnessRole {
+    ConstraintRelation,
+    LowerBound,
+    UpperBound,
+    RecursiveLowerBound,
+    RecursiveUpperBound,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GeneralizationParent {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GeneralizationDerivationRule {
+    BoundCollection,
+    StructuralProjection,
+    VariableSubstitution,
+    SandwichSimplification,
+    RecursiveBoundExtraction,
+    Finalization,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GeneralizationDerivation {
+    pub rule: GeneralizationDerivationRule,
+    pub parents: Vec<GeneralizationParent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneralizedSchemeRecord {
+    pub owner: DefId,
+    pub generation: u32,
+    pub witnesses: Vec<GeneralizedSchemeWitnessId>,
+    pub completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneralizedSchemeWitness {
+    pub scheme: GeneralizedSchemeRecordId,
+    pub path: GeneralizedTypePath,
+    pub role: GeneralizedWitnessRole,
+    pub incoming: Vec<GeneralizationDerivation>,
+    pub completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneralizedWitnessDraft {
+    pub path: GeneralizedTypePath,
+    pub role: GeneralizedWitnessRole,
+    pub incoming: Vec<GeneralizationDerivation>,
+    pub completeness: ProvenanceCompleteness,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BoundDispositionRecordId(u32);
@@ -1193,7 +1311,7 @@ struct LowerFilterDerivation {
 pub struct StructuralIndex(u32);
 
 impl StructuralIndex {
-    fn from_usize(index: usize) -> Self {
+    pub(crate) fn from_usize(index: usize) -> Self {
         Self(u32::try_from(index).expect("structural index fits in u32"))
     }
 }

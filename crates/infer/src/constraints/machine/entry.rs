@@ -43,6 +43,8 @@ impl ConstraintMachine {
                 },
             ],
             source_boundaries: Vec::new(),
+            generalized_schemes: Vec::new(),
+            generalized_witnesses: Vec::new(),
             events: Vec::new(),
             method_role_mutations: MethodRoleMutationOutbox::new(),
             timing: ConstraintTiming::default(),
@@ -75,6 +77,89 @@ impl ConstraintMachine {
 
     pub fn bounds(&self) -> &TypeBounds {
         &self.bounds
+    }
+
+    #[allow(dead_code)] // Debug inspection now; consumed by same-session instantiation in PUSP-D.
+    pub(crate) fn generalized_scheme_record(
+        &self,
+        id: GeneralizedSchemeRecordId,
+    ) -> Option<&GeneralizedSchemeRecord> {
+        self.generalized_schemes.get(id.0 as usize)
+    }
+
+    pub(crate) fn generalized_scheme_witness(
+        &self,
+        id: GeneralizedSchemeWitnessId,
+    ) -> Option<&GeneralizedSchemeWitness> {
+        self.generalized_witnesses.get(id.0 as usize)
+    }
+
+    pub(crate) fn alloc_generalized_scheme_record(
+        &mut self,
+        owner: DefId,
+        generation: u32,
+        drafts: Vec<GeneralizedWitnessDraft>,
+        completeness: ProvenanceCompleteness,
+    ) -> GeneralizedSchemeRecordId {
+        let scheme = GeneralizedSchemeRecordId(
+            u32::try_from(self.generalized_schemes.len()).expect("generalized scheme id fits u32"),
+        );
+        let mut witness_ids = Vec::with_capacity(drafts.len());
+        for mut draft in drafts {
+            let considered = draft
+                .incoming
+                .iter()
+                .map(|edge| edge.parents.len())
+                .sum::<usize>();
+            let before = draft.incoming.len();
+            let mut seen = FxHashSet::default();
+            draft.incoming.retain(|edge| seen.insert(edge.clone()));
+            let inserted = draft
+                .incoming
+                .iter()
+                .map(|edge| edge.parents.len())
+                .sum::<usize>();
+            let id = GeneralizedSchemeWitnessId(
+                u32::try_from(self.generalized_witnesses.len())
+                    .expect("generalized witness id fits u32"),
+            );
+            let coverage = &mut self.timing.generalized_schemes;
+            coverage.witnesses += 1;
+            match draft.role {
+                GeneralizedWitnessRole::ConstraintRelation => coverage.constraint_relations += 1,
+                GeneralizedWitnessRole::LowerBound => coverage.lower_bounds += 1,
+                GeneralizedWitnessRole::UpperBound => coverage.upper_bounds += 1,
+                GeneralizedWitnessRole::RecursiveLowerBound => coverage.recursive_lower_bounds += 1,
+                GeneralizedWitnessRole::RecursiveUpperBound => coverage.recursive_upper_bounds += 1,
+            }
+            if let Some(slot) = coverage.witnesses_by_depth.get_mut(draft.path.depth()) {
+                *slot += 1;
+            } else {
+                coverage.witnesses_deeper_than_15 += 1;
+            }
+            coverage.incoming_edges_considered += considered;
+            coverage.incoming_edges_inserted += inserted;
+            coverage.incoming_edges_deduplicated += before.saturating_sub(draft.incoming.len());
+            if draft.completeness == ProvenanceCompleteness::Incomplete {
+                coverage.incomplete_witnesses += 1;
+            }
+            self.generalized_witnesses.push(GeneralizedSchemeWitness {
+                scheme,
+                path: draft.path,
+                role: draft.role,
+                incoming: draft.incoming,
+                completeness: draft.completeness,
+            });
+            witness_ids.push(id);
+        }
+        self.generalized_schemes.push(GeneralizedSchemeRecord {
+            owner,
+            generation,
+            witnesses: witness_ids,
+            completeness,
+        });
+        self.timing.generalized_schemes.records += 1;
+        scheme
     }
 
     pub(crate) fn var_neighbors(&self, var: TypeVar) -> impl Iterator<Item = TypeVar> + '_ {

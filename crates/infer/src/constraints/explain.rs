@@ -48,6 +48,7 @@ pub(crate) enum ExplanationNodeId {
     SubtractFact(SubtractFactRecordId),
     LowerFilter(LowerFilterRecordId),
     BoundDisposition(BoundDispositionRecordId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +95,13 @@ pub(crate) enum ExplanationNode {
         weights: ConstraintWeights,
         disposition: BoundDisposition,
     },
+    GeneralizedWitness {
+        id: GeneralizedSchemeWitnessId,
+        scheme: GeneralizedSchemeRecordId,
+        path: GeneralizedTypePath,
+        role: GeneralizedWitnessRole,
+        completeness: ProvenanceCompleteness,
+    },
 }
 
 impl ExplanationNode {
@@ -106,6 +114,7 @@ impl ExplanationNode {
             Self::SubtractFact { id, .. } => ExplanationNodeId::SubtractFact(*id),
             Self::LowerFilter { id, .. } => ExplanationNodeId::LowerFilter(*id),
             Self::BoundDisposition { id, .. } => ExplanationNodeId::BoundDisposition(*id),
+            Self::GeneralizedWitness { id, .. } => ExplanationNodeId::GeneralizedWitness(*id),
         }
     }
 }
@@ -129,6 +138,7 @@ pub(crate) enum ExplanationEdgeKind {
     LowerFilter,
     SubtractFact(SubtractFactDerivation),
     BoundDisposition(BoundDisposition),
+    Generalization(GeneralizationDerivationRule),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,6 +177,7 @@ pub(crate) enum ExplanationQueryError {
     UnknownConstraint(ConstraintRecordId),
     UnknownBound(BoundRecordId),
     UnknownBoundDisposition(BoundDispositionRecordId),
+    UnknownGeneralizedWitness(GeneralizedSchemeWitnessId),
     BoundOwner {
         expected: TypeVar,
         actual: TypeVar,
@@ -216,6 +227,17 @@ impl ConstraintMachine {
             return Err(ExplanationQueryError::UnknownBoundDisposition(record));
         }
         Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::BoundDisposition(record)))
+    }
+
+    pub(crate) fn why_generalized_witness(
+        &self,
+        witness: GeneralizedSchemeWitnessId,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        if self.generalized_scheme_witness(witness).is_none() {
+            return Err(ExplanationQueryError::UnknownGeneralizedWitness(witness));
+        }
+        Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::GeneralizedWitness(witness)))
     }
 
     fn why_bound(
@@ -401,6 +423,19 @@ impl<'a> ExplanationQuery<'a> {
                     disposition: record.disposition,
                 })
             }
+            ExplanationNodeId::GeneralizedWitness(id) => {
+                let record = self.machine.generalized_scheme_witness(id)?;
+                if record.completeness == ProvenanceCompleteness::Incomplete {
+                    self.underlying_incomplete = true;
+                }
+                Some(ExplanationNode::GeneralizedWitness {
+                    id,
+                    scheme: record.scheme,
+                    path: record.path.clone(),
+                    role: record.role,
+                    completeness: record.completeness,
+                })
+            }
         }
     }
 
@@ -468,6 +503,10 @@ impl<'a> ExplanationQuery<'a> {
                     record.derivation.is_some()
                         || !matches!(record.disposition, BoundDisposition::Trivial(_))
                 }),
+            ExplanationNodeId::GeneralizedWitness(id) => self
+                .machine
+                .generalized_scheme_witness(id)
+                .is_some_and(|record| !record.incoming.is_empty()),
         }
     }
 
@@ -480,6 +519,9 @@ impl<'a> ExplanationQuery<'a> {
             ExplanationNodeId::SubtractFact(id) => self.visit_subtract_edges(id, depth),
             ExplanationNodeId::LowerFilter(id) => self.visit_filter_edges(id, depth),
             ExplanationNodeId::BoundDisposition(id) => self.visit_disposition_edges(id, depth),
+            ExplanationNodeId::GeneralizedWitness(id) => {
+                self.visit_generalized_witness_edges(id, depth)
+            }
         }
     }
 
@@ -648,6 +690,34 @@ impl<'a> ExplanationQuery<'a> {
             },
             depth,
         );
+    }
+
+    fn visit_generalized_witness_edges(&mut self, id: GeneralizedSchemeWitnessId, depth: usize) {
+        let incoming = self
+            .machine
+            .generalized_scheme_witness(id)
+            .expect("visited generalized witness")
+            .incoming
+            .clone();
+        for derivation in incoming {
+            self.push_edge(
+                ExplanationEdge {
+                    child: ExplanationNodeId::GeneralizedWitness(id),
+                    kind: ExplanationEdgeKind::Generalization(derivation.rule),
+                    parents: derivation
+                        .parents
+                        .into_iter()
+                        .map(|parent| match parent {
+                            GeneralizationParent::Constraint(id) => {
+                                ExplanationNodeId::Constraint(id)
+                            }
+                            GeneralizationParent::Bound(id) => ExplanationNodeId::Bound(id),
+                        })
+                        .collect(),
+                },
+                depth,
+            );
+        }
     }
 
     fn bound_derivation_parents(&mut self, derivation: BoundDerivation) -> Vec<ExplanationNodeId> {

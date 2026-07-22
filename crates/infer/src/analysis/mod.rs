@@ -60,7 +60,8 @@ use crate::constraints::ocast_eligibility::{
     OcastEligibilityClassification, OcastEligibilityMetrics,
 };
 use crate::constraints::{
-    ConstraintEpoch, ConstraintEvent, ConstraintRecordId, ConstraintWeights, TypeLevel,
+    ConstraintEpoch, ConstraintEvent, ConstraintRecordId, ConstraintWeights,
+    GeneralizedSchemeRecordId, GeneralizedWitnessDraft, ProvenanceCompleteness, TypeLevel,
 };
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
@@ -211,6 +212,8 @@ pub struct AnalysisSession {
     #[cfg(test)]
     stage0_quantify_events: Vec<Stage0QuantifyEvent>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
+    generalized_scheme_records: FxHashMap<DefId, GeneralizedSchemeRecordId>,
+    generalized_scheme_generations: FxHashMap<DefId, u32>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,

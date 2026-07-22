@@ -35,7 +35,7 @@ impl AnalysisSession {
                 elapsed,
                 component_start,
             );
-            generalized.push((def, scheme));
+            generalized.push((def, root, scheme));
         }
         self.timing.record_generalize_component_shape(
             component_metrics.root_compact_nodes,
@@ -48,13 +48,25 @@ impl AnalysisSession {
             component_metrics.max_restarts_per_root,
         );
 
-        for (def, scheme) in &generalized {
+        for (def, _, scheme) in &generalized {
             self.schemes.insert(*def, scheme.clone());
         }
 
-        for (def, scheme) in generalized {
+        for (def, root, scheme) in generalized {
             let phase = Instant::now();
             let ancestors = self.scheme_ancestors_for_current_poly(def);
+            let (mut witnesses, mut witness_completeness) =
+                crate::generalize::capture_generalized_witnesses(
+                    self.infer.constraints(),
+                    root,
+                    &scheme,
+                );
+            if !ancestors.is_empty() {
+                witness_completeness = ProvenanceCompleteness::Incomplete;
+                for witness in &mut witnesses {
+                    witness.completeness = ProvenanceCompleteness::Incomplete;
+                }
+            }
             let ancestors = ancestors.iter().collect::<Vec<_>>();
             let finalized = finalize_generalized_compact_root_with_ancestors(
                 &mut self.poly.typ,
@@ -66,6 +78,7 @@ impl AnalysisSession {
             self.timing.record_quantify_finalize(elapsed);
             trace_quantify_phase(trace, "finalize", def, elapsed, component_start);
             self.trace_scheme(def, &finalized.scheme);
+            self.record_generalized_scheme(def, witnesses, witness_completeness);
             self.set_def_scheme(def, finalized.scheme);
         }
         let elapsed = component_start.elapsed();

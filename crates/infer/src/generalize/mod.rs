@@ -28,6 +28,7 @@ use crate::roles::{
 
 mod core;
 mod finalize;
+mod provenance;
 mod simplification;
 #[cfg(test)]
 mod tests;
@@ -37,6 +38,7 @@ pub(crate) use finalize::{
     clone_role_impl_candidate_between_arenas, finalize_compact_boundary_bounds,
     finalize_generalized_compact_root,
 };
+pub(crate) use provenance::capture_generalized_witnesses;
 use simplification::apply_ancestor_simplifications;
 pub(crate) use simplification::apply_compact_simplifications_to_root_and_roles;
 

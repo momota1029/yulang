@@ -836,6 +836,11 @@ impl<'a> ExprLowerer<'a> {
             boundary.child(),
             &non_generic,
         );
+        let (witnesses, witness_completeness) = crate::generalize::capture_generalized_witnesses(
+            self.session.infer.constraints(),
+            value,
+            &generalized,
+        );
         let mut finalized = crate::generalize::finalize_generalized_compact_root(
             &mut self.session.poly.typ,
             self.session.infer.constraints(),
@@ -843,6 +848,8 @@ impl<'a> ExprLowerer<'a> {
         );
         let use_monomorphic_local = !forced_quantifiers.is_empty();
         add_forced_quantifiers(&mut finalized.scheme, forced_quantifiers);
+        self.session
+            .record_generalized_scheme(def, witnesses, witness_completeness);
         self.set_local_let_scheme(def, finalized.scheme.clone());
         if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
             local.scheme = (!use_monomorphic_local || self.parent_has_type_annotation)

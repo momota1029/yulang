@@ -33,6 +33,23 @@ pub struct BodyRequirementOriginCoverage {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct GeneralizedSchemeCoverage {
+    pub records: usize,
+    pub witnesses: usize,
+    pub constraint_relations: usize,
+    pub lower_bounds: usize,
+    pub upper_bounds: usize,
+    pub recursive_lower_bounds: usize,
+    pub recursive_upper_bounds: usize,
+    pub witnesses_by_depth: [usize; 16],
+    pub witnesses_deeper_than_15: usize,
+    pub incoming_edges_considered: usize,
+    pub incoming_edges_inserted: usize,
+    pub incoming_edges_deduplicated: usize,
+    pub incomplete_witnesses: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StructuralDerivationCoverage {
     pub full_unary: usize,
     pub normalization: usize,
@@ -162,6 +179,7 @@ pub struct ConstraintTiming {
     pub subtype_trivial_admissions: usize,
     pub root_origins: ConstraintOriginCoverage,
     pub body_requirement_origins: BodyRequirementOriginCoverage,
+    pub generalized_schemes: GeneralizedSchemeCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
     pub row_derivations: RowDerivationCoverage,
     pub bound_dispositions: BoundDispositionCoverage,

@@ -83,6 +83,108 @@ fn pusp_a_characterizes_parameter_and_scheme_provenance_gaps() {
 }
 
 #[test]
+fn pusp_c_concrete_argument_witness_points_to_original_parameter_upper_bound() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    ));
+    let def = subject_def(&output);
+    let parameter = parameter_var(&output, def);
+    let machine = output.session.infer.constraints();
+    let original = *bool_upper_records(machine, parameter)
+        .first()
+        .expect("boolean condition creates the parameter upper bound");
+    let scheme_id = output
+        .session
+        .generalized_scheme_record(def)
+        .expect("same-session local scheme has an opaque provenance association");
+    let scheme = machine
+        .generalized_scheme_record(scheme_id)
+        .expect("associated generalized scheme record exists");
+    assert_eq!(scheme.owner, def);
+    assert_eq!(scheme.generation, 0);
+    let witness_id = *scheme
+        .witnesses
+        .iter()
+        .find(|id| {
+            let witness = machine
+                .generalized_scheme_witness(**id)
+                .expect("record witness");
+            witness.path == GeneralizedTypePath(vec![GeneralizedTypePathStep::FunctionArgument])
+                && witness.role == GeneralizedWitnessRole::UpperBound
+        })
+        .expect("finalized function argument has an upper-bound witness");
+    let witness = machine
+        .generalized_scheme_witness(witness_id)
+        .expect("argument witness");
+    assert_eq!(witness.completeness, ProvenanceCompleteness::Complete);
+    assert!(
+        witness
+            .incoming
+            .iter()
+            .any(|edge| { edge.parents == vec![GeneralizationParent::Bound(original)] })
+    );
+    let query = machine
+        .why_generalized_witness(witness_id, ExplanationBudget::default())
+        .expect("query generalized witness");
+    assert!(
+        query
+            .nodes
+            .iter()
+            .any(|node| { node.id() == ExplanationNodeId::Bound(original) })
+    );
+    assert!(query.nodes.iter().any(|node| matches!(
+        node,
+        ExplanationNode::Origin {
+            kind: ConstraintOriginKind::BodyRequirement(BodyRequirementKind::BooleanCondition),
+            ..
+        }
+    )));
+}
+
+#[test]
+fn pusp_c_quantified_argument_witness_is_path_specific_and_deduplicated() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = pusp_param\n",
+        "subject(1)\n",
+        "subject(false)\n",
+    ));
+    let def = subject_def(&output);
+    let machine = output.session.infer.constraints();
+    let scheme_id = output
+        .session
+        .generalized_scheme_record(def)
+        .expect("generic local scheme association");
+    let scheme = machine
+        .generalized_scheme_record(scheme_id)
+        .expect("generic scheme record");
+    let argument = GeneralizedTypePath(vec![GeneralizedTypePathStep::FunctionArgument]);
+    let witnesses = scheme
+        .witnesses
+        .iter()
+        .filter_map(|id| {
+            let witness = machine.generalized_scheme_witness(*id)?;
+            (witness.path == argument).then_some(witness)
+        })
+        .collect::<Vec<_>>();
+    assert!(!witnesses.is_empty());
+    for witness in witnesses {
+        let unique = witness.incoming.iter().collect::<FxHashSet<_>>();
+        assert_eq!(unique.len(), witness.incoming.len());
+    }
+    let coverage = machine.timing().generalized_schemes;
+    assert!(coverage.records >= 1);
+    assert!(coverage.witnesses >= 1);
+    assert_eq!(
+        coverage.incoming_edges_considered,
+        coverage.incoming_edges_inserted + coverage.incoming_edges_deduplicated
+    );
+}
+
+#[test]
 fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
     const SOURCE: &str = concat!(
         "my subject(pusp_param) = if pusp_param:\n",

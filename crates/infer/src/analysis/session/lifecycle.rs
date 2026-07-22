@@ -1,6 +1,34 @@
 use super::*;
 
 impl AnalysisSession {
+    pub(crate) fn record_generalized_scheme(
+        &mut self,
+        owner: DefId,
+        drafts: Vec<GeneralizedWitnessDraft>,
+        completeness: ProvenanceCompleteness,
+    ) -> GeneralizedSchemeRecordId {
+        let generation = self
+            .generalized_scheme_generations
+            .entry(owner)
+            .or_default();
+        let current = *generation;
+        *generation = generation.saturating_add(1);
+        let id = self
+            .infer
+            .constraints_mut()
+            .alloc_generalized_scheme_record(owner, current, drafts, completeness);
+        self.generalized_scheme_records.insert(owner, id);
+        id
+    }
+
+    #[allow(dead_code)] // Debug inspection now; consumed by same-session instantiation in PUSP-D.
+    pub(crate) fn generalized_scheme_record(
+        &self,
+        owner: DefId,
+    ) -> Option<GeneralizedSchemeRecordId> {
+        self.generalized_scheme_records.get(&owner).copied()
+    }
+
     pub fn new(poly: PolyArena) -> Self {
         Self::new_with_imported_boundary(poly, &crate::CompiledBoundaryInterface::empty())
     }
@@ -65,6 +93,8 @@ impl AnalysisSession {
             #[cfg(test)]
             stage0_quantify_events: Vec::new(),
             schemes: FxHashMap::default(),
+            generalized_scheme_records: FxHashMap::default(),
+            generalized_scheme_generations: FxHashMap::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),
             scc_events: Vec::new(),
