@@ -481,7 +481,12 @@ impl<'a> ExprLowerer<'a> {
         callee: Computation,
         arg: Computation,
     ) -> Computation {
-        self.make_app_with_origin(callee, arg, crate::constraints::OriginId::internal())
+        self.make_app_with_origins(
+            callee,
+            arg,
+            crate::constraints::OriginId::internal(),
+            None,
+        )
     }
 
     pub(in crate::lowering) fn make_internal_app(
@@ -489,7 +494,26 @@ impl<'a> ExprLowerer<'a> {
         callee: Computation,
         arg: Computation,
     ) -> Computation {
-        self.make_app_with_origin(callee, arg, crate::constraints::OriginId::internal())
+        self.make_app_with_origins(
+            callee,
+            arg,
+            crate::constraints::OriginId::internal(),
+            None,
+        )
+    }
+
+    pub(in crate::lowering) fn make_app_with_additional_origin(
+        &mut self,
+        callee: Computation,
+        arg: Computation,
+        additional_origin: crate::constraints::OriginId,
+    ) -> Computation {
+        self.make_app_with_origins(
+            callee,
+            arg,
+            crate::constraints::OriginId::internal(),
+            Some(additional_origin),
+        )
     }
 
     fn make_app_with_origin(
@@ -497,6 +521,16 @@ impl<'a> ExprLowerer<'a> {
         callee: Computation,
         arg: Computation,
         origin: crate::constraints::OriginId,
+    ) -> Computation {
+        self.make_app_with_origins(callee, arg, origin, None)
+    }
+
+    fn make_app_with_origins(
+        &mut self,
+        callee: Computation,
+        arg: Computation,
+        origin: crate::constraints::OriginId,
+        additional_origin: Option<crate::constraints::OriginId>,
     ) -> Computation {
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
@@ -515,7 +549,23 @@ impl<'a> ExprLowerer<'a> {
             ret_eff: return_effect.upper,
             ret: return_value,
         });
-        self.subtype(Pos::Var(callee.value), callee_upper, origin);
+        let callee_lower = self.alloc_pos(Pos::Var(callee.value));
+        self.session.infer.subtype(callee_lower, callee_upper, origin);
+        if let Some(additional_origin) = additional_origin {
+            let attached = self
+                .session
+                .infer
+                .constraints_mut()
+                .attach_root_origin_to_existing_subtype(
+                    callee_lower,
+                    callee_upper,
+                    additional_origin,
+                );
+            debug_assert!(
+                attached,
+                "the primary synthetic-application constraint was just admitted"
+            );
+        }
         if let Some(erased_upper) = local_callee_erased_upper {
             if let Some(def) = local_callee_def {
                 let frame_index = self.function_frames.len().checked_sub(1);

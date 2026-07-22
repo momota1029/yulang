@@ -64,14 +64,14 @@ fn live_application_cast_diagnostics_follow_zero_one_two_cardinality() {
     let function_and_call = "my f(x: bool): bool = x\nf(42)\n";
 
     let missing = lower_source(function_and_call);
-    let [BodyLoweringError::Analysis(
-        crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+    let [
+        BodyLoweringError::Analysis(crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
             source,
             target,
             source_span: Some(source_span),
             explanation: Some(explanation),
-        },
-    )] = missing.errors.as_slice()
+        }),
+    ] = missing.errors.as_slice()
     else {
         panic!(
             "expected one explained missing-cast diagnostic: {:?}",
@@ -97,6 +97,7 @@ fn live_application_cast_diagnostics_follow_zero_one_two_cardinality() {
             crate::analysis::DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee,
         ]
     );
+    assert_eq!(explanation.body_use, None);
     assert_eq!(
         &function_and_call[source_span.range.start..source_span.range.end],
         "f(42)\n"
@@ -142,6 +143,53 @@ fn live_application_cast_diagnostics_follow_zero_one_two_cardinality() {
             && candidates.len() == 2
             && candidates.windows(2).all(|pair| pair[0].0 <= pair[1].0)
     ));
+}
+
+#[test]
+fn missing_cast_explanation_reaches_unannotated_parameter_boolean_condition() {
+    const JUNCTION_STD: &str = concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod junction:\n",
+        "      pub mod junction:\n",
+        "        pub junction value = value\n",
+    );
+    let source = concat!("my f(x) = if x:\n", "  1\n", "else:\n", "  2\n", "f(42)\n",);
+    let full_source = format!("{JUNCTION_STD}{source}");
+    let first = lower_source(&full_source);
+    let [
+        BodyLoweringError::Analysis(crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+            source: actual,
+            target,
+            explanation: Some(explanation),
+            ..
+        }),
+    ] = first.errors.as_slice()
+    else {
+        panic!("expected one explained missing cast: {:#?}", first.errors);
+    };
+    assert_eq!(actual, &["int".to_string()]);
+    assert_eq!(target, &["bool".to_string()]);
+    assert_eq!(explanation.related_sites.len(), 2);
+    let body_use = explanation
+        .body_use
+        .as_ref()
+        .expect("unannotated parameter retains its body requirement");
+    assert_eq!(
+        body_use.role,
+        crate::analysis::DiagnosticTypeExplanationSiteRole::RequiredByBodyUse(
+            crate::analysis::BodyRequirementDiagnosticKind::BooleanCondition,
+        )
+    );
+    assert_eq!(
+        &full_source[body_use.source_span.range.start..body_use.source_span.range.end],
+        "x"
+    );
+    assert_eq!(
+        lower_source(&full_source).errors,
+        first.errors,
+        "the first alternate body witness is deterministic"
+    );
 }
 
 #[test]

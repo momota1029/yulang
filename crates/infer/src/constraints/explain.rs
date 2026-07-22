@@ -37,6 +37,14 @@ impl ExplanationBudget {
             max_depth: 128,
         }
     }
+
+    pub(crate) fn parameter_body_diagnostic() -> Self {
+        Self {
+            max_nodes: 4_096,
+            max_edges: 8_192,
+            max_depth: 512,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -274,6 +282,55 @@ pub(crate) fn project_parameter_body_requirements(
         completeness: explanation.completeness,
         truncation: explanation.truncation,
     }
+}
+
+pub(crate) fn generalized_scheme_path_reaches_origin_kind(
+    explanation: &ExplanationQueryResult,
+    witness: GeneralizedSchemeWitnessId,
+    expected: ConstraintOriginKind,
+) -> bool {
+    let Some(ExplanationNode::GeneralizedWitness { scheme, path, .. }) = explanation
+        .nodes
+        .iter()
+        .find(|node| node.id() == ExplanationNodeId::GeneralizedWitness(witness))
+    else {
+        return false;
+    };
+    let mut pending = explanation
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            ExplanationNode::GeneralizedWitness {
+                id,
+                scheme: candidate_scheme,
+                path: candidate_path,
+                ..
+            } if candidate_scheme == scheme && candidate_path == path => {
+                Some(ExplanationNodeId::GeneralizedWitness(*id))
+            }
+            _ => None,
+        })
+        .collect::<VecDeque<_>>();
+    let mut visited = FxHashSet::default();
+    while let Some(node) = pending.pop_front() {
+        if !visited.insert(node) {
+            continue;
+        }
+        if explanation.nodes.iter().any(|candidate| {
+            matches!(candidate, ExplanationNode::Origin { kind, .. } if candidate.id() == node && *kind == expected)
+        }) {
+            return true;
+        }
+        for parent in explanation
+            .edges
+            .iter()
+            .filter(|edge| edge.child == node && !is_scheme_instantiation_edge(edge))
+            .flat_map(|edge| edge.parents.iter().copied())
+        {
+            pending.push_back(parent);
+        }
+    }
+    false
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -997,7 +1054,7 @@ fn collect_body_requirements(
     derivation: &SchemeInstantiationDerivation,
     role: GeneralizedWitnessRole,
     prefix: &[ExplanationNodeId],
-    seen: &mut FxHashSet<(SchemeInstantiationId, GeneralizedSchemeWitnessId, OriginId)>,
+    seen: &mut FxHashSet<(SchemeInstantiationId, OriginId)>,
     requirements: &mut Vec<ParameterBodyRequirementWitness>,
 ) {
     fn visit(
@@ -1007,7 +1064,7 @@ fn collect_body_requirements(
         node: ExplanationNodeId,
         path: &mut Vec<ExplanationNodeId>,
         visited: &mut FxHashSet<ExplanationNodeId>,
-        seen: &mut FxHashSet<(SchemeInstantiationId, GeneralizedSchemeWitnessId, OriginId)>,
+        seen: &mut FxHashSet<(SchemeInstantiationId, OriginId)>,
         requirements: &mut Vec<ParameterBodyRequirementWitness>,
     ) {
         if !visited.insert(node) {
@@ -1022,7 +1079,7 @@ fn collect_body_requirements(
             .iter()
             .find(|candidate| candidate.id() == node)
         {
-            if seen.insert((derivation.instantiation, derivation.source_witness, *id)) {
+            if seen.insert((derivation.instantiation, *id)) {
                 requirements.push(ParameterBodyRequirementWitness {
                     instantiation: derivation.instantiation,
                     generalized_witness: derivation.source_witness,

@@ -3679,11 +3679,12 @@ fn body_lowering_error_related(
                 explanation: Some(explanation),
                 ..
             },
-        ) => explanation
-            .related_sites
-            .iter()
-            .map(|site| {
-                let message = match site.role {
+        ) => {
+            let mut related = explanation
+                .related_sites
+                .iter()
+                .map(|site| {
+                    let message = match site.role {
                     infer::analysis::DiagnosticTypeExplanationSiteRole::InferredExpression => {
                         format!(
                             "type `{}` is inferred from this argument",
@@ -3697,15 +3698,36 @@ fn body_lowering_error_related(
                             explanation.target.join("::")
                         )
                     }
+                    infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredByBodyUse(kind) => {
+                        body_requirement_related_message(
+                            kind,
+                            &explanation.target.join("::"),
+                        )
+                    }
                 };
-                SourceDiagnosticRelated {
-                    message,
+                    SourceDiagnosticRelated {
+                        message,
+                        file: site.source_span.file.clone(),
+                        range: site.source_span.range,
+                        origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                    }
+                })
+                .collect::<Vec<_>>();
+            if let Some(site) = &explanation.body_use {
+                let infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredByBodyUse(kind) =
+                    site.role
+                else {
+                    return related;
+                };
+                related.push(SourceDiagnosticRelated {
+                    message: body_requirement_related_message(kind, &explanation.target.join("::")),
                     file: site.source_span.file.clone(),
                     range: site.source_span.range,
                     origin: Some(SourceDiagnosticRelatedOrigin::Expression),
-                }
-            })
-            .collect(),
+                });
+            }
+            related
+        }
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { candidates, .. },
         ) => candidates
@@ -3764,6 +3786,19 @@ fn body_lowering_error_related(
         }
         _ => Vec::new(),
     }
+}
+
+fn body_requirement_related_message(
+    kind: infer::analysis::BodyRequirementDiagnosticKind,
+    target: &str,
+) -> String {
+    let use_site = match kind {
+        infer::analysis::BodyRequirementDiagnosticKind::BooleanCondition => "this condition",
+        infer::analysis::BodyRequirementDiagnosticKind::OperatorOperand => "this operator operand",
+        infer::analysis::BodyRequirementDiagnosticKind::PatternGuard => "this pattern guard",
+        infer::analysis::BodyRequirementDiagnosticKind::CalleeArgument => "this argument",
+    };
+    format!("this parameter is required to be `{target}` because it is used as {use_site}")
 }
 
 fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Option<String> {

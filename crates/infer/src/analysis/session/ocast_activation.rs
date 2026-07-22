@@ -8,17 +8,22 @@ use poly::cast_resolution::OrdinaryCastResolution;
 use poly::expr::DefId;
 use poly::types::{NegId, PosId};
 
-use crate::casts::CastTable;
 use crate::analysis::{
-    DiagnosticTypeDerivation, DiagnosticTypeExplanation, DiagnosticTypeExplanationSite,
-    DiagnosticTypeExplanationSiteRole,
+    BodyRequirementDiagnosticKind, DiagnosticTypeDerivation, DiagnosticTypeExplanation,
+    DiagnosticTypeExplanationSite, DiagnosticTypeExplanationSiteRole,
+};
+use crate::casts::CastTable;
+use crate::constraints::explain::{
+    ExplanationBudget, ExplanationCompleteness, generalized_scheme_path_reaches_origin_kind,
+    project_parameter_body_requirements,
 };
 use crate::constraints::ocast_eligibility::{
-    EligibleBoundaryDiagnosticKind, OcastEligibilityClassification, OcastEligibilityOutcome,
-    OcastEligibilityState,
+    EligibleBoundaryDiagnosticKind, EligibleBoundaryEvidence, OcastEligibilityClassification,
+    OcastEligibilityOutcome, OcastEligibilityState, ReplaySourceParent,
 };
 use crate::constraints::{
-    ConstraintOriginKind, ConstraintRecordId, ConstraintWeights, SourceBoundaryId,
+    BodyRequirementKind, BoundRecordId, ConstraintOriginKind, ConstraintRecordId,
+    ConstraintWeights, SourceBoundaryId,
 };
 
 use super::super::{AnalysisDiagnostic, AnalysisSession};
@@ -55,6 +60,18 @@ impl ClassifiedNominalCastRequest {
                 boundary: *boundary,
                 kind: *kind,
                 derivation: evidence.diagnostic_kind(),
+                parameter_bound: match evidence {
+                    EligibleBoundaryEvidence::OneSidedReplayPair {
+                        replay,
+                        source_parent,
+                        ..
+                    } => Some(match source_parent {
+                        ReplaySourceParent::Lower => replay.lower,
+                        ReplaySourceParent::Upper => replay.upper,
+                    }),
+                    EligibleBoundaryEvidence::RootRelation { .. }
+                    | EligibleBoundaryEvidence::SharedReplayPair { .. } => None,
+                },
             }),
             OcastEligibilityOutcome::InternalOnly { .. }
             | OcastEligibilityOutcome::Incomplete { .. } => None,
@@ -85,6 +102,7 @@ struct EligibleBoundaryDiagnosticEvidence {
     boundary: SourceBoundaryId,
     kind: ConstraintOriginKind,
     derivation: EligibleBoundaryDiagnosticKind,
+    parameter_bound: Option<BoundRecordId>,
 }
 
 pub(super) struct EligibleNominalCastRequest {
@@ -214,8 +232,62 @@ impl AnalysisSession {
                     source_span: provenance.callee_span.clone(),
                 },
             ],
+            body_use: self.missing_cast_body_use(request),
         };
         (Some(provenance.application_span.clone()), Some(explanation))
+    }
+
+    fn missing_cast_body_use(
+        &self,
+        request: &EligibleNominalCastRequest,
+    ) -> Option<DiagnosticTypeExplanationSite> {
+        let parameter_bound = request.evidence.parameter_bound?;
+        let explanation = self
+            .infer
+            .constraints()
+            .why_constraint(
+                request.request.producer,
+                ExplanationBudget::parameter_body_diagnostic(),
+            )
+            .ok()?;
+        if explanation.completeness != ExplanationCompleteness::Complete {
+            return None;
+        }
+        let projection = project_parameter_body_requirements(
+            request.request.producer,
+            parameter_bound,
+            &explanation,
+        );
+        if projection.completeness != ExplanationCompleteness::Complete {
+            return None;
+        }
+        let witness = projection.requirements.first()?;
+        if generalized_scheme_path_reaches_origin_kind(
+            &explanation,
+            witness.generalized_witness,
+            ConstraintOriginKind::Annotation,
+        ) {
+            return None;
+        }
+        let provenance = self
+            .source_boundary_provenance
+            .body_requirement(witness.boundary)?;
+        let kind = match witness.kind {
+            BodyRequirementKind::BooleanCondition => {
+                BodyRequirementDiagnosticKind::BooleanCondition
+            }
+            BodyRequirementKind::OperatorOperand { .. } => {
+                BodyRequirementDiagnosticKind::OperatorOperand
+            }
+            BodyRequirementKind::PatternGuard => BodyRequirementDiagnosticKind::PatternGuard,
+            BodyRequirementKind::CalleeArgument { .. } => {
+                BodyRequirementDiagnosticKind::CalleeArgument
+            }
+        };
+        Some(DiagnosticTypeExplanationSite {
+            role: DiagnosticTypeExplanationSiteRole::RequiredByBodyUse(kind),
+            source_span: provenance.use_span.clone(),
+        })
     }
 }
 

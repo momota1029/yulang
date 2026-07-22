@@ -148,8 +148,9 @@ use trace::{
     trace_select_bound_limit, trace_select_requested,
 };
 pub use work::{
-    AnalysisDiagnostic, AnalysisWork, DiagnosticTypeDerivation, DiagnosticTypeExplanation,
-    DiagnosticTypeExplanationSite, DiagnosticTypeExplanationSiteRole, SelectionTarget,
+    AnalysisDiagnostic, AnalysisWork, BodyRequirementDiagnosticKind, DiagnosticTypeDerivation,
+    DiagnosticTypeExplanation, DiagnosticTypeExplanationSite, DiagnosticTypeExplanationSiteRole,
+    SelectionTarget,
 };
 
 /// 推論中の複数 machine を束ねる session。

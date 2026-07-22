@@ -18,6 +18,7 @@ pub struct DiagnosticTypeExplanation {
     pub target: Vec<String>,
     pub derivation: DiagnosticTypeDerivation,
     pub related_sites: Vec<DiagnosticTypeExplanationSite>,
+    pub body_use: Option<DiagnosticTypeExplanationSite>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +38,15 @@ pub struct DiagnosticTypeExplanationSite {
 pub enum DiagnosticTypeExplanationSiteRole {
     InferredExpression,
     RequiredApplicationCallee,
+    RequiredByBodyUse(BodyRequirementDiagnosticKind),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyRequirementDiagnosticKind {
+    BooleanCondition,
+    OperatorOperand,
+    PatternGuard,
+    CalleeArgument,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

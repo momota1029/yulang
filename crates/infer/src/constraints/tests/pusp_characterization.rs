@@ -514,7 +514,7 @@ fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
         .filter(|record| record.root_origins.contains(&body_leaf.0))
         .map(|record| &record.key)
         .collect::<Vec<_>>();
-    assert_eq!(exact_roots.len(), 2);
+    assert_eq!(exact_roots.len(), 3);
     assert!(exact_roots.iter().any(|key| {
         matches!(machine.types().pos(key.lower), Pos::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
             && matches!(machine.types().neg(key.upper), Neg::Var(_))
@@ -523,6 +523,10 @@ fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
         matches!(machine.types().pos(key.lower), Pos::Var(_))
             && matches!(machine.types().neg(key.upper), Neg::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
     }));
+    assert!(exact_roots.iter().any(|key| {
+        matches!(machine.types().pos(key.lower), Pos::Var(_))
+            && matches!(machine.types().neg(key.upper), Neg::Fun { .. })
+    }));
 
     let timing = output.session.infer.constraint_timing();
     assert_eq!(timing.body_requirement_origins.boolean_condition, 1);
@@ -530,7 +534,7 @@ fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
     assert_eq!(timing.body_requirement_origins.pattern_guard, 0);
     assert_eq!(timing.body_requirement_origins.callee_argument, 0);
     assert_eq!(timing.body_requirement_origins.roots_lacking_location, 0);
-    assert_eq!(timing.root_origins.body_requirement, 2);
+    assert_eq!(timing.root_origins.body_requirement, 3);
 }
 
 #[test]
@@ -847,9 +851,9 @@ fn expected_baselines() -> [Baseline; 5] {
             &["BoundRecordId(99)"],
             Some(query(
                 33,
-                39,
+                40,
                 13,
-                16_697_274_909_257_563_807,
+                17_768_386_504_748_785_697,
                 &[
                     "internal",
                     "unknown-internal",
@@ -860,9 +864,9 @@ fn expected_baselines() -> [Baseline; 5] {
             )),
             Some(query(
                 56,
-                76,
+                77,
                 19,
-                7_973_532_512_924_181_623,
+                17_760_765_525_437_880_643,
                 &[
                     "internal",
                     "unknown-internal",
@@ -879,7 +883,7 @@ fn expected_baselines() -> [Baseline; 5] {
                 [1, 0, 0],
                 &["eligible"],
                 15_505_251_397_583_533_568,
-                7_715_097_740_732_590_881,
+                6_847_249_590_216_408_145,
                 1,
             ),
         ),
@@ -888,9 +892,9 @@ fn expected_baselines() -> [Baseline; 5] {
             &["BoundRecordId(17)"],
             Some(query(
                 34,
-                40,
+                41,
                 13,
-                2_057_198_660_181_371_904,
+                8_124_893_317_848_988_519,
                 &[
                     "annotation",
                     "internal",
@@ -902,14 +906,14 @@ fn expected_baselines() -> [Baseline; 5] {
             )),
             Some(query(
                 57,
-                77,
+                78,
                 19,
-                5_056_574_746_806_254_351,
+                12_210_693_845_174_782_278,
                 &[
                     "internal",
                     "unknown-internal",
-                    "annotation",
                     "body-requirement:boolean-condition",
+                    "annotation",
                     "application-argument",
                 ],
                 3,
@@ -922,7 +926,7 @@ fn expected_baselines() -> [Baseline; 5] {
                 [1, 0, 0],
                 &["eligible"],
                 15_505_251_397_583_533_568,
-                15_320_303_960_052_524_694,
+                11_355_559_456_424_514_010,
                 1,
             ),
         ),
@@ -947,9 +951,9 @@ fn expected_baselines() -> [Baseline; 5] {
             &["BoundRecordId(90)"],
             Some(query(
                 33,
-                39,
+                40,
                 13,
-                13_326_616_529_651_366_205,
+                6_397_523_539_046_006_471,
                 &[
                     "internal",
                     "unknown-internal",
@@ -983,9 +987,9 @@ fn expected_baselines() -> [Baseline; 5] {
             &["BoundRecordId(160)"],
             Some(query(
                 49,
-                60,
+                62,
                 13,
-                14_289_704_609_015_011_324,
+                7_501_278_655_382_016_244,
                 &[
                     "internal",
                     "unknown-internal",
@@ -997,9 +1001,9 @@ fn expected_baselines() -> [Baseline; 5] {
             )),
             Some(query(
                 74,
-                107,
+                109,
                 19,
-                9_994_500_403_576_866_678,
+                9_974_680_381_325_004_816,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1017,7 +1021,7 @@ fn expected_baselines() -> [Baseline; 5] {
                 [1, 0, 0],
                 &["eligible"],
                 1_904_004_085_798_493_171,
-                10_393_096_561_695_006_901,
+                16_496_012_943_582_915_373,
                 1,
             ),
         ),

@@ -449,6 +449,35 @@ impl ConstraintMachine {
         }
     }
 
+    /// Add an alternate root explanation to a semantic constraint that was already admitted.
+    ///
+    /// This is provenance-only: it neither records a second subtype admission nor enqueues work.
+    pub(crate) fn attach_root_origin_to_existing_subtype(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        origin: OriginId,
+    ) -> bool {
+        let Some(key) = self.canonical_subtype_constraint(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+        ) else {
+            return false;
+        };
+        let Some(record) = self.canonical_constraints.get(&key).copied() else {
+            return false;
+        };
+        self.record_root_origin(origin);
+        let roots = &mut self.constraint_records[record.0 as usize].root_origins;
+        if roots.contains(&origin) {
+            return false;
+        }
+        roots.push(origin);
+        self.bump_provenance_epoch();
+        true
+    }
+
     pub(crate) fn subtype_many(
         &mut self,
         constraints: impl IntoIterator<Item = (PosId, NegId)>,

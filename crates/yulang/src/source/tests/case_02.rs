@@ -2727,6 +2727,7 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
                         source_span: owner_span.clone(),
                     },
                 ],
+                body_use: None,
             }),
         },
     );
@@ -2796,6 +2797,102 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
         format_body_lowering_error(&without_span)
     );
     assert!(diagnostic.related.is_empty());
+}
+
+#[test]
+fn analysis_missing_implicit_cast_renders_body_requirement_after_call_sites() {
+    let lowering = implicit_cast_diagnostic_lowering();
+    let owner = labeled_def(&lowering.labels, "owner");
+    let span = lowering
+        .modules
+        .def_source_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let error = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
+            source: vec!["int".to_string()],
+            target: vec!["bool".to_string()],
+            source_span: Some(span.clone()),
+            explanation: Some(infer::analysis::DiagnosticTypeExplanation {
+                source: vec!["int".to_string()],
+                target: vec!["bool".to_string()],
+                derivation: infer::analysis::DiagnosticTypeDerivation::OneSidedReplayPair,
+                related_sites: vec![
+                    infer::analysis::DiagnosticTypeExplanationSite {
+                        role: infer::analysis::DiagnosticTypeExplanationSiteRole::InferredExpression,
+                        source_span: span.clone(),
+                    },
+                    infer::analysis::DiagnosticTypeExplanationSite {
+                        role: infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredApplicationCallee,
+                        source_span: span.clone(),
+                    },
+                ],
+                body_use: Some(infer::analysis::DiagnosticTypeExplanationSite {
+                    role: infer::analysis::DiagnosticTypeExplanationSiteRole::RequiredByBodyUse(
+                        infer::analysis::BodyRequirementDiagnosticKind::BooleanCondition,
+                    ),
+                    source_span: span,
+                }),
+            }),
+        },
+    );
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &error,
+        &lowering.modules,
+        &lowering.labels,
+        None,
+        None,
+    );
+    assert_eq!(
+        diagnostic
+            .related
+            .iter()
+            .map(|related| related.message.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "type `int` is inferred from this argument",
+            "this callee requires an argument compatible with `bool`",
+            "this parameter is required to be `bool` because it is used as this condition",
+        ]
+    );
+}
+
+#[test]
+fn embedded_std_missing_cast_explains_unannotated_parameter_condition() {
+    let output = check_poly_from_source_text_with_embedded_std(
+        "playground.yu",
+        "my f(x) = if x: 1 else: 2\nf(42)\n",
+    )
+    .expect("missing casts are reported as diagnostics");
+    let [diagnostic] = output.diagnostics.as_slice() else {
+        panic!("expected one missing-cast diagnostic: {:#?}", output.diagnostics);
+    };
+    assert_eq!(
+        diagnostic.code.as_deref(),
+        Some("yulang.missing-implicit-cast")
+    );
+    assert_eq!(
+        diagnostic
+            .related
+            .iter()
+            .map(|related| related.message.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "type `int` is inferred from this argument",
+            "this callee requires an argument compatible with `bool`",
+            "this parameter is required to be `bool` because it is used as this condition",
+        ]
+    );
+    let diagnostic_source = output
+        .diagnostic_source
+        .as_ref()
+        .expect("root source is available for related ranges");
+    let body_range = diagnostic.related[2].range;
+    assert_eq!(
+        &diagnostic_source.source
+            [body_range.start - diagnostic_source.range_offset..body_range.end - diagnostic_source.range_offset],
+        "x"
+    );
 }
 
 #[test]

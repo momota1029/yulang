@@ -79,7 +79,6 @@ impl<'a> ExprLowerer<'a> {
         self.locals.truncate(before_locals);
         let condition = condition?;
         let raw_condition_effect = condition.effect;
-        let condition = self.apply_junction(condition)?;
         let requirement = self.session.infer.alloc_source_boundary(
             crate::constraints::ConstraintOriginKind::BodyRequirement(
                 crate::constraints::BodyRequirementKind::BooleanCondition,
@@ -106,6 +105,11 @@ impl<'a> ExprLowerer<'a> {
                     .record_source_boundary_location(requirement.boundary());
             }
         }
+        // The synthetic junction application is part of the boolean-condition requirement. Its
+        // argument constraint is what carries the requirement back to an unannotated parameter,
+        // so retain the same source-owned origin across both the desugaring and the exact-bool
+        // roots.
+        let condition = self.apply_junction_with_origin(condition, requirement.origin())?;
         self.constrain_exact_primitive_with_origin(condition.value, "bool", requirement.origin());
         self.subtype_var_to_var(raw_condition_effect, result_effect);
         self.subtype_var_to_var(condition.effect, result_effect);
@@ -1098,6 +1102,15 @@ impl<'a> ExprLowerer<'a> {
     fn apply_junction(&mut self, condition: Computation) -> Result<Computation, LoweringError> {
         let junction = self.lower_std_value_ref(crate::std_paths::control_junction_value())?;
         Ok(self.make_app(junction, condition))
+    }
+
+    fn apply_junction_with_origin(
+        &mut self,
+        condition: Computation,
+        origin: crate::constraints::OriginId,
+    ) -> Result<Computation, LoweringError> {
+        let junction = self.lower_std_value_ref(crate::std_paths::control_junction_value())?;
+        Ok(self.make_app_with_additional_origin(junction, condition, origin))
     }
 
     fn lower_catch_operation_signature(
