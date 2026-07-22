@@ -83,6 +83,35 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     })
 }
 
+#[allow(dead_code)] // SUBP-I-2 shadow output; real task roots begin consuming this in SUBP-I-3.
+pub(crate) fn instantiate_scheme_with_fresh_and_roles_with_provenance(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedSchemeWithProvenance, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_open_vars(&arena.typ, def, scheme);
+    materializer.collect_scheme_kinds(scheme);
+    for quantifier in &scheme.quantifiers {
+        let kind = materializer
+            .kind_for(*quantifier)
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
+    }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    finish_instantiated_scheme_with_provenance(
+        &materializer,
+        sidecar,
+        def,
+        scheme,
+        materializer.materialize_recursive_bounds(scheme)?,
+    )
+}
+
 pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
@@ -112,6 +141,41 @@ pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
         role_predicates: materializer.materialize_role_predicates(scheme)?,
         recursive_bounds,
     })
+}
+
+#[allow(dead_code)] // SUBP-I-2 shadow output; real task roots begin consuming this in SUBP-I-3.
+pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles_with_provenance(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedSchemeWithProvenance, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inference_functions();
+    materializer.use_inline_bounds();
+    materializer.collect_scheme_kinds(scheme);
+    for quantifier in &scheme.quantifiers {
+        let kind = materializer
+            .kind_for(*quantifier)
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
+    }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
+    finish_instantiated_scheme_with_provenance(
+        &materializer,
+        sidecar,
+        def,
+        scheme,
+        recursive_bounds,
+    )
 }
 
 pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
@@ -149,6 +213,45 @@ pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
     })
 }
 
+#[allow(dead_code)] // SUBP-I-2 shadow output; real task roots begin consuming this in SUBP-I-3.
+pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles_with_provenance(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    expected: &Type,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedSchemeWithProvenance, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inline_bounds();
+    materializer.collect_scheme_kinds(scheme);
+    materializer.match_pos(scheme.predicate, expected, TypeContext::Value)?;
+    for quantifier in &scheme.quantifiers {
+        if materializer.substitution.contains_key(quantifier) {
+            continue;
+        }
+        let kind = materializer
+            .kind_for(*quantifier)
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
+    }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
+    finish_instantiated_scheme_with_provenance(
+        &materializer,
+        sidecar,
+        def,
+        scheme,
+        recursive_bounds,
+    )
+}
+
 pub(crate) fn instantiate_monomorphic_scheme_with_fresh_and_roles(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
@@ -171,11 +274,70 @@ pub(crate) fn instantiate_monomorphic_scheme_with_fresh_and_roles(
     })
 }
 
+#[allow(dead_code)] // SUBP-I-2 shadow output; real task roots begin consuming this in SUBP-I-3.
+pub(crate) fn instantiate_monomorphic_scheme_with_fresh_and_roles_with_provenance(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedSchemeWithProvenance, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inline_bounds();
+    materializer.collect_scheme_kinds(scheme);
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
+    finish_instantiated_scheme_with_provenance(
+        &materializer,
+        sidecar,
+        def,
+        scheme,
+        recursive_bounds,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct InstantiatedScheme {
     pub(crate) ty: Type,
     pub(crate) role_predicates: Vec<InstantiatedRolePredicate>,
     pub(crate) recursive_bounds: Vec<InstantiatedRecursiveBound>,
+}
+
+/// Semantic scheme instantiation plus adjacent, non-semantic occurrence ownership.
+///
+/// This wrapper deliberately does not implement `Hash` and is never an instance key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InstantiatedSchemeWithProvenance {
+    pub(crate) scheme: InstantiatedScheme,
+    pub(crate) provenance: MaterializedTypeProvenance,
+}
+
+fn finish_instantiated_scheme_with_provenance(
+    materializer: &SchemeMaterializer<'_>,
+    sidecar: &SubtypeProvenanceSidecar,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    recursive_bounds: Vec<InstantiatedRecursiveBound>,
+) -> Result<InstantiatedSchemeWithProvenance, SpecializeError> {
+    let materialized = materializer.materialize_pos_with_provenance(
+        scheme.predicate,
+        TypeContext::Value,
+        sidecar,
+        TypeOccurrenceOwner::Definition(def),
+        TypeOccurrenceRole::DefinitionPredicate,
+    )?;
+    Ok(InstantiatedSchemeWithProvenance {
+        scheme: InstantiatedScheme {
+            ty: materialized.ty,
+            role_predicates: materializer.materialize_role_predicates(scheme)?,
+            recursive_bounds,
+        },
+        provenance: materialized.provenance,
+    })
 }
 
 /// Semantic materialization plus adjacent, non-semantic occurrence ownership.
@@ -372,6 +534,9 @@ struct SchemeMaterializer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
     use mono::Type;
     use poly::expr as poly_expr;
     use poly::provenance::{
@@ -382,9 +547,112 @@ mod tests {
     use poly::types::{Neg, Neu, Pos, RecordField, Scheme, TypeArena, TypeVar};
 
     use super::{
-        SchemeMaterializer, SchemeQuantifierKind, TypeContext,
-        instantiate_principal_scheme_for_inference_with_fresh_and_roles, simplify_type,
+        InstantiatedScheme, InstantiatedSchemeWithProvenance, SchemeMaterializer,
+        SchemeQuantifierKind, TypeContext, instantiate_monomorphic_scheme_with_fresh_and_roles,
+        instantiate_monomorphic_scheme_with_fresh_and_roles_with_provenance,
+        instantiate_principal_scheme_for_inference_with_fresh_and_roles,
+        instantiate_principal_scheme_for_inference_with_fresh_and_roles_with_provenance,
+        instantiate_scheme_with_expected_fresh_and_roles,
+        instantiate_scheme_with_expected_fresh_and_roles_with_provenance,
+        instantiate_scheme_with_fresh_and_roles,
+        instantiate_scheme_with_fresh_and_roles_with_provenance, simplify_type,
     };
+
+    #[test]
+    fn instantiated_scheme_provenance_is_adjacent_to_semantic_hash_eq() {
+        let (arena, scheme, sidecar, def) = quantified_definition_scheme_with_provenance();
+        let semantic =
+            instantiate_scheme_with_fresh_and_roles(&arena, def, &scheme, fresh_for_kind).unwrap();
+        let shadow = instantiate_scheme_with_fresh_and_roles_with_provenance(
+            &arena,
+            &sidecar,
+            def,
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+
+        assert_eq!(shadow.scheme, semantic);
+        assert_eq!(semantic_hash(&shadow.scheme), semantic_hash(&semantic));
+        assert_definition_predicate_provenance(&shadow);
+    }
+
+    #[test]
+    fn all_instantiation_provenance_variants_preserve_semantic_types() {
+        let (arena, scheme, sidecar, def) = quantified_definition_scheme_with_provenance();
+
+        let ordinary =
+            instantiate_scheme_with_fresh_and_roles(&arena, def, &scheme, fresh_for_kind).unwrap();
+        let ordinary_shadow = instantiate_scheme_with_fresh_and_roles_with_provenance(
+            &arena,
+            &sidecar,
+            def,
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+        assert_eq!(ordinary_shadow.scheme, ordinary);
+        assert_definition_predicate_provenance(&ordinary_shadow);
+
+        let principal = instantiate_principal_scheme_for_inference_with_fresh_and_roles(
+            &arena,
+            def,
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+        let principal_shadow =
+            instantiate_principal_scheme_for_inference_with_fresh_and_roles_with_provenance(
+                &arena,
+                &sidecar,
+                def,
+                &scheme,
+                fresh_for_kind,
+            )
+            .unwrap();
+        assert_eq!(principal_shadow.scheme, principal);
+        assert_definition_predicate_provenance(&principal_shadow);
+
+        let expected = int_type();
+        let expected_semantic = instantiate_scheme_with_expected_fresh_and_roles(
+            &arena,
+            def,
+            &scheme,
+            &expected,
+            fresh_for_kind,
+        )
+        .unwrap();
+        let expected_shadow = instantiate_scheme_with_expected_fresh_and_roles_with_provenance(
+            &arena,
+            &sidecar,
+            def,
+            &scheme,
+            &expected,
+            fresh_for_kind,
+        )
+        .unwrap();
+        assert_eq!(expected_shadow.scheme, expected_semantic);
+        assert_definition_predicate_provenance(&expected_shadow);
+
+        let monomorphic = instantiate_monomorphic_scheme_with_fresh_and_roles(
+            &arena,
+            def,
+            &scheme,
+            fresh_for_kind,
+        )
+        .unwrap();
+        let monomorphic_shadow =
+            instantiate_monomorphic_scheme_with_fresh_and_roles_with_provenance(
+                &arena,
+                &sidecar,
+                def,
+                &scheme,
+                fresh_for_kind,
+            )
+            .unwrap();
+        assert_eq!(monomorphic_shadow.scheme, monomorphic);
+        assert_definition_predicate_provenance(&monomorphic_shadow);
+    }
 
     #[test]
     fn provenance_shadow_preserves_semantic_type_and_projects_structural_paths() {
@@ -775,6 +1043,50 @@ mod tests {
             SchemeQuantifierKind::Value => Type::OpenVar(100),
             SchemeQuantifierKind::Effect => Type::OpenVar(200),
         }
+    }
+
+    fn quantified_definition_scheme_with_provenance() -> (
+        poly_expr::Arena,
+        Scheme,
+        SubtypeProvenanceSidecar,
+        poly_expr::DefId,
+    ) {
+        let mut arena = poly_expr::Arena::new();
+        let quantifier = TypeVar(99);
+        let predicate = arena.typ.alloc_pos(Pos::Var(quantifier));
+        let scheme = scheme(predicate, quantifier);
+        let def = poly_expr::DefId(0);
+        let mut sidecar = SubtypeProvenanceSidecar::empty();
+        insert_occurrence(
+            &mut sidecar,
+            TypeOccurrenceOwner::Definition(def),
+            TypeOccurrenceRole::DefinitionPredicate,
+            TypePositionPath::default(),
+            11,
+        );
+        (arena, scheme, sidecar, def)
+    }
+
+    fn assert_definition_predicate_provenance(materialized: &InstantiatedSchemeWithProvenance) {
+        assert_eq!(
+            materialized.provenance.completeness,
+            ProvenanceCompleteness::Incomplete
+        );
+        assert_eq!(materialized.provenance.positions.len(), 1);
+        assert_eq!(
+            materialized.provenance.positions[0].path,
+            TypePositionPath::default()
+        );
+        assert_eq!(
+            materialized.provenance.positions[0].anchors,
+            vec![ProvenanceAnchor::from_index(11)]
+        );
+    }
+
+    fn semantic_hash(scheme: &InstantiatedScheme) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        scheme.hash(&mut hasher);
+        hasher.finish()
     }
 
     fn scheme(predicate: poly::types::PosId, quantifier: TypeVar) -> Scheme {
