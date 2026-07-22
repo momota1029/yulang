@@ -2,6 +2,252 @@ use super::*;
 
 mod ordinary_cast_characterization;
 
+#[test]
+fn subtype_provenance_duplicate_roots_merge_without_semantic_requeue_and_scale_linearly() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    for occurrence in 0..8 {
+        graph
+            .constrain_materialized_subtype(
+                materialized_root(int_type(), occurrence),
+                materialized_root(Type::unit(), 100 + occurrence),
+            )
+            .unwrap();
+    }
+
+    assert_eq!(graph.queued_constraints.len(), 1);
+    assert_eq!(graph.pending.len(), 1);
+    assert_eq!(graph.subtype_provenance_records.len(), 1);
+    assert_eq!(graph.subtype_provenance_records[0].incoming.len(), 8);
+    assert_eq!(graph.subtype_provenance_metrics.records, 1);
+    assert_eq!(graph.subtype_provenance_metrics.semantic_enqueues, 1);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_considered, 8);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_inserted, 8);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_deduplicated, 0);
+
+    graph
+        .constrain_materialized_subtype(
+            materialized_root(int_type(), 7),
+            materialized_root(Type::unit(), 107),
+        )
+        .unwrap();
+    assert_eq!(graph.pending.len(), 1);
+    assert_eq!(graph.subtype_provenance_records[0].incoming.len(), 8);
+    assert_eq!(graph.subtype_provenance_metrics.semantic_enqueues, 1);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_deduplicated, 1);
+}
+
+#[test]
+fn subtype_provenance_storage_budget_truncates_metadata_without_semantic_requeue() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    for occurrence in 0..80 {
+        graph
+            .constrain_materialized_subtype(
+                materialized_root(int_type(), occurrence),
+                materialized_root(Type::unit(), 100 + occurrence),
+            )
+            .unwrap();
+    }
+
+    assert_eq!(graph.queued_constraints.len(), 1);
+    assert_eq!(graph.pending.len(), 1);
+    assert_eq!(graph.subtype_provenance_records.len(), 1);
+    assert_eq!(graph.subtype_provenance_records[0].incoming.len(), 64);
+    assert_eq!(graph.subtype_provenance_metrics.semantic_enqueues, 1);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_considered, 80);
+    assert_eq!(graph.subtype_provenance_metrics.incoming_inserted, 64);
+    assert!(graph.subtype_provenance_metrics.budget_exhaustions >= 16);
+    assert_eq!(
+        graph.subtype_provenance_records[0].completeness,
+        ProvenanceCompleteness::Incomplete
+    );
+}
+
+#[test]
+fn subtype_provenance_nested_tuple_failure_excludes_sibling_anchors() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::Tuple(vec![
+        Type::Tuple(vec![int_type(), int_type()]),
+        Type::unit(),
+    ]);
+    let upper = Type::Tuple(vec![Type::Tuple(vec![int_type()]), Type::unit()]);
+    let child = TypePositionStep::TupleElement(poly::provenance::TypePositionIndex::from_usize(0));
+    let sibling =
+        TypePositionStep::TupleElement(poly::provenance::TypePositionIndex::from_usize(1));
+    graph
+        .constrain_materialized_subtype(
+            materialized_paths(lower, &[(vec![child], 1), (vec![sibling], 2)]),
+            materialized_paths(upper, &[(vec![child], 11), (vec![sibling], 12)]),
+        )
+        .unwrap();
+
+    let error = graph.solve_constraints().unwrap_err();
+    assert!(matches!(error, SpecializeError::UnsatisfiedSubtype { .. }));
+    let [failure] = graph.shadow_subtype_failures.as_slice() else {
+        panic!(
+            "expected one shadow failure: {:?}",
+            graph.shadow_subtype_failures
+        );
+    };
+    assert_eq!(failure.lower, vec![ProvenanceAnchor::from_index(1)]);
+    assert_eq!(failure.upper, vec![ProvenanceAnchor::from_index(11)]);
+    assert!(!failure.lower.contains(&ProvenanceAnchor::from_index(2)));
+    assert!(!failure.upper.contains(&ProvenanceAnchor::from_index(12)));
+    assert!(graph.subtype_provenance_records[failure.record.index()]
+        .incoming
+        .iter()
+        .any(|edge| matches!(edge, SpecializeProvenanceDerivation::Structural { step, .. } if *step == child)));
+}
+
+#[test]
+fn subtype_provenance_record_and_variant_container_failures_keep_root_anchors() {
+    let arena = poly_expr::Arena::new();
+
+    let mut record_graph = TypeGraph::new(&arena);
+    record_graph
+        .constrain_materialized_subtype(
+            materialized_root(Type::Record(Vec::new()), 3),
+            materialized_root(Type::Record(vec![field("required", int_type(), false)]), 13),
+        )
+        .unwrap();
+    assert!(record_graph.solve_constraints().is_err());
+    assert_eq!(
+        record_graph.shadow_subtype_failures[0].lower,
+        vec![ProvenanceAnchor::from_index(3)]
+    );
+    assert_eq!(
+        record_graph.shadow_subtype_failures[0].upper,
+        vec![ProvenanceAnchor::from_index(13)]
+    );
+
+    let mut variant_graph = TypeGraph::new(&arena);
+    variant_graph
+        .constrain_materialized_subtype(
+            materialized_root(Type::PolyVariant(vec![variant("missing", Vec::new())]), 4),
+            materialized_root(Type::PolyVariant(vec![variant("other", Vec::new())]), 14),
+        )
+        .unwrap();
+    assert!(variant_graph.solve_constraints().is_err());
+    assert_eq!(
+        variant_graph.shadow_subtype_failures[0].lower,
+        vec![ProvenanceAnchor::from_index(4)]
+    );
+    assert_eq!(
+        variant_graph.shadow_subtype_failures[0].upper,
+        vec![ProvenanceAnchor::from_index(14)]
+    );
+}
+
+#[test]
+fn subtype_provenance_record_and_variant_children_advance_exact_paths() {
+    let arena = poly_expr::Arena::new();
+    let tuple_lower = Type::Tuple(vec![int_type(), int_type()]);
+    let tuple_upper = Type::Tuple(vec![int_type()]);
+
+    let record_step = TypePositionStep::RecordField {
+        alternative: poly::provenance::TypePositionIndex::from_usize(0),
+        field: poly::provenance::TypePositionIndex::from_usize(0),
+    };
+    let mut record_graph = TypeGraph::new(&arena);
+    record_graph
+        .constrain_materialized_subtype(
+            materialized_paths(
+                Type::Record(vec![field("value", tuple_lower.clone(), false)]),
+                &[(vec![record_step], 5)],
+            ),
+            materialized_paths(
+                Type::Record(vec![field("value", tuple_upper.clone(), false)]),
+                &[(vec![record_step], 15)],
+            ),
+        )
+        .unwrap();
+    assert!(record_graph.solve_constraints().is_err());
+    assert_eq!(
+        record_graph.shadow_subtype_failures[0].lower,
+        vec![ProvenanceAnchor::from_index(5)]
+    );
+    assert_eq!(
+        record_graph.shadow_subtype_failures[0].upper,
+        vec![ProvenanceAnchor::from_index(15)]
+    );
+
+    let variant_step = TypePositionStep::VariantPayload {
+        alternative: poly::provenance::TypePositionIndex::from_usize(0),
+        item: poly::provenance::TypePositionIndex::from_usize(0),
+        payload: poly::provenance::TypePositionIndex::from_usize(0),
+    };
+    let mut variant_graph = TypeGraph::new(&arena);
+    variant_graph
+        .constrain_materialized_subtype(
+            materialized_paths(
+                Type::PolyVariant(vec![variant("some", vec![tuple_lower])]),
+                &[(vec![variant_step], 6)],
+            ),
+            materialized_paths(
+                Type::PolyVariant(vec![variant("some", vec![tuple_upper])]),
+                &[(vec![variant_step], 16)],
+            ),
+        )
+        .unwrap();
+    assert!(variant_graph.solve_constraints().is_err());
+    assert_eq!(
+        variant_graph.shadow_subtype_failures[0].lower,
+        vec![ProvenanceAnchor::from_index(6)]
+    );
+    assert_eq!(
+        variant_graph.shadow_subtype_failures[0].upper,
+        vec![ProvenanceAnchor::from_index(16)]
+    );
+}
+
+#[test]
+fn subtype_provenance_open_var_replay_is_explicitly_incomplete() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let slot = graph.fresh_value();
+    graph
+        .constrain_materialized_subtype(
+            materialized_root(Type::Tuple(vec![int_type(), int_type()]), 20),
+            materialized_root(slot.clone(), 21),
+        )
+        .unwrap();
+    graph
+        .constrain_subtype(slot, Type::Tuple(vec![int_type()]))
+        .unwrap();
+
+    assert!(graph.solve_constraints().is_err());
+    let failure = graph.shadow_subtype_failures.last().unwrap();
+    assert!(failure.lower.is_empty());
+    assert!(failure.upper.is_empty());
+    assert_eq!(failure.completeness, ProvenanceCompleteness::Incomplete);
+}
+
+fn materialized_root(ty: Type, anchor: usize) -> types::MaterializedTypeWithProvenance {
+    materialized_paths(ty, &[(Vec::new(), anchor)])
+}
+
+fn materialized_paths(
+    ty: Type,
+    paths: &[(Vec<TypePositionStep>, usize)],
+) -> types::MaterializedTypeWithProvenance {
+    types::MaterializedTypeWithProvenance {
+        ty,
+        provenance: types::MaterializedTypeProvenance {
+            positions: paths
+                .iter()
+                .map(|(path, anchor)| types::MaterializedPositionProvenance {
+                    path: poly::provenance::TypePositionPath(path.clone()),
+                    anchors: vec![ProvenanceAnchor::from_index(*anchor)],
+                    completeness: ProvenanceCompleteness::Complete,
+                })
+                .collect(),
+            completeness: ProvenanceCompleteness::Complete,
+        },
+    }
+}
+
 fn callback_type(first_ret_effect: Type, final_ret_effect: Type) -> Type {
     Type::Fun {
         arg: Box::new(Type::unit()),

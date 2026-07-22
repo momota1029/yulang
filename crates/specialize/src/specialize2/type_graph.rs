@@ -3,6 +3,12 @@ use super::*;
 mod bounds;
 mod effect_rows;
 
+const MAX_SUBTYPE_PROVENANCE_RECORDS: usize = 16_384;
+const MAX_INCOMING_PROVENANCE_PER_RECORD: usize = 64;
+const MAX_SHADOW_SUBTYPE_FAILURES: usize = 256;
+const MAX_MATERIALIZED_POSITIONS_PER_RECORD: usize = 256;
+const MAX_ANCHORS_PER_MATERIALIZED_POSITION: usize = 64;
+
 impl<'a> TypeGraph<'a> {
     pub(super) fn new(arena: &'a poly_expr::Arena) -> Self {
         Self {
@@ -11,6 +17,11 @@ impl<'a> TypeGraph<'a> {
             slots: Vec::new(),
             pending: VecDeque::new(),
             queued_constraints: HashSet::new(),
+            subtype_provenance_records: Vec::new(),
+            subtype_provenance_by_key: HashMap::new(),
+            subtype_position_provenance: Vec::new(),
+            shadow_subtype_failures: Vec::new(),
+            subtype_provenance_metrics: SpecializeSubtypeProvenanceMetrics::default(),
             row_residuals: HashMap::new(),
             closed_effect_subtraction_consumers: HashSet::new(),
             role_demands: Vec::new(),
@@ -54,6 +65,36 @@ impl<'a> TypeGraph<'a> {
         self.constrain_weighted_subtype(lower, empty_stack_weight(), upper, empty_stack_weight())
     }
 
+    #[allow(dead_code)] // Task-root sidecar handoff remains deferred from this safety-first partial.
+    pub(super) fn constrain_materialized_subtype(
+        &mut self,
+        lower: types::MaterializedTypeWithProvenance,
+        upper: types::MaterializedTypeWithProvenance,
+    ) -> Result<(), SpecializeError> {
+        let lower_positions = lower.provenance;
+        let upper_positions = upper.provenance;
+        let completeness =
+            compose_completeness(lower_positions.completeness, upper_positions.completeness);
+        let lower_anchors = anchors_at_root(&lower_positions);
+        let upper_anchors = anchors_at_root(&upper_positions);
+        self.intern_weighted_subtype(
+            lower.ty,
+            empty_stack_weight(),
+            upper.ty,
+            empty_stack_weight(),
+            SpecializeProvenanceDerivation::Root {
+                lower: lower_anchors,
+                upper: upper_anchors,
+            },
+            SubtypePositionProvenance {
+                lower: lower_positions,
+                upper: upper_positions,
+            },
+            completeness,
+        );
+        Ok(())
+    }
+
     pub(super) fn constrain_weighted_subtype(
         &mut self,
         lower: Type,
@@ -61,23 +102,167 @@ impl<'a> TypeGraph<'a> {
         upper: Type,
         upper_weight: StackWeight,
     ) -> Result<(), SpecializeError> {
+        self.intern_weighted_subtype(
+            lower,
+            lower_weight,
+            upper,
+            upper_weight,
+            SpecializeProvenanceDerivation::Root {
+                lower: Vec::new(),
+                upper: Vec::new(),
+            },
+            incomplete_positions(),
+            ProvenanceCompleteness::Incomplete,
+        );
+        Ok(())
+    }
+
+    fn intern_weighted_subtype(
+        &mut self,
+        lower: Type,
+        lower_weight: StackWeight,
+        upper: Type,
+        upper_weight: StackWeight,
+        derivation: SpecializeProvenanceDerivation,
+        positions: SubtypePositionProvenance,
+        completeness: ProvenanceCompleteness,
+    ) -> Option<SpecializeSubtypeProvenanceRecordId> {
         let (lower_weight, upper_weight) = if lower_weight == upper_weight {
             (empty_stack_weight(), empty_stack_weight())
         } else {
             (lower_weight, upper_weight)
         };
-        if lower != upper {
-            let constraint = SubtypeConstraint {
-                lower,
-                lower_weight,
-                upper,
-                upper_weight,
-            };
-            if self.queued_constraints.insert(constraint.clone()) {
-                self.pending.push_back(constraint);
-            }
+        if lower == upper {
+            return None;
         }
+        let constraint = SubtypeConstraint {
+            lower,
+            lower_weight,
+            upper,
+            upper_weight,
+        };
+        let record =
+            self.intern_provenance_record(constraint.clone(), derivation, positions, completeness);
+        if self.queued_constraints.insert(constraint.clone()) {
+            self.pending.push_back(constraint);
+            self.subtype_provenance_metrics.semantic_enqueues += 1;
+        }
+        record
+    }
+
+    fn intern_provenance_record(
+        &mut self,
+        semantic_key: SubtypeConstraint,
+        derivation: SpecializeProvenanceDerivation,
+        positions: SubtypePositionProvenance,
+        completeness: ProvenanceCompleteness,
+    ) -> Option<SpecializeSubtypeProvenanceRecordId> {
+        self.subtype_provenance_metrics.incoming_considered += 1;
+        if let Some(id) = self.subtype_provenance_by_key.get(&semantic_key).copied() {
+            self.merge_positions(id, positions);
+            let record = &mut self.subtype_provenance_records[id.index()];
+            record.completeness = compose_completeness(record.completeness, completeness);
+            if record.incoming.contains(&derivation) {
+                self.subtype_provenance_metrics.incoming_deduplicated += 1;
+            } else if record.incoming.len() < MAX_INCOMING_PROVENANCE_PER_RECORD {
+                record.incoming.push(derivation);
+                self.subtype_provenance_metrics.incoming_inserted += 1;
+            } else {
+                record.completeness = ProvenanceCompleteness::Incomplete;
+                self.subtype_provenance_metrics.budget_exhaustions += 1;
+            }
+            return Some(id);
+        }
+        if self.subtype_provenance_records.len() >= MAX_SUBTYPE_PROVENANCE_RECORDS {
+            self.subtype_provenance_metrics.budget_exhaustions += 1;
+            return None;
+        }
+        let id = SpecializeSubtypeProvenanceRecordId(
+            u32::try_from(self.subtype_provenance_records.len())
+                .expect("specialize provenance record fits in u32"),
+        );
+        self.subtype_provenance_records
+            .push(SpecializeSubtypeProvenanceRecord {
+                semantic_key: semantic_key.clone(),
+                incoming: vec![derivation],
+                completeness,
+            });
+        self.subtype_position_provenance.push(positions);
+        self.subtype_provenance_by_key.insert(semantic_key, id);
+        self.subtype_provenance_metrics.records += 1;
+        self.subtype_provenance_metrics.incoming_inserted += 1;
+        Some(id)
+    }
+
+    fn merge_positions(
+        &mut self,
+        id: SpecializeSubtypeProvenanceRecordId,
+        incoming: SubtypePositionProvenance,
+    ) {
+        let existing = &mut self.subtype_position_provenance[id.index()];
+        let exhausted = merge_materialized_positions(&mut existing.lower, incoming.lower)
+            | merge_materialized_positions(&mut existing.upper, incoming.upper);
+        if exhausted {
+            self.subtype_provenance_records[id.index()].completeness =
+                ProvenanceCompleteness::Incomplete;
+            self.subtype_provenance_metrics.budget_exhaustions += 1;
+        }
+    }
+
+    fn constrain_structural_subtype(
+        &mut self,
+        lower: Type,
+        lower_weight: StackWeight,
+        upper: Type,
+        upper_weight: StackWeight,
+        parent: Option<SpecializeSubtypeProvenanceRecordId>,
+        lower_step: TypePositionStep,
+        upper_step: TypePositionStep,
+    ) -> Result<(), SpecializeError> {
+        let Some(parent) = parent else {
+            return self.constrain_weighted_subtype(lower, lower_weight, upper, upper_weight);
+        };
+        let parent_positions = &self.subtype_position_provenance[parent.index()];
+        let positions = SubtypePositionProvenance {
+            lower: advance_materialized_positions(&parent_positions.lower, lower_step),
+            upper: advance_materialized_positions(&parent_positions.upper, upper_step),
+        };
+        let completeness = compose_completeness(
+            self.subtype_provenance_records[parent.index()].completeness,
+            compose_completeness(positions.lower.completeness, positions.upper.completeness),
+        );
+        self.intern_weighted_subtype(
+            lower,
+            lower_weight,
+            upper,
+            upper_weight,
+            SpecializeProvenanceDerivation::Structural {
+                parent,
+                step: lower_step,
+            },
+            positions,
+            completeness,
+        );
         Ok(())
+    }
+
+    fn record_shadow_failure(&mut self, record: Option<SpecializeSubtypeProvenanceRecordId>) {
+        let Some(record) = record else {
+            return;
+        };
+        if self.shadow_subtype_failures.len() >= MAX_SHADOW_SUBTYPE_FAILURES {
+            self.subtype_provenance_records[record.index()].completeness =
+                ProvenanceCompleteness::Incomplete;
+            self.subtype_provenance_metrics.budget_exhaustions += 1;
+            return;
+        }
+        let positions = &self.subtype_position_provenance[record.index()];
+        self.shadow_subtype_failures.push(SubtypeFailureProvenance {
+            record,
+            lower: anchors_at_root(&positions.lower),
+            upper: anchors_at_root(&positions.upper),
+            completeness: self.subtype_provenance_records[record.index()].completeness,
+        });
     }
 
     pub(super) fn add_role_demands(
@@ -153,11 +338,13 @@ impl<'a> TypeGraph<'a> {
 
     pub(super) fn solve_constraints(&mut self) -> Result<(), SpecializeError> {
         while let Some(constraint) = self.pending.pop_front() {
+            let provenance = self.subtype_provenance_by_key.get(&constraint).copied();
             self.process_subtype(
                 constraint.lower,
                 constraint.lower_weight,
                 constraint.upper,
                 constraint.upper_weight,
+                provenance,
             )?;
         }
         Ok(())
@@ -168,11 +355,13 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         loop {
             while let Some(constraint) = self.pending.pop_front() {
+                let provenance = self.subtype_provenance_by_key.get(&constraint).copied();
                 self.process_subtype(
                     constraint.lower,
                     constraint.lower_weight,
                     constraint.upper,
                     constraint.upper_weight,
+                    provenance,
                 )?;
             }
             if !self.close_pure_effect_subtraction_tails()? {
@@ -187,6 +376,7 @@ impl<'a> TypeGraph<'a> {
         lower_weight: StackWeight,
         upper: Type,
         upper_weight: StackWeight,
+        provenance: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         let (lower, lower_weight) = peel_stack_weight(lower, lower_weight);
         let (upper, upper_weight) = peel_stack_weight(upper, upper_weight);
@@ -383,17 +573,26 @@ impl<'a> TypeGraph<'a> {
             (Type::Tuple(lower_items), Type::Tuple(upper_items))
                 if lower_items.len() == upper_items.len() =>
             {
-                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
-                    self.constrain_weighted_subtype(
+                for (index, (lower, upper)) in lower_items.into_iter().zip(upper_items).enumerate()
+                {
+                    self.constrain_structural_subtype(
                         lower,
                         lower_weight.clone(),
                         upper,
                         upper_weight.clone(),
+                        provenance,
+                        TypePositionStep::TupleElement(
+                            poly::provenance::TypePositionIndex::from_usize(index),
+                        ),
+                        TypePositionStep::TupleElement(
+                            poly::provenance::TypePositionIndex::from_usize(index),
+                        ),
                     )?;
                 }
                 Ok(())
             }
             (Type::Tuple(lower_items), Type::Tuple(upper_items)) => {
+                self.record_shadow_failure(provenance);
                 unsatisfied_subtype(Type::Tuple(lower_items), Type::Tuple(upper_items))
             }
             (Type::Record(lower_fields), Type::Record(upper_fields)) => {
@@ -402,18 +601,32 @@ impl<'a> TypeGraph<'a> {
                         && record_field_type(&lower_fields, &upper_field.name).is_none()
                 });
                 if missing_required_field {
+                    self.record_shadow_failure(provenance);
                     return unsatisfied_subtype(
                         Type::Record(lower_fields),
                         Type::Record(upper_fields),
                     );
                 }
-                for upper_field in upper_fields {
-                    if let Some(lower_field) = record_field_type(&lower_fields, &upper_field.name) {
-                        self.constrain_weighted_subtype(
+                for (upper_index, upper_field) in upper_fields.into_iter().enumerate() {
+                    if let Some((lower_index, lower_field)) = lower_fields
+                        .iter()
+                        .enumerate()
+                        .find(|(_, field)| field.name == upper_field.name)
+                    {
+                        self.constrain_structural_subtype(
                             lower_field.value.clone(),
                             lower_weight.clone(),
                             upper_field.value,
                             upper_weight.clone(),
+                            provenance,
+                            TypePositionStep::RecordField {
+                                alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                                field: poly::provenance::TypePositionIndex::from_usize(lower_index),
+                            },
+                            TypePositionStep::RecordField {
+                                alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                                field: poly::provenance::TypePositionIndex::from_usize(upper_index),
+                            },
                         )?;
                     }
                 }
@@ -424,24 +637,40 @@ impl<'a> TypeGraph<'a> {
                     .iter()
                     .any(|lower_variant| matching_variant(&upper_variants, lower_variant).is_none())
                 {
+                    self.record_shadow_failure(provenance);
                     return unsatisfied_subtype(
                         Type::PolyVariant(lower_variants),
                         Type::PolyVariant(upper_variants),
                     );
                 }
-                for lower_variant in lower_variants {
-                    let upper_variant = matching_variant(&upper_variants, &lower_variant)
+                for (lower_item, lower_variant) in lower_variants.into_iter().enumerate() {
+                    let (upper_item, upper_variant) = upper_variants
+                        .iter()
+                        .enumerate()
+                        .find(|(_, variant)| variant.name == lower_variant.name)
                         .expect("poly variant mismatch checked above");
-                    for (lower, upper) in lower_variant
+                    for (payload, (lower, upper)) in lower_variant
                         .payloads
                         .into_iter()
                         .zip(upper_variant.payloads.iter().cloned())
+                        .enumerate()
                     {
-                        self.constrain_weighted_subtype(
+                        self.constrain_structural_subtype(
                             lower,
                             lower_weight.clone(),
                             upper,
                             upper_weight.clone(),
+                            provenance,
+                            TypePositionStep::VariantPayload {
+                                alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                                item: poly::provenance::TypePositionIndex::from_usize(lower_item),
+                                payload: poly::provenance::TypePositionIndex::from_usize(payload),
+                            },
+                            TypePositionStep::VariantPayload {
+                                alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                                item: poly::provenance::TypePositionIndex::from_usize(upper_item),
+                                payload: poly::provenance::TypePositionIndex::from_usize(payload),
+                            },
                         )?;
                     }
                 }
@@ -524,6 +753,102 @@ impl<'a> TypeGraph<'a> {
         self.add_role_demands(instantiated.role_predicates);
         self.constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
+    }
+}
+
+fn incomplete_positions() -> SubtypePositionProvenance {
+    SubtypePositionProvenance {
+        lower: types::MaterializedTypeProvenance {
+            positions: Vec::new(),
+            completeness: ProvenanceCompleteness::Incomplete,
+        },
+        upper: types::MaterializedTypeProvenance {
+            positions: Vec::new(),
+            completeness: ProvenanceCompleteness::Incomplete,
+        },
+    }
+}
+
+fn anchors_at_root(provenance: &types::MaterializedTypeProvenance) -> Vec<ProvenanceAnchor> {
+    let mut anchors = Vec::new();
+    for position in &provenance.positions {
+        if !position.path.0.is_empty() {
+            continue;
+        }
+        for anchor in &position.anchors {
+            if !anchors.contains(anchor) {
+                anchors.push(*anchor);
+            }
+        }
+    }
+    anchors
+}
+
+fn advance_materialized_positions(
+    provenance: &types::MaterializedTypeProvenance,
+    step: TypePositionStep,
+) -> types::MaterializedTypeProvenance {
+    let positions = provenance
+        .positions
+        .iter()
+        .filter_map(|position| {
+            let (first, rest) = position.path.0.split_first()?;
+            (*first == step).then(|| types::MaterializedPositionProvenance {
+                path: poly::provenance::TypePositionPath(rest.to_vec()),
+                anchors: position.anchors.clone(),
+                completeness: position.completeness,
+            })
+        })
+        .collect();
+    types::MaterializedTypeProvenance {
+        positions,
+        completeness: provenance.completeness,
+    }
+}
+
+fn merge_materialized_positions(
+    existing: &mut types::MaterializedTypeProvenance,
+    incoming: types::MaterializedTypeProvenance,
+) -> bool {
+    let mut exhausted = false;
+    existing.completeness = compose_completeness(existing.completeness, incoming.completeness);
+    for position in incoming.positions {
+        if let Some(current) = existing
+            .positions
+            .iter_mut()
+            .find(|current| current.path == position.path)
+        {
+            current.completeness =
+                compose_completeness(current.completeness, position.completeness);
+            for anchor in position.anchors {
+                if !current.anchors.contains(&anchor) {
+                    if current.anchors.len() < MAX_ANCHORS_PER_MATERIALIZED_POSITION {
+                        current.anchors.push(anchor);
+                    } else {
+                        current.completeness = ProvenanceCompleteness::Incomplete;
+                        existing.completeness = ProvenanceCompleteness::Incomplete;
+                        exhausted = true;
+                    }
+                }
+            }
+        } else if existing.positions.len() < MAX_MATERIALIZED_POSITIONS_PER_RECORD {
+            existing.positions.push(position);
+        } else {
+            existing.completeness = ProvenanceCompleteness::Incomplete;
+            exhausted = true;
+        }
+    }
+    exhausted
+}
+
+fn compose_completeness(
+    left: ProvenanceCompleteness,
+    right: ProvenanceCompleteness,
+) -> ProvenanceCompleteness {
+    if left == ProvenanceCompleteness::Complete && right == ProvenanceCompleteness::Complete {
+        ProvenanceCompleteness::Complete
+    } else {
+        ProvenanceCompleteness::Incomplete
     }
 }
 

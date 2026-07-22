@@ -14,6 +14,7 @@ use mono::{
     TypeVariant,
 };
 use poly::expr as poly_expr;
+use poly::provenance::{ProvenanceAnchor, ProvenanceCompleteness, TypePositionStep};
 
 use crate::{
     ExprTypeRole, RoleMethodCheckOutcome, RoleMethodCheckResolution, SpecializeError,
@@ -310,9 +311,70 @@ struct TypeGraph<'a> {
     slots: Vec<TypeSlot>,
     pending: VecDeque<SubtypeConstraint>,
     queued_constraints: HashSet<SubtypeConstraint>,
+    subtype_provenance_records: Vec<SpecializeSubtypeProvenanceRecord>,
+    subtype_provenance_by_key: HashMap<SubtypeConstraint, SpecializeSubtypeProvenanceRecordId>,
+    subtype_position_provenance: Vec<SubtypePositionProvenance>,
+    shadow_subtype_failures: Vec<SubtypeFailureProvenance>,
+    subtype_provenance_metrics: SpecializeSubtypeProvenanceMetrics,
     row_residuals: HashMap<RowResidualKey, u32>,
     closed_effect_subtraction_consumers: HashSet<(u32, EffectSubtractionDemand)>,
     role_demands: Vec<types::InstantiatedRolePredicate>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SpecializeSubtypeProvenanceRecordId(u32);
+
+impl SpecializeSubtypeProvenanceRecordId {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SpecializeSubtypeProvenanceRecord {
+    semantic_key: SubtypeConstraint,
+    incoming: Vec<SpecializeProvenanceDerivation>,
+    completeness: ProvenanceCompleteness,
+}
+
+#[allow(dead_code)] // Open-variable parent fan-in remains explicitly incomplete in SUBP-F.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SpecializeProvenanceDerivation {
+    Root {
+        lower: Vec<ProvenanceAnchor>,
+        upper: Vec<ProvenanceAnchor>,
+    },
+    Structural {
+        parent: SpecializeSubtypeProvenanceRecordId,
+        step: TypePositionStep,
+    },
+    OpenVarBound {
+        parents: Vec<SpecializeSubtypeProvenanceRecordId>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SubtypePositionProvenance {
+    lower: types::MaterializedTypeProvenance,
+    upper: types::MaterializedTypeProvenance,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SubtypeFailureProvenance {
+    record: SpecializeSubtypeProvenanceRecordId,
+    lower: Vec<ProvenanceAnchor>,
+    upper: Vec<ProvenanceAnchor>,
+    completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct SpecializeSubtypeProvenanceMetrics {
+    records: usize,
+    incoming_considered: usize,
+    incoming_inserted: usize,
+    incoming_deduplicated: usize,
+    semantic_enqueues: usize,
+    budget_exhaustions: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
