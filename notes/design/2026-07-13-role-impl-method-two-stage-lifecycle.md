@@ -2,10 +2,9 @@
 
 Date: 2026-07-13
 
-Status: implementation design for the lifecycle required by Stage 2 of
-`notes/design/2026-07-12-generic-role-impl-conformance-spec.md`. The user approved investigating
-and specifying the two-stage direction. This document does not approve an implementation, change
-source semantics, or settle the conformance proof kernel.
+Status: **implemented and verified for the approved two-stage role-impl method lifecycle
+(2026-07-14).** The separate candidate-independent early-fallback production optimization was
+investigated and deferred.
 
 ## 1. Purpose and relationship to the conformance specification
 

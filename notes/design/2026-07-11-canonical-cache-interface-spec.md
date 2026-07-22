@@ -2,10 +2,9 @@
 
 Date: 2026-07-11
 
-Status: feasibility and implementation design for Option 1 of
-`notes/design/2026-07-11-std-prefix-cache-boundary-concretization.md`.
-Implementation has not been approved or started. This document does not amend the role-system
-specification and must remain under `notes/design/` until the design is accepted and implemented.
+Status: **implemented and verified through the approved partial Option 1 scope (2026-07-15).**
+Canonical handoff, artifact/import, and oracle infrastructure landed; complete fallback retirement
+and broader prerequisite-bearing candidate coverage were not activated.
 
 ## 1. Purpose
 

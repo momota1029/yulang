@@ -1,7 +1,7 @@
 # 文字列 API v1 と parser pattern
 
 決定日: 2026-07-04
-状態: **決定済み（Part A は着手可。Part B は Stage P1 / P2 実装済み）**
+状態: **実装・検証済み（Part A、Part B Stage P1 / P2 ともに完了、2026-07-04）**
 署名: Claude Fable 5
 
 背景: ファイルを文字列として扱える（`file::text` が `ref '[file] str` を返す）

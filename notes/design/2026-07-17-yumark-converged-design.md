@@ -2,7 +2,8 @@
 
 Date: 2026-07-17
 
-Status: **converged pre-implementation direction, not an implementation specification**. This
+Status: **implemented for the static core / thin path; production migration complete
+(2026-07-18).** Command/injection, span provenance, and dedicated preview remain deferred. This
 document consolidates the investigation recorded in
 `2026-07-16-generalize-role-resolve-snapshot-spec.md`,
 `2026-07-17-yumark-primitive-format-dispatch-sketch.md`, the corrected Stage 0A fixture, and the

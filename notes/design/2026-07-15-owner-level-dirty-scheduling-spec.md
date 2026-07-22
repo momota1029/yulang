@@ -2,9 +2,8 @@
 
 Date: 2026-07-15
 
-Status: draft feasibility and implementation design for Claude/user review. This document is not
-Claude-signed, does not approve implementation, and does not amend the role-system or the signed
-role-impl lifecycle specifications.
+Status: **implemented, verified, and active by default in production (Stages 0-7 complete,
+2026-07-16).**
 
 ## 1. Purpose
 

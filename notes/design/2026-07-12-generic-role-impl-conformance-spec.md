@@ -2,9 +2,8 @@
 
 Date: 2026-07-12
 
-Status: feasibility and implementation design for source-level conformance checking of generic
-role implementations. No implementation is approved or started by this document. The three open
-soundness reports that motivated it are:
+Status: **implemented and activated for the approved generic role-impl conformance scope
+(2026-07-21).** The three soundness reports that motivated it are:
 
 - `notes/bugs/2026-07-12-role-impl-explicit-associated-conformance-gap.md`;
 - `notes/bugs/2026-07-12-function-result-annotation-conformance-gap.md`;

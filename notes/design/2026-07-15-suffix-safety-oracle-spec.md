@@ -2,9 +2,8 @@
 
 Date: 2026-07-15
 
-Status: draft feasibility and implementation design for Claude/user review. This document is not
-Claude-signed, does not approve implementation, and does not amend the signed canonical cache
-interface specification yet.
+Status: **abandoned after Stage 0 falsified the predictive-oracle hypothesis (2026-07-15).** No
+production oracle was activated; this document remains the historical design record.
 
 ## 1. Purpose
 
