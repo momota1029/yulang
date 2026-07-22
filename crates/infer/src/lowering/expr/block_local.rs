@@ -47,7 +47,11 @@ impl<'a> ExprLowerer<'a> {
             .map(|item| self.alloc_pos(Pos::Var(item.value)))
             .collect::<Vec<_>>();
         for item in &items {
-            self.subtype_var_to_var(item.effect, effect);
+            self.subtype_var_to_var_with_origin(
+                item.effect,
+                effect,
+                crate::constraints::OriginId::internal(),
+            );
         }
         self.constrain_lower(value, Pos::Tuple(item_values));
         Computation::new(
@@ -1179,8 +1183,16 @@ impl<'a> ExprLowerer<'a> {
     ) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
-        self.subtype_var_to_var(head.effect, effect);
-        self.subtype_var_to_var(tail.effect, effect);
+        self.subtype_var_to_var_with_origin(
+            head.effect,
+            effect,
+            crate::constraints::OriginId::internal(),
+        );
+        self.subtype_var_to_var_with_origin(
+            tail.effect,
+            effect,
+            crate::constraints::OriginId::internal(),
+        );
         self.subtype_var_to_var(tail.value, value);
         let expr = self
             .session
@@ -1197,7 +1209,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let (lit, primitive) = parse_number_lit(text)?;
 
-        self.constrain_lower(value, primitive_type(primitive));
+        self.constrain_lower_with_origin(
+            value,
+            primitive_type(primitive),
+            crate::constraints::OriginId::internal(),
+        );
         self.constrain_upper(value, primitive_neg_type(primitive));
         let expr = self.session.poly.add_expr(Expr::Lit(lit));
         Ok(Computation::value(expr, value, effect))

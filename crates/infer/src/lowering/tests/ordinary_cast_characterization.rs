@@ -8,7 +8,7 @@ use poly::cast_resolution::{OrdinaryCastResolution, classify_ordinary_cast_candi
 use poly::expr::CastRuleKind;
 
 #[test]
-fn cprov_i_uncharacterized_source_paths_fail_closed_as_incomplete() {
+fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
     let cases = [
         ("annotation", "my x: bool = 42\nx\n"),
         ("return", "my f(): bool = 42\nf()\n"),
@@ -27,6 +27,16 @@ fn cprov_i_uncharacterized_source_paths_fail_closed_as_incomplete() {
             continue;
         }
         assert_eq!(shadow.len(), 1, "{name}: one nominal mismatch");
+        if name == "application" {
+            assert!(
+                matches!(
+                    shadow[0].outcome,
+                    OcastEligibilityOutcome::InternalOnly { .. }
+                ),
+                "{name}: fully characterized but not coherently boundary-owned: {shadow:?}"
+            );
+            continue;
+        }
         assert!(
             matches!(
                 shadow[0].outcome,

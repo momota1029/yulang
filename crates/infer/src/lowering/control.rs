@@ -38,7 +38,11 @@ impl<'a> ExprLowerer<'a> {
                 body = self.discard_if_branch_value(body);
             }
             self.subtype_var_to_var(body.value, result_value);
-            self.subtype_var_to_var(body.effect, result_effect);
+            self.subtype_var_to_var_with_origin(
+                body.effect,
+                result_effect,
+                crate::constraints::OriginId::internal(),
+            );
             arms.push(LoweredIfArm { condition, body });
         }
 
@@ -47,7 +51,11 @@ impl<'a> ExprLowerer<'a> {
                 let body_node = if_arm_body_expr(&else_node).ok_or(LoweringError::MissingIfBody)?;
                 let body = self.lower_if_arm_body(&body_node)?;
                 self.subtype_var_to_var(body.value, result_value);
-                self.subtype_var_to_var(body.effect, result_effect);
+                self.subtype_var_to_var_with_origin(
+                    body.effect,
+                    result_effect,
+                    crate::constraints::OriginId::internal(),
+                );
                 body
             }
             None => {
@@ -291,7 +299,11 @@ impl<'a> ExprLowerer<'a> {
         let mut body = self.lower_expr(&body_node)?;
         body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
         self.subtype_var_to_var(body.value, result_value);
-        self.subtype_var_to_var(body.effect, result_effect);
+        self.subtype_var_to_var_with_origin(
+            body.effect,
+            result_effect,
+            crate::constraints::OriginId::internal(),
+        );
         Ok(CaseArm {
             pat,
             guard,

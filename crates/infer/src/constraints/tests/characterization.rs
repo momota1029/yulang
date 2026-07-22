@@ -7,7 +7,7 @@ use std::path::{Path as FsPath, PathBuf};
 use crate::constraints::explain::{
     ExplanationBudget, ExplanationCompleteness, ExplanationTruncationReason,
 };
-use crate::constraints::ocast_eligibility::{OcastEligibilityOutcome, OcastIncompleteReason};
+use crate::constraints::ocast_eligibility::OcastEligibilityOutcome;
 use crate::constraints::timing::{
     begin_nominal_cast_pair_capture, finish_nominal_cast_pair_capture,
 };
@@ -63,15 +63,13 @@ fn cprov_a_characterizes_constraints_replay_std_and_regressions() {
             case.name,
             "config-read-false-positive-repro" | "file-rollback-false-positive-repro"
         ) {
-            assert_eq!(ocast.incomplete, nominal_events);
+            assert_eq!(ocast.incomplete, 0);
             assert_eq!(ocast.eligible_source_boundary, 0);
-            assert_eq!(ocast.internal_only, 0);
+            assert_eq!(ocast.internal_only, nominal_events);
             assert!(output.session.ocast_eligibility_shadow().iter().all(
                 |classification| matches!(
                     classification.outcome,
-                    OcastEligibilityOutcome::Incomplete {
-                        reason: OcastIncompleteReason::UnknownOrigin(_)
-                    }
+                    OcastEligibilityOutcome::InternalOnly { .. }
                 )
             ));
         }
@@ -477,7 +475,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 1_480, 791, 4, 34_156),
+            origin_coverage: origins(1_852, 1_480, 791, 9_496, 24_664),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
@@ -485,7 +483,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(231_493, 35, 1_875, 0),
             stable_record_coverage: stable_records(113_398, 118_095, 35, 105),
             replay_derivation_coverage: replay_derivations(880_497, 768_170),
-            provenance_epoch: 1_406_611,
+            provenance_epoch: 1_406_624,
             canonical_subtype_constraints: 143_046,
             subtype_duplicate_admissions: 13_114,
             subtype_trivial_admissions: 12_098,
@@ -507,7 +505,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 1_480, 791, 4, 34_275),
+            origin_coverage: origins(1_855, 1_480, 791, 9_546, 24_733),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
@@ -515,7 +513,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(232_142, 35, 1_892, 0),
             stable_record_coverage: stable_records(113_695, 118_447, 35, 106),
             replay_derivation_coverage: replay_derivations(881_247, 768_646),
-            provenance_epoch: 1_408_938,
+            provenance_epoch: 1_408_951,
             canonical_subtype_constraints: 143_492,
             subtype_duplicate_admissions: 13_186,
             subtype_trivial_admissions: 12_127,
@@ -540,7 +538,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 1_487, 795, 23, 34_491),
+            origin_coverage: origins(1_868, 1_487, 795, 9_601, 24_913),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
@@ -548,7 +546,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(234_727, 35, 1_898, 5),
             stable_record_coverage: stable_records(115_034, 119_693, 35, 106),
             replay_derivation_coverage: replay_derivations(897_161, 782_849),
-            provenance_epoch: 1_431_800,
+            provenance_epoch: 1_431_813,
             canonical_subtype_constraints: 145_614,
             subtype_duplicate_admissions: 14_132,
             subtype_trivial_admissions: 12_249,
@@ -570,7 +568,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 1_506, 813, 78, 35_564),
+            origin_coverage: origins(1_906, 1_506, 813, 9_927, 25_715),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
@@ -578,7 +576,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(240_968, 35, 1_883, 0),
             stable_record_coverage: stable_records(118_159, 122_809, 35, 109),
             replay_derivation_coverage: replay_derivations(906_567, 788_687),
-            provenance_epoch: 1_454_555,
+            provenance_epoch: 1_454_568,
             canonical_subtype_constraints: 149_487,
             subtype_duplicate_admissions: 13_938,
             subtype_trivial_admissions: 12_622,
@@ -614,7 +612,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 1_497, 801, 48, 34_933),
+            origin_coverage: origins(1_883, 1_497, 801, 9_725, 25_256),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
@@ -622,7 +620,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(236_385, 35, 1_885, 5),
             stable_record_coverage: stable_records(115_881, 120_504, 35, 109),
             replay_derivation_coverage: replay_derivations(894_141, 779_036),
-            provenance_epoch: 1_432_464,
+            provenance_epoch: 1_432_477,
             canonical_subtype_constraints: 146_636,
             subtype_duplicate_admissions: 14_072,
             subtype_trivial_admissions: 12_396,

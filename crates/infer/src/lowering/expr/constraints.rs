@@ -33,13 +33,22 @@ impl<'a> ExprLowerer<'a> {
     }
 
     pub(in crate::lowering) fn constrain_lower(&mut self, var: TypeVar, lower: Pos) {
-        let lower = self.alloc_pos(lower);
-        let upper = self.alloc_neg(Neg::Var(var));
-        self.session.infer.subtype(
+        self.constrain_lower_with_origin(
+            var,
             lower,
-            upper,
             crate::constraints::OriginId::unknown_internal(),
         );
+    }
+
+    pub(in crate::lowering) fn constrain_lower_with_origin(
+        &mut self,
+        var: TypeVar,
+        lower: Pos,
+        origin: crate::constraints::OriginId,
+    ) {
+        let lower = self.alloc_pos(lower);
+        let upper = self.alloc_neg(Neg::Var(var));
+        self.session.infer.subtype(lower, upper, origin);
     }
 
     pub(in crate::lowering) fn constrain_upper(&mut self, var: TypeVar, upper: Neg) {
@@ -58,21 +67,39 @@ impl<'a> ExprLowerer<'a> {
     }
 
     pub(in crate::lowering) fn subtype_var_to_var(&mut self, lower: TypeVar, upper: TypeVar) {
-        let upper = self.alloc_neg(Neg::Var(upper));
-        self.subtype(
-            Pos::Var(lower),
+        self.subtype_var_to_var_with_origin(
+            lower,
             upper,
             crate::constraints::OriginId::unknown_internal(),
         );
     }
 
-    pub(in crate::lowering) fn subtype_pos_to_var(&mut self, lower: PosId, upper: TypeVar) {
+    pub(in crate::lowering) fn subtype_var_to_var_with_origin(
+        &mut self,
+        lower: TypeVar,
+        upper: TypeVar,
+        origin: crate::constraints::OriginId,
+    ) {
         let upper = self.alloc_neg(Neg::Var(upper));
-        self.session.infer.subtype(
+        self.subtype(Pos::Var(lower), upper, origin);
+    }
+
+    pub(in crate::lowering) fn subtype_pos_to_var(&mut self, lower: PosId, upper: TypeVar) {
+        self.subtype_pos_to_var_with_origin(
             lower,
             upper,
             crate::constraints::OriginId::unknown_internal(),
         );
+    }
+
+    pub(in crate::lowering) fn subtype_pos_to_var_with_origin(
+        &mut self,
+        lower: PosId,
+        upper: TypeVar,
+        origin: crate::constraints::OriginId,
+    ) {
+        let upper = self.alloc_neg(Neg::Var(upper));
+        self.session.infer.subtype(lower, upper, origin);
     }
 
     pub(in crate::lowering) fn subtype(

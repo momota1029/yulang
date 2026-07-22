@@ -311,16 +311,24 @@ impl AnalysisSession {
         }
         let phase = Instant::now();
         if !direct_lower_predicates.is_empty() {
-            self.infer.constrain_pos_to_var_direct_many(
-                direct_lower_predicates,
-                crate::constraints::OriginId::unknown_internal(),
-            );
+            let common_origin = direct_lower_predicates[0].2;
+            if direct_lower_predicates
+                .iter()
+                .all(|(_, _, origin)| *origin == common_origin)
+            {
+                self.infer.constrain_pos_to_var_direct_many(
+                    direct_lower_predicates
+                        .into_iter()
+                        .map(|(lower, target, _)| (lower, target)),
+                    common_origin,
+                );
+            } else {
+                self.infer
+                    .constrain_pos_to_var_direct_many_with_origins(direct_lower_predicates);
+            }
         }
         if !subtype_predicates.is_empty() {
-            self.infer.subtypes(
-                subtype_predicates,
-                crate::constraints::OriginId::unknown_internal(),
-            );
+            self.infer.subtypes_with_origins(subtype_predicates);
         }
         self.timing
             .record_instantiate_subtype_predicate(phase.elapsed());
@@ -331,8 +339,8 @@ impl AnalysisSession {
     fn prepare_instantiated_use(
         &mut self,
         use_site: SccInstantiateUse,
-        direct_lower_predicates: &mut Vec<(PosId, TypeVar)>,
-        subtype_predicates: &mut Vec<(PosId, NegId)>,
+        direct_lower_predicates: &mut Vec<(PosId, TypeVar, crate::constraints::OriginId)>,
+        subtype_predicates: &mut Vec<(PosId, NegId, crate::constraints::OriginId)>,
     ) -> bool {
         let SccInstantiateUse {
             parent,
@@ -359,7 +367,13 @@ impl AnalysisSession {
             );
         }
         let phase = Instant::now();
-        let instantiated = if self.imported_scheme_defs.contains(&target) {
+        let imported = self.imported_scheme_defs.contains(&target);
+        let origin = if imported {
+            crate::constraints::OriginId::unknown_internal()
+        } else {
+            crate::constraints::OriginId::internal()
+        };
+        let instantiated = if imported {
             let validation = if let Some(validation) = self.imported_scheme_validations.get(&target)
             {
                 validation.clone()
@@ -422,10 +436,10 @@ impl AnalysisSession {
             self.infer.constraints().types().pos(instantiated.predicate),
         ) {
             self.timing.record_instantiate_direct_lower_predicate();
-            direct_lower_predicates.push((instantiated.predicate, use_value));
+            direct_lower_predicates.push((instantiated.predicate, use_value, origin));
         } else {
             let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
-            subtype_predicates.push((instantiated.predicate, use_upper));
+            subtype_predicates.push((instantiated.predicate, use_upper, origin));
         }
         let phase = Instant::now();
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);

@@ -342,7 +342,7 @@ impl<'a> ExprLowerer<'a> {
         let predicate_subtracts =
             self.lambda_predicate_subtracts(lambda_scope, annotation.predicate, frame);
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
-        self.constrain_lower(
+        self.constrain_lower_with_origin(
             value,
             Pos::Fun {
                 arg,
@@ -350,6 +350,7 @@ impl<'a> ExprLowerer<'a> {
                 ret_eff,
                 ret,
             },
+            crate::constraints::OriginId::internal(),
         );
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));

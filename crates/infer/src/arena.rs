@@ -94,6 +94,14 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub(crate) fn subtypes_with_origins(
+        &mut self,
+        constraints: impl IntoIterator<Item = (PosId, NegId, OriginId)>,
+    ) {
+        self.constraints.subtype_many_with_origins(constraints);
+        self.sync_type_ids_with_constraints();
+    }
+
     pub(crate) fn constrain_pos_to_var_direct_many(
         &mut self,
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
@@ -101,6 +109,15 @@ impl Arena {
     ) {
         self.constraints
             .constrain_pos_to_var_direct_many(bounds, origin);
+        self.sync_type_ids_with_constraints();
+    }
+
+    pub(crate) fn constrain_pos_to_var_direct_many_with_origins(
+        &mut self,
+        bounds: impl IntoIterator<Item = (PosId, TypeVar, OriginId)>,
+    ) {
+        self.constraints
+            .constrain_pos_to_var_direct_many_with_origins(bounds);
         self.sync_type_ids_with_constraints();
     }
 

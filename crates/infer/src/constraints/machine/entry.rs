@@ -284,9 +284,20 @@ impl ConstraintMachine {
         constraints: impl IntoIterator<Item = (PosId, NegId)>,
         origin: OriginId,
     ) {
+        self.subtype_many_with_origins(
+            constraints
+                .into_iter()
+                .map(|(lower, upper)| (lower, upper, origin)),
+        );
+    }
+
+    pub(crate) fn subtype_many_with_origins(
+        &mut self,
+        constraints: impl IntoIterator<Item = (PosId, NegId, OriginId)>,
+    ) {
         let mut item_count = 0usize;
         let mut queued = false;
-        for (lower, upper) in constraints {
+        for (lower, upper, origin) in constraints {
             item_count += 1;
             queued |= self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin);
         }
@@ -380,7 +391,18 @@ impl ConstraintMachine {
         bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
         origin: OriginId,
     ) {
-        for (lower, target) in bounds {
+        self.constrain_pos_to_var_direct_many_with_origins(
+            bounds
+                .into_iter()
+                .map(|(lower, target)| (lower, target, origin)),
+        );
+    }
+
+    pub(crate) fn constrain_pos_to_var_direct_many_with_origins(
+        &mut self,
+        bounds: impl IntoIterator<Item = (PosId, TypeVar, OriginId)>,
+    ) {
+        for (lower, target, origin) in bounds {
             self.record_root_origin(origin);
             self.timing.record_constrain_pos_var_direct_call();
             self.add_lower_bound(

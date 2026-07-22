@@ -203,8 +203,16 @@ impl<'a> ExprLowerer<'a> {
 
         self.constrain_exact_primitive(result_value, "unit");
         self.subtype_var_to_var(reference.effect, result_effect);
-        self.subtype_var_to_var(value.effect, result_effect);
-        self.subtype_var_to_var(ref_effect, result_effect);
+        self.subtype_var_to_var_with_origin(
+            value.effect,
+            result_effect,
+            crate::constraints::OriginId::internal(),
+        );
+        self.subtype_var_to_var_with_origin(
+            ref_effect,
+            result_effect,
+            crate::constraints::OriginId::internal(),
+        );
         self.subtype_var_to_var(value.value, expected_value);
 
         let effect_arg = self.invariant_var_arg(ref_effect);
@@ -245,7 +253,7 @@ impl<'a> ExprLowerer<'a> {
             receiver,
             name,
             None,
-            crate::constraints::OriginId::unknown_internal(),
+            crate::constraints::OriginId::internal(),
         )
     }
 
@@ -272,7 +280,7 @@ impl<'a> ExprLowerer<'a> {
             receiver,
             name,
             source_range,
-            crate::constraints::OriginId::unknown_internal(),
+            crate::constraints::OriginId::internal(),
         )
     }
 
@@ -470,11 +478,7 @@ impl<'a> ExprLowerer<'a> {
         callee: Computation,
         arg: Computation,
     ) -> Computation {
-        self.make_app_with_origin(
-            callee,
-            arg,
-            crate::constraints::OriginId::unknown_internal(),
-        )
+        self.make_app_with_origin(callee, arg, crate::constraints::OriginId::internal())
     }
 
     pub(in crate::lowering) fn make_internal_app(
@@ -521,8 +525,16 @@ impl<'a> ExprLowerer<'a> {
                 crate::constraints::OriginId::unknown_internal(),
             );
         }
-        self.subtype_var_to_var(callee.effect, result_effect);
-        self.subtype_pos_to_var(return_effect.lower, result_effect);
+        self.subtype_var_to_var_with_origin(
+            callee.effect,
+            result_effect,
+            crate::constraints::OriginId::internal(),
+        );
+        self.subtype_pos_to_var_with_origin(
+            return_effect.lower,
+            result_effect,
+            crate::constraints::OriginId::internal(),
+        );
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
@@ -742,11 +754,9 @@ impl<'a> ExprLowerer<'a> {
             scheme,
         );
         let upper = self.alloc_neg(Neg::Var(value));
-        self.session.infer.subtype(
-            predicate,
-            upper,
-            crate::constraints::OriginId::unknown_internal(),
-        );
+        self.session
+            .infer
+            .subtype(predicate, upper, crate::constraints::OriginId::internal());
         value
     }
 
