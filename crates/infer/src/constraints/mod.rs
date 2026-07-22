@@ -38,10 +38,11 @@ pub(crate) use mutation::{
 };
 
 pub use timing::{
-    BoundDispositionCoverage, ConstraintOriginCoverage, ConstraintTiming, ReplayDerivationCoverage,
-    ReplayDerivationStorageMetrics, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
-    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage,
-    StableRecordCoverage, StructuralDerivationCoverage,
+    BodyRequirementOriginCoverage, BoundDispositionCoverage, ConstraintOriginCoverage,
+    ConstraintTiming, ReplayDerivationCoverage, ReplayDerivationStorageMetrics,
+    ReplayDuplicateProfile, ReplayFrontierShadowMetrics, ReplayRoutingShadowMetrics,
+    ReplayWeightedRoutingShadowMetrics, RowDerivationCoverage, StableRecordCoverage,
+    StructuralDerivationCoverage,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -1303,8 +1304,17 @@ pub enum ConstraintOriginKind {
     Return,
     Field,
     Assignment,
+    BodyRequirement(BodyRequirementKind),
     Internal,
     UnknownInternal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BodyRequirementKind {
+    BooleanCondition,
+    OperatorOperand { operand: StructuralIndex },
+    PatternGuard,
+    CalleeArgument { argument: StructuralIndex },
 }
 
 impl ConstraintOriginKind {
@@ -1316,6 +1326,7 @@ impl ConstraintOriginKind {
                 | Self::Return
                 | Self::Field
                 | Self::Assignment
+                | Self::BodyRequirement(_)
         )
     }
 }
@@ -1357,6 +1368,7 @@ struct OriginRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SourceBoundaryRecord {
     origin: OriginId,
+    location_recorded: bool,
 }
 
 #[cfg(test)]

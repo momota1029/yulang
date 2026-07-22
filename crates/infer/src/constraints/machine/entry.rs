@@ -243,8 +243,30 @@ impl ConstraintMachine {
             kind,
             source_boundary: Some(boundary),
         });
-        self.source_boundaries.push(SourceBoundaryRecord { origin });
+        self.source_boundaries.push(SourceBoundaryRecord {
+            origin,
+            location_recorded: false,
+        });
+        if let ConstraintOriginKind::BodyRequirement(kind) = kind {
+            self.timing.record_body_requirement_origin(kind);
+        }
         SourceBoundaryOrigin { boundary, origin }
+    }
+
+    pub fn record_source_boundary_location(&mut self, boundary: SourceBoundaryId) {
+        let record = self
+            .source_boundaries
+            .get_mut(boundary.0 as usize)
+            .expect("source-boundary location refers to an allocated boundary");
+        assert!(
+            !record.location_recorded,
+            "each source boundary records location at most once"
+        );
+        let origin = &self.origins[record.origin.0 as usize];
+        record.location_recorded = true;
+        if matches!(origin.kind, ConstraintOriginKind::BodyRequirement(_)) {
+            self.timing.record_body_requirement_location();
+        }
     }
 
     #[cfg(test)]

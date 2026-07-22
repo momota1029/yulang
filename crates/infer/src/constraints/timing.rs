@@ -6,7 +6,10 @@
 
 use crate::time::Duration;
 
-use super::{BoundDirection, ConstraintOriginKind, RowDerivationRule, StructuralDerivationRule};
+use super::{
+    BodyRequirementKind, BoundDirection, ConstraintOriginKind, RowDerivationRule,
+    StructuralDerivationRule,
+};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintOriginCoverage {
@@ -15,8 +18,18 @@ pub struct ConstraintOriginCoverage {
     pub return_: usize,
     pub field: usize,
     pub assignment: usize,
+    pub body_requirement: usize,
     pub internal: usize,
     pub unknown_internal: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BodyRequirementOriginCoverage {
+    pub boolean_condition: usize,
+    pub operator_operand: usize,
+    pub pattern_guard: usize,
+    pub callee_argument: usize,
+    pub roots_lacking_location: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -95,6 +108,7 @@ impl ConstraintOriginCoverage {
             + self.return_
             + self.field
             + self.assignment
+            + self.body_requirement
             + self.internal
             + self.unknown_internal
     }
@@ -106,6 +120,7 @@ impl ConstraintOriginCoverage {
             ConstraintOriginKind::Return => &mut self.return_,
             ConstraintOriginKind::Field => &mut self.field,
             ConstraintOriginKind::Assignment => &mut self.assignment,
+            ConstraintOriginKind::BodyRequirement(_) => &mut self.body_requirement,
             ConstraintOriginKind::Internal => &mut self.internal,
             ConstraintOriginKind::UnknownInternal => &mut self.unknown_internal,
         };
@@ -146,6 +161,7 @@ pub struct ConstraintTiming {
     pub subtype_duplicate_admissions: usize,
     pub subtype_trivial_admissions: usize,
     pub root_origins: ConstraintOriginCoverage,
+    pub body_requirement_origins: BodyRequirementOriginCoverage,
     pub structural_derivations: StructuralDerivationCoverage,
     pub row_derivations: RowDerivationCoverage,
     pub bound_dispositions: BoundDispositionCoverage,
@@ -289,6 +305,26 @@ impl ReplayDuplicateProfile {
 impl ConstraintTiming {
     pub(super) fn record_root_origin(&mut self, kind: ConstraintOriginKind) {
         self.root_origins.record(kind);
+    }
+
+    pub(super) fn record_body_requirement_origin(&mut self, kind: BodyRequirementKind) {
+        let coverage = &mut self.body_requirement_origins;
+        let counter = match kind {
+            BodyRequirementKind::BooleanCondition => &mut coverage.boolean_condition,
+            BodyRequirementKind::OperatorOperand { .. } => &mut coverage.operator_operand,
+            BodyRequirementKind::PatternGuard => &mut coverage.pattern_guard,
+            BodyRequirementKind::CalleeArgument { .. } => &mut coverage.callee_argument,
+        };
+        *counter += 1;
+        coverage.roots_lacking_location += 1;
+    }
+
+    pub(super) fn record_body_requirement_location(&mut self) {
+        self.body_requirement_origins.roots_lacking_location = self
+            .body_requirement_origins
+            .roots_lacking_location
+            .checked_sub(1)
+            .expect("a body-requirement location follows an allocated root");
     }
 
     pub(super) fn record_structural_derivation(&mut self, rule: StructuralDerivationRule) {

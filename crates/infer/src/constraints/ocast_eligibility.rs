@@ -403,6 +403,12 @@ fn boundary_contributors(
     }
     let mut changed = VecDeque::new();
     for leaf in &explanation.source_leaves {
+        // Located body requirements are explanation leaves, not cast-boundary obligations.
+        // Keep them out of ownership/contributor propagation so they neither become eligible nor
+        // make an otherwise confidently-internal replay parent look like a competing source side.
+        if !is_eligible_source_kind(leaf.kind) {
+            continue;
+        }
         let node = ExplanationNodeId::Origin(leaf.origin);
         if contributors.entry(node).or_default().insert(leaf.boundary) {
             changed.push_back(node);

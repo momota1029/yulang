@@ -27,9 +27,9 @@ mod pattern;
 mod record_lit;
 mod rule_lit;
 mod selection_provenance;
-mod source_boundary_provenance;
 mod signature_effect;
 mod signature_match;
+mod source_boundary_provenance;
 mod string_lit;
 mod yumark_lit;
 
@@ -105,12 +105,13 @@ use local::*;
 pub use neg_signature::NegSignatureBuildError;
 use neg_signature::*;
 pub use selection_provenance::SelectionProvenanceTable;
-pub(crate) use source_boundary_provenance::{
-    ApplicationArgumentBoundaryProvenance, SourceBoundaryProvenanceTable,
-};
 use signature_match::{
     builtin_annotation_mismatch, compact_type_matches_signature,
     compact_type_matches_signature_shape,
+};
+pub(crate) use source_boundary_provenance::{
+    ApplicationArgumentBoundaryProvenance, BodyRequirementBoundaryProvenance,
+    SourceBoundaryProvenanceTable,
 };
 use string_lit::{plain_string_expr_text, plain_string_lit_text};
 

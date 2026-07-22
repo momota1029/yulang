@@ -52,18 +52,40 @@ impl<'a> ExprLowerer<'a> {
     }
 
     pub(in crate::lowering) fn constrain_upper(&mut self, var: TypeVar, upper: Neg) {
-        let lower = self.alloc_pos(Pos::Var(var));
-        let upper = self.alloc_neg(upper);
-        self.session.infer.subtype(
-            lower,
+        self.constrain_upper_with_origin(
+            var,
             upper,
             crate::constraints::OriginId::unknown_internal(),
         );
     }
 
+    pub(in crate::lowering) fn constrain_upper_with_origin(
+        &mut self,
+        var: TypeVar,
+        upper: Neg,
+        origin: crate::constraints::OriginId,
+    ) {
+        let lower = self.alloc_pos(Pos::Var(var));
+        let upper = self.alloc_neg(upper);
+        self.session.infer.subtype(lower, upper, origin);
+    }
+
     pub(in crate::lowering) fn constrain_exact_primitive(&mut self, var: TypeVar, name: &str) {
-        self.constrain_lower(var, primitive_type(name));
-        self.constrain_upper(var, primitive_neg_type(name));
+        self.constrain_exact_primitive_with_origin(
+            var,
+            name,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+    }
+
+    pub(in crate::lowering) fn constrain_exact_primitive_with_origin(
+        &mut self,
+        var: TypeVar,
+        name: &str,
+        origin: crate::constraints::OriginId,
+    ) {
+        self.constrain_lower_with_origin(var, primitive_type(name), origin);
+        self.constrain_upper_with_origin(var, primitive_neg_type(name), origin);
     }
 
     pub(in crate::lowering) fn subtype_var_to_var(&mut self, lower: TypeVar, upper: TypeVar) {

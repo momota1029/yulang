@@ -77,6 +77,73 @@ fn one_source_parent_and_one_internal_parent_are_eligible() {
 }
 
 #[test]
+fn body_requirement_is_source_owned_but_never_an_eligible_cast_boundary() {
+    let mut machine = ConstraintMachine::new();
+    let body = machine.alloc_source_boundary(ConstraintOriginKind::BodyRequirement(
+        BodyRequirementKind::BooleanCondition,
+    ));
+    let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
+    let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
+    machine.subtype(lower, upper, body.origin());
+    let producer = nominal_producer(&machine);
+
+    let explanation = machine
+        .why_constraint(producer, ExplanationBudget::default())
+        .expect("query body-owned nominal mismatch");
+    assert!(explanation.source_leaves.iter().any(|leaf| {
+        leaf.boundary == body.boundary()
+            && leaf.kind
+                == ConstraintOriginKind::BodyRequirement(BodyRequirementKind::BooleanCondition)
+    }));
+    let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::InternalOnly {
+            evidence: InternalOnlyEvidence::NoEligibleSourceBoundary
+        }
+    ));
+    assert_eq!(
+        machine.timing().body_requirement_origins,
+        BodyRequirementOriginCoverage {
+            boolean_condition: 1,
+            roots_lacking_location: 1,
+            ..BodyRequirementOriginCoverage::default()
+        }
+    );
+}
+
+#[test]
+fn body_requirement_does_not_disqualify_application_plus_internal_replay() {
+    let mut machine = ConstraintMachine::new();
+    let application = machine.alloc_source_boundary(ConstraintOriginKind::ApplicationArgument);
+    let body = machine.alloc_source_boundary(ConstraintOriginKind::BodyRequirement(
+        BodyRequirementKind::BooleanCondition,
+    ));
+    let pivot = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["source".into()], Vec::new()));
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], OriginId::internal());
+    machine.constrain_pos_to_var_direct_many([(lower, pivot)], body.origin());
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    let upper = machine.alloc_neg(Neg::Con(vec!["target".into()], Vec::new()));
+    machine.subtype(pivot_pos, upper, application.origin());
+    let producer = nominal_producer(&machine);
+
+    let classification = machine.classify_ocast_eligibility(producer, ExplanationBudget::default());
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::EligibleSourceBoundary {
+            boundary,
+            kind: ConstraintOriginKind::ApplicationArgument,
+            evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                source_parent: ReplaySourceParent::Upper,
+                ..
+            },
+            ..
+        } if boundary == application.boundary()
+    ));
+}
+
+#[test]
 fn one_sided_pair_with_multiple_source_obligations_is_not_eligible() {
     let mut machine = ConstraintMachine::new();
     let first = machine.alloc_source_boundary(ConstraintOriginKind::Annotation);

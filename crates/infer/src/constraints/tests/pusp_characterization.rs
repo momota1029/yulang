@@ -12,7 +12,7 @@ use crate::lowering::{
 };
 use crate::{ModuleOrder, Name};
 use poly::expr::{Def, DefId, Expr, Pat};
-use poly::types::{Neg, TypeVar};
+use poly::types::{Neg, Pos, TypeVar};
 
 const JUNCTION_STD: &str = concat!(
     "mod std:\n",
@@ -80,6 +80,111 @@ fn pusp_a_characterizes_parameter_and_scheme_provenance_gaps() {
 
     let actual = cases.map(Case::capture);
     assert_eq!(actual, expected_baselines());
+}
+
+#[test]
+fn pusp_b_boolean_condition_is_a_located_nonsemantic_source_leaf() {
+    const SOURCE: &str = concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    );
+    let output = lower(SOURCE);
+    let parameter = parameter_var(&output, subject_def(&output));
+    let machine = output.session.infer.constraints();
+    let upper = *bool_upper_records(machine, parameter)
+        .first()
+        .expect("parameter has a canonical bool upper bound");
+    let upper_query = machine
+        .why_upper_bound(parameter, upper, ExplanationBudget::default())
+        .expect("query bool upper bound");
+    let body_leaf = body_requirement_leaf(&upper_query);
+
+    let condition_start = JUNCTION_STD.len()
+        + SOURCE
+            .find("if pusp_param")
+            .expect("fixture contains if condition")
+        + "if ".len();
+    let location = output
+        .session
+        .source_boundary_provenance
+        .body_requirement(body_leaf.1)
+        .expect("body-requirement leaf has source-only location metadata");
+    assert_eq!(location.use_span.file, sources::Path::default());
+    assert_eq!(
+        location.use_span.range,
+        sources::SourceRange {
+            start: condition_start,
+            end: condition_start + "pusp_param".len(),
+        }
+    );
+    assert_eq!(location.context_span, None);
+
+    let exact_roots = machine
+        .constraint_records
+        .iter()
+        .filter(|record| record.root_origins.contains(&body_leaf.0))
+        .map(|record| &record.key)
+        .collect::<Vec<_>>();
+    assert_eq!(exact_roots.len(), 2);
+    assert!(exact_roots.iter().any(|key| {
+        matches!(machine.types().pos(key.lower), Pos::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
+            && matches!(machine.types().neg(key.upper), Neg::Var(_))
+    }));
+    assert!(exact_roots.iter().any(|key| {
+        matches!(machine.types().pos(key.lower), Pos::Var(_))
+            && matches!(machine.types().neg(key.upper), Neg::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
+    }));
+
+    let timing = output.session.infer.constraint_timing();
+    assert_eq!(timing.body_requirement_origins.boolean_condition, 1);
+    assert_eq!(timing.body_requirement_origins.operator_operand, 0);
+    assert_eq!(timing.body_requirement_origins.pattern_guard, 0);
+    assert_eq!(timing.body_requirement_origins.callee_argument, 0);
+    assert_eq!(timing.body_requirement_origins.roots_lacking_location, 0);
+    assert_eq!(timing.root_origins.body_requirement, 2);
+}
+
+#[test]
+fn pusp_b_unmigrated_primitive_pattern_requirement_remains_unknown_internal() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = case pusp_param:\n",
+        "  true -> 1\n",
+        "  false -> 2\n",
+        "subject(false)\n",
+    ));
+    let parameter = parameter_var(&output, subject_def(&output));
+    let machine = output.session.infer.constraints();
+    let upper = *bool_upper_records(machine, parameter)
+        .first()
+        .expect("bool-pattern matching constrains the parameter");
+    let query = machine
+        .why_upper_bound(parameter, upper, ExplanationBudget::default())
+        .expect("query bool-pattern requirement");
+    assert!(query.nodes.iter().any(|node| matches!(
+        node,
+        ExplanationNode::Origin {
+            kind: ConstraintOriginKind::UnknownInternal,
+            ..
+        }
+    )));
+    assert!(!query.nodes.iter().any(|node| matches!(
+        node,
+        ExplanationNode::Origin {
+            kind: ConstraintOriginKind::BodyRequirement(_),
+            ..
+        }
+    )));
+    assert_eq!(
+        output
+            .session
+            .infer
+            .constraint_timing()
+            .body_requirement_origins,
+        BodyRequirementOriginCoverage::default()
+    );
 }
 
 #[derive(Clone, Copy)]
@@ -301,6 +406,18 @@ impl QueryBaseline {
                     ConstraintOriginKind::Return => "return",
                     ConstraintOriginKind::Field => "field",
                     ConstraintOriginKind::Assignment => "assignment",
+                    ConstraintOriginKind::BodyRequirement(
+                        BodyRequirementKind::BooleanCondition,
+                    ) => "body-requirement:boolean-condition",
+                    ConstraintOriginKind::BodyRequirement(
+                        BodyRequirementKind::OperatorOperand { .. },
+                    ) => "body-requirement:operator-operand",
+                    ConstraintOriginKind::BodyRequirement(BodyRequirementKind::PatternGuard) => {
+                        "body-requirement:pattern-guard"
+                    }
+                    ConstraintOriginKind::BodyRequirement(
+                        BodyRequirementKind::CalleeArgument { .. },
+                    ) => "body-requirement:callee-argument",
                     ConstraintOriginKind::Internal => "internal",
                     ConstraintOriginKind::UnknownInternal => "unknown-internal",
                 }),
@@ -346,16 +463,16 @@ fn expected_baselines() -> [Baseline; 5] {
                 19,
                 18,
                 9,
-                7_640_048_594_651_515_618,
-                &["internal", "unknown-internal"],
-                0,
-                [true, true, true, true],
+                4_470_251_554_592_856_540,
+                &["internal", "body-requirement:boolean-condition"],
+                1,
+                [true, true, false, true],
             )),
             Some(query(
                 11,
                 9,
                 6,
-                3_165_038_233_154_909_372,
+                11_821_486_888_323_386_445,
                 &["internal", "application-argument"],
                 1,
                 [true, true, false, false],
@@ -378,16 +495,20 @@ fn expected_baselines() -> [Baseline; 5] {
                 20,
                 19,
                 9,
-                11_809_467_412_576_137_258,
-                &["annotation", "internal", "unknown-internal"],
-                1,
-                [true, true, true, true],
+                11_713_936_874_666_769_891,
+                &[
+                    "annotation",
+                    "internal",
+                    "body-requirement:boolean-condition",
+                ],
+                2,
+                [true, true, false, true],
             )),
             Some(query(
                 11,
                 9,
                 6,
-                2_459_545_460_247_928_771,
+                16_270_637_393_438_123_044,
                 &["internal", "application-argument"],
                 1,
                 [true, true, false, false],
@@ -426,10 +547,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 19,
                 18,
                 9,
-                16_397_105_519_657_976_394,
-                &["internal", "unknown-internal"],
-                0,
-                [true, true, true, true],
+                9_503_474_146_436_603_632,
+                &["internal", "body-requirement:boolean-condition"],
+                1,
+                [true, true, false, true],
             )),
             Some(query(
                 12,
@@ -455,19 +576,23 @@ fn expected_baselines() -> [Baseline; 5] {
             "multiple-body-uses",
             &["BoundRecordId(160)"],
             Some(query(
-                34,
+                35,
                 35,
                 9,
-                17_887_972_959_727_036_035,
-                &["internal", "unknown-internal"],
-                0,
-                [true, true, true, true],
+                6_700_188_920_353_996_193,
+                &[
+                    "internal",
+                    "body-requirement:boolean-condition",
+                    "body-requirement:boolean-condition",
+                ],
+                2,
+                [true, true, false, true],
             )),
             Some(query(
                 11,
                 9,
                 6,
-                9_661_980_501_107_648_555,
+                15_730_201_711_330_801_637,
                 &["internal", "application-argument"],
                 1,
                 [true, true, false, false],
@@ -628,6 +753,23 @@ fn bool_upper_records(machine: &ConstraintMachine, var: TypeVar) -> Vec<BoundRec
             matches!(machine.types().neg(*neg), Neg::Con(path, args) if path == &["bool".to_string()] && args.is_empty())
         })
         .collect()
+}
+
+fn body_requirement_leaf(query: &ExplanationQueryResult) -> (OriginId, SourceBoundaryId) {
+    let leaves = query
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            ExplanationNode::Origin {
+                id,
+                kind: ConstraintOriginKind::BodyRequirement(BodyRequirementKind::BooleanCondition),
+                source_boundary: Some(boundary),
+            } => Some((*id, *boundary)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(leaves.len(), 1, "one BooleanCondition root: {query:#?}");
+    leaves[0]
 }
 
 fn query_depth(edges: &[ExplanationEdge], root: Option<ExplanationNodeId>) -> usize {

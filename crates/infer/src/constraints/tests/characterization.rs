@@ -205,6 +205,7 @@ impl CharacterizationCase {
 struct ConstraintCharacterization {
     name: &'static str,
     origin_coverage: ConstraintOriginCoverage,
+    body_requirement_coverage: BodyRequirementOriginCoverage,
     structural_coverage: StructuralDerivationCoverage,
     row_coverage: RowDerivationCoverage,
     bound_disposition_coverage: BoundDispositionCoverage,
@@ -272,6 +273,7 @@ impl ConstraintCharacterization {
         Self {
             name,
             origin_coverage: timing.root_origins,
+            body_requirement_coverage: timing.body_requirement_origins,
             structural_coverage: timing.structural_derivations,
             row_coverage: timing.row_derivations,
             bound_disposition_coverage: timing.bound_dispositions,
@@ -475,7 +477,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 1_480, 791, 9_496, 24_664),
+            origin_coverage: origins(1_852, 1_480, 791, 196, 9_496, 24_468),
+            body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
             ),
@@ -505,7 +508,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 1_480, 791, 9_546, 24_733),
+            origin_coverage: origins(1_855, 1_480, 791, 198, 9_546, 24_535),
+            body_requirement_coverage: body_requirements(99),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
             ),
@@ -538,7 +542,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 1_487, 795, 9_601, 24_913),
+            origin_coverage: origins(1_868, 1_487, 795, 196, 9_601, 24_717),
+            body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
             ),
@@ -568,7 +573,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 1_506, 813, 9_927, 25_715),
+            origin_coverage: origins(1_906, 1_506, 813, 202, 9_927, 25_513),
+            body_requirement_coverage: body_requirements(101),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
             ),
@@ -612,7 +618,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 1_497, 801, 9_725, 25_256),
+            origin_coverage: origins(1_883, 1_497, 801, 196, 9_725, 25_060),
+            body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
             ),
@@ -651,6 +658,7 @@ fn origins(
     application_argument: usize,
     annotation: usize,
     return_: usize,
+    body_requirement: usize,
     internal: usize,
     unknown_internal: usize,
 ) -> ConstraintOriginCoverage {
@@ -658,9 +666,17 @@ fn origins(
         application_argument,
         annotation,
         return_,
+        body_requirement,
         internal,
         unknown_internal,
         ..ConstraintOriginCoverage::default()
+    }
+}
+
+fn body_requirements(boolean_condition: usize) -> BodyRequirementOriginCoverage {
+    BodyRequirementOriginCoverage {
+        boolean_condition,
+        ..BodyRequirementOriginCoverage::default()
     }
 }
 

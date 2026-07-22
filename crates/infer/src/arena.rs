@@ -80,6 +80,13 @@ impl Arena {
         self.constraints.alloc_source_boundary(kind)
     }
 
+    pub fn record_source_boundary_location(
+        &mut self,
+        boundary: crate::constraints::SourceBoundaryId,
+    ) {
+        self.constraints.record_source_boundary_location(boundary);
+    }
+
     pub fn subtype(&mut self, lower: PosId, upper: NegId, origin: OriginId) {
         self.constraints.subtype(lower, upper, origin);
         self.sync_type_ids_with_constraints();

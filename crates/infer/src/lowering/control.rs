@@ -80,7 +80,33 @@ impl<'a> ExprLowerer<'a> {
         let condition = condition?;
         let raw_condition_effect = condition.effect;
         let condition = self.apply_junction(condition)?;
-        self.constrain_exact_primitive(condition.value, "bool");
+        let requirement = self.session.infer.alloc_source_boundary(
+            crate::constraints::ConstraintOriginKind::BodyRequirement(
+                crate::constraints::BodyRequirementKind::BooleanCondition,
+            ),
+        );
+        if let Some(use_span) = self.source_span(Some(crate::node_trimmed_source_range(node))) {
+            let inserted = self
+                .session
+                .source_boundary_provenance
+                .insert_body_requirement(
+                    requirement.boundary(),
+                    BodyRequirementBoundaryProvenance {
+                        use_span,
+                        context_span: None,
+                    },
+                );
+            debug_assert!(
+                inserted,
+                "each body-requirement boundary is assigned source provenance at most once"
+            );
+            if inserted {
+                self.session
+                    .infer
+                    .record_source_boundary_location(requirement.boundary());
+            }
+        }
+        self.constrain_exact_primitive_with_origin(condition.value, "bool", requirement.origin());
         self.subtype_var_to_var(raw_condition_effect, result_effect);
         self.subtype_var_to_var(condition.effect, result_effect);
         Ok(condition)
