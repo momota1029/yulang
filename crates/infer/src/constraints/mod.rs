@@ -12,6 +12,7 @@ pub(crate) mod explain;
 mod machine;
 pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
+mod portable_explain;
 mod row_effect;
 #[cfg(test)]
 mod tests;
@@ -38,6 +39,11 @@ pub(crate) use mutation::{
     MethodRoleMutationSubscriptions, MutationGeneration,
 };
 
+pub use portable_explain::{
+    DiagnosticExplanationCompleteness, DiagnosticExplanationTruncationReason,
+    DiagnosticSubtypeExplanation, DiagnosticTypeCause, DiagnosticTypeCauseRole,
+    PortableExplanationBudget, explain_portable_subtype,
+};
 pub use timing::{
     BodyRequirementOriginCoverage, BoundDispositionCoverage, ConstraintOriginCoverage,
     ConstraintTiming, GeneralizedSchemeCoverage, ReplayDerivationCoverage,

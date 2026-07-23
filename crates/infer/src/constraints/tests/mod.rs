@@ -6,6 +6,7 @@ mod case_03;
 mod characterization;
 mod explain;
 mod ocast_eligibility;
+mod portable_explain;
 mod pusp_characterization;
 mod subtype_provenance_characterization;
 
