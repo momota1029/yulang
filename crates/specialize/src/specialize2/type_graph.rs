@@ -65,7 +65,6 @@ impl<'a> TypeGraph<'a> {
         self.constrain_weighted_subtype(lower, empty_stack_weight(), upper, empty_stack_weight())
     }
 
-    #[allow(dead_code)] // Task-root sidecar handoff remains deferred from this safety-first partial.
     pub(super) fn constrain_materialized_subtype(
         &mut self,
         lower: types::MaterializedTypeWithProvenance,

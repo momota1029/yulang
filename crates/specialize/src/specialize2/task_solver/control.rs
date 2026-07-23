@@ -207,13 +207,34 @@ impl<'a> TaskSolver<'a> {
                     };
                     let (value_value, value_effect) = split_runtime_computation_shape(value_ty);
                     if binding.use_as_lambda_signature {
-                        self.graph
-                            .constrain_subtype(value_value.clone(), binding.ty.clone())?;
+                        let actual = self.materialized_occurrence(
+                            value_value.clone(),
+                            poly::provenance::TypeOccurrenceOwner::Expression(*value),
+                            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+                        );
+                        let input = self.materialized_occurrence(
+                            binding.ty.clone(),
+                            poly::provenance::TypeOccurrenceOwner::Pattern(*pat),
+                            poly::provenance::TypeOccurrenceRole::PatternInput,
+                        );
+                        self.graph.constrain_materialized_subtype(actual, input)?;
                     } else {
                         self.consume_expr_value(*value, binding.ty.clone())?;
                     }
                     if binding.exact_value {
-                        self.graph.constrain_exact(value_value, binding.ty)?;
+                        let actual = self.materialized_occurrence(
+                            value_value,
+                            poly::provenance::TypeOccurrenceOwner::Expression(*value),
+                            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+                        );
+                        let input = self.materialized_occurrence(
+                            binding.ty,
+                            poly::provenance::TypeOccurrenceOwner::Pattern(*pat),
+                            poly::provenance::TypeOccurrenceRole::PatternInput,
+                        );
+                        self.graph
+                            .constrain_materialized_subtype(actual.clone(), input.clone())?;
+                        self.graph.constrain_materialized_subtype(input, actual)?;
                     }
                     effects.push(value_effect);
                 }
@@ -329,7 +350,7 @@ impl<'a> TaskSolver<'a> {
         self.raw_thunk_computations.insert(expr);
     }
 
-    pub(super) fn bind_pat(
+    pub(in crate::specialize2) fn bind_pat(
         &mut self,
         pat: poly_expr::PatId,
         ty: Type,
@@ -337,7 +358,22 @@ impl<'a> TaskSolver<'a> {
         use poly_expr::Pat as PolyPat;
         match self.arena.pat(pat) {
             PolyPat::Wild => {}
-            PolyPat::Lit(lit) => self.graph.constrain_exact(ty, lit_type(lit))?,
+            PolyPat::Lit(lit) => {
+                let input = self.materialized_occurrence(
+                    ty,
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternInput,
+                );
+                let requirement = self.materialized_occurrence(
+                    lit_type(lit),
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternRequirement,
+                );
+                self.graph
+                    .constrain_materialized_subtype(input.clone(), requirement.clone())?;
+                self.graph
+                    .constrain_materialized_subtype(requirement, input)?;
+            }
             PolyPat::Var(def) => {
                 self.locals.insert(*def, ty);
             }
@@ -350,8 +386,20 @@ impl<'a> TaskSolver<'a> {
                     .iter()
                     .map(|_| self.graph.fresh_value())
                     .collect::<Vec<_>>();
+                let input = self.materialized_occurrence(
+                    ty,
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternInput,
+                );
+                let requirement = self.materialized_occurrence(
+                    Type::Tuple(item_types.clone()),
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternRequirement,
+                );
                 self.graph
-                    .constrain_exact(ty, Type::Tuple(item_types.clone()))?;
+                    .constrain_materialized_subtype(input.clone(), requirement.clone())?;
+                self.graph
+                    .constrain_materialized_subtype(requirement, input)?;
                 for (item, item_ty) in items.iter().zip(item_types) {
                     self.bind_pat(*item, item_ty)?;
                 }
@@ -363,7 +411,20 @@ impl<'a> TaskSolver<'a> {
             } => {
                 let item = self.graph.fresh_value();
                 let list = list_type(item.clone());
-                self.graph.constrain_exact(ty.clone(), list.clone())?;
+                let input = self.materialized_occurrence(
+                    ty,
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternInput,
+                );
+                let requirement = self.materialized_occurrence(
+                    list.clone(),
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternRequirement,
+                );
+                self.graph
+                    .constrain_materialized_subtype(input.clone(), requirement.clone())?;
+                self.graph
+                    .constrain_materialized_subtype(requirement, input)?;
                 for pat in prefix.iter().chain(suffix) {
                     self.bind_pat(*pat, item.clone())?;
                 }
@@ -380,13 +441,21 @@ impl<'a> TaskSolver<'a> {
                     .iter()
                     .map(|_| self.graph.fresh_value())
                     .collect::<Vec<_>>();
-                self.graph.constrain_subtype(
+                let requirement = self.materialized_occurrence(
                     Type::PolyVariant(vec![TypeVariant {
                         name: tag.clone(),
                         payloads: payload_types.clone(),
                     }]),
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternRequirement,
+                );
+                let input = self.materialized_occurrence(
                     ty,
-                )?;
+                    poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+                    poly::provenance::TypeOccurrenceRole::PatternInput,
+                );
+                self.graph
+                    .constrain_materialized_subtype(requirement, input)?;
                 for (payload, payload_ty) in payloads.iter().zip(payload_types) {
                     self.bind_pat(*payload, payload_ty)?;
                 }
@@ -530,7 +599,20 @@ impl<'a> TaskSolver<'a> {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
         let ty = self.instantiate_def_scheme(def)?;
-        self.graph.constrain_exact(scrutinee, ty.clone())?;
+        let input = self.materialized_occurrence(
+            scrutinee,
+            poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+            poly::provenance::TypeOccurrenceRole::PatternInput,
+        );
+        let requirement = self.materialized_occurrence(
+            ty.clone(),
+            poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+            poly::provenance::TypeOccurrenceRole::PatternRequirement,
+        );
+        self.graph
+            .constrain_materialized_subtype(input.clone(), requirement.clone())?;
+        self.graph
+            .constrain_materialized_subtype(requirement, input)?;
         self.pat_ref_uses.push(PatRefUse { pat, ty });
         Ok(())
     }

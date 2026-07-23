@@ -3,6 +3,102 @@ use super::*;
 mod ordinary_cast_characterization;
 
 #[test]
+fn real_definition_occurrence_reaches_materialized_subtype_root() {
+    let lowering = lower_real_source("my id x = x\nid(1)\n");
+    let sidecar = lowering.subtype_provenance();
+    let (def, anchor) = sidecar
+        .occurrences
+        .iter()
+        .find_map(
+            |(key, provenance)| match (key.owner, key.role, key.path.0.is_empty()) {
+                (
+                    poly::provenance::TypeOccurrenceOwner::Definition(def),
+                    poly::provenance::TypeOccurrenceRole::DefinitionPredicate,
+                    true,
+                ) => provenance
+                    .anchors
+                    .first()
+                    .copied()
+                    .map(|anchor| (def, anchor)),
+                _ => None,
+            },
+        )
+        .expect("real definition predicate has a portable root anchor");
+    let poly_expr::Def::Let {
+        scheme: Some(scheme),
+        ..
+    } = lowering.session.poly.defs.get(def).unwrap()
+    else {
+        panic!("owned definition must retain its scheme");
+    };
+    let mut solver = TaskSolver::new(&lowering.session.poly, sidecar);
+    let materialized = solver
+        .instantiate_scheme_with_provenance(def, scheme)
+        .unwrap();
+    assert!(
+        materialized
+            .provenance
+            .positions
+            .iter()
+            .any(|position| { position.path.0.is_empty() && position.anchors.contains(&anchor) })
+    );
+    let upper = solver.materialized_occurrence(
+        Type::Any,
+        poly::provenance::TypeOccurrenceOwner::Definition(def),
+        poly::provenance::TypeOccurrenceRole::DefinitionPredicate,
+    );
+    solver
+        .graph
+        .constrain_materialized_subtype(materialized, upper)
+        .unwrap();
+    assert_graph_contains_root_anchor(&solver.graph, anchor);
+}
+
+#[test]
+fn real_expression_occurrence_reaches_consumer_subtype_root() {
+    let lowering = lower_real_source("my id x = x\nid(1)\n");
+    let arena = &lowering.session.poly;
+    let argument = arena
+        .root_exprs
+        .iter()
+        .find_map(|expr| match arena.expr(*expr) {
+            poly_expr::Expr::App(_, argument) => Some(*argument),
+            _ => None,
+        })
+        .expect("fixture has a root application");
+    let anchor = root_occurrence_anchor(
+        lowering.subtype_provenance(),
+        poly::provenance::TypeOccurrenceOwner::Expression(argument),
+        poly::provenance::TypeOccurrenceRole::ExpressionActual,
+    );
+    let mut solver = TaskSolver::new(arena, lowering.subtype_provenance());
+    solver.consume_expr(argument, Type::Any).unwrap();
+    assert_graph_contains_root_anchor(&solver.graph, anchor);
+}
+
+#[test]
+fn real_pattern_occurrence_reaches_pattern_subtype_root() {
+    let lowering = lower_real_source("case true: true -> 1, false -> 2\n");
+    let arena = &lowering.session.poly;
+    let pat = arena
+        .root_exprs
+        .iter()
+        .find_map(|expr| match arena.expr(*expr) {
+            poly_expr::Expr::Case(_, arms) => arms.first().map(|arm| arm.pat),
+            _ => None,
+        })
+        .expect("fixture has a literal case pattern");
+    let anchor = root_occurrence_anchor(
+        lowering.subtype_provenance(),
+        poly::provenance::TypeOccurrenceOwner::Pattern(pat),
+        poly::provenance::TypeOccurrenceRole::PatternInput,
+    );
+    let mut solver = TaskSolver::new(arena, lowering.subtype_provenance());
+    solver.bind_pat(pat, Type::Any).unwrap();
+    assert_graph_contains_root_anchor(&solver.graph, anchor);
+}
+
+#[test]
 fn subtype_provenance_duplicate_roots_merge_without_semantic_requeue_and_scale_linearly() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
@@ -246,6 +342,45 @@ fn materialized_paths(
             completeness: ProvenanceCompleteness::Complete,
         },
     }
+}
+
+fn lower_real_source(source: &str) -> infer::lowering::BodyLowering {
+    let files = sources::load(vec![sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: source.to_string(),
+    }]);
+    let lowering = infer::dump::dump_loaded_files(&files)
+        .expect("real provenance fixture should lower")
+        .lowering;
+    assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+    lowering
+}
+
+fn root_occurrence_anchor(
+    sidecar: &SubtypeProvenanceSidecar,
+    owner: poly::provenance::TypeOccurrenceOwner,
+    role: poly::provenance::TypeOccurrenceRole,
+) -> ProvenanceAnchor {
+    sidecar
+        .occurrences
+        .get(&poly::provenance::TypeOccurrenceKey {
+            owner,
+            role,
+            path: poly::provenance::TypePositionPath::default(),
+        })
+        .and_then(|occurrence| occurrence.anchors.first().copied())
+        .expect("real occurrence has a portable root anchor")
+}
+
+fn assert_graph_contains_root_anchor(graph: &TypeGraph<'_>, anchor: ProvenanceAnchor) {
+    assert!(graph.subtype_provenance_records.iter().any(|record| {
+        record.incoming.iter().any(|derivation| match derivation {
+            SpecializeProvenanceDerivation::Root { lower, upper } => {
+                lower.contains(&anchor) || upper.contains(&anchor)
+            }
+            _ => false,
+        })
+    }));
 }
 
 fn callback_type(first_ret_effect: Type, final_ret_effect: Type) -> Type {

@@ -29,7 +29,7 @@ impl<'a> TaskSolver<'a> {
     pub(super) fn solve_def_body(
         arena: &'a poly_expr::Arena,
         sidecar: &'a SubtypeProvenanceSidecar,
-        _def: poly_expr::DefId,
+        def: poly_expr::DefId,
         body: poly_expr::ExprId,
         signature: Type,
     ) -> Result<SolvedTask, SpecializeError> {
@@ -37,7 +37,19 @@ impl<'a> TaskSolver<'a> {
         solver.required_exprs.insert(body);
         let actual = solver.expr_with_signature(body, signature.clone())?;
         solver.consume_expr(body, signature.clone())?;
-        solver.graph.constrain_subtype(actual, signature)?;
+        let actual = solver.materialized_occurrence(
+            actual,
+            poly::provenance::TypeOccurrenceOwner::Expression(body),
+            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+        );
+        let signature = solver.materialized_occurrence(
+            signature,
+            poly::provenance::TypeOccurrenceOwner::Definition(def),
+            poly::provenance::TypeOccurrenceRole::DefinitionPredicate,
+        );
+        solver
+            .graph
+            .constrain_materialized_subtype(actual, signature)?;
         solver.finish()
     }
 
@@ -80,10 +92,21 @@ impl<'a> TaskSolver<'a> {
         };
         let mut solver = Self::new(arena, sidecar);
         solver.required_exprs.insert(body);
-        let signature = solver.instantiate_scheme(def, scheme)?;
+        let signature = solver.instantiate_scheme_with_provenance(def, scheme)?;
+        let signature_ty = signature.ty.clone();
         let actual = solver.expr(body)?;
-        solver.consume_expr(body, signature.clone())?;
-        solver.graph.constrain_exact(actual, signature.clone())?;
+        solver.consume_expr(body, signature_ty.clone())?;
+        let actual = solver.materialized_occurrence(
+            actual,
+            poly::provenance::TypeOccurrenceOwner::Expression(body),
+            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+        );
+        solver
+            .graph
+            .constrain_materialized_subtype(actual.clone(), signature.clone())?;
+        solver
+            .graph
+            .constrain_materialized_subtype(signature, actual)?;
         let solved = solver.finish()?;
         let actual =
             solved
@@ -96,10 +119,7 @@ impl<'a> TaskSolver<'a> {
         Ok(forced_computation_value_type(actual))
     }
 
-    pub(super) fn new(
-        arena: &'a poly_expr::Arena,
-        sidecar: &'a SubtypeProvenanceSidecar,
-    ) -> Self {
+    pub(super) fn new(arena: &'a poly_expr::Arena, sidecar: &'a SubtypeProvenanceSidecar) -> Self {
         Self {
             arena,
             sidecar,
@@ -114,6 +134,71 @@ impl<'a> TaskSolver<'a> {
             required_exprs: HashSet::new(),
             raw_thunk_computations: HashSet::new(),
         }
+    }
+
+    fn root_provenance_from_occurrence(
+        &self,
+        owner: poly::provenance::TypeOccurrenceOwner,
+        role: poly::provenance::TypeOccurrenceRole,
+    ) -> types::MaterializedTypeProvenance {
+        let path = poly::provenance::TypePositionPath::default();
+        let key = poly::provenance::TypeOccurrenceKey {
+            owner,
+            role,
+            path: path.clone(),
+        };
+        let Some(occurrence) = self.sidecar.occurrences.get(&key) else {
+            return types::MaterializedTypeProvenance {
+                positions: Vec::new(),
+                completeness: ProvenanceCompleteness::Incomplete,
+            };
+        };
+        types::MaterializedTypeProvenance {
+            positions: vec![types::MaterializedPositionProvenance {
+                path,
+                anchors: occurrence.anchors.clone(),
+                completeness: occurrence.completeness,
+            }],
+            completeness: occurrence.completeness,
+        }
+    }
+
+    pub(super) fn materialized_occurrence(
+        &self,
+        ty: Type,
+        owner: poly::provenance::TypeOccurrenceOwner,
+        role: poly::provenance::TypeOccurrenceRole,
+    ) -> types::MaterializedTypeWithProvenance {
+        types::MaterializedTypeWithProvenance {
+            ty,
+            provenance: self.root_provenance_from_occurrence(owner, role),
+        }
+    }
+
+    pub(super) fn instantiate_scheme_with_provenance(
+        &mut self,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+    ) -> Result<types::MaterializedTypeWithProvenance, SpecializeError> {
+        let instantiated =
+            types::instantiate_principal_scheme_for_inference_with_fresh_and_roles_with_provenance(
+                self.arena,
+                self.sidecar,
+                def,
+                scheme,
+                |kind| match kind {
+                    types::SchemeQuantifierKind::Value => self.graph.fresh_value(),
+                    types::SchemeQuantifierKind::Effect => self.graph.fresh_effect(),
+                },
+            )?;
+        self.graph
+            .add_role_demands(instantiated.scheme.role_predicates);
+        self.graph
+            .constrain_recursive_bounds(instantiated.scheme.recursive_bounds)?;
+        Ok(types::MaterializedTypeWithProvenance {
+            ty: instantiated.scheme.ty,
+            provenance: instantiated.provenance,
+        })
     }
 
     pub(super) fn expr(&mut self, expr: poly_expr::ExprId) -> Result<Type, SpecializeError> {
@@ -135,7 +220,18 @@ impl<'a> TaskSolver<'a> {
     ) -> Result<(), SpecializeError> {
         let actual = self.expr(expr)?;
         self.add_expr_consumer(expr, actual.clone(), consumer.clone());
-        self.graph.constrain_subtype(actual, consumer.clone())?;
+        let actual = self.materialized_occurrence(
+            actual,
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+        );
+        let expected = self.materialized_occurrence(
+            consumer.clone(),
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+        );
+        self.graph
+            .constrain_materialized_subtype(actual, expected)?;
         let (consumer_value, _) = split_runtime_computation_shape(consumer);
         self.consume_block_tail_value(expr, consumer_value)
     }
@@ -148,15 +244,35 @@ impl<'a> TaskSolver<'a> {
         let actual = self.expr_with_value_consumer(expr, &consumer)?;
         if matches!(actual, Type::Thunk { .. }) && matches!(consumer, Type::Thunk { .. }) {
             self.add_expr_consumer(expr, actual.clone(), consumer.clone());
+            let actual_root = self.materialized_occurrence(
+                actual.clone(),
+                poly::provenance::TypeOccurrenceOwner::Expression(expr),
+                poly::provenance::TypeOccurrenceRole::ExpressionActual,
+            );
+            let expected = self.materialized_occurrence(
+                consumer.clone(),
+                poly::provenance::TypeOccurrenceOwner::Expression(expr),
+                poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+            );
             self.graph
-                .constrain_subtype(actual.clone(), consumer.clone())?;
+                .constrain_materialized_subtype(actual_root, expected)?;
             self.consume_block_tail_value(expr, consumer)?;
             return Ok((actual, Type::pure_effect()));
         }
         self.add_expr_consumer(expr, actual.clone(), consumer.clone());
         let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
+        let actual_root = self.materialized_occurrence(
+            actual_value.clone(),
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+        );
+        let expected = self.materialized_occurrence(
+            consumer.clone(),
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+        );
         self.graph
-            .constrain_subtype(actual_value.clone(), consumer.clone())?;
+            .constrain_materialized_subtype(actual_root, expected)?;
         self.consume_block_tail_value(expr, consumer)?;
         Ok((actual_value, actual_effect))
     }
@@ -225,7 +341,18 @@ impl<'a> TaskSolver<'a> {
             .constrain_consumed_computation_effect(actual_effect.clone(), effect)?;
         let consumer = types::runtime_shape(consumer_effect.clone(), value.clone());
         self.add_expr_consumer(expr, actual.clone(), consumer);
-        self.graph.constrain_subtype(actual_value, value.clone())?;
+        let actual_root = self.materialized_occurrence(
+            actual_value,
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionActual,
+        );
+        let expected = self.materialized_occurrence(
+            value.clone(),
+            poly::provenance::TypeOccurrenceOwner::Expression(expr),
+            poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+        );
+        self.graph
+            .constrain_materialized_subtype(actual_root, expected)?;
         self.consume_block_tail_value(expr, value)?;
         Ok(consumer_effect)
     }
@@ -392,8 +519,18 @@ impl<'a> TaskSolver<'a> {
                         ret: Box::new(parts.ret.clone()),
                     };
                     self.add_expr_consumer(callee, callee_ty.clone(), callee_consumer.clone());
+                    let actual = self.materialized_occurrence(
+                        callee_value.clone(),
+                        poly::provenance::TypeOccurrenceOwner::Expression(callee),
+                        poly::provenance::TypeOccurrenceRole::ExpressionActual,
+                    );
+                    let expected = self.materialized_occurrence(
+                        callee_consumer,
+                        poly::provenance::TypeOccurrenceOwner::Expression(callee),
+                        poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+                    );
                     self.graph
-                        .constrain_subtype(callee_value.clone(), callee_consumer)?;
+                        .constrain_materialized_subtype(actual, expected)?;
                     (call_arg_effect, parts.ret_effect, parts.ret)
                 }
                 None => {
@@ -407,8 +544,18 @@ impl<'a> TaskSolver<'a> {
                         ret: Box::new(ret_ty.clone()),
                     };
                     self.add_expr_consumer(callee, callee_ty.clone(), callee_consumer.clone());
+                    let actual = self.materialized_occurrence(
+                        callee_value.clone(),
+                        poly::provenance::TypeOccurrenceOwner::Expression(callee),
+                        poly::provenance::TypeOccurrenceRole::ExpressionActual,
+                    );
+                    let expected = self.materialized_occurrence(
+                        callee_consumer,
+                        poly::provenance::TypeOccurrenceOwner::Expression(callee),
+                        poly::provenance::TypeOccurrenceRole::ExpressionExpected,
+                    );
                     self.graph
-                        .constrain_subtype(callee_value.clone(), callee_consumer)?;
+                        .constrain_materialized_subtype(actual, expected)?;
                     let call_arg_effect = self.consume_expr_value(arg, arg_ty.clone())?.1;
                     (call_arg_effect, ret_effect, ret_ty)
                 }
