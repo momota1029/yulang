@@ -553,7 +553,9 @@ fn compatible_run_native_tcp_server_echoes_two_connections() {
     let stderr_reader =
         read_child_pipe_to_string(child.stderr.take().expect("child stderr should be piped"));
 
-    let port_line = match port_rx.recv_timeout(Duration::from_secs(10)) {
+    // Starting the compiler/runtime child can take longer under the parallel CLI suite.
+    // Keep the startup deadline separate from the connection I/O timeouts below.
+    let port_line = match port_rx.recv_timeout(Duration::from_secs(30)) {
         Ok(line) => line,
         Err(error) => {
             kill_child(&mut child);
