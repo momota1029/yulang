@@ -1777,8 +1777,8 @@ mod run_cache_tests {
 
         assert!(first.ok, "{first:?}");
         assert!(second.ok, "{second:?}");
-        assert_eq!(first.stdout, "Result 1: hello\n");
-        assert_eq!(second.stdout, "Result 1: hello\n");
+        assert_eq!(first.stdout, "Out 1: hello\n");
+        assert_eq!(second.stdout, "Out 1: hello\n");
         assert_eq!(
             second
                 .timings
