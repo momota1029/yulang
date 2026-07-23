@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: core gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt
+          rustup default stable
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Test poly and specialize
+        run: cargo test -q -p poly -p specialize
+
+      # This test temporarily mutates a process-wide cache environment variable,
+      # so keep it out of the parallel suite and run it alone below.
+      - name: Test parser, infer, and yulang
+        run: cargo test -q -p parser -p infer -p yulang -- --skip embedded_std_compiled_unit_artifact_persists_to_user_cache
+
+      - name: Test user cache persistence in isolation
+        run: cargo test -q -p yulang embedded_std_compiled_unit_artifact_persists_to_user_cache
