@@ -124,9 +124,12 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 14,
                 upper_bounds: 16,
                 record: ConstraintRecordId(21),
-                explanation_nodes: 16,
+                explanation_nodes: 17,
                 explanation_edges: 18,
-                origins: &[ConstraintOriginKind::UnknownInternal],
+                origins: &[
+                    ConstraintOriginKind::UnknownInternal,
+                    ConstraintOriginKind::Pattern,
+                ],
             },
         },
     ];
@@ -146,6 +149,7 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
             lower,
             upper,
             origin,
+            ..
         } = specialize::specialize(&output.session.poly, output.subtype_provenance())
             .expect_err(case.name)
         else {
@@ -223,6 +227,7 @@ fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
         lower: lower_mono,
         upper: upper_mono,
         origin,
+        ..
     } = specialize::specialize(&output.session.poly, output.subtype_provenance())
         .expect_err("nested record must fail")
     else {
@@ -1058,6 +1063,7 @@ fn portable_test_origin(kind: ConstraintOriginKind) -> PortableConstraintOriginK
         ConstraintOriginKind::ApplicationArgument => {
             PortableConstraintOriginKind::ApplicationArgument
         }
+        ConstraintOriginKind::Pattern => PortableConstraintOriginKind::Pattern,
         ConstraintOriginKind::Annotation => PortableConstraintOriginKind::Annotation,
         ConstraintOriginKind::Return => PortableConstraintOriginKind::Return,
         ConstraintOriginKind::Field => PortableConstraintOriginKind::Field,

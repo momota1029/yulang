@@ -1059,6 +1059,7 @@ pub compose2(f, g, x) = f g(x)
                 lower: specialize::mono::Type::Record(vec![field("x")]),
                 upper: specialize::mono::Type::Record(vec![field("x"), field("y")]),
                 origin: None,
+                provenance: None,
             },
         ));
         let RuntimeSourceDiagnostic { diagnostic, .. } = error.into_source_diagnostic();

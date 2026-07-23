@@ -20,9 +20,9 @@ use poly::provenance::{
 
 use crate::{
     ExprTypeRole, RoleMethodCheckOutcome, RoleMethodCheckResolution, SpecializeError,
-    UnsatisfiedSubtypeOrigin, convert_def, convert_def_spread, convert_lit, convert_primitive_op,
-    convert_vis, def_kind, equivalent_boundary_types, hygiene, lit_type, primitive_context, roles,
-    std_types, types,
+    UnsatisfiedSubtypeOrigin, UnsatisfiedSubtypeProvenance, convert_def, convert_def_spread,
+    convert_lit, convert_primitive_op, convert_vis, def_kind, equivalent_boundary_types, hygiene,
+    lit_type, primitive_context, roles, std_types, types,
 };
 
 mod candidate;
@@ -471,6 +471,8 @@ struct TypeSlot {
     kind: TypeSlotKind,
     lower: Vec<Type>,
     upper: Vec<Type>,
+    lower_provenance: Vec<(Type, Option<SpecializeSubtypeProvenanceRecordId>)>,
+    upper_provenance: Vec<(Type, Option<SpecializeSubtypeProvenanceRecordId>)>,
     weighted_lower: Vec<WeightedTypeBound>,
     weighted_upper: Vec<WeightedTypeBound>,
     successors: Vec<u32>,
@@ -486,6 +488,8 @@ impl TypeSlot {
             kind,
             lower: Vec::new(),
             upper: Vec::new(),
+            lower_provenance: Vec::new(),
+            upper_provenance: Vec::new(),
             weighted_lower: Vec::new(),
             weighted_upper: Vec::new(),
             successors: Vec::new(),

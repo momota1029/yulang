@@ -319,8 +319,34 @@ impl<'a> ExprLowerer<'a> {
             .of(pattern_value)
             .map(|bounds| bounds.upper_record_ids().to_vec())
             .unwrap_or_default();
-        self.subtype_var_to_var(scrutinee_value, pattern_value);
-        self.subtype_var_to_var(pattern_value, scrutinee_value);
+        let pattern_origin = self
+            .session
+            .infer
+            .alloc_source_boundary(crate::constraints::ConstraintOriginKind::Pattern);
+        if let Some(source_span) =
+            self.source_span(Some(crate::node_trimmed_source_range(&pattern)))
+        {
+            let inserted = self
+                .session
+                .source_boundary_provenance
+                .insert_pattern(pattern_origin.boundary(), source_span);
+            debug_assert!(inserted, "each pattern boundary has one source location");
+            if inserted {
+                self.session
+                    .infer
+                    .record_source_boundary_location(pattern_origin.boundary());
+            }
+        }
+        self.subtype_var_to_var_with_origin(
+            scrutinee_value,
+            pattern_value,
+            pattern_origin.origin(),
+        );
+        self.subtype_var_to_var_with_origin(
+            pattern_value,
+            scrutinee_value,
+            pattern_origin.origin(),
+        );
         let input_roots = self
             .session
             .infer
@@ -340,6 +366,7 @@ impl<'a> ExprLowerer<'a> {
             },
             input_roots,
             crate::constraints::ProvenanceCompleteness::Complete,
+            self.fresh_source_parent(),
         );
 
         let guard_node = arm_guard_expr(arm);

@@ -24,7 +24,7 @@ use mono::{
     Program, RangeConstructors, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
-use poly::provenance::SubtypeProvenanceSidecar;
+use poly::provenance::{ProvenanceAnchor, ProvenanceCompleteness, SubtypeProvenanceSidecar};
 
 pub(crate) use lib_support::boundary::*;
 pub(crate) use lib_support::convert::*;
@@ -136,6 +136,13 @@ pub fn specialize_roots(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsatisfiedSubtypeProvenance {
+    pub lower: Vec<ProvenanceAnchor>,
+    pub upper: Vec<ProvenanceAnchor>,
+    pub completeness: ProvenanceCompleteness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecializeError {
     MissingDef {
         def: DefId,
@@ -179,6 +186,7 @@ pub enum SpecializeError {
         lower: Type,
         upper: Type,
         origin: Option<UnsatisfiedSubtypeOrigin>,
+        provenance: Option<UnsatisfiedSubtypeProvenance>,
     },
     UndeterminedTypeSlot {
         slot: u32,

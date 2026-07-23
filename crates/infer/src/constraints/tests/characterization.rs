@@ -477,7 +477,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 1_480, 791, 294, 9_496, 24_468),
+            origin_coverage: origins(1_852, 416, 1_480, 791, 294, 9_496, 24_052),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
@@ -508,7 +508,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 1_480, 791, 297, 9_546, 24_535),
+            origin_coverage: origins(1_855, 416, 1_480, 791, 297, 9_546, 24_119),
             body_requirement_coverage: body_requirements(99),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
@@ -542,7 +542,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 1_487, 795, 294, 9_601, 24_717),
+            origin_coverage: origins(1_868, 416, 1_487, 795, 294, 9_601, 24_301),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
@@ -573,7 +573,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 1_506, 813, 303, 9_927, 25_513),
+            origin_coverage: origins(1_906, 430, 1_506, 813, 303, 9_927, 25_083),
             body_requirement_coverage: body_requirements(101),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
@@ -618,7 +618,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 1_497, 801, 294, 9_725, 25_060),
+            origin_coverage: origins(1_883, 418, 1_497, 801, 294, 9_725, 24_642),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
@@ -656,6 +656,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
 
 fn origins(
     application_argument: usize,
+    pattern: usize,
     annotation: usize,
     return_: usize,
     body_requirement: usize,
@@ -664,6 +665,7 @@ fn origins(
 ) -> ConstraintOriginCoverage {
     ConstraintOriginCoverage {
         application_argument,
+        pattern,
         annotation,
         return_,
         body_requirement,

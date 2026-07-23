@@ -217,6 +217,8 @@ pub struct AnalysisSession {
     generalized_scheme_records: FxHashMap<DefId, GeneralizedSchemeRecordId>,
     generalized_scheme_generations: FxHashMap<DefId, u32>,
     type_occurrence_provenance: FxHashMap<TypeOccurrenceKey, PendingOccurrenceProvenance>,
+    fresh_source_occurrences: FxHashSet<TypeOccurrenceKey>,
+    fresh_source_defs: FxHashSet<DefId>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,

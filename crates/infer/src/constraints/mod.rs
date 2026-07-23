@@ -1583,6 +1583,7 @@ impl OriginId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConstraintOriginKind {
     ApplicationArgument,
+    Pattern,
     Annotation,
     Return,
     Field,
@@ -1605,6 +1606,7 @@ impl ConstraintOriginKind {
         matches!(
             self,
             Self::ApplicationArgument
+                | Self::Pattern
                 | Self::Annotation
                 | Self::Return
                 | Self::Field

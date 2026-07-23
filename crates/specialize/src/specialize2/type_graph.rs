@@ -297,15 +297,18 @@ impl<'a> TypeGraph<'a> {
         Ok(())
     }
 
-    fn record_shadow_failure(&mut self, record: Option<SpecializeSubtypeProvenanceRecordId>) {
+    fn record_shadow_failure(
+        &mut self,
+        record: Option<SpecializeSubtypeProvenanceRecordId>,
+    ) -> Option<UnsatisfiedSubtypeProvenance> {
         let Some(record) = record else {
-            return;
+            return None;
         };
         if self.shadow_subtype_failures.len() >= MAX_SHADOW_SUBTYPE_FAILURES {
             self.subtype_provenance_records[record.index()].completeness =
                 ProvenanceCompleteness::Incomplete;
             self.subtype_provenance_metrics.budget_exhaustions += 1;
-            return;
+            return None;
         }
         let positions = &self.subtype_position_provenance[record.index()];
         let failure = SubtypeFailureProvenance {
@@ -316,7 +319,47 @@ impl<'a> TypeGraph<'a> {
         };
         #[cfg(test)]
         capture_shadow_subtype_failure(&failure);
+        let provenance = UnsatisfiedSubtypeProvenance {
+            lower: failure.lower.clone(),
+            upper: failure.upper.clone(),
+            completeness: failure.completeness,
+        };
         self.shadow_subtype_failures.push(failure);
+        Some(provenance)
+    }
+
+    fn constrain_open_var_bound_pair(
+        &mut self,
+        lower: Type,
+        lower_parent: Option<SpecializeSubtypeProvenanceRecordId>,
+        upper: Type,
+        upper_parent: Option<SpecializeSubtypeProvenanceRecordId>,
+    ) -> Result<(), SpecializeError> {
+        let lower_positions = lower_parent
+            .map(|parent| self.subtype_position_provenance[parent.index()].lower.clone())
+            .unwrap_or_else(|| incomplete_positions().lower);
+        let upper_positions = upper_parent
+            .map(|parent| self.subtype_position_provenance[parent.index()].upper.clone())
+            .unwrap_or_else(|| incomplete_positions().upper);
+        let completeness =
+            compose_completeness(lower_positions.completeness, upper_positions.completeness);
+        let parents = [lower_parent, upper_parent]
+            .into_iter()
+            .flatten()
+            .collect();
+        self.intern_weighted_subtype(
+            lower,
+            empty_stack_weight(),
+            upper,
+            empty_stack_weight(),
+            SpecializeProvenanceDerivation::OpenVarBound { parents },
+            SubtypePositionProvenance {
+                lower: lower_positions,
+                upper: upper_positions,
+            },
+            completeness,
+        );
+        Ok(())
     }
 
     pub(super) fn add_role_demands(
@@ -469,10 +512,22 @@ impl<'a> TypeGraph<'a> {
                 self.constrain_weighted_subtype(lower, lower_weight, *right, upper_weight)
             }
             (Type::OpenVar(slot), upper) => {
-                self.add_upper_weighted(slot, lower_weight, upper, upper_weight)
+                self.add_upper_weighted_with_provenance(
+                    slot,
+                    lower_weight,
+                    upper,
+                    upper_weight,
+                    provenance,
+                )
             }
             (lower, Type::OpenVar(slot)) => {
-                self.add_lower_weighted(slot, lower, lower_weight, upper_weight)
+                self.add_lower_weighted_with_provenance(
+                    slot,
+                    lower,
+                    lower_weight,
+                    upper_weight,
+                    provenance,
+                )
             }
             (
                 Type::Fun {
@@ -646,8 +701,12 @@ impl<'a> TypeGraph<'a> {
                 Ok(())
             }
             (Type::Tuple(lower_items), Type::Tuple(upper_items)) => {
-                self.record_shadow_failure(provenance);
-                unsatisfied_subtype(Type::Tuple(lower_items), Type::Tuple(upper_items))
+                let provenance = self.record_shadow_failure(provenance);
+                unsatisfied_subtype(
+                    Type::Tuple(lower_items),
+                    Type::Tuple(upper_items),
+                    provenance,
+                )
             }
             (Type::Record(lower_fields), Type::Record(upper_fields)) => {
                 let missing_required_field = upper_fields.iter().any(|upper_field| {
@@ -655,10 +714,11 @@ impl<'a> TypeGraph<'a> {
                         && record_field_type(&lower_fields, &upper_field.name).is_none()
                 });
                 if missing_required_field {
-                    self.record_shadow_failure(provenance);
+                    let provenance = self.record_shadow_failure(provenance);
                     return unsatisfied_subtype(
                         Type::Record(lower_fields),
                         Type::Record(upper_fields),
+                        provenance,
                     );
                 }
                 for (upper_index, upper_field) in upper_fields.into_iter().enumerate() {
@@ -691,10 +751,11 @@ impl<'a> TypeGraph<'a> {
                     .iter()
                     .any(|lower_variant| matching_variant(&upper_variants, lower_variant).is_none())
                 {
-                    self.record_shadow_failure(provenance);
+                    let provenance = self.record_shadow_failure(provenance);
                     return unsatisfied_subtype(
                         Type::PolyVariant(lower_variants),
                         Type::PolyVariant(upper_variants),
+                        provenance,
                     );
                 }
                 for (lower_item, lower_variant) in lower_variants.into_iter().enumerate() {
@@ -846,7 +907,9 @@ fn advance_materialized_positions(
         .positions
         .iter()
         .filter_map(|position| {
-            let (first, rest) = position.path.0.split_first()?;
+            let Some((first, rest)) = position.path.0.split_first() else {
+                return Some(position.clone());
+            };
             (*first == step).then(|| types::MaterializedPositionProvenance {
                 path: poly::provenance::TypePositionPath(rest.to_vec()),
                 anchors: position.anchors.clone(),
@@ -906,10 +969,15 @@ fn compose_completeness(
     }
 }
 
-fn unsatisfied_subtype(lower: Type, upper: Type) -> Result<(), SpecializeError> {
+fn unsatisfied_subtype(
+    lower: Type,
+    upper: Type,
+    provenance: Option<UnsatisfiedSubtypeProvenance>,
+) -> Result<(), SpecializeError> {
     Err(SpecializeError::UnsatisfiedSubtype {
         lower,
         upper,
         origin: None,
+        provenance,
     })
 }

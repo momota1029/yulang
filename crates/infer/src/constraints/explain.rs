@@ -1565,6 +1565,7 @@ fn portable_origin_kind(kind: ConstraintOriginKind) -> PortableConstraintOriginK
         ConstraintOriginKind::ApplicationArgument => {
             PortableConstraintOriginKind::ApplicationArgument
         }
+        ConstraintOriginKind::Pattern => PortableConstraintOriginKind::Pattern,
         ConstraintOriginKind::Annotation => PortableConstraintOriginKind::Annotation,
         ConstraintOriginKind::Return => PortableConstraintOriginKind::Return,
         ConstraintOriginKind::Field => PortableConstraintOriginKind::Field,
@@ -1580,6 +1581,7 @@ fn portable_origin_kind(kind: ConstraintOriginKind) -> PortableConstraintOriginK
 fn portable_source_role(kind: ConstraintOriginKind) -> Option<PortableSourceRole> {
     match kind {
         ConstraintOriginKind::ApplicationArgument => Some(PortableSourceRole::ApplicationArgument),
+        ConstraintOriginKind::Pattern => Some(PortableSourceRole::Pattern),
         ConstraintOriginKind::Annotation => Some(PortableSourceRole::Annotation),
         ConstraintOriginKind::Return => Some(PortableSourceRole::Return),
         ConstraintOriginKind::Field => Some(PortableSourceRole::Field),

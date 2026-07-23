@@ -169,9 +169,10 @@ impl<'a> TaskSolver<'a> {
         owner: poly::provenance::TypeOccurrenceOwner,
         role: poly::provenance::TypeOccurrenceRole,
     ) -> types::MaterializedTypeWithProvenance {
+        let provenance = self.root_provenance_from_occurrence(owner, role);
         types::MaterializedTypeWithProvenance {
             ty,
-            provenance: self.root_provenance_from_occurrence(owner, role),
+            provenance,
         }
     }
 
@@ -737,6 +738,7 @@ impl<'a> TaskSolver<'a> {
                     actual_fields: typed.iter().map(|field| field.name.clone()).collect(),
                     select: None,
                 }),
+                provenance: None,
             });
         }
         let effect = self.join_effects(effects)?;
@@ -886,6 +888,7 @@ fn attach_missing_record_field_select(
         SpecializeError::UnsatisfiedSubtype {
             lower,
             upper,
+            provenance,
             origin:
                 Some(UnsatisfiedSubtypeOrigin::MissingRecordField {
                     field,
@@ -900,6 +903,7 @@ fn attach_missing_record_field_select(
                 actual_fields,
                 select: Some(select),
             }),
+            provenance,
         },
         error => error,
     }

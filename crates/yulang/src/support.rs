@@ -968,7 +968,7 @@ fn format_ranged_specialize_error(
     error: &specialize::SpecializeError,
     context: &yulang::source::SpecializeDiagnosticContext,
 ) -> String {
-    let (code, message, hint) = match error {
+    let (code, message, hint, has_primary_range) = match error {
         specialize::SpecializeError::UnsatisfiedSubtype {
             origin:
                 Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField {
@@ -985,19 +985,32 @@ fn format_ranged_specialize_error(
                 format!(
                     "add `{field}` to this record or use a value that provides it; actual record has {actual}"
                 ),
+                true,
             )
         }
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: None,
+            provenance: Some(_),
+            ..
+        } => (
+            "yulang.unsatisfied-subtype",
+            error.to_string(),
+            "check that the value provides the fields or shape required by this use".to_string(),
+            false,
+        ),
         specialize::SpecializeError::UnresolvedTypeclassMethod { .. } => (
             "yulang.unresolved-method",
             "no role implementation satisfies this method call".to_string(),
             "add or import an impl for the receiver type, or call a method supported by that value"
                 .to_string(),
+            true,
         ),
         specialize::SpecializeError::AmbiguousTypeclassMethod { .. } => (
             "yulang.ambiguous-method",
             "more than one role implementation satisfies this method call".to_string(),
             "make the receiver type more specific or keep only one matching impl in scope"
                 .to_string(),
+            true,
         ),
         _ => return error.to_string(),
     };
@@ -1005,8 +1018,8 @@ fn format_ranged_specialize_error(
         severity: yulang::SourceDiagnosticSeverity::Error,
         code: Some(code.to_string()),
         label: None,
-        file: Some(context.file.clone()),
-        range: Some(context.range),
+        file: has_primary_range.then(|| context.file.clone()),
+        range: has_primary_range.then_some(context.range),
         message,
         hint: Some(hint),
         related: context.related.clone(),
@@ -1038,8 +1051,11 @@ fn format_specialize_source_diagnostic(
         rendered.push('\n');
         rendered.push_str(&frame);
     }
-    rendered.push_str("\n  detail: ");
-    rendered.push_str(&error.to_string());
+    let detail = error.to_string();
+    if diagnostic.message != detail {
+        rendered.push_str("\n  detail: ");
+        rendered.push_str(&detail);
+    }
     if let Some(hint) = &diagnostic.hint {
         rendered.push_str("\n  hint: ");
         rendered.push_str(hint);

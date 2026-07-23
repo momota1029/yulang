@@ -22,6 +22,7 @@ impl<'a> ExprLowerer<'a> {
             },
             computation.value,
             crate::constraints::BoundDirection::Lower,
+            self.fresh_source_parent(),
         );
         Ok(computation)
     }

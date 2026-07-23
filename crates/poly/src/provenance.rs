@@ -631,6 +631,7 @@ pub enum PortableStructuralDerivationRule {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PortableConstraintOriginKind {
     ApplicationArgument,
+    Pattern,
     Annotation,
     Return,
     Field,
@@ -651,6 +652,7 @@ pub enum PortableBodyRequirementKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PortableSourceRole {
     ApplicationArgument,
+    Pattern,
     Annotation,
     Return,
     Field,

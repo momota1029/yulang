@@ -13,13 +13,20 @@ fn specialization_error_path_exposes_captured_subtype_failure_anchors() {
     let (result, failures) =
         specialize_with_captured_subtype_failures(&lowering.session.poly, sidecar);
 
-    assert!(matches!(
-        result,
-        Err(SpecializeError::UnsatisfiedSubtype { origin: None, .. })
-    ));
     let [failure] = failures.as_slice() else {
         panic!("expected one captured subtype failure: {failures:?}");
     };
+    let Err(SpecializeError::UnsatisfiedSubtype {
+        origin: None,
+        provenance: Some(provenance),
+        ..
+    }) = result
+    else {
+        panic!("expected public subtype failure provenance: {result:?}");
+    };
+    assert_eq!(provenance.lower, failure.lower);
+    assert_eq!(provenance.upper, failure.upper);
+    assert_eq!(provenance.completeness, failure.completeness);
     assert_eq!(failure.completeness, ProvenanceCompleteness::Complete);
     assert!(!failure.lower.is_empty());
     assert!(!failure.upper.is_empty());
@@ -370,7 +377,7 @@ fn subtype_provenance_record_and_variant_children_advance_exact_paths() {
 }
 
 #[test]
-fn subtype_provenance_open_var_replay_is_explicitly_incomplete() {
+fn subtype_provenance_open_var_replay_retains_exact_parent_while_remaining_incomplete() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
     let slot = graph.fresh_value();
@@ -386,7 +393,7 @@ fn subtype_provenance_open_var_replay_is_explicitly_incomplete() {
 
     assert!(graph.solve_constraints().is_err());
     let failure = graph.shadow_subtype_failures.last().unwrap();
-    assert!(failure.lower.is_empty());
+    assert_eq!(failure.lower, vec![ProvenanceAnchor::from_index(20)]);
     assert!(failure.upper.is_empty());
     assert_eq!(failure.completeness, ProvenanceCompleteness::Incomplete);
 }
@@ -824,6 +831,7 @@ fn record_literal_missing_required_field_reports_origin() {
                 actual_fields,
                 select,
             }),
+        ..
     } = err
     else {
         panic!("expected missing record field origin, got {err:?}");
@@ -1446,6 +1454,7 @@ fn assert_unsatisfied_subtype(error: SpecializeError, lower: Type, upper: Type) 
         lower: actual_lower,
         upper: actual_upper,
         origin: None,
+        ..
     } = error
     else {
         panic!("expected unsatisfied subtype, got {error:?}");

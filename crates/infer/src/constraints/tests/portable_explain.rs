@@ -352,6 +352,11 @@ fn local_cause(
             .source_boundary_provenance
             .application_argument(leaf.boundary)
             .map(|provenance| provenance.argument_span.clone()),
+        ConstraintOriginKind::Pattern => output
+            .session
+            .source_boundary_provenance
+            .pattern(leaf.boundary)
+            .cloned(),
         ConstraintOriginKind::BodyRequirement(_) => output
             .session
             .source_boundary_provenance
@@ -364,6 +369,7 @@ fn local_cause(
             ConstraintOriginKind::ApplicationArgument => {
                 DiagnosticTypeCauseRole::RequiredByApplication
             }
+            ConstraintOriginKind::Pattern => DiagnosticTypeCauseRole::RequiredByPattern,
             ConstraintOriginKind::Annotation => DiagnosticTypeCauseRole::RequiredByAnnotation,
             ConstraintOriginKind::BodyRequirement(kind) => {
                 DiagnosticTypeCauseRole::RequiredByBodyUse(match kind {
@@ -406,6 +412,10 @@ fn portable_source_location(
             .source_boundary_provenance
             .body_requirement(boundary)
             .map(|provenance| &provenance.use_span),
+        ConstraintOriginKind::Pattern => output
+            .session
+            .source_boundary_provenance
+            .pattern(boundary),
         _ => None,
     }?;
     Some(PortableSourceLocation {

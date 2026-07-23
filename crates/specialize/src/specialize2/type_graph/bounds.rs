@@ -123,32 +123,33 @@ impl<'a> TypeGraph<'a> {
         }
         let lowers = self.slots[lower_index].lower.clone();
         for bound in lowers {
-            self.add_lower(upper, bound)?;
+            let provenance = bound_provenance(
+                &self.slots[lower_index].lower_provenance,
+                &bound,
+            );
+            self.add_lower_unweighted_with_provenance(upper, bound, provenance)?;
         }
         let uppers = self.slots[upper_index].upper.clone();
         for bound in uppers {
-            self.add_upper(lower, bound)?;
+            let provenance = bound_provenance(
+                &self.slots[upper_index].upper_provenance,
+                &bound,
+            );
+            self.add_upper_unweighted_with_provenance(lower, bound, provenance)?;
         }
         Ok(())
     }
 
-    pub(in crate::specialize2) fn add_lower(
-        &mut self,
-        slot: u32,
-        lower: Type,
-    ) -> Result<(), SpecializeError> {
-        self.add_lower_weighted(slot, lower, empty_stack_weight(), empty_stack_weight())
-    }
-
-    pub(in crate::specialize2) fn add_lower_weighted(
+    pub(in crate::specialize2) fn add_lower_weighted_with_provenance(
         &mut self,
         slot: u32,
         lower: Type,
         lower_weight: StackWeight,
         upper_weight: StackWeight,
+        provenance: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         if stack_weight_is_empty(&lower_weight) && stack_weight_is_empty(&upper_weight) {
-            return self.add_lower_unweighted(slot, lower);
+            return self.add_lower_unweighted_with_provenance(slot, lower, provenance);
         }
         if let Type::OpenVar(lower_slot) = lower {
             return self.add_weighted_edge(lower_slot, slot, lower_weight, upper_weight);
@@ -156,10 +157,11 @@ impl<'a> TypeGraph<'a> {
         self.add_lower_bound_weighted(slot, lower, lower_weight, upper_weight)
     }
 
-    pub(in crate::specialize2) fn add_lower_unweighted(
+    fn add_lower_unweighted_with_provenance(
         &mut self,
         slot: u32,
         lower: Type,
+        provenance: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
@@ -167,12 +169,20 @@ impl<'a> TypeGraph<'a> {
             return Ok(());
         };
         if self.slots[index].lower.contains(&lower) {
+            merge_bound_provenance(
+                &mut self.slots[index].lower_provenance,
+                lower,
+                provenance,
+            );
             return Ok(());
         }
         for existing in self.slots[index].lower.clone() {
             self.constrain_same_path_invariant(existing, lower.clone())?;
         }
         self.slots[index].lower.push(lower.clone());
+        self.slots[index]
+            .lower_provenance
+            .push((lower.clone(), provenance));
         let effect_consumers = self.slots[index].effect_subtraction_consumers.clone();
         for demand in effect_consumers {
             let Some((items, tail)) = self.effect_row_parts(lower.clone()) else {
@@ -182,11 +192,18 @@ impl<'a> TypeGraph<'a> {
         }
         let uppers = self.slots[index].upper.clone();
         for upper in uppers {
-            self.constrain_subtype(lower.clone(), upper)?;
+            let upper_provenance =
+                bound_provenance(&self.slots[index].upper_provenance, &upper);
+            self.constrain_open_var_bound_pair(
+                lower.clone(),
+                provenance,
+                upper,
+                upper_provenance,
+            )?;
         }
         let successors = self.slots[index].successors.clone();
         for successor in successors {
-            self.add_lower_unweighted(successor, lower.clone())?;
+            self.add_lower_unweighted_with_provenance(successor, lower.clone(), provenance)?;
         }
         let weighted_uppers = self.slots[index].weighted_upper.clone();
         for upper in weighted_uppers {
@@ -270,23 +287,16 @@ impl<'a> TypeGraph<'a> {
         Ok(())
     }
 
-    pub(in crate::specialize2) fn add_upper(
-        &mut self,
-        slot: u32,
-        upper: Type,
-    ) -> Result<(), SpecializeError> {
-        self.add_upper_weighted(slot, empty_stack_weight(), upper, empty_stack_weight())
-    }
-
-    pub(in crate::specialize2) fn add_upper_weighted(
+    pub(in crate::specialize2) fn add_upper_weighted_with_provenance(
         &mut self,
         slot: u32,
         lower_weight: StackWeight,
         upper: Type,
         upper_weight: StackWeight,
+        provenance: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         if stack_weight_is_empty(&lower_weight) && stack_weight_is_empty(&upper_weight) {
-            return self.add_upper_unweighted(slot, upper);
+            return self.add_upper_unweighted_with_provenance(slot, upper, provenance);
         }
         if let Type::OpenVar(upper_slot) = upper {
             return self.add_weighted_edge(slot, upper_slot, lower_weight, upper_weight);
@@ -309,7 +319,7 @@ impl<'a> TypeGraph<'a> {
         upper_weight: StackWeight,
     ) -> Result<(), SpecializeError> {
         if stack_weight_is_empty(&lower_weight) && stack_weight_is_empty(&upper_weight) {
-            return self.add_upper_unweighted(slot, upper);
+            return self.add_upper_unweighted_with_provenance(slot, upper, None);
         }
         let upper_row = match upper {
             Type::EffectRow(items) => items,
@@ -427,10 +437,11 @@ impl<'a> TypeGraph<'a> {
         Ok(())
     }
 
-    pub(in crate::specialize2) fn add_upper_unweighted(
+    fn add_upper_unweighted_with_provenance(
         &mut self,
         slot: u32,
         upper: Type,
+        provenance: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
@@ -438,15 +449,30 @@ impl<'a> TypeGraph<'a> {
             return Ok(());
         };
         if self.slots[index].upper.contains(&upper) {
+            merge_bound_provenance(
+                &mut self.slots[index].upper_provenance,
+                upper,
+                provenance,
+            );
             return Ok(());
         }
         for existing in self.slots[index].upper.clone() {
             self.constrain_same_path_invariant(existing, upper.clone())?;
         }
         self.slots[index].upper.push(upper.clone());
+        self.slots[index]
+            .upper_provenance
+            .push((upper.clone(), provenance));
         let lowers = self.slots[index].lower.clone();
         for lower in lowers {
-            self.constrain_subtype(lower, upper.clone())?;
+            let lower_provenance =
+                bound_provenance(&self.slots[index].lower_provenance, &lower);
+            self.constrain_open_var_bound_pair(
+                lower,
+                lower_provenance,
+                upper.clone(),
+                provenance,
+            )?;
         }
         let weighted_lowers = self.slots[index].weighted_lower.clone();
         for lower in weighted_lowers {
@@ -459,7 +485,7 @@ impl<'a> TypeGraph<'a> {
         }
         let predecessors = self.slots[index].predecessors.clone();
         for predecessor in predecessors {
-            self.add_upper_unweighted(predecessor, upper.clone())?;
+            self.add_upper_unweighted_with_provenance(predecessor, upper.clone(), provenance)?;
         }
         let weighted_predecessors = self.slots[index].weighted_predecessors.clone();
         for predecessor in weighted_predecessors {
@@ -558,5 +584,28 @@ impl<'a> TypeGraph<'a> {
                 return Ok(solution);
             }
         }
+    }
+}
+
+fn bound_provenance(
+    entries: &[(Type, Option<SpecializeSubtypeProvenanceRecordId>)],
+    ty: &Type,
+) -> Option<SpecializeSubtypeProvenanceRecordId> {
+    entries
+        .iter()
+        .find_map(|(bound, provenance)| (bound == ty).then_some(*provenance).flatten())
+}
+
+fn merge_bound_provenance(
+    entries: &mut Vec<(Type, Option<SpecializeSubtypeProvenanceRecordId>)>,
+    ty: Type,
+    provenance: Option<SpecializeSubtypeProvenanceRecordId>,
+) {
+    if let Some((_, existing)) = entries.iter_mut().find(|(bound, _)| *bound == ty) {
+        if existing.is_none() {
+            *existing = provenance;
+        }
+    } else {
+        entries.push((ty, provenance));
     }
 }

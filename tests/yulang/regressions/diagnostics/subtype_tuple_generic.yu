@@ -1,0 +1,3 @@
+my id x = x
+my g(x: (int, int)) = x
+g (id (1, 2, 3))

@@ -44,6 +44,7 @@ impl<'a> ExprLowerer<'a> {
             },
             value,
             crate::constraints::BoundDirection::Lower,
+            self.fresh_source_parent(),
         );
         Ok(pat)
     }

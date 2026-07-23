@@ -576,6 +576,7 @@ impl<'a> ExprLowerer<'a> {
                 },
                 expected_roots,
                 crate::constraints::ProvenanceCompleteness::Complete,
+                self.fresh_source_parent(),
             );
         }
         if let Some(additional_origin) = additional_origin {

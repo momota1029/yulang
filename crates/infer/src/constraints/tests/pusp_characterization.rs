@@ -890,6 +890,7 @@ impl QueryBaseline {
             .filter_map(|node| match node {
                 ExplanationNode::Origin { kind, .. } => Some(match kind {
                     ConstraintOriginKind::ApplicationArgument => "application-argument",
+                    ConstraintOriginKind::Pattern => "pattern",
                     ConstraintOriginKind::Annotation => "annotation",
                     ConstraintOriginKind::Return => "return",
                     ConstraintOriginKind::Field => "field",

@@ -32,7 +32,27 @@ impl SourceBoundaryProvenanceTable {
     ) -> Option<&ApplicationArgumentBoundaryProvenance> {
         match self.entries.get(&boundary)? {
             SourceBoundaryProvenance::ApplicationArgument(provenance) => Some(provenance),
-            SourceBoundaryProvenance::BodyRequirement(_) => None,
+            SourceBoundaryProvenance::Pattern(_) | SourceBoundaryProvenance::BodyRequirement(_) => {
+                None
+            }
+        }
+    }
+
+    pub(crate) fn insert_pattern(
+        &mut self,
+        boundary: SourceBoundaryId,
+        source_span: SourceSpan,
+    ) -> bool {
+        self.entries
+            .insert(boundary, SourceBoundaryProvenance::Pattern(source_span))
+            .is_none()
+    }
+
+    pub(crate) fn pattern(&self, boundary: SourceBoundaryId) -> Option<&SourceSpan> {
+        match self.entries.get(&boundary)? {
+            SourceBoundaryProvenance::Pattern(source_span) => Some(source_span),
+            SourceBoundaryProvenance::ApplicationArgument(_)
+            | SourceBoundaryProvenance::BodyRequirement(_) => None,
         }
     }
 
@@ -56,6 +76,7 @@ impl SourceBoundaryProvenanceTable {
     ) -> Option<&BodyRequirementBoundaryProvenance> {
         match self.entries.get(&boundary)? {
             SourceBoundaryProvenance::ApplicationArgument(_) => None,
+            SourceBoundaryProvenance::Pattern(_) => None,
             SourceBoundaryProvenance::BodyRequirement(provenance) => Some(provenance),
         }
     }
@@ -64,6 +85,7 @@ impl SourceBoundaryProvenanceTable {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SourceBoundaryProvenance {
     ApplicationArgument(ApplicationArgumentBoundaryProvenance),
+    Pattern(SourceSpan),
     BodyRequirement(BodyRequirementBoundaryProvenance),
 }
 

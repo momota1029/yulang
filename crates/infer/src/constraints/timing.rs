@@ -14,6 +14,7 @@ use super::{
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintOriginCoverage {
     pub application_argument: usize,
+    pub pattern: usize,
     pub annotation: usize,
     pub return_: usize,
     pub field: usize,
@@ -177,6 +178,7 @@ pub struct ReplayDerivationStorageMetrics {
 impl ConstraintOriginCoverage {
     pub fn total(self) -> usize {
         self.application_argument
+            + self.pattern
             + self.annotation
             + self.return_
             + self.field
@@ -189,6 +191,7 @@ impl ConstraintOriginCoverage {
     fn record(&mut self, kind: ConstraintOriginKind) {
         let counter = match kind {
             ConstraintOriginKind::ApplicationArgument => &mut self.application_argument,
+            ConstraintOriginKind::Pattern => &mut self.pattern,
             ConstraintOriginKind::Annotation => &mut self.annotation,
             ConstraintOriginKind::Return => &mut self.return_,
             ConstraintOriginKind::Field => &mut self.field,

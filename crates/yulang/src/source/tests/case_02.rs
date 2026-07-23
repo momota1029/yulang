@@ -353,6 +353,103 @@ fn specialize_missing_record_field_diagnostic_uses_selection_source_span() {
 }
 
 #[test]
+fn general_subtype_diagnostic_uses_complete_portable_cause_as_related_information() {
+    let source = "my g(x: (int, int)) = x\ng (1, 2, 3)\n";
+    let output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
+        .expect("tuple mismatch fixture should lower");
+    let error = specialize::specialize(&output.arena, &output.subtype_provenance)
+        .expect_err("tuple mismatch should fail specialization");
+    let specialize::SpecializeError::UnsatisfiedSubtype {
+        provenance: Some(provenance),
+        ..
+    } = &error
+    else {
+        panic!("tuple mismatch should carry public provenance: {error:?}");
+    };
+    assert_eq!(
+        provenance.completeness,
+        poly::provenance::ProvenanceCompleteness::Complete
+    );
+
+    let RouteError::SpecializeDiagnostic { context, .. } =
+        specialize_route_error(error, &output)
+    else {
+        panic!("complete tuple mismatch should produce diagnostic context");
+    };
+    let [related] = context.related.as_slice() else {
+        panic!("expected one related cause: {:#?}", context.related);
+    };
+    assert_eq!(
+        related.message,
+        "this callee requires an argument compatible with `(int, int)`"
+    );
+    assert_eq!(
+        related.origin,
+        Some(SourceDiagnosticRelatedOrigin::Expression)
+    );
+    let start = related.range.start - context.source.range_offset;
+    let end = related.range.end - context.source.range_offset;
+    assert_eq!(&context.source.source[start..end], "(1, 2, 3)\n");
+}
+
+#[test]
+fn general_subtype_regression_fixtures_report_their_real_source_cause() {
+    const FIXTURES: [(&str, &str); 5] = [
+        (
+            include_str!(
+                "../../../../../tests/yulang/regressions/diagnostics/subtype_tuple_arity.yu"
+            ),
+            "(1, 2, 3)",
+        ),
+        (
+            include_str!(
+                "../../../../../tests/yulang/regressions/diagnostics/subtype_record_field.yu"
+            ),
+            "({a: 1}, 2)",
+        ),
+        (
+            include_str!(
+                "../../../../../tests/yulang/regressions/diagnostics/subtype_tuple_generic.yu"
+            ),
+            "(id (1, 2, 3))",
+        ),
+        (
+            include_str!(
+                "../../../../../tests/yulang/regressions/diagnostics/subtype_tuple_nested.yu"
+            ),
+            "((1, 2, 3), 4)",
+        ),
+        (
+            include_str!(
+                "../../../../../tests/yulang/regressions/diagnostics/subtype_variant_tag.yu"
+            ),
+            ":none",
+        ),
+    ];
+
+    for (source, expected_cause) in FIXTURES {
+        let output = build_poly_from_collected_sources(vec![collected("main.yu", &[], source)])
+            .expect("general subtype regression fixture should lower");
+        let error = specialize::specialize(&output.arena, &output.subtype_provenance)
+            .expect_err("general subtype regression fixture should fail specialization");
+        let RouteError::SpecializeDiagnostic { context, .. } =
+            specialize_route_error(error, &output)
+        else {
+            panic!("fixture should produce source-located diagnostic context: {source}");
+        };
+        assert!(
+            context.related.iter().any(|related| {
+                let start = related.range.start - context.source.range_offset;
+                let end = related.range.end - context.source.range_offset;
+                context.source.source[start..end].contains(expected_cause)
+            }),
+            "expected cause `{expected_cause}` in {:#?}",
+            context.related,
+        );
+    }
+}
+
+#[test]
 fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
     let output = build_poly_from_collected_sources(vec![collected(
         "main.yu",
@@ -402,6 +499,7 @@ fn specialize_missing_implicit_cast_diagnostic_maps_optional_definition_owner() 
             target: vec!["bool".to_string()],
             owner: Some(owner),
         }),
+        provenance: None,
     };
 
     let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&error, &output)
@@ -438,6 +536,7 @@ fn specialize_missing_implicit_cast_diagnostic_maps_optional_definition_owner() 
             target: vec!["bool".to_string()],
             owner: None,
         }),
+        provenance: None,
     };
     let diagnostic = source_diagnostic_from_specialize_implicit_cast_error(&without_owner, &output)
         .expect("unranged missing-cast error should still map");

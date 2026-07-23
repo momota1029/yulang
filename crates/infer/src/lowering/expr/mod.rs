@@ -179,6 +179,14 @@ impl<'a> ExprLowerer<'a> {
         })
     }
 
+    pub(super) fn fresh_source_parent(&self) -> Option<poly::expr::DefId> {
+        (self.modules.module_band_path(self.module)
+            == self
+                .modules
+                .module_band_path(self.modules.root_id()))
+        .then_some(self.parent)
+    }
+
     /// CST expression を `poly::Expr` と `Computation` に lower する。
     ///
     /// まだ対応していない suffix / atom は `LoweringError::UnsupportedSyntax` として返す。

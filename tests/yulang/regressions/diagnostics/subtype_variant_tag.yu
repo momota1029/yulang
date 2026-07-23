@@ -1,0 +1,2 @@
+case :some 1:
+  :none -> 0

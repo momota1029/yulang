@@ -1648,6 +1648,9 @@ fn specialize_diagnostic_context(
             related: diagnostic.related,
         });
     }
+    if let Some(context) = general_subtype_diagnostic_context(error, output) {
+        return Some(context);
+    }
     let (select, candidates) = match error {
         specialize::SpecializeError::UnresolvedTypeclassMethod { expr, .. } => {
             let poly::expr::Expr::Select(_, select) = output.arena.exprs().get(*expr as usize)?
@@ -1699,6 +1702,132 @@ fn specialize_diagnostic_context(
         range: selection_span.range,
         related,
     })
+}
+
+fn general_subtype_diagnostic_context(
+    error: &specialize::SpecializeError,
+    output: &BuildPolyOutput,
+) -> Option<SpecializeDiagnosticContext> {
+    let specialize::SpecializeError::UnsatisfiedSubtype {
+        lower,
+        upper,
+        origin: None,
+        provenance: Some(provenance),
+    } = error
+    else {
+        return None;
+    };
+    if provenance.completeness != poly::provenance::ProvenanceCompleteness::Complete {
+        return None;
+    }
+
+    let mut related = Vec::new();
+    append_complete_subtype_causes(
+        &mut related,
+        &output.subtype_provenance.snapshot,
+        &provenance.lower,
+        lower,
+    );
+    append_complete_subtype_causes(
+        &mut related,
+        &output.subtype_provenance.snapshot,
+        &provenance.upper,
+        upper,
+    );
+    let first = related.first()?;
+    let source_span = infer::SourceSpan {
+        file: first.file.clone(),
+        range: first.range,
+    };
+    let source = output
+        .diagnostic_sources
+        .source_for_span(&source_span)?
+        .source;
+    Some(SpecializeDiagnosticContext {
+        source,
+        file: first.file.clone(),
+        range: first.range,
+        related,
+    })
+}
+
+fn append_complete_subtype_causes(
+    related: &mut Vec<SourceDiagnosticRelated>,
+    snapshot: &poly::provenance::PortableProvenanceSnapshot,
+    anchors: &[poly::provenance::ProvenanceAnchor],
+    ty: &specialize::mono::Type,
+) {
+    if anchors.is_empty() {
+        return;
+    }
+    // The public query reports completeness for both endpoint groups together. Supplying the same
+    // roots to both groups isolates this endpoint without making an absent opposite endpoint turn a
+    // complete contribution into `IncompleteProvenance`.
+    let explanation = infer::constraints::explain_portable_subtype(
+        snapshot,
+        anchors,
+        anchors,
+        infer::constraints::PortableExplanationBudget::default(),
+    );
+    if explanation.completeness
+        != infer::constraints::DiagnosticExplanationCompleteness::Complete
+        || explanation.truncation.is_some()
+    {
+        return;
+    }
+    let rendered_type = specialize::mono::dump::dump_type(ty);
+    for cause in explanation.lower_sites {
+        if related.iter().any(|existing| {
+            existing.file == cause.source_span.file && existing.range == cause.source_span.range
+        }) {
+            continue;
+        }
+        related.push(SourceDiagnosticRelated {
+            message: subtype_cause_related_message(cause.role, &rendered_type),
+            file: cause.source_span.file,
+            range: cause.source_span.range,
+            origin: Some(subtype_cause_related_origin(cause.role)),
+        });
+    }
+}
+
+fn subtype_cause_related_message(
+    role: infer::constraints::DiagnosticTypeCauseRole,
+    ty: &str,
+) -> String {
+    match role {
+        infer::constraints::DiagnosticTypeCauseRole::InferredFromExpression => {
+            format!("type `{ty}` is inferred from this expression")
+        }
+        infer::constraints::DiagnosticTypeCauseRole::RequiredByAnnotation => {
+            format!("type `{ty}` is required by this annotation")
+        }
+        infer::constraints::DiagnosticTypeCauseRole::RequiredByPattern => {
+            format!("this pattern requires a value compatible with `{ty}`")
+        }
+        infer::constraints::DiagnosticTypeCauseRole::RequiredByBodyUse(kind) => {
+            body_requirement_related_message(kind, ty)
+        }
+        infer::constraints::DiagnosticTypeCauseRole::RequiredByApplication => {
+            format!("this callee requires an argument compatible with `{ty}`")
+        }
+    }
+}
+
+fn subtype_cause_related_origin(
+    role: infer::constraints::DiagnosticTypeCauseRole,
+) -> SourceDiagnosticRelatedOrigin {
+    match role {
+        infer::constraints::DiagnosticTypeCauseRole::RequiredByAnnotation => {
+            SourceDiagnosticRelatedOrigin::TypeAnnotation
+        }
+        infer::constraints::DiagnosticTypeCauseRole::InferredFromExpression
+        | infer::constraints::DiagnosticTypeCauseRole::RequiredByPattern
+        | infer::constraints::DiagnosticTypeCauseRole::RequiredByBodyUse(_)
+        | infer::constraints::DiagnosticTypeCauseRole::RequiredByApplication => {
+            SourceDiagnosticRelatedOrigin::Expression
+        }
+    }
 }
 
 fn source_diagnostic_from_specialize_implicit_cast_error(

@@ -284,6 +284,7 @@ struct PortableExplanationResult {
 fn diagnostic_role(role: PortableSourceRole) -> DiagnosticTypeCauseRole {
     match role {
         PortableSourceRole::ApplicationArgument => DiagnosticTypeCauseRole::RequiredByApplication,
+        PortableSourceRole::Pattern => DiagnosticTypeCauseRole::RequiredByPattern,
         PortableSourceRole::Annotation => DiagnosticTypeCauseRole::RequiredByAnnotation,
         PortableSourceRole::Return | PortableSourceRole::Field | PortableSourceRole::Assignment => {
             DiagnosticTypeCauseRole::InferredFromExpression
