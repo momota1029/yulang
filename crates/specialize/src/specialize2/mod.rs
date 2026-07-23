@@ -90,6 +90,17 @@ pub(crate) fn specialize(
     Specializer2::new(sidecar).specialize(arena)
 }
 
+#[cfg(test)]
+fn specialize_with_captured_subtype_failures(
+    arena: &poly_expr::Arena,
+    sidecar: &SubtypeProvenanceSidecar,
+) -> (
+    Result<Program, SpecializeError>,
+    Vec<SubtypeFailureProvenance>,
+) {
+    type_graph::capture_shadow_subtype_failures(|| specialize(arena, sidecar))
+}
+
 pub(crate) fn role_method_check(
     arena: &poly_expr::Arena,
     sidecar: &SubtypeProvenanceSidecar,

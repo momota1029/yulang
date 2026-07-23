@@ -9,6 +9,58 @@ const MAX_SHADOW_SUBTYPE_FAILURES: usize = 256;
 const MAX_MATERIALIZED_POSITIONS_PER_RECORD: usize = 256;
 const MAX_ANCHORS_PER_MATERIALIZED_POSITION: usize = 64;
 
+#[cfg(test)]
+std::thread_local! {
+    static SHADOW_SUBTYPE_FAILURE_CAPTURE: std::cell::RefCell<
+        Option<Vec<SubtypeFailureProvenance>>,
+    > = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn capture_shadow_subtype_failures<T>(
+    f: impl FnOnce() -> T,
+) -> (T, Vec<SubtypeFailureProvenance>) {
+    SHADOW_SUBTYPE_FAILURE_CAPTURE.with(|capture| {
+        let mut capture = capture.borrow_mut();
+        assert!(
+            capture.is_none(),
+            "shadow subtype failure capture cannot be nested"
+        );
+        *capture = Some(Vec::new());
+    });
+    let guard = ShadowSubtypeFailureCaptureGuard;
+    let result = f();
+    let failures = SHADOW_SUBTYPE_FAILURE_CAPTURE.with(|capture| {
+        capture
+            .borrow_mut()
+            .take()
+            .expect("shadow subtype failure capture remains active")
+    });
+    drop(guard);
+    (result, failures)
+}
+
+#[cfg(test)]
+struct ShadowSubtypeFailureCaptureGuard;
+
+#[cfg(test)]
+impl Drop for ShadowSubtypeFailureCaptureGuard {
+    fn drop(&mut self) {
+        SHADOW_SUBTYPE_FAILURE_CAPTURE.with(|capture| {
+            capture.borrow_mut().take();
+        });
+    }
+}
+
+#[cfg(test)]
+fn capture_shadow_subtype_failure(failure: &SubtypeFailureProvenance) {
+    SHADOW_SUBTYPE_FAILURE_CAPTURE.with(|capture| {
+        if let Some(failures) = capture.borrow_mut().as_mut() {
+            failures.push(failure.clone());
+        }
+    });
+}
+
 impl<'a> TypeGraph<'a> {
     pub(super) fn new(arena: &'a poly_expr::Arena) -> Self {
         Self {
@@ -256,12 +308,15 @@ impl<'a> TypeGraph<'a> {
             return;
         }
         let positions = &self.subtype_position_provenance[record.index()];
-        self.shadow_subtype_failures.push(SubtypeFailureProvenance {
+        let failure = SubtypeFailureProvenance {
             record,
             lower: anchors_at_root(&positions.lower),
             upper: anchors_at_root(&positions.upper),
             completeness: self.subtype_provenance_records[record.index()].completeness,
-        });
+        };
+        #[cfg(test)]
+        capture_shadow_subtype_failure(&failure);
+        self.shadow_subtype_failures.push(failure);
     }
 
     pub(super) fn add_role_demands(

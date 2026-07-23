@@ -3,6 +3,32 @@ use super::*;
 mod ordinary_cast_characterization;
 
 #[test]
+fn specialization_error_path_exposes_captured_subtype_failure_anchors() {
+    let lowering = lower_real_source("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
+    let sidecar = lowering.subtype_provenance();
+    let (result, failures) =
+        specialize_with_captured_subtype_failures(&lowering.session.poly, sidecar);
+
+    assert!(matches!(
+        result,
+        Err(SpecializeError::UnsatisfiedSubtype { origin: None, .. })
+    ));
+    let [failure] = failures.as_slice() else {
+        panic!("expected one captured subtype failure: {failures:?}");
+    };
+    assert_eq!(failure.completeness, ProvenanceCompleteness::Complete);
+    assert!(!failure.lower.is_empty());
+    assert!(!failure.upper.is_empty());
+    assert!(
+        failure
+            .lower
+            .iter()
+            .chain(&failure.upper)
+            .all(|anchor| sidecar.snapshot.anchor(*anchor).is_some())
+    );
+}
+
+#[test]
 fn real_definition_occurrence_reaches_materialized_subtype_root() {
     let lowering = lower_real_source("my id x = x\nid(1)\n");
     let sidecar = lowering.subtype_provenance();
