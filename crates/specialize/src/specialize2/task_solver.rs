@@ -170,10 +170,7 @@ impl<'a> TaskSolver<'a> {
         role: poly::provenance::TypeOccurrenceRole,
     ) -> types::MaterializedTypeWithProvenance {
         let provenance = self.root_provenance_from_occurrence(owner, role);
-        types::MaterializedTypeWithProvenance {
-            ty,
-            provenance,
-        }
+        types::MaterializedTypeWithProvenance { ty, provenance }
     }
 
     pub(super) fn instantiate_scheme_with_provenance(

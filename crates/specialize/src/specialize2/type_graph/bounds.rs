@@ -123,18 +123,12 @@ impl<'a> TypeGraph<'a> {
         }
         let lowers = self.slots[lower_index].lower.clone();
         for bound in lowers {
-            let provenance = bound_provenance(
-                &self.slots[lower_index].lower_provenance,
-                &bound,
-            );
+            let provenance = bound_provenance(&self.slots[lower_index].lower_provenance, &bound);
             self.add_lower_unweighted_with_provenance(upper, bound, provenance)?;
         }
         let uppers = self.slots[upper_index].upper.clone();
         for bound in uppers {
-            let provenance = bound_provenance(
-                &self.slots[upper_index].upper_provenance,
-                &bound,
-            );
+            let provenance = bound_provenance(&self.slots[upper_index].upper_provenance, &bound);
             self.add_upper_unweighted_with_provenance(lower, bound, provenance)?;
         }
         Ok(())
@@ -169,11 +163,7 @@ impl<'a> TypeGraph<'a> {
             return Ok(());
         };
         if self.slots[index].lower.contains(&lower) {
-            merge_bound_provenance(
-                &mut self.slots[index].lower_provenance,
-                lower,
-                provenance,
-            );
+            merge_bound_provenance(&mut self.slots[index].lower_provenance, lower, provenance);
             return Ok(());
         }
         for existing in self.slots[index].lower.clone() {
@@ -192,14 +182,8 @@ impl<'a> TypeGraph<'a> {
         }
         let uppers = self.slots[index].upper.clone();
         for upper in uppers {
-            let upper_provenance =
-                bound_provenance(&self.slots[index].upper_provenance, &upper);
-            self.constrain_open_var_bound_pair(
-                lower.clone(),
-                provenance,
-                upper,
-                upper_provenance,
-            )?;
+            let upper_provenance = bound_provenance(&self.slots[index].upper_provenance, &upper);
+            self.constrain_open_var_bound_pair(lower.clone(), provenance, upper, upper_provenance)?;
         }
         let successors = self.slots[index].successors.clone();
         for successor in successors {
@@ -449,11 +433,7 @@ impl<'a> TypeGraph<'a> {
             return Ok(());
         };
         if self.slots[index].upper.contains(&upper) {
-            merge_bound_provenance(
-                &mut self.slots[index].upper_provenance,
-                upper,
-                provenance,
-            );
+            merge_bound_provenance(&mut self.slots[index].upper_provenance, upper, provenance);
             return Ok(());
         }
         for existing in self.slots[index].upper.clone() {
@@ -465,14 +445,8 @@ impl<'a> TypeGraph<'a> {
             .push((upper.clone(), provenance));
         let lowers = self.slots[index].lower.clone();
         for lower in lowers {
-            let lower_provenance =
-                bound_provenance(&self.slots[index].lower_provenance, &lower);
-            self.constrain_open_var_bound_pair(
-                lower,
-                lower_provenance,
-                upper.clone(),
-                provenance,
-            )?;
+            let lower_provenance = bound_provenance(&self.slots[index].lower_provenance, &lower);
+            self.constrain_open_var_bound_pair(lower, lower_provenance, upper.clone(), provenance)?;
         }
         let weighted_lowers = self.slots[index].weighted_lower.clone();
         for lower in weighted_lowers {

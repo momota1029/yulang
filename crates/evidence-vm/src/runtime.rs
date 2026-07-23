@@ -18552,9 +18552,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
         }
-        Ok(EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Record(
-            out,
-        ))))
+        Ok(EvidenceEvalResult::Value(shared(
+            RuntimeEvidenceValue::Record(out),
+        )))
     }
 
     fn resume_continuation(

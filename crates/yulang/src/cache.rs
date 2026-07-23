@@ -4457,10 +4457,7 @@ mod tests {
         let restored = cache.read_control_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored.selection_provenance.resolve(site), Some(&expected));
-        assert_eq!(
-            expected.range,
-            sources::SourceRange { start: 9, end: 10 }
-        );
+        assert_eq!(expected.range, sources::SourceRange { start: 9, end: 10 });
 
         let _ = fs::remove_dir_all(root);
     }

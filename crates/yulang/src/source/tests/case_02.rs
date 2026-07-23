@@ -371,8 +371,7 @@ fn general_subtype_diagnostic_uses_complete_portable_cause_as_related_informatio
         poly::provenance::ProvenanceCompleteness::Complete
     );
 
-    let RouteError::SpecializeDiagnostic { context, .. } =
-        specialize_route_error(error, &output)
+    let RouteError::SpecializeDiagnostic { context, .. } = specialize_route_error(error, &output)
     else {
         panic!("complete tuple mismatch should produce diagnostic context");
     };
@@ -451,12 +450,9 @@ fn general_subtype_regression_fixtures_report_their_real_source_cause() {
 
 #[test]
 fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
-    let output = build_poly_from_collected_sources(vec![collected(
-        "main.yu",
-        &[],
-        "my value = 1\nvalue\n",
-    )])
-    .expect("non-select fallback canary should lower");
+    let output =
+        build_poly_from_collected_sources(vec![collected("main.yu", &[], "my value = 1\nvalue\n")])
+            .expect("non-select fallback canary should lower");
     let expr = output
         .arena
         .exprs()
@@ -471,9 +467,7 @@ fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
 
     assert!(matches!(
         specialize_route_error(error, &output),
-        RouteError::Specialize(
-            specialize::SpecializeError::UnresolvedTypeclassMethod { .. }
-        )
+        RouteError::Specialize(specialize::SpecializeError::UnresolvedTypeclassMethod { .. })
     ));
 }
 
@@ -2980,7 +2974,10 @@ fn embedded_std_missing_cast_explains_unannotated_parameter_condition() {
     )
     .expect("missing casts are reported as diagnostics");
     let [diagnostic] = output.diagnostics.as_slice() else {
-        panic!("expected one missing-cast diagnostic: {:#?}", output.diagnostics);
+        panic!(
+            "expected one missing-cast diagnostic: {:#?}",
+            output.diagnostics
+        );
     };
     assert_eq!(
         diagnostic.code.as_deref(),
@@ -3004,8 +3001,8 @@ fn embedded_std_missing_cast_explains_unannotated_parameter_condition() {
         .expect("root source is available for related ranges");
     let body_range = diagnostic.related[2].range;
     assert_eq!(
-        &diagnostic_source.source
-            [body_range.start - diagnostic_source.range_offset..body_range.end - diagnostic_source.range_offset],
+        &diagnostic_source.source[body_range.start - diagnostic_source.range_offset
+            ..body_range.end - diagnostic_source.range_offset],
         "x"
     );
 }

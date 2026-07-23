@@ -257,10 +257,7 @@ fn missing_source_boundaries_reach_current_primary_runtime_ir() {
     for (name, source, type_fragment, value_fragment) in cases {
         let lowering = lower_source(source);
         assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
-        let program = crate::specialize(
-            &lowering.session.poly,
-            lowering.subtype_provenance(),
-        )
+        let program = crate::specialize(&lowering.session.poly, lowering.subtype_provenance())
             .unwrap_or_else(|error| panic!("{name}: current specialization failed: {error}"));
         let dump = mono::dump::dump_program(&program);
 
@@ -491,11 +488,8 @@ fn lower_source(source: &str) -> infer::lowering::BodyLowering {
 fn mono_dump_for_source(source: &str) -> String {
     let lowering = lower_source(source);
     assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
-    let program = crate::specialize(
-        &lowering.session.poly,
-        lowering.subtype_provenance(),
-    )
-    .expect("current source should specialize");
+    let program = crate::specialize(&lowering.session.poly, lowering.subtype_provenance())
+        .expect("current source should specialize");
     mono::dump::dump_program(&program)
 }
 

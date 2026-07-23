@@ -554,7 +554,9 @@ impl<'a> ExprLowerer<'a> {
             ret: return_value,
         });
         let callee_lower = self.alloc_pos(Pos::Var(callee.value));
-        self.session.infer.subtype(callee_lower, callee_upper, origin);
+        self.session
+            .infer
+            .subtype(callee_lower, callee_upper, origin);
         if capture_source_expected {
             let expected_roots = self
                 .session

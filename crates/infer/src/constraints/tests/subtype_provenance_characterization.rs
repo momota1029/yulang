@@ -294,11 +294,8 @@ fn subp_a_characterizes_record_open_var_and_prefix_cache_controls() {
     let suffix = sources::load(vec![source_file("g (1, 2, 3)\n")]);
     let cached_call = lower_loaded_files_with_prefix(&cached, &suffix).expect("lower cached call");
     let SpecializeError::UnsatisfiedSubtype { origin, .. } =
-        specialize::specialize(
-            &cached_call.session.poly,
-            cached_call.subtype_provenance(),
-        )
-        .expect_err("cached call must fail")
+        specialize::specialize(&cached_call.session.poly, cached_call.subtype_provenance())
+            .expect_err("cached call must fail")
     else {
         panic!("expected cached UnsatisfiedSubtype");
     };
@@ -508,11 +505,13 @@ fn subp_d_fresh_expression_and_pattern_occurrences_resolve_portable_anchors() {
             })
             .expect("fresh argument occurrence is owned");
         assert!(!provenance.anchors.is_empty(), "{role:?}: {provenance:?}");
-        assert!(provenance.anchors.iter().all(|anchor| tuple
-            .subtype_provenance()
-            .snapshot
-            .anchor(*anchor)
-            .is_some()));
+        assert!(provenance.anchors.iter().all(|anchor| {
+            tuple
+                .subtype_provenance()
+                .snapshot
+                .anchor(*anchor)
+                .is_some()
+        }));
     }
 
     let variant = lower("case :some 1:\n  :none -> 0\n");
@@ -591,11 +590,10 @@ fn subp_d_occurrence_identity_does_not_collapse_equal_expression_types() {
         })
         .collect::<Vec<_>>();
     assert_ne!(keys[0], keys[1]);
-    assert!(keys.iter().all(|key| output
-        .subtype_provenance()
-        .occurrences
-        .get(key)
-        .is_some()));
+    assert!(
+        keys.iter()
+            .all(|key| output.subtype_provenance().occurrences.get(key).is_some())
+    );
 }
 
 /// The common record-literal failure is not part of the general `origin: None`

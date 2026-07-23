@@ -12,17 +12,11 @@ mod tests {
     };
 
     fn specialize(arena: &poly::expr::Arena) -> Result<mono::Program, crate::SpecializeError> {
-        crate::specialize(
-            arena,
-            &poly::provenance::SubtypeProvenanceSidecar::empty(),
-        )
+        crate::specialize(arena, &poly::provenance::SubtypeProvenanceSidecar::empty())
     }
 
     fn specialize2(arena: &poly::expr::Arena) -> Result<mono::Program, crate::SpecializeError> {
-        crate::specialize2(
-            arena,
-            &poly::provenance::SubtypeProvenanceSidecar::empty(),
-        )
+        crate::specialize2(arena, &poly::provenance::SubtypeProvenanceSidecar::empty())
     }
 
     fn specialize_with_runtime_evidence(
@@ -35,10 +29,7 @@ mod tests {
     }
 
     fn role_method_check(arena: &poly::expr::Arena) -> Vec<crate::RoleMethodCheckOutcome> {
-        crate::role_method_check(
-            arena,
-            &poly::provenance::SubtypeProvenanceSidecar::empty(),
-        )
+        crate::role_method_check(arena, &poly::provenance::SubtypeProvenanceSidecar::empty())
     }
 
     #[test]

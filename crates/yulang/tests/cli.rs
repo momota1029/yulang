@@ -914,9 +914,8 @@ fn compatible_run_reports_unresolved_method_source_range_and_hint() {
         "{stderr}"
     );
     assert!(
-        stderr.contains(
-            "    --> line 1, column 11\n    1 | (\\x -> x).show\n      |           ^^^^"
-        ),
+        stderr
+            .contains("    --> line 1, column 11\n    1 | (\\x -> x).show\n      |           ^^^^"),
         "{stderr}"
     );
     assert!(

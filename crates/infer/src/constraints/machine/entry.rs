@@ -467,11 +467,8 @@ impl ConstraintMachine {
         upper: NegId,
         origin: OriginId,
     ) -> bool {
-        let Some(key) = self.canonical_subtype_constraint(
-            lower,
-            ConstraintWeights::empty(),
-            upper,
-        ) else {
+        let Some(key) = self.canonical_subtype_constraint(lower, ConstraintWeights::empty(), upper)
+        else {
             return false;
         };
         let Some(record) = self.canonical_constraints.get(&key).copied() else {

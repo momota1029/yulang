@@ -724,10 +724,7 @@ fn hygiene_marker_frame_is_restored_when_outer_handler_resumes() {
 #[test]
 fn runs_specialized_string_input_generic_call() {
     let lowering = lower_source("my id x = x\nid(1)\n");
-    let program = specialize::specialize(
-        &lowering.session.poly,
-        lowering.subtype_provenance(),
-    )
+    let program = specialize::specialize(&lowering.session.poly, lowering.subtype_provenance())
         .expect("source should specialize to mono program");
 
     assert_eq!(run_program(&program), Ok(vec![Value::Int(1)]));

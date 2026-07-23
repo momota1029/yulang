@@ -657,8 +657,7 @@ fn format_unhandled_effect_error(
     diagnostic_sources: &yulang::RuntimeDiagnosticSources,
 ) -> String {
     const CODE: &str = "yulang.unhandled-effect";
-    const HINT: &str =
-        "handle this computation with a matching effect handler before running it";
+    const HINT: &str = "handle this computation with a matching effect handler before running it";
     let message = format!("unhandled effect request {}", path.join("::"));
     let fallback = || format!("runtime error [{CODE}]: {message}\n  hint: {HINT}");
 
@@ -1040,10 +1039,7 @@ fn format_specialize_source_diagnostic(
     source: &yulang::CheckDiagnosticSource,
     error: &specialize::SpecializeError,
 ) -> String {
-    let code = diagnostic
-        .code
-        .as_deref()
-        .unwrap_or("yulang.specialize");
+    let code = diagnostic.code.as_deref().unwrap_or("yulang.specialize");
     let mut rendered = format!("compile error [{code}]: {}", diagnostic.message);
     if let Some(range) = diagnostic.range
         && let Some(frame) = format_source_frame(Some(source), range)

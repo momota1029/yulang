@@ -105,8 +105,7 @@ impl<'a> Specializer2<'a> {
         def: poly_expr::DefId,
     ) -> Result<InstanceId, SpecializeError> {
         let body = let_body(arena, def)?;
-        let signature =
-            TaskSolver::solve_computed_def_signature(arena, self.sidecar, def, body)?;
+        let signature = TaskSolver::solve_computed_def_signature(arena, self.sidecar, def, body)?;
         self.ensure_def_instance(arena, def, signature)
     }
 

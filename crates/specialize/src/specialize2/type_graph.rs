@@ -336,17 +336,22 @@ impl<'a> TypeGraph<'a> {
         upper_parent: Option<SpecializeSubtypeProvenanceRecordId>,
     ) -> Result<(), SpecializeError> {
         let lower_positions = lower_parent
-            .map(|parent| self.subtype_position_provenance[parent.index()].lower.clone())
+            .map(|parent| {
+                self.subtype_position_provenance[parent.index()]
+                    .lower
+                    .clone()
+            })
             .unwrap_or_else(|| incomplete_positions().lower);
         let upper_positions = upper_parent
-            .map(|parent| self.subtype_position_provenance[parent.index()].upper.clone())
+            .map(|parent| {
+                self.subtype_position_provenance[parent.index()]
+                    .upper
+                    .clone()
+            })
             .unwrap_or_else(|| incomplete_positions().upper);
         let completeness =
             compose_completeness(lower_positions.completeness, upper_positions.completeness);
-        let parents = [lower_parent, upper_parent]
-            .into_iter()
-            .flatten()
-            .collect();
+        let parents = [lower_parent, upper_parent].into_iter().flatten().collect();
         self.intern_weighted_subtype(
             lower,
             empty_stack_weight(),
@@ -511,24 +516,20 @@ impl<'a> TypeGraph<'a> {
                 )?;
                 self.constrain_weighted_subtype(lower, lower_weight, *right, upper_weight)
             }
-            (Type::OpenVar(slot), upper) => {
-                self.add_upper_weighted_with_provenance(
-                    slot,
-                    lower_weight,
-                    upper,
-                    upper_weight,
-                    provenance,
-                )
-            }
-            (lower, Type::OpenVar(slot)) => {
-                self.add_lower_weighted_with_provenance(
-                    slot,
-                    lower,
-                    lower_weight,
-                    upper_weight,
-                    provenance,
-                )
-            }
+            (Type::OpenVar(slot), upper) => self.add_upper_weighted_with_provenance(
+                slot,
+                lower_weight,
+                upper,
+                upper_weight,
+                provenance,
+            ),
+            (lower, Type::OpenVar(slot)) => self.add_lower_weighted_with_provenance(
+                slot,
+                lower,
+                lower_weight,
+                upper_weight,
+                provenance,
+            ),
             (
                 Type::Fun {
                     arg: lower_arg,

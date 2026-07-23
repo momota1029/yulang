@@ -21,8 +21,7 @@ impl RoleMethodChecker {
                     );
                 }
                 poly_expr::RuntimeRoot::ComputedDef(def) => {
-                    if let Ok((body, signature)) =
-                        computed_def_body_signature(arena, sidecar, *def)
+                    if let Ok((body, signature)) = computed_def_body_signature(arena, sidecar, *def)
                     {
                         pending.push_back((*def, body, signature));
                     }

@@ -412,10 +412,9 @@ fn portable_source_location(
             .source_boundary_provenance
             .body_requirement(boundary)
             .map(|provenance| &provenance.use_span),
-        ConstraintOriginKind::Pattern => output
-            .session
-            .source_boundary_provenance
-            .pattern(boundary),
+        ConstraintOriginKind::Pattern => {
+            output.session.source_boundary_provenance.pattern(boundary)
+        }
         _ => None,
     }?;
     Some(PortableSourceLocation {

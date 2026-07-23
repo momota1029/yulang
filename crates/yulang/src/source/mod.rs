@@ -1571,8 +1571,7 @@ impl RuntimeSelectionProvenance {
 
     pub fn resolve(&self, site: control_ir::ExprId) -> Option<&infer::SourceSpan> {
         let tag = self.control.get(site)?;
-        self.source
-            .selection_span(poly::expr::SelectId(tag.select))
+        self.source.selection_span(poly::expr::SelectId(tag.select))
     }
 }
 
@@ -1769,8 +1768,7 @@ fn append_complete_subtype_causes(
         anchors,
         infer::constraints::PortableExplanationBudget::default(),
     );
-    if explanation.completeness
-        != infer::constraints::DiagnosticExplanationCompleteness::Complete
+    if explanation.completeness != infer::constraints::DiagnosticExplanationCompleteness::Complete
         || explanation.truncation.is_some()
     {
         return;
@@ -3511,9 +3509,9 @@ fn role_method_diagnostics_from_check(
         &check.lowering.session.poly,
         check.lowering.subtype_provenance(),
     )
-        .into_iter()
-        .filter_map(|outcome| source_diagnostic_from_role_method_check_outcome(check, outcome))
-        .collect()
+    .into_iter()
+    .filter_map(|outcome| source_diagnostic_from_role_method_check_outcome(check, outcome))
+    .collect()
 }
 
 fn source_diagnostic_from_role_method_check_outcome(
@@ -4247,7 +4245,7 @@ fn specialize_mono_from_poly_output(
         &output.arena,
         &poly::provenance::SubtypeProvenanceSidecar::empty(),
     )
-        .map_err(|error| specialize_route_error(error, &output))?;
+    .map_err(|error| specialize_route_error(error, &output))?;
     Ok(SpecializedMonoOutput {
         program,
         labels: output.labels,

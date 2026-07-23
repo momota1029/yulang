@@ -2368,8 +2368,8 @@ fn generic_role_impl_conformance_stage4_c0_visible_cast_lookup_can_be_ambiguous(
     let lower = || lower_receiver_conformance_shadow(source, true, false, false).0;
     let first = lower();
     let second = lower();
-    let expected_error = BodyLoweringError::Analysis(
-        crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+    let expected_error =
+        BodyLoweringError::Analysis(crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
             source: vec!["int".to_string()],
             target: vec![
                 "std".to_string(),
@@ -2379,8 +2379,7 @@ fn generic_role_impl_conformance_stage4_c0_visible_cast_lookup_can_be_ambiguous(
             ],
             candidates: vec![DefId(9), DefId(11)],
             source_span: None,
-        },
-    );
+        });
     assert_eq!(first.errors, vec![expected_error.clone()]);
     assert_eq!(second.errors, vec![expected_error]);
 

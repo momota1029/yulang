@@ -96,10 +96,7 @@ impl AnalysisSession {
         let mut pending = merged;
         let def_parents = def_parent_map(&self.poly);
         pending.sort_by_key(|(key, _)| {
-            occurrence_export_sort_key(
-                key,
-                self.is_fresh_source_occurrence(key, &def_parents),
-            )
+            occurrence_export_sort_key(key, self.is_fresh_source_occurrence(key, &def_parents))
         });
 
         let mut roots = Vec::new();
@@ -280,10 +277,7 @@ impl AnalysisSession {
     }
 }
 
-fn occurrence_export_sort_key(
-    key: &TypeOccurrenceKey,
-    is_fresh_source: bool,
-) -> (bool, Vec<u32>) {
+fn occurrence_export_sort_key(key: &TypeOccurrenceKey, is_fresh_source: bool) -> (bool, Vec<u32>) {
     (!is_fresh_source, occurrence_sort_key(key))
 }
 
