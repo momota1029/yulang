@@ -1,4 +1,8 @@
 use super::*;
+use infer::constraints::{
+    DiagnosticExplanationCompleteness, DiagnosticTypeCauseRole, PortableExplanationBudget,
+    explain_portable_subtype,
+};
 
 mod ordinary_cast_characterization;
 
@@ -25,6 +29,47 @@ fn specialization_error_path_exposes_captured_subtype_failure_anchors() {
             .iter()
             .chain(&failure.upper)
             .all(|anchor| sidecar.snapshot.anchor(*anchor).is_some())
+    );
+}
+
+#[test]
+fn captured_failure_anchors_explain_the_real_tuple_mismatch_source() {
+    const SOURCE: &str = "my g(x: (int, int)) = x\ng (1, 2, 3)\n";
+    let lowering = lower_real_source(SOURCE);
+    let sidecar = lowering.subtype_provenance();
+    let (result, failures) =
+        specialize_with_captured_subtype_failures(&lowering.session.poly, sidecar);
+
+    assert!(matches!(
+        result,
+        Err(SpecializeError::UnsatisfiedSubtype { origin: None, .. })
+    ));
+    let [failure] = failures.as_slice() else {
+        panic!("expected one captured subtype failure: {failures:?}");
+    };
+    let explanation = explain_portable_subtype(
+        &sidecar.snapshot,
+        &failure.lower,
+        &failure.upper,
+        PortableExplanationBudget::default(),
+    );
+
+    assert_eq!(
+        explanation.completeness,
+        DiagnosticExplanationCompleteness::Complete
+    );
+    assert_eq!(explanation.truncation, None);
+    assert!(explanation.lower_sites.is_empty());
+    let [cause] = explanation.upper_sites.as_slice() else {
+        panic!("expected one upper source cause: {explanation:?}");
+    };
+    assert_eq!(cause.role, DiagnosticTypeCauseRole::RequiredByApplication);
+    assert_eq!(cause.source_span.file, sources::Path::default());
+    assert_eq!(cause.source_span.range.start, 26);
+    assert_eq!(cause.source_span.range.end, 36);
+    assert_eq!(
+        &SOURCE[cause.source_span.range.start..cause.source_span.range.end],
+        "(1, 2, 3)\n"
     );
 }
 
