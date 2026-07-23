@@ -1379,6 +1379,99 @@ Exit witness: the portable query returns the same typed source leaves as the ret
 ordering is deterministic; truncation is explicit; internal IDs do not cross into the diagnostic
 payload; public diagnostics remain byte-identical.
 
+**Implementation note added before SUBP-G started.** A read-only investigation (fresh Codex session,
+prior thread lost to a timeout) into the exact current shape of CPROV-H (`crates/infer/src/constraints/explain.rs`)
+and the portable snapshot (`crates/poly/src/provenance.rs`) surfaced two facts Section 8.2 did not
+fully account for:
+
+1. **`specialize` and `infer` do not depend on each other in production.** Both depend only on
+   `poly`; the reciprocal references are `dev-dependencies` only (test-only). Only `yulang` depends on
+   both. This mirrors the SUBP-I discovery about the sidecar's public-API boundary: whatever calls a
+   portable query with both a specialize-side anchor and an infer-side traversal must live where both
+   are reachable, i.e. `infer` exposes a public entry point and `yulang` (or a comparable dual-dependent
+   caller) invokes it -- `specialize` itself cannot call into `infer`.
+2. **`PortableProvenanceSnapshot` retains no session-local identity.** Export re-indexes every node
+   into `PortableProvenanceNodeId`; the exporter's `node_ids: FxHashMap<ExplanationNodeId,
+   PortableProvenanceNodeId>` map is dropped when export returns, and `PortableAnchorRecord` stores
+   only a portable node id, not the original `ConstraintRecordId`/`BoundRecordId`. There is therefore
+   no way to route a `ProvenanceAnchor` back into the existing `why_constraint`/`why_lower_bound`/
+   `why_upper_bound` session-local queries -- consistent with the rest of this project, since by the
+   time specialize runs, the original session is already gone. Section 8.2's "adapter around the
+   existing bounded traversal engine" therefore means: a NEW bounded traversal, implemented against
+   `PortableProvenanceSnapshot`'s already-reindexed node/edge arrays, that reproduces the same
+   properties CPROV-H already has and Section 8.2 requires (node/edge/depth budget, visited-once
+   expansion, typed edge interpretation, stable insertion-order traversal, the same
+   `ExplanationCompleteness`/truncation-reason shape) -- not a literal call into the session-local
+   query functions. This is not a second *unbounded* walker (Section 8.2's actual decided constraint);
+   it is a second *bounded* walker over a different, already-inert data representation of the same
+   graph shape, and should share as much of CPROV-H's traversal logic/tests as the data-shape
+   difference allows.
+
+Existing precedent to follow directly: `infer::analysis::work::DiagnosticTypeExplanation` (public,
+re-exported through `infer::analysis`) is structurally the presentation-neutral payload Section 8.3
+describes, already used by `AnalysisDiagnostic::MissingImplicitCast`. `DiagnosticSubtypeExplanation`
+should mirror its shape and conventions rather than inventing a new style.
+
+Given the added scope, this slice is staged:
+
+#### G-1: portable bounded traversal and presentation-neutral payload (infer-side, shadow)
+
+Add a new public function in `crates/infer/src/constraints/` (module placement at implementation
+time's discretion, but publicly reachable from `infer::constraints` or `infer::analysis`) that:
+
+- accepts a `&PortableProvenanceSnapshot`, one or more `ProvenanceAnchor` roots, and an
+  `ExplanationBudget`-shaped bound (reuse the existing `ExplanationBudget` type if its fields fit, or
+  a mirrored public equivalent);
+- performs a bounded, deterministic, visited-once traversal over the portable node/edge arrays only
+  (no session, no `ConstraintRecordId`/`BoundRecordId`, no reverse lookup to session-local identity);
+- projects the result into a new public `DiagnosticSubtypeExplanation`/`DiagnosticTypeCause`/
+  `DiagnosticTypeCauseRole`/`DiagnosticExplanationCompleteness` payload family (per Section 8.3,
+  mirrored on `DiagnosticTypeExplanation`'s existing shape) containing zero anchor/node/edge IDs.
+
+Add characterization tests for each of Section 10's six required behaviors -- cycles, alternate
+causes, endpoint/root selection, source-site absence (a portable source site with `location: None`
+must degrade to no cause for that leaf, not a guessed span), cache/prefix degradation (an empty or
+partial snapshot must degrade cleanly, matching the existing empty-sidecar precedent), and forced
+truncation (node/edge/depth exhaustion sets one explicit truncation reason, same shape as CPROV-H) --
+each compared directly against the equivalent CPROV-H session-local query result on the SAME
+underlying graph (build both from one real lowering, export a snapshot, and assert the portable query
+returns the same typed source leaves the session-local query would for the same root).
+
+Nothing calls this function outside tests yet.
+
+Exit witness: the new query's source leaves match CPROV-H's session-local query byte-for-byte
+(modulo the identity-stripping this project already requires) on every one of SUBP-A's originally
+characterized cases; all six required behaviors have a passing characterization test; the function is
+unreachable from `specialize`/`yulang` production code.
+
+#### G-2: specialize-side failure-anchor exposure (internal/test-visible only)
+
+Per this slice's own description ("attach opaque failure anchors to an internal/test-visible failure
+payload"), expose `shadow_subtype_failures`' anchors from `specialize2::TypeGraph` at a narrow,
+non-public boundary -- a `pub(crate)` or `#[cfg(test)]` accessor, NOT a change to the public
+`SpecializeError::UnsatisfiedSubtype` shape or `SpecializeOutput` (that remains SUBP-H's job). The
+goal is only to make the anchors reachable by a same-crate or test harness caller, not by ordinary
+`yulang` production code yet.
+
+Exit witness: a specialize-crate test can retrieve `SubtypeFailureProvenance` for a triggered general
+mismatch without touching any public API; public `SpecializeError`/`SpecializeOutput` shapes are
+unchanged.
+
+#### G-3: end-to-end shadow proof (test-only wiring across the full chain)
+
+Add a test (likely in a location with dev-dependency access to both crates, or in `yulang` if that's
+where both are ordinarily reachable together) that: lowers real source through infer, exports the
+sidecar's portable snapshot, runs it through specialize until a known general `UnsatisfiedSubtype`
+triggers, retrieves the failure anchors via G-2's accessor, feeds them into G-1's portable query, and
+asserts the resulting `DiagnosticSubtypeExplanation` correctly identifies the real source causes for
+at least one of SUBP-A's characterized shallow-mismatch cases. This is still not public rendering --
+it proves the full chain is wired and correct, ahead of SUBP-H exposing it.
+
+Exit witness: at least one full real-source case produces a correct `DiagnosticSubtypeExplanation`
+through the entire chain end to end; no public API changed; all existing regression gates
+(specialize, infer, cross-crate build, both known false-positive repros, contract suite) remain
+unchanged.
+
 ### Slice SUBP-H: additive general-subtype diagnostic integration
 
 Size: M. Risk: critical.
@@ -1585,3 +1678,5 @@ Investigation and specification design: Codex (gpt-5.6-sol), 2026-07-22 session.
 Reference specification approved by Claude Sonnet 5, 2026-07-22 session, with the user's explicit approval. This signature approves the document as a reference specification for future implementation slices — it does not itself authorize implementation of any slice, including Slice SUBP-A. Each slice requires its own explicit scoping and authorization before write-enabled work begins, following this project's established discipline (as used for the constraint-provenance-redesign project's CPROV-A..J slices and the parameter-use-site-provenance project's PUSP-A..F slices).
 
 **Amendment, 2026-07-23 session.** SUBP-A through SUBP-F implemented and pushed (`bbddd3b3`..`9be09b6e`). Attempting to wire SUBP-F's shadow infrastructure into real production call sites (per Section 7.2) surfaced a public-API threading gap not characterized in the original document: the sidecar built through SUBP-D/E never reaches `Specializer2`/`TaskSolver`/`InstantiatedScheme` in production. Investigation was delegated to Codex (gpt-5.6-sol, read-only); Slice SUBP-I (public API and task-root sidecar threading, staged I-1/I-2/I-3, with I-4 explicitly deferred as open decision 15) was designed by Claude Sonnet 5 from that report and inserted into the dependency order between SUBP-F and SUBP-G, following the same per-slice authorization discipline as the rest of this document. Approved by the user's explicit request to proceed with this design.
+
+**Amendment, 2026-07-23 session (continued).** SUBP-I-1/I-2/I-3 implemented and pushed (`0e14d4eb`, `a168417a`, `e0f9c1c3`). Before starting SUBP-G, a second read-only Codex investigation (fresh session, prior thread lost to a timeout) surfaced that `specialize`/`infer` share no production dependency edge (only `dev-dependencies`) and that `PortableProvenanceSnapshot` retains no session-local record identity, so Section 8.2's "adapter around the existing bounded traversal engine" requires a new bounded traversal over the portable graph's own node/edge arrays rather than a literal call into `why_constraint` et al. Slice SUBP-G was staged into G-1 (portable traversal + presentation-neutral payload, infer-side shadow), G-2 (specialize-side internal/test-visible failure-anchor exposure), and G-3 (end-to-end shadow proof across both crates) by Claude Sonnet 5 from that report, inserted in place of the original single-slice SUBP-G description. Approved by the user's explicit request to proceed with this design.
