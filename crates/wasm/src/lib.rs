@@ -843,6 +843,10 @@ fn ranged_specialize_source_diagnostic(
         specialize::SpecializeError::UnsatisfiedSubtype {
             origin: Some(specialize::UnsatisfiedSubtypeOrigin::MissingRecordField { .. }),
             ..
+        } | specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: None,
+            provenance: Some(_),
+            ..
         } | specialize::SpecializeError::UnresolvedTypeclassMethod { .. }
             | specialize::SpecializeError::AmbiguousTypeclassMethod { .. }
     ) {
@@ -850,8 +854,16 @@ fn ranged_specialize_source_diagnostic(
     }
 
     let mut diagnostic = specialize_source_diagnostic(error)?;
-    diagnostic.diagnostic.file = Some(context.file.clone());
-    diagnostic.diagnostic.range = Some(context.range);
+    let has_primary_range = !matches!(
+        error,
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: None,
+            provenance: Some(_),
+            ..
+        }
+    );
+    diagnostic.diagnostic.file = has_primary_range.then(|| context.file.clone());
+    diagnostic.diagnostic.range = has_primary_range.then_some(context.range);
     diagnostic.diagnostic.related = context.related.clone();
     diagnostic.range_offset = context.source.range_offset;
     Some(diagnostic)
@@ -880,6 +892,15 @@ fn specialize_source_diagnostic(
                 Some(&hint),
             ))
         }
+        specialize::SpecializeError::UnsatisfiedSubtype {
+            origin: None,
+            provenance: Some(_),
+            ..
+        } => Some(RuntimeSourceDiagnostic::new(
+            Some("yulang.unsatisfied-subtype"),
+            error.to_string(),
+            Some("check that the value provides the fields or shape required by this use"),
+        )),
         specialize::SpecializeError::UnsatisfiedSubtype { .. } => {
             Some(RuntimeSourceDiagnostic::new(
                 Some("yulang.unsatisfied-subtype"),

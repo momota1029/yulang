@@ -1081,6 +1081,45 @@ pub compose2(f, g, x) = f g(x)
     }
 
     #[test]
+    fn general_subtype_diagnostic_keeps_related_source_cause_without_primary_range() {
+        clear_std_cache();
+        let source =
+            include_str!("../../../tests/yulang/regressions/diagnostics/subtype_tuple_arity.yu");
+        let output = run_inner_on_test_stack(source);
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1, "{output:?}");
+        let diagnostic = &output.diagnostics[0];
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("yulang.unsatisfied-subtype")
+        );
+        assert_eq!(
+            diagnostic.message,
+            "unsatisfied subtype constraint: (int, int, int) <: (int, int)"
+        );
+        assert_eq!(
+            diagnostic.hint.as_deref(),
+            Some("check that the value provides the fields or shape required by this use")
+        );
+        assert_eq!(diagnostic.start, None);
+        assert_eq!(diagnostic.end, None);
+        assert_eq!(diagnostic.related.len(), 1, "{diagnostic:?}");
+        let argument_start = source.find("(1, 2, 3)").expect("tuple argument");
+        assert_eq!(
+            diagnostic.related[0].message,
+            "this callee requires an argument compatible with `(int, int)`"
+        );
+        assert_eq!(diagnostic.related[0].start, argument_start);
+        assert_eq!(diagnostic.related[0].end, source.len());
+        assert_eq!(
+            &source[diagnostic.related[0].start..diagnostic.related[0].end],
+            "(1, 2, 3)\n"
+        );
+        assert_eq!(diagnostic.related[0].origin.as_deref(), Some("expression"));
+    }
+
+    #[test]
     fn check_inner_returns_structured_diagnostic() {
         let output = check_inner(diagnostics_fixture("type_annotation_mismatch"));
 
