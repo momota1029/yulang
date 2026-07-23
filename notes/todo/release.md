@@ -15,6 +15,10 @@ release artifact
 
 公開前は native backend の再開ではなく、現行 VM/control pipeline を安定して配ることを優先する。
 
+> 2026-07-23 の release-readiness 調査で、ordinary PR / branch push の CI gate が無いこと、
+> playground deploy が手動のままであること、status / install docs に現行 workspace と矛盾する
+> 記述があることを確認した。着手順は `../../tasks/current.md` を正本とする。
+
 ## First slice
 
 - release artifact の単位を決める。

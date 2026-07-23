@@ -1,6 +1,6 @@
-# 現在のタスク: 次の公開準備 track を選ぶ
+# 現在のタスク: release readiness の次 slice を選ぶ
 
-更新: 2026-07-22
+更新: 2026-07-23
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。
 完了履歴は Git、設計判断は `notes/design/`、広い保留案は `notes/todo/` を正本とする。
@@ -14,17 +14,26 @@
 - ordinary-cast resolution、constraint-provenance graph、parameter body-use provenance は、
   OCAST-A〜E、CPROV-A〜J、PUSP-A〜Fまで完了した。`MissingImplicitCast` は
   provenance-gatedで発火し、同一sessionで到達できる場合はcallee bodyの制約元も説明する。
+- subtype explanation bridge は SUBP-A〜H まで完了した。general subtype mismatch の
+  source cause は CLI と playground の同じ related information surface へ到達する
+  （`5cfaa773` / `40dca67a`）。wasm cache test の stale expectation も `bfd9c494` で閉じた。
 - 現在、実装を承認済みの次sliceはない。
 
 ## 次の track
 
 優先順位は `notes/todo/index.md` の numbered 0〜8「既存の公開準備 track」を正本とする。
-item 0 の hardening は historical / superseded、item 1 の testing は mature but ongoing で、
-主な未決事項である Yulang-facing test API は直近の判断対象ではない。
+item 2 の diagnostics は SUBP-H の CLI / playground integration まで前進した。
+次に pick up する release-readiness 作業は次の順とする。
 
-次に調査して具体的な slice を決める track は item 2 の
-[`notes/todo/diagnostics-docs.md`](../notes/todo/diagnostics-docs.md) とする。
-具体的な slice の選定は別の follow-up investigation で行う。
+1. ordinary PR / branch push に CI gate を追加する。`scripts/release-gate.sh` の core checks を
+   接続し、少なくとも fmt、clippy、parser / infer / yulang tests を gate にする。
+2. alpha.9 以降 354 commits の checkpoint として `v0.1.0-alpha.10` tag を切る。
+3. playground deploy を自動化し、`docs/status.md` の archived wasm 記述と
+   `web/docs/guide/install.md` の旧 crate 一覧を現行 workspace に合わせる。
+4. 低い緊急度で cached/cold compilation の意味論的同値性を調査し、
+   `notes/todo/diagnostics-docs.md` の残件を継続する。
+
+各項目は owner、exit witness、検証commandを決めた別 slice とし、ここでは実装しない。
 
 ## 大きい未完trackの入口
 
