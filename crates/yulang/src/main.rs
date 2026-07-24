@@ -1936,6 +1936,10 @@ fn print_runtime_evidence_phase_timings(
         stats.active_add_id_scans
     );
     eprintln!(
+        "  run.runtime_evidence.active_add_id_path_prefix_checks: {}",
+        stats.active_add_id_path_prefix_checks
+    );
+    eprintln!(
         "  run.runtime_evidence.active_add_id_path_candidates: {}",
         stats.active_add_id_path_candidates
     );

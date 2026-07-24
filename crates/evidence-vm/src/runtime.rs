@@ -14161,6 +14161,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let mut entry_except_index =
             EvidenceRequestEntryExceptIndex::new(&self.active_frames, &hygiene.guard_ids);
         let mut scans = 0;
+        let mut path_prefix_checks = 0;
         let mut path_candidates = 0;
         let mut path_rejects = 0;
         let mut entry_except_rejects = 0;
@@ -14169,6 +14170,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         for active_marker in &self.active_add_ids {
             scans += 1;
             let marker = &active_marker.marker;
+            if marker.guard_own_path != marker.guard_foreign_path {
+                path_prefix_checks += 1;
+            }
             if !active_add_id_matches_request_path(marker, path) {
                 path_rejects += 1;
                 continue;
@@ -14218,6 +14222,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
         self.stats.active_add_id_scans += scans;
+        self.stats.active_add_id_path_prefix_checks += path_prefix_checks;
         self.stats.active_add_id_path_candidates += path_candidates;
         self.stats.active_add_id_path_rejects += path_rejects;
         self.stats.active_add_id_entry_except_rejects += entry_except_rejects;
@@ -30883,6 +30888,37 @@ mod tests {
         assert_eq!(runner.stats.resume_marker_plan_active_add_id_ops, 1);
         assert_eq!(runner.stats.resume_marker_plan_enter_ops_total, 3);
         assert_eq!(runner.stats.resume_marker_plan_to_legacy_push_pop, 1);
+    }
+
+    #[test]
+    fn active_add_id_path_prefix_checks_count_restricted_path_guards() {
+        let marker = |id, path: Vec<String>, guard_own_path, guard_foreign_path| {
+            EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
+                id: EvidenceGuardId(id),
+                path: Rc::from(path),
+                depth: 0,
+                guard_own_path,
+                guard_foreign_path,
+                carry_after_frame: false,
+                preserve_own_on_resume: false,
+            }))
+        };
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let markers = vec![
+            marker(1, permission_test_path(), true, false),
+            marker(2, vec!["other".to_string()], false, true),
+            marker(3, permission_test_path(), true, true),
+        ];
+        runner.push_marker_frame(&markers, true, None);
+
+        runner.mark_signal_hygiene_with_active_markers(
+            &permission_test_path(),
+            &mut EvidenceSignalHygiene::new(),
+        );
+
+        assert_eq!(runner.stats.active_add_id_scans, 3);
+        assert_eq!(runner.stats.active_add_id_path_prefix_checks, 2);
     }
 
     #[test]

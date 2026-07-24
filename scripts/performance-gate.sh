@@ -74,7 +74,7 @@ append_metrics() {
             sed 's/^/wall./' "$time_file"
         fi
         rg \
-            '^(files:|summary:|[[:space:]]+(load\.(cst_parse|rowan_nodes|rowan_tokens)|infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(cache|runtime_execute|active_add_scans|path_prefix_checks|request_resume_steps|marker_scope_[A-Za-z0-9_]*|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
+            '^(files:|summary:|[[:space:]]+(load\.(cst_parse|rowan_nodes|rowan_tokens)|infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(cache|runtime_execute|runtime_evidence\.active_add_id_(path_prefix_checks|scans)|request_resume_steps|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
             "$log_file" || true
     } >>"$summary"
 }
@@ -139,7 +139,7 @@ append_key_metrics_row() {
         runtime="$(metric_value "$label" "run.runtime_execute")"
     fi
 
-    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
         "$label" \
         "$(wall_value "$label")" \
         "$route" \
@@ -155,9 +155,8 @@ append_key_metrics_row() {
         "$(metric_value "$label" "analysis.generalize_dominance_interval_inputs")" \
         "$(metric_value "$label" "analysis.generalize_dominance_polarity_occurrences")" \
         "$runtime" \
-        "$(metric_value "$label" "run.marker_scope_frame_touches")" \
-        "$(metric_value "$label" "run.path_prefix_checks")" \
-        "$(metric_value "$label" "run.active_add_scans")" \
+        "$(metric_value "$label" "run.runtime_evidence.active_add_id_path_prefix_checks")" \
+        "$(metric_value "$label" "run.runtime_evidence.active_add_id_scans")" \
         "$(metric_value "$label" "load.cst_parse")" \
         "$(metric_value "$label" "load.rowan_nodes")" \
         "$(metric_value "$label" "load.rowan_tokens")"
@@ -167,8 +166,11 @@ append_key_metrics() {
     local key_metrics="$out_dir/key-metrics.md"
     {
         printf '\n## Key metrics\n\n'
-        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | marker touches | path prefix checks | active scans | load.cst_parse | load.rowan_nodes | load.rowan_tokens |\n'
-        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
+        # Control VM's marker_scope_frame_touches counted continuation frames crossed while
+        # consuming a separate marker-scope stack. Evidence VM scopes marker frames lexically,
+        # so marker_frame_entries measures a different event and must not replace that column.
+        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | path prefix checks | active scans | load.cst_parse | load.rowan_nodes | load.rowan_tokens |\n'
+        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
         append_key_metrics_row showcase-check-poly-std
         append_key_metrics_row nondet-no-cache
         append_key_metrics_row showcase-no-cache
@@ -312,21 +314,19 @@ validate_key_metrics() {
             6 "constraint.drain" \
             8 "replay accepted" \
             9 "replay duplicate" \
-            20 "load.cst_parse" \
-            21 "load.rowan_nodes" \
-            22 "load.rowan_tokens" || missing=1
+            19 "load.cst_parse" \
+            20 "load.rowan_nodes" \
+            21 "load.rowan_tokens" || missing=1
         require_key_metric_set "$key_metrics" nondet-no-cache \
             3 "wall(s)" \
             16 "runtime execute" \
-            17 "marker touches" \
-            18 "path prefix checks" \
-            19 "active scans" || missing=1
+            17 "path prefix checks" \
+            18 "active scans" || missing=1
         require_key_metric_set "$key_metrics" showcase-no-cache \
             3 "wall(s)" \
             16 "runtime execute" \
-            17 "marker touches" \
-            18 "path prefix checks" \
-            19 "active scans" || missing=1
+            17 "path prefix checks" \
+            18 "active scans" || missing=1
         require_key_metric_set "$key_metrics" yumark-html-no-cache \
             3 "wall(s)" \
             4 "cache route" \
@@ -358,9 +358,8 @@ validate_key_metrics() {
             3 "wall(s)" \
             4 "cache route" \
             16 "runtime execute" \
-            17 "marker touches" \
-            18 "path prefix checks" \
-            19 "active scans" || missing=1
+            17 "path prefix checks" \
+            18 "active scans" || missing=1
     fi
 
     if [[ "$missing" != "0" ]]; then

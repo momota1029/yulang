@@ -804,6 +804,8 @@ pub struct RuntimeEvidenceRunStats {
     pub active_marker_plan_pushes: usize,
     pub active_marker_plan_dedupes: usize,
     pub active_add_id_scans: usize,
+    /// Prefix predicate calls while matching active add-id markers to a signal path.
+    pub active_add_id_path_prefix_checks: usize,
     pub active_add_id_path_candidates: usize,
     pub active_add_id_path_rejects: usize,
     pub active_add_id_entry_except_rejects: usize,
