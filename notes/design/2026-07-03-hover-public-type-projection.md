@@ -185,6 +185,48 @@ debug 面の固定か公開面の固定かを判定してから動く。
   dump が `#0[Empty]`、hover / wasm が `@∅` であり、P4 の同一綴りの錨は単純 case にしか
   成立していない。
 
+## 契約として固定済みのテスト一覧
+
+`tests/yulang/cases.toml` には hover / LSP / wasm の case kind がないため、この層の契約は
+以下の Rust regression test を `CONTRACT(hover-public-type-projection)` marker で固定する。
+期待値や観測を変えるときは、この文書も同じ変更で更新する。
+
+### `crates/poly/src/dump/type_format.rs`
+
+- `public_scheme_renders_bare_pop_one_stack_weight_without_redaction` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_omits_single_boundary_id_for_empty_subtractability` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_omits_single_boundary_id_for_all_subtractability` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_keeps_brackets_for_set_subtractability` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_keeps_except_form_for_all_except_subtractability` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_renders_pop_count_with_numeric_parens` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_renders_multiple_boundary_ids_by_occurrence_order` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_hides_quantifier_stack_sentinel` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_redacts_full_stack_weight_shapes` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_redacts_debug_quoted_names` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_redacts_centerless_sandwich_bounds` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_truncates_over_depth_budget` — `crates/poly/src/dump/type_format.rs`
+- `public_scheme_truncates_sibling_tail_over_length_budget` — `crates/poly/src/dump/type_format.rs`
+
+### `crates/yulang/src/source/tests/case_02.rs`
+
+- `public_type_projection_matches_dump_public_signature_for_contract_type` — `crates/yulang/src/source/tests/case_02.rs`（単純 case のみ）
+- `hover_entry_source_reports_lambda_arg_type` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_reports_lambda_arg_ref_type` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_uses_nearest_shadowed_lambda_arg_type` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_public_def_type_does_not_leak_private_markers` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_local_arg_type_does_not_leak_private_markers` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_record_select_type_does_not_leak_private_markers` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_large_record_type_is_structurally_truncated` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_reports_attached_role_method_selection_type` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_reports_record_field_selection_type` — `crates/yulang/src/source/tests/case_02.rs`
+- `hover_entry_source_reports_selected_method_type` — `crates/yulang/src/source/tests/case_02.rs`
+
+### `crates/wasm/src/playground_tests.rs`
+
+- `run_inner_reports_exported_types` — `crates/wasm/src/playground_tests.rs`
+- `run_inner_reports_exported_types_for_playground_std_source` — `crates/wasm/src/playground_tests.rs`
+- `run_inner_exported_types_do_not_leak_private_markers` — `crates/wasm/src/playground_tests.rs`
+
 ## Do not
 
 - debug dump の綴りを変えない。dump は solver の真実を見せる面のまま残す。

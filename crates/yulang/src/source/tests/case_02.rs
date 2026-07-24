@@ -2122,6 +2122,11 @@ fn dump_poly_fixture_public_type_display_order_signatures() {
     );
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
+/// Only covers the trivial case; non-trivial stack-weight parity is a known open gap;
+/// see design doc Stage 2.
 #[test]
 fn public_type_projection_matches_dump_public_signature_for_contract_type() {
     let entry = write_main(
@@ -3605,6 +3610,9 @@ fn rename_entry_source_refuses_invalid_identifier() {
     assert_eq!(rename, None);
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_lambda_arg_type() {
     let source = "my id x = x\n";
@@ -3627,6 +3635,9 @@ fn hover_entry_source_reports_lambda_arg_type() {
     );
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_lambda_arg_ref_type() {
     let source = "my id x = x\n";
@@ -3649,6 +3660,9 @@ fn hover_entry_source_reports_lambda_arg_ref_type() {
     );
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_uses_nearest_shadowed_lambda_arg_type() {
     let source = "my f = \\x: bool -> (\\x: int -> x) 1\n";
@@ -3877,6 +3891,9 @@ fn hover_entry_source_shortens_prelude_visible_selected_method_type_paths() {
     );
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_public_def_type_does_not_leak_private_markers() {
     let source = yulang_fixture("regressions/effect/public_type_display_order_signatures.yu");
@@ -3899,6 +3916,9 @@ fn hover_entry_source_public_def_type_does_not_leak_private_markers() {
     assert_public_type_display_has_no_private_markers(&hover.contents, "hover public def type");
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_local_arg_type_does_not_leak_private_markers() {
     let source = yulang_fixture("regressions/effect/public_type_display_order_signatures.yu");
@@ -3915,6 +3935,9 @@ fn hover_entry_source_local_arg_type_does_not_leak_private_markers() {
     assert_public_type_display_has_no_private_markers(&hover.contents, "hover local arg type");
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_record_select_type_does_not_leak_private_markers() {
     let source = "my r = { f: \\x -> x }\nmy got = r.f\n";
@@ -3931,6 +3954,9 @@ fn hover_entry_source_record_select_type_does_not_leak_private_markers() {
     assert_public_type_display_has_no_private_markers(&hover.contents, "hover record select type");
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_large_record_type_is_structurally_truncated() {
     let fields = (0..90)
@@ -4018,6 +4044,9 @@ fn hover_entry_source_does_not_expose_synthetic_var_act_paths() {
     }
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_attached_role_method_selection_type() {
     let source = "role Pick 'container 'key:\n\
@@ -4122,6 +4151,9 @@ fn hover_entry_source_reports_shorthand_record_pattern_type() {
     );
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_record_field_selection_type() {
     let source = "my p = { x: 1, y: false }\nmy got = p.x\n";
@@ -4140,6 +4172,9 @@ fn hover_entry_source_reports_record_field_selection_type() {
     assert_eq!(hover.contents, "x: int");
 }
 
+/// CONTRACT(hover-public-type-projection): locked observation; see
+/// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+/// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_selected_method_type() {
     let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";

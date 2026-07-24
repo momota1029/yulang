@@ -806,6 +806,9 @@ point { x: 3, y: 4 } .norm2
         assert!(super::should_retry_with_embedded_std(source, &errors));
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn run_inner_reports_exported_types() {
         clear_std_cache();
@@ -846,6 +849,9 @@ pair
         );
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn run_inner_reports_exported_types_for_playground_std_source() {
         clear_std_cache();
@@ -856,6 +862,9 @@ pair
         assert_eq!(xs.map(|item| item.ty.as_str()), Some("list int"));
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn run_inner_exported_types_do_not_leak_private_markers() {
         clear_std_cache();

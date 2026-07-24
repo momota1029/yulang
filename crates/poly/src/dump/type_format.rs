@@ -733,6 +733,9 @@ mod tests {
         assert_eq!(format_pos(&arena, weighted), "'a#0");
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_renders_bare_pop_one_stack_weight_without_redaction() {
         let public = public_display_for_weight(StackWeight::pop(SubtractId(99)));
@@ -742,6 +745,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_omits_single_boundary_id_for_empty_subtractability() {
         let public =
@@ -752,6 +758,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_omits_single_boundary_id_for_all_subtractability() {
         let public =
@@ -762,6 +771,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_keeps_brackets_for_set_subtractability() {
         let public = public_display_for_weight(StackWeight::push(
@@ -774,6 +786,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_keeps_except_form_for_all_except_subtractability() {
         let public = public_display_for_weight(StackWeight::push(
@@ -786,6 +801,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_renders_pop_count_with_numeric_parens() {
         let public = public_display_for_weight(StackWeight::pops(SubtractId(99), 2));
@@ -795,6 +813,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_renders_multiple_boundary_ids_by_occurrence_order() {
         let mut arena = TypeArena::new();
@@ -828,6 +849,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_hides_quantifier_stack_sentinel() {
         let public = public_display_for_weight(StackWeight::pops(SubtractId(99), u32::MAX));
@@ -837,6 +861,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_redacts_full_stack_weight_shapes() {
         let cases = [
@@ -854,6 +881,9 @@ mod tests {
         }
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_redacts_debug_quoted_names() {
         let mut arena = TypeArena::new();
@@ -1223,6 +1253,9 @@ mod tests {
         assert_eq!(format_neu(&arena, bounds), "int | 'a & str");
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_redacts_centerless_sandwich_bounds() {
         let mut arena = TypeArena::new();
@@ -1245,6 +1278,9 @@ mod tests {
         assert_eq!(public.truncations, 0);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_truncates_over_depth_budget() {
         let mut arena = TypeArena::new();
@@ -1274,6 +1310,9 @@ mod tests {
         assert_eq!(public.truncations, 1);
     }
 
+    /// CONTRACT(hover-public-type-projection): locked observation; see
+    /// notes/design/2026-07-03-hover-public-type-projection.md. Changing this
+    /// test's expectations is a contract change; update the design doc alongside it.
     #[test]
     fn public_scheme_truncates_sibling_tail_over_length_budget() {
         let mut arena = TypeArena::new();
