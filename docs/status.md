@@ -43,8 +43,9 @@ It complements these documents:
 
 Archive split note: on 2026-06-14 the old `yulang` implementation was moved
 to `archive/crates/` and removed from the Cargo workspace. The active CLI is
-`yulang`; archived playground/native columns are historical reference points,
-not build guarantees for the current workspace.
+`yulang`; the archived native column is a historical reference point, not a
+build guarantee for the current workspace. The browser playground remains an
+active `crates/wasm` workspace member.
 
 ## Public Contract Spine
 
@@ -63,7 +64,7 @@ Contract v0 as a generic TODO.
 | Contract area | What must stay true | Main gates |
 | --- | --- | --- |
 | Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. Manifest public-signature cases must carry exact expected types. | `cargo test -q -p yulang public -- --test-threads=1`; `tests/yulang/cases.toml`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
-| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. New runtime speedups should prefer static proof emission in mono/specialize over signal-by-signal dynamic cert checks when the static conditions are available. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs; `notes/design/2026-07-02-static-route-promotion-plan.md` |
+| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. New runtime speedups should prefer static proof emission in mono/specialize over signal-by-signal dynamic cert checks when the static conditions are available. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-mono` on representative programs; `notes/design/2026-07-02-static-route-promotion-plan.md` |
 | Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. Manifest `check` cases must assert count, code, severity, primary range, and related count. Run routes must report parse diagnostics and exit non-zero before executing roots. | `tests/yulang/cases.toml`; [docs/language/contract-v1-diagnostics-evidence.md](language/contract-v1-diagnostics-evidence.md); `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `yulang contract tests/yulang/cases.toml`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
 | Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Manifest cases distinguish `stable-api` from `migration-canary`: `std::data::result`, generated error helpers including `from`-registered `up` and automatic annotation-boundary upcast, `std::text::path` byte/display behavior, String API v1 pure helpers plus `ref '[e] str` mutating method sugar, and the Contract v1 `std::io::file` protocol center are contract-covered. The current IO resource spec fixes file / connect / serve under one `host act + session + managed view + raw` model, and the native CLI host now covers public `file::load` / `file::store` / `file::meta` protocol cases plus integrated `file::ambient_touch` / `ambient_get` / `ambient_set` handler-extent cases. Only provisional range helpers remain `migration-canary` / `raw-compat` in the file surface. The host-act canaries now also cover console source mocking and unsupported-host denial, so file and console share one capability-routing shape. Serve implementation must start from the structured concurrency decision: `accept` branches are children of the serving handler extent, cancel is queued through the scheduler, and the first slice only drops suspended branches. | `tests/yulang/cases.toml`; [docs/language/standard-api-contract.md](language/standard-api-contract.md); [docs/language/contract-v1-standard-api-evidence.md](language/contract-v1-standard-api-evidence.md); [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-02-io-resource-api.md](../spec/2026-07-02-io-resource-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); [spec/2026-07-02-server-resource-api.md](../spec/2026-07-02-server-resource-api.md); [notes/design/2026-07-03-structured-concurrency-decisions.md](../notes/design/2026-07-03-structured-concurrency-decisions.md); host/filesystem/FFI TODO notes |
@@ -74,7 +75,7 @@ Contract v0 as a generic TODO.
 A change can be treated as contract-hardening when it improves one of those
 gates without changing parser, inference, standard-library, or runtime
 semantics by accident. A performance fast path is part of the contract only
-when its fallback behavior and compare-control evidence are clear.
+when its fallback behavior and evidence/mono comparison evidence are clear.
 
 Not-yet-contract surfaces include the archived native backend, direct native
 ABI FFI, remote package registry workflows, full parser DSL runtime exposure,
@@ -95,10 +96,11 @@ The columns trace a value through the pipeline:
 - **Parse** — accepted by `parser`.
 - **Infer** — accepted by the type inference engine and produces a principal
   type.
-- **Runtime** — runs through the current `yulang` runtime path where checked
-  (`mono-runtime` oracle or `control-vm`).
-- **Archived playground** — historical WebAssembly playground coverage from
-  the old `yulang-wasm` path. It is outside the active workspace now.
+- **Runtime** — runs through the current `yulang` CLI default, the Evidence
+  VM. `mono-runtime` remains available as the `--interpreter` oracle.
+- **Playground (WASM)** — the active `wasm` workspace crate used by the
+  browser playground at <https://yulang.momota.pw/>. It runs supported browser
+  workloads through the Evidence VM.
 - **Archived native** — historical Cranelift/MMTk support from the old native
   backend. The implementation was moved out of the active workspace to the
   local archive described in [docs/native-backend.md](native-backend.md), and
@@ -109,7 +111,7 @@ The columns trace a value through the pipeline:
 
 ### Core expressions and bindings
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `int` / `float` / `bool` / `unit` / `str` literals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | String concatenation                 |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
@@ -122,7 +124,7 @@ The columns trace a value through the pipeline:
 
 ### Types and dispatch
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Simple-Sub style inference + subtyping | ✅ | ✅  |   –    |     –      |   –    |  ✅  |
 | `let` polymorphism (SCC based)       |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
@@ -135,7 +137,7 @@ The columns trace a value through the pipeline:
 
 ### Control flow
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `sub:` / `return` early exit         |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -144,7 +146,7 @@ The columns trace a value through the pipeline:
 
 ### Effects
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Effect declarations and operations   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Algebraic handlers (`catch expr:`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -155,7 +157,7 @@ The columns trace a value through the pipeline:
 
 ### Library and host
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
 | `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   △    |  △   |
@@ -167,7 +169,7 @@ The columns trace a value through the pipeline:
 
 ### Research / preview surface
 
-| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Playground (WASM) | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Parser pattern P1/P2 subset (`case` arms) | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 | `rule { … }` parser DSL outside that subset | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ |
@@ -176,9 +178,11 @@ The columns trace a value through the pipeline:
 
 ## Known limitations
 
-- The old native backend and WebAssembly playground implementation are
-  archived outside the active workspace. The active CLI does not expose native
-  execution; the mono-runtime/control-VM path is the execution surface.
+- The browser playground is active: `crates/wasm` is a workspace member that
+  exposes the WebAssembly API used at <https://yulang.momota.pw/>. The CLI
+  defaults to the Evidence VM, while `mono-runtime` is its `--interpreter`
+  oracle. The old native backend remains archived and is not exposed by the
+  active CLI.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The basic `fail E::variant` + `E::wrap`

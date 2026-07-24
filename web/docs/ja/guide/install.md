@@ -10,22 +10,31 @@ OS ごとの release archive を入れます。binary には embedded standard l
 初回にユーザー library directory へ配置されます。
 
 ```sh
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.9
+curl -fsSL https://yulang.momota.pw/install.sh | sh
 ```
 
 installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
 反映には terminal の再起動が必要です。自分で `PATH` を管理したい場合は
 `--no-modify-path` を渡します。
 
+version 指定なしでは、prerelease を含む最新の公開 GitHub release を入れます。
+この release に固定する場合は次のようにします。
+
+```sh
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.10
+```
+
 Windows では次の形です。
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.9
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
 この処理を省く場合は `-NoModifyPath` を渡します。
+
+現在の release に固定する場合は `-Version v0.1.0-alpha.10` を渡します。
 
 ## ファイルが動くか確認する
 
@@ -123,19 +132,21 @@ extension から `yulang server` を起動するには、`yulang` が `PATH` か
 binary が別の場所にある場合は、[extension README](https://github.com/momota1029/yulang-zed#language-server)
 に従って Zed settings の `lsp.yulang.binary.path` を設定します。
 
+repository は Rust workspace です。現在の compiler と runtime の主経路は次の通りです。
+
+`source files → sources/parser → infer/poly → specialize/mono → control-ir → evidence-vm`
+
 主な crate は次の通りです。
 
 | Crate | 役割 |
 |-------|------|
-| `yulang-parser` | 構文解析と operator parsing |
-| `yulang-infer` | lowering、名前解決、型推論、core export |
-| `yulang-runtime-ir` | runtime IR data structures と RuntimeType |
-| `yulang-runtime-types` | runtime type 表現と type-system helpers |
-| `yulang-runtime-refine` | refine / validate / invariant / hygiene |
-| `yulang-runtime-lower` | core IR → runtime IR の lower pass |
-| `yulang-monomorphize` | type graph 解決と monomorphize pass |
-| `yulang-vm` | VM compile / evaluation |
-| `yulang-wasm` | playground から呼ぶ wasm API |
+| `sources`, `parser` | source file を集め、concrete syntax と operator table を作る |
+| `infer`, `poly` | 型を推論し、多相 IR を作る |
+| `specialize`, `mono` | program を specialize して単相 IR にする |
+| `control-ir`, `evidence-vm` | control IR へ lower し、CLI default backend で実行する |
+| `mono-runtime` | `mono` program を直接読み、`--interpreter` oracle として動かす |
+| `wasm` | playground が使う browser 向け WebAssembly API を出す |
+| `yulang`, `yulang-editor` | CLI/source pipeline と editor 向け integration を担う |
 
 ## Web build
 

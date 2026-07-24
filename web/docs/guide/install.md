@@ -10,22 +10,31 @@ Install the release archive for your OS. The binary contains the embedded
 standard library and writes it to the user library directory on first use:
 
 ```sh
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.9
+curl -fsSL https://yulang.momota.pw/install.sh | sh
 ```
 
 The shell installer adds `~/.yulang/bin` to the relevant shell profile if it is
 not already on `PATH`; restart the terminal before running `yulang`. Pass
 `--no-modify-path` if you want to manage `PATH` yourself.
 
+Without a version flag, the installer selects the newest published GitHub
+release, including prereleases. To pin this release instead:
+
+```sh
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.10
+```
+
 On Windows:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.9
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 The PowerShell installer adds the install `bin` directory to the user `PATH`.
 Use `-NoModifyPath` to skip that step.
+
+To pin the current release, pass `-Version v0.1.0-alpha.10`.
 
 ## Check that a file runs
 
@@ -129,19 +138,21 @@ The extension requires `yulang server` to be discoverable on `PATH`. If the
 binary is elsewhere, set `lsp.yulang.binary.path` in Zed settings as described
 in the [extension README](https://github.com/momota1029/yulang-zed#language-server).
 
-The repository is a Rust workspace. The main crates are:
+The repository is a Rust workspace. Its active compiler and runtime path is:
 
-| Crate | Purpose |
-|-------|---------|
-| `yulang-parser` | concrete syntax and operator parsing |
-| `yulang-infer` | lowering, names, type inference, and core export |
-| `yulang-runtime-ir` | runtime IR data structures and `RuntimeType` |
-| `yulang-runtime-types` | runtime type representation and type-system helpers |
-| `yulang-runtime-refine` | refine / validate / invariant / hygiene passes |
-| `yulang-runtime-lower` | core IR → runtime IR lowering |
-| `yulang-monomorphize` | type graph resolution and monomorphization |
-| `yulang-vm` | VM compilation and evaluation |
-| `yulang-wasm` | browser-facing wasm API used by the playground |
+`source files → sources/parser → infer/poly → specialize/mono → control-ir → evidence-vm`
+
+The main crates along that path are:
+
+| Crate(s) | Purpose |
+|----------|---------|
+| `sources`, `parser` | collect source files and build concrete syntax/operator tables |
+| `infer`, `poly` | infer types and produce the polymorphic IR |
+| `specialize`, `mono` | specialize programs into monomorphic IR |
+| `control-ir`, `evidence-vm` | lower to control IR and run the CLI's default backend |
+| `mono-runtime` | directly interpret `mono` programs as the `--interpreter` oracle |
+| `wasm` | expose the browser-facing WebAssembly API used by the playground |
+| `yulang`, `yulang-editor` | provide the CLI/source pipeline and editor-facing integration |
 
 ## Web build
 
