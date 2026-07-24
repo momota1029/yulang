@@ -108,6 +108,12 @@ jobs:
         shell: bash
         run: cargo build --release -p yulang
 
+      - name: Install performance gate tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
       - name: Run performance gate
         shell: bash
         env:

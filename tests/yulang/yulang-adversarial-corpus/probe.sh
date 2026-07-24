@@ -87,6 +87,24 @@ expect_nonzero() {
   fi
 }
 
+expect_nonzero_contains() {
+  local label="$1"
+  local pattern="$2"
+  shift 2
+  run_cmd "$label" "$@"
+  if [[ "$LAST_STATUS" -eq 0 || "$LAST_STATUS" -eq 124 ]]; then
+    not_ok "$label"
+    show_tail
+    return
+  fi
+  if rg -q -- "$pattern" "$LAST_LOG"; then
+    ok "$label"
+  else
+    not_ok "$label (missing pattern: $pattern)"
+    show_tail
+  fi
+}
+
 expect_public_type_clean() {
   local label="$1"
   local file="$2"
@@ -117,6 +135,9 @@ expect_public_type_clean() {
 }
 
 for file in "$ROOT"/*.yu; do
+  if [[ "$file" == "$ROOT/04_computed_scc_cycle.yu" ]]; then
+    continue
+  fi
   expect_success "check $(basename "$file")" "$YULANG" check "$file"
 done
 
@@ -138,7 +159,7 @@ expect_nonzero \
 expect_nonzero \
   "03 interpreter rejects same-path typed operations" \
   "$YULANG" run --no-cache --print-roots --interpreter "$ROOT/03_parameterized_effect_capture.yu"
-expect_success_contains \
+expect_nonzero_contains \
   "04 computed SCC diagnostic" \
   'computed value fetch in recursive component' \
   "$YULANG" check "$ROOT/04_computed_scc_cycle.yu"
