@@ -1934,6 +1934,20 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "compile-error", "diagnostics", "records"]
 
 [[case]]
+name = "subtype_tuple_arity_provenance"
+file = "regressions/diagnostics/subtype_tuple_arity.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: (int, int, int) <: (int, int)",
+  "hint: check that the value provides the fields or shape required by this use",
+  "note: this callee requires an argument compatible with `(int, int)`\n    --> line 2, column 3\n    2 | g (1, 2, 3)\n      |   ^^^^^^^^^",
+]
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
+
+[[case]]
 name = "unresolved_method_error"
 file = "regressions/runtime/unresolved_method_error.yu"
 kind = "run"
@@ -2030,6 +2044,49 @@ expect_diagnostic_end = 4
 expect_diagnostic_related_count = 2
 expect_diagnostic_related_origins = ["type-annotation", "expression"]
 contracts = ["stable-core", "diagnostics", "typechecker", "related-ranges"]
+
+[[case]]
+name = "missing_implicit_cast_parameter_use_site"
+file = "regressions/diagnostics/missing_implicit_cast_parameter_use_site.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-implicit-cast]: cannot use `int` where `bool` is required: no implicit cast from `int` to `bool`",
+  "note: type `int` is inferred from this argument\n    --> line 2, column 3\n    2 | f(42)\n      |   ^^",
+  "note: this callee requires an argument compatible with `bool`\n    --> line 2, column 1\n    2 | f(42)\n      | ^",
+  "note: this parameter is required to be `bool` because it is used as this condition\n    --> line 1, column 14\n    1 | my f(x) = if x: 1 else: 2\n      |              ^",
+]
+expect_diagnostic_code = "yulang.missing-implicit-cast"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 55
+expect_diagnostic_end = 61
+expect_diagnostic_related_count = 3
+expect_diagnostic_related_origins = ["expression", "expression", "expression"]
+contracts = ["diagnostics", "typechecker", "casts", "related-ranges"]
+
+[[case]]
+name = "missing_implicit_cast_ordinary"
+file = "regressions/diagnostics/missing_implicit_cast_ordinary.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-implicit-cast]: cannot use `int` where `bool` is required: no implicit cast from `int` to `bool`",
+  "note: type `int` is inferred from this argument\n    --> line 2, column 3\n    2 | f(42)\n      |   ^^",
+  "note: this callee requires an argument compatible with `bool`\n    --> line 2, column 1\n    2 | f(42)\n      | ^",
+]
+expect_diagnostic_code = "yulang.missing-implicit-cast"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 53
+expect_diagnostic_end = 59
+expect_diagnostic_related_count = 2
+expect_diagnostic_related_origins = ["expression", "expression"]
+contracts = ["diagnostics", "typechecker", "casts", "related-ranges"]
 
 [[case]]
 name = "unresolved_type_name"

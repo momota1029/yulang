@@ -1,0 +1,2 @@
+my f(x) = if x: 1 else: 2
+f(42)

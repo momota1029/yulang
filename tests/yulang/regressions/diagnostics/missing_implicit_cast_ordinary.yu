@@ -1,0 +1,2 @@
+my f(x: bool): bool = x
+f(42)
