@@ -11,7 +11,7 @@ usage() {
 usage: scripts/install.sh [--version <tag|latest>] [--prefix <dir>] [--repo <owner/repo>] [--no-modify-path]
 
 Environment:
-  YULANG_VERSION       Release tag to install. Defaults to latest full release.
+  YULANG_VERSION       Release tag to install. Defaults to the newest published release.
   YULANG_INSTALL_DIR   Install prefix. Defaults to ~/.yulang.
   YULANG_INSTALL_REPO  GitHub repository. Defaults to momota1029/yulang.
   YULANG_RELEASE_BASE_URL
@@ -20,8 +20,6 @@ Environment:
   YULANG_NO_MODIFY_PATH
                        Set to 1 to skip shell profile PATH edits.
 
-Alpha releases are GitHub prereleases, so install them with:
-  scripts/install.sh --version v0.1.0-alpha.9
 EOF
 }
 
@@ -235,6 +233,38 @@ sha256_file() {
   fi
 }
 
+latest_release_tag() {
+  releases_url="https://api.github.com/repos/${repo}/releases?per_page=100"
+  if ! releases="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$releases_url")"; then
+    echo "install.sh: failed to query GitHub releases for $repo" >&2
+    exit 1
+  fi
+
+  # /releases/latest excludes prereleases. The list endpoint is newest first,
+  # so select its first non-draft release instead.
+  latest_tag="$(
+    printf '%s\n' "$releases" | awk '
+      /^[[:space:]]*"tag_name"[[:space:]]*:/ {
+        tag = $0
+        sub(/^[[:space:]]*"tag_name"[[:space:]]*:[[:space:]]*"/, "", tag)
+        sub(/".*/, "", tag)
+      }
+      /^[[:space:]]*"draft"[[:space:]]*:[[:space:]]*false/ {
+        if (tag != "") {
+          print tag
+          exit
+        }
+      }
+    '
+  )"
+  if [ -z "$latest_tag" ]; then
+    echo "install.sh: no published GitHub release found for $repo" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$latest_tag"
+}
+
 need curl
 need tar
 need awk
@@ -244,7 +274,8 @@ archive="yulang-${target}.tar.gz"
 if [ -n "${YULANG_RELEASE_BASE_URL:-}" ]; then
   base_url="${YULANG_RELEASE_BASE_URL%/}"
 elif [ "$version" = "latest" ]; then
-  base_url="https://github.com/${repo}/releases/latest/download"
+  version="$(latest_release_tag)"
+  base_url="https://github.com/${repo}/releases/download/${version}"
 else
   base_url="https://github.com/${repo}/releases/download/${version}"
 fi
@@ -260,9 +291,6 @@ sums_path="$tmp/SHA256SUMS"
 
 if ! curl -fsSL "$base_url/$archive" -o "$archive_path"; then
   echo "install.sh: failed to download $archive from $base_url" >&2
-  if [ "$version" = "latest" ]; then
-    echo "install.sh: GitHub latest ignores prereleases; pass --version for alpha tags" >&2
-  fi
   exit 1
 fi
 

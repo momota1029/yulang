@@ -46,6 +46,31 @@ function Initialize-YulangStdCache {
     }
 }
 
+function Resolve-YulangLatestReleaseTag {
+    param([string]$Repo)
+
+    $releasesUrl = "https://api.github.com/repos/$Repo/releases?per_page=100"
+    try {
+        # /releases/latest excludes prereleases. The list endpoint is newest
+        # first, so select its first non-draft release instead.
+        $release = @(
+            Invoke-RestMethod -Uri $releasesUrl -Headers @{ Accept = "application/vnd.github+json" } -UserAgent "yulang-installer" -ErrorAction Stop |
+                Where-Object { -not $_.draft } |
+                Select-Object -First 1
+        )[0]
+    } catch {
+        Write-Error "install.ps1: failed to query GitHub releases for $Repo: $($_.Exception.Message)"
+        exit 1
+    }
+
+    if ($null -eq $release -or [string]::IsNullOrWhiteSpace($release.tag_name)) {
+        Write-Error "install.ps1: no published GitHub release found for $Repo"
+        exit 1
+    }
+
+    return $release.tag_name
+}
+
 function ConvertTo-YulangPathEntry {
     param([string]$Path)
     return [System.IO.Path]::GetFullPath($Path).TrimEnd(
@@ -118,7 +143,8 @@ $releaseBaseUrl = $env:YULANG_RELEASE_BASE_URL
 if (-not [string]::IsNullOrWhiteSpace($releaseBaseUrl)) {
     $baseUrl = $releaseBaseUrl.TrimEnd("/")
 } elseif ($Version -eq "latest") {
-    $baseUrl = "https://github.com/$Repo/releases/latest/download"
+    $Version = Resolve-YulangLatestReleaseTag -Repo $Repo
+    $baseUrl = "https://github.com/$Repo/releases/download/$Version"
 } else {
     $baseUrl = "https://github.com/$Repo/releases/download/$Version"
 }
@@ -134,9 +160,6 @@ try {
         Invoke-WebRequest -Uri "$baseUrl/$archive" -OutFile $archivePath
     } catch {
         Write-Error "install.ps1: failed to download $archive from $baseUrl"
-        if ($Version -eq "latest") {
-            Write-Error "install.ps1: GitHub latest ignores prereleases; pass -Version for alpha tags"
-        }
         exit 1
     }
 
