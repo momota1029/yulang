@@ -1,6 +1,6 @@
-# 現在のタスク: release readiness の次 slice を選ぶ
+# 現在のタスク: cache semantics / diagnostics の次 slice を選ぶ
 
-更新: 2026-07-23
+更新: 2026-07-24
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。
 完了履歴は Git、設計判断は `notes/design/`、広い保留案は `notes/todo/` を正本とする。
@@ -17,23 +17,26 @@
 - subtype explanation bridge は SUBP-A〜H まで完了した。general subtype mismatch の
   source cause は CLI と playground の同じ related information surface へ到達する
   （`5cfaa773` / `40dca67a`）。wasm cache test の stale expectation も `bfd9c494` で閉じた。
-- 現在、実装を承認済みの次sliceはない。
+
+## 完了した release-readiness
+
+- CI gate: PR / push で fmt、poly / specialize、release gate 相当の parser / infer / yulang tests を実行する
+  `.github/workflows/ci.yml` を追加した（`f62e7b41`、`eb5d4097`、`1a958792`）。
+- release: `v0.1.0-alpha.10` を [GitHub Release](https://github.com/momota1029/yulang/releases/tag/v0.1.0-alpha.10)
+  として公開し、release gate の test-infrastructure false failure を `da770013`、`52537715` で修正した。
+- playground / docs: Pages deploy workflow を `75e73daf`、prerelease を含む default latest 解決を
+  `77843cb1`、archived playground・crate rename・version pin の stale docs を `c005965b` で更新した（push 済み）。
+- Pages deploy は code-complete だが未公開。GitHub Settings → Pages の Source を `GitHub Actions` にし、
+  `yulang.momota.pw` を custom domain に追加後、Cloudflare に DNS-only CNAME `yulang` → `momota1029.github.io` を追加する。
 
 ## 次の track
 
-優先順位は `notes/todo/index.md` の numbered 0〜8「既存の公開準備 track」を正本とする。
-item 2 の diagnostics は SUBP-H の CLI / playground integration まで前進した。
-次に pick up する release-readiness 作業は次の順とする。
+優先順位は `notes/todo/index.md` の numbered 0〜8「既存の公開準備 track」を正本とし、item 4 は未着手で低い緊急度とする。
 
-1. ordinary PR / branch push に CI gate を追加し、fmt、poly / specialize、
-   `scripts/release-gate.sh` と同じ parser / infer / yulang tests を gate にする。
-2. alpha.9 以降 354 commits の checkpoint として `v0.1.0-alpha.10` tag を切る。
-3. playground deploy を自動化し、`docs/status.md` の archived wasm 記述と
-   `web/docs/guide/install.md` の旧 crate 一覧を現行 workspace に合わせる。
-4. 低い緊急度で cached/cold compilation の意味論的同値性を調査し、
-   `notes/todo/diagnostics-docs.md` の残件を継続する。
+1. cached/cold compilation の意味論的同値性を `notes/design/2026-07-08-std-prefix-cache-generalization-divergence.md` から解決する。
+2. `notes/todo/diagnostics-docs.md` の残件を継続する。
 
-各項目は owner、exit witness、検証commandを決めた別 slice とし、ここでは実装しない。
+着手時に owner、exit witness、検証commandを持つ別 slice を作る。ここでは実装しない。
 
 ## 大きい未完trackの入口
 
