@@ -730,14 +730,14 @@ point { x: 3, y: 4 } .norm2
     }
 
     #[test]
-    fn colorize_inner_returns_check_diagnostics() {
+    fn colorize_inner_keeps_check_diagnostics_out_of_the_highlight_path() {
         let source = diagnostics_fixture("type_annotation_mismatch");
         let output = colorize_inner(source);
         let check = check_inner(source);
 
         assert!(output.ok, "{output:?}");
-        assert!(!output.diagnostics.is_empty(), "{output:?}");
-        assert_eq!(output.diagnostics, check.diagnostics);
+        assert!(!check.diagnostics.is_empty(), "{check:?}");
+        assert!(output.diagnostics.is_empty(), "{output:?}");
     }
 
     #[test]

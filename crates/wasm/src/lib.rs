@@ -82,11 +82,12 @@ pub fn std_file_count() -> usize {
 pub fn colorize_inner(source: &str) -> ColorizeOutput {
     let spans = colorize_with_playground_op_table(source)
         .unwrap_or_else(|| colorize_with_default_op_table(source));
-    let diagnostics = check_inner(source).diagnostics;
+    // The playground calls this on the browser main thread. Keep whole-program
+    // diagnostics on the explicit `check` export rather than blocking syntax highlighting.
     ColorizeOutput {
         ok: true,
         spans,
-        diagnostics,
+        diagnostics: Vec::new(),
         source_len: source.len(),
     }
 }
