@@ -1,0 +1,85 @@
+name: deploy web site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build Pages artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/playground/package-lock.json
+            web/docs/package-lock.json
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        shell: bash
+        run: cargo install wasm-pack --version 0.14.0 --locked
+
+      - name: Install web dependencies
+        shell: bash
+        run: |
+          npm ci --prefix web/playground
+          npm ci --prefix web/docs
+
+      - name: Build playground and documentation
+        shell: bash
+        env:
+          RUSTC_WRAPPER: ""
+        run: npm --prefix web run build
+
+      - name: Add custom domain
+        shell: bash
+        run: printf '%s\n' 'yulang.momota.pw' > web/dist/CNAME
+
+      - name: Verify Pages artifact
+        shell: bash
+        run: |
+          test -f web/dist/index.html
+          test -f web/dist/CNAME
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: web/dist
+
+  deploy:
+    name: deploy GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
