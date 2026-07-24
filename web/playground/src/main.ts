@@ -209,8 +209,13 @@ type ThemeChoice = "system" | "light" | "dark";
 
 type ResolvedTheme = "light" | "dark";
 
+type Category = "basics" | "data" | "control" | "effects" | "io" | "errors";
+
+type CategoryFilter = Category | "all";
+
 type Example = {
     label: Record<Lang, string>;
+    category: Category;
     source: string;
 };
 
@@ -221,6 +226,11 @@ type MessageKey =
     | "types"
     | "typesAria"
     | "examples"
+    | "exampleSearchPlaceholder"
+    | "exampleSearchAria"
+    | "exampleCategoriesAria"
+    | "allExamples"
+    | "noMatchingExamples"
     | "noOutput"
     | "noExportedTypes"
     | "notRunYet"
@@ -239,6 +249,11 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
         types: "型",
         typesAria: "型推論",
         examples: "例",
+        exampleSearchPlaceholder: "例を検索",
+        exampleSearchAria: "例を名前で検索",
+        exampleCategoriesAria: "例のカテゴリ",
+        allExamples: "すべて",
+        noMatchingExamples: "条件に合う例はありません。",
         noOutput: "(出力なし)",
         noExportedTypes: "(公開された型なし)",
         notRunYet: "実行すると結果がここに表示されます。",
@@ -254,6 +269,11 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
         types: "Types",
         typesAria: "Type inference",
         examples: "Examples",
+        exampleSearchPlaceholder: "Search examples",
+        exampleSearchAria: "Search examples by name",
+        exampleCategoriesAria: "Example categories",
+        allExamples: "All",
+        noMatchingExamples: "No examples match these filters.",
         noOutput: "(no output)",
         noExportedTypes: "(no exported types)",
         notRunYet: "Run the program to show results here.",
@@ -280,9 +300,28 @@ const docLinks: Record<
     },
 };
 
+const CATEGORY_LABELS: Record<Category, Record<Lang, string>> = {
+    basics: { ja: "基礎", en: "Basics" },
+    data: { ja: "データ", en: "Data" },
+    control: { ja: "制御構造", en: "Control Flow" },
+    effects: { ja: "エフェクト", en: "Effects" },
+    io: { ja: "IO・設定", en: "I/O & Config" },
+    errors: { ja: "エラー例", en: "Error Examples" },
+};
+
+const categories: readonly Category[] = [
+    "basics",
+    "data",
+    "control",
+    "effects",
+    "io",
+    "errors",
+];
+
 const examples: Example[] = [
     {
         label: { ja: "ツアー", en: "Tour" },
+        category: "basics",
         source: `// === A compact tour of Yulang ===
 
 // methods sit next to the type they extend
@@ -334,6 +373,7 @@ paths.say
     },
     {
         label: { ja: "文字列マッチ", en: "String Match" },
+        category: "control",
         source: `// Parser patterns turn strings into structured branches.
 
 use std::text::parse::*
@@ -352,6 +392,7 @@ route "???" .say
     },
     {
         label: { ja: "設定ファイル", en: "Config" },
+        category: "io",
         source: `// Parse a small config string and keep conversions explicit.
 
 my source = "# sample config
@@ -374,6 +415,7 @@ my port = case c.get "" "port":
     },
     {
         label: { ja: "データとメソッド", en: "Data & Methods" },
+        category: "data",
         source: `// Struct methods live next to the data they extend.
 
 struct point { x: int, y: int } with:
@@ -384,6 +426,7 @@ point { x: 3, y: 4 } .norm2.say
     },
     {
         label: { ja: "名前付き既定値", en: "Named Defaults" },
+        category: "data",
         source: `// Record patterns make named options lightweight.
 
 my box {width = 1, height = width} =
@@ -396,6 +439,7 @@ box { width: 3, height: 4 } .say
     },
     {
         label: { ja: "ボタン", en: "Button" },
+        category: "io",
         source: `// Symbol variants are lightweight choices with payloads.
 
 my button option = case option:
@@ -408,6 +452,7 @@ say: button: :disabled
     },
     {
         label: { ja: "局所的な変更", en: "Local Change" },
+        category: "data",
         source: `// A mutable binding stays local to the surrounding block.
 
 {
@@ -420,6 +465,7 @@ say: button: :disabled
     },
     {
         label: { ja: "リスト更新", en: "List Update" },
+        category: "data",
         source: `// Child references make nested updates direct.
 
 {
@@ -435,6 +481,7 @@ say: button: :disabled
     },
     {
         label: { ja: "sub return", en: "Sub Return" },
+        category: "control",
         source: `// sub gives an expression a local return.
 
 my first_over limit = sub:
@@ -446,6 +493,7 @@ first_over 40 .say
     },
     {
         label: { ja: "callback 衛生性", en: "Callback Hygiene" },
+        category: "effects",
         source: `// Callback effects are hygienic:
 // a callback's return is not captured by g's local sub.
 
@@ -466,6 +514,7 @@ outer.say
     },
     {
         label: { ja: "非決定 list", en: "Nondet List" },
+        category: "effects",
         source: `// each branches; .list collects every result.
 
 (each [1, 2, 3] + each [4, 5, 6]).list.say
@@ -473,6 +522,7 @@ outer.say
     },
     {
         label: { ja: "非決定 once", en: "Nondet Once" },
+        category: "effects",
         source: `// Narrow infinite choices as early as possible.
 
 {
@@ -488,6 +538,7 @@ outer.say
     },
     {
         label: { ja: "junction", en: "Junction" },
+        category: "control",
         source: `// all and any lift comparison into many choices.
 
 say:
@@ -499,6 +550,7 @@ say:
     },
     {
         label: { ja: "型", en: "Types" },
+        category: "basics",
         source: `// our and pub bindings appear in the Types pane.
 
 our id x = x
@@ -511,6 +563,7 @@ pair.say
     },
     {
         label: { ja: "console", en: "Console" },
+        category: "basics",
         source: `// println is a library effect handled by the host.
 
 println "hello from Yulang"
@@ -519,6 +572,7 @@ say: 1 + 2
     },
     {
         label: { ja: "effect", en: "Effects" },
+        category: "effects",
         source: `// A handler removes one effect and leaves the rest.
 
 act console:
@@ -533,13 +587,45 @@ our run_console(action: [console] _) =
 say:run_console:ask()
 `,
     },
+    {
+        label: { ja: "型の不一致", en: "Type Mismatch" },
+        category: "errors",
+        source: `// A type annotation makes the expected type explicit.
+my answer: int = true
+`,
+    },
+    {
+        label: { ja: "引数の由来", en: "Parameter Provenance" },
+        category: "errors",
+        source: `// The argument is an int, but the body uses value as a condition.
+my choose(value) = if value:
+    "yes"
+else:
+    "no"
+
+choose 42
+`,
+    },
+    {
+        label: { ja: "タプルの要素数", en: "Tuple Arity" },
+        category: "errors",
+        source: `// This function accepts a pair, not a three-item tuple.
+my pair(value: (int, int)) = value
+pair (1, 2, 3)
+`,
+    },
 ];
 
 const sourceInput = requireElement<HTMLTextAreaElement>("#source");
 const runButton = requireElement<HTMLButtonElement>("#run-button");
 const result = requireElement<HTMLPreElement>("#result");
 const types = requireElement<HTMLPreElement>("#types");
+const exampleSearch = requireElement<HTMLInputElement>("#example-search");
+const exampleCategoryButtons = requireElement<HTMLDivElement>(
+    "#example-category-buttons",
+);
 const exampleButtons = requireElement<HTMLDivElement>("#example-buttons");
+const exampleEmpty = requireElement<HTMLParagraphElement>("#example-empty");
 const editorSurface = requireElement<HTMLDivElement>(".editor-surface");
 const editorHighlight = requireElement<HTMLPreElement>("#editor-highlight");
 const editorHighlightContent = requireElement<HTMLElement>(
@@ -563,6 +649,8 @@ const docLinkNodes =
 
 let pendingRenderColor = 0;
 let activeExampleIndex = 0;
+let activeExampleCategory: CategoryFilter = "all";
+let exampleSearchQuery = "";
 let activeLang = resolveInitialLang();
 let activeTheme: ThemeChoice = resolveInitialTheme();
 let latestRun: CompletedRun | undefined;
@@ -705,7 +793,7 @@ function setLanguage(lang: Lang): void {
     activeLang = lang;
     localStorage.setItem("yulang-playground-lang", lang);
     applyLanguage();
-    updateExampleButtonState();
+    renderExamplePicker();
     renderRunOutput();
 }
 
@@ -737,6 +825,8 @@ function applyLanguage(): void {
             link.textContent = docLink.text;
         }
     });
+    exampleSearch.placeholder = t("exampleSearchPlaceholder");
+    exampleSearch.setAttribute("aria-label", t("exampleSearchAria"));
     updateRunButton();
     if (isRunning) {
         result.textContent = t("running");
@@ -747,19 +837,75 @@ function applyLanguage(): void {
 }
 
 function setupExampleButtons(): void {
-    examples.forEach((example, index) => {
+    exampleSearch.addEventListener("input", () => {
+        exampleSearchQuery = exampleSearch.value.trim().toLocaleLowerCase();
+        renderExampleButtons();
+    });
+    renderExamplePicker();
+}
+
+function renderExamplePicker(): void {
+    renderExampleCategoryButtons();
+    renderExampleButtons();
+}
+
+function renderExampleCategoryButtons(): void {
+    const filters: readonly CategoryFilter[] = ["all", ...categories];
+    const fragment = document.createDocumentFragment();
+    filters.forEach((category) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "example-category-button";
+        button.classList.toggle("is-active", category === activeExampleCategory);
+        button.setAttribute(
+            "aria-pressed",
+            String(category === activeExampleCategory),
+        );
+        button.textContent =
+            category === "all"
+                ? t("allExamples")
+                : CATEGORY_LABELS[category][activeLang];
+        button.addEventListener("click", () => {
+            activeExampleCategory = category;
+            renderExamplePicker();
+        });
+        fragment.append(button);
+    });
+    exampleCategoryButtons.replaceChildren(fragment);
+}
+
+function renderExampleButtons(): void {
+    const visibleExamples = examples
+        .map((example, index) => ({ example, index }))
+        .filter(({ example }) => {
+            const matchesCategory =
+                activeExampleCategory === "all" ||
+                example.category === activeExampleCategory;
+            const matchesSearch =
+                exampleSearchQuery === "" ||
+                Object.values(example.label).some((label) =>
+                    label.toLocaleLowerCase().includes(exampleSearchQuery),
+                );
+            return matchesCategory && matchesSearch;
+        });
+    const fragment = document.createDocumentFragment();
+    visibleExamples.forEach(({ example, index }) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "example-button";
+        button.dataset.exampleIndex = String(index);
         button.textContent = example.label[activeLang];
+        button.classList.toggle("is-active", index === activeExampleIndex);
         button.addEventListener("click", () => {
             loadExample(index);
             void runSource();
             sourceInput.focus();
         });
-        exampleButtons.append(button);
+        fragment.append(button);
     });
-    updateExampleButtonState();
+    exampleButtons.replaceChildren(fragment);
+    exampleEmpty.hidden = visibleExamples.length > 0;
+    exampleEmpty.textContent = t("noMatchingExamples");
 }
 
 function loadExample(index: number): void {
@@ -772,8 +918,13 @@ function loadExample(index: number): void {
 }
 
 function updateExampleButtonState(): void {
-    exampleButtons.querySelectorAll("button").forEach((button, index) => {
-        button.textContent = examples[index].label[activeLang];
+    exampleButtons.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+        const index = Number(button.dataset.exampleIndex);
+        const example = examples[index];
+        if (!example) {
+            return;
+        }
+        button.textContent = example.label[activeLang];
         button.classList.toggle("is-active", index === activeExampleIndex);
     });
 }

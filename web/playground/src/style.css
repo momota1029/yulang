@@ -433,12 +433,69 @@ html[data-lang="en"] .lang-ja {
   animation: spin 0.8s linear infinite;
 }
 
+.example-picker {
+  border-bottom: 1px solid var(--border);
+  background: var(--muted-surface-bg);
+}
+
+.example-search {
+  display: block;
+  width: calc(100% - 28px);
+  height: 30px;
+  margin: 8px 14px 6px;
+  padding: 0 9px;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  color: var(--text);
+  background: var(--surface-bg);
+  font-size: 13px;
+}
+
+.example-search::placeholder {
+  color: var(--subtle-text);
+}
+
+.example-search:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.example-category-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 8px;
+}
+
+.example-category-button {
+  min-height: 26px;
+  padding: 2px 9px;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  color: var(--link-text);
+  background: var(--surface-bg);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.example-category-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover-surface-bg);
+}
+
+.example-category-button.is-active {
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
 .example-buttons {
   display: flex;
   gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--muted-surface-bg);
+  padding: 0 14px 8px;
   overflow-x: auto;
 }
 
@@ -465,6 +522,13 @@ html[data-lang="en"] .lang-ja {
   border-color: var(--accent);
   color: var(--accent-contrast);
   background: var(--accent);
+}
+
+.example-empty {
+  margin: 0;
+  padding: 0 14px 10px;
+  color: var(--muted-text);
+  font-size: 12px;
 }
 
 .editor-surface {

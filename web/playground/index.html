@@ -129,7 +129,24 @@
               <button id="run-button" type="button" data-i18n="run">Run</button>
             </div>
           </div>
-          <div id="example-buttons" class="example-buttons"></div>
+          <div class="example-picker">
+            <input
+              id="example-search"
+              class="example-search"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              data-i18n-aria="exampleSearchAria"
+            />
+            <div
+              id="example-category-buttons"
+              class="example-category-buttons"
+              role="group"
+              data-i18n-aria="exampleCategoriesAria"
+            ></div>
+            <div id="example-buttons" class="example-buttons"></div>
+            <p id="example-empty" class="example-empty" hidden></p>
+          </div>
           <div class="editor-surface">
             <pre id="editor-highlight" aria-hidden="true"><code id="editor-highlight-content"></code></pre>
             <textarea
