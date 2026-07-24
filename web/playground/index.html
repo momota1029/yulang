@@ -52,34 +52,32 @@
           </a>
         </nav>
       </header>
-      <section class="install-strip" aria-label="Install Yulang">
-        <div class="install-copy i18n-block lang-ja">
-          <strong>ローカルでも試す</strong>
-          <span>release installer は CLI、標準ライブラリ、初回 cache seed を入れます。</span>
+      <details class="install-strip" aria-label="Install Yulang">
+        <summary>
+          <span class="i18n-block lang-ja">ローカルにもインストールできるよ</span>
+          <span class="i18n-block lang-en" lang="en">Also installable locally</span>
+        </summary>
+        <div class="install-strip-content">
+          <div class="install-copy i18n-block lang-ja">
+            <strong>ローカルでも試す</strong>
+            <span>release installer は CLI、標準ライブラリ、初回 cache seed を入れます。</span>
+          </div>
+          <div class="install-copy i18n-block lang-en" lang="en">
+            <strong>Try it locally</strong>
+            <span>The release installer adds the CLI, standard library, and first cache seed.</span>
+          </div>
+          <div class="install-command-list">
+            <p>
+              <span>Unix</span>
+              <code>curl -fsSL https://yulang.momota.pw/install.sh | sh</code>
+            </p>
+            <p>
+              <span>Windows</span>
+              <code>iwr https://yulang.momota.pw/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1</code>
+            </p>
+          </div>
         </div>
-        <div class="install-copy i18n-block lang-en" lang="en">
-          <strong>Try it locally</strong>
-          <span>The release installer adds the CLI, standard library, and first cache seed.</span>
-        </div>
-        <div class="install-command-list">
-          <p>
-            <span>Unix</span>
-            <code>curl -fsSL https://yulang.momota.pw/install.sh | sh</code>
-          </p>
-          <p>
-            <span>Unix (pin)</span>
-            <code>curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.10</code>
-          </p>
-          <p>
-            <span>Windows</span>
-            <code>iwr https://yulang.momota.pw/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1</code>
-          </p>
-          <p>
-            <span>Windows (pin)</span>
-            <code>iwr https://yulang.momota.pw/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.10</code>
-          </p>
-        </div>
-      </section>
+      </details>
       <section class="workspace" aria-label="Yulang playground">
         <div class="editor-pane">
           <div class="pane-head">

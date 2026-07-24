@@ -195,15 +195,56 @@ textarea {
 }
 
 .install-strip {
+  max-width: 1320px;
+  margin: 0 auto 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--soft-border);
+  border-bottom: 1px solid var(--soft-border);
+}
+
+.install-strip summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: var(--muted-text);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.install-strip summary::-webkit-details-marker {
+  display: none;
+}
+
+.install-strip summary::before {
+  color: var(--subtle-text);
+  content: "›";
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.install-strip[open] summary {
+  margin-bottom: 10px;
+}
+
+.install-strip[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.install-strip summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.install-strip-content {
   display: grid;
   grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  max-width: 1320px;
-  margin: 0 auto 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--soft-border);
-  border-bottom: 1px solid var(--soft-border);
 }
 
 .install-copy {
@@ -886,8 +927,11 @@ code {
   }
 
   .install-strip {
-    grid-template-columns: 1fr;
     margin-bottom: 12px;
+  }
+
+  .install-strip-content {
+    grid-template-columns: 1fr;
   }
 
   .install-command-list p {
