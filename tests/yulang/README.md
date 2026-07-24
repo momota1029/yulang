@@ -37,9 +37,9 @@ run cases set `host = "unsupported"` so the manifest runner passes
 `run --host unsupported` through the same CLI route users can reproduce.
 Server mock-host run cases set `host = "mock-server"` so the manifest runner
 uses the in-process request driver instead of a real socket adapter.
-Run cases may also set `backend = "control-vm"` or `backend = "interpreter"`
+Run cases may also set `backend = "evidence-vm"` or `backend = "interpreter"`
 to pin backend-specific runtime behavior. Such cases must carry the matching
-`backend.control-vm` or `backend.interpreter` tag. The default backend is the
+`backend.evidence-vm` or `backend.interpreter` tag. The default backend is the
 public evidence VM path and usually does not need an explicit backend tag.
 `stable-core` marks the Yulang Contract v0 subset described in
 `docs/language/stable-core.md`. It is not a synonym for "currently implemented":

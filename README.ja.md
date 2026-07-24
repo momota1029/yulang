@@ -281,15 +281,14 @@ full-document sync、現行 lowering diagnostics）。Zed 対応は
 
 ## 内部構成
 
-Yulang には現在 3 つの runtime surface があります。evidence VM（default の
-`run` 経路で、effect の重いプログラムでは最速）、control VM（`run
---control-vm` で使える fallback 経路）、mono runtime（oracle として残している
-単純な interpreter、`run --interpreter`）です。ブラウザ playground は wasm
-crate 経由で evidence VM を使います。evidence VM は control VM と突き合わせて
-検査できます。
+Yulang には現在 2 つの user-facing execution route があります。evidence VM（default の
+`run` 経路で、effect の重いプログラムでは最速）と mono runtime（oracle として残している
+単純な interpreter、`run --interpreter` と lower-level の `run-mono` command）です。ブラウザ
+playground は wasm crate 経由で evidence VM を使います。evidence VM の debug route は mono と
+突き合わせて検査できます。
 
 ```bash
-target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
+target/release/yulang --std-root lib debug evidence-vm-run --compare-mono examples/showcase.yu
 ```
 
 evidence VM は、証明済みの direct-tail handler 経路では permission-native な
@@ -326,7 +325,8 @@ Repository layout:
 - `crates/poly`: 推論済み polymorphic program 表現。
 - `crates/specialize`: principal monomorphization。
 - `crates/mono` / `crates/mono-runtime`: monomorphic IR と oracle interpreter。
-- `crates/control-vm` / `crates/evidence-vm`: 2 つの VM runtime。
+- `crates/control-ir`: evidence VM が消費する軽量 control IR、lowering、evidence summary。
+- `crates/evidence-vm`: default の evidence VM runtime。
 - `crates/parser`: parser と syntax tree。
 - `lib/std`: Yulang で書かれた標準ライブラリ。
 - `examples`, `web/`, `docs/`, `notes/`: example、playground / docs の

@@ -26,7 +26,7 @@ Yulang currently uses five persistent artifact layers:
 | `.yucu` | full source set, std prefix, source-unit prefix, or merged prefix | Reuse compiled syntax / namespace / lowering / typed / runtime surfaces. |
 | `.yuir` | exact full source set | Reuse the principal poly IR after inference. |
 | `.yumo` | exact full source / resolution key | Reuse the mono IR after specialization. |
-| `.yuvm` | exact full source set | Reuse the final control-VM program after specialization and VM lowering. |
+| `.yuvm` | exact full source set | Reuse the final control-IR program after specialization and VM lowering. |
 | `.yures` | source-site realm resolution request | Record an exact resolved realm / band target and source fingerprint. |
 
 `.yuir`, `.yumo`, and `.yuvm` are exact whole-program artifacts. They are

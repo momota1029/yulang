@@ -19,8 +19,8 @@ derived from its source path, such as `main` for `main.yu`.
 | --- | --- | --- |
 | `.yucu` | compiled syntax, namespace, typed, and runtime surfaces | Reusing standard library or unchanged dependency modules |
 | `.yuir` | inferred principal poly IR | Re-running the exact same source set without inference |
-| `.yumo` | specialized mono IR | Re-running mono commands or rebuilding control VM from an unchanged source set |
-| `.yuvm` | lowered control-VM program | Re-running the exact same source set without specialization or VM lowering |
+| `.yumo` | specialized mono IR | Re-running mono commands or rebuilding control IR from an unchanged source set |
+| `.yuvm` | lowered control-IR program | Re-running the exact same source set without specialization or VM lowering |
 | `.yures` | realm / band resolution target | Checking a source-site realm import against a cached target fingerprint |
 
 The important incremental artifact is `.yucu`, short for "Yulang compiled
