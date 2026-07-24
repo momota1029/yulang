@@ -212,7 +212,10 @@ To install the CLI on Linux or macOS (the binary embeds the standard library
 and places it under `~/.yulang` on first use):
 
 ```bash
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.9
+curl -fsSL https://yulang.momota.pw/install.sh | sh
+
+# Or pin a specific release instead:
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.10
 ```
 
 The installer adds `~/.yulang/bin` to your shell profile when it is not
@@ -223,7 +226,10 @@ On Windows:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.9
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+# Or pin a specific release instead:
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.10
 ```
 
 Then run a file, or type-check it:

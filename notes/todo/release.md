@@ -109,8 +109,8 @@ release artifact
 - `scripts/install.sh`:
   - Linux / macOS 用。
   - public entrypoint は `https://yulang.momota.pw/install.sh`。
-  - default は GitHub latest full release。
-  - alpha / beta / rc は GitHub prerelease なので `--version v0.1.0-alpha.1` のように tag を指定する。
+  - default は prerelease を含む最新の公開 GitHub release。
+  - 特定の tag に固定する場合だけ `--version v0.1.0-alpha.1` のように指定する。
   - archive checksum を `SHA256SUMS` で検証し、`~/.yulang/bin/yulang` へ入れたあと
     `YULANG_LIB_DIR=<prefix>/lib yulang install std` を実行する。
 - `scripts/install.ps1`:
