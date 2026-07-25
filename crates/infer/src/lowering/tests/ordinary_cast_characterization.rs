@@ -519,3 +519,206 @@ fn resolution_outcome<R>(resolution: &OrdinaryCastResolution<R>) -> OrdinaryCast
         OrdinaryCastResolution::Ambiguous(_) => OrdinaryCastShadowOutcome::Ambiguous,
     }
 }
+
+#[test]
+fn sound_a_missing_function_and_field_casts_keep_zero_one_two_acceptance() {
+    let declarations = [
+        "",
+        "cast(x: int): bool = false\n",
+        concat!(
+            "cast(x: int): bool = false\n",
+            "cast(x: int): bool = true\n",
+        ),
+    ];
+    let holes = [
+        ("function-result", "my f(): bool = 42\nf()\n"),
+        ("struct-field", "struct S { x: bool }\nS { x: 42 }\n"),
+    ];
+
+    for (candidate_count, declarations) in declarations.into_iter().enumerate() {
+        for (name, hole) in holes {
+            let mut output = lower_source(&format!("{declarations}{hole}"));
+            assert!(
+                output.errors.is_empty(),
+                "{name}/{candidate_count}: {:?}",
+                output.errors
+            );
+            assert!(
+                output.session.take_diagnostics().is_empty(),
+                "{name}/{candidate_count}: incomplete provenance remains fail-open"
+            );
+            assert_eq!(
+                resolution_outcome(
+                    &output
+                        .session
+                        .casts
+                        .resolve_value(&["int".into()], &["bool".into()])
+                ),
+                match candidate_count {
+                    0 => OrdinaryCastShadowOutcome::Missing,
+                    1 => OrdinaryCastShadowOutcome::Unique,
+                    _ => OrdinaryCastShadowOutcome::Ambiguous,
+                },
+            );
+            let [classification] = output.session.ocast_eligibility_shadow() else {
+                panic!("{name}/{candidate_count}: one nominal producer")
+            };
+            assert!(matches!(
+                classification.outcome,
+                OcastEligibilityOutcome::Incomplete {
+                    reason: OcastIncompleteReason::UnknownOrigin(origin),
+                } if origin == crate::constraints::OriginId::unknown_internal()
+            ));
+        }
+    }
+}
+
+#[test]
+fn sound_a_receiver_method_result_pins_zero_one_two_and_both_nominal_dispositions() {
+    let method = concat!(
+        "struct target { value: int }\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = target\n",
+        "  our x.read: target = 1\n",
+    );
+    let declarations = [
+        "",
+        "cast(x: int): target = target { value: x }\n",
+        concat!(
+            "cast(x: int): target = target { value: x }\n",
+            "cast(x: int): target = target { value: x }\n",
+        ),
+    ];
+
+    for (candidate_count, declarations) in declarations.into_iter().enumerate() {
+        let output = lower_source(&format!("{method}{declarations}"));
+        match candidate_count {
+            0 => assert!(matches!(
+                output.errors.as_slice(),
+                [BodyLoweringError::Analysis(
+                    crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                        source,
+                        target,
+                        source_span: None,
+                        explanation: None,
+                    }
+                )] if source == &["int".to_string()] && target == &["target".to_string()]
+            )),
+            1 => assert!(output.errors.is_empty(), "{:?}", output.errors),
+            _ => assert!(matches!(
+                output.errors.as_slice(),
+                [BodyLoweringError::Analysis(
+                    crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+                        source,
+                        target,
+                        candidates,
+                        source_span: None,
+                    }
+                )] if source == &["int".to_string()]
+                    && target == &["target".to_string()]
+                    && candidates.len() == 2
+            )),
+        }
+        assert_eq!(output.session.ocast_eligibility_shadow().len(), 2);
+        assert!(
+            output
+                .session
+                .ocast_eligibility_shadow()
+                .iter()
+                .any(|classification| {
+                    matches!(
+                        classification.outcome,
+                        OcastEligibilityOutcome::Incomplete {
+                            reason: OcastIncompleteReason::UnknownOrigin(origin),
+                        } if origin == crate::constraints::OriginId::unknown_internal()
+                    )
+                })
+        );
+        assert!(
+            output
+                .session
+                .ocast_eligibility_shadow()
+                .iter()
+                .any(|classification| {
+                    matches!(
+                        classification.outcome,
+                        OcastEligibilityOutcome::EligibleSourceBoundary {
+                            kind: ConstraintOriginKind::Return,
+                            evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                                source_parent: ReplaySourceParent::Upper,
+                                ..
+                            },
+                            ..
+                        }
+                    )
+                })
+        );
+    }
+}
+
+#[test]
+fn sound_a_named_and_nested_constructor_holes_remain_incomplete_and_accepted() {
+    let cases = [
+        (
+            "function-named",
+            "struct actual;\nstruct expected;\nmy f(): expected = actual\nf()\n",
+        ),
+        (
+            "field-named",
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct holder { value: expected }\n",
+                "holder { value: actual }\n",
+            ),
+        ),
+        (
+            "function-nested",
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct box 'a { value: 'a }\n",
+                "my f(): box expected = box { value: actual }\n",
+                "f()\n",
+            ),
+        ),
+        (
+            "field-nested",
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct box 'a { value: 'a }\n",
+                "struct holder { value: box expected }\n",
+                "holder { value: box { value: actual } }\n",
+            ),
+        ),
+    ];
+
+    for (name, source) in cases {
+        let mut output = lower_source(source);
+        assert!(output.errors.is_empty(), "{name}: {:?}", output.errors);
+        assert!(
+            output.session.take_diagnostics().is_empty(),
+            "{name}: current incomplete provenance remains fail-open"
+        );
+        assert!(
+            !output.session.ocast_eligibility_shadow().is_empty(),
+            "{name}: nominal mismatch reaches quiescent classification"
+        );
+        assert!(
+            output
+                .session
+                .ocast_eligibility_shadow()
+                .iter()
+                .all(|classification| matches!(
+                    classification.outcome,
+                    OcastEligibilityOutcome::Incomplete {
+                        reason: OcastIncompleteReason::UnknownOrigin(origin),
+                    } if origin == crate::constraints::OriginId::unknown_internal()
+                ))
+        );
+    }
+}

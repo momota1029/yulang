@@ -5,7 +5,8 @@ use std::fs;
 use std::path::{Path as FsPath, PathBuf};
 
 use crate::constraints::explain::{
-    ExplanationBudget, ExplanationCompleteness, ExplanationTruncationReason,
+    ExplanationBudget, ExplanationCompleteness, ExplanationEdgeKind, ExplanationNode,
+    ExplanationNodeId, ExplanationTruncationReason,
 };
 use crate::constraints::ocast_eligibility::OcastEligibilityOutcome;
 use crate::constraints::timing::{
@@ -164,6 +165,271 @@ fn cprov_h_real_std_budget_truncates_without_solver_side_effects() {
     assert_eq!(machine.epoch(), semantic_epoch);
     assert_eq!(machine.provenance_epoch(), provenance_epoch);
     assert_eq!(machine.canonical_constraint_count(), semantic_count);
+}
+
+#[test]
+fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
+    let function = lower_source("my f(): bool = 42\nf()\n");
+    assert_eq!(
+        unknown_root_shapes_for_incomplete_events(&function),
+        vec![UnknownRootShape::DefinedLambdaBodyToSkeleton],
+    );
+
+    let field = lower_source("struct S { x: bool }\nS { x: 42 }\n");
+    assert_eq!(
+        unknown_root_shapes_for_incomplete_events(&field),
+        vec![
+            UnknownRootShape::ConstructorArgRecordLowerShape,
+            UnknownRootShape::ConstructorDefinitionToRoot,
+            UnknownRootShape::ConstructorArgRecordUpperShape,
+        ],
+    );
+    assert_eq!(
+        count_direct_unknown_roots(&field, |lower, upper| matches!(
+            (lower, upper),
+            (Pos::Var(_), Neg::Con(path, args))
+                if path == &["bool".to_string()] && args.is_empty()
+        )),
+        1,
+        "connect_constructor_arg_signatures contributes the unique field-value <: bool root",
+    );
+
+    let receiver = lower_source(concat!(
+        "struct target { value: int }\n",
+        "role Read 'subject:\n",
+        "  type value\n",
+        "  our x.read: value\n",
+        "impl int: Read:\n",
+        "  type value = target\n",
+        "  our x.read: target = 1\n",
+    ));
+    assert_eq!(
+        unknown_root_shapes_for_incomplete_events(&receiver),
+        vec![UnknownRootShape::IntLiteralUpper],
+    );
+
+    for (source, expected) in [
+        (
+            "struct actual;\nstruct expected;\nmy f(): expected = actual\nf()\n",
+            vec![
+                UnknownRootShape::ConstructorValueToRoot,
+                UnknownRootShape::DefinedLambdaBodyToSkeleton,
+            ],
+        ),
+        (
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct holder { value: expected }\n",
+                "holder { value: actual }\n",
+            ),
+            vec![
+                UnknownRootShape::ConstructorValueToRoot,
+                UnknownRootShape::ConstructorArgRecordLowerShape,
+                UnknownRootShape::ConstructorDefinitionToRoot,
+                UnknownRootShape::ConstructorArgRecordUpperShape,
+            ],
+        ),
+        (
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct box 'a { value: 'a }\n",
+                "my f(): box expected = box { value: actual }\n",
+                "f()\n",
+            ),
+            vec![
+                UnknownRootShape::SchemeRecursiveBoundsCloneLower,
+                UnknownRootShape::SchemeRecursiveBoundsCloneLower,
+                UnknownRootShape::ConstructorValueToRoot,
+                UnknownRootShape::ConstructorArgRecordLowerShape,
+                UnknownRootShape::ConstructorDefinitionToRoot,
+                UnknownRootShape::ConstructorArgRecordUpperShape,
+                UnknownRootShape::DefinedLambdaBodyToSkeleton,
+            ],
+        ),
+        (
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct box 'a { value: 'a }\n",
+                "struct holder { value: box expected }\n",
+                "holder { value: box { value: actual } }\n",
+            ),
+            vec![
+                UnknownRootShape::ConstructorValueToRoot,
+                UnknownRootShape::ConstructorArgRecordLowerShape,
+                UnknownRootShape::ConstructorDefinitionToRoot,
+                UnknownRootShape::ConstructorArgRecordUpperShape,
+                UnknownRootShape::ConstructorArgRecordLowerShape,
+                UnknownRootShape::ConstructorDefinitionToRoot,
+                UnknownRootShape::ConstructorArgRecordUpperShape,
+            ],
+        ),
+    ] {
+        assert_eq!(
+            unknown_root_shapes_for_incomplete_events(&lower_source(source)),
+            expected,
+        );
+    }
+}
+
+#[test]
+fn sound_a_full_ref_effect_false_positive_controls_remain_internal_only() {
+    let cases = [
+        (
+            "config-read",
+            "examples/config-file-text/config_read.yu",
+            108usize,
+        ),
+        ("ref-replay", "examples/02_refs.yu", 3usize),
+        (
+            "file-rollback",
+            "tests/yulang/regressions/runtime/file_mock_text_with_rollback_on_error.yu",
+            6usize,
+        ),
+    ];
+
+    for (name, path, expected_ref_events) in cases {
+        let output = CharacterizationCase::fixture(name, path).lower();
+        assert!(output.errors.is_empty(), "{name}: {:?}", output.errors);
+        let shadow = output.session.ocast_eligibility_shadow();
+        assert_eq!(
+            shadow.len(),
+            expected_ref_events + 1,
+            "{name}: ref/effect events plus repository std's int -> float control"
+        );
+        assert!(shadow.iter().all(|classification| matches!(
+            classification.outcome,
+            OcastEligibilityOutcome::InternalOnly { .. }
+        )));
+        let metrics = output.session.ocast_eligibility_metrics();
+        assert_eq!(metrics.internal_only, shadow.len());
+        assert_eq!(metrics.eligible_source_boundary, 0);
+        assert_eq!(metrics.incomplete, 0);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnknownRootShape {
+    // lower_defined_lambda_params_with_anchors: body.value -> skeleton.body_value.
+    DefinedLambdaBodyToSkeleton,
+    // constrain_constructor_arg_shapes: record lower -> constructor argument value.
+    ConstructorArgRecordLowerShape,
+    // lower_constructor_def: constructed function type -> registered definition root.
+    ConstructorDefinitionToRoot,
+    // lower_constructor_def: nullary constructed value -> registered definition root.
+    ConstructorValueToRoot,
+    // constrain_constructor_arg_shapes: constructor argument value -> record upper.
+    ConstructorArgRecordUpperShape,
+    // int_value via constrain_upper: literal value -> int.
+    IntLiteralUpper,
+    // instantiate::clone_recursive_bounds: cloned invariant lower -> target variable upper.
+    SchemeRecursiveBoundsCloneLower,
+}
+
+fn unknown_root_shapes_for_incomplete_events(output: &BodyLowering) -> Vec<UnknownRootShape> {
+    let machine = output.session.infer.constraints();
+    output
+        .session
+        .ocast_eligibility_shadow()
+        .iter()
+        .filter(|classification| {
+            matches!(
+                classification.outcome,
+                OcastEligibilityOutcome::Incomplete {
+                    reason: crate::constraints::ocast_eligibility::OcastIncompleteReason::UnknownOrigin(
+                        origin,
+                    ),
+                } if origin == OriginId::unknown_internal()
+            )
+        })
+        .flat_map(|classification| {
+            let query = machine
+                .why_constraint(classification.producer, ExplanationBudget::ocast_classifier())
+                .expect("query nominal producer");
+            query
+                .edges
+                .iter()
+                .filter_map(|edge| {
+                    if edge.kind != ExplanationEdgeKind::RootOrigin
+                        || edge.parents != [ExplanationNodeId::Origin(OriginId::unknown_internal())]
+                    {
+                        return None;
+                    }
+                    let ExplanationNodeId::Constraint(record) = edge.child else {
+                        return None;
+                    };
+                    let key = query.nodes.iter().find_map(|node| match node {
+                        ExplanationNode::Constraint { id, key, .. } if *id == record => Some(key),
+                        _ => None,
+                    })?;
+                    Some(match (machine.types().pos(key.lower), machine.types().neg(key.upper)) {
+                        (Pos::Var(_), Neg::Var(_)) => {
+                            UnknownRootShape::DefinedLambdaBodyToSkeleton
+                        }
+                        (Pos::Record(_), Neg::Var(_)) => {
+                            UnknownRootShape::ConstructorArgRecordLowerShape
+                        }
+                        (Pos::Fun { .. }, Neg::Var(_)) => {
+                            UnknownRootShape::ConstructorDefinitionToRoot
+                        }
+                        (Pos::Con(_, _), Neg::Var(_)) => {
+                            UnknownRootShape::ConstructorValueToRoot
+                        }
+                        (Pos::Var(_), Neg::Record(_)) => {
+                            UnknownRootShape::ConstructorArgRecordUpperShape
+                        }
+                        (Pos::Var(_), Neg::Con(path, args))
+                            if path == &["int".to_string()] && args.is_empty() =>
+                        {
+                            UnknownRootShape::IntLiteralUpper
+                        }
+                        (Pos::Union(_, _), Neg::Con(_, _)) => {
+                            UnknownRootShape::SchemeRecursiveBoundsCloneLower
+                        }
+                        (lower, upper) => {
+                            panic!("unidentified SOUND-A root: {lower:?} <: {upper:?}")
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn count_direct_unknown_roots(
+    output: &BodyLowering,
+    mut predicate: impl FnMut(&Pos, &Neg) -> bool,
+) -> usize {
+    let machine = output.session.infer.constraints();
+    machine
+        .constraint_records
+        .iter()
+        .enumerate()
+        .filter(|(index, record)| {
+            let query = machine
+                .why_constraint(
+                    ConstraintRecordId(*index as u32),
+                    ExplanationBudget::default(),
+                )
+                .expect("query existing constraint");
+            query.edges.iter().any(|edge| {
+                edge.child == ExplanationNodeId::Constraint(ConstraintRecordId(*index as u32))
+                    && edge.kind == ExplanationEdgeKind::RootOrigin
+                    && edge.parents == [ExplanationNodeId::Origin(OriginId::unknown_internal())]
+            }) && predicate(
+                machine.types().pos(record.key.lower),
+                machine.types().neg(record.key.upper),
+            )
+        })
+        .count()
+}
+
+fn lower_source(source: &str) -> BodyLowering {
+    let root = rowan::SyntaxNode::new_root(parser::parse_module_to_green(source));
+    let lower = crate::lower_module_map(&root);
+    crate::lowering::lower_binding_bodies(&root, lower)
 }
 
 #[derive(Clone, Copy)]
