@@ -949,6 +949,29 @@ mod tests {
     }
 
     #[test]
+    fn specialize2_materializes_nominal_record_field_cast_without_record_adapter() {
+        let lowering = lower_source(concat!(
+            "cast(x: int): float = 0.0\n",
+            "struct t { x: float, y: float, valid: bool }\n",
+            "t { x: 1, y: 2, valid: true }\n",
+        ));
+        assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+        let arena = &lowering.session.poly;
+
+        let program =
+            specialize2(arena).expect("record field cast should specialize through its cast");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(
+            text.contains("{x: (m0 1), y: (m0 2), valid: true}"),
+            "{text}"
+        );
+        assert!(text.contains("m0 = d0 : int -> float"), "{text}");
+        assert!(!text.contains("adapter[{x: float}"), "{text}");
+        assert!(!text.contains("coerce[{x: int} => {x: float}]"), "{text}");
+    }
+
+    #[test]
     fn specialize2_string_input_runs_computed_top_level_binding() {
         let lowering = lower_source("my id x = x\nmy a = id(1)\n");
         let arena = &lowering.session.poly;

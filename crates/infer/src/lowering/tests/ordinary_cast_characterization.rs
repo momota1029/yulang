@@ -30,7 +30,7 @@ fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
             continue;
         }
         assert_eq!(shadow.len(), 1, "{name}: one nominal mismatch");
-        if name == "application" {
+        if matches!(name, "application" | "field") {
             assert!(
                 matches!(
                     shadow[0].outcome,
@@ -43,7 +43,8 @@ fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
                         ..
                     }
                 ),
-                "{name}: one source-owned and one internal replay parent: {shadow:?}"
+                "{name}: the call-site application owns one replay parent and the audited \
+                 constructor/record roots are complete internal ancestry: {shadow:?}"
             );
             continue;
         }
@@ -64,15 +65,7 @@ fn cprov_i_source_paths_require_complete_origins_and_coherent_ownership() {
             );
             continue;
         }
-        assert!(
-            matches!(
-                shadow[0].outcome,
-                OcastEligibilityOutcome::Incomplete {
-                    reason: OcastIncompleteReason::UnknownOrigin(_)
-                }
-            ),
-            "{name}: unknown alternate ancestry must not become eligible or internal: {shadow:?}"
-        );
+        unreachable!("{name}: every nominal source-path case has an explicit disposition");
     }
 }
 
@@ -210,14 +203,14 @@ fn missing_cast_explanation_reaches_unannotated_parameter_boolean_condition() {
 }
 
 #[test]
-fn missing_ordinary_cast_function_result_rejects_while_struct_field_still_passes() {
+fn missing_ordinary_cast_function_result_and_struct_field_reject() {
     let cases = [
         ("struct-field", "struct S { x: bool }\nS { x: 42 }\n", false),
         ("function-result", "my f(): bool = 42\nf()\n", true),
     ];
 
     for (name, source, is_function_result) in cases {
-        let mut output = lower_source(source);
+        let output = lower_source(source);
 
         if is_function_result {
             assert!(
@@ -236,10 +229,21 @@ fn missing_ordinary_cast_function_result_rejects_while_struct_field_still_passes
                 output.errors
             );
         } else {
-            assert!(output.errors.is_empty(), "{name}: {:?}", output.errors);
             assert!(
-                output.session.take_diagnostics().is_empty(),
-                "{name}: current check should accept the missing cast"
+                matches!(
+                    output.errors.as_slice(),
+                    [BodyLoweringError::Analysis(
+                        crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                            source,
+                            target,
+                            source_span: Some(_),
+                            explanation: Some(_),
+                        }
+                    )] if source == &["int".to_string()] && target == &["bool".to_string()]
+                ),
+                "{name}: the existing constructor application boundary now rejects the field \
+                 mismatch without adding a separate source boundary: {:?}",
+                output.errors
             );
         }
         assert!(
@@ -261,7 +265,9 @@ fn missing_ordinary_cast_function_result_rejects_while_struct_field_still_passes
 #[test]
 fn missing_boundary_shadow_observation_matches_the_ocast_a_oracle() {
     let cases = [
-        ("struct S { x: bool }\nS { x: 42 }\n", false),
+        // The field producer is now source-eligible, so the live decision must agree with the
+        // already-Missing shadow oracle just as the function-result producer does.
+        ("struct S { x: bool }\nS { x: 42 }\n", true),
         ("my f(): bool = 42\nf()\n", true),
     ];
 
@@ -571,116 +577,119 @@ fn companion_method_lambda_layers(output: &BodyLowering) -> usize {
 }
 
 #[test]
-fn sound_e_function_result_activates_while_struct_field_remains_incomplete() {
-    let declarations = [
-        "",
-        "cast(x: int): bool = false\n",
-        concat!(
-            "cast(x: int): bool = false\n",
-            "cast(x: int): bool = true\n",
-        ),
-    ];
-    let holes = [
-        ("function-unit", "my f(): bool = 42\nf()\n", true),
+fn sound_field_named_and_nested_follow_zero_one_two_cast_semantics() {
+    let cases = [
         (
-            "function-explicit-parameter",
-            "my f(x: int): bool = 42\nf(0)\n",
-            true,
+            "plain",
+            "struct S { x: bool }\n",
+            "S { x: 42 }\n",
+            "cast(x: int): bool = false\n",
+            vec!["int".to_string()],
+            vec!["bool".to_string()],
         ),
-        ("struct-field", "struct S { x: bool }\nS { x: 42 }\n", false),
+        (
+            "named",
+            concat!(
+                "struct actual;\n",
+                "struct expected;\n",
+                "struct holder { value: expected }\n",
+            ),
+            "holder { value: actual }\n",
+            "cast(x: actual): expected = expected\n",
+            vec!["actual".to_string()],
+            vec!["expected".to_string()],
+        ),
+        (
+            "nested",
+            concat!(
+                "struct marker;\n",
+                "struct actual 'a;\n",
+                "struct expected 'a;\n",
+                "struct holder { value: expected marker }\n",
+            ),
+            "holder { value: actual }\n",
+            "cast(x: actual marker): expected marker = expected\n",
+            vec!["actual".to_string()],
+            vec!["expected".to_string()],
+        ),
     ];
 
-    for (candidate_count, declarations) in declarations.into_iter().enumerate() {
-        for (name, hole, is_function_result) in holes {
-            let mut output = lower_source(&format!("{declarations}{hole}"));
-            if is_function_result {
-                match candidate_count {
-                    0 => assert!(
-                        matches!(
-                            output.errors.as_slice(),
-                            [BodyLoweringError::Analysis(
-                                crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
-                                    source,
-                                    target,
-                                    source_span: None,
-                                    explanation: None,
-                                }
-                            )] if source == &["int".to_string()]
-                                && target == &["bool".to_string()]
-                        ),
-                        "{name}/{candidate_count}: {:?}",
-                        output.errors
+    for candidate_count in 0..=2 {
+        for (name, prefix, suffix, cast, source, target) in &cases {
+            let declarations = cast.repeat(candidate_count);
+            let output = lower_source(&format!("{prefix}{declarations}{suffix}"));
+            match candidate_count {
+                0 => assert!(
+                    matches!(
+                        output.errors.as_slice(),
+                        [BodyLoweringError::Analysis(
+                            crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                                source: actual,
+                                target: required,
+                                source_span: Some(_),
+                                explanation: Some(_),
+                            }
+                        )] if actual == source && required == target
                     ),
-                    1 => assert!(
-                        output.errors.is_empty(),
-                        "{name}/{candidate_count}: {:?}",
-                        output.errors
-                    ),
-                    _ => assert!(
-                        matches!(
-                            output.errors.as_slice(),
-                            [BodyLoweringError::Analysis(
-                                crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
-                                    source,
-                                    target,
-                                    candidates,
-                                    source_span: None,
-                                }
-                            )] if source == &["int".to_string()]
-                                && target == &["bool".to_string()]
-                                && candidates.len() == 2
-                        ),
-                        "{name}/{candidate_count}: {:?}",
-                        output.errors
-                    ),
-                }
-            } else {
-                assert!(
+                    "{name}/{candidate_count}: {:?}",
+                    output.errors
+                ),
+                1 => assert!(
                     output.errors.is_empty(),
                     "{name}/{candidate_count}: {:?}",
                     output.errors
-                );
-                assert!(
-                    output.session.take_diagnostics().is_empty(),
-                    "{name}/{candidate_count}: incomplete provenance remains fail-open"
-                );
+                ),
+                _ => assert!(
+                    matches!(
+                        output.errors.as_slice(),
+                        [BodyLoweringError::Analysis(
+                            crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+                                source: actual,
+                                target: required,
+                                candidates,
+                                ..
+                            }
+                        )] if actual == source && required == target && candidates.len() == 2
+                    ),
+                    "{name}/{candidate_count}: {:?}",
+                    output.errors
+                ),
             }
             assert_eq!(
-                resolution_outcome(
-                    &output
-                        .session
-                        .casts
-                        .resolve_value(&["int".into()], &["bool".into()])
-                ),
+                resolution_outcome(&output.session.casts.resolve_value(source, target)),
                 match candidate_count {
                     0 => OrdinaryCastShadowOutcome::Missing,
                     1 => OrdinaryCastShadowOutcome::Unique,
                     _ => OrdinaryCastShadowOutcome::Ambiguous,
                 },
             );
-            let [classification] = output.session.ocast_eligibility_shadow() else {
-                panic!("{name}/{candidate_count}: one nominal producer")
-            };
-            if is_function_result {
-                assert!(matches!(
-                    classification.outcome,
-                    OcastEligibilityOutcome::EligibleSourceBoundary {
-                        kind: ConstraintOriginKind::Return,
-                        evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
-                            source_parent: ReplaySourceParent::Upper,
+            // These shapes differ structurally, but all three mismatches flow through the same
+            // existing constructor application boundary. No field-specific boundary is created.
+            assert!(
+                output
+                    .session
+                    .ocast_eligibility_shadow()
+                    .iter()
+                    .any(|classification| matches!(
+                        classification.outcome,
+                        OcastEligibilityOutcome::EligibleSourceBoundary {
+                            kind: ConstraintOriginKind::ApplicationArgument,
+                            evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                                source_parent: ReplaySourceParent::Upper,
+                                ..
+                            },
                             ..
-                        },
-                        ..
-                    }
-                ));
-            } else {
-                assert!(matches!(
+                        }
+                    )),
+                "{name}/{candidate_count}: {:?}",
+                output.session.ocast_eligibility_shadow(),
+            );
+            assert!(output.session.ocast_eligibility_shadow().iter().all(
+                |classification| !matches!(
                     classification.outcome,
-                    OcastEligibilityOutcome::Incomplete {
-                        reason: OcastIncompleteReason::UnknownOrigin(origin),
-                    } if origin == crate::constraints::OriginId::unknown_internal()
-                ));
-            }
+                    OcastEligibilityOutcome::InternalOnly { .. }
+                )
+            ));
         }
     }
 }
@@ -901,13 +910,8 @@ fn sound_a_role_impl_associated_type_result_pins_zero_one_two_and_both_nominal_d
 }
 
 #[test]
-fn sound_e_named_function_result_activation_stops_at_other_unknown_constructor_roots() {
+fn sound_field_named_and_nested_activation_leaves_scheme_unknown_function_path_open() {
     let cases = [
-        (
-            "function-named",
-            "struct actual;\nstruct expected;\nmy f(): expected = actual\nf()\n",
-            true,
-        ),
         (
             "field-named",
             concat!(
@@ -916,7 +920,7 @@ fn sound_e_named_function_result_activation_stops_at_other_unknown_constructor_r
                 "struct holder { value: expected }\n",
                 "holder { value: actual }\n",
             ),
-            false,
+            true,
         ),
         (
             "function-nested",
@@ -932,13 +936,13 @@ fn sound_e_named_function_result_activation_stops_at_other_unknown_constructor_r
         (
             "field-nested",
             concat!(
-                "struct actual;\n",
-                "struct expected;\n",
-                "struct box 'a { value: 'a }\n",
-                "struct holder { value: box expected }\n",
-                "holder { value: box { value: actual } }\n",
+                "struct marker;\n",
+                "struct actual 'a;\n",
+                "struct expected 'a;\n",
+                "struct holder { value: expected marker }\n",
+                "holder { value: actual }\n",
             ),
-            false,
+            true,
         ),
     ];
 
@@ -946,14 +950,20 @@ fn sound_e_named_function_result_activation_stops_at_other_unknown_constructor_r
         let mut output = lower_source(source);
         if expect_rejected {
             assert!(
-                !output.errors.is_empty(),
-                "{name}: missing result cast must reject"
+                matches!(
+                    output.errors.as_slice(),
+                    [BodyLoweringError::Analysis(
+                        crate::analysis::AnalysisDiagnostic::MissingImplicitCast { .. }
+                    )]
+                ),
+                "{name}: complete constructor/record ancestry activates the missing field cast: {:?}",
+                output.errors,
             );
         } else {
             assert!(output.errors.is_empty(), "{name}: {:?}", output.errors);
             assert!(
                 output.session.take_diagnostics().is_empty(),
-                "{name}: current incomplete provenance remains fail-open"
+                "{name}: scheme-instantiation provenance remains independently incomplete"
             );
         }
         assert!(
@@ -969,13 +979,15 @@ fn sound_e_named_function_result_activation_stops_at_other_unknown_constructor_r
                     .any(|classification| matches!(
                         classification.outcome,
                         OcastEligibilityOutcome::EligibleSourceBoundary {
-                            kind: ConstraintOriginKind::Return,
+                            kind: ConstraintOriginKind::ApplicationArgument,
                             ..
                         }
                     )),
-                "{name}: Return owns at least one activated mismatch"
+                "{name}: the existing constructor application owns at least one activated mismatch"
             );
         } else {
+            // Relabelling audited constructor/record roots must not hide the remaining unknown
+            // scheme-recursive-bounds ancestry on the nested function-result path.
             assert!(output.session.ocast_eligibility_shadow().iter().all(
                 |classification| matches!(
                     classification.outcome,

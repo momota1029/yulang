@@ -311,7 +311,7 @@ impl BodyLowerer {
                 self.session.infer.subtype(
                     predicate,
                     root_upper,
-                    crate::constraints::OriginId::unknown_internal(),
+                    crate::constraints::OriginId::internal(),
                 );
                 self.session
                     .enqueue(AnalysisWork::Scc(SccInput::DefFinished {

@@ -684,12 +684,7 @@ impl<'a> TaskSolver<'a> {
                 .and_then(|fields| record_field_type(fields, name))
                 .map(|field| field.value.clone());
             let (value, effect) = match expected {
-                Some(expected) => {
-                    let value_ty = self.expr_with_value_consumer(*value_expr, &expected)?;
-                    let (value, effect) = split_runtime_computation_shape(value_ty);
-                    self.graph.constrain_subtype(value.clone(), expected)?;
-                    (value, effect)
-                }
+                Some(expected) => self.consume_expr_value(*value_expr, expected)?,
                 None => {
                     let value_ty = self.expr(*value_expr)?;
                     let (value, effect) = split_runtime_computation_shape(value_ty);

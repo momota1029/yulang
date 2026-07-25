@@ -569,11 +569,14 @@ pub(super) fn raw_expr_value_type(
         ),
         poly_expr::Expr::RefSet(_, _)
         | poly_expr::Expr::Tuple(_)
-        | poly_expr::Expr::Record { .. }
         | poly_expr::Expr::PolyVariant(_, _)
         | poly_expr::Expr::Case(_, _)
         | poly_expr::Expr::Catch(_, _)
         | poly_expr::Expr::Block(_, _) => Some(ComputationShape::from_runtime_type(actual).value),
+        poly_expr::Expr::Record { spread, .. } => Some(
+            emitted_record_value_type(arena, solved, expr, spread)
+                .unwrap_or_else(|| ComputationShape::from_runtime_type(actual).value),
+        ),
         poly_expr::Expr::Lambda(_, body) => Some(
             emitted_lambda_value_type(arena, solved, expr, *body).unwrap_or_else(|| actual.clone()),
         ),
@@ -581,6 +584,46 @@ pub(super) fn raw_expr_value_type(
             Some(actual.clone())
         }
     }
+}
+
+/// Returns the record value type produced after field emission only when the explicit field set is
+/// unchanged and every field is boundary-equivalent or has a direct cast. Spread and width changes
+/// stay on the whole-record boundary path.
+pub(super) fn emitted_record_value_type(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    expr: poly_expr::ExprId,
+    spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
+) -> Option<Type> {
+    if !matches!(spread, poly_expr::RecordSpread::None) {
+        return None;
+    }
+    let Type::Record(actual_fields) =
+        ComputationShape::from_runtime_type(solved.actual_type_of(expr)?).value
+    else {
+        return None;
+    };
+    let Type::Record(expected_fields) =
+        ComputationShape::from_runtime_type(solved.consumer_type_of(expr)?).value
+    else {
+        return None;
+    };
+    let same_field_set = actual_fields
+        .iter()
+        .all(|actual| record_field_type(&expected_fields, &actual.name).is_some())
+        && expected_fields
+            .iter()
+            .all(|expected| record_field_type(&actual_fields, &expected.name).is_some());
+    let every_conversion_materialized = expected_fields.iter().all(|expected| {
+        record_field_type(&actual_fields, &expected.name).is_some_and(|actual| {
+            equivalent_boundary_types(&actual.value, &expected.value)
+                || result_boundary_has_direct_cast(arena, &actual.value, &expected.value)
+        })
+    });
+    if !same_field_set || !every_conversion_materialized {
+        return None;
+    }
+    Some(Type::Record(expected_fields))
 }
 
 fn emitted_lambda_value_type(

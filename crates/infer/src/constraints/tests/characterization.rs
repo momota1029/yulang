@@ -183,13 +183,9 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
     ));
 
     let field = lower_source("struct S { x: bool }\nS { x: 42 }\n");
-    assert_eq!(
-        unknown_root_shapes_for_incomplete_events(&field),
-        vec![
-            UnknownRootShape::ConstructorArgRecordLowerShape,
-            UnknownRootShape::ConstructorDefinitionToRoot,
-            UnknownRootShape::ConstructorArgRecordUpperShape,
-        ],
+    assert!(
+        unknown_root_shapes_for_incomplete_events(&field).is_empty(),
+        "the five audited constructor/record roots are complete internal ancestry"
     );
     assert_eq!(
         count_direct_unknown_roots(&field, |lower, upper| matches!(
@@ -197,8 +193,22 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
             (Pos::Var(_), Neg::Con(path, args))
                 if path == &["bool".to_string()] && args.is_empty()
         )),
+        0,
+        "the declared field-signature root is no longer origin-incomplete",
+    );
+    assert_eq!(
+        count_direct_roots(
+            &field,
+            ConstraintOriginKind::Internal,
+            |lower, upper| matches!(
+                (lower, upper),
+                (Pos::Var(_), Neg::Con(path, args))
+                    if path == &["bool".to_string()] && args.is_empty()
+            ),
+        ),
         1,
-        "connect_constructor_arg_signatures contributes the unique field-value <: bool root",
+        "connect_constructor_arg_signatures retains the unique field-value <: bool root as \
+         internal ancestry, not a new source boundary",
     );
 
     let receiver = lower_source(concat!(
@@ -227,12 +237,7 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
                 "struct holder { value: expected }\n",
                 "holder { value: actual }\n",
             ),
-            vec![
-                UnknownRootShape::ConstructorValueToRoot,
-                UnknownRootShape::ConstructorArgRecordLowerShape,
-                UnknownRootShape::ConstructorDefinitionToRoot,
-                UnknownRootShape::ConstructorArgRecordUpperShape,
-            ],
+            vec![],
         ),
         (
             concat!(
@@ -245,29 +250,17 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
             vec![
                 UnknownRootShape::SchemeRecursiveBoundsCloneLower,
                 UnknownRootShape::SchemeRecursiveBoundsCloneLower,
-                UnknownRootShape::ConstructorValueToRoot,
-                UnknownRootShape::ConstructorArgRecordLowerShape,
-                UnknownRootShape::ConstructorDefinitionToRoot,
-                UnknownRootShape::ConstructorArgRecordUpperShape,
             ],
         ),
         (
             concat!(
-                "struct actual;\n",
-                "struct expected;\n",
-                "struct box 'a { value: 'a }\n",
-                "struct holder { value: box expected }\n",
-                "holder { value: box { value: actual } }\n",
+                "struct marker;\n",
+                "struct actual 'a;\n",
+                "struct expected 'a;\n",
+                "struct holder { value: expected marker }\n",
+                "holder { value: actual }\n",
             ),
-            vec![
-                UnknownRootShape::ConstructorValueToRoot,
-                UnknownRootShape::ConstructorArgRecordLowerShape,
-                UnknownRootShape::ConstructorDefinitionToRoot,
-                UnknownRootShape::ConstructorArgRecordUpperShape,
-                UnknownRootShape::ConstructorArgRecordLowerShape,
-                UnknownRootShape::ConstructorDefinitionToRoot,
-                UnknownRootShape::ConstructorArgRecordUpperShape,
-            ],
+            vec![],
         ),
     ] {
         assert_eq!(
@@ -840,10 +833,13 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     // skeleton-value root and both skeleton-layer value directions as Internal. That moves only
     // UnknownInternal/Internal origin coverage; the three relabel sites account for the uniform
     // provenance epoch +2/+1/+1 below.
+    // The five audited nominal-field constructor/record sites likewise move only the root-origin
+    // census from UnknownInternal to Internal. Poly/check hashes, structural and row coverage,
+    // constraint totals, replay totals, and nominal-event counts remain pinned below.
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 416, 1_480, 801, 294, 10_619, 22_929),
+            origin_coverage: origins(1_852, 416, 1_480, 801, 294, 10_827, 22_721),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
@@ -874,7 +870,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 416, 1_480, 801, 297, 10_669, 22_996),
+            origin_coverage: origins(1_855, 416, 1_480, 801, 297, 10_877, 22_788),
             body_requirement_coverage: body_requirements(99),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
@@ -908,7 +904,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 416, 1_487, 805, 294, 10_730, 23_172),
+            origin_coverage: origins(1_868, 416, 1_487, 805, 294, 10_940, 22_962),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
@@ -939,7 +935,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 430, 1_506, 823, 303, 11_083, 23_927),
+            origin_coverage: origins(1_906, 430, 1_506, 823, 303, 11_295, 23_715),
             body_requirement_coverage: body_requirements(101),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
@@ -984,7 +980,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 418, 1_497, 811, 294, 10_860, 23_507),
+            origin_coverage: origins(1_883, 418, 1_497, 811, 294, 11_072, 23_295),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,

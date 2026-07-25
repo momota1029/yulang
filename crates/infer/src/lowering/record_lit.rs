@@ -116,7 +116,11 @@ impl<'a> ExprLowerer<'a> {
             },
             None => Pos::Record(record_fields),
         };
-        self.constrain_lower(result_value, lower);
+        self.constrain_lower_with_origin(
+            result_value,
+            lower,
+            crate::constraints::OriginId::internal(),
+        );
 
         let expr_fields = lowered
             .into_iter()

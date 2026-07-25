@@ -246,7 +246,14 @@ impl<'a> Specializer2<'a> {
             },
             PolyExpr::Var(ref_id) => self.emit_var(arena, solved, expr, *ref_id)?,
             PolyExpr::App(callee, arg) => {
-                let callee_expr = self.emit_expr(arena, solved, *callee)?;
+                let callee_expr = if constructor_record_argument_materializes_callee_boundary(
+                    arena, solved, *callee, *arg,
+                ) {
+                    self.emit_expr_without_boundary(arena, solved, *callee)?
+                        .expr
+                } else {
+                    self.emit_expr(arena, solved, *callee)?
+                };
                 let argument_effect_contract = callee_argument_effect_contract(arena, *callee);
                 let arg_expr = self.emit_expr_without_boundary(arena, solved, *arg)?;
                 let arg_expr = self.wrap_expr_boundary_with_argument_contract(
@@ -1045,6 +1052,70 @@ impl<'a> Specializer2<'a> {
         let signature = types::pure_function_type(actual.clone(), expected.clone());
         self.ensure_def_instance(arena, def, signature).map(Some)
     }
+}
+
+/// Skip a constructor's whole-record adapter only after the explicit argument record has
+/// materialized every field conversion. The argument and return checks keep unrelated function
+/// adaptation on the generic boundary path.
+fn constructor_record_argument_materializes_callee_boundary(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    callee: poly_expr::ExprId,
+    argument: poly_expr::ExprId,
+) -> bool {
+    if !callee_is_constructor_spine(arena, callee) {
+        return false;
+    }
+    let poly_expr::Expr::Record { spread, .. } = arena.expr(argument) else {
+        return false;
+    };
+    let Some(emitted_argument) = emitted_record_value_type(arena, solved, argument, spread) else {
+        return false;
+    };
+    let (
+        Some(Type::Fun {
+            arg: actual_arg,
+            arg_effect: actual_arg_effect,
+            ret_effect: actual_ret_effect,
+            ret: actual_ret,
+        }),
+        Some(Type::Fun {
+            arg: consumer_arg,
+            arg_effect: consumer_arg_effect,
+            ret_effect: consumer_ret_effect,
+            ret: consumer_ret,
+        }),
+        Some(raw_argument),
+    ) = (
+        solved.actual_type_of(callee),
+        solved.consumer_type_of(callee),
+        solved.actual_type_of(argument),
+    )
+    else {
+        return false;
+    };
+    let actual_argument = types::runtime_shape(
+        actual_arg_effect.as_ref().clone(),
+        actual_arg.as_ref().clone(),
+    );
+    let consumer_argument = types::runtime_shape(
+        consumer_arg_effect.as_ref().clone(),
+        consumer_arg.as_ref().clone(),
+    );
+    let actual_return = types::runtime_shape(
+        actual_ret_effect.as_ref().clone(),
+        actual_ret.as_ref().clone(),
+    );
+    let consumer_return = types::runtime_shape(
+        consumer_ret_effect.as_ref().clone(),
+        consumer_ret.as_ref().clone(),
+    );
+    equivalent_boundary_types(&actual_argument, &emitted_argument)
+        && equivalent_boundary_types(
+            &consumer_argument,
+            &ComputationShape::from_runtime_type(raw_argument).value,
+        )
+        && equivalent_boundary_types(&actual_return, &consumer_return)
 }
 
 fn expr_argument_effect_contract(

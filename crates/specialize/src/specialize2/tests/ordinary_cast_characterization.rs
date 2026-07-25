@@ -238,21 +238,24 @@ fn primary_ambiguous_shadows_stay_ambiguous_under_registry_order_reversal() {
 }
 
 #[test]
-fn missing_struct_field_boundary_reaches_current_primary_runtime_ir() {
+fn missing_struct_field_boundary_is_rejected_before_primary_runtime_ir() {
     let lowering = lower_source("struct S { x: bool }\nS { x: 42 }\n");
-    assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
-    let program = crate::specialize(&lowering.session.poly, lowering.subtype_provenance())
-        .unwrap_or_else(|error| panic!("current specialization failed: {error}"));
-    let dump = mono::dump::dump_program(&program);
-
     assert!(
-        dump.contains("adapter[{x: bool} -> S => {x: int} -> S"),
-        "{dump}"
+        matches!(
+            lowering.errors.as_slice(),
+            [infer::lowering::BodyLoweringError::Analysis(
+                infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                    source,
+                    target,
+                    ..
+                }
+            )] if source == &["int".to_string()] && target == &["bool".to_string()]
+        ),
+        "{:?}",
+        lowering.errors,
     );
-    assert!(dump.contains("{x: 42}"), "{dump}");
-
-    // Future oracle: Missing. Today the struct field reaches a runtime adapter boundary, and the
-    // evidence VM reports `runtime boundary`.
+    // The field producer is now source-eligible in infer, so invalid IR never reaches the
+    // primary runtime adapter path that this characterization formerly pinned.
 }
 
 #[test]

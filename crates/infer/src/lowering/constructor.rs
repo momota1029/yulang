@@ -166,16 +166,8 @@ pub(super) fn constrain_constructor_arg_shapes(infer: &mut crate::Arena, args: &
         let upper = infer.alloc_neg(Neg::Record(upper_fields));
         let value_upper = infer.alloc_neg(Neg::Var(*value));
         let value_lower = infer.alloc_pos(Pos::Var(*value));
-        infer.subtype(
-            lower,
-            value_upper,
-            crate::constraints::OriginId::unknown_internal(),
-        );
-        infer.subtype(
-            value_lower,
-            upper,
-            crate::constraints::OriginId::unknown_internal(),
-        );
+        infer.subtype(lower, value_upper, crate::constraints::OriginId::internal());
+        infer.subtype(value_lower, upper, crate::constraints::OriginId::internal());
     }
 }
 
@@ -261,7 +253,7 @@ pub(super) fn connect_constructor_arg_signatures(
                         lowerer.infer.subtype(
                             lower,
                             upper,
-                            crate::constraints::OriginId::unknown_internal(),
+                            crate::constraints::OriginId::internal(),
                         );
                     }
                 }

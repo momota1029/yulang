@@ -535,6 +535,32 @@ fn run_with_std_applies_result_annotation_casts_in_both_backends() {
 
 #[cfg(unix)]
 #[test]
+fn run_with_std_applies_nominal_record_field_casts_in_both_backends() {
+    let (mono, evidence) = run_with_std_main(
+        "run-std-record-field-casts",
+        concat!(
+            "struct t { x: float, y: float, valid: bool }\n",
+            "my value = t { x: 1, y: 2, valid: true }\n",
+            "value.x\n",
+            "value.y\n",
+            "value.x + value.y + 0.5\n",
+        ),
+    );
+
+    assert_eq!(
+        mono.values,
+        vec![
+            mono_runtime::Value::Float(1.0),
+            mono_runtime::Value::Float(2.0),
+            mono_runtime::Value::Float(3.5),
+        ]
+    );
+    assert_eq!(mono.text, "run roots [1, 2, 3.5]\n");
+    assert_eq!(evidence.text, mono.text);
+}
+
+#[cfg(unix)]
+#[test]
 fn yumark_nil_text_renders_expected_html_and_markdown_bytes() {
     let entry = write_main_with_std(
         "yumark-nil-text-output",
