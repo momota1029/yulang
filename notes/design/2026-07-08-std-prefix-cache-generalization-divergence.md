@@ -156,3 +156,80 @@ std 側の前提条件付き impl を**使っているだけ**なので `S = fal
 - effects、casts、shadowing、再帰など、反例発見時点で攻撃を止めた他の領域。
 
 調査: Codex MCP (gpt-5.6-sol, xhigh), read-only。反例の再現と判別実験は Claude が独立に実施。
+
+## 2026-07-26 続報: 健全性の穴ではない（Claude による追加実験）
+
+上の追記で「意味論的な差である」と結論したが、その言い方は強すぎた。追加実験の結果、
+**差は実在するが、コンパイル境界を越えられない**ことが分かった。訂正して記録する。
+
+### 実験1: 消費側は騙されるか
+
+`render_one` を std 側（prefix）に置き、境界を越えて消費する構成を作った。
+`lib` を複製した `--std-root` を用意し、`pub render_one(x) = [x].show` を std のモジュールとして
+追加した上で、`Display` を持たない値を渡す利用者ファイルを検査した。
+
+```console
+$ yulang --std-root <custom-lib> --no-cache check     # cold
+error [yulang.unresolved-method]: show: no role implementation satisfies this method call
+
+$ YULANG_CACHE_DIR=<dir> yulang --std-root <custom-lib> check   # prefix 経路
+error [yulang.unresolved-method]: show: no role implementation satisfies this method call
+```
+
+両経路とも拒否した。消費側が `any -> str` を信じて非 `Display` 値を通す、という事態は起きない。
+
+### 実験2: 過少な型は永続化されるか
+
+```console
+$ YULANG_CACHE_DIR=<dir> yulang --std-root <lib> run <f>
+run roots ["[7]"]
+$ find <dir> -type f | wc -l
+6      # .yucu / .yumo / .yuvm / .yuskey
+
+$ YULANG_CACHE_DIR=<dir> yulang --std-root <lib> --no-cache run <f>
+$ find <dir> -type f | wc -l
+0
+```
+
+**cold 経路は成果物を一切書かない。**
+
+### 構造的な結論
+
+1. 過少な公開型 `any -> str` を生成するのは cold 経路だけである。
+2. cold 経路にはコンパイル境界も消費側も存在しない。全定義が一つのグラフにあり、制約は
+   使用箇所で強制される（非 `Display` 値が拒否されることを確認済み）。
+3. cold 経路は何も永続化しないので、その型が別のコンパイルの入力になることはない。
+4. 消費可能な境界を作る経路（prefix build / hit）は、制約付きの正しい型を生成する。
+
+したがって**過少な型は境界を越えられない**。健全性の穴ではなく、
+**cold 経路で型を表示する経路の欠陥**である。
+
+### 残る実害
+
+実行や型検査の結果は変わらないが、**cold 経路で表示される型が誤っている**。
+`dump --poly` や、cold 経路で解析する LSP hover 等の表示面に影響する。
+「この関数は何でも受け取る」と読める型が出るのは、利用者に対して不正確である。
+
+なお playground の型表示は 2026-07-25 の性能修正で常駐 prefix を経由するようになったため、
+そちらは正しい型を出しているはずである（未確認）。
+
+### v0.1.0 に対する位置づけ
+
+必須項目としての「cached/cold の意味論的同値性」は、次の意味で決着したと扱ってよい。
+
+- コンパイル成否・診断・実行時の値は一致する（今回の探索範囲で反例なし）。
+- 公開型の表示は一致しないが、その不一致は境界を越えないため健全性に影響しない。
+- 保守ゲートは現状維持でよい。緩める根拠も、急いで厳しくする根拠も無い。
+
+残るのは表示の正しさという品質課題であり、リリースを止める性質のものではない。
+
+### まだ未確定
+
+- effects / casts / shadowing / 多相再帰 / 入れ子の役割前提条件は未探索のまま。
+  最初の反例が出た時点で探索を止めたため、これらの領域に (a)(b)(c) の差が無いとは言えない。
+- cold の generalization が役割述語を落とす原因そのもの（`OpenUse` 分岐の後、role solver /
+  generalizer のどの操作か）は未特定。
+- LSP hover が実際に cold 経路の型を表示しているかは未確認。
+
+実験: Claude。Codex MCP はこのスレッドで安全フィルタ誤検知と空応答が連続したため、
+決定的な実験は Claude が直接実施した。
