@@ -18,6 +18,13 @@ struct CachedEmbeddedLoweringPrefix {
     prefix: infer::lowering::BodyLoweringPrefix,
 }
 
+pub(super) struct EmbeddedRootLowering {
+    pub lowering: infer::lowering::BodyLowering,
+    // Parser diagnostics and source-coordinate metadata still need the exact root loaded above
+    // the compiled prefix, even though std bodies no longer participate in this lowering.
+    pub loaded: Vec<sources::LoadedFile>,
+}
+
 pub(super) fn resolve_std_root(
     base: &FsPath,
     options: &StdSourceOptions,
@@ -244,11 +251,13 @@ pub(super) fn embedded_playground_std_lowering_with_root(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let prefix = cached_embedded_playground_std_lowering_prefix()?;
-    lower_root_with_embedded_prefix(
+    let output = lower_root_with_embedded_prefix(
         &prefix,
         cached_embedded_playground_std_loaded_prefix(),
         source,
-    )
+    )?;
+    let file_count = output.loaded.len();
+    Ok((output.lowering, file_count))
 }
 
 pub(super) fn embedded_playground_std_lowering_with_root_artifact(
@@ -256,16 +265,26 @@ pub(super) fn embedded_playground_std_lowering_with_root_artifact(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let prefix = cached_embedded_playground_std_lowering_prefix_from_artifact(artifact)?;
-    lower_root_with_embedded_prefix(
+    let output = lower_root_with_embedded_prefix(
         &prefix,
         cached_embedded_playground_std_loaded_prefix(),
         source,
-    )
+    )?;
+    let file_count = output.loaded.len();
+    Ok((output.lowering, file_count))
 }
 
 pub(super) fn embedded_std_lowering_with_root(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
+    let output = embedded_std_lowering_with_loaded_root(source)?;
+    let file_count = output.loaded.len();
+    Ok((output.lowering, file_count))
+}
+
+pub(super) fn embedded_std_lowering_with_loaded_root(
+    source: String,
+) -> Result<EmbeddedRootLowering, RouteError> {
     let prefix = cached_embedded_std_lowering_prefix()?;
     lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
 }
@@ -275,7 +294,10 @@ pub(super) fn embedded_std_lowering_with_root_artifact(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let prefix = cached_embedded_std_lowering_prefix_from_artifact(artifact)?;
-    lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
+    let output =
+        lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)?;
+    let file_count = output.loaded.len();
+    Ok((output.lowering, file_count))
 }
 
 pub(super) fn warm_embedded_playground_std_prefix_from_artifact(
@@ -296,16 +318,15 @@ fn lower_root_with_embedded_prefix(
     prefix: &infer::lowering::BodyLoweringPrefix,
     loaded_prefix: Vec<sources::LoadedFile>,
     source: String,
-) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
+) -> Result<EmbeddedRootLowering, RouteError> {
     let loaded = load_with_embedded_prefix_prelude_only(loaded_prefix, source);
-    let file_count = loaded.len();
     let root = loaded
         .iter()
         .find(|file| file.module_path.segments.is_empty())
         .ok_or(RouteError::Lower(infer::LoadedFilesError::MissingRoot))?;
     let lowering = infer::lowering::lower_root_loaded_file_with_prefix(prefix, root)
         .map_err(RouteError::Lower)?;
-    Ok((lowering, file_count))
+    Ok(EmbeddedRootLowering { lowering, loaded })
 }
 
 pub(super) fn embedded_std_sources() -> Vec<CollectedSource> {

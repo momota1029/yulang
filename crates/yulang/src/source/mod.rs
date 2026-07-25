@@ -1125,26 +1125,46 @@ pub fn analyze_source_text_with_embedded_std(
 }
 
 pub fn check_poly_from_source_text_with_embedded_std(
-    entry: impl AsRef<FsPath>,
+    _entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<CheckPolyOutput, RouteError> {
     let total_start = Instant::now();
-    let collect_start = Instant::now();
     let source = source.into();
-    let collect = collect_start.elapsed();
-    let load_start = Instant::now();
-    let loaded = load_source_text_with_embedded_std(entry, source)?;
-    let load = load_start.elapsed();
-    check_poly_from_loaded_files(
+    let infer_start = Instant::now();
+    let EmbeddedRootLowering { lowering, loaded } = embedded_std_lowering_with_loaded_root(source)?;
+    let infer = infer_start.elapsed();
+    let lowering_timing = lowering.timing;
+    let summarize_start = Instant::now();
+    let report = infer::check::summarize_lowering(&lowering);
+    let summarize = summarize_start.elapsed();
+    let check = infer::check::PolyCheckOutput {
+        report,
+        lowering,
+        timing: infer::check::PolyCheckTiming {
+            infer,
+            summarize,
+            lowering: lowering_timing,
+        },
+    };
+    let timing = CheckPolyTimings {
+        collect: Duration::default(),
+        load: Duration::default(),
+        source_load: sources::SourceLoadTiming::default(),
+        infer,
+        summarize,
+        total: total_start.elapsed(),
+        lowering: lowering_timing,
+    };
+    let mut output = check_poly_from_check(
         loaded,
-        collect,
-        load,
-        sources::SourceLoadTiming::default(),
-        total_start,
+        check,
+        timing,
         CheckPolyKind::All {
             title: "check-poly-embedded-std",
         },
-    )
+    )?;
+    restore_full_embedded_std_diagnostic_coordinates(&mut output);
+    Ok(output)
 }
 
 pub fn dump_poly_from_source_text_with_embedded_std(
@@ -2414,6 +2434,15 @@ fn check_poly_from_loaded_files(
         total: total_start.elapsed(),
         lowering: check.timing.lowering,
     };
+    check_poly_from_check(loaded, check, timing, kind)
+}
+
+fn check_poly_from_check(
+    loaded: Vec<sources::LoadedFile>,
+    check: infer::check::PolyCheckOutput,
+    timing: CheckPolyTimings,
+    kind: CheckPolyKind,
+) -> Result<CheckPolyOutput, RouteError> {
     let mut diagnostics = parser_diagnostics_from_loaded(&loaded);
     diagnostics.extend(match &kind {
         CheckPolyKind::All { .. } => {
@@ -2452,6 +2481,33 @@ fn check_poly_from_loaded_files(
         diagnostics,
         diagnostic_source,
     })
+}
+
+fn restore_full_embedded_std_diagnostic_coordinates(output: &mut CheckPolyOutput) {
+    // Prefix lowering reuses the already-registered std module and therefore omits the synthetic
+    // `mod std;` line. Keep the public check route in the same coordinate space as its former
+    // full-source lowering so callers and related ranges remain byte-identical.
+    let offset = IMPLICIT_STD_MODULE_DECL.len();
+    for diagnostic in &mut output.diagnostics {
+        if diagnostic
+            .file
+            .as_ref()
+            .is_some_and(|file| file.segments.is_empty())
+            && let Some(range) = diagnostic.range.as_mut()
+        {
+            range.start += offset;
+            range.end += offset;
+        }
+        for related in &mut diagnostic.related {
+            if related.file.segments.is_empty() {
+                related.range.start += offset;
+                related.range.end += offset;
+            }
+        }
+    }
+    if let Some(source) = output.diagnostic_source.as_mut() {
+        source.range_offset += offset;
+    }
 }
 
 pub fn parse_diagnostics_from_collected_sources(

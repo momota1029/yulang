@@ -2590,12 +2590,24 @@ fn dump_poly_fixture_keeps_forwarded_effectful_parameter_deep() {
 
 #[test]
 fn check_poly_source_text_with_embedded_std_reports_type_error() {
-    let output =
-        check_poly_from_source_text_with_embedded_std("playground.yu", "my x: int = true\n")
-            .unwrap();
+    let source = "my x: int = true\n";
+    let expected = check_poly_from_loaded_files(
+        load_source_text_with_embedded_std("playground.yu", source.to_string()).unwrap(),
+        Duration::default(),
+        Duration::default(),
+        sources::SourceLoadTiming::default(),
+        Instant::now(),
+        CheckPolyKind::All {
+            title: "check-poly-embedded-std",
+        },
+    )
+    .unwrap();
+    let output = check_poly_from_source_text_with_embedded_std("playground.yu", source).unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_check_contains(&output, "check-poly-embedded-std\n");
+    assert_eq!(output.diagnostics, expected.diagnostics);
+    assert_eq!(output.diagnostic_source, expected.diagnostic_source);
     assert_eq!(
         output
             .diagnostics
