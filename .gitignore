@@ -30,6 +30,7 @@
 research/**/*.pdf
 test.txt
 test.yu
+!lib/std/test.yu
 test.ym
 
 # Local editor and agent metadata

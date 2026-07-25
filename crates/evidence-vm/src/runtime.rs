@@ -26,6 +26,7 @@ mod format;
 mod host;
 mod host_abi;
 mod plan;
+mod root_effect;
 mod scheduler;
 mod stats;
 mod text;
@@ -48,6 +49,7 @@ use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
     RuntimeEvidenceStaticRouteDynamicReason, RuntimeEvidenceStaticRouteResolution,
 };
+use root_effect::{RuntimeRootEffectRegistry, RuntimeRootEffectResolution};
 use scheduler::{HostResumeTokenId, RuntimeHostBranchId, RuntimeHostScheduler};
 pub use stats::RuntimeEvidenceRunStats;
 use text::{
@@ -10299,6 +10301,7 @@ struct RuntimeEvidenceRunner<'a> {
     print_nth_nondet_auto_drive_in_current_result: bool,
     suspended_host_continuations: HashMap<HostResumeTokenId, RuntimeSuspendedHostContinuation>,
     host_registry: RuntimeHostRegistry,
+    root_effect_registry: RuntimeRootEffectRegistry,
     host_constructors: RuntimeEvidenceHostConstructors,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -10386,6 +10389,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             print_nth_nondet_auto_drive_in_current_result: false,
             suspended_host_continuations: HashMap::new(),
             host_registry,
+            root_effect_registry: RuntimeRootEffectRegistry,
             host_constructors,
             context,
             stats,
@@ -14703,7 +14707,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        match self.try_handle_runtime_host_request(request)? {
+        match self.try_handle_escaped_request(request)? {
             RuntimeHostRequestHandling::Handled(result) => Ok(result),
             RuntimeHostRequestHandling::Suspended => {
                 self.process_or_wait_for_next_host_scheduler_value()?.ok_or(
@@ -14815,7 +14819,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<PrintNthSideEffectResolution, RuntimeEvidenceRunError> {
-        match self.try_handle_runtime_host_request(request)? {
+        match self.try_handle_escaped_request(request)? {
             RuntimeHostRequestHandling::Handled(result) => {
                 Ok(PrintNthSideEffectResolution::Continue(result))
             }
@@ -14924,6 +14928,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     path: failure.act_path_strings(),
                 })
             }
+        }
+    }
+
+    fn try_handle_escaped_request(
+        &mut self,
+        request: EvidenceRequest,
+    ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
+        match self.root_effect_registry.resolve(request.path.as_ref()) {
+            Some(RuntimeRootEffectResolution::DiscardPayloadAndResumeUnit) => self
+                .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit))
+                .map(RuntimeHostRequestHandling::Handled),
+            None => self.try_handle_runtime_host_request(request),
         }
     }
 

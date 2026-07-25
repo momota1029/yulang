@@ -243,6 +243,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../../../lib/std/time.yu"),
     },
     EmbeddedStdFile {
+        relative_path: "std/test.yu",
+        source: include_str!("../../../lib/std/test.yu"),
+    },
+    EmbeddedStdFile {
         relative_path: "std/num.yu",
         source: include_str!("../../../lib/std/num.yu"),
     },

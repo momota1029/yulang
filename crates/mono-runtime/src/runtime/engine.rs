@@ -52,7 +52,10 @@ impl<'a> Runtime<'a> {
             match result {
                 EvalResult::Value(value) => return Ok(value),
                 EvalResult::Request(request) => {
-                    let Some(value) = host(&request.path, &request.payload) else {
+                    let Some(value) =
+                        super::super::root_effect::discard_default_root_effect(&request.path)
+                            .or_else(|| host(&request.path, &request.payload))
+                    else {
                         return Err(RuntimeError::UnhandledEffect { path: request.path });
                     };
                     result = (request.resume)(self, value)?;

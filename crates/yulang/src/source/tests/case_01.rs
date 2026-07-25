@@ -1409,3 +1409,41 @@ fn run_evidence_without_std_record_pattern_default_handles_effect() {
     assert_eq!(evidence.file_count, 1);
     assert_eq!(evidence.text, mono.text);
 }
+
+#[cfg(unix)]
+#[test]
+fn run_with_std_does_not_force_assertion_in_normal_run() {
+    let entry = write_main_with_std(
+        "run-std-assert-not-forced",
+        "assert { println \"FORCED\"; true }\nprintln \"DONE\"\n",
+    );
+
+    let output = run_evidence_from_entry_with_std(entry).unwrap();
+
+    assert_eq!(output.stdout, "DONE\n");
+    assert_eq!(output.text, "run roots [(), ()]\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn run_with_std_treats_passing_assertion_as_no_op() {
+    let (mono, evidence) =
+        run_with_std_main("run-std-passing-assert-no-op", "assert true\n41 + 1\n");
+
+    assert_eq!(mono.text, "run roots [(), 42]\n");
+    assert_eq!(evidence.text, mono.text);
+    assert_eq!(evidence.stdout, "");
+}
+
+#[cfg(unix)]
+#[test]
+fn dump_poly_with_std_keeps_test_effect_in_asserting_function_signature() {
+    let entry = write_main_with_std(
+        "dump-poly-std-assert-public-effect",
+        "pub checked() = assert true\n",
+    );
+
+    let output = dump_poly_from_entry_with_std(entry).unwrap();
+
+    assert_public_signature_type_eq(&output, "checked", "() -> [std::test::test] ()");
+}

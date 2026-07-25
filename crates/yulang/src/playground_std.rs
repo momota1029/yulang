@@ -62,6 +62,7 @@ pub mod int;
 pub mod io;
 pub mod num;
 pub mod prelude;
+pub mod test;
 pub mod text;
 "#,
     },
@@ -100,6 +101,7 @@ pub use std::control::nondet::guard
 pub use std::control::junction::*
 pub use std::control::var::*
 pub use std::io::*
+pub use std::test::*
 "#,
     },
     PlaygroundStdFile {
@@ -749,5 +751,9 @@ pub use std::io::console::*
     PlaygroundStdFile {
         relative_path: "std/io/console.yu",
         source: include_str!("../../../lib/std/io/console.yu"),
+    },
+    PlaygroundStdFile {
+        relative_path: "std/test.yu",
+        source: include_str!("../../../lib/std/test.yu"),
     },
 ];

@@ -18,6 +18,7 @@ use mono::{
 use num_bigint::BigInt;
 use text_tree::{BytesTree, StringTree};
 
+mod root_effect;
 mod runtime;
 #[cfg(test)]
 mod tests;

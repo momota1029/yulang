@@ -769,12 +769,12 @@ fn cache_candidate_partial_option_1_slice_2_prunes_repository_std_dead_stack_ids
     assert_eq!(
         raw_subtracts,
         vec![
-            // Algebra-only Yumark changes repository-std allocation order, but
-            // this remains the same four dead pop-only candidate witnesses.
-            poly::types::SubtractId(121),
-            poly::types::SubtractId(122),
             poly::types::SubtractId(123),
+            poly::types::SubtractId(124),
             poly::types::SubtractId(125),
+            // std.test shifts allocation order, but these remain the same four
+            // dead pop-only candidate witnesses.
+            poly::types::SubtractId(127),
         ],
         "the real std witness must still enter candidate freeze with all four dead pop-only ids"
     );
