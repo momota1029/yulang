@@ -148,6 +148,8 @@ impl DocComment {
 pub struct DocCommentUnit {
     kind: DocCommentKind,
     source_span: SourceSpan,
+    module: ModuleId,
+    order: ModuleOrder,
     node: Cst,
 }
 
@@ -160,8 +162,28 @@ impl DocCommentUnit {
         &self.source_span
     }
 
+    /// The module containing the declaration documented by this unit.
+    pub fn module(&self) -> ModuleId {
+        self.module
+    }
+
+    /// The documented declaration's source order within [`Self::module`].
+    pub fn order(&self) -> ModuleOrder {
+        self.order
+    }
+
     pub fn node(&self) -> &SyntaxNode<YulangLanguage> {
         &self.node
+    }
+}
+
+impl DocComment {
+    pub(crate) fn with_lexical_scope(mut self, module: ModuleId, order: ModuleOrder) -> Self {
+        for unit in &mut self.units {
+            unit.module = module;
+            unit.order = order;
+        }
+        self
     }
 }
 

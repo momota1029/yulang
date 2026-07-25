@@ -25,6 +25,13 @@ fn doc_unit_kinds(doc: &DocComment) -> Vec<DocCommentKind> {
     doc.units().iter().map(|unit| unit.kind()).collect()
 }
 
+fn doc_unit_scopes(doc: &DocComment) -> Vec<(ModuleId, ModuleOrder)> {
+    doc.units()
+        .iter()
+        .map(|unit| (unit.module(), unit.order()))
+        .collect()
+}
+
 #[test]
 fn registers_top_level_bindings() {
     let cst = parse("my f = 1\npub g = 2\n");
@@ -104,6 +111,48 @@ fn doc_comment_attaches_to_type_declaration_metadata() {
 
     assert_eq!(doc_unit_kinds(doc), vec![DocCommentKind::Line]);
     assert_eq!(doc_unit_texts(doc), vec!["-- boxed value".to_string()]);
+}
+
+#[test]
+fn doc_comments_retain_the_documented_declaration_lexical_scope() {
+    let lower = lower_source(
+        "my before_top = 0\n\
+         -- top\n\
+         my top = 1\n\
+         mod nested:\n\
+             my before_nested = 0\n\
+             -- nested\n\
+             my nested_value = 1\n\
+             my after_nested = 2\n",
+    );
+    let root = lower.modules.root_id();
+    let top = value_def(&lower, "top");
+    let nested = lower
+        .modules
+        .first_module_decl(root, &Name("nested".into()))
+        .expect("nested module should be registered");
+    let nested_value = lower
+        .modules
+        .value_decls(nested.module, &Name("nested_value".into()))[0]
+        .def;
+
+    let top_doc = lower
+        .modules
+        .def_doc_comment(top)
+        .expect("top-level doc comment should attach to top");
+    assert_eq!(
+        doc_unit_scopes(top_doc),
+        vec![(root, ModuleOrder::from_index(1))]
+    );
+
+    let nested_doc = lower
+        .modules
+        .def_doc_comment(nested_value)
+        .expect("nested doc comment should attach to nested_value");
+    assert_eq!(
+        doc_unit_scopes(nested_doc),
+        vec![(nested.module, ModuleOrder::from_index(1))]
+    );
 }
 
 #[test]

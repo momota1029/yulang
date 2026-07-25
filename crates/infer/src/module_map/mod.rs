@@ -213,13 +213,17 @@ impl Lower {
         );
     }
 
-    fn doc_comment_unit(&self, node: &Cst) -> Option<DocCommentUnit> {
+    fn doc_comment_unit(&self, node: &Cst, module: ModuleId) -> Option<DocCommentUnit> {
         Some(DocCommentUnit {
             kind: doc_comment_kind(node)?,
             source_span: SourceSpan {
                 file: self.source_file.clone(),
                 range: node_source_range(node),
             },
+            // A pending comment has no documented declaration yet. Association below
+            // replaces this sentinel with the declaration's actual source order.
+            module,
+            order: module_path_site(),
             node: node.clone(),
         })
     }
@@ -237,7 +241,7 @@ impl Lower {
             let child_source_range = source_cursor.range_for(&child);
             match child.kind() {
                 SyntaxKind::DocCommentDecl => {
-                    let Some(unit) = self.doc_comment_unit(&child) else {
+                    let Some(unit) = self.doc_comment_unit(&child, module) else {
                         pending_doc_comment = None;
                         pending_doc_comment_end = None;
                         continue;
@@ -269,11 +273,13 @@ impl Lower {
                         child_source_range.map(|range| range.start),
                         source_text,
                     );
-                    let first_child = children.len();
-                    self.register_binding_values(&child, module, &mut children);
+                    let defs = self.register_binding_values(&child, module, &mut children);
                     if let Some(doc_comment) = doc_comment {
-                        for def in &children[first_child..] {
-                            self.modules.set_def_doc_comment(*def, doc_comment.clone());
+                        for (def, order) in defs {
+                            self.modules.set_def_doc_comment(
+                                def,
+                                doc_comment.clone().with_lexical_scope(module, order),
+                            );
                         }
                     }
                 }
@@ -292,7 +298,11 @@ impl Lower {
                     );
                     if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         if let Some(doc_comment) = doc_comment {
-                            self.modules.set_def_doc_comment(def, doc_comment);
+                            let order = self.source_module_order(module, &child, def);
+                            self.modules.set_def_doc_comment(
+                                def,
+                                doc_comment.with_lexical_scope(module, order),
+                            );
                         }
                         let sub_children = self.register_mod_body(&child, sub);
                         self.set_module_children(def, sub_children);
@@ -313,7 +323,11 @@ impl Lower {
                     if let Some(name) = use_mod_name(&child) {
                         let (def, _, created) = self.ensure_child_module(module, name, vis);
                         if let Some(doc_comment) = doc_comment {
-                            self.modules.set_def_doc_comment(def, doc_comment);
+                            let order = self.source_module_order(module, &child, def);
+                            self.modules.set_def_doc_comment(
+                                def,
+                                doc_comment.with_lexical_scope(module, order),
+                            );
                         }
                         if created {
                             children.push(def);
@@ -343,7 +357,7 @@ impl Lower {
                             },
                         );
                         let source_span = self.source_span(Some(info.source_range));
-                        self.modules.insert_value_with_span(
+                        let order = self.modules.insert_value_with_span(
                             module,
                             info.name,
                             def,
@@ -354,7 +368,10 @@ impl Lower {
                             self.modules.mark_lazy_op(def);
                         }
                         if let Some(doc_comment) = doc_comment {
-                            self.modules.set_def_doc_comment(def, doc_comment);
+                            self.modules.set_def_doc_comment(
+                                def,
+                                doc_comment.with_lexical_scope(module, order),
+                            );
                         }
                         children.push(def);
                     }
@@ -369,7 +386,17 @@ impl Lower {
                     );
                     let def = self.register_cast_decl(&child, module);
                     if let Some(doc_comment) = doc_comment {
-                        self.modules.set_def_doc_comment(def, doc_comment);
+                        let order = self
+                            .modules
+                            .cast_decls(module)
+                            .iter()
+                            .find(|decl| decl.def == def)
+                            .expect("registered cast has declaration metadata")
+                            .order;
+                        self.modules.set_def_doc_comment(
+                            def,
+                            doc_comment.with_lexical_scope(module, order),
+                        );
                     }
                 }
                 SyntaxKind::TypeDecl
@@ -389,7 +416,14 @@ impl Lower {
                         self.register_type_namespace_decl(&child, module, &mut children)
                         && let Some(doc_comment) = doc_comment
                     {
-                        self.modules.set_type_doc_comment(id, doc_comment);
+                        let declaration = self
+                            .modules
+                            .type_decl_by_id(id)
+                            .expect("registered type has declaration metadata");
+                        self.modules.set_type_doc_comment(
+                            id,
+                            doc_comment.with_lexical_scope(declaration.module, declaration.order),
+                        );
                     }
                 }
                 // 型定義系の本体、Cast は後で。
@@ -403,7 +437,17 @@ impl Lower {
                     );
                     if let Some(def) = self.register_role_impl_decl(&child, module) {
                         if let Some(doc_comment) = doc_comment {
-                            self.modules.set_def_doc_comment(def, doc_comment);
+                            let order = self
+                                .modules
+                                .role_impls(module)
+                                .iter()
+                                .find(|decl| decl.def == def)
+                                .expect("registered role impl has declaration metadata")
+                                .order;
+                            self.modules.set_def_doc_comment(
+                                def,
+                                doc_comment.with_lexical_scope(module, order),
+                            );
                         }
                         children.push(def);
                     }
@@ -422,8 +466,9 @@ impl Lower {
         binding: &Cst,
         module: ModuleId,
         children: &mut Vec<DefId>,
-    ) {
+    ) -> Vec<(DefId, ModuleOrder)> {
         let vis = binding_vis(binding);
+        let mut defs = Vec::new();
         for name in binding_value_names(binding) {
             let def = self.arena.defs.fresh();
             self.arena.defs.set(
@@ -436,11 +481,28 @@ impl Lower {
                 },
             );
             let source_span = self.source_span(source_range_for_name(binding, &name));
-            self.modules
+            let order = self
+                .modules
                 .insert_value_with_span(module, name, def, vis, source_span);
             children.push(def);
+            defs.push((def, order));
             self.register_local_var_act_copies_in_binding(binding, module, def);
         }
+        defs
+    }
+
+    fn source_module_order(&self, parent: ModuleId, node: &Cst, def: DefId) -> ModuleOrder {
+        if let Some(name) = mod_name(node).or_else(|| use_mod_name(node))
+            && let Some(declaration) = self.modules.first_module_decl(parent, &name)
+        {
+            return declaration.order;
+        }
+        self.modules
+            .test_module_decls()
+            .iter()
+            .find(|declaration| declaration.parent == parent && declaration.def == def)
+            .expect("registered unnamed test module has declaration metadata")
+            .order
     }
 
     fn register_root_expr(&mut self, expr: &Cst, module: ModuleId) {
