@@ -2704,6 +2704,55 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn completion_for_source_returns_named_imported_value() {
+        let root = lsp_completion_import_workspace("completion-named-import");
+        let source = "use std::tools::imported\nimp";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let imported = items
+            .iter()
+            .find(|item| item.label == "imported")
+            .expect("named imported value should be offered");
+
+        assert_eq!(imported.kind, Some(CompletionItemKind::VARIABLE));
+        assert_eq!(imported.detail.as_deref(), Some("int"));
+    }
+
+    #[test]
+    fn completion_for_source_deduplicates_shadowed_glob_import() {
+        let root = lsp_completion_import_workspace("completion-glob-import-shadow");
+        let source = "use std::tools::*\nmy shared: int = 1\nsha";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 2,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let shared = items
+            .iter()
+            .filter(|item| item.label == "shared")
+            .collect::<Vec<_>>();
+
+        assert_eq!(shared.len(), 1, "{shared:?}");
+        assert_eq!(shared[0].kind, Some(CompletionItemKind::VARIABLE));
+        assert_eq!(shared[0].detail.as_deref(), Some("int"));
+    }
+
+    #[test]
     fn completion_for_source_keeps_keywords_when_analysis_fails() {
         let root = lsp_test_workspace("completion-analysis-fallback");
         let source = "mod missing;\nmy value = (";
@@ -4296,6 +4345,21 @@ my got = make(1).norm2
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
         std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
         std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        root
+    }
+
+    fn lsp_completion_import_workspace(name: &str) -> PathBuf {
+        let root = lsp_test_workspace(name);
+        std::fs::write(
+            root.join("lib").join("std.yu"),
+            "pub mod prelude;\npub mod tools;\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("lib").join("std").join("tools.yu"),
+            "pub imported: int = 7\npub shared: bool = true\n",
+        )
+        .unwrap();
         root
     }
 

@@ -2752,6 +2752,9 @@ fn source_completion_from_check(
         .modules
         .module_by_path(file)
         .unwrap_or_else(|| check.lowering.modules.root_id());
+    // ModuleOrder is retained for declarations and imports, but ModuleTable does not retain
+    // source spans for use aliases (or a cursor-to-order index). Until that mapping exists,
+    // completion uses the end-of-module site and therefore over-approximates source visibility.
     let site = infer::ModuleOrder::from_index(u32::MAX);
     let mut names = check
         .lowering
@@ -2759,6 +2762,14 @@ fn source_completion_from_check(
         .module_value_decls(module)
         .into_iter()
         .map(|decl| decl.name)
+        .chain(
+            check
+                .lowering
+                .modules
+                .module_imported_value_decls(module)
+                .into_iter()
+                .map(|decl| decl.name),
+        )
         .collect::<Vec<_>>();
     names.sort_by(|left, right| left.0.cmp(&right.0));
     names.dedup();
@@ -2766,7 +2777,10 @@ fn source_completion_from_check(
     names
         .into_iter()
         .filter_map(|name| {
-            let def = check.lowering.modules.value_at(module, &name, site)?;
+            let def = check
+                .lowering
+                .modules
+                .lexical_value_at(module, &name, site)?;
             let detail = match check.lowering.session.poly.defs.get(def) {
                 Some(poly::expr::Def::Let {
                     scheme: Some(scheme),
