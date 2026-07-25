@@ -11,6 +11,122 @@ use std::time::Duration;
 use serde::Deserialize;
 
 #[test]
+fn test_runner_passes_assertion_and_helper_bindings_tersely() {
+    let entry = write_entry(
+        "test-runner-pass",
+        "\
+mod test passing:
+  my assertion = assert true
+  my helper x = x
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "test result: 2 passed; 0 failed\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn test_runner_reports_failing_assertion_with_module_binding_and_source_frame() {
+    let entry = write_entry(
+        "test-runner-assertion-failure",
+        "\
+mod test broken:
+  my falsehood = assert false
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 0 passed; 1 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL broken::falsehood"), "{stderr}");
+    assert!(
+        stderr.contains("assertion failure [yulang.assertion-failed]"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("my falsehood = assert false"), "{stderr}");
+    assert!(stderr.contains("--> line 2, column"), "{stderr}");
+}
+
+#[test]
+fn test_runner_isolates_runtime_error_and_aggregates_other_modules() {
+    let entry = write_entry(
+        "test-runner-runtime-isolation",
+        "\
+mod test crashing:
+  my boom = 1 2
+mod test failing:
+  my falsehood = assert false
+mod test passing:
+  my helper x = x
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 1 passed; 2 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL crashing::boom"), "{stderr}");
+    assert!(
+        stderr.contains("runtime error [yulang.not-callable]"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FAIL failing::falsehood"), "{stderr}");
+    assert!(
+        stderr.contains("assertion failure [yulang.assertion-failed]"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn normal_run_does_not_execute_test_module_bindings() {
+    let entry = write_entry(
+        "run-skips-test-module-bindings",
+        "\
+mod test hidden:
+  my side = println \"TEST\"
+println \"DONE\"
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "DONE\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_run_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("run-explicit-std-root", "1\n");
 

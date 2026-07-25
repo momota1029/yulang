@@ -33,7 +33,7 @@ const PRE_BOUNDARY_COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 const SOURCE_KEY_INDEX_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
-const CACHE_SCHEMA_VERSION: u32 = 5;
+const CACHE_SCHEMA_VERSION: u32 = 6;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v3";
 const SOURCE_KEY_INDEX_CACHE_SALT: &[u8] = b"yulang/source-key-index-cache/v1";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v2";

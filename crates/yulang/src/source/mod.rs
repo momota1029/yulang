@@ -218,6 +218,51 @@ pub fn build_control_from_collected_sources(
     build_control_from_sources(files)
 }
 
+pub fn build_test_control_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildTestControlOutput, RouteError> {
+    let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
+    let loaded = load_collected_sources(files);
+    let mut lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    suppress_test_module_runtime_roots(&mut lowering);
+    let test_modules = discover_test_modules(&lowering);
+    let test_bindings = test_modules
+        .iter()
+        .flat_map(|module| module.bindings.iter())
+        .map(|binding| binding.def)
+        .collect::<Vec<_>>();
+    let errors = lowering
+        .errors
+        .iter()
+        .map(format_body_lowering_error)
+        .collect();
+    let host_manifest = host_manifest_from_lowering(&lowering)?;
+    let application_provenance = lowering.application_provenance().clone();
+    let subtype_provenance = lowering.subtype_provenance().clone();
+    let selection_provenance = selection_provenance_from_lowering(&lowering);
+    let mut arena = lowering.session.poly;
+    arena.runtime_roots = test_bindings
+        .into_iter()
+        .map(poly::expr::RuntimeRoot::ComputedDef)
+        .collect();
+    let poly = BuildPolyOutput {
+        arena,
+        subtype_provenance,
+        application_provenance,
+        selection_provenance,
+        diagnostic_sources,
+        labels: lowering.labels,
+        host_manifest: Some(host_manifest),
+        file_count: loaded.len(),
+        errors,
+    };
+    let control = build_control_from_poly_output(&poly)?;
+    Ok(BuildTestControlOutput {
+        control,
+        test_modules,
+    })
+}
+
 /// 収集済み source set から principal poly artifact を作る。
 ///
 /// `BuildPolyOutput` は infer の mutable graph ではなく、後段が読む `poly::Arena` と
@@ -271,7 +316,8 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
 > {
     let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
     let loaded = load_collected_sources(files.clone());
-    let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let mut lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let application_provenance = lowering.application_provenance().clone();
     let subtype_provenance = lowering.subtype_provenance().clone();
     let selection_provenance = selection_provenance_from_lowering(&lowering);
@@ -456,8 +502,9 @@ fn lower_compiled_unit_prefix_suffix(
     )
     .ok_or(infer::LoadedFilesError::MissingRoot)
     .map_err(RouteError::Lower)?;
-    let lowering = infer::lowering::lower_loaded_files_with_prefix(&lowering_prefix, &loaded)
+    let mut lowering = infer::lowering::lower_loaded_files_with_prefix(&lowering_prefix, &loaded)
         .map_err(RouteError::Lower)?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let mut errors = prefix_errors;
     errors.extend(lowering.errors.iter().map(format_body_lowering_error));
     Ok(CompiledUnitPrefixLowering {
@@ -494,6 +541,90 @@ fn selection_provenance_from_lowering(
             .def_source_spans()
             .map(|(def, span)| (def, span.clone())),
     )
+}
+
+fn discover_test_modules(lowering: &infer::lowering::BodyLowering) -> Vec<SourceTestModule> {
+    lowering
+        .modules
+        .test_module_decls()
+        .iter()
+        .enumerate()
+        .map(|(index, test)| {
+            let mut path = lowering
+                .modules
+                .module_path(test.parent)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>();
+            path.push(
+                test.name
+                    .as_ref()
+                    .map(|name| name.0.clone())
+                    .unwrap_or_else(|| format!("<test#{}>", index + 1)),
+            );
+            SourceTestModule {
+                name: path.join("::"),
+                bindings: lowering
+                    .modules
+                    .module_value_decls(test.module)
+                    .into_iter()
+                    .map(|binding| SourceTestBinding {
+                        name: binding.name.0,
+                        def: binding.def,
+                        source_span: lowering.modules.def_source_span(binding.def).cloned(),
+                    })
+                    .collect(),
+            }
+        })
+        .collect()
+}
+
+fn suppress_test_module_runtime_roots(lowering: &mut infer::lowering::BodyLowering) {
+    let mut defs = std::collections::HashSet::new();
+    for test in lowering.modules.test_module_decls() {
+        defs.extend(
+            lowering
+                .modules
+                .module_value_decls(test.module)
+                .into_iter()
+                .map(|binding| binding.def),
+        );
+        defs.extend(
+            lowering
+                .modules
+                .module_root_expr_owners(test.module)
+                .iter()
+                .flatten()
+                .copied(),
+        );
+    }
+    let root_exprs = lowering
+        .session
+        .poly
+        .runtime_roots
+        .iter()
+        .filter_map(|root| match root {
+            poly::expr::RuntimeRoot::Expr(expr)
+                if lowering
+                    .session
+                    .poly
+                    .root_expr_def(*expr)
+                    .is_some_and(|def| defs.contains(&def)) =>
+            {
+                Some(*expr)
+            }
+            _ => None,
+        })
+        .collect::<std::collections::HashSet<_>>();
+    lowering
+        .session
+        .poly
+        .runtime_roots
+        .retain(|root| match root {
+            poly::expr::RuntimeRoot::ComputedDef(def) => !defs.contains(def),
+            poly::expr::RuntimeRoot::Expr(expr) => !root_exprs.contains(expr),
+        });
 }
 
 fn host_manifest_from_compiled_unit_artifact(
@@ -1205,7 +1336,8 @@ pub fn build_poly_from_source_text_with_embedded_std(
             Path::default(),
             source_with_implicit_prelude_only(source.clone()),
         )]);
-    let (lowering, file_count) = embedded_std_lowering_with_root(source)?;
+    let (mut lowering, file_count) = embedded_std_lowering_with_root(source)?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
         .iter()
@@ -1232,7 +1364,9 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
-    let (lowering, file_count) = embedded_std_lowering_with_root_artifact(artifact, source.into())?;
+    let (mut lowering, file_count) =
+        embedded_std_lowering_with_root_artifact(artifact, source.into())?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
         .iter()
@@ -1272,7 +1406,8 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
             Path::default(),
             source_with_implicit_prelude_only(source.clone()),
         )]);
-    let (lowering, file_count) = embedded_playground_std_lowering_with_root(source)?;
+    let (mut lowering, file_count) = embedded_playground_std_lowering_with_root(source)?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
         .iter()
@@ -1299,8 +1434,9 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
-    let (lowering, file_count) =
+    let (mut lowering, file_count) =
         embedded_playground_std_lowering_with_root_artifact(artifact, source.into())?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
         .iter()
@@ -1595,6 +1731,25 @@ pub struct BuildControlOutput {
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildTestControlOutput {
+    pub control: BuildControlOutput,
+    pub test_modules: Vec<SourceTestModule>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceTestModule {
+    pub name: String,
+    pub bindings: Vec<SourceTestBinding>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceTestBinding {
+    pub name: String,
+    pub def: poly::expr::DefId,
+    pub source_span: Option<infer::SourceSpan>,
 }
 
 pub struct BuildPolyOutput {
@@ -4766,7 +4921,8 @@ pub fn build_poly_from_loaded_files(
 fn build_poly_from_loaded_files_with_lowering_timing(
     loaded: Vec<sources::LoadedFile>,
 ) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
-    let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let mut lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    suppress_test_module_runtime_roots(&mut lowering);
     let lowering_timing = lowering.timing;
     let errors = lowering
         .errors

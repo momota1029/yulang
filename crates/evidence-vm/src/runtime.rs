@@ -9079,6 +9079,9 @@ pub enum RuntimeEvidenceRunError {
     MissingRecordField(String),
     PatternMismatch,
     DivideByZero,
+    AssertionFailed {
+        site: Option<ExprId>,
+    },
     #[doc(hidden)]
     PrintNthNondetTerminal,
 }
@@ -9141,6 +9144,9 @@ impl fmt::Display for RuntimeEvidenceRunError {
             }
             Self::PatternMismatch => write!(f, "runtime-evidence-run pattern mismatch"),
             Self::DivideByZero => write!(f, "runtime-evidence-run division by zero"),
+            Self::AssertionFailed { .. } => {
+                write!(f, "runtime-evidence-run assertion evaluated to false")
+            }
             Self::PrintNthNondetTerminal => {
                 write!(f, "runtime-evidence-run internal print-nth nondet terminal")
             }
@@ -9182,6 +9188,17 @@ pub fn run_program_with_plan_with_labels(
     labels: &poly::dump::DumpLabels,
 ) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
+pub fn run_test_program_with_plan_with_labels(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    labels: &poly::dump::DumpLabels,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan)
+        .with_forced_assertions()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
     RuntimeEvidenceRunner::new(program, context).run()
 }
@@ -14936,6 +14953,33 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request: EvidenceRequest,
     ) -> Result<RuntimeHostRequestHandling, RuntimeEvidenceRunError> {
         match self.root_effect_registry.resolve(request.path.as_ref()) {
+            Some(RuntimeRootEffectResolution::DiscardPayloadAndResumeUnit)
+                if self.context.force_assertions() =>
+            {
+                let assertion_site = request.site;
+                let forced = self.apply_value_result(
+                    assertion_site,
+                    request.payload,
+                    shared(RuntimeEvidenceValue::Unit),
+                )?;
+                let value = self.resolve_eval_result(forced)?;
+                match value.as_ref() {
+                    RuntimeEvidenceValue::Bool(true) => {}
+                    RuntimeEvidenceValue::Bool(false) => {
+                        return Err(RuntimeEvidenceRunError::AssertionFailed {
+                            site: assertion_site,
+                        });
+                    }
+                    value => {
+                        return Err(RuntimeEvidenceRunError::NotThunk(format!(
+                            "assertion thunk returned {}",
+                            format_value(value)
+                        )));
+                    }
+                }
+                self.resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit))
+                    .map(RuntimeHostRequestHandling::Handled)
+            }
             Some(RuntimeRootEffectResolution::DiscardPayloadAndResumeUnit) => self
                 .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit))
                 .map(RuntimeHostRequestHandling::Handled),

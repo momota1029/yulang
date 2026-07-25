@@ -36,6 +36,7 @@ pub use runtime::{
     run_program_with_plan_without_native_host_operations,
     run_program_with_plan_without_native_host_operations_with_labels,
     run_program_with_plan_without_native_host_operations_with_labels_print_nth,
+    run_test_program_with_plan_with_labels,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

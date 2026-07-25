@@ -23,6 +23,7 @@ pub(super) const DEFAULT_PRINT_NTH_LABEL: &str = "Out";
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceRunContext {
     deep_profile: bool,
+    force_assertions: bool,
     native_host_operations_disabled: bool,
     in_process_server_host_enabled: bool,
     flush_stdout_on_external_wait: bool,
@@ -238,6 +239,7 @@ impl RuntimeEvidenceRunContext {
         let static_routes_by_call = static_routes_by_call_from_plan(plan, expr_table_len);
         Self {
             deep_profile: false,
+            force_assertions: false,
             native_host_operations_disabled: false,
             in_process_server_host_enabled: false,
             flush_stdout_on_external_wait: false,
@@ -325,6 +327,15 @@ impl RuntimeEvidenceRunContext {
             host_manifest: plan.host_manifest.clone(),
             host_constructors: RuntimeEvidenceHostConstructors::default(),
         }
+    }
+
+    pub(super) fn with_forced_assertions(mut self) -> Self {
+        self.force_assertions = true;
+        self
+    }
+
+    pub(super) fn force_assertions(&self) -> bool {
+        self.force_assertions
     }
 
     pub(super) fn with_deep_profile(mut self, enabled: bool) -> Self {

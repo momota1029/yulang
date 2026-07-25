@@ -13,6 +13,7 @@ mod parse_view;
 mod runtime_evidence_debug;
 mod std_prefix_cache_safety;
 mod support;
+mod test_runner;
 use support::*;
 
 fn main() {
@@ -36,6 +37,8 @@ fn main() {
     let run_command = || match command.to_str() {
         Some("check") => run_compatible_check(&program, &options, args),
         Some("contract") => contract::run(&program, options.std_root.clone(), args),
+        Some("test") => test_runner::run(&program, &options, args),
+        Some("__test-worker") => test_runner::run_worker(&program, &options, args),
         Some("build") => run_compatible_build(&program, &options, args),
         Some("run") | Some("interpret") => run_compatible_run(&program, &options, args),
         Some("dump") => run_compatible_dump(&program, &options, args),

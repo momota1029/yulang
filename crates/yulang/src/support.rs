@@ -575,7 +575,7 @@ pub(super) fn run_built_evidence_for_cli_with_host_profile_and_plan_profile(
     })
 }
 
-fn format_runtime_evidence_run_error(
+pub(super) fn format_runtime_evidence_run_error(
     error: &evidence_vm::RuntimeEvidenceRunError,
     application_provenance: &yulang::RuntimeApplicationProvenance,
     selection_provenance: &yulang::RuntimeSelectionProvenance,
@@ -630,6 +630,25 @@ fn format_runtime_evidence_run_error(
         evidence_vm::RuntimeEvidenceRunError::DivideByZero => {
             "runtime error [yulang.divide-by-zero]: attempted to divide by zero\n  hint: check the divisor before division".to_string()
         }
+        evidence_vm::RuntimeEvidenceRunError::AssertionFailed { site } => {
+            const CODE: &str = "yulang.assertion-failed";
+            const MESSAGE: &str = "assertion evaluated to false";
+            const HINT: &str = "make the asserted condition true";
+            format_ranged_application_runtime_error(
+                *site,
+                CODE,
+                MESSAGE,
+                HINT,
+                application_provenance,
+                diagnostic_sources,
+            )
+            .map(|rendered| {
+                rendered.replacen("runtime error", "assertion failure", 1)
+            })
+            .unwrap_or_else(|| {
+                format!("assertion failure [{CODE}]: {MESSAGE}\n  hint: {HINT}")
+            })
+        }
         evidence_vm::RuntimeEvidenceRunError::NotThunk(value) => format!(
             "runtime error [yulang.runtime-internal]: expected a delayed computation, got {value}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
@@ -648,6 +667,43 @@ fn format_runtime_evidence_run_error(
             "runtime error [yulang.runtime-internal]: {error}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
     }
+}
+
+pub(super) fn format_test_assertion_failure_at_span(
+    span: &infer::SourceSpan,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+) -> String {
+    const CODE: &str = "yulang.assertion-failed";
+    const MESSAGE: &str = "assertion evaluated to false";
+    const HINT: &str = "make the asserted condition true";
+    let Some(source) = diagnostic_sources.source_for_span(span) else {
+        return format!("assertion failure [{CODE}]: {MESSAGE}\n  hint: {HINT}");
+    };
+    let mut range = span.range;
+    let search_start = range.end.saturating_sub(source.source.range_offset);
+    if search_start < source.source.source.len() {
+        let rest = &source.source.source[search_start..];
+        let line_end = rest.find('\n').unwrap_or(rest.len());
+        if let Some(offset) = rest[..line_end].find("assert") {
+            range.start = source.source.range_offset + search_start + offset;
+            range.end = range.start + "assert".len();
+        }
+    }
+    let diagnostic = yulang::SourceDiagnostic {
+        severity: yulang::SourceDiagnosticSeverity::Error,
+        code: Some(CODE.to_string()),
+        label: None,
+        file: Some(span.file.clone()),
+        range: Some(range),
+        message: MESSAGE.to_string(),
+        hint: Some(HINT.to_string()),
+        related: Vec::new(),
+    };
+    format_runtime_source_diagnostic(&diagnostic, &source.source).replacen(
+        "runtime error",
+        "assertion failure",
+        1,
+    )
 }
 
 fn format_unhandled_effect_error(
@@ -1377,6 +1433,9 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     );
     eprintln!(
         "       {program} [--std-root <path>] contract [--repo-root <path>] [--case <name>]... [--contract <tag>] <cases.toml>"
+    );
+    eprintln!(
+        "       {program} [--std-root <path>] [--no-prelude] test [--module <name>]... [--binding <name>]... [--show-passes] <path>"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"

@@ -15,6 +15,13 @@ impl ModuleTable {
         self.test_modules.iter().any(|test| test.module == module)
     }
 
+    pub fn module_root_expr_owners(&self, module: ModuleId) -> &[Option<DefId>] {
+        self.root_expr_owners
+            .get(&module)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
     pub(crate) fn unnamed_test_module_decl(
         &self,
         parent: ModuleId,
