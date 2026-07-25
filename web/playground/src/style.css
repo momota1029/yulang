@@ -715,6 +715,9 @@ html[data-lang="en"] .lang-ja {
   font-family: var(--editor-font);
   font-size: 13px;
   line-height: 19px;
+  /* Leaves room for the wavy underline on the last row, which would otherwise
+     be clipped in frames that have no truncation row. */
+  padding-bottom: 7px;
   overflow-x: auto;
   tab-size: 2;
   white-space: pre;
@@ -743,57 +746,26 @@ html[data-lang="en"] .lang-ja {
   color: inherit;
   background: transparent;
   font: inherit;
-  font-feature-settings:
-    "liga" 0,
-    "calt" 0;
-  font-variant-ligatures: none;
   white-space: pre;
-}
-
-.diagnostic-source-marker-row .diagnostic-source-gutter {
-  padding-top: 2px;
-  padding-bottom: 7px;
 }
 
 .diagnostic-source-truncation-row .diagnostic-source-gutter {
   padding-top: 0;
-  padding-bottom: 7px;
 }
 
-.diagnostic-source-marker {
-  display: block;
-  grid-column: 2;
-  min-width: max-content;
-  padding: 2px 10px 7px;
-  color: inherit;
-  background: transparent;
-  font: inherit;
-  font-feature-settings:
-    "liga" 0,
-    "calt" 0;
-  font-variant-ligatures: none;
-  line-height: 0;
-  white-space: pre;
-}
-
-.diagnostic-source-marker-prefix {
-  visibility: hidden;
-}
-
-.diagnostic-source-underline {
-  display: inline-block;
-  min-width: 1ch;
-  height: 6px;
-  border-block-start: 2px solid var(--error-text);
-  color: transparent;
-  vertical-align: top;
+.diagnostic-source-range {
+  text-decoration: underline wavy;
+  text-decoration-color: var(--error-text);
+  text-decoration-skip-ink: none;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .diagnostic-source-truncation {
   display: block;
   grid-column: 2;
   min-width: max-content;
-  padding: 0 10px 7px;
+  padding: 0 10px;
   color: var(--muted-text);
   font-size: 12px;
   font-style: italic;

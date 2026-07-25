@@ -1450,32 +1450,19 @@ function renderDiagnosticSourceFrame(
     lineNumber.setAttribute("aria-hidden", "true");
     const sourceText = document.createElement("code");
     sourceText.className = "diagnostic-source-text";
-    sourceText.textContent = frameData.lineText;
+    const markedText = frameData.lineText.slice(
+        frameData.startColumn,
+        frameData.endColumn,
+    );
+    sourceText.append(frameData.lineText.slice(0, frameData.startColumn));
+    if (markedText.length > 0) {
+        sourceText.append(
+            diagnosticElement("diagnostic-source-range", markedText),
+        );
+    }
+    sourceText.append(frameData.lineText.slice(frameData.endColumn));
     sourceRow.append(lineNumber, sourceText);
-
-    const markerRow = diagnosticElement(
-        "diagnostic-source-row diagnostic-source-marker-row",
-    );
-    const markerGutter = diagnosticElement("diagnostic-source-gutter");
-    const marker = document.createElement("code");
-    marker.className = "diagnostic-source-marker";
-    marker.setAttribute("aria-hidden", "true");
-    marker.append(
-        diagnosticElement(
-            "diagnostic-source-marker-prefix",
-            frameData.lineText.slice(0, frameData.startColumn),
-        ),
-        diagnosticElement(
-            "diagnostic-source-underline",
-            frameData.lineText.slice(
-                frameData.startColumn,
-                frameData.endColumn,
-            ) || " ",
-        ),
-    );
-    markerRow.setAttribute("aria-hidden", "true");
-    markerRow.append(markerGutter, marker);
-    frame.append(sourceRow, markerRow);
+    frame.append(sourceRow);
 
     if (frameData.continuedLineCount > 0) {
         const truncationRow = diagnosticElement(
