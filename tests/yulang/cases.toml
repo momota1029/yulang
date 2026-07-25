@@ -3318,3 +3318,23 @@ contracts = [
   "protocol-sugar",
   "do-binding",
 ]
+
+[[case]]
+name = "assert_effect_public_signature"
+file = "regressions/effect/assert_effect_public_signature.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "checked"
+expect_type = "() -> [std::testing::assertion] ()"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "effects"]
+
+[[case]]
+name = "assert_not_forced_in_normal_run"
+file = "regressions/runtime/assert_not_forced_in_normal_run.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "DONE\n"
+expect_stderr = ""
+contracts = ["runtime", "effects", "console"]

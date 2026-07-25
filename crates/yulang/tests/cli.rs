@@ -270,6 +270,48 @@ fn test_runner_aggregates_doc_tests_and_test_module_bindings() {
 }
 
 #[test]
+fn test_runner_aggregates_doc_named_and_unnamed_test_modules() {
+    let entry = write_entry(
+        "test-runner-three-mechanism-aggregation",
+        concat!(
+            "---\n",
+            "```yulang\n",
+            "assert documented == 1\n",
+            "```\n",
+            "---\n",
+            "my documented = 1\n",
+            "mod test named:\n",
+            "    my passing = assert true\n",
+            "    my failing = assert false\n",
+            "mod test:\n",
+            "    my anonymous = assert true\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg("--show-passes")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "PASS named::passing\n",
+            "PASS <test#2>::anonymous\n",
+            "PASS doc::documented#1\n",
+            "test result: 3 passed; 1 failed\n",
+        )
+    );
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL named::failing"), "{stderr}");
+}
+
+#[test]
 fn normal_run_does_not_execute_test_module_bindings() {
     let entry = write_entry(
         "run-skips-test-module-bindings",
