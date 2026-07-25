@@ -47,3 +47,6 @@ web/docs/.vitepress/cache/
 
 notes/private/
 diary
+
+# 日本語文体研究用の外部資料（青空文庫 PD / 文化庁 / JTF CC BY 4.0）。再取得可能なため追跡しない
+refs/
