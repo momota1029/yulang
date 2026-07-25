@@ -50,3 +50,109 @@ Do not attempt a quick fix. This touches the semantics of how cached std definit
 crates/yulang/src/cache.rs, crates/yulang/src/stdlib.rs, crates/yulang/src/main.rs, crates/infer/src/check.rs, crates/infer/src/analysis/session/lifecycle.rs, crates/infer/src/analysis/session/generalize.rs, crates/infer/src/compiled_runtime.rs, crates/infer/src/compiled_typed.rs.
 
 Investigation: Codex MCP (gpt-5.6-sol, xhigh), read-only, 2026-07-08.
+
+---
+
+# 2026-07-26 追記: 等価性の問いに答えが出た（意味論的な差である）
+
+上記「未解決の等価性の問い」に対し、敵対的な反例探索（Codex MCP gpt-5.6-sol xhigh、read-only）で
+**反例が見つかった**。Claude が独立に再現・確認済み。
+
+## 反例
+
+```yu
+pub render_one(x) = [x].show
+```
+
+```console
+$ yulang --std-root lib --no-cache dump <f> --poly
+pub render_one: any -> std::text::str::str
+
+$ YULANG_CACHE_DIR=<dir> yulang --std-root lib dump <f> --poly
+pub render_one: 'a -> std::text::str::str
+                where std::core::fmt::Display('a | std::data::list::list 'a)
+```
+
+実行結果は両経路とも `run roots ["[7]"]`、診断も両経路 0 件。差は**公開される推論型だけ**である。
+
+`any` は Yulang の Top 型であり、未知のプレースホルダではない。両者は alpha 変換でも
+表示の違いでもない。
+
+## どちらが正しいか
+
+**warm（prefix 経路）が正しく、cold が残余述語を落としている。**
+
+`[x].show` は `list 'a: Display` を要求し、std の
+`impl (list 'a): Display where 'a: Display`（`lib/std/core/fmt.yu`）により `'a: Display` が要る。
+したがって主型は `'a -> str where Display('a)` 相当であるべきで、`any -> str` は過少である。
+
+cold の `any` が単なる表示上の未解決変数ではないことは、判別実験で確認した。
+
+```yu
+pub render_one(x) = [x].show
+render_one (\y -> y)
+```
+
+```console
+両経路とも: error [yulang.unresolved-method]: show: no role implementation satisfies this method call
+```
+
+つまり cold は**制約を内部では強制しているが、公開型には出していない**。
+同一コンパイル単位の中では使用箇所で捕まるため実害が見えないが、その単位を別々に
+コンパイルして消費する状況——prefix cache がまさに再現する状況——では、公開型が嘘になる。
+
+## 位置づけの反転
+
+本ノートも `std_prefix_cache_safety.rs` の保守ゲートも、「キャッシュ経路が疑わしいので
+弾く」という前提で組まれている。今回の証拠はその向きを反転させる。差の原因は
+**cold 側の generalization が役割述語を失うこと**であり、warm 側は正しい型を出している。
+
+したがって「キャッシュを使うと型が変わるので危険」ではなく、
+「**キャッシュ経路を通すと、cold が隠していた本来の型が現れる**」が実態に近い。
+
+## 最初に分岐する場所
+
+- cold: 全ソースを一緒に lower する。suffix から prefix 定義への参照は、対象がまだ live graph に
+  いるため `OpenUse` になる。
+- prefix 経路: std を finalized artifact として import し、`seed_quantified_def` で全 import 済み
+  scheme を量化済みとして扱う（`crates/infer/src/analysis/session/lifecycle.rs`）。
+  よって同じ参照が `InstantiateUse` になり、finalized scheme と役割述語を複製する。
+
+この `OpenUse` / `InstantiateUse` の分岐が最初の因果点である
+（`crates/infer/src/scc.rs`、`crates/infer/src/analysis/session/selection.rs`）。
+canonical boundary artifact は最終的な binder/bound は保存するが、この live topology は保存しない。
+
+## 安全ゲートの述語と、その穴
+
+`crates/yulang/src/std_prefix_cache_safety.rs` は次の時ちょうど warm 再利用を拒否する。
+
+```text
+S(suffix) ∧ O(prefix)
+```
+
+- `S(suffix)`: suffix の CST の `ImplDecl` 内に `WhereClause` が存在する
+- `O(prefix)`: cached runtime surface に open role boundary がある
+
+反例は**この補集合の最大の領域**にある。suffix は `impl` を一つも宣言せず、
+std 側の前提条件付き impl を**使っているだけ**なので `S = false` となり、ゲートは通してしまう。
+
+ゲートは presence ベースであり到達可能性を見ない。また `OpenUse` / `InstantiateUse` の
+遷移そのものをモデル化していない。
+
+## この結果が意味すること
+
+- **ゲートは緩められない。** 現在の証拠では、緩めると公開型の不一致がそのまま出る。
+- ただしゲートを厳しくしても cold 側の過少な公開型は直らない。ゲートは「キャッシュを使わない」
+  選択にすぎず、cold が出す型が正しくなるわけではない。
+- したがって本件は「キャッシュの安全性」ではなく、**「cold の generalization が役割述語を
+  落とすこと」**として扱い直すべきである。
+
+## まだ未確定
+
+- admitted な範囲で、コンパイル成否・診断内容・実行時の値まで変わる例があるか
+  （公開型だけでなく）。
+- `OpenUse` 分岐の後、role solver / generalizer のどの操作が `any` と残余述語を分けているか。
+- 別コンパイル単位からこの食い違う公開インターフェースを消費した時の挙動。
+- effects、casts、shadowing、再帰など、反例発見時点で攻撃を止めた他の領域。
+
+調査: Codex MCP (gpt-5.6-sol, xhigh), read-only。反例の再現と判別実験は Claude が独立に実施。
