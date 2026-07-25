@@ -164,7 +164,7 @@ test module や doc comment 内に書かれた `assert` は、そもそも公開
 
 `assert` と `assert_eq` は prelude に入れる。（Claude 判断、2026-07-25）
 
-入れなければ test module ごとに `use std::test::*` が要り、摩擦が大きい。
+入れなければ test module ごとに `use std::testing::*` が要り、摩擦が大きい。
 代償として `assert` / `assert_eq` という名前を大域的に占めるが、shadow は可能であり、
 表明を書く場所の多さに見合う。
 
@@ -213,6 +213,37 @@ mod test suite;
 `test` は予約語にしない。`mod` の直後という位置でのみ意味を持つ文脈キーワードとする。
 `test` は識別子として自然に使われる語であり（`my test = ...` は普通に書く）、
 大域的に奪うのは損である。
+
+### 3.1.1 標準ライブラリ側の名前（2026-07-25 の衝突と決定）
+
+**`assert` を置く std モジュールは `std::testing` とする。効果は `assertion`。**
+したがって表明を含む関数の公開型は `() -> [std::testing::assertion] ()` になる。
+
+当初 TEST-A は `lib/std/test.yu` に `std::test` として実装した。しかし TEST-B0 で
+本節のマーカー規則を入れた瞬間、`lib/std.yu` の
+
+```yu
+pub mod test;
+```
+
+が「`test` という名前のモジュールを読み込む」から「名前なしの test module」へ意味を変え、
+`std::test` が消えて `assert` が解決不能になった。実測:
+
+```console
+$ assert true
+compile error: unresolved value name in root expression: assert
+```
+
+「`mod` 直後の `test` は常にマーカー」と決めた以上、標準ライブラリが同じ位置で `test` を
+モジュール名に使い続けることはできない。マーカー規則を弱めるより、std 側の名前を譲る方が
+筋が良いと判断した。（ユーザー決定、2026-07-25）
+
+副次的に、`.gitignore` の `test.yu` パターンに引っかかる問題も消える。`testing.yu` は
+除外規則に一致しないため、否定規則を置く必要がない。
+
+**教訓として記録する**: マーカー位置に語を予約する決定は、その語を既に使っている宣言と
+衝突しうる。しかも今回は、衝突相手を自分たちが直前のスライスで作っていた。
+新しい文脈キーワードを入れる時は、`lib/` 直下を含めて既存宣言を必ず走査すること。
 
 parser 実装上の注記。
 
