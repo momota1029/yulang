@@ -743,11 +743,15 @@ html[data-lang="en"] .lang-ja {
   color: inherit;
   background: transparent;
   font: inherit;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+  font-variant-ligatures: none;
   white-space: pre;
 }
 
 .diagnostic-source-marker-row .diagnostic-source-gutter {
-  padding-top: 0;
+  padding-top: 2px;
   padding-bottom: 7px;
 }
 
@@ -760,11 +764,15 @@ html[data-lang="en"] .lang-ja {
   display: block;
   grid-column: 2;
   min-width: max-content;
-  padding: 0 10px 7px;
+  padding: 2px 10px 7px;
   color: inherit;
   background: transparent;
   font: inherit;
-  line-height: 12px;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+  font-variant-ligatures: none;
+  line-height: 0;
   white-space: pre;
 }
 
@@ -773,22 +781,12 @@ html[data-lang="en"] .lang-ja {
 }
 
 .diagnostic-source-underline {
-  position: relative;
   display: inline-block;
   min-width: 1ch;
-  height: 0.7em;
+  height: 6px;
   border-block-start: 2px solid var(--error-text);
   color: transparent;
-}
-
-.diagnostic-source-underline::before {
-  position: absolute;
-  inset-block-start: -0.82em;
-  inset-inline-start: 0;
-  color: var(--error-text);
-  content: "^";
-  font-weight: 800;
-  line-height: 1;
+  vertical-align: top;
 }
 
 .diagnostic-source-truncation {
