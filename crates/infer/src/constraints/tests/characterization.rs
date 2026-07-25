@@ -275,6 +275,48 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
 }
 
 #[test]
+fn sound_a_companion_method_result_has_no_constraint_root() {
+    let expected_value_upper = |lower: &Pos, upper: &Neg| {
+        matches!(
+            (lower, upper),
+            (Pos::Var(_), Neg::Con(path, args))
+                if path == &["bool".to_string()] && args.is_empty()
+        )
+    };
+    let function = lower_source("my f(): bool = 42\nf()\n");
+    assert_eq!(
+        count_direct_roots(
+            &function,
+            ConstraintOriginKind::Return,
+            expected_value_upper,
+        ),
+        1,
+        "the plain function has a concrete result-annotation root",
+    );
+
+    let forms = [
+        ("value", "our x.m: bool = 42", "(s { v: 1 }).m"),
+        ("parameterised", "our x.m(): bool = 42", "(s { v: 1 }).m()"),
+    ];
+    for (name, method, call) in forms {
+        let output = lower_source(&format!(
+            "struct s {{ v: int }} with:\n  {method}\n\n{call}\n"
+        ));
+        assert!(output.errors.is_empty(), "{name}: {:?}", output.errors);
+        assert!(
+            output.session.ocast_eligibility_shadow().is_empty(),
+            "{name}: no nominal producer exists"
+        );
+        assert_eq!(
+            count_direct_roots(&output, ConstraintOriginKind::Return, expected_value_upper,),
+            0,
+            "{name}: lower_type_method_binding passes no result type into expression lowering; \
+             the deferred shape check creates no subtype root",
+        );
+    }
+}
+
+#[test]
 fn sound_a_full_ref_effect_false_positive_controls_remain_internal_only() {
     let cases = [
         (
@@ -400,6 +442,14 @@ fn unknown_root_shapes_for_incomplete_events(output: &BodyLowering) -> Vec<Unkno
 
 fn count_direct_unknown_roots(
     output: &BodyLowering,
+    predicate: impl FnMut(&Pos, &Neg) -> bool,
+) -> usize {
+    count_direct_roots(output, ConstraintOriginKind::UnknownInternal, predicate)
+}
+
+fn count_direct_roots(
+    output: &BodyLowering,
+    origin_kind: ConstraintOriginKind,
     mut predicate: impl FnMut(&Pos, &Neg) -> bool,
 ) -> usize {
     let machine = output.session.infer.constraints();
@@ -415,9 +465,18 @@ fn count_direct_unknown_roots(
                 )
                 .expect("query existing constraint");
             query.edges.iter().any(|edge| {
+                let [ExplanationNodeId::Origin(origin)] = edge.parents.as_slice() else {
+                    return false;
+                };
                 edge.child == ExplanationNodeId::Constraint(ConstraintRecordId(*index as u32))
                     && edge.kind == ExplanationEdgeKind::RootOrigin
-                    && edge.parents == [ExplanationNodeId::Origin(OriginId::unknown_internal())]
+                    && query.nodes.iter().any(|node| {
+                        matches!(
+                            node,
+                            ExplanationNode::Origin { id, kind, .. }
+                                if id == origin && *kind == origin_kind
+                        )
+                    })
             }) && predicate(
                 machine.types().pos(record.key.lower),
                 machine.types().neg(record.key.upper),

@@ -520,6 +520,19 @@ fn resolution_outcome<R>(resolution: &OrdinaryCastResolution<R>) -> OrdinaryCast
     }
 }
 
+fn companion_method_lambda_layers(output: &BodyLowering) -> usize {
+    let root = output.modules.root_id();
+    let owner = output.modules.type_decls(root, &Name("s".into()))[0].id;
+    let method = output.modules.type_methods(owner)[0].def;
+    let mut expr = binding_body_id(output, method);
+    let mut layers = 0;
+    while let poly::expr::Expr::Lambda(_, body) = output.session.poly.expr(expr) {
+        layers += 1;
+        expr = *body;
+    }
+    layers
+}
+
 #[test]
 fn sound_a_missing_function_and_field_casts_keep_zero_one_two_acceptance() {
     let declarations = [
@@ -574,7 +587,67 @@ fn sound_a_missing_function_and_field_casts_keep_zero_one_two_acceptance() {
 }
 
 #[test]
-fn sound_a_receiver_method_result_pins_zero_one_two_and_both_nominal_dispositions() {
+fn sound_a_companion_method_results_keep_zero_one_two_acceptance_without_classification() {
+    let declarations = [
+        "",
+        "cast(x: int): bool = false\n",
+        concat!(
+            "cast(x: int): bool = false\n",
+            "cast(x: int): bool = true\n",
+        ),
+    ];
+    let forms = [
+        ("value", "our x.m: bool = 42", "(s { v: 1 }).m", 1),
+        (
+            "parameterised",
+            "our x.m(): bool = 42",
+            "(s { v: 1 }).m()",
+            2,
+        ),
+    ];
+
+    for (candidate_count, declarations) in declarations.into_iter().enumerate() {
+        for (form, method, call, expected_lambda_layers) in forms {
+            let mut output = lower_source(&format!(
+                "{declarations}struct s {{ v: int }} with:\n  {method}\n\n{call}\n"
+            ));
+            assert!(
+                output.errors.is_empty(),
+                "{form}/{candidate_count}: {:?}",
+                output.errors
+            );
+            assert!(
+                output.session.take_diagnostics().is_empty(),
+                "{form}/{candidate_count}: companion result mismatch remains accepted"
+            );
+            assert_eq!(
+                resolution_outcome(
+                    &output
+                        .session
+                        .casts
+                        .resolve_value(&["int".into()], &["bool".into()])
+                ),
+                match candidate_count {
+                    0 => OrdinaryCastShadowOutcome::Missing,
+                    1 => OrdinaryCastShadowOutcome::Unique,
+                    _ => OrdinaryCastShadowOutcome::Ambiguous,
+                },
+            );
+            assert!(
+                output.session.ocast_eligibility_shadow().is_empty(),
+                "{form}/{candidate_count}: no nominal producer reaches the classifier"
+            );
+            assert_eq!(
+                companion_method_lambda_layers(&output),
+                expected_lambda_layers,
+                "{form}/{candidate_count}: receiver and explicit-parameter layers"
+            );
+        }
+    }
+}
+
+#[test]
+fn sound_a_role_impl_associated_type_result_pins_zero_one_two_and_both_nominal_dispositions() {
     let method = concat!(
         "struct target { value: int }\n",
         "role Read 'subject:\n",
