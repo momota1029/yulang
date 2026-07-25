@@ -11,7 +11,10 @@ use yulang_editor::hover as editor_hover;
 use yulang_editor::semantic_tokens;
 use yulang_editor::text as editor_text;
 
-use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
+use crate::source::{
+    SourceCompletionItemKind, SourceDiagnosticRelated, SourceTextAnalysis,
+    completion_is_member_context,
+};
 use crate::{
     DocCommentRenderWorker, SourceCompletionItem, SourceDefinition, SourceDiagnostic,
     SourceDiagnosticRelatedOrigin, SourceFileIdentity, SourceHover, SourceHoverDocumentationDraft,
@@ -511,16 +514,27 @@ fn completion_items_for_source(
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Vec<CompletionItem> {
-    let mut items = keyword_completion_items();
     let Some(byte_offset) = position_to_byte_offset(&source, position) else {
-        return items;
+        return keyword_completion_items();
     };
-    let Ok(analysis) = source_analysis_for_source(path, source, options) else {
+    let member_context = completion_is_member_context(&source, byte_offset);
+    let mut items = if member_context {
+        Vec::new()
+    } else {
+        keyword_completion_items()
+    };
+    let completion = crate::source::completion_entry_source_with_std_options(
+        path,
+        source.clone(),
+        byte_offset,
+        options,
+    )
+    .or_else(|_| crate::source::completion_entry_source(path, source, byte_offset));
+    let Ok(source_items) = completion else {
         return items;
     };
     items.extend(
-        analysis
-            .completion(byte_offset)
+        source_items
             .into_iter()
             .map(lsp_completion_item_for_source_item),
     );
@@ -541,7 +555,10 @@ fn keyword_completion_items() -> Vec<CompletionItem> {
 fn lsp_completion_item_for_source_item(item: SourceCompletionItem) -> CompletionItem {
     CompletionItem {
         label: item.label,
-        kind: Some(CompletionItemKind::VARIABLE),
+        kind: Some(match item.kind {
+            SourceCompletionItemKind::Value => CompletionItemKind::VARIABLE,
+            SourceCompletionItemKind::Field => CompletionItemKind::FIELD,
+        }),
         detail: item.detail,
         ..Default::default()
     }
@@ -1122,7 +1139,7 @@ impl LanguageServer for Backend {
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: None,
+                    trigger_characters: Some(vec![".".to_string()]),
                     ..Default::default()
                 }),
                 definition_provider: Some(OneOf::Left(true)),
@@ -1260,14 +1277,18 @@ impl LanguageServer for Backend {
     ) -> tower_lsp::jsonrpc::Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-        let fallback = keyword_completion_items();
+        let keyword_fallback = keyword_completion_items();
         let path = match uri.to_file_path() {
             Ok(path) => path,
-            Err(_) => return Ok(Some(CompletionResponse::Array(fallback))),
+            Err(_) => return Ok(Some(CompletionResponse::Array(keyword_fallback))),
         };
         let Some(source) = self.document_source(&uri) else {
-            return Ok(Some(CompletionResponse::Array(fallback)));
+            return Ok(Some(CompletionResponse::Array(keyword_fallback)));
         };
+        let fallback = position_to_byte_offset(&source, position)
+            .filter(|byte_offset| completion_is_member_context(&source, *byte_offset))
+            .map(|_| Vec::new())
+            .unwrap_or(keyword_fallback);
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
@@ -2781,6 +2802,132 @@ my got = make(1).norm2
                 .all(|item| item.kind == Some(CompletionItemKind::KEYWORD)
                     && parser::scan::KEYWORDS.contains(&item.label.as_str()))
         );
+    }
+
+    #[test]
+    fn completion_for_source_returns_record_fields_after_dot() {
+        let root = lsp_test_workspace("completion-record-fields");
+        let source = "my x = { alpha: 1, beta: true, gamma: \"ok\" }\nx.";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 2,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["alpha", "beta", "gamma"]
+        );
+        assert!(
+            items
+                .iter()
+                .all(|item| item.kind == Some(CompletionItemKind::FIELD))
+        );
+        assert_eq!(
+            items
+                .iter()
+                .find(|item| item.label == "alpha")
+                .and_then(|item| item.detail.as_deref()),
+            Some("int")
+        );
+        assert_eq!(
+            items
+                .iter()
+                .find(|item| item.label == "beta")
+                .and_then(|item| item.detail.as_deref()),
+            Some("bool")
+        );
+        assert_eq!(
+            items
+                .iter()
+                .find(|item| item.label == "gamma")
+                .and_then(|item| item.detail.as_deref()),
+            Some("std::text::str::str")
+        );
+    }
+
+    #[test]
+    fn completion_for_source_replaces_partial_member_name_with_probe() {
+        let root = lsp_test_workspace("completion-partial-record-field");
+        let source = "my x = { part: 1, whole: 2 }\nx.pa";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 4,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["part", "whole"]
+        );
+    }
+
+    #[test]
+    fn completion_for_source_returns_empty_for_unresolvable_member_receiver() {
+        let root = lsp_test_workspace("completion-unresolvable-record-receiver");
+        let source = "missing.";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 0,
+                character: 8,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(items.is_empty(), "{items:?}");
+        assert!(
+            !items
+                .iter()
+                .any(|item| item.kind == Some(CompletionItemKind::KEYWORD))
+        );
+    }
+
+    #[test]
+    fn completion_for_source_keeps_keywords_and_globals_outside_member_context() {
+        let root = lsp_test_workspace("completion-non-member-regression");
+        let source = "my answer: int = 42\nans";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(
+            items.iter().any(|item| {
+                item.label == "if" && item.kind == Some(CompletionItemKind::KEYWORD)
+            })
+        );
+        assert!(items.iter().any(|item| {
+            item.label == "answer" && item.kind == Some(CompletionItemKind::VARIABLE)
+        }));
     }
 
     #[test]

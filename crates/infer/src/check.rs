@@ -174,6 +174,54 @@ pub fn format_inferred_value_type_public_with_path_rewriter(
     poly::dump::format_scheme_public_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InferredRecordField {
+    pub name: String,
+    pub detail: poly::dump::PublicTypeDisplay,
+}
+
+pub fn inferred_record_fields_public_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> Option<Vec<InferredRecordField>> {
+    let machine = lowering.session.infer.constraints();
+    let generalized = crate::generalize::generalize_type_var_with_boundaries(
+        machine,
+        value,
+        TypeLevel::root(),
+        TypeLevel::root().child(),
+        &FxHashSet::default(),
+    );
+    let mut types = lowering.session.poly.typ.clone();
+    let finalized =
+        crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
+    let fields = match types.pos(finalized.scheme.predicate) {
+        Pos::Record(fields)
+        | Pos::RecordTailSpread { fields, .. }
+        | Pos::RecordHeadSpread { fields, .. } => fields.clone(),
+        _ => return None,
+    };
+
+    Some(
+        fields
+            .into_iter()
+            .map(|field| {
+                let mut field_scheme = finalized.scheme.clone();
+                field_scheme.predicate = field.value;
+                InferredRecordField {
+                    name: field.name,
+                    detail: poly::dump::format_scheme_public_with_path_rewriter(
+                        &types,
+                        &field_scheme,
+                        path_rewriter,
+                    ),
+                }
+            })
+            .collect(),
+    )
+}
+
 pub fn format_inferred_input_type_with_path_rewriter(
     lowering: &BodyLowering,
     value: TypeVar,

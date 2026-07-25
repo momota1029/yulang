@@ -51,6 +51,7 @@ pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
 pub(crate) const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
 pub const IMPLICIT_STD_SOURCE_PREFIX_LEN: usize =
     IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+const COMPLETION_PROBE_IDENTIFIER: &str = "yulang__completion__probe";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdSourceOptions {
@@ -738,8 +739,20 @@ pub fn completion_entry_source_with_std_options(
     byte_offset: usize,
     options: &StdSourceOptions,
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
-    let context =
-        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    let source = source.into();
+    if let Some(probe) = member_completion_probe(&source, byte_offset) {
+        let context =
+            collect_local_source_text_with_std_context(entry.as_ref(), probe.source, options)?;
+        return member_completion_from_sources(
+            context.files,
+            // The probe range is in the editor buffer; source collection prepends the implicit
+            // std imports, so translate it exactly once before matching the selection span.
+            offset_source_range(probe.identifier_range, context.byte_offset_adjust),
+            &context.focus_module,
+        );
+    }
+
+    let context = collect_local_source_text_with_std_context(entry.as_ref(), source, options)?;
     completion_from_sources(
         context.files,
         byte_offset + context.byte_offset_adjust,
@@ -752,11 +765,24 @@ pub fn completion_entry_source(
     source: impl Into<String>,
     byte_offset: usize,
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    let source = source.into();
+    if let Some(probe) = member_completion_probe(&source, byte_offset) {
+        return member_completion_from_sources(
+            collect_local_source_text(entry, probe.source)?,
+            probe.identifier_range,
+            &Path::default(),
+        );
+    }
+
     completion_from_sources(
-        collect_local_source_text(entry, source.into())?,
+        collect_local_source_text(entry, source)?,
         byte_offset,
         &Path::default(),
     )
+}
+
+pub(crate) fn completion_is_member_context(source: &str, byte_offset: usize) -> bool {
+    member_completion_probe(source, byte_offset).is_some()
 }
 
 pub fn definition_entry_source_with_std_options(
@@ -1392,14 +1418,6 @@ impl SourceTextAnalysis {
         )
     }
 
-    pub(crate) fn completion(&self, byte_offset: usize) -> Vec<SourceCompletionItem> {
-        source_completion_from_check(
-            &self.check,
-            self.loaded_byte_offset(byte_offset),
-            &self.focus_module,
-        )
-    }
-
     pub(crate) fn definition(&self, byte_offset: usize) -> Option<SourceDefinition> {
         source_definition_from_check(
             &self.check,
@@ -1470,6 +1488,13 @@ pub struct SourceHover {
 pub struct SourceCompletionItem {
     pub label: String,
     pub detail: Option<String>,
+    pub kind: SourceCompletionItemKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceCompletionItemKind {
+    Value,
+    Field,
 }
 
 /// Static hover bytes plus an optional owned input for deferred Yumark rendering.
@@ -2555,6 +2580,64 @@ fn hover_from_loaded_files(
     Ok(source_hover_from_check(&check, byte_offset, file))
 }
 
+struct MemberCompletionProbe {
+    source: String,
+    identifier_range: SourceRange,
+}
+
+fn member_completion_probe(source: &str, byte_offset: usize) -> Option<MemberCompletionProbe> {
+    let before_cursor = source.get(..byte_offset)?;
+    let after_cursor = source.get(byte_offset..)?;
+
+    let mut identifier_start = byte_offset;
+    for (index, character) in before_cursor.char_indices().rev() {
+        if !is_completion_identifier_continue(character) {
+            break;
+        }
+        identifier_start = index;
+    }
+    if identifier_start == 0 || source.as_bytes().get(identifier_start - 1) != Some(&b'.') {
+        return None;
+    }
+
+    let mut identifier_end = byte_offset;
+    for (index, character) in after_cursor.char_indices() {
+        if !is_completion_identifier_continue(character) {
+            break;
+        }
+        identifier_end = byte_offset + index + character.len_utf8();
+    }
+
+    let mut probe_source = String::with_capacity(
+        source.len() + COMPLETION_PROBE_IDENTIFIER.len() - (identifier_end - identifier_start),
+    );
+    probe_source.push_str(&source[..identifier_start]);
+    probe_source.push_str(COMPLETION_PROBE_IDENTIFIER);
+    probe_source.push_str(&source[identifier_end..]);
+    let identifier_range = SourceRange {
+        start: identifier_start,
+        end: identifier_start + COMPLETION_PROBE_IDENTIFIER.len(),
+    };
+    Some(MemberCompletionProbe {
+        source: probe_source,
+        identifier_range,
+    })
+}
+
+fn is_completion_identifier_continue(character: char) -> bool {
+    character == '_'
+        || character == '?'
+        || character == '!'
+        || unicode_ident::is_xid_continue(character)
+}
+
+fn offset_source_range(range: SourceRange, offset: usize) -> SourceRange {
+    SourceRange {
+        start: range.start + offset,
+        end: range.end + offset,
+    }
+}
+
 fn completion_from_sources(
     files: Vec<CollectedSource>,
     byte_offset: usize,
@@ -2570,6 +2653,20 @@ fn completion_from_loaded_files(
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
     Ok(source_completion_from_check(&check, byte_offset, file))
+}
+
+fn member_completion_from_sources(
+    files: Vec<CollectedSource>,
+    identifier_range: SourceRange,
+    file: &Path,
+) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    let check = infer::check::check_loaded_files(&load_collected_sources(files))
+        .map_err(RouteError::Lower)?;
+    Ok(source_member_completion_from_check(
+        &check,
+        identifier_range,
+        file,
+    ))
 }
 
 fn definition_from_sources(
@@ -2794,9 +2891,70 @@ fn source_completion_from_check(
             Some(SourceCompletionItem {
                 label: name.0,
                 detail,
+                kind: SourceCompletionItemKind::Value,
             })
         })
         .collect()
+}
+
+fn source_member_completion_from_check(
+    check: &infer::check::PolyCheckOutput,
+    identifier_range: SourceRange,
+    file: &Path,
+) -> Vec<SourceCompletionItem> {
+    let receiver_value =
+        check
+            .lowering
+            .session
+            .selections
+            .source_spans()
+            .find_map(|(select, span)| {
+                if &span.file != file
+                    || span.range != identifier_range
+                    || check.lowering.session.poly.select(select).name
+                        != COMPLETION_PROBE_IDENTIFIER
+                {
+                    return None;
+                }
+                check
+                    .lowering
+                    .session
+                    .selections
+                    .get(select)
+                    .map(|use_site| use_site.receiver_value)
+                    .or_else(|| {
+                        check
+                            .lowering
+                            .session
+                            .selections
+                            .resolved(select)
+                            .map(|use_site| use_site.receiver_value)
+                    })
+            });
+    let Some(receiver_value) = receiver_value else {
+        return Vec::new();
+    };
+
+    let format_context = HoverFormatContext::new(check, file);
+    let Some(fields) = infer::check::inferred_record_fields_public_with_path_rewriter(
+        &check.lowering,
+        receiver_value,
+        &|path| format_context.rewrite_type_path(path),
+    ) else {
+        return Vec::new();
+    };
+    let mut items = fields
+        .into_iter()
+        .filter(|field| field.name != COMPLETION_PROBE_IDENTIFIER)
+        .map(|field| SourceCompletionItem {
+            label: field.name,
+            detail: Some(field.detail.text),
+            kind: SourceCompletionItemKind::Field,
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| left.label.cmp(&right.label));
+    items.dedup_by(|left, right| left.label == right.label);
+    items
 }
 
 fn source_references_from_check(
