@@ -1,6 +1,7 @@
 //! Extracted expression lowering methods.
 
 use super::super::*;
+use super::lambda::ResultAnnotationConnection;
 use super::*;
 
 pub(in crate::lowering) struct ImplRequirementParameterPreparation {
@@ -164,6 +165,7 @@ impl<'a> ExprLowerer<'a> {
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
             None,
+            ResultAnnotationConnection::ValueOnly,
         );
         self.recursive_self_value = previous_recursive_self;
         let frame = self
@@ -255,6 +257,7 @@ impl<'a> ExprLowerer<'a> {
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
             None,
+            ResultAnnotationConnection::Computation,
         );
         self.recursive_self_value = previous_recursive_self;
         let frame = self
@@ -384,6 +387,7 @@ impl<'a> ExprLowerer<'a> {
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
             None,
+            ResultAnnotationConnection::Computation,
         );
         self.recursive_self_value = previous_recursive_self;
         let frame = self
@@ -474,6 +478,7 @@ impl<'a> ExprLowerer<'a> {
                     &[],
                     None,
                     &LambdaBodyMode::Expr,
+                    ResultAnnotationConnection::Computation,
                 )?;
                 (lowered.computation, lowered.body)
             };
@@ -615,6 +620,7 @@ impl<'a> ExprLowerer<'a> {
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &requirement_plan.param_uppers,
             requirement_plan.body,
+            ResultAnnotationConnection::Computation,
         );
         self.recursive_self_value = previous_recursive_self;
         let frame = self
@@ -1739,6 +1745,40 @@ impl<'a> ExprLowerer<'a> {
         let connection = result?;
         self.constrain_effect_filters(body.effect, &connection.subtracts);
         self.extend_current_predicate_connection(connection);
+        Ok(body)
+    }
+
+    pub(in crate::lowering) fn connect_type_method_result_value_annotation(
+        &mut self,
+        body: Computation,
+        type_expr: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+    ) -> Result<Computation, LoweringError> {
+        // A companion method's annotated tail sits in data position beneath its receiver lambda.
+        // Connecting the annotation's computation effect here would attach its private stack
+        // filters to that inner tail and expose them through the public receiver function.
+        let ann = ann_builder
+            .build_type_expr(type_expr)
+            .map_err(|error| LoweringError::annotation_build(error, type_expr))?;
+        self.check_result_annotation_type(body.value, &ann)?;
+        let vars = std::mem::take(ann_solver_vars);
+        let closed_effect_rows = std::mem::take(ann_closed_effect_rows);
+        let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows_with_origin_kind(
+            &mut self.session.infer,
+            self.modules,
+            vars,
+            closed_effect_rows,
+            crate::constraints::ConstraintOriginKind::Return,
+        );
+        let result = lowerer
+            .connect_value(body.value, &ann)
+            .map_err(|error| LoweringError::AnnotationConstraint { error });
+        let (vars, closed_effect_rows) = lowerer.into_vars_and_closed_effect_rows();
+        *ann_solver_vars = vars;
+        *ann_closed_effect_rows = closed_effect_rows;
+        result?;
         Ok(body)
     }
 

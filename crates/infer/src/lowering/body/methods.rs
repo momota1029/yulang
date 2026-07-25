@@ -163,7 +163,7 @@ impl BodyLowerer {
             method.receiver_kind,
             owner.id,
             &self_alias.type_vars,
-            None,
+            result_type_expr.clone(),
             recursive_self_possible,
         );
         match lowered {

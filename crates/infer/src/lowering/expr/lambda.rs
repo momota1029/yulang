@@ -10,6 +10,12 @@ pub(in crate::lowering) struct LoweredDefinedTailAfterReceiver {
     pub(in crate::lowering) body: Computation,
 }
 
+#[derive(Clone, Copy)]
+pub(in crate::lowering) enum ResultAnnotationConnection {
+    Computation,
+    ValueOnly,
+}
+
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_lambda(
         &mut self,
@@ -520,6 +526,7 @@ impl<'a> ExprLowerer<'a> {
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
         requirement_body: Option<ImplRequirementBodyConnection>,
+        result_annotation_connection: ResultAnnotationConnection,
     ) -> Result<Computation, LoweringError> {
         self.lower_defined_tail_after_receiver_with_anchors(
             patterns,
@@ -531,6 +538,7 @@ impl<'a> ExprLowerer<'a> {
             self_value,
             param_uppers,
             requirement_body,
+            result_annotation_connection,
         )
         .map(|lowered| lowered.computation)
     }
@@ -546,6 +554,7 @@ impl<'a> ExprLowerer<'a> {
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
         requirement_body: Option<ImplRequirementBodyConnection>,
+        result_annotation_connection: ResultAnnotationConnection,
     ) -> Result<LoweredDefinedTailAfterReceiver, LoweringError> {
         if !patterns.is_empty() {
             return self.lower_defined_lambda_params_with_anchors(
@@ -559,6 +568,7 @@ impl<'a> ExprLowerer<'a> {
                 param_uppers,
                 requirement_body,
                 &LambdaBodyMode::Expr,
+                result_annotation_connection,
             );
         }
 
@@ -568,13 +578,24 @@ impl<'a> ExprLowerer<'a> {
         let body_result = (|| {
             let mut body = self.lower_lambda_body(body, &LambdaBodyMode::Expr)?;
             if let Some(type_expr) = body_type_expr {
-                body = self.connect_type_method_result_annotation(
-                    body,
-                    type_expr,
-                    ann_builder,
-                    ann_solver_vars,
-                    ann_closed_effect_rows,
-                )?;
+                body = match result_annotation_connection {
+                    ResultAnnotationConnection::Computation => self
+                        .connect_type_method_result_annotation(
+                            body,
+                            type_expr,
+                            ann_builder,
+                            ann_solver_vars,
+                            ann_closed_effect_rows,
+                        )?,
+                    ResultAnnotationConnection::ValueOnly => self
+                        .connect_type_method_result_value_annotation(
+                            body,
+                            type_expr,
+                            ann_builder,
+                            ann_solver_vars,
+                            ann_closed_effect_rows,
+                        )?,
+                };
             }
             let anchor = body;
             if let Some(requirement_body) = requirement_body {
@@ -615,6 +636,7 @@ impl<'a> ExprLowerer<'a> {
             param_uppers,
             requirement_body,
             body_mode,
+            ResultAnnotationConnection::Computation,
         )
         .map(|lowered| lowered.computation)
     }
@@ -631,6 +653,7 @@ impl<'a> ExprLowerer<'a> {
         param_uppers: &[Option<NegId>],
         requirement_body: Option<ImplRequirementBodyConnection>,
         body_mode: &LambdaBodyMode,
+        result_annotation_connection: ResultAnnotationConnection,
     ) -> Result<LoweredDefinedTailAfterReceiver, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
@@ -770,13 +793,24 @@ impl<'a> ExprLowerer<'a> {
                 );
             }
             if let Some(type_expr) = body_type_expr {
-                body = self.connect_type_method_result_annotation(
-                    body,
-                    type_expr,
-                    ann_builder,
-                    ann_solver_vars,
-                    ann_closed_effect_rows,
-                )?;
+                body = match result_annotation_connection {
+                    ResultAnnotationConnection::Computation => self
+                        .connect_type_method_result_annotation(
+                            body,
+                            type_expr,
+                            ann_builder,
+                            ann_solver_vars,
+                            ann_closed_effect_rows,
+                        )?,
+                    ResultAnnotationConnection::ValueOnly => self
+                        .connect_type_method_result_value_annotation(
+                            body,
+                            type_expr,
+                            ann_builder,
+                            ann_solver_vars,
+                            ann_closed_effect_rows,
+                        )?,
+                };
             }
             let anchor = body;
             if let Some(requirement_body) = requirement_body {

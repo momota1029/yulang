@@ -587,7 +587,7 @@ fn sound_a_missing_function_and_field_casts_keep_zero_one_two_acceptance() {
 }
 
 #[test]
-fn sound_a_companion_method_results_keep_zero_one_two_acceptance_without_classification() {
+fn sound_b1e_companion_method_results_follow_zero_one_two_cast_semantics() {
     let declarations = [
         "",
         "cast(x: int): bool = false\n",
@@ -608,18 +608,48 @@ fn sound_a_companion_method_results_keep_zero_one_two_acceptance_without_classif
 
     for (candidate_count, declarations) in declarations.into_iter().enumerate() {
         for (form, method, call, expected_lambda_layers) in forms {
-            let mut output = lower_source(&format!(
+            let output = lower_source(&format!(
                 "{declarations}struct s {{ v: int }} with:\n  {method}\n\n{call}\n"
             ));
-            assert!(
-                output.errors.is_empty(),
-                "{form}/{candidate_count}: {:?}",
-                output.errors
-            );
-            assert!(
-                output.session.take_diagnostics().is_empty(),
-                "{form}/{candidate_count}: companion result mismatch remains accepted"
-            );
+            match candidate_count {
+                0 => assert!(
+                    matches!(
+                        output.errors.as_slice(),
+                        [BodyLoweringError::Analysis(
+                            crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                                source,
+                                target,
+                                source_span: None,
+                                explanation: None,
+                            }
+                        )] if source == &["int".to_string()] && target == &["bool".to_string()]
+                    ),
+                    "{form}/{candidate_count}: {:?}",
+                    output.errors
+                ),
+                1 => assert!(
+                    output.errors.is_empty(),
+                    "{form}/{candidate_count}: {:?}",
+                    output.errors
+                ),
+                _ => assert!(
+                    matches!(
+                        output.errors.as_slice(),
+                        [BodyLoweringError::Analysis(
+                            crate::analysis::AnalysisDiagnostic::AmbiguousImplicitCast {
+                                source,
+                                target,
+                                candidates,
+                                source_span: None,
+                            }
+                        )] if source == &["int".to_string()]
+                            && target == &["bool".to_string()]
+                            && candidates.len() == 2
+                    ),
+                    "{form}/{candidate_count}: {:?}",
+                    output.errors
+                ),
+            }
             assert_eq!(
                 resolution_outcome(
                     &output
@@ -633,10 +663,26 @@ fn sound_a_companion_method_results_keep_zero_one_two_acceptance_without_classif
                     _ => OrdinaryCastShadowOutcome::Ambiguous,
                 },
             );
-            assert!(
-                output.session.ocast_eligibility_shadow().is_empty(),
-                "{form}/{candidate_count}: no nominal producer reaches the classifier"
-            );
+            let [incomplete, eligible] = output.session.ocast_eligibility_shadow() else {
+                panic!("{form}/{candidate_count}: one incomplete and one eligible producer")
+            };
+            assert!(matches!(
+                incomplete.outcome,
+                OcastEligibilityOutcome::Incomplete {
+                    reason: OcastIncompleteReason::UnknownOrigin(origin),
+                } if origin == crate::constraints::OriginId::unknown_internal()
+            ));
+            assert!(matches!(
+                eligible.outcome,
+                OcastEligibilityOutcome::EligibleSourceBoundary {
+                    kind: ConstraintOriginKind::Return,
+                    evidence: EligibleBoundaryEvidence::OneSidedReplayPair {
+                        source_parent: ReplaySourceParent::Upper,
+                        ..
+                    },
+                    ..
+                }
+            ));
             assert_eq!(
                 companion_method_lambda_layers(&output),
                 expected_lambda_layers,
@@ -644,6 +690,29 @@ fn sound_a_companion_method_results_keep_zero_one_two_acceptance_without_classif
             );
         }
     }
+}
+
+#[test]
+fn sound_b1e_companion_method_result_keeps_structural_shape_check() {
+    let output = lower_source(concat!(
+        "struct s { v: int } with:\n",
+        "  our x.m: bool = \\y -> y\n\n",
+        "(s { v: 1 }).m\n",
+    ));
+
+    assert!(
+        matches!(
+            output.errors.as_slice(),
+            [BodyLoweringError::Expr {
+                error: LoweringError::SignatureTypeMismatch {
+                    expected: SignatureShape::Constructor,
+                },
+                ..
+            }]
+        ),
+        "{:?}",
+        output.errors
+    );
 }
 
 #[test]
