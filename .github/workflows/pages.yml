@@ -4,6 +4,19 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "notes/**"
+      - "tasks/**"
+      - "spec/**"
+      - "tests/**"
+      - "bench/**"
+      - "examples/**"
+      - "docs/**"
+      - "*.md"
+      - "crates/.rules"
+      - ".github/release-notes/**"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +26,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -41,7 +54,26 @@ jobs:
           rustup default stable
           rustup target add wasm32-unknown-unknown
 
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-wasm-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-wasm-
+
+      - name: Cache wasm-pack 0.14.0
+        id: wasm-pack-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: ${{ runner.os }}-${{ runner.arch }}-wasm-pack-0.14.0
+
       - name: Install wasm-pack
+        if: steps.wasm-pack-cache.outputs.cache-hit != 'true'
         shell: bash
         run: cargo install wasm-pack --version 0.14.0 --locked
 
