@@ -1,7 +1,7 @@
 # Yulang テスト機構の設計
 
 決定日: 2026-07-25
-状態: **ユーザ承認済み（2026-07-25）**
+状態: **ユーザ承認済み（2026-07-25）／実装済み（2026-07-26、`assert_eq` を除く）**
 著者: Claude (Opus 5)
 
 この文書は、Yulang でユーザーが自分のコードをテストするための機構の正本である。
@@ -406,24 +406,40 @@ contract manifest 中で `backend = "interpreter"` を持つ唯一の case も�
 - ユーザー向けテストを contract manifest（`cases.toml`）の上に載せること。
   contract はコンパイラ自身の回帰固定であり、対象読者も更新頻度も異なる。
 
-## 7. 実装の順序（案）
+## 7. 実装の順序と結果
 
-各スライスは、着手前に前スライスの結論が覆っていないことを確認する。
+全スライスが 2026-07-26 に着地した。各行末の commit が実装である。
 
-- **TEST-A**: `assert` を std に追加する（`lazy prefix`、`test` 効果、root 既定ハンドラで破棄）。
-  通常実行で表明式が評価されないことを実機で確認する。規模 M。
-- **TEST-B0**: parser に `[visibility] mod test [name]` を追加する。inline 形と外部ファイル形の
-  両方。併せて `my mod` が宣言にならない既存の欠落を解消する。この時点ではマーカーを保持する
-  だけで、実行時の扱いは変えない。規模 S-M。
-- **TEST-B**: `yulang test` の骨格。マーカーによる test module の発見と実行、結果の集約報告。規模 M。
-- **TEST-C**: `DocCommentUnit` へ `ModuleId` / `ModuleOrder` を保持させる。観測のみで、
-  既存の診断・スキーム・出力が不変であることを確認する。規模 S。
-- **TEST-D**: doctest ランナー。TEST-C の環境情報を使って fence を字句環境で評価する。規模 M。
-- **TEST-E**: 検証一式。std / examples / contract 全ゲート、および表明を含むコードの
-  公開シグネチャが期待通り `test` 効果を持つことの固定。規模 M。
 
-TEST-A、TEST-B0、TEST-C は互いに独立しており、順序を入れ替えてよい。
-TEST-B は TEST-B0 に、TEST-D は TEST-A と TEST-C の両方に依存する。
+- **TEST-A**（`5b38d1c8`）: `assert` を std に追加。`lazy prefix`、`assertion` 効果、root 既定
+  ハンドラで thunk を強制せず破棄。通常実行で表明式が評価されないことを実機で確認済み。
+- **TEST-B0**（`c71e6f23`）: parser に `[visibility] mod test [name]` を追加。inline 形と外部
+  ファイル形の両方。`my mod` の欠落も解消。std 側の名前衝突により `std::testing` へ改名（§3.1.1）。
+- **TEST-B**（`608aa032`）: `yulang test`。マーカーによる発見、束縛ごとの worker 分離、集約報告、
+  非ゼロ終了。test module の root は通常実行の runtime root から外れるが、コンパイルはされ続ける。
+- **TEST-C**（`6503fee9`、fixture 修正 `5848b2b1`）: `DocCommentUnit` へ `ModuleId` /
+  `ModuleOrder` を保持。観測のみで、既存の診断・スキーム・出力は不変。
+- **TEST-D**（`f1853640`）: doctest ランナー。fence を documented item の字句環境で評価し、
+  `doc::<item>#<fence>` として同じ runner で走らせる。失敗位置は元ファイルの絶対位置。
+  CST が段落・fence 境界に構造用改行を足すため単純なオフセットでは合わず、また補正を
+  式の provenance まで伝播させないと実行時エラーが1列ずれる。両方を潰してある。
+- **TEST-E**（`df0a0474`）: 固定一式。公開シグネチャ `() -> [std::testing::assertion] ()` と
+  通常実行の非評価を contract case 化（229 → 231）。3 機構を 1 回の呼び出しで走らせる
+  end-to-end は CLI suite に置いた。`cases.toml` は `yulang run` / `check` にしか展開できず、
+  任意サブコマンドを表現できないため。
+
+### 現状で使えるもの
+
+遅延 `assert`、通常実行での非評価、名前付き・名前なし test module、全束縛の評価、
+worker 分離、集約報告、`--module` / `--binding` フィルタ、`--show-passes`、
+doc comment fence の字句環境実行と絶対位置診断。レンダラは fence を実行しない。
+
+### 保留
+
+`assert_eq` のみ。効果操作のペイロードがタプルだと扱えない問題
+（`notes/bugs/2026-07-25-effect-operation-tuple-payload.md`）が解決するまで着手しない。
+`assert` の上に `assert_eq a b = assert (a() == b())` として定義する回避策は成立するが、
+失敗時に両辺の値を出せず、`assert_eq` を持つ理由の一部が失われるため採らない。
 
 ## 8. 停止して確認すべき条件
 
