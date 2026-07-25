@@ -115,16 +115,19 @@ fn doc_comment_attaches_to_type_declaration_metadata() {
 
 #[test]
 fn doc_comments_retain_the_documented_declaration_lexical_scope() {
-    let lower = lower_source(
-        "my before_top = 0\n\
-         -- top\n\
-         my top = 1\n\
-         mod nested:\n\
-             my before_nested = 0\n\
-             -- nested\n\
-             my nested_value = 1\n\
-             my after_nested = 2\n",
-    );
+    // Written as separate literals rather than backslash continuations: `\` before a newline
+    // also eats the following line's leading whitespace, which would flatten the nested module
+    // body and leave `nested` empty.
+    let lower = lower_source(concat!(
+        "my before_top = 0\n",
+        "-- top\n",
+        "my top = 1\n",
+        "mod nested:\n",
+        "    my before_nested = 0\n",
+        "    -- nested\n",
+        "    my nested_value = 1\n",
+        "    my after_nested = 2\n",
+    ));
     let root = lower.modules.root_id();
     let top = value_def(&lower, "top");
     let nested = lower
