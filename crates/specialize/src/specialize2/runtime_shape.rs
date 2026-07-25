@@ -574,11 +574,57 @@ pub(super) fn raw_expr_value_type(
         | poly_expr::Expr::Case(_, _)
         | poly_expr::Expr::Catch(_, _)
         | poly_expr::Expr::Block(_, _) => Some(ComputationShape::from_runtime_type(actual).value),
-        poly_expr::Expr::Lit(_)
-        | poly_expr::Expr::PrimitiveOp(_)
-        | poly_expr::Expr::Var(_)
-        | poly_expr::Expr::Lambda(_, _) => Some(actual.clone()),
+        poly_expr::Expr::Lambda(_, body) => Some(
+            emitted_lambda_value_type(arena, solved, expr, *body).unwrap_or_else(|| actual.clone()),
+        ),
+        poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => {
+            Some(actual.clone())
+        }
     }
+}
+
+fn emitted_lambda_value_type(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    expr: poly_expr::ExprId,
+    body: poly_expr::ExprId,
+) -> Option<Type> {
+    let Type::Fun {
+        arg, arg_effect, ..
+    } = solved.actual_type_of(expr)?
+    else {
+        return None;
+    };
+    let Type::Fun {
+        ret_effect, ret, ..
+    } = solved.consumer_type_of(expr)?
+    else {
+        return None;
+    };
+    let consumer_return = types::runtime_shape(ret_effect.as_ref().clone(), ret.as_ref().clone());
+    if !result_boundary_has_direct_cast(arena, solved.actual_type_of(body)?, &consumer_return) {
+        return None;
+    }
+    Some(Type::Fun {
+        arg: arg.clone(),
+        arg_effect: arg_effect.clone(),
+        ret_effect: ret_effect.clone(),
+        ret: ret.clone(),
+    })
+}
+
+pub(super) fn result_boundary_has_direct_cast(
+    arena: &poly_expr::Arena,
+    actual: &Type,
+    expected: &Type,
+) -> bool {
+    let actual = ComputationShape::from_runtime_type(actual).value;
+    let expected = ComputationShape::from_runtime_type(expected).value;
+    let actual =
+        close_runtime_type_surface(erase_negative_only_open_vars(actual), TypeSlotKind::Value);
+    let expected =
+        close_runtime_type_surface(erase_negative_only_open_vars(expected), TypeSlotKind::Value);
+    direct_cast_rule(arena, &actual, &expected).is_some()
 }
 
 pub(super) fn callee_is_effect_operation_spine(

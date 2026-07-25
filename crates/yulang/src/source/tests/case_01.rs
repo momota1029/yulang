@@ -510,6 +510,31 @@ fn run_with_std_matches_evidence_on_core_smoke_suite() {
 
 #[cfg(unix)]
 #[test]
+fn run_with_std_applies_result_annotation_casts_in_both_backends() {
+    let (mono, evidence) = run_with_std_main(
+        "run-std-result-annotation-casts",
+        concat!(
+            "my g(): float = 1\n",
+            "g()\n",
+            "struct s { v: int } with:\n",
+            "  our x.m: float = 1\n\n",
+            "(s { v: 1 }).m\n",
+        ),
+    );
+
+    assert_eq!(
+        mono.values,
+        vec![
+            mono_runtime::Value::Float(1.0),
+            mono_runtime::Value::Float(1.0),
+        ]
+    );
+    assert_eq!(mono.text, "run roots [1, 1]\n");
+    assert_eq!(evidence.text, mono.text);
+}
+
+#[cfg(unix)]
+#[test]
 fn yumark_nil_text_renders_expected_html_and_markdown_bytes() {
     let entry = write_main_with_std(
         "yumark-nil-text-output",

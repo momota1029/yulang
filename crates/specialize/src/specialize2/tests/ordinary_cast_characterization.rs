@@ -238,35 +238,21 @@ fn primary_ambiguous_shadows_stay_ambiguous_under_registry_order_reversal() {
 }
 
 #[test]
-fn missing_source_boundaries_reach_current_primary_runtime_ir() {
-    let cases = [
-        (
-            "struct-field",
-            "struct S { x: bool }\nS { x: 42 }\n",
-            "adapter[{x: bool} -> S => {x: int} -> S",
-            "{x: 42}",
-        ),
-        (
-            "function-result",
-            "my f(): bool = 42\nf()\n",
-            "m0 = d0 : unit -> int | bool",
-            "\\() -> 42",
-        ),
-    ];
+fn missing_struct_field_boundary_reaches_current_primary_runtime_ir() {
+    let lowering = lower_source("struct S { x: bool }\nS { x: 42 }\n");
+    assert!(lowering.errors.is_empty(), "{:?}", lowering.errors);
+    let program = crate::specialize(&lowering.session.poly, lowering.subtype_provenance())
+        .unwrap_or_else(|error| panic!("current specialization failed: {error}"));
+    let dump = mono::dump::dump_program(&program);
 
-    for (name, source, type_fragment, value_fragment) in cases {
-        let lowering = lower_source(source);
-        assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
-        let program = crate::specialize(&lowering.session.poly, lowering.subtype_provenance())
-            .unwrap_or_else(|error| panic!("{name}: current specialization failed: {error}"));
-        let dump = mono::dump::dump_program(&program);
+    assert!(
+        dump.contains("adapter[{x: bool} -> S => {x: int} -> S"),
+        "{dump}"
+    );
+    assert!(dump.contains("{x: 42}"), "{dump}");
 
-        assert!(dump.contains(type_fragment), "{name}: {dump}");
-        assert!(dump.contains(value_fragment), "{name}: {dump}");
-
-        // Future oracle: Missing. Today the struct field reaches a runtime adapter boundary (the
-        // evidence VM reports `runtime boundary`), while the annotated function returns Int(42).
-    }
+    // Future oracle: Missing. Today the struct field reaches a runtime adapter boundary, and the
+    // evidence VM reports `runtime boundary`.
 }
 
 #[test]

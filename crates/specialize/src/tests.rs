@@ -930,6 +930,25 @@ mod tests {
     }
 
     #[test]
+    fn specialize2_materializes_result_annotation_cast_inside_lambda_body() {
+        let lowering = lower_source("cast(x: int): float = 0.0\nmy g(): float = 1\ng()\n");
+        let arena = &lowering.session.poly;
+
+        let program =
+            specialize2(arena).expect("result annotation cast should specialize through its cast");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(text.contains(": unit -> float"), "{text}");
+        assert!(text.contains("\\() -> (m1 1)"), "{text}");
+        assert!(text.contains("m1 = d0 : int -> float"), "{text}");
+        assert!(
+            !text.contains("adapter[unit -> int => unit -> float"),
+            "{text}"
+        );
+        assert!(!text.contains("coerce[int => float]"), "{text}");
+    }
+
+    #[test]
     fn specialize2_string_input_runs_computed_top_level_binding() {
         let lowering = lower_source("my id x = x\nmy a = id(1)\n");
         let arena = &lowering.session.poly;

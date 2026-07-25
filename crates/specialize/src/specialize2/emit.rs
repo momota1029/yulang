@@ -721,7 +721,7 @@ impl<'a> Specializer2<'a> {
         body: poly_expr::ExprId,
     ) -> Result<Expr, SpecializeError> {
         let expr = self.emit_expr_typed(arena, solved, body)?;
-        let Some(expected) = solved
+        let Some(inferred) = solved
             .actual_type_of(lambda)
             .and_then(runtime_function_return_type)
         else {
@@ -730,6 +730,13 @@ impl<'a> Specializer2<'a> {
         let Some(actual) = solved.actual_type_of(body) else {
             return Ok(expr.expr);
         };
+        // A declared result cast belongs inside the lambda body. Other consumer differences still
+        // need the generic function adapter, so only claim its return type when a real cast exists.
+        let expected = solved
+            .consumer_type_of(lambda)
+            .and_then(runtime_function_return_type)
+            .filter(|expected| result_boundary_has_direct_cast(arena, actual, expected))
+            .unwrap_or(inferred);
         Ok(self
             .boundary_emitted_expr(arena, actual, &expected, expr)?
             .expr)
