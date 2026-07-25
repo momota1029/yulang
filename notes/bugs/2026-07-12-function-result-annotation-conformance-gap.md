@@ -1,7 +1,8 @@
 # 関数戻り値 annotation が nominal な不一致を拒否しない
 
 日付: 2026-07-12。発見: Codex（role impl associated type の影響範囲調査中）。
-状態: **open / type-soundness blocker**。generic role impl conformance とは別の integration bug。
+状態: **解決済み（2026-07-25）**。`dd29c93e`（companion method）と `3219363f`（plain function）。
+露出したランタイムの欠落は `fbb9c62c` で対処。下記「解決」を参照。
 
 ## 症状
 
@@ -133,3 +134,43 @@ SOUND-A の最初の実装は、role impl のメソッド（既に健全）を "
 特性化し、companion method を取りこぼしていた。レビュー時に実機で確認して発覚した。
 `sound_a_role_impl_associated_type_result_pins_...` は名前が示す通り既に閉じた経路の
 特性化であり、companion method の特性化とは別物である。
+
+## 解決 2026-07-25
+
+2 コミットで閉じた。両者は別の欠陥であり（上記「追記」参照）、別々の修復を要した。
+
+### `dd29c93e` — companion method
+
+`lower_type_method_binding` が結果型を `lower_type_method_body_expr` へ渡していなかったため、
+subtype 制約自体が存在しなかった。宣言された結果型を制約生成経路へ接続した。
+
+接続は**結果値のみ**に限定した。効果注釈まで接続すると、companion method の private な
+effect-stack evidence が公開シグネチャへ漏れ、
+`std_ref_update_full_signature_hides_private_stack_evidence` と
+`data_position_effect_function_hides_private_stack_evidence` が落ちる。
+素の関数が同じ connector で漏れないのは、annotated tail が receiver lambda の data position に
+入らないためである。
+
+### `3219363f` — plain function
+
+制約は存在していたが、`lower_defined_lambda_params_with_anchors` の skeleton bridge が
+`unknown_internal()` のままで、分類が `Incomplete(UnknownOrigin)` に落ちて fail-open されていた。
+結果注釈を持つ関数に限定して、値の bridge 3 本を `Internal` へ付け替えた。効果 bridge と
+helper の既定値は変更していない。
+
+### 測定
+
+両コミットとも、poly dump hash・check-report hash・structural counts・row counts が不変。
+`3219363f` では制約総数も不変で、動いたのは provenance accounting のみ（`+4`、内訳は
+body-value bridge `+2`、forward layer `+1`、reverse layer `+1`）。
+`dd29c93e` では std の 5 メソッド（`ref.update` / `str.lines` / `listener.accept` /
+`listener.port` / `request.respond`）× 双方向 2 本 = 10 本の Return origin が増えた。
+
+contract 229 件、public-signature 全件、signature-privacy canary 2 件、既知の偽陽性対照 3 件
+（`config_read.yu` 108 events、`02_refs.yu` 3、rollback fixture 6）はいずれも
+`InternalOnly` を維持したまま通過。`lib/std` / `examples` / `tests/yulang` のソースは未編集。
+
+### 副産物
+
+結果注釈に義務を課したことで、これまで到達不能だったランタイム経路が露出した。
+`notes/bugs/2026-07-25-result-boundary-coercion-unsupported.md` に記録し、`fbb9c62c` で解決した。

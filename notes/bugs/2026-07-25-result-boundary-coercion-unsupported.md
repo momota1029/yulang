@@ -1,7 +1,7 @@
 # 結果境界で implicit cast が実行時に適用されない
 
 発見日: 2026-07-25
-状態: 未修正
+状態: **解決済み（2026-07-25、同日）**。`fbb9c62c`。下記「解決」を参照。
 発見経緯: 型健全性スライス（`dd29c93e` companion method、`3219363f` plain function）の
 レビュー中に、Claude が実機確認して発見
 
@@ -110,3 +110,54 @@ run roots [1]
 - `notes/bugs/2026-07-12-function-result-annotation-conformance-gap.md`
   （この経路を到達可能にした元の穴）
 - `lib/std/core/convert.yu`（`int -> float` を含む std の 4 つの cast）
+
+## 解決 2026-07-25
+
+`fbb9c62c` で閉じた。
+
+### 診断
+
+欠落は specialize2 にあった。結果境界は lambda body に cast call を生成せず、
+`unit -> int` と `unit -> float` の差を関数全体の `FunctionAdapter` へ押し上げていた。
+
+対して、動作していた境界は既存経路
+`coerce_emitted_value` → `boundary_expr_with_argument_contract` → `cast_boundary_instance`
+を通り、`Apply(InstanceRef(cast), value)` を mono へ生成していた。
+
+両バックエンドでメッセージが違ったのは、adapter の扱いが 2 箇所に分かれていたため。
+
+- evidence VM: adapter return の generic `adapt_value_result` → `UnsupportedExpr("runtime boundary")`
+- mono interpreter: 別実装の generic `adapt_value` → `UnsupportedBoundary("coerce int => float")`
+
+control-IR は adapter を忠実に lowering しており、そこで cast を失ってはいなかった。
+
+### 修復
+
+lambda body の actual result から declared consumer result への**直接の ordinary cast が
+存在する場合に限り**、既存の cast-instance 機構を body 内へ適用する。emitted function shape も、
+実際に cast を生成した場合だけ declared return へ更新する。直接 cast が無い effect / function
+境界は従来の generic adapter 経路のまま。
+
+初期案では consumer return をより広く適用したが、contract regression を検出したため撤回した。
+
+### 測定
+
+- `g()` と `g() + 0.5` を両バックエンドで実行し `run roots [1, 1.5]`。
+  値まで確認したのは、cast が飛ばされていないことの証拠にするため
+- companion method も同様に `run roots [1, 1.5]`
+- `my f(): bool = 42` は両バックエンドで拒否のまま（健全性は非後退）
+- 値束縛 `h` と引数境界 `k(1)` も従来どおり動作
+- infer 958 / specialize 145 / yulang 364 / contract 229、fmt 通過
+
+### 回帰テスト
+
+- specialize IR: cast call が lambda body 内へ生成され、generic adapter / coerce が残らないことを固定
+- runtime: plain function と companion method を両バックエンドで実行し `Float(1.0)` を固定
+
+contract fixture は追加していない。既存の runtime test の方が両バックエンドと値を直接検証でき、
+contract の文字列比較より強いため。
+
+### 同種の欠落
+
+`notes/bugs/2026-07-12-struct-field-type-conformance-gap.md` の field 境界にも同じ欠落があり、
+そちらは `812bb5a6` で同時に対処した。
