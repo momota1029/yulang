@@ -13,9 +13,9 @@ use yulang_editor::text as editor_text;
 
 use crate::source::{SourceDiagnosticRelated, SourceTextAnalysis};
 use crate::{
-    DocCommentRenderWorker, SourceDefinition, SourceDiagnostic, SourceDiagnosticRelatedOrigin,
-    SourceFileIdentity, SourceHover, SourceHoverDocumentationDraft, SourceLocation, SourceRange,
-    SourceRename,
+    DocCommentRenderWorker, SourceCompletionItem, SourceDefinition, SourceDiagnostic,
+    SourceDiagnosticRelatedOrigin, SourceFileIdentity, SourceHover, SourceHoverDocumentationDraft,
+    SourceLocation, SourceRange, SourceRename,
 };
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -48,6 +48,9 @@ struct LspRequestCacheKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum LspRequestKind {
     Hover {
+        position: PositionKey,
+    },
+    Completion {
         position: PositionKey,
     },
     Definition {
@@ -84,6 +87,7 @@ impl From<Position> for PositionKey {
 #[derive(Debug, Clone)]
 enum LspRequestCacheValue {
     Hover(Option<Hover>),
+    Completion(Vec<CompletionItem>),
     Definition(Option<Location>),
     References(Vec<Location>),
     PrepareRename(Option<PrepareRenameResponse>),
@@ -499,6 +503,48 @@ fn hover_draft_for_source(
 ) -> Option<LspHoverDraft> {
     let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
     hover_for_analysis(path, &source, &analysis, position)
+}
+
+fn completion_items_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    options: &crate::StdSourceOptions,
+) -> Vec<CompletionItem> {
+    let mut items = keyword_completion_items();
+    let Some(byte_offset) = position_to_byte_offset(&source, position) else {
+        return items;
+    };
+    let Ok(analysis) = source_analysis_for_source(path, source, options) else {
+        return items;
+    };
+    items.extend(
+        analysis
+            .completion(byte_offset)
+            .into_iter()
+            .map(lsp_completion_item_for_source_item),
+    );
+    items
+}
+
+fn keyword_completion_items() -> Vec<CompletionItem> {
+    parser::scan::KEYWORDS
+        .iter()
+        .map(|keyword| CompletionItem {
+            label: (*keyword).to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            ..Default::default()
+        })
+        .collect()
+}
+
+fn lsp_completion_item_for_source_item(item: SourceCompletionItem) -> CompletionItem {
+    CompletionItem {
+        label: item.label,
+        kind: Some(CompletionItemKind::VARIABLE),
+        detail: item.detail,
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]
@@ -1075,6 +1121,10 @@ impl LanguageServer for Backend {
                     ),
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: None,
+                    ..Default::default()
+                }),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Right(RenameOptions {
@@ -1202,6 +1252,50 @@ impl LanguageServer for Backend {
             self.store_request(key, LspRequestCacheValue::Hover(hover.clone()));
         }
         Ok(hover)
+    }
+
+    async fn completion(
+        &self,
+        params: CompletionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let fallback = keyword_completion_items();
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(Some(CompletionResponse::Array(fallback))),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(Some(CompletionResponse::Array(fallback)));
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::Completion {
+                position: position.into(),
+            },
+        };
+        if let Some(LspRequestCacheValue::Completion(items)) = self.cached_request(&key) {
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(Some(CompletionResponse::Array(fallback)));
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            completion_items_for_source(&path, source, position, &options)
+        });
+        let items = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(items)) => items,
+            Ok(Err(_)) | Err(_) => fallback,
+        };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::Completion(items.clone()));
+        }
+        Ok(Some(CompletionResponse::Array(items)))
     }
 
     async fn goto_definition(
@@ -2559,6 +2653,84 @@ my got = make(1).norm2
                 },
             ),
             None
+        );
+    }
+
+    #[test]
+    fn completion_for_source_returns_keywords_at_plain_identifier() {
+        let root = lsp_test_workspace("completion-keywords");
+        let source = "my value = 1\nval";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(
+            items.iter().any(|item| {
+                item.label == "if" && item.kind == Some(CompletionItemKind::KEYWORD)
+            })
+        );
+    }
+
+    #[test]
+    fn completion_for_source_returns_module_level_value_names() {
+        let root = lsp_test_workspace("completion-module-values");
+        let source = "my answer: int = 42\nans";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let answer = items
+            .iter()
+            .find(|item| item.label == "answer")
+            .expect("module value should be offered");
+
+        assert_eq!(answer.kind, Some(CompletionItemKind::VARIABLE));
+        assert_eq!(answer.detail.as_deref(), Some("int"));
+    }
+
+    #[test]
+    fn completion_for_source_keeps_keywords_when_analysis_fails() {
+        let root = lsp_test_workspace("completion-analysis-fallback");
+        let source = "mod missing;\nmy value = (";
+        let options = crate::StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        };
+        assert!(
+            source_analysis_for_source(&root.join("main.yu"), source.to_string(), &options)
+                .is_err()
+        );
+
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 12,
+            },
+            &options,
+        );
+
+        assert_eq!(items.len(), parser::scan::KEYWORDS.len());
+        assert!(
+            items
+                .iter()
+                .all(|item| item.kind == Some(CompletionItemKind::KEYWORD)
+                    && parser::scan::KEYWORDS.contains(&item.label.as_str()))
         );
     }
 

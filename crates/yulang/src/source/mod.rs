@@ -732,6 +732,33 @@ pub fn hover_entry_source(
     )
 }
 
+pub fn completion_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    options: &StdSourceOptions,
+) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    completion_from_sources(
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
+    )
+}
+
+pub fn completion_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    completion_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+    )
+}
+
 pub fn definition_entry_source_with_std_options(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
@@ -1365,6 +1392,14 @@ impl SourceTextAnalysis {
         )
     }
 
+    pub(crate) fn completion(&self, byte_offset: usize) -> Vec<SourceCompletionItem> {
+        source_completion_from_check(
+            &self.check,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+        )
+    }
+
     pub(crate) fn definition(&self, byte_offset: usize) -> Option<SourceDefinition> {
         source_definition_from_check(
             &self.check,
@@ -1429,6 +1464,12 @@ pub struct SourceHover {
     pub range: SourceRange,
     pub contents: String,
     pub documentation: Option<SourceHoverDocumentationDraft>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceCompletionItem {
+    pub label: String,
+    pub detail: Option<String>,
 }
 
 /// Static hover bytes plus an optional owned input for deferred Yumark rendering.
@@ -2514,6 +2555,23 @@ fn hover_from_loaded_files(
     Ok(source_hover_from_check(&check, byte_offset, file))
 }
 
+fn completion_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    completion_from_loaded_files(load_collected_sources(files), byte_offset, file)
+}
+
+fn completion_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Vec<SourceCompletionItem>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_completion_from_check(&check, byte_offset, file))
+}
+
 fn definition_from_sources(
     files: Vec<CollectedSource>,
     byte_offset: usize,
@@ -2681,6 +2739,50 @@ fn source_hover_from_check(
         );
     }
     best
+}
+
+fn source_completion_from_check(
+    check: &infer::check::PolyCheckOutput,
+    _byte_offset: usize,
+    file: &Path,
+) -> Vec<SourceCompletionItem> {
+    let format_context = HoverFormatContext::new(check, file);
+    let module = check
+        .lowering
+        .modules
+        .module_by_path(file)
+        .unwrap_or_else(|| check.lowering.modules.root_id());
+    let site = infer::ModuleOrder::from_index(u32::MAX);
+    let mut names = check
+        .lowering
+        .modules
+        .module_value_decls(module)
+        .into_iter()
+        .map(|decl| decl.name)
+        .collect::<Vec<_>>();
+    names.sort_by(|left, right| left.0.cmp(&right.0));
+    names.dedup();
+
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let def = check.lowering.modules.value_at(module, &name, site)?;
+            let detail = match check.lowering.session.poly.defs.get(def) {
+                Some(poly::expr::Def::Let {
+                    scheme: Some(scheme),
+                    ..
+                }) => Some(format_context.format_scheme(scheme)),
+                Some(poly::expr::Def::Mod { .. })
+                | Some(poly::expr::Def::Let { scheme: None, .. })
+                | Some(poly::expr::Def::Arg)
+                | None => None,
+            };
+            Some(SourceCompletionItem {
+                label: name.0,
+                detail,
+            })
+        })
+        .collect()
 }
 
 fn source_references_from_check(

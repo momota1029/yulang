@@ -9,6 +9,13 @@ use crate::sink::EventSink;
 
 pub mod trivia;
 
+/// Words classified as language keywords by the parser's general word scanner.
+pub const KEYWORDS: &[&str] = &[
+    "do", "if", "else", "elsif", "case", "catch", "my", "our", "pub", "use", "type", "struct",
+    "enum", "error", "role", "impl", "cast", "act", "mod", "as", "for", "in", "with", "where",
+    "via", "rule", "prefix", "infix", "suffix", "nullfix", "lazy",
+];
+
 pub fn scan_ident_or_keyword<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
 ) -> Option<(SyntaxKind, Box<str>)> {
