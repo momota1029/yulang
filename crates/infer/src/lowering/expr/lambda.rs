@@ -748,6 +748,11 @@ impl<'a> ExprLowerer<'a> {
             None
         };
         if let (Some(target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
+            let skeleton_value_origin = if body_type_expr.is_some() {
+                crate::constraints::OriginId::internal()
+            } else {
+                crate::constraints::OriginId::unknown_internal()
+            };
             let initial_frames = params
                 .iter()
                 .map(|_| FunctionPredicateFrame::new(LambdaScope::Defined))
@@ -758,6 +763,7 @@ impl<'a> ExprLowerer<'a> {
                 &initial_frames,
                 skeleton,
                 SkeletonPredicateMode::KnownBeforeBody,
+                skeleton_value_origin,
             );
             self.active_defined_skeletons
                 .push(ActiveDefinedLambdaSkeleton {
@@ -780,11 +786,20 @@ impl<'a> ExprLowerer<'a> {
                 body = self.wrap_var_pattern_bindings(active, body)?;
             }
             if let (Some(_target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
+                let skeleton_value_origin = if body_type_expr.is_some() {
+                    crate::constraints::OriginId::internal()
+                } else {
+                    crate::constraints::OriginId::unknown_internal()
+                };
                 // Recursive self calls use the internal skeleton shape. Output predicates are
                 // attached by the final wrapper below, so feeding them back into the skeleton would
                 // reapply the same boundary on every recursive self edge.
                 self.subtype_var_to_var(body.effect, skeleton.body_effect);
-                self.subtype_var_to_var(body.value, skeleton.body_value);
+                self.subtype_var_to_var_with_origin(
+                    body.value,
+                    skeleton.body_value,
+                    skeleton_value_origin,
+                );
                 body = Computation::new(
                     body.expr,
                     skeleton.body_value,
@@ -1164,6 +1179,7 @@ impl<'a> ExprLowerer<'a> {
         frames: &[FunctionPredicateFrame],
         skeleton: &DefinedLambdaSkeleton,
         mode: SkeletonPredicateMode,
+        value_origin: crate::constraints::OriginId,
     ) {
         debug_assert_eq!(params.len(), frames.len());
         debug_assert_eq!(params.len(), skeleton.layers.len());
@@ -1196,8 +1212,16 @@ impl<'a> ExprLowerer<'a> {
                         continue;
                     }
                     self.subtype_var_to_var(current_effect, layer.output_effect);
-                    self.subtype_var_to_var(current_value, layer.output_value);
-                    self.subtype_var_to_var(layer.output_value, current_value);
+                    self.subtype_var_to_var_with_origin(
+                        current_value,
+                        layer.output_value,
+                        value_origin,
+                    );
+                    self.subtype_var_to_var_with_origin(
+                        layer.output_value,
+                        current_value,
+                        value_origin,
+                    );
                 }
             } else {
                 if !self.connected_defined_skeleton_predicates.insert(key) {

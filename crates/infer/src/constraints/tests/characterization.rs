@@ -170,10 +170,17 @@ fn cprov_h_real_std_budget_truncates_without_solver_side_effects() {
 #[test]
 fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
     let function = lower_source("my f(): bool = 42\nf()\n");
-    assert_eq!(
-        unknown_root_shapes_for_incomplete_events(&function),
-        vec![UnknownRootShape::DefinedLambdaBodyToSkeleton],
-    );
+    assert!(unknown_root_shapes_for_incomplete_events(&function).is_empty());
+    let [classification] = function.session.ocast_eligibility_shadow() else {
+        panic!("plain function has one nominal producer")
+    };
+    assert!(matches!(
+        classification.outcome,
+        OcastEligibilityOutcome::EligibleSourceBoundary {
+            kind: ConstraintOriginKind::Return,
+            ..
+        }
+    ));
 
     let field = lower_source("struct S { x: bool }\nS { x: 42 }\n");
     assert_eq!(
@@ -211,10 +218,7 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
     for (source, expected) in [
         (
             "struct actual;\nstruct expected;\nmy f(): expected = actual\nf()\n",
-            vec![
-                UnknownRootShape::ConstructorValueToRoot,
-                UnknownRootShape::DefinedLambdaBodyToSkeleton,
-            ],
+            vec![],
         ),
         (
             concat!(
@@ -245,7 +249,6 @@ fn sound_a_unknown_origins_are_tied_to_exact_lowering_roots() {
                 UnknownRootShape::ConstructorArgRecordLowerShape,
                 UnknownRootShape::ConstructorDefinitionToRoot,
                 UnknownRootShape::ConstructorArgRecordUpperShape,
-                UnknownRootShape::DefinedLambdaBodyToSkeleton,
             ],
         ),
         (
@@ -833,10 +836,14 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     // Five std companion methods now connect real result-value obligations: ref.update,
     // str.lines, listener.accept, listener.port, and request.respond. Their bidirectional value
     // connections add 10 Return roots; the bound, replay, and epoch deltas below derive from them.
+    // Plain defined functions with declared results now label the audited body-value ->
+    // skeleton-value root and both skeleton-layer value directions as Internal. That moves only
+    // UnknownInternal/Internal origin coverage; the three relabel sites account for the uniform
+    // provenance epoch +2/+1/+1 below.
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
-            origin_coverage: origins(1_852, 416, 1_480, 801, 294, 9_496, 24_052),
+            origin_coverage: origins(1_852, 416, 1_480, 801, 294, 10_619, 22_929),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 31_698, 330, 14_562, 13_568, 2_470, 468, 196, 0, 104, 51,
@@ -845,7 +852,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(231_501, 35, 1_875, 0),
             stable_record_coverage: stable_records(113_398, 118_103, 35, 105),
             replay_derivation_coverage: replay_derivations(880_512, 768_183),
-            provenance_epoch: 1_410_659,
+            provenance_epoch: 1_410_663,
             canonical_subtype_constraints: 143_054,
             subtype_duplicate_admissions: 13_118,
             subtype_trivial_admissions: 12_098,
@@ -867,7 +874,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
-            origin_coverage: origins(1_855, 416, 1_480, 801, 297, 9_546, 24_119),
+            origin_coverage: origins(1_855, 416, 1_480, 801, 297, 10_669, 22_996),
             body_requirement_coverage: body_requirements(99),
             structural_coverage: structural(
                 31_763, 331, 14_570, 13_612, 2_470, 468, 196, 0, 116, 61,
@@ -876,7 +883,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(232_150, 35, 1_892, 0),
             stable_record_coverage: stable_records(113_695, 118_455, 35, 106),
             replay_derivation_coverage: replay_derivations(881_262, 768_659),
-            provenance_epoch: 1_413_004,
+            provenance_epoch: 1_413_008,
             canonical_subtype_constraints: 143_500,
             subtype_duplicate_admissions: 13_190,
             subtype_trivial_admissions: 12_127,
@@ -901,7 +908,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
-            origin_coverage: origins(1_868, 416, 1_487, 805, 294, 9_601, 24_301),
+            origin_coverage: origins(1_868, 416, 1_487, 805, 294, 10_730, 23_172),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_225, 332, 15_782, 13_712, 2_592, 468, 200, 0, 139, 74,
@@ -910,7 +917,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(234_735, 35, 1_898, 5),
             stable_record_coverage: stable_records(115_034, 119_701, 35, 106),
             replay_derivation_coverage: replay_derivations(897_176, 782_862),
-            provenance_epoch: 1_435_890,
+            provenance_epoch: 1_435_894,
             canonical_subtype_constraints: 145_622,
             subtype_duplicate_admissions: 14_136,
             subtype_trivial_admissions: 12_249,
@@ -932,7 +939,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
-            origin_coverage: origins(1_906, 430, 1_506, 823, 303, 9_927, 25_083),
+            origin_coverage: origins(1_906, 430, 1_506, 823, 303, 11_083, 23_927),
             body_requirement_coverage: body_requirements(101),
             structural_coverage: structural(
                 33_260, 338, 14_922, 14_080, 2_934, 492, 204, 0, 290, 91,
@@ -941,7 +948,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(240_976, 35, 1_883, 0),
             stable_record_coverage: stable_records(118_159, 122_817, 35, 109),
             replay_derivation_coverage: replay_derivations(906_582, 788_700),
-            provenance_epoch: 1_458_772,
+            provenance_epoch: 1_458_776,
             canonical_subtype_constraints: 149_495,
             subtype_duplicate_admissions: 13_942,
             subtype_trivial_admissions: 12_622,
@@ -977,7 +984,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
-            origin_coverage: origins(1_883, 418, 1_497, 811, 294, 9_725, 24_642),
+            origin_coverage: origins(1_883, 418, 1_497, 811, 294, 10_860, 23_507),
             body_requirement_coverage: body_requirements(98),
             structural_coverage: structural(
                 33_199, 337, 15_466, 13_836, 2_710, 472, 202, 0, 176, 82,
@@ -986,7 +993,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             bound_disposition_coverage: bound_dispositions(236_393, 35, 1_885, 5),
             stable_record_coverage: stable_records(115_881, 120_512, 35, 109),
             replay_derivation_coverage: replay_derivations(894_156, 779_049),
-            provenance_epoch: 1_436_605,
+            provenance_epoch: 1_436_609,
             canonical_subtype_constraints: 146_644,
             subtype_duplicate_admissions: 14_076,
             subtype_trivial_admissions: 12_396,

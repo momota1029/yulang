@@ -663,7 +663,21 @@ fn binding_header_result_annotation_constrains_body_not_def() {
 
     let output = lower_binding_bodies(&root, lower);
 
-    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert!(
+        matches!(
+            output.errors.as_slice(),
+            [BodyLoweringError::Analysis(
+                crate::analysis::AnalysisDiagnostic::MissingImplicitCast {
+                    source,
+                    target,
+                    source_span: None,
+                    explanation: None,
+                }
+            )] if source == &["int".to_string()] && target == &["float".to_string()]
+        ),
+        "{:?}",
+        output.errors
+    );
     let root = output.typing.def(def).expect("def should have a root type");
     let (_, _, _, ret) = function_lower_bound(&output.session, root);
     let ret_value = match output.session.infer.constraints().types().pos(ret) {
