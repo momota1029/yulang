@@ -339,7 +339,26 @@ manifest も共有しない。
 1 件の失敗で残り全部が走らないランナーは弱い。表明の失敗と実行時エラーは、報告上は
 区別して出す。
 
-### 5.5 未決
+### 5.5 バックエンドの制約
+
+**host 効果を使うテストは evidence VM でしか走らない。** mono interpreter は純粋計算の
+oracle であり、完全なランタイムではない。（2026-07-25 に実測で確認）
+
+```console
+$ yulang --std-root lib --no-cache run --interpreter --print-roots  # 1 + 2
+run roots [3]
+
+$ yulang --std-root lib --no-cache run --interpreter  # println "HELLO"
+runtime error [yulang.unhandled-effect]: unhandled effect request std::io::console::out::write
+```
+
+contract manifest 中で `backend = "interpreter"` を持つ唯一の case も、unsupported feature の
+エラーを期待する内容である。これは欠陥ではなく、oracle という位置づけどおりの境界である。
+
+したがってランナーは、両バックエンドでの実行を一律には要求できない。純粋なテストは
+両方で走らせて突き合わせられるが、IO を伴うテストは evidence VM のみとする。
+
+### 5.6 未決
 
 - 出力形式。既存の構造化診断（`SourceDiagnostic`）を再利用できるか、テスト結果は別の形が
   適切か。実装時に Claude が決める。（ユーザー委任、2026-07-25）
