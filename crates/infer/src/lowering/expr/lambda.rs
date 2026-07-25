@@ -296,6 +296,11 @@ impl<'a> ExprLowerer<'a> {
         self.mark_lambda_param_call_predicate(before_locals, &annotation);
         self.mark_lambda_param_as_input(pat);
         self.mark_lambda_param_effect_contract(pat, &annotation);
+        self.record_local_completion_scopes(
+            before_locals,
+            crate::node_trimmed_source_range(pattern),
+            crate::node_trimmed_source_range(body),
+        );
         let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
@@ -696,6 +701,11 @@ impl<'a> ExprLowerer<'a> {
             self.mark_lambda_param_as_input(pat);
             self.mark_lambda_param_effect_contract(pat, &annotation);
             self.mark_lambda_param_call_predicate(param_local_start, &annotation);
+            self.record_local_completion_scopes(
+                param_local_start,
+                crate::node_trimmed_source_range(pattern),
+                crate::node_trimmed_source_range(body),
+            );
             let frame_index = self.function_frames.len();
             self.function_frames
                 .push(FunctionPredicateFrame::new(LambdaScope::Defined));

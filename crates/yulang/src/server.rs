@@ -557,6 +557,7 @@ fn lsp_completion_item_for_source_item(item: SourceCompletionItem) -> Completion
         label: item.label,
         kind: Some(match item.kind {
             SourceCompletionItemKind::Value => CompletionItemKind::VARIABLE,
+            SourceCompletionItemKind::Local => CompletionItemKind::VARIABLE,
             SourceCompletionItemKind::Field => CompletionItemKind::FIELD,
             SourceCompletionItemKind::Method => CompletionItemKind::METHOD,
         }),
@@ -2803,6 +2804,143 @@ my got = make(1).norm2
                 .all(|item| item.kind == Some(CompletionItemKind::KEYWORD)
                     && parser::scan::KEYWORDS.contains(&item.label.as_str()))
         );
+    }
+
+    #[test]
+    fn completion_for_source_returns_my_binding_in_same_block() {
+        let root = lsp_test_workspace("completion-local-my");
+        let source = "my result = {\n    my local = 1\n    local\n}";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 2,
+                character: 9,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let local = items
+            .iter()
+            .find(|item| item.label == "local")
+            .expect("earlier local binding should be offered");
+
+        assert_eq!(local.kind, Some(CompletionItemKind::VARIABLE));
+        assert_eq!(local.detail.as_deref(), Some("int"));
+    }
+
+    #[test]
+    fn completion_for_source_returns_function_parameter() {
+        let root = lsp_test_workspace("completion-function-param");
+        let source = "my identity param = {\n    param\n}";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 9,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(items.iter().any(|item| {
+            item.label == "param" && item.kind == Some(CompletionItemKind::VARIABLE)
+        }));
+    }
+
+    #[test]
+    fn completion_for_source_excludes_local_outside_its_block() {
+        let root = lsp_test_workspace("completion-local-scope-exit");
+        let source = "my holder = {\n    my hidden = 1\n    hidden\n}\nmy outside = 0\noutside";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 5,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(
+            !items.iter().any(|item| item.label == "hidden"),
+            "{items:?}"
+        );
+    }
+
+    #[test]
+    fn completion_for_source_prefers_innermost_local_type() {
+        let root = lsp_test_workspace("completion-local-shadow");
+        let source =
+            "my result = {\n    my item = 1\n    {\n        my item = true\n        item\n    }\n}";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 4,
+                character: 12,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let item = items
+            .iter()
+            .filter(|item| item.label == "item")
+            .collect::<Vec<_>>();
+
+        assert_eq!(item.len(), 1, "{items:?}");
+        assert_eq!(item[0].detail.as_deref(), Some("bool"));
+    }
+
+    #[test]
+    fn completion_for_source_prefers_local_over_global() {
+        let root = lsp_test_workspace("completion-local-global-shadow");
+        let source = "my value: int = 1\nmy result = {\n    my value = true\n    value\n}";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 3,
+                character: 9,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let value = items
+            .iter()
+            .filter(|item| item.label == "value")
+            .collect::<Vec<_>>();
+
+        assert_eq!(value.len(), 1, "{items:?}");
+        assert_eq!(value[0].detail.as_deref(), Some("bool"));
+    }
+
+    #[test]
+    fn completion_for_source_returns_lambda_argument() {
+        let root = lsp_test_workspace("completion-lambda-argument");
+        let source = "my apply = \\argument -> argument";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 0,
+                character: 32,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert!(items.iter().any(|item| {
+            item.label == "argument" && item.kind == Some(CompletionItemKind::VARIABLE)
+        }));
     }
 
     #[test]

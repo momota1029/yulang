@@ -8,7 +8,7 @@ use poly::expr::{DefId, RefId, SelectId};
 use poly::types::TypeVar;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{ModuleId, SourceSpan};
+use crate::{ModuleId, Name, SourceSpan};
 
 #[derive(Debug, Clone, Default)]
 /// `DefId` に対応する型 slot。
@@ -64,6 +64,13 @@ impl LocalDefUseTable {
             .iter()
             .filter_map(|(def, use_site)| use_site.source_span.as_ref().map(|span| (*def, span)))
     }
+
+    pub fn completion_scopes(&self) -> impl Iterator<Item = (DefId, &LocalDefUse)> {
+        self.defs
+            .iter()
+            .filter(|(_, use_site)| use_site.name.is_some() && use_site.scope_span.is_some())
+            .map(|(def, use_site)| (*def, use_site))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +79,9 @@ pub struct LocalDefUse {
     pub value: TypeVar,
     pub source_span: Option<SourceSpan>,
     pub role: LocalDefRole,
+    pub name: Option<Name>,
+    pub scope_span: Option<SourceSpan>,
+    pub scope_depth: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -363,6 +373,9 @@ mod tests {
                 value: TypeVar(8),
                 source_span: Some(source_span.clone()),
                 role: LocalDefRole::Value,
+                name: None,
+                scope_span: None,
+                scope_depth: 0,
             },
         );
 

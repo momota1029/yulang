@@ -246,6 +246,9 @@ impl<'a> ExprLowerer<'a> {
                 value,
                 source_span: self.source_span(source_range),
                 role: LocalDefRole::Value,
+                name: None,
+                scope_span: None,
+                scope_depth: 0,
             },
         );
         if let Some(labels) = self.labels.as_mut() {

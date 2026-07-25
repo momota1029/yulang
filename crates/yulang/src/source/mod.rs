@@ -1494,6 +1494,7 @@ pub struct SourceCompletionItem {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceCompletionItemKind {
     Value,
+    Local,
     Field,
     Method,
 }
@@ -2841,7 +2842,7 @@ fn source_hover_from_check(
 
 fn source_completion_from_check(
     check: &infer::check::PolyCheckOutput,
-    _byte_offset: usize,
+    byte_offset: usize,
     file: &Path,
 ) -> Vec<SourceCompletionItem> {
     let format_context = HoverFormatContext::new(check, file);
@@ -2872,7 +2873,7 @@ fn source_completion_from_check(
     names.sort_by(|left, right| left.0.cmp(&right.0));
     names.dedup();
 
-    names
+    let mut items = names
         .into_iter()
         .filter_map(|name| {
             let def = check
@@ -2895,7 +2896,48 @@ fn source_completion_from_check(
                 kind: SourceCompletionItemKind::Value,
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    let mut locals = HashMap::<String, (usize, SourceCompletionItem)>::new();
+    for (_, local) in check.lowering.session.local_defs.completion_scopes() {
+        let (Some(name), Some(scope_span)) = (&local.name, &local.scope_span) else {
+            continue;
+        };
+        if &scope_span.file != file
+            || byte_offset < scope_span.range.start
+            || byte_offset > scope_span.range.end
+        {
+            continue;
+        }
+        let detail = Some(match local.role {
+            infer::uses::LocalDefRole::Input => format_context.format_input_type(local.value),
+            infer::uses::LocalDefRole::Value => format_context.format_value_type(local.value),
+        });
+        let item = SourceCompletionItem {
+            label: name.0.clone(),
+            detail,
+            kind: SourceCompletionItemKind::Local,
+        };
+        match locals.entry(name.0.clone()) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert((local.scope_depth, item));
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry)
+                if local.scope_depth > entry.get().0 =>
+            {
+                entry.insert((local.scope_depth, item));
+            }
+            std::collections::hash_map::Entry::Occupied(_) => {}
+        }
+    }
+    items.extend(locals.into_values().map(|(_, item)| item));
+    items.sort_by(|left, right| {
+        left.label.cmp(&right.label).then_with(|| {
+            completion_item_kind_order(left.kind).cmp(&completion_item_kind_order(right.kind))
+        })
+    });
+    items.dedup_by(|left, right| left.label == right.label);
+    items
 }
 
 fn source_member_completion_from_check(
@@ -3066,7 +3108,8 @@ fn completion_item_kind_order(kind: SourceCompletionItemKind) -> u8 {
     match kind {
         SourceCompletionItemKind::Field => 0,
         SourceCompletionItemKind::Method => 1,
-        SourceCompletionItemKind::Value => 2,
+        SourceCompletionItemKind::Local => 2,
+        SourceCompletionItemKind::Value => 3,
     }
 }
 

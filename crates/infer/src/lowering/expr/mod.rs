@@ -39,6 +39,7 @@ pub struct ExprLowerer<'a> {
     pub(super) local_generalize_boundary: TypeLevel,
     pub(super) do_replacement: Option<Computation>,
     pub(super) pattern_binding_rewrites: FxHashMap<Name, Name>,
+    pub(super) completion_block_end: Option<usize>,
 }
 
 #[derive(Clone)]
@@ -88,6 +89,7 @@ impl<'a> ExprLowerer<'a> {
             local_generalize_boundary,
             do_replacement: None,
             pattern_binding_rewrites: FxHashMap::default(),
+            completion_block_end: None,
         }
     }
 
@@ -131,6 +133,7 @@ impl<'a> ExprLowerer<'a> {
             local_generalize_boundary,
             do_replacement: None,
             pattern_binding_rewrites: FxHashMap::default(),
+            completion_block_end: None,
         }
     }
 
@@ -177,6 +180,60 @@ impl<'a> ExprLowerer<'a> {
             file: self.source_file.clone(),
             range,
         })
+    }
+
+    pub(super) fn record_local_completion_scopes(
+        &mut self,
+        before_locals: usize,
+        definition_range: SourceRange,
+        scope_range: SourceRange,
+    ) {
+        let source_file = self.source_file.clone();
+        let record_source_spans = self.record_source_spans;
+        let locals = self.locals[before_locals..]
+            .iter()
+            .enumerate()
+            .filter(|(_, local)| !local.name.0.starts_with('#'))
+            .map(|(offset, local)| {
+                (
+                    local.def,
+                    local.name.clone(),
+                    local.value,
+                    before_locals + offset,
+                )
+            })
+            .collect::<Vec<_>>();
+        for (def, name, value, scope_depth) in locals {
+            let definition_span = record_source_spans.then(|| SourceSpan {
+                file: source_file.clone(),
+                range: definition_range,
+            });
+            let scope_span = record_source_spans.then(|| SourceSpan {
+                file: source_file.clone(),
+                range: scope_range,
+            });
+            if let Some(use_site) = self.session.local_defs.get_mut(def) {
+                use_site.value = value;
+                if use_site.source_span.is_none() {
+                    use_site.source_span = definition_span.clone();
+                }
+                use_site.name = Some(name);
+                use_site.scope_span = scope_span;
+                use_site.scope_depth = scope_depth;
+            } else {
+                self.session.local_defs.insert(
+                    def,
+                    LocalDefUse {
+                        value,
+                        source_span: definition_span,
+                        role: LocalDefRole::Value,
+                        name: Some(name),
+                        scope_span,
+                        scope_depth,
+                    },
+                );
+            }
+        }
     }
 
     pub(super) fn fresh_source_parent(&self) -> Option<poly::expr::DefId> {

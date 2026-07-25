@@ -307,8 +307,13 @@ impl<'a> ExprLowerer<'a> {
             source_range: first_token_source_range(arm, SyntaxKind::Arrow)
                 .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
         })?;
+        let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCaseArmBody {
+            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+        })?;
         let pattern_value = self.fresh_type_var();
         let var_bindings = self.prepare_var_pattern_bindings(&pattern)?;
+        let before_locals = self.locals.len();
         let pat =
             self.lower_match_pattern_with_var_bindings(&pattern, pattern_value, &var_bindings)?;
         let input_bounds_before = self
@@ -370,17 +375,27 @@ impl<'a> ExprLowerer<'a> {
         );
 
         let guard_node = arm_guard_expr(arm);
+        let scope_start = guard_node
+            .as_ref()
+            .map(crate::node_trimmed_source_range)
+            .map(|range| range.start)
+            .unwrap_or_else(|| crate::node_trimmed_source_range(&body_node).start);
+        self.record_local_completion_scopes(
+            before_locals,
+            crate::node_trimmed_source_range(&pattern),
+            SourceRange {
+                start: scope_start,
+                end: crate::node_trimmed_source_range(&body_node).end,
+            },
+        );
         if guard_node.is_some() && !var_bindings.is_empty() {
             return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
         }
         let guard = guard_node
-            .map(|guard| self.lower_arm_guard(&guard, result_effect))
+            .as_ref()
+            .map(|guard| self.lower_arm_guard(guard, result_effect))
             .transpose()?;
         let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
-        let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCaseArmBody {
-            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
-                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
-        })?;
         let mut body = self.lower_expr(&body_node)?;
         body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
         self.subtype_var_to_var(body.value, result_value);
@@ -1022,6 +1037,7 @@ impl<'a> ExprLowerer<'a> {
             [value_pattern] => {
                 let pattern_value = self.fresh_type_var();
                 let var_bindings = self.prepare_var_pattern_bindings(value_pattern)?;
+                let before_locals = self.locals.len();
                 let pat = self.lower_match_pattern_with_var_bindings(
                     value_pattern,
                     pattern_value,
@@ -1029,11 +1045,25 @@ impl<'a> ExprLowerer<'a> {
                 )?;
                 self.subtype_var_to_var(scrutinee_value, pattern_value);
                 let guard_node = arm_guard_expr(arm);
+                let scope_start = guard_node
+                    .as_ref()
+                    .map(crate::node_trimmed_source_range)
+                    .map(|range| range.start)
+                    .unwrap_or_else(|| crate::node_trimmed_source_range(&body_node).start);
+                self.record_local_completion_scopes(
+                    before_locals,
+                    crate::node_trimmed_source_range(value_pattern),
+                    SourceRange {
+                        start: scope_start,
+                        end: crate::node_trimmed_source_range(&body_node).end,
+                    },
+                );
                 if guard_node.is_some() && !var_bindings.is_empty() {
                     return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
                 }
                 let guard = guard_node
-                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .as_ref()
+                    .map(|guard| self.lower_arm_guard(guard, result_effect))
                     .transpose()?;
                 let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
                 let mut body = self.lower_expr(&body_node)?;
@@ -1064,6 +1094,7 @@ impl<'a> ExprLowerer<'a> {
                 let effect_var_bindings = self.prepare_var_pattern_bindings(effect_pattern)?;
                 let continuation_var_bindings =
                     self.prepare_var_pattern_bindings(continuation_pattern)?;
+                let before_locals = self.locals.len();
                 let guard_node = arm_guard_expr(arm);
                 if guard_node.is_some()
                     && (!effect_var_bindings.is_empty() || !continuation_var_bindings.is_empty())
@@ -1102,8 +1133,27 @@ impl<'a> ExprLowerer<'a> {
                 })();
                 self.pattern_binding_rewrites = saved_rewrites;
                 let (payload, row_item, continuation) = lowered_patterns?;
+                let scope_start = guard_node
+                    .as_ref()
+                    .map(crate::node_trimmed_source_range)
+                    .map(|range| range.start)
+                    .unwrap_or_else(|| crate::node_trimmed_source_range(&body_node).start);
+                let effect_range = crate::node_trimmed_source_range(effect_pattern);
+                let continuation_range = crate::node_trimmed_source_range(continuation_pattern);
+                self.record_local_completion_scopes(
+                    before_locals,
+                    SourceRange {
+                        start: effect_range.start,
+                        end: continuation_range.end,
+                    },
+                    SourceRange {
+                        start: scope_start,
+                        end: crate::node_trimmed_source_range(&body_node).end,
+                    },
+                );
                 let guard = guard_node
-                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .as_ref()
+                    .map(|guard| self.lower_arm_guard(guard, result_effect))
                     .transpose()?;
                 let active_effect_var_bindings =
                     self.install_var_pattern_bindings(&effect_var_bindings)?;

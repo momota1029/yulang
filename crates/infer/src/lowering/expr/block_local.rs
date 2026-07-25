@@ -73,7 +73,14 @@ impl<'a> ExprLowerer<'a> {
         let before_locals = self.locals.len();
         let items = block_lowering_items(node);
         let saved_do = self.do_replacement.take();
+        let completion_block_end = node
+            .last_token()
+            .filter(|token| token.kind() == SyntaxKind::BraceR)
+            .map(|token| crate::token_source_range(&token).start)
+            .unwrap_or_else(|| crate::node_trimmed_source_range(node).end);
+        let saved_completion_block_end = self.completion_block_end.replace(completion_block_end);
         let result = self.lower_block_items(items.as_slice());
+        self.completion_block_end = saved_completion_block_end;
         self.do_replacement = saved_do;
         self.locals.truncate(before_locals);
         result
@@ -88,15 +95,34 @@ impl<'a> ExprLowerer<'a> {
         };
 
         match head.kind() {
-            SyntaxKind::Binding if binding_is_do_binding(head) => self.lower_do_binding(head, rest),
+            SyntaxKind::Binding if binding_is_do_binding(head) => {
+                let before_locals = self.locals.len();
+                let result = self.lower_do_binding(head, rest);
+                if result.is_ok() {
+                    self.record_block_binding_completion_scopes(before_locals, head, rest);
+                }
+                result
+            }
             SyntaxKind::Binding if local_var_binding_source(head).is_some() => {
-                self.lower_local_var_binding(head, rest)
+                let before_locals = self.locals.len();
+                let result = self.lower_local_var_binding(head, rest);
+                if result.is_ok() {
+                    self.record_block_binding_completion_scopes(before_locals, head, rest);
+                }
+                result
             }
             SyntaxKind::Binding if !local_var_pattern_binding_sources(head).is_empty() => {
-                self.lower_local_var_pattern_binding(head, rest)
+                let before_locals = self.locals.len();
+                let result = self.lower_local_var_pattern_binding(head, rest);
+                if result.is_ok() {
+                    self.record_block_binding_completion_scopes(before_locals, head, rest);
+                }
+                result
             }
             SyntaxKind::Binding => {
+                let before_locals = self.locals.len();
                 let lowered = self.lower_local_binding_stmt(head)?;
+                self.record_block_binding_completion_scopes(before_locals, head, rest);
                 let tail = self.lower_block_items(rest)?;
                 Ok(self.prepend_block(lowered, tail))
             }
@@ -131,14 +157,72 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
+    fn record_block_binding_completion_scopes(
+        &mut self,
+        before_locals: usize,
+        binding: &Cst,
+        rest: &[Cst],
+    ) {
+        if self.locals.len() == before_locals {
+            return;
+        }
+        let definition_range = crate::binding_pattern(binding)
+            .map(|pattern| crate::node_trimmed_source_range(&pattern))
+            .unwrap_or_else(|| crate::node_trimmed_source_range(binding));
+        let tail_scope = self.block_tail_completion_scope(definition_range, rest);
+        let scope_start = if crate::binding_has_single_head_pattern(binding) {
+            binding_body_expr(binding)
+                .map(|body| crate::node_trimmed_source_range(&body).start)
+                .unwrap_or(tail_scope.start)
+        } else {
+            tail_scope.start
+        };
+        if scope_start <= tail_scope.end {
+            self.record_local_completion_scopes(
+                before_locals,
+                definition_range,
+                SourceRange {
+                    start: scope_start,
+                    end: tail_scope.end,
+                },
+            );
+        }
+    }
+
+    fn block_tail_completion_scope(
+        &self,
+        definition_range: SourceRange,
+        rest: &[Cst],
+    ) -> SourceRange {
+        let start = rest
+            .first()
+            .map(crate::node_trimmed_source_range)
+            .map(|range| range.start)
+            .unwrap_or(definition_range.end);
+        let end = self.completion_block_end.unwrap_or_else(|| {
+            rest.last()
+                .map(crate::node_trimmed_source_range)
+                .map(|range| range.end)
+                .unwrap_or(definition_range.end)
+        });
+        SourceRange { start, end }
+    }
+
     fn lower_do_binding(
         &mut self,
         binding: &Cst,
         rest: &[Cst],
     ) -> Result<Computation, LoweringError> {
+        let definition_range = crate::binding_pattern(binding)
+            .map(|pattern| crate::node_trimmed_source_range(&pattern))
+            .unwrap_or_else(|| crate::node_trimmed_source_range(binding));
         if let Some(reference_name) = crate::protocol_do_binding_reference_name(binding) {
             let rhs = do_binding_rhs_expr(binding).ok_or(LoweringError::MissingLocalBindingBody)?;
-            let replacement = self.lower_protocol_do_binding_continuation(reference_name, rest)?;
+            let replacement = self.lower_protocol_do_binding_continuation(
+                reference_name,
+                rest,
+                definition_range,
+            )?;
             let saved_do = self.do_replacement.replace(replacement);
             let lowered = self.lower_expr(&rhs);
             self.do_replacement = saved_do;
@@ -146,7 +230,7 @@ impl<'a> ExprLowerer<'a> {
         }
         let name = do_binding_name(binding).ok_or(LoweringError::MissingLocalBindingName)?;
         let rhs = do_binding_rhs_expr(binding).ok_or(LoweringError::MissingLocalBindingBody)?;
-        let replacement = self.lower_do_binding_continuation(name, rest)?;
+        let replacement = self.lower_do_binding_continuation(name, rest, definition_range)?;
         let saved_do = self.do_replacement.replace(replacement);
         let lowered = self.lower_expr(&rhs);
         self.do_replacement = saved_do;
@@ -165,6 +249,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         name: Name,
         rest: &[Cst],
+        definition_range: SourceRange,
     ) -> Result<Computation, LoweringError> {
         let param_value = self.fresh_type_var();
         let before_locals = self.locals.len();
@@ -180,6 +265,13 @@ impl<'a> ExprLowerer<'a> {
             .function_frames
             .pop()
             .expect("do continuation lambda predicate frame should be balanced");
+        if body_result.is_ok() {
+            self.record_local_completion_scopes(
+                before_locals,
+                definition_range,
+                self.block_tail_completion_scope(definition_range, rest),
+            );
+        }
         self.locals.truncate(before_locals);
         let body = body_result?;
 
@@ -214,6 +306,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         reference_name: Name,
         rest: &[Cst],
+        definition_range: SourceRange,
     ) -> Result<Computation, LoweringError> {
         let raw = reference_name
             .0
@@ -249,6 +342,13 @@ impl<'a> ExprLowerer<'a> {
             .function_frames
             .pop()
             .expect("protocol do continuation lambda predicate frame should be balanced");
+        if body_result.is_ok() {
+            self.record_local_completion_scopes(
+                before_locals,
+                definition_range,
+                self.block_tail_completion_scope(definition_range, rest),
+            );
+        }
         self.locals.truncate(before_locals);
         let body = body_result?;
 
