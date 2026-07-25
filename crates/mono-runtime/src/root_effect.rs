@@ -1,7 +1,7 @@
 use crate::Value;
 
 pub(super) fn discard_default_root_effect(path: &[String]) -> Option<Value> {
-    if path == ["std", "test", "test", "assert"] {
+    if path == ["std", "testing", "assertion", "assert"] {
         Some(Value::Unit)
     } else {
         None
@@ -13,9 +13,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn discards_test_assertion_operation() {
+    fn discards_default_assertion_operation() {
         assert_eq!(
-            discard_default_root_effect(&["std", "test", "test", "assert"].map(str::to_string)),
+            discard_default_root_effect(
+                &["std", "testing", "assertion", "assert"].map(str::to_string)
+            ),
             Some(Value::Unit)
         );
     }

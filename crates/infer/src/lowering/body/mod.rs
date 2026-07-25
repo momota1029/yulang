@@ -1003,6 +1003,7 @@ pub(super) struct BodyLowerer {
     pub(super) errors: Vec<BodyLoweringError>,
     pub(super) value_cursors: FxHashMap<(ModuleId, Name), usize>,
     pub(super) module_cursors: FxHashMap<(ModuleId, Name), usize>,
+    pub(super) unnamed_test_module_cursors: FxHashMap<ModuleId, usize>,
     pub(super) type_cursors: FxHashMap<(ModuleId, Name), usize>,
     pub(super) root_expr_cursors: FxHashMap<ModuleId, usize>,
     pub(super) impl_cursors: FxHashMap<ModuleId, usize>,
@@ -1376,6 +1377,7 @@ impl BodyLowerer {
             errors: Vec::new(),
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
+            unnamed_test_module_cursors: FxHashMap::default(),
             type_cursors: FxHashMap::default(),
             root_expr_cursors: FxHashMap::default(),
             impl_cursors: FxHashMap::default(),
@@ -1943,16 +1945,26 @@ impl BodyLowerer {
     }
 
     pub(super) fn lower_mod_decl(&mut self, node: &Cst, module: ModuleId) {
-        let Some(name) = crate::mod_name(node) else {
-            return;
-        };
-        let Some(decl) = self.next_module_decl(module, &name) else {
-            self.errors
-                .push(BodyLoweringError::MissingModuleDecl { name });
+        let target = if let Some(name) = crate::mod_name(node) {
+            let Some(decl) = self.next_module_decl(module, &name) else {
+                self.errors
+                    .push(BodyLoweringError::MissingModuleDecl { name });
+                return;
+            };
+            decl.module
+        } else if crate::mod_decl_is_test(node) {
+            let cursor = self.unnamed_test_module_cursors.entry(module).or_default();
+            let decl = self.modules.unnamed_test_module_decl(module, *cursor);
+            *cursor += usize::from(decl.is_some());
+            let Some(decl) = decl else {
+                return;
+            };
+            decl.module
+        } else {
             return;
         };
         if let Some(body) = module_body(node) {
-            self.lower_block(&body, decl.module);
+            self.lower_block(&body, target);
         }
     }
 

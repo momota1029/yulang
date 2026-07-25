@@ -1445,5 +1445,5 @@ fn dump_poly_with_std_keeps_test_effect_in_asserting_function_signature() {
 
     let output = dump_poly_from_entry_with_std(entry).unwrap();
 
-    assert_public_signature_type_eq(&output, "checked", "() -> [std::test::test] ()");
+    assert_public_signature_type_eq(&output, "checked", "() -> [std::testing::assertion] ()");
 }

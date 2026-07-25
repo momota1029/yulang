@@ -1,4 +1,0 @@
-pub lazy prefix(assert) 1.0.0 = test::assert
-
-pub act test:
-    pub assert: (() -> [_] bool) -> ()

@@ -342,6 +342,41 @@ fn registers_nested_module() {
 }
 
 #[test]
+fn retains_named_and_unnamed_test_module_markers() {
+    let lower =
+        lower_source("mod test:\n  my unnamed = 1\nmy mod test internals:\n  my named = 2\n");
+    let tests = lower.modules.test_module_decls();
+
+    assert_eq!(tests.len(), 2);
+    assert_eq!(tests[0].name, None);
+    assert_eq!(tests[0].vis, Vis::Our);
+    assert_eq!(tests[1].name, Some(Name("internals".into())));
+    assert_eq!(tests[1].vis, Vis::My);
+    assert!(tests.iter().all(|test| {
+        lower.modules.is_test_module(test.module)
+            && lower
+                .arena
+                .defs
+                .get(test.def)
+                .is_some_and(|def| matches!(def, Def::Mod { .. }))
+    }));
+    assert_eq!(
+        lower
+            .modules
+            .value_decls(tests[0].module, &Name("unnamed".into()))
+            .len(),
+        1
+    );
+    assert_eq!(
+        lower
+            .modules
+            .value_decls(tests[1].module, &Name("named".into()))
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn registers_type_namespace_decls_and_constructor_roots() {
     let cst = parse(
         "type Alias\nstruct Record { x: int }\nenum Choice { A }\nerror Failure:\n  bad str\nrole Eq;\nact Console;\nmy value = 1\n",

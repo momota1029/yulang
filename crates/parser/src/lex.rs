@@ -405,6 +405,7 @@ pub enum SyntaxKind {
     SubLabel = 642,
     ProjectionTuple = 643,
     ProjectionRecord = 644,
+    TestModuleMarker = 646,
 }
 
 #[derive(Debug, Clone)]

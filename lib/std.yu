@@ -8,5 +8,5 @@ pub mod text;
 pub mod control;
 pub mod io;
 pub mod time;
-pub mod test;
+pub mod testing;
 pub mod prelude;

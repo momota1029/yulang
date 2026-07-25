@@ -290,9 +290,7 @@ impl Lower {
                         child_source_range.map(|range| range.start),
                         source_text,
                     );
-                    if let Some(name) = mod_name(&child) {
-                        let vis = vis_of(&child);
-                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                    if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         if let Some(doc_comment) = doc_comment {
                             self.modules.set_def_doc_comment(def, doc_comment);
                         }
@@ -566,9 +564,7 @@ impl Lower {
                     self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
-                    if let Some(name) = mod_name(&child) {
-                        let vis = vis_of(&child);
-                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                    if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         let sub_children = self.register_mod_body(&child, sub);
                         self.append_module_children(def, sub_children);
                         if created {
@@ -1032,9 +1028,7 @@ impl Lower {
                     self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
-                    if let Some(name) = mod_name(&child) {
-                        let vis = vis_of(&child);
-                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                    if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         let sub_children = self.register_mod_body(&child, sub);
                         self.append_module_children(def, sub_children);
                         if created {
@@ -1194,9 +1188,7 @@ impl Lower {
                     self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
-                    if let Some(name) = mod_name(&child) {
-                        let (def, sub, created) =
-                            self.ensure_child_module(module, name, vis_of(&child));
+                    if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         let sub_children = self.register_mod_body(&child, sub);
                         self.set_module_children(def, sub_children);
                         if created {

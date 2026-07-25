@@ -7,6 +7,26 @@ enum ImportVisibility {
 }
 
 impl ModuleTable {
+    pub fn test_module_decls(&self) -> &[TestModuleDecl] {
+        &self.test_modules
+    }
+
+    pub fn is_test_module(&self, module: ModuleId) -> bool {
+        self.test_modules.iter().any(|test| test.module == module)
+    }
+
+    pub(crate) fn unnamed_test_module_decl(
+        &self,
+        parent: ModuleId,
+        index: usize,
+    ) -> Option<TestModuleDecl> {
+        self.test_modules
+            .iter()
+            .filter(|test| test.parent == parent && test.name.is_none())
+            .nth(index)
+            .cloned()
+    }
+
     pub fn type_decl_by_id(&self, id: TypeDeclId) -> Option<ModuleTypeDecl> {
         for module_index in 0..self.nodes.len() {
             let module = ModuleId(module_index);

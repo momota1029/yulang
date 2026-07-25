@@ -19,6 +19,7 @@ impl ModuleTable {
                 import_modules: FxHashMap::default(),
                 next_order: 0,
             }],
+            test_modules: Vec::new(),
             act_templates: FxHashMap::default(),
             act_type_vars: FxHashMap::default(),
             act_copies: FxHashMap::default(),
@@ -422,6 +423,45 @@ impl ModuleTable {
             .or_default()
             .push(decl);
         self.nodes[sub.0].parent = Some(ModuleParent { module, order });
+    }
+    pub(super) fn mark_test_module(&mut self, parent: ModuleId, decl: ModuleChildDecl) {
+        if self
+            .test_modules
+            .iter()
+            .any(|test| test.module == decl.module)
+        {
+            return;
+        }
+        self.test_modules.push(TestModuleDecl {
+            name: Some(decl.name),
+            vis: decl.vis,
+            order: decl.order,
+            parent,
+            module: decl.module,
+            def: decl.def,
+        });
+    }
+    pub(super) fn insert_unnamed_test_module(
+        &mut self,
+        parent: ModuleId,
+        sub: ModuleId,
+        def: DefId,
+        vis: Vis,
+    ) {
+        let order = self.next_order(parent);
+        self.nodes[sub.0].band_path = self.nodes[parent.0].band_path.clone();
+        self.nodes[sub.0].parent = Some(ModuleParent {
+            module: parent,
+            order,
+        });
+        self.test_modules.push(TestModuleDecl {
+            name: None,
+            vis,
+            order,
+            parent,
+            module: sub,
+            def,
+        });
     }
     pub(super) fn set_module_band_path(&mut self, module: ModuleId, band_path: ModulePath) {
         self.nodes[module.0].band_path = band_path;

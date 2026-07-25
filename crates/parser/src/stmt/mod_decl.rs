@@ -8,7 +8,7 @@ use crate::parse::emit_invalid;
 use crate::sink::EventSink;
 
 use super::block::{parse_brace_stmt_block, parse_decl_body_after_colon};
-use super::common::{scan_name_lex, scan_stmt_lex};
+use super::common::{peek_stmt_lex, scan_name_lex, scan_stmt_lex};
 
 pub(super) fn parse_mod_decl<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
@@ -22,12 +22,33 @@ pub(super) fn parse_mod_decl<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&decl_kw);
 
     let mut leading_info = decl_kw.trailing_trivia_info();
-    let Some(name) = scan_name_lex(leading_info, i.rb()) else {
+    let Some(first_name) = scan_name_lex(leading_info, i.rb()) else {
         i.env.state.sink.finish();
         return Some(Either::Left(leading_info));
     };
-    leading_info = name.trailing_trivia_info();
-    i.env.state.sink.lex(&name);
+    leading_info = first_name.trailing_trivia_info();
+    if first_name.text.as_ref() == "test" {
+        i.env.state.sink.start(SyntaxKind::TestModuleMarker);
+        i.env.state.sink.lex(&first_name);
+        i.env.state.sink.finish();
+
+        let unnamed = peek_stmt_lex(leading_info, i.rb()).is_some_and(|next| {
+            matches!(
+                next.kind,
+                SyntaxKind::Semicolon | SyntaxKind::BraceL | SyntaxKind::Colon
+            )
+        });
+        if !unnamed {
+            let Some(name) = scan_name_lex(leading_info, i.rb()) else {
+                i.env.state.sink.finish();
+                return Some(Either::Left(leading_info));
+            };
+            leading_info = name.trailing_trivia_info();
+            i.env.state.sink.lex(&name);
+        }
+    } else {
+        i.env.state.sink.lex(&first_name);
+    }
 
     let Some(punct) = scan_stmt_lex(leading_info, i.rb()) else {
         i.env.state.sink.finish();

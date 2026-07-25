@@ -836,7 +836,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     // The five audited nominal-field constructor/record sites likewise move only the root-origin
     // census from UnknownInternal to Internal. Poly/check hashes, structural and row coverage,
     // constraint totals, replay totals, and nominal-event counts remain pinned below.
-    // std.test adds one annotated operation result and its assertion wrapper. The uniform deltas
+    // std.testing adds one annotated operation result and its assertion wrapper. The uniform deltas
     // below are the resulting repository-std census; fixture-specific structure stays unchanged.
     vec![
         ConstraintCharacterization {
@@ -867,8 +867,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             upper_replay: replay(387_858, 387_858, 68_997, 0, 311_156, 7_705, 318_823),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
-            poly_dump_fnv1a64: 4_529_478_607_776_244_226,
-            check_report_fnv1a64: 11_319_882_977_332_668_175,
+            poly_dump_fnv1a64: 5_410_688_808_497_798_274,
+            check_report_fnv1a64: 13_656_108_206_853_040_159,
         },
         ConstraintCharacterization {
             name: "effect-callback-residual",
@@ -901,8 +901,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 pair("int", "float", 1),
                 pair("int", "std::text::str::str", 1),
             ],
-            poly_dump_fnv1a64: 9_333_572_642_527_822_044,
-            check_report_fnv1a64: 10_606_451_945_776_328_009,
+            poly_dump_fnv1a64: 3_481_165_334_950_119_678,
+            check_report_fnv1a64: 7_876_215_353_522_556_411,
         },
         ConstraintCharacterization {
             name: "ref-update-local-buffer",
@@ -932,8 +932,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             upper_replay: replay(397_109, 397_109, 69_878, 0, 319_260, 7_971, 327_193),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
-            poly_dump_fnv1a64: 7_303_301_060_293_910_274,
-            check_report_fnv1a64: 778_274_631_180_419_373,
+            poly_dump_fnv1a64: 2_103_392_621_523_020_258,
+            check_report_fnv1a64: 10_379_381_369_897_981_767,
         },
         ConstraintCharacterization {
             name: "config-read-false-positive-repro",
@@ -977,8 +977,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 pair("&port#3:0", "&entries#3:1", 9),
                 pair("int", "float", 1),
             ],
-            poly_dump_fnv1a64: 5_572_908_730_700_938_915,
-            check_report_fnv1a64: 5_572_424_431_579_066_039,
+            poly_dump_fnv1a64: 12_132_073_666_886_934_851,
+            check_report_fnv1a64: 1_804_061_652_960_737_431,
         },
         ConstraintCharacterization {
             name: "file-rollback-false-positive-repro",
@@ -1012,8 +1012,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 pair("&store#6:0", "&buffer#5:0", 3),
                 pair("int", "float", 1),
             ],
-            poly_dump_fnv1a64: 3_224_905_739_297_428_590,
-            check_report_fnv1a64: 1_117_334_736_563_495_118,
+            poly_dump_fnv1a64: 10_597_336_810_881_239_664,
+            check_report_fnv1a64: 1_614_133_004_461_190_342,
         },
     ]
 }

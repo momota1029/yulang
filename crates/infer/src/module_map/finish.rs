@@ -1,6 +1,39 @@
 use super::*;
 
 impl Lower {
+    pub(super) fn register_source_module(
+        &mut self,
+        node: &Cst,
+        parent: ModuleId,
+    ) -> Option<(DefId, ModuleId, bool)> {
+        let vis = vis_of(node);
+        if let Some(name) = mod_name(node) {
+            let result = self.ensure_child_module(parent, name.clone(), vis);
+            if mod_decl_is_test(node)
+                && let Some(decl) = self.modules.first_module_decl(parent, &name)
+            {
+                self.modules.mark_test_module(parent, decl);
+            }
+            return Some(result);
+        }
+        if !mod_decl_is_test(node) {
+            return None;
+        }
+
+        let def = self.arena.defs.fresh();
+        let sub = self.modules.new_module();
+        self.arena.defs.set(
+            def,
+            Def::Mod {
+                vis,
+                children: Vec::new(),
+            },
+        );
+        self.modules
+            .insert_unnamed_test_module(parent, sub, def, vis);
+        Some((def, sub, true))
+    }
+
     pub(super) fn register_type_companion(
         &mut self,
         node: &Cst,
@@ -88,9 +121,7 @@ impl Lower {
                     self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
-                    if let Some(name) = mod_name(&child) {
-                        let vis = vis_of(&child);
-                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                    if let Some((def, sub, created)) = self.register_source_module(&child, module) {
                         let sub_children = self.register_mod_body(&child, sub);
                         self.append_module_children(def, sub_children);
                         if created {

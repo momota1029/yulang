@@ -436,6 +436,17 @@ pub struct ModuleChildDecl {
     pub def: DefId,
 }
 
+/// `mod test` marker を持つ source module。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestModuleDecl {
+    pub name: Option<Name>,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub parent: ModuleId,
+    pub module: ModuleId,
+    pub def: DefId,
+}
+
 /// module import view に入った値宣言を外へ見せるための summary。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleImportedValueDecl {
@@ -544,6 +555,7 @@ struct ImportPathTarget {
 #[derive(Clone)]
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
+    test_modules: Vec<TestModuleDecl>,
     act_templates: FxHashMap<TypeDeclId, Cst>,
     act_type_vars: FxHashMap<TypeDeclId, Vec<String>>,
     act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,

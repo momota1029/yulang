@@ -152,11 +152,15 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
     if vis_kw.kind == SyntaxKind::My {
         let checkpoint = i.checkpoint();
         if let Some(nud) = scan_visibility_pat_nud(next_info, i.rb()) {
-            if matches!(nud.tag, crate::pat::scan::PatNudTag::Stop)
-                && nud.lex.kind == SyntaxKind::Act
-                && my_contextual_act_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
-            {
-                return act_decl::parse_act_decl(i, Some(vis_kw), None, nud.lex);
+            if matches!(nud.tag, crate::pat::scan::PatNudTag::Stop) {
+                if nud.lex.kind == SyntaxKind::Mod {
+                    return mod_decl::parse_mod_decl(i, Some(vis_kw), nud.lex);
+                }
+                if nud.lex.kind == SyntaxKind::Act
+                    && my_contextual_act_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
+                {
+                    return act_decl::parse_act_decl(i, Some(vis_kw), None, nud.lex);
+                }
             }
         }
         i.rollback(checkpoint);

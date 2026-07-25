@@ -8,7 +8,7 @@ pub(super) struct RuntimeRootEffectRegistry;
 
 impl RuntimeRootEffectRegistry {
     pub(super) fn resolve(&self, path: &[String]) -> Option<RuntimeRootEffectResolution> {
-        if is_test_assertion_operation(path) {
+        if is_default_assertion_operation(path) {
             Some(RuntimeRootEffectResolution::DiscardPayloadAndResumeUnit)
         } else {
             None
@@ -16,8 +16,8 @@ impl RuntimeRootEffectRegistry {
     }
 }
 
-fn is_test_assertion_operation(path: &[String]) -> bool {
-    path == ["std", "test", "test", "assert"]
+fn is_default_assertion_operation(path: &[String]) -> bool {
+    path == ["std", "testing", "assertion", "assert"]
 }
 
 #[cfg(test)]
@@ -25,11 +25,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_discards_test_assertion_operation() {
+    fn registry_discards_default_assertion_operation() {
         let registry = RuntimeRootEffectRegistry;
 
         assert_eq!(
-            registry.resolve(&["std", "test", "test", "assert"].map(str::to_string)),
+            registry.resolve(&["std", "testing", "assertion", "assert"].map(str::to_string)),
             Some(RuntimeRootEffectResolution::DiscardPayloadAndResumeUnit)
         );
     }

@@ -219,6 +219,11 @@ pub(crate) fn mod_name(node: &Cst) -> Option<Name> {
     first_ident(node)
 }
 
+pub(crate) fn mod_decl_is_test(node: &Cst) -> bool {
+    node.children()
+        .any(|child| child.kind() == SyntaxKind::TestModuleMarker)
+}
+
 /// 型名前空間に登録する宣言名。
 pub(crate) fn type_decl_name(node: &Cst) -> Option<Name> {
     if node.kind() == SyntaxKind::RoleDecl {

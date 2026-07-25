@@ -756,6 +756,43 @@ fn stmt_mod_decl_semicolon() {
 }
 
 #[test]
+fn stmt_test_mod_decl_disambiguates_unnamed_and_named_forms() {
+    let got = parse_stmt_all(
+        "mod test;\nmod test {}\nmod test:\nmod test parser:\nmy mod test internals:\nour mod test x:\n",
+    );
+    let mod_decls = got
+        .iter()
+        .filter(|line| line.as_str() == "(ModDecl")
+        .count();
+    let markers = got
+        .iter()
+        .filter(|line| line.trim() == "(TestModuleMarker")
+        .count();
+    let names = got
+        .iter()
+        .filter(|line| {
+            matches!(
+                line.trim(),
+                "Ident \"parser\"" | "Ident \"internals\"" | "Ident \"x\""
+            )
+        })
+        .count();
+
+    assert_eq!(mod_decls, 6);
+    assert_eq!(markers, 6);
+    assert_eq!(names, 3);
+    assert!(got.iter().any(|line| line.trim() == "My \"my\""));
+    assert!(got.iter().any(|line| line.trim() == "Our \"our\""));
+}
+
+#[test]
+fn stmt_test_remains_an_ordinary_binding_name() {
+    let got = parse_stmt_once("my test = 1");
+    assert!(got.iter().any(|line| line.trim() == "Ident \"test\""));
+    assert!(!got.iter().any(|line| line.trim() == "(TestModuleMarker"));
+}
+
+#[test]
 fn stmt_mod_decl_brace_body() {
     let got = parse_stmt_once("mod Foo { x; }");
     let expected = vec![

@@ -2859,6 +2859,7 @@ fn format_syntax_kind(kind: parser::lex::SyntaxKind) -> &'static str {
         SyntaxKind::SubLabel => "sub label",
         SyntaxKind::ProjectionTuple => "tuple projection",
         SyntaxKind::ProjectionRecord => "record projection",
+        SyntaxKind::TestModuleMarker => "test module marker",
     }
 }
 
