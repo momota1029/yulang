@@ -58,11 +58,73 @@ LSP は compiler の別実装ではなく、parser / infer / diagnostics の構�
   `hover_entry_source_reports_effect_operation_ref_type`、LSP range と fenced signature は
   `hover_for_source_reports_effect_operation_at_reference` で固定している。
 - local variable hover は shadowed lambda arg regression で、親束縛や古い scope の型を拾わないことを見る。
-- completion / goto definition は hover と同じ symbol resolution table から出す。
+- goto definition は hover と同じ、解決済み occurrence の symbol resolution table から出す。
+  completion はその table だけでは names-in-scope / members-of-type を列挙できないため、
+  別の enumeration accessor と member probe を使う（下記「completion」参照）。
 - token classification の regression は type name、function binding / call target、
   dot method、record literal field について LS / playground の共有 classifier を固定している。
   残りは resolved highlight ありの constructor / enum variant 共有 fixture。
 - release binary の `yulang server` 起動は `scripts/release-smoke.sh` と hardening gate で見る。
+
+## completion（実装済み）
+
+`38abb196`, `7f3f2971`, `3c44ab69`, `33537bf6`, `722fea5d` で、LSP completion の
+end-to-end surface と、型情報を使わない候補、member 候補、local 候補まで実装済み。
+
+### 現在の surface
+
+- completion capability を登録済みで、`.` を trigger character として登録している。
+- non-member context では次を返す。
+  - export 済みの canonical list `parser::scan::KEYWORDS` にある keyword。
+  - focused module に直接宣言された module-level value。
+  - named import と glob import で入った value。re-export された glob value も含む。
+  - cursor 位置で scope 内にある local binding。`my` binding、function parameter、
+    lambda argument、`for` binder、case / catch の pattern binder を含む。
+- member context（`x.` / `x.partial`）では、record field、nominal type method、
+  reference-payload method、到達可能な effect operation を返す。この context では
+  member 候補が keyword / global 候補を置き換える。
+- detail text はすべて debug dump ではなく public type formatter を使う。
+  `../design/2026-07-03-hover-public-type-projection.md` と同じ public projection 契約に従う。
+- keyword 候補は analysis より前に作る。analysis failure、invalid position、timeout、
+  worker slot 枯渇時も keyword-only へ degrade する。member context の失敗時は、
+  dot の後に keyword を出さないため empty list を返す。
+
+### member probe と enumeration
+
+- bare `x.` は `scan_dot_field` が `.` と identifier の両方を要求するため、
+  `Expr "x"` と detached `InvalidToken` になり、`SelectId`、selection span、
+  receiver `TypeVar` のいずれも生成されない。
+- completion 時は cursor にある partial member name を sentinel
+  `yulang__completion__probe` へ置き換えた probe buffer を合成し、その buffer を analysis
+  して得た selection から receiver type を読む。この処理は LSP adapter ではなく
+  `crates/yulang/src/source/mod.rs` にあり、unit test 可能で、将来 wasm からも再利用できる。
+- `crates/infer/` には additive な read accessor として、receiver `TypeVar` からの
+  record-field 列挙、receiver-indexed の nominal / reference method 列挙、read-only の
+  reachable-effect traversal を追加した。local binding の scope extent も
+  `LocalDefUseTable` に additive に記録する。既存の resolution semantics は変更していない。
+
+### 既知の残件
+
+1. attached-role method は候補に含めない。`RoleMethodTable` は method name で index されており、
+   receiver に適用可能かどうかは role constraint と impl resolution を必要とする。
+   filter なしの列挙は呼び出せない method を提示するため、完了には applicability-aware な
+   receiver-filtered view が必要。
+2. source-order visibility は over-approximation のまま。completion query は
+   `ModuleOrder::from_index(u32::MAX)` を渡すため、file 内で cursor より後に宣言された name も
+   候補になる。完了には cursor byte offset から `ModuleOrder` への mapping が必要だが、
+   現在は存在しない。use alias は order を保持するが source span を持たず、direct value の
+   span は identifier だけを覆い、CST / order-position table も保持していない。
+   なお、既存の exact-name resolution 自体も earlier declaration がない場合には最も近い
+   later declaration を選び得るため、この over-approximation は最初に見えるほど挙動から
+   離れてはいない。
+3. local scope extent は executable position では正確だが、trivia-only position では
+   under-report し得る。non-recursive binding の interval は次の CST item から始まるため、
+   その直前の blank whitespace では binding を落とす場合がある。arm binding も guard または
+   body expression から始まり、arrow / guard punctuation は含まない。error direction は安全で、
+   scope 外の binding を候補に出すことはない。
+4. LSP に last-good-analysis fallback はない。current buffer の analysis が完全に失敗すると、
+   completion は keyword-only（member context では empty）へ degrade する。直前の成功した
+   analysis を保持できれば、この状況を改善できる。
 
 ## lazy per-hover Yumark 評価（実装済み）
 
