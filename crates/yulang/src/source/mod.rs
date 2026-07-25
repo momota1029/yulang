@@ -223,9 +223,26 @@ pub fn build_test_control_from_collected_sources(
 ) -> Result<BuildTestControlOutput, RouteError> {
     let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
     let loaded = load_collected_sources(files);
-    let mut lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let doc_output =
+        infer::lowering::lower_loaded_files_with_doc_tests(&loaded).map_err(RouteError::Lower)?;
+    let mut lowering = doc_output.lowering;
     suppress_test_module_runtime_roots(&mut lowering);
     let test_modules = discover_test_modules(&lowering);
+    let doc_tests = doc_output
+        .tests
+        .into_iter()
+        .map(|test| SourceDocTest {
+            name: test.name,
+            root: test.root,
+            source_span: map_doc_test_source_span(
+                &diagnostic_sources,
+                &test.comment_span,
+                test.fence_ordinal,
+                test.range_in_fence,
+            )
+            .unwrap_or(test.comment_span),
+        })
+        .collect::<Vec<_>>();
     let test_bindings = test_modules
         .iter()
         .flat_map(|module| module.bindings.iter())
@@ -244,6 +261,11 @@ pub fn build_test_control_from_collected_sources(
     arena.runtime_roots = test_bindings
         .into_iter()
         .map(poly::expr::RuntimeRoot::ComputedDef)
+        .chain(
+            doc_tests
+                .iter()
+                .map(|test| poly::expr::RuntimeRoot::Expr(test.root)),
+        )
         .collect();
     let poly = BuildPolyOutput {
         arena,
@@ -260,6 +282,38 @@ pub fn build_test_control_from_collected_sources(
     Ok(BuildTestControlOutput {
         control,
         test_modules,
+        doc_tests,
+    })
+}
+
+fn map_doc_test_source_span(
+    sources: &RuntimeDiagnosticSources,
+    comment: &infer::SourceSpan,
+    fence_ordinal: usize,
+    range_in_fence: SourceRange,
+) -> Option<infer::SourceSpan> {
+    let source = sources.source_for_span(comment)?;
+    let comment_start = comment
+        .range
+        .start
+        .checked_sub(source.source.range_offset)?;
+    let comment_end = comment
+        .range
+        .end
+        .checked_sub(source.source.range_offset)?
+        .min(source.source.source.len());
+    let comment_text = source.source.source.get(comment_start..comment_end)?;
+    let fence_start_in_comment = comment_text
+        .match_indices("```")
+        .nth(fence_ordinal.checked_mul(2)?)?
+        .0;
+    let fence_start = comment.range.start + fence_start_in_comment;
+    Some(infer::SourceSpan {
+        file: comment.file.clone(),
+        range: SourceRange {
+            start: fence_start + range_in_fence.start,
+            end: fence_start + range_in_fence.end,
+        },
     })
 }
 
@@ -1737,6 +1791,7 @@ pub struct BuildControlOutput {
 pub struct BuildTestControlOutput {
     pub control: BuildControlOutput,
     pub test_modules: Vec<SourceTestModule>,
+    pub doc_tests: Vec<SourceDocTest>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1750,6 +1805,13 @@ pub struct SourceTestBinding {
     pub name: String,
     pub def: poly::expr::DefId,
     pub source_span: Option<infer::SourceSpan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDocTest {
+    pub name: String,
+    pub root: poly::expr::ExprId,
+    pub source_span: infer::SourceSpan,
 }
 
 pub struct BuildPolyOutput {

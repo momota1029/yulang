@@ -213,13 +213,36 @@ impl Lower {
         );
     }
 
-    fn doc_comment_unit(&self, node: &Cst, module: ModuleId) -> Option<DocCommentUnit> {
+    fn doc_comment_unit(
+        &self,
+        node: &Cst,
+        module: ModuleId,
+        raw_range: Option<RawSourceRange>,
+    ) -> Option<DocCommentUnit> {
+        let source_range = raw_range
+            .map(|range| SourceRange {
+                start: range.start,
+                end: range.end,
+            })
+            .unwrap_or_else(|| node_source_range(node));
+        let fence_source_starts = self
+            .source_text
+            .as_deref()
+            .and_then(|source| source.get(source_range.start..source_range.end))
+            .map(|text| {
+                text.match_indices("```")
+                    .step_by(2)
+                    .map(|(offset, _)| source_range.start + offset)
+                    .collect()
+            })
+            .unwrap_or_default();
         Some(DocCommentUnit {
             kind: doc_comment_kind(node)?,
             source_span: SourceSpan {
                 file: self.source_file.clone(),
-                range: node_source_range(node),
+                range: source_range,
             },
+            fence_source_starts,
             // A pending comment has no documented declaration yet. Association below
             // replaces this sentinel with the declaration's actual source order.
             module,
@@ -241,7 +264,8 @@ impl Lower {
             let child_source_range = source_cursor.range_for(&child);
             match child.kind() {
                 SyntaxKind::DocCommentDecl => {
-                    let Some(unit) = self.doc_comment_unit(&child, module) else {
+                    let Some(unit) = self.doc_comment_unit(&child, module, child_source_range)
+                    else {
                         pending_doc_comment = None;
                         pending_doc_comment_end = None;
                         continue;

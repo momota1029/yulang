@@ -24,20 +24,24 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
     });
     args.validate_filters(&build.test_modules);
 
-    let selected = build
-        .test_modules
-        .iter()
-        .flat_map(|module| {
-            module.bindings.iter().map(move |binding| {
-                (
-                    module.name.clone(),
-                    binding.name.clone(),
-                    binding.source_span.clone(),
-                )
-            })
+    let module_cases = build.test_modules.iter().flat_map(|module| {
+        module.bindings.iter().map(move |binding| TestCase {
+            name: format!("{}::{}", module.name, binding.name),
+            module: Some(module.name.clone()),
+            binding: Some(binding.name.clone()),
+            source_span: binding.source_span.clone(),
         })
+    });
+    let doc_cases = build.doc_tests.iter().map(|test| TestCase {
+        name: test.name.clone(),
+        module: None,
+        binding: None,
+        source_span: Some(test.source_span.clone()),
+    });
+    let selected = module_cases
+        .chain(doc_cases)
         .enumerate()
-        .filter(|(_, (module, binding, _))| args.matches(module, binding))
+        .filter(|(_, test)| args.matches(test))
         .collect::<Vec<_>>();
     if build.control.program.roots.len()
         != build
@@ -45,6 +49,7 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
             .iter()
             .map(|module| module.bindings.len())
             .sum::<usize>()
+            + build.doc_tests.len()
     {
         eprintln!("internal test runner error: test binding/root count mismatch");
         process::exit(1);
@@ -71,21 +76,21 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
 
     let mut passed = 0usize;
     let mut failed = 0usize;
-    for (root_index, (module, binding, source_span)) in selected {
+    for (root_index, test) in selected {
         let output = run_test_worker(options, artifact_root.path(), root_index, &args.entry);
         if output.status.success() {
             passed += 1;
             if args.show_passes {
-                println!("PASS {module}::{binding}");
+                println!("PASS {}", test.name);
             }
             continue;
         }
 
         failed += 1;
-        eprintln!("FAIL {module}::{binding}");
+        eprintln!("FAIL {}", test.name);
         let stderr = String::from_utf8_lossy(&output.stderr);
         if output.status.code() == Some(ASSERTION_FAILURE_EXIT)
-            && let Some(source_span) = source_span.as_ref()
+            && let Some(source_span) = test.source_span.as_ref()
         {
             eprintln!(
                 "{}",
@@ -111,6 +116,14 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
     if failed != 0 {
         process::exit(1);
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestCase {
+    name: String,
+    module: Option<String>,
+    binding: Option<String>,
+    source_span: Option<infer::SourceSpan>,
 }
 
 pub(super) fn run_worker(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
@@ -205,7 +218,12 @@ impl TestArgs {
         }
     }
 
-    fn matches(&self, module: &str, binding: &str) -> bool {
+    fn matches(&self, test: &TestCase) -> bool {
+        if test.module.is_none() {
+            return self.module_filters.is_empty() && self.binding_filters.is_empty();
+        }
+        let module = test.module.as_deref().expect("module test has a module");
+        let binding = test.binding.as_deref().expect("module test has a binding");
         (self.module_filters.is_empty() || self.module_filters.contains(module))
             && (self.binding_filters.is_empty() || self.binding_filters.contains(binding))
     }

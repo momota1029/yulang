@@ -102,6 +102,174 @@ mod test passing:
 }
 
 #[test]
+fn test_runner_elaborates_doc_fence_in_documented_scope_and_ignores_other_docs() {
+    let entry = write_entry(
+        "test-runner-doc-scope",
+        concat!(
+            "my parent_secret = 41\n",
+            "mod nested:\n",
+            "    ---\n",
+            "    The example can use its documented item and the parent scope.\n",
+            "    ```yulang\n",
+            "    my got = documented 1\n",
+            "    assert got == 2\n",
+            "    assert parent_secret == 41\n",
+            "    ```\n",
+            "    ---\n",
+            "    my documented x = x + 1\n",
+            "    ---\n",
+            "    This comment has no fence.\n",
+            "    ---\n",
+            "    my prose_only = 0\n",
+            "    ---\n",
+            "    ```rust\n",
+            "    assert false\n",
+            "    ```\n",
+            "    ---\n",
+            "    my opaque_fence = 0\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg("--show-passes")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        "PASS doc::nested::documented#1\ntest result: 1 passed; 0 failed\n"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn test_runner_reports_doc_assertion_at_absolute_multiline_source_position() {
+    let entry = write_entry(
+        "test-runner-doc-absolute-position",
+        concat!(
+            "my padding_a = 0\n",
+            "my padding_b = 1\n",
+            "---\n",
+            "The fence starts several lines into this comment.\n",
+            "Another prose line keeps the offset nontrivial.\n",
+            "```yulang\n",
+            "my local = true\n",
+            "assert false\n",
+            "```\n",
+            "---\n",
+            "my documented = 0\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 0 passed; 1 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL doc::documented#1"), "{stderr}");
+    assert!(
+        stderr.contains("    --> line 8, column 1\n    8 | assert false\n      | ^^^^^^"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn test_runner_reports_doc_runtime_error_at_absolute_multiline_source_position() {
+    let entry = write_entry(
+        "test-runner-doc-runtime-error-position",
+        concat!(
+            "my padding_a = 0\n",
+            "my padding_b = 1\n",
+            "---\n",
+            "The fence starts several lines into this comment.\n",
+            "Another prose line keeps the offset nontrivial.\n",
+            "```yulang\n",
+            "my local = true\n",
+            "1 2\n",
+            "```\n",
+            "---\n",
+            "my documented = 0\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 0 passed; 1 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL doc::documented#1"), "{stderr}");
+    assert!(
+        stderr.contains("    --> line 8, column 1\n    8 | 1 2\n      | ^"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(concat!(
+            "  note: application occurs here\n",
+            "    --> line 8, column 1\n",
+            "    8 | 1 2\n",
+            "      | ^^^",
+        )),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn test_runner_aggregates_doc_tests_and_test_module_bindings() {
+    let entry = write_entry(
+        "test-runner-doc-module-aggregation",
+        concat!(
+            "---\n",
+            "```yulang\n",
+            "assert documented == 1\n",
+            "```\n",
+            "---\n",
+            "my documented = 1\n",
+            "mod test suite:\n",
+            "    my passing = assert true\n",
+            "    my failing = assert false\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg("--show-passes")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(
+        stdout(&output),
+        concat!(
+            "PASS suite::passing\n",
+            "PASS doc::documented#1\n",
+            "test result: 2 passed; 1 failed\n",
+        )
+    );
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL suite::failing"), "{stderr}");
+}
+
+#[test]
 fn normal_run_does_not_execute_test_module_bindings() {
     let entry = write_entry(
         "run-skips-test-module-bindings",

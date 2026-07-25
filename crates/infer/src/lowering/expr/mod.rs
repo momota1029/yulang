@@ -15,6 +15,7 @@ pub struct ExprLowerer<'a> {
     pub(super) modules: &'a ModuleTable,
     pub(super) module: ModuleId,
     pub(super) source_file: Path,
+    pub(super) source_range_offset: isize,
     pub(super) site: ModuleOrder,
     pub(super) parent: poly::expr::DefId,
     pub(super) parent_has_type_annotation: bool,
@@ -65,6 +66,7 @@ impl<'a> ExprLowerer<'a> {
             modules,
             module,
             source_file: Path::default(),
+            source_range_offset: 0,
             site,
             parent,
             parent_has_type_annotation: false,
@@ -109,6 +111,7 @@ impl<'a> ExprLowerer<'a> {
             modules,
             module,
             source_file: Path::default(),
+            source_range_offset: 0,
             site,
             parent,
             parent_has_type_annotation: false,
@@ -162,6 +165,11 @@ impl<'a> ExprLowerer<'a> {
         self
     }
 
+    pub(super) fn with_source_range_offset(mut self, offset: isize) -> Self {
+        self.source_range_offset = offset;
+        self
+    }
+
     pub fn with_parent_type_annotation(mut self, parent_has_type_annotation: bool) -> Self {
         self.parent_has_type_annotation = parent_has_type_annotation;
         self
@@ -178,7 +186,7 @@ impl<'a> ExprLowerer<'a> {
         }
         range.map(|range| SourceSpan {
             file: self.source_file.clone(),
-            range,
+            range: offset_source_range(range, self.source_range_offset),
         })
     }
 
@@ -206,11 +214,11 @@ impl<'a> ExprLowerer<'a> {
         for (def, name, value, scope_depth) in locals {
             let definition_span = record_source_spans.then(|| SourceSpan {
                 file: source_file.clone(),
-                range: definition_range,
+                range: offset_source_range(definition_range, self.source_range_offset),
             });
             let scope_span = record_source_spans.then(|| SourceSpan {
                 file: source_file.clone(),
-                range: scope_range,
+                range: offset_source_range(scope_range, self.source_range_offset),
             });
             if let Some(use_site) = self.session.local_defs.get_mut(def) {
                 use_site.value = value;
@@ -319,5 +327,19 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(computation.value, public_self_value);
         }
         lowered
+    }
+}
+
+fn offset_source_range(range: SourceRange, offset: isize) -> SourceRange {
+    let offset_position = |position: usize| {
+        if offset < 0 {
+            position.saturating_sub(offset.unsigned_abs())
+        } else {
+            position.saturating_add(offset as usize)
+        }
+    };
+    SourceRange {
+        start: offset_position(range.start),
+        end: offset_position(range.end),
     }
 }

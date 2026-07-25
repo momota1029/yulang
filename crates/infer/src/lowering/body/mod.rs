@@ -1,6 +1,7 @@
 //! Extracted lowering implementation.
 
 pub(super) mod act;
+mod doc_tests;
 pub(super) mod error_decl;
 #[cfg(test)]
 mod generalize_snapshot_characterization_tests;
@@ -45,6 +46,20 @@ pub struct BodyLowering {
     #[cfg(test)]
     conformance_batch_events: Vec<ConformanceBatchEvent>,
     prefix_runtime: BodyLoweringPrefixRuntime,
+}
+
+#[derive(Debug, Clone)]
+pub struct LoweredDocTest {
+    pub name: String,
+    pub root: poly::expr::ExprId,
+    pub comment_span: SourceSpan,
+    pub fence_ordinal: usize,
+    pub range_in_fence: SourceRange,
+}
+
+pub struct DocTestBodyLowering {
+    pub lowering: BodyLowering,
+    pub tests: Vec<LoweredDocTest>,
 }
 
 #[derive(Clone)]
@@ -626,6 +641,24 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
 /// top-level block を対応する module に差し込む。pass2 は全 file の binding を走査してから
 /// work queue を drain するため、file をまたぐ forward ref / cycle も同じ SCC machine に乗る。
 pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFilesError> {
+    lower_loaded_files_with_consumer(files, |_| ()).map(|(lowering, ())| lowering)
+}
+
+/// Lower source bodies and then let an independent consumer add roots before inference drains.
+///
+/// Doc tests use this seam to elaborate retained fence CST in its recorded lexical scope.
+/// Ordinary compilation calls [`lower_loaded_files`] and therefore never visits fence bodies.
+pub fn lower_loaded_files_with_doc_tests(
+    files: &[LoadedFile],
+) -> Result<DocTestBodyLowering, LoadedFilesError> {
+    lower_loaded_files_with_consumer(files, BodyLowerer::lower_doc_comment_tests)
+        .map(|(lowering, tests)| DocTestBodyLowering { lowering, tests })
+}
+
+fn lower_loaded_files_with_consumer<T>(
+    files: &[LoadedFile],
+    consumer: impl FnOnce(&mut BodyLowerer) -> T,
+) -> Result<(BodyLowering, T), LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -663,6 +696,8 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
     measured.lower_bodies = phase_start.elapsed();
     timing.phase("lower binding bodies", measured.lower_bodies);
 
+    let consumer_output = consumer(&mut lowerer);
+
     let phase_start = Instant::now();
     lowerer.lower_synthetic_act_copy_bodies();
     measured.synthetic_act_copy = phase_start.elapsed();
@@ -694,7 +729,7 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
     output.timing = measured;
     timing.phase("finish lowering", measured.finish);
     timing.phase("total lower_loaded_files", measured.total);
-    Ok(output)
+    Ok((output, consumer_output))
 }
 
 pub fn lower_loaded_files_prefix(

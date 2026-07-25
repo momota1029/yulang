@@ -148,6 +148,7 @@ impl DocComment {
 pub struct DocCommentUnit {
     kind: DocCommentKind,
     source_span: SourceSpan,
+    fence_source_starts: Vec<usize>,
     module: ModuleId,
     order: ModuleOrder,
     node: Cst,
@@ -160,6 +161,10 @@ impl DocCommentUnit {
 
     pub fn source_span(&self) -> &SourceSpan {
         &self.source_span
+    }
+
+    pub(crate) fn fence_source_start(&self, ordinal: usize) -> Option<usize> {
+        self.fence_source_starts.get(ordinal).copied()
     }
 
     /// The module containing the declaration documented by this unit.

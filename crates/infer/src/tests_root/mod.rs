@@ -159,6 +159,57 @@ fn doc_comments_retain_the_documented_declaration_lexical_scope() {
 }
 
 #[test]
+fn doc_fence_token_ranges_are_absolute_in_the_original_multiline_source() {
+    let source = concat!(
+        "my padding_a = 0\n",
+        "my padding_b = 1\n",
+        "---\n",
+        "prose one\n",
+        "prose two\n",
+        "```yulang\n",
+        "my local = true\n",
+        "assert false\n",
+        "```\n",
+        "---\n",
+        "my documented = 0\n",
+    );
+    let lower = lower_source(source);
+    let documented = value_def(&lower, "documented");
+    let doc = lower
+        .modules
+        .def_doc_comment(documented)
+        .expect("doc comment should attach");
+    let assertion = doc.units()[0]
+        .node()
+        .descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.text() == "assert")
+        .expect("parsed yulang fence should retain the assertion token");
+    let fence = assertion
+        .parent_ancestors()
+        .find(|node| node.kind() == parser::lex::SyntaxKind::YmCodeFence)
+        .expect("assertion should be inside a code fence");
+    let comment = &doc.units()[0];
+    let comment_start = comment.source_span().range.start;
+    let raw_comment = &source[comment.source_span().range.start..comment.source_span().range.end];
+    let raw_fence_start = raw_comment
+        .find("```yulang")
+        .expect("original comment contains the fence");
+    let range_in_fence = usize::from(assertion.text_range().start() - fence.text_range().start());
+
+    assert_eq!(
+        comment.fence_source_start(0),
+        Some(source.find("```yulang").expect("source contains the fence"))
+    );
+    assert_eq!(
+        comment_start + raw_fence_start + range_in_fence,
+        source
+            .find("assert false")
+            .expect("source contains assertion")
+    );
+}
+
+#[test]
 fn registers_cast_decl_as_hidden_cast_metadata() {
     let cst = parse("cast(x: int): int = x\nmy site = 1\n");
     let lower = lower_module_map(&cst);
