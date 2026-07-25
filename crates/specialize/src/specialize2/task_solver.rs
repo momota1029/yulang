@@ -684,7 +684,19 @@ impl<'a> TaskSolver<'a> {
                 .and_then(|fields| record_field_type(fields, name))
                 .map(|field| field.value.clone());
             let (value, effect) = match expected {
-                Some(expected) => self.consume_expr_value(*value_expr, expected)?,
+                Some(expected) => {
+                    let value_ty = self.expr_with_value_consumer(*value_expr, &expected)?;
+                    let (value, effect) = split_runtime_computation_shape(value_ty);
+                    if result_boundary_has_direct_cast(self.arena, &value, &expected) {
+                        self.consume_expr_value(*value_expr, expected)?
+                    } else {
+                        // Generic function/effect adaptation remains owned by the containing
+                        // record boundary. Claiming those fields as directly consumed would make
+                        // a thunk-returning function look materialized and suppress its adapter.
+                        self.graph.constrain_subtype(value.clone(), expected)?;
+                        (value, effect)
+                    }
+                }
                 None => {
                     let value_ty = self.expr(*value_expr)?;
                     let (value, effect) = split_runtime_computation_shape(value_ty);
