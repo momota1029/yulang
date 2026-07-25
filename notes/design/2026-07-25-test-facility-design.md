@@ -163,13 +163,49 @@ test module や doc comment 内に書かれた `assert` は、そもそも公開
 
 ### 3.1 綴り
 
+`mod` の直後に置く `test` マーカーで宣言する。（ユーザー決定、2026-07-25）
+
 ```yu
-our mod test:
+mod test:
     ...
+
+mod test parser:
+    ...
+
+my mod test internals:
+    ...
+
+mod test suite;
 ```
 
-`my mod` は現行 parser で宣言にならない（1.5）ため、当面 `our mod` を使う。
-完全に非公開な test module が必要になったら、それは parser 側の別課題として扱う。
+文法は次のとおり。
+
+```text
+[visibility] mod test [name] ( ";" | "{" ... "}" | ":" ... )
+```
+
+- **`mod` の直後の `test` は常にマーカーであり、module 名ではない。**
+  したがって `test` という名前の通常 module は綴れない。これは意図した制約である。
+  「`test` という module 名は test の時にしか作らない」という観察を、構文で真にすることで、
+  `mod test { }` と `mod test foo { }` が構造的に別物になる曖昧さを消す。
+- 名前は省略できる。`mod test:` は名前なしの test module である。
+- 名前を付ければ複数持てる。`mod test parser` と `mod test lowering` を並べられ、
+  失敗報告も module 名で区別できる。
+- 可視性と直交する。`my` / `our` / 省略がそのまま効く。`our` は既定なので、
+  通常は `mod test name:` と書けばよい。
+- 外部ファイル形式 `mod test name;` を認める。sibling の `name.yu` を test module として
+  読み込む。テストを本体と別ファイルに置ける。
+
+`test` は予約語にしない。`mod` の直後という位置でのみ意味を持つ文脈キーワードとする。
+`test` は識別子として自然に使われる語であり（`my test = ...` は普通に書く）、
+大域的に奪うのは損である。
+
+parser 実装上の注記。
+
+- `mod test` の次のトークンが識別子なら名前あり、`;` / `{` / `:` なら名前なしと解する。
+- 現行 parser では `my mod` が module 宣言として解釈されない（1.5）。本決定は
+  `my mod test name` を認めるため、その欠落もここで解消する。
+  `notes/bugs/2026-07-25-module-visibility-qualified-path-leak.md` の追記事項も参照。
 
 ### 3.2 意味論
 
@@ -189,11 +225,15 @@ our mod test:
 
 ### 3.4 発見規則
 
-ランナーは、名前が `test` である module を探索し、その `our` / `pub` 束縛をテストとして実行する。
+ランナーは、**`test` マーカーを持つ module** を探索し、その束縛をテストとして実行する。
 
-厳密な発見規則（入れ子の扱い、単一 module 内の複数テスト、名前付け）は実装時に確定する。
-`notes/todo/property-testing.md` は `test "名前":` ブロックの導入を将来課題として残しており、
-本設計はそれと矛盾しない。当面は module + 通常の束縛で始め、専用構文が必要になってから足す。
+名前ではなく構文マーカーで発見することが重要である。命名規約による発見は、
+名前を変えた途端に静かにテストが走らなくなるという失敗様式を持つ。マーカーならその事故が無い。
+
+厳密な発見規則（入れ子の扱い、単一 module 内の複数テスト、どの束縛をテストとみなすか）は
+実装時に確定する。`notes/todo/property-testing.md` は `test "名前":` ブロックの導入を
+将来課題として残しており、本設計はそれと矛盾しない。当面は test module + 通常の束縛で始め、
+専用構文が必要になってから足す。
 
 ### 3.5 未決
 
@@ -281,14 +321,18 @@ manifest も共有しない。
 
 - **TEST-A**: `assert` を std に追加する（`lazy prefix`、`test` 効果、root 既定ハンドラで破棄）。
   通常実行で表明式が評価されないことを実機で確認する。規模 M。
-- **TEST-B**: `yulang test` の骨格。test module の発見と実行、結果の集約報告。規模 M。
+- **TEST-B0**: parser に `[visibility] mod test [name]` を追加する。inline 形と外部ファイル形の
+  両方。併せて `my mod` が宣言にならない既存の欠落を解消する。この時点ではマーカーを保持する
+  だけで、実行時の扱いは変えない。規模 S-M。
+- **TEST-B**: `yulang test` の骨格。マーカーによる test module の発見と実行、結果の集約報告。規模 M。
 - **TEST-C**: `DocCommentUnit` へ `ModuleId` / `ModuleOrder` を保持させる。観測のみで、
   既存の診断・スキーム・出力が不変であることを確認する。規模 S。
 - **TEST-D**: doctest ランナー。TEST-C の環境情報を使って fence を字句環境で評価する。規模 M。
 - **TEST-E**: 検証一式。std / examples / contract 全ゲート、および表明を含むコードの
   公開シグネチャが期待通り `test` 効果を持つことの固定。規模 M。
 
-TEST-A と TEST-C は独立しており、順序を入れ替えてよい。TEST-D は TEST-A と TEST-C の両方に依存する。
+TEST-A、TEST-B0、TEST-C は互いに独立しており、順序を入れ替えてよい。
+TEST-B は TEST-B0 に、TEST-D は TEST-A と TEST-C の両方に依存する。
 
 ## 8. 停止して確認すべき条件
 
