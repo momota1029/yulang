@@ -180,11 +180,18 @@ pub struct InferredRecordField {
     pub detail: poly::dump::PublicTypeDisplay,
 }
 
-pub fn inferred_record_fields_public_with_path_rewriter(
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InferredMemberReceiver {
+    pub record_fields: Vec<InferredRecordField>,
+    pub nominal_path: Option<Vec<String>>,
+    pub ref_payload_path: Option<Vec<String>>,
+}
+
+pub fn inferred_member_receiver_public_with_path_rewriter(
     lowering: &BodyLowering,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
-) -> Option<Vec<InferredRecordField>> {
+) -> Option<InferredMemberReceiver> {
     let machine = lowering.session.infer.constraints();
     let generalized = crate::generalize::generalize_type_var_with_boundaries(
         machine,
@@ -196,29 +203,229 @@ pub fn inferred_record_fields_public_with_path_rewriter(
     let mut types = lowering.session.poly.typ.clone();
     let finalized =
         crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
-    let fields = match types.pos(finalized.scheme.predicate) {
+    let (fields, nominal_path, ref_payload_path) = match types.pos(finalized.scheme.predicate) {
         Pos::Record(fields)
         | Pos::RecordTailSpread { fields, .. }
-        | Pos::RecordHeadSpread { fields, .. } => fields.clone(),
+        | Pos::RecordHeadSpread { fields, .. } => (fields.clone(), None, None),
+        Pos::Con(path, args) => {
+            let ref_payload_path = crate::std_paths::is_control_var_ref_type(path)
+                .then(|| {
+                    args.get(1)
+                        .and_then(|payload| nominal_path_from_neu(&types, *payload))
+                })
+                .flatten();
+            (Vec::new(), Some(path.clone()), ref_payload_path)
+        }
         _ => return None,
     };
 
-    Some(
-        fields
-            .into_iter()
-            .map(|field| {
-                let mut field_scheme = finalized.scheme.clone();
-                field_scheme.predicate = field.value;
-                InferredRecordField {
-                    name: field.name,
-                    detail: poly::dump::format_scheme_public_with_path_rewriter(
-                        &types,
-                        &field_scheme,
-                        path_rewriter,
-                    ),
-                }
+    let record_fields = fields
+        .into_iter()
+        .map(|field| {
+            let mut field_scheme = finalized.scheme.clone();
+            field_scheme.predicate = field.value;
+            InferredRecordField {
+                name: field.name,
+                detail: poly::dump::format_scheme_public_with_path_rewriter(
+                    &types,
+                    &field_scheme,
+                    path_rewriter,
+                ),
+            }
+        })
+        .collect();
+    Some(InferredMemberReceiver {
+        record_fields,
+        nominal_path,
+        ref_payload_path,
+    })
+}
+
+fn nominal_path_from_neu(types: &TypeArena, value: NeuId) -> Option<Vec<String>> {
+    match types.neu(value) {
+        Neu::Con(path, _) => Some(path.clone()),
+        Neu::Bounds(lower, _) => match types.pos(*lower) {
+            Pos::Con(path, _) => Some(path.clone()),
+            _ => None,
+        },
+        Neu::Fun { .. } | Neu::Record(_) | Neu::PolyVariant(_) | Neu::Tuple(_) => None,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InferredValueMethodCandidate {
+    pub name: String,
+    pub def: DefId,
+}
+
+pub fn inferred_value_method_candidates(
+    lowering: &BodyLowering,
+    receiver: &[String],
+    local_scope: Option<ModuleId>,
+) -> Vec<InferredValueMethodCandidate> {
+    let local = local_scope
+        .map(|scope| {
+            lowering
+                .session
+                .local_methods
+                .value_type_candidates_for_receiver(scope, receiver)
+        })
+        .unwrap_or_default();
+    let global = lowering
+        .session
+        .methods
+        .value_candidates_for_receiver(receiver);
+    unique_type_method_candidates(local, global)
+}
+
+pub fn inferred_ref_method_candidates(
+    lowering: &BodyLowering,
+    receiver: &[String],
+    local_scope: Option<ModuleId>,
+) -> Vec<InferredValueMethodCandidate> {
+    let local = local_scope
+        .map(|scope| {
+            lowering
+                .session
+                .local_methods
+                .ref_type_candidates_for_receiver(scope, receiver)
+        })
+        .unwrap_or_default();
+    let global = lowering
+        .session
+        .methods
+        .ref_candidates_for_receiver(receiver);
+    unique_type_method_candidates(local, global)
+}
+
+fn unique_type_method_candidates(
+    local: Vec<&crate::methods::TypeMethodCandidate>,
+    global: Vec<&crate::methods::TypeMethodCandidate>,
+) -> Vec<InferredValueMethodCandidate> {
+    let mut names = local
+        .iter()
+        .chain(global.iter())
+        .map(|candidate| candidate.method.clone())
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let local = local
+                .iter()
+                .copied()
+                .filter(|candidate| candidate.method == name)
+                .collect::<Vec<_>>();
+            if let [candidate] = local.as_slice() {
+                return Some(InferredValueMethodCandidate {
+                    name,
+                    def: candidate.def,
+                });
+            }
+            let global = global
+                .iter()
+                .copied()
+                .filter(|candidate| candidate.method == name)
+                .collect::<Vec<_>>();
+            let [candidate] = global.as_slice() else {
+                return None;
+            };
+            Some(InferredValueMethodCandidate {
+                name,
+                def: candidate.def,
             })
-            .collect(),
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InferredEffectMethodCandidate {
+    pub name: String,
+    pub def: DefId,
+}
+
+pub fn inferred_effect_method_candidates(
+    lowering: &BodyLowering,
+    receiver_effect: TypeVar,
+    local_scope: Option<ModuleId>,
+) -> Vec<InferredEffectMethodCandidate> {
+    let effects = lowering
+        .session
+        .reachable_effect_paths_for_completion(receiver_effect);
+    let local = local_scope
+        .map(|scope| {
+            effects
+                .iter()
+                .flat_map(|effect| {
+                    lowering
+                        .session
+                        .local_methods
+                        .effect_candidates_for_effect(scope, effect)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let global = effects
+        .iter()
+        .flat_map(|effect| {
+            lowering
+                .session
+                .effect_methods
+                .candidates_for_effect(effect)
+        })
+        .collect::<Vec<_>>();
+    let mut names = local
+        .iter()
+        .chain(global.iter())
+        .map(|candidate| candidate.method.clone())
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let local = local
+                .iter()
+                .copied()
+                .filter(|candidate| candidate.method == name)
+                .collect::<Vec<_>>();
+            if let [candidate] = local.as_slice() {
+                return Some(InferredEffectMethodCandidate {
+                    name,
+                    def: candidate.def,
+                });
+            }
+            let global = global
+                .iter()
+                .copied()
+                .filter(|candidate| candidate.method == name)
+                .collect::<Vec<_>>();
+            let [candidate] = global.as_slice() else {
+                return None;
+            };
+            Some(InferredEffectMethodCandidate {
+                name,
+                def: candidate.def,
+            })
+        })
+        .collect()
+}
+
+pub fn inferred_record_fields_public_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> Option<Vec<InferredRecordField>> {
+    inferred_member_receiver_public_with_path_rewriter(lowering, value, path_rewriter).and_then(
+        |receiver| {
+            receiver
+                .nominal_path
+                .is_none()
+                .then_some(receiver.record_fields)
+        },
     )
 }
 

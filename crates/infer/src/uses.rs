@@ -306,6 +306,7 @@ pub struct ResolvedSelectionUse {
     pub selected_value: TypeVar,
     pub receiver_value: TypeVar,
     pub receiver_effect: TypeVar,
+    pub local_method_scope: Option<ModuleId>,
 }
 
 impl From<SelectionUse> for ResolvedSelectionUse {
@@ -316,6 +317,7 @@ impl From<SelectionUse> for ResolvedSelectionUse {
             selected_value: use_site.selected_value,
             receiver_value: use_site.receiver_value,
             receiver_effect: use_site.receiver_effect,
+            local_method_scope: use_site.local_method_scope,
         }
     }
 }

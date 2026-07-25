@@ -1495,6 +1495,7 @@ pub struct SourceCompletionItem {
 pub enum SourceCompletionItemKind {
     Value,
     Field,
+    Method,
 }
 
 /// Static hover bytes plus an optional owned input for deferred Yumark rendering.
@@ -2902,48 +2903,59 @@ fn source_member_completion_from_check(
     identifier_range: SourceRange,
     file: &Path,
 ) -> Vec<SourceCompletionItem> {
-    let receiver_value =
-        check
-            .lowering
-            .session
-            .selections
-            .source_spans()
-            .find_map(|(select, span)| {
-                if &span.file != file
-                    || span.range != identifier_range
-                    || check.lowering.session.poly.select(select).name
-                        != COMPLETION_PROBE_IDENTIFIER
-                {
-                    return None;
-                }
-                check
-                    .lowering
-                    .session
-                    .selections
-                    .get(select)
-                    .map(|use_site| use_site.receiver_value)
-                    .or_else(|| {
-                        check
-                            .lowering
-                            .session
-                            .selections
-                            .resolved(select)
-                            .map(|use_site| use_site.receiver_value)
-                    })
-            });
-    let Some(receiver_value) = receiver_value else {
+    let receiver = check
+        .lowering
+        .session
+        .selections
+        .source_spans()
+        .find_map(|(select, span)| {
+            if &span.file != file
+                || span.range != identifier_range
+                || check.lowering.session.poly.select(select).name != COMPLETION_PROBE_IDENTIFIER
+            {
+                return None;
+            }
+            check
+                .lowering
+                .session
+                .selections
+                .get(select)
+                .map(|use_site| {
+                    (
+                        use_site.receiver_value,
+                        use_site.receiver_effect,
+                        use_site.local_method_scope,
+                    )
+                })
+                .or_else(|| {
+                    check
+                        .lowering
+                        .session
+                        .selections
+                        .resolved(select)
+                        .map(|use_site| {
+                            (
+                                use_site.receiver_value,
+                                use_site.receiver_effect,
+                                use_site.local_method_scope,
+                            )
+                        })
+                })
+        });
+    let Some((receiver_value, receiver_effect, local_method_scope)) = receiver else {
         return Vec::new();
     };
 
     let format_context = HoverFormatContext::new(check, file);
-    let Some(fields) = infer::check::inferred_record_fields_public_with_path_rewriter(
+    let Some(receiver) = infer::check::inferred_member_receiver_public_with_path_rewriter(
         &check.lowering,
         receiver_value,
         &|path| format_context.rewrite_type_path(path),
     ) else {
         return Vec::new();
     };
-    let mut items = fields
+    let mut items = receiver
+        .record_fields
         .into_iter()
         .filter(|field| field.name != COMPLETION_PROBE_IDENTIFIER)
         .map(|field| SourceCompletionItem {
@@ -2952,9 +2964,110 @@ fn source_member_completion_from_check(
             kind: SourceCompletionItemKind::Field,
         })
         .collect::<Vec<_>>();
-    items.sort_by(|left, right| left.label.cmp(&right.label));
+
+    if let Some(receiver_path) = receiver.nominal_path {
+        let path = receiver_path.iter().cloned().map(Name).collect::<Vec<_>>();
+        if let Some(owner) = check.lowering.modules.type_path_at(
+            format_context.module,
+            &path,
+            infer::ModuleOrder::from_index(u32::MAX),
+        ) {
+            items.extend(
+                check
+                    .lowering
+                    .modules
+                    .type_field_methods(owner.id)
+                    .iter()
+                    .filter(|field| {
+                        field.vis != poly::expr::Vis::My
+                            || check.lowering.modules.type_companion(owner.id) == local_method_scope
+                    })
+                    .map(|field| SourceCompletionItem {
+                        label: field.name.0.clone(),
+                        detail: completion_detail_for_def(check, &format_context, field.def),
+                        kind: SourceCompletionItemKind::Field,
+                    }),
+            );
+        }
+
+        items.extend(
+            infer::check::inferred_value_method_candidates(
+                &check.lowering,
+                &receiver_path,
+                local_method_scope,
+            )
+            .into_iter()
+            .map(|method| SourceCompletionItem {
+                label: method.name,
+                detail: completion_detail_for_def(check, &format_context, method.def),
+                kind: SourceCompletionItemKind::Method,
+            }),
+        );
+    }
+
+    if let Some(receiver_path) = receiver.ref_payload_path {
+        items.extend(
+            infer::check::inferred_ref_method_candidates(
+                &check.lowering,
+                &receiver_path,
+                local_method_scope,
+            )
+            .into_iter()
+            .map(|method| SourceCompletionItem {
+                label: method.name,
+                detail: completion_detail_for_def(check, &format_context, method.def),
+                kind: SourceCompletionItemKind::Method,
+            }),
+        );
+    }
+
+    items.extend(
+        infer::check::inferred_effect_method_candidates(
+            &check.lowering,
+            receiver_effect,
+            local_method_scope,
+        )
+        .into_iter()
+        .map(|method| SourceCompletionItem {
+            label: method.name,
+            detail: completion_detail_for_def(check, &format_context, method.def),
+            kind: SourceCompletionItemKind::Method,
+        }),
+    );
+
+    items.sort_by(|left, right| {
+        left.label.cmp(&right.label).then_with(|| {
+            completion_item_kind_order(left.kind).cmp(&completion_item_kind_order(right.kind))
+        })
+    });
     items.dedup_by(|left, right| left.label == right.label);
     items
+}
+
+fn completion_detail_for_def(
+    check: &infer::check::PolyCheckOutput,
+    format_context: &HoverFormatContext<'_>,
+    def: poly::expr::DefId,
+) -> Option<String> {
+    if let Some(value) = check.lowering.typing.def(def) {
+        return Some(format_context.format_value_type(value));
+    }
+    let Some(poly::expr::Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = check.lowering.session.poly.defs.get(def)
+    else {
+        return None;
+    };
+    Some(format_context.format_scheme(scheme))
+}
+
+fn completion_item_kind_order(kind: SourceCompletionItemKind) -> u8 {
+    match kind {
+        SourceCompletionItemKind::Field => 0,
+        SourceCompletionItemKind::Method => 1,
+        SourceCompletionItemKind::Value => 2,
+    }
 }
 
 fn source_references_from_check(

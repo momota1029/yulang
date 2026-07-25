@@ -529,6 +529,74 @@ impl AnalysisSession {
         }
     }
 
+    pub fn reachable_effect_paths_for_completion(&self, effect: TypeVar) -> Vec<Vec<String>> {
+        let mut paths = Vec::new();
+        self.collect_completion_effect_paths_from_var(
+            effect,
+            &mut FxHashSet::default(),
+            &mut paths,
+        );
+        paths
+    }
+
+    fn collect_completion_effect_paths_from_var(
+        &self,
+        effect: TypeVar,
+        visited: &mut FxHashSet<TypeVar>,
+        out: &mut Vec<Vec<String>>,
+    ) {
+        if !visited.insert(effect) {
+            return;
+        }
+        for fact in self.infer.constraints().subtracts().facts(effect) {
+            collect_subtractability_effect_paths(&fact.subtractability, out);
+        }
+        let Some(bounds) = self.infer.constraints().bounds().of(effect) else {
+            return;
+        };
+        for bound in bounds.lowers() {
+            collect_constraint_weight_effect_paths(&bound.weights, out);
+            self.collect_completion_effect_paths_from_pos(bound.pos, visited, out);
+        }
+    }
+
+    fn collect_completion_effect_paths_from_pos(
+        &self,
+        pos: PosId,
+        visited: &mut FxHashSet<TypeVar>,
+        out: &mut Vec<Vec<String>>,
+    ) {
+        match self.infer.constraints().types().pos(pos) {
+            Pos::Con(path, _) => push_unique_path(out, path.clone()),
+            Pos::Row(items) => {
+                for item in items {
+                    self.collect_completion_effect_paths_from_pos(*item, visited, out);
+                }
+            }
+            Pos::Var(var) => {
+                self.collect_completion_effect_paths_from_var(*var, visited, out);
+            }
+            Pos::Union(left, right) => {
+                self.collect_completion_effect_paths_from_pos(*left, visited, out);
+                self.collect_completion_effect_paths_from_pos(*right, visited, out);
+            }
+            Pos::NonSubtract(pos, _) => {
+                self.collect_completion_effect_paths_from_pos(*pos, visited, out);
+            }
+            Pos::Stack { inner, weight } => {
+                collect_stack_weight_effect_paths(weight, out);
+                self.collect_completion_effect_paths_from_pos(*inner, visited, out);
+            }
+            Pos::Bot
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_) => {}
+        }
+    }
+
     pub(super) fn probe_select_var(
         &mut self,
         select_id: SelectId,

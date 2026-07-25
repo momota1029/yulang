@@ -46,6 +46,14 @@ impl TypeMethodTable {
         candidates(&self.ref_methods, receiver, method)
     }
 
+    pub fn value_candidates_for_receiver(&self, receiver: &[String]) -> Vec<&TypeMethodCandidate> {
+        candidates_for_receiver(&self.value_methods, receiver)
+    }
+
+    pub fn ref_candidates_for_receiver(&self, receiver: &[String]) -> Vec<&TypeMethodCandidate> {
+        candidates_for_receiver(&self.ref_methods, receiver)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.value_methods.is_empty() && self.ref_methods.is_empty()
     }
@@ -82,6 +90,17 @@ fn candidates<'a>(
         })
         .map(Vec::as_slice)
         .unwrap_or(&[])
+}
+
+fn candidates_for_receiver<'a>(
+    methods: &'a FxHashMap<TypeMethodKey, Vec<TypeMethodCandidate>>,
+    receiver: &[String],
+) -> Vec<&'a TypeMethodCandidate> {
+    methods
+        .iter()
+        .filter(|(key, _)| key.receiver == receiver)
+        .flat_map(|(_, candidates)| candidates)
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -127,6 +146,14 @@ impl EffectMethodTable {
 
     pub fn candidates(&self, method: &str) -> &[EffectMethodCandidate] {
         self.methods.get(method).map(Vec::as_slice).unwrap_or(&[])
+    }
+
+    pub fn candidates_for_effect(&self, effect: &[String]) -> Vec<&EffectMethodCandidate> {
+        self.methods
+            .values()
+            .flatten()
+            .filter(|candidate| candidate.effect == effect)
+            .collect()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -264,11 +291,44 @@ impl CompanionMethodTable {
             .unwrap_or(&[])
     }
 
+    pub fn value_type_candidates_for_receiver(
+        &self,
+        scope: ModuleId,
+        receiver: &[String],
+    ) -> Vec<&TypeMethodCandidate> {
+        self.type_methods
+            .get(&scope)
+            .map(|methods| methods.value_candidates_for_receiver(receiver))
+            .unwrap_or_default()
+    }
+
+    pub fn ref_type_candidates_for_receiver(
+        &self,
+        scope: ModuleId,
+        receiver: &[String],
+    ) -> Vec<&TypeMethodCandidate> {
+        self.type_methods
+            .get(&scope)
+            .map(|methods| methods.ref_candidates_for_receiver(receiver))
+            .unwrap_or_default()
+    }
+
     pub fn effect_candidates(&self, scope: ModuleId, method: &str) -> &[EffectMethodCandidate] {
         self.effect_methods
             .get(&scope)
             .map(|methods| methods.candidates(method))
             .unwrap_or(&[])
+    }
+
+    pub fn effect_candidates_for_effect(
+        &self,
+        scope: ModuleId,
+        effect: &[String],
+    ) -> Vec<&EffectMethodCandidate> {
+        self.effect_methods
+            .get(&scope)
+            .map(|methods| methods.candidates_for_effect(effect))
+            .unwrap_or_default()
     }
 
     pub fn role_candidates(&self, scope: ModuleId, method: &str) -> &[RoleMethodCandidate] {
@@ -297,6 +357,14 @@ mod tests {
         assert!(table.value_candidates(&["float".into()], "show").is_empty());
         assert!(table.value_candidates(&["int".into()], "parse").is_empty());
         assert!(table.ref_candidates(&["int".into()], "show").is_empty());
+        assert_eq!(
+            table.value_candidates_for_receiver(&["int".into()]),
+            vec![&TypeMethodCandidate {
+                receiver: vec!["int".into()],
+                method: "show".into(),
+                def: method,
+            }]
+        );
     }
 
     #[test]
@@ -328,6 +396,14 @@ mod tests {
         assert_eq!(table.candidates("choose")[0].effect, vec!["nondet"]);
         assert_eq!(table.candidates("choose")[0].def, method);
         assert!(table.candidates("other").is_empty());
+        assert_eq!(
+            table.candidates_for_effect(&["nondet".into()]),
+            vec![&EffectMethodCandidate {
+                effect: vec!["nondet".into()],
+                method: "choose".into(),
+                def: method,
+            }]
+        );
     }
 
     #[test]

@@ -558,6 +558,7 @@ fn lsp_completion_item_for_source_item(item: SourceCompletionItem) -> Completion
         kind: Some(match item.kind {
             SourceCompletionItemKind::Value => CompletionItemKind::VARIABLE,
             SourceCompletionItemKind::Field => CompletionItemKind::FIELD,
+            SourceCompletionItemKind::Method => CompletionItemKind::METHOD,
         }),
         detail: item.detail,
         ..Default::default()
@@ -2878,6 +2879,105 @@ my got = make(1).norm2
                 .collect::<Vec<_>>(),
             vec!["part", "whole"]
         );
+    }
+
+    #[test]
+    fn completion_for_source_returns_struct_fields_and_nominal_methods() {
+        let root = lsp_test_workspace("completion-struct-methods");
+        let source = "\
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x
+
+my p = point { x: 3, y: 4 }
+p.";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 4,
+                character: 2,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| (item.label.as_str(), item.kind))
+                .collect::<Vec<_>>(),
+            vec![
+                ("norm2", Some(CompletionItemKind::METHOD)),
+                ("x", Some(CompletionItemKind::FIELD)),
+                ("y", Some(CompletionItemKind::FIELD)),
+            ]
+        );
+        assert_eq!(
+            items
+                .iter()
+                .find(|item| item.label == "norm2")
+                .and_then(|item| item.detail.as_deref()),
+            Some("point -> int")
+        );
+    }
+
+    #[test]
+    fn completion_for_source_prefers_field_when_method_has_same_name() {
+        let root = lsp_test_workspace("completion-field-method-collision");
+        let source = "\
+struct item { value: int } with:
+    our x.value = 42
+
+my x = item { value: 1 }
+x.";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 4,
+                character: 2,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let value = items
+            .iter()
+            .filter(|item| item.label == "value")
+            .collect::<Vec<_>>();
+
+        assert_eq!(value.len(), 1, "{items:?}");
+        assert_eq!(value[0].kind, Some(CompletionItemKind::FIELD));
+    }
+
+    #[test]
+    fn completion_for_source_returns_reachable_effect_method() {
+        let root = lsp_test_workspace("completion-effect-method");
+        let source = "\
+act nondet:
+    pub branch: () -> bool
+    our x.flip = x
+my each x = { nondet::branch(); x }
+(each 0).";
+        let items = completion_items_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 4,
+                character: 9,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+        let flip = items
+            .iter()
+            .find(|item| item.label == "flip")
+            .expect("reachable effect method should be offered");
+
+        assert_eq!(flip.kind, Some(CompletionItemKind::METHOD));
+        assert!(flip.detail.is_some(), "{flip:?}");
     }
 
     #[test]
