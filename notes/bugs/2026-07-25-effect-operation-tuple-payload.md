@@ -1,14 +1,30 @@
-# 効果操作のペイロードがタプルだと扱えない
+# 効果操作のタプルペイロード（当初の記述は誤り・2026-07-26 全面改訂）
 
 発見日: 2026-07-25
-状態: 未修正
-発見経緯: テスト機構の TEST-A（`assert` 実装）で `assert_eq` が動かず、Claude が原因を切り分けた
+改訂日: 2026-07-26
+状態: **当初の主張は誤りだった。** 実際に残る問題は下記「本当の残存問題」だけ。
 
-## 症状
+## 訂正
 
-効果操作の引数型がタプル（複数値）の場合、ハンドラが正しく機能しない。
+初版は「効果操作のペイロードがタプルだと扱えない」と書いたが、**これは誤りである**。
+再現に使ったプログラムの綴りが間違っていた。
 
-腕で分解パターンを書くと、腕が一致せず未処理効果になる。
+```yu
+probe::pair(2, 3)     -- タプルではない。カリー化された2引数適用 ((pair 2) 3)
+probe::pair (2, 3)    -- こちらがタプル1引数
+probe::pair((2, 3))   -- こちらもタプル1引数
+```
+
+`f(a, b)` は `f` にタプルを渡すのではなく、`f` を `a` に適用してから結果を `b` に適用する。
+効果操作でも同じで、最初の適用で効果が発生し、payload は `a`、残りの適用は継続の中に入る。
+
+これが初版の観測をすべて説明する。
+
+- destructuring の腕が一致しない → payload が `2` であってタプルではないため
+- 丸ごと束縛すると引数が崩れる → `p = 2`、`k = 継続`。`k(99)` の後に残った適用が `99(3)` になり
+  `not-callable 99` が出る
+
+## 正しく書けば動く
 
 ```yu
 act probe:
@@ -18,78 +34,65 @@ my h(x: [_] _) = catch x:
     probe::pair (a, b), k -> h: k(a + b)
     value -> value
 
-h: probe::pair(2, 3)
+h: probe::pair (2, 3)
 ```
 
 ```console
-runtime error [yulang.unhandled-effect]: unhandled effect request probe::pair
+run roots [5]
 ```
 
-腕で丸ごと束縛すると、腕は一致するが引数の対応が崩れる。
+丸ごと束縛も動く。
 
 ```yu
     probe::pair p, k -> h: k(99)
 ```
-
 ```console
-runtime error [yulang.not-callable]: tried to call a non-function value 99
+run roots [99]      -- probe::pair((2, 3)) に対して
 ```
 
-継続 `k` の呼び出しが非関数値の適用として失敗しており、`p` と `k` への束縛が
-期待どおりに対応していないことを示唆する。
+したがって**タプルペイロード自体は正常に機能する**。
 
-## 切り分け
+## 本当の残存問題: 関数値を含むタプル
 
-タプルであることが原因であり、ペイロードの中身の種類は関係しない。
+タプルの中身が関数（thunk）の場合だけ、実行時に落ちる。
 
-| ペイロード | 腕の形 | 結果 |
-|---|---|---|
-| `int` | `probe::one n, k ->` | **動作する**（`run roots [42]`） |
-| `() -> [_] int` | `probe::one t, k ->` | **動作する**（thunk 強制も含めて `run roots [7]`） |
-| `(() -> [_] int, () -> [_] int)` | `probe::two (l, r), k ->` | 未処理効果 |
-| `(int, int)` | `probe::pair (a, b), k ->` | 未処理効果 |
-| `(int, int)` | `probe::pair p, k ->` | 引数対応が崩れる |
+```yu
+act probe:
+    pub two: (() -> [_] int, () -> [_] int) -> int
 
-単一ペイロードは、スカラでも thunk でも正しく動く。thunk 特有の問題ではない。
+my h(x: [_] _) = catch x:
+    probe::two (l, r), k -> h: k(l() + r())
+    value -> value
 
-## 当初の誤診
+h: probe::two (\() -> { println "L"; 2 }, \() -> { println "R"; 3 })
+```
 
-TEST-A では当初「thunk を効果ペイロードに載せると内部の効果が失われる」と見立てていた。
-`assert_eq` が 2 つの thunk をタプルで渡す形だったため、症状がそう見えた。
+```console
+runtime error [yulang.unsupported-runtime-feature]: unsupported expression in runtime: non-int primitive argument
+  hint: try the interpreter oracle or reduce this source to a smaller report
+```
 
-`assert` を一切使わない最小再現で切り分けた結果、原因はタプルであり、thunk は無関係と判明した。
-単一 thunk のペイロードは、ハンドラが強制した時に内部の効果も正しく実行される（上表 2 行目、
-`INSIDE` が出力される）。
+単一の thunk ペイロードは正常に動き、ハンドラが強制すれば thunk 内の効果も実行される
+（`lib/std/testing.yu` の `assert` が実例）。落ちるのは**タプルに関数値を入れた場合**である。
 
-## 影響
-
-引数を 2 つ以上取る効果操作が書けない。これは特殊な要求ではなく、
-効果を持つ言語では普通に書きたくなる形である。
-
-現行 `lib/std` の効果操作はいずれも単一ペイロードのため、実害は出ていない。
-`assert_eq` を実装しようとして初めて露出した。
-
-## 保留した機能
-
-`assert_eq`（テスト機構の設計 `notes/design/2026-07-25-test-facility-design.md` §2.5）は、
-本件のため実装を見送った。承認済み設計は 2 つの遅延オペランドを取る形であり、
-本件が解決するまでその形では実装できない。
-
-`assert` の上に `assert_eq a b = assert (a() == b())` として定義する回避策は成立するが、
-失敗時に両辺の値を出せなくなり、`assert_eq` を持つ理由の一部が失われる。
-そのため回避せず、本件の解決を待つ判断とした。
+これが `assert_eq`（`notes/design/2026-07-25-test-facility-design.md` §2.5）を保留している
+実際の理由である。承認済み設計は 2 つの遅延オペランドをタプルで渡す形であり、この経路を通る。
 
 ## 着手前に確認すること
 
-- 腕の分解パターンが一致しないのは、パターンの lowering の問題か、
-  効果リクエストのペイロード表現の問題か。
-- 丸ごと束縛した場合の引数対応の崩れは、操作を「タプル 1 引数」ではなく
-  「複数引数」として扱っていることに由来しないか。両者が食い違っているなら、
-  どちらを正とするかの決定が先。
-- 現行 `lib/std` に多引数の効果操作が無いことは確認済み。修正の影響範囲は
-  ユーザーコードと将来の std に限られる。
+- `non-int primitive argument` はどの段階で出るか。specialize か control-IR lowering か VM か。
+- タプル内の関数値が、スカラのタプルと何が違う扱いを受けているか。
+- 単一 thunk が動くのに、タプル内 thunk が動かない差はどこか。
 
-## 関連
+## 副産物として発見された別の欠陥
 
-- `notes/design/2026-07-25-test-facility-design.md`（`assert_eq` の設計）
-- `lib/std/test.yu`（単一ペイロードで動作している実例）
+この調査中に、無関係な型健全性の穴が見つかった。
+`notes/bugs/2026-07-26-structural-argument-mismatch-accepted.md` を参照。
+
+## 経緯についての注記
+
+初版は Claude が書いた。再現プログラムの `f(a, b)` を「タプルを渡している」と誤読したまま、
+4 つの判別実験を組んで「タプルが原因」と結論した。判別実験どうしは整合していたが、
+全部が同じ誤った綴りを共有していたため、誤りが打ち消されずに残った。
+
+Codex（gpt-5.6-sol, xhigh）の診断で綴りの誤りが判明し、Claude が再検証して改訂した。
