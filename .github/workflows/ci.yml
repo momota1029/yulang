@@ -75,11 +75,39 @@ jobs:
       - name: Test poly, specialize, and the runtimes
         run: cargo test -q -p poly -p specialize -p evidence-vm -p mono-runtime
 
-  language_tests:
-    name: language tests
+  frontend_tests:
+    name: frontend tests
     needs: workspace_build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
+      - name: Test parser and infer
+        run: cargo test -q -p parser -p infer
+
+  yulang_tests:
+    name: yulang tests
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -101,9 +129,9 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       # This test temporarily mutates a process-wide cache environment variable,
-      # so keep it out of the parallel suite and run it alone below.
-      - name: Test parser, infer, and yulang
-        run: cargo test -q -p parser -p infer -p yulang -- --skip embedded_std_compiled_unit_artifact_persists_to_user_cache
+      # so keep it out of the parallel suite; the job below runs it alone.
+      - name: Test yulang
+        run: cargo test -q -p yulang -- --skip embedded_std_compiled_unit_artifact_persists_to_user_cache
 
   user_cache_isolation_test:
     name: user cache isolation test
@@ -139,7 +167,8 @@ jobs:
     needs:
       - workspace_build
       - runtime_tests
-      - language_tests
+      - frontend_tests
+      - yulang_tests
       - user_cache_isolation_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -148,11 +177,13 @@ jobs:
         env:
           WORKSPACE_BUILD: ${{ needs.workspace_build.result }}
           RUNTIME_TESTS: ${{ needs.runtime_tests.result }}
-          LANGUAGE_TESTS: ${{ needs.language_tests.result }}
+          FRONTEND_TESTS: ${{ needs.frontend_tests.result }}
+          YULANG_TESTS: ${{ needs.yulang_tests.result }}
           USER_CACHE_ISOLATION_TEST: ${{ needs.user_cache_isolation_test.result }}
         shell: bash
         run: |
           test "$WORKSPACE_BUILD" = success
           test "$RUNTIME_TESTS" = success
-          test "$LANGUAGE_TESTS" = success
+          test "$FRONTEND_TESTS" = success
+          test "$YULANG_TESTS" = success
           test "$USER_CACHE_ISOLATION_TEST" = success
