@@ -1168,6 +1168,187 @@ fn compatible_run_reports_pattern_mismatch_hint() {
 }
 
 #[test]
+fn structural_tuple_boundary_mismatches_keep_current_check_and_runtime_behavior() {
+    for (name, argument, expected_root, expected_coerce) in [
+        ("int", "2", "run roots [2]\n", "coerce[int => (int, int)]"),
+        (
+            "bool",
+            "true",
+            "run roots [true]\n",
+            "coerce[bool => (int, int)]",
+        ),
+    ] {
+        let entry = write_entry(
+            &format!("structural-tuple-argument-{name}"),
+            &format!("my f(p: (int, int)) = p\nf {argument}\n"),
+        );
+        let check = yulang_command()
+            .arg("--no-prelude")
+            .arg("--no-cache")
+            .arg("check")
+            .arg(&entry)
+            .output()
+            .unwrap();
+        assert_success(&check);
+        assert_eq!(stdout(&check), "");
+        assert_eq!(stderr(&check), "");
+
+        let run = yulang_command()
+            .arg("--no-prelude")
+            .arg("--no-cache")
+            .arg("run")
+            .arg("--print-roots")
+            .arg(&entry)
+            .output()
+            .unwrap();
+        assert_success(&run);
+        assert_eq!(stdout(&run), expected_root);
+        assert_eq!(stderr(&run), "");
+
+        let dump = yulang_command()
+            .arg("--no-prelude")
+            .arg("--no-cache")
+            .arg("dump")
+            .arg(&entry)
+            .arg("--mono")
+            .output()
+            .unwrap();
+        assert_success(&dump);
+        assert!(stdout(&dump).contains(expected_coerce), "{}", stdout(&dump));
+    }
+
+    let destructuring = write_entry(
+        "structural-tuple-argument-destructuring",
+        concat!(
+            "my f(p: (int, int)) = {\n",
+            "  my (a, b) = p\n",
+            "  a\n",
+            "}\n",
+            "f 2\n",
+        ),
+    );
+    let check = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&destructuring)
+        .output()
+        .unwrap();
+    assert_success(&check);
+    let run = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&destructuring)
+        .output()
+        .unwrap();
+    assert_failure(&run);
+    assert_eq!(stdout(&run), "");
+    assert!(
+        stderr(&run)
+            .contains("runtime error [yulang.pattern-mismatch]: no pattern matched the value\n"),
+        "{}",
+        stderr(&run)
+    );
+
+    let wrong_arity = write_entry(
+        "structural-tuple-argument-wrong-arity",
+        "my f(p: (int, int)) = p\nf (1, 2, 3)\n",
+    );
+    let check = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&wrong_arity)
+        .output()
+        .unwrap();
+    assert_success(&check);
+    let run = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&wrong_arity)
+        .output()
+        .unwrap();
+    assert_failure(&run);
+    assert!(
+        stderr(&run).contains(concat!(
+            "compile error [yulang.unsatisfied-subtype]: ",
+            "unsatisfied subtype constraint: (int, int, int) <: (int, int)\n",
+        )),
+        "{}",
+        stderr(&run)
+    );
+
+    let correct = write_entry(
+        "structural-tuple-argument-correct",
+        "my f(p: (int, int)) = p\nf (1, 2)\n",
+    );
+    let run = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&correct)
+        .output()
+        .unwrap();
+    assert_success(&run);
+    assert_eq!(stdout(&run), "run roots [(1, 2)]\n");
+    assert_eq!(stderr(&run), "");
+
+    let result = write_entry(
+        "structural-tuple-result-mismatch",
+        "my f(): (int, int) = 2\nf()\n",
+    );
+    let check = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&result)
+        .output()
+        .unwrap();
+    assert_failure(&check);
+    assert!(
+        stdout(&check).contains(
+            "error [yulang.invalid-signature]: f: signature type mismatch: expected a tuple type\n"
+        ),
+        "{}",
+        stdout(&check)
+    );
+
+    let field = write_entry(
+        "structural-tuple-field-mismatch",
+        "struct s { x: (int, int) }\ns { x: 2 }\n",
+    );
+    let check = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&field)
+        .output()
+        .unwrap();
+    assert_success(&check);
+    assert_eq!(stdout(&check), "");
+    assert_eq!(stderr(&check), "");
+    let dump = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("dump")
+        .arg(&field)
+        .arg("--mono")
+        .output()
+        .unwrap();
+    assert_success(&dump);
+    assert!(
+        stdout(&dump).contains("adapter[{x: (int, int)} -> s => {x: int} -> s; hygiene[]]"),
+        "{}",
+        stdout(&dump)
+    );
+}
+
+#[test]
 fn compatible_run_reports_missing_record_field_source_range_and_hint() {
     let entry = write_entry("run-unsatisfied-subtype", "{ a: 1 }.b\n");
 

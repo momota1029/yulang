@@ -972,6 +972,50 @@ mod tests {
     }
 
     #[test]
+    fn specialize2_structural_tuple_argument_cross_shape_falls_through_but_arity_does_not() {
+        for (name, source, expected_coerce) in [
+            (
+                "int",
+                "my f(p: (int, int)) = p\nf 2\n",
+                "coerce[int => (int, int)](2)",
+            ),
+            (
+                "bool",
+                "my f(p: (int, int)) = p\nf true\n",
+                "coerce[bool => (int, int)](true)",
+            ),
+        ] {
+            let lowering = lower_source(source);
+            assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
+
+            let program = specialize2(&lowering.session.poly)
+                .unwrap_or_else(|error| panic!("{name}: current cross-shape behavior: {error:?}"));
+            let text = mono::dump::dump_program(&program);
+
+            assert!(text.contains(expected_coerce), "{name}: {text}");
+        }
+
+        let correct = lower_source("my f(p: (int, int)) = p\nf (1, 2)\n");
+        assert!(correct.errors.is_empty(), "{:?}", correct.errors);
+        let program =
+            specialize2(&correct.session.poly).expect("a correct tuple argument should specialize");
+        let text = mono::dump::dump_program(&program);
+        assert!(text.contains("mono roots [(m0 (1, 2))]"), "{text}");
+        assert!(!text.contains("coerce["), "{text}");
+
+        let wrong_arity = lower_source("my f(p: (int, int)) = p\nf (1, 2, 3)\n");
+        assert!(wrong_arity.errors.is_empty(), "{:?}", wrong_arity.errors);
+        assert!(matches!(
+            specialize2(&wrong_arity.session.poly),
+            Err(crate::SpecializeError::UnsatisfiedSubtype {
+                lower: Type::Tuple(lower),
+                upper: Type::Tuple(upper),
+                ..
+            }) if lower.len() == 3 && upper.len() == 2
+        ));
+    }
+
+    #[test]
     fn specialize2_string_input_runs_computed_top_level_binding() {
         let lowering = lower_source("my id x = x\nmy a = id(1)\n");
         let arena = &lowering.session.poly;
