@@ -1,6 +1,6 @@
 # `std::data::result`
 
-`result 'ok 'err` は、失敗しうる計算の値表現。エラー effect を値に閉じて、
+`result 'ok 'err` は、失敗しうる計算の値表現である。エラー effect を値に閉じて、
 保持・返却・パターンマッチしたいときに使う。
 
 ```yulang
@@ -17,12 +17,14 @@ prelude が `result` / `ok` / `err` を re-export している。
 ok 1
 ok "yes"
 err "missing config"
-err io_err::not_found "p"
+err (io_err::not_found (std::text::path::of_bytes: to_bytes "p"))
 ```
 
 ## パターンマッチ
 
 ```yulang
+my maybe_n = ok 41
+
 case maybe_n:
     ok n  -> n + 1
     err e -> 0
@@ -50,9 +52,13 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## `error E:` と `wrap` との関係
 
 ```yulang
-my wrapped = io_err::wrap: read_text path
+error parse_err:
+    invalid str
+
+my parse(source: str): str = fail (parse_err::invalid source)
+my wrapped: result str parse_err = parse_err::wrap: parse "?"
 case wrapped:
-    ok text -> use text
+    ok text -> text
     err e   -> e.show
 ```
 

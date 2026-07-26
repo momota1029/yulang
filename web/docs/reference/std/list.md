@@ -1,12 +1,15 @@
 # `std::data::list`
 
-Immutable lists, with `Index`, `Fold`, and `+` (concatenation) support.
+This page covers immutable lists and their `Index`, `Fold`, and `+`
+(concatenation) operations.
 
 ## Construction
 
 ```yulang
 []
 [1, 2, 3]
+my head = 0
+my tail = [1, 2]
 [head, ..tail]
 
 std::data::list::empty()              // []
@@ -30,11 +33,13 @@ xs[1..]          // [20, 30, 40]
 ```
 
 `list 'a` implements `Index` for both `int` and `range`. An out-of-range index
-fails at runtime; a range slice that runs off the end is clamped.
+or range slice fails at runtime.
 
 ## Predicates and length
 
 ```yulang
+my xs = [10, 20, 30, 40]
+
 xs.len              // 4
 std::data::list::is_empty xs    // false
 ```
@@ -44,6 +49,8 @@ std::data::list::is_empty xs    // false
 ## Iteration
 
 ```yulang
+my xs = [10, 20, 30, 40]
+
 for x in xs:
     say x
 
@@ -56,6 +63,9 @@ xs.fold 0 (\acc x -> acc + x)
 ## Transformations
 
 ```yulang
+my xs = [10, 20, 30, 40]
+my double x = x * 2
+
 xs.map double                          // [20, 40, 60, 80]
 xs.filter (\x -> x > 15)               // [20, 30, 40]
 xs.rev                                 // [40, 30, 20, 10]
@@ -70,6 +80,9 @@ is untouched.
 ## Head/tail access
 
 ```yulang
+my xs = [10, 20, 30, 40]
+my default = 0
+
 xs.first    // opt::just 10
 xs.last     // opt::just 40
 
@@ -78,17 +91,19 @@ case std::data::list::uncons xs:
     opt::nil               -> default
 ```
 
-`first`, `last`, and `uncons` return `opt` so they handle empty lists
-cleanly.
+`first` and `last` return `nil` for an empty list. `uncons` also returns `nil`
+when there is no head/tail pair.
 
 ## Mutable list references
 
 ```yulang
-my $xs = [1, 2, 3]
-&xs[1] = 99
-$xs                  // [1, 99, 3]
-
-&xs.push 4           // [1, 99, 3, 4]  (through Index ref impl)
+{
+    my $xs = [1, 2, 3]
+    &xs[1] = 99
+    my after_update = $xs
+    &xs.push 4           // through the list ref method
+    (after_update, $xs)  // ([1, 99, 3], [1, 99, 3, 4])
+}
 ```
 
 When `xs` is held in a reference (`my $xs = ...`), the `Index` impl for
@@ -99,6 +114,8 @@ When `xs` is held in a reference (`my $xs = ...`), the `Index` impl for
 
 ```yulang
 use std::control::nondet::*
+
+my xs = [10, 20, 30, 40]
 
 (each xs).list
 (each xs).once

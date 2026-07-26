@@ -18,12 +18,14 @@ The prelude re-exports `result`, `ok`, and `err`.
 ok 1
 ok "yes"
 err "missing config"
-err io_err::not_found "p"
+err (io_err::not_found (std::text::path::of_bytes: to_bytes "p"))
 ```
 
 ## Pattern-matching
 
 ```yulang
+my maybe_n = ok 41
+
 case maybe_n:
     ok n  -> n + 1
     err e -> 0
@@ -51,9 +53,13 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## Relationship with `error E:` and `wrap`
 
 ```yulang
-my wrapped = io_err::wrap: read_text path
+error parse_err:
+    invalid str
+
+my parse(source: str): str = fail (parse_err::invalid source)
+my wrapped: result str parse_err = parse_err::wrap: parse "?"
 case wrapped:
-    ok text -> use text
+    ok text -> text
     err e   -> e.show
 ```
 

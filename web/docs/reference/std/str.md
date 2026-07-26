@@ -1,18 +1,20 @@
 # `std::text::str`
 
-Immutable strings with `Index`, `Len`, `Add` (concatenation), `Display`, and
-`Debug` support.
+This page covers immutable strings and their `Index`, `Len`, `Add`
+(concatenation), `Display`, and `Debug` operations.
 
 ## Literals and concatenation
 
 ```yulang
+my name = "Yulang"
+
 "hello"
 "hello, " + name
 "" + 1.show + " items"
 ```
 
 `+` on strings concatenates. The `Add` impl is the same role-based
-mechanism as `+` on numbers; user code can call `xs.add ys` instead.
+mechanism as `+` on numbers; user code can call `s.add t` instead.
 
 ## Length
 
@@ -74,8 +76,9 @@ For structural developer-facing output, use `.debug`:
 primitives, `list`, `opt`, `result`, and common tuple arities when their
 payloads also implement `Debug`. The basic runtime host also renders structural
 fallbacks for records and longer tuples, which is what `yulang run` and the
-playground use for inspection. Values that implement `Debug` also get `.print`
-and `.println`, which print `.debug` without or with a newline.
+playground use for inspection. Strings themselves have `.print` and `.println`,
+which write the raw string without or with a newline; these are `str` methods,
+not `Debug` methods.
 
 ## Quick reference
 
@@ -88,9 +91,9 @@ and `.println`, which print `.debug` without or with a newline.
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |
 | `value.debug` | `Debug 'a => 'a -> str` |
-| `value.say` | `Display 'a => 'a -> [console] ()` |
-| `value.print` | `Debug 'a => 'a -> [console] ()` |
-| `value.println` | `Debug 'a => 'a -> [console] ()` |
+| `value.say` | `Display 'a => 'a -> [out] ()` |
+| `s.print` | `str -> [out] ()` |
+| `s.println` | `str -> [out] ()` |
 
 ## See also
 

@@ -1,4 +1,4 @@
-# std::control::nondet
+# `std::control::nondet`
 
 The `nondet` module provides nondeterminism through the `nondet` algebraic effect.
 
@@ -19,8 +19,8 @@ pub act nondet:
 ## `each`
 
 ```yulang
-each [1, 2, 3]   // chooses one value nondeterministically
-each 1..         // chooses from an infinite range
+(each [1, 2, 3]).list   // [1, 2, 3]
+(each 1..).once         // opt::just 1
 ```
 
 `each xs` returns one element of `xs`, signalling its choice through the `nondet` effect. `xs` can be any value implementing `Fold` (lists, ranges, …).
@@ -28,8 +28,15 @@ each 1..         // chooses from an infinite range
 ## `guard`
 
 ```yulang
-guard: condition
-guard (a == b)
+{
+    guard: true
+    "kept"
+}.once
+
+{
+    guard (1 == 1)
+    "kept"
+}.once
 ```
 
 When the condition is false, `guard` calls `reject` and prunes the current branch.
@@ -60,7 +67,11 @@ Each collector handles `branch` and `reject`, removing the `nondet` effect from 
 } .once
 ```
 
-The same program can be written with independent infinite choices and `guard: a <= b` / `guard: b <= c`, but the bounded form above is friendlier to the current VM and to browser Wasm stacks.
+The result is `just (3, 4, 5)`.
+
+The same search can use three independent `each 1..` choices and
+`guard: a <= b` / `guard: b <= c`, but the bounded form above is friendlier to
+the current VM and to browser Wasm stacks.
 
 ## Junctions
 

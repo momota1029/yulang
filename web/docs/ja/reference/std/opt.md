@@ -20,6 +20,8 @@ just "hello"
 ## パターンマッチ
 
 ```yulang
+my maybe_text = just "hello"
+
 case maybe_text:
     just text -> text.len
     nil       -> 0
@@ -39,19 +41,21 @@ case just 1:
 ## よくある形
 
 ```yulang
+my maybe_text = just "notes"
+my s = "21"
+
 // デフォルト値で埋める
 case maybe_text:
     just text -> text
     nil       -> "(no file)"
 
 // 失敗しうるステップを連鎖
-case parse_int s:
+case s.to_int:
     just n  -> just (n * 2)
     nil     -> nil
 ```
 
-優れたコンビネータが欲しいときは `result`（[std::data::result](./result)）に持ち
-上げるか、必要なヘルパーだけプロジェクトで書く。
+より多くのコンビネータが必要なら、プロジェクトのコードで `result`（[std::data::result](./result)）に変換するか、必要なヘルパーだけを定義する。
 
 ## 早見表
 

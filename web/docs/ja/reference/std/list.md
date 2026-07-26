@@ -1,12 +1,14 @@
 # `std::data::list`
 
-不変な list。`Index`、`Fold`、`+`（連結）に対応する。
+このページでは、不変な list と、その `Index`、`Fold`、`+`（連結）の操作を扱う。
 
 ## 構築
 
 ```yulang
 []
 [1, 2, 3]
+my head = 0
+my tail = [1, 2]
 [head, ..tail]
 
 std::data::list::empty()              // []
@@ -30,11 +32,13 @@ xs[1..]          // [20, 30, 40]
 ```
 
 `list 'a` は `Index` を `int` と `range` の両方に実装する。範囲外の `int`
-index は実行時失敗、`range` スライスは末尾を超えるとクランプされる。
+index と、末尾を超える `range` スライスは実行時に失敗する。
 
 ## 長さと述語
 
 ```yulang
+my xs = [10, 20, 30, 40]
+
 xs.len              // 4
 std::data::list::is_empty xs    // false
 ```
@@ -44,6 +48,8 @@ std::data::list::is_empty xs    // false
 ## 反復
 
 ```yulang
+my xs = [10, 20, 30, 40]
+
 for x in xs:
     say x
 
@@ -56,6 +62,9 @@ xs.fold 0 (\acc x -> acc + x)
 ## 変換
 
 ```yulang
+my xs = [10, 20, 30, 40]
+my double x = x * 2
+
 xs.map double                          // [20, 40, 60, 80]
 xs.filter (\x -> x > 15)               // [20, 30, 40]
 xs.rev                                 // [40, 30, 20, 10]
@@ -70,6 +79,9 @@ xs + [50, 60]                          // 同じ — list は Add を実装
 ## 先頭・末尾の取得
 
 ```yulang
+my xs = [10, 20, 30, 40]
+my default = 0
+
 xs.first    // opt::just 10
 xs.last     // opt::just 40
 
@@ -78,16 +90,18 @@ case std::data::list::uncons xs:
     opt::nil               -> default
 ```
 
-`first` / `last` / `uncons` は `opt` を返すので、空リストを綺麗に扱える。
+`first` と `last` は空の list に対して `nil` を返す。`uncons` も先頭と残りの組がなければ `nil` を返す。
 
 ## 可変な list 参照
 
 ```yulang
-my $xs = [1, 2, 3]
-&xs[1] = 99
-$xs                  // [1, 99, 3]
-
-&xs.push 4           // [1, 99, 3, 4]  （Index ref impl 経由）
+{
+    my $xs = [1, 2, 3]
+    &xs[1] = 99
+    my after_update = $xs
+    &xs.push 4           // list の ref method 経由
+    (after_update, $xs)  // ([1, 99, 3], [1, 99, 3, 4])
+}
 ```
 
 `xs` が参照に入っているとき（`my $xs = ...`）、`ref _ (list _)` 用の `Index`
@@ -99,11 +113,13 @@ impl で `&xs[i] = value` が書ける。`&xs.push v` も対応する ref method
 ```yulang
 use std::control::nondet::*
 
+my xs = [10, 20, 30, 40]
+
 (each xs).list
 (each xs).once
 ```
 
-`each` は要素を 1 つ非決定的に選ぶ。`.list` は全ての分岐を新しい list に
+`each` は要素を 1 つ非決定的に選ぶ。`.list` はすべての分岐を新しい list に
 集める、`.once` は最初の 1 つを `opt` で返す。
 
 ## 早見表

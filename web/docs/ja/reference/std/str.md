@@ -1,17 +1,19 @@
 # `std::text::str`
 
-不変な文字列。`Index`、`Len`、`Add`（連結）、`Display`、`Debug` に対応する。
+このページでは、不変な文字列と、その `Index`、`Len`、`Add`（連結）、`Display`、`Debug` の操作を扱う。
 
 ## リテラルと連結
 
 ```yulang
+my name = "Yulang"
+
 "hello"
 "hello, " + name
 "" + 1.show + " items"
 ```
 
 `+` で文字列を連結する。`Add` impl は数値の `+` と同じ role 機構を共有する
-ので、`xs.add ys` でも呼べる。
+ので、`s.add t` でも呼べる。
 
 ## 長さ
 
@@ -62,7 +64,7 @@ true.show           // "true"
 (just "x").debug     // "just \"x\""
 ```
 
-`.debug` は `Debug` role 経由で解決される。prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。ただし payload も `Debug` を持つ必要がある。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground での調査にも使える。`Debug` を持つ値には、`.debug` を改行なし/改行付きで出力する `.print` / `.println` も生える。
+`.debug` は `Debug` role 経由で解決される。prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。ただし payload も `Debug` を持つ必要がある。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground での調査にも使える。`str` 自体には、生の文字列を改行なしまたは改行付きで出力する `.print` と `.println` がある。これらは `Debug` method ではなく `str` method である。
 
 ## 早見表
 
@@ -75,9 +77,9 @@ true.show           // "true"
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |
 | `value.debug` | `Debug 'a => 'a -> str` |
-| `value.say` | `Display 'a => 'a -> [console] ()` |
-| `value.print` | `Debug 'a => 'a -> [console] ()` |
-| `value.println` | `Debug 'a => 'a -> [console] ()` |
+| `value.say` | `Display 'a => 'a -> [out] ()` |
+| `s.print` | `str -> [out] ()` |
+| `s.println` | `str -> [out] ()` |
 
 ## 関連ページ
 
