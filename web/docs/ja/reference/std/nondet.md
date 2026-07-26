@@ -46,9 +46,9 @@ pub act nondet:
 
 ## Collector
 
-collector は非決定性を持つ式に method call として付ける。
+collector は非決定性を持つ式に method 呼び出しとして付ける。
 
-| Method | Result type | 説明 |
+| Method | Result 型 | 説明 |
 |--------|-------------|------|
 | `.list` | `list 'a` | 分岐順のすべての結果 |
 | `.logic` | `list 'a` | 無限分岐に向く breadth-first scheduling で集めたすべての結果 |
@@ -72,12 +72,12 @@ collector は非決定性を持つ式に method call として付ける。
 
 結果は `just (3, 4, 5)`。
 
-独立した `each 1..` を 3 つ置き、`guard: a <= b` / `guard: b <= c` で絞っても同じ探索を書けるが、現在の VM と browser Wasm stack には上のように範囲を先に絞る形の方が軽い。
+独立した `each 1..` を 3 つ置き、`guard: a <= b` / `guard: b <= c` で絞っても同じ探索を書けるが、現在の VM とブラウザ Wasm stack には上のように範囲を先に絞る形の方が軽い。
 
 ## Junction
 
 companion module の `std::control::junction` は `all xs` と `any xs` を提供する。
-これらは `nondet` の一部ではないが、collection を包み、`junction` effect を通じて一つの比較をすべての要素に適用する。
+これらは `nondet` の一部ではないが、collection を包み、`junction` effect を通じて一つの比較の application をすべての要素へ広げる。
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:

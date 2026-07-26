@@ -57,9 +57,9 @@ true.show           // "true"
 ```
 
 `.show` は `Display` role 経由で解決される。
-prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity にユーザ向けの `Display` impl を提供する。
+prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity にユーザー向けの `Display` impl を提供する。
 ただし payload も `Display` を持つ必要がある。
-ユーザ型は `error E:`（自動生成）か `impl Display T: our v.show = ...` で `Display` を得る。
+ユーザー型は `error E:`（自動生成）か `impl Display T: our v.show = ...` で `Display` を得る。
 `Display` を持つ値には、`.show` を改行付きで出力する `.say` も生える。
 
 構造値の開発者向け表示には `.debug` を使う。
@@ -95,4 +95,4 @@ basic runtime host は record や長い tuple の構造 fallback も表示する
 
 - [`std::data::list`](./list)：list 操作と組み合わせる場面が多い
 - [文字列](../strings)：文字列まわりの構文
-- [キャスト](../casts)：文字列と wrapper 型の変換
+- [cast](../casts)：文字列と wrapper 型の変換

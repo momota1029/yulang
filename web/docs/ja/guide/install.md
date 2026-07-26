@@ -7,7 +7,7 @@ Yulang はまだ実験段階の言語です。
 ## Binary release
 
 OS ごとの release archive を入れます。
-binary には embedded standard library が入り、初回にユーザー library directory へ配置されます。
+binary には embedded 標準ライブラリが入り、初回にユーザー ライブラリ directory へ配置されます。
 
 ```sh
 curl -fsSL https://yulang.momota.pw/install.sh | sh
@@ -31,7 +31,7 @@ Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
+PowerShell installer は install 先の `bin` directory をユーザー `PATH` に追加します。
 この処理を省く場合は `-NoModifyPath` を渡します。
 
 現在の release に固定する場合は `-Version v0.1.0-alpha.10` を渡します。
@@ -55,9 +55,9 @@ hello from Yulang
 run roots [(), 3]
 ```
 
-`yulang run` が標準で出すのは `say` / `println` など program 自身の出力だけです。
+`yulang run` が標準で出すのは `say` / `println` などプログラム自身の出力だけです。
 CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
-`yulang check hello.yu` は file を検査します。
+`yulang check hello.yu` はファイルを検査します。
 成功時は何も出力せず、失敗時だけ diagnostic を出します。
 
 ```sh
@@ -110,7 +110,7 @@ cargo run -p yulang -- run path/to/file.yu
 source tree から試す場合に重要なのは `cargo run -p yulang -- run path/to/file.yu` です。
 下の web deploy は、hosted playground 、 docs を更新する場合だけ必要です。
 
-CLI はユーザー cache root にコンパイラ artifact を保存します。
+CLI はユーザーキャッシュ root に compiler artifact を保存します。
 `.yucu`、`.yuir`、`.yuvm`と、`--runtime-phase-timings` が出す route label については[キャッシュ](./cache) にまとめています。
 
 ### language server
@@ -150,12 +150,12 @@ repository は Rust workspace です。
 
 | Crate | 役割 |
 |-------|------|
-| `sources`, `parser` | source file を集め、concrete syntax と operator table を作る |
+| `sources`, `parser` | source ファイルを集め、concrete syntax と演算子 table を作る |
 | `infer`, `poly` | 型を推論し、多相 IR を作る |
-| `specialize`, `mono` | program を specialize して単相 IR にする |
+| `specialize`, `mono` | プログラムを specialize して単相 IR にする |
 | `control-ir`, `evidence-vm` | control IR へ lower し、CLI default backend で実行する |
-| `mono-runtime` | `mono` program を直接読み、`--interpreter` oracle として動かす |
-| `wasm` | playground が使う browser 向け WebAssembly API を出す |
+| `mono-runtime` | `mono` プログラムを直接読み、`--interpreter` oracle として動かす |
+| `wasm` | playground が使うブラウザ向け WebAssembly API を出す |
 | `yulang`, `yulang-editor` | CLI/source pipeline と editor 向け integration を担う |
 
 ## Web build
@@ -165,7 +165,7 @@ npm --prefix web install
 npm --prefix web run build
 ```
 
-任意のディレクトリへ配置する場合は次のようにします。
+任意の directory へ配置する場合は次のようにします。
 
 ```sh
 YULANG_DEPLOY_DIR=/path/to/site npm --prefix web run deploy:dir

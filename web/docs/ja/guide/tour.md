@@ -3,8 +3,8 @@
 Yulang の主要機能を短く巡るページです。
 すべての例は <a href="/" target="_self">Playground</a> で実行できます。
 
-基本、構造体、省略可能引数、parser pattern、可変 binding と参照、非決定性の順に進みます。
-続いて Junction、エフェクト、ループと早期 return、エラー、コメントを扱い、最後に次の資料を案内します。
+基本、struct、省略可能引数、parser pattern、可変 binding と参照、非決定性の順に進みます。
+続いて Junction、effect、ループと早期 return、エラー、コメントを扱い、最後に次の資料を案内します。
 
 ## 基本
 
@@ -35,7 +35,7 @@ OCaml の `let f x = ...` や Haskell の `f x = ...` に近い書き方にな�
 - **`our`**：囲んでいる companion module に公開し、`.norm2` と effect operation がこの形です。
 - **`pub`**：module の外へ export し、先ほどの `double` を別 module から使わせるなら宣言を `pub double x = ...` に変えます。
 
-## 構造体
+## struct
 
 `with:` block では、struct の宣言内に method を付けられます。
 
@@ -46,7 +46,7 @@ struct point { x: int, y: int } with:
 point { x: 3, y: 4 } .norm2
 ```
 
-`struct` は nominal な record type です。
+`struct` は nominal な record 型です。
 Rust や OCaml の record と似ています。
 違うのは `with:` で method を一緒に書けること。
 `our p.norm2` の `p` は receiver 名で、`point` の値から `.norm2` として呼べます。
@@ -171,7 +171,7 @@ else:
 Ruby なら `[1,2,3].all? { |x| [2,3,4].any? { |y| x < y } }` のように畳む比較を、Yulang では `if` の中にそのまま書けます。
 `if` が effectful な条件を受け取れるように設計されているおかげです。
 
-## エフェクト
+## effect
 
 `act` は effect interface を宣言します。
 operation は普通の関数のように呼び、`catch` で処理します。
@@ -193,7 +193,7 @@ run_console:
 `run_console` は `catch` でその operation を処理し、戻り値の型から `[console]` を取り除きます。
 
 handler arm の `k` は continuation で、`k value` を呼ぶと operation の呼び出し位置へ値を返して計算を再開します。
-handler の差し替え、loop、早期 return、例外は、いずれも `k` をどう扱うかという選択です。
+handler の差し替え、ループ、早期 return、例外は、いずれも `k` をどう扱うかという選択です。
 
 ## ループと早期 return
 
@@ -209,7 +209,7 @@ sub:
 ```
 
 `return` は、prelude が `sub` effect の `return` operation を基に export する演算子です。
-`last`、`next`、`redo` も同じ仕組みで、loop の effect を呼んでいるだけです。
+`last`、`next`、`redo` も同じ仕組みで、ループの effect を呼んでいるだけです。
 「早期脱出」「`break`」「`continue`」が、特殊構文ではなく **同じ effect 機構の応用** で書かれています。
 
 ## エラー
@@ -238,7 +238,7 @@ path_err::not_found "/x"                      // [path_err] effect を起こす
 型注釈により、最初の行は `path_err` 値になります。
 値を求める文脈がない 2 行目は、`[path_err]` effect を起こします。
 
-`from` は、ある error を別の error へまとめます。
+`from` は、あるエラーを別のエラーへまとめます。
 
 ```yulang
 error path_err:
@@ -251,12 +251,12 @@ error app_err:
 ```
 
 エラーは effect row の中に名前で残るので、「何が起きうるか」が型を見ればわかります。
-`Display` だけを残して error の型を消去する `anyhow` のような wrapper は、意図的に持ちません。
-error を値として見る必要があるときは、`wrap` で `result` 値に閉じます。
+`Display` だけを残してエラーの型を消去する `anyhow` のような wrapper は、意図的に持ちません。
+エラーを値として見る必要があるときは、`wrap` で `result` 値に閉じます。
 
 ## コメント
 
-Yulang には line comment と doc comment があります。
+Yulang には line コメントと doc コメントがあります。
 
 ```yulang
 // 通常の line comment
@@ -268,7 +268,7 @@ Yulang には line comment と doc comment があります。
 ---
 ```
 
-`--` は doc comment です。
+`--` は doc コメントです。
 ただのメモには `//` を使います。
 
 ## 次に読むもの

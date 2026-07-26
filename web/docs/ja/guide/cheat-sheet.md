@@ -29,7 +29,7 @@ xs[0]                          // インデックス
 空白は意味を持ちます。
 `f(x)` は呼び出し、`f (x)` は `f` を `(x)` に裸 application、`f: x` は colon、`f :x` は `f` をシンボル `:x` に裸 application、とそれぞれ別物です。
 
-## ブロックと layout
+## block と layout
 
 ```yulang
 { my x = 1; x + 1 }            // brace block
@@ -81,7 +81,7 @@ type ref 'e 'a with:
         get: () -> ['e] 'a
 ```
 
-## パターン
+## pattern
 
 ```yulang
 case v:
@@ -95,7 +95,7 @@ case v:
     color::red -> ...          // enum variant（修飾）
 ```
 
-## エフェクト
+## effect
 
 ```yulang
 act log:
@@ -153,7 +153,7 @@ pub suffix (..) 8.0.0 = std::data::range::from_included
 pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a(): true else: b()
 ```
 
-## モジュールと import
+## module と import
 
 ```yulang
 use std::control::nondet::*

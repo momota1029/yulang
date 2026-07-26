@@ -17,7 +17,7 @@ std::data::list::cons(0, [1, 2])      // [0, 1, 2]
 ```
 
 `[ ... ]` リテラルが日常形。
-`cons` と `singleton` は型変数の情報を残したいときに役立つ。
+`cons` と `singleton` は type variable の情報を残したいときに役立つ。
 
 ## index とスライス
 
@@ -57,7 +57,7 @@ xs.fold 0 (\acc x -> acc + x)
 ```
 
 `list 'a` は `Fold` を実装するので、`for` も `fold` も使える。
-`for` の body は各要素に対して関数として適用される。
+`for` の body は、各要素を引数とする関数 application になる。
 
 ## 変換
 
@@ -142,6 +142,6 @@ my xs = [10, 20, 30, 40]
 
 ## 関連ページ
 
-- [パターン → リストパターン](../patterns)
+- [pattern → list pattern](../patterns)
 - [`std::data::range`](./core)：スライスと反復に使う range
 - [`std::control::nondet`](./nondet)：非決定的な反復

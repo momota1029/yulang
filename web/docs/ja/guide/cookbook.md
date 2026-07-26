@@ -1,11 +1,11 @@
 # クックブック
 
 日常的な Yulang のタスクを目的別に引けるレシピ集です。
-多くの節では定型的な書き方に短い説明を添え、設定ファイル、file 編集、log 集計、もう少し大きいサンプルでは長めの例を扱います。
+多くの節では定型的な書き方に短い説明を添え、設定ファイル、ファイル編集、log 集計、もう少し大きいサンプルでは長めの例を扱います。
 背景の詳細は言語リファレンスへリンクしています。
 
 例では、C 風の呼び出しより、Yulang らしい **括弧を減らした書き方** を中心に使います。
-`f x y` の bare application、`f: ...` の colon application、字下げブロックです。
+`f x y` の bare application、`f: ...` の colon application、字下げ block です。
 
 ## 値と関数を定義する
 
@@ -16,7 +16,7 @@ greet "Yulang"
 ```
 
 `my` は private な binding です。
-名前のあとに置いたパターンが curry された引数になります。
+名前のあとに置いた pattern が curry された引数になります。
 
 [関数](../reference/functions)
 
@@ -29,7 +29,7 @@ pub double x = x + x
 `pub` は外部へ export します。
 `our` は囲んでいる companion module 内で見えるようにします（method 定義での既定）。
 
-[モジュール](../reference/modules)
+[module](../reference/modules)
 
 ## `case` で場合分けする
 
@@ -42,7 +42,7 @@ my describe n =
 ```
 
 arm は上から順に試されます。
-ガードは pattern の後ろに `if` を続けて書きます。
+guard は pattern の後ろに `if` を続けて書きます。
 
 [パターンマッチ](../reference/patterns)
 
@@ -56,9 +56,9 @@ point { x: 3, y: 4 } .norm2
 ```
 
 `with:` は struct の companion module を開きます。
-レシーバ名 `p` は `.norm2` を呼んだときの値を指します。
+receiver 名 `p` は `.norm2` を呼んだときの値を指します。
 
-[構造体とロール](../reference/structs)
+[struct と role](../reference/structs)
 
 ## role を型に対して実装する
 
@@ -69,9 +69,9 @@ impl Add point:
 
 role は interface を宣言します。
 `impl` は具体型に対して method を提供します。
-レシーバ `a`（とここでは第二引数 `b`）は role の method signature と対応します。
+receiver `a`（とここでは第二引数 `b`）は role の method シグネチャと対応します。
 
-[構造体とロール](../reference/structs)
+[struct と role](../reference/structs)
 
 ## ループから早期脱出する
 
@@ -82,7 +82,7 @@ sub:
     0
 ```
 
-`sub:` は early-return のスコープを開きます。
+`sub:` は early-return の scope を開きます。
 `return value` は最も近い `sub:` を抜けます。
 `for` の中では `last` / `next` / `redo` でループそのものを制御します。
 
@@ -103,7 +103,7 @@ sub:
 `$x` で読み、`&x = value` で書きます。
 内部的には小さな handled `var` effect として展開されるので、effect 系の外に逃げず、ちゃんと型に乗ります。
 
-## text file を読む
+## text ファイルを読む
 
 ```yulang
 my text = read_text "data.txt"
@@ -111,7 +111,7 @@ text.say
 ```
 
 `str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま渡せます。
-filesystem error は effect row の `io_err` として投げられます。
+filesystem エラーは effect row の `io_err` として投げられます。
 呼び出し側に値としての `result` が必要な境界だけ `wrap` します。
 
 ```yulang
@@ -125,7 +125,7 @@ case wrapped:
 
 ## 設定ファイルを読む
 
-設定ファイル、file 編集、log 集計の例は[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) にあります。
+設定ファイル、ファイル編集、log 集計の例は[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) にあります。
 
 次は一部省略の例です。
 設定ファイルを method-form の文字列 API で読み、`=` の左右を trim してから`port` を数値化します。
@@ -156,9 +156,9 @@ my read_config(path: str): (int, list (str, str), int, int) =
 
 完全な例は[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu) です。
 
-## text file を行単位で編集する
+## text ファイルを行単位で編集する
 
-file を durable な text ref として開くと、行単位の編集をそのまま書けます。
+ファイルを durable な text ref として開くと、行単位の編集をそのまま書けます。
 次は一部省略の例です。
 先に `/tmp` へ copy を作るので、何度実行しても tracked sample は汚れません。
 
@@ -209,8 +209,8 @@ area { width: 3, height: 4 }
 area {}
 ```
 
-デフォルト付きの record pattern は、呼び出し側で各 field を省略できるようにします。
-デフォルトは左から右へ評価され、後ろの field のデフォルトは前の field を参照できます。
+default 付きの record pattern は、呼び出し側で各 field を省略できるようにします。
+default は左から右へ評価され、後ろの field の default は前の field を参照できます。
 
 [関数](../reference/functions)
 
@@ -240,7 +240,7 @@ case wrapped:
     result::err err -> err.show
 ```
 
-`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。
+`E::wrap` は thunk を走らせ、対応するエラー effect を捕まえて `result` 値を返します。
 `err` 側は自動生成された impl を通じて `Display` できます。
 
 [エラー → wrap](../reference/errors)
@@ -258,8 +258,8 @@ my read_and_parse path =
         parse_json text
 ```
 
-`from` は広いエラー型に narrower error を取り込みます。
-`app_err::up` はブロック内部の narrower error を `app_err` に持ち上げる handler です。
+`from` は広いエラー型に narrower エラーを取り込みます。
+`app_err::up` は block 内部の narrower エラーを `app_err` に持ち上げる handler です。
 
 [エラー → from 集約](../reference/errors)
 
@@ -280,10 +280,10 @@ my run_into_strings(action: [log; 'e] 'a): ['e] ('a, list str) =
 ```
 
 `catch` は捕まえた operation を row から除きます。
-各 arm は payload と継続 `k` を受け取ります。
+各 arm は payload と continuation `k` を受け取ります。
 `k value` を呼ぶと、捕まえた地点以降の計算が再開します。
 
-[エフェクト](../reference/effects)
+[effect](../reference/effects)
 
 ## 非決定的に探索する
 
@@ -324,9 +324,9 @@ my raw: int = id
 ```
 
 `cast(x: A): B = body` は `A` から `B` への変換規則を登録します。
-compiler は注釈や引数のような expected-type 境界で、その規則を適用します。
+compiler は注釈や引数のような expected-type 境界で、その規則の application を行います。
 
-[キャスト](../reference/casts)
+[cast](../reference/casts)
 
 ## もう少し大きいサンプル
 
@@ -355,7 +355,7 @@ eval (expr::add (expr::num 2, expr::mul (expr::num 3, expr::num 4)))
 
 `(expr, expr)` のように tuple を payload にするのが、複数引数 variant を表す素直な書き方です。
 
-### 再帰でリストを絞る
+### 再帰で list を絞る
 
 list spread pattern と再帰で、`filter` 的な処理を素直に書けます。
 

@@ -65,7 +65,7 @@ case wrapped:
 `E::wrap` は thunk を走らせ、対応するエラー effect を捕まえて `result 'ok E` を返す。
 effect ベースのエラーと値表現の標準的なブリッジ。
 
-`from` で集約したエラーでは、`wrap` がリンクされた narrower error も同時に捕まえる。
+`from` で集約したエラーでは、`wrap` がリンクされた narrower エラーも同時に捕まえる。
 詳細は [エラー](../errors) を参照。
 
 ## 早見表
@@ -82,4 +82,4 @@ effect ベースのエラーと値表現の標準的なブリッジ。
 
 - [エラー](../errors)：`error E:` と catch-by-name
 - [`std::data::opt`](./opt)：エラー側が情報を持たないとき
-- [キャスト](../casts)：result 風 wrapper との変換
+- [cast](../casts)：result 風 wrapper との変換

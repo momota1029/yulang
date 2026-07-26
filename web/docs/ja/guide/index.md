@@ -10,7 +10,7 @@ else:
     "nothing"
 ```
 
-この `if` は、左のリストの要素ひとつひとつを、右のリストの要素全部と比較しています。
+この `if` は、左の list の要素ひとつひとつを、右の list の要素全部と比較しています。
 ループも内包表記も補助関数もありません。
 `all` と `any` がただの値で、比較演算子の方がそれらを持ち上げるからです。
 同じ仕掛けが、非決定的な探索にもそのまま効きます。
@@ -30,13 +30,13 @@ else:
 書かれているコードは上から下にまっすぐ流れているのに、裏側では分岐と backtrack が走っています。
 
 Yulang の中心にあるのは、**「制御構文はライブラリで書く」** という方針です。
-可変参照も、非決定性も、`all` / `any` のような集合的な比較も、early return も、型付きエラーも、独自の backtrack も：どれも parser が抱える builtin ではなく、代数的エフェクトという 1 つの仕組みの上に乗った普通の関数です。
+可変参照も、非決定性も、`all` / `any` のような集合的な比較も、early return も、型付きエラーも、独自の backtrack も：どれも parser が抱える builtin ではなく、algebraic effect という 1 つの仕組みの上に乗った普通の関数です。
 表に出るコードは短くて直線的なまま、裏側の形だけを好きに広げられます。
 
 ## 中に入っているもの
 
-- **代数的エフェクトと handler。** `act` で operation を宣言し、`catch op, k -> ...` で受けます。handler は捕まえた継続 `k` を受け取るので、再開・再試行・中断はすべて「`k` をどう扱うか」の選択として書けます。
-- **typeclass じゃなくて role。** `role Add 'a:` で interface を宣言し、`impl Add int:` で実装。method は普通のドット呼び出しに見えます。
+- **algebraic effect と handler。** `act` で operation を宣言し、`catch op, k -> ...` で受けます。handler は捕まえた continuation `k` を受け取るので、再開・再試行・中断はすべて「`k` をどう扱うか」の選択として書けます。
+- **typeclass じゃなくて role。** `role Add 'a:` で interface を宣言し、`impl Add int:` で実装。method は普通の dot 呼び出しに見えます。
 - **可変な local binding。** `my $x = 0` で宣言、`$x` で読み、`&x = v` で書く。中では handler 付きの `var` effect に展開されるので、意味論は純粋なまま、書き味は素朴です。
 - **binding の左辺は全部 pattern。** `my (a, b) = pair` も、record pattern + default で書く optional 引数 `my area {width = 1, height = 2} = width * height` も、同じ binding の形です。
 - **括弧少なめの表面。** bare application `f x y`、colon application `f: ...`、`:` とインデントで開く layout block。
@@ -50,5 +50,5 @@ Yulang の中心にあるのは、**「制御構文はライブラリで書く�
 - [インストール](./install)：CLI を入れて最初の `.yu` ファイルを動かす
 - [ツアー](./tour)：Yulang の主要機能を一通り見る
 - [クックブック](./cookbook)：タスク指向の短いレシピ集
-- [キャッシュ](./cache)：ローカル CLI の artifact cache と route label
+- [キャッシュ](./cache)：ローカル CLI の artifact キャッシュと route label
 - [リファレンス](/ja/reference/)：構文と意味の詳細

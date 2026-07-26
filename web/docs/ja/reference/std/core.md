@@ -65,7 +65,7 @@ console output は host-handled effect である。
 `say` / `.say` は `Display.show` の結果に改行を付けて出力する。
 `print` / `println` は raw string を stdout へ書く。
 `note` / `.note` / `eprint` / `eprintln` / `dd` は stderr を使う。
-host-facing operation は `out`、`err`、`warn`、`die` の effect family に分かれており、通常の program は wrapper と role method を使う。
+host-facing operation は `out`、`err`、`warn`、`die` の effect family に分かれており、通常のプログラムは wrapper と role method を使う。
 
 ## `std::io::file`
 
@@ -84,7 +84,7 @@ $buffer
 
 filesystem surface は text 指向である。
 `read_text` は UTF-8 のファイル全体を読み、`write_text` はファイルを作成または置換する。
-host error が起きた場合、どちらも effect row を通じて `io_err` を発火する。
+host エラーが起きた場合、どちらも effect row を通じて `io_err` を発火する。
 `text_with` は callback が返した最終テキストを保存する。
 `text` は host-backed な可変テキスト参照を返し、buffer は `file` handler の終了時に flush される。
 

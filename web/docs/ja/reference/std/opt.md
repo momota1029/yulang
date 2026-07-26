@@ -7,7 +7,7 @@ variant は 2 つ：
 pub enum opt 'a = nil | just 'a
 ```
 
-prelude が `opt` / `just` / `nil` を re-export しているので、ユーザコードは修飾なしで書ける。
+prelude が `opt` / `just` / `nil` を re-export しているので、ユーザーコードは修飾なしで書ける。
 
 ## 構築
 
@@ -36,7 +36,7 @@ case just 1:
 ```
 
 この式は `nil` arm がなくても `1` を返す。
-どちらの値も処理する必要がある場合は、両方の variant またはワイルドカードを使う。
+どちらの値も処理する必要がある場合は、両方の variant または wildcard を使う。
 
 ## よくある形
 
@@ -67,5 +67,5 @@ case s.to_int:
 ## 関連ページ
 
 - [`std::data::result`](./result)：失敗に情報を持たせたいとき
-- [パターン → enum パターン](../patterns)：variant のパターン
+- [pattern → enum pattern](../patterns)：variant の pattern
 - [エラー](../errors)：effect として表現する型付きエラー
