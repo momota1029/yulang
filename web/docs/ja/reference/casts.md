@@ -1,6 +1,7 @@
 # キャスト
 
-Yulang は expected-type 境界で暗黙の cast を挿入する。cast は、明示的な `cast` 宣言と、`enum` / `error` の variant に付けた `from` marker から生成される。
+Yulang は expected-type 境界で暗黙の cast を挿入する。
+cast は、明示的な `cast` 宣言と、`enum` / `error` の variant に付けた `from` marker から生成される。
 
 ## 明示的な cast
 
@@ -65,8 +66,8 @@ enum app_err:
 
 source 型は payload 1 つ、source と target は両方 nominal である必要がある。
 
-`error` 宣言の `from` は、`wrap` と `up` も拡張して narrower error を同時に
-捕まえるようにする。詳細は [エラー](./errors) を参照。
+`error` 宣言の `from` は、`wrap` と `up` も拡張して narrower error を同時に捕まえるようにする。
+詳細は [エラー](./errors) を参照。
 
 ## newtype ラッパーのパターン
 
@@ -82,20 +83,18 @@ my one_minute: seconds = 60
 my doubled: seconds = one_minute.value * 2
 ```
 
-wrapper は型システム上のアイデンティティを保ったまま、cast 経由で通常の演算と
-噛み合う。
+wrapper は型システム上のアイデンティティを保ったまま、cast 経由で通常の演算と噛み合う。
 
 ## 制限
 
-現在の cast 宣言は nominal な source / target 型を対象とする。小さい wrapper や
-error 集約には向いているが、汎用の structural conversion system として使う
-ものではない。
+現在の cast 宣言は nominal な source / target 型を対象とする。
+小さい wrapper や error 集約には向いているが、汎用の structural conversion system として使うものではない。
 
-cast は遅延しない：境界に到達した時点で body が走る。重い変換は通常の関数として
-書き、呼び出し地点を明示する方がよい。
+cast は遅延しない：境界に到達した時点で body が走る。
+重い変換は通常の関数として書き、呼び出し地点を明示する方がよい。
 
 ## 関連ページ
 
 - [構造体とロール](./structs)：nominal wrapper 型の宣言
-- [エラー](./errors) — `from` ベースのエラー集約
-- [値と型](./types) — nominal type と推論の関わり
+- [エラー](./errors)：`from` ベースのエラー集約
+- [値と型](./types)：nominal type と推論の関わり

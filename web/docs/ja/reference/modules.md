@@ -4,7 +4,8 @@
 
 ## `use`
 
-次の抜粋は import 構文を示す。`my_module` と `noisy` は、プログラム側が用意する module を表す。
+次の抜粋は import 構文を示す。
+`my_module` と `noisy` は、プログラム側が用意する module を表す。
 
 ```yulang
 use std::control::nondet::*
@@ -14,7 +15,10 @@ use my_module::old_name as new_name
 use noisy::* without debug
 ```
 
-`use` は module 内の名前を scope へ入れる。`*` は見えているものをまとめて import する。`{...}` による group、`as` による rename、`without` による除外も使える。operator 名は `(+)` のように括弧付きで import できる。
+`use` は module 内の名前を scope へ入れる。
+`*` は見えているものをまとめて import する。
+`{...}` による group、`as` による rename、`without` による除外も使える。
+operator 名は `(+)` のように括弧付きで import できる。
 
 ## Realm と band の path
 
@@ -22,9 +26,8 @@ realm は version 付きの解決空間であり、band は realm 内の import 
 module path は 1 つの band の中にある。
 
 local file では、`realm.toml` のある directory が explicit editable realm になる。
-`realm.toml` が見つからない場合は、entry file の親 directory が implicit editable
-realm になる。entry file は root module だが、realm root からの相対 file path 由来の
-band path も持つ。
+`realm.toml` が見つからない場合は、entry file の親 directory が implicit editable realm になる。
+entry file は root module だが、realm root からの相対 file path 由来の band path も持つ。
 
 ```text
 main.yu          band main
@@ -37,8 +40,8 @@ bare path は current band の中だけを探す。
 use helper::answer
 ```
 
-`helper::answer` の same-band lookup が失敗しても、compiler は sibling band として
-探し直さない。current realm の別 band を import する場合は `realm/` を使う。
+`helper::answer` の same-band lookup が失敗しても、compiler は sibling band として探し直さない。
+current realm の別 band を import する場合は `realm/` を使う。
 
 ```yulang
 use realm/helper::answer
@@ -63,22 +66,22 @@ version = "1.0.0"
 yulang realm install .
 ```
 
-band 境界の手前は `/`、band root 以後は `::` で区切る。予約 qualifier `band::` は
-current band root から始まる。
+band 境界の手前は `/`、band root 以後は `::` で区切る。
+予約 qualifier `band::` は current band root から始まる。
 
 ```yulang
 use band::inner::value
 ```
 
-entry file が `main.yu` の場合、`realm/main::value` は entry root module への alias
-になる。`main.yu` を二重に load せず、cross-band cycle としても扱わない。
+entry file が `main.yu` の場合、`realm/main::value` は entry root module への alias になる。
+`main.yu` を二重に load せず、cross-band cycle としても扱わない。
 
-`std::...` は standard library への prebound alias であり、bare first segment を
-same-realm band として fallback 解決する一般規則ではない。
+`std::...` は standard library への prebound alias であり、bare first segment を same-realm band として fallback 解決する一般規則ではない。
 
 ## Companion module
 
-`struct`、`type ... with:`、`enum`、`act`、`error`、`role` は同名の companion module を作る。body 内の `our` / `pub` はそこへ入る。
+`struct`、`type ... with:`、`enum`、`act`、`error`、`role` は同名の companion module を作る。
+body 内の `our` / `pub` はそこへ入る。
 
 ```yulang
 struct point { x: int, y: int } with:
@@ -98,7 +101,8 @@ io_err::not_found "path"
 
 prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexport するため、通常は修飾名なしで書ける。
 
-`act` の operation も companion member である。`std::io::console` では、`out::write "hi"` のように呼び出す。
+`act` の operation も companion member である。
+`std::io::console` では、`out::write "hi"` のように呼び出す。
 
 ```yulang
 out::write "hi"
@@ -106,13 +110,12 @@ out::write "hi"
 
 ## `act copy`
 
-`act copy = source` は、別の `act` から新しい effect family を作る。これは
-alias ではない。copy 先 family から出る operation は、copy 元 family の
-operation とは別物として扱われる。
+`act copy = source` は、別の `act` から新しい effect family を作る。
+これは alias ではない。
+copy 先 family から出る operation は、copy 元 family の operation とは別物として扱われる。
 
-copy 元から継承されるのは `pub` / `our` の surface だけである。copy 元 body
-の `my` operation や helper member は copy 元 act の private に留まり、copy
-先 companion や `with:` body からは見えない。
+copy 元から継承されるのは `pub` / `our` の surface だけである。
+copy 元 body の `my` operation や helper member は copy 元 act の private に留まり、copy 先 companion や `with:` body からは見えない。
 
 ```yulang
 act source:
@@ -124,10 +127,9 @@ act copy = source with:
     our own = local
 ```
 
-`copy` には `visible`、`local`、`own` が入るが、`hidden` は入らない。copy
-元の exported member が source-private helper に依存している場合、その copy
-は ill-formed になりうる。private helper を copy 経由で持ち出さないことが
-visibility の規則である。
+`copy` には `visible`、`local`、`own` が入るが、`hidden` は入らない。
+copy 元の exported member が source-private helper に依存している場合、その copy は ill-formed になりうる。
+private helper を copy 経由で持ち出さないことが visibility の規則である。
 
 ## Dot selection
 
@@ -138,7 +140,8 @@ visibility の規則である。
 - `.add`、`.index`、`.show` のような role method
 - `.list`、`.logic`、`.once` のような effect-row method
 
-anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `out::write "hi"` のように path で呼ぶ。
+anonymous record の場合、`.field` は record field を取り出す。
+act operation 自体は、通常 `out::write "hi"` のように path で呼ぶ。
 
 ## Standard library modules
 

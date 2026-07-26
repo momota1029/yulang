@@ -15,7 +15,8 @@ line2
 """
 ```
 
-文字列リテラルでは、`\n` のような escape と `\u{1F600}` のような Unicode escape を使える。triple quote の文字列は複数行にできる。
+文字列リテラルでは、`\n` のような escape と `\u{1F600}` のような Unicode escape を使える。
+triple quote の文字列は複数行にできる。
 
 ## 埋め込み
 
@@ -26,7 +27,9 @@ my name = "yu"
 "ok = %{true}"
 ```
 
-`%{...}` は値を `Display` role で文字列化する。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Display` 実装を提供する。container の payload にも `Display` 実装が必要である。
+`%{...}` は値を `Display` role で文字列化する。
+標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Display` 実装を提供する。
+container の payload にも `Display` 実装が必要である。
 
 整数の 16 進表示には lower / upper hex role を使う。
 
@@ -66,7 +69,10 @@ true.show           // "true"
 (just "x").show     // "just x"
 ```
 
-`.show` は `str` への正準的な変換であり、`Display` role 経由で解決される。標準 prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity に、ユーザー向けの `Display` impl を提供する。文字列は quote なしで表示するため、文字列を含む構造値の `.show` は lossless な調査ではなく、読みやすい出力に使う。`Display` は `.say` も提供し、`.show` の結果を改行付きで出力する。
+`.show` は `str` への正準的な変換であり、`Display` role 経由で解決される。
+標準 prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity に、ユーザー向けの `Display` impl を提供する。
+文字列は quote なしで表示するため、文字列を含む構造値の `.show` は lossless な調査ではなく、読みやすい出力に使う。
+`Display` は `.say` も提供し、`.show` の結果を改行付きで出力する。
 
 ユーザー定義型の `Display` には、通常の role 構文を使う。
 
@@ -87,7 +93,12 @@ impl Display point:
 (1, true).debug      // "(1, true)"
 ```
 
-`.debug` は開発者向けの構造表示であり、`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。container の payload にも `Debug` 実装が必要である。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに構造を調べられる。`Debug` は `.print` / `.println` も提供し、`.debug` の結果を改行なし、または改行付きで出力する。ユーザーに見せる文字列には `.show` / `.say` を使い、構造値を調べるときには `.debug` / `.print` / `.println` を使う。
+`.debug` は開発者向けの構造表示であり、`Debug` role 経由で解決される。
+標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。
+container の payload にも `Debug` 実装が必要である。
+basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに構造を調べられる。
+`Debug` は `.print` / `.println` も提供し、`.debug` の結果を改行なし、または改行付きで出力する。
+ユーザーに見せる文字列には `.show` / `.say` を使い、構造値を調べるときには `.debug` / `.print` / `.println` を使う。
 
 ## コメント
 
@@ -104,4 +115,5 @@ doc block
 ---
 ```
 
-`//` と `/* ... */` は通常コメントである。`--` と `--- ... ---` は documentation comment で、tooling が参照する可能性がある。
+`//` と `/* ... */` は通常コメントである。
+`--` と `--- ... ---` は documentation comment で、tooling が参照する可能性がある。

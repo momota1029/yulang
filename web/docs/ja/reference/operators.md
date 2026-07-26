@@ -1,6 +1,7 @@
 # 演算子宣言
 
-Yulang の演算子は、通常の export された binding と parser table への構文追加を組み合わせた定義である。下流の file は、その演算子 syntax を import した後でなければ、その演算子を parse できない。
+Yulang の演算子は、通常の export された binding と parser table への構文追加を組み合わせた定義である。
+下流の file は、その演算子 syntax を import した後でなければ、その演算子を parse できない。
 
 ## Fixity
 
@@ -26,10 +27,12 @@ pub suffix (..) 8.0.0 = std::data::range::from_included
 
 ## binding power
 
-binding power は `5.0.0` のような dot 区切りの 10 進数で書く。数が大きいほど強く結合する。infix 演算子は `<left>.<right>` のペアを持ち、真ん中で非対称にすると結合方向を決められる。
+binding power は `5.0.0` のような dot 区切りの 10 進数で書く。
+数が大きいほど強く結合する。
+infix 演算子は `<left>.<right>` のペアを持ち、真ん中で非対称にすると結合方向を決められる。
 
-- `5.0.0 5.0.1` — レベル 5 で左結合（`+` / `-` の標準）
-- `4.0.0 4.0.0` — 標準の range 演算子が使う binding power
+- `5.0.0 5.0.1`：レベル 5 で左結合（`+` / `-` の標準）
+- `4.0.0 4.0.0`：標準の range 演算子が使う binding power
 
 prelude は次の binding power を使う。
 
@@ -43,12 +46,13 @@ prelude は次の binding power を使う。
 | `*`、`/` | `6.0.0` |
 | `not`（prefix） | `8.0.0` |
 
-ユーザコードに新しい演算子を入れるときは、prelude のレベルと衝突せず、
-間に収まるように選ぶ。
+ユーザコードに新しい演算子を入れるときは、prelude のレベルと衝突せず、間に収まるように選ぶ。
 
 ## Lazy 演算子
 
-`lazy infix` の body は **両方** のオペランドを thunk（`() -> value`）として受け取る。必要な側だけ force すればよく、`a and b` のような呼び出し側で thunk 化を意識する必要はない。prelude の `and` / `or` はこの仕組みで短絡評価を実現する。
+`lazy infix` の body は **両方** のオペランドを thunk（`() -> value`）として受け取る。
+必要な側だけ force すればよく、`a and b` のような呼び出し側で thunk 化を意識する必要はない。
+prelude の `and` / `or` はこの仕組みで短絡評価を実現する。
 
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.1 = \a -> \b ->
@@ -74,9 +78,7 @@ std::int::add 1 2     // 明示形（あまり使わない）
 (1).add 2             // role method 経由
 ```
 
-`+` 自体は `std::core::ops` の中で `\x -> \y -> x.add y` として定義されているので、
-underlying な `Add` role method `x.add y` を直接呼ぶ形が、operator を
-第一級参照する最も近い書き方になる。
+`+` 自体は `std::core::ops` の中で `\x -> \y -> x.add y` として定義されているので、underlying な `Add` role method `x.add y` を直接呼ぶ形が、operator を第一級参照する最も近い書き方になる。
 
 演算子の実装を第一級参照したいときに役立つ。
 
@@ -88,9 +90,8 @@ use my_ops::(+)
 use my_ops::* without (+), debug
 ```
 
-演算子 syntax は丸ごと import、名前指定で import（記号演算子は括弧で囲む）、
-glob から `without` で除外、のいずれもできる。parser が後続の式を読む前に
-演算子定義を知る必要があるので、これは通常の値 import 以上に重要。
+演算子 syntax は丸ごと import、名前指定で import（記号演算子は括弧で囲む）、glob から `without` で除外、のいずれもできる。
+parser が後続の式を読む前に演算子定義を知る必要があるので、これは通常の値 import 以上に重要。
 
 ## 新しい演算子を定義する
 
@@ -100,7 +101,8 @@ pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 [1, 2] ++ [3, 4]   // [1, 2, 3, 4]
 ```
 
-右辺は通常の curried function である。優先順位の階層の中で適切な binding power を選ぶ。
+右辺は通常の curried function である。
+優先順位の階層の中で適切な binding power を選ぶ。
 
 ## 落とし穴
 
@@ -113,6 +115,6 @@ pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 
 ## 関連ページ
 
-- [適用と演算子](./application) — parse された演算子と裸 application の関係
-- [構文スタイル](./syntax-style) — 記号まわりの空白ルール
-- [`std::core::ops`](./std/core) — prelude の演算子定義
+- [適用と演算子](./application)：parse された演算子と裸 application の関係
+- [構文スタイル](./syntax-style)：記号まわりの空白ルール
+- [`std::core::ops`](./std/core)：prelude の演算子定義

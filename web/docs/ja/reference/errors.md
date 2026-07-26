@@ -14,13 +14,13 @@ pub error io_err:
 
 この一行で次のものがまとめて生成される。
 
-- `pub enum io_err` — variant は `not_found path`、`denied path`、
+- **`pub enum io_err`**：variant は `not_found path`、`denied path`、
   `invalid_path path`、`failed (path, str)`。
-- `pub act io_err` — variant と同名の operation を持ち、戻り値は `never`。
-- `impl Throw io_err` — `type throws = '[io_err]` と `our e.throw` を持ち、
+- **`pub act io_err`**：variant と同名の operation を持ち、戻り値は `never`。
+- **`impl Throw io_err`**：`type throws = '[io_err]` と `our e.throw` を持ち、
   対応する operation を発火する。
-- `impl Display io_err` — 既定の文字列化（手書きの impl で上書き可能）。
-- `io_err::wrap` — companion module 内のヘルパー。error effect を `result`
+- **`impl Display io_err`**：既定の文字列化（手書きの impl で上書き可能）。
+- **`io_err::wrap`**：companion module 内のヘルパー。error effect を `result`
   値に閉じる。
 - `from` entry がある場合だけ生成される `up` helper。リンクした narrower error を、宣言した error 型に持ち上げる。
 
@@ -61,7 +61,9 @@ my read_text_or_label path = catch read_text path:
     value -> value
 ```
 
-Yulang のエラー設計は **名指しで捕まえる** ことを前提にしている。型を消去した catch-all や、任意の `Display` 実装を runtime dispatch する仕組みはなく、anyhow 型の境界を意図的に提供していない。各 error は effect row の中で具体的な型を保つため、発火元と handler を型から特定できる。
+Yulang のエラー設計は **名指しで捕まえる** ことを前提にしている。
+型を消去した catch-all や、任意の `Display` 実装を runtime dispatch する仕組みはなく、anyhow 型の境界を意図的に提供していない。
+各 error は effect row の中で具体的な型を保つため、発火元と handler を型から特定できる。
 
 ## `wrap`：値に閉じる
 
@@ -73,9 +75,8 @@ my read_text_safe path =
         result::err err -> err.show
 ```
 
-`E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E`
-を返す。`E` に `from` エントリがある場合、`wrap` はリンクされた narrower
-error も同時に捕まえ、生成された変換を通じて wrap する。
+`E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E` を返す。
+`E` に `from` エントリがある場合、`wrap` はリンクされた narrower error も同時に捕まえ、生成された変換を通じて wrap する。
 
 ## `from` による集約
 
@@ -102,5 +103,4 @@ my read_and_parse path =
     // block 全体の effect は [app_err]
 ```
 
-基礎的な変換機構については [Casts](./casts) を、`catch` と effect row の
-全般的な話は [Effects](./effects) を参照。
+基礎的な変換機構については [Casts](./casts) を、`catch` と effect row の全般的な話は [Effects](./effects) を参照。
