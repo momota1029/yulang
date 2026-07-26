@@ -53,6 +53,15 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "lists", "update"]
 
 [[case]]
+name = "list_first_last"
+file = "regressions/runtime/list_first_last.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(opt::nil, opt::nil, opt::just(7), opt::just(7), opt::just(1), opt::just(3), opt::nil, opt::just(7), opt::just(3))]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "lists"]
+
+[[case]]
 name = "ref_update_local_buffer_public"
 file = "regressions/runtime/ref_update_local_buffer_public.yu"
 kind = "run"

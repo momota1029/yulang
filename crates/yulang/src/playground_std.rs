@@ -701,7 +701,7 @@ pub last(xs: list 'a): opt 'a = case uncons xs:
     std::data::opt::opt::nil -> std::data::opt::opt::nil
     std::data::opt::opt::just (head, tail) ->
         if is_empty tail: std::data::opt::opt::just head
-        else: last tail
+        else: std::data::list::last tail
 "#,
     },
     PlaygroundStdFile {
