@@ -83,7 +83,7 @@ annotations needed.
 
 ## Parser patterns
 
-Parser patterns let a `case` arm match and capture pieces of a string directly.
+[Parser patterns](../reference/parser-dsl) let a `case` arm match and capture pieces of a string directly.
 `~"..."` is the compact form; `rule { ... }` gives the same matcher room for
 guards and named parser pieces.
 

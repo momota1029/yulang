@@ -66,7 +66,7 @@ not depend on it.
 | [`std::text::bytes`](./text#std-text-bytes) | Provides byte length, comparison, concatenation, indexing, slicing, and UTF-8 prefix decoding. | Reference |
 | [`std::text::char`](./text#std-text-char) | Provides character comparison, string conversion, and whitespace, punctuation, and word classification. | Reference |
 | [`std::text::config`](./text#std-text-config) | Parses a provisional, small sectioned key/value config format and reads values or source files from it. | **Provisional** |
-| `std::text::parse` | Provides an effect-based parser-combinator API for reading, finding, editing, and replacing string matches. | **Not documented** |
+| [`std::text::parse`](../parser-dsl) | Provides an effect-based parser-combinator API for reading, finding, editing, and replacing string matches. | Reference |
 | [`std::text::path`](./text#std-text-path) | Converts paths to and from bytes and displays paths with lossy UTF-8 decoding. | Reference |
 | [`std::text::str`](./str) | Provides character-indexed strings, slices, searches, transformations, and mutable line views. | Reference |
 | `std::text::yumark` | Defines the Yumark document algebra and renders documents as HTML nodes or Markdown. | **Not documented** |

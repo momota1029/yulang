@@ -79,7 +79,7 @@ Python のキーワード引数 + default、Ruby のハッシュ展開、TypeScr
 
 ## Parser pattern
 
-**parser pattern** は、`case` の arm で文字列を直接 match して、その場で部分文字列を capture する pattern です。
+[**parser pattern**](../reference/parser-dsl) は、`case` の arm で文字列を直接 match して、その場で部分文字列を capture する pattern です。
 `~"..."` は短い形、`rule { ... }` は guard や名前付き parser piece を置きたいときの形です。
 
 ```yulang

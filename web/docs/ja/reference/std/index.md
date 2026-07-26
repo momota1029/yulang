@@ -63,7 +63,7 @@ link のある module 名から、その module を説明するページへ移�
 | [`std::text::bytes`](./text#std-text-bytes) | byte 長、比較、連結、index、slice、UTF-8 `prefix` の decode を提供する。 | 参照あり |
 | [`std::text::char`](./text#std-text-char) | char の比較、文字列化、空白、句読点、word の分類を提供する。 | 参照あり |
 | [`std::text::config`](./text#std-text-config) | 暫定の section 付き key/value config を parse し、値や入力ファイルを読み取る。 | **暫定** |
-| `std::text::parse` | string match の読み取り、検索、編集、置換に使う effect ベースの parser combinator API を提供する。 | 未文書化 |
+| [`std::text::parse`](../parser-dsl) | string match の読み取り、検索、編集、置換に使う effect ベースの parser combinator API を提供する。 | 参照あり |
 | [`std::text::path`](./text#std-text-path) | `path` と `bytes` を相互に変換し、lossy UTF-8 decode によって `path` を表示する。 | 参照あり |
 | [`std::text::str`](./str) | 文字位置による index、slice、検索、変換、可変な line view を提供する。 | 参照あり |
 | `std::text::yumark` | Yumark document algebra を定義し、HTML node または Markdown へ描画する。 | 未文書化 |
