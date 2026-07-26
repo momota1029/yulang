@@ -1,7 +1,7 @@
 # Yulang `my` visibility 統一 enforcement 設計
 
 決定日: 2026-07-27
-状態: **設計完了、ユーザ承認待ち**
+状態: **ユーザ承認済み。実装指示書として有効**
 
 この文書は、値、型、module、act operation、method、`use` の全名前解決経路で
 `my` の意味を一つに揃えるための実装指示書である。可視性の意味論を再検討する文書ではない。
@@ -917,4 +917,4 @@ Stop condition: 六namespaceすべてがexact code/message/primary/relatedを満
 - v19 cache fileの自動削除policy。format mismatchは安全なmissなので、別のcache maintenance課題とする。
 
 著者: Claude (Opus 5)
-ユーザ承認: 未
+ユーザ承認: 済（2026-07-27）
