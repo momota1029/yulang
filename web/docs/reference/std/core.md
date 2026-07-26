@@ -7,14 +7,14 @@ evolving.
 
 ```yulang
 [1, 2, 3].append [4]
-[1, 2, 3].last
+[1, 2, 3].first
 [1, 2, 3][1]
 [1, 2, 3][1..<3]
 ```
 
 Lists implement `Index` for `int` and `range`, `Fold`, and `Add` through `+`.
 Useful helpers include `empty`, `singleton`, `cons`, `uncons`, `map`, `filter`,
-`fold`, `rev`, `append`, `first`, `last`, and `sort`.
+`fold`, `rev`, `append`, `first`, and `sort`.
 
 Mutable list references also support `.push`.
 

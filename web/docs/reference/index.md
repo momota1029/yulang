@@ -1,23 +1,24 @@
 # Reference
 
-This section documents Yulang's syntax and semantics in detail. The guide
-is where you go to learn the language; this is where you go to look
-something up.
+This page maps Yulang's top-level syntax, visibility, comments, and detailed
+reference topics. Use it to find a language construct; the guide presents the
+language in learning order.
 
 ## Program structure
 
 A Yulang program is a sequence of top-level statements. Statements are
 declarations (`my`, `our`, `pub`, `struct`, `enum`, `act`, `role`, `impl`,
-`error`, `cast`, `type`, `use`, `mod`) and bare expressions whose values are
-shown by the CLI and playground.
+`error`, `cast`, `type`, `use`, `mod`) and bare expressions. The Playground
+evaluates bare expressions and shows the last root value; the CLI command
+`yulang run --print-roots` prints root expression values.
 
 ## Visibility
 
 | Keyword | Meaning |
 |---------|---------|
 | `my`    | Private binding, local or top-level |
-| `our`   | Public — appears in the enclosing module's companion |
-| `pub`   | Exported binding; also shown in the playground's type pane |
+| `our`   | Exports a binding into the enclosing companion module |
+| `pub`   | Exports a binding from the module; also shows it in the Playground's Types pane |
 
 ## Comments
 

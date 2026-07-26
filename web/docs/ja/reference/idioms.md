@@ -1,9 +1,12 @@
 # イディオム
 
-Yulang のコードが C 系よりも短く書けるのは、句読点を落とせる経路が複数
-用意されているから。このページは「Yulang らしく読める」書き方を集める。
+通常の Yulang code では、このページの形式を既定として使う。
+句読点を省ける構文を使いながら、call と control flow を読みやすく保つためである。
 
 ## 裸の application
+
+日常的な呼び出しには `f x y` を使う。`f(x, y)` は引数を視覚的にまとめる場合や、
+`f(-1)` のように次の token へ続くと読みづらい literal を渡す場合に限る。
 
 ```yulang
 // イディオム
@@ -16,10 +19,6 @@ add(1, 2)
 greet(name)
 read_text(path)
 ```
-
-`f x y` が日常的な呼び出し形。`f(x, y)` は引数を視覚的にまとめたいとき、
-または `f(-1)` のように「次のトークンへ流れると読みづらいリテラル」を
-渡すときに使う。
 
 ## 大きな末尾には colon application
 
@@ -43,15 +42,14 @@ io_err::wrap:
 
 ## メソッドのドットチェイン
 
+最初の selection では dot を詰め、外側の bare-application 式へ付ける後続の dot の前には空白を置く。
+selection 自体は application ではなく、`xs.map` で選んだ関数に後続の引数を適用する。
+次の `.filter` の前にある空白は現在の引数を閉じるため、この chain は
+`xs.map (double.filter ...)` ではなく `(xs.map double) .filter ...` を表す。
+
 ```yulang
 xs.map double .filter (\x -> x > 0) .len
 ```
-
-`.method` は selection と application を兼ねる。method は第一級なので、
-`xs.map` は closure を待つ関数になる。`.filter` や `.len` の前に空白を
-置いているのは、裸の application 列の中では空白が引数を一区切りにして、
-次のドットを外側の式に付けるから — ここでは `(xs.map double) .filter ...`
-と読ませる狙い。
 
 トップレベルでは `xs.map` も `xs .map` も同じ field 選択になる。空白の
 有無で意味が変わるのは、ドットつき式が ML 風 application の引数の中に
@@ -60,17 +58,19 @@ xs.map double .filter (\x -> x > 0) .len
 
 ## companion method のための `with:`
 
+companion method は declaration の `with:` block に置く。
+`our recv.name args = body` と書くと、`self` 引数を別に宣言せずに `value.name args` で解決できる。
+
 ```yulang
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-struct や `type` 宣言の `with:` は、その companion module を開く。
-`our recv.name args = body` の形で書けば `value.name args` で解決されるので、
-`self` 引数を別途宣言する必要がない。
-
 ## `with:` 内の attached `impl`
+
+囲んでいる struct 名を二度書かないため、attached `impl` を使う。
+囲んでいる型は role の第 1 引数として前置され、残りの role 引数は role 名の後ろに書く。
 
 ```yulang
 struct box 'a { value: 'a } with:
@@ -79,10 +79,10 @@ struct box 'a { value: 'a } with:
         our b.index _ = b.value
 ```
 
-attached `impl` は struct 名を二度書く手間を省く。囲んでいる型が role の
-第一引数として自動で前置され、role の残りの引数は role 名の後ろに書く。
-
 ## role はレシーバ形で
+
+role method は receiver 形式で書く。`our a.method: T` は実装者に `T` 型の
+`value.method` を与える。receiver 名は説明用なので、role を明確に読める名前を選ぶ。
 
 ```yulang
 role Eq 'a:
@@ -92,10 +92,11 @@ role Add 'a:
     our a.add: 'a -> 'a
 ```
 
-`our a.method: T` は「実装者は `value.method` を `T` 型で得る」と読める。
-レシーバ名はドキュメント用 — role が自然に読める名前を選ぶ。
-
 ## hand-rolled enum よりも `error E:`
+
+enum、effect、`Throw` と `Display` の impl、`wrap` helper を手書きせず、`error E:` を使う。
+declaration に `from` entry がある場合は `up` helper も生成される。
+生成される surface が合わない場合だけ long form を使う。
 
 ```yulang
 pub error path_err:
@@ -103,20 +104,19 @@ pub error path_err:
     denied path
 ```
 
-`error E:` 一行で、`enum` と `act` と `Throw` impl と `Display` impl と
-`wrap` / `up` ヘルパーをまとめて手書きするのと同じものが揃う。糖衣を素直に
-使う。ロングフォームは仕様外の挙動が必要になったときだけ。
-
 ## `e.throw` よりも `fail e`
+
+error value を effect row に乗せるときは `fail` を使う。
+prefix 形式にすると、関数を流し読みしても throw site を見つけやすい。
 
 ```yulang
 fail path_err::not_found path
 ```
 
-`fail` はエラー値を effect 行に乗せる prefix 演算子。`fail` を使うと、
-関数を流し読みしたときに「ここで投げる」が一目で分かる。
-
 ## 深いネストよりも `sub:` / `return`
+
+conditional を入れ子にせず成功経路を平らに保つため、`sub:` と `return` を使う。
+`sub:` が early-return scope を開く。
 
 ```yulang
 sub:
@@ -126,46 +126,45 @@ sub:
     process parsed
 ```
 
-`sub:` は early-return のスコープ。ハッピーパスをフラットに保ち、
-分岐の入れ子を避けるために使う。
-
 ## 局所 mutability は `$x` / `&x`
 
-```yulang
-my $count = 0
-&count = $count + 1
-```
+局所的な mutable cell が必要な場合は、明示的な参照構文を使う。
+compiler は handled `var` effect へ変換するため、mutation は型システムから見える。
 
-本当に可変セルが欲しい場面では明示的な参照構文を使う。compiler は
-これを handled `var` effect として展開するので、mutation も型システムに
-見える。
+```yulang
+my incremented =
+    my $count = 0
+    &count = $count + 1
+    $count
+```
 
 ## effectful な `if`
 
+条件自体が非決定的な場合は、effectful condition を使う。
+`std::control::junction` が `if` の受け取る effectful boolean operation を提供し、
+通常の `bool` condition は通常の経路を通る。
+
 ```yulang
-if all xs < any ys:
+if all [1, 2, 3] < any [2, 3, 4]:
     "overlap"
 else:
     "no overlap"
 ```
 
-effectful な boolean 条件は `std::control::junction` 経由で扱える。条件自体が
-非決定的なときに使う。通常の `bool` 条件はそのままで動く。
-
 ## 推論に任せ、境界で注釈する
 
+local type は推論に任せ、public API boundary、generic constraint、固定する必要がある
+residual variable に注釈を付ける。pipeline の `x | f` は左辺の値を右辺の式へ渡す。
+F# や Elixir の `|>` に相当する形を bar 1 本で書く。
+
 ```yulang
-pub our_pipeline = read_text "data.txt" | parse | render
+my parse text = text
+my render text = text
+pub our_pipeline = "data" | parse | render
 
-pub our_pipeline_typed(path: path): [file, io_err] str =
-    read_text path | parse | render
+pub our_pipeline_typed(value: str): str =
+    value | parse | render
 ```
-
-`x | f` は左辺の値を右辺の式に流す — F# や Elixir の `|>` と同じ形を、
-バー 1 本で書く。
-
-推論はほとんどの型を埋める。注釈を入れるのは、API 境界のドキュメント、
-generic を狭めたいとき、推論結果に残った変数を固定したいときに限る。
 
 ## 関連ページ
 

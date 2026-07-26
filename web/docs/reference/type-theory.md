@@ -1,16 +1,21 @@
 # Type Inference Theory
 
-This page explains the public model behind Yulang's type inference for effects
-and handlers. It is not a full solver specification; the goal is to make the
-types printed by the CLI, playground, and language server easier to read.
+A handler may name an effect and still be forbidden to catch it. If `g x`
+performs `last` inside `f(g x)`, a `last` handler hidden inside `f` must leave
+that caller-supplied effect alone. The effect belongs to the caller.
 
-The current implementation represents handler hygiene inside the subtype solver
-with **directed stack weights**. A handler can subtract only the effect families
-that are visible through those weights.
+Yulang calls this distinction **handler hygiene**. This page explains its public
+type-inference model for effects and handlers. It is not a full solver
+specification; it is a guide to the types printed by the CLI, Playground, and
+language server.
+
+The subtype solver represents the boundary with **directed stack weights**. A
+handler can subtract only the effect families visible through those weights.
 
 ## Expressions Have a Value Type and an Effect Row
 
-Every Yulang expression has a value type and an effect row.
+Start with the two parts that remain visible in public types. Every Yulang
+expression has a value type and an effect row.
 
 ```text
 e : A ! rho
@@ -70,15 +75,15 @@ our run_console(action: [console; 'e] 'a): ['e] 'a = catch action:
 Informally, if `action` has row `[console; 'e]`, then outside the `catch` only
 `['e]` remains.
 
-Higher-order functions need one more distinction: where an effect came from.
+The opening mismatch appears in a small higher-order function:
 
 ```yulang
 my compose f g x = f(g x)
 ```
 
-If `g x` performs `last`, a `last` handler hidden inside `f` must not catch it
-accidentally. The effect was supplied by the caller of `compose`, not by `f`.
-Yulang calls this property **handler hygiene**.
+If `g x` performs `last`, a `last` handler hidden inside `f` must not catch it.
+The caller of `compose`, not `f`, supplied the effect. This is the handler
+hygiene introduced above.
 
 ## Directed Stack Weights
 

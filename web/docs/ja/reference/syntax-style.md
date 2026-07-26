@@ -1,12 +1,13 @@
 # 構文スタイル
 
-Yulang は、括弧を少なめに書けるように設計されている。関数適用、コロン適用、インデント、ユーザー定義演算子が、C 系言語で括弧が担う構造の多くを表す。
+通常のコードでは、Yulang の free-paren style を使う。関数適用、コロン適用、インデント、ユーザー定義演算子が、C 系言語で括弧が担う構造の多くを表す。
 
-このページでは、Yulang らしく読むための書き方と、空白によって parse が変わる場所をまとめる。
+このページでは、優先する書き方と、空白によって parse が変わる場所を定める。
 
 ## 大きな最後の引数にはコロンを使う
 
 最後の引数が式全体や block になる場合は、`:` を使う。
+こう書くと、括弧を深く重ねずに入れ子の呼び出しを書ける。
 
 ```yulang
 say: "hello"
@@ -19,8 +20,6 @@ run_console:
     my answer = ask()
     say answer
 ```
-
-こう書くと、括弧を深く重ねずに入れ子の呼び出しを書ける。
 
 ```yulang
 -- この形を優先する。
@@ -39,6 +38,7 @@ f x: g y z
 ## 単一式のコロン block は inline に連ねる
 
 `:` block の body 全体が単一の式だけなら、呼び出しごとにインデント block へ落とさず、call spine の中で連ねて書く。
+これは body が一つの式だけである場合の規則である。body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
 
 ```yulang
 -- 入れ子の単一式 body では、この形を優先する。
@@ -49,8 +49,6 @@ say:
     run_console:
         ask()
 ```
-
-これは body が一つの式だけである場合の規則である。body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
 
 `:` の直後に空白を置くかどうかも style signal になる。各段を別々の呼び出しとして読ませたいときは、空白を置く。
 
@@ -117,15 +115,17 @@ f (g
 
 ## receiver-first の dot call を使う
 
-field / method selection は dot syntax で書く。selection 自体は call ではない。選択された値に対して、通常の application が続く。
+左側の値に属する操作には receiver-first の dot call を使う。
+field / method selection は dot syntax で書くが、selection 自体は call ではない。
+選択された値に対して、通常の application が続く。
 
 ```yulang
-xs.length
+xs.len
 xs.map f
 text.splice(range 1 3, "bc")
 ```
 
-左側の値に属する操作は receiver-first の dot call で書くのが自然である。constructor、effect operation、module export としての名前を強く見せたいものは `module::name` を使う。
+constructor、effect operation、module export としての名前を強く見せたいものは `module::name` を使う。
 
 ```yulang
 path_err::not_found "/x"
@@ -183,14 +183,14 @@ block の最後の式が、その block の値になる。
 ## 関数は header pattern で書く
 
 binding の左辺は pattern である。head が名前のとき、その後ろの pattern は curried function argument になる。
+小さい関数は、この direct header style を優先する。
 
 ```yulang
 my add x y = x + y
-my (head, tail) = pair
 my area { width = 1, height = 2 } = width * height
 ```
 
-小さい関数は、この direct header style を優先する。関数値そのものを式として扱いたい場合は、明示的な lambda を使う。
+関数値そのものを式として扱いたい場合は、明示的な lambda を使う。
 
 ```yulang
 my mapper = \f xs -> xs.map f
@@ -260,6 +260,8 @@ loop initial with:
 ## constraint は必要な binding の近くに置く
 
 type variable に role constraint が必要な場所では、その場で `where` を使う。
+call を通すためだけに、関係の薄い helper binding へ constraint を押し込んではならない。
+constraint は、その role に依存する境界へ置く。
 
 ```yulang
 my double(x: 'a): 'a =
@@ -267,19 +269,17 @@ my double(x: 'a): 'a =
     x + x
 ```
 
-call を通すためだけに、関係の薄い helper binding へ constraint を押し込まないほうが読みやすい。constraint は、その role に依存する境界へ置く。
-
 ## operator は import される syntax として扱う
 
 operator のすべてが parser builtin ではない。module は prefix / infix / suffix / nullfix / lazy infix operator を定義して export できる。
+公開 operator declaration は module の先頭か prelude 的な module に置き、下流の file が parse される前に syntax を import できるようにする。
 
 ```yulang
+-- export する module の先頭付近に置く。
 pub infix(+) 6.0.0 6.0.0 = add
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b -> ...
-pub prefix(return) 1.0.0 = return_value
+pub prefix(return) 1.0.0 = \value -> value
 ```
-
-下流の file がその operator を parse する必要があるなら、その file を parse する前に operator syntax が import されていなければならない。そのため、公開 operator declaration は module の先頭や prelude 的な module に置くのが自然である。
 
 `return`、`last`、`next`、`redo` のような word operator も、記号 operator と同じ operator model に乗る。ユーザーコード側では、特別な parser 例外のように扱わないこと。
 
@@ -318,14 +318,16 @@ type variable は `'a` のような sigil identifier で書く。通常の funct
 
 ## 状態は明示的な syntax で見せる
 
-mutable / local-reference 的な挙動は、見た目で分かるように書く。
+mutation や local-reference 的な挙動には、明示的な参照構文を使う。
 
 ```yulang
-my $count = 0
-&count = $count + 1
+my incremented =
+    my $count = 0
+    &count = $count + 1
+    $count
 ```
 
-mutation を意図する場所ではこの形を使い、通常の `my` binding は immutable に見える形に保つ。
+通常の `my` binding は immutable に見える形に保つ。
 
 ## comment と doc comment は別物
 

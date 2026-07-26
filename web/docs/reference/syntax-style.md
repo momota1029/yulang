@@ -1,15 +1,16 @@
 # Syntax Style
 
-Yulang syntax is designed for a free-paren style: function application, colon
+Use Yulang's free-paren style for ordinary code. Function application, colon
 application, indentation, and user-defined operators carry much of the structure
 that parentheses would carry in C-like languages.
 
-This page describes the idioms that make Yulang code read naturally, and the
-places where whitespace changes the parse.
+This page defines the preferred forms and the places where whitespace changes
+the parse.
 
 ## Prefer Colon for a Large Final Argument
 
 Use `:` when the final argument is a full expression or a block.
+This keeps deeply nested calls from turning into nested parentheses.
 
 ```yulang
 say: "hello"
@@ -22,8 +23,6 @@ run_console:
     my answer = ask()
     say answer
 ```
-
-This keeps deeply nested calls from turning into nested parentheses.
 
 ```yulang
 -- Prefer this shape.
@@ -44,6 +43,9 @@ f x: g y z
 
 When a `:` block's entire body is a single expression, keep that expression in
 the call spine instead of dropping each call to a new indented block.
+This rule applies only to blocks whose body is one expression. Keep ordinary
+indented blocks when the body has several statements, local bindings, or
+substantial `if`/`else`, `case`, `catch`, or handler branches.
 
 ```yulang
 -- Prefer this shape for nested single-expression bodies.
@@ -54,10 +56,6 @@ say:
     run_console:
         ask()
 ```
-
-This rule is only about blocks whose body is one expression. Keep ordinary
-indented blocks when the body has several statements, local bindings, or
-substantial `if`/`else`, `case`, `catch`, or handler branches.
 
 Whitespace after `:` is also a style signal. Use the spaced form when each step
 should read as its own call.
@@ -133,21 +131,21 @@ f (g
 
 ## Keep Method-Style Calls Receiver-First
 
-Field and method selection use dot syntax. Selection itself is not a call; the
-selected value is then applied by the usual call syntax.
+Prefer receiver-first dot calls for operations that conceptually belong to the
+left-hand value. Field and method selection use dot syntax; selection itself is
+not a call, and the selected value is applied by the usual call syntax.
 
 ```yulang
-xs.length
+xs.len
 xs.map f
 text.splice(range 1 3, "bc")
 ```
 
-Prefer receiver-first dot calls for operations that conceptually belong to the
-left-hand value. Prefer `module::name` for constructors, effect operations, and
-names that are primarily module exports.
+Prefer `module::name` for constructors, effect operations, and names that are
+primarily module exports.
 
 ```yulang
-path_err::not_found path
+path_err::not_found "/x"
 std::control::nondet::each xs
 ```
 
@@ -207,16 +205,16 @@ The last expression of a block is the block value.
 ## Prefer Header Patterns for Functions
 
 Bindings use patterns on the left-hand side. When the head is a name, following
-patterns become curried function arguments.
+patterns become curried function arguments. Prefer this direct header style for
+small functions.
 
 ```yulang
 my add x y = x + y
-my (head, tail) = pair
 my area { width = 1, height = 2 } = width * height
 ```
 
-Prefer this direct header style for small functions. Use an explicit lambda
-when the function value itself is the subject of the expression.
+Use an explicit lambda when the function value itself is the subject of the
+expression.
 
 ```yulang
 my mapper = \f xs -> xs.map f
@@ -294,6 +292,9 @@ loop initial with:
 ## Put Constraints Near the Binding That Needs Them
 
 Use `where` at the point where a type variable needs a role constraint.
+Do not push constraints into unrelated helper bindings merely to make a call
+typecheck. The constraint belongs at the boundary whose behavior depends on the
+role.
 
 ```yulang
 my double(x: 'a): 'a =
@@ -301,24 +302,19 @@ my double(x: 'a): 'a =
     x + x
 ```
 
-Avoid pushing constraints into unrelated helper bindings just to make a call
-typecheck. The constraint should live at the boundary whose behavior depends on
-the role.
-
 ## Treat Operators as Imported Syntax
 
 Operators are not all parser builtins. A module can define and export prefix,
 infix, suffix, nullfix, and lazy infix operators.
+Put public operator declarations near the top of a module or in a prelude-like
+module, so downstream files can import the syntax before they are parsed.
 
 ```yulang
+-- Near the top of the exporting module.
 pub infix(+) 6.0.0 6.0.0 = add
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b -> ...
-pub prefix(return) 1.0.0 = return_value
+pub prefix(return) 1.0.0 = \value -> value
 ```
-
-If downstream files must parse an operator, export/import the operator syntax
-before those files are parsed. This is why public operator declarations usually
-belong near the top of a module or in prelude-like modules.
 
 Word operators such as `return`, `last`, `next`, and `redo` follow the same
 operator model as symbolic operators. They should not be treated as magic parser
@@ -364,15 +360,17 @@ a separate binder in ordinary function declarations.
 
 ## Prefer Explicit State Syntax
 
-Mutable or local-reference behavior is visually marked.
+Use explicit reference syntax to make mutable or local-reference behavior
+visible.
 
 ```yulang
-my $count = 0
-&count = $count + 1
+my incremented =
+    my $count = 0
+    &count = $count + 1
+    $count
 ```
 
-Use this explicit form when mutation is intended, and keep ordinary `my`
-bindings immutable-looking.
+Keep ordinary `my` bindings immutable-looking.
 
 ## Comments and Docs Are Different
 

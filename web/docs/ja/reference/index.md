@@ -1,22 +1,22 @@
 # 言語リファレンス
 
-Yulang の構文と意味を機能ごとにまとめたページです。言語を学ぶときはガイドへ、
-何かを調べるときはこちらへ来てください。
+Yulang の top-level 構文、visibility、コメント、詳細な参照先をまとめる。
+言語要素を調べるときはこのページから探し、学習順に読むときはガイドを使う。
 
 ## プログラムの形
 
-Yulang の program は、top-level statement の列です。statement は宣言と式に
-分かれ、宣言には `my`、`our`、`pub`、`struct`、`enum`、`act`、`role`、`impl`、
-`error`、`cast`、`type`、`use`、`mod` があります。トップレベルに裸の式を書く
-と、その式は実行され、CLI / playground の Result pane に表示されます。
+Yulang の program は top-level statement の列である。statement は宣言と裸の式に分かれ、
+宣言には `my`、`our`、`pub`、`struct`、`enum`、`act`、`role`、`impl`、`error`、
+`cast`、`type`、`use`、`mod` がある。Playground は裸の式を評価して最後の root value を表示し、
+CLI では `yulang run --print-roots` が root 式の値を表示する。
 
-## Visibility
+## 公開範囲
 
 | Keyword | 意味 |
 |---------|------|
-| `my`    | private binding。local でも top-level でも置けます |
-| `our`   | public。囲んでいる module の companion から見えます |
-| `pub`   | 外部 module へ export。playground の Types pane にも現れます |
+| `my`    | private binding。local と top-level のどちらにも置ける |
+| `our`   | 囲んでいる companion module へ binding を export する |
+| `pub`   | module の外へ binding を export し、Playground の Types pane にも表示する |
 
 ## コメント
 
@@ -25,17 +25,16 @@ Yulang の program は、top-level statement の列です。statement は宣言�
 
 /* 通常の block comment。 */
 
--- 単一行 doc comment（line comment ではありません）。
+-- 単一行 doc comment（line comment ではない）。
 
 ---
 複数行 doc block。
-markdown と ```yulang fence を含められます。
+markdown と ```yulang fence を含められる。
 ---
 ```
 
-`//` と `/* ... */` は通常のコメント、`--` と `---` は doc comment です。
-doc comment は構文木や tooling に現れる可能性があり、`//` と入れ替え可能
-ではありません。
+`//` と `/* ... */` は通常のコメント、`--` と `---` は doc comment である。
+doc comment は構文木や tooling に残るため、`//` と入れ替えることはできない。
 
 ## トピック別
 

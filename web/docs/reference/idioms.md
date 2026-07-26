@@ -1,10 +1,14 @@
 # Idioms
 
-Yulang code is often shorter than the equivalent in C-style languages because
-the language gives several ways to drop punctuation. This page collects the
-idioms that make Yulang code read naturally.
+Use the forms on this page as the defaults for ordinary Yulang code. They keep
+calls and control flow readable while taking advantage of the language's
+punctuation-free forms.
 
 ## Bare application
+
+Use `f x y` as the everyday call form. Reach for `f(x, y)` only to group
+arguments visually or when an argument is a literal that would otherwise chain
+into the next token; for example, `f(-1)` can be clearer than `f -1`.
 
 ```yulang
 // Idiomatic
@@ -17,10 +21,6 @@ add(1, 2)
 greet(name)
 read_text(path)
 ```
-
-`f x y` is the everyday call form. Reach for `f(x, y)` only when you need to
-group arguments visually or when an argument is a literal that would otherwise
-chain into the next token (`f(-1)` is sometimes clearer than `f -1`).
 
 ## Colon application for big tails
 
@@ -45,15 +45,15 @@ canonical way to invoke handler-like and block-shaped APIs.
 
 ## Method dot chains
 
+Keep the dot tight for the first selection, and put a space before later dots
+that should land on the outer bare-application expression. Selection itself is
+not application: `xs.map` selects a function, and the following argument
+applies it. The space before `.filter` below closes the current argument, so the
+chain means `(xs.map double) .filter ...`, not `xs.map (double.filter ...)`.
+
 ```yulang
 xs.map double .filter (\x -> x > 0) .len
 ```
-
-`.method` is selection plus application. Methods are first-class — `xs.map`
-returns a function expecting the closure. Notice the explicit spaces before
-`.filter` and `.len`: inside a bare-application chain, a space closes the
-current argument so the next dot lands on the outer expression. Here that
-means `(xs.map double) .filter ...` rather than `xs.map (double.filter ...)`.
 
 At the top level both spellings work — `xs.map` and `xs .map` resolve to the
 same field selection. The difference only matters when the dotted expression
@@ -62,17 +62,21 @@ sits inside an ML-style argument list. See
 
 ## `with:` blocks for companion methods
 
+Put companion methods in the declaration's `with:` block. Method headers
+`our recv.name args = body` make `value.name args` resolve to the method without
+an extra `self` parameter declaration.
+
 ```yulang
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-A struct or `type` declaration's `with:` opens the companion module. Method
-headers `our recv.name args = body` make `value.name args` resolve to the
-method, without an extra `self` parameter declaration.
-
 ## Attached `impl` inside `with:`
+
+Use an attached `impl` to avoid spelling the enclosing struct name twice. The
+enclosing type is prepended as the role's first argument; write the remaining
+role arguments after the role name.
 
 ```yulang
 struct box 'a { value: 'a } with:
@@ -81,11 +85,11 @@ struct box 'a { value: 'a } with:
         our b.index _ = b.value
 ```
 
-Attached `impl` blocks save you from spelling the struct name twice. The
-enclosing type is prepended as the role's first argument; remaining role
-arguments are written after the role name.
-
 ## Receiver style in roles
+
+Write role methods in receiver form. `our a.method: T` gives implementors
+`value.method` of type `T`; the receiver name is informational, so choose one
+that makes the role read clearly.
 
 ```yulang
 role Eq 'a:
@@ -95,11 +99,12 @@ role Add 'a:
     our a.add: 'a -> 'a
 ```
 
-The `our a.method: T` form reads as "implementors gain `value.method` of type
-`T`". The receiver name is informational — pick whatever makes the role read
-nicely.
-
 ## `error E:` over hand-rolled enums
+
+Use `error E:` instead of writing the enum, effect, `Throw` and `Display`
+implementations, and `wrap` helper by hand. An `up` helper is also generated
+when the declaration has `from` entries. Use the long form only when the
+generated surface does not fit.
 
 ```yulang
 pub error path_err:
@@ -107,20 +112,19 @@ pub error path_err:
     denied path
 ```
 
-A line of `error E:` is the same as writing the `enum`, the `act`, the
-`Throw` impl, the `Display` impl, and the `wrap` / `up` helpers by hand.
-Reach for the sugar; only drop to the long form when you need to deviate.
-
 ## `fail e` over `e.throw`
+
+Use `fail` to surface an error value into the effect row. The prefix form makes
+the throw site easy to spot while scanning a function.
 
 ```yulang
 fail path_err::not_found path
 ```
 
-`fail` is the prefix operator that surfaces an error value into the effect
-row. Using `fail` makes the throw site easy to spot when scanning a function.
-
 ## `sub:` / `return` over deep nesting
+
+Use `sub:` and `return` to keep the successful path flat instead of nesting
+conditionals. `sub:` opens the early-return scope.
 
 ```yulang
 sub:
@@ -130,48 +134,47 @@ sub:
     process parsed
 ```
 
-`sub:` opens an early-return scope. Use it to keep the happy path flat
-instead of nesting conditionals.
-
 ## `$x` / `&x` for local mutability
 
-```yulang
-my $count = 0
-&count = $count + 1
-```
+Use explicit reference syntax when a local mutable cell is needed. The compiler
+turns it into a handled `var` effect, so mutation remains visible to the type
+system.
 
-When you really do want a mutable cell, use the explicit reference syntax.
-The compiler turns it into a handled `var` effect, so the mutation is still
-visible to the type system.
+```yulang
+my incremented =
+    my $count = 0
+    &count = $count + 1
+    $count
+```
 
 ## Effectful `if`
 
+Use an effectful condition when the condition itself is nondeterministic.
+`std::control::junction` supplies the effectful boolean operations accepted by
+`if`; ordinary `bool` conditions follow the usual path.
+
 ```yulang
-if all xs < any ys:
+if all [1, 2, 3] < any [2, 3, 4]:
     "overlap"
 else:
     "no overlap"
 ```
 
-Effectful boolean conditions go through `std::control::junction`. Use them when the
-condition itself is non-deterministic; ordinary `bool` conditions still work
-plainly.
-
 ## Lean on inference, annotate at boundaries
 
+Let inference recover local types, and annotate public API boundaries, generic
+constraints, or residual variables that need to be fixed. The pipeline `x | f`
+feeds the left-hand value to the right-hand expression, like F# or Elixir's
+`|>`, but with one bar.
+
 ```yulang
-pub our_pipeline = read_text "data.txt" | parse | render
+my parse text = text
+my render text = text
+pub our_pipeline = "data" | parse | render
 
-pub our_pipeline_typed(path: path): [file, io_err] str =
-    read_text path | parse | render
+pub our_pipeline_typed(value: str): str =
+    value | parse | render
 ```
-
-`x | f` feeds the left-hand value to the right-hand expression — the same
-shape as F#'s `|>` or Elixir's `|>`, written with a single bar.
-
-Inference recovers most types. Annotate when the type would document an API
-boundary, when you want to constrain a generic, or when the inferred shape
-includes residual variables you want pinned.
 
 ## See also
 

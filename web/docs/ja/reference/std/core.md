@@ -6,12 +6,12 @@
 
 ```yulang
 [1, 2, 3].append [4]
-[1, 2, 3].last
+[1, 2, 3].first
 [1, 2, 3][1]
 [1, 2, 3][1..<3]
 ```
 
-list は `int` と `range` の `Index`、`Fold`、`+` 経由の `Add` を実装している。主な helper は `empty`、`singleton`、`cons`、`uncons`、`map`、`filter`、`fold`、`rev`、`append`、`first`、`last`、`sort` である。
+list は `int` と `range` の `Index`、`Fold`、`+` 経由の `Add` を実装している。主な helper は `empty`、`singleton`、`cons`、`uncons`、`map`、`filter`、`fold`、`rev`、`append`、`first`、`sort` である。
 
 mutable list ref には `.push` もある。
 

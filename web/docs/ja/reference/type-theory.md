@@ -1,14 +1,20 @@
 # 型推論の理論
 
-このページは、Yulang の型推論が effect と handler をどう扱うかを、公開
-reference 向けにまとめる。完全な solver 仕様ではなく、CLI、playground、language server が出す
-型を読むための地図である。
+handler は effect の名前が一致しても、その effect を捕まえてはならない場合がある。
+`f(g x)` の中で `g x` が `last` を起こした場合、`f` の内側にある `last` handler は、
+呼び出し元が持ち込んだ effect をそのまま外へ通さなければならない。
+effect の所有者は呼び出し元である。
 
-現行実装では、handler hygiene を subtype solver の中の **directed stack weight** として表す。
-handler は、その weight を通して見えている effect family だけを row から引ける。
+Yulang はこの区別を **handler hygiene** と呼ぶ。
+このページは、effect と handler に関する公開の型推論 model を説明する。
+完全な solver 仕様ではなく、CLI、Playground、language server が出す型を読むための地図である。
+
+subtype solver は、この境界を **directed stack weight** で表す。
+handler は、その weight を通して見える effect family だけを row から引ける。
 
 ## 式は値型と effect row を持つ
 
+公開型に残る 2 つの要素から見ていく。
 Yulang の式は、値の型と effect row を持つ。
 
 ```text
@@ -66,15 +72,15 @@ our run_console(action: [console; 'e] 'a): ['e] 'a = catch action:
 
 ざっくり言えば、`action` の row が `[console; 'e]` なら、`catch` の外側には `['e]` だけが残る。
 
-ただし高階関数では、「その effect がどこから来たか」が重要になる。
+冒頭の不一致は、小さな高階関数にも現れる。
 
 ```yulang
 my compose f g x = f(g x)
 ```
 
-`g x` が `last` effect を起こすとしても、`f` の内部にある `last` handler がそれを勝手に捕まえては
-いけない。`g` の effect は `compose` の呼び出し元が持ち込んだものであり、`f` の所有物ではない。
-この性質を Yulang では **handler hygiene** と呼ぶ。
+`g x` が `last` effect を起こしても、`f` の内部にある `last` handler はそれを捕まえてはならない。
+`g` の effect は `compose` の呼び出し元が持ち込んだものであり、`f` の所有物ではない。
+これが冒頭で示した handler hygiene である。
 
 ## directed stack weight
 
@@ -139,7 +145,7 @@ fresh な tail を無限に作り続けることを避ける。
 ## effect 注釈の意味
 
 effect 注釈は、表層 row を説明すると同時に、高階境界を越えて何を handler へ見せるかを決める。
-ここで重要なのは、注釈の省略と `[_]` が同じ contract ではないことである。
+注釈の省略と `[_]` は異なる contract である。
 
 | 注釈 slot | 内部的な意味 |
 | --- | --- |
@@ -220,8 +226,9 @@ ordinary residual row だけを公開型へ projection する。そうしない�
 ref(e & b, a) -> (a -> [b] a) -> [e, b] unit
 ```
 
-変数名そのものは重要ではない。重要なのは、保存された関数の hygiene を支える private stack evidence
-ではなく、普通の residual row が public scheme に出ることである。
+変数名そのものは読み替えられる。
+保存された関数の hygiene を支える private stack evidence ではなく、普通の residual row が
+public scheme に出ることが要点である。
 
 ### replay の停止性は型等式ではない
 
