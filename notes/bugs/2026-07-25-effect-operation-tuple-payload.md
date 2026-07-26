@@ -2,7 +2,8 @@
 
 発見日: 2026-07-25
 改訂日: 2026-07-26
-状態: **当初の主張は誤りだった。** 実際に残る問題は下記「本当の残存問題」だけ。
+状態: **解決済み（2026-07-26、`60922f69`）。** 当初の主張は誤りで、実際の欠陥は
+下記「本当の残存問題」だった。それも同日に修正済み。
 
 ## 訂正
 
@@ -96,3 +97,51 @@ runtime error [yulang.unsupported-runtime-feature]: unsupported expression in ru
 全部が同じ誤った綴りを共有していたため、誤りが打ち消されずに残った。
 
 Codex（gpt-5.6-sol, xhigh）の診断で綴りの誤りが判明し、Claude が再検証して改訂した。
+
+
+## 解決 2026-07-26
+
+`60922f69` で閉じた。
+
+### 原因
+
+Evidence VM が Tuple→Tuple の `Coerce` を `Alias` に潰していたため、タプルの**要素ごとの
+adapter が挿入されなかった**。適応されないままの thunk が `IntAdd` の `expect_int` へ届き、
+`non-int primitive argument` になっていた。
+
+単独の thunk payload が動くのは、既存のトップレベル adapter 経路を通るためである。
+adapter がタプルの一段下まで届いていなかった、というだけの差だった。
+
+根本原因は効果に固有ではなく、**Tuple→Tuple の runtime boundary adaptation の欠落**である。
+効果操作を通じて表面化したのは、その経路が whole-tuple の coercion を作るからにすぎない。
+
+### 修正
+
+Tuple の coercion を runtime expression として保持し、要素ごとに適応する。
+
+変更の大半は意味論ではなく配線である。要素を強制する途中で効果によりサスペンドしうるため、
+再開可能な継続フレームが要り、それを Evidence VM の継続ライフサイクル全体——統計、走査、
+snapshot / delta replay、direct-tail / generic request、resume dispatch——へ通す必要があった。
+mono runtime 側は `continue_with` が既にサスペンドを包むため、はるかに小さい変更で済んでいる。
+
+### 検証
+
+```console
+$ yulang --std-root lib --no-cache run --print-roots <repro>
+L
+R
+run roots [5]
+```
+
+効果を含まない同じ形は両バックエンドで一致する（`run roots [5]`）。
+`println` を含む形が mono interpreter で動かないのは、interpreter が host 効果を扱わないという
+既存の境界であり、本件とは無関係
+（`notes/design/2026-07-25-test-facility-design.md` §5.5）。
+
+evidence-vm 162 / mono-runtime 27 / infer 961 / specialize 150 / parser / `--test cli` 152 /
+contract 232 / fmt、すべて通過。
+
+### `assert_eq` について
+
+これが `assert_eq` を保留していた理由だったので、障害は解消した。
+実装は `notes/design/2026-07-25-test-facility-design.md` §2.5 の承認済み設計どおりに進めてよい。
