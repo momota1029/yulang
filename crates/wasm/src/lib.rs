@@ -1043,6 +1043,38 @@ fn runtime_evidence_source_diagnostic(
             "attempted to divide by zero".to_string(),
             Some("check the divisor before division"),
         ),
+        evidence_vm::RuntimeEvidenceRunError::AssertionFailed { site } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.assertion-failed"),
+                "assertion evaluated to false".to_string(),
+                Some("make the asserted condition true"),
+            );
+            runtime_application_diagnostic(
+                diagnostic,
+                *site,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
+        evidence_vm::RuntimeEvidenceRunError::AssertionEqualityFailed {
+            site,
+            expected,
+            actual,
+        } => {
+            let diagnostic = RuntimeSourceDiagnostic::new(
+                Some("yulang.assertion-equality-failed"),
+                format!(
+                    "assertion values are not equal\n  expected: {expected}\n    actual: {actual}"
+                ),
+                Some("make the expected and actual values equal"),
+            );
+            runtime_application_diagnostic(
+                diagnostic,
+                *site,
+                application_provenance,
+                diagnostic_sources,
+            )
+        }
         evidence_vm::RuntimeEvidenceRunError::NotThunk(value) => RuntimeSourceDiagnostic::new(
             Some("yulang.runtime-internal"),
             format!("expected a delayed computation, got {value}"),

@@ -1000,6 +1000,52 @@ pub compose2(f, g, x) = f g(x)
     }
 
     #[test]
+    fn assertion_runtime_errors_keep_cli_diagnostic_details() {
+        let application_provenance = yulang::RuntimeApplicationProvenance::default();
+        let selection_provenance = yulang::RuntimeSelectionProvenance::default();
+        let diagnostic_sources = yulang::RuntimeDiagnosticSources::default();
+
+        let assertion = runtime_evidence_source_diagnostic(
+            &evidence_vm::RuntimeEvidenceRunError::AssertionFailed { site: None },
+            &application_provenance,
+            &selection_provenance,
+            &diagnostic_sources,
+        );
+        assert_eq!(
+            assertion.diagnostic.code.as_deref(),
+            Some("yulang.assertion-failed")
+        );
+        assert_eq!(assertion.diagnostic.message, "assertion evaluated to false");
+        assert_eq!(
+            assertion.diagnostic.hint.as_deref(),
+            Some("make the asserted condition true")
+        );
+
+        let equality = runtime_evidence_source_diagnostic(
+            &evidence_vm::RuntimeEvidenceRunError::AssertionEqualityFailed {
+                site: None,
+                expected: "expected value".to_string(),
+                actual: "actual value".to_string(),
+            },
+            &application_provenance,
+            &selection_provenance,
+            &diagnostic_sources,
+        );
+        assert_eq!(
+            equality.diagnostic.code.as_deref(),
+            Some("yulang.assertion-equality-failed")
+        );
+        assert_eq!(
+            equality.diagnostic.message,
+            "assertion values are not equal\n  expected: expected value\n    actual: actual value"
+        );
+        assert_eq!(
+            equality.diagnostic.hint.as_deref(),
+            Some("make the expected and actual values equal")
+        );
+    }
+
+    #[test]
     fn mono_runtime_error_uses_structured_diagnostic_without_range() {
         let error = WasmRuntimeError::Route(yulang::RouteError::Runtime(
             mono_runtime::RuntimeError::PatternMismatch,
