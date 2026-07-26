@@ -1,5 +1,10 @@
 # Yulang
 
+Yulang is a language for writing direct, straight-line programs while defining
+control flow in libraries. This page shows how lifted comparison and
+nondeterministic search grow from that design, then points to the rest of the
+guide.
+
 ```yulang
 if all [1, 2, 3] < any [4, 5, 6]:
     "found a pair"
@@ -22,15 +27,15 @@ nondeterministic search:
 } .once
 ```
 
-Three `each` bindings explore an infinite three-dimensional grid; `guard`
-prunes; `.once` runs the search and returns the first Pythagorean triple. The
-code reads top to bottom like an imperative script, but underneath it is
+Three `each` bindings explore an infinite three-dimensional grid. `guard`
+prunes the search. `.once` runs it and returns the first Pythagorean triple.
+The code reads top to bottom like an imperative script, but underneath it is
 branching and backtracking.
 
 Yulang is built on this principle: **control flow is library code.**
 Mutation, nondeterminism, lifted comparison, early return, typed errors,
 custom backtracking — none of them are parser builtins. They are all ordinary
-functions sitting on top of an algebraic-effect machinery you can extend
+functions sitting on top of algebraic-effect machinery you can extend
 yourself. Surface code stays short and straight-line; the shape underneath
 can be anything you want.
 

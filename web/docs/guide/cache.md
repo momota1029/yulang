@@ -48,7 +48,7 @@ Pass `--runtime-phase-timings` to see which route was used:
 yulang run --runtime-phase-timings path/to/file.yu
 ```
 
-`run.cache` may report:
+`run.cache` can report:
 
 | Route | Meaning |
 | --- | --- |

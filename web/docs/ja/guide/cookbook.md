@@ -1,8 +1,8 @@
 # クックブック
 
-日常的な Yulang のタスクを、短いレシピで並べた集です。各レシピは「こう書く」を最短で示し、背景は言語リファレンスへリンクします。
+日常的な Yulang のタスクを目的別に引けるレシピ集です。多くの節では定型的な書き方に短い説明を添え、設定ファイル、file 編集、log 集計、もう少し大きいサンプルでは長めの例を扱います。背景の詳細は言語リファレンスへリンクしています。
 
-例は Yulang らしい **括弧を減らした書き方** をデフォルトにしています。`f x y` の bare application、`f: ...` の colon application、字下げブロックです。C 風の `f(x, y)` は明示が要る場面に限ります。
+例では、C 風の呼び出しより、Yulang らしい **括弧を減らした書き方** を中心に使います。`f x y` の bare application、`f: ...` の colon application、字下げブロックです。
 
 ## 値と関数を定義する
 
@@ -90,8 +90,6 @@ sub:
 
 `my $x = …` は局所の mutable binding を作ります。`$x` で読み、`&x = value` で書きます。内部的には小さな handled `var` effect として展開されるので、effect 系の外に逃げず、ちゃんと型に乗ります。
 
-[制御構文 → 参照](../reference/control-flow)
-
 ## text file を読む
 
 ```yulang
@@ -100,8 +98,8 @@ text.say
 ```
 
 `str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま
-渡せる。filesystem error は effect row の `io_err` として投げられる。呼び出し側
-に値としての `result` が必要な境界だけ `wrap` する。
+渡せます。filesystem error は effect row の `io_err` として投げられます。呼び出し側
+に値としての `result` が必要な境界だけ `wrap` します。
 
 ```yulang
 my wrapped = io_err::wrap: read_text "data.txt"
@@ -112,13 +110,13 @@ case wrapped:
 
 [std::io::file](../reference/std/fs)
 
-## 設定ファイル・行編集・ログ集計
+## 設定ファイルを読む
 
-日常の小さい text 処理は
-[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) に置いている。
+設定ファイル、file 編集、log 集計の例は
+[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) にあります。
 
-設定ファイルは method-form の文字列 API で読み、`=` の左右を trim してから
-`port` を数値化する。
+次は一部省略の例です。設定ファイルを method-form の文字列 API で読み、`=` の左右を trim してから
+`port` を数値化します。
 
 ```yulang
 my parse_setting(clean: str): opt (str, str) = case clean.split_once "=":
@@ -144,11 +142,13 @@ my read_config(path: str): (int, list (str, str), int, int) =
     ($port, $entries, 0, 0)
 ```
 
-全体:
-[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu)。
+完全な例は
+[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu) です。
 
-file を durable な text ref として開くと、行単位の編集をそのまま書ける。例では
-先に `/tmp` へ copy を作るので、何度実行しても tracked sample は汚れない。
+## text file を行単位で編集する
+
+file を durable な text ref として開くと、行単位の編集をそのまま書けます。次は一部省略の例です。
+先に `/tmp` へ copy を作るので、何度実行しても tracked sample は汚れません。
 
 ```yulang
 use std::control::nondet::*
@@ -165,11 +165,13 @@ my &doc = std::io::file::text path
 $doc.say
 ```
 
-全体:
-[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu)。
+完全な例は
+[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu) です。
 
-parser pattern は小さい log 集計にも合う。GET payload を capture し、guard で
-`/api` だけに絞り、captured milliseconds を `int` に変換する。
+## parser pattern で log を集計する
+
+parser pattern は小さい log 集計にも合います。次は一部省略の例です。
+GET payload を capture し、guard で `/api` だけに絞り、captured milliseconds を `int` に変換します。
 
 ```yulang
 use std::text::parse::*
@@ -183,8 +185,8 @@ my api_ms(line: str): opt int = case line:
     _ -> nil
 ```
 
-全体:
-[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu)。
+完全な例は
+[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu) です。
 
 ## オプショナル引数を作る
 
@@ -221,10 +223,10 @@ my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
 my wrapped = io_err::wrap: read_text path
 case wrapped:
     result::ok text -> text
-    result::err _ -> "(fallback)"
+    result::err err -> err.show
 ```
 
-`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。エラー側を取り出して名前で分岐したい場合は `result::err (io_err::not_found p) -> ...` のように pattern を深掘りします。
+`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。`err` 側は自動生成された impl を通じて `Display` できます。
 
 [エラー → wrap](../reference/errors)
 
@@ -328,7 +330,7 @@ eval (expr::add (expr::num 2, expr::mul (expr::num 3, expr::num 4)))
 // → 14
 ```
 
-`(expr, expr)` のように tuple を payload にすると、複数引数バリアントを安全に書けます。
+`(expr, expr)` のように tuple を payload にするのが、複数引数 variant を表す素直な書き方です。
 
 ### 再帰でリストを絞る
 

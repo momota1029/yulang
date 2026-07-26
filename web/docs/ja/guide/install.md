@@ -76,6 +76,8 @@ echo "1" | yulang run --print-roots -
 
 interactive terminal 上で引数なしの `yulang run` を実行した場合は、入力待ちにはならず usage を表示します。
 
+## アンインストール
+
 release install を消す場合は uninstaller を使います。
 
 ```sh
@@ -96,6 +98,8 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## ソースから動かす
 
+repository を clone し、Cargo で実行します。
+
 ```sh
 git clone https://github.com/momota1029/yulang.git
 cd yulang
@@ -109,6 +113,8 @@ source tree から試す場合に重要なのは `cargo run -p yulang -- run pat
 CLI はユーザー cache root にコンパイラ artifact を保存します。`.yucu`、`.yuir`、`.yuvm`
 と、`--runtime-phase-timings` が出す route label については
 [キャッシュ](./cache) にまとめています。
+
+### language server
 
 language server も同じ binary に入っています。
 
@@ -135,6 +141,8 @@ Zed で command palette を開き、`zed: install dev extension` を実行して
 extension から `yulang server` を起動するには、`yulang` が `PATH` から見える必要があります。
 binary が別の場所にある場合は、[extension README](https://github.com/momota1029/yulang-zed#language-server)
 に従って Zed settings の `lsp.yulang.binary.path` を設定します。
+
+### compiler workspace
 
 repository は Rust workspace です。現在の compiler と runtime の主経路は次の通りです。
 

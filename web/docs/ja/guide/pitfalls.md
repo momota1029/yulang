@@ -1,6 +1,6 @@
 # 落とし穴
 
-初心者が引っかかりやすい挙動と、覚えておくと楽な経験則をまとめています。
+よく似た Yulang の形でも、異なる方法で構文解析、名前解決、型推論される場合があります。このページでは、そのような場面で従う規則を項目ごとに示します。
 
 ## `f(x)` と `f (x)` と `f: x`
 
@@ -10,27 +10,27 @@ f (x)   // f を「グループ化された式 x」に裸 application
 f: x    // colon application
 ```
 
-似て見えますが parser は別物として扱います。`f(x)` は C 風の呼び出し、`f (x)` は空白が ML 風の裸 application を作ります。`f: x` は colon application です。迷ったら、呼び出しなら括弧を関数名に詰める、bare application なら括弧を外す、で覚えてください。
+三つの形は異なる構文として解析されます。`f(x)` は C 風の呼び出しで、`f (x)` の空白は ML 風の裸 application を作ります。`:` の後ろにシンボルが続く場合も構文が変わるため、`f:foo` と `f :foo` は別物です。
 
-シンボルが `:` の後ろに続くとき、**`f:foo` と `f :foo` は別物** です。意図的に空白を入れて区別します。
+C 風の呼び出しでは括弧を関数名に詰め、bare application では括弧を外します。シンボルへの colon application は `f:foo`、シンボル `:foo` の bare application は `f :foo` と書き分けます。
 
 ## ML 引数の中ではドットの空白が効く
 
-トップレベルではどちらも同じ field 選択になります。
+トップレベルでは、どちらも同じ field 選択になります。
 
 ```yulang
 xs.map double      // (xs.map) double
 xs .map double     // 同じ — `.map` は xs に付く
 ```
 
-空白で意味が変わるのは、ドットつき式が裸の application の引数として書かれているときだけです。ML 引数の文脈では、空白が引数を一区切りにして、次のドットを *外側* の式に付けます。
+この一致は、ドットつき式を裸の application の引数にすると崩れます。ML 引数の文脈では、空白が現在の引数を終わらせ、次のドットを *外側* の式に付けます。
 
 ```yulang
 f xs.map           // f (xs.map)
 f xs .map          // (f xs).map
 ```
 
-`xs.map` を引数として渡したいときは詰めて書きます。それ以外は `xs.map` でも `xs .map` でも好きに書けます。
+`xs.map` を引数として渡し、ドットを `xs` に付ける場合は詰めて書きます。それ以外は `xs.map` と `xs .map` のどちらでも同じです。
 
 ## 改行で裸 application は閉じる
 
@@ -41,15 +41,13 @@ f x
     y    // 裸 application ではない。これは新しい statement
 ```
 
-改行は裸 application のチェインを終わらせます。複数行に渡って引数を並べたいときは、brace / colon block を使うか、字下げで継続式の一部にしてください。
+改行は裸 application のチェインを終わらせるため、上の `y` は新しい statement を始めます。複数行にわたって application を続ける場合は、brace / colon block を使うか、字下げして継続式の一部にします。
 
 ## `our` と `pub` の違い
 
-`our` は binding を **囲んでいる companion module へ** export します。`with:` 内の method や `act` 内の operation で使う標準形です。
+二つの export keyword は異なる方向を指します。`with:` の中ではどちらも companion 経由で他の module から見えますが、`pub` はその値を module 自身の type pane にも公開します。
 
-`pub` は binding を **module の外へ** export します。他の file から `use` する top-level の helper に付けます。
-
-`with:` の中ではどちらでも companion 経由で見えますが、`pub` を付けるとその module の type pane にもその値が現れます。
+`with:` 内の method や `act` 内の operation のように、囲んでいる companion module へ binding を export する場合は `our` を使います。下流の module が `use` する top-level helper のように、module の外へ export する場合は `pub` を使います。
 
 ## `error E:` の variant は constructor 兼 operation
 
@@ -58,11 +56,15 @@ my err: path_err = path_err::not_found path    // 値
 path_err::not_found path                       // effect operation
 ```
 
-同じ名前が文脈で振る舞いを変えます。期待型が error ADT なら constructor、effectful な位置なら operation を発火します。周囲が意味を決めないときは明示的に注釈してください。
+同じ名前が文脈で振る舞いを変えます。期待型が error ADT なら式は constructor になり、effectful な位置なら operation を発火します。
+
+周囲のコードだけで意味が決まらない場合は、注釈を加えます。
 
 ## `fail e` は魔法ではない
 
-`fail` は `\e -> e.throw` を prefix 演算子として export したものです。`fail` を `e.throw` で置き換えても同じように動きます。呼び出し地点が少し賑やかになるだけで、`fail` の利点は読みやすさだけです。
+`fail e` は特別な error 構文に見えますが、`fail` は `\e -> e.throw` を prefix 演算子として export したものです。`e.throw` に置き換えても同じように動き、呼び出し地点が少し賑やかになるだけです。
+
+異なる error の挙動を求めてではなく、読みやすさのために `fail e` を選びます。
 
 ## 参照は effect、メモリ穴ではない
 
@@ -71,7 +73,9 @@ my $count = 0
 my f() = &count = $count + 1
 ```
 
-`$count` と `&count` は handled `var` effect として展開されます。`f` を使う関数は、ref binding がそのスコープ内にない限り、対応する `var` 行を型に持ちます。「どこからでも見える可変変数」を期待しないでください。
+`$count` と `&count` は mutable cell への直接アクセスに見えますが、handled `var` effect として展開されます。これらを使う関数は、ref binding がそのスコープ内にない限り、対応する `var` effect row を型に持ちます。
+
+ref は宣言されたスコープ内で使い、外部の可変変数として扱わないようにします。
 
 ## 小さい effect も型に乗る
 
@@ -81,11 +85,15 @@ my f() =
     42
 ```
 
-`f` の effect 行は空ではありません。呼び出し側で行を消したければ handler を入れます（`run_console: f()`）。effect の混入は推論に見えるので、「ちょっと出力するだけ」の関数も自分の存在を主張します。
+`f` は 1 回出力するだけでも effect row が空ではありません。effectful な operation は型推論から見えます。
+
+呼び出し側で effect row を消す必要がある場合は、`run_console: f()` のような handler を入れます。
 
 ## anyhow 風はない
 
-Yulang のエラーは **名指しで捕まえます**。任意のエラーを受ける `catch _ -> ...` や `Display` 経由の実行時 dispatch は提供していません。エラーは `from` で集約し、`up` で持ち上げ、`wrap` で値に閉じます。すべて明示的にやります。anyhow が欲しくなるときは、適切な `from` を持つ広めの `error E: ...` を書く方向で考えてください。
+書きたくなる `catch _ -> ...` という形は、任意のエラーを捕まえません。Yulang のエラーは名指しで捕まえ、`Display` 経由の実行時 dispatch は行いません。
+
+エラーは `from` で集約し、`up` で持ち上げ、`wrap` で値に閉じます。anyhow 風の境界が必要な場合は、適切な `from` を持つ広めの `error E: ...` を定義します。
 
 ## 推論結果に残る変数
 
@@ -93,7 +101,9 @@ Yulang のエラーは **名指しで捕まえます**。任意のエラーを�
 twice : Add<α> => α -> α
 ```
 
-推論結果の `α` や `β` はエラーではなく、binding が多相なので残った residual な型変数です。具体型に固定したいときは binding に注釈します。
+この出力の `α` はエラーではありません。binding が多相なので残った residual な型変数です。
+
+residual を具体型に固定する必要がある場合は、binding に注釈します。
 
 ## パターンの `_` は何にでもマッチする wildcard
 
@@ -103,8 +113,8 @@ case xs:
     _      -> "other"
 ```
 
-`_` は任意の値にマッチし、名前を bind しません。
-複数の `_` は独立した wildcard なので、異なる値にもマッチします。
+`_` は任意の値にマッチし、名前を bind しません。同じ `_` を繰り返すと等値比較に見えますが、各 wildcard は独立しているため、異なる値にもマッチします。
+
 2 つの位置が同じ値であることを要求する場合は、それぞれに名前を付け、ガードで比較します。
 
 ```yulang
@@ -119,14 +129,15 @@ case (a, b):
 use my_ops::(+)
 ```
 
-演算子は名前を括弧で囲んで import します。スコープに入る前にその演算子を使う式があると、name error ではなく parse error になります。
+演算子を使う式は通常の未解決名に見えますが、その演算子は import がスコープに入るまで構文解析されません。import より前に使うと、name error ではなく parse error になります。
 
-## おかしいときに見る場所
+演算子は名前を括弧で囲んで import し、使う式より前に import を置きます。
 
-- `yulang check path/to/file.yu` は file を検査します。
-  成功時は何も出力せず、失敗時だけ diagnostic を出します。
-- `yulang dump path/to/file.yu --poly` は推論された binding 型や role 制約を含む compiler IR を出力します。
-- 「推論が通らない」関数は、`Cast` が無い、effect tail が未確定、method selection が具体情報待ち、のどれかであることが多いです。
+## 型推論の失敗を適切な層で調べる
+
+「推論が通らない」関数には、`Cast` が無い場合、effect tail が未確定な場合、method selection が具体情報を待っている場合があります。
+
+まず `yulang check path/to/file.yu` を使います。成功時は何も出力せず、失敗時だけ diagnostic を出します。推論された binding 型や role 制約を含む compiler IR を調べる場合は、`yulang dump path/to/file.yu --poly` を使います。
 
 ## 関連ページ
 

@@ -3,7 +3,7 @@
 Yulang はコンパイラの artifact をキャッシュします。プログラムの実行結果はキャッシュしません。
 各 `run` は、必要な artifact を見つけるか作り直したあとで、通常どおりプログラムを実行します。
 
-realm は version 付きの解決空間であり、band は realm 内の import / build の島です。
+**realm** は version 付きの解決空間であり、**band** は realm 内の import / build の島です。
 module は band の中にあり、bare path は band 境界を越えません。
 
 local file では、`realm.toml` が explicit editable realm を示します。`realm.toml`
@@ -54,7 +54,7 @@ yulang run --runtime-phase-timings path/to/file.yu
 | `compiled-unit-hit` | exact full-source `.yucu` hit |
 | `std-prefix-hit` | 標準ライブラリの `.yucu` prefix を再利用 |
 | `std-prefix-build` | 標準ライブラリ prefix を作ってから再利用 |
-| `source-unit-prefix-hit` | 1つの依存 prefix を再利用 |
+| `source-unit-prefix-hit` | 1 つの依存 prefix を再利用 |
 | `merged-source-unit-prefix-hit` | 複数の独立 prefix を merge して再利用 |
 | `full-miss` | source から fresh compile |
 | `error-fallback` | exact `.yuir` の read に失敗し、source からの compile に fallback |
@@ -71,7 +71,7 @@ yulang cache stats
 yulang cache clear
 ```
 
-1回だけ cache を使わずに実行する場合は `--no-cache` を付けます。
+1 回だけ cache を使わずに実行する場合は `--no-cache` を付けます。
 
 ```sh
 yulang run --no-cache path/to/file.yu

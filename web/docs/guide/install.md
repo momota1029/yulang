@@ -79,6 +79,8 @@ echo "1" | yulang run --print-roots -
 A bare `yulang run` in an interactive terminal still prints usage instead of
 waiting for input.
 
+## Uninstall
+
 To remove a release install:
 
 ```sh
@@ -116,6 +118,8 @@ The CLI caches compiler artifacts under the user cache root. See
 [Cache](./cache) for `.yucu`, `.yuir`, `.yuvm`, and the route labels printed
 by `--runtime-phase-timings`.
 
+### Language server
+
 The language server ships in the same binary:
 
 ```sh
@@ -142,6 +146,8 @@ the `yulang-zed/` directory.
 The extension requires `yulang server` to be discoverable on `PATH`. If the
 binary is elsewhere, set `lsp.yulang.binary.path` in Zed settings as described
 in the [extension README](https://github.com/momota1029/yulang-zed#language-server).
+
+### Compiler workspace
 
 The repository is a Rust workspace. Its active compiler and runtime path is:
 

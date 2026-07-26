@@ -104,7 +104,7 @@ catch action:
     v -> v
 ```
 
-関数型は effect row を持ちます: `path -> [file; 'e] str`。
+関数型は effect row を持ちます：`path -> [file; 'e] str`。
 
 ## エラー
 
