@@ -40,9 +40,9 @@
 たとえば、一般名詞の`library`と`standard library`、一般概念の`file`と`file` effectは別項目である。
 
 候補は、30組の英語ページの見出し、定義語、技術語と、日本語ページのカタカナ列、対応見出しから作った。
-活用形、単数と複数、複合語の重複を一つの概念へまとめ、製品名、ページ移動の語、コード要素を除いた結果、91概念が残った。
-再分類では、Rule 2が54項目、Rule 3が28項目、Rule 4が8項目になった。
-0:0の`computer`は削除したため、以下の用語集は90項目である。
+活用形、単数と複数、複合語の重複を一つの概念へまとめ、製品名、ページ移動の語、コード要素を除いた結果、107概念が残った。
+再分類では、Rule 2が64項目、Rule 3が34項目、Rule 4が8項目になった。
+0:0の`computer`は削除したため、以下の用語集は106項目である。
 
 表の数は、日本語30ページ中の行数である。
 0行の競合形も省略しない。
@@ -54,8 +54,12 @@
 | application | `application` | Rule 3（言語の技術語）。`application`32行対「適用」16行。 |
 | bare application | `bare application` | Rule 3（言語の技術語）。`bare application`4行対「裸のapplication」2行。 |
 | binding | `binding` | Rule 2（Latin）。`binding`62行対「バインディング」「束縛」0行。 |
+| binding power | `binding power` | Rule 2（Latin）。`binding power`11行対「結合の強さ」2行。`binding`の採用形とも矛盾しない。 |
 | block | `block` | Rule 2（Latin）。`block`30行対「ブロック」5行。 |
+| body | `body` | Rule 2（Latin）。`body`29行対「本体」3行。 |
+| branch | 分岐 | Rule 3（多数）。「分岐」10行対`branch`4行。`branch` operation名はRule 1に従う。 |
 | call | 呼び出し | Rule 3（多数）。「呼び出し」42行対`call`32行。 |
+| callee | `callee` | Rule 2（Latin）。`callee`2行対日本語表記0行。 |
 | cast | `cast` | Rule 3（言語の技術語）。`cast`14行対「キャスト」6行。 |
 | colon | `colon` | Rule 3（言語の技術語）。`colon`12行対「コロン」11行。 |
 | companion module | `companion module` | Rule 2（Latin）。`companion module`15行対日本語表記0行。 |
@@ -71,6 +75,7 @@
 | field | `field` | Rule 2（Latin）。`field`24行対「フィールド」4行。 |
 | function | 関数 | Rule 2（日本語）。「関数」61行対`function`10行。 |
 | guard | `guard` | Rule 3（言語の技術語）。`guard`6行対「ガード」6行。 |
+| grouping | `grouping` | Rule 2（Latin）。`grouping`5行対「グループ化」「グルーピング」0行。 |
 | import | `import` | Rule 2（Latin）。`import`29行対「インポート」0行。 |
 | lambda | ラムダ | Rule 3（多数）。「ラムダ」11行対`lambda`5行。 |
 | list | `list` | Rule 3（言語の技術語）。`list`18行対「リスト」5行。 |
@@ -84,17 +89,24 @@
 | pattern | `pattern` | Rule 3（言語の技術語）。`pattern`31行対「パターン」17行。 |
 | pattern matching | パターンマッチ | Rule 2（日本語）。「パターンマッチ」6行対`pattern matching`0行。 |
 | Pythagorean triple | ピタゴラス数 | Rule 2（日本語）。「ピタゴラス数」2行対`Pythagorean triple`と「ピタゴラス三角形」0行。 |
+| postfix | `postfix` | Rule 2（Latin）。概念としての`postfix`7行対「後置」「ポストフィックス」0行。キーワード名はRule 1に従う。 |
+| precedence | 優先順位 | Rule 3（多数）。「優先順位」3行対`precedence`1行。 |
 | prelude | `prelude` | Rule 2（Latin）。`prelude`29行対「プリリュード」0行。 |
+| prefix | `prefix` | Rule 2（Latin）。キーワード名を除く概念としての`prefix`8行対「接頭」「プレフィックス」0行。キーワード名はRule 1に従う。 |
 | primitive / primitive type | `primitive` / `primitive type` | Rule 2（Latin）。`primitive`8行対日本語表記0行。 |
 | record | `record` | Rule 2（Latin）。`record`15行対単独の「レコード」3行。 |
 | reference | 参照 | Rule 2（日本語）。「参照」37行対`reference`2行。 |
 | role | `role` | Rule 2（Latin）。`role`56行対「ロール」6行。 |
 | scope | `scope` | Rule 3（言語の技術語）。「スコープ」6行対`scope`5行。 |
+| selection | `selection` | Rule 3（言語の技術語）。`selection`12行対「選択」10行。 |
 | signature | シグネチャ | Rule 4。日本語側はRule 3で「シグネチャ」11行対`signature`3行の多数。カタカナは「シグネチャ」11行対「シグネチャー」0行で4:1以上。 |
 | spread | `spread` | Rule 3（言語の技術語）。`spread`5行対単独の「スプレッド」2行。 |
 | standard library | 標準ライブラリ | Rule 2（日本語）。「標準ライブラリ」18行対`standard library`3行。単独の`library`とは分ける。 |
 | struct | `struct` | Rule 3（言語の技術語）。`struct`11行対「構造体」8行。 |
+| suffix | `suffix` | Rule 2（Latin）。キーワード名を除く概念としての`suffix`3行対「接尾」「サフィックス」0行。キーワード名はRule 1に従う。 |
+| syntax | 構文 | Rule 3（多数）。「構文」45行対`syntax`13行。 |
 | tuple | `tuple` | Rule 2（Latin）。`tuple`11行対単独の「タプル」1行。 |
+| token | `token` | Rule 2（Latin）。`token`6行対「トークン」「字句」0行。 |
 | variant | `variant` | Rule 2（Latin）。`variant`24行対「バリアント」0行。 |
 | visibility | 可視性 | Rule 3（多数）。「可視性」8行対`visibility`3行。 |
 | wildcard | `wildcard` | Rule 3（言語の技術語）。`wildcard`5行対「ワイルドカード」2行。 |
@@ -118,6 +130,9 @@
 | type | 型 | Rule 2（日本語）。「型」139行対`type`34行。 |
 | type annotation | 型注釈 | Rule 2（日本語）。「型注釈」5行対`type annotation`1行。 |
 | ascription | `ascription` | Rule 2（Latin）。`ascription`2行対日本語表記0行。 |
+| annotation | 注釈 | Rule 3（多数）。「注釈」24行対`annotation`12行。 |
+| local reference | `local reference` | Rule 3（型とeffect systemの技術語）。`local reference`2行対「局所参照」1行。標準ライブラリの`ref`抽象化を指し、一般のreferenceとは分ける。 |
+| parameter | `parameter` | Rule 2（Latin）。`parameter`8行対「パラメータ」「パラメーター」0行。`引数`はargumentとして別概念である。 |
 | type inference | 型推論 | Rule 2（日本語）。「型推論」10行対`type inference`0行。 |
 | type variable | `type variable` | Rule 3（型systemの技術語）。`type variable`12行対「型変数」5行。 |
 | value | 値 | Rule 2（日本語）。「値」101行対`value`17行。 |
@@ -145,6 +160,7 @@
 | browser | ブラウザ | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`browser`2行対「ブラウザ」1行、「ブラウザー」0行で、カタカナは短音形だけが使われている。 |
 | buffer | `buffer` | Rule 2（Latin）。`buffer`7行対「バッファ」「バッファー」0行。 |
 | cache | キャッシュ | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`cache`12行対「キャッシュ」6行で、カタカナは「キャッシュ」だけが使われている。 |
+| callback | `callback` | Rule 2（Latin）。`callback`13行対「コールバック」1行。 |
 | code | コード | Rule 3（多数）。「コード」8行対`code`4行。 |
 | comment | コメント | Rule 3（多数）。「コメント」10行対`comment`8行。 |
 | command | `command` | Rule 2（Latin）。CLI invocationとして使う`command`3行対「コマンド」0行。`command palette`は別概念として数えない。 |
@@ -174,8 +190,12 @@
 | --- | --- | --- | --- |
 | application | `application`32対「適用」16 | `application` | 「適用」16 |
 | bare application | `bare application`4対「裸のapplication」2 | `bare application` | 「裸のapplication」2 |
+| binding power | `binding power`11対「結合の強さ」2 | `binding power` | 「結合の強さ」2 |
 | block | `block`30対「ブロック」5 | `block` | 「ブロック」5 |
+| body | `body`29対「本体」3 | `body` | 「本体」3 |
+| branch | 「分岐」10対`branch`4 | 分岐 | `branch`4 |
 | call | 「呼び出し」42対`call`32 | 呼び出し | `call`32 |
+| callee | `callee`2対日本語表記0 | `callee` | 日本語表記0 |
 | cast | `cast`14対「キャスト」6 | `cast` | 「キャスト」6 |
 | colon | `colon`12対「コロン」11 | `colon` | 「コロン」11 |
 | constraint | `constraint`9対「制約」9 | `constraint` | 「制約」9 |
@@ -189,6 +209,7 @@
 | field | `field`24対「フィールド」4 | `field` | 「フィールド」4 |
 | function | 「関数」61対`function`10 | 関数 | `function`10 |
 | guard | `guard`6対「ガード」6 | `guard` | 「ガード」6 |
+| grouping | `grouping`5対「グループ化」「グルーピング」0 | `grouping` | 「グループ化」「グルーピング」0 |
 | lambda | 「ラムダ」11対`lambda`5 | ラムダ | `lambda`5 |
 | list | `list`18対「リスト」5 | `list` | 「リスト」5 |
 | literal | 「リテラル」7対`literal`1 | リテラル | `literal`1 |
@@ -198,27 +219,38 @@
 | operator | 「演算子」32対`operator`26 | 演算子 | `operator`26 |
 | path | `path`25対「パス」4 | `path` | 「パス」4 |
 | pattern | `pattern`31対「パターン」17 | `pattern` | 「パターン」17 |
+| postfix | `postfix`7対「後置」「ポストフィックス」0 | `postfix` | 「後置」「ポストフィックス」0 |
+| precedence | 「優先順位」3対`precedence`1 | 優先順位 | `precedence`1 |
+| prefix | `prefix`8対「接頭」「プレフィックス」0 | `prefix` | 「接頭」「プレフィックス」0 |
 | record | `record`15対「レコード」3 | `record` | 「レコード」3 |
 | reference | 「参照」37対`reference`2 | 参照 | `reference`2 |
 | role | `role`56対「ロール」6 | `role` | 「ロール」6 |
 | scope | 「スコープ」6対`scope`5 | `scope` | 「スコープ」6 |
+| selection | `selection`12対「選択」10 | `selection` | 「選択」10 |
 | signature | 「シグネチャ」11対`signature`3、長音形0 | シグネチャ | `signature`3 |
 | spread | `spread`5対「スプレッド」2 | `spread` | 「スプレッド」2 |
 | standard library | 「標準ライブラリ」18対`standard library`3 | 標準ライブラリ | `standard library`3 |
 | struct | `struct`11対「構造体」8 | `struct` | 「構造体」8 |
+| suffix | `suffix`3対「接尾」「サフィックス」0 | `suffix` | 「接尾」「サフィックス」0 |
+| syntax | 「構文」45対`syntax`13 | 構文 | `syntax`13 |
 | tuple | `tuple`11対「タプル」1 | `tuple` | 「タプル」1 |
+| token | `token`6対「トークン」「字句」0 | `token` | 「トークン」「字句」0 |
 | visibility | 「可視性」8対`visibility`3 | 可視性 | `visibility`3 |
 | wildcard | `wildcard`5対「ワイルドカード」2 | `wildcard` | 「ワイルドカード」2 |
 | algebraic effect | 「代数的エフェクト」2対`algebraic effect`1 | `algebraic effect` | 「代数的エフェクト」2 |
+| annotation | 「注釈」24対`annotation`12 | 注釈 | `annotation`12 |
 | effect | `effect`166対「エフェクト」10 | `effect` | 「エフェクト」10 |
 | handler | `handler`72対「ハンドラー」1 | `handler` | 「ハンドラー」1 |
+| local reference | `local reference`2対「局所参照」1 | `local reference` | 「局所参照」1 |
 | nondeterminism | 「非決定性」6対`nondeterminism`1 | 非決定性 | `nondeterminism`1 |
+| parameter | `parameter`8対「パラメータ」「パラメーター」0 | `parameter` | 「パラメータ」「パラメーター」0 |
 | type | 「型」139対`type`34 | 型 | `type`34 |
 | type annotation | 「型注釈」5対`type annotation`1 | 型注釈 | `type annotation`1 |
 | type variable | `type variable`12対「型変数」5 | `type variable` | 「型変数」5 |
 | value | 「値」101対`value`17 | 値 | `value`17 |
 | browser | `browser`2対「ブラウザ」1、長音形0 | ブラウザ | `browser`2 |
 | cache | `cache`12対「キャッシュ」6 | キャッシュ | `cache`12 |
+| callback | `callback`13対「コールバック」1 | `callback` | 「コールバック」1 |
 | code | 「コード」8対`code`4 | コード | `code`4 |
 | comment | 「コメント」10対`comment`8 | コメント | `comment`8 |
 | command | `command`3対「コマンド」0 | `command` | 「コマンド」0 |
