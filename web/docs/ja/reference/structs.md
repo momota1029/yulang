@@ -1,7 +1,7 @@
-# 構造体とロール
+# struct と role
 
 nominal な `struct` 型と、`with:` で定義する companion method をまとめる。
-`role` と `impl`、type variable に制約を付ける `where` も扱う。
+`role` と `impl`、type variable に constraint を付ける `where` も扱う。
 
 ## Struct
 
@@ -9,7 +9,7 @@ nominal な `struct` 型と、`with:` で定義する companion method をまと
 struct point { x: int, y: int }
 ```
 
-`struct` は nominal な record type である。
+`struct` は nominal な record 型である。
 値は次のように作る。
 
 ```yulang

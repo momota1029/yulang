@@ -1,7 +1,7 @@
 # 演算子宣言
 
 Yulang の演算子は、通常の export された binding と parser table への構文追加を組み合わせた定義である。
-下流の file は、その演算子 syntax を import した後でなければ、その演算子を parse できない。
+下流のファイルは、その演算子 syntax を import した後でなければ、その演算子を parse できない。
 
 ## Fixity
 
@@ -78,7 +78,7 @@ std::int::add 1 2     // 明示形（あまり使わない）
 (1).add 2             // role method 経由
 ```
 
-`+` 自体は `std::core::ops` の中で `\x -> \y -> x.add y` として定義されているので、underlying な `Add` role method `x.add y` を直接呼ぶ形が、operator を第一級参照する最も近い書き方になる。
+`+` 自体は `std::core::ops` の中で `\x -> \y -> x.add y` として定義されているので、underlying な `Add` role method `x.add y` を直接呼ぶ形が、演算子を第一級参照する最も近い書き方になる。
 
 演算子の実装を第一級参照したいときに役立つ。
 
@@ -101,13 +101,13 @@ pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 [1, 2] ++ [3, 4]   // [1, 2, 3, 4]
 ```
 
-右辺は通常の curried function である。
+右辺は通常の curried 関数である。
 優先順位の階層の中で適切な binding power を選ぶ。
 
 ## 落とし穴
 
 - 記号演算子は最初の使用前に import する必要がある。順序が逆だと、name
-  解決ではなく parse error として弾かれる。
+  解決ではなく parse エラーとして弾かれる。
 - `pub prefix(name) ...` の宣言と `use foo::(+)` のような import は、両方とも
   syntax をスコープに持ち込む。値だけのパス import は syntax を持ってこない。
 - 2 つの glob import が同じ演算子名を出してくると衝突する。`without` で片方
@@ -115,6 +115,6 @@ pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 
 ## 関連ページ
 
-- [適用と演算子](./application)：parse された演算子と裸 application の関係
+- [application と演算子](./application)：parse された演算子と裸 application の関係
 - [構文スタイル](./syntax-style)：記号まわりの空白ルール
 - [`std::core::ops`](./std/core)：prelude の演算子定義

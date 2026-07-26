@@ -1,6 +1,6 @@
 # 関数
 
-関数 binding、カリー化された呼び出し形式、ラムダ、型注釈と effect 注釈をまとめる。
+関数 binding、curried 呼び出し形式、ラムダ、型注釈と effect 注釈をまとめる。
 record pattern 引数、method、role constraint も扱う。
 
 ## 宣言
@@ -20,17 +20,17 @@ pattern が直接の名前のとき、その後ろに続く pattern が関数引
 | `our` | 囲んでいる companion から見える（method の標準形）|
 | `pub` | module 境界をまたいで export される |
 
-## 引数とカリー化
+## 引数と curry
 
 ```yulang
 my add x y = x + y
 my add' = \x -> \y -> x + y
 ```
 
-複数引数の binding は左から右にカリー化される。
+複数引数の binding は左から右に curry される。
 `add 1` は `y` を待つ関数である。
 裸 application（`add 1 2`）でも C 風（`add(1, 2)`）でも呼べる。
-両方とも内部はカリー化された application に lower される。
+両方とも内部は curried application に lower される。
 
 ```yulang
 my inc = add 1
@@ -56,7 +56,7 @@ add: 1                 // colon application（2 引数関数では稀）
 ```
 
 ラムダは `\` で始まる。
-複数引数のラムダ `\x y -> ...` は binding の頭と同じくカリー化される。
+複数引数のラムダ `\x y -> ...` は binding の頭と同じく curry される。
 
 ラムダの引数自体も pattern である。
 
@@ -88,7 +88,7 @@ my run_console(action: [console] 'a): 'a = catch action:
 `[console] str` は「`str` を返し、`console` effect を要求する」という意味。
 `[console; 'e] 'a` のように tail 変数を入れると他の effect も開いたままになる。
 
-## オプショナル引数としてのレコードパターン
+## オプショナル引数としての record pattern
 
 ```yulang
 my area {width = 1, height = 2} = width * height
@@ -98,8 +98,8 @@ area { width: 3, height: 4 }
 area {}
 ```
 
-デフォルト付きのレコードパターンは、呼び出し側で各 field を省略可能にする。
-デフォルトは左から右へ評価され、後ろのデフォルトは前の field を参照できる。
+default 付きの record pattern は、呼び出し側で各 field を省略可能にする。
+default は左から右へ評価され、後ろの default は前の field を参照できる。
 
 ```yulang
 my f {a = 1, b = a + 1} = (a, b)
@@ -114,7 +114,7 @@ struct point { x: int, y: int } with:
 ```
 
 `with:` 内の `our recv.name args = body` で、`value.name args` で呼べる method を定義する。
-レシーバ `recv` は単なる名前（読みやすい名前を選ぶ）。
+receiver `recv` は単なる名前（読みやすい名前を選ぶ）。
 
 ## role の method
 
@@ -126,8 +126,8 @@ impl Add int:
     our x.add y = std::int::add x y
 ```
 
-role の method ヘッダーは `with:` と同じレシーバ形を使う。
-`:` の後ろはレシーバを当てた後の関数型（`Add` なら `a.add` は相手側の引数を取る関数）。
+role の method ヘッダーは `with:` と同じ receiver 形を使う。
+`:` の後ろは receiver を当てた後の関数型（`Add` なら `a.add` は相手側の引数を取る関数）。
 
 ## where 句
 
@@ -137,8 +137,8 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where 'a: Role` は binding の型変数に role 制約を追加する。
-binding の推論型にその制約が伝播するので、`twice 1` の呼び出しは `Add int` を要求する。
+`where 'a: Role` は binding の type variable に role constraint を追加する。
+binding の推論型にその constraint が伝播するので、`twice 1` の呼び出しは `Add int` を要求する。
 
 `where` 句は role 本体や impl 本体にも書ける。
 role 本体に書くと各 method に継承される。
@@ -152,15 +152,15 @@ yulang check examples/showcase.yu
 cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
-`check` は file を検査する。
+`check` はファイルを検査する。
 成功時は何も出力せず、失敗時だけ diagnostic を出す。
 compiler IR には、推論された binding 型が含まれる。
-residual な型変数（`α`、`β`、…）と role 制約（`Add<α> => ...`）も含まれる。
+residual な type variable（`α`、`β`、…）と role constraint（`Add<α> => ...`）も含まれる。
 `yulang dump examples/showcase.yu --poly` で確認できる。
 
 ## 関連ページ
 
-- [パターン](./patterns)：`my` / ラムダ / 引数で共通の pattern 文法
-- [構造体とロール](./structs)：companion method と role impl
-- [エフェクト](./effects)：引数 / 戻り型での effect row
+- [pattern](./patterns)：`my` / ラムダ / 引数で共通の pattern 文法
+- [struct と role](./structs)：companion method と role impl
+- [effect](./effects)：引数 / 戻り型での effect row
 - [クックブック](../guide/cookbook)：これらを組み合わせるレシピ

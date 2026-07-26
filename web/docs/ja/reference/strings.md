@@ -2,7 +2,7 @@
 
 Yulang の文字列型は `str` である。
 文字列は UTF-8 のテキストとして扱う。
-標準ライブラリの index / slice は、raw byte offset ではなく Unicode scalar value の位置を使う。
+標準ライブラリの index / slice は、raw byte offset ではなく Unicode scalar 値の位置を使う。
 
 ## リテラル
 
@@ -116,4 +116,4 @@ doc block
 ```
 
 `//` と `/* ... */` は通常コメントである。
-`--` と `--- ... ---` は documentation comment で、tooling が参照する可能性がある。
+`--` と `--- ... ---` は documentation コメントで、tooling が参照する可能性がある。

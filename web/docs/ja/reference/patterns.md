@@ -1,6 +1,6 @@
 # パターンマッチ
 
-パターンは Yulang が値に名前を bind するあらゆる場所に現れる：`case` arm、`catch` arm、関数の引数、`my` binding、ラムダ。
+pattern は Yulang が値に名前を bind するあらゆる場所に現れる：`case` arm、`catch` arm、関数の引数、`my` binding、ラムダ。
 
 ## `case`
 
@@ -22,26 +22,26 @@ case n:
         doubled.show
 ```
 
-## パターンの種類
+## pattern の種類
 
-| パターン | 何にマッチするか |
+| pattern | 何にマッチするか |
 |---------|------|
-| `_` | 何でも（ワイルドカード）|
+| `_` | 何でも（wildcard）|
 | `x` | 名前 `x` に bind |
 | `42`、`"hi"`、`true`、`false`、`()` | リテラル |
-| `(a, b)` | タプル |
-| `{ x, y }` | フィールド `x` と `y` を持つレコード |
-| `{ x = 0, y }` | `x` にデフォルト値を持つレコード |
-| `{ x: name }` | フィールド `x` を `name` という名前に bind |
-| `[]`、`[1, 2]`、`[x, ..rest]` | リストパターン |
-| `[..init, last]` | 先頭側に spread を置いたリスト |
+| `(a, b)` | tuple |
+| `{ x, y }` | field `x` と `y` を持つ record |
+| `{ x = 0, y }` | `x` に default 値を持つ record |
+| `{ x: name }` | field `x` を `name` という名前に bind |
+| `[]`、`[1, 2]`、`[x, ..rest]` | list pattern |
+| `[..init, last]` | 先頭側に spread を置いた list |
 | `just x`、`nil` | prelude が re-export している enum variant |
-| `opt::just x`、`opt::nil` | 修飾パスで書く enum variant |
+| `opt::just x`、`opt::nil` | 修飾 path で書く enum variant |
 | `tag x` | 短い名前で書く enum variant（`use enum::*` の後でのみ）|
 
-## ガード
+## guard
 
-arm にはガードを `if` で付けられる。
+arm には guard を `if` で付けられる。
 
 ```yulang
 case n:
@@ -50,10 +50,10 @@ case n:
     _ -> "positive"
 ```
 
-ガードはパターンがマッチしたときだけ評価される。
-ガードが偽なら次の arm が試される。
+guard は pattern がマッチしたときだけ評価される。
+guard が偽なら次の arm が試される。
 
-## リテラルパターン
+## リテラル pattern
 
 ```yulang
 case msg:
@@ -62,9 +62,9 @@ case msg:
     _ -> "other"
 ```
 
-リテラルパターンは構造的に等しい値にマッチする。
+リテラル pattern は構造的に等しい値にマッチする。
 
-## タプルパターン
+## tuple pattern
 
 ```yulang
 case point:
@@ -74,10 +74,10 @@ case point:
     (x, y) -> "(" + x.show + ", " + y.show + ")"
 ```
 
-タプルパターンは入れ子にできる。
+tuple pattern は入れ子にできる。
 `((a, b), c)` は、最初の要素自体がペアであるペアにマッチする。
 
-## レコードパターン
+## record pattern
 
 ```yulang
 case shape:
@@ -86,10 +86,10 @@ case shape:
     _                           -> 0
 ```
 
-明示したフィールドはデフォルトを持たない限り必須。
-`{ field: bound_name }` でフィールドを別名に bind できる。
+明示した field は default を持たない限り必須。
+`{ field: bound_name }` で field を別名に bind できる。
 
-### 別名とデフォルト
+### 別名と default
 
 ```yulang
 case config:
@@ -97,9 +97,9 @@ case config:
 ```
 
 `host: h` で bind 名を `h` に変える。
-`port = 80` でデフォルトを与える。
+`port = 80` で default を与える。
 
-### スプレッド
+### spread
 
 ```yulang
 case rec:
@@ -107,11 +107,11 @@ case rec:
     { ..tail, y } -> y    // `tail` には残りではなく入力 record 全体が入る
 ```
 
-`..name` は **入力 record 全体** を bind する（レコードの引き算は型システム上十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供していない）。
-スプレッドは先頭にも末尾にも置けるが、どちらでも `name` には field を列挙したものを含む全 field が入る。
+`..name` は **入力 record 全体** を bind する（record の引き算は型システム上十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供していない）。
+spread は先頭にも末尾にも置けるが、どちらでも `name` には field を列挙したものを含む全 field が入る。
 入力にほかの field があってもよいことだけを示し、それらを bind しない場合は `.._` を使う。
 
-## リストパターン
+## list pattern
 
 ```yulang
 case xs:
@@ -123,9 +123,9 @@ case xs:
 ```
 
 `..rest` で残りの部分を捕まえる。
-リストパターンには spread を 1 つだけ置ける。
+list pattern には spread を 1 つだけ置ける。
 
-## enum パターン
+## enum pattern
 
 ```yulang
 enum color = red | green | blue
@@ -165,16 +165,16 @@ case t:
     tree::node value left right -> value + sum left + sum right
 ```
 
-## 関数引数のパターン
+## 関数引数の pattern
 
 ```yulang
 my add (x, y) = x + y
 my translate { dx = 0, dy = 0 } point = point.move dx dy
 ```
 
-トップレベルの binding パターン、ラムダ引数、`my` の分割代入は同じパターン文法を共有する。
+トップレベルの binding pattern、ラムダ引数、`my` の分割代入は同じ pattern 文法を共有する。
 
-## `catch` のパターン
+## `catch` の pattern
 
 ```yulang
 catch action:
@@ -185,10 +185,10 @@ catch action:
     value -> value
 ```
 
-effect arm では operation 名をパターンとして書き、末尾の `k`（または `_`）が継続に bind される。
+effect arm では operation 名を pattern として書き、末尾の `k`（または `_`）が continuation に bind される。
 値 arm `v -> ...` は正常終了時に走る。
 
-## `my` のパターン
+## `my` の pattern
 
 ```yulang
 my (a, b) = (1, 2)
@@ -201,6 +201,6 @@ binding の網羅性は検査されない。
 
 ## 関連ページ
 
-- [関数 → オプショナル引数としてのレコードパターン](./functions)
+- [関数 → オプショナル引数としての record pattern](./functions)
 - [制御構文 → catch](./control-flow)
 - [エラー → 名指しで捕まえる](./errors)

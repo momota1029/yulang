@@ -1,4 +1,4 @@
-# モジュール
+# module
 
 このページでは、`use`、realm と band の path、companion module、dot selection、標準ライブラリの module map を扱う。
 
@@ -18,16 +18,16 @@ use noisy::* without debug
 `use` は module 内の名前を scope へ入れる。
 `*` は見えているものをまとめて import する。
 `{...}` による group、`as` による rename、`without` による除外も使える。
-operator 名は `(+)` のように括弧付きで import できる。
+演算子名は `(+)` のように括弧付きで import できる。
 
 ## Realm と band の path
 
 realm は version 付きの解決空間であり、band は realm 内の import / build の島である。
 module path は 1 つの band の中にある。
 
-local file では、`realm.toml` のある directory が explicit editable realm になる。
-`realm.toml` が見つからない場合は、entry file の親 directory が implicit editable realm になる。
-entry file は root module だが、realm root からの相対 file path 由来の band path も持つ。
+local ファイルでは、`realm.toml` のある directory が explicit editable realm になる。
+`realm.toml` が見つからない場合は、entry ファイルの親 directory が implicit editable realm になる。
+entry ファイルは root module だが、realm root からの相対ファイル path 由来の band path も持つ。
 
 ```text
 main.yu          band main
@@ -73,10 +73,10 @@ band 境界の手前は `/`、band root 以後は `::` で区切る。
 use band::inner::value
 ```
 
-entry file が `main.yu` の場合、`realm/main::value` は entry root module への alias になる。
+entry ファイルが `main.yu` の場合、`realm/main::value` は entry root module への alias になる。
 `main.yu` を二重に load せず、cross-band cycle としても扱わない。
 
-`std::...` は standard library への prebound alias であり、bare first segment を same-realm band として fallback 解決する一般規則ではない。
+`std::...` は標準ライブラリへの prebound alias であり、bare first segment を same-realm band として fallback 解決する一般規則ではない。
 
 ## Companion module
 
@@ -129,7 +129,7 @@ act copy = source with:
 
 `copy` には `visible`、`local`、`own` が入るが、`hidden` は入らない。
 copy 元の exported member が source-private helper に依存している場合、その copy は ill-formed になりうる。
-private helper を copy 経由で持ち出さないことが visibility の規則である。
+private helper を copy 経由で持ち出さないことが可視性の規則である。
 
 ## Dot selection
 
@@ -143,11 +143,11 @@ private helper を copy 経由で持ち出さないことが visibility の規�
 anonymous record の場合、`.field` は record field を取り出す。
 act operation 自体は、通常 `out::write "hi"` のように path で呼ぶ。
 
-## Standard library modules
+## 標準ライブラリ module
 
 | Module | 内容 |
 |--------|------|
-| `std::prelude` | entry file が通常 import する `Add`、`Eq`、`Ord`、`Display`、`len`、`id`、`compose`、`last` / `next` / `redo`、`return`、`fail`、range operator、core std reexport |
+| `std::prelude` | entry ファイルが通常 import する `Add`、`Eq`、`Ord`、`Display`、`len`、`id`、`compose`、`last` / `next` / `redo`、`return`、`fail`、range 演算子、core std reexport |
 | `std::core::ops` | `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `and`, `or`, `not` |
 | `std::data::list` | `map`、`filter`、`fold`、`sort`、`cons`、`uncons`、`rev`、`append` などの list operation |
 | `std::data::range` | range constructors と `Fold` impl |
@@ -160,6 +160,6 @@ act operation 自体は、通常 `out::write "hi"` のように path で呼ぶ�
 | `std::control::nondet` | `each`、`guard`、`list`、`once`、`logic` |
 | `std::control::junction` | effectful comparison の `all`、`any` |
 | `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die` と、背後の `out` / `err` / `warn` / `die` effect |
-| `std::io::file` | `read_text`、`write_text`、`text`、`text_with`、`exists`、`is_file`、`is_dir` と `io_err` error |
+| `std::io::file` | `read_text`、`write_text`、`text`、`text_with`、`exists`、`is_file`、`is_dir` と `io_err` エラー |
 | `std::control::throw` | `Throw` role と `fail` support |
 | `std::data::index` | `Index` role |

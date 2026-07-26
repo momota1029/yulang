@@ -1,4 +1,4 @@
-# 適用と演算子
+# application と演算子
 
 Yulang には関数呼び出しの表記がいくつかある。
 すべて同じ curried application へ lower され、表記と結合の強さだけが異なる。
@@ -8,12 +8,12 @@ Yulang には関数呼び出しの表記がいくつかある。
 | 形式 | 構文 | 説明 |
 |------|------|------|
 | ML-style juxtaposition | `f x y` | 空白で並べる |
-| C-style call | `f(x, y)` | callee と `(` の間に空白を置かない |
-| Field/method selection | `x.method`、`x.method y`、`x.method(y)` | 値を selection し、必要ならその結果を適用する |
-| Colon block call | `f: body` | body 全体を単一引数にする |
+| C-style 呼び出し | `f(x, y)` | callee と `(` の間に空白を置かない |
+| Field/method selection | `x.method`、`x.method y`、`x.method(y)` | 値を selection し、必要ならその結果を application する |
+| Colon block 呼び出し | `f: body` | body 全体を単一引数にする |
 
-call form は curried application へ lower される。
-dot selection 単体は selection であり、引数が続くと選択された値を適用する。
+呼び出し形式は curried application へ lower される。
+dot selection 単体は selection であり、引数が続くと選択された値を application する。
 
 ```yulang
 f x y           // ((f x) y)
@@ -22,7 +22,7 @@ x.method y      // ((x.method) y)
 x.method(y, z)  // (((x.method) y) z)
 ```
 
-C-style form の `f()` は、空の引数リストではなく unit value `()` を `f` に適用する。
+C-style form の `f()` は、空の引数リストではなく unit 値 `()` を `f` に適用する。
 
 ## 空白は意味を持つ
 
@@ -42,7 +42,7 @@ x .field // field selection。`.` の前には空白を置ける
 
 空白の規則は次のとおりである。
 
-- `(` と `[` は、直前の token から空白やコメントを挟まずに続くときだけ call suffix または index suffix になる。
+- `(` と `[` は、直前の token から空白やコメントを挟まずに続くときだけ呼び出し suffix または index suffix になる。
 - `.field` は top level では常に field/method selection であり、直前の空白を許す。
   ただし、ML argument の中では次に示す tight mode の規則によって、どの head に付くかが変わる。
 
@@ -98,12 +98,12 @@ f.method(y).other[0] z
 
 1. `.method`、`(...)`、`[...]`、`::name` のうち、text 上で次にある postfix を選ぶ。
 2. 現在の head に付く postfix をすべて消費した後、残りを ML-style juxtaposition の引数として受け取る。
-3. infix operator はそれらの外側へ、それぞれの precedence に従って適用する。
+3. infix 演算子はそれらの外側へ、それぞれの precedence に従って適用する。
 
 ## 演算子との優先順位
 
 postfix form には `.`、`::`、`(...)`、`[...]` がある。
-これらと juxtaposition は、prelude のすべての infix operator より強く結合する。
+これらと juxtaposition は、prelude のすべての infix 演算子より強く結合する。
 
 ```yulang
 1 + f x         // 1 + (f x)
@@ -113,7 +113,7 @@ not x.field     // not (x.field)
 not f x         // not (f x)
 ```
 
-prelude operator を強い順に並べると、次のようになる。
+prelude 演算子を強い順に並べると、次のようになる。
 
 | Level | Operator | Form |
 |-------|----------|------|
@@ -131,7 +131,7 @@ a == b and c == d         // (a == b) and (c == d)
 1..n + 1                  // 1..(n + 1)、range は + の外側
 ```
 
-user-defined operator は固有の binding power を指定する。
+user-defined 演算子は固有の binding power を指定する。
 
 ```yulang
 pub prefix(not) 8.0.0 = bool_not
@@ -143,11 +143,11 @@ binding power は小さい整数を dot で区切った vector である。
 辞書順で比較し、足りない component は `0` とみなすため、`5`、`5.0`、`5.0.0` は等しい。
 `5.0.1` は `5.0.0` より少し強い。
 
-prefix operator と suffix operator は、それぞれ binding power を 1 つ取る。
-infix operator は left binding power と right binding power の 2 つを取る。
+prefix 演算子と suffix 演算子は、それぞれ binding power を 1 つ取る。
+infix 演算子は left binding power と right binding power の 2 つを取る。
 左右に異なる値を指定できるため、結合性と細かな grouping を表せる。
 right binding power は left binding power よりわずかに強くできる。
-その場合、次の同 level operator は現在の右辺の外側に結合する。
+その場合、次の同 level 演算子は現在の右辺の外側に結合する。
 
 ## ML application が空白で終わる位置
 
@@ -168,11 +168,11 @@ f x         // f x
 my y = z    // 別の statement。f の引数ではない
 ```
 
-## 推奨するコロン形式
+## 推奨する colon 形式
 
 `expr: rest_of_line_or_block` は、括弧を使わずに単一引数を渡す Yulang の慣用表記である。
 引数が式の右側全体である場合に使う。
-コロンはすべての operator と postfix form より弱く結合するため、右側全体が body になる。
+colon はすべての演算子と postfix form より弱く結合するため、右側全体が body になる。
 
 ```yulang
 f: g x       // f (g x)
@@ -223,9 +223,9 @@ sub:
     fallback
 ```
 
-### コロンの結合位置
+### colon の結合位置
 
-コロンはすべての infix operator より弱く結合する。
+colon はすべての infix 演算子より弱く結合する。
 左側全体を関数、右側全体を引数として受け取る。
 
 ```yulang
@@ -234,14 +234,14 @@ f x: y          // (f x) y
 not f: x        // (not f) x
 ```
 
-コロンを内側で適用する場合は括弧を使う。
+colon を内側で application する場合は括弧を使う。
 
 ```yulang
 g (f: x)        // g (f x)
 1 + (f: x)      // 1 + (f x)
 ```
 
-コロンが ML application の後ろに現れると、その application の外側で結合する。
+colon が ML application の後ろに現れると、その application の外側で結合する。
 
 ```yulang
 my y = f sub: 1   // (f sub): 1
@@ -277,8 +277,8 @@ my add = \x y -> x + y
 
 ## `do` によるコールバック
 
-`do` は後続の block を lambda として包み、囲んでいる call の最後の引数として渡す。
-`my` binding では、左辺の pattern が lambda の parameter になる。
+`do` は後続の block をラムダとして包み、囲んでいる呼び出しの最後の引数として渡す。
+`my` binding では、左辺の pattern がラムダの parameter になる。
 
 ```yulang
 write_text "/tmp/yulang-do.txt" "draft"
@@ -289,9 +289,9 @@ result
 // 内側の binding ≡ text_with("/tmp/yulang-do.txt", \content -> (content, content))
 ```
 
-API が callback を受け取り、その body を call の直後に書く場合に使う。
+API が callback を受け取り、その body を呼び出しの直後に書く場合に使う。
 
-## パス区切り `::`
+## path 区切り `::`
 
 `a::b::c` は左結合であり、ほかの postfix form と同じ強さで結合する。
 
@@ -300,5 +300,5 @@ std::data::list::map xs f        // (std::data::list::map) に xs と f を ML a
 path_err::not_found "p"          // (path_err::not_found) "p"
 ```
 
-`::` は path を 1 段進めるだけで、固有の effect や value を持たない。
+`::` は path を 1 段進めるだけで、固有の effect や値を持たない。
 左側の companion module から sub-name を解決する。

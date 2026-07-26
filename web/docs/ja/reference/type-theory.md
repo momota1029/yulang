@@ -28,7 +28,7 @@ e : A ! rho
 [console] str
 ```
 
-これは、`console` effect を起こす可能性があり、最後に `str` を返す computation value である。
+これは、`console` effect を起こす可能性があり、最後に `str` を返す computation 値である。
 
 関数型では、返り値側に effect row が付く。
 
@@ -40,7 +40,7 @@ e : A ! rho
 
 ## 普通の subtyping
 
-Yulang の推論器は、型をただ等号で揃えるだけではなく、subtyping 制約として扱う。
+Yulang の推論器は、型をただ等号で揃えるだけではなく、subtyping constraint として扱う。
 
 ```text
 actual <: expected
@@ -91,7 +91,7 @@ stack(T, S)
 これは source language に `stack` という型コンストラクタがあるという意味ではない。
 どの handler 境界が、どの effect family を引いてよいかを覚えるための内部表現である。
 
-subtype 制約は、左右に向きを持つ重みを持つ。
+subtype constraint は、左右に向きを持つ重みを持つ。
 
 ```text
 T @L <: @R U
@@ -107,7 +107,7 @@ row head を handler が消費できるかを決める前に、左右の重み�
 
 ## `catch` はどう effect を引くか
 
-`catch` が effect 集合 `H` を処理するとき、推論器は row 制約を次の形で見ることがある。
+`catch` が effect 集合 `H` を処理するとき、推論器は row constraint を次の形で見ることがある。
 
 ```text
 alpha @L <: @R [H; beta]
@@ -140,7 +140,7 @@ row head を見せるためには使わない。
 これにより、recursive handler が fresh な tail を無限に作り続けることを避ける。
 
 型引数を持つ effect family は family path で突き合わせるが、引数は捨てない。
-`ref_update int` と `ref_update alpha` が出会った場合、family match と同時に、引数同士を整合させる普通の型制約も生成する。
+`ref_update int` と `ref_update alpha` が出会った場合、family match と同時に、引数同士を整合させる普通の型 constraint も生成する。
 
 ## effect 注釈の意味
 
@@ -211,10 +211,10 @@ compose_surface :
   -> [delta] beta
 ```
 
-### data-position function の private evidence
+### data-position 関数の private evidence
 
-標準ライブラリには、data value の中に effectful function を保持する抽象化がある。
-local reference が代表例で、公開される `ref` value の内部には、返り effect に `ref_update` が関わる関数がある。
+標準ライブラリには、data 値の中に effectful 関数を保持する抽象化がある。
+local reference が代表例で、公開される `ref` 値の内部には、返り effect に `ref_update` が関わる関数がある。
 
 solver は、この保存された関数の latent return-effect tail を private evidence として扱い、ordinary residual row だけを公開型へ projection する。
 そうしないと、synthetic field getter 経由で `AllExcept(ref_update ...)` のような内部 stack id が public scheme に漏れてしまう。
@@ -254,7 +254,7 @@ solver が静的に検査する。
 
 Yulang の現行 effect 推論は、次の分担で成り立つ。
 
-- 普通の value type と effect row は subtyping で推論する。
+- 普通の値型と effect row は subtyping で推論する。
 - handler hygiene は directed weighted inequality `T @L <: @R U` で表す。
 - `catch` は row head から `H ∩ Common(L)` だけを引く。
 - 右側 pop は head を見せるために使わず、residual tail へ運ぶ。
@@ -262,7 +262,7 @@ Yulang の現行 effect 推論は、次の分担で成り立つ。
 - residual row variable は公開型の一部であり、黙って消さない。
 - `#id[Empty]` のような空の可視性 evidence は、その row occurrence がその boundary で
   subtraction から守られている証拠であり、新しい effect ではない。
-- data value に保存された effectful function の private stack evidence は、ordinary public row へ
+- data 値に保存された effectful 関数の private stack evidence は、ordinary public row へ
   projection してから表示する。
 - replay-cycle subsumption は solver の停止性規則であり、公開型の等式ではない。
 - specialize 後は runtime guard marker が同じ hygiene を保つ。

@@ -1,4 +1,4 @@
-# エフェクト
+# effect
 
 Yulang は副作用を algebraic effect で表す。
 このページでは、effect 宣言、operation 呼び出し、shallow handler、effect row、handler の可視性、伝播、`error` 短縮構文を扱う。
@@ -45,7 +45,7 @@ operation arm は operation の引数と continuation `k` を受け取る。
 handler には、内側の計算が普通に値を返したときに走る value arm `v -> ...` も書ける。
 
 ここで `flip::coin()` は普通の関数呼び出しに見えるが、実際には operation request を発生させる。
-handler は限定継続 `k` を受け取り、`true` と `false` の両方で再開するので、この例は 3 回の `coin` による 8 通りの分岐を列挙する。
+handler は限定 continuation `k` を受け取り、`true` と `false` の両方で再開するので、この例は 3 回の `coin` による 8 通りの分岐を列挙する。
 
 `action: [flip] _` は **effect capture contract** であり、この handler boundary が `flip` を処理してよいことを表す。
 返り値型と残りの effect は引き続き推論される。
@@ -195,7 +195,7 @@ compiler-oriented な型表示では、その証拠が `#0[Empty]` のように�
 
 `[...]` の中に effect を並べる。
 `; 'e` は残りの effect を表す row variable である。
-`[_]` は annotation 内で推論に任せるための placeholder として使えるが、effect row type そのものの標準形ではない。
+`[_]` は annotation 内で推論に任せるための placeholder として使えるが、effect row 型そのものの標準形ではない。
 handler 境界を消す指定でもない。
 
 effect は型引数を持つこともできる。
@@ -208,7 +208,7 @@ act ref_update 'a:
 そのため row には `ref_update int` のような entry も入る。
 型表示では Greek variable が出ることがあるが、source annotation では row tail に `e` のような名前を使うのが普通。
 
-effect-row method は nominal value companion ではなく、receiver の effect row から選ばれる。
+effect-row method は nominal 値 companion ではなく、receiver の effect row から選ばれる。
 
 ```yulang
 use std::control::nondet::*
@@ -236,7 +236,7 @@ callback 引数にそのような contract がない場合、callback 由来の 
 結果位置の具体 effect annotation は static filter である。
 外へ出てよい effect を検査するが、runtime marker にはならず、追加の公開 effect としても表示されない。
 
-local reference など標準ライブラリの一部は、data value の中に effectful function を保持する。
+local reference など標準ライブラリの一部は、data 値の中に effectful 関数を保持する。
 その内部の handler evidence は private に扱われる。
 たとえば `ref.update` の内部では `ref_update` が関わるが、公開型には内部 stack id や `AllExcept(...)` evidence ではなく、普通の residual row が出るべきである。
 
@@ -277,9 +277,9 @@ error path_err:
 
 `fail`、名指し catch、`wrap`、`from` 集約、`up` の使い方を含む全体像は [エラー](./errors) を参照。
 
-通常の `enum` variant でも `from` は使える。[キャスト](./casts) を参照。
+通常の `enum` variant でも `from` は使える。[cast](./casts) を参照。
 
 ## 関連
 
-- [値と型](./types)：function type と effect row の表示。
+- [値と型](./types)：関数型と effect row の表示。
 - [型推論の理論](./type-theory)：stack 重み付き row と handler hygiene。

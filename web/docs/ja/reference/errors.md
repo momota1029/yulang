@@ -20,9 +20,9 @@ pub error io_err:
 - **`impl Throw io_err`**：`type throws = '[io_err]` と `our e.throw` を持ち、
   対応する operation を発火する。
 - **`impl Display io_err`**：既定の文字列化（手書きの impl で上書き可能）。
-- **`io_err::wrap`**：companion module 内のヘルパー。error effect を `result`
+- **`io_err::wrap`**：companion module 内のヘルパー。エラー effect を `result`
   値に閉じる。
-- `from` entry がある場合だけ生成される `up` helper。リンクした narrower error を、宣言した error 型に持ち上げる。
+- `from` entry がある場合だけ生成される `up` helper。リンクした narrower エラーを、宣言したエラー型に持ち上げる。
 
 ## constructor と operation は同名
 
@@ -48,7 +48,7 @@ pub prefix(fail) = \e -> e.throw
 my missing path = fail (io_err::not_found path)
 ```
 
-`missing` を呼ぶと `io_err::not_found` が発火し、`fail` によってその error が effect row に現れる。
+`missing` を呼ぶと `io_err::not_found` が発火し、`fail` によってそのエラーが effect row に現れる。
 
 ## 名指しで捕まえる
 
@@ -63,7 +63,7 @@ my read_text_or_label path = catch read_text path:
 
 Yulang のエラー設計は **名指しで捕まえる** ことを前提にしている。
 型を消去した catch-all や、任意の `Display` 実装を runtime dispatch する仕組みはなく、anyhow 型の境界を意図的に提供していない。
-各 error は effect row の中で具体的な型を保つため、発火元と handler を型から特定できる。
+各エラーは effect row の中で具体的な型を保つため、発火元と handler を型から特定できる。
 
 ## `wrap`：値に閉じる
 
@@ -75,8 +75,8 @@ my read_text_safe path =
         result::err err -> err.show
 ```
 
-`E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E` を返す。
-`E` に `from` エントリがある場合、`wrap` はリンクされた narrower error も同時に捕まえ、生成された変換を通じて wrap する。
+`E::wrap` は、引数 thunk が起こす対応エラー effect を捕まえて `result _ E` を返す。
+`E` に `from` エントリがある場合、`wrap` はリンクされた narrower エラーも同時に捕まえ、生成された変換を通じて wrap する。
 
 ## `from` による集約
 
@@ -93,7 +93,7 @@ pub error app_err:
 - variant `app_err::file io_err` と `app_err::parse parse_err`
 - `io_err` と `parse_err` から `app_err` への生成済み変換
 - `io_err` と `parse_err` も同時に捕まえる拡張版 `app_err::wrap`
-- narrower error を `app_err` effect に変換する handler `app_err::up`
+- narrower エラーを `app_err` effect に変換する handler `app_err::up`
 
 ```yulang
 my read_and_parse path =

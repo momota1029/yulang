@@ -1,7 +1,7 @@
 # イディオム
 
-通常の Yulang code では、このページの形式を既定として使う。
-句読点を省ける構文を使いながら、call と control flow を読みやすく保つためである。
+通常の Yulang コードでは、このページの形式を既定として使う。
+句読点を省ける構文を使いながら、呼び出しと control flow を読みやすく保つためである。
 
 ## 裸の application
 
@@ -22,7 +22,7 @@ read_text(path)
 
 ## 大きな末尾には colon application
 
-最後の引数がブロックや長い式のときは、`:` で右に流す。
+最後の引数が block や長い式のときは、`:` で右に流す。
 
 ```yulang
 catch action:
@@ -38,9 +38,9 @@ io_err::wrap:
 ```
 
 `f x: body` は「`f` を `x` に適用し、続いて colon の body に適用する」と読める。
-handler 風 API やブロック形 API を呼ぶ標準形。
+handler 風 API や block 形 API を呼ぶ標準形。
 
-## メソッドのドットチェイン
+## method の dot chain
 
 最初の selection では dot を詰め、外側の bare-application 式へ付ける後続の dot の前には空白を置く。
 selection 自体は application ではなく、`xs.map` で選んだ関数に後続の引数を適用する。
@@ -56,7 +56,7 @@ xs.map double .filter (\x -> x > 0) .len
 
 ## companion method のための `with:`
 
-companion method は declaration の `with:` block に置く。
+companion method は宣言の `with:` block に置く。
 `our recv.name args = body` と書くと、`self` 引数を別に宣言せずに `value.name args` で解決できる。
 
 ```yulang
@@ -77,7 +77,7 @@ struct box 'a { value: 'a } with:
         our b.index _ = b.value
 ```
 
-## role はレシーバ形で
+## role は receiver 形で
 
 role method は receiver 形式で書く。
 `our a.method: T` は実装者に `T` 型の `value.method` を与える。
@@ -94,7 +94,7 @@ role Add 'a:
 ## hand-rolled enum よりも `error E:`
 
 enum、effect、`Throw` と `Display` の impl、`wrap` helper を手書きせず、`error E:` を使う。
-declaration に `from` entry がある場合は `up` helper も生成される。
+宣言に `from` entry がある場合は `up` helper も生成される。
 生成される surface が合わない場合だけ long form を使う。
 
 ```yulang
@@ -105,7 +105,7 @@ pub error path_err:
 
 ## `e.throw` よりも `fail e`
 
-error value を effect row に乗せるときは `fail` を使う。
+エラー値を effect row に乗せるときは `fail` を使う。
 prefix 形式にすると、関数を流し読みしても throw site を見つけやすい。
 
 ```yulang
@@ -151,7 +151,7 @@ else:
 
 ## 推論に任せ、境界で注釈する
 
-local type は推論に任せ、public API boundary、generic constraint、固定する必要がある residual variable に注釈を付ける。
+local 型は推論に任せ、public API boundary、generic constraint、固定する必要がある residual variable に注釈を付ける。
 pipeline の `x | f` は左辺の値を右辺の式へ渡す。
 F# や Elixir の `|>` に相当する形を bar 1 本で書く。
 

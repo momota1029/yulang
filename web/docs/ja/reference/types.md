@@ -11,7 +11,7 @@ Yulang の値と型、関数型、effect row、type variable、role constraint �
 | `float` | `3.14`, `-0.5` |
 | `bool` | `true`, `false` |
 | `str` | `"hello"` |
-| `()` | unit value |
+| `()` | unit 値 |
 | `never` | 返らない式の型 |
 
 ## Tuple
@@ -63,7 +63,7 @@ nil
 ```
 
 `opt 'a` は標準ライブラリの `enum opt 'a = nil | just 'a` である。
-prelude は type と variant の両方を reexport する。
+prelude は型と variant の両方を reexport する。
 通常のコードでは `std::data::opt::` や `opt::` を付けずに `opt`、`just`、`nil` と書く。
 
 ## Result
@@ -90,7 +90,7 @@ range は `Fold` を実装するため、`for x in r:` と nondeterminism の `e
 ## Type variable
 
 type variable は `'a` のように書き、型注釈の中へ直接出す。
-普通の関数 binding では、型変数だけを先に宣言する引数リストはない。
+普通の関数 binding では、type variable だけを先に宣言する引数リストはない。
 
 ```yulang
 my id(x: 'a): 'a = x
@@ -127,7 +127,7 @@ int -> int
 () -> [console] str
 ```
 
-`[console] str` は `console` effect を起こし得る computation value である。
+`[console] str` は `console` effect を起こし得る computation 値である。
 返り値は `str` である。
 handler や control abstraction の引数で使える。
 
@@ -141,7 +141,7 @@ our run_console(action: [console] 'a): 'a = catch action:
 source annotation では、`[io; 'e] 'a` のように具体的な値型か type variable を置く。
 
 `_` は annotation 内で推論に穴埋めを任せる placeholder として使える。
-type constructor ではなく、基礎となる型構文の一部でもない。
+型 constructor ではなく、基礎となる型構文の一部でもない。
 
 ## Effect row
 
@@ -152,7 +152,7 @@ type constructor ではなく、基礎となる型構文の一部でもない。
 
 row は named effect の列と、任意の残りを表す row variable `; 'e` を持てる。
 `[_]` のような wildcard row は annotation placeholder である。
-effect row type そのものの標準形ではない。
+effect row 型そのものの標準形ではない。
 
 ## Role constraint
 
@@ -175,10 +175,10 @@ Yulang の推論結果には、union や intersection が表示されること�
 α & {width?: ⊤}
 ```
 
-branch、default value、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。
+branch、default 値、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。
 注釈を足すと、表示型を意図した公開形へ絞れることが多い。
 
 ## 関連
 
-- [エフェクト](./effects)：effect の宣言、呼び出し、handler。
+- [effect](./effects)：effect の宣言、呼び出し、handler。
 - [型推論の理論](./type-theory)：subtyping、effect row、handler hygiene の内部的な見方。
