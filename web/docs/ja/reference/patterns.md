@@ -1,7 +1,6 @@
 # パターンマッチ
 
-パターンは Yulang が値に名前を bind するあらゆる場所に現れる：`case` arm、
-`catch` arm、関数の引数、`my` binding、ラムダ。
+パターンは Yulang が値に名前を bind するあらゆる場所に現れる：`case` arm、`catch` arm、関数の引数、`my` binding、ラムダ。
 
 ## `case`
 
@@ -11,8 +10,9 @@ case value:
     n -> "other"
 ```
 
-各 arm は `pattern -> body`。arm は上から順に試され、最初にマッチしたものが
-選ばれる。body は単一の式でも、colon block でも、brace block でもよい。
+各 arm は `pattern -> body`。
+arm は上から順に試され、最初にマッチしたものが選ばれる。
+body は単一の式でも、colon block でも、brace block でもよい。
 
 ```yulang
 case n:
@@ -50,8 +50,8 @@ case n:
     _ -> "positive"
 ```
 
-ガードはパターンがマッチしたときだけ評価される。ガードが偽なら次の arm が
-試される。
+ガードはパターンがマッチしたときだけ評価される。
+ガードが偽なら次の arm が試される。
 
 ## リテラルパターン
 
@@ -74,8 +74,8 @@ case point:
     (x, y) -> "(" + x.show + ", " + y.show + ")"
 ```
 
-タプルパターンは入れ子にできる。`((a, b), c)` は、最初の要素自体がペアである
-ペアにマッチする。
+タプルパターンは入れ子にできる。
+`((a, b), c)` は、最初の要素自体がペアであるペアにマッチする。
 
 ## レコードパターン
 
@@ -86,8 +86,8 @@ case shape:
     _                           -> 0
 ```
 
-明示したフィールドはデフォルトを持たない限り必須。`{ field: bound_name }` で
-フィールドを別名に bind できる。
+明示したフィールドはデフォルトを持たない限り必須。
+`{ field: bound_name }` でフィールドを別名に bind できる。
 
 ### 別名とデフォルト
 
@@ -96,7 +96,8 @@ case config:
     { host: h = "localhost", port = 80 } -> h + ":" + port.show
 ```
 
-`host: h` で bind 名を `h` に変える。`port = 80` でデフォルトを与える。
+`host: h` で bind 名を `h` に変える。
+`port = 80` でデフォルトを与える。
 
 ### スプレッド
 
@@ -106,11 +107,9 @@ case rec:
     { ..tail, y } -> y    // `tail` には残りではなく入力 record 全体が入る
 ```
 
-`..name` は **入力 record 全体** を bind する（レコードの引き算は型システム上
-十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供して
-いない）。スプレッドは先頭にも末尾にも置けるが、どちらでも `name` には field
-を列挙したものを含む全 field が入る。入力にほかの field があってもよいこと
-だけを示し、それらを bind しない場合は `.._` を使う。
+`..name` は **入力 record 全体** を bind する（レコードの引き算は型システム上十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供していない）。
+スプレッドは先頭にも末尾にも置けるが、どちらでも `name` には field を列挙したものを含む全 field が入る。
+入力にほかの field があってもよいことだけを示し、それらを bind しない場合は `.._` を使う。
 
 ## リストパターン
 
@@ -123,8 +122,8 @@ case xs:
     [..init, last]  -> "ends with: " + last.show
 ```
 
-`..rest` で残りの部分を捕まえる。リストパターンには spread を 1 つだけ
-置ける。
+`..rest` で残りの部分を捕まえる。
+リストパターンには spread を 1 つだけ置ける。
 
 ## enum パターン
 
@@ -137,11 +136,11 @@ case c:
     color::blue  -> 2
 ```
 
-variant は enum の companion module に住んでいるので、通常は `color::red` の
-ように書く。**修飾なしの `red` を使うには `use color::*` が必要である。**
-`use` がなければ、式位置の `red` は name error になる。pattern 位置では、
-任意の値にマッチする `red` という fresh binding になる。後者は暗黙に意味が
-変わるため危険である。
+variant は enum の companion module に住んでいるので、通常は `color::red` のように書く。
+**修飾なしの `red` を使うには `use color::*` が必要である。**
+`use` がなければ、式位置の `red` は name error になる。
+pattern 位置では、任意の値にマッチする `red` という fresh binding になる。
+後者は暗黙に意味が変わるため危険である。
 
 ```yulang
 enum color = red | green | blue
@@ -152,8 +151,7 @@ case c:
     blue -> "b"
 ```
 
-variant にマッチさせたいときは、`color::red` のように修飾するか、先に
-`use color::*` を書く。
+variant にマッチさせたいときは、`color::red` のように修飾するか、先に `use color::*` を書く。
 
 payload を持つ variant は、その payload を bind する。
 
@@ -174,8 +172,7 @@ my add (x, y) = x + y
 my translate { dx = 0, dy = 0 } point = point.move dx dy
 ```
 
-トップレベルの binding パターン、ラムダ引数、`my` の分割代入は同じパターン
-文法を共有する。
+トップレベルの binding パターン、ラムダ引数、`my` の分割代入は同じパターン文法を共有する。
 
 ## `catch` のパターン
 
@@ -188,8 +185,8 @@ catch action:
     value -> value
 ```
 
-effect arm では operation 名をパターンとして書き、末尾の `k`（または `_`）が
-継続に bind される。値 arm `v -> ...` は正常終了時に走る。
+effect arm では operation 名をパターンとして書き、末尾の `k`（または `_`）が継続に bind される。
+値 arm `v -> ...` は正常終了時に走る。
 
 ## `my` のパターン
 

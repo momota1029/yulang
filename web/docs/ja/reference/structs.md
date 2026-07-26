@@ -9,7 +9,8 @@ nominal な `struct` 型と、`with:` で定義する companion method をまと
 struct point { x: int, y: int }
 ```
 
-`struct` は nominal な record type である。値は次のように作る。
+`struct` は nominal な record type である。
+値は次のように作る。
 
 ```yulang
 point { x: 3, y: 4 }
@@ -22,7 +23,8 @@ struct pair 'a 'b { fst: 'a, snd: 'b }
 struct box 'a { value: 'a }
 ```
 
-struct は type parameter を持てる。type parameter は `'a` の形で書く。
+struct は type parameter を持てる。
+type parameter は `'a` の形で書く。
 
 ## `with:`
 
@@ -32,13 +34,18 @@ struct point { x: int, y: int } with:
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-`with:` block は struct の companion module へ定義を追加する。receiver 名を付けた binding は method として登録される。例の `p` は、method を呼び出した値を表す。companion の外から見える method にするため、例では `our` を使っている。
+`with:` block は struct の companion module へ定義を追加する。
+receiver 名を付けた binding は method として登録される。
+例の `p` は、method を呼び出した値を表す。
+companion の外から見える method にするため、例では `our` を使っている。
 
-同じ `with:` の仕組みは `type` 宣言にもある。標準ライブラリの `list`、`str`、`ref` も companion module に method を定義している。
+同じ `with:` の仕組みは `type` 宣言にもある。
+標準ライブラリの `list`、`str`、`ref` も companion module に method を定義している。
 
 ## Role
 
-role は、型が実装できる method と optional な associated type の集合である。role 名の後ろに、その role が parameterize する type variable を置いて宣言する。
+role は、型が実装できる method と optional な associated type の集合である。
+role 名の後ろに、その role が parameterize する type variable を置いて宣言する。
 
 ```yulang
 role Add 'a:
@@ -80,7 +87,8 @@ struct box 'a { value: 'a } with:
         our b.index i = b.value
 ```
 
-この場合、enclosing struct が role の最初の type parameter として前に足される。role 名の後ろに書いた型引数は、残りの parameter を埋める。
+この場合、enclosing struct が role の最初の type parameter として前に足される。
+role 名の後ろに書いた型引数は、残りの parameter を埋める。
 
 ## `where`
 
@@ -90,4 +98,7 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where` は type variable に role constraint を付ける。binding body、role body、impl body の中で使える。role body の `where` は role method へ継承される。impl body の `where` は、その impl candidate の前提条件になる。
+`where` は type variable に role constraint を付ける。
+binding body、role body、impl body の中で使える。
+role body の `where` は role method へ継承される。
+impl body の `where` は、その impl candidate の前提条件になる。

@@ -15,8 +15,8 @@ else:
 if cond { a } else { b }
 ```
 
-`if` の条件は `bool` である。`else` がない場合は statement-like になり、then
-branch は効果のために評価され、値は捨てられ、式全体は `()` を返す。
+`if` の条件は `bool` である。
+`else` がない場合は statement-like になり、then branch は効果のために評価され、値は捨てられ、式全体は `()` を返す。
 
 ## `case`
 
@@ -27,7 +27,8 @@ case value:
     _ -> "other"
 ```
 
-`case` arm は上から順に試される。guard は pattern の後ろに `if` を書く。
+`case` arm は上から順に試される。
+guard は pattern の後ろに `if` を書く。
 
 ## `catch`
 
@@ -37,7 +38,9 @@ catch action:
     value -> value
 ```
 
-operation arm は operation の payload と continuation `k` を受け取る。`k value` を呼ぶと計算を再開する。value arm は通常終了を処理する。
+operation arm は operation の payload と continuation `k` を受け取る。
+`k value` を呼ぶと計算を再開する。
+value arm は通常終了を処理する。
 
 ## `for`
 
@@ -46,7 +49,8 @@ for x in 0..10:        // 11 回反復: 0..10 は閉区間 (半開は 0..<10)
     say x
 ```
 
-`for x in xs:` は `Fold` を実装する値を走査する。body は関数へ lower され、plain な `for` expression は `()` を返す。
+`for x in xs:` は `Fold` を実装する値を走査する。
+body は関数へ lower され、plain な `for` expression は `()` を返す。
 
 loop control は prelude から入る。
 
@@ -65,7 +69,8 @@ for 'outer x in 0..:
         if y == 3: last 'outer
 ```
 
-labelled loop は label 値を body に渡す。`last 'outer`、`next 'outer`、`redo 'outer` は、その label の loop を対象にする。
+labelled loop は label 値を body に渡す。
+`last 'outer`、`next 'outer`、`redo 'outer` は、その label の loop を対象にする。
 
 ## `sub` と `return`
 
@@ -76,7 +81,9 @@ sub:
     0
 ```
 
-`sub:` は早期 return scope を作る。`return value` は直近の `sub:` から抜ける。nullfix の `return` は `()` を返す。
+`sub:` は早期 return scope を作る。
+`return value` は直近の `sub:` から抜ける。
+nullfix の `return` は `()` を返す。
 
 labelled `sub` もある。
 
@@ -86,7 +93,8 @@ sub 'done:
     0
 ```
 
-`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface である。parser 専用 keyword ではない。
+`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface である。
+parser 専用 keyword ではない。
 
 ## Block と Lambda
 
@@ -100,4 +108,5 @@ sub 'done:
 \x y -> x + y
 ```
 
-block は statement を順に評価し、最後の式を返す。lambda は `\` で始まり、複数引数は curried function として扱われる。
+block は statement を順に評価し、最後の式を返す。
+lambda は `\` で始まり、複数引数は curried function として扱われる。

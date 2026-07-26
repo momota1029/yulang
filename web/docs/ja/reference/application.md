@@ -43,7 +43,8 @@ x .field // field selection。`.` の前には空白を置ける
 空白の規則は次のとおりである。
 
 - `(` と `[` は、直前の token から空白やコメントを挟まずに続くときだけ call suffix または index suffix になる。
-- `.field` は top level では常に field/method selection であり、直前の空白を許す。ただし、ML argument の中では次に示す tight mode の規則によって、どの head に付くかが変わる。
+- `.field` は top level では常に field/method selection であり、直前の空白を許す。
+  ただし、ML argument の中では次に示す tight mode の規則によって、どの head に付くかが変わる。
 
 ## 結合の例
 

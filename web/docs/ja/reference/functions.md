@@ -11,8 +11,8 @@ our greet name = "hello, " + name
 pub double x = x + x
 ```
 
-binding の左辺は pattern である。pattern が直接の名前のとき、その後ろに続く pattern
-が関数引数になる。
+binding の左辺は pattern である。
+pattern が直接の名前のとき、その後ろに続く pattern が関数引数になる。
 
 | キーワード | 公開範囲 |
 |---|---|
@@ -27,9 +27,10 @@ my add x y = x + y
 my add' = \x -> \y -> x + y
 ```
 
-複数引数の binding は左から右にカリー化される。`add 1` は `y` を待つ関数である。
-裸 application（`add 1 2`）でも C 風（`add(1, 2)`）でも呼べる。両方とも
-内部はカリー化された application に lower される。
+複数引数の binding は左から右にカリー化される。
+`add 1` は `y` を待つ関数である。
+裸 application（`add 1 2`）でも C 風（`add(1, 2)`）でも呼べる。
+両方とも内部はカリー化された application に lower される。
 
 ```yulang
 my inc = add 1
@@ -44,8 +45,8 @@ add(1, 2)              // C 風呼び出し
 add: 1                 // colon application（2 引数関数では稀）
 ```
 
-裸 application が標準形である。視覚的に引数をまとめたいときや、裸だと token が
-流れて読みづらいときに C 風を使う。
+裸 application が標準形である。
+視覚的に引数をまとめたいときや、裸だと token が流れて読みづらいときに C 風を使う。
 
 ## ラムダ
 
@@ -54,8 +55,8 @@ add: 1                 // colon application（2 引数関数では稀）
 \x y -> x + y
 ```
 
-ラムダは `\` で始まる。複数引数のラムダ `\x y -> ...` は binding の頭と同じく
-カリー化される。
+ラムダは `\` で始まる。
+複数引数のラムダ `\x y -> ...` は binding の頭と同じくカリー化される。
 
 ラムダの引数自体も pattern である。
 
@@ -71,8 +72,9 @@ my double(x: int): int = x + x
 my mark(label: str, value: 'a): 'a = value
 ```
 
-引数と戻り型の注釈は任意である。省略すると推論が埋める。API 境界のドキュメント、
-そのままだと開いてしまう generic の固定、曖昧さの解消、のいずれかに使う。
+引数と戻り型の注釈は任意である。
+省略すると推論が埋める。
+API 境界のドキュメント、そのままだと開いてしまう generic の固定、曖昧さの解消、のいずれかに使う。
 
 ## effect 付きの注釈
 
@@ -82,9 +84,9 @@ my run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")
 ```
 
-戻り型の角括弧形は effect row である。`[console] str` は「`str` を返し、`console`
-effect を要求する」という意味。`[console; 'e] 'a` のように tail 変数を入れる
-と他の effect も開いたままになる。
+戻り型の角括弧形は effect row である。
+`[console] str` は「`str` を返し、`console` effect を要求する」という意味。
+`[console; 'e] 'a` のように tail 変数を入れると他の effect も開いたままになる。
 
 ## オプショナル引数としてのレコードパターン
 
@@ -111,8 +113,8 @@ struct point { x: int, y: int } with:
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-`with:` 内の `our recv.name args = body` で、`value.name args` で呼べる
-method を定義する。レシーバ `recv` は単なる名前 — 読みやすい名前を選ぶ。
+`with:` 内の `our recv.name args = body` で、`value.name args` で呼べる method を定義する。
+レシーバ `recv` は単なる名前（読みやすい名前を選ぶ）。
 
 ## role の method
 
@@ -124,8 +126,8 @@ impl Add int:
     our x.add y = std::int::add x y
 ```
 
-role の method ヘッダーは `with:` と同じレシーバ形を使う。`:` の後ろは
-レシーバを当てた後の関数型 — `Add` なら `a.add` は相手側の引数を取る関数。
+role の method ヘッダーは `with:` と同じレシーバ形を使う。
+`:` の後ろはレシーバを当てた後の関数型（`Add` なら `a.add` は相手側の引数を取る関数）。
 
 ## where 句
 
@@ -135,11 +137,12 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where 'a: Role` は binding の型変数に role 制約を追加する。binding の推論型
-にその制約が伝播するので、`twice 1` の呼び出しは `Add int` を要求する。
+`where 'a: Role` は binding の型変数に role 制約を追加する。
+binding の推論型にその制約が伝播するので、`twice 1` の呼び出しは `Add int` を要求する。
 
-`where` 句は role 本体や impl 本体にも書ける。role 本体に書くと各 method に
-継承される。impl 本体に書くと、その impl 候補の前提条件になる。
+`where` 句は role 本体や impl 本体にも書ける。
+role 本体に書くと各 method に継承される。
+impl 本体に書くと、その impl 候補の前提条件になる。
 
 ## ファイルの検査
 
@@ -157,7 +160,7 @@ residual な型変数（`α`、`β`、…）と role 制約（`Add<α> => ...`�
 
 ## 関連ページ
 
-- [パターン](./patterns) — `my` / ラムダ / 引数で共通の pattern 文法
-- [構造体とロール](./structs) — companion method と role impl
-- [エフェクト](./effects) — 引数 / 戻り型での effect row
-- [クックブック](../guide/cookbook) — これらを組み合わせるレシピ
+- [パターン](./patterns)：`my` / ラムダ / 引数で共通の pattern 文法
+- [構造体とロール](./structs)：companion method と role impl
+- [エフェクト](./effects)：引数 / 戻り型での effect row
+- [クックブック](../guide/cookbook)：これらを組み合わせるレシピ
