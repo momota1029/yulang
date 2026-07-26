@@ -765,6 +765,23 @@ cold rebuild されることだけである。format mismatch は decode error �
 （`crates/yulang/src/cache.rs:519-537`）。source syntax、公開 artifact、runtime data の
 互換性を変えるものではない。古い cache file の自動削除は本 slice の要件にしない。
 
+### 訂正（2026-07-27、MYVIS-A 実装中に判明）
+
+**理由 1 は今日の実装に対しては空である。** `my use` は parser が `use` 宣言として解析せず、
+`use` という名前の束縛になる（`notes/bugs/2026-07-27-my-use-not-parsed.md`）。
+したがって「`my use` が public target を private alias にする」形は現在存在しない。
+
+**結論は変わらない。** 理由 2 は `my use` と無関係に成立する。compiled restoration は
+materialized import entry を直接コピーし、source-time の alias chain は復元時に存在しないため、
+descendant が ancestor の `my` を `use` し、それを `pub use` で外へ出した場合の出所は、
+compiled unit 境界の向こうからは再構成できない。
+
+ただしこれは論証であって実測ではない。**MYVIS-B で、provenance を落とした状態の
+cross-unit re-export が実際に漏れることを test で示してから bump を確定すること。**
+示せなければ bump の必要性を再判定する。
+
+`my use` 自体の修正は本設計の範囲外だが、`use` 経路に触る MYVIS-D で一緒に閉じるのが自然である。
+
 ## 7. Q5: descendant からの `use`
 
 **結論:** descendant から ancestor の `my` declaration を `use` できなければならない。
