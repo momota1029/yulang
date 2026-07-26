@@ -15,10 +15,10 @@ The call forms lower to curried application. Dot selection by itself is a
 selection; when followed by arguments, the selected value is applied:
 
 ```yulang
-f x y           ≡  ((f x) y)
-f(x, y)         ≡  ((f x) y)
-x.method y      ≡  ((x.method) y)
-x.method(y, z)  ≡  (((x.method) y) z)
+f x y           // groups as ((f x) y)
+f(x, y)         // groups as ((f x) y)
+x.method y      // groups as ((x.method) y)
+x.method(y, z)  // groups as (((x.method) y) z)
 ```
 
 For the C-style form there's one corner case: `f()` (empty arg list) applies `f` to the unit value `()`.
@@ -44,7 +44,7 @@ The rule:
 
 ## Worked examples
 
-Things get interesting when ML juxtaposition meets a tight postfix:
+A tight postfix changes how an ML juxtaposition groups:
 
 ```yulang
 f g(x)    // f (g(x))    — g and (x) are glued (no space), so `(x)` is g's call
@@ -75,10 +75,12 @@ A longer chain is just left-to-right at each step:
 ```yulang
 f.method(y).other[0] z
 
-≡ ((((f.method)(y)).other)[0]) z
+// groups as ((((f.method)(y)).other)[0]) z
 ```
 
-Why does it work this way? When parsing the right side of an ML juxtaposition, the parser is in a **tight mode** that stops at the first piece of leading whitespace. So `g(x)` (no space) keeps glueing, but `g (x)` (with space) hands control back to the outer head.
+When parsing the right side of an ML juxtaposition, the parser uses a **tight
+mode** that stops at the first piece of leading whitespace. Thus `g(x)` keeps
+glueing, while the space in `g (x)` hands control back to the outer head.
 
 ## Binding tightness
 
@@ -87,7 +89,7 @@ In the AST these all live at the same "tightest" level — they are postfix-styl
 ```yulang
 f.method(y).other[0] z
 
-≡ ((((f.method)(y)).other)[0]) z
+// groups as ((((f.method)(y)).other)[0]) z
 ```
 
 Order of resolution at each step:
@@ -124,7 +126,7 @@ So:
 ```yulang
 1 + 2 * 3                 // 1 + (2 * 3)
 a == b and c == d         // (a == b) and (c == d)
-1..n + 1                  // 1..(n + 1)    -- range outside +
+1..n + 1                  // 1..(n + 1), range outside +
 ```
 
 User-defined operators set their own binding powers:

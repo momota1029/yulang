@@ -1,6 +1,7 @@
 # 関数
 
-関数の宣言形式（`my f x y = ...`）、明示的な lambda、型注釈、partial application、引数 pattern による分解の扱いをまとめる。
+関数 binding、カリー化された呼び出し形式、ラムダ、型注釈と effect 注釈をまとめる。
+record pattern 引数、method、role constraint も扱う。
 
 ## 宣言
 
@@ -10,7 +11,7 @@ our greet name = "hello, " + name
 pub double x = x + x
 ```
 
-binding の左辺は pattern。pattern が直接の名前のとき、その後ろに続く pattern
+binding の左辺は pattern である。pattern が直接の名前のとき、その後ろに続く pattern
 が関数引数になる。
 
 | キーワード | 公開範囲 |
@@ -26,7 +27,7 @@ my add x y = x + y
 my add' = \x -> \y -> x + y
 ```
 
-複数引数の binding は左から右にカリー化される。`add 1` は `y` を待つ関数。
+複数引数の binding は左から右にカリー化される。`add 1` は `y` を待つ関数である。
 裸 application（`add 1 2`）でも C 風（`add(1, 2)`）でも呼べる。両方とも
 内部はカリー化された application に lower される。
 
@@ -43,7 +44,7 @@ add(1, 2)              // C 風呼び出し
 add: 1                 // colon application（2 引数関数では稀）
 ```
 
-裸 application が標準形。視覚的に引数をまとめたいときや、裸だと token が
+裸 application が標準形である。視覚的に引数をまとめたいときや、裸だと token が
 流れて読みづらいときに C 風を使う。
 
 ## ラムダ
@@ -56,7 +57,7 @@ add: 1                 // colon application（2 引数関数では稀）
 ラムダは `\` で始まる。複数引数のラムダ `\x y -> ...` は binding の頭と同じく
 カリー化される。
 
-ラムダの引数自体も pattern：
+ラムダの引数自体も pattern である。
 
 ```yulang
 \(x, y) -> x + y
@@ -70,7 +71,7 @@ my double(x: int): int = x + x
 my mark(label: str, value: 'a): 'a = value
 ```
 
-引数と戻り型の注釈は任意。省略すると推論が埋める。API 境界のドキュメント、
+引数と戻り型の注釈は任意である。省略すると推論が埋める。API 境界のドキュメント、
 そのままだと開いてしまう generic の固定、曖昧さの解消、のいずれかに使う。
 
 ## effect 付きの注釈
@@ -81,7 +82,7 @@ my run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")
 ```
 
-戻り型の角括弧形は effect row。`[console] str` は「`str` を返し、`console`
+戻り型の角括弧形は effect row である。`[console] str` は「`str` を返し、`console`
 effect を要求する」という意味。`[console; 'e] 'a` のように tail 変数を入れる
 と他の effect も開いたままになる。
 
@@ -150,7 +151,9 @@ cargo run -q -p yulang -- check examples/showcase.yu
 
 `check` は file を検査する。
 成功時は何も出力せず、失敗時だけ diagnostic を出す。
-推論された binding 型、residual な型変数（`α`、`β`、…）、role 制約（`Add<α> => ...`）を含む compiler IR は、`yulang dump examples/showcase.yu --poly` で確認できる。
+compiler IR には、推論された binding 型が含まれる。
+residual な型変数（`α`、`β`、…）と role 制約（`Add<α> => ...`）も含まれる。
+`yulang dump examples/showcase.yu --poly` で確認できる。
 
 ## 関連ページ
 

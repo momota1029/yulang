@@ -86,7 +86,7 @@ sub 'done:
     0
 ```
 
-`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface であり、parser 専用 keyword ではない。
+`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface である。parser 専用 keyword ではない。
 
 ## Block と Lambda
 

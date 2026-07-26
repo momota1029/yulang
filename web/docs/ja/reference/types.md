@@ -1,6 +1,7 @@
 # 値と型
 
-Yulang が扱う基本の値の形（primitive、tuple、record、list、optional、result、range）と、その上に乗る関数型・effect row・type variable・role constraint・推論で表示される union/intersection を概観する。
+Yulang の値と型、関数型、effect row、type variable、role constraint をまとめる。
+推論結果に現れる union と intersection も扱う。
 
 ## Primitive types
 
@@ -46,7 +47,7 @@ my width_or_default { width = 1 } = width
 my keep_rest { ..rest, width = 1 } = rest
 ```
 
-型表示では、省略可能な record field は `?` 付きで出る。たとえば `{width?: α} -> α | int` のような形である。残り field を保持する spread pattern では、`α & {width?: ⊤}` のような intersection が表示されることがある。
+型表示では、省略可能な record field は `?` 付きで出る。たとえば `{width?: α} -> α | int` のような形である。spread pattern が残りの field を保持すると、型表示には intersection が現れる。たとえば `α & {width?: ⊤}` のような形である。
 
 ## Optional
 
@@ -55,7 +56,7 @@ just 42
 nil
 ```
 
-`opt 'a` は標準ライブラリの `enum opt 'a = nil | just 'a` である。prelude は type と variant の両方を reexport するため、通常のコードでは `std::data::opt::` や `opt::` を付けずに `opt`、`just`、`nil` と書く。
+`opt 'a` は標準ライブラリの `enum opt 'a = nil | just 'a` である。prelude は type と variant の両方を reexport する。通常のコードでは `std::data::opt::` や `opt::` を付けずに `opt`、`just`、`nil` と書く。
 
 ## Result
 
@@ -64,7 +65,7 @@ ok 1
 err "bad"
 ```
 
-`result 'ok 'err` は fallible computation を値として返すための標準型。prelude は `result`、`ok`、`err` を reexport するため、local name と衝突する場合だけ修飾する。
+`result 'ok 'err` は fallible computation を値として返すための標準型である。prelude は `result`、`ok`、`err` を reexport するため、local name と衝突する場合だけ修飾する。
 
 ## Range
 
@@ -74,7 +75,7 @@ err "bad"
 0..     // 0 から無限
 ```
 
-range は `Fold` を実装するので、`for x in r:` や `each r` に渡せる。
+`..`、`..<`、`<..`、`<..<` は `std::data::range` の range operator である。range は `Fold` を実装するため、`for x in r:` と nondeterminism の `each` collector で使える。
 
 ## Type variable
 
@@ -84,7 +85,7 @@ type variable は `'a` のように書き、型注釈の中へ直接出す。普
 my id(x: 'a): 'a = x
 ```
 
-多くの場合、型推論が type variable を埋める。注釈は曖昧さを減らしたり、公開 API を読みやすくしたりするために使う。
+型推論は、多くの場合 type variable を自動で埋める。注釈は型を明示する場合や、曖昧さを解消する場合に使う。
 
 ## `as` による inline ascription
 
@@ -115,16 +116,16 @@ int -> int
 () -> [console] str
 ```
 
-`[console] str` だけで書いた型は、`console` effect を起こす可能性があり、`str` を返す computation value を表す。handler や control abstraction の引数でよく使う。
+`[console] str` は `console` effect を起こし得る computation value である。返り値は `str` である。handler や control abstraction の引数で使える。
 
 ```yulang
 our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
 ```
 
-型表示では `α [io; β] -> [β] α` のように、関数の引数側にも effect row が出ることがある。これは「引数が effectful computation である」という意味である。source annotation では、`x: [io; 'e] 'a` のように具体的な値型か type variable を置く。
+型表示では `α [io; β] -> [β] α` のように、関数の引数側にも effect row が出ることがある。これは「引数が effectful computation である」という意味である。source annotation では、`[io; 'e] 'a` のように具体的な値型か type variable を置く。
 
-`_` は annotation 内で推論に穴埋めを任せる placeholder として使えるが、型そのものではない。
+`_` は annotation 内で推論に穴埋めを任せる placeholder として使える。type constructor ではなく、基礎となる型構文の一部でもない。
 
 ## Effect row
 
@@ -133,7 +134,7 @@ our run_console(action: [console] 'a): 'a = catch action:
 () -> [console; 'e] str
 ```
 
-row は named effect の列と、任意の残りを表す row variable `; 'e` を持てる。`[_]` のような wildcard row は annotation placeholder であり、effect row type そのものの標準形ではない。
+row は named effect の列と、任意の残りを表す row variable `; 'e` を持てる。`[_]` のような wildcard row は annotation placeholder である。effect row type そのものの標準形ではない。
 
 ## Role constraint
 
@@ -143,7 +144,7 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where` は type variable が role を実装していることを要求する。
+`where` は type variable が role を実装していることを要求する。同じ形式を binding body、`role` body、`impl` body で使える。
 
 ## 推論された union / intersection
 
@@ -154,7 +155,7 @@ Yulang の推論結果には、union や intersection が表示されること�
 α & {width?: ⊤}
 ```
 
-branch、default value、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。公開 API では注釈を足すと、意図した形に収束させやすくなる。
+branch、default value、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。注釈を足すと、表示型を意図した公開形へ絞れることが多い。
 
 ## 関連
 

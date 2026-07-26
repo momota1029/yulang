@@ -71,7 +71,7 @@ for 'outer x in 0..:
 Labelled loops pass a label value to the body. Prefix forms such as
 `last 'outer`, `next 'outer`, and `redo 'outer` target that labelled loop.
 
-## `sub` And `return`
+## `sub` and `return`
 
 ```yulang
 sub:
@@ -94,7 +94,7 @@ sub 'done:
 `sub`, `return`, `last`, `next`, and `redo` are standard-library/prelude
 surface forms, not parser-only keywords.
 
-## Blocks And Lambdas
+## Blocks and Lambdas
 
 ```yulang
 {

@@ -103,14 +103,14 @@ case config:
 ```yulang
 case rec:
     { x, .._ }    -> x
-    { ..tail, y } -> y    -- `tail` には残りではなく **入力 record 全体** が入る
+    { ..tail, y } -> y    // `tail` には残りではなく入力 record 全体が入る
 ```
 
 `..name` は **入力 record 全体** を bind する（レコードの引き算は型システム上
 十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供して
 いない）。スプレッドは先頭にも末尾にも置けるが、どちらでも `name` には field
-を列挙したものを含む全 field が入る。残りを「あること」として受け取りたい
-だけなら `.._`、bind したくないときに使う。
+を列挙したものを含む全 field が入る。入力にほかの field があってもよいこと
+だけを示し、それらを bind しない場合は `.._` を使う。
 
 ## リストパターン
 
@@ -138,16 +138,16 @@ case c:
 ```
 
 variant は enum の companion module に住んでいるので、通常は `color::red` の
-ように書く。**修飾なしの `red` を使うには `use color::*` が必要** — `use`
-なしだと、式位置の `red` は name error になり、pattern 位置の `red` は
-silently に fresh binding（任意の値にマッチする `red` という変数）になる。
-後者は無警告で意味が変わるので注意:
+ように書く。**修飾なしの `red` を使うには `use color::*` が必要である。**
+`use` がなければ、式位置の `red` は name error になる。pattern 位置では、
+任意の値にマッチする `red` という fresh binding になる。後者は暗黙に意味が
+変わるため危険である。
 
 ```yulang
 enum color = red | green | blue
 case c:
-    red -> "r"      -- ここの `red` は fresh 変数。すべての値にマッチして
-                    -- `green` / `blue` arm が unreachable になる。
+    red -> "r"      // `red` はすべての値にマッチする fresh 変数
+                    // `green` と `blue` の arm は unreachable になる
     green -> "g"
     blue -> "b"
 ```
@@ -199,8 +199,8 @@ my { x, y } = some_point
 my [first, ..rest] = some_list
 ```
 
-これらは反駁不能なパターン — コンパイラはマッチが必ず成立する前提で扱う。
-`my` で網羅性を欠くパターンを書くと型エラーになる。
+`my` の分割代入は、pattern が必ずマッチする前提で処理される。
+binding の網羅性は検査されない。
 
 ## 関連ページ
 

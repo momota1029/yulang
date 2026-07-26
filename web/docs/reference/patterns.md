@@ -104,7 +104,7 @@ case config:
 ```yulang
 case rec:
     { x, .._ }    -> x
-    { ..tail, y } -> y    -- `tail` binds the **whole** record, not the leftover
+    { ..tail, y } -> y    // `tail` binds the whole record, not the leftover
 ```
 
 `..name` binds the **entire** input record (record subtraction is not provided
@@ -148,8 +148,8 @@ position it silently becomes a fresh binding (an unrelated variable named
 ```yulang
 enum color = red | green | blue
 case c:
-    red -> "r"      -- `red` here is a fresh variable, matching every value;
-                    -- the `green` / `blue` arms below become unreachable.
+    red -> "r"      // `red` is a fresh variable that matches every value;
+                    // the `green` and `blue` arms below become unreachable.
     green -> "g"
     blue -> "b"
 ```
@@ -201,8 +201,8 @@ my { x, y } = some_point
 my [first, ..rest] = some_list
 ```
 
-These are irrefutable patterns — the compiler assumes they will match. A
-non-exhaustive pattern in a `my` binding is a type error.
+`my` destructuring assumes that its pattern matches. The binding does not
+perform an exhaustiveness check.
 
 ## See also
 

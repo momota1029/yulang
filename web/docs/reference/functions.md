@@ -1,5 +1,8 @@
 # Functions
 
+This page covers function bindings, curried call forms, lambdas, type and
+effect annotations, record-pattern arguments, methods, and role constraints.
+
 ## Declaration
 
 ```yulang

@@ -1,5 +1,8 @@
 # Structs & Roles
 
+This page covers nominal `struct` types, companion methods defined with
+`with:`, roles and implementations, and `where` constraints on type variables.
+
 ## Structs
 
 ```yulang

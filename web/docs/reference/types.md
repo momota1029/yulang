@@ -1,5 +1,8 @@
 # Values & Types
 
+This page lists Yulang's value types, function and computation types, effect
+rows, type variables, role constraints, and inferred unions and intersections.
+
 ## Primitive types
 
 | Type    | Examples              |
@@ -176,7 +179,7 @@ is not yet a stable source annotation syntax for writing them directly.
 α & {width?: ⊤}
 ```
 
-You will usually see these in the Types pane when a branch, default value, or
+These types usually appear in the Types pane when a branch, default value, or
 pattern spread leaves more than one possible shape. Adding an annotation can
 often collapse the displayed type to the intended public shape.
 
