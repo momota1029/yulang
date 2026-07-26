@@ -1,7 +1,7 @@
 # Yulang `derives` clause 設計
 
 決定日: 2026-07-26
-状態: **設計案／ユーザ承認前**
+状態: **ユーザ承認済み。実装指示書として有効**
 
 この文書は、型宣言へ明示的な role 実装を付与する `derives` clause の意味論と、
 parser、module map、lowering、role solver、compiled-unit cache の接続方法を定める。
@@ -1113,4 +1113,4 @@ Stop condition: primitive、derived struct、generic helper の success/failure�
 - type alias、role、act へ deriving を広げる意味論。
 
 著者: Claude (Opus 5)
-ユーザ承認: 未
+ユーザ承認: 済（2026-07-26）
