@@ -1,13 +1,13 @@
 # `std::data::opt`
 
-`opt 'a` は省略可能な値を表す。variant は 2 つ：
+`opt 'a` は省略可能な値を表す。
+variant は 2 つ：
 
 ```yulang
 pub enum opt 'a = nil | just 'a
 ```
 
-prelude が `opt` / `just` / `nil` を re-export しているので、ユーザコードは
-修飾なしで書ける。
+prelude が `opt` / `just` / `nil` を re-export しているので、ユーザコードは修飾なしで書ける。
 
 ## 構築
 
@@ -66,6 +66,6 @@ case s.to_int:
 
 ## 関連ページ
 
-- [`std::data::result`](./result) — 失敗に情報を持たせたいとき
-- [パターン → enum パターン](../patterns) — variant のパターン
-- [エラー](../errors) — effect として表現する型付きエラー
+- [`std::data::result`](./result)：失敗に情報を持たせたいとき
+- [パターン → enum パターン](../patterns)：variant のパターン
+- [エラー](../errors)：effect として表現する型付きエラー

@@ -14,7 +14,8 @@ pub act nondet:
     pub reject: () -> never
 ```
 
-`branch` は二分岐の選択を作る。`reject` は現在の分岐を捨てる。
+`branch` は二分岐の選択を作る。
+`reject` は現在の分岐を捨てる。
 高水準の `each` や `guard` はこの上に作られている。
 
 ## `each`
@@ -24,7 +25,8 @@ pub act nondet:
 (each 1..).once         // opt::just 1
 ```
 
-`each xs` は `xs` から要素を一つ選び、その選択を `nondet` effect で通知する。`xs` には list や range など、`Fold` を実装する値を渡せる。
+`each xs` は `xs` から要素を一つ選び、その選択を `nondet` effect で通知する。
+`xs` には list や range など、`Fold` を実装する値を渡せる。
 
 ## `guard`
 
@@ -74,7 +76,8 @@ collector は非決定性を持つ式に method call として付ける。
 
 ## Junction
 
-companion module の `std::control::junction` は `all xs` と `any xs` を提供する。これらは `nondet` の一部ではないが、collection を包み、`junction` effect を通じて一つの比較をすべての要素に適用する。
+companion module の `std::control::junction` は `all xs` と `any xs` を提供する。
+これらは `nondet` の一部ではないが、collection を包み、`junction` effect を通じて一つの比較をすべての要素に適用する。
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:

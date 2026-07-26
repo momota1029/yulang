@@ -1,7 +1,7 @@
 # `std::data::result`
 
-`result 'ok 'err` は、失敗しうる計算の値表現である。エラー effect を値に閉じて、
-保持・返却・パターンマッチしたいときに使う。
+`result 'ok 'err` は、失敗しうる計算の値表現である。
+エラー effect を値に閉じて、保持・返却・パターンマッチしたいときに使う。
 
 ```yulang
 pub enum result 'ok 'err:
@@ -62,11 +62,11 @@ case wrapped:
     err e   -> e.show
 ```
 
-`E::wrap` は thunk を走らせ、対応するエラー effect を捕まえて
-`result 'ok E` を返す。effect ベースのエラーと値表現の標準的なブリッジ。
+`E::wrap` は thunk を走らせ、対応するエラー effect を捕まえて `result 'ok E` を返す。
+effect ベースのエラーと値表現の標準的なブリッジ。
 
-`from` で集約したエラーでは、`wrap` がリンクされた narrower error も同時に
-捕まえる。詳細は [エラー](../errors) を参照。
+`from` で集約したエラーでは、`wrap` がリンクされた narrower error も同時に捕まえる。
+詳細は [エラー](../errors) を参照。
 
 ## 早見表
 
@@ -80,6 +80,6 @@ case wrapped:
 
 ## 関連ページ
 
-- [エラー](../errors) — `error E:` と catch-by-name
-- [`std::data::opt`](./opt) — エラー側が情報を持たないとき
-- [キャスト](../casts) — result 風 wrapper との変換
+- [エラー](../errors)：`error E:` と catch-by-name
+- [`std::data::opt`](./opt)：エラー側が情報を持たないとき
+- [キャスト](../casts)：result 風 wrapper との変換
