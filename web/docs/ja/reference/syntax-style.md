@@ -1,6 +1,7 @@
 # 構文スタイル
 
-通常のコードでは、Yulang の free-paren style を使う。関数適用、コロン適用、インデント、ユーザー定義演算子が、C 系言語で括弧が担う構造の多くを表す。
+通常のコードでは、Yulang の free-paren style を使う。
+関数適用、コロン適用、インデント、ユーザー定義演算子が、C 系言語で括弧が担う構造の多くを表す。
 
 このページでは、優先する書き方と、空白によって parse が変わる場所を定める。
 
@@ -29,7 +30,8 @@ say: format: greeting name
 say (format: greeting name)
 ```
 
-`f x: body` は、`x` を通常の引数として渡し、`body` をコロン引数として渡す。感覚としては `f x (body)` に近く、`(f x:) body` ではない。
+`f x: body` は、`x` を通常の引数として渡し、`body` をコロン引数として渡す。
+感覚としては `f x (body)` に近く、`(f x:) body` ではない。
 
 ```yulang
 f x: g y z
@@ -38,7 +40,8 @@ f x: g y z
 ## 単一式のコロン block は inline に連ねる
 
 `:` block の body 全体が単一の式だけなら、呼び出しごとにインデント block へ落とさず、call spine の中で連ねて書く。
-これは body が一つの式だけである場合の規則である。body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
+これは body が一つの式だけである場合の規則である。
+body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
 
 ```yulang
 -- 入れ子の単一式 body では、この形を優先する。
@@ -50,7 +53,8 @@ say:
         ask()
 ```
 
-`:` の直後に空白を置くかどうかも style signal になる。各段を別々の呼び出しとして読ませたいときは、空白を置く。
+`:` の直後に空白を置くかどうかも style signal になる。
+各段を別々の呼び出しとして読ませたいときは、空白を置く。
 
 ```yulang
 say: run_console: ask()
@@ -62,7 +66,8 @@ chain 全体を一つに融合した操作として読ませたいときは、�
 say:run_console:ask()
 ```
 
-どちらも colon application である。違いは、chain をどれくらい密につながったものとして読ませるかである。
+どちらも colon application である。
+違いは、chain をどれくらい密につながったものとして読ませるかである。
 
 ## 空白は構文である
 
@@ -88,11 +93,14 @@ f:foo   -- colon application。f に foo を渡す
 f :foo  -- ML application。f に symbol :foo を渡す
 ```
 
-symbol を渡したいときに `f:foo` と詰めて書かないこと。意味が変わる。
+symbol を渡したいときに `f:foo` と詰めて書かないこと。
+意味が変わる。
 
 ## 改行は ML application を切る
 
-空白による application は行志向である。改行は現在の ML application chain を切る。ただし、インデントされたコロン block など、明示的に続く構文は別である。
+空白による application は行志向である。
+改行は現在の ML application chain を切る。
+ただし、インデントされたコロン block など、明示的に続く構文は別である。
 
 ```yulang
 f x y
@@ -102,7 +110,9 @@ f:
     y
 ```
 
-引数式を行をまたいで続けたい場合は、`:` か grouped expression を使う。ただし、括弧内の同じ grouping level でただ改行すると tuple / group item の区切りとして読まれることがある。式を続けたい行はインデントする。
+引数式を行をまたいで続けたい場合は、`:` か grouped expression を使う。
+ただし、括弧内の同じ grouping level でただ改行すると tuple / group item の区切りとして読まれることがある。
+式を続けたい行はインデントする。
 
 ```yulang
 f:
@@ -132,7 +142,8 @@ path_err::not_found "/x"
 std::control::nondet::each xs
 ```
 
-末尾に dot call を置くためだけに括弧を足すのは避ける。receiver が左側に自然に立たない場合は、呼び出しの形を組み替える。
+末尾に dot call を置くためだけに括弧を足すのは避ける。
+receiver が左側に自然に立たない場合は、呼び出しの形を組み替える。
 
 ```yulang
 -- この形を優先する。
@@ -142,11 +153,13 @@ say: 1 + 2
 (1 + 2).say
 ```
 
-本当に grouping や曖昧性の解消が目的なら、括弧はそのまま使ってよい。この規則が対象にするのは、dot call を構文上可能にするためだけの括弧である。
+本当に grouping や曖昧性の解消が目的なら、括弧はそのまま使ってよい。
+この規則が対象にするのは、dot call を構文上可能にするためだけの括弧である。
 
 ## 左から右へのデータフローには pipe を使う
 
-pipeline operator は `|` である。左辺の値を、右辺 call spine の最初の引数として渡す。
+pipeline operator は `|` である。
+左辺の値を、右辺 call spine の最初の引数として渡す。
 
 ```yulang
 1 | add 2    -- add 1 2
@@ -182,7 +195,8 @@ block の最後の式が、その block の値になる。
 
 ## 関数は header pattern で書く
 
-binding の左辺は pattern である。head が名前のとき、その後ろの pattern は curried function argument になる。
+binding の左辺は pattern である。
+head が名前のとき、その後ろの pattern は curried function argument になる。
 小さい関数は、この direct header style を優先する。
 
 ```yulang
@@ -234,7 +248,8 @@ case n:
 
 ## 拡張は `with:` block に置く
 
-`struct`、`enum`、`act`、`error`、`role`、`type ... with:` declaration は companion namespace を作る、または拡張する。method や近い実装詳細は、その対象に属すると見える `with:` block に置く。
+`struct`、`enum`、`act`、`error`、`role`、`type ... with:` declaration は companion namespace を作る、または拡張する。
+method や近い実装詳細は、その対象に属すると見える `with:` block に置く。
 
 ```yulang
 type str with:
@@ -246,7 +261,8 @@ struct point { x: int, y: int } with:
 
 こうすると、receiver-style API が、それを所有する type / effect の近くにまとまる。
 
-`with:` は expression-local な拡張にも使える。public companion API ではなく、その式の近くにだけ置きたい helper binding は、式の `with:` に寄せると読みやすい。
+`with:` は expression-local な拡張にも使える。
+public companion API ではなく、その式の近くにだけ置きたい helper binding は、式の `with:` に寄せると読みやすい。
 
 ```yulang
 loop initial with:
@@ -271,7 +287,8 @@ my double(x: 'a): 'a =
 
 ## operator は import される syntax として扱う
 
-operator のすべてが parser builtin ではない。module は prefix / infix / suffix / nullfix / lazy infix operator を定義して export できる。
+operator のすべてが parser builtin ではない。
+module は prefix / infix / suffix / nullfix / lazy infix operator を定義して export できる。
 公開 operator declaration は module の先頭か prelude 的な module に置き、下流の file が parse される前に syntax を import できるようにする。
 
 ```yulang
@@ -281,7 +298,8 @@ pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b -> ...
 pub prefix(return) 1.0.0 = \value -> value
 ```
 
-`return`、`last`、`next`、`redo` のような word operator も、記号 operator と同じ operator model に乗る。ユーザーコード側では、特別な parser 例外のように扱わないこと。
+`return`、`last`、`next`、`redo` のような word operator も、記号 operator と同じ operator model に乗る。
+ユーザーコード側では、特別な parser 例外のように扱わないこと。
 
 ## 短絡評価には lazy operator を使う
 
@@ -295,7 +313,8 @@ pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
         false
 ```
 
-両側の operand が thunk として渡されるので、body 側でどちらを force するか決められる。これにより、`and` / `or` は library-defined syntax のまま lazy evaluation behavior を持てる。
+両側の operand が thunk として渡されるので、body 側でどちらを force するか決められる。
+これにより、`and` / `or` は library-defined syntax のまま lazy evaluation behavior を持てる。
 
 ## type annotation は境界に置く
 
@@ -314,7 +333,8 @@ my result: result str io_err = io_err::wrap:
     read_text path
 ```
 
-type variable は `'a` のような sigil identifier で書く。通常の function declaration では、type variable のための独立した binder は要らない。
+type variable は `'a` のような sigil identifier で書く。
+通常の function declaration では、type variable のための独立した binder は要らない。
 
 ## 状態は明示的な syntax で見せる
 
@@ -339,7 +359,8 @@ my incremented =
 /* longer note */
 ```
 
-`--` と `--- ... ---` は doc comment 専用である。documentation syntax として parse され、tooling に残る可能性がある。
+`--` と `--- ... ---` は doc comment 専用である。
+documentation syntax として parse され、tooling に残る可能性がある。
 
 ```yulang
 -- 次の宣言を説明する。

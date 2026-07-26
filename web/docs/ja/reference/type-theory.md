@@ -1,8 +1,7 @@
 # 型推論の理論
 
 handler は effect の名前が一致しても、その effect を捕まえてはならない場合がある。
-`f(g x)` の中で `g x` が `last` を起こした場合、`f` の内側にある `last` handler は、
-呼び出し元が持ち込んだ effect をそのまま外へ通さなければならない。
+`f(g x)` の中で `g x` が `last` を起こした場合、`f` の内側にある `last` handler は、呼び出し元が持ち込んだ effect をそのまま外へ通さなければならない。
 effect の所有者は呼び出し元である。
 
 Yulang はこの区別を **handler hygiene** と呼ぶ。
@@ -21,8 +20,7 @@ Yulang の式は、値の型と effect row を持つ。
 e : A ! rho
 ```
 
-これは「式 `e` は値 `A` を返し、その途中で effect row `rho` の effect を起こす可能性がある」
-という意味である。
+これは「式 `e` は値 `A` を返し、その途中で effect row `rho` の effect を起こす可能性がある」という意味である。
 
 表面の型表示では、この 2 つをまとめて次のように書く。
 
@@ -54,8 +52,8 @@ effect row も同じ graph の中を流れる。
 [console] str <: [console; 'e] str
 ```
 
-具体的な `console` effect は open row に入る。handler が effect を消した後に残る residual も、
-普通の row として同じ graph の中を流れる。
+具体的な `console` effect は open row に入る。
+handler が effect を消した後に残る residual も、普通の row として同じ graph の中を流れる。
 
 ## 単純な row subtraction だけでは足りない理由
 
@@ -90,8 +88,8 @@ my compose f g x = f(g x)
 stack(T, S)
 ```
 
-これは source language に `stack` という型コンストラクタがあるという意味ではない。どの handler
-境界が、どの effect family を引いてよいかを覚えるための内部表現である。
+これは source language に `stack` という型コンストラクタがあるという意味ではない。
+どの handler 境界が、どの effect family を引いてよいかを覚えるための内部表現である。
 
 subtype 制約は、左右に向きを持つ重みを持つ。
 
@@ -104,7 +102,8 @@ T @L <: @R U
 - `take(H); pop` は cancel するが、`pop; take(H)` は cancel しない。
 - 関数引数は反変なので、そこへ入ると左右の向きが入れ替わる。
 
-この向きが重要である。row head を handler が消費できるかを決める前に、左右の重みを一つに潰してはならない。
+この向きが重要である。
+row head を handler が消費できるかを決める前に、左右の重みを一つに潰してはならない。
 
 ## `catch` はどう effect を引くか
 
@@ -121,7 +120,8 @@ J = H ∩ Common(L)
 ```
 
 `Common(L)` は、左重みに残る active な `take(...)` family の交差である。
-右側の pop は handler に effect を見せない。filter や legacy 互換 marker も active push ではない。
+右側の pop は handler に effect を見せない。
+filter や legacy 互換 marker も active push ではない。
 
 `J` が空なら、この handler はその row から何も消費できない。
 handler があるというだけで residual を作ったり、未知 row を勝手に開いたりしない。
@@ -136,11 +136,11 @@ gamma @(L - J) <: NWeight(R, beta)
 `NWeight(R, beta)` は、右側 pop の evidence を residual tail に残す内部 wrapper である。
 row head を見せるためには使わない。
 
-同じ subtraction slot には同じ residual 変数 `gamma` を再利用する。これにより、recursive handler が
-fresh な tail を無限に作り続けることを避ける。
+同じ subtraction slot には同じ residual 変数 `gamma` を再利用する。
+これにより、recursive handler が fresh な tail を無限に作り続けることを避ける。
 
-型引数を持つ effect family は family path で突き合わせるが、引数は捨てない。`ref_update int` と
-`ref_update alpha` が出会った場合、family match と同時に、引数同士を整合させる普通の型制約も生成する。
+型引数を持つ effect family は family path で突き合わせるが、引数は捨てない。
+`ref_update int` と `ref_update alpha` が出会った場合、family match と同時に、引数同士を整合させる普通の型制約も生成する。
 
 ## effect 注釈の意味
 
@@ -155,30 +155,30 @@ effect 注釈は、表層 row を説明すると同時に、高階境界を越�
 | 共変な result 位置の省略または `[_]` | escape filter を足さず、row を open なままにする。 |
 | 共変な result 位置の `[console]` | 外へ出る effect が `console` だけであることを検査する。 |
 
-wildcard row `[_]` は annotation placeholder である。effect row 型そのものの標準構文ではなく、
-boundary を消すものでもない。`g: _ -> [_] _` のような callback result では、`g(x)` の普通の
-表層 effect を受け取り側の計算へ意図的に見せる。これを書かない場合、callback 由来の effect は
-hygienic に保たれ、`#id[Empty]` のような evidence 付きで表示されることがある。
+wildcard row `[_]` は annotation placeholder である。
+effect row 型そのものの標準構文ではなく、boundary を消すものでもない。
+`g: _ -> [_] _` のような callback result では、`g(x)` の普通の表層 effect を受け取り側の計算へ意図的に見せる。
+これを書かない場合、callback 由来の effect は hygienic に保たれ、`#id[Empty]` のような evidence 付きで表示されることがある。
 
-共変位置の具体 effect 注釈は **filter** である。filter は static check であり、runtime marker でも
-residual row でもない。check が登録された後、保存される solver weight からは消える。
+共変位置の具体 effect 注釈は **filter** である。
+filter は static check であり、runtime marker でも residual row でもない。
+check が登録された後、保存される solver weight からは消える。
 
 handler に消費されてはいけない fresh internal residual は、概念的には `take(Empty)` で守る。
 推論コアには、別個の protected variable set はない。
 
 ## 表示される型の stack evidence
 
-stack id や pop count は推論 evidence であり、source-level の型構文ではない。ただし、
-compiler-oriented な表示では、高階 scheme を説明するためにその evidence が残ることがある。
+stack id や pop count は推論 evidence であり、source-level の型構文ではない。
+ただし、compiler-oriented な表示では、高階 scheme を説明するためにその evidence が残ることがある。
 通常の API 文書として読むときは、値型と effect row の構造を中心に読む。
 
 ```text
 alpha [nondet; beta] -> [beta] alpha
 ```
 
-これは「引数 computation は `nondet` と residual effect `beta` を起こしうるが、handler が見えている
-`nondet` を消費した後は `beta` だけが残る」という意味である。residual `beta` は公開型の本物の一部であり、
-表示ノイズとして消してよいものではない。
+これは「引数 computation は `nondet` と residual effect `beta` を起こしうるが、handler が見えている `nondet` を消費した後は `beta` だけが残る」という意味である。
+residual `beta` は公開型の本物の一部であり、表示ノイズとして消してよいものではない。
 
 隠れるのは、その境界で `nondet` を消費してよい理由を説明する weighted evidence の方である。
 
@@ -193,9 +193,9 @@ compose_plain :
   -> [delta#u] beta#u
 ```
 
-`#u[Empty]` は新しい effect family ではない。その occurrence の `gamma` は boundary `u` で
-subtract できない、という証拠である。`g(x)` の表層 effect を `f` に意図的に見せたい場合は、
-programmer が contract を書く。
+`#u[Empty]` は新しい effect family ではない。
+その occurrence の `gamma` は boundary `u` で subtract できない、という証拠である。
+`g(x)` の表層 effect を `f` に意図的に見せたい場合は、programmer が contract を書く。
 
 ```yulang
 our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
@@ -213,12 +213,11 @@ compose_surface :
 
 ### data-position function の private evidence
 
-標準ライブラリには、data value の中に effectful function を保持する抽象化がある。local reference が
-代表例で、公開される `ref` value の内部には、返り effect に `ref_update` が関わる関数がある。
+標準ライブラリには、data value の中に effectful function を保持する抽象化がある。
+local reference が代表例で、公開される `ref` value の内部には、返り effect に `ref_update` が関わる関数がある。
 
-solver は、この保存された関数の latent return-effect tail を private evidence として扱い、
-ordinary residual row だけを公開型へ projection する。そうしないと、synthetic field getter 経由で
-`AllExcept(ref_update ...)` のような内部 stack id が public scheme に漏れてしまう。
+solver は、この保存された関数の latent return-effect tail を private evidence として扱い、ordinary residual row だけを公開型へ projection する。
+そうしないと、synthetic field getter 経由で `AllExcept(ref_update ...)` のような内部 stack id が public scheme に漏れてしまう。
 
 公開型には、たとえば ref update なら次のような ordinary row だけが出るべきである。
 
@@ -227,29 +226,29 @@ ref(e & b, a) -> (a -> [b] a) -> [e, b] unit
 ```
 
 変数名そのものは読み替えられる。
-保存された関数の hygiene を支える private stack evidence ではなく、普通の residual row が
-public scheme に出ることが要点である。
+保存された関数の hygiene を支える private stack evidence ではなく、普通の residual row が public scheme に出ることが要点である。
 
 ### replay の停止性は型等式ではない
 
 solver は subtype graph の bounds を、正確な directed label 付きで replay する。
 「pop が 1 個でも複数個でも同じ」という surface rule は使わない。
 
-停止性のため、同じ endpoint、同じ subtract id、同じ effect family で同じ static boundary を
-再訪する bound は、bounds table の保存時に subsume できる。これは同じ replay cycle を永遠に
-回さないための実装規則であり、ユーザーに見える型の簡約規則ではない。
+停止性のため、同じ endpoint、同じ subtract id、同じ effect family で同じ static boundary を再訪する bound は、bounds table の保存時に subsume できる。
+これは同じ replay cycle を永遠に回さないための実装規則であり、ユーザーに見える型の簡約規則ではない。
 
 ## 実行時の見方
 
-specialize 後の runtime は、row 文字列から hygiene を推測して復元することはできない。関数値、thunk、
-構造値は、実行される前に handler 境界を越えて移動しうる。
+specialize 後の runtime は、row 文字列から hygiene を推測して復元することはできない。
+関数値、thunk、構造値は、実行される前に handler 境界を越えて移動しうる。
 
-そのため runtime は、値と一緒に guard marker を運ぶ。概念的には、この marker が推論重みの実行時版である。
+そのため runtime は、値と一緒に guard marker を運ぶ。
+概念的には、この marker が推論重みの実行時版である。
 
 - 推論では、どの handler 境界がどの effect family を消費してよいかを決める。
 - 実行時 marker は、実際に effect が発生したときの handler search に同じ境界を守らせる。
 
-filter は runtime marker にならない。solver が静的に検査する。
+filter は runtime marker にならない。
+solver が静的に検査する。
 
 ## まとめ
 
@@ -268,5 +267,4 @@ Yulang の現行 effect 推論は、次の分担で成り立つ。
 - replay-cycle subsumption は solver の停止性規則であり、公開型の等式ではない。
 - specialize 後は runtime guard marker が同じ hygiene を保つ。
 
-これにより、表示される型は普通の row 型に近く保ちながら、内側 handler が呼び出し元の effect を
-勝手に奪うことを防いでいる。
+これにより、表示される型は普通の row 型に近く保ちながら、内側 handler が呼び出し元の effect を勝手に奪うことを防いでいる。

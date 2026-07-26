@@ -1,6 +1,7 @@
 # 標準ライブラリ中核
 
-よく使う標準ライブラリ surface をまとめる。API はまだ変わる可能性がある。
+よく使う標準ライブラリ surface をまとめる。
+API はまだ変わる可能性がある。
 
 ## `std::data::list`
 
@@ -11,7 +12,8 @@
 [1, 2, 3][1..<3]
 ```
 
-list は `int` と `range` の `Index`、`Fold`、`+` 経由の `Add` を実装している。主な helper は `empty`、`singleton`、`cons`、`uncons`、`map`、`filter`、`fold`、`rev`、`append`、`first`、`sort` である。
+list は `int` と `range` の `Index`、`Fold`、`+` 経由の `Add` を実装している。
+主な helper は `empty`、`singleton`、`cons`、`uncons`、`map`、`filter`、`fold`、`rev`、`append`、`first`、`sort` である。
 
 mutable list ref には `.push` もある。
 
@@ -25,7 +27,8 @@ mutable list ref には `.push` もある。
 ..
 ```
 
-range は値であり、`Fold` を実装している。そのため `for` や `std::control::nondet::each` に渡せる。
+range は値であり、`Fold` を実装している。
+そのため `for` や `std::control::nondet::each` に渡せる。
 
 ## `std::text::str`
 
@@ -44,7 +47,9 @@ ok 1
 err "bad"
 ```
 
-`result 'ok 'err` は `map`、`and_then`、`unwrap_or` を提供する。prelude は `result`、`ok`、`err` を reexport するため、ユーザーコードでは通常 `std::data::result::` や `result::` を付けない。これは値として返すための型で、filesystem API の主 surface にはまだ使われていない。
+`result 'ok 'err` は `map`、`and_then`、`unwrap_or` を提供する。
+prelude は `result`、`ok`、`err` を reexport するため、ユーザーコードでは通常 `std::data::result::` や `result::` を付けない。
+これは値として返すための型で、filesystem API の主 surface にはまだ使われていない。
 
 ## `std::io::console`
 
@@ -56,11 +61,11 @@ println "line"
 eprintln "error line"
 ```
 
-console output は host-handled effect である。`say` / `.say` は
-`Display.show` の結果に改行を付けて出力する。`print` / `println` は raw
-string を stdout へ書く。`note` / `.note` / `eprint` / `eprintln` / `dd` は
-stderr を使う。host-facing operation は `out`、`err`、`warn`、`die` の effect
-family に分かれており、通常の program は wrapper と role method を使う。
+console output は host-handled effect である。
+`say` / `.say` は `Display.show` の結果に改行を付けて出力する。
+`print` / `println` は raw string を stdout へ書く。
+`note` / `.note` / `eprint` / `eprintln` / `dd` は stderr を使う。
+host-facing operation は `out`、`err`、`warn`、`die` の effect family に分かれており、通常の program は wrapper と role method を使う。
 
 ## `std::io::file`
 

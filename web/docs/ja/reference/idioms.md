@@ -5,8 +5,8 @@
 
 ## 裸の application
 
-日常的な呼び出しには `f x y` を使う。`f(x, y)` は引数を視覚的にまとめる場合や、
-`f(-1)` のように次の token へ続くと読みづらい literal を渡す場合に限る。
+日常的な呼び出しには `f x y` を使う。
+`f(x, y)` は引数を視覚的にまとめる場合や、`f(-1)` のように次の token へ続くと読みづらい literal を渡す場合に限る。
 
 ```yulang
 // イディオム
@@ -37,24 +37,22 @@ io_err::wrap:
     read_text path
 ```
 
-`f x: body` は「`f` を `x` に適用し、続いて colon の body に適用する」と
-読める。handler 風 API やブロック形 API を呼ぶ標準形。
+`f x: body` は「`f` を `x` に適用し、続いて colon の body に適用する」と読める。
+handler 風 API やブロック形 API を呼ぶ標準形。
 
 ## メソッドのドットチェイン
 
 最初の selection では dot を詰め、外側の bare-application 式へ付ける後続の dot の前には空白を置く。
 selection 自体は application ではなく、`xs.map` で選んだ関数に後続の引数を適用する。
-次の `.filter` の前にある空白は現在の引数を閉じるため、この chain は
-`xs.map (double.filter ...)` ではなく `(xs.map double) .filter ...` を表す。
+次の `.filter` の前にある空白は現在の引数を閉じるため、この chain は `xs.map (double.filter ...)` ではなく `(xs.map double) .filter ...` を表す。
 
 ```yulang
 xs.map double .filter (\x -> x > 0) .len
 ```
 
-トップレベルでは `xs.map` も `xs .map` も同じ field 選択になる。空白の
-有無で意味が変わるのは、ドットつき式が ML 風 application の引数の中に
-あるときだけ。詳しくは
-[Application](./application#whitespace-is-significant) を参照。
+トップレベルでは `xs.map` も `xs .map` も同じ field 選択になる。
+空白の有無で意味が変わるのは、ドットつき式が ML 風 application の引数の中にあるときだけ。
+詳しくは [Application](./application#whitespace-is-significant) を参照。
 
 ## companion method のための `with:`
 
@@ -81,8 +79,9 @@ struct box 'a { value: 'a } with:
 
 ## role はレシーバ形で
 
-role method は receiver 形式で書く。`our a.method: T` は実装者に `T` 型の
-`value.method` を与える。receiver 名は説明用なので、role を明確に読める名前を選ぶ。
+role method は receiver 形式で書く。
+`our a.method: T` は実装者に `T` 型の `value.method` を与える。
+receiver 名は説明用なので、role を明確に読める名前を選ぶ。
 
 ```yulang
 role Eq 'a:
@@ -141,8 +140,7 @@ my incremented =
 ## effectful な `if`
 
 条件自体が非決定的な場合は、effectful condition を使う。
-`std::control::junction` が `if` の受け取る effectful boolean operation を提供し、
-通常の `bool` condition は通常の経路を通る。
+`std::control::junction` が `if` の受け取る effectful boolean operation を提供し、通常の `bool` condition は通常の経路を通る。
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:
@@ -153,8 +151,8 @@ else:
 
 ## 推論に任せ、境界で注釈する
 
-local type は推論に任せ、public API boundary、generic constraint、固定する必要がある
-residual variable に注釈を付ける。pipeline の `x | f` は左辺の値を右辺の式へ渡す。
+local type は推論に任せ、public API boundary、generic constraint、固定する必要がある residual variable に注釈を付ける。
+pipeline の `x | f` は左辺の値を右辺の式へ渡す。
 F# や Elixir の `|>` に相当する形を bar 1 本で書く。
 
 ```yulang
@@ -168,6 +166,6 @@ pub our_pipeline_typed(value: str): str =
 
 ## 関連ページ
 
-- [構文スタイル](./syntax-style) — 空白と colon の正確なルール
-- [クックブック](../guide/cookbook) — タスク指向のレシピ
-- [落とし穴](../guide/pitfalls) — よくあるはまりどころ
+- [構文スタイル](./syntax-style)：空白と colon の正確なルール
+- [クックブック](../guide/cookbook)：タスク指向のレシピ
+- [落とし穴](../guide/pitfalls)：よくあるはまりどころ
