@@ -38,8 +38,12 @@ Yulang の lens / effect / continuation marker に沿った file resource API �
   `kind` は `missing` / `file` / `dir` / `symlink` / `other` を区別する。
 - `std::io::file::io_err::wrap` は failed file read/write を typed result boundary
   に変換し、display は失敗した path payload を含める。
-- `std::io::file::open_text` / `open` / `open_in` / `text` / `text_with` は
-  basic whole-file text ref と state-passing `text_with` protocol を通す。
+- `std::io::file::text` / `text_with` は basic whole-file text ref と
+  state-passing `text_with` protocol を通す。
+  同じ位置にあった snapshot raw-compat helper `open_text` / `open` / `open_in` は
+  退役した（正本:
+  [2026-07-03-contract-v1-stage2-closeout.md](../notes/design/2026-07-03-contract-v1-stage2-closeout.md)
+  D3）。
 
 まだ executable stable contract ではないもの:
 
@@ -306,7 +310,8 @@ managed lens の通常 API に漏らしてはいけない。
 - error effect / result / host failure の最終表現。
 - metadata の exact type と missing/denied の表し方。
 - `file::open path` の既定 mode。read-only / read-write / create / truncate /
-  append をどう指定するか。
+  append をどう指定するか。ここでいう `open` は post-v1 の `file_session`
+  constructor を指し、退役した raw-compat helper とは別の面である。
 - UTF-8 以外の encoding policy。
 - directory listing と directory managed API を同じ resource model に載せるか。
 - external process lock の platform 差を diagnostics にどう出すか。
