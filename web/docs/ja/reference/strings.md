@@ -38,6 +38,47 @@ container の payload にも `Display` 実装が必要である。
 "HEX = %X{255}"
 ```
 
+## 書式指定
+
+書式指定は `%` と埋め込みの `body` の間に置く。
+
+```text
+%[[fill]align][sign][#][0][width][.precision][kind]{expression}
+```
+
+各部分は、この順序で書かなければならない。
+利用できる marker は次のとおりである。
+
+| 部分 | 形式 | 効果 |
+|------|------|------|
+| `align` | `<`、`>`、`^` | 左寄せ、右寄せ、中央寄せ |
+| `sign` | `+`、`-` | 正数にも符号を付けるか、負数だけに符号を残す |
+| `#` | `#` | alternate form。16 進数には `0x` または `0X` が付く |
+| `0` | `0` | 数値を `0` で埋める |
+| `width` | 10 進数 | 結果の最小幅 |
+| `precision` | `.` と 10 進数 | 表示する `body` の最大長 |
+| `kind` | `?`、`x`、`X` | debug、lower hex、upper hex の表示 |
+
+align marker の直前にある 1 文字は fill 文字になる。
+precision は表示した `body` を切り詰め、その後で width と align が padding を加える。
+
+```yulang
+my text = "abcdef"
+my side = "right"
+my quoted = "text"
+
+(
+    "%8.3{text}",       // "     abc"
+    "%*>8{side}",       // "***right"
+    "%#x{255}",         // "0xff"
+    "%+#08x{255}",      // "+0x000ff"
+    "%?{quoted}"        // "\"text\""
+)
+```
+
+`kind` を省略すると `Display` を使う。
+`?` は `Debug`、`x` と `X` は lower hex `role` と upper hex `role` を使う。
+
 ## Index と Slice
 
 ```yulang

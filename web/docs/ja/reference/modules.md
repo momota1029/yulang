@@ -1,6 +1,46 @@
 # module
 
-このページでは、`use`、realm と band の path、companion module、dot selection、標準ライブラリの module map を扱う。
+このページでは、`mod` 宣言、test `module`、`use`、`realm` と `band` の `path`、`companion module`、dot selection、標準ライブラリの `module` map を扱う。
+
+## Module 宣言
+
+inline の `mod` 宣言は、nested `module` を作る。
+
+```yulang
+mod geometry:
+    pub origin = (0, 0)
+
+geometry::origin
+```
+
+ファイル形式の `mod helper;` は、`helper.yu` を子 `module` `helper` として読み込む。
+`pub mod helper;` のように、どちらの形式にも可視性を付けられる。
+
+次の抜粋には、同じ directory に `helper.yu` が必要である。
+
+```yulang
+mod helper;
+use helper::answer
+
+answer
+```
+
+## Test module
+
+`mod test name:` は名前付き test `module`、`mod test:` は無名 test `module` を作る。
+
+```yulang
+mod test named:
+    my passing = assert true
+
+mod test:
+    my anonymous = assert true
+
+println "NORMAL"
+```
+
+`yulang run` は両方の test `module` を飛ばし、`NORMAL` だけを出力する。
+`yulang test` は `module` 内の `binding` を test として実行し、この例では 2 件の成功を報告する。
 
 ## `use`
 
@@ -19,6 +59,21 @@ use noisy::* without debug
 `*` は見えているものをまとめて import する。
 `{...}` による group、`as` による rename、`without` による除外も使える。
 演算子名は `(+)` のように括弧付きで import できる。
+
+import の形式は次のとおりである。
+
+```text
+use path::name
+use path::name as alias
+use path::*
+use path::* without name, (+)
+use path::{name, old_name as new_name, (+)}
+use provider/realm/band::path::name v1.0.0
+```
+
+コンマ区切りの `without` list は glob の対象を除外する。
+version は import または group の後ろに置き、group の後ろにある場合はすべての member に適用する。
+slash-qualified 形式は `::` より前で provider、`realm`、`band` を選び、後ろで `module` と名前をたどる。
 
 ## Realm と band の path
 
@@ -42,6 +97,7 @@ use helper::answer
 
 `helper::answer` の same-band lookup が失敗しても、compiler は sibling band として探し直さない。
 current realm の別 band を import する場合は `realm/` を使う。
+次の import は、名前を挙げた `band` が存在する `realm` からの抜粋である。
 
 ```yulang
 use realm/helper::answer
@@ -49,6 +105,7 @@ use realm/tools/parser::json::value
 ```
 
 install 済み local realm を import する場合は `local/` provider prefix を使う。
+次の抜粋には、version `1.0.0` の `theme` `realm` が必要である。
 
 ```yulang
 use local/theme/colors::palette v1.0.0
@@ -68,6 +125,7 @@ yulang realm install .
 
 band 境界の手前は `/`、band root 以後は `::` で区切る。
 予約 qualifier `band::` は current band root から始まる。
+次の抜粋には、current `band` の子 `module` `inner` が必要である。
 
 ```yulang
 use band::inner::value

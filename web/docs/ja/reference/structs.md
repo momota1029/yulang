@@ -16,6 +16,23 @@ struct point { x: int, y: int }
 point { x: 3, y: 4 }
 ```
 
+## Tuple struct
+
+`tuple struct` は、位置で `field` を持つ nominal な product である。
+
+```yulang
+struct user_id(int)
+struct point(int, int)
+
+my unwrap value = case value:
+    user_id(id) -> id
+
+(unwrap(user_id(7)), point(3, 4))
+```
+
+`field` が 1 個でも、`tuple struct` には constructor と対応する constructor `pattern` がある。
+括弧を書いても、`user_id(int)` が payload の型へ変わることはない。
+
 ## Type parameter
 
 ```yulang
@@ -25,6 +42,42 @@ struct box 'a { value: 'a }
 
 struct は type parameter を持てる。
 type parameter は `'a` の形で書く。
+
+## Variant の record payload
+
+`enum` `variant` の payload には名前付き `field` を宣言できる。
+値の構築とパターンマッチには、同じ `record` の形を使う。
+
+```yulang
+enum event:
+    moved { x: int, y: int }
+    named { name: str }
+
+my coordinates value = case value:
+    event::moved { x, y } -> (x, y)
+    event::named { name } -> (name.len, 0)
+
+coordinates(event::moved { x: 3, y: 4 })
+```
+
+`error` `variant` の名前付き `record` payload も parser は受理する。
+ただし、checker は現在、その宣言を `unsupported syntax` として拒否する。
+したがって、`record` payload を利用できるのは `enum` `variant` だけであり、`error` `variant` では利用できない。
+
+## 構造 projection
+
+`value.(...)` は `value` から複数の member を選び、`tuple` を作る。
+`value.{...}` は選んだ member を改名できる `record` を作る。
+
+```yulang
+my source = { x: 3, y: \n -> n + 1 }
+
+source.(x, y(4))                    // (3, 5)
+source.{ first: x, next: y(8) }    // {first: 3, next: 9}
+```
+
+projection 内の各式は、source を基準に評価する。
+`field` を直接選ぶことも、選んだ関数を呼び出すこともできる。
 
 ## `with:`
 

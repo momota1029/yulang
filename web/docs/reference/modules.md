@@ -1,7 +1,48 @@
 # Modules
 
-This page covers `use`, realm and band paths, companion modules, dot selection,
-and the standard-library module map.
+This page covers `mod` declarations, test modules, `use`, realm and band paths,
+companion modules, dot selection, and the standard-library module map.
+
+## Module declarations
+
+An inline `mod` declaration creates a nested module:
+
+```yulang
+mod geometry:
+    pub origin = (0, 0)
+
+geometry::origin
+```
+
+The file form `mod helper;` loads `helper.yu` as the child module `helper`.
+Visibility can precede either form, as in `pub mod helper;`.
+
+The following excerpt has a sibling `helper.yu` file:
+
+```yulang
+mod helper;
+use helper::answer
+
+answer
+```
+
+## Test modules
+
+`mod test name:` marks a named test module, and `mod test:` creates an anonymous
+test module:
+
+```yulang
+mod test named:
+    my passing = assert true
+
+mod test:
+    my anonymous = assert true
+
+println "NORMAL"
+```
+
+`yulang run` skips both test modules and prints only `NORMAL`. `yulang test`
+runs their bindings as tests; this example reports two passing tests.
 
 ## `use`
 
@@ -19,6 +60,22 @@ use noisy::* without debug
 `use` brings names from a module into scope. `*` imports everything visible.
 Imports may be grouped with `{...}`, renamed with `as`, and filtered with
 `without`. Operator names can be imported with parentheses, such as `(+)`.
+
+The import forms are:
+
+```text
+use path::name
+use path::name as alias
+use path::*
+use path::* without name, (+)
+use path::{name, old_name as new_name, (+)}
+use provider/realm/band::path::name v1.0.0
+```
+
+A comma-separated `without` list filters a glob. A version follows the import
+or group; when it follows a group, it applies to every member of that group.
+The slash-qualified form selects a provider, realm, and band before `::`
+continues through modules and names.
 
 ## Realm and band paths
 
@@ -42,14 +99,16 @@ use helper::answer
 ```
 
 The compiler does not retry `helper::answer` as a sibling band if same-band
-lookup fails. To import another band from the current realm, use `realm/`:
+lookup fails. To import another band from the current realm, use `realm/`.
+The following imports are excerpts from a realm that supplies the named bands:
 
 ```yulang
 use realm/helper::answer
 use realm/tools/parser::json::value
 ```
 
-To import an installed local realm, use the `local/` provider prefix:
+To import an installed local realm, use the `local/` provider prefix. This is
+an excerpt that requires version `1.0.0` of the `theme` realm to be installed:
 
 ```yulang
 use local/theme/colors::palette v1.0.0
@@ -68,7 +127,8 @@ yulang realm install .
 ```
 
 The separator before the band boundary is `/`; after the band root it is `::`.
-The reserved `band::` qualifier starts at the current band root:
+The reserved `band::` qualifier starts at the current band root. This excerpt
+requires an `inner` child module in the current band:
 
 ```yulang
 use band::inner::value

@@ -96,6 +96,55 @@ my id(x: 'a): 'a = x
 
 Type inference fills in type variables automatically in most cases — annotations are only needed for clarity or for resolving ambiguity.
 
+## Value restriction
+
+Yulang generalizes a binding only when its right-hand side is a syntactic
+value. A function value therefore gets a polymorphic scheme:
+
+```yulang
+my id = \x -> x
+
+(id 1, id "text")
+```
+
+A computed right-hand side does not generalize, even when computation produces
+a function with the same displayed shape:
+
+```yulang
+my id = (\f -> f) (\x -> x)
+
+id
+```
+
+The second `id` keeps its type variables in one monomorphic scheme instead of
+quantifying them for fresh instantiation. Subtyping can still make some uses at
+different input shapes type-check, so successful calls alone do not show that
+a computed binding generalized.
+
+Recursive function bindings form an allowed strongly connected component
+(SCC):
+
+```yulang
+my even n = if n == 0: true else: odd (n - 1)
+my odd n = if n == 0: false else: even (n - 1)
+
+(even 10, odd 9)
+```
+
+A cycle of computed values is rejected because evaluating either binding must
+fetch the other computation:
+
+```yulang
+my make x = x
+my a = make b
+my b = make a
+
+a
+```
+
+The checker reports `computed value fetch in recursive component` for this
+cycle.
+
 ## Inline ascription with `as`
 
 Binding ascription (`my x: T = e`) and argument ascription (`my f(x: T) = ...`)

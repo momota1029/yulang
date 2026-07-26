@@ -38,6 +38,46 @@ Integer hex formatting is available through the lower- and upper-hex roles:
 "HEX = %X{255}"
 ```
 
+## Format specifications
+
+A format specification appears between `%` and the interpolation body:
+
+```text
+%[[fill]align][sign][#][0][width][.precision][kind]{expression}
+```
+
+The parts must appear in that order. The available markers are:
+
+| Part | Forms | Effect |
+|------|-------|--------|
+| `align` | `<`, `>`, `^` | Left, right, or center alignment |
+| `sign` | `+`, `-` | Show a plus sign, or keep only a negative sign |
+| `#` | `#` | Alternate form; hexadecimal values gain `0x` or `0X` |
+| `0` | `0` | Pad a numeric value with zeroes |
+| `width` | Decimal digits | Minimum width of the result |
+| `precision` | `.` and decimal digits | Maximum length of the rendered body |
+| `kind` | `?`, `x`, `X` | Debug, lower-hex, or upper-hex rendering |
+
+A character immediately before an alignment marker is the fill character.
+Precision clips the rendered body before width and alignment add padding:
+
+```yulang
+my text = "abcdef"
+my side = "right"
+my quoted = "text"
+
+(
+    "%8.3{text}",       // "     abc"
+    "%*>8{side}",       // "***right"
+    "%#x{255}",         // "0xff"
+    "%+#08x{255}",      // "+0x000ff"
+    "%?{quoted}"        // "\"text\""
+)
+```
+
+An omitted `kind` uses `Display`. The `?` kind uses `Debug`; `x` and `X` use
+the lower- and upper-hex roles.
+
 ## Indexing and Slicing
 
 ```yulang

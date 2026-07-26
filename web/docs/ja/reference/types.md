@@ -99,6 +99,49 @@ my id(x: 'a): 'a = x
 型推論は、多くの場合 type variable を自動で埋める。
 注釈は型を明示する場合や、曖昧さを解消する場合に使う。
 
+## Value restriction
+
+Yulang は、`binding` の右辺が構文上の値である場合だけ一般化する。
+したがって、関数値には多相 scheme が付く。
+
+```yulang
+my id = \x -> x
+
+(id 1, id "text")
+```
+
+計算する右辺は、同じ表示形の関数を返す場合でも一般化しない。
+
+```yulang
+my id = (\f -> f) (\x -> x)
+
+id
+```
+
+後者の `id` は `type variable` を量化せず、1 個の monomorphic scheme に保持する。
+`subtyping` によって異なる入力形の呼び出しが通る場合もあるため、呼び出しの成功だけでは computed `binding` の一般化を確認できない。
+
+再帰関数の `binding` は、許可された strongly connected component（SCC）を作る。
+
+```yulang
+my even n = if n == 0: true else: odd (n - 1)
+my odd n = if n == 0: false else: even (n - 1)
+
+(even 10, odd 9)
+```
+
+computed value の cycle は、一方の `binding` を評価するために他方の computation を取得するので拒否される。
+
+```yulang
+my make x = x
+my a = make b
+my b = make a
+
+a
+```
+
+この cycle に対して、checker は `computed value fetch in recursive component` を報告する。
+
 ## `as` による inline ascription
 
 binding ascription (`my x: T = e`) や引数 ascription (`my f(x: T) = ...`) は `:` を使うが、式の途中で部分式に型を当てたいときは `as` を使う。

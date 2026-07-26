@@ -11,6 +11,23 @@ struct point { x: int, y: int }
 
 Structs are nominal record types. Construct one with `point { x: 3, y: 4 }`.
 
+## Tuple structs
+
+Tuple structs are nominal products with positional fields:
+
+```yulang
+struct user_id(int)
+struct point(int, int)
+
+my unwrap value = case value:
+    user_id(id) -> id
+
+(unwrap(user_id(7)), point(3, 4))
+```
+
+A one-field tuple struct still has a constructor and a matching constructor
+pattern. Parentheses do not collapse `user_id(int)` into its payload type.
+
 ## Type parameters
 
 Structs can have type parameters:
@@ -19,6 +36,42 @@ Structs can have type parameters:
 struct pair 'a 'b { fst: 'a, snd: 'b }
 struct box 'a { value: 'a }
 ```
+
+## Record payloads on variants
+
+An `enum` variant can give its payload named fields. Construction and matching
+use the same record shape:
+
+```yulang
+enum event:
+    moved { x: int, y: int }
+    named { name: str }
+
+my coordinates value = case value:
+    event::moved { x, y } -> (x, y)
+    event::named { name } -> (name.len, 0)
+
+coordinates(event::moved { x: 3, y: 4 })
+```
+
+The parser also accepts named record payloads on `error` variants, but the
+checker currently rejects that declaration as `unsupported syntax`. Record
+payloads are therefore available on `enum` variants, not on `error` variants.
+
+## Structural projections
+
+`value.(...)` builds a tuple by selecting several members from `value`.
+`value.{...}` builds a record and can rename those selections:
+
+```yulang
+my source = { x: 3, y: \n -> n + 1 }
+
+source.(x, y(4))                    // (3, 5)
+source.{ first: x, next: y(8) }    // {first: 3, next: 9}
+```
+
+Each expression inside the projection is evaluated relative to the source.
+The projection can select a field directly or call a selected function.
 
 ## Methods via `with:`
 
