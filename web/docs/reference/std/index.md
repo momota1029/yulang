@@ -93,5 +93,5 @@ not depend on it.
 
 | Module | Purpose | Documentation |
 | --- | --- | --- |
-| `std::testing` | Defines lazy assertion operators and the assertion effect. | **Not documented** |
-| `std::time` | Defines instants, durations, clock access, unit constructors, arithmetic, comparison, and formatting. | **Not documented** |
+| [`std::testing`](./testing) | Defines lazy assertion operators and the assertion effect. | Reference |
+| [`std::time`](./time) | Defines instants, durations, clock access, unit constructors, arithmetic, comparison, and formatting. | Reference |

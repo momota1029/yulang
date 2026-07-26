@@ -90,5 +90,5 @@ link のある module 名から、その module を説明するページへ移�
 
 | Module | 役割 | 文書 |
 | --- | --- | --- |
-| `std::testing` | lazy な assertion 演算子と assertion effect を定義する。 | 未文書化 |
-| `std::time` | instant、duration、clock、単位 constructor、算術、比較、書式化を提供する。 | 未文書化 |
+| [`std::testing`](./testing) | lazy な assertion 演算子と assertion effect を定義する。 | 参照あり |
+| [`std::time`](./time) | instant、duration、clock、単位 constructor、算術、比較、書式化を提供する。 | 参照あり |
