@@ -1,17 +1,24 @@
 # Tour
 
-A short walk through Yulang's main features. Every example here runs in the
-<a href="/" target="_self">Playground</a> as-is. We go in the order "run
-something" → "data and behavior" → "control flow" → "effects" → "errors".
+This page is a short walk through Yulang's main features. Every example here
+runs in the <a href="/" target="_self">Playground</a> as-is. The tour starts
+with basics, structs, optional arguments, parser patterns, mutable bindings and
+references, and nondeterminism. It then covers junctions, effects, loops and
+early exit, errors, and comments before pointing to the next pages.
 
 ## Basics
+
+Start with one expression:
 
 ```yulang
 1 + 2
 ```
 
-A bare expression at the top level is evaluated and its value is shown. The
-playground feels like a script: write, run.
+The Playground evaluates bare top-level expressions and shows only the last
+root value. Call `say` to display an earlier value. It feels like a script:
+write, run.
+
+A binding can define a function:
 
 ```yulang
 my double x = x + x
@@ -20,15 +27,20 @@ double 21
 
 `my f x = ...` is a binding whose left-hand side is a name followed by
 argument patterns — like OCaml's `let f x = ...` or Haskell's `f x = ...`.
-For more arguments, just keep going: `my add x y = x + y`.
+For more arguments, continue the same pattern: `my add x y = x + y`.
 
 Visibility uses three keywords:
 
-- `my` — private, visible only inside the current scope
-- `our` — public in the enclosing companion module
-- `pub` — exported out of the module
+- `my` — private, visible only inside the current scope; `double` and `area`
+  use it
+- `our` — public in the enclosing companion module; `.norm2` and the effect
+  operations use it
+- `pub` — exported out of the module; write `pub double x = ...` when another
+  module should import the earlier `double`
 
 ## Structs
+
+A `with:` block attaches a method in the same struct declaration:
 
 ```yulang
 struct point { x: int, y: int } with:
@@ -39,8 +51,9 @@ point { x: 3, y: 4 } .norm2
 
 `struct` declares a nominal record type, similar to Rust's or OCaml's. The
 twist is `with:`, which lets you attach methods in the same declaration. The
-receiver `p` stands for the value `.norm2` is called on. Convenient when
-"this type comes with this behavior" and a full class would be overkill.
+receiver `p` stands for the value `.norm2` is called on. This form is
+convenient when "this type comes with this behavior" and a full class would be
+overkill.
 
 ## Optional arguments
 
@@ -49,10 +62,12 @@ A record pattern with defaults gives you named optional arguments for free.
 ```yulang
 my area {width = 1, height = 2} = width * height
 
-area { width: 3 }
-area {}
-area { width: 3, height: 4 }
+say: area { width: 3 }
+say: area {}
+say: area { width: 3, height: 4 }
 ```
+
+These calls print `6`, `2`, and `12` in order.
 
 Defaults evaluate left-to-right, and later fields may reference earlier ones:
 
@@ -87,14 +102,19 @@ my route = \line -> case line:
 (route "???").say
 ```
 
+The four calls print `GET color`, `SET color = deep-blue`, `user alice`, and
+`unknown`.
+
 ## Mutable bindings and references
 
 `my $x = ...` introduces a mutable binding. `$x` reads, `&x = v` writes:
 
 ```yulang
-my $x = 10
-&x = $x + 1
-$x
+{
+    my $x = 10
+    &x = $x + 1
+    $x
+}
 ```
 
 The `$` and `&` sigils are inherited from Perl/Raku. Bindings default to
@@ -104,9 +124,11 @@ when you skim code.
 Fields and indices work the same way:
 
 ```yulang
-my $xs = [2, 3, 4]
-&xs[1] = 6
-$xs
+{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
 ```
 
 Under the hood these compile to a small `var` effect, which means mutable
@@ -177,7 +199,7 @@ run_console:
     ask()
 ```
 
-`ask()` has type `[console] int` — "returns `int`, may perform the `console`
+`ask()` has type `[console] int` — "returns `int`, can perform the `console`
 effect." `run_console` handles the operation with `catch`, and the result
 type loses `[console]`.
 
@@ -221,13 +243,26 @@ error path_err:
 throwing operation, depending on context:
 
 ```yulang
+error path_err:
+    not_found path
+    denied path
+    invalid_path path
+
 my err: path_err = path_err::not_found "/x"   // value
 path_err::not_found "/x"                      // raises [path_err]
 ```
 
-Aggregate into a wider error with `from`:
+The annotation gives the first line a `path_err` value. Without that value
+context, the second line performs the `[path_err]` effect.
+
+`from` aggregates one error into a wider one:
 
 ```yulang
+error path_err:
+    not_found path
+    denied path
+    invalid_path path
+
 error app_err:
     path from path_err
 ```
@@ -238,6 +273,8 @@ close errors into a `result` value with `wrap` when a value-level view is
 what you need.
 
 ## Comments
+
+Yulang has line comments and documentation comments:
 
 ```yulang
 // regular line comment
