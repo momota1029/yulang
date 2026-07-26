@@ -35,10 +35,10 @@ host act（能力。v2 F1〜F6 に従う）
 | | file | connect | serve |
 |---|---|---|---|
 | 相手 | ストレージ | こちらから呼んだ相手 | 向こうから来る相手たち |
-| session | `file::open p` | `net::connect cfg` | 値を持たない（accept の分岐が session） |
+| session | `file::open p`（post-v1・未実装） | `net::connect cfg` | 値を持たない（accept の分岐が session） |
 | managed view | `&text` / `&bytes` lens | `send` / `recv` / `messages` | `req.payload` + `req.respond` |
 | 寿命 | scope / handler extent | scope / handler extent | 分岐そのもの |
-| raw | seek / sync / truncate | socket オプション（将来） | adapter 固有 metadata |
+| raw | `read_at` / `write_at`（provisional）。`s.raw` は post-v1 | socket オプション（将来） | adapter 固有 metadata |
 | 失敗 | `io_err` | `net_err` | `net_err` |
 
 貫く規則（stable contract）:
@@ -69,13 +69,15 @@ host act（能力。v2 F1〜F6 に従う）
 ```yu
 pub host act file:
     pub load: path -> result str io_err
-    pub load_bytes: path -> result bytes io_err
+    pub load_bytes: path -> result bytes io_err       -- post-v1。未実装
     pub store: (path, str) -> result unit io_err
-    pub store_bytes: (path, bytes) -> result unit io_err
+    pub store_bytes: (path, bytes) -> result unit io_err -- post-v1。未実装
     pub meta: path -> file_meta
     pub ambient_touch: path -> result unit io_err   -- 追補 2026-07-03 (D4)
     pub ambient_get: path -> str                    -- handler-extent ledger hit
     pub ambient_set: (path, str) -> unit            -- ledger 更新
+    pub read_at: (path, range) -> result (str, range) io_err
+    pub write_at: (path, range, str) -> result unit io_err
 
 pub error io_err:
     not_found path
@@ -103,23 +105,43 @@ D1 / D2 / D4）。`text` は作成点で `ambient_touch` を行い、失敗は t
 extent 終端の flush 失敗と、untouched path への直接 perform は structured
 runtime error であり、typed の保証は `text` 経由にだけ与える。
 
+`read_at` / `write_at` は、typed result 化済みの provisional な range helper として
+維持する（正本:
+[notes/design/2026-07-03-contract-v1-stage2-closeout.md](../notes/design/2026-07-03-contract-v1-stage2-closeout.md)
+D3）。Contract v1 の中心 API には含めず、将来の `s.raw` に畳む種として扱う。
+partial range semantics は引き続き provisional である。
+
 ### 高レベル（純 Yulang。buffer + commit は v1 決定2）
+
+`file_session` と、その constructor である `open` / `open_with` は post-v1 であり、
+未実装である（正本:
+[notes/design/2026-07-03-contract-v1-stage2-closeout.md](../notes/design/2026-07-03-contract-v1-stage2-closeout.md)
+D3）。ここでいう `open` は将来の `file_session` constructor だけを指す。
+D3 で退役した snapshot raw-compat helper と同じ綴りだが、同じ surface ではない。
+session view のうち、D3 が明示する `s.text` / `s.raw` も post-v1・未実装である。
 
 ```yu
 pub meta(p: str): [file] file_meta
-pub open(p: str): [file] file_session
-pub open_with(p: str, f: file_session -> [e] 'a): [file; e] 'a
+pub open(p: str): [file] file_session              -- post-v1。未実装
+pub open_with(p: str, f: file_session -> [e] 'a): [file; e] 'a -- post-v1。未実装
 pub text(p: str): [file; io_err] ref '[file] str
 pub text_with(p: str, f: str -> [e] ('a, str)): [file; io_err; e] 'a
 pub bytes(p: str): [file; io_err] ref '[file] bytes
 pub bytes_with(p, f)
 pub read_text(p: str): [file; io_err] str        -- text_with の read 専用糖衣
+pub read_at(p: str, r: range): [file; io_err] (str, range)
+pub write_at(p: str, r: range, text: str): [file; io_err] unit
 
 our s.meta: file_meta
-our s.text: ref '[file] str
+our s.text: ref '[file] str   -- post-v1。未実装
 our s.bytes: ref '[file] bytes
-our s.raw: file_raw          -- read / write / append / truncate / seek / sync
+our s.raw: file_raw          -- post-v1。未実装。read / write / append / truncate / seek / sync
 ```
+
+host act の `load_bytes` / `store_bytes` も post-v1・未実装である（正本:
+[notes/design/2026-07-02-file-session-boundary-plan.md](../notes/design/2026-07-02-file-session-boundary-plan.md)
+§7）。この決定を、同文書が名前を挙げていない `bytes` / `bytes_with` へは
+拡張しない。
 
 path は普通の `str` として渡し、呼び出し点で path として解釈する（07-01 spec 踏襲）。
 unscoped 形（`file::text p`）の寿命は fs handler の extent
@@ -292,6 +314,7 @@ stable-standard-api の staging 規則に従う。本仕様の API は実装が�
 driver）の順とする。serve first slice の前には、structured concurrency の
 branch ownership / cancel queue / suspended branch drop 規則を scheduler design に
 反映する。
+file の Contract v1 完成条件には、§1 で post-v1 と明記した surface を含めない。
 
 ## 5. 未決（仕様が縛らない場所）
 
@@ -323,3 +346,32 @@ branch ownership / cancel queue / suspended branch drop 規則を scheduler desi
 ambient channel 形（§2）はユーザ提案を採用した箇所である。
 ChatGPT / Codex が生成した文書と矛盾する場合、本仕様を優先する。
 変更にはユーザの明示的な承認を要する。 — Claude (Fable 5)*
+
+---
+
+## 改訂記録
+
+### 2026-07-26
+
+2026-07-26、ユーザの明示的な指示により、後発の署名済み決定を本仕様へ反映した。
+
+- snapshot raw-compat の public helper `open_text` / `open` / `open_in` と、
+  private 操作 `open_text_raw` / `file_get` / `file_set` / `file_flush` /
+  `open_text_snapshot_raw` / `file_snapshot_get` / `file_snapshot_set` /
+  `file_snapshot_commit` / `open_text_snapshot` は退役済みである。
+  退役を決めた正本は
+  [notes/design/2026-07-03-contract-v1-stage2-closeout.md](../notes/design/2026-07-03-contract-v1-stage2-closeout.md)
+  D3。本仕様には改訂前から、これらの snapshot protocol、型、規範例は存在せず、
+  削除対象となる本文はなかった。
+- 同じ D3 が別 surface として維持した `file_session`、その `open` / `open_with`、
+  `s.text` / `s.raw` は、post-v1・未実装と明記した。退役した raw-compat helper
+  `open` と、将来の `file_session` constructor `open` は混同しない。
+- `load_bytes` / `store_bytes` は
+  [notes/design/2026-07-02-file-session-boundary-plan.md](../notes/design/2026-07-02-file-session-boundary-plan.md)
+  §7 の follow-up 決定に基づき、post-v1・未実装と明記した。
+- `read_at` / `write_at` は closeout D3 の維持決定に基づき、実装済みの
+  provisional range helper として host act と高レベル surface に記録した。
+- `bytes` / `bytes_with` には退役・延期の後発決定がないため、表面と意味論を
+  変更していない。
+
+既存の署名と承認は、そのまま維持する。
