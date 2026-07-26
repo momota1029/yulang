@@ -36,7 +36,7 @@ host act（能力。v2 F1〜F6 に従う）
 |---|---|---|---|
 | 相手 | ストレージ | こちらから呼んだ相手 | 向こうから来る相手たち |
 | session | `file::open p`（post-v1・未実装） | `net::connect cfg` | 値を持たない（accept の分岐が session） |
-| managed view | `&text` / `&bytes` lens | `send` / `recv` / `messages` | `req.payload` + `req.respond` |
+| managed view | `&text` lens | `send` / `recv` / `messages` | `req.payload` + `req.respond` |
 | 寿命 | scope / handler extent | scope / handler extent | 分岐そのもの |
 | raw | `read_at` / `write_at`（provisional）。`s.raw` は post-v1 | socket オプション（将来） | adapter 固有 metadata |
 | 失敗 | `io_err` | `net_err` | `net_err` |
@@ -126,22 +126,21 @@ pub open(p: str): [file] file_session              -- post-v1。未実装
 pub open_with(p: str, f: file_session -> [e] 'a): [file; e] 'a -- post-v1。未実装
 pub text(p: str): [file; io_err] ref '[file] str
 pub text_with(p: str, f: str -> [e] ('a, str)): [file; io_err; e] 'a
-pub bytes(p: str): [file; io_err] ref '[file] bytes
-pub bytes_with(p, f)
 pub read_text(p: str): [file; io_err] str        -- text_with の read 専用糖衣
 pub read_at(p: str, r: range): [file; io_err] (str, range)
 pub write_at(p: str, r: range, text: str): [file; io_err] unit
 
 our s.meta: file_meta
 our s.text: ref '[file] str   -- post-v1。未実装
-our s.bytes: ref '[file] bytes
 our s.raw: file_raw          -- post-v1。未実装。read / write / append / truncate / seek / sync
 ```
 
 host act の `load_bytes` / `store_bytes` も post-v1・未実装である（正本:
 [notes/design/2026-07-02-file-session-boundary-plan.md](../notes/design/2026-07-02-file-session-boundary-plan.md)
-§7）。この決定を、同文書が名前を挙げていない `bytes` / `bytes_with` へは
-拡張しない。
+§7）。対になる public surface `bytes` / `bytes_with` / `s.bytes` は、2026-07-26 に
+本仕様から削除した。退役でも延期でもなく、どちらとも決まっていない面を仕様に
+残さないための削除である。byte 単位の file API を設ける判断は、必要になった
+時点で改めて行う。
 
 path は普通の `str` として渡し、呼び出し点で path として解釈する（07-01 spec 踏襲）。
 unscoped 形（`file::text p`）の寿命は fs handler の extent
@@ -371,7 +370,9 @@ ChatGPT / Codex が生成した文書と矛盾する場合、本仕様を優先�
   §7 の follow-up 決定に基づき、post-v1・未実装と明記した。
 - `read_at` / `write_at` は closeout D3 の維持決定に基づき、実装済みの
   provisional range helper として host act と高レベル surface に記録した。
-- `bytes` / `bytes_with` には退役・延期の後発決定がないため、表面と意味論を
-  変更していない。
+- `bytes` / `bytes_with` / `s.bytes` と、型紙の `&bytes` lens は削除した。
+  退役とも延期とも決まっていない面であり、実装も存在しない。仕様は今動くものを
+  基準にするというユーザの判断（2026-07-26）に従い、宙に浮いた面を残さない。
+  byte 単位の file API が必要になった時点で、改めて設計する。
 
 既存の署名と承認は、そのまま維持する。
