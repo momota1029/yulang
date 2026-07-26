@@ -147,6 +147,7 @@
 | cache | キャッシュ | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`cache`12行対「キャッシュ」6行で、カタカナは「キャッシュ」だけが使われている。 |
 | code | コード | Rule 3（多数）。「コード」8行対`code`4行。 |
 | comment | コメント | Rule 3（多数）。「コメント」10行対`comment`8行。 |
+| command | `command` | Rule 2（Latin）。CLI invocationとして使う`command`3行対「コマンド」0行。`command palette`は別概念として数えない。 |
 | compiler | `compiler` | Rule 2（Latin）。`compiler`13行対「コンパイラ」2行、「コンパイラー」0行。 |
 | directory | `directory` | Rule 2（Latin）。`directory`6行対「ディレクトリ」1行、「ディレクトリー」0行。 |
 | document | ドキュメント | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`document`2行対「ドキュメント」2行で、カタカナは「ドキュメント」だけが使われている。 |
@@ -220,6 +221,7 @@
 | cache | `cache`12対「キャッシュ」6 | キャッシュ | `cache`12 |
 | code | 「コード」8対`code`4 | コード | `code`4 |
 | comment | 「コメント」10対`comment`8 | コメント | `comment`8 |
+| command | `command`3対「コマンド」0 | `command` | 「コマンド」0 |
 | compiler | `compiler`13対「コンパイラ」2、長音形0 | `compiler` | 「コンパイラ」2 |
 | directory | `directory`6対「ディレクトリ」1、長音形0 | `directory` | 「ディレクトリ」1 |
 | document | `document`2対「ドキュメント」2 | ドキュメント | `document`2 |
