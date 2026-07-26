@@ -4,102 +4,62 @@ Date: 2026-07-26
 
 ## Baseline
 
-The coverage audit started from the implementation, then compared that inventory with `web/docs/**`.
-It did not derive the inventory from the reference pages.
+This is a working inventory of documentation coverage. Its current state is
+established from the [Standard Library Catalogue](../../web/docs/reference/std/index.md)
+and the reference pages linked from it, rather than from the original
+implementation-first audit.
 
-- The standard library has 40 modules: 16 are documented usably, 5 are named only in passing, and 19 have no module path anywhere on the site.
-- The work is roughly 14 to 18 page-equivalents: 7 to 9 new pages and extensions to the existing reference pages.
-- A site page can pass every per-page writing and mechanical check while the feature it ought to teach is absent from the whole site.
+- Every non-aggregator standard-library module in the catalogue now has either
+  a fuller reference destination or an explicit provisional entry. The site
+  covers `std::time`, `std::testing`, the bytes/character/config/path text
+  modules, the Boolean/numeric modules (including `frac`), and Yumark.
+- `std::text::config` and `std::text::yumark` have fuller pages marked
+  **Provisional**. `std::io::net` is catalogued as **Provisional** but has no
+  fuller page; provisional means its spelling and API are not part of the
+  stable surface and programs should not depend on them.
+- The language reference now covers the parser DSL and CLI, plus OR, alias,
+  symbol, and polyvariant patterns; guards, arm-set labels, and `elsif`;
+  special lambda forms; tuple structs, enum record payloads, and structural
+  projections; string format specifications; module and import grammar;
+  the value restriction; and `core::cmp`, `core::convert`, `core::fmt`, and
+  `core::seq`.
+- The site deliberately describes three audit assumptions differently:
+  pattern type annotations are ignored rather than checked, a `case` or
+  `catch` label names its whole arm set rather than one arm, and only `enum`
+  variants (not `error` variants) support record payloads.
+- Writing these pages surfaced implementation defects. They were left alone:
+  this note tracks documentation coverage, not implementation repair.
 
-The absent standard-library paths are `time`, `testing`, `io::net`, `text::bytes`, `text::char`, `text::config`, `text::yumark`, `num`, `num::frac`, `float`, `core::cmp`, `core::convert`, `core::fmt`, `core::seq`, and the aggregator modules.
-`io::net` remains in this measured bucket, but its literal spelling is deliberately not a documentation gap; see [Deliberate or not-ready gaps](#deliberate-or-not-ready-gaps).
+## Work items
 
-Each target below names the English page.
-The corresponding Japanese page belongs to the same item.
+There is no active coverage page to add at present.
 
-## New pages
-
-### Standard-library catalogue — `web/docs/reference/std/index.md`
-
-- Document the aggregator modules and show how the standard-library module groups fit together.
-
-### Time — `web/docs/reference/std/time.md`
-
-- Document `time`.
-
-### Testing — `web/docs/reference/std/testing.md`
-
-- Document `testing`.
-
-### Text modules — `web/docs/reference/std/text.md`
-
-- Document `text::bytes`, `text::char`, `text::config`, and `text::yumark` together as the text-module family.
-
-### Numeric modules — `web/docs/reference/std/num.md`
-
-- Document `num` and `num::frac`.
-
-### Floating point — `web/docs/reference/std/float.md`
-
-- Document `float`.
-
-### Parser DSL — `web/docs/reference/parser-dsl.md`
-
-- The existing documentation shows only the entry point.
-- Add capture semantics, quantifiers, alternation, rest capture, and lazy capture.
-
-### CLI reference — `web/docs/reference/cli.md`
-
-- Document `build`, `test`, `parse`, `install std`, `realm freeze`, and the remaining CLI flags.
-
-## Extensions to existing pages
-
-### Patterns — `web/docs/reference/patterns.md`
-
-- Add OR patterns, `as` aliases in patterns, type patterns, symbol patterns, and polyvariant patterns.
-
-### Control flow — `web/docs/reference/control-flow.md`
-
-- Add `case` and `catch` guards, arm labels, and `elsif`.
-
-### Functions — `web/docs/reference/functions.md`
-
-- Add the special lambda forms `\sub`, `\case`, and `\catch`.
-
-### Structs — `web/docs/reference/structs.md`
-
-- Add tuple structs and enum and error variants with record payloads.
-- Add tuple projection `.()` and record projection `.{}`.
-
-### Strings — `web/docs/reference/strings.md`
-
-- Add the string-format grammar: width, precision, alignment, alternate form, and debug form.
-
-### Modules — `web/docs/reference/modules.md`
-
-- Add `mod` declarations and test modules.
-- Add the import grammar: group imports, globs, aliases, `without`, versions, realms, and bands.
-
-### Types — `web/docs/reference/types.md`
-
-- Add the value restriction and its generalization rules: syntactic values generalize, computed right-hand sides do not, recursive function SCCs are allowed, and computed cycles are rejected.
-
-### Core standard-library modules — `web/docs/reference/std/core.md`
-
-- Add `core::cmp`, `core::convert`, `core::fmt`, and `core::seq`.
+The catalogue still labels the following aggregator modules **Not documented**:
+`std`, `std::control`, `std::data`, `std::io`, and `std::text`. That label
+means they have no separate fuller reference page. Their catalogue entries
+already state their grouping and re-export roles and point readers to the child
+module pages, so they are adequately covered as aggregators and are not work
+items. Reassess only if an aggregator acquires behavior beyond grouping,
+declaring children, or re-exporting names.
 
 ## Deliberate or not-ready gaps
 
-These items are not work items until their stated condition changes.
-They remain here so that their absence is explicit.
+These items are not work items until their stated condition changes. They
+remain here so that their absence is explicit.
 
 - Host acts and suspension tiers are deliberately unexposed.
-- The `io::net` spelling is deliberately unexposed; do not add it only to make the module-path count complete.
+- `std::io::net` is catalogued as **Provisional**, not omitted. Do not add a
+  fuller page while its spelling and API remain unstable.
 - Parser extensions remain deferred until parser diagnostics stabilize.
-- The parser accepts some type annotation forms that the checker rejects: explicit `for 'a:`, record type annotations, and polyvariant annotations.
+- The parser accepts some type annotation forms that the checker rejects:
+  explicit `for 'a:`, record type annotations, and polyvariant annotations.
   They are parser-only syntax, not user-facing type-system coverage.
 
 ## Follow-up
 
-- Re-run the implementation-first inventory when a documentation item closes.
-- Keep a deliberate omission in this note or a successor note with its reason; do not leave it implicit.
+- Recheck the catalogue and its linked pages when a standard-library module or
+  an aggregator changes. A **Not documented** aggregator is not automatically
+  a missing page; first decide whether its catalogue entry remains sufficient.
+- Keep provisional and deliberate omissions explicit here or in a successor
+  note. Promote a provisional module to a stable fuller page only when its
+  surface is ready to promise.
