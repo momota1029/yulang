@@ -55,7 +55,7 @@ hello from Yulang
 run roots [(), 3]
 ```
 
-`yulang run` が標準で出すのは `say` / `println` などプログラム自身の出力だけです。
+[`yulang run`](../reference/cli) が標準で出すのは `say` / `println` などプログラム自身の出力だけです。
 CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
 `yulang check hello.yu` はファイルを検査します。
 成功時は何も出力せず、失敗時だけ diagnostic を出します。

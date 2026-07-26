@@ -55,7 +55,7 @@ hello from Yulang
 run roots [(), 3]
 ```
 
-`yulang run` prints only program output such as `say` and `println`. Use
+[`yulang run`](../reference/cli) prints only program output such as `say` and `println`. Use
 `yulang run --print-roots ...` when you want to inspect root expression values
 from the CLI. `yulang check hello.yu` validates the file. A successful check is
 silent; diagnostics are printed only when checking fails:

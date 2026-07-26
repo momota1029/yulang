@@ -76,7 +76,7 @@ yulang cache stats
 yulang cache clear
 ```
 
-Use `--no-cache` on a single command to bypass cache reads and writes:
+Use [`--no-cache`](../reference/cli) on a single command to bypass cache reads and writes:
 
 ```sh
 yulang run --no-cache path/to/file.yu

@@ -182,6 +182,7 @@ cargo run -q -p yulang -- check examples/showcase.yu
 
 ## 関連ページ
 
+- [CLI リファレンス](../reference/cli)：command と option
 - [ツアー](./tour)：物語仕立てで一通り
 - [クックブック](./cookbook)：タスク指向のレシピ
 - [リファレンス](../reference/)：言語の正式リファレンス

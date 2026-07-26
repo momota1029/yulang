@@ -70,7 +70,7 @@ yulang cache stats
 yulang cache clear
 ```
 
-1 回だけキャッシュを使わずに実行する場合は `--no-cache` を付けます。
+1 回だけキャッシュを使わずに実行する場合は [`--no-cache`](../reference/cli) を付けます。
 
 ```sh
 yulang run --no-cache path/to/file.yu

@@ -31,6 +31,7 @@ const englishSidebar = {
       text: "Language Reference",
       items: [
         { text: "Overview", link: "/reference/" },
+        { text: "CLI", link: "/reference/cli" },
         { text: "Values & Types", link: "/reference/types" },
         { text: "Functions", link: "/reference/functions" },
         { text: "Control Flow", link: "/reference/control-flow" },
@@ -89,6 +90,7 @@ const japaneseSidebar = {
       text: "言語リファレンス",
       items: [
         { text: "概要", link: "/ja/reference/" },
+        { text: "CLI", link: "/ja/reference/cli" },
         { text: "値と型", link: "/ja/reference/types" },
         { text: "関数", link: "/ja/reference/functions" },
         { text: "制御構文", link: "/ja/reference/control-flow" },
