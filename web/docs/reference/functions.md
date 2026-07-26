@@ -143,7 +143,7 @@ requires `Add int`.
 constraint is inherited by every method. In an impl body, it becomes a
 prerequisite for that impl candidate.
 
-## Inference output
+## Check a file
 
 ```bash
 yulang check examples/showcase.yu
@@ -151,9 +151,10 @@ yulang check examples/showcase.yu
 cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
-`check` prints the inferred public types. The output may show residual
-type variables (`α`, `β`, …) and role constraints (`Add<α> => ...`); these
-are expected for polymorphic bindings.
+`check` validates the file. A successful check is silent; diagnostics are
+printed only when checking fails. To inspect compiler IR that includes inferred
+binding types, residual type variables (`α`, `β`, …), and role constraints
+(`Add<α> => ...`), use `yulang dump examples/showcase.yu --poly`.
 
 ## See also
 

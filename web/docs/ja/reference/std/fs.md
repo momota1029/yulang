@@ -41,7 +41,8 @@ host error は `io_err` として直接投げられる。API は `result` を返
 値として扱いたい境界では `io_err::wrap` を使う。
 
 ```yulang
-case io_err::wrap: read_text "data.txt":
+my wrapped = io_err::wrap: read_text "data.txt"
+case wrapped:
     result::ok text -> text
     result::err _ -> ""
 ```

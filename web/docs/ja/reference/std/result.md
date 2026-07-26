@@ -50,7 +50,8 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## `error E:` と `wrap` との関係
 
 ```yulang
-case io_err::wrap: read_text path:
+my wrapped = io_err::wrap: read_text path
+case wrapped:
     ok text -> use text
     err e   -> e.show
 ```

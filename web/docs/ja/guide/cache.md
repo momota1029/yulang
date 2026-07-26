@@ -47,6 +47,8 @@ yulang run --runtime-phase-timings path/to/file.yu
 
 | Route | 意味 |
 | --- | --- |
+| `disabled` | この run では cache の read と write を無効化 |
+| `source-key-control-hit` | 現在の source-key index から exact `.yuvm` hit |
 | `control-hit` | exact `.yuvm` hit |
 | `poly-hit` | exact `.yuir` hit |
 | `compiled-unit-hit` | exact full-source `.yucu` hit |
@@ -55,6 +57,7 @@ yulang run --runtime-phase-timings path/to/file.yu
 | `source-unit-prefix-hit` | 1つの依存 prefix を再利用 |
 | `merged-source-unit-prefix-hit` | 複数の独立 prefix を merge して再利用 |
 | `full-miss` | source から fresh compile |
+| `error-fallback` | exact `.yuir` の read に失敗し、source からの compile に fallback |
 
 ローカル編集で重要なのは `std-prefix-hit`、`source-unit-prefix-hit`、
 `merged-source-unit-prefix-hit` です。これらは、変更していない prefix を飛ばして、

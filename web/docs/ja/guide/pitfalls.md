@@ -54,8 +54,8 @@ f x
 ## `error E:` の variant は constructor 兼 operation
 
 ```yulang
-my err: path_err = path_err::not_found "/x"    // 値
-path_err::not_found "/x"                       // effect operation
+my err: path_err = path_err::not_found path    // 値
+path_err::not_found path                       // effect operation
 ```
 
 同じ名前が文脈で振る舞いを変えます。期待型が error ADT なら constructor、effectful な位置なら operation を発火します。周囲が意味を決めないときは明示的に注釈してください。
@@ -95,7 +95,7 @@ twice : Add<α> => α -> α
 
 推論結果の `α` や `β` はエラーではなく、binding が多相なので残った residual な型変数です。具体型に固定したいときは binding に注釈します。
 
-## パターンの `_` は「何でも」ではなく fresh 変数
+## パターンの `_` は何にでもマッチする wildcard
 
 ```yulang
 case xs:
@@ -103,7 +103,9 @@ case xs:
     _      -> "other"
 ```
 
-`_` はそれぞれが独立した wildcard で、同じ値である必要はありません。同じ値を 2 回 bind したい場合は名前を付けて、ガードで比較します。
+`_` は任意の値にマッチし、名前を bind しません。
+複数の `_` は独立した wildcard なので、異なる値にもマッチします。
+2 つの位置が同じ値であることを要求する場合は、それぞれに名前を付け、ガードで比較します。
 
 ```yulang
 case (a, b):
@@ -121,7 +123,9 @@ use my_ops::(+)
 
 ## おかしいときに見る場所
 
-- `yulang check path/to/file.yu` は residual な制約や role を出すので、どこで止まっているかがだいたい見えます。
+- `yulang check path/to/file.yu` は file を検査します。
+  成功時は何も出力せず、失敗時だけ diagnostic を出します。
+- `yulang dump path/to/file.yu --poly` は推論された binding 型や role 制約を含む compiler IR を出力します。
 - 「推論が通らない」関数は、`Cast` が無い、effect tail が未確定、method selection が具体情報待ち、のどれかであることが多いです。
 
 ## 関連ページ

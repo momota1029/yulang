@@ -57,11 +57,14 @@ run roots [(), 3]
 
 `yulang run` が標準で出すのは `say` / `println` など program 自身の出力だけです。
 CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
-推論型を見る場合は `run` の代わりに `check` を使います。
+`yulang check hello.yu` は file を検査します。
+成功時は何も出力せず、失敗時だけ diagnostic を出します。
 
 ```sh
 yulang check hello.yu
 ```
+
+推論された binding 型を含む compiler IR を見る場合は `yulang dump hello.yu --poly` を使います。
 
 一行で試したい場合は、`-e`、明示 stdin の `-`、または pipe 入力も使えます。
 
@@ -114,8 +117,9 @@ yulang server
 ```
 
 Zed extension は install 済み `yulang` binary から `yulang server` を起動します。
-探索先は worktree environment、`~/.yulang/bin`、`~/.cargo/bin` です。source copy は
-`yulang-zed/` に置き、別 repository の extension と同期して管理します。
+active worktree environment から `yulang` を解決します。
+そこに binary がない場合は、Zed settings の `lsp.yulang.binary.path` に `/home/me/.yulang/bin/yulang` のような絶対 path を設定します。
+source copy は `yulang-zed/` に置き、別 repository の extension と同期して管理します。
 
 ### Zed development extension
 

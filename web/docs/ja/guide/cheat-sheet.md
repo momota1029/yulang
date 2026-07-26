@@ -110,8 +110,8 @@ catch action:
 
 ```yulang
 error path_err:
-    not_found str
-    denied str
+    not_found path
+    denied path
 
 fail path_err::not_found "x"
 
@@ -170,7 +170,7 @@ use std::core::ops::* without (+), debug
 ---
 ```
 
-## 推論結果を表示
+## ファイルを検査
 
 ```bash
 yulang check examples/showcase.yu

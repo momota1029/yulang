@@ -115,7 +115,8 @@ Filesystem errors are raised as `io_err` in the effect row. Wrap them only
 when the caller needs a value-level `result`.
 
 ```yulang
-case io_err::wrap: read_text "data.txt":
+my wrapped = io_err::wrap: read_text "data.txt"
+case wrapped:
     result::ok text -> text
     result::err _ -> ""
 ```
@@ -232,7 +233,8 @@ errors are always caught by their concrete name.
 ```yulang
 my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
 
-case io_err::wrap: read_text path:
+my wrapped = io_err::wrap: read_text path
+case wrapped:
     result::ok text -> text
     result::err err -> err.show
 ```

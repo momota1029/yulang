@@ -104,7 +104,8 @@ text.say
 に値としての `result` が必要な境界だけ `wrap` する。
 
 ```yulang
-case io_err::wrap: read_text "data.txt":
+my wrapped = io_err::wrap: read_text "data.txt"
+case wrapped:
     result::ok text -> text
     result::err _ -> ""
 ```
@@ -217,8 +218,8 @@ catch read_text path:
 
 ```yulang
 my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
-my res = io_err::wrap: read_text path
-case res:
+my wrapped = io_err::wrap: read_text path
+case wrapped:
     result::ok text -> text
     result::err _ -> "(fallback)"
 ```

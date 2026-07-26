@@ -140,7 +140,7 @@ my twice(x: 'a) =
 `where` 句は role 本体や impl 本体にも書ける。role 本体に書くと各 method に
 継承される。impl 本体に書くと、その impl 候補の前提条件になる。
 
-## 推論結果の表示
+## ファイルの検査
 
 ```bash
 yulang check examples/showcase.yu
@@ -148,9 +148,9 @@ yulang check examples/showcase.yu
 cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
-`check` は public binding の推論型を表示する。出力には residual な型変数
-（`α`、`β`、…）や role 制約（`Add<α> => ...`）が含まれることがある — これらは
-多相 binding では当たり前。
+`check` は file を検査する。
+成功時は何も出力せず、失敗時だけ diagnostic を出す。
+推論された binding 型、residual な型変数（`α`、`β`、…）、role 制約（`Add<α> => ...`）を含む compiler IR は、`yulang dump examples/showcase.yu --poly` で確認できる。
 
 ## 関連ページ
 

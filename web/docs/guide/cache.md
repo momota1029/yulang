@@ -52,6 +52,8 @@ yulang run --runtime-phase-timings path/to/file.yu
 
 | Route | Meaning |
 | --- | --- |
+| `disabled` | Cache reads and writes were disabled for this run |
+| `source-key-control-hit` | The current source-key index resolved to an exact `.yuvm` hit |
 | `control-hit` | Exact `.yuvm` hit |
 | `poly-hit` | Exact `.yuir` hit |
 | `compiled-unit-hit` | Exact full-source `.yucu` hit |
@@ -60,6 +62,7 @@ yulang run --runtime-phase-timings path/to/file.yu
 | `source-unit-prefix-hit` | One cached dependency prefix was reused |
 | `merged-source-unit-prefix-hit` | Several independent cached prefixes were merged and reused |
 | `full-miss` | Fresh compile from source |
+| `error-fallback` | Reading the exact `.yuir` failed, so compilation fell back to source |
 
 For local editing, `std-prefix-hit`, `source-unit-prefix-hit`, and
 `merged-source-unit-prefix-hit` are the interesting cases. They mean the

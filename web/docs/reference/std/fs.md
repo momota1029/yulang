@@ -42,7 +42,8 @@ Host errors are raised as `io_err` directly. The API does not return a
 `result`; use `io_err::wrap` when you want a value-level result.
 
 ```yulang
-case io_err::wrap: read_text "data.txt":
+my wrapped = io_err::wrap: read_text "data.txt"
+case wrapped:
     result::ok text -> text
     result::err _ -> ""
 ```

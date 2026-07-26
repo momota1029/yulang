@@ -173,7 +173,7 @@ multi-line doc
 ---
 ```
 
-## Print inferred types
+## Check a file
 
 ```bash
 yulang check examples/showcase.yu

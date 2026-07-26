@@ -74,9 +74,11 @@ handler of every error are visible from types alone.
 ## `wrap`: closing into a value
 
 ```yulang
-my read_text_safe path = case io_err::wrap: read_text path:
-    result::ok text -> text
-    result::err err -> err.show
+my read_text_safe path =
+    my wrapped = io_err::wrap: read_text path
+    case wrapped:
+        result::ok text -> text
+        result::err err -> err.show
 ```
 
 `E::wrap` catches the matching error effect produced by its thunk argument

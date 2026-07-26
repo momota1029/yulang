@@ -57,11 +57,15 @@ run roots [(), 3]
 
 `yulang run` prints only program output such as `say` and `println`. Use
 `yulang run --print-roots ...` when you want to inspect root expression values
-from the CLI. Use `check` instead of `run` to print inferred types:
+from the CLI. `yulang check hello.yu` validates the file. A successful check is
+silent; diagnostics are printed only when checking fails:
 
 ```sh
 yulang check hello.yu
 ```
+
+To inspect compiler IR that includes inferred binding types, use
+`yulang dump hello.yu --poly`.
 
 For one-line experiments, `run` also accepts source text from `-e`, explicit
 stdin with `-`, or an implicit pipe:
@@ -119,9 +123,10 @@ yulang server
 ```
 
 The Zed extension starts `yulang server` from the installed `yulang` binary.
-It searches the worktree environment, `~/.yulang/bin`, and `~/.cargo/bin`.
-The source copy is kept under `yulang-zed/` and mirrored to the separate
-extension repository.
+It resolves `yulang` from the active worktree environment. If the binary is not
+available there, set `lsp.yulang.binary.path` in Zed settings to an absolute
+path such as `/home/me/.yulang/bin/yulang`. The source copy is kept under
+`yulang-zed/` and mirrored to the separate extension repository.
 
 ### Zed development extension
 

@@ -125,7 +125,7 @@ The `α` and `β` in inference output are not errors — they are residual type
 variables left over because the binding is polymorphic. Annotating a binding
 fixes the residual to a concrete type when you want it concrete.
 
-## `_` is a fresh variable in patterns, not "anything matches"
+## `_` is a wildcard that matches anything
 
 ```yulang
 case xs:
@@ -133,8 +133,9 @@ case xs:
     _      -> "other"
 ```
 
-Each `_` introduces an independent fresh wildcard; they do not have to share
-the same value. To bind the same value twice, name it and check with a guard:
+Each `_` matches any value and binds no name. Repeated `_` patterns are
+independent, so they can match different values. To require two positions to
+hold the same value, give each one a name and compare them with a guard:
 
 ```yulang
 case (a, b):
@@ -155,8 +156,10 @@ error.
 
 ## Where to look when things go wrong
 
-- `yulang check path/to/file.yu` prints residual constraints and roles, which
-  usually tells you what got stuck.
+- `yulang check path/to/file.yu` validates the file. A successful check is
+  silent; failures print diagnostics.
+- `yulang dump path/to/file.yu --poly` prints compiler IR that includes inferred
+  binding types and role constraints.
 - A function that "won't infer" often has a missing `Cast`, an unconstrained
   effect tail, or a method selection waiting for more concrete information.
 

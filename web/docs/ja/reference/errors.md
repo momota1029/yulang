@@ -71,9 +71,11 @@ effect row の中で常に具体的な名前で見え、発火地点と捕捉地
 ## `wrap`：値に閉じる
 
 ```yulang
-my read_text_safe path = case io_err::wrap: read_text path:
-    result::ok text -> text
-    result::err err -> err.show
+my read_text_safe path =
+    my wrapped = io_err::wrap: read_text path
+    case wrapped:
+        result::ok text -> text
+        result::err err -> err.show
 ```
 
 `E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E`
