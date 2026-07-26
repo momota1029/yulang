@@ -66,7 +66,7 @@ link のある module 名から、その module を説明するページへ移�
 | [`std::text::parse`](../parser-dsl) | string match の読み取り、検索、編集、置換に使う effect ベースの parser combinator API を提供する。 | 参照あり |
 | [`std::text::path`](./text#std-text-path) | `path` と `bytes` を相互に変換し、lossy UTF-8 decode によって `path` を表示する。 | 参照あり |
 | [`std::text::str`](./str) | 文字位置による index、slice、検索、変換、可変な line view を提供する。 | 参照あり |
-| `std::text::yumark` | Yumark document algebra を定義し、HTML node または Markdown へ描画する。 | 未文書化 |
+| [`std::text::yumark`](./yumark) | 暫定の Yumark document algebra を定義し、HTML node または Markdown へ描画する。 | **暫定** |
 
 ## I/O module
 

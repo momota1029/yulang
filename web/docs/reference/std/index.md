@@ -69,7 +69,7 @@ not depend on it.
 | [`std::text::parse`](../parser-dsl) | Provides an effect-based parser-combinator API for reading, finding, editing, and replacing string matches. | Reference |
 | [`std::text::path`](./text#std-text-path) | Converts paths to and from bytes and displays paths with lossy UTF-8 decoding. | Reference |
 | [`std::text::str`](./str) | Provides character-indexed strings, slices, searches, transformations, and mutable line views. | Reference |
-| `std::text::yumark` | Defines the Yumark document algebra and renders documents as HTML nodes or Markdown. | **Not documented** |
+| [`std::text::yumark`](./yumark) | Defines the provisional Yumark document algebra and renders documents as HTML nodes or Markdown. | **Provisional** |
 
 ## I/O modules
 
