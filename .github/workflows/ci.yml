@@ -14,10 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  core:
-    name: core gate
+  workspace_build:
+    name: workspace build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
 
@@ -27,22 +27,132 @@ jobs:
           rustup toolchain install stable --profile minimal --component rustfmt
           rustup default stable
 
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
       - name: Check formatting
         run: cargo fmt --check
 
-      # The test steps below cover only five crates. Everything else -- wasm
-      # most of all, since the site deploy builds it -- was reaching main
-      # without ever being type-checked.
+      # The test jobs below cover only seven crates. Everything else -- wasm
+      # most of all, since the site deploy builds it -- must still be compiled
+      # here before it can reach main.
       - name: Build every crate and target
         run: cargo build --workspace --all-targets
 
+  runtime_tests:
+    name: runtime tests
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
       - name: Test poly, specialize, and the runtimes
         run: cargo test -q -p poly -p specialize -p evidence-vm -p mono-runtime
+
+  language_tests:
+    name: language tests
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       # This test temporarily mutates a process-wide cache environment variable,
       # so keep it out of the parallel suite and run it alone below.
       - name: Test parser, infer, and yulang
         run: cargo test -q -p parser -p infer -p yulang -- --skip embedded_std_compiled_unit_artifact_persists_to_user_cache
 
+  user_cache_isolation_test:
+    name: user cache isolation test
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
       - name: Test user cache persistence in isolation
         run: cargo test -q -p yulang embedded_std_compiled_unit_artifact_persists_to_user_cache
+
+  core_gate:
+    name: core gate
+    if: ${{ always() }}
+    needs:
+      - workspace_build
+      - runtime_tests
+      - language_tests
+      - user_cache_isolation_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every gate job to succeed
+        env:
+          WORKSPACE_BUILD: ${{ needs.workspace_build.result }}
+          RUNTIME_TESTS: ${{ needs.runtime_tests.result }}
+          LANGUAGE_TESTS: ${{ needs.language_tests.result }}
+          USER_CACHE_ISOLATION_TEST: ${{ needs.user_cache_isolation_test.result }}
+        shell: bash
+        run: |
+          test "$WORKSPACE_BUILD" = success
+          test "$RUNTIME_TESTS" = success
+          test "$LANGUAGE_TESTS" = success
+          test "$USER_CACHE_ISOLATION_TEST" = success
