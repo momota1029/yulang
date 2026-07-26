@@ -302,6 +302,9 @@ fn contextual_word_kind(
     stop: &HashSet<SyntaxKind>,
     is_syntax_keyword: impl Fn(SyntaxKind) -> bool,
 ) -> SyntaxKind {
+    if text == "derives" && stop.contains(&SyntaxKind::Derives) {
+        return SyntaxKind::Derives;
+    }
     let Some(kind) = keyword_kind(text) else {
         return SyntaxKind::Ident;
     };

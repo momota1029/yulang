@@ -9,7 +9,7 @@ use crate::sink::EventSink;
 
 use super::common::{peek_stmt_lex, scan_stmt_lex};
 use super::role_decl::{parse_role_like_body, parse_type_with_stops};
-use super::type_decl::finish_with_or_stmt_stop;
+use super::type_decl::{finish_with_or_stmt_stop, parse_header_derives};
 
 pub(super) fn parse_act_decl<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
@@ -27,6 +27,15 @@ pub(super) fn parse_act_decl<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&decl_kw);
 
     let leading_info = parse_act_name(i.rb(), decl_kw.trailing_trivia_info())?;
+    if let Either::Right(stop) = parse_header_derives(
+        i.rb(),
+        leading_info,
+        &[SyntaxKind::Colon, SyntaxKind::BraceL, SyntaxKind::Semicolon],
+    )? {
+        let out = parse_body_from_punct(i.rb(), stop)?;
+        i.env.state.sink.finish();
+        return Some(out);
+    }
     let tail = parse_act_tail(i.rb(), leading_info)?;
     let result = match tail {
         ActTail::BodyStart(Some(punct)) => parse_body_from_punct(i.rb(), punct)?,

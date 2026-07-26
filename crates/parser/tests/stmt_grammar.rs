@@ -134,6 +134,30 @@ fn dump(events: &[Event], lexs: &[parser::lex::Lex]) -> Vec<String> {
     result
 }
 
+fn subtrees(tree: &[String], kind: &str) -> Vec<Vec<String>> {
+    let start = format!("({kind}");
+    let mut result = Vec::new();
+    let mut index = 0;
+    while index < tree.len() {
+        if tree[index].trim_start().starts_with(&start) {
+            let indent = tree[index].len() - tree[index].trim_start().len();
+            let close = format!("{}{}", " ".repeat(indent), ")");
+            let mut subtree = vec![tree[index][indent..].to_string()];
+            index += 1;
+            while index < tree.len() {
+                subtree.push(tree[index][indent..].to_string());
+                if tree[index] == close {
+                    break;
+                }
+                index += 1;
+            }
+            result.push(subtree);
+        }
+        index += 1;
+    }
+    result
+}
+
 fn parse_stmt_once_green(source: &str) -> SyntaxNode<YulangLanguage> {
     let mut state: State<GreenSink> = State::default();
     let mut input = source.with_counter(0usize);
@@ -854,7 +878,7 @@ fn stmt_role_decl_semicolon() {
 }
 
 #[test]
-fn stmt_impl_decl_via_semicolon() {
+fn stmt_impl_decl_via_is_rejected() {
     let got = parse_stmt_once("impl Eq via Ord;");
     let expected = vec![
         "(ImplDecl",
@@ -862,9 +886,11 @@ fn stmt_impl_decl_via_semicolon() {
         "  (TypeExpr",
         "    Ident \"Eq\"",
         "  )",
-        "  Via \"via\"",
-        "  (TypeExpr",
-        "    Ident \"Ord\"",
+        "  (InvalidToken",
+        "    Via \"via\"",
+        "    (TypeExpr",
+        "      Ident \"Ord\"",
+        "    )",
         "  )",
         "  Semicolon \";\"",
         ")",
@@ -1342,6 +1368,95 @@ fn stmt_struct_decl_brace_fields() {
         "    )",
         "  )",
         "  BraceR \"}\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_derives_clause_has_the_same_tree_at_all_attachment_positions() {
+    let sources = [
+        "struct point { x: int, y: int } derives Eq, Debug via x",
+        "struct point { x: int, y: int } with:\n  derives Eq, Debug via x",
+        "struct point derives Eq, Debug via x:\n  x: int\n  y: int",
+    ];
+    let expected = vec![
+        "(DerivesClause",
+        "  Ident \"derives\"",
+        "  (TypeExpr",
+        "    Ident \"Eq\"",
+        "  )",
+        "  Comma \",\"",
+        "  (TypeExpr",
+        "    Ident \"Debug\"",
+        "  )",
+        "  Via \"via\"",
+        "  Ident \"x\"",
+        ")",
+    ];
+
+    for source in sources {
+        let got = parse_stmt_once(source);
+        assert_eq!(
+            subtrees(&got, "DerivesClause"),
+            vec![expected.clone()],
+            "{source}"
+        );
+        assert!(
+            !got.iter().any(|line| line.contains("(InvalidToken")),
+            "{source}: {got:?}"
+        );
+    }
+}
+
+#[test]
+fn stmt_derives_clauses_preserve_source_order_without_deduplication() {
+    let got = parse_stmt_once("struct point { x: int, y: int } derives Eq derives Eq via y");
+    let clauses = subtrees(&got, "DerivesClause");
+    assert_eq!(clauses.len(), 2);
+    assert_eq!(
+        clauses[0],
+        vec![
+            "(DerivesClause",
+            "  Ident \"derives\"",
+            "  (TypeExpr",
+            "    Ident \"Eq\"",
+            "  )",
+            ")",
+        ]
+    );
+    assert_eq!(
+        clauses[1],
+        vec![
+            "(DerivesClause",
+            "  Ident \"derives\"",
+            "  (TypeExpr",
+            "    Ident \"Eq\"",
+            "  )",
+            "  Via \"via\"",
+            "  Ident \"y\"",
+            ")",
+        ]
+    );
+}
+
+#[test]
+fn stmt_derives_remains_an_ordinary_identifier() {
+    let got = parse_stmt_once("my derives = 1");
+    let expected = vec![
+        "(Binding",
+        "  (BindingHeader",
+        "    My \"my\"",
+        "    (Pattern",
+        "      Ident \"derives\"",
+        "    )",
+        "    Equal \"=\"",
+        "  )",
+        "  (BindingBody",
+        "    (Expr",
+        "      Number \"1\"",
+        "    )",
+        "  )",
         ")",
     ];
     assert_eq!(got, expected);

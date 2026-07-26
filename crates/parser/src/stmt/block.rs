@@ -11,7 +11,9 @@ use crate::sink::EventSink;
 
 use super::common::{emit_missing_invalid, peek_stmt_lex, scan_stmt_lex};
 
-struct BraceStmtBlockMachine;
+struct BraceStmtBlockMachine {
+    companion_items: bool,
+}
 
 impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachine {
     fn parse_item(
@@ -56,7 +58,11 @@ impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachin
         if let TriviaInfo::Newline { indent, .. } = *leading_info {
             i.env.indent = indent;
         }
-        let parsed = super::parse_statement(*leading_info, i.rb());
+        let parsed = if self.companion_items {
+            super::parse_companion_statement(*leading_info, i.rb())
+        } else {
+            super::parse_statement(*leading_info, i.rb())
+        };
         i.env.indent = old_indent;
         i.env.stop = old_stop;
 
@@ -123,6 +129,30 @@ pub(super) fn parse_decl_body_after_colon<I: EventInput, S: EventSink>(
     }
 }
 
+pub(super) fn parse_companion_decl_body_after_colon<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+    base_indent: usize,
+) -> Option<Either<TriviaInfo, Lex>> {
+    match leading_info {
+        TriviaInfo::Newline { indent, .. } if indent > base_indent => {
+            let next = parse_companion_indent_stmt_block(i.rb(), indent, leading_info)?;
+            Some(Either::Left(next))
+        }
+        TriviaInfo::Newline { .. } => {
+            emit_missing_invalid(i.rb());
+            Some(Either::Left(leading_info))
+        }
+        _ => match super::parse_companion_statement(leading_info, i.rb())? {
+            Either::Right(stop) if stop.kind == SyntaxKind::Semicolon => {
+                i.env.state.sink.lex(&stop);
+                Some(Either::Left(stop.trailing_trivia_info()))
+            }
+            other => Some(other),
+        },
+    }
+}
+
 pub(crate) fn parse_brace_stmt_block<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     open_brace: Lex,
@@ -130,7 +160,9 @@ pub(crate) fn parse_brace_stmt_block<I: EventInput, S: EventSink>(
     i.env.state.sink.start(SyntaxKind::BraceGroup);
     i.env.state.sink.lex(&open_brace);
 
-    let mut machine = BraceStmtBlockMachine;
+    let mut machine = BraceStmtBlockMachine {
+        companion_items: false,
+    };
     let base_indent = i.env.indent;
     let out = machine.parse_stop_list(i.rb(), open_brace.trailing_trivia_info(), base_indent)?;
     match out {
@@ -153,13 +185,46 @@ pub(crate) fn parse_brace_stmt_block<I: EventInput, S: EventSink>(
     }
 }
 
+pub(super) fn parse_companion_brace_stmt_block<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    open_brace: Lex,
+) -> Option<TriviaInfo> {
+    i.env.state.sink.start(SyntaxKind::BraceGroup);
+    i.env.state.sink.lex(&open_brace);
+
+    let mut machine = BraceStmtBlockMachine {
+        companion_items: true,
+    };
+    let base_indent = i.env.indent;
+    let out = machine.parse_stop_list(i.rb(), open_brace.trailing_trivia_info(), base_indent)?;
+    match out {
+        Either::Right(close) if close.kind == SyntaxKind::BraceR => {
+            i.env.state.sink.lex(&close);
+            i.env.state.sink.finish();
+            Some(close.trailing_trivia_info())
+        }
+        Either::Right(close) => {
+            let next = close.trailing_trivia_info();
+            emit_invalid(i.rb(), close);
+            i.env.state.sink.finish();
+            Some(next)
+        }
+        Either::Left(info) => {
+            i.env.state.sink.finish();
+            Some(info)
+        }
+    }
+}
+
 pub(crate) fn parse_virtual_brace_stmt_block_until_close<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     leading_info: TriviaInfo,
 ) -> Option<Lex> {
     i.env.state.sink.start(SyntaxKind::BraceGroup);
 
-    let mut machine = BraceStmtBlockMachine;
+    let mut machine = BraceStmtBlockMachine {
+        companion_items: false,
+    };
     let base_indent = i.env.indent;
     let out = machine.parse_stop_list(i.rb(), leading_info, base_indent)?;
     let close = match out {
@@ -193,6 +258,50 @@ pub(crate) fn parse_indent_stmt_block<I: EventInput, S: EventSink>(
         }
 
         let Some(parsed) = super::parse_statement(leading_info, i.rb()) else {
+            emit_missing_invalid(i.rb());
+            break;
+        };
+
+        match parsed {
+            Either::Left(next) => leading_info = next,
+            Either::Right(stop) if stop.kind == SyntaxKind::Semicolon => {
+                i.env.state.sink.start(SyntaxKind::Separator);
+                i.env.state.sink.lex(&stop);
+                i.env.state.sink.finish();
+                leading_info = stop.trailing_trivia_info();
+            }
+            Either::Right(stop) => {
+                emit_invalid(i.rb(), stop.clone());
+                leading_info = stop.trailing_trivia_info();
+            }
+        }
+    }
+
+    i.env.state.sink.finish();
+    i.env.indent = old_indent;
+    i.env.inline = old_inline;
+    Some(leading_info)
+}
+
+pub(super) fn parse_companion_indent_stmt_block<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    block_indent: usize,
+    mut leading_info: TriviaInfo,
+) -> Option<TriviaInfo> {
+    let old_indent = i.env.indent;
+    let old_inline = i.env.inline;
+    i.env.indent = block_indent;
+    i.env.inline = false;
+    i.env.state.sink.start(SyntaxKind::IndentBlock);
+
+    loop {
+        match leading_info {
+            TriviaInfo::None => break,
+            TriviaInfo::Newline { indent, .. } if indent < block_indent => break,
+            _ => {}
+        }
+
+        let Some(parsed) = super::parse_companion_statement(leading_info, i.rb()) else {
             emit_missing_invalid(i.rb());
             break;
         };

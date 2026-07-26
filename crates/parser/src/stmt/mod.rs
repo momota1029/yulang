@@ -36,6 +36,19 @@ pub(crate) use block::{
 };
 pub(crate) use common::{peek_stmt_lex, scan_stmt_lex};
 
+pub(crate) fn parse_companion_statement<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<Either<TriviaInfo, Lex>> {
+    if let Some(next) = peek_stmt_lex(leading_info, i.rb()) {
+        if type_decl::is_derives_clause_start(&next) {
+            let derives_kw = scan_stmt_lex(leading_info, i.rb())?;
+            return type_decl::parse_derives_clauses(i.rb(), derives_kw, &[]);
+        }
+    }
+    parse_statement(leading_info, i)
+}
+
 pub fn parse_statement<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,

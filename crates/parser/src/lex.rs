@@ -239,6 +239,10 @@ pub enum SyntaxKind {
     YadaYada = 209,
     Sub = 210,
     Dot = 211,
+    // Internal contextual-stop marker. The general scanner never emits this
+    // for `derives`; declaration parsing rewrites it back to `Ident` before
+    // storing the lossless token in the CST.
+    Derives = 212,
 
     // nodes
     InvalidToken = 500,
@@ -406,6 +410,7 @@ pub enum SyntaxKind {
     ProjectionTuple = 643,
     ProjectionRecord = 644,
     TestModuleMarker = 646,
+    DerivesClause = 647,
 }
 
 #[derive(Debug, Clone)]

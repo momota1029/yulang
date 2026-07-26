@@ -7,7 +7,7 @@ use crate::lex::{Lex, SyntaxKind, TriviaInfo};
 use crate::sink::EventSink;
 
 use super::common::{peek_stmt_lex, scan_name_lex, scan_stmt_lex};
-use super::type_decl::{finish_with_or_stmt_stop, scan_decl_type_vars};
+use super::type_decl::{finish_with_or_stmt_stop, parse_header_derives, scan_decl_type_vars};
 
 pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
@@ -31,14 +31,44 @@ pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
     let vars = scan_decl_type_vars(i.rb(), leading_info, false)?;
     leading_info = vars.leading_info;
 
-    if let Some(next) = peek_stmt_lex(leading_info, i.rb()) {
+    let header_stop = if vars.with_kw.is_none() {
+        parse_header_derives(
+            i.rb(),
+            leading_info,
+            &[
+                SyntaxKind::BraceL,
+                SyntaxKind::Colon,
+                SyntaxKind::Equal,
+                SyntaxKind::With,
+                SyntaxKind::Semicolon,
+            ],
+        )?
+    } else {
+        Either::Left(leading_info)
+    };
+    let (body_start, body_start_taken) = match header_stop {
+        Either::Left(info) => {
+            leading_info = info;
+            (None, false)
+        }
+        Either::Right(stop) => (Some(stop), true),
+    };
+    if let Some(next) = body_start.or_else(|| peek_stmt_lex(leading_info, i.rb())) {
         match next.kind {
             SyntaxKind::BraceL => {
-                let open = scan_stmt_lex(leading_info, i.rb())?;
+                let open = if body_start_taken {
+                    next
+                } else {
+                    scan_stmt_lex(leading_info, i.rb())?
+                };
                 leading_info = super::enum_decl::parse_enum_variants_after_open(i.rb(), open)?;
             }
             SyntaxKind::Colon => {
-                let colon = scan_stmt_lex(leading_info, i.rb())?;
+                let colon = if body_start_taken {
+                    next
+                } else {
+                    scan_stmt_lex(leading_info, i.rb())?
+                };
                 i.env.state.sink.lex(&colon);
                 let base_indent = i.env.indent;
                 leading_info = super::enum_decl::parse_enum_variants_indent_block(
@@ -48,7 +78,11 @@ pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
                 )?;
             }
             SyntaxKind::Equal => {
-                let eq = scan_stmt_lex(leading_info, i.rb())?;
+                let eq = if body_start_taken {
+                    next
+                } else {
+                    scan_stmt_lex(leading_info, i.rb())?
+                };
                 i.env.state.sink.lex(&eq);
                 match super::enum_decl::parse_enum_variants_inline(
                     i.rb(),
@@ -60,6 +94,20 @@ pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
                         return Some(Either::Right(stop));
                     }
                 }
+            }
+            SyntaxKind::With if body_start_taken => {
+                i.env.state.sink.lex(&next);
+                let out = super::type_decl::parse_with_block_after_kw(
+                    i.rb(),
+                    next.trailing_trivia_info(),
+                )?;
+                i.env.state.sink.finish();
+                return Some(out);
+            }
+            SyntaxKind::Semicolon if body_start_taken => {
+                i.env.state.sink.lex(&next);
+                i.env.state.sink.finish();
+                return Some(Either::Left(next.trailing_trivia_info()));
             }
             _ => {}
         }

@@ -4,11 +4,8 @@ use reborrow_generic::Reborrow as _;
 use crate::EventInput;
 use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
-use crate::parse::emit_invalid;
 use crate::sink::EventSink;
 
-use super::block::{parse_brace_stmt_block, parse_decl_body_after_colon};
-use super::common::scan_stmt_lex;
 use super::role_decl::{
     parse_role_body_from_info, parse_role_body_from_stop, parse_type_with_stops,
 };
@@ -50,10 +47,7 @@ pub(super) fn parse_impl_after_impl_kw<I: EventInput, S: EventSink>(
     };
 
     match stop.kind {
-        SyntaxKind::Via => {
-            i.env.state.sink.lex(&stop);
-            parse_via_after_kw(i.rb(), stop.trailing_trivia_info())
-        }
+        SyntaxKind::Via => reject_unimplemented_impl_via(i.rb(), stop),
         SyntaxKind::Colon if !matches!(stop.trailing_trivia_info(), TriviaInfo::Newline { .. }) => {
             parse_impl_description_after_colon(i.rb(), stop)
         }
@@ -79,59 +73,24 @@ fn parse_impl_description_after_colon<I: EventInput, S: EventSink>(
     }
 }
 
-fn parse_via_after_kw<I: EventInput, S: EventSink>(
+/// `impl Target via Source` has no lowering semantics. Keep its complete
+/// source range in an invalid CST node so downstream syntax diagnostics can
+/// report: "impl ... via ... is not implemented; use via only in a derives
+/// clause".
+fn reject_unimplemented_impl_via<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
-    leading_info: TriviaInfo,
+    via_kw: Lex,
 ) -> Option<Either<TriviaInfo, Lex>> {
+    i.env.state.sink.start(SyntaxKind::InvalidToken);
+    i.env.state.sink.lex(&via_kw);
     let result = parse_type_with_stops(
         i.rb(),
-        leading_info,
+        via_kw.trailing_trivia_info(),
         &[SyntaxKind::Semicolon, SyntaxKind::Colon, SyntaxKind::BraceL],
     )?;
+    i.env.state.sink.finish();
     match result {
-        Either::Right(stop) => match stop.kind {
-            SyntaxKind::Semicolon => {
-                i.env.state.sink.lex(&stop);
-                Some(Either::Left(stop.trailing_trivia_info()))
-            }
-            SyntaxKind::Colon => {
-                let base_indent = i.env.indent;
-                i.env.state.sink.lex(&stop);
-                parse_decl_body_after_colon(i.rb(), stop.trailing_trivia_info(), base_indent)
-            }
-            SyntaxKind::BraceL => {
-                let next = parse_brace_stmt_block(i.rb(), stop)?;
-                Some(Either::Left(next))
-            }
-            _ => {
-                let next = stop.trailing_trivia_info();
-                emit_invalid(i.rb(), stop);
-                Some(Either::Left(next))
-            }
-        },
-        Either::Left(info) => parse_via_terminator(i, info),
-    }
-}
-
-fn parse_via_terminator<I: EventInput, S: EventSink>(
-    mut i: In<I, S>,
-    leading_info: TriviaInfo,
-) -> Option<Either<TriviaInfo, Lex>> {
-    if matches!(leading_info, TriviaInfo::Newline { .. } | TriviaInfo::None) {
-        return Some(Either::Left(leading_info));
-    }
-    let Some(tok) = scan_stmt_lex(leading_info, i.rb()) else {
-        return Some(Either::Left(leading_info));
-    };
-    match tok.kind {
-        SyntaxKind::Semicolon => {
-            i.env.state.sink.lex(&tok);
-            Some(Either::Left(tok.trailing_trivia_info()))
-        }
-        _ => {
-            let next = tok.trailing_trivia_info();
-            emit_invalid(i.rb(), tok);
-            Some(Either::Left(next))
-        }
+        Either::Right(stop) => parse_role_body_from_stop(i, Some(stop)),
+        Either::Left(info) => parse_role_body_from_info(i, info),
     }
 }
