@@ -1,6 +1,17 @@
 pub lazy prefix(assert) 1.0.0 = assertion::assert
-pub lazy infix(assert_eq) 1.0.0 1.0.1 = \left -> \right -> assertion::assert_eq (left, right)
+pub lazy infix(assert_eq) 1.0.0 1.0.1 = \left -> \right ->
+    assertion::assert_eq (
+        left,
+        right,
+        \expected -> \actual -> expected.eq actual,
+        \value -> value.debug,
+    )
 
 pub act assertion:
     pub assert: (() -> [_] bool) -> ()
-    pub assert_eq: (() -> [_] 'a, () -> [_] 'a) -> ()
+    pub assert_eq: (
+        () -> ['left_eff] 'a,
+        () -> ['right_eff] 'a,
+        'a -> 'a -> bool,
+        'a -> str,
+    ) -> ()

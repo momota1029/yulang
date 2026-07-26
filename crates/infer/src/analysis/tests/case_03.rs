@@ -769,12 +769,12 @@ fn cache_candidate_partial_option_1_slice_2_prunes_repository_std_dead_stack_ids
     assert_eq!(
         raw_subtracts,
         vec![
-            poly::types::SubtractId(127),
-            poly::types::SubtractId(128),
-            poly::types::SubtractId(129),
+            poly::types::SubtractId(123),
+            poly::types::SubtractId(124),
+            poly::types::SubtractId(125),
             // std.testing assertions shift allocation order, but these remain the same four
             // dead pop-only candidate witnesses.
-            poly::types::SubtractId(131),
+            poly::types::SubtractId(127),
         ],
         "the real std witness must still enter candidate freeze with all four dead pop-only ids"
     );

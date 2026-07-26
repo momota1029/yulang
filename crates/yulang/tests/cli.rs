@@ -137,6 +137,37 @@ mod test broken:
 }
 
 #[test]
+fn assert_eq_uses_derived_eq_and_debug_for_struct_values() {
+    let entry = write_entry(
+        "test-runner-assert-eq-derived-struct",
+        "\
+struct point { x: int, y: int } derives Eq, Debug
+mod test equality:
+  my equal = point { x: 1, y: 2 } assert_eq point { x: 1, y: 2 }
+  my unequal = point { x: 1, y: 2 } assert_eq point { x: 1, y: 3 }
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 1 passed; 1 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL equality::unequal"), "{stderr}");
+    assert!(
+        stderr.contains("  expected: point { x: 1, y: 2 }\n    actual: point { x: 1, y: 3 }"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("<ctor"), "{stderr}");
+}
+
+#[test]
 fn test_runner_isolates_runtime_error_and_aggregates_other_modules() {
     let entry = write_entry(
         "test-runner-runtime-isolation",

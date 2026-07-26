@@ -15101,28 +15101,51 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
             RuntimeAssertionKind::Equality => {
-                let RuntimeEvidenceValue::Tuple(thunks) = request.payload.as_ref() else {
+                let RuntimeEvidenceValue::Tuple(parts) = request.payload.as_ref() else {
+                    return Err(RuntimeEvidenceRunError::NotThunk(
+                        "assert_eq payload did not provide its comparison functions".to_string(),
+                    ));
+                };
+                let [expected_thunk, actual_thunk, equal, debug] = parts.as_slice() else {
                     return Err(RuntimeEvidenceRunError::NotThunk(format!(
-                        "assert_eq payload was {}",
-                        format_value(request.payload.as_ref())
+                        "assert_eq payload had {} values",
+                        parts.len()
                     )));
                 };
-                let [expected, actual] = thunks.as_slice() else {
-                    return Err(RuntimeEvidenceRunError::NotThunk(format!(
-                        "assert_eq payload had {} operands",
-                        thunks.len()
-                    )));
-                };
-                let expected = self.force_assertion_thunk(request.site, expected.clone())?;
-                let actual = self.force_assertion_thunk(request.site, actual.clone())?;
-                if expected == actual {
-                    Ok(())
-                } else {
-                    Err(RuntimeEvidenceRunError::AssertionEqualityFailed {
-                        site: request.site,
-                        expected: format_value(expected.as_ref()),
-                        actual: format_value(actual.as_ref()),
-                    })
+                let expected = self.force_assertion_thunk(request.site, expected_thunk.clone())?;
+                let actual = self.force_assertion_thunk(request.site, actual_thunk.clone())?;
+                let equal =
+                    self.apply_value_result(request.site, equal.clone(), expected.clone())?;
+                let equal = self.resolve_eval_result(equal)?;
+                let equal = self.apply_value_result(request.site, equal, actual.clone())?;
+                let equal = self.resolve_eval_result(equal)?;
+                match equal.as_ref() {
+                    RuntimeEvidenceValue::Bool(true) => Ok(()),
+                    RuntimeEvidenceValue::Bool(false) => {
+                        let expected =
+                            self.apply_value_result(request.site, debug.clone(), expected)?;
+                        let expected = self.resolve_eval_result(expected)?;
+                        let actual =
+                            self.apply_value_result(request.site, debug.clone(), actual)?;
+                        let actual = self.resolve_eval_result(actual)?;
+                        let (
+                            RuntimeEvidenceValue::Str(expected),
+                            RuntimeEvidenceValue::Str(actual),
+                        ) = (expected.as_ref(), actual.as_ref())
+                        else {
+                            return Err(RuntimeEvidenceRunError::NotThunk(
+                                "assert_eq debug function did not return text".to_string(),
+                            ));
+                        };
+                        Err(RuntimeEvidenceRunError::AssertionEqualityFailed {
+                            site: request.site,
+                            expected: expected.clone(),
+                            actual: actual.clone(),
+                        })
+                    }
+                    _ => Err(RuntimeEvidenceRunError::NotThunk(
+                        "assert_eq comparison function did not return bool".to_string(),
+                    )),
                 }
             }
         }

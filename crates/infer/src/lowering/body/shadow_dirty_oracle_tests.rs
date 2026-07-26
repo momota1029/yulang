@@ -19,8 +19,8 @@ fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
             Some("proof"),
             Some("render_markdown_doc"),
             94,
-            6_969,
-            6_803,
+            7_058,
+            6_891,
         ),
         ShadowOracleCase::fixture(
             "html",
@@ -28,8 +28,8 @@ fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
             Some("proof"),
             Some("render_html_doc"),
             94,
-            6_969,
-            6_803,
+            7_058,
+            6_891,
         ),
         ShadowOracleCase {
             name: "repository-std-only",
@@ -37,8 +37,8 @@ fn shadow_dirty_oracles_characterize_the_stage3_acceptance_workloads() {
             target: None,
             workload_owner_label: None,
             expected_forced_passes: Some(85),
-            expected_owner_checks: Some(5_956),
-            expected_predicted_clean: Some(5_794),
+            expected_owner_checks: Some(6_036),
+            expected_predicted_clean: Some(5_873),
         },
         ShadowOracleCase {
             name: "repository-showcase",
