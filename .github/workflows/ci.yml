@@ -26,8 +26,14 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Test poly and specialize
-        run: cargo test -q -p poly -p specialize
+      # The test steps below cover only five crates. Everything else -- wasm
+      # most of all, since the site deploy builds it -- was reaching main
+      # without ever being type-checked.
+      - name: Build every crate and target
+        run: cargo build --workspace --all-targets
+
+      - name: Test poly, specialize, and the runtimes
+        run: cargo test -q -p poly -p specialize -p evidence-vm -p mono-runtime
 
       # This test temporarily mutates a process-wide cache environment variable,
       # so keep it out of the parallel suite and run it alone below.
