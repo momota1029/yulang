@@ -1061,6 +1061,11 @@ enum RuntimeEvidenceExpr {
     },
     Instance(InstanceId),
     Alias(ExprId),
+    Coerce {
+        source: Type,
+        target: Type,
+        expr: ExprId,
+    },
     MakeThunk {
         body: ExprId,
         provider_expr: ExprId,
@@ -1213,6 +1218,14 @@ enum EvidenceContinuationFrame {
     AdaptValue {
         source: Type,
         target: Type,
+        next: EvidenceContinuation,
+    },
+    AdaptTupleItems {
+        source_values: Vec<SharedValue>,
+        source_items: Rc<[Type]>,
+        target_items: Rc<[Type]>,
+        out: Vec<SharedValue>,
+        index: usize,
         next: EvidenceContinuation,
     },
     AdaptRecordFields {
@@ -1782,6 +1795,7 @@ impl EvidenceContinuationLiveGauge {
                 self.apply_frames += 1;
             }
             EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { .. }
             | EvidenceContinuationFrame::AdaptRecordFields { .. }
             | EvidenceContinuationFrame::WrapThunkValue { .. }
             | EvidenceContinuationFrame::ApplyAdapterArg { .. }
@@ -2535,6 +2549,13 @@ enum EvidenceEvalDeltaFramePlan {
         source: Type,
         target: Type,
     },
+    AdaptTupleItems {
+        source_values: Vec<SharedValue>,
+        source_items: Rc<[Type]>,
+        target_items: Rc<[Type]>,
+        out: Vec<SharedValue>,
+        index: usize,
+    },
     AdaptRecordFields {
         source_values: Vec<RuntimeEvidenceValueField>,
         source_fields: Rc<[specialize::mono::TypeField]>,
@@ -2632,6 +2653,7 @@ impl EvidenceEvalDeltaFramePlan {
                 EvidenceEvalDeltaFrameKind::Apply
             }
             Self::AdaptValue { .. }
+            | Self::AdaptTupleItems { .. }
             | Self::AdaptRecordFields { .. }
             | Self::WrapThunkValue
             | Self::ApplyAdapterArg { .. }
@@ -2686,6 +2708,20 @@ impl EvidenceEvalDeltaFramePlan {
                     target: target.clone(),
                 })
             }
+            EvidenceContinuationFrame::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+                ..
+            } => Some(Self::AdaptTupleItems {
+                source_values: source_values.clone(),
+                source_items: source_items.clone(),
+                target_items: target_items.clone(),
+                out: out.clone(),
+                index: *index,
+            }),
             EvidenceContinuationFrame::AdaptRecordFields {
                 source_values,
                 source_fields,
@@ -2860,6 +2896,20 @@ impl EvidenceEvalDeltaFramePlan {
             Self::AdaptValue { source, target } => {
                 EvidenceContinuation::adapt_value(source.clone(), target.clone(), next)
             }
+            Self::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+            } => EvidenceContinuation::adapt_tuple_items(
+                source_values.clone(),
+                source_items.clone(),
+                target_items.clone(),
+                out.clone(),
+                *index,
+                next,
+            ),
             Self::AdaptRecordFields {
                 source_values,
                 source_fields,
@@ -6159,6 +6209,24 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn adapt_tuple_items(
+        source_values: Vec<SharedValue>,
+        source_items: Rc<[Type]>,
+        target_items: Rc<[Type]>,
+        out: Vec<SharedValue>,
+        index: usize,
+        next: Self,
+    ) -> Self {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::AdaptTupleItems {
+            source_values,
+            source_items,
+            target_items,
+            out,
+            index,
+            next,
+        }))
+    }
+
     fn adapt_record_fields(
         source_values: Vec<RuntimeEvidenceValueField>,
         source_fields: Rc<[specialize::mono::TypeField]>,
@@ -6915,6 +6983,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { next, .. }
             | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
@@ -7281,6 +7350,25 @@ impl EvidenceContinuationFrame {
                 frames.push(EvidenceEvalDeltaFramePlan::AdaptValue {
                     source: source.clone(),
                     target: target.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::AdaptTupleItems {
+                    source_values: source_values.clone(),
+                    source_items: source_items.clone(),
+                    target_items: target_items.clone(),
+                    out: out.clone(),
+                    index: *index,
                 });
                 if let Some(frame) = next.frame() {
                     frame.append_eval_delta_plan(frames);
@@ -7937,6 +8025,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { next, .. }
             | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
@@ -8734,6 +8823,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { next, .. }
             | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
@@ -8775,6 +8865,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { next, .. }
             | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
@@ -9425,7 +9516,21 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 def: *def,
             },
             Expr::InstanceRef(instance) => RuntimeEvidenceExpr::Instance(*instance),
-            Expr::Coerce { expr, .. } => RuntimeEvidenceExpr::Alias(*expr),
+            Expr::Coerce {
+                source,
+                target,
+                expr,
+            } => {
+                if matches!((source, target), (Type::Tuple(_), Type::Tuple(_))) {
+                    RuntimeEvidenceExpr::Coerce {
+                        source: source.clone(),
+                        target: target.clone(),
+                        expr: *expr,
+                    }
+                } else {
+                    RuntimeEvidenceExpr::Alias(*expr)
+                }
+            }
             Expr::MakeThunk { target, body, .. } => RuntimeEvidenceExpr::MakeThunk {
                 body: *body,
                 provider_expr: ExprId(index as u32),
@@ -9585,6 +9690,7 @@ fn runtime_expr_preserves_env(expr: &RuntimeEvidenceExpr, preserving: &[bool]) -
         | RuntimeEvidenceExpr::RefSet { .. }
         | RuntimeEvidenceExpr::Catch { .. } => true,
         RuntimeEvidenceExpr::Alias(expr)
+        | RuntimeEvidenceExpr::Coerce { expr, .. }
         | RuntimeEvidenceExpr::FunctionAdapter { function: expr, .. }
         | RuntimeEvidenceExpr::ForceThunk { thunk: expr, .. }
         | RuntimeEvidenceExpr::MarkerFrame { body: expr, .. }
@@ -15336,6 +15442,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return Ok(EvidenceEvalResult::Value(self.eval_instance(*instance)?));
             }
             RuntimeEvidenceExpr::Alias(expr) => return self.eval_expr_result(*expr, env),
+            RuntimeEvidenceExpr::Coerce {
+                source,
+                target,
+                expr,
+            } => {
+                let source = source.clone();
+                let target = target.clone();
+                let expr = *expr;
+                let result = self.eval_expr_result(expr, env)?;
+                return self.continue_result(
+                    result,
+                    EvidenceContinuation::adapt_value(
+                        source,
+                        target,
+                        EvidenceContinuation::identity(),
+                    ),
+                );
+            }
             RuntimeEvidenceExpr::MakeThunk {
                 body,
                 provider_expr,
@@ -18537,6 +18661,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     provider_env: RuntimeEvidenceProviderEnv::default(),
                 },
             ))),
+            (Type::Tuple(source_items), Type::Tuple(target_items))
+                if source_items.len() == target_items.len() =>
+            {
+                let RuntimeEvidenceValue::Tuple(source_values) = value.as_ref() else {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary"));
+                };
+                self.adapt_tuple_items_result(
+                    source_values.clone(),
+                    Rc::from(source_items.clone().into_boxed_slice()),
+                    Rc::from(target_items.clone().into_boxed_slice()),
+                    Vec::with_capacity(source_items.len()),
+                    0,
+                )
+            }
             (Type::Record(source_fields), Type::Record(target_fields))
                 if value_boundary_supported(source, target) =>
             {
@@ -18544,6 +18682,45 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             _ => Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary")),
         }
+    }
+
+    fn adapt_tuple_items_result(
+        &mut self,
+        source_values: Vec<SharedValue>,
+        source_items: Rc<[Type]>,
+        target_items: Rc<[Type]>,
+        mut out: Vec<SharedValue>,
+        mut index: usize,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        while let Some(source_value) = source_values.get(index) {
+            let result = self.adapt_value_result(
+                source_value.clone(),
+                &source_items[index],
+                &target_items[index],
+            )?;
+            match result {
+                EvidenceEvalResult::Value(value) => {
+                    out.push(value);
+                    index += 1;
+                }
+                result => {
+                    return self.continue_result(
+                        result,
+                        EvidenceContinuation::adapt_tuple_items(
+                            source_values,
+                            source_items,
+                            target_items,
+                            out,
+                            index,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(shared(
+            RuntimeEvidenceValue::Tuple(out),
+        )))
     }
 
     fn adapt_record_value_result(
@@ -18713,6 +18890,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = self.adapt_value_result(value, &source, &target)?;
+                self.continue_result(result, next)
+            }
+            EvidenceContinuationFrame::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                mut out,
+                index,
+                next,
+            } => {
+                out.push(value);
+                let result = self.adapt_tuple_items_result(
+                    source_values,
+                    source_items,
+                    target_items,
+                    out,
+                    index + 1,
+                )?;
                 self.continue_result(result, next)
             }
             EvidenceContinuationFrame::AdaptRecordFields {
@@ -19663,6 +19858,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalDeltaFramePlan::AdaptValue { source, target } => {
                 self.adapt_value_result(value, source, target)
             }
+            EvidenceEvalDeltaFramePlan::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+            } => {
+                let mut out = out.clone();
+                out.push(value);
+                self.adapt_tuple_items_result(
+                    source_values.clone(),
+                    source_items.clone(),
+                    target_items.clone(),
+                    out,
+                    index + 1,
+                )
+            }
             EvidenceEvalDeltaFramePlan::AdaptRecordFields {
                 source_values,
                 source_fields,
@@ -20078,6 +20290,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.continuation_resume_apply_steps += 1;
             }
             EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { .. }
             | EvidenceContinuationFrame::AdaptRecordFields { .. }
             | EvidenceContinuationFrame::WrapThunkValue { .. }
             | EvidenceContinuationFrame::ApplyAdapterArg { .. }
@@ -20259,6 +20472,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::ApplyArg { next, .. }
             | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
             | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::AdaptTupleItems { next, .. }
             | EvidenceContinuationFrame::AdaptRecordFields { next, .. }
             | EvidenceContinuationFrame::WrapThunkValue { next }
             | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
@@ -20685,6 +20899,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::adapt_value(
                         source,
                         target,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::adapt_tuple_items(
+                        source_values,
+                        source_items,
+                        target_items,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
@@ -21215,6 +21450,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::adapt_value(
                         source,
                         target,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::AdaptTupleItems {
+                source_values,
+                source_items,
+                target_items,
+                out,
+                index,
+                next,
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::adapt_tuple_items(
+                        source_values,
+                        source_items,
+                        target_items,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
@@ -25387,6 +25643,14 @@ fn value_boundary_supported(source: &Type, target: &Type) -> bool {
         }
         (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
         (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
+        (Type::Tuple(source_items), Type::Tuple(target_items))
+            if source_items.len() == target_items.len() =>
+        {
+            source_items
+                .iter()
+                .zip(target_items)
+                .all(|(source, target)| value_boundary_supported(source, target))
+        }
         (Type::Record(source_fields), Type::Record(target_fields)) => {
             record_value_boundary_supported(source_fields, target_fields)
         }

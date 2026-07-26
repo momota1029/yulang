@@ -4003,6 +4003,116 @@ fn debug_runtime_evidence_run_resumes_direct_effect_in_tuple_item() {
 }
 
 #[test]
+fn runtime_boundary_adapts_effect_payload_tuple_of_thunks_for_destructuring_arm() {
+    let stdout = run_runtime_evidence_compare(
+        "runtime-boundary-tuple-thunks-destructure",
+        concat!(
+            "act probe:\n",
+            "    pub two: (() -> [_] int, () -> [_] int) -> int\n\n",
+            "my h(x: [_] _) = catch x:\n",
+            "    probe::two (l, r), k -> h: k(l() + r())\n",
+            "    value -> value\n\n",
+            "h: probe::two (\\() -> { println \"L\"; 2 }, ",
+            "\\() -> { println \"R\"; 3 })\n",
+        ),
+    );
+
+    assert!(stdout.contains("L\nR\nrun roots [5]\n"), "{stdout}");
+}
+
+#[test]
+fn runtime_boundary_adapts_effect_payload_tuple_of_thunks_bound_whole() {
+    let stdout = run_runtime_evidence_compare(
+        "runtime-boundary-tuple-thunks-whole",
+        concat!(
+            "act probe:\n",
+            "    pub two: (() -> [_] int, () -> [_] int) -> int\n\n",
+            "my force_both(p: (() -> [_] int, () -> [_] int)) = case p:\n",
+            "    (l, r) -> l() + r()\n\n",
+            "my h(x: [_] _) = catch x:\n",
+            "    probe::two p, k -> h: k(force_both p)\n",
+            "    value -> value\n\n",
+            "h: probe::two (\\() -> { println \"L\"; 2 }, ",
+            "\\() -> { println \"R\"; 3 })\n",
+        ),
+    );
+
+    assert!(stdout.contains("L\nR\nrun roots [5]\n"), "{stdout}");
+}
+
+#[test]
+fn runtime_boundary_plain_effect_payload_tuple_controls_remain_supported() {
+    let stdout = run_runtime_evidence_compare(
+        "runtime-boundary-plain-tuple-controls",
+        concat!(
+            "act probe:\n",
+            "    pub pair: (int, int) -> int\n\n",
+            "my sum(x: [_] _) = catch x:\n",
+            "    probe::pair (a, b), k -> sum: k(a + b)\n",
+            "    value -> value\n\n",
+            "my whole(x: [_] _) = catch x:\n",
+            "    probe::pair p, k -> whole: k(99)\n",
+            "    value -> value\n\n",
+            "sum: probe::pair (2, 3)\n",
+            "whole: probe::pair((2, 3))\n",
+        ),
+    );
+
+    assert!(stdout.contains("run roots [5, 99]\n"), "{stdout}");
+}
+
+#[test]
+fn runtime_boundary_single_thunk_control_runs_nested_effect() {
+    let stdout = run_runtime_evidence_compare(
+        "runtime-boundary-single-thunk-control",
+        concat!(
+            "act probe:\n",
+            "    pub one: (() -> [_] int) -> int\n\n",
+            "my h(x: [_] _) = catch x:\n",
+            "    probe::one t, k -> h: k(t())\n",
+            "    value -> value\n\n",
+            "h: probe::one (\\() -> { println \"INSIDE\"; 7 })\n",
+        ),
+    );
+
+    assert!(stdout.contains("INSIDE\nrun roots [7]\n"), "{stdout}");
+}
+
+#[test]
+fn runtime_boundary_ordinary_function_tuple_of_effectful_thunks_control() {
+    let stdout = run_runtime_evidence_compare(
+        "runtime-boundary-ordinary-tuple-thunks-control",
+        concat!(
+            "my force_both(p: (() -> [_] int, () -> [_] int)) = case p:\n",
+            "    (l, r) -> l() + r()\n\n",
+            "force_both (\\() -> { println \"L\"; 2 }, ",
+            "\\() -> { println \"R\"; 3 })\n",
+        ),
+    );
+
+    assert!(stdout.contains("L\nR\nrun roots [5]\n"), "{stdout}");
+}
+
+fn run_runtime_evidence_compare(name: &str, source: &str) -> String {
+    let entry = write_entry(name, source);
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-mono")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.mono: match"), "{stdout}");
+    stdout
+}
+
+#[test]
 fn debug_runtime_evidence_run_resumes_direct_effect_in_record_field() {
     let entry = write_entry(
         "debug-runtime-evidence-run-record-field-effect",

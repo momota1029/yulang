@@ -52,6 +52,26 @@ impl<'a> Runtime<'a> {
                     hygiene: FunctionAdapterHygiene::default(),
                 }))
             }
+            (Type::Tuple(source_items), Type::Tuple(target_items))
+                if source_items.len() == target_items.len() =>
+            {
+                let Value::Tuple(values) = value else {
+                    return Err(RuntimeError::UnsupportedBoundary {
+                        feature: format!(
+                            "coerce {} => {}",
+                            mono::dump::dump_type(source),
+                            mono::dump::dump_type(target)
+                        ),
+                    });
+                };
+                self.adapt_tuple_items(
+                    values,
+                    source_items.clone(),
+                    target_items.clone(),
+                    Vec::with_capacity(source_items.len()),
+                    0,
+                )
+            }
             (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
                 value_result(value)
             }
@@ -63,6 +83,35 @@ impl<'a> Runtime<'a> {
                 ),
             }),
         }
+    }
+
+    fn adapt_tuple_items(
+        &mut self,
+        values: Vec<Value>,
+        source_items: Vec<Type>,
+        target_items: Vec<Type>,
+        out: Vec<Value>,
+        index: usize,
+    ) -> RuntimeResult<'a> {
+        if index >= values.len() {
+            return value_result(Value::Tuple(out));
+        }
+        let value = self.adapt_value(
+            values[index].clone(),
+            &source_items[index],
+            &target_items[index],
+        )?;
+        self.continue_with(value, move |runtime, value| {
+            let mut out = out.clone();
+            out.push(value);
+            runtime.adapt_tuple_items(
+                values.clone(),
+                source_items.clone(),
+                target_items.clone(),
+                out,
+                index + 1,
+            )
+        })
     }
 
     pub(super) fn force_thunk(&mut self, thunk: Value) -> RuntimeResult<'a> {

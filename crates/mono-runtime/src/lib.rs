@@ -467,6 +467,14 @@ fn value_boundary_supported(source: &Type, target: &Type) -> bool {
         }
         (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
         (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
+        (Type::Tuple(source_items), Type::Tuple(target_items))
+            if source_items.len() == target_items.len() =>
+        {
+            source_items
+                .iter()
+                .zip(target_items)
+                .all(|(source, target)| value_boundary_supported(source, target))
+        }
         (Type::Record(source_fields), Type::Record(target_fields)) => {
             record_value_boundary_supported(source_fields, target_fields)
         }
