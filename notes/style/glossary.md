@@ -15,15 +15,19 @@
    コードスパン、コードフェンス、リンク先、HTMLは除外する。
    どちらか一方が他方の4倍以上なら、その側を採る。
    Latin表記が勝った項目は、原語をコード表記にして、ここで決定を終える。
-3. どちらも4:1に達しない場合は、多数側を採る。
-   同数、または行単位の標本で差が1行しかない場合は、差が小さすぎるものとして原語をコード表記にする。
-   Yulangの既存ページが技術語をLatin表記で保つ傾向に沿う、保守的な決め方である。
-   多数決でLatin表記が勝った場合も、原語をコード表記にする。
-   多数決と同数・1行差のどちらを使った場合も、両側の行数を記録する。
-4. 手順2または3で日本語側が勝ち、かつ競合するカタカナ表記がある場合だけ、カタカナ表記を決める。
+3. どちらも4:1に達しない場合は、日本語側が2行以上多ければ日本語側を採る。
+   それ以外は、語の分類をtiebreakerにする。
+   Yulangという言語、その型とeffect system、またはtoolchainの語彙は、原語をコード表記にする。
+   `binding`、`handler`、`pattern`、`scope`、`receiver`、`constraint`などがこの分類に入る。
+   日本語に定着した通常の外来語で、言語の用語ではないものは、カタカナを採り、手順4で綴りを決める。
+   Latin表記の技術語は日本語の文中に置いても摩擦が少ないが、通常の名詞をLatin表記にすると「設定 file」のように複合語の中で文字種が割れるため、この二つを分ける。
+   多数決と分類によるtiebreakerのどちらを使った場合も、両側の行数を記録する。
+4. 手順3の通常の外来語としてカタカナを採った場合は、ここでカタカナ表記を決める。
+   手順2または3で日本語側が勝ち、かつ競合するカタカナ表記がある場合も同じ手順を使う。
+   サイトにカタカナ表記が一つしかなければ、その綴りを採る。
    一方の綴りが他方の4倍以上なら、その綴りを採る。
    4:1に達しなければ、日本語文章作法の長音規則をtiebreakerとして使う。
-   Latin表記をカタカナへ変えるために長音規則を使ってはならない。
+   Latin表記とカタカナの選択に長音規則を使ってはならない。
 
 サイトに原語も日本語表記もない0:0の候補は、用語集へ入れない。
 初出より前に判断が必要な語だけを「初出前に判断する語」へ分け、必要な理由を添える。
@@ -37,7 +41,7 @@
 
 候補は、30組の英語ページの見出し、定義語、技術語と、日本語ページのカタカナ列、対応見出しから作った。
 活用形、単数と複数、複合語の重複を一つの概念へまとめ、製品名、ページ移動の語、コード要素を除いた結果、91概念が残った。
-再分類では、Rule 2が54項目、Rule 3が33項目、Rule 4が3項目になった。
+再分類では、Rule 2が54項目、Rule 3が28項目、Rule 4が8項目になった。
 0:0の`computer`は削除したため、以下の用語集は90項目である。
 
 表の数は、日本語30ページ中の行数である。
@@ -47,29 +51,29 @@
 
 | English term | 日本語で使う表記 | 根拠 |
 | --- | --- | --- |
-| application | `application` | Rule 3（多数）。`application`32行対「適用」16行。 |
-| bare application | `bare application` | Rule 3（多数）。`bare application`4行対「裸のapplication」2行。 |
+| application | `application` | Rule 3（言語の技術語）。`application`32行対「適用」16行。 |
+| bare application | `bare application` | Rule 3（言語の技術語）。`bare application`4行対「裸のapplication」2行。 |
 | binding | `binding` | Rule 2（Latin）。`binding`62行対「バインディング」「束縛」0行。 |
 | block | `block` | Rule 2（Latin）。`block`30行対「ブロック」5行。 |
 | call | 呼び出し | Rule 3（多数）。「呼び出し」42行対`call`32行。 |
-| cast | `cast` | Rule 3（多数）。`cast`14行対「キャスト」6行。 |
-| colon | `colon` | Rule 3（1行差）。`colon`12行対「コロン」11行なので原語を保つ。 |
+| cast | `cast` | Rule 3（言語の技術語）。`cast`14行対「キャスト」6行。 |
+| colon | `colon` | Rule 3（言語の技術語）。`colon`12行対「コロン」11行。 |
 | companion module | `companion module` | Rule 2（Latin）。`companion module`15行対日本語表記0行。 |
-| constraint | `constraint` | Rule 3（同数）。`constraint`9行対「制約」9行なので原語を保つ。 |
+| constraint | `constraint` | Rule 3（型systemの技術語）。`constraint`9行対「制約」9行。 |
 | constructor | `constructor` | Rule 2（Latin）。`constructor`7行対「コンストラクタ」1行。 |
-| continuation | `continuation` | Rule 3（1行差）。「継続」5行対`continuation`4行なので原語を保つ。 |
-| curry / curried | `curry` / `curried` | Rule 3（多数）。`curry`または`curried`7行対「カリー化」5行。サイトで使われていない`currying`は採用形にしない。 |
+| continuation | `continuation` | Rule 3（effect systemの技術語）。「継続」5行対`continuation`4行。 |
+| curry / curried | `curry` / `curried` | Rule 3（言語の技術語）。`curry`または`curried`7行対「カリー化」5行。サイトで使われていない`currying`は採用形にしない。 |
 | declaration | 宣言 | Rule 2（日本語）。「宣言」42行対`declaration`5行。 |
-| default | `default` | Rule 3（多数）。`default`12行対「デフォルト」8行。 |
-| dot | `dot` | Rule 3（多数）。`dot`13行対「ドット」6行。 |
+| default | `default` | Rule 3（言語の技術語）。`default`12行対「デフォルト」8行。 |
+| dot | `dot` | Rule 3（言語の技術語）。`dot`13行対「ドット」6行。 |
 | enum | `enum` | Rule 2（Latin）。`enum`9行対「列挙型」0行。 |
 | expression | 式 | Rule 2（日本語）。「式」63行対`expression`4行。 |
 | field | `field` | Rule 2（Latin）。`field`24行対「フィールド」4行。 |
 | function | 関数 | Rule 2（日本語）。「関数」61行対`function`10行。 |
-| guard | `guard` | Rule 3（同数）。`guard`6行対「ガード」6行なので原語を保つ。 |
+| guard | `guard` | Rule 3（言語の技術語）。`guard`6行対「ガード」6行。 |
 | import | `import` | Rule 2（Latin）。`import`29行対「インポート」0行。 |
 | lambda | ラムダ | Rule 3（多数）。「ラムダ」11行対`lambda`5行。 |
-| list | `list` | Rule 3（多数）。`list`18行対「リスト」5行。 |
+| list | `list` | Rule 3（言語の技術語）。`list`18行対「リスト」5行。 |
 | literal | リテラル | Rule 2（日本語）。「リテラル」7行対`literal`1行。 |
 | loop | ループ | Rule 3（多数）。「ループ」9行対`loop`7行。 |
 | method | `method` | Rule 2（Latin）。`method`52行対「メソッド」1行。 |
@@ -77,7 +81,7 @@
 | operator | 演算子 | Rule 3（多数）。「演算子」32行対`operator`26行。 |
 | parser pattern | `parser pattern` | Rule 2（Latin）。`parser pattern`5行対日本語表記0行。 |
 | path | `path` | Rule 2（Latin）。`path`25行対「パス」4行。 |
-| pattern | `pattern` | Rule 3（多数）。`pattern`31行対「パターン」17行。 |
+| pattern | `pattern` | Rule 3（言語の技術語）。`pattern`31行対「パターン」17行。 |
 | pattern matching | パターンマッチ | Rule 2（日本語）。「パターンマッチ」6行対`pattern matching`0行。 |
 | Pythagorean triple | ピタゴラス数 | Rule 2（日本語）。「ピタゴラス数」2行対`Pythagorean triple`と「ピタゴラス三角形」0行。 |
 | prelude | `prelude` | Rule 2（Latin）。`prelude`29行対「プリリュード」0行。 |
@@ -85,21 +89,21 @@
 | record | `record` | Rule 2（Latin）。`record`15行対単独の「レコード」3行。 |
 | reference | 参照 | Rule 2（日本語）。「参照」37行対`reference`2行。 |
 | role | `role` | Rule 2（Latin）。`role`56行対「ロール」6行。 |
-| scope | `scope` | Rule 3（1行差）。「スコープ」6行対`scope`5行なので原語を保つ。 |
+| scope | `scope` | Rule 3（言語の技術語）。「スコープ」6行対`scope`5行。 |
 | signature | シグネチャ | Rule 4。日本語側はRule 3で「シグネチャ」11行対`signature`3行の多数。カタカナは「シグネチャ」11行対「シグネチャー」0行で4:1以上。 |
-| spread | `spread` | Rule 3（多数）。`spread`5行対単独の「スプレッド」2行。 |
+| spread | `spread` | Rule 3（言語の技術語）。`spread`5行対単独の「スプレッド」2行。 |
 | standard library | 標準ライブラリ | Rule 2（日本語）。「標準ライブラリ」18行対`standard library`3行。単独の`library`とは分ける。 |
-| struct | `struct` | Rule 3（多数）。`struct`11行対「構造体」8行。 |
+| struct | `struct` | Rule 3（言語の技術語）。`struct`11行対「構造体」8行。 |
 | tuple | `tuple` | Rule 2（Latin）。`tuple`11行対単独の「タプル」1行。 |
 | variant | `variant` | Rule 2（Latin）。`variant`24行対「バリアント」0行。 |
 | visibility | 可視性 | Rule 3（多数）。「可視性」8行対`visibility`3行。 |
-| wildcard | `wildcard` | Rule 3（多数）。`wildcard`5行対「ワイルドカード」2行。 |
+| wildcard | `wildcard` | Rule 3（言語の技術語）。`wildcard`5行対「ワイルドカード」2行。 |
 
 ## 型とeffect
 
 | English term | 日本語で使う表記 | 根拠 |
 | --- | --- | --- |
-| algebraic effect | `algebraic effect` | Rule 3（1行差）。「代数的エフェクト」2行対`algebraic effect`1行なので原語を保つ。 |
+| algebraic effect | `algebraic effect` | Rule 3（effect systemの技術語）。「代数的エフェクト」2行対`algebraic effect`1行。 |
 | effect | `effect` | Rule 2（Latin）。単独の`effect`166行対「エフェクト」10行。 |
 | effect family | `effect family` | Rule 2（Latin）。`effect family`13行対日本語表記0行。 |
 | effect row | `effect row` | Rule 2（Latin）。`effect row`37行対日本語表記0行。 |
@@ -115,7 +119,7 @@
 | type annotation | 型注釈 | Rule 2（日本語）。「型注釈」5行対`type annotation`1行。 |
 | ascription | `ascription` | Rule 2（Latin）。`ascription`2行対日本語表記0行。 |
 | type inference | 型推論 | Rule 2（日本語）。「型推論」10行対`type inference`0行。 |
-| type variable | `type variable` | Rule 3（多数）。`type variable`12行対「型変数」5行。 |
+| type variable | `type variable` | Rule 3（型systemの技術語）。`type variable`12行対「型変数」5行。 |
 | value | 値 | Rule 2（日本語）。「値」101行対`value`17行。 |
 
 ## 内部モデル
@@ -138,23 +142,23 @@
 
 | English term | 日本語で使う表記 | 根拠 |
 | --- | --- | --- |
-| browser | `browser` | Rule 3（1行差）。`browser`2行対「ブラウザ」1行、「ブラウザー」0行なので原語を保つ。 |
+| browser | ブラウザ | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`browser`2行対「ブラウザ」1行、「ブラウザー」0行で、カタカナは短音形だけが使われている。 |
 | buffer | `buffer` | Rule 2（Latin）。`buffer`7行対「バッファ」「バッファー」0行。 |
-| cache | `cache` | Rule 3（多数）。`cache`12行対「キャッシュ」6行。 |
+| cache | キャッシュ | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`cache`12行対「キャッシュ」6行で、カタカナは「キャッシュ」だけが使われている。 |
 | code | コード | Rule 3（多数）。「コード」8行対`code`4行。 |
 | comment | コメント | Rule 3（多数）。「コメント」10行対`comment`8行。 |
 | compiler | `compiler` | Rule 2（Latin）。`compiler`13行対「コンパイラ」2行、「コンパイラー」0行。 |
 | directory | `directory` | Rule 2（Latin）。`directory`6行対「ディレクトリ」1行、「ディレクトリー」0行。 |
-| document | `document` | Rule 3（同数）。`document`2行対「ドキュメント」2行なので原語を保つ。 |
+| document | ドキュメント | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`document`2行対「ドキュメント」2行で、カタカナは「ドキュメント」だけが使われている。 |
 | error | エラー | Rule 3（多数）。一般概念の「エラー」39行対`error`31行。`error`キーワードはRule 1に従う。 |
-| file | `file` | Rule 3（多数）。一般概念の`file`21行対「ファイル」19行。`file` effect名はRule 1に従う。 |
+| file | ファイル | Rule 4。Rule 3の通常の外来語としてカタカナを採る。一般概念の`file`21行対「ファイル」19行で、カタカナは「ファイル」だけが使われている。`file` effect名はRule 1に従う。 |
 | interface | `interface` | Rule 2（Latin）。`interface`3行対「インターフェイス」「インターフェース」0行。 |
 | library | ライブラリ | Rule 4。日本語側はRule 2で単独の「ライブラリ」20行対`library`3行の4:1以上。カタカナは「ライブラリ」20行対「ライブラリー」0行で4:1以上。 |
 | page | ページ | Rule 2（日本語）。「ページ」27行対`page`0行。 |
 | parser | `parser` | Rule 2（Latin）。一般名詞の`parser`15行対「パーサ」「パーサー」0行。`parser pattern`は別項目に従う。 |
 | program | プログラム | Rule 3（多数）。「プログラム」8行対`program`6行。 |
-| project | `project` | Rule 3（同数）。`project`1行対「プロジェクト」1行なので原語を保つ。 |
-| receiver | `receiver` | Rule 3（多数）。`receiver`8行対「レシーバ」6行、「レシーバー」0行。 |
+| project | プロジェクト | Rule 4。Rule 3の通常の外来語としてカタカナを採る。`project`1行対「プロジェクト」1行で、カタカナは「プロジェクト」だけが使われている。 |
+| receiver | `receiver` | Rule 3（言語の技術語）。`receiver`8行対「レシーバ」6行、「レシーバー」0行。`our p.norm2`の`p`を指す。 |
 | server | `server` | Rule 2（Latin）。`server`3行対「サーバ」「サーバー」0行。 |
 | user | ユーザー | Rule 4。日本語側はRule 2で単独の日本語表記9行対`user`2行の4:1以上。カタカナは「ユーザー」7行対「ユーザ」2行で4:1未満なので、長音規則をtiebreakerにした。 |
 | wrapper | `wrapper` | Rule 2（Latin）。`wrapper`9行対「ラッパ」0行、「ラッパー」1行。 |
@@ -212,18 +216,18 @@
 | type annotation | 「型注釈」5対`type annotation`1 | 型注釈 | `type annotation`1 |
 | type variable | `type variable`12対「型変数」5 | `type variable` | 「型変数」5 |
 | value | 「値」101対`value`17 | 値 | `value`17 |
-| browser | `browser`2対「ブラウザ」1、長音形0 | `browser` | 「ブラウザ」1 |
-| cache | `cache`12対「キャッシュ」6 | `cache` | 「キャッシュ」6 |
+| browser | `browser`2対「ブラウザ」1、長音形0 | ブラウザ | `browser`2 |
+| cache | `cache`12対「キャッシュ」6 | キャッシュ | `cache`12 |
 | code | 「コード」8対`code`4 | コード | `code`4 |
 | comment | 「コメント」10対`comment`8 | コメント | `comment`8 |
 | compiler | `compiler`13対「コンパイラ」2、長音形0 | `compiler` | 「コンパイラ」2 |
 | directory | `directory`6対「ディレクトリ」1、長音形0 | `directory` | 「ディレクトリ」1 |
-| document | `document`2対「ドキュメント」2 | `document` | 「ドキュメント」2 |
+| document | `document`2対「ドキュメント」2 | ドキュメント | `document`2 |
 | error | 「エラー」39対`error`31 | エラー | `error`31 |
-| file | `file`21対「ファイル」19 | `file` | 「ファイル」19 |
+| file | `file`21対「ファイル」19 | ファイル | `file`21 |
 | library | 「ライブラリ」20対`library`3、長音形0 | ライブラリ | `library`3 |
 | program | 「プログラム」8対`program`6 | プログラム | `program`6 |
-| project | `project`1対「プロジェクト」1 | `project` | 「プロジェクト」1 |
+| project | `project`1対「プロジェクト」1 | プロジェクト | `project`1 |
 | receiver | `receiver`8対「レシーバ」6、長音形0 | `receiver` | 「レシーバ」6 |
 | user | 「ユーザー」7と「ユーザ」2対`user`2 | ユーザー | `user`2、「ユーザ」2 |
 | wrapper | `wrapper`9対「ラッパー」1、短音形0 | `wrapper` | 「ラッパー」1 |
@@ -232,7 +236,8 @@
 
 4:1以上の全項目で、採用形は多数側と一致した。
 したがって、すでに4:1以上で一貫している語の多数形を非採用にした項目はない。
-上表の残差はすべて、各項目の少数形、または4:1未満の語で多数決・同数・1行差規則の結果として非採用になった形である。
+`buffer`の7対0、`parser`の15対0、`server`の3対0、`interface`の3対0、`wrapper`の9対1、`compiler`の13対2、`directory`の6対1は、いずれもLatin表記のままである。
+上表の残差はすべて、各項目の少数形、または4:1未満の語で多数決か分類によるtiebreakerの結果として非採用になった形である。
 既存ページとの不一致行数そのものは、手順の誤作動を示さない。
 
 ## 初出前に判断する語
