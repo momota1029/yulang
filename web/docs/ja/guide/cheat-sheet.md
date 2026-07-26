@@ -1,6 +1,7 @@
 # チートシート
 
-Yulang の構文を 1 ページで眺めるためのページです。各節は思い出し用なので、詳細はリファレンスを参照してください。
+Yulang の構文を 1 ページで眺めるためのページです。
+各節は思い出し用なので、詳細はリファレンスを参照してください。
 
 ## binding
 
@@ -25,7 +26,8 @@ f.method                       // ドット選択（続けて引数を書けば 
 xs[0]                          // インデックス
 ```
 
-空白は意味を持ちます。`f(x)` は呼び出し、`f (x)` は `f` を `(x)` に裸 application、`f: x` は colon、`f :x` は `f` をシンボル `:x` に裸 application、とそれぞれ別物です。
+空白は意味を持ちます。
+`f(x)` は呼び出し、`f (x)` は `f` を `(x)` に裸 application、`f: x` は colon、`f :x` は `f` をシンボル `:x` に裸 application、とそれぞれ別物です。
 
 ## ブロックと layout
 
@@ -180,7 +182,7 @@ cargo run -q -p yulang -- check examples/showcase.yu
 
 ## 関連ページ
 
-- [ツアー](./tour) — 物語仕立てで一通り
-- [クックブック](./cookbook) — タスク指向のレシピ
-- [リファレンス](../reference/) — 言語の正式リファレンス
-- [イディオム](../reference/idioms) — Yulang らしい書き方
+- [ツアー](./tour)：物語仕立てで一通り
+- [クックブック](./cookbook)：タスク指向のレシピ
+- [リファレンス](../reference/)：言語の正式リファレンス
+- [イディオム](../reference/idioms)：Yulang らしい書き方

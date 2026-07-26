@@ -1,21 +1,21 @@
 # インストール
 
-Yulang はまだ実験段階の言語です。ガイドをローカルで追う場合は、
-まず release CLI を入れて、小さい `.yu` ファイルが動くことを確認します。
+Yulang はまだ実験段階の言語です。
+ガイドをローカルで追う場合は、まず release CLI を入れて、小さい `.yu` ファイルが動くことを確認します。
 インストールせずに例だけ試すなら Playground が一番早いです。
 
 ## Binary release
 
-OS ごとの release archive を入れます。binary には embedded standard library が入り、
-初回にユーザー library directory へ配置されます。
+OS ごとの release archive を入れます。
+binary には embedded standard library が入り、初回にユーザー library directory へ配置されます。
 
 ```sh
 curl -fsSL https://yulang.momota.pw/install.sh | sh
 ```
 
 installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
-反映には terminal の再起動が必要です。自分で `PATH` を管理したい場合は
-`--no-modify-path` を渡します。
+反映には terminal の再起動が必要です。
+自分で `PATH` を管理したい場合は`--no-modify-path` を渡します。
 
 version 指定なしでは、prerelease を含む最新の公開 GitHub release を入れます。
 この release に固定する場合は次のようにします。
@@ -108,11 +108,10 @@ cargo run -p yulang -- run path/to/file.yu
 ```
 
 source tree から試す場合に重要なのは `cargo run -p yulang -- run path/to/file.yu` です。
-下の web deploy は、hosted playground / docs を更新する場合だけ必要です。
+下の web deploy は、hosted playground 、 docs を更新する場合だけ必要です。
 
-CLI はユーザー cache root にコンパイラ artifact を保存します。`.yucu`、`.yuir`、`.yuvm`
-と、`--runtime-phase-timings` が出す route label については
-[キャッシュ](./cache) にまとめています。
+CLI はユーザー cache root にコンパイラ artifact を保存します。
+`.yucu`、`.yuir`、`.yuvm`と、`--runtime-phase-timings` が出す route label については[キャッシュ](./cache) にまとめています。
 
 ### language server
 
@@ -135,16 +134,15 @@ repository の submodule から extension source を取得します。
 git submodule update --init yulang-zed
 ```
 
-Zed で command palette を開き、`zed: install dev extension` を実行して、
-`yulang-zed/` directory を選びます。
+Zed で command palette を開き、`zed: install dev extension` を実行して、`yulang-zed/` directory を選びます。
 
 extension から `yulang server` を起動するには、`yulang` が `PATH` から見える必要があります。
-binary が別の場所にある場合は、[extension README](https://github.com/momota1029/yulang-zed#language-server)
-に従って Zed settings の `lsp.yulang.binary.path` を設定します。
+binary が別の場所にある場合は、[extension README](https://github.com/momota1029/yulang-zed#language-server)に従って Zed settings の `lsp.yulang.binary.path` を設定します。
 
 ### compiler workspace
 
-repository は Rust workspace です。現在の compiler と runtime の主経路は次の通りです。
+repository は Rust workspace です。
+現在の compiler と runtime の主経路は次の通りです。
 
 `source files → sources/parser → infer/poly → specialize/mono → control-ir → evidence-vm`
 
@@ -173,8 +171,7 @@ npm --prefix web run build
 YULANG_DEPLOY_DIR=/path/to/site npm --prefix web run deploy:dir
 ```
 
-生成されたサイトでは `/` が playground、`/guide/` と `/reference/` が英語 docs、
-`/ja/guide/` と `/ja/reference/` が日本語 docs になります。
+生成されたサイトでは `/` が playground、`/guide/` と `/reference/` が英語 docs、`/ja/guide/` と `/ja/reference/` が日本語 docs になります。
 
 ## 現在の制限
 

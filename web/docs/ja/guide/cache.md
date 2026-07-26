@@ -1,15 +1,15 @@
 # キャッシュ
 
-Yulang はコンパイラの artifact をキャッシュします。プログラムの実行結果はキャッシュしません。
+Yulang はコンパイラの artifact をキャッシュします。
+プログラムの実行結果はキャッシュしません。
 各 `run` は、必要な artifact を見つけるか作り直したあとで、通常どおりプログラムを実行します。
 
 **realm** は version 付きの解決空間であり、**band** は realm 内の import / build の島です。
 module は band の中にあり、bare path は band 境界を越えません。
 
-local file では、`realm.toml` が explicit editable realm を示します。`realm.toml`
-が見つからない場合、entry file の親 directory が implicit editable realm になります。
-entry file は root module のままですが、`main.yu` なら `main` のように、source path
-由来の band path も持ちます。
+local file では、`realm.toml` が explicit editable realm を示します。
+`realm.toml`が見つからない場合、entry file の親 directory が implicit editable realm になります。
+entry file は root module のままですが、`main.yu` なら `main` のように、source path由来の band path も持ちます。
 
 ## artifact の種類
 
@@ -21,19 +21,19 @@ entry file は root module のままですが、`main.yu` なら `main` のよ�
 | `.yuvm` | lower 済み control-IR program | 完全に同じ source set を、specialize / VM lowering なしで再実行する |
 | `.yures` | realm / band の解決結果 | source-site の realm import を、cached target fingerprint で確認する |
 
-増分コンパイルで重要なのは `.yucu` です。これは "Yulang compiled unit" の略です。
-キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれない
-source file だけを再コンパイルできます。`.yucu` の syntax surface は band path を記録するため、
-cached prefix から `realm/main::*` や `band::inner` のような route-aware import を解決できます。
+増分コンパイルで重要なのは `.yucu` です。
+これは "Yulang compiled unit" の略です。
+キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれないsource file だけを再コンパイルできます。
+`.yucu` の syntax surface は band path を記録するため、cached prefix から `realm/main::*` や `band::inner` のような route-aware import を解決できます。
 
-`.yumo` は exact source key の cache です。realm 全体に対する mono cache ではありません。
+`.yumo` は exact source key の cache です。
+realm 全体に対する mono cache ではありません。
 Yulang は同じ source / resolution context に対してだけ再利用します。
 
-`.yures` は解決結果の記録で、compiled code ではありません。local な `realm/...::...` import では、
-cached entry が deterministic な local `<realm>/<band>.yu` path を指し、source fingerprint も一致する
-場合だけ使われます。そうでない場合は通常の filesystem resolver に戻ります。
-install 済み local realm の `local/<name>/<band>::...` import では、resolved snapshot の
-realm/version と target source fingerprint を記録し、installed snapshot が一致する場合だけ使います。
+`.yures` は解決結果の記録で、compiled code ではありません。
+local な `realm/...::...` import では、cached entry が deterministic な local `<realm>/<band>.yu` path を指し、source fingerprint も一致する場合だけ使われます。
+そうでない場合は通常の filesystem resolver に戻ります。
+install 済み local realm の `local/<name>/<band>::...` import では、resolved snapshot のrealm/version と target source fingerprint を記録し、installed snapshot が一致する場合だけ使います。
 
 ## route label
 
@@ -59,9 +59,8 @@ yulang run --runtime-phase-timings path/to/file.yu
 | `full-miss` | source から fresh compile |
 | `error-fallback` | exact `.yuir` の read に失敗し、source からの compile に fallback |
 
-ローカル編集で重要なのは `std-prefix-hit`、`source-unit-prefix-hit`、
-`merged-source-unit-prefix-hit` です。これらは、変更していない prefix を飛ばして、
-残りの suffix だけを compile したことを表します。
+ローカル編集で重要なのは `std-prefix-hit`、`source-unit-prefix-hit`、`merged-source-unit-prefix-hit` です。
+これらは、変更していない prefix を飛ばして、残りの suffix だけを compile したことを表します。
 
 ## cache command
 
@@ -77,22 +76,21 @@ yulang cache clear
 yulang run --no-cache path/to/file.yu
 ```
 
-古い cache や壊れた cache は、言語エラーではありません。Yulang はその artifact を飛ばし、
-source から compile し直します。
+古い cache や壊れた cache は、言語エラーではありません。
+Yulang はその artifact を飛ばし、source から compile し直します。
 
 `--no-cache` は source collection 中の checked realm-resolution cache lookup も無効にします。
 
-release installer は embedded std source を install したあと、最終 install path を使って
-standard-library `.yucu` prefix を一度 seed します。これにより、その後の CLI run と
-cache key が一致します。install 時の cache warmup を省く場合は
-`YULANG_NO_SEED_CACHE=1` を設定します。
+release installer は embedded std source を install したあと、最終 install path を使ってstandard-library `.yucu` prefix を一度 seed します。
+これにより、その後の CLI run とcache key が一致します。
+install 時の cache warmup を省く場合は`YULANG_NO_SEED_CACHE=1` を設定します。
 
 ## 現在の制限
 
-cache は保守的です。繰り返し実行やローカル編集では速くなりますが、clean build では
-parser、lowering、型推論、runtime lowering の費用をすべて払います。
+cache は保守的です。
+繰り返し実行やローカル編集では速くなりますが、clean build ではparser、lowering、型推論、runtime lowering の費用をすべて払います。
 
-local editable realm/band identity route は有効です。`realm/...::...` import、entry-band alias、
-`yulang realm install` で作る installed local `local/<name>/<band>::...` import も含みます。
-global package workflow はまだ実験段階です。remote provider、version-family solving、
-`yulang.lock`、registry/git source policy は stable な user workflow ではありません。
+local editable realm/band identity route は有効です。
+`realm/...::...` import、entry-band alias、`yulang realm install` で作る installed local `local/<name>/<band>::...` import も含みます。
+global package workflow はまだ実験段階です。
+remote provider、version-family solving、`yulang.lock`、registry/git source policy は stable な user workflow ではありません。

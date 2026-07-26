@@ -1,8 +1,11 @@
 # クックブック
 
-日常的な Yulang のタスクを目的別に引けるレシピ集です。多くの節では定型的な書き方に短い説明を添え、設定ファイル、file 編集、log 集計、もう少し大きいサンプルでは長めの例を扱います。背景の詳細は言語リファレンスへリンクしています。
+日常的な Yulang のタスクを目的別に引けるレシピ集です。
+多くの節では定型的な書き方に短い説明を添え、設定ファイル、file 編集、log 集計、もう少し大きいサンプルでは長めの例を扱います。
+背景の詳細は言語リファレンスへリンクしています。
 
-例では、C 風の呼び出しより、Yulang らしい **括弧を減らした書き方** を中心に使います。`f x y` の bare application、`f: ...` の colon application、字下げブロックです。
+例では、C 風の呼び出しより、Yulang らしい **括弧を減らした書き方** を中心に使います。
+`f x y` の bare application、`f: ...` の colon application、字下げブロックです。
 
 ## 値と関数を定義する
 
@@ -12,7 +15,8 @@ my greet name = "hello, " + name
 greet "Yulang"
 ```
 
-`my` は private な binding です。名前のあとに置いたパターンが curry された引数になります。
+`my` は private な binding です。
+名前のあとに置いたパターンが curry された引数になります。
 
 [関数](../reference/functions)
 
@@ -22,7 +26,8 @@ greet "Yulang"
 pub double x = x + x
 ```
 
-`pub` は外部へ export します。`our` は囲んでいる companion module 内で見えるようにします（method 定義での既定）。
+`pub` は外部へ export します。
+`our` は囲んでいる companion module 内で見えるようにします（method 定義での既定）。
 
 [モジュール](../reference/modules)
 
@@ -36,7 +41,8 @@ my describe n =
         _ -> "positive"
 ```
 
-arm は上から順に試されます。ガードは pattern の後ろに `if` を続けて書きます。
+arm は上から順に試されます。
+ガードは pattern の後ろに `if` を続けて書きます。
 
 [パターンマッチ](../reference/patterns)
 
@@ -49,7 +55,8 @@ struct point { x: int, y: int } with:
 point { x: 3, y: 4 } .norm2
 ```
 
-`with:` は struct の companion module を開きます。レシーバ名 `p` は `.norm2` を呼んだときの値を指します。
+`with:` は struct の companion module を開きます。
+レシーバ名 `p` は `.norm2` を呼んだときの値を指します。
 
 [構造体とロール](../reference/structs)
 
@@ -60,7 +67,9 @@ impl Add point:
     our a.add b = point { x: a.x + b.x, y: a.y + b.y }
 ```
 
-role は interface を宣言します。`impl` は具体型に対して method を提供します。レシーバ `a`（とここでは第二引数 `b`）は role の method signature と対応します。
+role は interface を宣言します。
+`impl` は具体型に対して method を提供します。
+レシーバ `a`（とここでは第二引数 `b`）は role の method signature と対応します。
 
 [構造体とロール](../reference/structs)
 
@@ -73,7 +82,9 @@ sub:
     0
 ```
 
-`sub:` は early-return のスコープを開きます。`return value` は最も近い `sub:` を抜けます。`for` の中では `last` / `next` / `redo` でループそのものを制御します。
+`sub:` は early-return のスコープを開きます。
+`return value` は最も近い `sub:` を抜けます。
+`for` の中では `last` / `next` / `redo` でループそのものを制御します。
 
 [制御構文](../reference/control-flow)
 
@@ -88,7 +99,9 @@ sub:
 }
 ```
 
-`my $x = …` は局所の mutable binding を作ります。`$x` で読み、`&x = value` で書きます。内部的には小さな handled `var` effect として展開されるので、effect 系の外に逃げず、ちゃんと型に乗ります。
+`my $x = …` は局所の mutable binding を作ります。
+`$x` で読み、`&x = value` で書きます。
+内部的には小さな handled `var` effect として展開されるので、effect 系の外に逃げず、ちゃんと型に乗ります。
 
 ## text file を読む
 
@@ -97,9 +110,9 @@ my text = read_text "data.txt"
 text.say
 ```
 
-`str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま
-渡せます。filesystem error は effect row の `io_err` として投げられます。呼び出し側
-に値としての `result` が必要な境界だけ `wrap` します。
+`str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま渡せます。
+filesystem error は effect row の `io_err` として投げられます。
+呼び出し側に値としての `result` が必要な境界だけ `wrap` します。
 
 ```yulang
 my wrapped = io_err::wrap: read_text "data.txt"
@@ -112,11 +125,10 @@ case wrapped:
 
 ## 設定ファイルを読む
 
-設定ファイル、file 編集、log 集計の例は
-[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) にあります。
+設定ファイル、file 編集、log 集計の例は[`examples/config-file-text/`](https://github.com/momota1029/yulang/tree/main/examples/config-file-text) にあります。
 
-次は一部省略の例です。設定ファイルを method-form の文字列 API で読み、`=` の左右を trim してから
-`port` を数値化します。
+次は一部省略の例です。
+設定ファイルを method-form の文字列 API で読み、`=` の左右を trim してから`port` を数値化します。
 
 ```yulang
 my parse_setting(clean: str): opt (str, str) = case clean.split_once "=":
@@ -142,12 +154,12 @@ my read_config(path: str): (int, list (str, str), int, int) =
     ($port, $entries, 0, 0)
 ```
 
-完全な例は
-[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu) です。
+完全な例は[`config_read.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/config_read.yu) です。
 
 ## text file を行単位で編集する
 
-file を durable な text ref として開くと、行単位の編集をそのまま書けます。次は一部省略の例です。
+file を durable な text ref として開くと、行単位の編集をそのまま書けます。
+次は一部省略の例です。
 先に `/tmp` へ copy を作るので、何度実行しても tracked sample は汚れません。
 
 ```yulang
@@ -165,12 +177,12 @@ my &doc = std::io::file::text path
 $doc.say
 ```
 
-完全な例は
-[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu) です。
+完全な例は[`file_edit.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/file_edit.yu) です。
 
 ## parser pattern で log を集計する
 
-parser pattern は小さい log 集計にも合います。次は一部省略の例です。
+parser pattern は小さい log 集計にも合います。
+次は一部省略の例です。
 GET payload を capture し、guard で `/api` だけに絞り、captured milliseconds を `int` に変換します。
 
 ```yulang
@@ -185,8 +197,7 @@ my api_ms(line: str): opt int = case line:
     _ -> nil
 ```
 
-完全な例は
-[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu) です。
+完全な例は[`log_stats.yu`](https://github.com/momota1029/yulang/blob/main/examples/config-file-text/log_stats.yu) です。
 
 ## オプショナル引数を作る
 
@@ -198,7 +209,8 @@ area { width: 3, height: 4 }
 area {}
 ```
 
-デフォルト付きの record pattern は、呼び出し側で各 field を省略できるようにします。デフォルトは左から右へ評価され、後ろの field のデフォルトは前の field を参照できます。
+デフォルト付きの record pattern は、呼び出し側で各 field を省略できるようにします。
+デフォルトは左から右へ評価され、後ろの field のデフォルトは前の field を参照できます。
 
 [関数](../reference/functions)
 
@@ -212,7 +224,9 @@ catch read_text path:
     value -> value
 ```
 
-`fail e` は `e.throw` の薄皮です。`catch` arm は operation 名を直接書いてエラーを捕まえます。エラーは常に具体名で扱うのが Yulang のスタイルです。
+`fail e` は `e.throw` の薄皮です。
+`catch` arm は operation 名を直接書いてエラーを捕まえます。
+エラーは常に具体名で扱うのが Yulang のスタイルです。
 
 [エラー](../reference/errors)
 
@@ -226,7 +240,8 @@ case wrapped:
     result::err err -> err.show
 ```
 
-`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。`err` 側は自動生成された impl を通じて `Display` できます。
+`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。
+`err` 側は自動生成された impl を通じて `Display` できます。
 
 [エラー → wrap](../reference/errors)
 
@@ -243,7 +258,8 @@ my read_and_parse path =
         parse_json text
 ```
 
-`from` は広いエラー型に narrower error を取り込みます。`app_err::up` はブロック内部の narrower error を `app_err` に持ち上げる handler です。
+`from` は広いエラー型に narrower error を取り込みます。
+`app_err::up` はブロック内部の narrower error を `app_err` に持ち上げる handler です。
 
 [エラー → from 集約](../reference/errors)
 
@@ -263,7 +279,9 @@ my run_into_strings(action: [log; _] _): (_, list str) =
     (result, $entries)
 ```
 
-`catch` は捕まえた operation を row から除きます。各 arm は payload と継続 `k` を受け取ります。`k value` を呼ぶと、捕まえた地点以降の計算が再開します。
+`catch` は捕まえた operation を row から除きます。
+各 arm は payload と継続 `k` を受け取ります。
+`k value` を呼ぶと、捕まえた地点以降の計算が再開します。
 
 [エフェクト](../reference/effects)
 
@@ -275,7 +293,9 @@ use std::control::nondet::*
 (each [1, 2, 3] + each [10, 20]).list
 ```
 
-`each xs` は `xs` から 1 つ要素を非決定的に選びます。`.list` は計算を走らせ、すべての結果を集めます。`.once` / `.logic` などで結果の形を切り替えられます。
+`each xs` は `xs` から 1 つ要素を非決定的に選びます。
+`.list` は計算を走らせ、すべての結果を集めます。
+`.once` / `.logic` などで結果の形を切り替えられます。
 
 [std::control::nondet](../reference/std/undet)
 
@@ -288,7 +308,8 @@ else:
     "no overlap"
 ```
 
-Yulang の `if` は `std::control::junction` 経由で effectful な boolean 条件を受け取れます。`all xs` / `any xs` で「全部」「いずれか」を表現します。
+Yulang の `if` は `std::control::junction` 経由で effectful な boolean 条件を受け取れます。
+`all xs` / `any xs` で「全部」「いずれか」を表現します。
 
 ## 二つの型の間で cast を定義する
 
@@ -302,13 +323,15 @@ my id: user_id = 7
 my raw: int = id
 ```
 
-`cast(x: A): B = body` は `Cast A` の impl と `type to = B` を生成します。compiler は注釈や引数のような expected-type 境界で自動的に cast を挿入します。
+`cast(x: A): B = body` は `Cast A` の impl と `type to = B` を生成します。
+compiler は注釈や引数のような expected-type 境界で自動的に cast を挿入します。
 
 [キャスト](../reference/casts)
 
 ## もう少し大きいサンプル
 
-ここまでのレシピを組み合わせると、こういう小さなプログラムが書けます。すべて Playground で動きます。
+ここまでのレシピを組み合わせると、こういう小さなプログラムが書けます。
+すべて Playground で動きます。
 
 ### 小さな式評価器
 
@@ -368,7 +391,8 @@ keep_evens [1, 2, 3, 4, 5, 6, 7, 8]
 // → 9
 ```
 
-`$best` は block の外には漏れません。「ループの間だけ値を持ち回す」ような使い方が型に乗ります。
+`$best` は block の外には漏れません。
+「ループの間だけ値を持ち回す」ような使い方が型に乗ります。
 
 ### 非決定的に探す
 
@@ -387,10 +411,11 @@ use std::control::nondet::*
 // → [(3, 4, 5), (5, 12, 13), (6, 8, 10), (8, 15, 17), ...]
 ```
 
-`.list` を `.once` に変えると、最初に見つかった 1 組だけが返ります。前の選択を後の `each` の範囲に渡すことで、探索を早く絞れます。
+`.list` を `.once` に変えると、最初に見つかった 1 組だけが返ります。
+前の選択を後の `each` の範囲に渡すことで、探索を早く絞れます。
 
 ## 関連ページ
 
-- [ツアー](./tour) — 同じ機能群を物語仕立てで一通り紹介します。
-- [リファレンス](../reference/) — 言語の正式リファレンス。
-- [構文スタイル](../reference/syntax-style) — 括弧を省く場面と書き方。
+- [ツアー](./tour)：同じ機能群を物語仕立てで一通り紹介します。
+- [リファレンス](../reference/)：言語の正式リファレンス。
+- [構文スタイル](../reference/syntax-style)：括弧を省く場面と書き方。
