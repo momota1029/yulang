@@ -51,6 +51,7 @@ const englishSidebar = {
     {
       text: "Standard Library",
       items: [
+        { text: "Catalogue", link: "/reference/std/" },
         { text: "std::core", link: "/reference/std/core" },
         { text: "std::data::list", link: "/reference/std/list" },
         { text: "std::text::str", link: "/reference/std/str" },
@@ -103,6 +104,7 @@ const japaneseSidebar = {
     {
       text: "標準ライブラリ",
       items: [
+        { text: "一覧", link: "/ja/reference/std/" },
         { text: "std::core", link: "/ja/reference/std/core" },
         { text: "std::data::list", link: "/ja/reference/std/list" },
         { text: "std::text::str", link: "/ja/reference/std/str" },

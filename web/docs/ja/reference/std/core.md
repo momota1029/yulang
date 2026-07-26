@@ -3,6 +3,54 @@
 よく使う標準ライブラリ surface をまとめる。
 API はまだ変わる可能性がある。
 
+## `std::core::cmp`
+
+```yulang
+(1 == 1, 1 < 2, (3.0).ge 2.0)
+```
+
+`std::core::cmp` は `Eq` と `Ord` を宣言する。
+`Eq` は `int`、`float`、`frac`、`bool`、`str`、`char`、`list int` に実装される。
+`Ord` は `int`、`float`、`frac` に実装される。
+`std::core::ops` の比較演算子は、これらの role method を呼ぶ。
+role と `impl` の構文は [struct と role](../structs) を参照。
+これらは通常の role 宣言と impl であり、別の role system ではない。
+
+## `std::core::convert`
+
+```yulang
+my ratio: frac = 2
+my decimal: float = ratio
+(ratio, decimal)
+```
+
+`std::core::convert` は、明示的な `.cast` method を持つ `Cast` role を宣言する。
+この module は、`path` から `bytes`、`int` から `frac` と `float`、`frac` から `float` への暗黙変換も登録する。
+これらの `cast` 宣言は `Cast` role を実装せず、その method も呼ばない。
+compiler が登録済みの暗黙変換を挿入する場所は [cast](../casts) を参照。
+
+## `std::core::fmt`
+
+```yulang
+(42.show, "%#x{255}", (just "x").debug)
+```
+
+`std::core::fmt` は `Display` と `Debug` の role、書式指定の型、文字列埋め込みが使う書式化関数を宣言する。
+primitive、主な container、tuple の標準 impl も提供する。
+書式指定とユーザー定義型への role 実装は [文字列](../strings) を参照。
+
+## `std::core::seq`
+
+```yulang
+("abc".len, [1, 2, 3].len, "".is_empty)
+```
+
+`std::core::seq` は `Len` と `IsEmpty` を宣言する。
+`Len` は `str` と `list` に、`IsEmpty` は `str`、`list`、`bytes` に実装される。
+関数 `len` は `.len` へ処理を渡す。
+sequence 操作は [`std::data::list`](./list) と [`std::text::str`](./str) を参照。
+このページでは role API を繰り返さない。
+
 ## `std::data::list`
 
 ```yulang
@@ -58,7 +106,6 @@ say "hello"
 42.say
 print "raw"
 println "line"
-eprintln "error line"
 ```
 
 console output は host-handled effect である。
@@ -90,16 +137,9 @@ host エラーが起きた場合、どちらも effect row を通じて `io_err`
 
 読む API 全体は [`std::io::file`](./fs) を参照。
 
-## Prelude の Role
+## Prelude の role
 
-主な prelude role は次の通り。
-
-- `Eq`, `Ord`
-- `Add`, `Sub`, `Mul`, `Div`
-- `Len`
-- `Display`, `Debug`
-- `Cast`
-- `LowerHex`, `UpperHex`
-
-`+`、`==`、`.len`、`.show`、`.debug`、文字列埋め込みなどの role method は、これらの role を通して解決される。
-標準の `Cast` role は暗黙の cast 宣言とは別の仕組みであり、暗黙の cast は専用の変換規則 table を使う。
+prelude は `std::core::cmp` の `Eq` と `Ord`、`std::core::convert` の `Cast` を re-export する。
+`std::core::fmt` の `Display` と `Debug`、`std::core::seq` の `Len` と `IsEmpty` も re-export する。
+算術 role、`LowerHex`、`UpperHex` は `std::num` から来る。
+`+` と `==` のような演算子、`.len` のような sequence method、`.show` と `.debug` のような書式化 method は、これらの role を通して解決される。
