@@ -25,7 +25,7 @@ my xs = [10, 20, 30, 40]
 xs[0]            // 10
 xs[xs.len - 1]   // 40
 xs[1..<3]        // [20, 30]
-xs[..2]          // [10, 20]
+xs[..2]          // [10, 20, 30]
 xs[1..]          // [20, 30, 40]
 ```
 
@@ -128,4 +128,4 @@ use std::control::nondet::*
 
 - [パターン → リストパターン](../patterns)
 - [`std::data::range`](./core) — スライスと反復に使う range
-- [`std::control::nondet`](./undet) — 非決定的な反復
+- [`std::control::nondet`](./nondet) — 非決定的な反復

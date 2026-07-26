@@ -167,14 +167,14 @@ compiler-oriented な表示では、高階 scheme を説明するためにその
 通常の API 文書として読むときは、値型と effect row の構造を中心に読む。
 
 ```text
-alpha [undet; beta] -> [beta] alpha
+alpha [nondet; beta] -> [beta] alpha
 ```
 
-これは「引数 computation は `undet` と residual effect `beta` を起こしうるが、handler が見えている
-`undet` を消費した後は `beta` だけが残る」という意味である。residual `beta` は公開型の本物の一部であり、
+これは「引数 computation は `nondet` と residual effect `beta` を起こしうるが、handler が見えている
+`nondet` を消費した後は `beta` だけが残る」という意味である。residual `beta` は公開型の本物の一部であり、
 表示ノイズとして消してよいものではない。
 
-隠れるのは、その境界で `undet` を消費してよい理由を説明する weighted evidence の方である。
+隠れるのは、その境界で `nondet` を消費してよい理由を説明する weighted evidence の方である。
 
 高階関数では、空の可視性 evidence 自体が推論 scheme の重要な一部になることがある。
 概略的には、注釈なしの compose には次のような protected occurrence が必要になる。

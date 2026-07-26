@@ -26,15 +26,14 @@
 ```yulang
 my s = "yulang"
 
-s[0]            // "y"
-s[s.len - 1]    // "g"
+s[0]            // y を表す char
+s[s.len - 1]    // g を表す char
 s[1..<3]        // "ul"
-s[..2]          // "yu"
+s[..2]          // "yul"
 s[2..]          // "lang"
 ```
 
-文字列は `Index` を `int`（1 文字の文字列）と `range`（部分文字列）の両方に
-実装する。
+文字列は `Index` を `int`（`char`）と `range`（`str` の部分文字列）の両方に実装する。
 
 ## splice
 
@@ -71,7 +70,7 @@ true.show           // "true"
 |---|---|
 | `s.len` | `str -> int` |
 | `s + t` / `s.add t` | `str -> str -> str` |
-| `s[i]` | `str -> int -> str`（1 文字の文字列）|
+| `s[i]` | `str -> int -> char` |
 | `s[r]` | `str -> range -> str` |
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |

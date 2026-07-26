@@ -27,15 +27,15 @@ mechanism as `+` on numbers; user code can call `xs.add ys` instead.
 ```yulang
 my s = "yulang"
 
-s[0]            // "y"
-s[s.len - 1]    // "g"
+s[0]            // char for y
+s[s.len - 1]    // char for g
 s[1..<3]        // "ul"
-s[..2]          // "yu"
+s[..2]          // "yul"
 s[2..]          // "lang"
 ```
 
-Strings implement `Index` for both `int` (a one-character string) and `range`
-(a substring).
+Strings implement `Index` for both `int` (a `char`) and `range` (a `str`
+substring).
 
 ## Splicing
 
@@ -83,7 +83,7 @@ and `.println`, which print `.debug` without or with a newline.
 |---|---|
 | `s.len` | `str -> int` |
 | `s + t` / `s.add t` | `str -> str -> str` |
-| `s[i]` | `str -> int -> str` (single-character string) |
+| `s[i]` | `str -> int -> char` |
 | `s[r]` | `str -> range -> str` |
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |

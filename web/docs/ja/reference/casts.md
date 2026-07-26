@@ -12,13 +12,14 @@ cast(x: user_id): int = x.raw
 cast(x: int): user_id = user_id { raw: x }
 ```
 
-`cast(x: A): B = body` は、標準の `Cast A` role の impl として lower される。
-associated type `to` は `B` になり、body が変換後の値を返す。
+`cast(x: A): B = body` は、`A` から `B` への暗黙の変換規則を登録する。
+body が変換後の値を返す。
+この宣言は標準の `Cast` role を実装しない。
 
 ## cast が挿入される場所
 
-推論された値の型と既知の期待型がぶつかる境界で、compiler は `Cast` 呼び出しを
-挿入する。主な場面は次の通り：
+推論された値の型と既知の期待型がぶつかる境界で、compiler は登録済みの変換規則を適用する。
+主な場面は次の通り：
 
 - binding や引数の型注釈
 - 関数の引数
@@ -33,19 +34,20 @@ my use_int(n: int) = n + 1
 use_int id   // user_id が int に暗黙 cast される
 ```
 
-挿入される cast は、変換される値の role method `x.cast`。期待型のない裸の
-式では cast されないので、`id` だけなら依然として `user_id`。
+選ばれた `cast` 宣言の body が変換を行い、compiler は role method `x.cast` を挿入しない。
+標準ライブラリには `.cast` method を持つ別の `std::core::convert::Cast` role があるが、`cast` 宣言はその role を実装せず、呼び出しもしない。
+期待型のない裸の式では cast されないので、`id` だけなら依然として `user_id` である。
 
 ## 診断
 
 ```yulang
-my n: int = "abc"
-// missing Cast str -> int impl
+my use_bool(x: bool) = x
+use_bool 42
+// error: no implicit cast from int to bool
 ```
 
-該当する impl が無ければ「specific な source/target ペアの Cast が見つからない」
-として報告される。候補が複数ある場合は ambiguous cast として弾かれる — Yulang は
-勝手にどれかを選ぶことをしない。
+該当する source/target ペアの変換規則がなければ、compiler は暗黙の cast が見つからないと報告する。
+一致する宣言が複数ある場合は ambiguous cast として拒否し、Yulang は勝手にどれかを選ばない。
 
 ## `from` 付きの variant
 
@@ -57,8 +59,8 @@ enum app_err:
 
 `enum`（または `error`）の variant に `from` を付けると、次の 2 つが生成される：
 
-- variant 自体 — `app_err::path` は `path_err` を包む
-- `Cast path_err -> app_err` の impl。`e` を `app_err::path e` に写す
+- variant 自体。`app_err::path` は `path_err` を包む
+- `path_err` から `app_err` への変換規則。`e` を `app_err::path e` に写す
 
 source 型は payload 1 つ、source と target は両方 nominal である必要がある。
 
@@ -93,6 +95,6 @@ cast は遅延しない：境界に到達した時点で body が走る。重い
 
 ## 関連ページ
 
-- [構造体とロール](./structs) — 背後の role 機構
+- [構造体とロール](./structs)：nominal wrapper 型の宣言
 - [エラー](./errors) — `from` ベースのエラー集約
 - [値と型](./types) — nominal type と推論の関わり

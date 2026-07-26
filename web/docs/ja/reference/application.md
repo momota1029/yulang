@@ -119,9 +119,12 @@ my z = f (sub: 1) // f (sub: 1)
 引数になる。
 
 ```yulang
-my &fh = open_in "data.txt" do
-$fh
-// ≡ open_in "data.txt" (\&fh -> $fh)
+write_text "/tmp/yulang-do.txt" "draft"
+my result =
+    my content = text_with("/tmp/yulang-do.txt", do)
+    (content, content)
+result
+// 内側の binding ≡ text_with("/tmp/yulang-do.txt", \content -> (content, content))
 ```
 
 API がコールバックを受け取るとき、その本体を呼び出しの直後にそのまま書きたい

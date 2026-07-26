@@ -25,8 +25,16 @@ case maybe_text:
     nil       -> 0
 ```
 
-The `opt` variants are exhaustive: every `case` on an `opt 'a` needs both
-arms (or a wildcard) for the inference to settle.
+The compiler does not check `case` expressions for exhaustiveness. A matching
+single arm is accepted:
+
+```yulang
+case just 1:
+    just x -> x
+```
+
+This expression returns `1` without a `nil` arm. Cover both variants or add a
+wildcard when the code needs to handle either value.
 
 ## Common shapes
 

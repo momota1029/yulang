@@ -276,9 +276,12 @@ argument of the surrounding call. In a `my` binding, the left-hand pattern
 becomes the lambda's parameter:
 
 ```yulang
-my &fh = open_in "data.txt" do
-$fh
-// ≡ open_in "data.txt" (\&fh -> $fh)
+write_text "/tmp/yulang-do.txt" "draft"
+my result =
+    my content = text_with("/tmp/yulang-do.txt", do)
+    (content, content)
+result
+// inner binding ≡ text_with("/tmp/yulang-do.txt", \content -> (content, content))
 ```
 
 Use it when an API takes a callback and you want to write the body inline.

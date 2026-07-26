@@ -1,6 +1,6 @@
 # std::control::nondet
 
-The `undet` module provides nondeterminism through the `undet` algebraic effect.
+The `nondet` module provides nondeterminism through the `nondet` algebraic effect.
 
 ```yulang
 use std::control::nondet::*
@@ -9,7 +9,7 @@ use std::control::nondet::*
 ## The effect
 
 ```yulang
-act undet:
+pub act nondet:
     pub branch: () -> bool
     pub reject: () -> never
 ```
@@ -23,7 +23,7 @@ each [1, 2, 3]   // chooses one value nondeterministically
 each 1..         // chooses from an infinite range
 ```
 
-`each xs` returns one element of `xs`, signalling its choice through the `undet` effect. `xs` can be any value implementing `Fold` (lists, ranges, …).
+`each xs` returns one element of `xs`, signalling its choice through the `nondet` effect. `xs` can be any value implementing `Fold` (lists, ranges, …).
 
 ## `guard`
 
@@ -44,7 +44,7 @@ Collectors are written as method calls on a nondeterministic expression:
 | `.logic` | `list 'a` | All results with breadth-first scheduling (suitable for infinite branches) |
 | `.once` | `opt 'a` | First result if any, otherwise `nil` |
 
-Each collector handles `branch` and `reject`, removing the `undet` effect from the type.
+Each collector handles `branch` and `reject`, removing the `nondet` effect from the type.
 
 ## Example: Pythagorean triples
 
@@ -64,7 +64,7 @@ The same program can be written with independent infinite choices and `guard: a 
 
 ## Junctions
 
-The companion module `std::control::junction` exposes `all xs` and `any xs`. They are not part of `undet`, but they share the same theme — they wrap a collection so a single comparison covers every element via the `junction` effect:
+The companion module `std::control::junction` exposes `all xs` and `any xs`. They are not part of `nondet`, but they share the same theme — they wrap a collection so a single comparison covers every element via the `junction` effect:
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:

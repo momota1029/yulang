@@ -34,7 +34,7 @@ Larger numbers bind more tightly. Infix operators take a pair of binding
 powers `<left>.<right>`, splitting in the middle to control associativity:
 
 - `5.0.0 5.0.1` — left-associative at level 5 (the standard for `+` and `-`)
-- `4.0.0 4.0.1` — left-associative at level 4 (the standard range operators)
+- `4.0.0 4.0.0` — the binding powers used by the standard range operators
 
 A small reference of the prelude's choices:
 

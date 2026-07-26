@@ -13,14 +13,14 @@ cast(x: user_id): int = x.raw
 cast(x: int): user_id = user_id { raw: x }
 ```
 
-A `cast(x: A): B = body` declaration lowers to an implementation of the
-standard `Cast A` role with associated type `to = B`. The body computes the
-target value.
+A `cast(x: A): B = body` declaration registers an implicit conversion rule
+from `A` to `B`. The body computes the target value. This declaration does not
+implement the standard `Cast` role.
 
 ## Where casts are inserted
 
-The compiler inserts `Cast` calls at the boundary between an inferred value
-type and a known expected type, including:
+The compiler applies registered conversion rules at the boundary between an
+inferred value type and a known expected type, including:
 
 - Type annotations on bindings and parameters
 - Function arguments
@@ -35,21 +35,25 @@ my use_int(n: int) = n + 1
 use_int id   // user_id implicitly cast to int
 ```
 
-The inserted cast is the role method `x.cast` on the value being converted.
-The compiler never inserts a cast in expression position with no expected
-type, so `id` on its own is still `user_id`.
+The selected `cast` declaration supplies the conversion body; the compiler
+does not insert the role method `x.cast`. The standard library does define a
+separate `std::core::convert::Cast` role with a `.cast` method, but a `cast`
+declaration neither implements nor calls it. The compiler never inserts a cast
+in expression position with no expected type, so `id` on its own is still
+`user_id`.
 
 ## Diagnostics
 
 ```yulang
-my n: int = "abc"
-// missing Cast str -> int impl
+my use_bool(x: bool) = x
+use_bool 42
+// error: no implicit cast from int to bool
 ```
 
-If no candidate impl exists, the compiler reports a missing `Cast` for the
-specific source/target pair. If more than one impl could apply, the cast is
-reported as ambiguous and the program is rejected — Yulang does not silently
-pick one.
+If no conversion rule exists for the specific source/target pair, the compiler
+reports a missing implicit cast. If more than one declaration matches, the cast
+is reported as ambiguous and the program is rejected — Yulang does not
+silently pick one.
 
 ## `from`-marked variants
 
@@ -62,7 +66,8 @@ enum app_err:
 `from` on an `enum` (or `error`) variant generates two things:
 
 - the variant itself — `app_err::path` wraps a `path_err`
-- a `Cast path_err -> app_err` impl that maps `e` to `app_err::path e`
+- a conversion rule from `path_err` to `app_err` that maps `e` to
+  `app_err::path e`
 
 The source type must be a single payload, and both the source and target are
 nominal.
@@ -100,6 +105,6 @@ the call site is explicit.
 
 ## See also
 
-- [Structs & Roles](./structs) — the underlying role machinery
+- [Structs & Roles](./structs) — declaring nominal wrapper types
 - [Errors](./errors) — `from`-based error aggregation
 - [Values & Types](./types) — how nominal types interact with inference

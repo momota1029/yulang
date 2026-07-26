@@ -73,4 +73,4 @@ are not interchangeable with `//`.
 
 - [Core](./std/core), [list](./std/list), [str](./std/str)
 - [opt](./std/opt), [result](./std/result)
-- [io::file](./std/fs), [control::nondet](./std/undet)
+- [io::file](./std/fs), [control::nondet](./std/nondet)

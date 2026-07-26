@@ -72,16 +72,23 @@ families; most programs use the wrappers and role methods.
 ## `std::io::file`
 
 ```yulang
-read_text "data.txt"
-read_at "data.txt" (0..<1024)
-open "data.txt"
+write_text "/tmp/yulang-core-whole.txt" "draft"
+read_text "/tmp/yulang-core-whole.txt"
+
+write_text "/tmp/yulang-core-scoped.txt" "draft"
+text_with "/tmp/yulang-core-scoped.txt": \content ->
+    (content, content + "\nreviewed")
+
+write_text "/tmp/yulang-core-buffer.txt" "draft"
+my &buffer = text "/tmp/yulang-core-buffer.txt"
+$buffer
 ```
 
-The filesystem surface is text-oriented. `read_text` returns `str` and raises
-`io_err` directly through the effect row on host errors. `read_at` reads a byte
-range and returns the UTF-8-valid text prefix with the valid range. `open`
-returns a host-backed text reference whose dirty buffer is flushed when the
-handle state is dropped.
+The filesystem surface is text-oriented. `read_text` reads a whole UTF-8 file,
+and `write_text` creates or replaces one. Both raise `io_err` through the
+effect row on host errors. `text_with` stores the final text returned by its
+callback. `text` returns a host-backed mutable text reference whose buffer is
+flushed when the `file` handler ends.
 
 See [`std::io::file`](./fs) for the full reading API.
 
@@ -97,4 +104,6 @@ Common prelude roles include:
 - `LowerHex`, `UpperHex`
 
 Operators such as `+`, `==`, `.len`, `.show`, `.debug`, interpolation, and
-implicit casts resolve through these roles.
+other role methods resolve through these roles. The standard `Cast` role is
+separate from implicit cast declarations, which use their own conversion-rule
+table.

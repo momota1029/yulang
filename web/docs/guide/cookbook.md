@@ -274,7 +274,7 @@ narrower errors into `app_err` inside the block.
 pub act log:
     pub put: str -> ()
 
-my run_into_strings(action: [log; _] _): (_, list str) =
+my run_into_strings(action: [log; 'e] 'a): ['e] ('a, list str) =
     my $entries = []
     my result = catch action:
         log::put msg, k ->
@@ -302,7 +302,7 @@ use std::control::nondet::*
 computation and collects every result. `.once`, `.logic`, and friends produce
 other shapes.
 
-[std::control::nondet](../reference/std/undet)
+[std::control::nondet](../reference/std/nondet)
 
 ## Effectful boolean conditions
 
@@ -328,8 +328,8 @@ my id: user_id = 7
 my raw: int = id
 ```
 
-`cast(x: A): B = body` lowers to a `Cast A` impl with `type to = B`. The
-compiler inserts the cast at expected-type boundaries such as annotations and
+`cast(x: A): B = body` registers a conversion rule from `A` to `B`. The
+compiler applies the rule at expected-type boundaries such as annotations and
 function arguments.
 
 [Casts](../reference/casts)

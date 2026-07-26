@@ -269,7 +269,7 @@ my read_and_parse path =
 pub act log:
     pub put: str -> ()
 
-my run_into_strings(action: [log; _] _): (_, list str) =
+my run_into_strings(action: [log; 'e] 'a): ['e] ('a, list str) =
     my $entries = []
     my result = catch action:
         log::put msg, k ->
@@ -297,7 +297,7 @@ use std::control::nondet::*
 `.list` は計算を走らせ、すべての結果を集めます。
 `.once` / `.logic` などで結果の形を切り替えられます。
 
-[std::control::nondet](../reference/std/undet)
+[std::control::nondet](../reference/std/nondet)
 
 ## effectful な真偽値条件を扱う
 
@@ -323,8 +323,8 @@ my id: user_id = 7
 my raw: int = id
 ```
 
-`cast(x: A): B = body` は `Cast A` の impl と `type to = B` を生成します。
-compiler は注釈や引数のような expected-type 境界で自動的に cast を挿入します。
+`cast(x: A): B = body` は `A` から `B` への変換規則を登録します。
+compiler は注釈や引数のような expected-type 境界で、その規則を適用します。
 
 [キャスト](../reference/casts)
 

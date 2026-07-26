@@ -2,8 +2,7 @@
 
 Yulang's string type is `str`. Strings are UTF-8 text. Indexing and slicing use
 Unicode scalar-value positions exposed by the standard library, not raw byte
-offsets. The older name `string` is still accepted as an alias in some places,
-but new code should prefer `str`.
+offsets.
 
 ## Literals
 
@@ -42,13 +41,14 @@ Integer hex formatting is available through the lower- and upper-hex roles:
 ## Indexing And Slicing
 
 ```yulang
-"aあ🙂"[1]          // "あ"
+my c: char = "aあ🙂"[1] // char for あ
 "aあ🙂z"[1..<3]     // "あ🙂"
 "aあ🙂z"[range 1 3]
 ```
 
-`str` implements `Index str int` and `Index str range`. Indexing works by
-character position, not byte offset.
+`str` implements `Index` for both `int` and `range`. Integer indexing returns
+a `char`; range indexing returns a `str`. Both work by character position, not
+byte offset.
 
 ## Splicing
 

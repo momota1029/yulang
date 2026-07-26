@@ -1,6 +1,8 @@
 # 文字列
 
-Yulang の文字列型は `str` である。文字列は UTF-8 text として扱う。標準ライブラリの index / slice は raw byte offset ではなく Unicode scalar value の位置で扱う。古い名前として `string` も一部で受け付けるが、新しいコードでは `str` を使う。
+Yulang の文字列型は `str` である。
+文字列は UTF-8 text として扱う。
+標準ライブラリの index / slice は raw byte offset ではなく Unicode scalar value の位置で扱う。
 
 ## リテラル
 
@@ -36,12 +38,14 @@ my name = "yu"
 ## Index と Slice
 
 ```yulang
-"aあ🙂"[1]          // "あ"
+my c: char = "aあ🙂"[1] // あを表す char
 "aあ🙂z"[1..<3]     // "あ🙂"
 "aあ🙂z"[range 1 3]
 ```
 
-`str` は `Index str int` と `Index str range` を実装する。index は byte offset ではなく文字位置である。
+`str` は `Index` を `int` と `range` の両方に実装する。
+整数 index は `char` を返し、range index は `str` を返す。
+どちらも byte offset ではなく文字位置を使う。
 
 ## Splice
 

@@ -183,16 +183,16 @@ to explain a higher-order scheme. Ordinary API documentation should still read
 the type through its value types and effect rows.
 
 ```text
-alpha [undet; beta] -> [beta] alpha
+alpha [nondet; beta] -> [beta] alpha
 ```
 
-This means: the argument computation may perform `undet` plus some residual
-effects `beta`; after the handler consumes the visible `undet`, only `beta`
+This means: the argument computation may perform `nondet` plus some residual
+effects `beta`; after the handler consumes the visible `nondet`, only `beta`
 remains. The residual `beta` is a real part of the public type. It is not noise
 to erase.
 
 What stays hidden is the weighted evidence explaining why the handler was
-allowed to consume `undet` at that boundary.
+allowed to consume `nondet` at that boundary.
 
 For higher-order functions, empty visibility evidence can be the important part
 of the inferred scheme. Schematically, an unannotated composition may need a

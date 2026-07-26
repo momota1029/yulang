@@ -25,7 +25,7 @@ my xs = [10, 20, 30, 40]
 xs[0]            // 10
 xs[xs.len - 1]   // 40
 xs[1..<3]        // [20, 30]
-xs[..2]          // [10, 20]
+xs[..2]          // [10, 20, 30]
 xs[1..]          // [20, 30, 40]
 ```
 
@@ -129,4 +129,4 @@ into a fresh list, `.once` returns the first as `opt`.
 
 - [Patterns → List patterns](../patterns)
 - [`std::data::range`](./core) — ranges for slicing and iteration
-- [`std::control::nondet`](./undet) — nondeterministic iteration
+- [`std::control::nondet`](./nondet) — nondeterministic iteration

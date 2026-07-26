@@ -147,6 +147,6 @@ Act operations themselves are normally reached by path, for example
 | `std::control::nondet` | `each`, `guard`, `list`, `once`, `logic` |
 | `std::control::junction` | `all`, `any` for effectful comparisons |
 | `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die`, backed by the `out` / `err` / `warn` / `die` effects |
-| `std::io::file` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir`, plus `io_err` errors |
+| `std::io::file` | `read_text`, `write_text`, `text`, `text_with`, `exists`, `is_file`, `is_dir`, plus `io_err` errors |
 | `std::control::throw` | `Throw` role and `fail` support |
 | `std::data::index` | `Index` role |

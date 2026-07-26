@@ -65,16 +65,23 @@ family に分かれており、通常の program は wrapper と role method を
 ## `std::io::file`
 
 ```yulang
-read_text "data.txt"
-read_at "data.txt" (0..<1024)
-open "data.txt"
+write_text "/tmp/yulang-core-whole.txt" "draft"
+read_text "/tmp/yulang-core-whole.txt"
+
+write_text "/tmp/yulang-core-scoped.txt" "draft"
+text_with "/tmp/yulang-core-scoped.txt": \content ->
+    (content, content + "\nreviewed")
+
+write_text "/tmp/yulang-core-buffer.txt" "draft"
+my &buffer = text "/tmp/yulang-core-buffer.txt"
+$buffer
 ```
 
-filesystem surface は text 指向である。`read_text` は `str` を返し、host
-error は effect row の `io_err` として直接投げる。`read_at` は byte range
-を読み、UTF-8 として valid な text prefix と valid range を返す。`open` は
-host-backed な text reference を返し、dirty な buffer は handle state の
-drop 時に flush される。
+filesystem surface は text 指向である。
+`read_text` は UTF-8 のファイル全体を読み、`write_text` はファイルを作成または置換する。
+host error が起きた場合、どちらも effect row を通じて `io_err` を発火する。
+`text_with` は callback が返した最終テキストを保存する。
+`text` は host-backed な可変テキスト参照を返し、buffer は `file` handler の終了時に flush される。
 
 読む API 全体は [`std::io::file`](./fs) を参照。
 
@@ -89,4 +96,5 @@ drop 時に flush される。
 - `Cast`
 - `LowerHex`, `UpperHex`
 
-`+`、`==`、`.len`、`.show`、`.debug`、文字列埋め込み、implicit cast などは、これらの role を通して解決される。
+`+`、`==`、`.len`、`.show`、`.debug`、文字列埋め込みなどの role method は、これらの role を通して解決される。
+標準の `Cast` role は暗黙の cast 宣言とは別の仕組みであり、暗黙の cast は専用の変換規則 table を使う。

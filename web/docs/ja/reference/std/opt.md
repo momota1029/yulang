@@ -25,8 +25,16 @@ case maybe_text:
     nil       -> 0
 ```
 
-`opt` の variant は網羅的：`opt 'a` に対する `case` は両方の arm（または
-ワイルドカード）が必要で、推論はそれで安定する。
+compiler は `case` 式の網羅性を検査しない。
+一致する arm が一つだけでも受理する。
+
+```yulang
+case just 1:
+    just x -> x
+```
+
+この式は `nil` arm がなくても `1` を返す。
+どちらの値も処理する必要がある場合は、両方の variant またはワイルドカードを使う。
 
 ## よくある形
 

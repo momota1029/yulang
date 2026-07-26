@@ -1,6 +1,6 @@
 # std::control::nondet
 
-`std::control::nondet` は非決定性計算を提供する標準ライブラリ module。
+`std::control::nondet` は `nondet` effect による非決定性計算を提供する標準ライブラリ module。
 
 ```yulang
 use std::control::nondet::*
@@ -9,7 +9,7 @@ use std::control::nondet::*
 ## Effect
 
 ```yulang
-act undet:
+pub act nondet:
     pub branch: () -> bool
     pub reject: () -> never
 ```
@@ -45,7 +45,7 @@ collector は非決定性を持つ式に method call として付ける。
 | `.logic` | `list 'a` | breadth-first scheduling で集める |
 | `.once` | `opt 'a` | 最初の結果。なければ `nil` |
 
-collector は `branch` と `reject` を処理し、型から `undet` effect を取り除く。
+collector は `branch` と `reject` を処理し、型から `nondet` effect を取り除く。
 
 ## 例: ピタゴラス数
 
@@ -67,7 +67,7 @@ collector は `branch` と `reject` を処理し、型から `undet` effect を�
 
 ## Junction
 
-`std::control::junction` の `all` / `any` は `undet` とは別の effect だが、collection に対する比較を一つの式として書ける。
+`std::control::junction` の `all` / `any` は `nondet` とは別の effect だが、collection に対する比較を一つの式として書ける。
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:

@@ -9,12 +9,13 @@ pub error io_err:
     not_found path
     denied path
     invalid_path path
+    failed (path, str)
 ```
 
 この一行で次のものがまとめて生成される。
 
-- `pub enum io_err` — variant は `not_found path` / `denied path` /
-  `invalid_path path`。
+- `pub enum io_err` — variant は `not_found path`、`denied path`、
+  `invalid_path path`、`failed (path, str)`。
 - `pub act io_err` — variant と同名の operation を持ち、戻り値は `never`。
 - `impl Throw io_err` — `type throws = '[io_err]` と `our e.throw` を持ち、
   対応する operation を発火する。
@@ -80,7 +81,7 @@ my read_text_safe path =
 
 `E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E`
 を返す。`E` に `from` エントリがある場合、`wrap` はリンクされた narrower
-error も同時に捕まえ、生成された `Cast` impl 経由で wrap する。
+error も同時に捕まえ、生成された変換を通じて wrap する。
 
 ## `from` による集約
 
@@ -93,7 +94,7 @@ pub error app_err:
 これにより次のものが生成される。
 
 - variant `app_err::file io_err` と `app_err::parse parse_err`
-- `Cast io_err -> app_err` と `Cast parse_err -> app_err` の impl
+- `io_err` と `parse_err` から `app_err` への生成済み変換
 - `io_err` と `parse_err` も同時に捕まえる拡張版 `app_err::wrap`
 - narrower error を `app_err` effect に変換する handler `app_err::up`
 

@@ -9,12 +9,13 @@ pub error io_err:
     not_found path
     denied path
     invalid_path path
+    failed (path, str)
 ```
 
 This generates several pieces at once:
 
-- A `pub enum io_err` whose variants are `not_found path`, `denied path`, and
-  `invalid_path path`.
+- A `pub enum io_err` whose variants are `not_found path`, `denied path`,
+  `invalid_path path`, and `failed (path, str)`.
 - A `pub act io_err` whose operations share the variant names and return
   `never`.
 - An `impl Throw io_err` with `type throws = '[io_err]` and `our e.throw` that
@@ -83,7 +84,7 @@ my read_text_safe path =
 
 `E::wrap` catches the matching error effect produced by its thunk argument
 and returns `result _ E`. When `E` has `from` entries, `wrap` also catches the
-linked narrower errors and wraps them through the generated `Cast` impls.
+linked narrower errors and wraps them through the generated conversions.
 
 ## `from` aggregation
 
@@ -96,7 +97,7 @@ pub error app_err:
 This generates:
 
 - variants `app_err::file io_err` and `app_err::parse parse_err`.
-- `Cast io_err -> app_err` and `Cast parse_err -> app_err` impls.
+- generated conversions from `io_err` and `parse_err` to `app_err`.
 - an extended `app_err::wrap` that also catches `io_err` and `parse_err`.
 - `app_err::up`, a handler that turns the narrower errors into `app_err`.
 

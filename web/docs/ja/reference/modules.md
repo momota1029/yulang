@@ -154,6 +154,6 @@ anonymous record の場合、`.field` は record field を取り出す。act ope
 | `std::control::nondet` | `each`, `guard`, `.list`, `.once`, `.logic` |
 | `std::control::junction` | `all`, `any` |
 | `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die` と、背後の `out` / `err` / `warn` / `die` effect |
-| `std::io::file` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir` と `io_err` |
+| `std::io::file` | `read_text`, `write_text`, `text`, `text_with`, `exists`, `is_file`, `is_dir` と `io_err` |
 | `std::control::throw` | `Throw` role と `fail` |
 | `std::data::index` | `Index` role |
