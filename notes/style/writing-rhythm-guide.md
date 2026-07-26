@@ -67,7 +67,7 @@
 | `web/docs/reference/std/opt.md` | `web/docs/ja/reference/std/opt.md` | 参照 |
 | `web/docs/reference/std/result.md` | `web/docs/ja/reference/std/result.md` | 参照 |
 | `web/docs/reference/std/str.md` | `web/docs/ja/reference/std/str.md` | 参照 |
-| `web/docs/reference/std/undet.md` | `web/docs/ja/reference/std/undet.md` | 参照 |
+| `web/docs/reference/std/nondet.md` | `web/docs/ja/reference/std/nondet.md` | 参照 |
 | `web/docs/reference/strings.md` | `web/docs/ja/reference/strings.md` | 参照 |
 | `web/docs/reference/structs.md` | `web/docs/ja/reference/structs.md` | 参照 |
 | `web/docs/reference/syntax-style.md` | `web/docs/ja/reference/syntax-style.md` | 規則 |
@@ -355,7 +355,7 @@ Yulangのコンパイラーを一つのシステムとして指す場合は`the 
 識別子、構文、型名、モジュール名はコード表記を保つ。
 自然言語の術語は、既存の翻訳対を`rg`で検索し、同じ概念に既存の日本語訳が一つだけあればそれを使い、第二の日本語訳を作らない。
 ただし、検索結果だけを用語の正本にはしない。
-現在の翻訳対には「エフェクト」と`effect`が併存し、`Pythagorean triple`も`tour.md`では「ピタゴラス三角形」、`reference/std/undet.md`では「ピタゴラス数」と訳されているため、検索だけでは採用語を決められない。
+現在の翻訳対には「エフェクト」と`effect`が併存し、`Pythagorean triple`も`tour.md`では「ピタゴラス三角形」、`reference/std/nondet.md`では「ピタゴラス数」と訳されていたため、検索だけでは採用語を決められない。
 翻訳対が食い違う場合や対応語が確立していない場合は、新しい訳語を作らず、原語をコード表記で保ち、その語を用語集の候補としてレビュー記録に残す。
 一つのページ内で言い換えによる変化を付けない。
 
