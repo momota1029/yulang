@@ -65,6 +65,49 @@ add: 1                 // colon application（2 引数関数では稀）
 \{ name } -> "hello, " + name
 ```
 
+## 特別な lambda 形式
+
+### `\sub`
+
+`\sub pattern -> body` は、body に早期 return scope を持つ関数を作る。
+`return value` はその関数の現在の呼び出しから抜ける。
+
+```yulang
+my step = \sub n ->
+    if n > 0: return (n + 1)
+    0
+
+say (step 41)
+```
+
+### `\case`
+
+`\case:` は、引数を列挙した arm と照合する 1 引数関数を作る。
+
+```yulang
+my classify = \case:
+    0 -> "zero"
+    _ -> "other"
+
+say (classify 5)
+```
+
+### `\catch`
+
+`\catch:` は 1 引数の handler 関数を作る。
+引数は、列挙した operation arm と value arm で処理する effectful computation である。
+
+```yulang
+act signal:
+    our ask: () -> int
+
+my answer = \catch:
+    signal::ask(), k -> k 42
+    value -> value
+
+say (answer signal::ask())
+```
+
 ## 型注釈
 
 ```yulang

@@ -30,12 +30,16 @@ case n:
 | `_` | anything (wildcard) |
 | `x` | binds to name `x` |
 | `42`, `"hi"`, `true`, `false`, `()` | literals |
+| `"yes" \| "y"` | either alternative (OR pattern) |
+| `pat as value` | `pat`, while also binding the whole value |
 | `(a, b)` | tuple |
 | `{ x, y }` | record with fields named `x` and `y` |
 | `{ x = 0, y }` | record with default for `x` |
 | `{ x: name }` | record field `x` renamed to `name` |
 | `[]`, `[1, 2]`, `[x, ..rest]` | list patterns |
 | `[..init, last]` | list with spread at head |
+| `:ready` | symbol |
+| `:some value` | polyvariant with a payload |
 | `just x`, `nil` | enum variants re-exported by the prelude |
 | `opt::just x`, `opt::nil` | enum variants by qualified path |
 | `tag x` | enum variant by short name (after `use enum::*`) |
@@ -64,6 +68,58 @@ case msg:
 ```
 
 Literal patterns match values that are structurally equal.
+
+## OR patterns
+
+An OR pattern `left | right` tries its alternatives from left to right and
+matches when either one matches.
+
+```yulang
+my affirmative answer = case answer:
+    "yes" | "y" -> true
+    _ -> false
+
+say (affirmative "y")
+```
+
+OR alternatives do not merge their bindings. The checker currently accepts
+different binding names, and even the same spelling in both alternatives
+creates separate bindings. If the body refers to a binding that the selected
+alternative did not create, execution fails with an unbound-local runtime
+error. Keep OR alternatives free of bindings, or alias the whole OR pattern.
+
+## `as` aliases
+
+An `as` pattern `pattern as name` matches the inner pattern and also binds the
+whole input value to `name`.
+
+```yulang
+my normalize answer = case answer:
+    ("yes" | "y") as matched -> matched
+    _ -> "no"
+
+say (normalize "y")
+```
+
+The parentheses put the alias outside the whole OR pattern, so either
+alternative creates `matched`.
+
+## Type patterns are not available
+
+The parser accepts `pattern: type`, but the checker does not currently enforce
+the annotation in a `case` pattern. It is not a runtime type test: `text: str`
+below still matches the `int` value as an ordinary name binding.
+
+```yulang
+my result = case 41:
+    text: str -> "annotation ignored"
+    _ -> "fallback"
+
+say result
+```
+
+This prints `annotation ignored`. Do not use pattern annotations to test or
+constrain a value's type.
 
 ## Tuple patterns
 
@@ -127,6 +183,35 @@ case xs:
 
 Spread `..rest` captures the unmatched portion. A list pattern can have at most
 one spread.
+
+## Symbol patterns
+
+A symbol pattern `:name` matches the symbol value with the same name. Symbols
+have no payload.
+
+```yulang
+my state_name state = case state:
+    :ready -> "ready"
+    :waiting -> "waiting"
+
+say (state_name :ready)
+```
+
+## Polyvariant patterns
+
+A polyvariant pattern `:name payload ...` matches the named tag and applies its
+payload patterns in order.
+
+```yulang
+my unwrap option = case option:
+    :some value -> value
+    :none -> 0
+
+say (unwrap (:some 42))
+```
+
+Unlike enum variants, symbols and polyvariants need no declaration or
+qualified companion-module path.
 
 ## Enum patterns
 

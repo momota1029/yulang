@@ -64,6 +64,50 @@ A lambda's argument is itself a pattern:
 \{ name } -> "hello, " + name
 ```
 
+## Special lambda forms
+
+### `\sub`
+
+`\sub pattern -> body` creates a function whose body has an early-return
+scope. `return value` exits that invocation of the function.
+
+```yulang
+my step = \sub n ->
+    if n > 0: return (n + 1)
+    0
+
+say (step 41)
+```
+
+### `\case`
+
+`\case:` creates a one-argument function that matches its argument against the
+listed arms.
+
+```yulang
+my classify = \case:
+    0 -> "zero"
+    _ -> "other"
+
+say (classify 5)
+```
+
+### `\catch`
+
+`\catch:` creates a one-argument handler function. Its argument is the
+effectful computation handled by the listed operation and value arms.
+
+```yulang
+act signal:
+    our ask: () -> int
+
+my answer = \catch:
+    signal::ask(), k -> k 42
+    value -> value
+
+say (answer signal::ask())
+```
+
 ## Type annotations
 
 ```yulang

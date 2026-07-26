@@ -29,12 +29,16 @@ case n:
 | `_` | 何でも（wildcard）|
 | `x` | 名前 `x` に bind |
 | `42`、`"hi"`、`true`、`false`、`()` | リテラル |
+| `"yes" \| "y"` | いずれか一方の選択肢（OR pattern）|
+| `pat as value` | `pat` にマッチし、値全体も bind |
 | `(a, b)` | tuple |
 | `{ x, y }` | field `x` と `y` を持つ record |
 | `{ x = 0, y }` | `x` に default 値を持つ record |
 | `{ x: name }` | field `x` を `name` という名前に bind |
 | `[]`、`[1, 2]`、`[x, ..rest]` | list pattern |
 | `[..init, last]` | 先頭側に spread を置いた list |
+| `:ready` | symbol |
+| `:some value` | payload を持つ polyvariant |
 | `just x`、`nil` | prelude が re-export している enum variant |
 | `opt::just x`、`opt::nil` | 修飾 path で書く enum variant |
 | `tag x` | 短い名前で書く enum variant（`use enum::*` の後でのみ）|
@@ -63,6 +67,53 @@ case msg:
 ```
 
 リテラル pattern は構造的に等しい値にマッチする。
+
+## OR pattern
+
+OR pattern `left | right` は左から順に選択肢を試し、いずれかがマッチすれば成功する。
+
+```yulang
+my affirmative answer = case answer:
+    "yes" | "y" -> true
+    _ -> false
+
+say (affirmative "y")
+```
+
+OR pattern の選択肢は binding を統合しない。
+現在の checker は異なる bind 名を受け入れ、同じ名前を両側に書いても別々の binding を作る。
+選ばれた側が作らなかった binding を body から参照すると、実行時に unbound-local error になる。
+選択肢には binding を置かないか、OR pattern 全体に alias を付ける。
+
+## `as` alias
+
+`as` pattern `pattern as name` は内側の pattern にマッチし、入力値全体も `name` に bind する。
+
+```yulang
+my normalize answer = case answer:
+    ("yes" | "y") as matched -> matched
+    _ -> "no"
+
+say (normalize "y")
+```
+
+括弧によって alias が OR pattern 全体の外側に置かれるため、どちらの選択肢でも `matched` が作られる。
+
+## 型 pattern は利用できない
+
+parser は `pattern: type` を受理するが、現在の checker は `case` pattern の注釈を検査しない。
+これは実行時の型検査ではなく、次の `text: str` も通常の名前 binding として `int` 値にマッチする。
+
+```yulang
+my result = case 41:
+    text: str -> "annotation ignored"
+    _ -> "fallback"
+
+say result
+```
+
+この例は `annotation ignored` と出力する。
+値の型を検査または制約するために pattern 注釈を使ってはならない。
 
 ## tuple pattern
 
@@ -124,6 +175,33 @@ case xs:
 
 `..rest` で残りの部分を捕まえる。
 list pattern には spread を 1 つだけ置ける。
+
+## symbol pattern
+
+symbol pattern `:name` は、同じ名前の symbol 値だけにマッチする。
+symbol は payload を持たない。
+
+```yulang
+my state_name state = case state:
+    :ready -> "ready"
+    :waiting -> "waiting"
+
+say (state_name :ready)
+```
+
+## polyvariant pattern
+
+polyvariant pattern `:name payload ...` は同じ tag にマッチし、payload の pattern を順に適用する。
+
+```yulang
+my unwrap option = case option:
+    :some value -> value
+    :none -> 0
+
+say (unwrap (:some 42))
+```
+
+enum variant と異なり、symbol と polyvariant には宣言も修飾した companion module path も要らない。
 
 ## enum pattern
 

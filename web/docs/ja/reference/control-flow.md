@@ -18,6 +18,22 @@ if cond { a } else { b }
 `if` の条件は `bool` である。
 `else` がない場合は statement-like になり、then 分岐は効果のために評価され、値は捨てられ、式全体は `()` を返す。
 
+## `elsif`
+
+`elsif` は `if` と `else` の間に条件を追加する。
+条件は左から順に試され、最初に真になった分岐が選ばれる。
+すべて偽なら `else` が選ばれる。
+
+```yulang
+my size n =
+    if n < 0: "negative"
+    elsif n == 0: "zero"
+    elsif n < 10: "small"
+    else: "large"
+
+say (size 7)
+```
+
 ## `case`
 
 ```yulang
@@ -30,6 +46,21 @@ case value:
 `case` arm は上から順に試される。
 guard は pattern の後ろに `if` を書く。
 
+### guard
+
+`case` の guard は pattern の後ろに `if` または `where` で書く。
+guard からは pattern が bind した名前を参照できる。
+pattern がマッチした後だけ guard が評価され、偽なら次の arm へ進む。
+
+```yulang
+my sign n = case n:
+    value if value < 0 -> "negative"
+    value if value == 0 -> "zero"
+    _ -> "positive"
+
+say (sign 3)
+```
+
 ## `catch`
 
 ```yulang
@@ -41,6 +72,47 @@ catch action:
 operation arm は operation の payload と continuation `k` を受け取る。
 `k value` を呼ぶと計算を再開する。
 value arm は通常終了を処理する。
+
+### guard
+
+`catch` の guard は operation pattern と continuation の後ろに `if` または `where` で書く。
+guard が偽ならその arm は選ばれず、次にマッチする arm が試される。
+
+```yulang
+act signal:
+    our ask: () -> int
+
+my result = catch signal::ask():
+    signal::ask(), k if false -> 0
+    signal::ask(), k -> k 42
+    value -> value
+
+say result
+```
+
+## `case` と `catch` のラベル
+
+`case 'label value:` と `catch 'label action:` は arm 集合全体に再帰名を付ける。
+label は個々の arm ではなく、arm 集合に属する。
+body から `'label next` を呼ぶと、同じ `case` または `catch` の arm が `next` に再適用される。
+
+```yulang
+my result = case 'count 3:
+    0 -> "done"
+    n -> 'count (n - 1)
+
+say result
+```
+
+同じ綴りで labelled `catch` に再入できる。
+
+```yulang
+my result = catch 'again 3:
+    n if n > 0 -> 'again (n - 1)
+    n -> n
+
+say result
+```
 
 ## `for`
 

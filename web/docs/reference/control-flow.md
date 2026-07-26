@@ -19,6 +19,22 @@ if cond { a } else { b }
 then-branch is evaluated for its effects, its value is discarded, and the whole
 expression returns `()`.
 
+## `elsif`
+
+`elsif` adds another condition between `if` and `else`. Conditions are tried
+from left to right; the first true branch wins, and `else` handles the case
+where every condition is false.
+
+```yulang
+my size n =
+    if n < 0: "negative"
+    elsif n == 0: "zero"
+    elsif n < 10: "small"
+    else: "large"
+
+say (size 7)
+```
+
 ## `case`
 
 ```yulang
@@ -30,6 +46,21 @@ case value:
 
 `case` arms are tried top-to-bottom. Guards use `if` after the pattern.
 
+### Guards
+
+A `case` guard follows the pattern with `if` or `where`. The guard can use
+names bound by the pattern. It runs only after that pattern matches; when it
+returns false, matching continues with the next arm.
+
+```yulang
+my sign n = case n:
+    value if value < 0 -> "negative"
+    value if value == 0 -> "zero"
+    _ -> "positive"
+
+say (sign 3)
+```
+
 ## `catch`
 
 ```yulang
@@ -40,6 +71,49 @@ catch action:
 
 An operation arm receives the operation payload and a continuation `k`. Calling
 `k value` resumes the computation. A value arm handles normal completion.
+
+### Guards
+
+A `catch` guard follows the operation pattern and continuation with `if` or
+`where`. A false guard leaves that arm unselected and tries the next matching
+arm.
+
+```yulang
+act signal:
+    our ask: () -> int
+
+my result = catch signal::ask():
+    signal::ask(), k if false -> 0
+    signal::ask(), k -> k 42
+    value -> value
+
+say result
+```
+
+## Labels on `case` and `catch`
+
+`case 'label value:` and `catch 'label action:` give the entire arm set a
+recursive name. The label belongs to the arm set, not to an individual arm.
+Calling `'label next` from a body applies the same `case` or `catch` arms to
+`next`.
+
+```yulang
+my result = case 'count 3:
+    0 -> "done"
+    n -> 'count (n - 1)
+
+say result
+```
+
+The same spelling re-enters a labelled `catch`:
+
+```yulang
+my result = catch 'again 3:
+    n if n > 0 -> 'again (n - 1)
+    n -> n
+
+say result
+```
 
 ## `for`
 
