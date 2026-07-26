@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+  # A run cancelled by a following push cannot be restarted from the API, so
+  # without this a burst of pushes can leave the newest commit with no result
+  # and no way to ask for one.
+  workflow_dispatch:
 
 permissions:
   contents: read
