@@ -158,6 +158,8 @@ case config:
 ### Spread
 
 ```yulang
+my rec = { x: 1, y: 2 }
+
 case rec:
     { x, .._ }    -> x
     { ..tail, y } -> y    // `tail` binds the whole record, not the leftover
@@ -178,7 +180,7 @@ case xs:
     [only]          -> "single: " + only.show
     [first, second] -> "pair"
     [head, ..tail]  -> "head: " + head.show
-    [..init, last]  -> "ends with: " + last.show
+    [..init, end]   -> "ends with: " + end.show
 ```
 
 Spread `..rest` captures the unmatched portion. A list pattern can have at most

@@ -47,13 +47,13 @@ record pattern は default によって field を省略可能にできる。
 
 ```yulang
 my width_or_default { width = 1 } = width
-my keep_rest { ..rest, width = 1 } = rest
+my keep_input { width, ..input } = input
 ```
 
 型表示では、省略可能な record field は `?` 付きで出る。
 たとえば `{width?: α} -> α | int` のような形である。
-spread pattern が残りの field を保持すると、型表示には intersection が現れる。
-たとえば `α & {width?: ⊤}` のような形である。
+spread binding は、明示的に名前を挙げた field も含む入力 record 全体を受け取る。
+`keep_input` の generic な型は `('a & {width: 'b}) -> 'a | {width: 'b, ..never}` である。
 
 ## Optional
 

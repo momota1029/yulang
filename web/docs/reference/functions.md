@@ -24,7 +24,7 @@ name, additional patterns after the name become function arguments.
 
 ```yulang
 my add x y = x + y
-my add' = \x -> \y -> x + y
+my add_curried = \x -> \y -> x + y
 ```
 
 Multi-argument bindings are curried left-to-right. `add 1` yields a function
@@ -50,8 +50,10 @@ visually or when bare application would chain too far across tokens.
 ## Lambdas
 
 ```yulang
-\x -> x + 1
-\x y -> x + y
+my inc = \x -> x + 1
+my add = \x y -> x + y
+
+(inc 1, add 1 2)
 ```
 
 Lambdas start with `\`. Multi-argument lambdas are written `\x y -> ...` and
@@ -60,8 +62,10 @@ are curried like binding heads.
 A lambda's argument is itself a pattern:
 
 ```yulang
-\(x, y) -> x + y
-\{ name } -> "hello, " + name
+my add_pair = \(x, y) -> x + y
+my greet = \{ name } -> "hello, " + name
+
+(add_pair (1, 2), greet { name: "world" })
 ```
 
 ## Special lambda forms
@@ -122,9 +126,14 @@ generic that would otherwise stay open, or to resolve an ambiguous overload.
 ## Effectful annotations
 
 ```yulang
+act console:
+    our read: () -> str
+
 my ask(): [console] str = console::read()
 my run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")
+
+run_console (ask())
 ```
 
 The square-bracket form in the return type is the effect row. `[console] str`

@@ -153,6 +153,8 @@ case config:
 ### spread
 
 ```yulang
+my rec = { x: 1, y: 2 }
+
 case rec:
     { x, .._ }    -> x
     { ..tail, y } -> y    // `tail` には残りではなく入力 record 全体が入る
@@ -170,7 +172,7 @@ case xs:
     [only]          -> "single: " + only.show
     [first, second] -> "pair"
     [head, ..tail]  -> "head: " + head.show
-    [..init, last]  -> "ends with: " + last.show
+    [..init, end]   -> "ends with: " + end.show
 ```
 
 `..rest` で残りの部分を捕まえる。

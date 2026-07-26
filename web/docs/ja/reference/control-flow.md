@@ -64,7 +64,10 @@ say (sign 3)
 ## `catch`
 
 ```yulang
-catch action:
+act console:
+    our read: () -> str
+
+catch console::read():
     console::read(), k -> k "42"
     value -> value
 ```
@@ -176,8 +179,10 @@ parser 専用 keyword ではない。
     x + 1
 }
 
-\x -> x + 1
-\x y -> x + y
+my inc = \x -> x + 1
+my add = \x y -> x + y
+
+(inc 1, add 1 2)
 ```
 
 block は statement を順に評価し、最後の式を返す。

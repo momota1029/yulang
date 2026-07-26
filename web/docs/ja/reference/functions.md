@@ -24,7 +24,7 @@ pattern が直接の名前のとき、その後ろに続く pattern が関数引
 
 ```yulang
 my add x y = x + y
-my add' = \x -> \y -> x + y
+my add_curried = \x -> \y -> x + y
 ```
 
 複数引数の binding は左から右に curry される。
@@ -51,8 +51,10 @@ add: 1                 // colon application（2 引数関数では稀）
 ## ラムダ
 
 ```yulang
-\x -> x + 1
-\x y -> x + y
+my inc = \x -> x + 1
+my add = \x y -> x + y
+
+(inc 1, add 1 2)
 ```
 
 ラムダは `\` で始まる。
@@ -61,8 +63,10 @@ add: 1                 // colon application（2 引数関数では稀）
 ラムダの引数自体も pattern である。
 
 ```yulang
-\(x, y) -> x + y
-\{ name } -> "hello, " + name
+my add_pair = \(x, y) -> x + y
+my greet = \{ name } -> "hello, " + name
+
+(add_pair (1, 2), greet { name: "world" })
 ```
 
 ## 特別な lambda 形式
@@ -122,9 +126,14 @@ API 境界のドキュメント、そのままだと開いてしまう generic �
 ## effect 付きの注釈
 
 ```yulang
+act console:
+    our read: () -> str
+
 my ask(): [console] str = console::read()
 my run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")
+
+run_console (ask())
 ```
 
 戻り型の角括弧形は effect row である。

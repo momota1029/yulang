@@ -44,12 +44,13 @@ Record patterns can make fields optional with defaults:
 
 ```yulang
 my width_or_default { width = 1 } = width
-my keep_rest { ..rest, width = 1 } = rest
+my keep_input { width, ..input } = input
 ```
 
 The type printer marks optional record fields with `?`, for example
-`{width?: α} -> α | int`. A spread pattern that keeps the rest may render an
-intersection such as `α & {width?: ⊤}`.
+`{width?: α} -> α | int`. A spread binding receives the entire input record,
+including explicitly named fields. The generic type of `keep_input` is
+`('a & {width: 'b}) -> 'a | {width: 'b, ..never}`.
 
 ## Optional
 
