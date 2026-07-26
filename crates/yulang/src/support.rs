@@ -649,6 +649,33 @@ pub(super) fn format_runtime_evidence_run_error(
                 format!("assertion failure [{CODE}]: {MESSAGE}\n  hint: {HINT}")
             })
         }
+        evidence_vm::RuntimeEvidenceRunError::AssertionEqualityFailed {
+            site,
+            expected,
+            actual,
+        } => {
+            const CODE: &str = "yulang.assertion-equality-failed";
+            const MESSAGE: &str = "assertion values are not equal";
+            const HINT: &str = "make the expected and actual values equal";
+            let details = format!("\n  expected: {expected}\n    actual: {actual}");
+            format_ranged_application_runtime_error(
+                *site,
+                CODE,
+                MESSAGE,
+                HINT,
+                application_provenance,
+                diagnostic_sources,
+            )
+            .map(|rendered| {
+                format!(
+                    "{}{details}",
+                    rendered.replacen("runtime error", "assertion failure", 1)
+                )
+            })
+            .unwrap_or_else(|| {
+                format!("assertion failure [{CODE}]: {MESSAGE}\n  hint: {HINT}{details}")
+            })
+        }
         evidence_vm::RuntimeEvidenceRunError::NotThunk(value) => format!(
             "runtime error [yulang.runtime-internal]: expected a delayed computation, got {value}\n  hint: report this with the source program if it came from normal `yulang run`"
         ),
@@ -673,36 +700,74 @@ pub(super) fn format_test_assertion_failure_at_span(
     span: &infer::SourceSpan,
     diagnostic_sources: &yulang::RuntimeDiagnosticSources,
 ) -> String {
-    const CODE: &str = "yulang.assertion-failed";
-    const MESSAGE: &str = "assertion evaluated to false";
-    const HINT: &str = "make the asserted condition true";
+    format_test_assertion_failure(
+        span,
+        diagnostic_sources,
+        "assert",
+        "yulang.assertion-failed",
+        "assertion evaluated to false",
+        "make the asserted condition true",
+        None,
+    )
+}
+
+pub(super) fn format_test_assertion_equality_failure_at_span(
+    span: &infer::SourceSpan,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+    expected: &str,
+    actual: &str,
+) -> String {
+    format_test_assertion_failure(
+        span,
+        diagnostic_sources,
+        "assert_eq",
+        "yulang.assertion-equality-failed",
+        "assertion values are not equal",
+        "make the expected and actual values equal",
+        Some(format!("\n  expected: {expected}\n    actual: {actual}")),
+    )
+}
+
+fn format_test_assertion_failure(
+    span: &infer::SourceSpan,
+    diagnostic_sources: &yulang::RuntimeDiagnosticSources,
+    operation: &str,
+    code: &str,
+    message: &str,
+    hint: &str,
+    details: Option<String>,
+) -> String {
+    let details = details.unwrap_or_default();
     let Some(source) = diagnostic_sources.source_for_span(span) else {
-        return format!("assertion failure [{CODE}]: {MESSAGE}\n  hint: {HINT}");
+        return format!("assertion failure [{code}]: {message}\n  hint: {hint}{details}");
     };
     let mut range = span.range;
     let search_start = range.end.saturating_sub(source.source.range_offset);
     if search_start < source.source.source.len() {
         let rest = &source.source.source[search_start..];
         let line_end = rest.find('\n').unwrap_or(rest.len());
-        if let Some(offset) = rest[..line_end].find("assert") {
+        if let Some(offset) = rest[..line_end].find(operation) {
             range.start = source.source.range_offset + search_start + offset;
-            range.end = range.start + "assert".len();
+            range.end = range.start + operation.len();
         }
     }
     let diagnostic = yulang::SourceDiagnostic {
         severity: yulang::SourceDiagnosticSeverity::Error,
-        code: Some(CODE.to_string()),
+        code: Some(code.to_string()),
         label: None,
         file: Some(span.file.clone()),
         range: Some(range),
-        message: MESSAGE.to_string(),
-        hint: Some(HINT.to_string()),
+        message: message.to_string(),
+        hint: Some(hint.to_string()),
         related: Vec::new(),
     };
-    format_runtime_source_diagnostic(&diagnostic, &source.source).replacen(
-        "runtime error",
-        "assertion failure",
-        1,
+    format!(
+        "{}{details}",
+        format_runtime_source_diagnostic(&diagnostic, &source.source).replacen(
+            "runtime error",
+            "assertion failure",
+            1,
+        )
     )
 }
 

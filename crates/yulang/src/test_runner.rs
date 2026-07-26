@@ -8,12 +8,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::GlobalOptions;
 use crate::support::{
-    format_route_error, format_runtime_evidence_run_error, format_test_assertion_failure_at_span,
+    format_route_error, format_runtime_evidence_run_error,
+    format_test_assertion_equality_failure_at_span, format_test_assertion_failure_at_span,
     print_usage_error_and_exit,
 };
 
 const ASSERTION_FAILURE_EXIT: i32 = 10;
 const RUNTIME_FAILURE_EXIT: i32 = 11;
+const ASSERTION_EQUALITY_FAILURE_EXIT: i32 = 12;
 
 pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let args = parse_test_args(program, args);
@@ -79,6 +81,7 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
     for (root_index, test) in selected {
         let output = run_test_worker(options, artifact_root.path(), root_index, &args.entry);
         if output.status.success() {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
             passed += 1;
             if args.show_passes {
                 println!("PASS {}", test.name);
@@ -95,6 +98,19 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
             eprintln!(
                 "{}",
                 format_test_assertion_failure_at_span(source_span, &diagnostic_sources)
+            );
+        } else if output.status.code() == Some(ASSERTION_EQUALITY_FAILURE_EXIT)
+            && let Some(source_span) = test.source_span.as_ref()
+            && let Some((expected, actual)) = assertion_equality_failure_values(&stderr)
+        {
+            eprintln!(
+                "{}",
+                format_test_assertion_equality_failure_at_span(
+                    source_span,
+                    &diagnostic_sources,
+                    expected,
+                    actual,
+                )
             );
         } else if stderr.is_empty() {
             eprintln!("runtime error: test worker exited with {}", output.status);
@@ -166,26 +182,51 @@ pub(super) fn run_worker(program: &str, options: &GlobalOptions, mut args: VecDe
     match evidence_vm::run_test_program_with_plan_with_labels(&program, &plan, &artifact.labels) {
         Ok(output) => print!("{}", output.stdout),
         Err(error) => {
-            eprintln!(
-                "{}",
-                format_runtime_evidence_run_error(
-                    &error,
-                    &artifact.application_provenance,
-                    &artifact.selection_provenance,
-                    &diagnostic_sources,
-                )
-            );
-            let code = if matches!(
-                error,
-                evidence_vm::RuntimeEvidenceRunError::AssertionFailed { .. }
-            ) {
-                ASSERTION_FAILURE_EXIT
-            } else {
-                RUNTIME_FAILURE_EXIT
+            let code = match &error {
+                evidence_vm::RuntimeEvidenceRunError::AssertionFailed { .. } => {
+                    eprintln!(
+                        "{}",
+                        format_runtime_evidence_run_error(
+                            &error,
+                            &artifact.application_provenance,
+                            &artifact.selection_provenance,
+                            &diagnostic_sources,
+                        )
+                    );
+                    ASSERTION_FAILURE_EXIT
+                }
+                evidence_vm::RuntimeEvidenceRunError::AssertionEqualityFailed {
+                    expected,
+                    actual,
+                    ..
+                } => {
+                    eprintln!("{expected}");
+                    eprintln!("{actual}");
+                    ASSERTION_EQUALITY_FAILURE_EXIT
+                }
+                _ => {
+                    eprintln!(
+                        "{}",
+                        format_runtime_evidence_run_error(
+                            &error,
+                            &artifact.application_provenance,
+                            &artifact.selection_provenance,
+                            &diagnostic_sources,
+                        )
+                    );
+                    RUNTIME_FAILURE_EXIT
+                }
             };
             process::exit(code);
         }
     }
+}
+
+fn assertion_equality_failure_values(stderr: &str) -> Option<(&str, &str)> {
+    let mut lines = stderr.lines();
+    let expected = lines.next()?;
+    let actual = lines.next()?;
+    (lines.next().is_none()).then_some((expected, actual))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

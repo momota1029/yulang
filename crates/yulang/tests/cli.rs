@@ -65,6 +65,78 @@ mod test broken:
 }
 
 #[test]
+fn assert_eq_is_lazy_in_normal_runs_and_forces_both_operands_in_tests() {
+    let entry = write_entry(
+        "test-runner-assert-eq-laziness",
+        concat!(
+            "mod test equality:\n",
+            "  my same = { println \"LEFT\"; 1 } assert_eq { println \"RIGHT\"; 1 }\n",
+            "println \"DONE\"\n",
+        ),
+    );
+
+    let normal = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&normal);
+    assert_eq!(stdout(&normal), "DONE\n");
+    assert_eq!(stderr(&normal), "");
+
+    let test = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&test);
+    assert_eq!(
+        stdout(&test),
+        "LEFT\nRIGHT\ntest result: 1 passed; 0 failed\n"
+    );
+    assert_eq!(stderr(&test), "");
+}
+
+#[test]
+fn test_runner_reports_both_assert_eq_values() {
+    let entry = write_entry(
+        "test-runner-assert-eq-failure",
+        "\
+mod test broken:
+  my unequal = 7 assert_eq 9
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "test result: 0 passed; 1 failed\n");
+    let stderr = stderr(&output);
+    assert!(stderr.contains("FAIL broken::unequal"), "{stderr}");
+    assert!(
+        stderr.contains("assertion failure [yulang.assertion-equality-failed]"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("expected: 7"), "{stderr}");
+    assert!(stderr.contains("actual: 9"), "{stderr}");
+    assert!(stderr.contains("my unequal = 7 assert_eq 9"), "{stderr}");
+    assert!(stderr.contains("--> line 2, column"), "{stderr}");
+}
+
+#[test]
 fn test_runner_isolates_runtime_error_and_aggregates_other_modules() {
     let entry = write_entry(
         "test-runner-runtime-isolation",

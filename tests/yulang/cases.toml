@@ -3353,8 +3353,28 @@ deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "effects"]
 
 [[case]]
+name = "assert_eq_effect_public_signature"
+file = "regressions/effect/assert_eq_effect_public_signature.yu"
+kind = "public-signature"
+std = "repo"
+symbol = "checked"
+expect_type = "() -> [std::testing::assertion] ()"
+deny_type_contains = ["#", "AllExcept", "std::core::cmp::Eq", "std::core::fmt::Display"]
+contracts = ["public-signature", "effects"]
+
+[[case]]
 name = "assert_not_forced_in_normal_run"
 file = "regressions/runtime/assert_not_forced_in_normal_run.yu"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "DONE\n"
+expect_stderr = ""
+contracts = ["runtime", "effects", "console"]
+
+[[case]]
+name = "assert_eq_not_forced_in_normal_run"
+file = "regressions/runtime/assert_eq_not_forced_in_normal_run.yu"
 kind = "run"
 std = "repo"
 print_roots = false

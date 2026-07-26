@@ -1,10 +1,16 @@
 use crate::Value;
 
 pub(super) fn discard_default_root_effect(path: &[String]) -> Option<Value> {
-    if path == ["std", "testing", "assertion", "assert"] {
-        Some(Value::Unit)
-    } else {
-        None
+    match path {
+        [std, testing, assertion, operation]
+            if std == "std"
+                && testing == "testing"
+                && assertion == "assertion"
+                && matches!(operation.as_str(), "assert" | "assert_eq") =>
+        {
+            Some(Value::Unit)
+        }
+        _ => None,
     }
 }
 
@@ -13,13 +19,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn discards_default_assertion_operation() {
-        assert_eq!(
-            discard_default_root_effect(
-                &["std", "testing", "assertion", "assert"].map(str::to_string)
-            ),
-            Some(Value::Unit)
-        );
+    fn discards_default_assertion_operations() {
+        for operation in ["assert", "assert_eq"] {
+            assert_eq!(
+                discard_default_root_effect(
+                    &["std", "testing", "assertion", operation].map(str::to_string)
+                ),
+                Some(Value::Unit)
+            );
+        }
     }
 
     #[test]
