@@ -4874,6 +4874,10 @@ mod tests {
                 }],
                 methods: Vec::new(),
             });
+        // A failed canonical freeze must fall back for the complete unit.  The
+        // finalized legacy arena therefore retains the candidate instead of
+        // writing an artifact that silently removes one source implementation.
+        lowering.session.finalize_poly_role_impls();
         let key = source_cache_key(&files);
 
         let syntax = sources::CompiledSyntaxSurface::from_loaded_files(&loaded);
@@ -4902,6 +4906,16 @@ mod tests {
         assert!(artifact.runtime.boundary.bounds.is_empty());
         assert_eq!(
             artifact
+                .runtime
+                .arena
+                .role_impls
+                .candidates(&["UnclosedArtifactCandidate".into()])
+                .len(),
+            1,
+            "unit-level fallback must retain the candidate that canonical freeze rejected"
+        );
+        assert_eq!(
+            artifact
                 .typed
                 .boundary_fingerprint_agreeing_with_runtime(&artifact.runtime),
             Some(artifact.manifest.boundary_fingerprint)
@@ -4914,6 +4928,16 @@ mod tests {
             .expect("empty fallback artifact remains writable");
         assert!(restored.typed.boundary.bounds.is_empty());
         assert!(restored.runtime.boundary.bounds.is_empty());
+        assert_eq!(
+            restored
+                .runtime
+                .arena
+                .role_impls
+                .candidates(&["UnclosedArtifactCandidate".into()])
+                .len(),
+            1,
+            "serialized fallback must not silently drop the candidate"
+        );
 
         let _ = fs::remove_dir_all(root);
     }
@@ -5986,6 +6010,113 @@ mod tests {
     }
 
     #[test]
+    fn derived_role_impl_candidates_round_trip_with_prerequisites_mappings_and_bodies() {
+        let files = derives_cache_prefix_files();
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        assert!(artifact.errors.is_empty(), "{:?}", artifact.errors);
+
+        let expected = derived_candidate_views(&artifact.runtime.arena, &artifact.runtime.labels);
+        assert_eq!(expected.len(), 2, "expected Eq and Debug derives");
+        assert_derived_candidate_method_bodies(&artifact.runtime.arena);
+
+        let key = artifact.cache_key();
+        let bytes = encode_compiled_unit_artifact_bytes(&artifact).unwrap();
+        let restored = decode_compiled_unit_artifact_bytes(&bytes, key)
+            .unwrap()
+            .expect("derived compiled-unit artifact round trip");
+
+        assert_eq!(
+            derived_candidate_views(&restored.runtime.arena, &restored.runtime.labels),
+            expected
+        );
+        assert_derived_candidate_method_bodies(&restored.runtime.arena);
+    }
+
+    #[test]
+    fn derived_role_impls_have_cold_prefix_candidate_and_method_call_parity() {
+        let prefix_files = derives_cache_prefix_files();
+        let suffix_files = derives_cache_suffix_files();
+        let cold = crate::build_poly_from_collected_sources(derives_cache_cold_files())
+            .expect("cold derived fixture");
+        assert!(cold.errors.is_empty(), "cold: {:?}", cold.errors);
+
+        let prefix_loaded = sources::load(collected_to_source_files(prefix_files.clone()));
+        let prefix =
+            compiled_unit_artifact_from_loaded_files(&prefix_files, &prefix_loaded).unwrap();
+        assert!(prefix.errors.is_empty(), "prefix: {:?}", prefix.errors);
+        let prefix_key = prefix.cache_key();
+        let prefix = decode_compiled_unit_artifact_bytes(
+            &encode_compiled_unit_artifact_bytes(&prefix).unwrap(),
+            prefix_key,
+        )
+        .unwrap()
+        .expect("serialized derived prefix");
+
+        let warm =
+            crate::build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files)
+                .expect("prefix derived fixture");
+        assert!(warm.errors.is_empty(), "prefix: {:?}", warm.errors);
+
+        assert_eq!(
+            derived_candidate_views(&cold.arena, &cold.labels),
+            derived_candidate_views(&warm.arena, &warm.labels),
+            "cold and prefix routes must retain the same derived candidate set"
+        );
+        assert_derived_candidate_method_bodies(&warm.arena);
+
+        crate::build_control_from_poly_output(&cold)
+            .expect("cold derived Eq and Debug calls should specialize");
+        crate::build_control_from_poly_output(&warm)
+            .expect("prefix-derived Eq and Debug calls should specialize");
+    }
+
+    #[test]
+    fn explicit_and_derived_duplicate_is_two_candidate_ambiguity_for_cold_and_prefix() {
+        let prefix_files = derives_cache_prefix_files();
+        let suffix_files = vec![source(
+            "main.yu",
+            &[],
+            concat!(
+                "use deps::*\n",
+                "impl (pair int): std::core::cmp::Eq:\n",
+                "  our left.eq right = true\n",
+                "my value = pair { value: 1 }\n",
+                "value.eq value\n",
+            ),
+        )];
+        let cold = crate::build_poly_from_collected_sources(derives_cache_cold_files_with_suffix(
+            &suffix_files[0].source,
+        ))
+        .expect("cold duplicate fixture");
+        assert!(cold.errors.is_empty(), "cold: {:?}", cold.errors);
+
+        let prefix_loaded = sources::load(collected_to_source_files(prefix_files.clone()));
+        let prefix =
+            compiled_unit_artifact_from_loaded_files(&prefix_files, &prefix_loaded).unwrap();
+        let prefix_key = prefix.cache_key();
+        let prefix = decode_compiled_unit_artifact_bytes(
+            &encode_compiled_unit_artifact_bytes(&prefix).unwrap(),
+            prefix_key,
+        )
+        .unwrap()
+        .expect("serialized derived prefix");
+        let warm =
+            crate::build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files)
+                .expect("prefix duplicate fixture");
+        assert!(warm.errors.is_empty(), "prefix: {:?}", warm.errors);
+
+        assert_eq!(
+            ambiguous_role_candidate_count(crate::build_control_from_poly_output(&cold)),
+            2
+        );
+        assert_eq!(
+            ambiguous_role_candidate_count(crate::build_control_from_poly_output(&warm)),
+            2
+        );
+    }
+
+    #[test]
     fn compiled_unit_artifact_merge_combines_independent_leaf_units() {
         let files = vec![
             source("main.yu", &[], "mod left;\nmod right;\n"),
@@ -6351,6 +6482,208 @@ mod tests {
             path_from_segments(module),
             text.to_string(),
         )
+    }
+
+    fn derives_cache_prefix_files() -> Vec<CollectedSource> {
+        vec![
+            source("prefix.yu", &[], "mod std;\nmod deps;\n"),
+            source(
+                "std.yu",
+                &["std"],
+                concat!(
+                    "pub mod text:\n",
+                    "  pub mod str:\n",
+                    "    pub type str\n",
+                    "pub mod core:\n",
+                    "  pub mod cmp:\n",
+                    "    pub role Eq 'a:\n",
+                    "      pub a.eq: 'a -> bool\n",
+                    "    impl int: Eq:\n",
+                    "      pub x.eq y = true\n",
+                    "  pub mod fmt:\n",
+                    "    use std::text::str::str\n",
+                    "    pub role Debug 'a:\n",
+                    "      pub a.debug: str\n",
+                    "    impl int: Debug:\n",
+                    "      pub x.debug = \"int\"\n",
+                    "pub mod control:\n",
+                    "  pub mod junction:\n",
+                    "    pub mod junction:\n",
+                    "      pub junction x = x\n",
+                ),
+            ),
+            source(
+                "deps.yu",
+                &["deps"],
+                concat!(
+                    "pub infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x\n",
+                    "pub struct pair 'a { value: 'a } ",
+                    "derives std::core::cmp::Eq, std::core::fmt::Debug\n",
+                ),
+            ),
+        ]
+    }
+
+    fn derives_cache_suffix_files() -> Vec<CollectedSource> {
+        vec![source(
+            "main.yu",
+            &[],
+            concat!(
+                "use deps::*\n",
+                "my left = pair { value: 1 }\n",
+                "my right = pair { value: 1 }\n",
+                "(left.eq right, left.debug)\n",
+            ),
+        )]
+    }
+
+    fn derives_cache_cold_files() -> Vec<CollectedSource> {
+        derives_cache_cold_files_with_suffix(&derives_cache_suffix_files()[0].source)
+    }
+
+    fn derives_cache_cold_files_with_suffix(suffix: &str) -> Vec<CollectedSource> {
+        let mut files = derives_cache_prefix_files();
+        let root = files
+            .iter_mut()
+            .find(|file| file.module_path.segments.is_empty())
+            .expect("prefix fixture root module");
+        root.source.push_str(suffix);
+        files
+    }
+
+    fn ambiguous_role_candidate_count(
+        result: Result<crate::BuildControlOutput, crate::RouteError>,
+    ) -> usize {
+        match result.expect_err("duplicate derives must remain ambiguous") {
+            crate::RouteError::Specialize(
+                specialize::SpecializeError::AmbiguousTypeclassMethod { candidates, .. },
+            )
+            | crate::RouteError::SpecializeDiagnostic {
+                error: specialize::SpecializeError::AmbiguousTypeclassMethod { candidates, .. },
+                ..
+            } => candidates.len(),
+            error => panic!("expected role ambiguity, got {error:?}"),
+        }
+    }
+
+    fn derived_candidate_views(
+        arena: &poly::expr::Arena,
+        labels: &poly::dump::DumpLabels,
+    ) -> Vec<String> {
+        let mut views = arena
+            .role_impls
+            .iter()
+            .filter(|candidate| {
+                matches!(
+                    candidate.role.as_slice(),
+                    [std, core, role]
+                        if std == "std"
+                            && core == "core"
+                            && matches!(role.as_str(), "cmp" | "fmt")
+                )
+                    || matches!(
+                        candidate.role.as_slice(),
+                        [std, core, module, role]
+                            if std == "std"
+                                && core == "core"
+                                && matches!((module.as_str(), role.as_str()), ("cmp", "Eq") | ("fmt", "Debug"))
+                    )
+            })
+            .filter(|candidate| {
+                candidate.inputs.iter().any(|input| {
+                    poly::dump::format_pos(&arena.typ, input.lower).contains("deps::pair")
+                })
+            })
+            .map(|candidate| {
+                let inputs = candidate
+                    .inputs
+                    .iter()
+                    .map(|input| {
+                        format!(
+                            "{}..{}",
+                            poly::dump::format_pos(&arena.typ, input.lower),
+                            poly::dump::format_neg(&arena.typ, input.upper),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let prerequisites = candidate
+                    .prerequisites
+                    .iter()
+                    .map(|prerequisite| {
+                        let inputs = prerequisite
+                            .inputs
+                            .iter()
+                            .map(|input| {
+                                format!(
+                                    "{}..{}",
+                                    poly::dump::format_pos(&arena.typ, input.lower),
+                                    poly::dump::format_neg(&arena.typ, input.upper),
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        format!("{:?}:{inputs:?}", prerequisite.role)
+                    })
+                    .collect::<Vec<_>>();
+                let methods = candidate
+                    .methods
+                    .iter()
+                    .map(|method| {
+                        format!(
+                            "{}=>{}",
+                            labels.def_label(method.requirement).unwrap_or("<unlabeled>"),
+                            labels
+                                .def_label(method.implementation)
+                                .unwrap_or("<unlabeled>"),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                format!(
+                    "role={:?}; inputs={inputs:?}; prerequisites={prerequisites:?}; methods={methods:?}",
+                    candidate.role,
+                )
+            })
+            .collect::<Vec<_>>();
+        views.sort();
+        views
+    }
+
+    fn assert_derived_candidate_method_bodies(arena: &poly::expr::Arena) {
+        let candidates = arena
+            .role_impls
+            .iter()
+            .filter(|candidate| {
+                candidate.inputs.iter().any(|input| {
+                    poly::dump::format_pos(&arena.typ, input.lower).contains("deps::pair")
+                })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            candidates.len(),
+            2,
+            "expected Eq and Debug derived candidates"
+        );
+        for candidate in candidates {
+            let impl_def = candidate
+                .impl_def
+                .expect("derived candidate impl definition");
+            assert!(
+                matches!(arena.defs.get(impl_def), Some(poly::expr::Def::Mod { .. })),
+                "derived candidate impl definition must survive"
+            );
+            assert_eq!(candidate.methods.len(), 1);
+            for method in &candidate.methods {
+                assert!(arena.defs.get(method.requirement).is_some());
+                assert!(matches!(
+                    arena.defs.get(method.implementation),
+                    Some(poly::expr::Def::Let {
+                        scheme: Some(_),
+                        body: Some(_),
+                        ..
+                    })
+                ));
+            }
+            assert_eq!(candidate.prerequisites.len(), 1);
+        }
     }
 
     fn slash_import_request() -> sources::UseImport {
