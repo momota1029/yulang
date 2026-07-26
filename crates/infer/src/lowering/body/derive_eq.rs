@@ -13,8 +13,9 @@ use parser::sink::YulangLanguage;
 use rowan::SyntaxNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum DeriveStrategy {
+pub(super) enum DeriveStrategy {
     Eq,
+    Debug,
 }
 
 #[derive(Debug)]
@@ -27,15 +28,27 @@ impl BodyLowerer {
         let requests = self.modules.derive_requests(decl.id).to_vec();
         for request in requests {
             for role_ref in request.roles {
-                if self.derive_strategy(&role_ref.node, decl) != Some(DeriveStrategy::Eq) {
-                    // DERIVE-F owns diagnostics for unresolved and unsupported roles.
-                    continue;
+                match self.derive_strategy(&role_ref.node, decl) {
+                    Some(DeriveStrategy::Eq) => {
+                        let Some(plan) = EqDerivePlan::build(node, decl, request.via.as_ref())
+                        else {
+                            // DERIVE-F owns diagnostics for invalid derive targets and `via` targets.
+                            continue;
+                        };
+                        self.lower_eq_derive_plan(node, decl, request.companion, plan);
+                    }
+                    Some(DeriveStrategy::Debug) => {
+                        self.lower_debug_derive_request(
+                            node,
+                            decl,
+                            request.companion,
+                            request.via.as_ref(),
+                        );
+                    }
+                    None => {
+                        // DERIVE-F owns diagnostics for unresolved and unsupported roles.
+                    }
                 }
-                let Some(plan) = EqDerivePlan::build(node, decl, request.via.as_ref()) else {
-                    // DERIVE-F owns diagnostics for invalid derive targets and `via` targets.
-                    continue;
-                };
-                self.lower_eq_derive_plan(node, decl, request.companion, plan);
             }
         }
     }
@@ -44,7 +57,19 @@ impl BodyLowerer {
         let mut builder = ann_type_builder(&self.modules, decl.module, decl.order, None);
         let role = builder.build_type_expr(role_ref).ok()?;
         let role = ann_type_named_head(&role)?;
-        (role == self.canonical_eq_role(decl.module)?).then_some(DeriveStrategy::Eq)
+        if self
+            .canonical_eq_role(decl.module)
+            .is_some_and(|eq_role| role == eq_role)
+        {
+            Some(DeriveStrategy::Eq)
+        } else if self
+            .canonical_debug_role(decl.module)
+            .is_some_and(|debug_role| role == debug_role)
+        {
+            Some(DeriveStrategy::Debug)
+        } else {
+            None
+        }
     }
 
     fn canonical_eq_role(&self, module: ModuleId) -> Option<TypeDeclId> {
@@ -52,6 +77,17 @@ impl BodyLowerer {
             .type_path_at(
                 module,
                 &names(&["std", "core", "cmp", "Eq"]),
+                module_path_site(),
+            )
+            .filter(|decl| decl.kind == ModuleTypeKind::Role)
+            .map(|decl| decl.id)
+    }
+
+    pub(super) fn canonical_debug_role(&self, module: ModuleId) -> Option<TypeDeclId> {
+        self.modules
+            .type_path_at(
+                module,
+                &names(&["std", "core", "fmt", "Debug"]),
                 module_path_site(),
             )
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
@@ -107,6 +143,7 @@ impl BodyLowerer {
             input_anns,
             associated_anns,
             type_var_bindings,
+            prerequisites: Vec::new(),
             methods: vec![SyntheticRoleImplMethod {
                 name: eq_method.name,
                 receiver: Some(Name("__derive_left".into())),
@@ -259,14 +296,14 @@ fn ann_type_named_head(ann: &AnnType) -> Option<TypeDeclId> {
     }
 }
 
-fn names(segments: &[&str]) -> Vec<Name> {
+pub(super) fn names(segments: &[&str]) -> Vec<Name> {
     segments
         .iter()
         .map(|segment| Name((*segment).to_string()))
         .collect()
 }
 
-fn synthetic_binding(source: &str) -> Option<Cst> {
+pub(super) fn synthetic_binding(source: &str) -> Option<Cst> {
     let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
     root.children()
         .find(|node| node.kind() == SyntaxKind::Binding)

@@ -33,6 +33,7 @@ fn synthetic_role_impl_reaches_final_poly_with_method_and_residual_prerequisite(
             input_anns: vec![target_ann],
             associated_anns: Vec::new(),
             type_var_bindings: builder.type_var_bindings(),
+            prerequisites: Vec::new(),
             methods: vec![SyntheticRoleImplMethod {
                 name: Name("get".into()),
                 receiver: Some(Name("x".into())),

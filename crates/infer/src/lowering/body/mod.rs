@@ -1,6 +1,7 @@
 //! Extracted lowering implementation.
 
 pub(super) mod act;
+pub(super) mod derive_debug;
 pub(super) mod derive_eq;
 mod doc_tests;
 pub(super) mod error_decl;

@@ -15,6 +15,9 @@ pub(super) struct SyntheticRoleImpl<'a> {
     pub(super) input_anns: Vec<AnnType>,
     pub(super) associated_anns: Vec<(String, AnnType)>,
     pub(super) type_var_bindings: Vec<(String, AnnTypeVarId)>,
+    /// Explicit structural prerequisites for synthetic methods whose role
+    /// selections are zero-argument projections rather than applications.
+    pub(super) prerequisites: Vec<(Vec<String>, Vec<AnnType>)>,
     pub(super) methods: Vec<SyntheticRoleImplMethod<'a>>,
 }
 
@@ -98,13 +101,37 @@ impl BodyLowerer {
             .collect::<Vec<_>>();
         let (inputs, associated, ann_solver_vars) =
             self.lower_role_impl_args(&synthetic.input_anns, &synthetic.associated_anns)?;
+        let prerequisites = synthetic
+            .prerequisites
+            .iter()
+            .map(|(role, inputs)| {
+                let mut lowerer = AnnConstraintLowerer::with_vars(
+                    &mut self.session.infer,
+                    &self.modules,
+                    ann_solver_vars.clone(),
+                );
+                let inputs = inputs
+                    .iter()
+                    .map(|input| {
+                        lowerer
+                            .lower_role_arg(input)
+                            .map_err(|error| LoweringError::AnnotationConstraint { error })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(RoleConstraint {
+                    role: role.clone(),
+                    inputs,
+                    associated: Vec::new(),
+                })
+            })
+            .collect::<Result<Vec<_>, LoweringError>>()?;
         let mut context = self.register_prepared_role_impl_candidate(
             RoleImplCandidate {
                 impl_def: Some(impl_def),
                 role: role_path,
                 inputs,
                 associated,
-                prerequisites: Vec::new(),
+                prerequisites,
                 methods: Vec::new(),
             },
             RoleImplLoweringContext {

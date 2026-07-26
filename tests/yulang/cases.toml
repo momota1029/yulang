@@ -3426,3 +3426,12 @@ std = "repo"
 expect_stdout = "run roots [(true, false, true, false, true, false, false, true, true, false, false, true, true, true)]\n"
 expect_stderr = ""
 contracts = ["stable-core", "runtime", "roles"]
+
+[[case]]
+name = "derive_debug_structural"
+file = "regressions/runtime/derive_debug_structural.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"point { x: 1, y: \\\"two\\\" }\", \"marker { }\", \"meters(1.5)\", \"choice::unit\", \"choice::tuple(2, \\\"three\\\")\", \"choice::named { x: 3, y: \\\"four\\\" }\", \"failure::unit\", \"failure::tuple(4, \\\"five\\\")\", \"failure::named { x: 5, y: \\\"six\\\" }\", \"\\\"bare\\\"\", \"outer { nested: inner { value: \\\"deep\\\" } }\")]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "roles"]

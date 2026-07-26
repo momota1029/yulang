@@ -35,6 +35,26 @@ impl BodyLowerer {
                     root,
                 }));
 
+            // A named error payload is lowered as one anonymous record argument.
+            // `SignatureType` has no record form, so there is no source-level
+            // operation signature to lower here.  Register the hidden operation
+            // with its inferred root just as the call lowering supplies that record
+            // value; this keeps the declaration usable by structural derives.
+            if matches!(variant.payload, ConstructorPayload::Record(_)) {
+                self.session.poly.effect_operations.insert(
+                    variant.operation_def,
+                    poly::expr::EffectOperation {
+                        path: self.error_operation_path(decl, &variant.name),
+                    },
+                );
+                self.session
+                    .enqueue(AnalysisWork::Scc(SccInput::DefFinished {
+                        def: variant.operation_def,
+                    }));
+                self.session.infer.restore_level(previous_level);
+                continue;
+            }
+
             let lowered = self.error_operation_signature(node, decl, error, variant);
             match lowered {
                 Ok(signature) => {
@@ -277,6 +297,7 @@ impl BodyLowerer {
             input_anns,
             associated_anns,
             type_var_bindings,
+            prerequisites: Vec::new(),
             methods: vec![SyntheticRoleImplMethod {
                 name: display_method.name,
                 receiver: Some(Name("__error_value".into())),
