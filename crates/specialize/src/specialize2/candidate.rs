@@ -781,3 +781,16 @@ pub(super) fn same_candidate_head(left: &Type, right: &Type) -> bool {
         _ => false,
     }
 }
+
+/// `process_subtype` runs before candidate resolution, so only fixed outer heads are conclusive.
+/// Open or composite candidates can still resolve through a tuple alternative and must flow on.
+pub(super) fn concrete_head_cannot_resolve_to_tuple(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::Con { .. }
+            | Type::Fun { .. }
+            | Type::Record(_)
+            | Type::PolyVariant(_)
+            | Type::EffectRow(_)
+    )
+}

@@ -756,6 +756,43 @@ fn concrete_subtype_rejects_tuple_length_mismatch() {
     assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
 }
 
+#[test]
+fn concrete_subtype_rejects_non_tuple_actual_for_tuple_expected() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = int_type();
+    let upper = Type::Tuple(vec![int_type(), int_type()]);
+
+    graph
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
+}
+
+#[test]
+fn unresolved_intersection_with_tuple_candidate_is_not_a_concrete_head_mismatch() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::Intersection(
+        Box::new(graph.fresh_value()),
+        Box::new(Type::Tuple(vec![graph.fresh_value(), graph.fresh_value()])),
+    );
+    let upper = Type::Tuple(vec![int_type(), int_type()]);
+
+    graph.constrain_subtype(lower, upper).unwrap();
+    graph.solve_constraints().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "non-tuple actual must be rejected before tuple boundary emission")]
+fn boundary_expr_rejects_non_tuple_actual_at_tuple_emission_invariant() {
+    let actual = int_type();
+    let expected = Type::Tuple(vec![int_type(), int_type()]);
+    let expr = Expr::new(ExprKind::Lit(mono::Lit::Int(1)));
+
+    let _ = boundary_expr(&actual, &expected, expr);
+}
+
 /// SUBP-A characterization: semantic queue ownership is currently only the
 /// `(lower type, lower weight, upper type, upper weight)` key. Distinct future
 /// occurrence owners for the same semantic relation would therefore converge

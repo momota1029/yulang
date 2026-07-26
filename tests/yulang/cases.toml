@@ -1948,6 +1948,20 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
+name = "subtype_tuple_cross_shape_provenance"
+file = "regressions/diagnostics/subtype_tuple_cross_shape.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: int <: (int, int)",
+  "hint: check that the value provides the fields or shape required by this use",
+  "note: this callee requires an argument compatible with `(int, int)`\n    --> line 2, column 3\n    2 | f 2\n      |   ^",
+]
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
+
+[[case]]
 name = "unresolved_method_error"
 file = "regressions/runtime/unresolved_method_error.yu"
 kind = "run"

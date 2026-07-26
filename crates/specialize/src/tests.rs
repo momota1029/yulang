@@ -972,27 +972,22 @@ mod tests {
     }
 
     #[test]
-    fn specialize2_structural_tuple_argument_cross_shape_falls_through_but_arity_does_not() {
-        for (name, source, expected_coerce) in [
-            (
-                "int",
-                "my f(p: (int, int)) = p\nf 2\n",
-                "coerce[int => (int, int)](2)",
-            ),
-            (
-                "bool",
-                "my f(p: (int, int)) = p\nf true\n",
-                "coerce[bool => (int, int)](true)",
-            ),
+    fn specialize2_structural_tuple_argument_rejects_cross_shape_and_wrong_arity() {
+        for (name, source, expected_lower) in [
+            ("int", "my f(p: (int, int)) = p\nf 2\n", int_type()),
+            ("bool", "my f(p: (int, int)) = p\nf true\n", bool_type()),
         ] {
             let lowering = lower_source(source);
             assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
 
-            let program = specialize2(&lowering.session.poly)
-                .unwrap_or_else(|error| panic!("{name}: current cross-shape behavior: {error:?}"));
-            let text = mono::dump::dump_program(&program);
-
-            assert!(text.contains(expected_coerce), "{name}: {text}");
+            assert!(matches!(
+                specialize2(&lowering.session.poly),
+                Err(crate::SpecializeError::UnsatisfiedSubtype {
+                    lower,
+                    upper: Type::Tuple(upper),
+                    ..
+                }) if lower == expected_lower && upper == vec![int_type(), int_type()]
+            ));
         }
 
         let correct = lower_source("my f(p: (int, int)) = p\nf (1, 2)\n");
@@ -1403,6 +1398,13 @@ mod tests {
     fn int_type() -> Type {
         Type::Con {
             path: vec!["int".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    fn bool_type() -> Type {
+        Type::Con {
+            path: vec!["bool".to_string()],
             args: Vec::new(),
         }
     }

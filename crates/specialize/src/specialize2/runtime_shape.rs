@@ -989,6 +989,10 @@ pub(super) fn boundary_expr_with_argument_contract(
             ),
         });
     }
+    assert!(
+        !matches!(expected, Type::Tuple(_)) || !concrete_head_cannot_resolve_to_tuple(actual),
+        "non-tuple actual must be rejected before tuple boundary emission: {actual:?} => {expected:?}"
+    );
     Expr::new(ExprKind::Coerce {
         source: actual.clone(),
         target: expected.clone(),

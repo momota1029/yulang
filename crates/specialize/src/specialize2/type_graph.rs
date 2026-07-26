@@ -709,6 +709,10 @@ impl<'a> TypeGraph<'a> {
                     provenance,
                 )
             }
+            (lower, Type::Tuple(upper_items)) if concrete_head_cannot_resolve_to_tuple(&lower) => {
+                let provenance = self.record_shadow_failure(provenance);
+                unsatisfied_subtype(lower, Type::Tuple(upper_items), provenance)
+            }
             (Type::Record(lower_fields), Type::Record(upper_fields)) => {
                 let missing_required_field = upper_fields.iter().any(|upper_field| {
                     !upper_field.optional

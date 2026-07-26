@@ -1168,16 +1168,8 @@ fn compatible_run_reports_pattern_mismatch_hint() {
 }
 
 #[test]
-fn structural_tuple_boundary_mismatches_keep_current_check_and_runtime_behavior() {
-    for (name, argument, expected_root, expected_coerce) in [
-        ("int", "2", "run roots [2]\n", "coerce[int => (int, int)]"),
-        (
-            "bool",
-            "true",
-            "run roots [true]\n",
-            "coerce[bool => (int, int)]",
-        ),
-    ] {
+fn structural_tuple_boundary_mismatches_are_rejected_during_specialization() {
+    for (name, argument, expected_actual) in [("int", "2", "int"), ("bool", "true", "bool")] {
         let entry = write_entry(
             &format!("structural-tuple-argument-{name}"),
             &format!("my f(p: (int, int)) = p\nf {argument}\n"),
@@ -1201,20 +1193,16 @@ fn structural_tuple_boundary_mismatches_keep_current_check_and_runtime_behavior(
             .arg(&entry)
             .output()
             .unwrap();
-        assert_success(&run);
-        assert_eq!(stdout(&run), expected_root);
-        assert_eq!(stderr(&run), "");
-
-        let dump = yulang_command()
-            .arg("--no-prelude")
-            .arg("--no-cache")
-            .arg("dump")
-            .arg(&entry)
-            .arg("--mono")
-            .output()
-            .unwrap();
-        assert_success(&dump);
-        assert!(stdout(&dump).contains(expected_coerce), "{}", stdout(&dump));
+        assert_failure(&run);
+        assert_eq!(stdout(&run), "");
+        assert!(
+            stderr(&run).contains(&format!(
+                "compile error [yulang.unsatisfied-subtype]: \
+                 unsatisfied subtype constraint: {expected_actual} <: (int, int)\n"
+            )),
+            "{}",
+            stderr(&run)
+        );
     }
 
     let destructuring = write_entry(
@@ -1246,8 +1234,10 @@ fn structural_tuple_boundary_mismatches_keep_current_check_and_runtime_behavior(
     assert_failure(&run);
     assert_eq!(stdout(&run), "");
     assert!(
-        stderr(&run)
-            .contains("runtime error [yulang.pattern-mismatch]: no pattern matched the value\n"),
+        stderr(&run).contains(concat!(
+            "compile error [yulang.unsatisfied-subtype]: ",
+            "unsatisfied subtype constraint: int <: (int, int)\n",
+        )),
         "{}",
         stderr(&run)
     );
@@ -1340,11 +1330,15 @@ fn structural_tuple_boundary_mismatches_keep_current_check_and_runtime_behavior(
         .arg("--mono")
         .output()
         .unwrap();
-    assert_success(&dump);
+    assert_failure(&dump);
+    assert_eq!(stdout(&dump), "");
     assert!(
-        stdout(&dump).contains("adapter[{x: (int, int)} -> s => {x: int} -> s; hygiene[]]"),
+        stderr(&dump).contains(concat!(
+            "compile error [yulang.unsatisfied-subtype]: ",
+            "unsatisfied subtype constraint: int <: (int, int)\n",
+        )),
         "{}",
-        stdout(&dump)
+        stderr(&dump)
     );
 }
 
