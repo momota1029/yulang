@@ -3381,3 +3381,12 @@ print_roots = false
 expect_stdout = "DONE\n"
 expect_stderr = ""
 contracts = ["runtime", "effects", "console"]
+
+[[case]]
+name = "derive_eq_structural"
+file = "regressions/runtime/derive_eq_structural.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(true, false, true, false, true, false, false, true, true, false, false, true, true, true)]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "roles"]

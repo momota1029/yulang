@@ -1,0 +1,27 @@
+struct pair { left: int, right: int } derives Eq
+struct tuple_pair(int, int) derives Eq
+enum choice derives Eq:
+    none
+    number int
+error failure derives Eq:
+    empty
+    bad int
+struct marker {} derives Eq
+struct keyed { key: int, ignored: int } derives Eq via key
+
+(
+    pair { left: 1, right: 2 } == pair { left: 1, right: 2 },
+    pair { left: 1, right: 2 } == pair { left: 1, right: 3 },
+    tuple_pair(1, 2) == tuple_pair(1, 2),
+    tuple_pair(1, 2) == tuple_pair(1, 3),
+    choice::number 1 == choice::number 1,
+    choice::number 1 == choice::number 2,
+    choice::none == choice::number 0,
+    choice::none == choice::none,
+    failure::bad 1 == failure::bad 1,
+    failure::bad 1 == failure::bad 2,
+    failure::empty == failure::bad 0,
+    failure::empty == failure::empty,
+    marker == marker,
+    keyed { key: 1, ignored: 2 } == keyed { key: 1, ignored: 3 }
+)

@@ -16,6 +16,7 @@ impl BodyLowerer {
         if decl.kind == ModuleTypeKind::Error {
             self.lower_error_synthetic_decls(node, &decl);
         }
+        self.lower_derive_requests(node, &decl);
     }
 
     pub(super) fn lower_type_decl_with_body(&mut self, node: &Cst, decl: &ModuleTypeDecl) {
