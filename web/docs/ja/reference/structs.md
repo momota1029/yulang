@@ -72,7 +72,7 @@ impl Add int:
     our x.add y = std::int::add x y
 
 impl Index str int:
-    type value = str
+    type value = char
     our s.index i = std::text::str::index_raw s i
 ```
 
