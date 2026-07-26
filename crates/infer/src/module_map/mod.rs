@@ -345,7 +345,7 @@ impl Lower {
                     );
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
-                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        let (def, _, created) = self.ensure_child_module(module, name, vis, None);
                         if let Some(doc_comment) = doc_comment {
                             let order = self.source_module_order(module, &child, def);
                             self.modules.set_def_doc_comment(
@@ -358,7 +358,12 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(module, import, vis);
+                        self.modules.add_alias(
+                            module,
+                            import,
+                            vis,
+                            self.source_span(Some(node_trimmed_source_range(&child))),
+                        );
                     }
                 }
                 SyntaxKind::OpDef => {
@@ -661,13 +666,18 @@ impl Lower {
                 SyntaxKind::UseDecl => {
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
-                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        let (def, _, created) = self.ensure_child_module(module, name, vis, None);
                         if created {
                             children.push(def);
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(module, import, vis);
+                        self.modules.add_alias(
+                            module,
+                            import,
+                            vis,
+                            self.source_span(Some(node_trimmed_source_range(&child))),
+                        );
                     }
                 }
                 SyntaxKind::TypeDecl
@@ -694,7 +704,13 @@ impl Lower {
             return None;
         };
         let vis = vis_of(node);
-        let id = self.modules.insert_type(module, name.clone(), kind, vis);
+        let id = self.modules.insert_type(
+            module,
+            name.clone(),
+            kind,
+            vis,
+            self.source_span(source_range_for_name(node, &name)),
+        );
         if kind == ModuleTypeKind::Act {
             if act_decl_is_host(node) {
                 self.modules.set_host_act(id);
@@ -750,7 +766,7 @@ impl Lower {
         // Named structs without a `with:` block do not otherwise need a
         // companion. Derived implementations do, so ensure one for every
         // request, including the declaration kinds that DERIVE-F will reject.
-        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        let (def, companion, created) = self.ensure_child_module(module, name, vis, None);
         self.modules.set_type_companion(owner, companion);
         if created {
             children.push(def);
@@ -848,9 +864,9 @@ impl Lower {
         index: usize,
     ) {
         let internal_name = synthetic_var_act_internal_name(&source, owner, index);
-        let id = self
-            .modules
-            .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My);
+        let id =
+            self.modules
+                .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My, None);
         self.modules.set_synthetic_var_act_copy(id);
         self.modules
             .push_synthetic_var_act_use(owner, SyntheticVarActUse { source, act: id });
@@ -864,9 +880,9 @@ impl Lower {
         index: usize,
     ) {
         let internal_name = synthetic_sub_label_act_internal_name(&label, owner, index);
-        let id = self
-            .modules
-            .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My);
+        let id =
+            self.modules
+                .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My, None);
         self.modules.set_synthetic_sub_label_act_copy(id);
         self.modules
             .push_synthetic_sub_label_act_use(owner, SyntheticSubLabelActUse { label, act: id });
@@ -919,7 +935,7 @@ impl Lower {
                 // constructor は型 companion module（型と同名の子 module）に住む。
                 // ファイルスコープへは `pub use foo::foo::*` の明示再エクスポートで
                 // 持ち込む（std の流儀）。
-                let (def, companion, created) = self.ensure_child_module(module, name, vis);
+                let (def, companion, created) = self.ensure_child_module(module, name, vis, None);
                 self.modules.set_type_companion(owner, companion);
                 let mut companion_children = Vec::new();
                 let mut error_variants = Vec::new();
@@ -1088,7 +1104,7 @@ impl Lower {
         let Some(body) = role_decl_body(node) else {
             return;
         };
-        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        let (def, companion, created) = self.ensure_child_module(module, name, vis, None);
         self.modules.set_type_companion(owner, companion);
         let companion_children = self.register_role_companion_block(&body, companion, owner);
         self.append_module_children(def, companion_children);
@@ -1177,13 +1193,18 @@ impl Lower {
                 SyntaxKind::UseDecl => {
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
-                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        let (def, _, created) = self.ensure_child_module(module, name, vis, None);
                         if created {
                             children.push(def);
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(module, import, vis);
+                        self.modules.add_alias(
+                            module,
+                            import,
+                            vis,
+                            self.source_span(Some(node_trimmed_source_range(&child))),
+                        );
                     }
                 }
                 SyntaxKind::TypeDecl => {}
@@ -1205,7 +1226,7 @@ impl Lower {
         let Some(body) = act_decl_body(node) else {
             return;
         };
-        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        let (def, companion, created) = self.ensure_child_module(module, name, vis, None);
         self.modules.set_type_companion(owner, companion);
         let companion_children = self.register_act_companion_block(
             &body,
@@ -1337,13 +1358,18 @@ impl Lower {
                 SyntaxKind::UseDecl => {
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
-                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        let (def, _, created) = self.ensure_child_module(module, name, vis, None);
                         if created {
                             children.push(def);
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(module, import, vis);
+                        self.modules.add_alias(
+                            module,
+                            import,
+                            vis,
+                            self.source_span(Some(node_trimmed_source_range(&child))),
+                        );
                     }
                 }
                 SyntaxKind::TypeDecl

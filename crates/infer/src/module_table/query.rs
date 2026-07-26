@@ -48,6 +48,7 @@ impl ModuleTable {
                         module,
                         id: decl_id,
                         kind,
+                        private_origin: decl.private_origin,
                     });
                 }
             }
@@ -65,36 +66,39 @@ impl ModuleTable {
                 else {
                     return;
                 };
-                if let Some(def) = target.value {
+                if let Some(target) = target.value {
                     self.push_import_value(
                         module,
                         name.clone(),
                         ImportedValueDecl {
                             order: alias.order,
-                            def,
+                            def: target.def,
                             vis: alias.vis,
+                            private_origin: alias.private_origin.or(target.private_origin),
                         },
                     );
                 }
-                if let Some(decl) = target.ty {
+                if let Some(target) = target.ty {
                     self.push_import_type(
                         module,
                         name.clone(),
                         ImportedTypeDecl {
                             order: alias.order,
-                            decl,
+                            decl: target.decl,
                             vis: alias.vis,
+                            private_origin: alias.private_origin.or(target.private_origin),
                         },
                     );
                 }
-                if let Some(found) = target.module {
+                if let Some(target) = target.module {
                     self.push_import_module(
                         module,
                         name.clone(),
                         ImportedModuleDecl {
                             order: alias.order,
-                            module: found,
+                            module: target.module,
                             vis: alias.vis,
+                            private_origin: alias.private_origin.or(target.private_origin),
                         },
                     );
                 }
@@ -118,6 +122,7 @@ impl ModuleTable {
                             order: alias.order,
                             def: decl.def,
                             vis: alias.vis,
+                            private_origin: alias.private_origin.or(decl.private_origin),
                         },
                     );
                 }
@@ -127,6 +132,7 @@ impl ModuleTable {
                         decl.name.clone(),
                         ImportedTypeDecl {
                             order: alias.order,
+                            private_origin: alias.private_origin.or(decl.private_origin),
                             decl,
                             vis: alias.vis,
                         },
@@ -145,6 +151,7 @@ impl ModuleTable {
                             order: alias.order,
                             module: decl.module,
                             vis: alias.vis,
+                            private_origin: alias.private_origin.or(decl.private_origin),
                         },
                     );
                 }
@@ -156,23 +163,24 @@ impl ModuleTable {
                     .import_values
                     .iter()
                     .map(|(name, entries)| {
-                        let defs = entries
+                        let entries = entries
                             .iter()
                             .filter(|entry| import_vis_allows(entry.vis, visibility))
-                            .map(|entry| entry.def)
+                            .cloned()
                             .collect::<Vec<_>>();
-                        (name.clone(), defs)
+                        (name.clone(), entries)
                     })
                     .collect::<Vec<_>>();
-                for (name, defs) in reexported_values {
-                    for def in defs {
+                for (name, entries) in reexported_values {
+                    for entry in entries {
                         self.push_import_value(
                             module,
                             name.clone(),
                             ImportedValueDecl {
                                 order: alias.order,
-                                def,
+                                def: entry.def,
                                 vis: alias.vis,
+                                private_origin: alias.private_origin.or(entry.private_origin),
                             },
                         );
                     }
@@ -181,23 +189,24 @@ impl ModuleTable {
                     .import_types
                     .iter()
                     .map(|(name, entries)| {
-                        let decls = entries
+                        let entries = entries
                             .iter()
                             .filter(|entry| import_vis_allows(entry.vis, visibility))
-                            .map(|entry| entry.decl.clone())
+                            .cloned()
                             .collect::<Vec<_>>();
-                        (name.clone(), decls)
+                        (name.clone(), entries)
                     })
                     .collect::<Vec<_>>();
-                for (name, decls) in reexported_types {
-                    for decl in decls {
+                for (name, entries) in reexported_types {
+                    for entry in entries {
                         self.push_import_type(
                             module,
                             name.clone(),
                             ImportedTypeDecl {
                                 order: alias.order,
-                                decl,
+                                decl: entry.decl,
                                 vis: alias.vis,
+                                private_origin: alias.private_origin.or(entry.private_origin),
                             },
                         );
                     }
@@ -206,28 +215,29 @@ impl ModuleTable {
                     .import_modules
                     .iter()
                     .map(|(name, entries)| {
-                        let modules = entries
+                        let entries = entries
                             .iter()
                             .filter(|entry| import_vis_allows(entry.vis, visibility))
-                            .map(|entry| entry.module)
+                            .cloned()
                             .collect::<Vec<_>>();
-                        (name.clone(), modules)
+                        (name.clone(), entries)
                     })
                     .collect::<Vec<_>>();
-                for (name, modules) in reexported_modules {
+                for (name, entries) in reexported_modules {
                     // A glob's declared child module is its path-prefix surface. Same-named
                     // companion modules re-exported from that child must not replace it.
                     if direct_module_names.contains(&name) {
                         continue;
                     }
-                    for found in modules {
+                    for entry in entries {
                         self.push_import_module(
                             module,
                             name.clone(),
                             ImportedModuleDecl {
                                 order: alias.order,
-                                module: found,
+                                module: entry.module,
                                 vis: alias.vis,
+                                private_origin: alias.private_origin.or(entry.private_origin),
                             },
                         );
                     }
@@ -294,7 +304,7 @@ impl ModuleTable {
             else {
                 continue;
             };
-            let Some(def) = target.value else {
+            let Some(target) = target.value else {
                 continue;
             };
             self.push_import_value(
@@ -302,8 +312,9 @@ impl ModuleTable {
                 op_value_name(fixity, &name.0),
                 ImportedValueDecl {
                     order: alias.order,
-                    def,
+                    def: target.def,
                     vis: alias.vis,
+                    private_origin: alias.private_origin.or(target.private_origin),
                 },
             );
         }
@@ -378,28 +389,31 @@ impl ModuleTable {
             return Some(ImportPathTarget {
                 value: None,
                 ty: None,
-                module: Some(module),
+                module: Some(ImportModuleTarget {
+                    module,
+                    private_origin: None,
+                }),
             });
         };
         if prefix.is_empty() {
             return Some(ImportPathTarget {
-                value: self.raw_lexical_value_at_for_import(module, last, site, visibility),
-                ty: self.raw_lexical_type_at_for_import(module, last, site, visibility),
-                module: self.raw_lexical_module_at_for_import(module, last, site, visibility),
+                value: self.raw_lexical_value_target_for_import(module, last, site, visibility),
+                ty: self.raw_lexical_type_target_for_import(module, last, site, visibility),
+                module: self.raw_lexical_module_target_for_import(module, last, site, visibility),
             });
         }
 
         let target = self.module_path_from_for_import(module, prefix, site, visibility)?;
         Some(ImportPathTarget {
             value: self
-                .value_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_value_at_for_import(target, last, visibility)),
+                .value_target_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_value_target_at_for_import(target, last, visibility)),
             ty: self
-                .type_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_type_at_for_import(target, last, visibility)),
+                .type_target_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_type_target_at_for_import(target, last, visibility)),
             module: self
-                .module_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_module_at_for_import(target, last, visibility)),
+                .module_target_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_module_target_at_for_import(target, last, visibility)),
         })
     }
     fn module_path_from_for_import(
@@ -457,32 +471,32 @@ impl ModuleTable {
             site = parent.order;
         }
     }
-    fn raw_lexical_value_at_for_import(
+    fn raw_lexical_value_target_for_import(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
-    ) -> Option<DefId> {
+    ) -> Option<ImportValueTarget> {
         loop {
-            if let Some(def) = self.value_at_for_import(module, name, site, visibility) {
-                return Some(def);
+            if let Some(target) = self.value_target_at_for_import(module, name, site, visibility) {
+                return Some(target);
             }
             let parent = self.nodes[module.0].parent?;
             module = parent.module;
             site = parent.order;
         }
     }
-    fn raw_lexical_type_at_for_import(
+    fn raw_lexical_type_target_for_import(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
-    ) -> Option<ModuleTypeDecl> {
+    ) -> Option<ImportTypeTarget> {
         loop {
-            if let Some(found) = self.type_at_for_import(module, name, site, visibility) {
-                return Some(found);
+            if let Some(target) = self.type_target_at_for_import(module, name, site, visibility) {
+                return Some(target);
             }
             let parent = self.nodes[module.0].parent?;
             module = parent.module;
@@ -505,48 +519,71 @@ impl ModuleTable {
             site = parent.order;
         }
     }
-    fn value_at_for_import(
+    fn raw_lexical_module_target_for_import(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<ImportModuleTarget> {
+        loop {
+            if let Some(target) = self.module_target_at_for_import(module, name, site, visibility) {
+                return Some(target);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    fn value_target_at_for_import(
         &self,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
-    ) -> Option<DefId> {
+    ) -> Option<ImportValueTarget> {
         let decl = self.select_decl_for_import(
             module,
             self.nodes[module.0].values.get(name)?,
             site,
             visibility,
         )?;
-        match decl.kind {
-            ModuleDeclKind::Value { def } => Some(def),
-            ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
-        }
+        let ModuleDeclKind::Value { def } = decl.kind else {
+            return None;
+        };
+        Some(ImportValueTarget {
+            def,
+            private_origin: decl.private_origin,
+        })
     }
-    fn type_at_for_import(
+    fn type_target_at_for_import(
         &self,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
-    ) -> Option<ModuleTypeDecl> {
+    ) -> Option<ImportTypeTarget> {
         let decl = self.select_decl_for_import(
             module,
             self.nodes[module.0].types.get(name)?,
             site,
             visibility,
         )?;
-        match decl.kind {
-            ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+        let ModuleDeclKind::Type { id, kind } = decl.kind else {
+            return None;
+        };
+        Some(ImportTypeTarget {
+            decl: ModuleTypeDecl {
                 name: decl.name.clone(),
                 vis: decl.vis,
                 order: decl.order,
                 module,
                 id,
                 kind,
-            }),
-            ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
-        }
+                private_origin: decl.private_origin,
+            },
+            private_origin: decl.private_origin,
+        })
     }
     fn module_at_for_import(
         &self,
@@ -573,6 +610,35 @@ impl ModuleTable {
             return None;
         }
         Some(child)
+    }
+    fn module_target_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<ImportModuleTarget> {
+        let decl = self.select_decl_for_import(
+            module,
+            self.nodes[module.0].modules.get(name)?,
+            site,
+            visibility,
+        )?;
+        let ModuleDeclKind::Module { module: child, .. } = decl.kind else {
+            return None;
+        };
+        if matches!(visibility, ImportVisibility::SameBand)
+            && !same_band_allows_module_step(
+                self.module_band_path(module),
+                self.module_band_path(child),
+            )
+        {
+            return None;
+        }
+        Some(ImportModuleTarget {
+            module: child,
+            private_origin: decl.private_origin,
+        })
     }
     pub(super) fn imported_value_at(
         &self,
@@ -627,44 +693,53 @@ impl ModuleTable {
             .find(|entry| entry.vis != Vis::My)
             .map(|entry| entry.module)
     }
-    fn exported_value_at_for_import(
+    fn exported_value_target_at_for_import(
         &self,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
-    ) -> Option<DefId> {
+    ) -> Option<ImportValueTarget> {
         self.nodes[module.0]
             .import_values
             .get(name)?
             .iter()
             .find(|entry| import_vis_allows(entry.vis, visibility))
-            .map(|entry| entry.def)
+            .map(|entry| ImportValueTarget {
+                def: entry.def,
+                private_origin: entry.private_origin,
+            })
     }
-    fn exported_type_at_for_import(
+    fn exported_type_target_at_for_import(
         &self,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
-    ) -> Option<ModuleTypeDecl> {
+    ) -> Option<ImportTypeTarget> {
         self.nodes[module.0]
             .import_types
             .get(name)?
             .iter()
             .find(|entry| import_vis_allows(entry.vis, visibility))
-            .map(|entry| entry.decl.clone())
+            .map(|entry| ImportTypeTarget {
+                decl: entry.decl.clone(),
+                private_origin: entry.private_origin,
+            })
     }
-    fn exported_module_at_for_import(
+    fn exported_module_target_at_for_import(
         &self,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
-    ) -> Option<ModuleId> {
+    ) -> Option<ImportModuleTarget> {
         self.nodes[module.0]
             .import_modules
             .get(name)?
             .iter()
             .find(|entry| import_vis_allows(entry.vis, visibility))
-            .map(|entry| entry.module)
+            .map(|entry| ImportModuleTarget {
+                module: entry.module,
+                private_origin: entry.private_origin,
+            })
     }
     fn module_value_imports_for_import(
         &self,
@@ -686,6 +761,7 @@ impl ModuleTable {
                     vis: decl.vis,
                     order: decl.order,
                     def,
+                    private_origin: decl.private_origin,
                 }),
                 ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
             })
@@ -713,6 +789,7 @@ impl ModuleTable {
                     module,
                     id,
                     kind,
+                    private_origin: decl.private_origin,
                 }),
                 ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
             })
@@ -746,6 +823,7 @@ impl ModuleTable {
                     order: decl.order,
                     module,
                     def,
+                    private_origin: decl.private_origin,
                 }),
                 ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
             })
@@ -807,6 +885,7 @@ impl ModuleTable {
                         vis: decl.vis,
                         order: decl.order,
                         def,
+                        private_origin: decl.private_origin,
                     }),
                     ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
                 }
@@ -829,6 +908,7 @@ impl ModuleTable {
                         module,
                         id,
                         kind,
+                        private_origin: decl.private_origin,
                     }),
                     ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
                 }
@@ -850,6 +930,7 @@ impl ModuleTable {
                         order: decl.order,
                         module,
                         def,
+                        private_origin: decl.private_origin,
                     }),
                     ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
                 }
@@ -878,8 +959,10 @@ impl ModuleTable {
         name: Name,
         vis: Vis,
         kind: ModuleDeclKind,
+        source_span: Option<SourceSpan>,
     ) -> ModuleDeclId {
         let order = self.next_order(module);
+        let private_origin = self.private_origin_for(module, vis, source_span);
         let node = &mut self.nodes[module.0];
         let id = ModuleDeclId(node.decls.len());
         node.decls.push(ModuleDecl {
@@ -887,6 +970,7 @@ impl ModuleTable {
             vis,
             order,
             kind,
+            private_origin,
         });
         id
     }

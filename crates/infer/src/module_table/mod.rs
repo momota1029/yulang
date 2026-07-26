@@ -19,6 +19,7 @@ impl ModuleTable {
                 import_modules: FxHashMap::default(),
                 next_order: 0,
             }],
+            private_origins: Vec::new(),
             test_modules: Vec::new(),
             act_templates: FxHashMap::default(),
             act_type_vars: FxHashMap::default(),
@@ -94,10 +95,16 @@ impl ModuleTable {
         vis: Vis,
         source_span: Option<SourceSpan>,
     ) -> ModuleOrder {
-        if let Some(source_span) = source_span {
+        if let Some(source_span) = source_span.clone() {
             self.def_source_spans.insert(def, source_span);
         }
-        let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
+        let decl = self.push_decl(
+            module,
+            name.clone(),
+            vis,
+            ModuleDeclKind::Value { def },
+            source_span,
+        );
         let order = self.nodes[module.0].decls[decl.0].order;
         self.nodes[module.0]
             .values
@@ -112,9 +119,16 @@ impl ModuleTable {
         name: Name,
         kind: ModuleTypeKind,
         vis: Vis,
+        source_span: Option<SourceSpan>,
     ) -> TypeDeclId {
         let id = self.next_type_decl_id();
-        let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Type { id, kind });
+        let decl = self.push_decl(
+            module,
+            name.clone(),
+            vis,
+            ModuleDeclKind::Type { id, kind },
+            source_span,
+        );
         self.nodes[module.0]
             .types
             .entry(name)
@@ -421,12 +435,14 @@ impl ModuleTable {
         sub: ModuleId,
         def: DefId,
         vis: Vis,
+        source_span: Option<SourceSpan>,
     ) {
         let decl = self.push_decl(
             module,
             name.clone(),
             vis,
             ModuleDeclKind::Module { module: sub, def },
+            source_span,
         );
         let order = self.nodes[module.0].decls[decl.0].order;
         self.nodes[sub.0].band_path = self.nodes[module.0].band_path.clone();
@@ -581,11 +597,55 @@ impl ModuleTable {
             }
         }
     }
-    pub(super) fn add_alias(&mut self, module: ModuleId, import: UseImport, vis: Vis) {
+    pub(super) fn add_alias(
+        &mut self,
+        module: ModuleId,
+        import: UseImport,
+        vis: Vis,
+        source_span: Option<SourceSpan>,
+    ) {
         let order = self.next_order(module);
-        self.nodes[module.0]
-            .aliases
-            .push(AliasDecl { import, vis, order });
+        let private_origin = self.private_origin_for(module, vis, source_span);
+        self.nodes[module.0].aliases.push(AliasDecl {
+            import,
+            vis,
+            order,
+            private_origin,
+        });
+    }
+    #[cfg(test)]
+    pub(crate) fn private_origin(&self, id: PrivateOriginId) -> &PrivateOrigin {
+        &self.private_origins[id.0 as usize]
+    }
+
+    pub(super) fn private_origin_for(
+        &mut self,
+        scope: ModuleId,
+        vis: Vis,
+        declaration_span: Option<SourceSpan>,
+    ) -> Option<PrivateOriginId> {
+        (vis == Vis::My).then(|| self.intern_private_origin(scope, declaration_span))
+    }
+
+    fn intern_private_origin(
+        &mut self,
+        scope: ModuleId,
+        declaration_span: Option<SourceSpan>,
+    ) -> PrivateOriginId {
+        let origin = PrivateOrigin {
+            scope,
+            declaration_span,
+        };
+        if let Some(index) = self
+            .private_origins
+            .iter()
+            .position(|entry| entry == &origin)
+        {
+            return PrivateOriginId(index as u32);
+        }
+        let id = PrivateOriginId(self.private_origins.len() as u32);
+        self.private_origins.push(origin);
+        id
     }
     pub fn aliases(&self, module: ModuleId) -> &[AliasDecl] {
         &self.nodes[module.0].aliases
@@ -639,6 +699,7 @@ impl ModuleTable {
                 module,
                 id,
                 kind,
+                private_origin: decl.private_origin,
             }),
             ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
         }

@@ -579,6 +579,263 @@ fn import_view_resolves_globs_across_namespaces() {
     );
 }
 
+fn private_value_origin(modules: &ModuleTable, module: ModuleId, name: &str) -> PrivateOriginId {
+    modules.nodes[module.0].import_values[&Name(name.into())]
+        .iter()
+        .find_map(|entry| entry.private_origin)
+        .expect("imported value should retain private provenance")
+}
+
+fn private_type_origin(modules: &ModuleTable, module: ModuleId, name: &str) -> PrivateOriginId {
+    modules.nodes[module.0].import_types[&Name(name.into())]
+        .iter()
+        .find_map(|entry| entry.private_origin)
+        .expect("imported type should retain private provenance")
+}
+
+fn private_module_origin(modules: &ModuleTable, module: ModuleId, name: &str) -> PrivateOriginId {
+    modules.nodes[module.0].import_modules[&Name(name.into())]
+        .iter()
+        .find_map(|entry| entry.private_origin)
+        .expect("imported module should retain private provenance")
+}
+
+fn source_private_origins(
+    modules: &ModuleTable,
+    module: ModuleId,
+) -> (PrivateOriginId, PrivateOriginId, PrivateOriginId) {
+    let value = modules.value_decls(module, &Name("value".into()))[0]
+        .private_origin
+        .expect("private value declaration should have provenance");
+    let ty = modules.type_decls(module, &Name("Thing".into()))[0]
+        .private_origin
+        .expect("private type declaration should have provenance");
+    let child = modules.module_decls(module, &Name("child".into()))[0]
+        .private_origin
+        .expect("private module declaration should have provenance");
+    (value, ty, child)
+}
+
+fn expose_private_source_for_import_copy_test(lower: &mut Lower, module: ModuleId) {
+    for decl in &mut lower.modules.nodes[module.0].decls {
+        if decl.private_origin.is_some() {
+            decl.vis = Vis::Pub;
+        }
+    }
+    lower.modules.build_import_views();
+}
+
+fn expose_private_imports_for_import_copy_test(lower: &mut Lower, module: ModuleId) {
+    for entries in lower.modules.nodes[module.0].import_values.values_mut() {
+        for entry in entries {
+            entry.vis = Vis::Pub;
+        }
+    }
+    for entries in lower.modules.nodes[module.0].import_types.values_mut() {
+        for entry in entries {
+            entry.vis = Vis::Pub;
+        }
+    }
+    for entries in lower.modules.nodes[module.0].import_modules.values_mut() {
+        for entry in entries {
+            entry.vis = Vis::Pub;
+        }
+    }
+    lower.modules.build_import_views();
+}
+
+fn assert_private_origin(
+    modules: &ModuleTable,
+    actual: PrivateOriginId,
+    expected: PrivateOriginId,
+) {
+    assert_eq!(
+        modules.private_origin(actual),
+        modules.private_origin(expected)
+    );
+}
+
+fn add_private_alias(
+    modules: &mut ModuleTable,
+    module: ModuleId,
+    name: &str,
+    path: &[&str],
+    span_start: usize,
+) {
+    modules.add_alias(
+        module,
+        UseImport::Alias {
+            name: Name(name.into()),
+            path: ModulePath {
+                segments: path.iter().map(|segment| Name((*segment).into())).collect(),
+            },
+            route: sources::UsePathRoute::Relative,
+            version: None,
+            anchor: None,
+        },
+        Vis::My,
+        Some(SourceSpan {
+            file: ModulePath::default(),
+            range: SourceRange {
+                start: span_start,
+                end: span_start + name.len(),
+            },
+        }),
+    );
+}
+
+#[test]
+fn runtime_imports_retain_private_provenance_at_every_copy_site() {
+    let mut named = lower_source(
+        "mod source:\n  my value = 1\n  my act Thing:\n    pub ping: () -> int\n  my mod child:\nuse source::value as value_alias\nuse source::Thing as type_alias\nuse source::child as module_alias\n",
+    );
+    let root = named.modules.root_id();
+    let source = named.modules.module_decls(root, &Name("source".into()))[0].module;
+    let expected = source_private_origins(&named.modules, source);
+    expose_private_source_for_import_copy_test(&mut named, source);
+    assert_private_origin(
+        &named.modules,
+        private_value_origin(&named.modules, root, "value_alias"),
+        expected.0,
+    );
+    assert_private_origin(
+        &named.modules,
+        private_type_origin(&named.modules, root, "type_alias"),
+        expected.1,
+    );
+    assert_private_origin(
+        &named.modules,
+        private_module_origin(&named.modules, root, "module_alias"),
+        expected.2,
+    );
+
+    let mut direct_glob = lower_source(
+        "mod source:\n  my value = 1\n  my act Thing:\n    pub ping: () -> int\n  my mod child:\nuse source::*\n",
+    );
+    let root = direct_glob.modules.root_id();
+    let source = direct_glob
+        .modules
+        .module_decls(root, &Name("source".into()))[0]
+        .module;
+    let expected = source_private_origins(&direct_glob.modules, source);
+    expose_private_source_for_import_copy_test(&mut direct_glob, source);
+    assert_private_origin(
+        &direct_glob.modules,
+        private_value_origin(&direct_glob.modules, root, "value"),
+        expected.0,
+    );
+    assert_private_origin(
+        &direct_glob.modules,
+        private_type_origin(&direct_glob.modules, root, "Thing"),
+        expected.1,
+    );
+    assert_private_origin(
+        &direct_glob.modules,
+        private_module_origin(&direct_glob.modules, root, "child"),
+        expected.2,
+    );
+
+    let mut reexport = lower_source(
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod source:\n  pub use public::value\n  pub use public::Thing\n  pub use public::child\nmod facade:\n  pub use source::*\n",
+    );
+    let root = reexport.modules.root_id();
+    let source = reexport.modules.module_decls(root, &Name("source".into()))[0].module;
+    let expected = reexport
+        .modules
+        .private_origin_for(
+            source,
+            Vis::My,
+            Some(SourceSpan {
+                file: ModulePath::default(),
+                range: SourceRange { start: 0, end: 0 },
+            }),
+        )
+        .expect("my visibility should create an origin");
+    for entries in reexport.modules.nodes[source.0].import_values.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(expected);
+        }
+    }
+    for entries in reexport.modules.nodes[source.0].import_types.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(expected);
+        }
+    }
+    for entries in reexport.modules.nodes[source.0].import_modules.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(expected);
+        }
+    }
+    expose_private_imports_for_import_copy_test(&mut reexport, source);
+    let facade = reexport.modules.module_decls(root, &Name("facade".into()))[0].module;
+    assert_private_origin(
+        &reexport.modules,
+        private_value_origin(&reexport.modules, facade, "value"),
+        expected,
+    );
+    assert_private_origin(
+        &reexport.modules,
+        private_type_origin(&reexport.modules, facade, "Thing"),
+        expected,
+    );
+    assert_private_origin(
+        &reexport.modules,
+        private_module_origin(&reexport.modules, facade, "child"),
+        expected,
+    );
+
+    let mut private_alias = lower_source(
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\n",
+    );
+    let root = private_alias.modules.root_id();
+    add_private_alias(
+        &mut private_alias.modules,
+        root,
+        "private_value",
+        &["public", "value"],
+        10,
+    );
+    add_private_alias(
+        &mut private_alias.modules,
+        root,
+        "private_type",
+        &["public", "Thing"],
+        20,
+    );
+    add_private_alias(
+        &mut private_alias.modules,
+        root,
+        "private_module",
+        &["public", "child"],
+        30,
+    );
+    private_alias.modules.build_import_views();
+    for name in ["private_value", "private_type", "private_module"] {
+        let origin = match name {
+            "private_value" => private_value_origin(&private_alias.modules, root, name),
+            "private_type" => private_type_origin(&private_alias.modules, root, name),
+            "private_module" => private_module_origin(&private_alias.modules, root, name),
+            _ => unreachable!(),
+        };
+        let expected = private_alias.modules.aliases(root)
+            .iter()
+            .find(|alias| matches!(&alias.import, UseImport::Alias { name: alias_name, .. } if alias_name.0 == name))
+            .and_then(|alias| alias.private_origin)
+            .expect("my use should register its private origin");
+        assert_private_origin(&private_alias.modules, origin, expected);
+    }
+
+    let mut operator_alias = lower_source("mod public:\n  pub infix (+) 50 50 = 1\n");
+    let root = operator_alias.modules.root_id();
+    add_private_alias(&mut operator_alias.modules, root, "+", &["public", "+"], 40);
+    operator_alias.modules.build_import_views();
+    let origin = private_value_origin(&operator_alias.modules, root, "#op:infix:+");
+    let expected = operator_alias.modules.aliases(root)[0]
+        .private_origin
+        .expect("my operator use should register its private origin");
+    assert_private_origin(&operator_alias.modules, origin, expected);
+}
+
 #[test]
 fn direct_type_decl_shadows_glob_import() {
     let cst = parse("mod m:\n  type T\nuse m::*\ntype T\nmy site = 1\n");

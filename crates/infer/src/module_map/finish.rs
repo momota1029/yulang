@@ -8,7 +8,12 @@ impl Lower {
     ) -> Option<(DefId, ModuleId, bool)> {
         let vis = vis_of(node);
         if let Some(name) = mod_name(node) {
-            let result = self.ensure_child_module(parent, name.clone(), vis);
+            let result = self.ensure_child_module(
+                parent,
+                name.clone(),
+                vis,
+                self.source_span(source_range_for_name(node, &name)),
+            );
             if mod_decl_is_test(node)
                 && let Some(decl) = self.modules.first_module_decl(parent, &name)
             {
@@ -46,7 +51,7 @@ impl Lower {
         let Some(body) = type_with_body(node) else {
             return;
         };
-        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        let (def, companion, created) = self.ensure_child_module(module, name, vis, None);
         self.modules.set_type_companion(owner, companion);
         let companion_children = self.register_type_companion_block(&body, companion, owner);
         self.append_module_children(def, companion_children);
@@ -132,13 +137,18 @@ impl Lower {
                 SyntaxKind::UseDecl => {
                     let vis = vis_of(&child);
                     if let Some(name) = use_mod_name(&child) {
-                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        let (def, _, created) = self.ensure_child_module(module, name, vis, None);
                         if created {
                             children.push(def);
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(module, import, vis);
+                        self.modules.add_alias(
+                            module,
+                            import,
+                            vis,
+                            self.source_span(Some(node_trimmed_source_range(&child))),
+                        );
                     }
                 }
                 SyntaxKind::StructDecl
@@ -181,6 +191,7 @@ impl Lower {
         module: ModuleId,
         name: Name,
         vis: Vis,
+        source_span: Option<SourceSpan>,
     ) -> (DefId, ModuleId, bool) {
         if let Some(existing) = self.modules.first_module_decl(module, &name) {
             return (existing.def, existing.module, false);
@@ -195,7 +206,8 @@ impl Lower {
                 children: Vec::new(),
             },
         );
-        self.modules.insert_module(module, name, sub, def, vis);
+        self.modules
+            .insert_module(module, name, sub, def, vis, source_span);
         (def, sub, true)
     }
 
@@ -210,7 +222,7 @@ impl Lower {
         };
         for segment in &path.segments {
             let (def, module, _) =
-                self.ensure_child_module(target.module, segment.clone(), Vis::Pub);
+                self.ensure_child_module(target.module, segment.clone(), Vis::Pub, None);
             self.modules.set_module_band_path(module, band_path.clone());
             target = ModulePathTarget {
                 module,
@@ -413,7 +425,7 @@ impl Lower {
         self.modules.set_act_ops(id, ops);
 
         let (def, companion, created) =
-            self.ensure_child_module(dest.module, dest.name.clone(), dest.vis);
+            self.ensure_child_module(dest.module, dest.name.clone(), dest.vis, None);
         self.modules.set_type_companion(id, companion);
         // Copied members are generated in the destination companion; their
         // template ranges must not become hover locations for that destination.

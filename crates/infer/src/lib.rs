@@ -124,6 +124,19 @@ struct ModuleNode {
     next_order: u32,
 }
 
+/// A private declaration's stable runtime provenance.
+///
+/// Import entries retain this opaque id instead of repeatedly cloning the
+/// source span and module scope while import views reach their fixed point.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub(crate) struct PrivateOriginId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PrivateOrigin {
+    pub(crate) scope: ModuleId,
+    pub(crate) declaration_span: Option<SourceSpan>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 struct ModuleDeclId(usize);
 
@@ -211,6 +224,7 @@ struct ModuleDecl {
     vis: Vis,
     order: ModuleOrder,
     kind: ModuleDeclKind,
+    private_origin: Option<PrivateOriginId>,
 }
 
 /// module 内の値宣言を外へ見せるための summary。
@@ -223,6 +237,7 @@ pub struct ModuleValueDecl {
     pub vis: Vis,
     pub order: ModuleOrder,
     pub def: DefId,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -349,6 +364,7 @@ pub struct ModuleTypeDecl {
     pub module: ModuleId,
     pub id: TypeDeclId,
     pub kind: ModuleTypeKind,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -489,6 +505,7 @@ pub struct ModuleChildDecl {
     pub order: ModuleOrder,
     pub module: ModuleId,
     pub def: DefId,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 /// `mod test` marker を持つ source module。
@@ -570,6 +587,7 @@ pub struct AliasDecl {
     pub import: UseImport,
     pub vis: Vis,
     pub order: ModuleOrder,
+    private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -579,6 +597,7 @@ struct ImportedValueDecl {
     /// この import を作った alias（use 文）の visibility。`pub use` の entry だけが
     /// 外の module から再エクスポートとして見える。
     vis: Vis,
+    private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -586,6 +605,7 @@ struct ImportedTypeDecl {
     order: ModuleOrder,
     decl: ModuleTypeDecl,
     vis: Vis,
+    private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -593,13 +613,32 @@ struct ImportedModuleDecl {
     order: ModuleOrder,
     module: ModuleId,
     vis: Vis,
+    private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Clone)]
 struct ImportPathTarget {
-    value: Option<DefId>,
-    ty: Option<ModuleTypeDecl>,
-    module: Option<ModuleId>,
+    value: Option<ImportValueTarget>,
+    ty: Option<ImportTypeTarget>,
+    module: Option<ImportModuleTarget>,
+}
+
+#[derive(Clone, Copy)]
+struct ImportValueTarget {
+    def: DefId,
+    private_origin: Option<PrivateOriginId>,
+}
+
+#[derive(Clone)]
+struct ImportTypeTarget {
+    decl: ModuleTypeDecl,
+    private_origin: Option<PrivateOriginId>,
+}
+
+#[derive(Clone, Copy)]
+struct ImportModuleTarget {
+    module: ModuleId,
+    private_origin: Option<PrivateOriginId>,
 }
 
 /// pass1 が作る module scope table。
@@ -610,6 +649,7 @@ struct ImportPathTarget {
 #[derive(Clone)]
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
+    private_origins: Vec<PrivateOrigin>,
     test_modules: Vec<TestModuleDecl>,
     act_templates: FxHashMap<TypeDeclId, Cst>,
     act_type_vars: FxHashMap<TypeDeclId, Vec<String>>,

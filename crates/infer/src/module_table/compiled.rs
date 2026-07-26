@@ -160,6 +160,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
             Name(ty.name.clone()),
             module_type_kind(ty.kind),
             visibility(ty.visibility),
+            None,
         );
         if ty.host {
             self.modules.set_host_act(id);
@@ -180,6 +181,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
             child_module,
             def,
             visibility(child.visibility),
+            None,
         );
     }
 
@@ -200,6 +202,9 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(value.order),
                         def,
                         vis: visibility(value.visibility),
+                        // MYVIS-A stores provenance only in the runtime import view.
+                        // MYVIS-B will materialize it in compiled namespaces.
+                        private_origin: None,
                     });
             }
             for ty in &module.imported_types {
@@ -217,6 +222,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(ty.order),
                         decl,
                         vis: visibility(ty.visibility),
+                        private_origin: None,
                     });
             }
             for child in &module.imported_modules {
@@ -231,6 +237,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(child.order),
                         module: child_module,
                         vis: visibility(child.visibility),
+                        private_origin: None,
                     });
             }
         }
