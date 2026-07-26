@@ -278,6 +278,172 @@ fn registers_struct_and_enum_constructors_as_values() {
 }
 
 #[test]
+fn derives_requests_normalize_all_attachment_positions_for_nominal_declarations() {
+    for fixture in [
+        DeriveRequestFixture {
+            name: "Record",
+            sources: [
+                "struct Record { value: int } derives Eq, Debug via value",
+                "struct Record { value: int } with:\n  derives Eq, Debug via value",
+                "struct Record derives Eq, Debug via value:\n  value: int",
+            ],
+            via: Some("value"),
+        },
+        DeriveRequestFixture {
+            name: "Tuple",
+            sources: [
+                "struct Tuple(int) derives Eq, Debug",
+                "struct Tuple(int) with:\n  derives Eq, Debug",
+                "struct Tuple derives Eq, Debug (int)",
+            ],
+            via: None,
+        },
+        DeriveRequestFixture {
+            name: "Choice",
+            sources: [
+                "enum Choice { A } derives Eq, Debug",
+                "enum Choice { A } with:\n  derives Eq, Debug",
+                "enum Choice derives Eq, Debug:\n  A",
+            ],
+            via: None,
+        },
+        DeriveRequestFixture {
+            name: "Failure",
+            sources: [
+                "error Failure { bad int } derives Eq, Debug",
+                "error Failure { bad int } with:\n  derives Eq, Debug",
+                "error Failure derives Eq, Debug:\n  bad int",
+            ],
+            via: None,
+        },
+    ] {
+        let expected = vec![(0, vec!["Eq".to_string(), "Debug".to_string()], fixture.via)];
+        for source in fixture.sources {
+            let lower = lower_source(source);
+            let root = lower.modules.root_id();
+            let declaration = lower.modules.type_decls(root, &Name(fixture.name.into()))[0].clone();
+            let companion = lower
+                .modules
+                .type_companion(declaration.id)
+                .expect("derive request companion");
+            let requests = lower.modules.derive_requests(declaration.id);
+
+            assert_eq!(derive_request_summary(requests), expected, "{source}");
+            for request in requests {
+                assert_eq!(request.owner, declaration.id, "{source}");
+                assert_eq!(request.companion, companion, "{source}");
+                assert_eq!(
+                    request
+                        .roles
+                        .iter()
+                        .map(|role| role.span.range)
+                        .collect::<Vec<_>>(),
+                    vec![
+                        source_range_of(source, "Eq"),
+                        source_range_of(source, "Debug")
+                    ],
+                    "{source}"
+                );
+                if let Some(via) = &request.via {
+                    assert_eq!(
+                        via.span.range,
+                        via_target_source_range(source, fixture.via.unwrap())
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn derives_requests_preserve_source_order_and_duplicate_roles() {
+    let source = concat!(
+        "struct Record derives Eq { value: int } derives Debug with:\n",
+        "  derives Eq via value\n",
+    );
+    let lower = lower_source(source);
+    let root = lower.modules.root_id();
+    let record = lower.modules.type_decls(root, &Name("Record".into()))[0].id;
+    let requests = lower.modules.derive_requests(record);
+
+    assert_eq!(
+        derive_request_summary(requests),
+        vec![
+            (0, vec!["Eq".to_string()], None),
+            (1, vec!["Debug".to_string()], None),
+            (2, vec!["Eq".to_string()], Some("value")),
+        ]
+    );
+}
+
+#[test]
+fn derives_requests_are_retained_for_parsed_out_of_scope_declarations() {
+    for (name, source) in [
+        ("Alias", "type Alias derives Eq"),
+        ("Console", "act Console derives Eq;"),
+    ] {
+        let lower = lower_source(source);
+        let root = lower.modules.root_id();
+        let declaration = lower.modules.type_decls(root, &Name(name.into()))[0].clone();
+        let requests = lower.modules.derive_requests(declaration.id);
+
+        assert_eq!(
+            derive_request_summary(requests),
+            vec![(0, vec!["Eq".to_string()], None)],
+            "{source}"
+        );
+        assert_eq!(requests[0].owner, declaration.id, "{source}");
+        assert_eq!(
+            requests[0].companion,
+            lower
+                .modules
+                .type_companion(declaration.id)
+                .expect("derive request companion"),
+            "{source}"
+        );
+    }
+}
+
+struct DeriveRequestFixture {
+    name: &'static str,
+    sources: [&'static str; 3],
+    via: Option<&'static str>,
+}
+
+fn derive_request_summary(requests: &[DeriveRequest]) -> Vec<(u32, Vec<String>, Option<&str>)> {
+    requests
+        .iter()
+        .map(|request| {
+            (
+                request.order,
+                request
+                    .roles
+                    .iter()
+                    .map(|role| role.node.text().to_string().trim().to_string())
+                    .collect(),
+                request.via.as_ref().map(|via| via.name.0.as_str()),
+            )
+        })
+        .collect()
+}
+
+fn source_range_of(source: &str, text: &str) -> SourceRange {
+    let start = source.find(text).expect("source text");
+    SourceRange {
+        start,
+        end: start + text.len(),
+    }
+}
+
+fn via_target_source_range(source: &str, text: &str) -> SourceRange {
+    let start = source.find(&format!("via {text}")).expect("via target") + "via ".len();
+    SourceRange {
+        start,
+        end: start + text.len(),
+    }
+}
+
+#[test]
 fn role_impl_body_gets_poly_module_identity() {
     let cst = parse("role Eq 'a;\nimpl int: Eq {\n  our x.eq = x\n  my helper = x\n}\n");
     let lower = lower_module_map(&cst);

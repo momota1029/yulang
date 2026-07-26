@@ -424,6 +424,34 @@ pub struct RoleImplDecl {
     pub methods: Vec<RoleImplMethodDecl>,
 }
 
+/// A `derives` clause attached to a nominal declaration.
+///
+/// The module map keeps source references intact; DERIVE-C and later resolve
+/// and expand them after ordinary type-body lowering has established the
+/// declaration surface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeriveRequest {
+    pub owner: TypeDeclId,
+    pub companion: ModuleId,
+    /// Source order among this declaration's derives clauses.
+    pub order: u32,
+    pub roles: Vec<DeriveRoleRef>,
+    pub via: Option<DeriveViaTarget>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeriveRoleRef {
+    /// The source `TypeExpr` for the role reference.
+    pub node: Cst,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeriveViaTarget {
+    pub name: Name,
+    pub span: SourceSpan,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoredRoleImplPrerequisite {
     pub subject: Option<StoredSignature>,
@@ -605,6 +633,7 @@ pub struct ModuleTable {
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
     role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
+    derive_requests: FxHashMap<TypeDeclId, Vec<DeriveRequest>>,
     role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
     role_method_default_bodies: FxHashSet<DefId>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,

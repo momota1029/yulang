@@ -987,6 +987,51 @@ pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
     None
 }
 
+/// Collect a type declaration's derives clauses without descending into nested
+/// declarations in its companion block.
+pub(crate) fn type_decl_derives_clauses(node: &Cst) -> Vec<Cst> {
+    let mut clauses = node
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::DerivesClause)
+        .collect::<Vec<_>>();
+    if let Some(body) = type_with_body(node) {
+        clauses.extend(
+            body.children()
+                .filter(|child| child.kind() == SyntaxKind::DerivesClause),
+        );
+    }
+    clauses.sort_by_key(|clause| usize::from(clause.text_range().start()));
+    clauses
+}
+
+/// The `TypeExpr` children of a derives clause are its role references.
+pub(crate) fn derives_clause_role_refs(node: &Cst) -> Vec<Cst> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+        .collect()
+}
+
+/// Return the single identifier following the clause-wide `via` token.
+pub(crate) fn derives_clause_via_target(node: &Cst) -> Option<(Name, SourceRange)> {
+    let mut saw_via = false;
+    for item in node.children_with_tokens() {
+        let NodeOrToken::Token(token) = item else {
+            continue;
+        };
+        if token.kind() == SyntaxKind::Via {
+            saw_via = true;
+            continue;
+        }
+        if saw_via && token.kind() == SyntaxKind::Ident {
+            return Some((
+                Name(token.text().to_string()),
+                source_range_from_text_range(token.text_range()),
+            ));
+        }
+    }
+    None
+}
+
 pub(crate) fn type_self_struct_node(node: &Cst) -> Option<Cst> {
     type_with_body(node)?.children().find(|child| {
         child.kind() == SyntaxKind::StructDecl

@@ -42,6 +42,7 @@ impl ModuleTable {
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
             role_impls: FxHashMap::default(),
+            derive_requests: FxHashMap::default(),
             role_methods: FxHashMap::default(),
             role_method_default_bodies: FxHashSet::default(),
             type_companions: FxHashMap::default(),
@@ -323,6 +324,18 @@ impl ModuleTable {
     pub fn role_impls(&self, module: ModuleId) -> &[RoleImplDecl] {
         self.role_impls
             .get(&module)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    pub(super) fn insert_derive_request(&mut self, request: DeriveRequest) {
+        self.derive_requests
+            .entry(request.owner)
+            .or_default()
+            .push(request);
+    }
+    pub fn derive_requests(&self, owner: TypeDeclId) -> &[DeriveRequest] {
+        self.derive_requests
+            .get(&owner)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }

@@ -724,12 +724,64 @@ impl Lower {
                 | ModuleTypeKind::Error
         ) {
             self.register_type_constructors(node, module, kind, id, name.clone(), vis, children);
-            self.register_type_companion(node, module, name, id, vis, children);
+            self.register_type_companion(node, module, name.clone(), id, vis, children);
             if kind == ModuleTypeKind::Error {
                 self.register_error_companion_helpers(id);
             }
         }
+        self.register_derive_requests(node, module, name, id, vis, children);
         Some(id)
+    }
+
+    fn register_derive_requests(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        name: Name,
+        owner: TypeDeclId,
+        vis: Vis,
+        children: &mut Vec<DefId>,
+    ) {
+        let clauses = type_decl_derives_clauses(node);
+        if clauses.is_empty() {
+            return;
+        }
+
+        // Named structs without a `with:` block do not otherwise need a
+        // companion. Derived implementations do, so ensure one for every
+        // request, including the declaration kinds that DERIVE-F will reject.
+        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        self.modules.set_type_companion(owner, companion);
+        if created {
+            children.push(def);
+        }
+
+        for (order, clause) in clauses.into_iter().enumerate() {
+            let roles = derives_clause_role_refs(&clause)
+                .into_iter()
+                .map(|node| DeriveRoleRef {
+                    span: SourceSpan {
+                        file: self.source_file.clone(),
+                        range: node_trimmed_source_range(&node),
+                    },
+                    node,
+                })
+                .collect();
+            let via = derives_clause_via_target(&clause).map(|(name, range)| DeriveViaTarget {
+                name,
+                span: SourceSpan {
+                    file: self.source_file.clone(),
+                    range,
+                },
+            });
+            self.modules.insert_derive_request(DeriveRequest {
+                owner,
+                companion,
+                order: order as u32,
+                roles,
+                via,
+            });
+        }
     }
 
     fn register_local_var_act_copies_in_binding(
