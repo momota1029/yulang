@@ -1,0 +1,6 @@
+struct point { value: int } derives Eq
+
+impl point: Eq:
+    our x.eq y = true
+
+(point { value: 1 }).eq (point { value: 1 })

@@ -216,7 +216,8 @@ pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
     match error {
         BodyLoweringError::MissingBindingDecl { .. }
         | BodyLoweringError::MissingModuleDecl { .. }
-        | BodyLoweringError::RootExpr { .. } => None,
+        | BodyLoweringError::RootExpr { .. }
+        | BodyLoweringError::Derive { .. } => None,
         BodyLoweringError::MissingBody { def, .. }
         | BodyLoweringError::NonLetDef { def, .. }
         | BodyLoweringError::Expr { def, .. } => Some(*def),

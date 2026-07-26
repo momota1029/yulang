@@ -2796,13 +2796,22 @@ fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceD
         .filter(|node| node.kind() == parser::lex::SyntaxKind::InvalidToken)
         .map(|node| {
             let range = parser_diagnostic_range(&root.source, node.text_range());
+            let unimplemented_impl_via = node
+                .first_token()
+                .is_some_and(|token| token.kind() == parser::lex::SyntaxKind::Via)
+                && node
+                    .ancestors()
+                    .any(|ancestor| ancestor.kind() == parser::lex::SyntaxKind::ImplDecl);
             SourceDiagnostic {
                 severity: SourceDiagnosticSeverity::Error,
                 code: Some("yulang.syntax".to_string()),
                 label: None,
                 file: Some(root.module_path.clone()),
                 range: Some(range),
-                message: if node.text().is_empty() {
+                message: if unimplemented_impl_via {
+                    "impl ... via ... is not implemented; use via only in a derives clause"
+                        .to_string()
+                } else if node.text().is_empty() {
                     "syntax error: unexpected end of input".to_string()
                 } else {
                     "syntax error: unexpected token".to_string()
@@ -4180,6 +4189,10 @@ fn source_diagnostic_from_body_lowering_error(
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { method, .. } => {
             Some(method.clone())
         }
+        infer::lowering::BodyLoweringError::Derive { diagnostic, .. } => match diagnostic {
+            infer::lowering::DeriveDiagnostic::UnresolvedRole { role } => Some(role.clone()),
+            _ => None,
+        },
         _ => label,
     };
     SourceDiagnostic {
@@ -4328,6 +4341,22 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => {
             Some("yulang.role-impl-associated-type-mismatch")
         }
+        infer::lowering::BodyLoweringError::Derive { diagnostic, .. } => Some(match diagnostic {
+            infer::lowering::DeriveDiagnostic::UnresolvedRole { .. } => "yulang.unresolved-type",
+            infer::lowering::DeriveDiagnostic::UnsupportedRole { .. } => {
+                "yulang.unsupported-derive-role"
+            }
+            infer::lowering::DeriveDiagnostic::InvalidTarget { .. } => {
+                "yulang.invalid-derive-target"
+            }
+            infer::lowering::DeriveDiagnostic::UnsatisfiedField { .. } => {
+                "yulang.unsatisfied-derive"
+            }
+            infer::lowering::DeriveDiagnostic::UnknownField { .. } => "yulang.unknown-derive-field",
+            infer::lowering::DeriveDiagnostic::InvalidViaTarget { .. } => {
+                "yulang.invalid-derive-via-target"
+            }
+        }),
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::MissingImplicitCast { .. },
         ) => Some("yulang.missing-implicit-cast"),
@@ -4466,6 +4495,7 @@ fn body_lowering_error_source_span(
                 .map(|site| site.source.clone())
                 .unwrap_or_else(|| impl_source.clone()),
         ),
+        infer::lowering::BodyLoweringError::Derive { source, .. } => Some(source.clone()),
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::MissingImplicitCast { source_span, .. }
             | infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { source_span, .. },
@@ -4524,6 +4554,20 @@ fn body_lowering_error_related(
             }
             related
         }
+        infer::lowering::BodyLoweringError::Derive {
+            diagnostic:
+                infer::lowering::DeriveDiagnostic::UnsatisfiedField {
+                    field,
+                    field_source,
+                    ..
+                },
+            ..
+        } => vec![SourceDiagnosticRelated {
+            message: format!("field `{field}` is declared here"),
+            file: field_source.file.clone(),
+            range: field_source.range,
+            origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
+        }],
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::MissingImplicitCast {
                 explanation: Some(explanation),
@@ -4657,8 +4701,14 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_hint(error),
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => Some(
             "change the associated type assignment or make the method signature and body satisfy it"
-                .to_string(),
+            .to_string(),
         ),
+        infer::lowering::BodyLoweringError::Derive {
+            diagnostic: infer::lowering::DeriveDiagnostic::UnresolvedRole { role },
+            ..
+        } => Some(format!(
+            "define or import role {role}, or use a supported derive role"
+        )),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("write a body expression after `=`".to_string())
         }

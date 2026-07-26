@@ -3428,6 +3428,142 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "roles"]
 
 [[case]]
+name = "derive_unresolved_role_diagnostic"
+file = "regressions/diagnostics/derive_unresolved_role.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unresolved-type]: Missing: unresolved type name: Missing",
+  "hint: define or import role Missing, or use a supported derive role",
+]
+expect_diagnostic_code = "yulang.unresolved-type"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_label = "Missing"
+expect_diagnostic_start = 65
+expect_diagnostic_end = 72
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_unsupported_role_diagnostic"
+file = "regressions/diagnostics/derive_unsupported_role.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.unsupported-derive-role]: role Ord cannot be derived"]
+expect_diagnostic_code = "yulang.unsupported-derive-role"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 65
+expect_diagnostic_end = 68
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_invalid_target_diagnostic"
+file = "regressions/diagnostics/derive_invalid_target.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.invalid-derive-target]"]
+expect_diagnostic_code = "yulang.invalid-derive-target"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 54
+expect_diagnostic_end = 56
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_unsatisfied_field_diagnostic"
+file = "regressions/diagnostics/derive_unsatisfied_field.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unsatisfied-derive]: cannot derive Eq for point: field value does not implement Eq",
+  "note: field `value` is declared here",
+]
+expect_diagnostic_code = "yulang.unsatisfied-derive"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 70
+expect_diagnostic_end = 72
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["type-annotation"]
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_unknown_via_field_diagnostic"
+file = "regressions/diagnostics/derive_unknown_via_field.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.unknown-derive-field]: type point has no field named missing"]
+expect_diagnostic_code = "yulang.unknown-derive-field"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 72
+expect_diagnostic_end = 79
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_invalid_via_target_diagnostic"
+file = "regressions/diagnostics/derive_invalid_via_target.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.invalid-derive-via-target]"]
+expect_diagnostic_code = "yulang.invalid-derive-via-target"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 62
+expect_diagnostic_end = 67
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles", "related-ranges"]
+
+[[case]]
+name = "derive_generic_field_no_diagnostic"
+file = "regressions/diagnostics/derive_generic_field.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots []\n"
+contracts = ["runtime", "roles"]
+
+[[case]]
+name = "derive_explicit_ambiguity_diagnostic"
+file = "regressions/diagnostics/derive_explicit_ambiguity.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.ambiguous-method]: eq: more than one role implementation satisfies this method call",
+  "hint: make the receiver type more specific or keep only one matching impl in scope",
+]
+expect_diagnostic_code = "yulang.ambiguous-method"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_label = "eq"
+expect_diagnostic_start = 129
+expect_diagnostic_end = 131
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["impl-candidate"]
+contracts = ["diagnostics", "roles"]
+
+[[case]]
 name = "derive_debug_structural"
 file = "regressions/runtime/derive_debug_structural.yu"
 kind = "run"

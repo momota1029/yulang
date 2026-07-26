@@ -1025,7 +1025,38 @@ pub enum BodyLoweringError {
         method_source: SourceSpan,
         requirement_source: Option<SourceSpan>,
     },
+    Derive {
+        diagnostic: DeriveDiagnostic,
+        source: SourceSpan,
+    },
     Analysis(AnalysisDiagnostic),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeriveDiagnostic {
+    UnresolvedRole {
+        role: String,
+    },
+    UnsupportedRole {
+        role: String,
+    },
+    InvalidTarget {
+        role: String,
+        target: String,
+    },
+    UnsatisfiedField {
+        role: String,
+        target: String,
+        field: String,
+        field_source: SourceSpan,
+    },
+    UnknownField {
+        target: String,
+        field: String,
+    },
+    InvalidViaTarget {
+        target: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1052,6 +1083,7 @@ pub(super) struct BodyLowerer {
     pub(super) deferred_result_annotation_checks: Vec<DeferredResultAnnotationCheck>,
     pub(super) role_impl_conformance_contracts:
         Vec<crate::role_impl_conformance::RoleImplConformanceContract>,
+    pending_derive_requirements: Vec<PendingDeriveRequirement>,
     pending_role_impl_conformance: FxHashMap<DefId, PendingRoleImplConformance>,
     receiverless_conformance_shadow_enabled: bool,
     #[cfg(test)]
@@ -1080,6 +1112,19 @@ pub(super) struct BodyLowerer {
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
     // BindingFetch for use-site semantics, but they are not source-level runtime roots.
     pub(super) suppress_runtime_roots: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PendingDeriveRequirement {
+    pub(super) role: Vec<String>,
+    pub(super) role_name: String,
+    pub(super) target: String,
+    pub(super) field: String,
+    pub(super) primary_source: SourceSpan,
+    pub(super) field_source: SourceSpan,
+    pub(super) field_type: Cst,
+    pub(super) module: ModuleId,
+    pub(super) site: ModuleOrder,
 }
 
 pub(super) struct DeferredResultAnnotationCheck {
@@ -1425,6 +1470,7 @@ impl BodyLowerer {
             role_requirements: FxHashMap::default(),
             deferred_result_annotation_checks: Vec::new(),
             role_impl_conformance_contracts: Vec::new(),
+            pending_derive_requirements: Vec::new(),
             pending_role_impl_conformance: FxHashMap::default(),
             receiverless_conformance_shadow_enabled: true,
             #[cfg(test)]
@@ -1484,6 +1530,7 @@ impl BodyLowerer {
             })
             .collect::<Vec<_>>();
         self.errors.extend(mismatch_drafts);
+        self.validate_pending_derive_requirements();
         let source_impl_defs = self
             .role_impl_conformance_contracts
             .iter()

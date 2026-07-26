@@ -28,16 +28,51 @@ impl BodyLowerer {
         let requests = self.modules.derive_requests(decl.id).to_vec();
         for request in requests {
             for role_ref in request.roles {
-                match self.derive_strategy(&role_ref.node, decl) {
-                    Some(DeriveStrategy::Eq) => {
+                let role_name = role_ref.node.text().to_string().trim().to_string();
+                let strategy = match self.derive_strategy(&role_ref.node, decl) {
+                    Ok(Some(strategy)) => strategy,
+                    Ok(None) => {
+                        self.errors.push(BodyLoweringError::Derive {
+                            diagnostic: DeriveDiagnostic::UnsupportedRole { role: role_name },
+                            source: role_ref.span,
+                        });
+                        continue;
+                    }
+                    Err(()) => {
+                        self.errors.push(BodyLoweringError::Derive {
+                            diagnostic: DeriveDiagnostic::UnresolvedRole { role: role_name },
+                            source: role_ref.span,
+                        });
+                        continue;
+                    }
+                };
+                let role = match strategy {
+                    DeriveStrategy::Eq => self.canonical_eq_role(decl.module),
+                    DeriveStrategy::Debug => self.canonical_debug_role(decl.module),
+                };
+                let Some(role) = role else {
+                    continue;
+                };
+                let Some(requirements) = self.derive_field_requirements(
+                    node,
+                    decl,
+                    role,
+                    &role_name,
+                    &role_ref.span,
+                    request.via.as_ref(),
+                ) else {
+                    continue;
+                };
+                self.pending_derive_requirements.extend(requirements);
+                match strategy {
+                    DeriveStrategy::Eq => {
                         let Some(plan) = EqDerivePlan::build(node, decl, request.via.as_ref())
                         else {
-                            // DERIVE-F owns diagnostics for invalid derive targets and `via` targets.
                             continue;
                         };
                         self.lower_eq_derive_plan(node, decl, request.companion, plan);
                     }
-                    Some(DeriveStrategy::Debug) => {
+                    DeriveStrategy::Debug => {
                         self.lower_debug_derive_request(
                             node,
                             decl,
@@ -45,30 +80,225 @@ impl BodyLowerer {
                             request.via.as_ref(),
                         );
                     }
-                    None => {
-                        // DERIVE-F owns diagnostics for unresolved and unsupported roles.
-                    }
                 }
             }
         }
     }
 
-    fn derive_strategy(&self, role_ref: &Cst, decl: &ModuleTypeDecl) -> Option<DeriveStrategy> {
+    fn derive_strategy(
+        &self,
+        role_ref: &Cst,
+        decl: &ModuleTypeDecl,
+    ) -> Result<Option<DeriveStrategy>, ()> {
         let mut builder = ann_type_builder(&self.modules, decl.module, decl.order, None);
-        let role = builder.build_type_expr(role_ref).ok()?;
-        let role = ann_type_named_head(&role)?;
+        let role = builder.build_type_expr(role_ref).map_err(|_| ())?;
+        let Some(role) = ann_type_named_head(&role) else {
+            return Ok(None);
+        };
         if self
             .canonical_eq_role(decl.module)
             .is_some_and(|eq_role| role == eq_role)
         {
-            Some(DeriveStrategy::Eq)
+            Ok(Some(DeriveStrategy::Eq))
         } else if self
             .canonical_debug_role(decl.module)
             .is_some_and(|debug_role| role == debug_role)
         {
-            Some(DeriveStrategy::Debug)
+            Ok(Some(DeriveStrategy::Debug))
         } else {
-            None
+            Ok(None)
+        }
+    }
+
+    fn derive_field_requirements(
+        &mut self,
+        node: &Cst,
+        decl: &ModuleTypeDecl,
+        role: TypeDeclId,
+        role_name: &str,
+        role_source: &SourceSpan,
+        via: Option<&DeriveViaTarget>,
+    ) -> Option<Vec<PendingDeriveRequirement>> {
+        if !matches!(
+            decl.kind,
+            ModuleTypeKind::Struct | ModuleTypeKind::Enum | ModuleTypeKind::Error
+        ) {
+            self.errors.push(BodyLoweringError::Derive {
+                diagnostic: DeriveDiagnostic::InvalidTarget {
+                    role: role_name.to_string(),
+                    target: decl.name.0.clone(),
+                },
+                source: role_source.clone(),
+            });
+            return None;
+        }
+        if let Some(via) = via
+            && decl.kind != ModuleTypeKind::Struct
+        {
+            self.errors.push(BodyLoweringError::Derive {
+                diagnostic: DeriveDiagnostic::InvalidViaTarget {
+                    target: decl.name.0.clone(),
+                },
+                source: via.span.clone(),
+            });
+            return None;
+        }
+
+        let role_path = self.modules.type_decl_by_id(role).map(|decl| {
+            self.modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>()
+        })?;
+        let mut fields = Vec::new();
+        match decl.kind {
+            ModuleTypeKind::Struct => {
+                let struct_fields = crate::struct_field_nodes(node);
+                let named = struct_fields
+                    .iter()
+                    .all(|field| crate::struct_field_name(field).is_some());
+                if let Some(via) = via
+                    && !named
+                {
+                    self.errors.push(BodyLoweringError::Derive {
+                        diagnostic: DeriveDiagnostic::InvalidViaTarget {
+                            target: decl.name.0.clone(),
+                        },
+                        source: via.span.clone(),
+                    });
+                    return None;
+                }
+                for (index, field) in struct_fields.into_iter().enumerate() {
+                    let name = crate::struct_field_name(&field)
+                        .map(|name| name.0)
+                        .unwrap_or_else(|| format!("#{index}"));
+                    if let Some(via) = via
+                        && name != via.name.0
+                    {
+                        continue;
+                    }
+                    let Some(field_type) = crate::field_type_expr(&field) else {
+                        continue;
+                    };
+                    fields.push((name, field, field_type));
+                }
+                if let Some(via) = via
+                    && fields.is_empty()
+                {
+                    self.errors.push(BodyLoweringError::Derive {
+                        diagnostic: DeriveDiagnostic::UnknownField {
+                            target: decl.name.0.clone(),
+                            field: via.name.0.clone(),
+                        },
+                        source: via.span.clone(),
+                    });
+                    return None;
+                }
+            }
+            ModuleTypeKind::Enum | ModuleTypeKind::Error => {
+                for variant in crate::enum_variant_nodes(node) {
+                    let variant_name = crate::enum_variant_name(&variant)
+                        .map(|name| name.0)
+                        .unwrap_or_else(|| "<variant>".to_string());
+                    let variant_fields = crate::enum_variant_field_nodes(&variant);
+                    if variant_fields.is_empty() {
+                        fields.extend(
+                            crate::enum_variant_direct_type_exprs(&variant)
+                                .into_iter()
+                                .enumerate()
+                                .map(|(index, field_type)| {
+                                    (
+                                        format!("{variant_name}#{index}"),
+                                        field_type.clone(),
+                                        field_type,
+                                    )
+                                }),
+                        );
+                    } else {
+                        for (index, field) in variant_fields.into_iter().enumerate() {
+                            let name = crate::struct_field_name(&field)
+                                .map(|name| name.0)
+                                .unwrap_or_else(|| format!("{variant_name}#{index}"));
+                            if let Some(field_type) = crate::field_type_expr(&field) {
+                                fields.push((name, field, field_type));
+                            }
+                        }
+                    }
+                }
+            }
+            ModuleTypeKind::TypeAlias | ModuleTypeKind::Role | ModuleTypeKind::Act => {
+                unreachable!()
+            }
+        }
+
+        Some(
+            fields
+                .into_iter()
+                .map(|(field, field_node, field_type)| PendingDeriveRequirement {
+                    role: role_path.clone(),
+                    role_name: role_name.to_string(),
+                    target: decl.name.0.clone(),
+                    field,
+                    primary_source: via.map_or_else(|| role_source.clone(), |via| via.span.clone()),
+                    field_source: SourceSpan {
+                        file: role_source.file.clone(),
+                        range: crate::node_trimmed_source_range(&field_node),
+                    },
+                    field_type,
+                    module: decl.module,
+                    site: decl.order,
+                })
+                .collect(),
+        )
+    }
+
+    pub(super) fn validate_pending_derive_requirements(&mut self) {
+        let requirements = std::mem::take(&mut self.pending_derive_requirements);
+        for requirement in requirements {
+            let mut builder =
+                ann_type_builder(&self.modules, requirement.module, requirement.site, None);
+            let Ok(field_type) = builder.build_type_expr(&requirement.field_type) else {
+                continue;
+            };
+            if ann_type_is_open(&field_type) {
+                continue;
+            }
+            let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, &self.modules);
+            let Ok(input) = lowerer.lower_role_arg(&field_type) else {
+                continue;
+            };
+            let demand = RoleConstraint {
+                role: requirement.role.clone(),
+                inputs: vec![input],
+                associated: Vec::new(),
+            };
+            let demand =
+                crate::compact::compact_role_constraint(self.session.infer.constraints(), &demand);
+            let resolved = crate::role_solve::resolve_role_constraints_with_stats(
+                self.session.infer.constraints(),
+                &crate::compact::CompactRoot::default(),
+                &[demand],
+                &self.session.role_impls,
+                &FxHashSet::default(),
+            );
+            let satisfied = match resolved.resolutions.as_slice() {
+                [resolution] => resolution.residual_prerequisites.is_empty(),
+                [] => resolved.stats.candidate_matches > 0,
+                _ => true,
+            };
+            if !satisfied {
+                self.errors.push(BodyLoweringError::Derive {
+                    diagnostic: DeriveDiagnostic::UnsatisfiedField {
+                        role: requirement.role_name,
+                        target: requirement.target,
+                        field: requirement.field,
+                        field_source: requirement.field_source,
+                    },
+                    source: requirement.primary_source,
+                });
+            }
         }
     }
 
@@ -293,6 +523,42 @@ fn ann_type_named_head(ann: &AnnType) -> Option<TypeDeclId> {
         AnnType::Named(id) => Some(*id),
         AnnType::Apply { callee, .. } => ann_type_named_head(callee),
         _ => None,
+    }
+}
+
+fn ann_type_is_open(ann: &AnnType) -> bool {
+    match ann {
+        AnnType::Builtin(_) | AnnType::Named(_) => false,
+        AnnType::Var(_) | AnnType::Wildcard(_) => true,
+        AnnType::EffectRow(row) => {
+            row.tail.is_some()
+                || row.items.iter().any(|atom| match atom {
+                    AnnEffectAtom::Type(ann) => ann_type_is_open(ann),
+                    AnnEffectAtom::Wildcard => true,
+                })
+        }
+        AnnType::Effectful { eff, ret } => {
+            ann_type_is_open(&AnnType::EffectRow(eff.clone())) || ann_type_is_open(ret)
+        }
+        AnnType::Tuple(items) => items.iter().any(ann_type_is_open),
+        AnnType::Apply { callee, args } => {
+            ann_type_is_open(callee) || args.iter().any(ann_type_is_open)
+        }
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            ann_type_is_open(param)
+                || arg_eff
+                    .as_ref()
+                    .is_some_and(|row| ann_type_is_open(&AnnType::EffectRow(row.clone())))
+                || ret_eff
+                    .as_ref()
+                    .is_some_and(|row| ann_type_is_open(&AnnType::EffectRow(row.clone())))
+                || ann_type_is_open(ret)
+        }
     }
 }
 

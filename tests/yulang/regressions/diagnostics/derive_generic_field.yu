@@ -1,0 +1,3 @@
+struct point 'a { value: 'a } derives Eq
+
+pub same(x: point 'a, y: point 'a) = x.eq y

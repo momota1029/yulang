@@ -3319,6 +3319,40 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn derives_unsatisfied_field_diagnostic_keeps_role_and_field_source_ranges() {
+    let source = "struct point { value: list str } derives Eq\n";
+    let entry = write_main_with_std("derives-unsatisfied-field-source-range", source);
+    let output =
+        analyze_entry_source_with_std_options(&entry, source, &StdSourceOptions::default())
+            .expect("derive diagnostic fixture should analyze");
+
+    let [diagnostic] = output.diagnostics.as_slice() else {
+        panic!("expected one derive diagnostic: {:?}", output.diagnostics)
+    };
+    let offset = IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+    assert_eq!(
+        diagnostic.code.as_deref(),
+        Some("yulang.unsatisfied-derive")
+    );
+    assert_eq!(
+        diagnostic.range,
+        Some(SourceRange {
+            start: offset + source.find("Eq").unwrap(),
+            end: offset + source.find("Eq").unwrap() + "Eq".len(),
+        })
+    );
+    assert_eq!(diagnostic.related.len(), 1);
+    assert_eq!(
+        diagnostic.related[0].range,
+        SourceRange {
+            start: offset + source.find("value: list str").unwrap(),
+            end: offset + source.find("value: list str").unwrap() + "value: list str".len(),
+        }
+    );
+}
+
 #[test]
 fn hover_entry_source_reports_decl_type() {
     let root = temp_root("hover-entry-source-decl");

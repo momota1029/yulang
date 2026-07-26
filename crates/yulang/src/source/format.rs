@@ -2311,6 +2311,9 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
                 role.join("::")
             )
         }
+        infer::lowering::BodyLoweringError::Derive { diagnostic, .. } => {
+            format_derive_diagnostic(diagnostic)
+        }
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,
@@ -2351,6 +2354,32 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             },
         ) => {
             format_ambiguous_implicit_cast(&source.join("::"), &target.join("::"), candidates.len())
+        }
+    }
+}
+
+fn format_derive_diagnostic(diagnostic: &infer::lowering::DeriveDiagnostic) -> String {
+    match diagnostic {
+        infer::lowering::DeriveDiagnostic::UnresolvedRole { role } => {
+            format!("unresolved type name: {role}")
+        }
+        infer::lowering::DeriveDiagnostic::UnsupportedRole { role } => {
+            format!("role {role} cannot be derived")
+        }
+        infer::lowering::DeriveDiagnostic::InvalidTarget { role, target } => {
+            format!("cannot derive {role} for {target}: this declaration kind is not supported")
+        }
+        infer::lowering::DeriveDiagnostic::UnsatisfiedField {
+            role,
+            target,
+            field,
+            ..
+        } => format!("cannot derive {role} for {target}: field {field} does not implement {role}"),
+        infer::lowering::DeriveDiagnostic::UnknownField { target, field } => {
+            format!("type {target} has no field named {field}")
+        }
+        infer::lowering::DeriveDiagnostic::InvalidViaTarget { target } => {
+            format!("type {target} cannot use via in a derives clause")
         }
     }
 }
