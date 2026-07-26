@@ -106,7 +106,7 @@ scope before it can parse later expressions.
 ## Defining a new operator
 
 ```yulang
-pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> xs.append ys
+pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 
 [1, 2] ++ [3, 4]   // [1, 2, 3, 4]
 ```
@@ -120,7 +120,8 @@ where the operator belongs in the precedence hierarchy.
   rejects the expression with a parse error (not a name-resolution error).
 - Both `pub prefix(name) ...` and the imported alias such as `use foo::(+)`
   pull the syntax into scope. They are not redundant; the path import does
-  not bring the syntax with it.
+  not bring the syntax with it unless the symbolic operator name is imported
+  in parentheses.
 - When two glob imports both expose the same operator name, use `without` on
   one of them to disambiguate.
 

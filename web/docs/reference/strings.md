@@ -38,7 +38,7 @@ Integer hex formatting is available through the lower- and upper-hex roles:
 "HEX = %X{255}"
 ```
 
-## Indexing And Slicing
+## Indexing and Slicing
 
 ```yulang
 my c: char = "aあ🙂"[1] // char for あ
@@ -80,12 +80,14 @@ prints `.show` with a newline.
 Define `Display` for a user type with the usual role machinery:
 
 ```yulang
+struct point { x: int, y: int }
+
 impl Display point:
     our p.show = "(" + p.x.show + ", " + p.y.show + ")"
 ```
 
-The result is what `point::show p` or `p.show` returns, and what `%{p}` in a
-string template formats.
+The result is what `p.show` returns and what `%{p}` in a string template
+formats.
 
 ## Debug and `.debug`
 

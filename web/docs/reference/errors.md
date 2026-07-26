@@ -24,8 +24,8 @@ This generates several pieces at once:
   hand-written impl).
 - `io_err::wrap` in the companion module, which closes the error effect into
   a `result` value.
-- `io_err::up` in the companion module, used when other error types declare
-  `from io_err`.
+- An `up` helper in the companion module when the declaration contains `from`
+  entries. It lifts the linked narrower errors into the declared error type.
 
 ## Constructors and operations share names
 
@@ -49,18 +49,18 @@ pub prefix(fail) = \e -> e.throw
 Use it to surface a constructed error value into the effect row.
 
 ```yulang
-my read_text_from_host path = read_text path
+my missing path = fail (io_err::not_found path)
 ```
 
-Inferred type: roughly `path -> [file, io_err] str`. The error is visible in the
-effect row.
+Calling `missing` performs `io_err::not_found`; `fail` makes that error visible
+in the effect row.
 
 ## Catching by name
 
 `catch` arms handle errors by naming each operation directly.
 
 ```yulang
-catch read_text path:
+my read_text_or_label path = catch read_text path:
     io_err::not_found _, _ -> "(missing)"
     io_err::denied _, _ -> "(denied)"
     value -> value
@@ -87,6 +87,9 @@ and returns `result _ E`. When `E` has `from` entries, `wrap` also catches the
 linked narrower errors and wraps them through the generated conversions.
 
 ## `from` aggregation
+
+The following excerpt assumes that a parser module defines `parse_err` and
+`parse_json`:
 
 ```yulang
 pub error app_err:

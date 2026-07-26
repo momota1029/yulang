@@ -22,9 +22,7 @@ pub error io_err:
 - `impl Display io_err` — 既定の文字列化（手書きの impl で上書き可能）。
 - `io_err::wrap` — companion module 内のヘルパー。error effect を `result`
   値に閉じる。
-- `io_err::up` — companion module 内の handler。他の error 型が
-  `from io_err` を宣言している場合、narrower error を `io_err` の effect に
-  持ち上げる。
+- `from` entry がある場合だけ生成される `up` helper。リンクした narrower error を、宣言した error 型に持ち上げる。
 
 ## constructor と operation は同名
 
@@ -47,27 +45,23 @@ pub prefix(fail) = \e -> e.throw
 構築したエラー値を effect として送り出すときに使う。
 
 ```yulang
-my read_text_from_host path = read_text path
+my missing path = fail (io_err::not_found path)
 ```
 
-推論型は概ね `path -> [file, io_err] str` の形になり、エラーが effect row に
-明示される。
+`missing` を呼ぶと `io_err::not_found` が発火し、`fail` によってその error が effect row に現れる。
 
 ## 名指しで捕まえる
 
 `catch` の effect arm は、operation 名を直接書いてエラーを捕まえる。
 
 ```yulang
-catch read_text path:
+my read_text_or_label path = catch read_text path:
     io_err::not_found _, _ -> "(missing)"
     io_err::denied _, _ -> "(denied)"
     value -> value
 ```
 
-Yulang のエラー設計は **常に名指しで捕まえる** ことを前提にしている。
-`Display` を実行時に dispatch して任意のエラーを文字列化するような型消去の
-ラッパー（いわゆる anyhow 的なもの）は意図的に採用していない。各エラーは
-effect row の中で常に具体的な名前で見え、発火地点と捕捉地点が型から分かる。
+Yulang のエラー設計は **名指しで捕まえる** ことを前提にしている。型を消去した catch-all や、任意の `Display` 実装を runtime dispatch する仕組みはなく、anyhow 型の境界を意図的に提供していない。各 error は effect row の中で具体的な型を保つため、発火元と handler を型から特定できる。
 
 ## `wrap`：値に閉じる
 
@@ -84,6 +78,8 @@ my read_text_safe path =
 error も同時に捕まえ、生成された変換を通じて wrap する。
 
 ## `from` による集約
+
+次の抜粋では、parser module が `parse_err` と `parse_json` を定義済みであるとする。
 
 ```yulang
 pub error app_err:

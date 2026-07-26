@@ -1,8 +1,10 @@
 # モジュール
 
-`use` による import、`my` / `our` / `pub` の visibility、companion module、ドット選択の解決、標準ライブラリの一覧を扱う。
+このページでは、`use`、realm と band の path、companion module、dot selection、標準ライブラリの module map を扱う。
 
 ## `use`
+
+次の抜粋は import 構文を示す。`my_module` と `noisy` は、プログラム側が用意する module を表す。
 
 ```yulang
 use std::control::nondet::*
@@ -83,6 +85,7 @@ struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
 point::norm2 (point { x: 3, y: 4 })
+// または、同じ意味の dot selection
 point { x: 3, y: 4 } .norm2
 ```
 
@@ -95,7 +98,7 @@ io_err::not_found "path"
 
 prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexport するため、通常は修飾名なしで書ける。
 
-`act` の operation も同じ。
+`act` の operation も companion member である。`std::io::console` では、`out::write "hi"` のように呼び出す。
 
 ```yulang
 out::write "hi"
@@ -141,19 +144,19 @@ anonymous record の場合、`.field` は record field を取り出す。act ope
 
 | Module | 内容 |
 |--------|------|
-| `std::prelude` | entry file が通常 import する基本定義、role、operator、std reexport |
-| `std::core::ops` | `+`, `-`, `*`, `/`, comparison, `and`, `or`, `not` |
-| `std::data::list` | list operations と `Index` impl |
+| `std::prelude` | entry file が通常 import する `Add`、`Eq`、`Ord`、`Display`、`len`、`id`、`compose`、`last` / `next` / `redo`、`return`、`fail`、range operator、core std reexport |
+| `std::core::ops` | `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `and`, `or`, `not` |
+| `std::data::list` | `map`、`filter`、`fold`、`sort`、`cons`、`uncons`、`rev`、`append` などの list operation |
 | `std::data::range` | range constructors と `Fold` impl |
 | `std::data::opt` | `opt 'a` と、prelude reexport された `nil` / `just` |
-| `std::data::result` | `result 'ok 'err` と、prelude reexport された `ok` / `err` |
-| `std::text::str` | `str` と indexing |
-| `std::control::var` | `ref 'e 'a`、local mutable binding、update helper |
-| `std::control::flow` | `sub`, loop control, label loop primitives |
-| `std::data::fold` | `Fold` role と default method `.find` / `.contains` |
-| `std::control::nondet` | `each`, `guard`, `.list`, `.once`, `.logic` |
-| `std::control::junction` | `all`, `any` |
+| `std::data::result` | `result 'ok 'err`、prelude reexport された `ok` / `err`、`map`、`and_then`、`unwrap_or` |
+| `std::text::str` | `str` 型と `Index` impl |
+| `std::control::var` | `ref 'e 'a`、local mutable binding support、update helper |
+| `std::control::flow` | `sub`、`loop`、label-loop primitive |
+| `std::data::fold` | `.fold` と default method `.find` / `.contains` を持つ `Fold` role |
+| `std::control::nondet` | `each`、`guard`、`list`、`once`、`logic` |
+| `std::control::junction` | effectful comparison の `all`、`any` |
 | `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die` と、背後の `out` / `err` / `warn` / `die` effect |
-| `std::io::file` | `read_text`, `write_text`, `text`, `text_with`, `exists`, `is_file`, `is_dir` と `io_err` |
-| `std::control::throw` | `Throw` role と `fail` |
+| `std::io::file` | `read_text`、`write_text`、`text`、`text_with`、`exists`、`is_file`、`is_dir` と `io_err` error |
+| `std::control::throw` | `Throw` role と `fail` support |
 | `std::data::index` | `Index` role |

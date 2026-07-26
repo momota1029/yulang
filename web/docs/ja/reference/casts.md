@@ -1,7 +1,6 @@
 # キャスト
 
-Yulang は expected-type 境界で暗黙の cast を挿入する。cast の出どころは 2 つ：
-明示的な `cast` 宣言と、`enum` / `error` の variant に付けた `from` マーカー。
+Yulang は expected-type 境界で暗黙の cast を挿入する。cast は、明示的な `cast` 宣言と、`enum` / `error` の variant に付けた `from` marker から生成される。
 
 ## 明示的な cast
 
@@ -19,7 +18,7 @@ body が変換後の値を返す。
 ## cast が挿入される場所
 
 推論された値の型と既知の期待型がぶつかる境界で、compiler は登録済みの変換規則を適用する。
-主な場面は次の通り：
+主な適用箇所を次に示す。
 
 - binding や引数の型注釈
 - 関数の引数
@@ -51,6 +50,8 @@ use_bool 42
 
 ## `from` 付きの variant
 
+次の抜粋では、`path_err` と `parse_err` が nominal error 型として定義済みであるとする。
+
 ```yulang
 enum app_err:
     path from path_err
@@ -69,7 +70,7 @@ source 型は payload 1 つ、source と target は両方 nominal である必�
 
 ## newtype ラッパーのパターン
 
-プリミティブを struct でくるんで型レベルの区別を入れるのは、よくあるパターン：
+primitive を struct で包むと、型レベルの区別を加えられる。
 
 ```yulang
 struct seconds { value: int }

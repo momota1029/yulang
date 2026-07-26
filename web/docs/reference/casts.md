@@ -57,6 +57,9 @@ silently pick one.
 
 ## `from`-marked variants
 
+The following excerpt assumes that `path_err` and `parse_err` are nominal error
+types:
+
 ```yulang
 enum app_err:
     path from path_err

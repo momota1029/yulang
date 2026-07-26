@@ -1,8 +1,10 @@
 # Effects
 
-Algebraic effects are the core of Yulang's approach to side effects.
+Yulang represents side effects with algebraic effects. This page covers effect
+declarations, operation calls, shallow handlers, effect rows, handler
+visibility, propagation, and `error` shorthand.
 
-## A Minimal Effect
+## A minimal effect
 
 ```yulang
 act flip:
@@ -13,7 +15,7 @@ act flip:
 using `our` (visible in the companion) or `pub` (also exported).
 
 A companion module is generated with the same name, and operations are
-reachable as `flip::coin`, `console::read`, and so on.
+reachable through paths such as `flip::coin`.
 
 ## Calling an effect
 
@@ -46,9 +48,9 @@ Here `flip::coin()` looks like a function call, but it performs an operation
 request. The handler receives the captured continuation `k` and resumes it once
 with `true` and once with `false`, so the example enumerates all eight paths.
 
-The important annotation is `action: [flip] _`. It is an **effect capture
-contract**: this handler boundary is allowed to consume `flip`, while the value
-type and any residual effects are still inferred. The inferred shape is:
+The `action: [flip] _` annotation is an **effect capture contract**: this
+handler boundary is allowed to consume `flip`, while the value type and any
+residual effects are still inferred. The inferred shape is:
 
 ```text
 all_paths : 'a [flip; 'b] -> ['b] list 'a
@@ -57,11 +59,11 @@ all_paths : 'a [flip; 'b] -> ['b] list 'a
 Read this as: `all_paths` accepts a computation that may perform `flip` plus
 some residual row `'b`; after it handles `flip`, only `'b` remains outside.
 
-The word "visible" matters. In higher-order code, a handler must not catch an
-effect that was brought in by a caller through a function, thunk, or stored
-effectful field. Yulang tracks that boundary internally with directed stack
-weights. Public types still print ordinary effect rows, but the solver only
-subtracts an effect when that effect is visible to the handler boundary.
+In higher-order code, a handler must not catch an effect that was brought in by
+a caller through a function, thunk, or stored effectful field. Yulang tracks
+that visibility boundary internally with directed stack weights. Public types
+still print ordinary effect rows, but the solver only subtracts an effect when
+that effect is visible to the handler boundary.
 
 ### Stacking handlers
 
@@ -129,10 +131,14 @@ computation resumed by `k` is not automatically wrapped in the same handler.
 If the resumed computation raises the same effect again, the handler does not
 fire a second time — the effect propagates outward.
 
-To handle a stream of operations, the handler arm must rewrap the
-continuation:
+To handle a stream of operations, the handler arm must rewrap the continuation.
+This self-contained example declares a local `console` effect:
 
 ```yulang
+act console:
+    our read: () -> str
+    our println: str -> ()
+
 our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")    -- ← rewrap with run_console
     console::println _, k -> run_console (k ())
@@ -271,19 +277,26 @@ acquires that effect in its own type unless it provides a handler that can see
 and consume that effect.
 
 ```yulang
+act console:
+    our read: () -> str
+
 // ask has a type like () -> [console] str
 our ask() = console::read()
 
 // run_console removes console from the row
 our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
+    value -> value
+
+run_console: ask()
 ```
 
 ## `error` declarations
 
 `error` is a shorthand that bundles an `enum`, an `act` of throwing
-operations, an `impl Throw`, an `impl Display`, and the `wrap` / `up`
-companion helpers into a single declaration:
+operations, an `impl Throw`, an `impl Display`, and a `wrap` companion helper
+into a single declaration. Declarations with `from` entries also receive an
+`up` helper:
 
 ```yulang
 error path_err:

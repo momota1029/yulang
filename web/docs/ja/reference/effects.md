@@ -1,7 +1,6 @@
 # エフェクト
 
-Yulang の副作用は algebraic effect として扱う。effect は宣言され、
-operation request として呼び出され、handler で処理され、型に追跡される。
+Yulang は副作用を algebraic effect で表す。このページでは、effect 宣言、operation 呼び出し、shallow handler、effect row、handler の可視性、伝播、`error` 短縮構文を扱う。
 
 ## 最小例
 
@@ -10,9 +9,7 @@ act flip:
     our coin: () -> bool
 ```
 
-`act` は effect family を作る。operation は `our` または `pub` の
-signature として並べる。同名の companion module が作られ、`flip::coin`
-や `console::read` のように参照できる。
+`act` は effect family を作る。operation は `our` または `pub` の signature として並べる。`our` は companion から見え、`pub` は外部にも export される。同名の companion module が作られ、`flip::coin` のような path で参照できる。
 
 ## 呼び出し
 
@@ -48,9 +45,7 @@ request を発生させる。handler は限定継続 `k` を受け取り、`true
 `false` の両方で再開するので、この例は 3 回の `coin` による 8 通りの
 分岐を列挙する。
 
-重要なのは `action: [flip] _` という注釈である。これは **effect capture
-contract** であり、この handler boundary が `flip` を処理してよいことを
-表す。返り値型と残りの effect はまだ推論される。推論される型の形は次である。
+`action: [flip] _` は **effect capture contract** であり、この handler boundary が `flip` を処理してよいことを表す。返り値型と残りの effect は引き続き推論される。推論される型の形は次である。
 
 ```text
 all_paths : 'a [flip; 'b] -> ['b] list 'a
@@ -59,7 +54,7 @@ all_paths : 'a [flip; 'b] -> ['b] list 'a
 つまり、`all_paths` は `flip` と residual row `'b` を持ちうる computation
 を受け取り、`flip` だけを処理し、外側には `'b` だけを残す。
 
-ただし「見えている」が重要である。高階関数では、呼び出し元が関数、thunk、data field 内の effectful function 経由で持ち込んだ effect を、内側 handler が勝手に捕まえてはいけない。Yulang はこの境界を内部的には directed stack weight として追跡する。公開型には普通の effect row だけを表示するが、solver は handler 境界から見えている effect だけを引く。
+高階関数では、呼び出し元が関数、thunk、data field 内の effectful function 経由で持ち込んだ effect を、内側 handler が捕まえてはならない。Yulang はこの可視性の境界を内部的には directed stack weight として追跡する。公開型には通常の effect row だけを表示するが、solver は handler 境界から見えている effect だけを引く。
 
 ### handler を重ねる
 
@@ -120,24 +115,23 @@ helper は見えない。
 
 ### handler は shallow
 
-Yulang の handler は **shallow** である。arm は一度だけ operation を受け取り、
-`k` で再開された計算は同じ handler に自動では包まれない。再開後に同じ
-effect を起こしても、handler は二度目に発火せず、effect はそのまま外側へ
-伝播する。
+Yulang の handler は **shallow** である。arm は一度だけ operation を受け取り、`k` で再開された計算は同じ handler に自動では包まれない。再開後に同じ effect を起こしても、handler は二度目に発火せず、effect はそのまま外側へ伝播する。
 
-operation を連続で受けたいときは、arm 側で continuation を再度 handler で
-包む書き方をする。
+operation を連続で受けるには、arm 側で continuation を再度 handler で包む。次の自己完結した例では、ローカルな `console` effect を宣言する。
 
 ```yulang
+act console:
+    our read: () -> str
+    our println: str -> ()
+
 our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console (k "42")    -- ← run_console で巻き直す
     console::println _, k -> run_console (k ())
     v -> v
 ```
 
-このリファレンスの handler 例の多くがこの自己再帰形なのはそのため。
-operation が 1 度しか起きない前提なら再帰を省ける。effect を繰り返し起こす
-任意の計算を扱うときは再帰が必須。
+このリファレンスの handler 例の多くは、この理由から自己再帰形を使う。
+operation が 1 度しか起きない前提なら再帰を省けるが、effect を繰り返し起こす任意の計算では再帰が必要である。
 
 ### handler hygiene
 
@@ -243,15 +237,23 @@ local reference など標準ライブラリの一部は、data value の中に e
 effectful な関数を呼ぶと、その effect は外側へ伝播する。handler がその effect を見て処理できる場所でだけ取り除かれる。
 
 ```yulang
+act console:
+    our read: () -> str
+
+// ask の型は () -> [console] str に近い
 our ask() = console::read()
 
+// run_console は row から console を取り除く
 our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
+    value -> value
+
+run_console: ask()
 ```
 
 ## `error` 宣言
 
-`error` は、`enum`、throwing operation を持つ `act`、`impl Throw`、`wrap` / `up` companion helper をまとめて生成する短縮構文である。
+`error` は、`enum`、throwing operation を持つ `act`、`impl Throw`、`impl Display`、`wrap` companion helper をまとめて生成する短縮構文である。`from` entry がある宣言には `up` helper も生成される。
 
 ```yulang
 error path_err:

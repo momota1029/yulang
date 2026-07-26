@@ -1,6 +1,12 @@
 # Modules
 
+This page covers `use`, realm and band paths, companion modules, dot selection,
+and the standard-library module map.
+
 ## `use`
+
+The following forms illustrate import syntax; `my_module` and `noisy` stand for
+modules supplied by the program:
 
 ```yulang
 use std::control::nondet::*

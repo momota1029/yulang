@@ -1,8 +1,8 @@
 # 文字列
 
 Yulang の文字列型は `str` である。
-文字列は UTF-8 text として扱う。
-標準ライブラリの index / slice は raw byte offset ではなく Unicode scalar value の位置で扱う。
+文字列は UTF-8 のテキストとして扱う。
+標準ライブラリの index / slice は、raw byte offset ではなく Unicode scalar value の位置を使う。
 
 ## リテラル
 
@@ -15,7 +15,7 @@ line2
 """
 ```
 
-文字列リテラルでは `\n` のような escape と、`\u{1F600}` のような Unicode escape を使える。triple quote の文字列は複数行にできる。
+文字列リテラルでは、`\n` のような escape と `\u{1F600}` のような Unicode escape を使える。triple quote の文字列は複数行にできる。
 
 ## 埋め込み
 
@@ -26,9 +26,9 @@ my name = "yu"
 "ok = %{true}"
 ```
 
-`%{...}` は値を `Display` role で文字列化する。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Display` 実装を提供する。ただし payload も `Display` を持つ必要がある。
+`%{...}` は値を `Display` role で文字列化する。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Display` 実装を提供する。container の payload にも `Display` 実装が必要である。
 
-整数の hex 表示には lower / upper hex role を使う。
+整数の 16 進表示には lower / upper hex role を使う。
 
 ```yulang
 "hex = %x{255}"
@@ -53,7 +53,7 @@ my c: char = "aあ🙂"[1] // あを表す char
 "aあ🙂z".splice (range 1 3) "bc"  // "abcz"
 ```
 
-`std::text::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換える。
+`std::text::str::splice` と `.splice` method は、文字範囲を新しいテキストで置き換える。
 
 ## Display と `.show`
 
@@ -66,16 +66,18 @@ true.show           // "true"
 (just "x").show     // "just x"
 ```
 
-`.show` は `str` への正準的な変換である。`Display` role 経由で解決される。標準 prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity に、ユーザ向けの `Display` impl を提供する。文字列は quote なしで表示するため、文字列を含む構造値の `.show` は lossless な調査ではなく、読みやすい出力向けである。`Display` は `.say` も提供し、`.show` の結果を改行付きで出力する。
+`.show` は `str` への正準的な変換であり、`Display` role 経由で解決される。標準 prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity に、ユーザー向けの `Display` impl を提供する。文字列は quote なしで表示するため、文字列を含む構造値の `.show` は lossless な調査ではなく、読みやすい出力に使う。`Display` は `.say` も提供し、`.show` の結果を改行付きで出力する。
 
-ユーザ型に `Display` を定義するのは通常の role 構文を使う。
+ユーザー定義型の `Display` には、通常の role 構文を使う。
 
 ```yulang
+struct point { x: int, y: int }
+
 impl Display point:
-    our p.show = "(%{p.x}, %{p.y})"
+    our p.show = "(" + p.x.show + ", " + p.y.show + ")"
 ```
 
-戻り値は `point::show p` / `p.show` の結果であり、文字列テンプレートの `%{p}` でフォーマットされる値でもある。
+この実装の戻り値が、`p.show` と文字列テンプレートの `%{p}` に使われる。
 
 ## Debug と `.debug`
 
@@ -85,7 +87,7 @@ impl Display point:
 (1, true).debug      // "(1, true)"
 ```
 
-`.debug` は開発者向けの構造表示である。`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに調査できる。`Debug` は `.print` / `.println` も提供し、`.debug` の結果を改行なし/改行付きで出力する。ユーザに見せる文字列には `.show` / `.say` を使い、構造値を調べるときには `.debug` / `.print` / `.println` を使う。
+`.debug` は開発者向けの構造表示であり、`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。container の payload にも `Debug` 実装が必要である。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに構造を調べられる。`Debug` は `.print` / `.println` も提供し、`.debug` の結果を改行なし、または改行付きで出力する。ユーザーに見せる文字列には `.show` / `.say` を使い、構造値を調べるときには `.debug` / `.print` / `.println` を使う。
 
 ## コメント
 

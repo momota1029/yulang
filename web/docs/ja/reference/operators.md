@@ -1,8 +1,6 @@
 # 演算子宣言
 
-Yulang の演算子は、通常の export された binding に parser table への構文
-追加が組み合わさったもの。下流の file は、その演算子 syntax を import した
-後でなければ、その演算子を parse できない。
+Yulang の演算子は、通常の export された binding と parser table への構文追加を組み合わせた定義である。下流の file は、その演算子 syntax を import した後でなければ、その演算子を parse できない。
 
 ## Fixity
 
@@ -28,14 +26,12 @@ pub suffix (..) 8.0.0 = std::data::range::from_included
 
 ## binding power
 
-binding power は `5.0.0` のような dot 区切りの 10 進数で書く。数が大きい
-ほど強く結合する。infix 演算子は `<left>.<right>` のペアを持ち、真ん中で
-非対称にすると結合方向を決められる：
+binding power は `5.0.0` のような dot 区切りの 10 進数で書く。数が大きいほど強く結合する。infix 演算子は `<left>.<right>` のペアを持ち、真ん中で非対称にすると結合方向を決められる。
 
 - `5.0.0 5.0.1` — レベル 5 で左結合（`+` / `-` の標準）
 - `4.0.0 4.0.0` — 標準の range 演算子が使う binding power
 
-prelude の選択値：
+prelude は次の binding power を使う。
 
 | 演算子 | binding |
 |---|---|
@@ -52,7 +48,7 @@ prelude の選択値：
 
 ## Lazy 演算子
 
-`lazy infix` の body は **両方** のオペランドを thunk（`() -> value`）として受け取る。必要な側だけ force すればよく、`a and b` のような呼び出し側で thunk 化を意識する必要はない。prelude の `and` / `or` はこの仕組みで短絡評価を実現している：
+`lazy infix` の body は **両方** のオペランドを thunk（`() -> value`）として受け取る。必要な側だけ force すればよく、`a and b` のような呼び出し側で thunk 化を意識する必要はない。prelude の `and` / `or` はこの仕組みで短絡評価を実現する。
 
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.1 = \a -> \b ->
@@ -70,7 +66,7 @@ pub lazy infix(or) 1.0.0 1.0.1 = \a -> \b ->
 
 ## 演算子を関数として呼ぶ
 
-演算子定義の右辺は普通の binding なので、パス経由で関数として呼べる：
+演算子定義の右辺は普通の binding なので、path 経由で関数として呼べる。
 
 ```yulang
 1 + 2
@@ -99,12 +95,12 @@ glob から `without` で除外、のいずれもできる。parser が後続の
 ## 新しい演算子を定義する
 
 ```yulang
-pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> xs.append ys
+pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 
 [1, 2] ++ [3, 4]   // [1, 2, 3, 4]
 ```
 
-右辺は普通の curry 関数。優先順位の階層の中で適切な binding power を選ぶ。
+右辺は通常の curried function である。優先順位の階層の中で適切な binding power を選ぶ。
 
 ## 落とし穴
 
