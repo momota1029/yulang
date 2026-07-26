@@ -294,21 +294,32 @@ impl BodyLowerer {
             prerequisites: Vec::new(),
             methods: Vec::new(),
         };
+        Ok(self.register_prepared_role_impl_candidate(
+            candidate,
+            RoleImplLoweringContext {
+                conformance_contract: Some(conformance_contract),
+                conformance_shadow_targets,
+                role: spec.role,
+                target_ann: spec.target,
+                input_names: role_input_names,
+                input_signatures: spec.inputs.iter().map(signature_from_ann_type).collect(),
+                associated_signatures: requirement_associated_anns
+                    .iter()
+                    .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
+                    .collect(),
+                type_var_bindings,
+                ann_solver_vars,
+            },
+        ))
+    }
+
+    pub(super) fn register_prepared_role_impl_candidate(
+        &mut self,
+        candidate: RoleImplCandidate,
+        context: RoleImplLoweringContext,
+    ) -> RoleImplLoweringContext {
         self.session.register_role_impl_candidate(candidate);
-        Ok(RoleImplLoweringContext {
-            conformance_contract: Some(conformance_contract),
-            conformance_shadow_targets,
-            role: spec.role,
-            target_ann: spec.target,
-            input_names: role_input_names,
-            input_signatures: spec.inputs.iter().map(signature_from_ann_type).collect(),
-            associated_signatures: requirement_associated_anns
-                .iter()
-                .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
-                .collect(),
-            type_var_bindings,
-            ann_solver_vars,
-        })
+        context
     }
 
     pub(super) fn lower_role_impl_args(

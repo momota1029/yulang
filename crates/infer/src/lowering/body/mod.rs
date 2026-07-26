@@ -16,6 +16,9 @@ pub(super) mod signature_helpers;
 mod skip_parity_tests;
 #[cfg(test)]
 mod stage0_tests;
+pub(super) mod synthetic_role_impl;
+#[cfg(test)]
+mod synthetic_role_impl_tests;
 pub(super) mod type_decl;
 #[cfg(test)]
 mod yumark_tests;

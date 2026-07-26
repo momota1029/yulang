@@ -6,6 +6,7 @@
 //! generated helpers and `Throw` impl use the hidden operation metadata.
 
 use super::super::*;
+use super::synthetic_role_impl::{SyntheticRoleImpl, SyntheticRoleImplMethod};
 use super::*;
 use crate::{ErrorDecl, ErrorVariantDecl, module_path_site};
 use parser::sink::YulangLanguage;
@@ -246,84 +247,14 @@ impl BodyLowerer {
             return;
         };
 
-        let impl_def = self.session.poly.defs.fresh();
-        let method_def = self.session.poly.defs.fresh();
-        self.session.poly.defs.set(
-            impl_def,
-            Def::Mod {
-                vis: Vis::My,
-                children: vec![method_def],
-            },
-        );
-        self.session.poly.defs.set(
-            method_def,
-            Def::Let {
-                vis: Vis::Our,
-                scheme: None,
-                body: None,
-                children: Vec::new(),
-            },
-        );
-        self.labels
-            .set_def_label(method_def, format!("{}::show#error", decl.name.0));
-
-        let Some(source) = synthetic_error_display_source(error) else {
-            self.push_registered_expr_error(
-                method_def,
-                display_method.name,
-                LoweringError::UnsupportedSyntax { kind: node.kind() },
-            );
-            return;
-        };
-        let Some(binding) = synthetic_binding(&source) else {
-            self.push_registered_expr_error(
-                method_def,
-                display_method.name,
-                LoweringError::UnsupportedSyntax {
+        let binding = synthetic_error_display_source(error)
+            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })
+            .and_then(|source| {
+                synthetic_binding(&source).ok_or(LoweringError::UnsupportedSyntax {
                     kind: SyntaxKind::Binding,
-                },
-            );
-            return;
-        };
-
-        let Some(mut context) = self.error_display_context(impl_def, &display_role, error) else {
-            return;
-        };
-        let requirement = self.role_impl_method_requirement(&context, display_method.name.clone());
-        self.lower_role_impl_method_binding(
-            &binding,
-            impl_def,
-            error.companion,
-            &RoleImplMethodDecl {
-                name: display_method.name,
-                receiver: Some(Name("__error_value".into())),
-                def: method_def,
-                vis: Vis::Our,
-                order: module_path_site(),
-            },
-            &context.target_ann,
-            &context.type_var_bindings,
-            &mut context.ann_solver_vars,
-            requirement,
-            None,
-        );
-    }
-
-    fn error_display_context(
-        &mut self,
-        impl_def: DefId,
-        role: &ModuleTypeDecl,
-        error: &ErrorDecl,
-    ) -> Option<RoleImplLoweringContext> {
-        let role_path = self
-            .modules
-            .type_decl_path(role)
-            .segments
-            .into_iter()
-            .map(|name| name.0)
-            .collect::<Vec<_>>();
-        let role_inputs = self.modules.role_inputs(role.id).to_vec();
-        let role_associated = self.modules.role_associated(role.id).to_vec();
+                })
+            });
+        let role_associated = self.modules.role_associated(display_role.id).to_vec();
         let mut builder =
             ann_type_builder(&self.modules, error.companion, module_path_site(), None);
         let target_ann = builder.type_decl_application(error.owner, &error.type_vars);
@@ -338,37 +269,22 @@ impl BodyLowerer {
             })
             .collect::<Vec<_>>();
         let type_var_bindings = builder.type_var_bindings();
-        let (inputs, associated, ann_solver_vars) = self
-            .lower_role_impl_args(&input_anns, &associated_anns)
-            .ok()?;
-        let input_signatures = input_anns
-            .iter()
-            .map(signature_from_ann_type)
-            .collect::<Vec<_>>();
-        let associated_signatures = associated_anns
-            .iter()
-            .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
-            .collect::<Vec<_>>();
-        self.session
-            .register_role_impl_candidate(RoleImplCandidate {
-                impl_def: Some(impl_def),
-                role: role_path,
-                inputs,
-                associated,
-                prerequisites: Vec::new(),
-                methods: Vec::new(),
-            });
-        Some(RoleImplLoweringContext {
-            conformance_contract: None,
-            conformance_shadow_targets: FxHashMap::default(),
-            role: role.id,
+        let _ = self.lower_synthetic_role_impl(SyntheticRoleImpl {
+            role: display_role.id,
+            module: error.companion,
+            site: module_path_site(),
             target_ann,
-            input_names: role_inputs,
-            input_signatures,
-            associated_signatures,
+            input_anns,
+            associated_anns,
             type_var_bindings,
-            ann_solver_vars,
-        })
+            methods: vec![SyntheticRoleImplMethod {
+                name: display_method.name,
+                receiver: Some(Name("__error_value".into())),
+                vis: Vis::Our,
+                label: format!("{}::show#error", decl.name.0),
+                binding: binding.as_ref().map_err(Clone::clone),
+            }],
+        });
     }
 
     fn lower_error_wrap_helper(&mut self, node: &Cst, decl: &ModuleTypeDecl, error: &ErrorDecl) {
