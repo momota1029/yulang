@@ -24,7 +24,7 @@ entry ファイルは root module のままですが、`main.yu` なら `main` �
 増分コンパイルで重要なのは `.yucu` です。
 これは "Yulang compiled unit" の略です。
 キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれないsource ファイルだけを再コンパイルできます。
-`.yucu` の syntax surface は band path を記録するため、cached prefix から `realm/main::*` や `band::inner` のような route-aware import を解決できます。
+`.yucu` の構文 surface は band path を記録するため、cached prefix から `realm/main::*` や `band::inner` のような route-aware import を解決できます。
 
 `.yumo` は exact source key のキャッシュです。
 realm 全体に対する mono キャッシュではありません。

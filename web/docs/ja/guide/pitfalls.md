@@ -20,7 +20,7 @@ C 風の呼び出しでは括弧を関数名に詰め、bare application では�
 
 ## ML 引数の中では dot の空白が効く
 
-トップレベルでは、どちらも同じ field 選択になります。
+トップレベルでは、どちらも同じ field `selection` になります。
 
 ```yulang
 xs.map double      // (xs.map) double

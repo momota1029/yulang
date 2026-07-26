@@ -173,7 +173,7 @@ my compose f g x = f(g x)
 `g x` が effect を起こすとしても、`f` の内側に隠れた同じ family の handler がそれを捕まえてはいけない。
 その effect は `g` 経由で渡された computation のものであり、`f` の内側で発生したものではない。
 
-このため effect annotation は、row を説明するだけでなく、高階境界を越えてどの effect family を handler に見せるかを決める局所 contract でもある。
+このため effect 注釈は、row を説明するだけでなく、高階境界を越えてどの effect family を handler に見せるかを決める局所 contract でもある。
 
 `f` に `g(x)` の residual effect を意図的に処理させたいときは、その contract を明示する。
 
@@ -195,7 +195,7 @@ compiler-oriented な型表示では、その証拠が `#0[Empty]` のように�
 
 `[...]` の中に effect を並べる。
 `; 'e` は残りの effect を表す row variable である。
-`[_]` は annotation 内で推論に任せるための placeholder として使えるが、effect row 型そのものの標準形ではない。
+`[_]` は注釈内で推論に任せるための placeholder として使えるが、effect row 型そのものの標準形ではない。
 handler 境界を消す指定でもない。
 
 effect は型引数を持つこともできる。
@@ -206,7 +206,7 @@ act ref_update 'a:
 ```
 
 そのため row には `ref_update int` のような entry も入る。
-型表示では Greek variable が出ることがあるが、source annotation では row tail に `e` のような名前を使うのが普通。
+型表示では Greek variable が出ることがあるが、source 注釈では row tail に `e` のような名前を使うのが普通。
 
 effect-row method は nominal 値 companion ではなく、receiver の effect row から選ばれる。
 
@@ -220,20 +220,20 @@ use std::control::nondet::*
 
 ## effect 注釈と可視性
 
-effect row annotation には二つの役割がある。
+effect row 注釈には二つの役割がある。
 
 - 関数型に現れる公開 row を説明する。
 - 高階境界では、内側 handler が何を見てよいかを決める。
 
 引数位置の `[console] 'a` は effect capture contract であり、受け取る側の handler がその computation から `console` を処理してよいことを表す。
-wildcard annotation の `[_] 'a` は surface contract である。
+wildcard 注釈の `[_] 'a` は surface contract である。
 普通の表層 row は見えるが、他の場所の hygiene evidence を捨てる指定ではない。
 
 callback 引数にそのような contract がない場合、callback 由来の effect は hygienic に保たれる。
 その effect を別の callee へ渡すと、推論された scheme に空の可視性 budget が残り、compiler-oriented な表示では `#id[Empty]` のように出ることがある。
 これは「この occurrence からはその boundary で何も subtract できない」という証拠であり、新しい effect family ではない。
 
-結果位置の具体 effect annotation は static filter である。
+結果位置の具体 effect 注釈は static filter である。
 外へ出てよい effect を検査するが、runtime marker にはならず、追加の公開 effect としても表示されない。
 
 local reference など標準ライブラリの一部は、data 値の中に effectful 関数を保持する。

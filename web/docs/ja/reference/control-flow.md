@@ -16,7 +16,7 @@ if cond { a } else { b }
 ```
 
 `if` の条件は `bool` である。
-`else` がない場合は statement-like になり、then branch は効果のために評価され、値は捨てられ、式全体は `()` を返す。
+`else` がない場合は statement-like になり、then 分岐は効果のために評価され、値は捨てられ、式全体は `()` を返す。
 
 ## `case`
 

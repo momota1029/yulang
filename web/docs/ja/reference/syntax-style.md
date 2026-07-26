@@ -41,7 +41,7 @@ f x: g y z
 
 `:` block の body 全体が単一の式だけなら、呼び出しごとにインデント block へ落とさず、呼び出し spine の中で連ねて書く。
 これは body が一つの式だけである場合の規則である。
-body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler branch があるなら、通常のインデント block のままにする。
+body に複数の statement、local binding、大きめの `if` / `else`、`case`、`catch`、handler 分岐があるなら、通常のインデント block のままにする。
 
 ```yulang
 -- 入れ子の単一式 body では、この形を優先する。
@@ -126,8 +126,8 @@ f (g
 ## receiver-first の dot 呼び出しを使う
 
 左側の値に属する操作には receiver-first の dot 呼び出しを使う。
-field / method selection は dot syntax で書くが、selection 自体は呼び出しではない。
-選択された値に対して、通常の application が続く。
+field / method selection は dot 構文で書くが、selection 自体は呼び出しではない。
+selection の結果の値に対して、通常の application が続く。
 
 ```yulang
 xs.len
@@ -223,7 +223,7 @@ default は左から右へ評価されるため、後ろの default は前の fi
 
 ## `case` と `catch` の arm は縦に並べる
 
-小さい式では inline branch も便利だが、pattern が多いコードは arm ごとに改行した方が読みやすい。
+小さい式では inline 分岐も便利だが、pattern が多いコードは arm ごとに改行した方が読みやすい。
 
 ```yulang
 act console:
@@ -285,11 +285,11 @@ my double(x: 'a): 'a =
     x + x
 ```
 
-## 演算子は import される syntax として扱う
+## 演算子は import される構文として扱う
 
 演算子のすべてが parser builtin ではない。
 module は prefix / infix / suffix / nullfix / lazy infix 演算子を定義して export できる。
-公開演算子宣言は module の先頭か prelude 的な module に置き、下流のファイルが parse される前に syntax を import できるようにする。
+公開演算子宣言は module の先頭か prelude 的な module に置き、下流のファイルが parse される前に構文を import できるようにする。
 
 ```yulang
 -- export する module の先頭付近に置く。
@@ -303,7 +303,7 @@ pub prefix(return) 1.0.0 = \value -> value
 
 ## 短絡評価には lazy 演算子を使う
 
-短絡評価は evaluator の特殊処理ではなく、lazy 演算子 syntax として書く。
+短絡評価は evaluator の特殊処理ではなく、lazy 演算子構文として書く。
 
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
@@ -314,7 +314,7 @@ pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
 ```
 
 両側の operand が thunk として渡されるので、body 側でどちらを force するか決められる。
-これにより、`and` / `or` は library-defined syntax のまま lazy evaluation behavior を持てる。
+これにより、`and` / `or` は library-defined 構文のまま lazy evaluation behavior を持てる。
 
 ## 型注釈は境界に置く
 
@@ -324,7 +324,7 @@ local code では、多くの場合 inference に任せる。
 my id(x) = x
 ```
 
-public contract を示したい場所、曖昧さを減らしたい場所、意図した cast boundary を明示したい場所には annotation を置く。
+public contract を示したい場所、曖昧さを減らしたい場所、意図した cast boundary を明示したい場所には注釈を置く。
 
 ```yulang
 pub my id(x: 'a): 'a = x
@@ -336,7 +336,7 @@ my result: result str io_err = io_err::wrap:
 type variable は `'a` のような sigil identifier で書く。
 通常の関数宣言では、type variable のための独立した binder は要らない。
 
-## 状態は明示的な syntax で見せる
+## 状態は明示的な構文で見せる
 
 mutation や local-reference 的な挙動には、明示的な参照構文を使う。
 
@@ -360,7 +360,7 @@ my incremented =
 ```
 
 `--` と `--- ... ---` は doc コメント専用である。
-documentation syntax として parse され、tooling に残る可能性がある。
+documentation 構文として parse され、tooling に残る可能性がある。
 
 ```yulang
 -- 次の宣言を説明する。
@@ -383,5 +383,5 @@ documentation syntax として parse され、tooling に残る可能性があ�
 - method、attached impl、expression-local helper は、自然な `with:` block の近くに置く。
 - `f(x)` と `f (x)` は違う。
 - `f:foo` と `f :foo` は違う。
-- export する演算子 syntax は、importer が parse 前に見える位置に置く。
+- export する演算子構文は、importer が parse 前に見える位置に置く。
 - 本物の block は indentation、小さい inline block は braces が向いている。

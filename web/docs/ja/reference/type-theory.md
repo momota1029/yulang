@@ -155,7 +155,7 @@ effect 注釈は、表層 row を説明すると同時に、高階境界を越�
 | 共変な result 位置の省略または `[_]` | escape filter を足さず、row を open なままにする。 |
 | 共変な result 位置の `[console]` | 外へ出る effect が `console` だけであることを検査する。 |
 
-wildcard row `[_]` は annotation placeholder である。
+wildcard row `[_]` は注釈 placeholder である。
 effect row 型そのものの標準構文ではなく、boundary を消すものでもない。
 `g: _ -> [_] _` のような callback result では、`g(x)` の普通の表層 effect を受け取り側の計算へ意図的に見せる。
 これを書かない場合、callback 由来の effect は hygienic に保たれ、`#id[Empty]` のような evidence 付きで表示されることがある。

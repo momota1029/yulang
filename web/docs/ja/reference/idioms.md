@@ -50,7 +50,7 @@ selection 自体は application ではなく、`xs.map` で選んだ関数に後
 xs.map double .filter (\x -> x > 0) .len
 ```
 
-トップレベルでは `xs.map` も `xs .map` も同じ field 選択になる。
+トップレベルでは `xs.map` も `xs .map` も同じ field `selection` になる。
 空白の有無で意味が変わるのは、ドットつき式が ML 風 application の引数の中にあるときだけ。
 詳しくは [Application](./application#whitespace-is-significant) を参照。
 

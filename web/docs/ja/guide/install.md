@@ -150,7 +150,7 @@ repository は Rust workspace です。
 
 | Crate | 役割 |
 |-------|------|
-| `sources`, `parser` | source ファイルを集め、concrete syntax と演算子 table を作る |
+| `sources`, `parser` | source ファイルを集め、具象構文と演算子 table を作る |
 | `infer`, `poly` | 型を推論し、多相 IR を作る |
 | `specialize`, `mono` | プログラムを specialize して単相 IR にする |
 | `control-ir`, `evidence-vm` | control IR へ lower し、CLI default backend で実行する |

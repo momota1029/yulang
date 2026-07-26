@@ -1,7 +1,7 @@
 # application と演算子
 
 Yulang には関数呼び出しの表記がいくつかある。
-すべて同じ curried application へ lower され、表記と結合の強さだけが異なる。
+すべて同じ curried application へ lower され、表記と `binding power` だけが異なる。
 
 ## 4つの呼び出し形式
 
@@ -13,7 +13,7 @@ Yulang には関数呼び出しの表記がいくつかある。
 | Colon block 呼び出し | `f: body` | body 全体を単一引数にする |
 
 呼び出し形式は curried application へ lower される。
-dot selection 単体は selection であり、引数が続くと選択された値を application する。
+dot selection 単体は selection であり、引数が続くとその結果の値を application する。
 
 ```yulang
 f x y           // ((f x) y)
@@ -84,7 +84,7 @@ f.method(y).other[0] z
 ML juxtaposition の右辺を parse するとき、parser は先頭に空白がある token の直前で止まる tight mode を使う。
 そのため、空白のない `g(x)` は一つの引数になり、`g (x)` の空白は control を外側の head に戻す。
 
-## 結合の強さ
+## `binding power`
 
 AST では dot selection、call suffix、index suffix、path step は同じ最も強い level にある。
 いずれも左から右へ結合する。
@@ -98,7 +98,7 @@ f.method(y).other[0] z
 
 1. `.method`、`(...)`、`[...]`、`::name` のうち、text 上で次にある postfix を選ぶ。
 2. 現在の head に付く postfix をすべて消費した後、残りを ML-style juxtaposition の引数として受け取る。
-3. infix 演算子はそれらの外側へ、それぞれの precedence に従って適用する。
+3. infix 演算子はそれらの外側へ、それぞれの優先順位に従って適用する。
 
 ## 演算子との優先順位
 
@@ -275,7 +275,7 @@ my add = \x y -> x + y
 
 ラムダの body は、右端まで続く 1 つの完全な式である。
 
-## `do` によるコールバック
+## `do` による `callback`
 
 `do` は後続の block をラムダとして包み、囲んでいる呼び出しの最後の引数として渡す。
 `my` binding では、左辺の pattern がラムダの parameter になる。

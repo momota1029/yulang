@@ -1,7 +1,7 @@
 # 演算子宣言
 
 Yulang の演算子は、通常の export された binding と parser table への構文追加を組み合わせた定義である。
-下流のファイルは、その演算子 syntax を import した後でなければ、その演算子を parse できない。
+下流のファイルは、その演算子構文を import した後でなければ、その演算子を parse できない。
 
 ## Fixity
 
@@ -90,7 +90,7 @@ use my_ops::(+)
 use my_ops::* without (+), debug
 ```
 
-演算子 syntax は丸ごと import、名前指定で import（記号演算子は括弧で囲む）、glob から `without` で除外、のいずれもできる。
+演算子構文は丸ごと import、名前指定で import（記号演算子は括弧で囲む）、glob から `without` で除外、のいずれもできる。
 parser が後続の式を読む前に演算子定義を知る必要があるので、これは通常の値 import 以上に重要。
 
 ## 新しい演算子を定義する
@@ -109,7 +109,7 @@ pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> std::data::list::append xs ys
 - 記号演算子は最初の使用前に import する必要がある。順序が逆だと、name
   解決ではなく parse エラーとして弾かれる。
 - `pub prefix(name) ...` の宣言と `use foo::(+)` のような import は、両方とも
-  syntax をスコープに持ち込む。値だけのパス import は syntax を持ってこない。
+  構文をスコープに持ち込む。値だけのパス import は構文を持ってこない。
 - 2 つの glob import が同じ演算子名を出してくると衝突する。`without` で片方
   を除外して曖昧さを解消する。
 

@@ -138,9 +138,9 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 型表示では `α [io; β] -> [β] α` のように、関数の引数側にも effect row が出ることがある。
 これは「引数が effectful computation である」という意味である。
-source annotation では、`[io; 'e] 'a` のように具体的な値型か type variable を置く。
+source 注釈では、`[io; 'e] 'a` のように具体的な値型か type variable を置く。
 
-`_` は annotation 内で推論に穴埋めを任せる placeholder として使える。
+`_` は注釈内で推論に穴埋めを任せる placeholder として使える。
 型 constructor ではなく、基礎となる型構文の一部でもない。
 
 ## Effect row
@@ -151,7 +151,7 @@ source annotation では、`[io; 'e] 'a` のように具体的な値型か type 
 ```
 
 row は named effect の列と、任意の残りを表す row variable `; 'e` を持てる。
-`[_]` のような wildcard row は annotation placeholder である。
+`[_]` のような wildcard row は注釈 placeholder である。
 effect row 型そのものの標準形ではない。
 
 ## Role constraint
@@ -168,14 +168,14 @@ my twice(x: 'a) =
 ## 推論された union / intersection
 
 Yulang の推論結果には、union や intersection が表示されることがある。
-ただし、それらを source annotation として直接書くための安定した構文はまだない。
+ただし、それらを source 注釈として直接書くための安定した構文はまだない。
 
 ```text
 α | int
 α & {width?: ⊤}
 ```
 
-branch、default 値、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。
+分岐、default 値、pattern spread などで複数の形が残ると、Types pane にこのような型が出る。
 注釈を足すと、表示型を意図した公開形へ絞れることが多い。
 
 ## 関連

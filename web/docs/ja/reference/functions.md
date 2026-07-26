@@ -140,9 +140,9 @@ my twice(x: 'a) =
 `where 'a: Role` は binding の type variable に role constraint を追加する。
 binding の推論型にその constraint が伝播するので、`twice 1` の呼び出しは `Add int` を要求する。
 
-`where` 句は role 本体や impl 本体にも書ける。
-role 本体に書くと各 method に継承される。
-impl 本体に書くと、その impl 候補の前提条件になる。
+`where` 句は role の `body` や impl の `body` にも書ける。
+role の `body` に書くと各 method に継承される。
+impl の `body` に書くと、その impl 候補の前提条件になる。
 
 ## ファイルの検査
 
