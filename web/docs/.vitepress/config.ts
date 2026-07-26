@@ -53,7 +53,9 @@ const englishSidebar = {
       items: [
         { text: "Catalogue", link: "/reference/std/" },
         { text: "std::core", link: "/reference/std/core" },
+        { text: "Numeric & Boolean modules", link: "/reference/std/num" },
         { text: "std::data::list", link: "/reference/std/list" },
+        { text: "Text bytes, chars, config & paths", link: "/reference/std/text" },
         { text: "std::text::str", link: "/reference/std/str" },
         { text: "std::data::opt", link: "/reference/std/opt" },
         { text: "std::data::result", link: "/reference/std/result" },
@@ -108,7 +110,9 @@ const japaneseSidebar = {
       items: [
         { text: "一覧", link: "/ja/reference/std/" },
         { text: "std::core", link: "/ja/reference/std/core" },
+        { text: "数値型と bool", link: "/ja/reference/std/num" },
         { text: "std::data::list", link: "/ja/reference/std/list" },
+        { text: "text の bytes、char、config、path", link: "/ja/reference/std/text" },
         { text: "std::text::str", link: "/ja/reference/std/str" },
         { text: "std::data::opt", link: "/ja/reference/std/opt" },
         { text: "std::data::result", link: "/ja/reference/std/result" },

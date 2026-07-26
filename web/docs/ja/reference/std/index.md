@@ -60,11 +60,11 @@ link のある module 名から、その module を説明するページへ移�
 
 | Module | 役割 | 文書 |
 | --- | --- | --- |
-| `std::text::bytes` | byte 長、比較、連結、index、slice、lossy UTF-8 decode を提供する。 | 未文書化 |
-| `std::text::char` | char の比較、文字列化、空白、句読点、word の分類を提供する。 | 未文書化 |
-| `std::text::config` | section 付きの小さな key/value config を parse し、値や source file を読み取る（仕様は未安定）。 | 未文書化 |
+| [`std::text::bytes`](./text#std-text-bytes) | byte 長、比較、連結、index、slice、UTF-8 `prefix` の decode を提供する。 | 参照あり |
+| [`std::text::char`](./text#std-text-char) | char の比較、文字列化、空白、句読点、word の分類を提供する。 | 参照あり |
+| [`std::text::config`](./text#std-text-config) | 暫定の section 付き key/value config を parse し、値や入力ファイルを読み取る。 | **暫定** |
 | `std::text::parse` | string match の読み取り、検索、編集、置換に使う effect ベースの parser combinator API を提供する。 | 未文書化 |
-| `std::text::path` | path と bytes を相互に変換し、lossy UTF-8 decode によって path を表示する。 | 未文書化 |
+| [`std::text::path`](./text#std-text-path) | `path` と `bytes` を相互に変換し、lossy UTF-8 decode によって `path` を表示する。 | 参照あり |
 | [`std::text::str`](./str) | 文字位置による index、slice、検索、変換、可変な line view を提供する。 | 参照あり |
 | `std::text::yumark` | Yumark document algebra を定義し、HTML node または Markdown へ描画する。 | 未文書化 |
 
@@ -80,11 +80,11 @@ link のある module 名から、その module を説明するページへ移�
 
 | Module | 役割 | 文書 |
 | --- | --- | --- |
-| `std::bool` | bool の equality、negation、文字列化を提供する。 | 未文書化 |
-| `std::float` | float の比較、算術、文字列化 primitive を提供する。 | 未文書化 |
-| `std::int` | int の比較、算術、除算、剰余、10 進と 16 進の文字列化 primitive を提供する。 | 未文書化 |
-| `std::num` | 算術と 16 進表示の role と標準 impl を定義し、`frac` module を宣言する。 | 未文書化 |
-| `std::num::frac` | 正規化した有理数の算術、比較、float 変換、文字列化を提供する。 | 未文書化 |
+| [`std::bool`](./num#std-bool) | `bool` の等値比較、否定、文字列化を提供する。 | 参照あり |
+| [`std::float`](./num#std-float) | `float` の比較、算術、文字列化 `primitive` を提供する。 | 参照あり |
+| [`std::int`](./num#std-int) | `int` の比較、算術、除算、剰余、10 進と 16 進の文字列化 `primitive` を提供する。 | 参照あり |
+| [`std::num`](./num#std-num) | 算術と 16 進表示の `role` と標準 `impl` を定義し、child `module` の `frac` を宣言する。 | 参照あり |
+| [`std::num::frac`](./num#std-num-frac) | 正規化した有理数の算術、比較、`float` 変換、文字列化を提供する。 | 参照あり |
 
 ## 補助 module
 

@@ -63,11 +63,11 @@ not depend on it.
 
 | Module | Purpose | Documentation |
 | --- | --- | --- |
-| `std::text::bytes` | Provides byte length, comparison, concatenation, indexing, slicing, and lossy UTF-8 decoding. | **Not documented** |
-| `std::text::char` | Provides character comparison, string conversion, and whitespace, punctuation, and word classification. | **Not documented** |
-| `std::text::config` | Parses an unstable, small sectioned key/value config format and reads values or source files from it. | **Not documented** |
+| [`std::text::bytes`](./text#std-text-bytes) | Provides byte length, comparison, concatenation, indexing, slicing, and UTF-8 prefix decoding. | Reference |
+| [`std::text::char`](./text#std-text-char) | Provides character comparison, string conversion, and whitespace, punctuation, and word classification. | Reference |
+| [`std::text::config`](./text#std-text-config) | Parses a provisional, small sectioned key/value config format and reads values or source files from it. | **Provisional** |
 | `std::text::parse` | Provides an effect-based parser-combinator API for reading, finding, editing, and replacing string matches. | **Not documented** |
-| `std::text::path` | Converts paths to and from bytes and displays paths with lossy UTF-8 decoding. | **Not documented** |
+| [`std::text::path`](./text#std-text-path) | Converts paths to and from bytes and displays paths with lossy UTF-8 decoding. | Reference |
 | [`std::text::str`](./str) | Provides character-indexed strings, slices, searches, transformations, and mutable line views. | Reference |
 | `std::text::yumark` | Defines the Yumark document algebra and renders documents as HTML nodes or Markdown. | **Not documented** |
 
@@ -83,11 +83,11 @@ not depend on it.
 
 | Module | Purpose | Documentation |
 | --- | --- | --- |
-| `std::bool` | Provides Boolean equality, negation, and string conversion. | **Not documented** |
-| `std::float` | Provides floating-point comparison, arithmetic, and string conversion primitives. | **Not documented** |
-| `std::int` | Provides integer comparison, arithmetic, division, remainder, and decimal and hexadecimal conversion primitives. | **Not documented** |
-| `std::num` | Defines arithmetic and hexadecimal-formatting roles and their standard implementations, and declares the `frac` module. | **Not documented** |
-| `std::num::frac` | Provides normalized rational numbers with arithmetic, comparison, and float and string conversion. | **Not documented** |
+| [`std::bool`](./num#std-bool) | Provides Boolean equality, negation, and string conversion. | Reference |
+| [`std::float`](./num#std-float) | Provides floating-point comparison, arithmetic, and string conversion primitives. | Reference |
+| [`std::int`](./num#std-int) | Provides integer comparison, arithmetic, division, remainder, and decimal and hexadecimal conversion primitives. | Reference |
+| [`std::num`](./num#std-num) | Defines arithmetic and hexadecimal-formatting roles and their standard implementations, and declares the `frac` module. | Reference |
+| [`std::num::frac`](./num#std-num-frac) | Provides normalized rational numbers with arithmetic, comparison, and float and string conversion. | Reference |
 
 ## Utility modules
 
