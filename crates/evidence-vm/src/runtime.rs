@@ -24504,14 +24504,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let RuntimeEvidenceValue::Record(record_fields) = view else {
                     return Err(RuntimeEvidenceRunError::PatternMismatch);
                 };
-                let mut used = HashSet::new();
                 for field in fields {
-                    if let Some((index, value)) = record_fields
+                    if let Some((_, value)) = record_fields
                         .iter()
                         .enumerate()
                         .find(|(_, value)| value.name == field.name)
                     {
-                        used.insert(index);
                         self.bind_pat(
                             &field.pat,
                             mark_runtime_value(value.value.clone(), &markers),
@@ -24529,21 +24527,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
                 let def = match spread {
                     RecordSpread::None => return Ok(()),
-                    RecordSpread::Head(def) | RecordSpread::Tail(def) => *def,
+                    RecordSpread::Head(Some(def)) | RecordSpread::Tail(Some(def)) => *def,
+                    RecordSpread::Head(None) | RecordSpread::Tail(None) => return Ok(()),
                 };
-                let captured = record_fields
-                    .iter()
-                    .enumerate()
-                    .filter(|(index, _)| !used.contains(index))
-                    .map(|(_, field)| RuntimeEvidenceValueField {
-                        name: field.name.clone(),
-                        value: mark_runtime_value(field.value.clone(), &markers),
-                    })
-                    .collect();
-                env.insert_slot(
-                    EnvSlot::from(def),
-                    shared(RuntimeEvidenceValue::Record(captured)),
-                );
+                env.insert_slot(EnvSlot::from(def), value);
                 Ok(())
             }
             Pat::PolyVariant(tag, payload_pats) => {

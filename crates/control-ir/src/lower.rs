@@ -364,11 +364,13 @@ impl Lowerer {
     }
 }
 
-fn lower_def_spread(spread: &mono::RecordSpread<mono::DefId>) -> RecordSpread<DefId> {
+fn lower_def_spread(
+    spread: &mono::RecordSpread<Option<mono::DefId>>,
+) -> RecordSpread<Option<DefId>> {
     match spread {
         mono::RecordSpread::None => RecordSpread::None,
-        mono::RecordSpread::Head(def) => RecordSpread::Head(convert_def(*def)),
-        mono::RecordSpread::Tail(def) => RecordSpread::Tail(convert_def(*def)),
+        mono::RecordSpread::Head(def) => RecordSpread::Head(def.map(convert_def)),
+        mono::RecordSpread::Tail(def) => RecordSpread::Tail(def.map(convert_def)),
     }
 }
 

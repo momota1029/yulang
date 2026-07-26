@@ -185,7 +185,7 @@ pub enum Pat {
     },
     Record {
         fields: Vec<RecordPatField>,
-        spread: RecordSpread<DefId>,
+        spread: RecordSpread<Option<DefId>>,
     },
     PolyVariant(String, Vec<Pat>),
     Con(DefId, Vec<Pat>),

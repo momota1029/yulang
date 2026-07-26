@@ -41,7 +41,9 @@ pub(crate) fn collect_pattern_defs(
             }
             match spread {
                 poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => {
-                    out.push(*def)
+                    if let Some(def) = def {
+                        out.push(*def);
+                    }
                 }
                 poly_expr::RecordSpread::None => {}
             }

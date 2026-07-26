@@ -177,11 +177,11 @@ pub(crate) fn convert_def(def: poly_expr::DefId) -> DefId {
 }
 
 pub(crate) fn convert_def_spread(
-    spread: &poly_expr::RecordSpread<poly_expr::DefId>,
-) -> RecordSpread<DefId> {
+    spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
+) -> RecordSpread<Option<DefId>> {
     match spread {
-        poly_expr::RecordSpread::Head(def) => RecordSpread::Head(convert_def(*def)),
-        poly_expr::RecordSpread::Tail(def) => RecordSpread::Tail(convert_def(*def)),
+        poly_expr::RecordSpread::Head(def) => RecordSpread::Head(def.map(convert_def)),
+        poly_expr::RecordSpread::Tail(def) => RecordSpread::Tail(def.map(convert_def)),
         poly_expr::RecordSpread::None => RecordSpread::None,
     }
 }

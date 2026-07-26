@@ -448,6 +448,7 @@ impl<'a> ExprLowerer<'a> {
                 SyntaxKind::PatSpread => {
                     let (def, tail) = self.lower_record_pattern_spread(
                         &child,
+                        value,
                         local_effect.clone(),
                         call_return_effect,
                     )?;
@@ -558,17 +559,19 @@ impl<'a> ExprLowerer<'a> {
     fn lower_record_pattern_spread(
         &mut self,
         node: &Cst,
+        record_value: TypeVar,
         local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
-    ) -> Result<(DefId, TypeVar), LoweringError> {
+    ) -> Result<(Option<DefId>, TypeVar), LoweringError> {
         let pattern = node
             .children()
             .find(is_pattern_node)
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
-        let value = self.fresh_type_var();
-        let pat = self.lower_pattern(&pattern, value, local_effect, call_return_effect)?;
+        let pat = self.lower_pattern(&pattern, record_value, local_effect, call_return_effect)?;
+        let tail = self.fresh_type_var();
         match self.session.poly.pat(pat) {
-            Pat::Var(def) => Ok((*def, value)),
+            Pat::Var(def) => Ok((Some(*def), tail)),
+            Pat::Wild => Ok((None, tail)),
             _ => Err(LoweringError::UnsupportedPatternSyntax { kind: node.kind() }),
         }
     }

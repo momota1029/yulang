@@ -288,10 +288,10 @@ pub(super) fn variants_match(left: &TypeVariant, right: &TypeVariant) -> bool {
 }
 
 pub(super) fn record_spread_def(
-    spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+    spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
 ) -> Option<poly_expr::DefId> {
     match spread {
-        poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => Some(*def),
+        poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => *def,
         poly_expr::RecordSpread::None => None,
     }
 }

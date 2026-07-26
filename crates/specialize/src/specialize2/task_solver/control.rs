@@ -472,7 +472,7 @@ impl<'a> TaskSolver<'a> {
     pub(super) fn bind_record_pat(
         &mut self,
         fields: &[poly_expr::RecordPatField],
-        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
         ty: Type,
     ) -> Result<(), SpecializeError> {
         let Type::Record(record_fields) = &ty else {
@@ -484,12 +484,7 @@ impl<'a> TaskSolver<'a> {
             self.bind_record_pat_field(field, record_field_type(record_fields, &field.name))?;
         }
         if let Some(def) = record_spread_def(spread) {
-            let captured = record_fields
-                .iter()
-                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
-                .cloned()
-                .collect::<Vec<_>>();
-            self.locals.insert(def, Type::Record(captured));
+            self.locals.insert(def, ty);
         }
         Ok(())
     }
@@ -497,7 +492,7 @@ impl<'a> TaskSolver<'a> {
     pub(super) fn bind_record_pat_with_open_scrutinee(
         &mut self,
         fields: &[poly_expr::RecordPatField],
-        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
         ty: Type,
     ) -> Result<(), SpecializeError> {
         let mut record_fields = Vec::with_capacity(fields.len());
@@ -522,12 +517,12 @@ impl<'a> TaskSolver<'a> {
             local_fields.push((field, local_value));
         }
         self.graph
-            .constrain_subtype(ty, Type::Record(record_fields))?;
+            .constrain_subtype(ty.clone(), Type::Record(record_fields))?;
         for (field, local_value) in local_fields {
             self.bind_pat(field.pat, local_value)?;
         }
         if let Some(def) = record_spread_def(spread) {
-            self.locals.insert(def, self.graph.fresh_value());
+            self.locals.insert(def, ty);
         }
         Ok(())
     }

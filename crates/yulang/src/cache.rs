@@ -2839,16 +2839,16 @@ fn hash_expr_record_spread(
 
 fn hash_def_record_spread(
     hasher: &mut StableHasher,
-    spread: &poly::expr::RecordSpread<poly::expr::DefId>,
+    spread: &poly::expr::RecordSpread<Option<poly::expr::DefId>>,
 ) {
     match spread {
         poly::expr::RecordSpread::Head(id) => {
             hasher.u8(0);
-            hash_def_id(hasher, *id);
+            hash_optional_def_id(hasher, *id);
         }
         poly::expr::RecordSpread::Tail(id) => {
             hasher.u8(1);
-            hash_def_id(hasher, *id);
+            hash_optional_def_id(hasher, *id);
         }
         poly::expr::RecordSpread::None => hasher.u8(2),
     }

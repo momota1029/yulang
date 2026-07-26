@@ -247,29 +247,24 @@ impl<'a> ExprTypeSolver<'a> {
     pub(super) fn bind_record_pat(
         &mut self,
         fields: &[poly_expr::RecordPatField],
-        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
         ty: Type,
     ) -> Result<(), SpecializeError> {
-        let Type::Record(record_fields) = ty else {
+        let Type::Record(record_fields) = &ty else {
             for field in fields {
                 self.bind_record_pat_field(field, None)?;
             }
             if let Some(def) = record_spread_def(spread) {
-                let spread_ty = self.fresh_value_slot();
-                self.local_types.insert(def, spread_ty);
+                self.local_types.insert(def, ty);
             }
             return Ok(());
         };
 
         for field in fields {
-            self.bind_record_pat_field(field, record_field_type(&record_fields, &field.name))?;
+            self.bind_record_pat_field(field, record_field_type(record_fields, &field.name))?;
         }
         if let Some(def) = record_spread_def(spread) {
-            let captured = record_fields
-                .into_iter()
-                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
-                .collect::<Vec<_>>();
-            self.local_types.insert(def, Type::Record(captured));
+            self.local_types.insert(def, ty);
         }
         Ok(())
     }
@@ -376,16 +371,15 @@ impl<'a> ExprTypeSolver<'a> {
     pub(super) fn constrain_record_pat_defaults(
         &mut self,
         fields: &[poly_expr::RecordPatField],
-        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        spread: &poly_expr::RecordSpread<Option<poly_expr::DefId>>,
         ty: Type,
     ) -> Result<(), SpecializeError> {
-        let Type::Record(record_fields) = ty else {
+        let Type::Record(record_fields) = &ty else {
             for field in fields {
                 self.constrain_record_pat_field_defaults(field, None)?;
             }
             if let Some(def) = record_spread_def(spread) {
-                let spread_ty = self.fresh_value_slot();
-                self.local_types.insert(def, spread_ty);
+                self.local_types.insert(def, ty);
             }
             return Ok(());
         };
@@ -393,15 +387,11 @@ impl<'a> ExprTypeSolver<'a> {
         for field in fields {
             self.constrain_record_pat_field_defaults(
                 field,
-                record_field_type(&record_fields, &field.name),
+                record_field_type(record_fields, &field.name),
             )?;
         }
         if let Some(def) = record_spread_def(spread) {
-            let captured = record_fields
-                .into_iter()
-                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
-                .collect::<Vec<_>>();
-            self.local_types.insert(def, Type::Record(captured));
+            self.local_types.insert(def, ty);
         }
         Ok(())
     }

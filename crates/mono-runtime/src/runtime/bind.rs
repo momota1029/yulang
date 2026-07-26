@@ -41,14 +41,7 @@ impl<'a> Runtime<'a> {
                 let Value::Record(record_fields) = view else {
                     return bind_done(false, env);
                 };
-                self.bind_record_pat(
-                    fields,
-                    spread,
-                    record_fields.clone(),
-                    markers,
-                    HashSet::new(),
-                    env,
-                )
+                self.bind_record_pat(fields, spread, record_fields.clone(), value, markers, env)
             }
             Pat::PolyVariant(tag, payload_pats) => {
                 let Value::PolyVariant {
@@ -198,20 +191,18 @@ impl<'a> Runtime<'a> {
     pub(super) fn bind_record_pat(
         &mut self,
         mut fields: Vec<RecordPatField>,
-        spread: RecordSpread<DefId>,
+        spread: RecordSpread<Option<DefId>>,
         record_fields: Vec<ValueField>,
+        record_value: Value,
         markers: Vec<ValueMarker>,
-        consumed: HashSet<usize>,
         env: CapturedEnv,
     ) -> BindResult<'a> {
         if fields.is_empty() {
-            return self.bind_record_spread(spread, record_fields, markers, consumed, env);
+            return self.bind_record_spread(spread, record_value, env);
         }
 
         let RecordPatField { name, pat, default } = fields.remove(0);
-        if let Some((index, value_field)) = record_field_with_index(&record_fields, &name) {
-            let mut consumed = consumed;
-            consumed.insert(index);
+        if let Some((_, value_field)) = record_field_with_index(&record_fields, &name) {
             let value = mark_value(value_field.value.clone(), &markers);
             return self.bind_record_field_value(
                 pat,
@@ -219,8 +210,8 @@ impl<'a> Runtime<'a> {
                 fields,
                 spread,
                 record_fields,
+                record_value,
                 markers,
-                consumed,
                 env,
             );
         }
@@ -242,8 +233,8 @@ impl<'a> Runtime<'a> {
                     fields.clone(),
                     spread.clone(),
                     record_fields.clone(),
+                    record_value.clone(),
                     markers.clone(),
-                    consumed.clone(),
                     env,
                 )
             }),
@@ -255,10 +246,10 @@ impl<'a> Runtime<'a> {
         pat: Pat,
         value: Value,
         fields: Vec<RecordPatField>,
-        spread: RecordSpread<DefId>,
+        spread: RecordSpread<Option<DefId>>,
         record_fields: Vec<ValueField>,
+        record_value: Value,
         markers: Vec<ValueMarker>,
-        consumed: HashSet<usize>,
         env: CapturedEnv,
     ) -> BindResult<'a> {
         let bound = self.bind_pat(pat, value, env)?;
@@ -272,8 +263,8 @@ impl<'a> Runtime<'a> {
                     fields.clone(),
                     spread.clone(),
                     record_fields.clone(),
+                    record_value.clone(),
                     markers.clone(),
-                    consumed.clone(),
                     env,
                 )
             }),
@@ -282,27 +273,19 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn bind_record_spread(
         &mut self,
-        spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
-        markers: Vec<ValueMarker>,
-        consumed: HashSet<usize>,
+        spread: RecordSpread<Option<DefId>>,
+        record_value: Value,
         env: CapturedEnv,
     ) -> BindResult<'a> {
         let def = match spread {
             RecordSpread::None => return bind_done(true, env),
-            RecordSpread::Head(def) | RecordSpread::Tail(def) => def,
+            RecordSpread::Head(Some(def)) | RecordSpread::Tail(Some(def)) => def,
+            RecordSpread::Head(None) | RecordSpread::Tail(None) => {
+                return bind_done(true, env);
+            }
         };
-        let captured = record_fields
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| !consumed.contains(index))
-            .map(|(_, field)| ValueField {
-                name: field.name.clone(),
-                value: mark_value(field.value.clone(), &markers),
-            })
-            .collect();
         let mut env = env;
-        env.locals.insert(def, Value::Record(captured));
+        env.locals.insert(def, record_value);
         bind_done(true, env)
     }
 }

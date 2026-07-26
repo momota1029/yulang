@@ -660,9 +660,14 @@ scheme を fresh instantiate し、その return 型を scrutinee 型と両方�
 mono pattern の constructor identity は runtime constructor identity であり、関数 instance ではない。
 したがって constructor pattern は `InstanceId` ではなく constructor `DefId` を持つ。
 record pattern は scrutinee の `Record` 型から field 名で payload 型を取り出し、spread は未消費 field
-の `Record` 型として bind する。poly variant pattern は tag と payload arity が一致する variant から
+を引かず、scrutinee 全体を同じ mono 型のまま bind する。wildcard spread は open tail を要求するが
+local は作らない。poly variant pattern は tag と payload arity が一致する variant から
 payload 型を読む。list pattern は lowering が list 型制約を張った後の unary `Con(_, [item])` から
 item 型を読み、spread pattern には list 全体の型を渡す。
+
+この意味論は 2026-07-26 にユーザー判断で whole-input と確定した。これは 2026-05 の仕様
+（`7e6b476` の「record 全体」と `09c34bca` の仕様明確化）を復元するものであり、
+record subtraction による residual binding は行わない。
 record field selection は base expression の `Record` 型から field 名で result 型を読む。
 base 型がまだ open な場合は、選択 field だけを持つ `Record` expected を base へ戻し、field 型 slot を
 selection result として使う。

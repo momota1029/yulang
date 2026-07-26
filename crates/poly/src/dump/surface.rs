@@ -297,11 +297,14 @@ impl<'a> Dumper<'a> {
     pub(super) fn record_pat(
         &self,
         fields: &[RecordPatField],
-        spread: &RecordSpread<DefId>,
+        spread: &RecordSpread<Option<DefId>>,
     ) -> String {
         let mut parts = Vec::new();
         if let RecordSpread::Head(spread) = spread {
-            parts.push(format!("..{}", self.def_id(*spread)));
+            parts.push(format!(
+                "..{}",
+                spread.map_or_else(|| "_".to_string(), |def| self.def_id(def))
+            ));
         }
         parts.extend(fields.iter().map(|field| {
             let default = field
@@ -315,7 +318,10 @@ impl<'a> Dumper<'a> {
             )
         }));
         if let RecordSpread::Tail(spread) = spread {
-            parts.push(format!("..{}", self.def_id(*spread)));
+            parts.push(format!(
+                "..{}",
+                spread.map_or_else(|| "_".to_string(), |def| self.def_id(def))
+            ));
         }
         format!("{{{}}}", parts.join(", "))
     }

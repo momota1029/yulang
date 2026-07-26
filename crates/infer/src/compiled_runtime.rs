@@ -990,13 +990,13 @@ impl RuntimeImportSelection {
         &mut self,
         source: &PolyArena,
         external_defs: &FxHashSet<DefId>,
-        spread: &RecordSpread<DefId>,
+        spread: &RecordSpread<Option<DefId>>,
     ) {
         match spread {
-            RecordSpread::Head(def) | RecordSpread::Tail(def) => {
+            RecordSpread::Head(Some(def)) | RecordSpread::Tail(Some(def)) => {
                 self.select_def(source, external_defs, *def);
             }
-            RecordSpread::None => {}
+            RecordSpread::Head(None) | RecordSpread::Tail(None) | RecordSpread::None => {}
         }
     }
 }
@@ -1855,12 +1855,12 @@ fn import_expr_spread(
 }
 
 fn import_def_spread(
-    spread: &RecordSpread<DefId>,
+    spread: &RecordSpread<Option<DefId>>,
     import: &CompiledRuntimeImport,
-) -> RecordSpread<DefId> {
+) -> RecordSpread<Option<DefId>> {
     match spread {
-        RecordSpread::Head(id) => RecordSpread::Head(import.map_def(*id)),
-        RecordSpread::Tail(id) => RecordSpread::Tail(import.map_def(*id)),
+        RecordSpread::Head(id) => RecordSpread::Head(id.map(|id| import.map_def(id))),
+        RecordSpread::Tail(id) => RecordSpread::Tail(id.map(|id| import.map_def(id))),
         RecordSpread::None => RecordSpread::None,
     }
 }

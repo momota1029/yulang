@@ -1,0 +1,3 @@
+my keep_whole({ a, ..whole }) = (a, whole.a, whole.b)
+
+keep_whole { a: 1, b: 2 }

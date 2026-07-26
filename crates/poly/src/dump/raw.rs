@@ -529,11 +529,13 @@ impl<'a> RawDumper<'a> {
         }
     }
 
-    pub(super) fn def_spread(&self, spread: &RecordSpread<DefId>) -> String {
+    pub(super) fn def_spread(&self, spread: &RecordSpread<Option<DefId>>) -> String {
         match spread {
             RecordSpread::None => "none".to_string(),
-            RecordSpread::Head(def) => format!("head {}", self.def_id(*def)),
-            RecordSpread::Tail(def) => format!("tail {}", self.def_id(*def)),
+            RecordSpread::Head(Some(def)) => format!("head {}", self.def_id(*def)),
+            RecordSpread::Tail(Some(def)) => format!("tail {}", self.def_id(*def)),
+            RecordSpread::Head(None) => "head _".to_string(),
+            RecordSpread::Tail(None) => "tail _".to_string(),
         }
     }
 

@@ -362,8 +362,12 @@ impl Dumper {
                     })
                     .collect::<Vec<_>>();
                 match spread {
-                    RecordSpread::Head(def) => parts.insert(0, format!("..d{}", def.0)),
-                    RecordSpread::Tail(def) => parts.push(format!("..d{}", def.0)),
+                    RecordSpread::Head(def) => parts.insert(
+                        0,
+                        def.map_or_else(|| ".._".to_string(), |def| format!("..d{}", def.0)),
+                    ),
+                    RecordSpread::Tail(def) => parts
+                        .push(def.map_or_else(|| ".._".to_string(), |def| format!("..d{}", def.0))),
                     RecordSpread::None => {}
                 }
                 format!("{{{}}}", parts.join(", "))

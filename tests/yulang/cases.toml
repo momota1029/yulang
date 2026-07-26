@@ -26,6 +26,33 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "records", "defaults"]
 
 [[case]]
+name = "record_tail_spread_binds_whole"
+file = "regressions/runtime/record_tail_spread_binds_whole.yu"
+kind = "run"
+std = "none"
+expect_stdout = "run roots [(1, 1, 2)]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "records", "patterns"]
+
+[[case]]
+name = "record_head_spread_binds_whole"
+file = "regressions/runtime/record_head_spread_binds_whole.yu"
+kind = "run"
+std = "none"
+expect_stdout = "run roots [(3, 3, 4)]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "records", "patterns"]
+
+[[case]]
+name = "record_wildcard_spread"
+file = "regressions/runtime/record_wildcard_spread.yu"
+kind = "run"
+std = "none"
+expect_stdout = "run roots [5]\n"
+expect_stderr = ""
+contracts = ["stable-core", "runtime", "records", "patterns"]
+
+[[case]]
 name = "record_field_named_like_str_method"
 file = "regressions/runtime/record_field_named_like_str_method.yu"
 kind = "run"
@@ -2450,6 +2477,15 @@ symbol = "box.handle"
 expect_type = "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
 deny_type_contains = ["#", "AllExcept", "tick"]
 contracts = ["stable-core", "public-signature", "effect-hygiene", "data-position-effect"]
+
+[[case]]
+name = "record_spread_whole_public_signature"
+file = "regressions/effect/record_spread_whole_public_signature.yu"
+kind = "public-signature"
+std = "none"
+symbol = "whole"
+expect_type = "('a & {a: 'b}) -> 'a | {a: 'b, ..never}"
+contracts = ["stable-core", "public-signature", "records", "patterns"]
 
 [[case]]
 name = "nested_data_position_effect_function_public_signature"
