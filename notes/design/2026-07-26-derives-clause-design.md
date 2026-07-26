@@ -1,7 +1,24 @@
 # Yulang `derives` clause 設計
 
 決定日: 2026-07-26
-状態: **ユーザ承認済み。実装指示書として有効**
+状態: **ユーザ承認済み。DERIVE-A〜H 全スライス実装済み（2026-07-26）**
+
+実装 commit:
+`4e423455`（A: parser）/ `57f9f67c`（B: module map）/ `c7e9a624`（C: 合成 impl 共有入口）/
+`ff2f0c0c`（D: `Eq`）/ `ab13b6b0`（E: `Debug`）/ `9af6558e`（F: 診断）/
+`8dde75b3`（G: cache parity）/ `99abd0e4`（H: `assert_eq` 移行）
+
+実装時に判明した差分:
+- §2.1 の「derive 節内だけ小文字 `eq` / `debug` を許す shorthand」は採用しなかった。
+  std の role は `Eq` / `Debug` と大文字始まりであり、一箇所だけ名前解決規則を変える理由がない。
+  `RoleRef` は普通の role 名参照である。
+- G は新規実装をほぼ必要としなかった。derived impl は既存の runtime arena 経由で
+  finalized artifact に載っており、prefix 経路を既に生き延びていた。作業は五 parity 条件を
+  テストで固定することだった。
+- H の `assert_eq` は効果操作に role 制約を持たせず、比較関数と表示関数を payload の
+  closure として渡す形にした。前提条件は演算子側に本体から推論されて載る。
+- D6 が推奨した `impl ... via ...` の具体的な診断文言は未達。parser に文言を運ぶ機構が無く、
+  現状は汎用の `yulang.syntax` / `syntax error: unexpected token` になる。
 
 この文書は、型宣言へ明示的な role 実装を付与する `derives` clause の意味論と、
 parser、module map、lowering、role solver、compiled-unit cache の接続方法を定める。
