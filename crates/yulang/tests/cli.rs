@@ -6888,6 +6888,11 @@ fn assert_contract_manifest_tags_match_kind(case: &PublicContractCase) {
             "run contract manifest case {} should be tagged runtime, runtime-error, or public-example",
             case.name
         ),
+        "test" => assert!(
+            contract_manifest_case_has_any_tag(case, &["runtime", "runtime-error"]),
+            "test contract manifest case {} should be tagged runtime or runtime-error",
+            case.name
+        ),
         "check" => assert!(
             contract_manifest_case_has_tag(case, "diagnostics"),
             "check contract manifest case {} should be tagged diagnostics",
