@@ -100,6 +100,7 @@ impl AnalysisSession {
             fresh_source_defs: FxHashSet::default(),
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),
+            unsatisfied_subtype_shape_diagnostic_keys: FxHashSet::default(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
             pending_ocast_requests: Vec::new(),
@@ -466,6 +467,9 @@ impl AnalysisSession {
                 ConstraintEvent::EffectFilterViolation { effect, filter } => {
                     self.diagnostics
                         .push(AnalysisDiagnostic::EffectFilterViolation { effect, filter });
+                }
+                ConstraintEvent::UnsatisfiedSubtypeShape(event) => {
+                    self.record_unsatisfied_subtype_shape(event);
                 }
             }
         }

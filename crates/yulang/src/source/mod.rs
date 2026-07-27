@@ -4443,6 +4443,9 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { .. },
         ) => Some("yulang.ambiguous-implicit-cast"),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape { .. },
+        ) => Some("yulang.unsatisfied-subtype"),
         infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
         infer::lowering::BodyLoweringError::MissingBody { .. } => {
             Some("yulang.missing-local-binding-body")
@@ -4587,7 +4590,8 @@ fn body_lowering_error_source_span(
         infer::lowering::BodyLoweringError::Derive { source, .. } => Some(source.clone()),
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::MissingImplicitCast { source_span, .. }
-            | infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { source_span, .. },
+            | infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { source_span, .. }
+            | infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape { source_span, .. },
         ) => source_span.clone(),
         infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
         | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
@@ -4756,6 +4760,38 @@ fn body_lowering_error_related(
                 })
             })
             .collect(),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+                actual,
+                expected,
+                related,
+                ..
+            },
+        ) => related
+            .iter()
+            .map(|site| {
+                let message = match site.role {
+                    infer::analysis::SubtypeMismatchSiteRole::ActualValue => format!(
+                        "type shape `{}` is produced by this expression",
+                        format_concrete_subtype_head(actual)
+                    ),
+                    infer::analysis::SubtypeMismatchSiteRole::ExpectedRequirement => format!(
+                        "required shape `{}` comes from this requirement",
+                        format_concrete_subtype_head(expected)
+                    ),
+                    infer::analysis::SubtypeMismatchSiteRole::PatternOrReturnBoundary => format!(
+                        "this boundary requires shape `{}`",
+                        format_concrete_subtype_head(expected)
+                    ),
+                };
+                SourceDiagnosticRelated {
+                    message,
+                    file: site.source_span.file.clone(),
+                    range: site.source_span.range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+                }
+            })
+            .collect(),
         infer::lowering::BodyLoweringError::Expr {
             error:
                 infer::lowering::LoweringError::TypeMismatch {
@@ -4845,6 +4881,11 @@ fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Optio
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::AmbiguousImplicitCast { .. },
         ) => Some("declare or import only one matching `cast` for this pair".to_string()),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape { .. },
+        ) => Some(
+            "check that the value provides the fields or shape required by this use".to_string(),
+        ),
         _ => None,
     }
 }

@@ -7,6 +7,8 @@ use poly::expr::{DefId, RefId, SelectId, SelectResolution};
 use poly::types::Subtractability;
 
 use crate::SourceSpan;
+pub use crate::constraints::ConcreteSubtypeHead;
+use crate::constraints::ConstraintRecordId;
 use crate::scc::SccInput;
 
 /// Bounded derivation evidence projected into source-facing diagnostic data.
@@ -50,6 +52,19 @@ pub enum BodyRequirementDiagnosticKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubtypeMismatchSite {
+    pub role: SubtypeMismatchSiteRole,
+    pub source_span: SourceSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubtypeMismatchSiteRole {
+    ActualValue,
+    ExpectedRequirement,
+    PatternOrReturnBoundary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnalysisDiagnostic {
     ComputedFetchCycle {
         component: Vec<DefId>,
@@ -72,6 +87,13 @@ pub enum AnalysisDiagnostic {
         candidates: Vec<DefId>,
         source_span: Option<SourceSpan>,
     },
+    UnsatisfiedSubtypeShape {
+        actual: ConcreteSubtypeHead,
+        expected: ConcreteSubtypeHead,
+        producer: ConstraintRecordId,
+        source_span: Option<SourceSpan>,
+        related: Vec<SubtypeMismatchSite>,
+    },
 }
 
 impl AnalysisDiagnostic {
@@ -81,7 +103,8 @@ impl AnalysisDiagnostic {
             Self::ComputedFetchCycle { parent, .. } => Some(*parent),
             Self::EffectFilterViolation { .. }
             | Self::MissingImplicitCast { .. }
-            | Self::AmbiguousImplicitCast { .. } => None,
+            | Self::AmbiguousImplicitCast { .. }
+            | Self::UnsatisfiedSubtypeShape { .. } => None,
         }
     }
 }

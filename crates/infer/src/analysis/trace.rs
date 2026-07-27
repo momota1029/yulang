@@ -247,6 +247,7 @@ pub(super) fn trace_constraint_events(events: &[ConstraintEvent]) {
     let mut subtract = 0usize;
     let mut cast = 0usize;
     let mut filter = 0usize;
+    let mut subtype_shape = 0usize;
     for event in events {
         match event {
             ConstraintEvent::LowerBoundAdded { .. } => lower += 1,
@@ -254,16 +255,18 @@ pub(super) fn trace_constraint_events(events: &[ConstraintEvent]) {
             ConstraintEvent::SubtractFactAdded { .. } => subtract += 1,
             ConstraintEvent::NominalCastNeeded { .. } => cast += 1,
             ConstraintEvent::EffectFilterViolation { .. } => filter += 1,
+            ConstraintEvent::UnsatisfiedSubtypeShape(_) => subtype_shape += 1,
         }
     }
     eprintln!(
-        "[analysis] route constraint events: total={} lower={} upper={} subtract={} cast={} filter={}",
+        "[analysis] route constraint events: total={} lower={} upper={} subtract={} cast={} filter={} subtype-shape={}",
         events.len(),
         lower,
         upper,
         subtract,
         cast,
-        filter
+        filter,
+        subtype_shape
     );
 }
 

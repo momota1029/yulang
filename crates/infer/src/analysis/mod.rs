@@ -149,9 +149,10 @@ use trace::{
     trace_select_bound_limit, trace_select_requested,
 };
 pub use work::{
-    AnalysisDiagnostic, AnalysisWork, BodyRequirementDiagnosticKind, DiagnosticTypeDerivation,
-    DiagnosticTypeExplanation, DiagnosticTypeExplanationSite, DiagnosticTypeExplanationSiteRole,
-    SelectionTarget,
+    AnalysisDiagnostic, AnalysisWork, BodyRequirementDiagnosticKind, ConcreteSubtypeHead,
+    DiagnosticTypeDerivation, DiagnosticTypeExplanation, DiagnosticTypeExplanationSite,
+    DiagnosticTypeExplanationSiteRole, SelectionTarget, SubtypeMismatchSite,
+    SubtypeMismatchSiteRole,
 };
 
 /// 推論中の複数 machine を束ねる session。
@@ -221,6 +222,8 @@ pub struct AnalysisSession {
     fresh_source_defs: FxHashSet<DefId>,
     binding_fetches: FxHashMap<DefId, BindingFetch>,
     diagnostics: Vec<AnalysisDiagnostic>,
+    unsatisfied_subtype_shape_diagnostic_keys:
+        FxHashSet<(ConstraintRecordId, ConcreteSubtypeHead, ConcreteSubtypeHead)>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
     pending_ocast_requests: Vec<PendingNominalCastRequest>,

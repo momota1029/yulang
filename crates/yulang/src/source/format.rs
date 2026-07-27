@@ -2359,6 +2359,39 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
         ) => {
             format_ambiguous_implicit_cast(&source.join("::"), &target.join("::"), candidates.len())
         }
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+                actual, expected, ..
+            },
+        ) => format_unsatisfied_subtype_shape(actual, expected),
+    }
+}
+
+fn format_unsatisfied_subtype_shape(
+    actual: &infer::analysis::ConcreteSubtypeHead,
+    expected: &infer::analysis::ConcreteSubtypeHead,
+) -> String {
+    // STF-E can extend this single wording seam when its structured nominal-record bridge can
+    // identify a missing field. Cross-shape diagnostics use the base contract.
+    format!(
+        "type shape `{}` is not compatible with required shape `{}`",
+        format_concrete_subtype_head(actual),
+        format_concrete_subtype_head(expected)
+    )
+}
+
+pub(super) fn format_concrete_subtype_head(head: &infer::analysis::ConcreteSubtypeHead) -> String {
+    match head {
+        infer::analysis::ConcreteSubtypeHead::Constructor(path) => path.join("::"),
+        infer::analysis::ConcreteSubtypeHead::Function => "function".to_string(),
+        infer::analysis::ConcreteSubtypeHead::Tuple(arity) => format!("tuple({arity})"),
+        infer::analysis::ConcreteSubtypeHead::Record(fields) => {
+            format!("record {{{}}}", fields.join(", "))
+        }
+        infer::analysis::ConcreteSubtypeHead::PolyVariant(tags) => {
+            format!("polymorphic variant {{{}}}", tags.join(", "))
+        }
+        infer::analysis::ConcreteSubtypeHead::EffectRow => "effect row".to_string(),
     }
 }
 

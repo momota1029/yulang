@@ -294,6 +294,31 @@ pub enum ConstraintEvent {
         effect: Option<Vec<String>>,
         filter: Subtractability,
     },
+    /// A fixed concrete-head relation that cannot satisfy the subtype matrix.
+    ///
+    /// STF-C only defines this event contract. `step_subtype` starts producing it in STF-D/E.
+    UnsatisfiedSubtypeShape(UnsatisfiedSubtypeShapeEvent),
+}
+
+/// Structured summary of a fixed concrete subtype head.
+///
+/// Field and tag vectors carry names only; nested mismatches remain ordinary subtype obligations.
+/// This data stays presentation-neutral so the constraint machine never constructs formatter text.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConcreteSubtypeHead {
+    Constructor(Vec<String>),
+    Function,
+    Tuple(usize),
+    Record(Vec<String>),
+    PolyVariant(Vec<String>),
+    EffectRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsatisfiedSubtypeShapeEvent {
+    pub actual: ConcreteSubtypeHead,
+    pub expected: ConcreteSubtypeHead,
+    pub producer: ConstraintRecordId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -19,6 +19,7 @@ mod selection;
 mod shadow_dirty_oracle;
 #[cfg(test)]
 mod stage0_support;
+mod subtype_diagnostic;
 
 pub(super) use candidate_settlement::CandidateSettlementFact;
 #[cfg(test)]

@@ -2926,6 +2926,119 @@ fn analysis_missing_implicit_cast_diagnostic_maps_optional_definition_span() {
 }
 
 #[test]
+fn analysis_unsatisfied_subtype_shape_reuses_public_code_and_renders_sites() {
+    let lowering = implicit_cast_diagnostic_lowering();
+    let owner = labeled_def(&lowering.labels, "owner");
+    let primary = lowering
+        .modules
+        .def_source_span(owner)
+        .expect("owner definition span")
+        .clone();
+    let related_span = infer::SourceSpan {
+        file: primary.file.clone(),
+        range: SourceRange {
+            start: primary.range.start,
+            end: primary.range.start.saturating_add(1),
+        },
+    };
+    let producer = synthetic_constraint_producer();
+    let error = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+            actual: infer::analysis::ConcreteSubtypeHead::Tuple(2),
+            expected: infer::analysis::ConcreteSubtypeHead::Function,
+            producer,
+            source_span: Some(primary.clone()),
+            related: vec![infer::analysis::SubtypeMismatchSite {
+                role: infer::analysis::SubtypeMismatchSiteRole::ExpectedRequirement,
+                source_span: related_span.clone(),
+            }],
+        },
+    );
+
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &error,
+        &lowering.modules,
+        &lowering.labels,
+        None,
+        None,
+    );
+
+    assert_eq!(
+        diagnostic,
+        SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.unsatisfied-subtype".to_string()),
+            label: None,
+            file: Some(primary.file.clone()),
+            range: Some(primary.range),
+            message: "type shape `tuple(2)` is not compatible with required shape `function`"
+                .to_string(),
+            hint: Some(
+                "check that the value provides the fields or shape required by this use"
+                    .to_string(),
+            ),
+            related: vec![SourceDiagnosticRelated {
+                message: "required shape `function` comes from this requirement".to_string(),
+                file: related_span.file,
+                range: related_span.range,
+                origin: Some(SourceDiagnosticRelatedOrigin::Expression),
+            }],
+        }
+    );
+
+    let spanless = infer::lowering::BodyLoweringError::Analysis(
+        infer::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+            actual: infer::analysis::ConcreteSubtypeHead::Record(vec!["value".to_string()]),
+            expected: infer::analysis::ConcreteSubtypeHead::EffectRow,
+            producer,
+            source_span: None,
+            related: Vec::new(),
+        },
+    );
+    let diagnostic = source_diagnostic_from_body_lowering_error(
+        &spanless,
+        &lowering.modules,
+        &lowering.labels,
+        None,
+        None,
+    );
+    assert_eq!(
+        diagnostic.code.as_deref(),
+        Some("yulang.unsatisfied-subtype")
+    );
+    assert_eq!(diagnostic.file, None);
+    assert_eq!(diagnostic.range, None);
+    assert_eq!(
+        diagnostic.message,
+        "type shape `record {value}` is not compatible with required shape `effect row`"
+    );
+}
+
+fn synthetic_constraint_producer() -> infer::constraints::ConstraintRecordId {
+    let mut arena = infer::Arena::new();
+    let lower = arena.alloc_pos(poly::types::Pos::Con(
+        vec!["synthetic".into(), "Actual".into()],
+        Vec::new(),
+    ));
+    let upper = arena.alloc_neg(poly::types::Neg::Con(
+        vec!["synthetic".into(), "Expected".into()],
+        Vec::new(),
+    ));
+    arena.subtype(lower, upper, infer::constraints::OriginId::internal());
+    arena
+        .constraints_mut()
+        .take_events()
+        .into_iter()
+        .find_map(|event| match event {
+            infer::constraints::ConstraintEvent::NominalCastNeeded { producer, .. } => {
+                Some(producer)
+            }
+            _ => None,
+        })
+        .expect("synthetic nominal relation has a canonical producer")
+}
+
+#[test]
 fn analysis_missing_implicit_cast_renders_body_requirement_after_call_sites() {
     let lowering = implicit_cast_diagnostic_lowering();
     let owner = labeled_def(&lowering.labels, "owner");
