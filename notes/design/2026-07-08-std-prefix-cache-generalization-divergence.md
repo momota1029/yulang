@@ -233,3 +233,56 @@ $ find <dir> -type f | wc -l
 
 実験: Claude。Codex MCP はこのスレッドで安全フィルタ誤検知と空応答が連続したため、
 決定的な実験は Claude が直接実施した。
+
+## 2026-07-28 訂正: 「決着」の根拠が無効だった。再決着まで未決着に戻す
+
+上の「実験1」は `yulang check` を cold と prefix 経路の両方で使っていた。しかし
+`check` は `run_compatible_check`（`crates/yulang/src/main.rs`）に入り、`options.use_cache`
+を一切見ない。`--no-cache` を付けても、`YULANG_CACHE_DIR` を設定しても、**`check` は常に
+cache を使わない一発コンパイルである。** つまり実験1は cold と cold を比べていただけで、
+境界を越えた消費という主題そのものに触れていなかった。「決着した」は撤回する。
+
+### 実測でやり直した
+
+`run` は本当に cache を使う経路で、`--runtime-phase-timings` の `run.cache: <route>` で
+`std-prefix-hit` の到達を実測できる。これを使い、`render_one` を境界を越えて消費する
+構成を作り直した。
+
+- 対照: `render_one 1`（両スキームで合法）。uncached と cached（`std-prefix-hit` 確認済み）で
+  受理・出力とも一致。
+- 判別用: `render_one (\y -> y)`（cold の `any -> str` なら合法、warm の `Display` 残余付き
+  なら拒否のはず）。uncached と cache-enabled で、**両方とも同じ `yulang.unresolved-method`
+  で拒否され、差は無かった。**
+
+### ただし判別条件そのものに到達していない
+
+`render_one` を custom std prefix の内側に置いて artifact に保存された境界型を見ると、
+**`any -> str` だった。** つまり `render_one` を prefix 側に置いた時点で残余述語が境界に
+現れず、判別ケースが試すべき「residual 付き型が境界を越える」状況がそもそも成立しなかった。
+さらに、cache 経由の判別ケースはコンパイル失敗後に自動で full-miss 再推論へ落ちるため、
+観測した最終結果は純粋な prefix 結果でもない。
+
+### 現在の結論
+
+- **確認された受理差・実行時の値の差は無い。**（今回試した2ケースの範囲で）
+- しかし「境界を越えて residual 付き型が生き残る」構成をまだ一度も作れていないため、
+  それが安全に処理されるのか、単に到達できていないだけなのかは区別できない。
+- したがって cached/cold の意味論的同値性は、**「試した範囲では安全、一般には未証明」**
+  という、7/26 の「決着」より弱い状態が正確な現状である。**必須項目として決着したとは
+  もう扱わない。**
+
+### 再決着させるには
+
+- `render_one` 自身ではなく、**残余述語を境界の向こう側まで保ったまま**消費する構成を
+  見つけること。あるいは
+- 「prefix 境界へ export される公開型は常に generalize されて residual を落とす」という
+  構造的主張を、実装（`build_std_prefix_artifact` / 境界 export 経路）から立証すること。
+  後者が立証できれば、判別ケースが届かないのは偶然ではなく必然になり、それ自体が
+  健全性の説明になる。
+
+副産物: この訂正のきっかけになった `check_cache_parity`（契約スイート）も同じ欠陥を
+持っていた——cold 同士を比べるだけの決定性チェックだった。`run` 経由の真の
+cache-parity oracle（`run_cache_parity`）へ差し替えた（`79b6c2ed`）。
+
+実験・訂正: Claude（Codex MCP, gpt-5.6-sol xhigh, read-only で先に切り分け、
+write-enabled で `render_one` cross-boundary 実験と `run_cache_parity` 実装を担当）。
