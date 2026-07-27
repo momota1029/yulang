@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::process;
 use std::time::{Duration, Instant};
 
+use serde::Serialize;
+
 mod contract;
 mod cst_view;
 mod parse_view;
@@ -597,6 +599,7 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
 }
 
 fn finish_compatible_check(output: &yulang::CheckPolyOutput, print_stats: bool) {
+    write_check_diagnostics_report(output);
     print_check_diagnostics_summary(&output.diagnostics, output.diagnostic_source.as_ref());
     if print_stats {
         print!("{}", output.text);
@@ -607,6 +610,88 @@ fn finish_compatible_check(output: &yulang::CheckPolyOutput, print_stats: bool) 
         .any(|diagnostic| diagnostic.severity == yulang::SourceDiagnosticSeverity::Error)
     {
         process::exit(1);
+    }
+}
+
+const CHECK_DIAGNOSTICS_REPORT_PATH_ENV: &str = "YULANG_CHECK_DIAGNOSTICS_REPORT_PATH";
+
+#[derive(Serialize)]
+struct CheckDiagnosticsReport {
+    diagnostics: Vec<CheckDiagnosticsReportEntry>,
+}
+
+#[derive(Serialize)]
+struct CheckDiagnosticsReportEntry {
+    severity: &'static str,
+    code: Option<String>,
+    label: Option<String>,
+    range: Option<CheckDiagnosticsReportRange>,
+    related_origins: Vec<&'static str>,
+}
+
+#[derive(Serialize)]
+struct CheckDiagnosticsReportRange {
+    start: usize,
+    end: usize,
+}
+
+// The contract runner opts into this file-only channel for its child `check` process. Normal
+// CLI invocations leave the environment variable unset, so their stdout and stderr are unchanged.
+fn write_check_diagnostics_report(output: &yulang::CheckPolyOutput) {
+    let Some(path) = env::var_os(CHECK_DIAGNOSTICS_REPORT_PATH_ENV) else {
+        return;
+    };
+
+    let report = CheckDiagnosticsReport {
+        diagnostics: output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| CheckDiagnosticsReportEntry {
+                severity: check_diagnostic_severity_name(diagnostic.severity),
+                code: diagnostic.code.clone(),
+                label: diagnostic.label.clone(),
+                range: diagnostic.range.map(|range| CheckDiagnosticsReportRange {
+                    start: range.start,
+                    end: range.end,
+                }),
+                related_origins: diagnostic
+                    .related
+                    .iter()
+                    .map(|related| check_diagnostic_related_origin_name(related.origin.as_ref()))
+                    .collect(),
+            })
+            .collect(),
+    };
+    let file = fs::File::create(&path).unwrap_or_else(|error| {
+        eprintln!(
+            "failed to create check diagnostics report {}: {error}",
+            PathBuf::from(&path).display()
+        );
+        process::exit(1);
+    });
+    serde_json::to_writer(file, &report).unwrap_or_else(|error| {
+        eprintln!(
+            "failed to write check diagnostics report {}: {error}",
+            PathBuf::from(&path).display()
+        );
+        process::exit(1);
+    });
+}
+
+fn check_diagnostic_severity_name(severity: yulang::SourceDiagnosticSeverity) -> &'static str {
+    match severity {
+        yulang::SourceDiagnosticSeverity::Error => "error",
+    }
+}
+
+fn check_diagnostic_related_origin_name(
+    origin: Option<&yulang::SourceDiagnosticRelatedOrigin>,
+) -> &'static str {
+    match origin {
+        Some(yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation) => "type-annotation",
+        Some(yulang::SourceDiagnosticRelatedOrigin::Expression) => "expression",
+        Some(yulang::SourceDiagnosticRelatedOrigin::ImplCandidate) => "impl-candidate",
+        None => "none",
     }
 }
 

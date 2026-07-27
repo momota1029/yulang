@@ -11,6 +11,8 @@ use serde::Deserialize;
 
 use crate::support::{format_route_error, print_usage_error_and_exit};
 
+const CHECK_DIAGNOSTICS_REPORT_PATH_ENV: &str = "YULANG_CHECK_DIAGNOSTICS_REPORT_PATH";
+
 thread_local! {
     static CONTRACT_SHARED_RUN_CACHE: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
 }
@@ -129,6 +131,26 @@ struct ContractTempFile {
     #[serde(default)]
     as_str: bool,
     expect_contents: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractCheckDiagnosticsReport {
+    diagnostics: Vec<ContractCheckDiagnostic>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractCheckDiagnostic {
+    severity: String,
+    code: Option<String>,
+    label: Option<String>,
+    range: Option<ContractCheckDiagnosticRange>,
+    related_origins: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractCheckDiagnosticRange {
+    start: usize,
+    end: usize,
 }
 
 struct MaterializedContractRunCase {
@@ -1035,12 +1057,29 @@ fn assert_contract_temp_files(case: &ContractCase, temp_files: &[MaterializedCon
 
 fn run_contract_check_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
     let entry = contract_case_entry(repo_root, case);
+    let diagnostics_root = contract_temp_root(&format!("{}-check-diagnostics", case.name));
+    if let Err(error) = fs::create_dir_all(&diagnostics_root) {
+        contract_fail(
+            case,
+            &format!(
+                "failed to create check diagnostics root {}: {error}",
+                diagnostics_root.display()
+            ),
+        );
+    }
+    let diagnostics_path = diagnostics_root.join("diagnostics.json");
     let mut command = contract_child_command(options, case);
-    command.arg("--no-cache").arg("check").arg(&entry);
+    command
+        .env(CHECK_DIAGNOSTICS_REPORT_PATH_ENV, &diagnostics_path)
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry);
     let output = contract_output(case, &mut command);
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
-    assert_contract_diagnostics(options, case, &entry);
+    let diagnostics = read_contract_check_diagnostics(case, &diagnostics_path);
+    let _ = fs::remove_dir_all(&diagnostics_root);
+    assert_contract_diagnostics(case, &diagnostics);
 }
 
 fn run_contract_public_signature_case(
@@ -1151,7 +1190,31 @@ fn contract_case_entry(repo_root: &Path, case: &ContractCase) -> PathBuf {
     }
 }
 
-fn assert_contract_diagnostics(options: &ContractOptions, case: &ContractCase, entry: &Path) {
+fn read_contract_check_diagnostics(
+    case: &ContractCase,
+    diagnostics_path: &Path,
+) -> ContractCheckDiagnosticsReport {
+    let report = fs::read_to_string(diagnostics_path).unwrap_or_else(|error| {
+        contract_fail(
+            case,
+            &format!(
+                "failed to read check diagnostics report {}: {error}",
+                diagnostics_path.display()
+            ),
+        )
+    });
+    serde_json::from_str(&report).unwrap_or_else(|error| {
+        contract_fail(
+            case,
+            &format!(
+                "failed to parse check diagnostics report {}: {error}",
+                diagnostics_path.display()
+            ),
+        )
+    })
+}
+
+fn assert_contract_diagnostics(case: &ContractCase, output: &ContractCheckDiagnosticsReport) {
     let expects_diagnostic = case.expect_diagnostic_count.is_some()
         || case.expect_diagnostic_code.is_some()
         || case.expect_diagnostic_severity.is_some()
@@ -1164,25 +1227,6 @@ fn assert_contract_diagnostics(options: &ContractOptions, case: &ContractCase, e
         return;
     }
 
-    let source = fs::read_to_string(entry).unwrap_or_else(|error| {
-        contract_fail(
-            case,
-            &format!(
-                "failed to read diagnostic fixture {}: {error}",
-                entry.display()
-            ),
-        )
-    });
-    let output = match case.std.as_deref().unwrap_or("repo") {
-        "repo" => yulang::analyze_entry_source_with_std_options(
-            entry,
-            source,
-            &options.std_source_options(),
-        ),
-        "none" => yulang::analyze_entry_source(entry, source),
-        other => contract_fail(case, &format!("unsupported std mode `{other}`")),
-    }
-    .unwrap_or_else(|error| contract_fail(case, &format_route_error(&error)));
     let diagnostic = output
         .diagnostics
         .first()
@@ -1200,12 +1244,7 @@ fn assert_contract_diagnostics(options: &ContractOptions, case: &ContractCase, e
         );
     }
     if let Some(expected) = &case.expect_diagnostic_severity {
-        assert_contract_eq(
-            case,
-            "diagnostic severity",
-            contract_diagnostic_severity_name(diagnostic.severity),
-            expected,
-        );
+        assert_contract_eq(case, "diagnostic severity", &diagnostic.severity, expected);
     }
     if let Some(expected) = &case.expect_diagnostic_label {
         assert_contract_optional_str_eq(
@@ -1218,6 +1257,7 @@ fn assert_contract_diagnostics(options: &ContractOptions, case: &ContractCase, e
     if case.expect_diagnostic_start.is_some() || case.expect_diagnostic_end.is_some() {
         let range = diagnostic
             .range
+            .as_ref()
             .unwrap_or_else(|| contract_fail(case, "expected a diagnostic primary range"));
         if let Some(expected) = case.expect_diagnostic_start {
             assert_contract_usize_eq(case, "diagnostic start", range.start, expected);
@@ -1230,42 +1270,20 @@ fn assert_contract_diagnostics(options: &ContractOptions, case: &ContractCase, e
         assert_contract_usize_eq(
             case,
             "diagnostic related count",
-            diagnostic.related.len(),
+            diagnostic.related_origins.len(),
             expected,
         );
     }
     if !case.expect_diagnostic_related_origins.is_empty() {
-        let origins = diagnostic
-            .related
-            .iter()
-            .map(|related| contract_related_origin_name(related.origin.as_ref()))
-            .collect::<Vec<_>>();
-        if origins != case.expect_diagnostic_related_origins {
+        if diagnostic.related_origins != case.expect_diagnostic_related_origins {
             contract_fail(
                 case,
                 &format!(
                     "diagnostic related origins mismatch\nexpected: {:?}\nactual:   {:?}",
-                    case.expect_diagnostic_related_origins, origins
+                    case.expect_diagnostic_related_origins, diagnostic.related_origins
                 ),
             );
         }
-    }
-}
-
-fn contract_related_origin_name(
-    origin: Option<&yulang::SourceDiagnosticRelatedOrigin>,
-) -> &'static str {
-    match origin {
-        Some(yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation) => "type-annotation",
-        Some(yulang::SourceDiagnosticRelatedOrigin::Expression) => "expression",
-        Some(yulang::SourceDiagnosticRelatedOrigin::ImplCandidate) => "impl-candidate",
-        None => "none",
-    }
-}
-
-fn contract_diagnostic_severity_name(severity: yulang::SourceDiagnosticSeverity) -> &'static str {
-    match severity {
-        yulang::SourceDiagnosticSeverity::Error => "error",
     }
 }
 
