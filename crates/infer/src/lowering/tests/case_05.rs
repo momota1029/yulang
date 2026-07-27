@@ -619,6 +619,35 @@ fn local_recursive_binding_scheme_keeps_argument_effect_passthrough() {
 }
 
 #[test]
+fn local_function_result_annotation_constrains_result_not_function_value() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod text:\n",
+        "    pub mod str:\n",
+        "      pub type str\n",
+        "my outer =\n",
+        "  my loop(i: int, out: std::text::str::str): std::text::str::str = out\n",
+        "  loop(0, \"\")\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (outer, _) = binding_def_and_order(&lower.modules, module, "outer");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let outer_body = binding_body_id(&output, outer);
+    let loop_def = first_local_let_def(&output.session.poly, outer_body);
+    let rendered =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, loop_def));
+
+    assert_eq!(
+        rendered,
+        "int -> std::text::str::str -> std::text::str::str"
+    );
+}
+
+#[test]
 fn label_sub_generalization_applies_post_alias_interval_constraints() {
     let root = parse(concat!(
         "mod std:\n",

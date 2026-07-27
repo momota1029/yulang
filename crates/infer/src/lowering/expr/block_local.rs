@@ -571,7 +571,11 @@ impl<'a> ExprLowerer<'a> {
             if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
                 local.value = public_value;
             }
-            let body = self.connect_local_binding_annotation(node, public_value, body)?;
+            let body = if arg_patterns.is_empty() {
+                self.connect_local_binding_annotation(node, public_value, body)?
+            } else {
+                body
+            };
             self.set_local_let_body(def, body.expr);
             self.generalize_local_binding(
                 def,
