@@ -169,6 +169,7 @@ struct ContractArgs {
     repo_root: Option<PathBuf>,
     case_filters: BTreeSet<String>,
     contract_filters: Vec<String>,
+    shard: Option<ContractShard>,
 }
 
 impl ContractArgs {
@@ -209,6 +210,9 @@ impl ContractArgs {
         self.contract_filters
             .iter()
             .all(|filter| case.contracts.iter().any(|contract| contract == filter))
+            && self
+                .shard
+                .is_none_or(|shard| shard.contains_case_name(&case.name))
     }
 
     fn filter_label(&self) -> String {
@@ -223,6 +227,9 @@ impl ContractArgs {
                 .iter()
                 .map(|filter| format!("contract={filter}")),
         );
+        if let Some(shard) = self.shard {
+            parts.push(format!("shard={shard}"));
+        }
         if parts.is_empty() {
             "<all cases>".to_string()
         } else {
@@ -231,11 +238,58 @@ impl ContractArgs {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ContractShard {
+    index: usize,
+    count: usize,
+}
+
+impl ContractShard {
+    fn parse(program: &str, value: &str) -> Self {
+        let Some((index, count)) = value.split_once('/') else {
+            print_usage_error_and_exit(program, "contract --shard requires I/N with 1 <= I <= N");
+        };
+        let Ok(index) = index.parse::<usize>() else {
+            print_usage_error_and_exit(program, "contract --shard requires I/N with 1 <= I <= N");
+        };
+        let Ok(count) = count.parse::<usize>() else {
+            print_usage_error_and_exit(program, "contract --shard requires I/N with 1 <= I <= N");
+        };
+        if index == 0 || index > count {
+            print_usage_error_and_exit(program, "contract --shard requires I/N with 1 <= I <= N");
+        }
+        Self {
+            index: index - 1,
+            count,
+        }
+    }
+
+    fn contains_case_name(self, name: &str) -> bool {
+        contract_case_name_hash(name) % self.count as u64 == self.index as u64
+    }
+}
+
+impl std::fmt::Display for ContractShard {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}/{}", self.index + 1, self.count)
+    }
+}
+
+fn contract_case_name_hash(name: &str) -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+    name.as_bytes().iter().fold(FNV_OFFSET_BASIS, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(FNV_PRIME)
+    })
+}
+
 fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractArgs {
     let mut manifest = None;
     let mut repo_root = None;
     let mut case_filters = BTreeSet::new();
     let mut contract_filters = Vec::new();
+    let mut shard = None;
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
             Some("--case") => {
@@ -272,6 +326,31 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
                 }
                 contract_filters.push(value.to_string());
             }
+            Some("--shard") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(
+                        program,
+                        "contract --shard requires I/N with 1 <= I <= N",
+                    );
+                };
+                if shard.is_some() {
+                    print_usage_error_and_exit(
+                        program,
+                        "contract --shard may only be specified once",
+                    );
+                }
+                shard = Some(ContractShard::parse(program, &value.to_string_lossy()));
+            }
+            Some(value) if value.starts_with("--shard=") => {
+                let value = value.strip_prefix("--shard=").unwrap_or_default();
+                if shard.is_some() {
+                    print_usage_error_and_exit(
+                        program,
+                        "contract --shard may only be specified once",
+                    );
+                }
+                shard = Some(ContractShard::parse(program, value));
+            }
             Some("--repo-root") => {
                 let Some(value) = args.pop_front() else {
                     print_usage_error_and_exit(program, "contract --repo-root requires a path");
@@ -305,6 +384,7 @@ fn parse_contract_args(program: &str, mut args: VecDeque<OsString>) -> ContractA
         repo_root,
         case_filters,
         contract_filters,
+        shard,
     }
 }
 
@@ -1518,4 +1598,52 @@ fn contract_fail(case: &ContractCase, message: &str) -> ! {
 fn contract_manifest_fail(path: &Path, message: &str) -> ! {
     eprintln!("contract manifest {} failed: {message}", path.display());
     process::exit(1);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    use super::{ContractShard, read_contract_manifest};
+
+    #[test]
+    fn shards_partition_every_contract_manifest_case() {
+        let manifest_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/yulang/cases.toml");
+        let manifest = read_contract_manifest(&manifest_path);
+        let names = manifest
+            .case
+            .iter()
+            .map(|case| case.name.as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            names.len(),
+            manifest.case.len(),
+            "manifest case names must be unique"
+        );
+
+        for shard_count in [1, 2, 3, 4, 5, 7, 16] {
+            let mut selected_counts = names
+                .iter()
+                .map(|name| (*name, 0usize))
+                .collect::<BTreeMap<_, _>>();
+            for index in 0..shard_count {
+                let shard = ContractShard {
+                    index,
+                    count: shard_count,
+                };
+                for name in names.iter().filter(|name| shard.contains_case_name(name)) {
+                    *selected_counts
+                        .get_mut(name)
+                        .expect("selected case name should be known") += 1;
+                }
+            }
+
+            assert!(
+                selected_counts.values().all(|count| *count == 1),
+                "shards for N={shard_count} did not partition every case: {selected_counts:?}"
+            );
+        }
+    }
 }

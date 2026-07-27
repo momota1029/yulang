@@ -161,6 +161,118 @@ jobs:
       - name: Test user cache persistence in isolation
         run: cargo test -q -p yulang embedded_std_compiled_unit_artifact_persists_to_user_cache
 
+  contract_shard_1:
+    name: contract shard 1/4
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
+      - name: Run contract shard 1 of 4
+        run: cargo run -q -p yulang -- --std-root lib contract --shard 1/4 tests/yulang/cases.toml
+
+  contract_shard_2:
+    name: contract shard 2/4
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
+      - name: Run contract shard 2 of 4
+        run: cargo run -q -p yulang -- --std-root lib contract --shard 2/4 tests/yulang/cases.toml
+
+  contract_shard_3:
+    name: contract shard 3/4
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
+      - name: Run contract shard 3 of 4
+        run: cargo run -q -p yulang -- --std-root lib contract --shard 3/4 tests/yulang/cases.toml
+
+  contract_shard_4:
+    name: contract shard 4/4
+    needs: workspace_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
+
+      - name: Run contract shard 4 of 4
+        run: cargo run -q -p yulang -- --std-root lib contract --shard 4/4 tests/yulang/cases.toml
+
   core_gate:
     name: core gate
     if: ${{ always() }}
@@ -170,6 +282,10 @@ jobs:
       - frontend_tests
       - yulang_tests
       - user_cache_isolation_test
+      - contract_shard_1
+      - contract_shard_2
+      - contract_shard_3
+      - contract_shard_4
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -180,6 +296,10 @@ jobs:
           FRONTEND_TESTS: ${{ needs.frontend_tests.result }}
           YULANG_TESTS: ${{ needs.yulang_tests.result }}
           USER_CACHE_ISOLATION_TEST: ${{ needs.user_cache_isolation_test.result }}
+          CONTRACT_SHARD_1: ${{ needs.contract_shard_1.result }}
+          CONTRACT_SHARD_2: ${{ needs.contract_shard_2.result }}
+          CONTRACT_SHARD_3: ${{ needs.contract_shard_3.result }}
+          CONTRACT_SHARD_4: ${{ needs.contract_shard_4.result }}
         shell: bash
         run: |
           test "$WORKSPACE_BUILD" = success
@@ -187,3 +307,7 @@ jobs:
           test "$FRONTEND_TESTS" = success
           test "$YULANG_TESTS" = success
           test "$USER_CACHE_ISOLATION_TEST" = success
+          test "$CONTRACT_SHARD_1" = success
+          test "$CONTRACT_SHARD_2" = success
+          test "$CONTRACT_SHARD_3" = success
+          test "$CONTRACT_SHARD_4" = success

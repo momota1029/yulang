@@ -5810,6 +5810,8 @@ fn contract_command_runs_filtered_runtime_case() {
         .arg("contract")
         .arg("--case")
         .arg("optional_record_defaults")
+        .arg("--shard")
+        .arg("1/1")
         .arg(repo_yulang_fixture("cases.toml"))
         .output()
         .unwrap();
