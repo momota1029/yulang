@@ -881,48 +881,98 @@ impl ModuleTable {
         module: ModuleId,
         effect_path: &[Name],
         site: ModuleOrder,
-    ) -> Vec<ActOperationDecl> {
-        let Some(effect) = self
-            .type_path_at(module, effect_path, site)
-            .ignore_privacy_until_myvis_e(|_| {
-                self.type_path_ignoring_privacy_until_myvis_e(module, effect_path, site)
-            })
-        else {
-            return Vec::new();
+    ) -> Lookup<Vec<ActOperationDecl>> {
+        let effect = match self.type_path_at(module, effect_path, site) {
+            Lookup::Found(effect) => effect,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
         };
         if !matches!(effect.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
-            return Vec::new();
+            return Lookup::Missing;
         }
 
-        self.act_ops
+        let mut private = None;
+        let operations = self
+            .act_ops
             .get(&effect.id)
             .into_iter()
             .flat_map(|ops| ops.iter())
             .cloned()
-            .map(|op| ActOperationDecl {
-                def: self
-                    .type_companion(effect.id)
-                    .and_then(|companion| {
-                        self.value_at(module, companion, &op.name, module_path_site())
-                            .ignore_privacy_until_myvis_e(|_| {
-                                self.value_at_ignoring_privacy_until_myvis_e(
-                                    companion,
-                                    &op.name,
-                                    module_path_site(),
-                                )
-                            })
-                    })
-                    .filter(|def| {
-                        self.act_op_defs
-                            .get(def)
-                            .is_some_and(|found| found.effect == effect.id && found.name == op.name)
-                    }),
-                effect: effect.clone(),
-                name: op.name,
-                signature: op.signature,
-                tier: op.tier,
-            })
-            .collect()
+            .filter_map(
+                |op| match self.act_operation_decl_for_effect(module, &effect, op) {
+                    Lookup::Found(decl) => Some(decl),
+                    Lookup::Private(access) => {
+                        private.get_or_insert(access);
+                        None
+                    }
+                    Lookup::Missing => None,
+                },
+            )
+            .collect::<Vec<_>>();
+        if operations.is_empty() {
+            private.map_or(Lookup::Missing, Lookup::Private)
+        } else {
+            Lookup::Found(operations)
+        }
+    }
+
+    pub fn act_operation_decl_at(
+        &self,
+        module: ModuleId,
+        effect_path: &[Name],
+        operation: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<ActOperationDecl> {
+        let effect = match self.type_path_at(module, effect_path, site) {
+            Lookup::Found(effect) => effect,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
+        };
+        if !matches!(effect.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
+            return Lookup::Missing;
+        }
+        let Some(operation) = self
+            .act_ops
+            .get(&effect.id)
+            .and_then(|ops| ops.iter().find(|candidate| candidate.name == *operation))
+            .cloned()
+        else {
+            return Lookup::Missing;
+        };
+        self.act_operation_decl_for_effect(module, &effect, operation)
+    }
+
+    fn act_operation_decl_for_effect(
+        &self,
+        module: ModuleId,
+        effect: &ModuleTypeDecl,
+        operation: ActOperationSig,
+    ) -> Lookup<ActOperationDecl> {
+        let Some(companion) = self.type_companion(effect.id) else {
+            return Lookup::Missing;
+        };
+        let def = match self.value_at(module, companion, &operation.name, module_path_site()) {
+            Lookup::Found(def) => def,
+            Lookup::Private(mut access) => {
+                access.kind = NamespaceKind::ActOperation;
+                return Lookup::Private(access);
+            }
+            Lookup::Missing => return Lookup::Missing,
+        };
+        if !self
+            .act_op_defs
+            .get(&def)
+            .is_some_and(|found| found.effect == effect.id && found.name == operation.name)
+        {
+            return Lookup::Missing;
+        }
+        Lookup::Found(ActOperationDecl {
+            def: Some(def),
+            effect: effect.clone(),
+            name: operation.name,
+            signature: operation.signature,
+            tier: operation.tier,
+        })
     }
     pub fn act_operation_decl_by_def(&self, def: DefId) -> Option<ActOperationDecl> {
         let op = self.act_op_defs.get(&def)?;

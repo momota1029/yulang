@@ -3456,6 +3456,24 @@ expect_diagnostic_related_count = 1
 contracts = ["diagnostics", "related-ranges"]
 
 [[case]]
+name = "my_private_act_operation_catch"
+file = "regressions/diagnostics/my_private_act_operation_catch.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.private-access]: sibling.outside: act operation `ping` is private to module `effect`",
+]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 146
+expect_diagnostic_end = 150
+expect_diagnostic_related_count = 1
+contracts = ["diagnostics", "related-ranges", "effects"]
+
+[[case]]
 name = "my_private_constructor_pattern_diagnostic"
 file = "regressions/diagnostics/my_private_constructor_pattern.yu"
 kind = "check"

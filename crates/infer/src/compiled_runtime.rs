@@ -2217,6 +2217,8 @@ mod tests {
         let operation = lowered
             .modules
             .act_operation_decls_at(root, &[Name("signal".into())], site)
+            .found()
+            .expect("imported act operations should resolve")
             .into_iter()
             .find(|operation| operation.name == Name("ping".into()))
             .and_then(|operation| operation.def)

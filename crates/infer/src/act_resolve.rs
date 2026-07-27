@@ -9,7 +9,10 @@ use poly::types::BuiltinType;
 use rowan::{NodeOrToken, SyntaxNode};
 use sources::Name;
 
-use crate::{ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, TypeDeclId};
+use crate::{
+    Lookup, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, PrivateAccess,
+    TypeDeclId,
+};
 
 type Cst = SyntaxNode<YulangLanguage>;
 type CstItem = NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>;
@@ -186,69 +189,55 @@ impl<'a> ActTypeResolver<'a> {
             if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
                 return Ok(ActTypeExpr::Builtin(builtin));
             }
-            if let Some(decl) = self
-                .modules
-                .lexical_type_at(self.module, name, self.site)
-                .ignore_privacy_until_myvis_e(|_| {
-                    self.modules.lexical_type_ignoring_privacy_until_myvis_e(
-                        self.module,
-                        name,
-                        self.site,
-                    )
-                })
-            {
-                return Ok(ActTypeExpr::Named(decl.id));
-            }
-            return Err(ActTypeResolveError::UnresolvedTypeName { path });
+            return match self.modules.lexical_type_at(self.module, name, self.site) {
+                Lookup::Found(decl) => Ok(ActTypeExpr::Named(decl.id)),
+                Lookup::Private(access) => Err(ActTypeResolveError::PrivateAccess { access }),
+                Lookup::Missing => Err(ActTypeResolveError::UnresolvedTypeName { path }),
+            };
         }
 
         let Some((last, prefix)) = path.split_last() else {
             return Err(ActTypeResolveError::EmptyTypeExpr);
         };
-        let Some(module) = self.resolve_module_prefix(prefix) else {
-            return Err(ActTypeResolveError::UnresolvedTypeName { path });
+        let module = match self.resolve_module_prefix(prefix) {
+            Lookup::Found(module) => module,
+            Lookup::Private(access) => return Err(ActTypeResolveError::PrivateAccess { access }),
+            Lookup::Missing => return Err(ActTypeResolveError::UnresolvedTypeName { path }),
         };
-        let Some(decl) = self
+        match self
             .modules
             .type_at(self.module, module, last, module_path_site())
-            .ignore_privacy_until_myvis_e(|_| {
-                self.modules.type_at_ignoring_privacy_until_myvis_e(
-                    module,
-                    last,
-                    module_path_site(),
-                )
-            })
-        else {
-            return Err(ActTypeResolveError::UnresolvedTypeName { path });
-        };
-        Ok(ActTypeExpr::Named(decl.id))
+        {
+            Lookup::Found(decl) => Ok(ActTypeExpr::Named(decl.id)),
+            Lookup::Private(access) => Err(ActTypeResolveError::PrivateAccess { access }),
+            Lookup::Missing => Err(ActTypeResolveError::UnresolvedTypeName { path }),
+        }
     }
 
-    fn resolve_module_prefix(&self, path: &[Name]) -> Option<ModuleId> {
-        let (first, rest) = path.split_first()?;
-        let mut current = self
+    fn resolve_module_prefix(&self, path: &[Name]) -> Lookup<ModuleId> {
+        let Some((first, rest)) = path.split_first() else {
+            return Lookup::Missing;
+        };
+        let mut current = match self
             .modules
             .lexical_module_at(self.module, first, self.site)
-            .ignore_privacy_until_myvis_e(|_| {
-                self.modules.lexical_module_ignoring_privacy_until_myvis_e(
-                    self.module,
-                    first,
-                    self.site,
-                )
-            })?;
+        {
+            Lookup::Found(module) => module,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
+        };
         for segment in rest {
-            current = self
-                .modules
-                .module_at(self.module, current, segment, module_path_site())
-                .ignore_privacy_until_myvis_e(|_| {
-                    self.modules.module_at_ignoring_privacy_until_myvis_e(
-                        current,
-                        segment,
-                        module_path_site(),
-                    )
-                })?;
+            current =
+                match self
+                    .modules
+                    .module_at(self.module, current, segment, module_path_site())
+                {
+                    Lookup::Found(module) => module,
+                    Lookup::Private(access) => return Lookup::Private(access),
+                    Lookup::Missing => return Lookup::Missing,
+                };
         }
-        Some(current)
+        Lookup::Found(current)
     }
 }
 
@@ -279,6 +268,7 @@ pub(crate) enum ActTypeResolveError {
     EmptyTypeExpr,
     MissingFunctionReturn,
     UnresolvedTypeName { path: Vec<Name> },
+    PrivateAccess { access: PrivateAccess },
     UnresolvedTypeId { id: TypeDeclId },
     InvalidActHead { ty: ActTypeExpr },
     UnsupportedSyntax { kind: SyntaxKind },

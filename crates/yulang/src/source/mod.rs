@@ -4293,6 +4293,7 @@ fn private_access_kind(kind: infer::NamespaceKind) -> &'static str {
         infer::NamespaceKind::Value => "value",
         infer::NamespaceKind::Type => "type",
         infer::NamespaceKind::Module => "module",
+        infer::NamespaceKind::ActOperation => "act operation",
     }
 }
 

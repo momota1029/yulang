@@ -1292,6 +1292,8 @@ fn registers_act_operation_names_for_coverage() {
     let ops = lower
         .modules
         .act_operation_decls_at(root, &[Name("out".into())], site)
+        .found()
+        .expect("local act operations should resolve")
         .into_iter()
         .map(|op| op.name)
         .collect::<Vec<_>>();
@@ -1300,23 +1302,95 @@ fn registers_act_operation_names_for_coverage() {
 }
 
 #[test]
-fn myvis_e_placeholder_private_act_operation_remains_resolvable_outside_owner() {
+fn myvis_e_private_act_is_rejected_outside_owner() {
     let cst = parse("mod owner:\n  my act hidden:\n    our ping: () -> unit\nmy site = 1\n");
     let lower = lower_module_map(&cst);
     let root = lower.modules.root_id();
     let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
 
-    let operations = lower
-        .modules
-        .act_operation_decls_at(root, &[Name("owner".into()), Name("hidden".into())], site)
-        .into_iter()
-        .collect::<Vec<_>>();
+    let lookup = lower.modules.act_operation_decls_at(
+        root,
+        &[Name("owner".into()), Name("hidden".into())],
+        site,
+    );
 
-    // MYVIS-E owns changing this legacy allowance into private-access with
-    // descendant parity. MYVIS-C must keep the pre-slice result observable.
-    assert_eq!(operations.len(), 1);
-    assert_eq!(operations[0].name, Name("ping".into()));
-    assert!(operations[0].def.is_some());
+    assert!(matches!(lookup, Lookup::Private(_)));
+}
+
+#[test]
+fn myvis_e_act_operation_visibility_follows_companion_ancestry() {
+    let cst = parse(
+        "pub mod owner:\n  pub act effect:\n    my ping: () -> unit\n    our pong: () -> unit\n    pub mod child:\n      pub mod grandchild:\n  pub mod sibling:\npub mod unrelated:\nmy site = 1\n",
+    );
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+    let owner = lower
+        .modules
+        .module_at(root, root, &Name("owner".into()), site)
+        .found()
+        .expect("owner module should resolve");
+    let effect = lower
+        .modules
+        .module_at(owner, owner, &Name("effect".into()), site)
+        .found()
+        .expect("act companion should resolve");
+    let child = lower
+        .modules
+        .module_at(effect, effect, &Name("child".into()), site)
+        .found()
+        .expect("act companion child should resolve");
+    let grandchild = lower
+        .modules
+        .module_at(child, child, &Name("grandchild".into()), site)
+        .found()
+        .expect("act companion grandchild should resolve");
+    let sibling = lower
+        .modules
+        .module_at(owner, owner, &Name("sibling".into()), site)
+        .found()
+        .expect("act companion sibling should resolve");
+    let unrelated = lower
+        .modules
+        .module_at(root, root, &Name("unrelated".into()), site)
+        .found()
+        .expect("unrelated module should resolve");
+    let effect_path = &[Name("owner".into()), Name("effect".into())];
+    let ping = Name("ping".into());
+
+    for (relationship, requester) in [
+        ("same module", effect),
+        ("child", child),
+        ("grandchild", grandchild),
+    ] {
+        let lookup = lower
+            .modules
+            .act_operation_decl_at(requester, effect_path, &ping, site);
+        assert!(matches!(lookup, Lookup::Found(_)), "{relationship}");
+    }
+
+    for (relationship, requester) in [("sibling", sibling), ("unrelated", unrelated)] {
+        let lookup = lower
+            .modules
+            .act_operation_decl_at(requester, effect_path, &ping, site);
+        assert!(
+            matches!(lookup, Lookup::Private(_)),
+            "{relationship}: {lookup:?}"
+        );
+        let operations = lower
+            .modules
+            .act_operation_decls_at(requester, effect_path, site)
+            .found()
+            .expect("the public operation should keep the visible lookup result");
+        assert_eq!(
+            operations
+                .into_iter()
+                .map(|operation| operation.name)
+                .collect::<Vec<_>>(),
+            vec![Name("pong".into())],
+            "{relationship}"
+        );
+    }
 }
 
 #[test]
@@ -1341,7 +1415,9 @@ fn registers_act_operation_value_defs_in_companion_scope() {
     assert_eq!(
         lower
             .modules
-            .act_operation_decls_at(root, &[Name("out".into())], module_path_site())[0]
+            .act_operation_decls_at(root, &[Name("out".into())], module_path_site())
+            .found()
+            .expect("local act operations should resolve")[0]
             .def,
         Some(op_def)
     );
@@ -1389,6 +1465,8 @@ fn registers_act_copy_body_in_destination_companion() {
     let ops = lower
         .modules
         .act_operation_decls_at(loop_companion, &[Name("next".into())], module_path_site())
+        .found()
+        .expect("copied act operations should resolve")
         .into_iter()
         .map(|op| op.name)
         .collect::<Vec<_>>();
@@ -1443,6 +1521,8 @@ fn act_copy_does_not_inherit_source_private_operations() {
     let ops = lower
         .modules
         .act_operation_decls_at(root, &[Name("copy".into())], site)
+        .found()
+        .expect("copied act operations should resolve")
         .into_iter()
         .map(|op| op.name)
         .collect::<Vec<_>>();
@@ -1462,6 +1542,8 @@ fn registers_act_copy_from_qualified_source_path() {
     let ops = lower
         .modules
         .act_operation_decls_at(root, &[Name("local".into())], site)
+        .found()
+        .expect("qualified copied act operations should resolve")
         .into_iter()
         .map(|op| op.name)
         .collect::<Vec<_>>();
@@ -1481,6 +1563,8 @@ fn registers_act_copy_from_import_alias_after_import_view() {
     let ops = lower
         .modules
         .act_operation_decls_at(root, &[Name("local".into())], site)
+        .found()
+        .expect("imported copied act operations should resolve")
         .into_iter()
         .map(|op| op.name)
         .collect::<Vec<_>>();

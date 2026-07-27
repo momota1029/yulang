@@ -143,6 +143,7 @@ pub enum NamespaceKind {
     Value,
     Type,
     Module,
+    ActOperation,
 }
 
 /// A direct lookup result.  In particular, `Private` is not a missing name:
@@ -166,22 +167,6 @@ impl<T> Lookup<T> {
         match self {
             Self::Private(access) => Some(access),
             Self::Found(_) | Self::Missing => None,
-        }
-    }
-
-    /// Temporarily retain pre-MYVIS-E act-operation resolution semantics.
-    ///
-    /// Direct namespace users must preserve `Private` for diagnostics. Act
-    /// operations are deliberately deferred to MYVIS-E, where their access
-    /// diagnostic and descendant parity will land together.
-    pub(crate) fn ignore_privacy_until_myvis_e(
-        self,
-        resolve_private: impl FnOnce(&PrivateAccess) -> Option<T>,
-    ) -> Option<T> {
-        match self {
-            Self::Found(value) => Some(value),
-            Self::Private(access) => resolve_private(&access),
-            Self::Missing => None,
         }
     }
 

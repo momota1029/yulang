@@ -7,6 +7,7 @@ use super::pattern::{
 };
 use super::rule_lit::rule_case_capture_names;
 use super::*;
+use crate::Lookup;
 use syntax::*;
 
 impl<'a> ExprLowerer<'a> {
@@ -1086,7 +1087,8 @@ impl<'a> ExprLowerer<'a> {
                         source_range: crate::node_trimmed_source_range(effect_pattern),
                     }
                 })?);
-                let operation_decl = self.resolve_catch_operation_decl(&effect_op);
+                let operation_decl =
+                    self.resolve_catch_operation_decl(&effect_op, &effect_pattern)?;
                 let handled_op = operation_decl
                     .as_ref()
                     .map(|decl| self.catch_effect_op_from_decl(decl))
@@ -1394,26 +1396,52 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
-    fn resolve_catch_operation_decl(&self, effect_op: &CatchEffectOp) -> Option<ActOperationDecl> {
-        if let Some(target) = self
+    fn resolve_catch_operation_decl(
+        &self,
+        effect_op: &CatchEffectOp,
+        effect_pattern: &Cst,
+    ) -> Result<Option<ActOperationDecl>, LoweringError> {
+        match self
             .modules
             .value_path_at(self.module, &effect_op.path, self.site)
-            .found()
         {
-            if let Some(decl) = self.modules.act_operation_decl_by_def(target) {
-                return Some(decl);
+            Lookup::Found(target) => {
+                if let Some(decl) = self.modules.act_operation_decl_by_def(target) {
+                    return Ok(Some(decl));
+                }
+                if let Some(operation) = self.modules.error_operation_for_constructor(target)
+                    && let Some(decl) = self.modules.act_operation_decl_by_def(operation)
+                {
+                    return Ok(Some(decl));
+                }
             }
-            if let Some(operation) = self.modules.error_operation_for_constructor(target)
-                && let Some(decl) = self.modules.act_operation_decl_by_def(operation)
-            {
-                return Some(decl);
+            Lookup::Private(mut access) => {
+                if effect_op.operation.as_ref() == Some(&access.name) {
+                    access.kind = crate::NamespaceKind::ActOperation;
+                }
+                return Err(LoweringError::PrivateAccess {
+                    source_range: crate::source_range_for_name(effect_pattern, &access.name),
+                    access,
+                });
             }
+            Lookup::Missing => {}
         }
-        let operation = effect_op.operation.as_ref()?;
-        self.modules
-            .act_operation_decls_at(self.module, &effect_op.family_path, self.site)
-            .into_iter()
-            .find(|decl| &decl.name == operation)
+        let Some(operation) = effect_op.operation.as_ref() else {
+            return Ok(None);
+        };
+        match self.modules.act_operation_decl_at(
+            self.module,
+            &effect_op.family_path,
+            operation,
+            self.site,
+        ) {
+            Lookup::Found(decl) => Ok(Some(decl)),
+            Lookup::Private(access) => Err(LoweringError::PrivateAccess {
+                source_range: crate::source_range_for_name(effect_pattern, &access.name),
+                access,
+            }),
+            Lookup::Missing => Ok(None),
+        }
     }
 
     fn catch_effect_op_from_decl(&self, decl: &ActOperationDecl) -> CatchEffectOp {
@@ -1689,7 +1717,9 @@ impl CatchHandledEffects {
         self.rows.iter().all(|(family_path, _)| {
             modules
                 .act_operation_decls_at(module, family_path, site)
-                .iter()
+                .found()
+                .into_iter()
+                .flatten()
                 .all(|op| self.covers_operation(family_path, &op.name))
         })
     }

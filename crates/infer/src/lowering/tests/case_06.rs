@@ -71,11 +71,11 @@ fn glob_import_exposes_child_module_as_value_type_and_act_path_prefix() {
             .type_path_at(root, &[Name("net".into()), Name("request".into())], site)
             .is_some()
     );
-    let operations = output.modules.act_operation_decls_at(
-        root,
-        &[Name("net".into()), Name("server".into())],
-        site,
-    );
+    let operations = output
+        .modules
+        .act_operation_decls_at(root, &[Name("net".into()), Name("server".into())], site)
+        .found()
+        .expect("imported net::server operations should resolve");
     let [accept] = operations.as_slice() else {
         panic!("expected one imported net::server operation");
     };

@@ -1,0 +1,8 @@
+pub act effect:
+  my ping: () -> unit
+  our pong: () -> unit
+
+pub mod sibling:
+  pub outside = catch ():
+    effect::ping(), k -> k ()
+    value -> value
