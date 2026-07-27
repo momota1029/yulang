@@ -1,0 +1,3 @@
+struct point { x: int }
+my f(p: point) = p
+f {x: 2}

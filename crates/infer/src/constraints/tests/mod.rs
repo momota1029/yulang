@@ -8,6 +8,7 @@ mod explain;
 mod ocast_eligibility;
 mod portable_explain;
 mod pusp_characterization;
+mod subtype_fallthrough_characterization;
 mod subtype_provenance_characterization;
 
 use case_02::{assert_single_weighted_upper_var, residual_stack_weight, single_upper_row_tail};

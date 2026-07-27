@@ -5,6 +5,7 @@ use infer::constraints::{
 };
 
 mod ordinary_cast_characterization;
+mod subtype_fallthrough_characterization;
 
 #[test]
 fn specialization_error_path_exposes_captured_subtype_failure_anchors() {

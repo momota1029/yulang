@@ -465,6 +465,7 @@ dependencies = [
 name = "infer"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "num-bigint",
  "parser",
  "poly",
