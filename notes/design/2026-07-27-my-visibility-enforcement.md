@@ -937,6 +937,76 @@ Stop condition: 六namespaceすべてがexact code/message/primary/relatedを満
 | diagnostic code | 全namespaceで`yulang.private-access` | value/type/methodごとの別code、既存unresolved codeの流用 |
 | related origin | `None` +明示message |既存`Expression`/`TypeAnnotation`/`ImplCandidate`への誤分類 |
 
+## 10.5 MYVIS-E2（method selection）は先送り — 2026-07-27 ユーザ決定
+
+MYVIS-E は実装時に二つに割れた。act operation 側（E1）は `fbd9c0b2` で着地し、
+一時的な許容 `ignore_privacy_until_myvis_e` は全て消えた。
+**method selection 側（E2）は先送りする。**
+
+### 先送りの根拠
+
+**穴は既に閉じている。** §2.1 の実測どおり、private な type / act / role method は
+今日すでに companion の外から見えない。global registration が `Vis::My` を skip し
+（`crates/infer/src/lowering/body/register.rs:33`）、companion-local table が
+exact `ModuleId` を key にするためである。
+
+したがって E2 が買うのは健全性ではなく、次の二つだけである。
+
+1. companion の**子孫**からの private method 呼び出し。今日は不当に拒否される（D1 違反だが安全側）
+2. 診断が `yulang.missing-field` / `yulang.not-record` ではなく `yulang.private-access` になること
+
+対して費用は 5〜7 時間、コンパイラで最も繊細な selection 不動点への変更、
+そして **compiled-unit format 20→21 の再バンプ**（利用者にもう一度 cold rebuild）。
+費用対効果が見合わないと判断した。
+
+### 着手する人へ — 調査済みの事実
+
+**probe 時点で拒否を確定してはならない。** 次は今日 `run roots [7]` を返し、正しい。
+
+```yu
+mod child:
+    pub struct point { secret: int } with:
+        my p.secret = 41
+
+(child::point { secret: 7 }).secret
+```
+
+private な explicit method と同名の公開 field がある。候補を見た時点で拒否すると
+この正当な参照を弾く。合成 field method が残るのは、private な explicit method が
+それを抑止しないためである（`register.rs:68` の `visible_explicit_type_method_exists` は
+`Vis::My` を除外する）。
+
+同種の control が既にテストにある: `private_role_method_is_not_registered_for_selection_fallback`
+（`crates/infer/src/lowering/tests/case_04.rs:846`）。`\x -> x.secret` は、
+到達不能な同名 role method があっても構造的 record 選択のままでなければならない。
+
+**拒否が確定できる唯一の地点**は `resolve_unresolved_selections_as_record_fields` の
+直前、現在の `ready_record_field_selections` の判定位置である
+（`crates/infer/src/analysis/session/lifecycle.rs:802`）。そこに到達するまでに
+constraint work と role-method fallback が quiescence へ達している。
+
+必要な構造変更（いずれも「候補を濾す」より大きい）:
+
+- `AnalysisSession` は `ModuleTable` を持たないので**祖先関係を評価できない**
+  （`crates/infer/src/analysis/mod.rs:162`）。読み取り専用の親スナップショットが要る
+- 三値の候補 lookup（`Found` / `Denied` / `Missing`）と、`SelectId` ごとの保留中拒否状態。
+  `Denied` は `.or_else` の走査を短絡してはならない——後の branch で見つかる
+  accessible な候補が優先する
+- `record_fallback_remains_possible(receiver, name)` 分類器。**最も危険な部分**で、
+  union・optional field・open spread の扱いが要る。「可能」が privacy に優先し、
+  record 解釈が**不可能と証明された**ときだけ privacy を出す
+- warm 経路で related span を出すには compiled method declaration span の serialize が要り、
+  format 21 へのバンプを伴う（`crates/infer/src/module_table/compiled.rs:142` が現在 `None` を入れる）
+
+descendant parity は exact-scope map を残したまま逆引き private index を足し、
+requester の親鎖を一度だけ歩く形で `O(深さ + bucket)` に収まる。
+複数の ancestor companion から見える候補は ambiguity 扱いとし、
+最近傍や source order の規則を発明しない。
+
+14 slice の詳細計画が調査時に作られている。再着手するならまず
+`record_fallback_remains_possible` の characterization test から始めること
+（unknown / closed record / open spread / optional field / nominal / union / `Bot`）。
+
 ## 11. 決めていないこと
 
 依頼されたD1、Q1〜Q5、enforcement point、provenance、cache bump、diagnostic contractには、
