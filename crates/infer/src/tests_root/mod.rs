@@ -579,6 +579,156 @@ fn import_view_resolves_globs_across_namespaces() {
     );
 }
 
+#[test]
+fn my_visibility_imports_keep_descendants_open_and_reexports_closed() {
+    // `our use` may import an ancestor's `my` declaration from a descendant;
+    // the carried origin remains the ancestor. `my use` makes the descendant
+    // its new, narrower private boundary.
+    let named = lower_source(
+        "mod owner:\n  my value = 1\n  my act Thing:\n    pub ping: () -> int\n  my mod child:\n  pub mod descendant:\n    our use band::owner::value as our_value\n    our use band::owner::Thing as OurThing\n    our use band::owner::child as our_child\n    my use band::owner::value as my_value\n    my use band::owner::Thing as MyThing\n    my use band::owner::child as my_child\n",
+    );
+    let root = named.modules.root_id();
+    let owner = named.modules.module_decls(root, &Name("owner".into()))[0].module;
+    let descendant = named
+        .modules
+        .module_decls(owner, &Name("descendant".into()))[0]
+        .module;
+    let owner_origins = source_private_origins(&named.modules, owner);
+
+    assert_private_origin(
+        &named.modules,
+        private_value_origin(&named.modules, descendant, "our_value"),
+        owner_origins.0,
+    );
+    assert_private_origin(
+        &named.modules,
+        private_type_origin(&named.modules, descendant, "OurThing"),
+        owner_origins.1,
+    );
+    assert_private_origin(
+        &named.modules,
+        private_module_origin(&named.modules, descendant, "our_child"),
+        owner_origins.2,
+    );
+    for (name, actual) in [
+        (
+            "my_value",
+            private_value_origin(&named.modules, descendant, "my_value"),
+        ),
+        (
+            "MyThing",
+            private_type_origin(&named.modules, descendant, "MyThing"),
+        ),
+        (
+            "my_child",
+            private_module_origin(&named.modules, descendant, "my_child"),
+        ),
+    ] {
+        let expected = named
+            .modules
+            .aliases(descendant)
+            .iter()
+            .find(|alias| {
+                matches!(&alias.import, UseImport::Alias { name: alias_name, .. } if alias_name.0 == name)
+            })
+            .and_then(|alias| alias.private_origin)
+            .expect("my use should establish the descendant private boundary");
+        assert_private_origin(&named.modules, actual, expected);
+    }
+
+    // A descendant glob can cross its ancestor's private module boundary and
+    // receives every public namespace from that module.
+    let descendant_glob = lower_source(
+        "mod owner:\n  my mod source:\n    pub value = 1\n    pub act Thing:\n      pub ping: () -> int\n    pub mod child:\n  pub mod descendant:\n    use band::owner::source::*\n",
+    );
+    let root = descendant_glob.modules.root_id();
+    let owner = descendant_glob
+        .modules
+        .module_decls(root, &Name("owner".into()))[0]
+        .module;
+    let descendant = descendant_glob
+        .modules
+        .module_decls(owner, &Name("descendant".into()))[0]
+        .module;
+    assert!(
+        descendant_glob.modules.nodes[descendant.0]
+            .import_values
+            .contains_key(&Name("value".into()))
+    );
+    assert!(
+        descendant_glob.modules.nodes[descendant.0]
+            .import_types
+            .contains_key(&Name("Thing".into()))
+    );
+    assert!(
+        descendant_glob.modules.nodes[descendant.0]
+            .import_modules
+            .contains_key(&Name("child".into()))
+    );
+
+    // An external glob itself is legal, but private entries do not enter its
+    // surface. That is deliberately not a private-access diagnostic.
+    let external_glob = lower_source(
+        "pub mod owner:\n  my value = 1\n  my act Thing:\n    pub ping: () -> int\n  my mod child:\nmod outsider:\n  use band::owner::*\n",
+    );
+    let root = external_glob.modules.root_id();
+    let outsider = external_glob
+        .modules
+        .module_decls(root, &Name("outsider".into()))[0]
+        .module;
+    assert!(
+        !external_glob.modules.nodes[outsider.0]
+            .import_values
+            .contains_key(&Name("value".into()))
+    );
+    assert!(
+        !external_glob.modules.nodes[outsider.0]
+            .import_types
+            .contains_key(&Name("Thing".into()))
+    );
+    assert!(
+        !external_glob.modules.nodes[outsider.0]
+            .import_modules
+            .contains_key(&Name("child".into()))
+    );
+    assert!(
+        external_glob
+            .modules
+            .import_privacy_diagnostics()
+            .is_empty()
+    );
+
+    // A descendant may publish its aliases, but an unrelated second step may
+    // not turn the carried private origin into a public re-export.
+    let two_step = lower_source(
+        "pub mod owner:\n  my value = 1\n  my act Thing:\n    pub ping: () -> int\n  my mod child:\n  pub mod descendant:\n    pub use band::owner::value\n    pub use band::owner::Thing\n    pub use band::owner::child\n    our use band::owner::value as our_value\n    our use band::owner::Thing as OurThing\n    our use band::owner::child as our_child\n    my use band::owner::value as my_value\n    my use band::owner::Thing as MyThing\n    my use band::owner::child as my_child\npub mod relay:\n  pub use band::owner::descendant::value\n  pub use band::owner::descendant::Thing\n  pub use band::owner::descendant::child\n  pub use band::owner::descendant::our_value\n  pub use band::owner::descendant::OurThing\n  pub use band::owner::descendant::our_child\n  pub use band::owner::descendant::my_value\n  pub use band::owner::descendant::MyThing\n  pub use band::owner::descendant::my_child\n",
+    );
+    let root = two_step.modules.root_id();
+    let relay = two_step.modules.module_decls(root, &Name("relay".into()))[0].module;
+    for name in ["value", "our_value", "my_value"] {
+        assert!(
+            !two_step.modules.nodes[relay.0]
+                .import_values
+                .contains_key(&Name(name.into()))
+        );
+    }
+    for name in ["Thing", "OurThing", "MyThing"] {
+        assert!(
+            !two_step.modules.nodes[relay.0]
+                .import_types
+                .contains_key(&Name(name.into()))
+        );
+    }
+    for name in ["child", "our_child", "my_child"] {
+        assert!(
+            !two_step.modules.nodes[relay.0]
+                .import_modules
+                .contains_key(&Name(name.into()))
+        );
+    }
+    assert_eq!(two_step.modules.import_privacy_diagnostics().len(), 9);
+}
+
 fn private_value_origin(modules: &ModuleTable, module: ModuleId, name: &str) -> PrivateOriginId {
     modules.nodes[module.0].import_values[&Name(name.into())]
         .iter()
@@ -736,14 +886,15 @@ fn runtime_imports_retain_private_provenance_at_every_copy_site() {
     );
 
     let mut reexport = lower_source(
-        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod source:\n  pub use public::value\n  pub use public::Thing\n  pub use public::child\nmod facade:\n  pub use source::*\n",
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod owner:\n  mod source:\n    pub use public::value\n    pub use public::Thing\n    pub use public::child\n  pub mod facade:\n    pub use band::owner::source::*\n",
     );
     let root = reexport.modules.root_id();
-    let source = reexport.modules.module_decls(root, &Name("source".into()))[0].module;
+    let owner = reexport.modules.module_decls(root, &Name("owner".into()))[0].module;
+    let source = reexport.modules.module_decls(owner, &Name("source".into()))[0].module;
     let expected = reexport
         .modules
         .private_origin_for(
-            source,
+            owner,
             Vis::My,
             Some(SourceSpan {
                 file: ModulePath::default(),
@@ -767,7 +918,7 @@ fn runtime_imports_retain_private_provenance_at_every_copy_site() {
         }
     }
     expose_private_imports_for_import_copy_test(&mut reexport, source);
-    let facade = reexport.modules.module_decls(root, &Name("facade".into()))[0].module;
+    let facade = reexport.modules.module_decls(owner, &Name("facade".into()))[0].module;
     assert_private_origin(
         &reexport.modules,
         private_value_origin(&reexport.modules, facade, "value"),
@@ -784,32 +935,10 @@ fn runtime_imports_retain_private_provenance_at_every_copy_site() {
         expected,
     );
 
-    let mut private_alias = lower_source(
-        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\n",
+    let private_alias = lower_source(
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmy use public::value as private_value\nmy use public::Thing as private_type\nmy use public::child as private_module\n",
     );
     let root = private_alias.modules.root_id();
-    add_private_alias(
-        &mut private_alias.modules,
-        root,
-        "private_value",
-        &["public", "value"],
-        10,
-    );
-    add_private_alias(
-        &mut private_alias.modules,
-        root,
-        "private_type",
-        &["public", "Thing"],
-        20,
-    );
-    add_private_alias(
-        &mut private_alias.modules,
-        root,
-        "private_module",
-        &["public", "child"],
-        30,
-    );
-    private_alias.modules.build_import_views();
     for name in ["private_value", "private_type", "private_module"] {
         let origin = match name {
             "private_value" => private_value_origin(&private_alias.modules, root, name),
@@ -838,11 +967,10 @@ fn runtime_imports_retain_private_provenance_at_every_copy_site() {
 
 #[test]
 fn compiled_namespace_round_trips_private_reexport_provenance() {
-    // This is the MYVIS-B format-bump witness.  The parser does not yet accept
-    // `my use`, so make the already-materialized descendant import view exactly
-    // as MYVIS-D will: a private ancestor origin carried by a public re-export.
+    // This is the MYVIS-B format-bump witness.  Materialize a private ancestor
+    // origin on owner imports, then let its descendant facade re-export them.
     let mut lower = lower_source(
-        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod owner:\n  pub use public::value\n  pub use public::Thing\n  pub use public::child\nmod facade:\n  pub use owner::*\n",
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod owner:\n  pub use public::value\n  pub use public::Thing\n  pub use public::child\n  pub mod facade:\n    pub use band::owner::*\n",
     );
     let root = lower.modules.root_id();
     let owner = lower.modules.module_decls(root, &Name("owner".into()))[0].module;
@@ -881,7 +1009,7 @@ fn compiled_namespace_round_trips_private_reexport_provenance() {
     for module in &mut surface.modules {
         module.values.clear();
         module.types.clear();
-        if module.path != vec!["facade".to_string()] {
+        if module.path != vec!["owner".to_string(), "facade".to_string()] {
             module.imported_values.clear();
             module.imported_types.clear();
             module.imported_modules.clear();
@@ -909,7 +1037,7 @@ fn compiled_namespace_round_trips_private_reexport_provenance() {
     let bytes = bincode::serialize(&surface).unwrap();
     let round_trip: CompiledNamespaceSurface = bincode::deserialize(&bytes).unwrap();
     let merged = CompiledNamespaceSurface::merge_prefixes_with_remap([&round_trip]).unwrap();
-    let facade_path = vec!["facade".to_string()];
+    let facade_path = vec!["owner".to_string(), "facade".to_string()];
     let facade = merged
         .surface
         .modules

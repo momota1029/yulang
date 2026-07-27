@@ -2290,6 +2290,10 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             ..
         } => format!("unresolved value name in root expression: {}", name.0),
         infer::lowering::BodyLoweringError::RootExpr { error, .. } => format_lowering_error(error),
+        infer::lowering::BodyLoweringError::NamespaceImport { access, .. } => format!(
+            "cannot import private {:?} `{}`",
+            access.kind, access.name.0
+        ),
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
             role,
             method,

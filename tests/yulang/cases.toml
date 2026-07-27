@@ -3725,3 +3725,51 @@ expect_diagnostic_start = 234
 expect_diagnostic_end = 240
 expect_diagnostic_related_count = 1
 contracts = ["diagnostics"]
+
+[[case]]
+name = "my_use_descendant_named_and_glob_allowed"
+file = "regressions/visibility/my_use_descendant_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [1]\n"
+contracts = ["runtime"]
+
+[[case]]
+name = "my_use_reexport_closure"
+file = "regressions/diagnostics/my_use_reexport_closure.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.private-access]: cannot import private value `<import>` from outside module `owner`",
+]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 2
+expect_diagnostic_start = 137
+expect_diagnostic_end = 143
+expect_diagnostic_related_count = 1
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_use_reexport_type_and_module_closure"
+file = "regressions/diagnostics/my_use_reexport_type_module_closure.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.private-access]: cannot import private type `<import>` from outside module `owner`",
+  "error [yulang.private-access]: cannot import private module `<import>` from outside module `owner`",
+]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 4
+expect_diagnostic_start = 224
+expect_diagnostic_end = 235
+expect_diagnostic_related_count = 1
+contracts = ["diagnostics", "related-ranges"]

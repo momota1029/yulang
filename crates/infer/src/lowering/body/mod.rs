@@ -1015,6 +1015,10 @@ pub enum BodyLoweringError {
         file: Path,
         error: LoweringError,
     },
+    NamespaceImport {
+        access: crate::PrivateAccess,
+        source: SourceSpan,
+    },
     RoleImplAssociatedTypeMismatch {
         impl_def: DefId,
         method_def: DefId,
@@ -1547,6 +1551,16 @@ impl BodyLowerer {
         let ocast_eligibility_timing = session.ocast_eligibility_metrics();
         let application_provenance = std::mem::take(&mut session.application_provenance);
         let mut errors = self.errors;
+        errors.extend(
+            self.modules
+                .import_privacy_diagnostics()
+                .iter()
+                .cloned()
+                .map(|diagnostic| BodyLoweringError::NamespaceImport {
+                    access: diagnostic.access,
+                    source: diagnostic.source_span,
+                }),
+        );
         errors.extend(deferred_result_annotation_errors(
             &session,
             &self.modules,

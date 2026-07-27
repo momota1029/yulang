@@ -458,6 +458,7 @@ pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
         BodyLoweringError::MissingBindingDecl { .. }
         | BodyLoweringError::MissingModuleDecl { .. }
         | BodyLoweringError::RootExpr { .. }
+        | BodyLoweringError::NamespaceImport { .. }
         | BodyLoweringError::Derive { .. } => None,
         BodyLoweringError::MissingBody { def, .. }
         | BodyLoweringError::NonLetDef { def, .. }

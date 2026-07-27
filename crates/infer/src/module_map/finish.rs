@@ -143,12 +143,8 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(
-                            module,
-                            import,
-                            vis,
-                            self.source_span(Some(node_trimmed_source_range(&child))),
-                        );
+                        let source_span = self.use_import_source_span(&child, &import);
+                        self.modules.add_alias(module, import, vis, source_span);
                     }
                 }
                 SyntaxKind::StructDecl

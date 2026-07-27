@@ -162,6 +162,13 @@ impl<T> Lookup<T> {
         }
     }
 
+    pub fn private_access(self) -> Option<PrivateAccess> {
+        match self {
+            Self::Private(access) => Some(access),
+            Self::Found(_) | Self::Missing => None,
+        }
+    }
+
     /// Temporarily retain pre-MYVIS-E act-operation resolution semantics.
     ///
     /// Direct namespace users must preserve `Private` for diagnostics. Act
@@ -718,7 +725,14 @@ pub struct AliasDecl {
     pub import: UseImport,
     pub vis: Vis,
     pub order: ModuleOrder,
+    pub source_span: Option<SourceSpan>,
     private_origin: Option<PrivateOriginId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportPrivacyDiagnostic {
+    pub access: PrivateAccess,
+    pub source_span: SourceSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -781,6 +795,7 @@ struct ImportModuleTarget {
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     private_origins: Vec<PrivateOrigin>,
+    import_privacy_diagnostics: Vec<ImportPrivacyDiagnostic>,
     test_modules: Vec<TestModuleDecl>,
     act_templates: FxHashMap<TypeDeclId, Cst>,
     act_type_vars: FxHashMap<TypeDeclId, Vec<String>>,

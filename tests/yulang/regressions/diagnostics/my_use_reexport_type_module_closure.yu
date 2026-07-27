@@ -1,0 +1,15 @@
+pub mod owner:
+  my type hidden_type = int
+  my mod hidden_module:
+    pub visible = 1
+  pub mod child:
+    pub use hidden_type
+    pub use hidden_module
+
+pub mod facade:
+  pub use owner::child::hidden_type
+  pub use owner::child::hidden_module
+
+pub mod sibling:
+  use owner::child::hidden_type
+  use owner::child::hidden_module

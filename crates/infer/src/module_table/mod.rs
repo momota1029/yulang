@@ -20,6 +20,7 @@ impl ModuleTable {
                 next_order: 0,
             }],
             private_origins: Vec::new(),
+            import_privacy_diagnostics: Vec::new(),
             test_modules: Vec::new(),
             act_templates: FxHashMap::default(),
             act_type_vars: FxHashMap::default(),
@@ -605,11 +606,12 @@ impl ModuleTable {
         source_span: Option<SourceSpan>,
     ) {
         let order = self.next_order(module);
-        let private_origin = self.private_origin_for(module, vis, source_span);
+        let private_origin = self.private_origin_for(module, vis, source_span.clone());
         self.nodes[module.0].aliases.push(AliasDecl {
             import,
             vis,
             order,
+            source_span,
             private_origin,
         });
     }
@@ -648,6 +650,14 @@ impl ModuleTable {
     }
     pub fn aliases(&self, module: ModuleId) -> &[AliasDecl] {
         &self.nodes[module.0].aliases
+    }
+    pub fn import_privacy_diagnostics(&self) -> &[ImportPrivacyDiagnostic] {
+        &self.import_privacy_diagnostics
+    }
+    pub(super) fn push_import_privacy_diagnostic(&mut self, diagnostic: ImportPrivacyDiagnostic) {
+        if !self.import_privacy_diagnostics.contains(&diagnostic) {
+            self.import_privacy_diagnostics.push(diagnostic);
+        }
     }
     pub(super) fn build_import_views(&mut self) {
         // 再エクスポートの連鎖（prelude → ops → …）を運びきるまで繰り返す。

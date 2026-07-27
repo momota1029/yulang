@@ -203,6 +203,14 @@ impl Lower {
         })
     }
 
+    fn use_import_source_span(&self, node: &Cst, import: &UseImport) -> Option<SourceSpan> {
+        let name = match import {
+            UseImport::Alias { path, .. } => path.segments.last(),
+            UseImport::Glob { prefix, .. } => prefix.segments.last(),
+        }?;
+        self.source_span(source_range_for_name(node, name))
+    }
+
     fn set_def_source_range(&mut self, def: DefId, range: SourceRange) {
         self.modules.set_def_source_span(
             def,
@@ -358,12 +366,8 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(
-                            module,
-                            import,
-                            vis,
-                            self.source_span(Some(node_trimmed_source_range(&child))),
-                        );
+                        let source_span = self.use_import_source_span(&child, &import);
+                        self.modules.add_alias(module, import, vis, source_span);
                     }
                 }
                 SyntaxKind::OpDef => {
@@ -672,12 +676,8 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(
-                            module,
-                            import,
-                            vis,
-                            self.source_span(Some(node_trimmed_source_range(&child))),
-                        );
+                        let source_span = self.use_import_source_span(&child, &import);
+                        self.modules.add_alias(module, import, vis, source_span);
                     }
                 }
                 SyntaxKind::TypeDecl
@@ -1199,12 +1199,8 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(
-                            module,
-                            import,
-                            vis,
-                            self.source_span(Some(node_trimmed_source_range(&child))),
-                        );
+                        let source_span = self.use_import_source_span(&child, &import);
+                        self.modules.add_alias(module, import, vis, source_span);
                     }
                 }
                 SyntaxKind::TypeDecl => {}
@@ -1364,12 +1360,8 @@ impl Lower {
                         }
                     }
                     for import in sources::use_imports(&child) {
-                        self.modules.add_alias(
-                            module,
-                            import,
-                            vis,
-                            self.source_span(Some(node_trimmed_source_range(&child))),
-                        );
+                        let source_span = self.use_import_source_span(&child, &import);
+                        self.modules.add_alias(module, import, vis, source_span);
                     }
                 }
                 SyntaxKind::TypeDecl

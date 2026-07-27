@@ -4229,6 +4229,15 @@ fn body_lowering_error_message(
     error: &infer::lowering::BodyLoweringError,
     modules: &infer::ModuleTable,
 ) -> String {
+    if let infer::lowering::BodyLoweringError::NamespaceImport { access, .. } = error {
+        let scope =
+            format_module_path(&modules.module_path(modules.private_origin(access.origin).scope));
+        return format!(
+            "cannot import private {} `{}` from outside module `{scope}`",
+            private_access_kind(access.kind),
+            access.name.0,
+        );
+    }
     let Some(access) = body_lowering_private_access(error) else {
         return format_body_lowering_error(error);
     };
@@ -4258,6 +4267,7 @@ fn body_lowering_private_access(
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => {
             lowering_private_access(error)
         }
+        infer::lowering::BodyLoweringError::NamespaceImport { access, .. } => Some(access),
         _ => None,
     }
 }
@@ -4404,6 +4414,7 @@ fn role_method_candidate_message(
 
 fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Option<&'static str> {
     match error {
+        infer::lowering::BodyLoweringError::NamespaceImport { .. } => Some("yulang.private-access"),
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_code(error),
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => {
@@ -4561,6 +4572,7 @@ fn body_lowering_error_source_span(
                 range,
             })
         }
+        infer::lowering::BodyLoweringError::NamespaceImport { source, .. } => Some(source.clone()),
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
             associated,
             impl_source,
@@ -4594,9 +4606,23 @@ fn body_lowering_error_related(
             modules.def_source_span(*def).map(|span| span.file.clone())
         }
         infer::lowering::BodyLoweringError::RootExpr { file, .. } => Some(file.clone()),
+        infer::lowering::BodyLoweringError::NamespaceImport { source, .. } => {
+            Some(source.file.clone())
+        }
         _ => None,
     };
     match error {
+        infer::lowering::BodyLoweringError::NamespaceImport { access, .. } => modules
+            .private_origin(access.origin)
+            .declaration_span
+            .iter()
+            .map(|span| SourceDiagnosticRelated {
+                message: format!("private {} declared here", private_access_kind(access.kind)),
+                file: span.file.clone(),
+                range: span.range,
+                origin: None,
+            })
+            .collect(),
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error, .. }
             if lowering_private_access(error).is_some() =>
@@ -4790,6 +4816,9 @@ fn body_requirement_related_message(
 
 fn body_lowering_error_hint(error: &infer::lowering::BodyLoweringError) -> Option<String> {
     match error {
+        infer::lowering::BodyLoweringError::NamespaceImport { .. } => Some(
+            "move this access into the declaration's module or one of its nested modules, or widen the declaration's visibility".to_string(),
+        ),
         infer::lowering::BodyLoweringError::Expr { error, .. }
         | infer::lowering::BodyLoweringError::RootExpr { error, .. } => lowering_error_hint(error),
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch { .. } => Some(

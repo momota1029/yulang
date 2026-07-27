@@ -60,8 +60,13 @@ impl ModuleTable {
                 let Some(target) =
                     self.import_path_target_from_route(module, path, *route, alias.order)
                 else {
+                    self.record_private_import_access(module, path, *route, alias.order, alias);
                     return;
                 };
+                if target.value.is_none() && target.ty.is_none() && target.module.is_none() {
+                    self.record_private_import_access(module, path, *route, alias.order, alias);
+                    return;
+                }
                 if let Some(target) = target.value {
                     self.push_import_value(
                         module,
@@ -103,14 +108,16 @@ impl ModuleTable {
                 let visibility = import_visibility(*route);
                 let (base, prefix) = self.import_base_and_path_segments(module, prefix, *route);
                 let Some(target) = self.module_path_from_for_import(
+                    module,
                     base,
                     &prefix.segments,
                     alias.order,
                     visibility,
                 ) else {
+                    self.record_private_import_access(module, &prefix, *route, alias.order, alias);
                     return;
                 };
-                for decl in self.module_value_imports_for_import(target, visibility) {
+                for decl in self.module_value_imports_for_import(module, target, visibility) {
                     self.push_import_value(
                         module,
                         decl.name.clone(),
@@ -122,7 +129,7 @@ impl ModuleTable {
                         },
                     );
                 }
-                for decl in self.module_type_imports_for_import(target, visibility) {
+                for decl in self.module_type_imports_for_import(module, target, visibility) {
                     self.push_import_type(
                         module,
                         decl.name.clone(),
@@ -134,7 +141,8 @@ impl ModuleTable {
                         },
                     );
                 }
-                let direct_modules = self.module_module_imports_for_import(target, visibility);
+                let direct_modules =
+                    self.module_module_imports_for_import(module, target, visibility);
                 let direct_module_names = direct_modules
                     .iter()
                     .map(|decl| decl.name.clone())
@@ -161,7 +169,15 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let entries = entries
                             .iter()
-                            .filter(|entry| import_vis_allows(entry.vis, visibility))
+                            .filter(|entry| {
+                                self.import_entry_allows(
+                                    module,
+                                    target,
+                                    entry.vis,
+                                    entry.private_origin,
+                                    visibility,
+                                )
+                            })
                             .cloned()
                             .collect::<Vec<_>>();
                         (name.clone(), entries)
@@ -187,7 +203,15 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let entries = entries
                             .iter()
-                            .filter(|entry| import_vis_allows(entry.vis, visibility))
+                            .filter(|entry| {
+                                self.import_entry_allows(
+                                    module,
+                                    target,
+                                    entry.vis,
+                                    entry.private_origin,
+                                    visibility,
+                                )
+                            })
                             .cloned()
                             .collect::<Vec<_>>();
                         (name.clone(), entries)
@@ -213,7 +237,15 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let entries = entries
                             .iter()
-                            .filter(|entry| import_vis_allows(entry.vis, visibility))
+                            .filter(|entry| {
+                                self.import_entry_allows(
+                                    module,
+                                    target,
+                                    entry.vis,
+                                    entry.private_origin,
+                                    visibility,
+                                )
+                            })
                             .cloned()
                             .collect::<Vec<_>>();
                         (name.clone(), entries)
@@ -323,7 +355,59 @@ impl ModuleTable {
         site: ModuleOrder,
     ) -> Option<ImportPathTarget> {
         let (base, path) = self.import_base_and_path_segments(module, path, route);
-        self.import_path_target_for_import(base, &path, site, import_visibility(route))
+        self.import_path_target_for_import(module, base, &path, site, import_visibility(route))
+    }
+    fn record_private_import_access(
+        &mut self,
+        requester: ModuleId,
+        path: &ModulePath,
+        route: sources::UsePathRoute,
+        site: ModuleOrder,
+        alias: &AliasDecl,
+    ) {
+        let Some(source_span) = alias.source_span.clone() else {
+            return;
+        };
+        let (base, path) = self.import_base_and_path_segments(requester, path, route);
+        let Some((last, prefix)) = path.segments.split_last() else {
+            return;
+        };
+        let access = if prefix.is_empty() {
+            match self.lexical_value_at(requester, last, site) {
+                Lookup::Private(access) => Some(access),
+                Lookup::Found(_) | Lookup::Missing => {
+                    match self.lexical_type_at(requester, last, site) {
+                        Lookup::Private(access) => Some(access),
+                        Lookup::Found(_) | Lookup::Missing => None,
+                    }
+                }
+            }
+        } else {
+            match self.module_path_with_imports_from(base, prefix, site) {
+                Lookup::Private(access) => Some(access),
+                Lookup::Missing => None,
+                Lookup::Found(target) => self
+                    .value_at(requester, target, last, module_path_site())
+                    .or_else(|| self.exported_value_at(requester, target, last))
+                    .private_access()
+                    .or_else(|| {
+                        self.type_at(requester, target, last, module_path_site())
+                            .or_else(|| self.exported_type_at(requester, target, last))
+                            .private_access()
+                    })
+                    .or_else(|| {
+                        self.module_at(requester, target, last, module_path_site())
+                            .or_else(|| self.exported_module_at(requester, target, last))
+                            .private_access()
+                    }),
+            }
+        };
+        if let Some(access) = access {
+            self.push_import_privacy_diagnostic(ImportPrivacyDiagnostic {
+                access,
+                source_span,
+            });
+        }
     }
     fn import_base_module(&self, module: ModuleId, route: sources::UsePathRoute) -> ModuleId {
         match route {
@@ -376,6 +460,7 @@ impl ModuleTable {
     }
     fn import_path_target_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         path: &ModulePath,
         site: ModuleOrder,
@@ -393,27 +478,45 @@ impl ModuleTable {
         };
         if prefix.is_empty() {
             return Some(ImportPathTarget {
-                value: self.raw_lexical_value_target_for_import(module, last, site, visibility),
-                ty: self.raw_lexical_type_target_for_import(module, last, site, visibility),
-                module: self.raw_lexical_module_target_for_import(module, last, site, visibility),
+                value: self
+                    .raw_lexical_value_target_for_import(requester, module, last, site, visibility),
+                ty: self
+                    .raw_lexical_type_target_for_import(requester, module, last, site, visibility),
+                module: self.raw_lexical_module_target_for_import(
+                    requester, module, last, site, visibility,
+                ),
             });
         }
 
-        let target = self.module_path_from_for_import(module, prefix, site, visibility)?;
+        let target =
+            self.module_path_from_for_import(requester, module, prefix, site, visibility)?;
         Some(ImportPathTarget {
             value: self
-                .value_target_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_value_target_at_for_import(target, last, visibility)),
+                .value_target_at_for_import(requester, target, last, module_path_site(), visibility)
+                .or_else(|| {
+                    self.exported_value_target_at_for_import(requester, target, last, visibility)
+                }),
             ty: self
-                .type_target_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_type_target_at_for_import(target, last, visibility)),
+                .type_target_at_for_import(requester, target, last, module_path_site(), visibility)
+                .or_else(|| {
+                    self.exported_type_target_at_for_import(requester, target, last, visibility)
+                }),
             module: self
-                .module_target_at_for_import(target, last, module_path_site(), visibility)
-                .or_else(|| self.exported_module_target_at_for_import(target, last, visibility)),
+                .module_target_at_for_import(
+                    requester,
+                    target,
+                    last,
+                    module_path_site(),
+                    visibility,
+                )
+                .or_else(|| {
+                    self.exported_module_target_at_for_import(requester, target, last, visibility)
+                }),
         })
     }
     fn module_path_from_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         path: &[Name],
         site: ModuleOrder,
@@ -422,10 +525,16 @@ impl ModuleTable {
         let Some((first, rest)) = path.split_first() else {
             return Some(module);
         };
-        let mut current = self.raw_lexical_module_at_for_import(module, first, site, visibility)?;
+        let mut current =
+            self.raw_lexical_module_at_for_import(requester, module, first, site, visibility)?;
         for segment in rest {
-            current =
-                self.module_at_for_import(current, segment, module_path_site(), visibility)?;
+            current = self.module_at_for_import(
+                requester,
+                current,
+                segment,
+                module_path_site(),
+                visibility,
+            )?;
         }
         Some(current)
     }
@@ -486,13 +595,16 @@ impl ModuleTable {
     }
     fn raw_lexical_value_target_for_import(
         &self,
+        requester: ModuleId,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportValueTarget> {
         loop {
-            if let Some(target) = self.value_target_at_for_import(module, name, site, visibility) {
+            if let Some(target) =
+                self.value_target_at_for_import(requester, module, name, site, visibility)
+            {
                 return Some(target);
             }
             let parent = self.nodes[module.0].parent?;
@@ -502,13 +614,16 @@ impl ModuleTable {
     }
     fn raw_lexical_type_target_for_import(
         &self,
+        requester: ModuleId,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportTypeTarget> {
         loop {
-            if let Some(target) = self.type_target_at_for_import(module, name, site, visibility) {
+            if let Some(target) =
+                self.type_target_at_for_import(requester, module, name, site, visibility)
+            {
                 return Some(target);
             }
             let parent = self.nodes[module.0].parent?;
@@ -518,13 +633,16 @@ impl ModuleTable {
     }
     fn raw_lexical_module_at_for_import(
         &self,
+        requester: ModuleId,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ModuleId> {
         loop {
-            if let Some(found) = self.module_at_for_import(module, name, site, visibility) {
+            if let Some(found) =
+                self.module_at_for_import(requester, module, name, site, visibility)
+            {
                 return Some(found);
             }
             let parent = self.nodes[module.0].parent?;
@@ -534,13 +652,16 @@ impl ModuleTable {
     }
     fn raw_lexical_module_target_for_import(
         &self,
+        requester: ModuleId,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportModuleTarget> {
         loop {
-            if let Some(target) = self.module_target_at_for_import(module, name, site, visibility) {
+            if let Some(target) =
+                self.module_target_at_for_import(requester, module, name, site, visibility)
+            {
                 return Some(target);
             }
             let parent = self.nodes[module.0].parent?;
@@ -550,12 +671,14 @@ impl ModuleTable {
     }
     fn value_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportValueTarget> {
         let decl = self.select_decl_for_import(
+            requester,
             module,
             self.nodes[module.0].values.get(name)?,
             site,
@@ -571,12 +694,14 @@ impl ModuleTable {
     }
     fn type_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportTypeTarget> {
         let decl = self.select_decl_for_import(
+            requester,
             module,
             self.nodes[module.0].types.get(name)?,
             site,
@@ -600,12 +725,14 @@ impl ModuleTable {
     }
     fn module_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ModuleId> {
         let decl = self.select_decl_for_import(
+            requester,
             module,
             self.nodes[module.0].modules.get(name)?,
             site,
@@ -626,12 +753,14 @@ impl ModuleTable {
     }
     fn module_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
         visibility: ImportVisibility,
     ) -> Option<ImportModuleTarget> {
         let decl = self.select_decl_for_import(
+            requester,
             module,
             self.nodes[module.0].modules.get(name)?,
             site,
@@ -992,6 +1121,7 @@ impl ModuleTable {
     }
     fn exported_value_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
@@ -1000,7 +1130,15 @@ impl ModuleTable {
             .import_values
             .get(name)?
             .iter()
-            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .find(|entry| {
+                self.import_entry_allows(
+                    requester,
+                    module,
+                    entry.vis,
+                    entry.private_origin,
+                    visibility,
+                )
+            })
             .map(|entry| ImportValueTarget {
                 def: entry.def,
                 private_origin: entry.private_origin,
@@ -1008,6 +1146,7 @@ impl ModuleTable {
     }
     fn exported_type_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
@@ -1016,7 +1155,15 @@ impl ModuleTable {
             .import_types
             .get(name)?
             .iter()
-            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .find(|entry| {
+                self.import_entry_allows(
+                    requester,
+                    module,
+                    entry.vis,
+                    entry.private_origin,
+                    visibility,
+                )
+            })
             .map(|entry| ImportTypeTarget {
                 decl: entry.decl.clone(),
                 private_origin: entry.private_origin,
@@ -1024,6 +1171,7 @@ impl ModuleTable {
     }
     fn exported_module_target_at_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         visibility: ImportVisibility,
@@ -1032,7 +1180,15 @@ impl ModuleTable {
             .import_modules
             .get(name)?
             .iter()
-            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .find(|entry| {
+                self.import_entry_allows(
+                    requester,
+                    module,
+                    entry.vis,
+                    entry.private_origin,
+                    visibility,
+                )
+            })
             .map(|entry| ImportModuleTarget {
                 module: entry.module,
                 private_origin: entry.private_origin,
@@ -1040,12 +1196,13 @@ impl ModuleTable {
     }
     fn module_value_imports_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         visibility: ImportVisibility,
     ) -> Vec<ModuleValueDecl> {
         self.module_value_decls(module)
             .into_iter()
-            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .filter(|decl| self.import_vis_allows(requester, module, decl.vis, visibility))
             .collect()
     }
     pub fn module_value_decls(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
@@ -1066,12 +1223,13 @@ impl ModuleTable {
     }
     fn module_type_imports_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         visibility: ImportVisibility,
     ) -> Vec<ModuleTypeDecl> {
         self.module_type_decls(module)
             .into_iter()
-            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .filter(|decl| self.import_vis_allows(requester, module, decl.vis, visibility))
             .collect()
     }
     pub fn module_type_decls(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
@@ -1094,12 +1252,13 @@ impl ModuleTable {
     }
     fn module_module_imports_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         visibility: ImportVisibility,
     ) -> Vec<ModuleChildDecl> {
         self.module_child_decls(module)
             .into_iter()
-            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .filter(|decl| self.import_vis_allows(requester, module, decl.vis, visibility))
             .filter(|decl| {
                 !matches!(visibility, ImportVisibility::SameBand)
                     || same_band_allows_module_step(
@@ -1347,6 +1506,7 @@ impl ModuleTable {
     }
     fn select_decl_for_import(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         decls: &[ModuleDeclId],
         site: ModuleOrder,
@@ -1357,14 +1517,14 @@ impl ModuleTable {
             .iter()
             .map(|decl| &node.decls[decl.0])
             .filter(|decl| decl.order <= site)
-            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .filter(|decl| self.import_vis_allows(requester, module, decl.vis, visibility))
             .max_by_key(|decl| decl.order)
             .or_else(|| {
                 decls
                     .iter()
                     .map(|decl| &node.decls[decl.0])
                     .filter(|decl| decl.order > site)
-                    .filter(|decl| import_vis_allows(decl.vis, visibility))
+                    .filter(|decl| self.import_vis_allows(requester, module, decl.vis, visibility))
                     .min_by_key(|decl| decl.order)
             })
     }
@@ -1462,9 +1622,28 @@ fn import_visibility(route: sources::UsePathRoute) -> ImportVisibility {
     }
 }
 
-fn import_vis_allows(vis: Vis, visibility: ImportVisibility) -> bool {
-    match visibility {
-        ImportVisibility::SameBand => vis != Vis::My,
-        ImportVisibility::CrossBand => vis == Vis::Pub,
+impl ModuleTable {
+    fn import_vis_allows(
+        &self,
+        requester: ModuleId,
+        declaring_module: ModuleId,
+        vis: Vis,
+        route: ImportVisibility,
+    ) -> bool {
+        self.visibility_allows(requester, declaring_module, vis, route)
+    }
+
+    fn import_entry_allows(
+        &self,
+        requester: ModuleId,
+        declaring_module: ModuleId,
+        vis: Vis,
+        private_origin: Option<PrivateOriginId>,
+        route: ImportVisibility,
+    ) -> bool {
+        private_origin.map_or_else(
+            || self.import_vis_allows(requester, declaring_module, vis, route),
+            |origin| self.is_descendant_or_same(requester, self.private_origin(origin).scope),
+        )
     }
 }
