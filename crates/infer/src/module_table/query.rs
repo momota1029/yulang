@@ -1038,16 +1038,19 @@ impl ModuleTable {
             .decls
             .iter()
             .filter_map(|decl| match decl.kind {
-                ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
-                    name: decl.name.clone(),
-                    vis: decl.vis,
-                    order: decl.order,
-                    module,
-                    id,
-                    kind,
-                    private_origin: decl.private_origin,
-                }),
+                ModuleDeclKind::Type { id, kind } if !self.non_lexical_type_decls.contains(&id) => {
+                    Some(ModuleTypeDecl {
+                        name: decl.name.clone(),
+                        vis: decl.vis,
+                        order: decl.order,
+                        module,
+                        id,
+                        kind,
+                        private_origin: decl.private_origin,
+                    })
+                }
                 ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+                ModuleDeclKind::Type { .. } => None,
             })
             .collect()
     }
@@ -1161,16 +1164,21 @@ impl ModuleTable {
             .filter_map(|decl| {
                 let decl = &self.nodes[module.0].decls[decl.0];
                 match decl.kind {
-                    ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
-                        name: decl.name.clone(),
-                        vis: decl.vis,
-                        order: decl.order,
-                        module,
-                        id,
-                        kind,
-                        private_origin: decl.private_origin,
-                    }),
+                    ModuleDeclKind::Type { id, kind }
+                        if !self.non_lexical_type_decls.contains(&id) =>
+                    {
+                        Some(ModuleTypeDecl {
+                            name: decl.name.clone(),
+                            vis: decl.vis,
+                            order: decl.order,
+                            module,
+                            id,
+                            kind,
+                            private_origin: decl.private_origin,
+                        })
+                    }
                     ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+                    ModuleDeclKind::Type { .. } => None,
                 }
             })
             .collect()
@@ -1258,6 +1266,13 @@ impl ModuleTable {
         let mut candidates = decls
             .iter()
             .map(|decl| &node.decls[decl.0])
+            .filter(|decl| {
+                !matches!(
+                    decl.kind,
+                    ModuleDeclKind::Type { id, .. }
+                        if self.non_lexical_type_decls.contains(&id)
+                )
+            })
             .collect::<Vec<_>>();
         candidates.sort_by(
             |left, right| match (left.order <= site, right.order <= site) {

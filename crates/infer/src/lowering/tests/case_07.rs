@@ -4122,6 +4122,29 @@ fn role_impl_method_lifecycle_receiverless_plain_parameters_capture_real_parse_e
                 crate::role_impl_conformance::view::ConformanceTypeView::Bottom,
             ),
         );
+        let implementation_scheme = poly::dump::format_scheme(
+            &output.session.poly.typ,
+            def_scheme(
+                &output,
+                pair.implementation
+                    .expect("ParseError method implementation"),
+            ),
+        );
+        let expected_scheme = match method_name {
+            "unexpected" => concat!(
+                "std::data::opt::opt std::text::char::char -> ",
+                "(int, int) -> std::text::parse::str_error",
+            ),
+            "expected" => concat!(
+                "std::text::str::str -> ",
+                "(int, int) -> std::text::parse::str_error",
+            ),
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            implementation_scheme, expected_scheme,
+            "ParseError.{method_name} must use the explicit tuple assigned to `pos`",
+        );
         assert_eq!(
             pair.declared_effect,
             Some(
@@ -6910,6 +6933,7 @@ fn receiver_method_anchor_witness(
             method_syntax.receiver,
             &context.target_ann,
             binding_type_expr(&binding),
+            &context.associated_anns,
             &context.type_var_bindings,
             &mut context.ann_solver_vars,
             Some(&requirement),

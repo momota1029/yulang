@@ -71,6 +71,7 @@ impl BodyLowerer {
                                 order: decl.order,
                             },
                             &context.target_ann,
+                            &context.associated_anns,
                             &context.type_var_bindings,
                             &mut context.ann_solver_vars,
                             requirement,
@@ -80,6 +81,12 @@ impl BodyLowerer {
                 }
                 SyntaxKind::Binding => self.lower_binding(&child, impl_decl.body_module),
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, impl_decl.body_module),
+                SyntaxKind::TypeDecl
+                    if role_impl_type_decl_is_associated_assignment(
+                        &self.modules,
+                        context.role,
+                        &child,
+                    ) => {}
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
@@ -307,6 +314,7 @@ impl BodyLowerer {
                     .iter()
                     .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
                     .collect(),
+                associated_anns: candidate_associated_anns,
                 type_var_bindings,
                 ann_solver_vars,
             },
@@ -411,6 +419,7 @@ impl BodyLowerer {
         module: ModuleId,
         method: &RoleImplMethodDecl,
         target_ann: &AnnType,
+        associated_anns: &[(String, AnnType)],
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         requirement: Option<Arc<ResolvedRoleMethodRequirement>>,
@@ -493,6 +502,7 @@ impl BodyLowerer {
             method.receiver.clone(),
             target_ann,
             binding_type_expr(node),
+            associated_anns,
             type_var_bindings,
             ann_solver_vars,
             requirement.as_ref(),
@@ -816,6 +826,21 @@ impl BodyLowerer {
         );
         Ok(())
     }
+}
+
+fn role_impl_type_decl_is_associated_assignment(
+    modules: &ModuleTable,
+    role: TypeDeclId,
+    node: &Cst,
+) -> bool {
+    let Some(name) = crate::type_decl_name(node) else {
+        return false;
+    };
+    crate::type_decl_rhs_type_expr(node).is_some()
+        && modules
+            .role_associated(role)
+            .iter()
+            .any(|associated| associated == &name.0)
 }
 
 fn lower_advertised_prerequisite(

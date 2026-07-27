@@ -44,6 +44,8 @@ impl ModuleTable {
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
             role_impls: FxHashMap::default(),
+            pending_role_impl_type_namespaces: Vec::new(),
+            non_lexical_type_decls: FxHashSet::default(),
             derive_requests: FxHashMap::default(),
             role_methods: FxHashMap::default(),
             role_method_default_bodies: FxHashSet::default(),
@@ -335,6 +337,14 @@ impl ModuleTable {
             .entry(impl_decl.module)
             .or_default()
             .push(impl_decl);
+    }
+    pub(super) fn exclude_type_decl_from_lexical_namespace(&mut self, id: TypeDeclId) {
+        self.non_lexical_type_decls.insert(id);
+        for node in &mut self.nodes {
+            for entries in node.import_types.values_mut() {
+                entries.retain(|entry| entry.decl.id != id);
+            }
+        }
     }
     pub fn role_impls(&self, module: ModuleId) -> &[RoleImplDecl] {
         self.role_impls

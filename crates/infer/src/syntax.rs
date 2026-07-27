@@ -965,6 +965,33 @@ pub(crate) fn role_associated_names(node: &Cst) -> Vec<String> {
         .collect()
 }
 
+pub(crate) fn type_decl_rhs_type_expr(node: &Cst) -> Option<Cst> {
+    let mut after_equal = false;
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Equal => {
+                after_equal = true;
+            }
+            NodeOrToken::Node(child) if after_equal && child.kind() == SyntaxKind::TypeExpr => {
+                return Some(child);
+            }
+            NodeOrToken::Node(child)
+                if after_equal
+                    && matches!(
+                        child.kind(),
+                        SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                    ) =>
+            {
+                return child
+                    .children()
+                    .find(|child| child.kind() == SyntaxKind::TypeExpr);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
     let mut seen_with = false;
     for item in node.children_with_tokens() {

@@ -1687,6 +1687,37 @@ fn registers_role_body_as_companion_module_role_methods() {
 }
 
 #[test]
+fn role_impl_associated_assignments_do_not_enter_the_lexical_type_namespace() {
+    let cst = parse(concat!(
+        "impl int: Box:\n",
+        "  type item = (int, int)\n",
+        "  type helper = int\n",
+        "  our x.get = x\n",
+        "role Box 'a:\n",
+        "  type item\n",
+        "  our x.get: 'a\n",
+    ));
+    let lower = lower_module_map(&cst);
+    let implementation = &lower.modules.role_impls(lower.modules.root_id())[0];
+
+    assert!(
+        lower
+            .modules
+            .type_decls(implementation.body_module, &Name("item".into()))
+            .is_empty(),
+        "the role-associated assignment must not be an ordinary impl-local type",
+    );
+    assert_eq!(
+        lower
+            .modules
+            .type_decls(implementation.body_module, &Name("helper".into()))
+            .len(),
+        1,
+        "unrelated impl-local type declarations retain lexical visibility",
+    );
+}
+
+#[test]
 fn lexical_type_lookup_converts_child_site_to_parent_module_order() {
     let cst = parse("type User\nmod m:\n  my y = 1\n");
     let lower = lower_module_map(&cst);

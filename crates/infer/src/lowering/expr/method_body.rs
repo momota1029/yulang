@@ -434,6 +434,7 @@ impl<'a> ExprLowerer<'a> {
         receiver: Option<Name>,
         receiver_ann: &AnnType,
         result_type_expr: Option<Cst>,
+        associated_anns: &[(String, AnnType)],
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         requirement: Option<&Arc<ResolvedRoleMethodRequirement>>,
@@ -450,6 +451,9 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         ann_builder.add_type_alias("self", receiver_ann.clone());
+        for (name, ann) in associated_anns {
+            ann_builder.add_type_alias(name.clone(), ann.clone());
+        }
         ann_builder.seed_type_var_bindings(type_var_bindings);
         let mut ann_closed_effect_rows = FxHashMap::default();
 

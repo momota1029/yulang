@@ -873,6 +873,32 @@ fn role_impl_method_requirement_clamps_associated_type_from_return() {
 }
 
 #[test]
+fn explicit_associated_tuple_annotation_in_impl_method_uses_role_binding() {
+    let root = parse(concat!(
+        "role Locate 'err:\n",
+        "  type pos\n",
+        "  our unexpected: pos -> int\n",
+        "struct Failure;\n",
+        "impl Failure: Locate:\n",
+        "  type pos = (int, int)\n",
+        "  our unexpected((line, column): pos) = line\n",
+    ));
+    let lower = lower_module_map(&root);
+    let implementation = lower.modules.role_impls(lower.modules.root_id())[0].methods[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eq!(
+        poly::dump::format_scheme(
+            &output.session.poly.typ,
+            def_scheme(&output, implementation)
+        ),
+        "(int, int) -> int",
+    );
+}
+
+#[test]
 fn role_impl_method_requirement_ret_effect_checks_and_erases_filter_upper() {
     let root = parse(
         "act nondet:\nstruct User;\nrole Box 'a:\n  our x.run: [nondet; 'e] unit\nimpl User: Box {\n  our x.run = ()\n}\n",

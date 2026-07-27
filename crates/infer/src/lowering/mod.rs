@@ -86,7 +86,7 @@ use crate::{
     ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SourceSpan, StoredSignature,
     SyntheticSubLabelActUse, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl,
     TypeMethodReceiver, append_loaded_files_to_lower, append_root_loaded_file_to_lower,
-    binding_type_expr, lower_loaded_file_csts_module_map,
+    binding_type_expr, lower_loaded_file_csts_module_map, type_decl_rhs_type_expr,
 };
 pub use application_provenance::{
     ApplicationOrigin, ApplicationProvenance, ApplicationProvenanceTable,
@@ -146,6 +146,7 @@ struct RoleImplLoweringContext {
     input_names: Vec<String>,
     input_signatures: Vec<SignatureType>,
     associated_signatures: Vec<(String, SignatureType)>,
+    associated_anns: Vec<(String, AnnType)>,
     type_var_bindings: Vec<(String, AnnTypeVarId)>,
     ann_solver_vars: FxHashMap<AnnTypeVarId, TypeVar>,
 }
@@ -1099,33 +1100,6 @@ fn collect_role_impl_associated_type_exprs(node: &Cst, out: &mut FxHashMap<Strin
             _ => {}
         }
     }
-}
-
-fn type_decl_rhs_type_expr(node: &Cst) -> Option<Cst> {
-    let mut after_equal = false;
-    for item in node.children_with_tokens() {
-        match item {
-            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Equal => {
-                after_equal = true;
-            }
-            NodeOrToken::Node(child) if after_equal && child.kind() == SyntaxKind::TypeExpr => {
-                return Some(child);
-            }
-            NodeOrToken::Node(child)
-                if after_equal
-                    && matches!(
-                        child.kind(),
-                        SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
-                    ) =>
-            {
-                return child
-                    .children()
-                    .find(|child| child.kind() == SyntaxKind::TypeExpr);
-            }
-            _ => {}
-        }
-    }
-    None
 }
 
 #[cfg(test)]

@@ -579,9 +579,21 @@ impl Lower {
             .as_ref()
             .map(|body| role_impl_advertised_prerequisites(body))
             .unwrap_or_default();
-        let (children, methods) = body
+        let (children, methods, type_assignments) = body
             .map(|body| self.register_role_impl_block(&body, body_module))
             .unwrap_or_default();
+        if let Some(role_type_expr) = role_impl_role_type_expr(node)
+            && !type_assignments.is_empty()
+        {
+            self.modules
+                .pending_role_impl_type_namespaces
+                .push(PendingRoleImplTypeNamespace {
+                    module,
+                    site: order,
+                    role_type_expr,
+                    assignments: type_assignments,
+                });
+        }
         self.set_module_children(def, children);
         self.modules.insert_role_impl(RoleImplDecl {
             def,
@@ -598,9 +610,10 @@ impl Lower {
         &mut self,
         block: &Cst,
         module: ModuleId,
-    ) -> (Vec<DefId>, Vec<RoleImplMethodDecl>) {
+    ) -> (Vec<DefId>, Vec<RoleImplMethodDecl>, Vec<(Name, TypeDeclId)>) {
         let mut children = Vec::new();
         let mut methods = Vec::new();
+        let mut type_assignments = Vec::new();
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => {
@@ -686,12 +699,63 @@ impl Lower {
                 | SyntaxKind::ErrorDecl
                 | SyntaxKind::RoleDecl
                 | SyntaxKind::ActDecl => {
-                    self.register_type_namespace_decl(&child, module, &mut children);
+                    let assignment_name = (child.kind() == SyntaxKind::TypeDecl
+                        && type_decl_rhs_type_expr(&child).is_some())
+                    .then(|| type_decl_name(&child))
+                    .flatten();
+                    if let Some(id) =
+                        self.register_type_namespace_decl(&child, module, &mut children)
+                        && let Some(name) = assignment_name
+                    {
+                        type_assignments.push((name, id));
+                    }
                 }
                 _ => {}
             }
         }
-        (children, methods)
+        (children, methods, type_assignments)
+    }
+
+    fn finalize_role_impl_type_namespaces(&mut self) {
+        let pending = std::mem::take(&mut self.modules.pending_role_impl_type_namespaces);
+        for candidate in pending {
+            let Ok(role_ann) = crate::annotation::AnnTypeBuilder::new(
+                &self.modules,
+                candidate.module,
+                candidate.site,
+            )
+            .build_type_expr(&candidate.role_type_expr) else {
+                continue;
+            };
+            let role = match role_ann {
+                crate::annotation::AnnType::Named(role) => role,
+                crate::annotation::AnnType::Apply { callee, .. } => {
+                    let crate::annotation::AnnType::Named(role) = *callee else {
+                        continue;
+                    };
+                    role
+                }
+                _ => continue,
+            };
+            if !self
+                .modules
+                .type_decl_by_id(role)
+                .is_some_and(|decl| decl.kind == ModuleTypeKind::Role)
+            {
+                continue;
+            }
+            let associated = self
+                .modules
+                .role_associated(role)
+                .iter()
+                .cloned()
+                .collect::<FxHashSet<_>>();
+            for (name, id) in candidate.assignments {
+                if associated.contains(&name.0) {
+                    self.modules.exclude_type_decl_from_lexical_namespace(id);
+                }
+            }
+        }
     }
 
     fn register_type_namespace_decl(
@@ -1391,6 +1455,19 @@ impl Lower {
     }
 }
 
+fn role_impl_role_type_expr(node: &Cst) -> Option<Cst> {
+    child_node(node, SyntaxKind::ImplDescription)
+        .and_then(|description| {
+            description
+                .children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
+        .or_else(|| {
+            node.children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
+}
+
 fn role_impl_advertised_prerequisites(block: &Cst) -> Vec<StoredRoleImplPrerequisite> {
     block
         .children()
@@ -1460,6 +1537,7 @@ fn lower_module_map_with_optional_source(root: &Cst, source: Option<&str>) -> Lo
     let roots = lower.register_block(root, root_module);
     lower.arena.roots = roots;
     lower.modules.build_import_views();
+    lower.finalize_role_impl_type_namespaces();
     lower.finalize_act_copies();
     lower
 }
@@ -1507,6 +1585,7 @@ pub(crate) fn lower_loaded_file_csts_module_map(
     }
 
     lower.modules.build_import_views();
+    lower.finalize_role_impl_type_namespaces();
     lower.finalize_act_copies();
     Ok(lower)
 }
@@ -1557,6 +1636,7 @@ pub(crate) fn append_root_loaded_file_to_lower(
     lower.arena.roots.extend(roots);
 
     lower.modules.build_import_views();
+    lower.finalize_role_impl_type_namespaces();
     lower.finalize_act_copies_added_after(
         &previous_act_copies,
         &previous_synthetic_var_act_copies,
@@ -1645,6 +1725,7 @@ pub(crate) fn append_loaded_files_to_lower(
     }
 
     lower.modules.build_import_views();
+    lower.finalize_role_impl_type_namespaces();
     lower.finalize_act_copies_added_after(
         &previous_act_copies,
         &previous_synthetic_var_act_copies,

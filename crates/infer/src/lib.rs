@@ -560,6 +560,14 @@ pub struct RoleImplDecl {
     pub methods: Vec<RoleImplMethodDecl>,
 }
 
+#[derive(Clone)]
+struct PendingRoleImplTypeNamespace {
+    module: ModuleId,
+    site: ModuleOrder,
+    role_type_expr: Cst,
+    assignments: Vec<(Name, TypeDeclId)>,
+}
+
 /// A `derives` clause attached to a nominal declaration.
 ///
 /// The module map keeps source references intact; DERIVE-C and later resolve
@@ -804,6 +812,8 @@ pub struct ModuleTable {
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
     role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
+    pending_role_impl_type_namespaces: Vec<PendingRoleImplTypeNamespace>,
+    non_lexical_type_decls: FxHashSet<TypeDeclId>,
     derive_requests: FxHashMap<TypeDeclId, Vec<DeriveRequest>>,
     role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
     role_method_default_bodies: FxHashSet<DefId>,
