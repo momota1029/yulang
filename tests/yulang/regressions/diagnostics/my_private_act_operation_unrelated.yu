@@ -1,0 +1,8 @@
+pub mod owner:
+  pub act effect:
+    my ping: () -> unit
+
+pub mod unrelated:
+  pub value = catch ():
+    owner::effect::ping(), k -> k ()
+    value -> value

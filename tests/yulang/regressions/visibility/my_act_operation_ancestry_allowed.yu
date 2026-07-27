@@ -1,0 +1,16 @@
+pub mod owner:
+  pub act effect:
+    my ping: () -> unit
+    pub same = catch ():
+      effect::ping(), k -> k ()
+      value -> value
+    pub mod child:
+      pub value = catch ():
+        effect::ping(), k -> k ()
+        value -> value
+      pub mod grandchild:
+        pub value = catch ():
+          effect::ping(), k -> k ()
+          value -> value
+
+(owner::effect::same, owner::effect::child::value, owner::effect::child::grandchild::value)

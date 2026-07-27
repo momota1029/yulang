@@ -104,6 +104,9 @@ struct ContractCase {
     expect_diagnostic_start: Option<usize>,
     expect_diagnostic_end: Option<usize>,
     expect_diagnostic_related_count: Option<usize>,
+    expect_diagnostic_related_start: Option<usize>,
+    expect_diagnostic_related_end: Option<usize>,
+    check_cache_parity: Option<bool>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]
@@ -144,13 +147,19 @@ struct ContractCheckDiagnostic {
     code: Option<String>,
     label: Option<String>,
     range: Option<ContractCheckDiagnosticRange>,
-    related_origins: Vec<String>,
+    related: Vec<ContractCheckDiagnosticRelated>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ContractCheckDiagnosticRange {
     start: usize,
     end: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractCheckDiagnosticRelated {
+    origin: String,
+    range: Option<ContractCheckDiagnosticRange>,
 }
 
 struct MaterializedContractRunCase {
@@ -1148,18 +1157,95 @@ fn run_contract_check_case(options: &ContractOptions, repo_root: &Path, case: &C
         );
     }
     let diagnostics_path = diagnostics_root.join("diagnostics.json");
-    let mut command = contract_child_command(options, case);
-    command
-        .env(CHECK_DIAGNOSTICS_REPORT_PATH_ENV, &diagnostics_path)
-        .arg("--no-cache")
-        .arg("check")
-        .arg(&entry);
-    let output = contract_output(case, &mut command);
+    let (output, diagnostics) =
+        run_contract_check_route(options, case, &entry, &diagnostics_path, true, None);
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
-    let diagnostics = read_contract_check_diagnostics(case, &diagnostics_path);
-    let _ = fs::remove_dir_all(&diagnostics_root);
     assert_contract_diagnostics(case, &diagnostics);
+    if case.check_cache_parity.unwrap_or(false) {
+        let cache_root = contract_temp_root(&format!("{}-check-prefix-cache", case.name));
+        if let Err(error) = fs::create_dir_all(&cache_root) {
+            contract_fail(
+                case,
+                &format!(
+                    "failed to create check cache root {}: {error}",
+                    cache_root.display()
+                ),
+            );
+        }
+        let cached_path = diagnostics_root.join("prefix-diagnostics.json");
+        let (cached_output, cached_diagnostics) = run_contract_check_route(
+            options,
+            case,
+            &entry,
+            &cached_path,
+            false,
+            Some(&cache_root),
+        );
+        assert_contract_status(case, &cached_output);
+        assert_contract_output(case, &cached_output);
+        assert_contract_diagnostics(case, &cached_diagnostics);
+        assert_contract_diagnostic_parity(case, &diagnostics, &cached_diagnostics);
+        let _ = fs::remove_dir_all(&cache_root);
+    }
+    let _ = fs::remove_dir_all(&diagnostics_root);
+}
+
+fn run_contract_check_route(
+    options: &ContractOptions,
+    case: &ContractCase,
+    entry: &Path,
+    diagnostics_path: &Path,
+    cold: bool,
+    cache_root: Option<&Path>,
+) -> (Output, ContractCheckDiagnosticsReport) {
+    let mut command = contract_child_command(options, case);
+    command.env(CHECK_DIAGNOSTICS_REPORT_PATH_ENV, diagnostics_path);
+    if let Some(cache_root) = cache_root {
+        command.env("YULANG_CACHE_DIR", cache_root);
+    }
+    if cold {
+        command.arg("--no-cache");
+    }
+    command.arg("check").arg(entry);
+    let output = contract_output(case, &mut command);
+    let diagnostics = read_contract_check_diagnostics(case, diagnostics_path);
+    (output, diagnostics)
+}
+
+fn assert_contract_diagnostic_parity(
+    case: &ContractCase,
+    cold: &ContractCheckDiagnosticsReport,
+    cached: &ContractCheckDiagnosticsReport,
+) {
+    let project = |report: &ContractCheckDiagnosticsReport| {
+        report
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.code.clone(),
+                    diagnostic
+                        .range
+                        .as_ref()
+                        .map(|range| (range.start, range.end)),
+                    diagnostic
+                        .related
+                        .iter()
+                        .map(|related| {
+                            (
+                                related.origin.clone(),
+                                related.range.as_ref().map(|range| (range.start, range.end)),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    if project(cold) != project(cached) {
+        contract_fail(case, "cold and prefix diagnostic payloads differ");
+    }
 }
 
 fn run_contract_public_signature_case(
@@ -1350,19 +1436,42 @@ fn assert_contract_diagnostics(case: &ContractCase, output: &ContractCheckDiagno
         assert_contract_usize_eq(
             case,
             "diagnostic related count",
-            diagnostic.related_origins.len(),
+            diagnostic.related.len(),
             expected,
         );
     }
     if !case.expect_diagnostic_related_origins.is_empty() {
-        if diagnostic.related_origins != case.expect_diagnostic_related_origins {
+        let origins = diagnostic
+            .related
+            .iter()
+            .map(|related| related.origin.clone())
+            .collect::<Vec<_>>();
+        if origins != case.expect_diagnostic_related_origins {
             contract_fail(
                 case,
                 &format!(
                     "diagnostic related origins mismatch\nexpected: {:?}\nactual:   {:?}",
-                    case.expect_diagnostic_related_origins, diagnostic.related_origins
+                    case.expect_diagnostic_related_origins, origins
                 ),
             );
+        }
+    }
+    if case.expect_diagnostic_related_start.is_some()
+        || case.expect_diagnostic_related_end.is_some()
+    {
+        let related = diagnostic
+            .related
+            .first()
+            .unwrap_or_else(|| contract_fail(case, "expected a related diagnostic range"));
+        let range = related
+            .range
+            .as_ref()
+            .unwrap_or_else(|| contract_fail(case, "expected a related diagnostic range"));
+        if let Some(expected) = case.expect_diagnostic_related_start {
+            assert_contract_usize_eq(case, "diagnostic related start", range.start, expected);
+        }
+        if let Some(expected) = case.expect_diagnostic_related_end {
+            assert_contract_usize_eq(case, "diagnostic related end", range.end, expected);
         }
     }
 }

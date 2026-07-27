@@ -1,0 +1,5 @@
+pub mod owner:
+  pub struct point { x: int } with:
+    my p.secret = 41
+
+(owner::point { x: 1 }).secret

@@ -1,0 +1,6 @@
+pub mod owner:
+  my mod hidden:
+    pub value = 1
+
+pub mod unrelated:
+  pub value = owner::hidden::value

@@ -1,0 +1,12 @@
+pub mod owner:
+  my hidden = 1
+  use hidden as same_hidden
+  pub same = same_hidden
+  pub mod child:
+    use hidden as child_hidden
+    pub value = child_hidden
+    pub mod grandchild:
+      use hidden as grandchild_hidden
+      pub value = grandchild_hidden
+
+(owner::same, owner::child::value, owner::child::grandchild::value)

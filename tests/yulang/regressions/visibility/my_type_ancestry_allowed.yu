@@ -1,0 +1,9 @@
+pub mod owner:
+  my type hidden = int
+  pub same (value: hidden): hidden = value
+  pub mod child:
+    pub value (value: hidden): hidden = value
+    pub mod grandchild:
+      pub value (value: hidden): hidden = value
+
+(owner::same 1, owner::child::value 2, owner::child::grandchild::value 3)

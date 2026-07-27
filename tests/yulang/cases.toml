@@ -3791,3 +3791,263 @@ expect_diagnostic_start = 224
 expect_diagnostic_end = 235
 expect_diagnostic_related_count = 1
 contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_value_ancestry_allowed"
+file = "regressions/visibility/my_value_ancestry_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [(1, 1, 1)]\n"
+contracts = ["runtime"]
+
+[[case]]
+name = "my_type_ancestry_allowed"
+file = "regressions/visibility/my_type_ancestry_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [(1, 2, 3)]\n"
+contracts = ["runtime", "types"]
+
+[[case]]
+name = "my_module_ancestry_allowed"
+file = "regressions/visibility/my_module_ancestry_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [(1, 1, 1)]\n"
+contracts = ["runtime"]
+
+[[case]]
+name = "my_act_operation_ancestry_allowed"
+file = "regressions/visibility/my_act_operation_ancestry_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [((), (), ())]\n"
+contracts = ["runtime", "effects"]
+
+[[case]]
+name = "my_use_ancestry_allowed"
+file = "regressions/visibility/my_use_ancestry_allowed.yu"
+kind = "run"
+expect_success = true
+std = "repo"
+expect_stderr = ""
+print_roots = true
+expect_stdout = "run roots [(1, 1, 1)]\n"
+contracts = ["runtime"]
+
+[[case]]
+name = "my_value_sibling_private_access"
+file = "regressions/diagnostics/my_private_use_declaration.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: sibling.outside: value `<import>` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 195
+expect_diagnostic_end = 208
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 94
+expect_diagnostic_related_end = 99
+check_cache_parity = true
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_type_sibling_private_access"
+file = "regressions/diagnostics/my_private_type_declaration.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: sibling.outside: type `hidden` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 239
+expect_diagnostic_end = 245
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 54
+expect_diagnostic_related_end = 60
+check_cache_parity = true
+contracts = ["diagnostics", "related-ranges", "types"]
+
+[[case]]
+name = "my_module_sibling_private_access"
+file = "regressions/diagnostics/my_private_module_sibling.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: sibling.value: module `hidden` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 118
+expect_diagnostic_end = 124
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 53
+expect_diagnostic_related_end = 59
+check_cache_parity = true
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_act_operation_sibling_private_access"
+file = "regressions/diagnostics/my_private_act_operation_catch.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: sibling.outside: act operation `ping` is private to module `effect`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 146
+expect_diagnostic_end = 150
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 50
+expect_diagnostic_related_end = 54
+check_cache_parity = true
+contracts = ["diagnostics", "related-ranges", "effects"]
+
+[[case]]
+name = "my_use_sibling_private_access"
+file = "regressions/diagnostics/my_private_use_sibling.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: cannot import private value `hidden` from outside module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 91
+expect_diagnostic_end = 97
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 49
+expect_diagnostic_related_end = 55
+check_cache_parity = true
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_value_unrelated_private_access"
+file = "regressions/diagnostics/my_private_value_unrelated.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: unrelated.value: value `hidden` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 101
+expect_diagnostic_end = 107
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 49
+expect_diagnostic_related_end = 55
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_type_unrelated_private_access"
+file = "regressions/diagnostics/my_private_type_unrelated.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: unrelated.value: type `hidden` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 130
+expect_diagnostic_end = 136
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 54
+expect_diagnostic_related_end = 60
+contracts = ["diagnostics", "related-ranges", "types"]
+
+[[case]]
+name = "my_module_unrelated_private_access"
+file = "regressions/diagnostics/my_private_module_unrelated.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: unrelated.value: module `hidden` is private to module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 120
+expect_diagnostic_end = 126
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 53
+expect_diagnostic_related_end = 59
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_act_operation_unrelated_private_access"
+file = "regressions/diagnostics/my_private_act_operation_unrelated.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: unrelated.value: act operation `ping` is private to module `owner::effect`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 149
+expect_diagnostic_end = 153
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 69
+expect_diagnostic_related_end = 73
+contracts = ["diagnostics", "related-ranges", "effects"]
+
+[[case]]
+name = "my_use_unrelated_private_access"
+file = "regressions/diagnostics/my_private_use_unrelated.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = ["error [yulang.private-access]: cannot import private value `hidden` from outside module `owner`"]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 93
+expect_diagnostic_end = 99
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_origins = ["none"]
+expect_diagnostic_related_start = 49
+expect_diagnostic_related_end = 55
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_private_method_selection_remains_runtime_field_fallback"
+file = "regressions/runtime/my_private_method_selection_deferred.yu"
+kind = "run"
+expect_success = false
+std = "repo"
+expect_stdout = ""
+expect_stderr = "runtime error [yulang.missing-field]: record does not contain field `secret`\n  hint: check the field name or provide a record value with this field\n"
+contracts = ["runtime-error", "runtime-failure", "types"]

@@ -626,13 +626,19 @@ struct CheckDiagnosticsReportEntry {
     code: Option<String>,
     label: Option<String>,
     range: Option<CheckDiagnosticsReportRange>,
-    related_origins: Vec<&'static str>,
+    related: Vec<CheckDiagnosticsReportRelated>,
 }
 
 #[derive(Serialize)]
 struct CheckDiagnosticsReportRange {
     start: usize,
     end: usize,
+}
+
+#[derive(Serialize)]
+struct CheckDiagnosticsReportRelated {
+    origin: &'static str,
+    range: Option<CheckDiagnosticsReportRange>,
 }
 
 // The contract runner opts into this file-only channel for its child `check` process. Normal
@@ -654,10 +660,16 @@ fn write_check_diagnostics_report(output: &yulang::CheckPolyOutput) {
                     start: range.start,
                     end: range.end,
                 }),
-                related_origins: diagnostic
+                related: diagnostic
                     .related
                     .iter()
-                    .map(|related| check_diagnostic_related_origin_name(related.origin.as_ref()))
+                    .map(|related| CheckDiagnosticsReportRelated {
+                        origin: check_diagnostic_related_origin_name(related.origin.as_ref()),
+                        range: Some(CheckDiagnosticsReportRange {
+                            start: related.range.start,
+                            end: related.range.end,
+                        }),
+                    })
                     .collect(),
             })
             .collect(),

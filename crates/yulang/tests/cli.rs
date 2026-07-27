@@ -6488,7 +6488,10 @@ fn is_known_contract_tag(tag: &str) -> bool {
 fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
     if case.kind != "check" {
         assert!(
-            case.expect_diagnostic_start.is_none() && case.expect_diagnostic_end.is_none(),
+            case.expect_diagnostic_start.is_none()
+                && case.expect_diagnostic_end.is_none()
+                && case.expect_diagnostic_related_start.is_none()
+                && case.expect_diagnostic_related_end.is_none(),
             "non-check contract manifest case {} should not assert source diagnostic primary ranges",
             case.name
         );
@@ -7646,6 +7649,8 @@ struct PublicContractCase {
     expect_diagnostic_start: Option<usize>,
     expect_diagnostic_end: Option<usize>,
     expect_diagnostic_related_count: Option<usize>,
+    expect_diagnostic_related_start: Option<usize>,
+    expect_diagnostic_related_end: Option<usize>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]
@@ -8023,6 +8028,21 @@ fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
             "{}",
             case.name
         );
+    }
+    if case.expect_diagnostic_related_start.is_some()
+        || case.expect_diagnostic_related_end.is_some()
+    {
+        let related = diagnostic
+            .related
+            .first()
+            .unwrap_or_else(|| panic!("{} expected a related diagnostic", case.name));
+        let range = related.range;
+        if let Some(expected) = case.expect_diagnostic_related_start {
+            assert_eq!(range.start, expected, "{}", case.name);
+        }
+        if let Some(expected) = case.expect_diagnostic_related_end {
+            assert_eq!(range.end, expected, "{}", case.name);
+        }
     }
 }
 
