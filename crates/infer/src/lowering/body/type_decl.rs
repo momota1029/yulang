@@ -11,6 +11,16 @@ impl BodyLowerer {
         let Some(decl) = self.next_type_decl(module, &name) else {
             return;
         };
+        if matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
+            let path = self
+                .modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect();
+            self.session.poly.register_effect_family_path(path);
+        }
         self.lower_type_constructors(node, module, &decl);
         self.lower_type_decl_with_body(node, &decl);
         if decl.kind == ModuleTypeKind::Error {
@@ -79,6 +89,7 @@ impl BodyLowerer {
             ModuleTypeKind::Struct => {
                 let payload = ConstructorPayload::from_struct(node);
                 self.lower_constructor_def(node, module, decl, decl.name.clone(), payload);
+                self.register_nominal_record_shape(decl);
                 self.lower_type_field_methods(node, node, module, decl);
             }
             ModuleTypeKind::Enum | ModuleTypeKind::Error => {
@@ -96,6 +107,30 @@ impl BodyLowerer {
             }
             ModuleTypeKind::Role | ModuleTypeKind::Act => {}
         }
+    }
+
+    fn register_nominal_record_shape(&mut self, owner: &ModuleTypeDecl) {
+        let owner_path = self
+            .modules
+            .type_decl_path(owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let fields = self
+            .modules
+            .type_field_methods(owner.id)
+            .iter()
+            .filter(|method| method.receiver_kind == TypeMethodReceiver::Value)
+            .map(|method| poly::expr::NominalRecordField {
+                name: method.name.0.clone(),
+                projection: method.def,
+            })
+            .collect();
+        self.session.poly.nominal_record_shapes.insert(
+            owner_path.clone(),
+            poly::expr::NominalRecordShape { owner_path, fields },
+        );
     }
 
     pub(super) fn lower_type_field_methods(

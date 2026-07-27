@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use poly::dump::DumpLabels;
 use poly::expr::{
     Arena as PolyArena, ArgEffectContract, CaseArm, CastRule, CatchArm, CatchOperation,
-    Constructor, Def, DefId, EffectOperation, Expr, ExprId, Pat, PatId, RecordPatField,
-    RecordSpread, RefId, RuntimeRoot, SelectId, SelectResolution, Stmt,
+    Constructor, Def, DefId, EffectOperation, Expr, ExprId, NominalRecordField, NominalRecordShape,
+    Pat, PatId, RecordPatField, RecordSpread, RefId, RuntimeRoot, SelectId, SelectResolution, Stmt,
 };
 use poly::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleImplMethod,
@@ -307,9 +307,11 @@ impl CompiledRuntimeSurface {
         }
         import_effect_operations(&self.arena, target, &import);
         import_synthetic_var_effects(&self.arena, target, &import);
+        import_effect_family_paths(&self.arena, target);
         import_constructors(&self.arena, target, &import);
         import_arg_effect_contracts(&self.arena, target, &import);
         import_field_projections(&self.arena, target, &import);
+        import_nominal_record_shapes(&self.arena, target, &import);
         import_labels(&self.labels, labels, &import);
         import
     }
@@ -409,9 +411,11 @@ impl CompiledRuntimeSurface {
         }
         import_selected_effect_operations(&self.arena, target, &import, &selection);
         import_synthetic_var_effects(&self.arena, target, &import);
+        import_effect_family_paths(&self.arena, target);
         import_selected_constructors(&self.arena, target, &import, &selection);
         import_selected_arg_effect_contracts(&self.arena, target, &import, &selection);
         import_selected_field_projections(&self.arena, target, &import, &selection);
+        import_nominal_record_shapes(&self.arena, target, &import);
         import_selected_labels(&self.labels, labels, &import, &selection);
         Ok(import)
     }
@@ -768,6 +772,11 @@ impl RuntimeImportSelection {
             for method in &candidate.methods {
                 self.select_def(source, external_defs, method.requirement);
                 self.select_def(source, external_defs, method.implementation);
+            }
+        }
+        for shape in source.nominal_record_shapes.values() {
+            for field in &shape.fields {
+                self.select_def(source, external_defs, field.projection);
             }
         }
     }
@@ -1682,6 +1691,18 @@ fn import_synthetic_var_effects(
     }
 }
 
+fn import_effect_family_paths(source: &PolyArena, target: &mut PolyArena) {
+    let mut paths = source
+        .effect_family_paths
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    paths.sort();
+    for path in paths {
+        target.register_effect_family_path(path);
+    }
+}
+
 fn import_constructors(source: &PolyArena, target: &mut PolyArena, import: &CompiledRuntimeImport) {
     let mut constructors = source.constructors.iter().collect::<Vec<_>>();
     constructors.sort_by_key(|(def, _)| def.0);
@@ -1790,6 +1811,31 @@ fn import_selected_field_projections(
             continue;
         }
         target.field_projections.insert(import.map_def(def));
+    }
+}
+
+fn import_nominal_record_shapes(
+    source: &PolyArena,
+    target: &mut PolyArena,
+    import: &CompiledRuntimeImport,
+) {
+    let mut shapes = source.nominal_record_shapes.values().collect::<Vec<_>>();
+    shapes.sort_by(|left, right| left.owner_path.cmp(&right.owner_path));
+    for shape in shapes {
+        let shape = NominalRecordShape {
+            owner_path: shape.owner_path.clone(),
+            fields: shape
+                .fields
+                .iter()
+                .map(|field| NominalRecordField {
+                    name: field.name.clone(),
+                    projection: import.map_def(field.projection),
+                })
+                .collect(),
+        };
+        target
+            .nominal_record_shapes
+            .insert(shape.owner_path.clone(), shape);
     }
 }
 
@@ -1950,6 +1996,29 @@ mod tests {
             runtime.arena.effect_operations.len()
         );
         assert_eq!(target.constructors.len(), runtime.arena.constructors.len());
+        assert_eq!(
+            target.effect_family_paths,
+            runtime.arena.effect_family_paths
+        );
+        let source_shape = runtime
+            .arena
+            .nominal_record_shapes
+            .get(&vec!["ops".to_string(), "Box".to_string()])
+            .expect("compiled source should retain the Box certificate");
+        let target_shape = target
+            .nominal_record_shapes
+            .get(&source_shape.owner_path)
+            .expect("runtime import should retain the Box certificate");
+        assert_eq!(target_shape.owner_path, source_shape.owner_path);
+        assert_eq!(target_shape.fields.len(), source_shape.fields.len());
+        for (source_field, target_field) in source_shape.fields.iter().zip(&target_shape.fields) {
+            assert_eq!(target_field.name, source_field.name);
+            assert_eq!(
+                target_field.projection,
+                import.map_def(source_field.projection)
+            );
+            assert_ne!(target_field.projection, source_field.projection);
+        }
         assert!(import.defs.iter().any(|(source, target)| source != target));
         assert!(target.defs.get(prefix_def).is_some());
         assert!(import.boundary.bounds.is_empty());
@@ -2432,6 +2501,166 @@ mod tests {
             errors.contains("TypeMismatch"),
             "lowered role method signature should constrain downstream impl bodies: {errors}"
         );
+    }
+
+    #[test]
+    fn compiled_nominal_record_certificates_distinguish_generic_structs_record_variants_and_modules()
+     {
+        let loaded = sources::load(vec![source(
+            &[],
+            concat!(
+                "mod generic:\n",
+                "  pub struct Shape 'a { value: 'a }\n",
+                "mod variant:\n",
+                "  pub enum Shape { Shape { value: int } }\n",
+                "mod other:\n",
+                "  pub struct Shape { value: int }\n",
+            ),
+        )]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        assert_eq!(lowering.errors, Vec::new());
+        let arena = &lowering.session.poly;
+        let generic_path = vec!["generic".to_string(), "Shape".to_string()];
+        let variant_path = vec!["variant".to_string(), "Shape".to_string()];
+        let other_path = vec!["other".to_string(), "Shape".to_string()];
+
+        let generic = arena
+            .nominal_record_shapes
+            .get(&generic_path)
+            .expect("generic struct should have a certificate");
+        assert_eq!(generic.owner_path, generic_path);
+        assert_eq!(generic.fields.len(), 1);
+        assert_eq!(generic.fields[0].name, "value");
+        let Def::Let {
+            scheme: Some(projection_scheme),
+            ..
+        } = arena
+            .defs
+            .get(generic.fields[0].projection)
+            .expect("projection definition should exist")
+        else {
+            panic!("projection definition should retain its polymorphic scheme");
+        };
+        assert_eq!(projection_scheme.quantifiers.len(), 1);
+
+        assert!(
+            !arena.nominal_record_shapes.contains_key(&variant_path),
+            "an enum owner with a same-name record variant is not a nominal struct"
+        );
+        let other = arena
+            .nominal_record_shapes
+            .get(&other_path)
+            .expect("same field name in another module should have its own certificate");
+        assert_eq!(other.fields.len(), 1);
+        assert_eq!(other.fields[0].name, "value");
+        assert_ne!(
+            generic.fields[0].projection, other.fields[0].projection,
+            "field identity must come from the module-qualified owner certificate"
+        );
+        assert_eq!(arena.nominal_record_shapes.len(), 2);
+    }
+
+    #[test]
+    fn compiled_bridge_certificates_match_cold_warm_and_imported_prefix_routes() {
+        let prefix_files = vec![
+            source(&[], "mod models;\npub use models::*\n"),
+            source(
+                &["models"],
+                "pub struct Box 'a { value: 'a }\npub act signal;\n",
+            ),
+        ];
+        let cold_files = vec![
+            source(
+                &[],
+                "mod models;\npub use models::*\npub boxed = Box { value: 1 }\n",
+            ),
+            source(
+                &["models"],
+                "pub struct Box 'a { value: 'a }\npub act signal;\n",
+            ),
+        ];
+        let cold = lower_loaded_files(&sources::load(cold_files)).unwrap();
+
+        let prefix_loaded = sources::load(prefix_files.clone());
+        let warm_prefix = lower_loaded_files(&prefix_loaded).unwrap().into_prefix();
+        let suffix = sources::load(vec![source(&[], "pub boxed = Box { value: 1 }\n")])
+            .into_iter()
+            .next()
+            .unwrap();
+        let warm = lower_root_loaded_file_with_prefix(&warm_prefix, &suffix).unwrap();
+
+        let compiled_lowering = lower_loaded_files(&prefix_loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&compiled_lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&compiled_lowering.modules, &namespace);
+        let runtime =
+            CompiledRuntimeSurface::from_lowering_with_namespace(&compiled_lowering, &namespace);
+        let namespace: CompiledNamespaceSurface =
+            bincode::deserialize(&bincode::serialize(&namespace).unwrap()).unwrap();
+        let lowering_surface: CompiledLoweringSurface =
+            bincode::deserialize(&bincode::serialize(&lowering_surface).unwrap()).unwrap();
+        let runtime: CompiledRuntimeSurface =
+            bincode::deserialize(&bincode::serialize(&runtime).unwrap()).unwrap();
+        let imported_prefix = BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &namespace,
+            &lowering_surface,
+            &runtime,
+        )
+        .expect("serialized compiled surfaces should rebuild a prefix");
+        let imported = lower_root_loaded_file_with_prefix(&imported_prefix, &suffix).unwrap();
+
+        assert_eq!(cold.errors, Vec::new());
+        assert_eq!(warm.errors, Vec::new());
+        assert_eq!(imported.errors, Vec::new());
+        let cold_certificates = bridge_certificate_view(&cold.session.poly);
+        assert_eq!(
+            bridge_certificate_view(&warm.session.poly),
+            cold_certificates
+        );
+        assert_eq!(
+            bridge_certificate_view(&imported.session.poly),
+            cold_certificates
+        );
+    }
+
+    fn bridge_certificate_view(
+        arena: &PolyArena,
+    ) -> (Vec<(Vec<String>, Vec<(String, String)>)>, Vec<Vec<String>>) {
+        let mut shapes = arena
+            .nominal_record_shapes
+            .values()
+            .map(|shape| {
+                let fields = shape
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        let Def::Let {
+                            scheme: Some(scheme),
+                            ..
+                        } = arena
+                            .defs
+                            .get(field.projection)
+                            .expect("certificate projection should resolve")
+                        else {
+                            panic!("certificate projection should have a scheme");
+                        };
+                        (
+                            field.name.clone(),
+                            poly::dump::format_scheme(&arena.typ, scheme),
+                        )
+                    })
+                    .collect();
+                (shape.owner_path.clone(), fields)
+            })
+            .collect::<Vec<_>>();
+        shapes.sort_by(|left, right| left.0.cmp(&right.0));
+        let mut effect_families = arena
+            .effect_family_paths
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        effect_families.sort();
+        (shapes, effect_families)
     }
 
     fn clear_test_signatures(modules: &mut crate::ModuleTable) {

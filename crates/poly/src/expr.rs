@@ -63,6 +63,11 @@ pub struct Arena {
     /// family against handler/effect paths, but only after the family appears here.
     #[serde(default)]
     pub synthetic_var_effects: Vec<SyntheticVarEffect>,
+    /// source lowering が登録した effect family path。
+    ///
+    /// Operation metadata から path を推測し直さず、宣言と synthetic effect registration が
+    /// 一度だけ作る compiler certificate を downstream へ運ぶ。
+    pub effect_family_paths: FxHashSet<Vec<String>>,
     /// source lowering で宣言された data constructor。
     ///
     /// constructor も body を持たない `Def::Let` だが、runtime では constructor 値として
@@ -79,6 +84,10 @@ pub struct Arena {
     /// field projection は selection 解決時には `Method` として見えるが、runtime では method
     /// instance ではなく constructor payload への projection として読む。
     pub field_projections: FxHashSet<DefId>,
+    /// `struct` declaration だけから作る nominal-record bridge certificate。
+    ///
+    /// field 型は複製せず、projection definition の通常の polymorphic scheme を正本にする。
+    pub nominal_record_shapes: FxHashMap<Vec<String>, NominalRecordShape>,
     expr: Vec<Expr>,
     pat: Vec<Pat>,
     type_ids: TypeIds,
@@ -114,6 +123,18 @@ pub struct SyntheticVarEffect {
     pub get_operation: Option<DefId>,
     #[serde(default)]
     pub set_operation: Option<DefId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NominalRecordShape {
+    pub owner_path: Vec<String>,
+    pub fields: Vec<NominalRecordField>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NominalRecordField {
+    pub name: String,
+    pub projection: DefId,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -164,9 +185,11 @@ impl Arena {
             role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
             synthetic_var_effects: Vec::new(),
+            effect_family_paths: FxHashSet::default(),
             constructors: FxHashMap::default(),
             arg_effect_contracts: FxHashMap::default(),
             field_projections: FxHashSet::default(),
+            nominal_record_shapes: FxHashMap::default(),
             expr: Vec::new(),
             pat: Vec::new(),
             type_ids: TypeIds::new(),
@@ -292,6 +315,14 @@ impl Arena {
         self.ensure_synthetic_var_effect(effect_path);
     }
 
+    pub fn register_effect_family_path(&mut self, path: Vec<String>) {
+        self.effect_family_paths.insert(path);
+    }
+
+    pub fn is_effect_family_path(&self, path: &[String]) -> bool {
+        self.effect_family_paths.contains(path)
+    }
+
     pub fn register_synthetic_var_effect_operations(
         &mut self,
         effect_path: Vec<String>,
@@ -304,6 +335,7 @@ impl Arena {
     }
 
     fn ensure_synthetic_var_effect(&mut self, effect_path: Vec<String>) -> &mut SyntheticVarEffect {
+        self.effect_family_paths.insert(effect_path.clone());
         if let Some(index) = self
             .synthetic_var_effects
             .iter()

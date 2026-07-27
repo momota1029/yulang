@@ -25,7 +25,9 @@ use crate::time::{Duration, Instant};
 const POLY_CACHE_FORMAT: u32 = 10;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 11;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 20;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 21;
+#[cfg(test)]
+const BRIDGE_CERTIFICATE_PRE_COMPILED_UNIT_CACHE_FORMAT: u32 = 20;
 #[cfg(test)]
 const PRIVATE_PROVENANCE_PRE_COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
 #[cfg(test)]
@@ -2415,9 +2417,11 @@ fn hash_poly_arena(hasher: &mut StableHasher, arena: &poly::expr::Arena) {
     hash_role_impl_table(hasher, &arena.role_impls);
     hash_effect_operations(hasher, &arena.effect_operations);
     hash_synthetic_var_effects(hasher, &arena.synthetic_var_effects);
+    hash_effect_family_paths(hasher, &arena.effect_family_paths);
     hash_constructors(hasher, &arena.constructors);
     hash_arg_effect_contracts(hasher, &arena.arg_effect_contracts);
     hash_field_projections(hasher, &arena.field_projections);
+    hash_nominal_record_shapes(hasher, arena.nominal_record_shapes.values());
     hash_exprs(hasher, arena.exprs());
     hash_pats(hasher, arena.pats());
     hash_type_arena(hasher, &arena.typ);
@@ -2556,6 +2560,18 @@ fn hash_synthetic_var_effects(
     }
 }
 
+fn hash_effect_family_paths<'a>(
+    hasher: &mut StableHasher,
+    paths: impl IntoIterator<Item = &'a Vec<String>>,
+) {
+    let mut paths = paths.into_iter().collect::<Vec<_>>();
+    paths.sort();
+    hasher.usize(paths.len());
+    for path in paths {
+        hash_string_path(hasher, path);
+    }
+}
+
 fn hash_constructors<'a>(
     hasher: &mut StableHasher,
     constructors: impl IntoIterator<Item = (&'a poly::expr::DefId, &'a poly::expr::Constructor)>,
@@ -2599,6 +2615,23 @@ fn hash_field_projections<'a>(
     let mut defs = projections.into_iter().copied().collect::<Vec<_>>();
     defs.sort_by_key(|def| def.0);
     hash_def_ids(hasher, &defs);
+}
+
+fn hash_nominal_record_shapes<'a>(
+    hasher: &mut StableHasher,
+    shapes: impl IntoIterator<Item = &'a poly::expr::NominalRecordShape>,
+) {
+    let mut shapes = shapes.into_iter().collect::<Vec<_>>();
+    shapes.sort_by(|left, right| left.owner_path.cmp(&right.owner_path));
+    hasher.usize(shapes.len());
+    for shape in shapes {
+        hash_string_path(hasher, &shape.owner_path);
+        hasher.usize(shape.fields.len());
+        for field in &shape.fields {
+            hasher.string(&field.name);
+            hash_def_id(hasher, field.projection);
+        }
+    }
 }
 
 fn hash_exprs(hasher: &mut StableHasher, exprs: &[poly::expr::Expr]) {
@@ -5226,6 +5259,37 @@ mod tests {
             errors: &artifact.errors,
         };
         let bytes = bincode::serialize(&v19).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn compiled_unit_cache_treats_v20_bridge_certificate_format_as_a_miss() {
+        let files = vec![source(
+            "main.yu",
+            &[],
+            "pub struct Box 'a { value: 'a }\npub act signal;\n",
+        )];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let mut v20_manifest = artifact.manifest.clone();
+        v20_manifest.compiled_unit_format = BRIDGE_CERTIFICATE_PRE_COMPILED_UNIT_CACHE_FORMAT;
+        let v20 = CompiledUnitCacheEnvelope {
+            format: BRIDGE_CERTIFICATE_PRE_COMPILED_UNIT_CACHE_FORMAT,
+            manifest: &v20_manifest,
+            syntax: &artifact.syntax,
+            namespace: &artifact.namespace,
+            lowering: &artifact.lowering,
+            typed: &artifact.typed,
+            runtime: &artifact.runtime,
+            external_runtime: &artifact.external_runtime,
+            errors: &artifact.errors,
+        };
+        let bytes = bincode::serialize(&v20).unwrap();
         assert!(
             decode_compiled_unit_artifact_bytes(&bytes, key)
                 .unwrap()
