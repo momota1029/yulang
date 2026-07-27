@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{BTreeSet, VecDeque};
 use std::env;
 use std::ffi::OsString;
@@ -10,6 +11,10 @@ use serde::Deserialize;
 
 use crate::support::{format_route_error, print_usage_error_and_exit};
 
+thread_local! {
+    static CONTRACT_SHARED_RUN_CACHE: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
+}
+
 pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsString>) {
     let options = ContractOptions { std_root };
     let contract_args = parse_contract_args(program, args);
@@ -21,13 +26,23 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
         .repo_root
         .clone()
         .unwrap_or_else(|| default_contract_repo_root(&contract_args.manifest));
+    let shared_run_cache = manifest
+        .case
+        .iter()
+        .any(|case| contract_args.matches(case) && case.kind == "run")
+        .then(contract_shared_run_cache_root);
+    if let Some(cache_root) = &shared_run_cache {
+        CONTRACT_SHARED_RUN_CACHE.with(|active_cache| {
+            active_cache.replace(Some(cache_root.clone()));
+        });
+    }
 
     let mut checked = 0usize;
     for case in manifest.case {
         if !contract_args.matches(&case) {
             continue;
         }
-        run_contract_case(&options, &repo_root, &case);
+        run_contract_case(&options, &repo_root, &case, shared_run_cache.as_deref());
         checked += 1;
     }
 
@@ -41,6 +56,8 @@ pub(super) fn run(program: &str, std_root: Option<PathBuf>, args: VecDeque<OsStr
     }
 
     println!("contract cases ok: {checked}");
+
+    contract_cleanup_shared_run_cache();
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -862,16 +879,33 @@ fn is_known_contract_tag(tag: &str) -> bool {
     )
 }
 
-fn run_contract_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
+fn run_contract_case(
+    options: &ContractOptions,
+    repo_root: &Path,
+    case: &ContractCase,
+    shared_run_cache: Option<&Path>,
+) {
     match case.kind.as_str() {
-        "run" => run_contract_run_case(options, repo_root, case),
+        "run" => run_contract_run_case(
+            options,
+            repo_root,
+            case,
+            shared_run_cache.unwrap_or_else(|| {
+                contract_fail(case, "missing shared cache root for run contract case")
+            }),
+        ),
         "check" => run_contract_check_case(options, repo_root, case),
         "public-signature" => run_contract_public_signature_case(options, repo_root, case),
         other => contract_fail(case, &format!("unsupported contract case kind `{other}`")),
     }
 }
 
-fn run_contract_run_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
+fn run_contract_run_case(
+    options: &ContractOptions,
+    repo_root: &Path,
+    case: &ContractCase,
+    cache_root: &Path,
+) {
     let root = contract_temp_root(&case.name);
     let _ = fs::remove_dir_all(&root);
     if let Err(error) = fs::create_dir_all(&root) {
@@ -880,7 +914,6 @@ fn run_contract_run_case(options: &ContractOptions, repo_root: &Path, case: &Con
             &format!("failed to create temp root {}: {error}", root.display()),
         );
     }
-    let cache_root = root.join("cache-root");
     let source_entry = contract_case_entry(repo_root, case);
     let materialized = materialize_contract_run_case(case, &source_entry, &root);
     let mut command = contract_child_command(options, case);
@@ -1427,6 +1460,28 @@ fn contract_temp_root(name: &str) -> PathBuf {
     env::temp_dir().join(format!("yulang-contract-{name}-{nanos}"))
 }
 
+fn contract_shared_run_cache_root() -> PathBuf {
+    let root = contract_temp_root("run-cache");
+    let _ = fs::remove_dir_all(&root);
+    if let Err(error) = fs::create_dir_all(&root) {
+        eprintln!(
+            "failed to create shared contract cache root {}: {error}",
+            root.display()
+        );
+        let _ = fs::remove_dir_all(&root);
+        process::exit(1);
+    }
+    root
+}
+
+fn contract_cleanup_shared_run_cache() {
+    CONTRACT_SHARED_RUN_CACHE.with(|active_cache| {
+        if let Some(cache_root) = active_cache.take() {
+            let _ = fs::remove_dir_all(cache_root);
+        }
+    });
+}
+
 fn contract_yulang_string_literal(path: &Path) -> String {
     format!("{:?}", path.display().to_string())
 }
@@ -1438,6 +1493,7 @@ fn contract_yulang_path_expression(path: &Path) -> String {
 
 fn contract_fail(case: &ContractCase, message: &str) -> ! {
     eprintln!("contract case {} failed: {message}", case.name);
+    contract_cleanup_shared_run_cache();
     process::exit(1);
 }
 
