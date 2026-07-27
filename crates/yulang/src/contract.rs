@@ -106,7 +106,7 @@ struct ContractCase {
     expect_diagnostic_related_count: Option<usize>,
     expect_diagnostic_related_start: Option<usize>,
     expect_diagnostic_related_end: Option<usize>,
-    check_cache_parity: Option<bool>,
+    run_cache_parity: Option<bool>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]
@@ -170,6 +170,13 @@ struct MaterializedContractRunCase {
 struct MaterializedContractTempFile {
     path: PathBuf,
     expect_contents: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ContractRunCacheRoute<'a> {
+    Shared(&'a Path),
+    Disabled,
+    CachedWithTimings(&'a Path),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -861,6 +868,53 @@ fn validate_contract_case_expectation_shape(path: &Path, case: &ContractCase) {
             ),
         );
     }
+    if case.run_cache_parity.unwrap_or(false) {
+        if case.kind != "run" {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` should only use run_cache_parity with run cases",
+                    case.name
+                ),
+            );
+        }
+        if case.std.as_deref() == Some("none") {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` should only use run_cache_parity with std enabled",
+                    case.name
+                ),
+            );
+        }
+        if case.backend.as_deref().unwrap_or("evidence-vm") != "evidence-vm" {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` should only use run_cache_parity with the evidence-vm backend",
+                    case.name
+                ),
+            );
+        }
+        if case.expect_success == Some(false) {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` should only use run_cache_parity with successful cases",
+                    case.name
+                ),
+            );
+        }
+        if !case.temp_files.is_empty() {
+            contract_manifest_fail(
+                path,
+                &format!(
+                    "contract case `{}` should not combine run_cache_parity with temp_files",
+                    case.name
+                ),
+            );
+        }
+    }
     for temp_file in &case.temp_files {
         if temp_file.missing && temp_file.directory {
             contract_manifest_fail(
@@ -1045,18 +1099,109 @@ fn run_contract_run_case(
     }
     let source_entry = contract_case_entry(repo_root, case);
     let materialized = materialize_contract_run_case(case, &source_entry, &root);
+    if case.run_cache_parity.unwrap_or(false) {
+        run_contract_run_cache_parity_case(options, case, &materialized.entry, &root);
+    } else {
+        let output = run_contract_run_route(
+            options,
+            case,
+            &materialized.entry,
+            ContractRunCacheRoute::Shared(cache_root),
+        );
+        assert_contract_status(case, &output);
+        assert_contract_output(case, &output);
+    }
+    assert_contract_temp_files(case, &materialized.temp_files);
+    let _ = fs::remove_dir_all(&root);
+}
+
+fn run_contract_run_cache_parity_case(
+    options: &ContractOptions,
+    case: &ContractCase,
+    entry: &Path,
+    root: &Path,
+) {
+    let std_root = yulang::resolve_std_root_for_entry(entry, &options.std_source_options())
+        .unwrap_or_else(|error| contract_fail(case, &format_route_error(&error)));
+    let parity_options = ContractOptions {
+        std_root: Some(std_root),
+    };
+    let cold = run_contract_run_route(
+        &parity_options,
+        case,
+        entry,
+        ContractRunCacheRoute::Disabled,
+    );
+    assert_contract_status(case, &cold);
+    assert_contract_output(case, &cold);
+
+    let cache_root = root.join("cache-parity");
+    if let Err(error) = fs::create_dir_all(&cache_root) {
+        contract_fail(
+            case,
+            &format!(
+                "failed to create run cache parity root {}: {error}",
+                cache_root.display()
+            ),
+        );
+    }
+    let seed_entry = root.join("cache-seed.yu");
+    if let Err(error) = fs::write(&seed_entry, "0\n") {
+        contract_fail(
+            case,
+            &format!(
+                "failed to write run cache parity seed {}: {error}",
+                seed_entry.display()
+            ),
+        );
+    }
+    let seed = run_contract_run_route(
+        &parity_options,
+        case,
+        &seed_entry,
+        ContractRunCacheRoute::CachedWithTimings(&cache_root),
+    );
+    assert_contract_status(case, &seed);
+    assert_contract_run_cache_route(case, &seed, "std-prefix-build");
+
+    let warm = run_contract_run_route(
+        &parity_options,
+        case,
+        entry,
+        ContractRunCacheRoute::CachedWithTimings(&cache_root),
+    );
+    assert_contract_status(case, &warm);
+    assert_contract_run_cache_route(case, &warm, "std-prefix-hit");
+    assert_contract_run_output_parity(case, &cold, &warm);
+}
+
+fn run_contract_run_route(
+    options: &ContractOptions,
+    case: &ContractCase,
+    entry: &Path,
+    cache_route: ContractRunCacheRoute<'_>,
+) -> Output {
     let mut command = contract_child_command(options, case);
-    command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    match cache_route {
+        ContractRunCacheRoute::Shared(cache_root) => {
+            command.env("YULANG_CACHE_DIR", cache_root);
+        }
+        ContractRunCacheRoute::Disabled => {
+            command.arg("--no-cache");
+        }
+        ContractRunCacheRoute::CachedWithTimings(cache_root) => {
+            command
+                .env("YULANG_CACHE_DIR", cache_root)
+                .arg("--runtime-phase-timings");
+        }
+    }
+    command.arg("run");
     push_contract_backend_args(&mut command, case);
     push_contract_host_args(&mut command, case);
     if case.print_roots.unwrap_or(true) {
         command.arg("--print-roots");
     }
-    let output = contract_output(case, command.arg(&materialized.entry));
-    assert_contract_status(case, &output);
-    assert_contract_output(case, &output);
-    assert_contract_temp_files(case, &materialized.temp_files);
-    let _ = fs::remove_dir_all(&root);
+    contract_output(case, command.arg(entry))
 }
 
 fn materialize_contract_run_case(
@@ -1175,37 +1320,10 @@ fn run_contract_check_case(options: &ContractOptions, repo_root: &Path, case: &C
         );
     }
     let diagnostics_path = diagnostics_root.join("diagnostics.json");
-    let (output, diagnostics) =
-        run_contract_check_route(options, case, &entry, &diagnostics_path, true, None);
+    let (output, diagnostics) = run_contract_check_route(options, case, &entry, &diagnostics_path);
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
     assert_contract_diagnostics(case, &diagnostics);
-    if case.check_cache_parity.unwrap_or(false) {
-        let cache_root = contract_temp_root(&format!("{}-check-prefix-cache", case.name));
-        if let Err(error) = fs::create_dir_all(&cache_root) {
-            contract_fail(
-                case,
-                &format!(
-                    "failed to create check cache root {}: {error}",
-                    cache_root.display()
-                ),
-            );
-        }
-        let cached_path = diagnostics_root.join("prefix-diagnostics.json");
-        let (cached_output, cached_diagnostics) = run_contract_check_route(
-            options,
-            case,
-            &entry,
-            &cached_path,
-            false,
-            Some(&cache_root),
-        );
-        assert_contract_status(case, &cached_output);
-        assert_contract_output(case, &cached_output);
-        assert_contract_diagnostics(case, &cached_diagnostics);
-        assert_contract_diagnostic_parity(case, &diagnostics, &cached_diagnostics);
-        let _ = fs::remove_dir_all(&cache_root);
-    }
     let _ = fs::remove_dir_all(&diagnostics_root);
 }
 
@@ -1214,56 +1332,13 @@ fn run_contract_check_route(
     case: &ContractCase,
     entry: &Path,
     diagnostics_path: &Path,
-    cold: bool,
-    cache_root: Option<&Path>,
 ) -> (Output, ContractCheckDiagnosticsReport) {
     let mut command = contract_child_command(options, case);
     command.env(CHECK_DIAGNOSTICS_REPORT_PATH_ENV, diagnostics_path);
-    if let Some(cache_root) = cache_root {
-        command.env("YULANG_CACHE_DIR", cache_root);
-    }
-    if cold {
-        command.arg("--no-cache");
-    }
-    command.arg("check").arg(entry);
+    command.arg("--no-cache").arg("check").arg(entry);
     let output = contract_output(case, &mut command);
     let diagnostics = read_contract_check_diagnostics(case, diagnostics_path);
     (output, diagnostics)
-}
-
-fn assert_contract_diagnostic_parity(
-    case: &ContractCase,
-    cold: &ContractCheckDiagnosticsReport,
-    cached: &ContractCheckDiagnosticsReport,
-) {
-    let project = |report: &ContractCheckDiagnosticsReport| {
-        report
-            .diagnostics
-            .iter()
-            .map(|diagnostic| {
-                (
-                    diagnostic.code.clone(),
-                    diagnostic
-                        .range
-                        .as_ref()
-                        .map(|range| (range.start, range.end)),
-                    diagnostic
-                        .related
-                        .iter()
-                        .map(|related| {
-                            (
-                                related.origin.clone(),
-                                related.range.as_ref().map(|range| (range.start, range.end)),
-                            )
-                        })
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .collect::<Vec<_>>()
-    };
-    if project(cold) != project(cached) {
-        contract_fail(case, "cold and prefix diagnostic payloads differ");
-    }
 }
 
 fn run_contract_public_signature_case(
@@ -1635,6 +1710,52 @@ fn assert_contract_output(case: &ContractCase, output: &Output) {
             );
         }
     }
+}
+
+fn assert_contract_run_cache_route(case: &ContractCase, output: &Output, expected: &str) {
+    let stderr = contract_stderr(output);
+    let expected_line = format!("run.cache: {expected}");
+    if !stderr.lines().any(|line| line.trim() == expected_line) {
+        contract_fail(
+            case,
+            &format!(
+                "expected run cache route `{expected}`\nstdout:\n{}\nstderr:\n{stderr}",
+                contract_stdout(output)
+            ),
+        );
+    }
+}
+
+fn assert_contract_run_output_parity(case: &ContractCase, cold: &Output, warm: &Output) {
+    if cold.status.code() != warm.status.code() {
+        contract_fail(
+            case,
+            &format!(
+                "cold and std-prefix-hit status differ\ncold: {}\nwarm: {}",
+                cold.status, warm.status
+            ),
+        );
+    }
+    assert_contract_eq(
+        case,
+        "cold and std-prefix-hit stdout",
+        &contract_stdout(warm),
+        &contract_stdout(cold),
+    );
+    assert_contract_eq(
+        case,
+        "cold and std-prefix-hit stderr",
+        &contract_stderr_before_runtime_timings(case, warm),
+        &contract_stderr(cold),
+    );
+}
+
+fn contract_stderr_before_runtime_timings(case: &ContractCase, output: &Output) -> String {
+    let stderr = contract_stderr(output);
+    let Some(timing_start) = stderr.rfind("runtime timing:\n") else {
+        contract_fail(case, "runtime timing report is missing from cached run");
+    };
+    stderr[..timing_start].to_string()
 }
 
 fn assert_contract_optional_str_eq(

@@ -6596,6 +6596,30 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
     }
+    if case.run_cache_parity.unwrap_or(false) {
+        assert_ne!(
+            case.std.as_deref(),
+            Some("none"),
+            "contract manifest case {} should only use run_cache_parity with std enabled",
+            case.name
+        );
+        assert_eq!(
+            backend, "evidence-vm",
+            "contract manifest case {} should only use run_cache_parity with the evidence-vm backend",
+            case.name
+        );
+        assert_ne!(
+            case.expect_success,
+            Some(false),
+            "contract manifest case {} should only use run_cache_parity with successful cases",
+            case.name
+        );
+        assert!(
+            case.temp_files.is_empty(),
+            "contract manifest case {} should not combine run_cache_parity with temp_files",
+            case.name
+        );
+    }
 
     let host = case.host.as_deref().unwrap_or("native");
     assert!(
@@ -6879,6 +6903,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
 }
 
 fn assert_contract_manifest_tags_match_kind(case: &PublicContractCase) {
+    if case.run_cache_parity.unwrap_or(false) {
+        assert_eq!(
+            case.kind, "run",
+            "contract manifest case {} should only use run_cache_parity with run cases",
+            case.name
+        );
+    }
     match case.kind.as_str() {
         "run" => assert!(
             contract_manifest_case_has_any_tag(
@@ -7680,6 +7711,7 @@ struct PublicContractCase {
     expect_diagnostic_related_count: Option<usize>,
     expect_diagnostic_related_start: Option<usize>,
     expect_diagnostic_related_end: Option<usize>,
+    run_cache_parity: Option<bool>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]

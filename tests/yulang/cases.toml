@@ -21,6 +21,7 @@ name = "optional_record_defaults"
 file = "regressions/runtime/optional_record_defaults.yu"
 kind = "run"
 std = "repo"
+run_cache_parity = true
 expect_stdout = "run roots [6, 2, 12, 12]\n"
 expect_stderr = ""
 contracts = ["stable-core", "runtime", "records", "defaults"]
@@ -3892,7 +3893,6 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_origins = ["none"]
 expect_diagnostic_related_start = 94
 expect_diagnostic_related_end = 99
-check_cache_parity = true
 contracts = ["diagnostics", "related-ranges"]
 
 [[case]]
@@ -3912,7 +3912,6 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_origins = ["none"]
 expect_diagnostic_related_start = 54
 expect_diagnostic_related_end = 60
-check_cache_parity = true
 contracts = ["diagnostics", "related-ranges", "types"]
 
 [[case]]
@@ -3932,7 +3931,6 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_origins = ["none"]
 expect_diagnostic_related_start = 53
 expect_diagnostic_related_end = 59
-check_cache_parity = true
 contracts = ["diagnostics", "related-ranges"]
 
 [[case]]
@@ -3952,7 +3950,6 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_origins = ["none"]
 expect_diagnostic_related_start = 50
 expect_diagnostic_related_end = 54
-check_cache_parity = true
 contracts = ["diagnostics", "related-ranges", "effects"]
 
 [[case]]
@@ -3972,7 +3969,6 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_origins = ["none"]
 expect_diagnostic_related_start = 49
 expect_diagnostic_related_end = 55
-check_cache_parity = true
 contracts = ["diagnostics", "related-ranges"]
 
 [[case]]
