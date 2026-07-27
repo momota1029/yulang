@@ -203,12 +203,12 @@ pub enum SpecializeError {
     UnresolvedTypeclassMethod {
         expr: u32,
         member: DefId,
-        receiver: Type,
+        receiver: Option<Type>,
     },
     AmbiguousTypeclassMethod {
         expr: u32,
         member: DefId,
-        receiver: Type,
+        receiver: Option<Type>,
         candidates: Vec<DefId>,
     },
     AmbiguousImplicitCast {
@@ -345,20 +345,30 @@ impl fmt::Display for SpecializeError {
             }
             Self::InvalidTypeSlot { .. } => write!(f, "invalid type slot"),
             Self::UnresolvedRef { .. } => write!(f, "unresolved reference"),
-            Self::UnresolvedTypeclassMethod { receiver, .. } => {
-                write!(
-                    f,
-                    "no role implementation satisfies this method call for receiver {}",
-                    mono::dump::dump_type(receiver),
-                )
-            }
-            Self::AmbiguousTypeclassMethod { receiver, .. } => {
-                write!(
-                    f,
-                    "more than one role implementation satisfies this method call for receiver {}",
-                    mono::dump::dump_type(receiver),
-                )
-            }
+            Self::UnresolvedTypeclassMethod {
+                receiver: Some(receiver),
+                ..
+            } => write!(
+                f,
+                "no role implementation satisfies this method call for receiver {}",
+                mono::dump::dump_type(receiver),
+            ),
+            Self::UnresolvedTypeclassMethod { receiver: None, .. } => write!(
+                f,
+                "no role implementation satisfies this method call; receiver type is unavailable"
+            ),
+            Self::AmbiguousTypeclassMethod {
+                receiver: Some(receiver),
+                ..
+            } => write!(
+                f,
+                "more than one role implementation satisfies this method call for receiver {}",
+                mono::dump::dump_type(receiver),
+            ),
+            Self::AmbiguousTypeclassMethod { receiver: None, .. } => write!(
+                f,
+                "more than one role implementation satisfies this method call; receiver type is unavailable"
+            ),
             Self::AmbiguousImplicitCast {
                 actual,
                 expected,

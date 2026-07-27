@@ -68,6 +68,13 @@ impl<'a> TaskSolver<'a> {
                     TypeSlotKind::Value,
                 )?,
             };
+            let receiver = use_
+                .receiver
+                .as_ref()
+                .map(|receiver| {
+                    self.resolve_signature_type(&mut resolver, receiver, TypeSlotKind::Value)
+                })
+                .transpose()?;
             let Some(select) = select_id_for_typeclass_expr(self.arena, use_.expr) else {
                 continue;
             };
@@ -97,10 +104,13 @@ impl<'a> TaskSolver<'a> {
                     RoleMethodCheckResolution::Ambiguous(candidates)
                 }
             };
+            let Some(receiver) = receiver else {
+                continue;
+            };
             outcomes.push(RoleMethodCheckOutcome {
                 select,
                 member: use_.member,
-                receiver: signature,
+                receiver,
                 resolution,
             });
         }
@@ -208,7 +218,15 @@ impl<'a> TaskSolver<'a> {
                     TypeSlotKind::Value,
                 )?,
             };
-            let implementation = self.resolve_typeclass_use(use_.expr, use_.member, &signature)?;
+            let receiver = use_
+                .receiver
+                .as_ref()
+                .map(|receiver| {
+                    self.resolve_signature_type(&mut resolver, receiver, TypeSlotKind::Value)
+                })
+                .transpose()?;
+            let implementation =
+                self.resolve_typeclass_use(use_.expr, use_.member, &signature, receiver)?;
             typeclass_resolutions.insert(
                 use_.expr,
                 TypeclassResolution {
@@ -404,6 +422,7 @@ impl<'a> TaskSolver<'a> {
         expr: poly_expr::ExprId,
         member: poly_expr::DefId,
         signature: &Type,
+        receiver: Option<Type>,
     ) -> Result<poly_expr::DefId, SpecializeError> {
         match self.resolve_typeclass_method(member, signature)? {
             TypeclassMethodResolution::Resolved(implementation) => Ok(implementation),
@@ -412,14 +431,14 @@ impl<'a> TaskSolver<'a> {
                 Err(SpecializeError::UnresolvedTypeclassMethod {
                     expr: expr.0,
                     member: convert_def(member),
-                    receiver: signature.clone(),
+                    receiver,
                 })
             }
             TypeclassMethodResolution::Ambiguous(candidates) => {
                 Err(SpecializeError::AmbiguousTypeclassMethod {
                     expr: expr.0,
                     member: convert_def(member),
-                    receiver: signature.clone(),
+                    receiver,
                     candidates: candidates.into_iter().map(convert_def).collect(),
                 })
             }

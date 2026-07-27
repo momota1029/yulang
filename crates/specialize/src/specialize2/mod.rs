@@ -309,10 +309,12 @@ struct TypeclassUse {
     expr: poly_expr::ExprId,
     member: poly_expr::DefId,
     method_ty: Type,
+    receiver: Option<Type>,
 }
 
 struct SelectedMethodDemand {
     evaluation_effect: Type,
+    receiver: Type,
     signature: Type,
 }
 

@@ -455,6 +455,7 @@ impl<'a> TaskSolver<'a> {
                         expr,
                         member: def,
                         method_ty: ty.clone(),
+                        receiver: None,
                     });
                 }
                 Ok(ty)
@@ -839,6 +840,7 @@ impl<'a> TaskSolver<'a> {
                     expr,
                     member,
                     method_ty: demand.signature,
+                    receiver: Some(demand.receiver),
                 });
                 let base_effect = demand.evaluation_effect;
                 let has_evaluation_effect = !base_effect.is_pure_effect();
@@ -861,19 +863,21 @@ impl<'a> TaskSolver<'a> {
         base: poly_expr::ExprId,
         parts: &FunctionComputationParts,
     ) -> Result<SelectedMethodDemand, SpecializeError> {
-        let (evaluation_effect, receiver_effect) = if parts.arg_effect.is_pure_effect() {
-            (
-                self.consume_expr_value(base, parts.arg.clone())?.1,
-                Type::pure_effect(),
-            )
+        let (receiver, evaluation_effect, receiver_effect) = if parts.arg_effect.is_pure_effect() {
+            let (receiver, evaluation_effect) = self.consume_expr_value(base, parts.arg.clone())?;
+            (receiver, evaluation_effect, Type::pure_effect())
         } else {
+            let actual = self.expr(base)?;
+            let (receiver, _) = split_runtime_computation_shape(actual);
             (
+                receiver,
                 Type::pure_effect(),
                 self.consume_expr_computation(base, parts.arg_effect.clone(), parts.arg.clone())?,
             )
         };
         Ok(SelectedMethodDemand {
             evaluation_effect,
+            receiver,
             signature: Type::Fun {
                 arg: Box::new(parts.arg.clone()),
                 arg_effect: Box::new(receiver_effect),

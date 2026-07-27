@@ -599,7 +599,7 @@ impl Specializer {
                 Err(SpecializeError::UnresolvedTypeclassMethod {
                     expr: select.0,
                     member: convert_def(member),
-                    receiver,
+                    receiver: Some(receiver),
                 })
             }
             _ => {
@@ -611,7 +611,7 @@ impl Specializer {
                 Err(SpecializeError::AmbiguousTypeclassMethod {
                     expr: select.0,
                     member: convert_def(member),
-                    receiver,
+                    receiver: Some(receiver),
                     candidates: implementations.into_iter().map(convert_def).collect(),
                 })
             }

@@ -462,7 +462,7 @@ fn specialize_role_method_diagnostic_falls_back_for_non_select_origin() {
     let error = specialize::SpecializeError::UnresolvedTypeclassMethod {
         expr,
         member: specialize::mono::DefId(0),
-        receiver: specialize::mono::Type::Any,
+        receiver: Some(specialize::mono::Type::Any),
     };
 
     assert!(matches!(

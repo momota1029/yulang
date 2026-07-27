@@ -2032,6 +2032,34 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
 
 [[case]]
+name = "record_literal_method_receiver_error"
+file = "regressions/runtime/record_literal_method_receiver_error.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
+  "detail: no role implementation satisfies this method call for receiver {x: int, y: int}",
+  "--> line 3, column 22",
+]
+contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
+
+[[case]]
+name = "unresolved_method_no_impl_receiver_error"
+file = "regressions/runtime/unresolved_method_no_impl_receiver_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
+  "detail: no role implementation satisfies this method call for receiver int",
+  "hint: add or import an impl for the receiver type, or call a method supported by that value",
+]
+contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
+
+[[case]]
 name = "unresolved_method_diagnostic"
 file = "regressions/runtime/unresolved_method_error.yu"
 kind = "check"

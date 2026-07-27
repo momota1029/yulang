@@ -1,0 +1,3 @@
+struct point { x: int, y: int } derives Eq
+
+point { x: 1, y: 2 }.eq point { x: 1, y: 2 }
