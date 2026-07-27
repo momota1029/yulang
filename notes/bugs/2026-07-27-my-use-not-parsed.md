@@ -1,7 +1,7 @@
 # `my` が宣言修飾子として届かない宣言形が多数ある
 
 発見日: 2026-07-27
-状態: 未修正
+状態: **解決済み（2026-07-27、`131917f9`）**
 発見経緯: `my` 可視性 enforcement の MYVIS-A で `my use` について、MYVIS-C で
 型宣言側について、いずれも Codex の報告を Claude が再現・特性化した。
 
@@ -90,3 +90,32 @@ MYVIS-C の型 matrix は、テスト内で `Vis::My` を直接立てて query �
   設計文書 §0 の D1 と整合する読み方である。
 - 束縛として解釈された結果が「本体が無い」エラーになるのは、`my type t = int` のように
   `=` を持つ形では別の壊れ方をしうる。各形の実際の出力を確認すること。
+
+## 解決 2026-07-27
+
+`131917f9` で閉じた。
+
+visibility dispatch に `use` / `type` / `struct` / `enum` / `error` / `role` の分岐を足し、
+`my mod` / `my act` と同じく可視性トークンを宣言側へ渡すようにした。6 形すべてに
+parser golden と、実ソースでの可視性テスト（宣言モジュールと入れ子からは通り、
+兄弟からは `yulang.private-access`）が付いている。
+
+```console
+error [yulang.private-access]: sibling.reach: type `hidden` is private to module `owner`
+    6 |     pub reach(x: owner::hidden) = x
+      |                         ^^^^^^
+    note: private type declared here
+```
+
+`my error = 1` は束縛のまま残る。`error` は文脈キーワードで、宣言には名前が続く必要がある。
+既存の `stmt_contextual_error_can_be_binding_name` が無変更で通ることで固定されている。
+
+### 副次的な効果
+
+本件を閉じるまで、MYVIS-C の型 enforcement は**テスト内で `Vis::My` を直接立てた
+query 契約でしか検証できていなかった**。実ソースで private な型を作れなかったため。
+閉じたことで実ソースの検証に置き換わり、MYVIS-D では provenance のテストも
+synthetic な `AliasDecl` 組み立てから実際の `my use` ソースへ置き換わった。
+
+**enforcement を検証可能にするために、先に表現できるようにする必要があった**という順序で、
+設計文書の slice 順（MYVIS-D が次）より優先してよかった判断だった。
