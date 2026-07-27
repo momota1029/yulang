@@ -1470,6 +1470,20 @@ mod tests {
     }
 
     #[test]
+    fn read_header_tracks_my_use_visibility() {
+        let header = read_header("my use local::item\nmy main = 1\n");
+
+        assert_eq!(header.uses.len(), 1, "uses: {:?}", header.uses);
+        assert_eq!(header.uses[0].visibility, Visibility::My);
+        assert!(matches!(
+            &header.uses[0].import,
+            UseImport::Alias { name, path, .. }
+                if name == &Name("item".into())
+                    && path.segments == vec![Name("local".into()), Name("item".into())]
+        ));
+    }
+
+    #[test]
     fn read_header_tracks_use_mod_load_directive() {
         let source = "use mod math::*\nmy main = 1\n";
         let header = read_header(source);

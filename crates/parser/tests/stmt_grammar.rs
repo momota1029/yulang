@@ -2230,6 +2230,111 @@ fn stmt_pub_use_decl() {
 }
 
 #[test]
+fn stmt_my_use_decl() {
+    let got = parse_stmt_once("my use child::value");
+    let expected = vec![
+        "(UseDecl",
+        "  My \"my\"",
+        "  Use \"use\"",
+        "  Ident \"child\"",
+        "  ColonColon \"::\"",
+        "  Ident \"value\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_type_decl() {
+    let got = parse_stmt_once("my type T = Int;");
+    let expected = vec![
+        "(TypeDecl",
+        "  My \"my\"",
+        "  Type \"type\"",
+        "  Ident \"T\"",
+        "  (TypeVars",
+        "  )",
+        "  Equal \"=\"",
+        "  (TypeExpr",
+        "    Ident \"Int\"",
+        "  )",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_struct_decl() {
+    let got = parse_stmt_once("my struct S;");
+    let expected = vec![
+        "(StructDecl",
+        "  My \"my\"",
+        "  Struct \"struct\"",
+        "  Ident \"S\"",
+        "  (TypeVars",
+        "  )",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_enum_decl() {
+    let got = parse_stmt_once("my enum E = A");
+    let expected = vec![
+        "(EnumDecl",
+        "  My \"my\"",
+        "  Enum \"enum\"",
+        "  Ident \"E\"",
+        "  (TypeVars",
+        "  )",
+        "  Equal \"=\"",
+        "  (EnumVariant",
+        "    Ident \"A\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_error_decl() {
+    let got = parse_stmt_once("my error E:\n  failed");
+    let expected = vec![
+        "(ErrorDecl",
+        "  My \"my\"",
+        "  Error \"error\"",
+        "  Ident \"E\"",
+        "  (TypeVars",
+        "  )",
+        "  Colon \":\"",
+        "  (EnumVariant",
+        "    Ident \"failed\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_role_decl() {
+    let got = parse_stmt_once("my role Eq;");
+    let expected = vec![
+        "(RoleDecl",
+        "  My \"my\"",
+        "  Role \"role\"",
+        "  (TypeExpr",
+        "    Ident \"Eq\"",
+        "  )",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_group_alias_consumes_closing_brace() {
     let got = parse_stmt_once("use m::{id, other as o}");
     let expected = vec![

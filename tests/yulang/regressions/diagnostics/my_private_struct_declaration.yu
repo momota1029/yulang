@@ -1,0 +1,8 @@
+pub mod owner:
+  my struct hidden { value: int }
+  pub inside (value: hidden): hidden = value
+  pub mod child:
+    pub nested (value: hidden): hidden = value
+
+pub mod sibling:
+  pub outside (value: owner::hidden): owner::hidden = value

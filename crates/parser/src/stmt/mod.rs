@@ -166,13 +166,39 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
         let checkpoint = i.checkpoint();
         if let Some(nud) = scan_visibility_pat_nud(next_info, i.rb()) {
             if matches!(nud.tag, crate::pat::scan::PatNudTag::Stop) {
-                if nud.lex.kind == SyntaxKind::Mod {
-                    return mod_decl::parse_mod_decl(i, Some(vis_kw), nud.lex);
-                }
-                if nud.lex.kind == SyntaxKind::Act
-                    && my_contextual_act_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
-                {
-                    return act_decl::parse_act_decl(i, Some(vis_kw), None, nud.lex);
+                let vis = Some(vis_kw.clone());
+                match nud.lex.kind {
+                    SyntaxKind::Use
+                        if my_contextual_use_decl_after_keyword(
+                            nud.lex.trailing_trivia_info(),
+                            i.rb(),
+                        ) =>
+                    {
+                        return use_decl::parse_use_decl(i, vis, nud.lex);
+                    }
+                    SyntaxKind::Mod => return mod_decl::parse_mod_decl(i, vis, nud.lex),
+                    SyntaxKind::Type
+                    | SyntaxKind::Struct
+                    | SyntaxKind::Enum
+                    | SyntaxKind::Error
+                    | SyntaxKind::Role
+                    | SyntaxKind::Act
+                        if my_contextual_named_decl_after_keyword(
+                            nud.lex.trailing_trivia_info(),
+                            i.rb(),
+                        ) =>
+                    {
+                        return match nud.lex.kind {
+                            SyntaxKind::Type => type_decl::parse_type_decl(i, vis, nud.lex),
+                            SyntaxKind::Struct => struct_decl::parse_struct_decl(i, vis, nud.lex),
+                            SyntaxKind::Enum => enum_decl::parse_enum_decl(i, vis, nud.lex),
+                            SyntaxKind::Error => error_decl::parse_error_decl(i, vis, nud.lex),
+                            SyntaxKind::Role => role_decl::parse_role_decl(i, vis, nud.lex),
+                            SyntaxKind::Act => act_decl::parse_act_decl(i, vis, None, nud.lex),
+                            _ => unreachable!(),
+                        };
+                    }
+                    _ => {}
                 }
             }
         }
@@ -281,12 +307,24 @@ fn scan_contextual_host_act<I: EventInput, S: EventSink>(
     scan_stmt_lex(leading_info, i)
 }
 
-fn my_contextual_act_decl_after_keyword<I: EventInput, S: EventSink>(
+fn my_contextual_named_decl_after_keyword<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     i: In<I, S>,
 ) -> bool {
     peek_stmt_lex(leading_info, i)
         .is_some_and(|next| matches!(next.kind, SyntaxKind::Ident | SyntaxKind::SigilIdent))
+}
+
+fn my_contextual_use_decl_after_keyword<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> bool {
+    peek_stmt_lex(leading_info, i).is_some_and(|next| {
+        matches!(
+            next.kind,
+            SyntaxKind::Ident | SyntaxKind::SigilIdent | SyntaxKind::Mod | SyntaxKind::ParenL
+        )
+    })
 }
 
 /// ヘッダ先読みの 1 ステップの結果。
@@ -330,6 +368,17 @@ fn parse_header_visibility<I: EventInput, S: EventSink>(
     vis_kw: Lex,
 ) -> Option<HeaderStep> {
     let next_info = vis_kw.trailing_trivia_info();
+    if vis_kw.kind == SyntaxKind::My {
+        let checkpoint = i.checkpoint();
+        if let Some(nud) = scan_visibility_pat_nud(next_info, i.rb())
+            && matches!(nud.tag, PatNudTag::Stop)
+            && nud.lex.kind == SyntaxKind::Use
+            && my_contextual_use_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
+        {
+            return header_step(use_decl::parse_use_decl(i, Some(vis_kw), nud.lex));
+        }
+        i.rollback(checkpoint);
+    }
     let Some(nud) = (if vis_kw.kind == SyntaxKind::My {
         scan_pat_nud(next_info, i.rb())
     } else {
