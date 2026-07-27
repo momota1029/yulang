@@ -613,7 +613,6 @@ impl ModuleTable {
             private_origin,
         });
     }
-    #[cfg(test)]
     pub(crate) fn private_origin(&self, id: PrivateOriginId) -> &PrivateOrigin {
         &self.private_origins[id.0 as usize]
     }

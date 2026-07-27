@@ -4,8 +4,9 @@ use super::*;
 use crate::{
     CompiledLoweringSurface, CompiledNamespaceModule, CompiledNamespaceModuleChild,
     CompiledNamespaceModuleType, CompiledNamespaceModuleValue, CompiledNamespaceSurface,
-    CompiledNamespaceVisibility, CompiledRuntimeImport, restore_compiled_act_template,
-    restore_compiled_constructor_payload, restore_compiled_optional_stored_signature,
+    CompiledNamespaceVisibility, CompiledPrivateOrigin, CompiledRuntimeImport,
+    restore_compiled_act_template, restore_compiled_constructor_payload,
+    restore_compiled_optional_stored_signature,
 };
 
 impl ModuleTable {
@@ -191,6 +192,7 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                 continue;
             };
             for value in &module.imported_values {
+                let private_origin = self.restore_private_origin(value.private_origin.as_ref());
                 let Some(def) = self.value_defs.get(&value.symbol).copied() else {
                     continue;
                 };
@@ -202,12 +204,11 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(value.order),
                         def,
                         vis: visibility(value.visibility),
-                        // MYVIS-A stores provenance only in the runtime import view.
-                        // MYVIS-B will materialize it in compiled namespaces.
-                        private_origin: None,
+                        private_origin,
                     });
             }
             for ty in &module.imported_types {
+                let private_origin = self.restore_private_origin(ty.private_origin.as_ref());
                 let Some(id) = self.type_ids.get(&ty.symbol).copied() else {
                     continue;
                 };
@@ -222,10 +223,11 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(ty.order),
                         decl,
                         vis: visibility(ty.visibility),
-                        private_origin: None,
+                        private_origin,
                     });
             }
             for child in &module.imported_modules {
+                let private_origin = self.restore_private_origin(child.private_origin.as_ref());
                 let Some(child_module) = self.module_ids.get(&child.module).copied() else {
                     continue;
                 };
@@ -237,10 +239,22 @@ impl<'a> CompiledModuleTableBuilder<'a> {
                         order: ModuleOrder::from_index(child.order),
                         module: child_module,
                         vis: visibility(child.visibility),
-                        private_origin: None,
+                        private_origin,
                     });
             }
         }
+    }
+
+    fn restore_private_origin(
+        &mut self,
+        origin: Option<&CompiledPrivateOrigin>,
+    ) -> Option<PrivateOriginId> {
+        let origin = origin?;
+        let scope = *self.module_ids.get(&origin.scope_module)?;
+        Some(
+            self.modules
+                .intern_private_origin(scope, origin.declaration_span.clone()),
+        )
     }
 
     fn build_companions(&mut self) {

@@ -837,6 +837,131 @@ fn runtime_imports_retain_private_provenance_at_every_copy_site() {
 }
 
 #[test]
+fn compiled_namespace_round_trips_private_reexport_provenance() {
+    // This is the MYVIS-B format-bump witness.  The parser does not yet accept
+    // `my use`, so make the already-materialized descendant import view exactly
+    // as MYVIS-D will: a private ancestor origin carried by a public re-export.
+    let mut lower = lower_source(
+        "mod public:\n  pub value = 1\n  pub act Thing:\n    pub ping: () -> int\n  pub mod child:\nmod owner:\n  pub use public::value\n  pub use public::Thing\n  pub use public::child\nmod facade:\n  pub use owner::*\n",
+    );
+    let root = lower.modules.root_id();
+    let owner = lower.modules.module_decls(root, &Name("owner".into()))[0].module;
+    let origin = lower
+        .modules
+        .private_origin_for(
+            owner,
+            Vis::My,
+            Some(SourceSpan {
+                file: ModulePath::default(),
+                range: SourceRange { start: 17, end: 22 },
+            }),
+        )
+        .unwrap();
+    for entries in lower.modules.nodes[owner.0].import_values.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(origin);
+        }
+    }
+    for entries in lower.modules.nodes[owner.0].import_types.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(origin);
+        }
+    }
+    for entries in lower.modules.nodes[owner.0].import_modules.values_mut() {
+        for entry in entries {
+            entry.private_origin = Some(origin);
+        }
+    }
+    expose_private_imports_for_import_copy_test(&mut lower, owner);
+
+    let mut surface = CompiledNamespaceSurface::from_module_table(&lower.modules);
+    // A prefix carries its exported materialized view.  Keep the owner module
+    // solely as the origin scope and the facade's three re-exports as the
+    // observable entries, avoiding unrelated duplicate exports in this unit.
+    for module in &mut surface.modules {
+        module.values.clear();
+        module.types.clear();
+        if module.path != vec!["facade".to_string()] {
+            module.imported_values.clear();
+            module.imported_types.clear();
+            module.imported_modules.clear();
+        } else {
+            module
+                .imported_values
+                .sort_by_key(|entry| entry.private_origin.is_none());
+            module
+                .imported_types
+                .sort_by_key(|entry| entry.private_origin.is_none());
+            module
+                .imported_modules
+                .sort_by_key(|entry| entry.private_origin.is_none());
+            module
+                .imported_values
+                .dedup_by(|left, right| left.name == right.name);
+            module
+                .imported_types
+                .dedup_by(|left, right| left.name == right.name);
+            module
+                .imported_modules
+                .dedup_by(|left, right| left.name == right.name);
+        }
+    }
+    let bytes = bincode::serialize(&surface).unwrap();
+    let round_trip: CompiledNamespaceSurface = bincode::deserialize(&bytes).unwrap();
+    let merged = CompiledNamespaceSurface::merge_prefixes_with_remap([&round_trip]).unwrap();
+    let facade_path = vec!["facade".to_string()];
+    let facade = merged
+        .surface
+        .modules
+        .iter()
+        .find(|module| module.path == facade_path)
+        .unwrap();
+    for origin in [
+        facade
+            .imported_values
+            .iter()
+            .find(|entry| entry.name == "value")
+            .unwrap()
+            .private_origin
+            .as_ref(),
+        facade
+            .imported_types
+            .iter()
+            .find(|entry| entry.name == "Thing")
+            .unwrap()
+            .private_origin
+            .as_ref(),
+        facade
+            .imported_modules
+            .iter()
+            .find(|entry| entry.name == "child")
+            .unwrap()
+            .private_origin
+            .as_ref(),
+    ] {
+        let origin = origin.expect("compiled materialized re-export must retain provenance");
+        assert_eq!(
+            origin.scope_module,
+            merged
+                .map_module(
+                    0,
+                    round_trip
+                        .modules
+                        .iter()
+                        .find(|module| module.path == vec!["owner".to_string()])
+                        .unwrap()
+                        .id
+                )
+                .unwrap()
+        );
+        assert_eq!(
+            origin.declaration_span.as_ref().unwrap().range,
+            SourceRange { start: 17, end: 22 }
+        );
+    }
+}
+
+#[test]
 fn direct_type_decl_shadows_glob_import() {
     let cst = parse("mod m:\n  type T\nuse m::*\ntype T\nmy site = 1\n");
     let lower = lower_module_map(&cst);

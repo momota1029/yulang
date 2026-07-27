@@ -839,6 +839,7 @@ impl ModuleTable {
                     vis: entry.vis,
                     order: entry.order,
                     def: entry.def,
+                    private_origin: entry.private_origin,
                 })
             })
             .collect()
@@ -853,6 +854,7 @@ impl ModuleTable {
                     vis: entry.vis,
                     order: entry.order,
                     decl: entry.decl.clone(),
+                    private_origin: entry.private_origin,
                 })
             })
             .collect()
@@ -867,6 +869,7 @@ impl ModuleTable {
                     vis: entry.vis,
                     order: entry.order,
                     module: entry.module,
+                    private_origin: entry.private_origin,
                 })
             })
             .collect()

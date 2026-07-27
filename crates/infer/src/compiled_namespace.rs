@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use poly::expr::Vis;
 use serde::{Deserialize, Serialize};
 
-use crate::{LoadedFilesError, ModuleId, ModuleTable, ModuleTypeKind, TypeDeclId};
+use crate::{
+    LoadedFilesError, ModuleId, ModuleTable, ModuleTypeKind, PrivateOriginId, SourceSpan,
+    TypeDeclId,
+};
 use poly::expr::DefId;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +82,7 @@ pub struct CompiledNamespaceImportedValue {
     pub symbol: u32,
     pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
+    pub private_origin: Option<CompiledPrivateOrigin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,6 +94,7 @@ pub struct CompiledNamespaceImportedType {
     pub kind: CompiledNamespaceTypeKind,
     #[serde(default)]
     pub host: bool,
+    pub private_origin: Option<CompiledPrivateOrigin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,6 +104,13 @@ pub struct CompiledNamespaceImportedModule {
     pub module_path: Vec<String>,
     pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
+    pub private_origin: Option<CompiledPrivateOrigin>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledPrivateOrigin {
+    pub scope_module: u32,
+    pub declaration_span: Option<SourceSpan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -380,6 +392,7 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
         for value in &module.imported_values {
             let mut value = value.clone();
             value.symbol = self.value_remap[&(prefix, value.symbol)];
+            remap_private_origin(&mut value.private_origin, &self.module_remap, prefix);
             let target_module = &mut self.merged.modules[target];
             reject_duplicate_imported_value(target_module, &value)?;
             value.order = next_namespace_order(target_module);
@@ -397,6 +410,7 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
         for ty in &module.imported_types {
             let mut ty = ty.clone();
             ty.symbol = self.type_remap[&(prefix, ty.symbol)];
+            remap_private_origin(&mut ty.private_origin, &self.module_remap, prefix);
             let target_module = &mut self.merged.modules[target];
             reject_duplicate_imported_type(target_module, &ty)?;
             ty.order = next_namespace_order(target_module);
@@ -414,6 +428,7 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
         for child in &module.imported_modules {
             let mut child = child.clone();
             child.module = self.module_remap[&(prefix, child.module)];
+            remap_private_origin(&mut child.private_origin, &self.module_remap, prefix);
             let target_module = &mut self.merged.modules[target];
             if target_module
                 .imported_modules
@@ -552,6 +567,16 @@ fn next_namespace_order(module: &CompiledNamespaceModule) -> u32 {
         .chain(module.aliases.iter().map(|alias| alias.order))
         .max()
         .map_or(0, |order| order + 1)
+}
+
+fn remap_private_origin(
+    origin: &mut Option<CompiledPrivateOrigin>,
+    module_remap: &HashMap<(usize, u32), u32>,
+    prefix: usize,
+) {
+    if let Some(origin) = origin {
+        origin.scope_module = module_remap[&(prefix, origin.scope_module)];
+    }
 }
 
 pub struct CompiledNamespaceIndex<'a> {
@@ -777,6 +802,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                     symbol,
                     visibility: compiled_visibility(decl.vis),
                     order: decl.order.index(),
+                    private_origin: self.compiled_private_origin(decl.private_origin),
                 })
             })
             .collect::<Vec<_>>();
@@ -803,6 +829,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                     order: decl.order.index(),
                     kind,
                     host,
+                    private_origin: self.compiled_private_origin(decl.private_origin),
                 })
             })
             .collect::<Vec<_>>();
@@ -828,6 +855,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                     module_path: namespace_path(&self.modules.module_path(decl.module)),
                     visibility: compiled_visibility(decl.vis),
                     order: decl.order.index(),
+                    private_origin: self.compiled_private_origin(decl.private_origin),
                 })
             })
             .collect::<Vec<_>>();
@@ -853,6 +881,17 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                 }
             })
             .collect()
+    }
+
+    fn compiled_private_origin(
+        &self,
+        origin: Option<PrivateOriginId>,
+    ) -> Option<CompiledPrivateOrigin> {
+        let origin = self.modules.private_origin(origin?);
+        Some(CompiledPrivateOrigin {
+            scope_module: self.module_ids[&origin.scope],
+            declaration_span: origin.declaration_span.clone(),
+        })
     }
 
     fn module_alias_entries(&self, module: ModuleId) -> Vec<CompiledNamespaceAlias> {

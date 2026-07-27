@@ -526,6 +526,7 @@ pub struct ModuleImportedValueDecl {
     pub vis: Vis,
     pub order: ModuleOrder,
     pub def: DefId,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 /// module import view に入った型宣言を外へ見せるための summary。
@@ -535,6 +536,7 @@ pub struct ModuleImportedTypeDecl {
     pub vis: Vis,
     pub order: ModuleOrder,
     pub decl: ModuleTypeDecl,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 /// module import view に入った子 module 宣言を外へ見せるための summary。
@@ -544,6 +546,7 @@ pub struct ModuleImportedModuleDecl {
     pub vis: Vis,
     pub order: ModuleOrder,
     pub module: ModuleId,
+    pub(crate) private_origin: Option<PrivateOriginId>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -780,6 +780,23 @@ compiled unit 境界の向こうからは再構成できない。
 cross-unit re-export が実際に漏れることを test で示してから bump を確定すること。**
 示せなければ bump の必要性を再判定する。
 
+#### 確定（MYVIS-B、2026-07-27）
+
+**bump は必要である。** 争点は「serialize しないと復元先で失われるか」ではなく
+（それは自明）、「他の情報から導出できないか」であった。導出できない。
+
+`CompiledNamespaceIndex::exported_value_symbol` は宣言を
+`visibility != CompiledNamespaceVisibility::My` で濾す
+（`crates/infer/src/compiled_namespace.rs:618`）。したがって `my` 宣言は
+compiled 境界の向こうから見えない。一方その `pub use` による imported entry は、
+別名自身の可視性だけで濾されて見える（同 `:625`）。
+
+消費側は「public な別名」を見るだけで、それが指す宣言を参照できないため、
+元が private だったことを知る手段が無い。origin を serialize する以外にない。
+
+`COMPILED_UNIT_CACHE_FORMAT` は 20 へ上げた。v19 artifact が decode error ではなく
+cache miss になることは test で固定してある。
+
 `my use` 自体の修正は本設計の範囲外だが、`use` 経路に触る MYVIS-D で一緒に閉じるのが自然である。
 
 ## 7. Q5: descendant からの `use`

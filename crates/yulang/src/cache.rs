@@ -25,7 +25,9 @@ use crate::time::{Duration, Instant};
 const POLY_CACHE_FORMAT: u32 = 10;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 11;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 20;
+#[cfg(test)]
+const PRIVATE_PROVENANCE_PRE_COMPILED_UNIT_CACHE_FORMAT: u32 = 19;
 #[cfg(test)]
 const EMPTY_BOUNDARY_ONLY_COMPILED_UNIT_CACHE_FORMAT: u32 = 18;
 #[cfg(test)]
@@ -2001,6 +2003,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hasher.u32(value.symbol);
             hash_compiled_namespace_visibility(&mut hasher, value.visibility);
             hasher.u32(value.order);
+            hash_optional_compiled_private_origin(&mut hasher, value.private_origin.as_ref());
         }
 
         hasher.usize(module.imported_types.len());
@@ -2011,6 +2014,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hasher.u32(ty.order);
             hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
             hasher.bool(ty.host);
+            hash_optional_compiled_private_origin(&mut hasher, ty.private_origin.as_ref());
         }
 
         hasher.usize(module.imported_modules.len());
@@ -2020,6 +2024,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hash_string_path(&mut hasher, &child.module_path);
             hash_compiled_namespace_visibility(&mut hasher, child.visibility);
             hasher.u32(child.order);
+            hash_optional_compiled_private_origin(&mut hasher, child.private_origin.as_ref());
         }
 
         hasher.usize(module.aliases.len());
@@ -3370,6 +3375,30 @@ fn hash_compiled_namespace_visibility(
         infer::CompiledNamespaceVisibility::Our => 1,
         infer::CompiledNamespaceVisibility::My => 2,
     });
+}
+
+fn hash_optional_compiled_private_origin(
+    hasher: &mut StableHasher,
+    origin: Option<&infer::CompiledPrivateOrigin>,
+) {
+    let Some(origin) = origin else {
+        hasher.bool(false);
+        return;
+    };
+    hasher.bool(true);
+    hasher.u32(origin.scope_module);
+    match &origin.declaration_span {
+        Some(span) => {
+            hasher.bool(true);
+            hasher.usize(span.file.segments.len());
+            for segment in &span.file.segments {
+                hasher.string(&segment.0);
+            }
+            hasher.usize(span.range.start);
+            hasher.usize(span.range.end);
+        }
+        None => hasher.bool(false),
+    }
 }
 
 fn hash_compiled_namespace_type_kind(
@@ -5175,6 +5204,33 @@ mod tests {
         assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_treats_v19_private_provenance_format_as_a_miss() {
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let mut v19_manifest = artifact.manifest.clone();
+        v19_manifest.compiled_unit_format = PRIVATE_PROVENANCE_PRE_COMPILED_UNIT_CACHE_FORMAT;
+        let v19 = CompiledUnitCacheEnvelope {
+            format: PRIVATE_PROVENANCE_PRE_COMPILED_UNIT_CACHE_FORMAT,
+            manifest: &v19_manifest,
+            syntax: &artifact.syntax,
+            namespace: &artifact.namespace,
+            lowering: &artifact.lowering,
+            typed: &artifact.typed,
+            runtime: &artifact.runtime,
+            external_runtime: &artifact.external_runtime,
+            errors: &artifact.errors,
+        };
+        let bytes = bincode::serialize(&v19).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
