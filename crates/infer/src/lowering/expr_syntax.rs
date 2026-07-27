@@ -72,6 +72,17 @@ pub(super) fn expr_path_prefix(items: &[CstItem]) -> Option<(Vec<Name>, usize)> 
     (path.len() > 1).then_some((path, consumed))
 }
 
+pub(super) fn path_segment_source_ranges(items: &[CstItem], path: &[Name]) -> Vec<SourceRange> {
+    path.iter()
+        .enumerate()
+        .filter_map(|(index, name)| match items.get(index) {
+            Some(NodeOrToken::Token(token)) => Some(token_source_range(token)),
+            Some(NodeOrToken::Node(node)) => crate::source_range_for_name(node, name),
+            None => None,
+        })
+        .collect()
+}
+
 pub(super) fn path_sep_name(node: &Cst) -> Option<Name> {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())

@@ -186,7 +186,17 @@ impl<'a> ActTypeResolver<'a> {
             if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
                 return Ok(ActTypeExpr::Builtin(builtin));
             }
-            if let Some(decl) = self.modules.lexical_type_at(self.module, name, self.site) {
+            if let Some(decl) = self
+                .modules
+                .lexical_type_at(self.module, name, self.site)
+                .ignore_privacy_until_myvis_e(|_| {
+                    self.modules.lexical_type_ignoring_privacy_until_myvis_e(
+                        self.module,
+                        name,
+                        self.site,
+                    )
+                })
+            {
                 return Ok(ActTypeExpr::Named(decl.id));
             }
             return Err(ActTypeResolveError::UnresolvedTypeName { path });
@@ -198,7 +208,17 @@ impl<'a> ActTypeResolver<'a> {
         let Some(module) = self.resolve_module_prefix(prefix) else {
             return Err(ActTypeResolveError::UnresolvedTypeName { path });
         };
-        let Some(decl) = self.modules.type_at(module, last, module_path_site()) else {
+        let Some(decl) = self
+            .modules
+            .type_at(self.module, module, last, module_path_site())
+            .ignore_privacy_until_myvis_e(|_| {
+                self.modules.type_at_ignoring_privacy_until_myvis_e(
+                    module,
+                    last,
+                    module_path_site(),
+                )
+            })
+        else {
             return Err(ActTypeResolveError::UnresolvedTypeName { path });
         };
         Ok(ActTypeExpr::Named(decl.id))
@@ -208,11 +228,25 @@ impl<'a> ActTypeResolver<'a> {
         let (first, rest) = path.split_first()?;
         let mut current = self
             .modules
-            .lexical_module_at(self.module, first, self.site)?;
+            .lexical_module_at(self.module, first, self.site)
+            .ignore_privacy_until_myvis_e(|_| {
+                self.modules.lexical_module_ignoring_privacy_until_myvis_e(
+                    self.module,
+                    first,
+                    self.site,
+                )
+            })?;
         for segment in rest {
             current = self
                 .modules
-                .module_at(current, segment, module_path_site())?;
+                .module_at(self.module, current, segment, module_path_site())
+                .ignore_privacy_until_myvis_e(|_| {
+                    self.modules.module_at_ignoring_privacy_until_myvis_e(
+                        current,
+                        segment,
+                        module_path_site(),
+                    )
+                })?;
         }
         Some(current)
     }

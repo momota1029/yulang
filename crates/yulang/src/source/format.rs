@@ -2450,6 +2450,13 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
         infer::lowering::LoweringError::UnresolvedName { name, .. } => {
             format!("unresolved value name: {}", name.0)
         }
+        infer::lowering::LoweringError::PrivateAccess { access, .. } => {
+            format!(
+                "{} `{}` is private",
+                private_access_kind(access.kind),
+                access.name.0
+            )
+        }
         infer::lowering::LoweringError::InvalidNumber { text } => {
             format!("invalid number literal `{text}`")
         }
@@ -2573,6 +2580,13 @@ fn format_annotation_build_error(error: &infer::annotation::AnnBuildError) -> St
         infer::annotation::AnnBuildError::UnresolvedTypeName { path } => {
             format!("unresolved type name: {}", format_name_path(path))
         }
+        infer::annotation::AnnBuildError::PrivateAccess { access } => {
+            format!(
+                "{} `{}` is private",
+                private_access_kind(access.kind),
+                access.name.0
+            )
+        }
         infer::annotation::AnnBuildError::UnsupportedSyntax { kind } => {
             format!(
                 "unsupported type annotation syntax: {}",
@@ -2607,6 +2621,13 @@ fn format_neg_signature_build_error(error: &infer::lowering::NegSignatureBuildEr
         }
         infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path } => {
             format!("unresolved type name: {}", format_name_path(path))
+        }
+        infer::lowering::NegSignatureBuildError::PrivateAccess { access } => {
+            format!(
+                "{} `{}` is private",
+                private_access_kind(access.kind),
+                access.name.0
+            )
         }
         infer::lowering::NegSignatureBuildError::UnsupportedSyntax { kind } => {
             format!(

@@ -103,7 +103,11 @@ impl<'a> ExprLowerer<'a> {
 
         let (mut acc, mut acc_source_range, tail_start) = match expr_path_prefix(&items) {
             Some((path, consumed)) if path.len() > 1 => (
-                self.lower_path_name_at(&path, item_slice_source_range(&items[..consumed]))?,
+                self.lower_path_name_at(
+                    &path,
+                    item_slice_source_range(&items[..consumed]),
+                    &path_segment_source_ranges(&items[..consumed], &path),
+                )?,
                 item_slice_text_range(&items[..consumed])
                     .expect("a qualified expression path has source items"),
                 consumed,

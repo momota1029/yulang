@@ -307,7 +307,11 @@ impl<'a> ExprLowerer<'a> {
             return Ok(BuiltinOpTypePath::Builtin(builtin));
         }
         let name = Name(name.to_string());
-        let Some(decl) = self.modules.lexical_type_at(self.module, &name, self.site) else {
+        let Some(decl) = self
+            .modules
+            .lexical_type_at(self.module, &name, self.site)
+            .found()
+        else {
             return Err(LoweringError::AnnotationBuild {
                 error: AnnBuildError::UnresolvedTypeName { path: vec![name] },
                 source_range: None,

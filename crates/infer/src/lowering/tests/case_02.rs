@@ -125,7 +125,7 @@ fn qualified_path_lowers_to_resolved_value_reference() {
     let module = lower.modules.root_id();
     let m = lower
         .modules
-        .module_at(module, &Name("m".into()), ModuleOrder(0))
+        .module_at(module, module, &Name("m".into()), ModuleOrder(0))
         .unwrap();
     let target = lower.modules.value_decls(m, &Name("x".into()))[0].def;
     let (owner, site) = binding_def_and_order(&lower.modules, module, "y");

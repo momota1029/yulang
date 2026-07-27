@@ -359,7 +359,11 @@ impl<'a> ExprLowerer<'a> {
         source_range: Option<SourceRange>,
     ) -> Result<(Computation, bool), LoweringError> {
         let name = crate::op_value_name(fixity, symbol);
-        let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
+        let Some(target) = self
+            .modules
+            .lexical_value_at(self.module, &name, self.site)
+            .found()
+        else {
             return Err(LoweringError::UnresolvedName { name, source_range });
         };
         let lazy = self.modules.is_lazy_op(target);

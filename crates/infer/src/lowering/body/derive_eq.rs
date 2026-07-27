@@ -311,6 +311,7 @@ impl BodyLowerer {
             )
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
             .map(|decl| decl.id)
+            .found()
     }
 
     pub(super) fn canonical_debug_role(&self, module: ModuleId) -> Option<TypeDeclId> {
@@ -322,6 +323,7 @@ impl BodyLowerer {
             )
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
             .map(|decl| decl.id)
+            .found()
     }
 
     fn lower_eq_derive_plan(

@@ -1,4 +1,5 @@
 use super::*;
+use crate::Lookup;
 
 pub fn build_ann_type_expr(
     modules: &ModuleTable,
@@ -363,35 +364,23 @@ impl<'a> AnnTypeBuilder<'a> {
             if let Some(target) = self.type_name_aliases.get(&name.0).copied() {
                 return Ok(AnnType::Named(target));
             }
-            if let Some(decl) = self.modules.lexical_type_at(self.module, name, self.site) {
-                return Ok(AnnType::Named(decl.id));
+            match self.modules.lexical_type_at(self.module, name, self.site) {
+                Lookup::Found(decl) => return Ok(AnnType::Named(decl.id)),
+                Lookup::Private(access) => return Err(AnnBuildError::PrivateAccess { access }),
+                Lookup::Missing => {}
             }
             return Err(AnnBuildError::UnresolvedTypeName { path });
         }
 
-        let Some((last, prefix)) = path.split_last() else {
+        if path.is_empty() {
             return Err(AnnBuildError::EmptyTypeExpr);
-        };
-        let Some(module) = self.resolve_module_prefix(prefix) else {
-            return Err(AnnBuildError::UnresolvedTypeName { path });
-        };
-        let Some(decl) = self.modules.type_at(module, last, module_path_site()) else {
-            return Err(AnnBuildError::UnresolvedTypeName { path });
+        }
+        let decl = match self.modules.type_path_at(self.module, &path, self.site) {
+            Lookup::Found(decl) => decl,
+            Lookup::Private(access) => return Err(AnnBuildError::PrivateAccess { access }),
+            Lookup::Missing => return Err(AnnBuildError::UnresolvedTypeName { path }),
         };
         Ok(AnnType::Named(decl.id))
-    }
-
-    fn resolve_module_prefix(&self, path: &[Name]) -> Option<ModuleId> {
-        let (first, rest) = path.split_first()?;
-        let mut current = self
-            .modules
-            .lexical_module_at(self.module, first, self.site)?;
-        for segment in rest {
-            current = self
-                .modules
-                .module_at(current, segment, module_path_site())?;
-        }
-        Some(current)
     }
 
     fn ann_type_var(&mut self, text: &str) -> AnnTypeVar {
@@ -482,10 +471,6 @@ fn separator_has_semicolon(node: &Cst) -> bool {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .any(|token| token.kind() == SyntaxKind::Semicolon)
-}
-
-fn module_path_site() -> ModuleOrder {
-    ModuleOrder::from_index(u32::MAX)
 }
 
 fn item_is_trivia(item: &CstItem) -> bool {

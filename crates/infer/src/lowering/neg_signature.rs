@@ -1,6 +1,7 @@
 //! Extracted lowering implementation.
 
 use super::*;
+use crate::{Lookup, PrivateAccess};
 
 pub(super) struct NegSignatureBuilder<'a> {
     modules: &'a ModuleTable,
@@ -279,23 +280,25 @@ impl<'a> NegSignatureBuilder<'a> {
             if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
                 return Ok(SignatureType::Builtin(builtin));
             }
-            if let Some(decl) = self.modules.lexical_type_at(self.module, name, self.site) {
-                return Ok(SignatureType::Named(decl.id));
+            match self.modules.lexical_type_at(self.module, name, self.site) {
+                Lookup::Found(decl) => return Ok(SignatureType::Named(decl.id)),
+                Lookup::Private(access) => {
+                    return Err(NegSignatureBuildError::PrivateAccess { access });
+                }
+                Lookup::Missing => {}
             }
             return Err(NegSignatureBuildError::UnresolvedTypeName { path });
         }
 
-        let Some((last, prefix)) = path.split_last() else {
+        if path.is_empty() {
             return Err(NegSignatureBuildError::EmptyTypeExpr);
-        };
-        let Some(module) = self.resolve_module_prefix(prefix) else {
-            return Err(NegSignatureBuildError::UnresolvedTypeName { path });
-        };
-        let Some(decl) = self
-            .modules
-            .type_at(module, last, signature_module_path_site())
-        else {
-            return Err(NegSignatureBuildError::UnresolvedTypeName { path });
+        }
+        let decl = match self.modules.type_path_at(self.module, &path, self.site) {
+            Lookup::Found(decl) => decl,
+            Lookup::Private(access) => {
+                return Err(NegSignatureBuildError::PrivateAccess { access });
+            }
+            Lookup::Missing => return Err(NegSignatureBuildError::UnresolvedTypeName { path }),
         };
         Ok(SignatureType::Named(decl.id))
     }
@@ -316,19 +319,6 @@ impl<'a> NegSignatureBuilder<'a> {
             })
         }
     }
-
-    fn resolve_module_prefix(&self, path: &[Name]) -> Option<ModuleId> {
-        let (first, rest) = path.split_first()?;
-        let mut current = self
-            .modules
-            .lexical_module_at(self.module, first, self.site)?;
-        for segment in rest {
-            current = self
-                .modules
-                .module_at(current, segment, signature_module_path_site())?;
-        }
-        Some(current)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -340,6 +330,7 @@ pub enum NegSignatureBuildError {
     MissingEffectRow,
     InvalidEffectRowTail { ty: SignatureType },
     UnresolvedTypeName { path: Vec<Name> },
+    PrivateAccess { access: PrivateAccess },
     UnsupportedSyntax { kind: SyntaxKind },
 }
 

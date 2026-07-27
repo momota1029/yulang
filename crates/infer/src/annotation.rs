@@ -20,8 +20,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use sources::Name;
 
 use crate::{
-    Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, ModuleTypeKind, TypeDeclId,
-    constraints::TypeLevel,
+    Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, ModuleTypeKind, PrivateAccess,
+    TypeDeclId, constraints::TypeLevel,
 };
 
 pub use builder::{AnnTypeBuilder, build_ann_type_expr};
@@ -136,6 +136,7 @@ pub enum AnnBuildError {
     MissingEffectRow,
     InvalidEffectRowTail { ty: AnnType },
     UnresolvedTypeName { path: Vec<Name> },
+    PrivateAccess { access: PrivateAccess },
     UnsupportedSyntax { kind: SyntaxKind },
 }
 

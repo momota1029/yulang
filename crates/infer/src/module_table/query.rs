@@ -1,10 +1,6 @@
 use super::*;
 
-#[derive(Clone, Copy)]
-enum ImportVisibility {
-    SameBand,
-    CrossBand,
-}
+type ImportVisibility = VisibilityRoute;
 
 impl ModuleTable {
     pub fn test_module_decls(&self) -> &[TestModuleDecl] {
@@ -436,37 +432,54 @@ impl ModuleTable {
     /// `value_path_at` / `type_path_at` 用の prefix 降下。再エクスポート（import view）も辿る。
     /// alias 展開で使う `raw_module_path_from` は import view 構築順に依存しないよう
     /// 意図的に raw のままにしてあるので、こちらと混ぜない。
-    pub(super) fn module_path_with_imports_from(
+    pub fn module_path_with_imports_from(
         &self,
         module: ModuleId,
         path: &[Name],
         site: ModuleOrder,
-    ) -> Option<ModuleId> {
+    ) -> Lookup<ModuleId> {
         let Some((first, rest)) = path.split_first() else {
-            return Some(module);
+            return Lookup::Found(module);
         };
-        let mut current = self.lexical_module_with_imports_at(module, first, site)?;
+        let mut current = match self.lexical_module_with_imports_at(module, first, site) {
+            Lookup::Found(module) => module,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
+        };
         for segment in rest {
-            current = self
-                .module_at(current, segment, module_path_site())
-                .or_else(|| self.exported_module_at(current, segment))?;
+            current = match self.module_at(module, current, segment, module_path_site()) {
+                Lookup::Found(module) => module,
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => match self.exported_module_at(module, current, segment) {
+                    Lookup::Found(module) => module,
+                    Lookup::Private(access) => return Lookup::Private(access),
+                    Lookup::Missing => return Lookup::Missing,
+                },
+            };
         }
-        Some(current)
+        Lookup::Found(current)
     }
     pub(super) fn lexical_module_with_imports_at(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
-    ) -> Option<ModuleId> {
+    ) -> Lookup<ModuleId> {
+        let requester = module;
         loop {
-            if let Some(found) = self.module_at(module, name, site) {
-                return Some(found);
+            match self.module_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            if let Some(found) = self.imported_module_at(module, name, site) {
-                return Some(found);
+            match self.imported_module_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            let parent = self.nodes[module.0].parent?;
+            let Some(parent) = self.nodes[module.0].parent else {
+                return Lookup::Missing;
+            };
             module = parent.module;
             site = parent.order;
         }
@@ -642,42 +655,207 @@ impl ModuleTable {
     }
     pub(super) fn imported_value_at(
         &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<DefId> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_values
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Value,
+        ) {
+            Lookup::Found(decl) => Lookup::Found(decl.def),
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
+        }
+    }
+
+    /// The pre-MYVIS-E act-operation resolver intentionally bypasses privacy.
+    /// Keep this narrow, named escape hatch until MYVIS-E owns the diagnostic
+    /// contract and descendant parity for operations.
+    pub(crate) fn value_at_ignoring_privacy_until_myvis_e(
+        &self,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
     ) -> Option<DefId> {
-        self.select_import(self.nodes[module.0].import_values.get(name)?, site)
-            .map(|decl| decl.def)
+        let decl = self.select_decl_ignoring_privacy_until_myvis_e(
+            module,
+            self.nodes[module.0].values.get(name)?,
+            site,
+        )?;
+        match decl.kind {
+            ModuleDeclKind::Value { def } => Some(def),
+            ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+        }
     }
-    pub(super) fn imported_type_at(
+
+    pub(crate) fn type_at_ignoring_privacy_until_myvis_e(
         &self,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
     ) -> Option<ModuleTypeDecl> {
-        self.select_import(self.nodes[module.0].import_types.get(name)?, site)
-            .map(|decl| decl.decl.clone())
+        let decl = self.select_decl_ignoring_privacy_until_myvis_e(
+            module,
+            self.nodes[module.0].types.get(name)?,
+            site,
+        )?;
+        match decl.kind {
+            ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+                name: decl.name.clone(),
+                vis: decl.vis,
+                order: decl.order,
+                module,
+                id,
+                kind,
+                private_origin: decl.private_origin,
+            }),
+            ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+        }
     }
-    pub(super) fn imported_module_at(
+
+    pub(crate) fn module_at_ignoring_privacy_until_myvis_e(
         &self,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
     ) -> Option<ModuleId> {
-        self.select_import(self.nodes[module.0].import_modules.get(name)?, site)
-            .map(|decl| decl.module)
+        let decl = self.select_decl_ignoring_privacy_until_myvis_e(
+            module,
+            self.nodes[module.0].modules.get(name)?,
+            site,
+        )?;
+        match decl.kind {
+            ModuleDeclKind::Module { module: child, .. }
+                if same_band_allows_module_step(
+                    self.module_band_path(module),
+                    self.module_band_path(child),
+                ) =>
+            {
+                Some(child)
+            }
+            ModuleDeclKind::Value { .. }
+            | ModuleDeclKind::Type { .. }
+            | ModuleDeclKind::Module { .. } => None,
+        }
     }
-    /// 外の module から見える import entry（再エクスポート）。`my use` だけはファイル内
-    /// private なので外からは見えない。our は band 内可視、pub は band 境界用（band は未実装）。
-    pub(super) fn exported_value_at(&self, module: ModuleId, name: &Name) -> Option<DefId> {
-        self.nodes[module.0]
-            .import_values
-            .get(name)?
-            .iter()
-            .find(|entry| entry.vis != Vis::My)
-            .map(|entry| entry.def)
+
+    pub(crate) fn lexical_type_ignoring_privacy_until_myvis_e(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        loop {
+            if let Some(found) = self.type_at_ignoring_privacy_until_myvis_e(module, name, site) {
+                return Some(found);
+            }
+            if let Some(found) =
+                self.imported_type_ignoring_privacy_until_myvis_e(module, name, site)
+            {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
     }
-    pub(super) fn exported_type_at(&self, module: ModuleId, name: &Name) -> Option<ModuleTypeDecl> {
+
+    pub(crate) fn lexical_module_ignoring_privacy_until_myvis_e(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        loop {
+            if let Some(found) = self.module_at_ignoring_privacy_until_myvis_e(module, name, site) {
+                return Some(found);
+            }
+            if let Some(found) =
+                self.imported_module_ignoring_privacy_until_myvis_e(module, name, site)
+            {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+
+    pub(crate) fn type_path_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        let (last, prefix) = path.split_last()?;
+        if prefix.is_empty() {
+            return self.lexical_type_ignoring_privacy_until_myvis_e(module, last, site);
+        }
+        let target =
+            self.module_path_with_imports_ignoring_privacy_until_myvis_e(module, prefix, site)?;
+        self.type_at_ignoring_privacy_until_myvis_e(target, last, module_path_site())
+            .or_else(|| self.exported_type_ignoring_privacy_until_myvis_e(target, last))
+    }
+
+    fn module_path_with_imports_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        let (first, rest) = path.split_first()?;
+        let mut current =
+            self.lexical_module_ignoring_privacy_until_myvis_e(module, first, site)?;
+        for segment in rest {
+            current = self
+                .module_at_ignoring_privacy_until_myvis_e(current, segment, module_path_site())
+                .or_else(|| {
+                    self.exported_module_ignoring_privacy_until_myvis_e(current, segment)
+                })?;
+        }
+        Some(current)
+    }
+
+    fn imported_type_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        self.select_import_ignoring_privacy_until_myvis_e(
+            self.nodes[module.0].import_types.get(name)?,
+            site,
+        )
+        .map(|entry| entry.decl.clone())
+    }
+
+    fn imported_module_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        self.select_import_ignoring_privacy_until_myvis_e(
+            self.nodes[module.0].import_modules.get(name)?,
+            site,
+        )
+        .map(|entry| entry.module)
+    }
+
+    fn exported_type_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        name: &Name,
+    ) -> Option<ModuleTypeDecl> {
         self.nodes[module.0]
             .import_types
             .get(name)?
@@ -685,13 +863,132 @@ impl ModuleTable {
             .find(|entry| entry.vis != Vis::My)
             .map(|entry| entry.decl.clone())
     }
-    pub(super) fn exported_module_at(&self, module: ModuleId, name: &Name) -> Option<ModuleId> {
+
+    fn exported_module_ignoring_privacy_until_myvis_e(
+        &self,
+        module: ModuleId,
+        name: &Name,
+    ) -> Option<ModuleId> {
         self.nodes[module.0]
             .import_modules
             .get(name)?
             .iter()
             .find(|entry| entry.vis != Vis::My)
             .map(|entry| entry.module)
+    }
+    pub(super) fn imported_type_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<ModuleTypeDecl> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_types
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Type,
+        ) {
+            Lookup::Found(decl) => Lookup::Found(decl.decl.clone()),
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
+        }
+    }
+    pub(super) fn imported_module_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<ModuleId> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_modules
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Module,
+        ) {
+            Lookup::Found(decl) => Lookup::Found(decl.module),
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
+        }
+    }
+    /// 外の module から見える import entry（再エクスポート）。`my use` だけはファイル内
+    /// private なので外からは見えない。our は band 内可視、pub は band 境界用（band は未実装）。
+    pub(super) fn exported_value_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+    ) -> Lookup<DefId> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_values
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            module_path_site(),
+            NamespaceKind::Value,
+        ) {
+            Lookup::Found(entry) if entry.vis != Vis::My => Lookup::Found(entry.def),
+            Lookup::Found(_) | Lookup::Missing => Lookup::Missing,
+            Lookup::Private(access) => Lookup::Private(access),
+        }
+    }
+    pub(super) fn exported_type_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+    ) -> Lookup<ModuleTypeDecl> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_types
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            module_path_site(),
+            NamespaceKind::Type,
+        ) {
+            Lookup::Found(entry) if entry.vis != Vis::My => Lookup::Found(entry.decl.clone()),
+            Lookup::Found(_) | Lookup::Missing => Lookup::Missing,
+            Lookup::Private(access) => Lookup::Private(access),
+        }
+    }
+    pub(super) fn exported_module_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+    ) -> Lookup<ModuleId> {
+        match self.select_import(
+            requester,
+            module,
+            self.nodes[module.0]
+                .import_modules
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            module_path_site(),
+            NamespaceKind::Module,
+        ) {
+            Lookup::Found(entry) if entry.vis != Vis::My => Lookup::Found(entry.module),
+            Lookup::Found(_) | Lookup::Missing => Lookup::Missing,
+            Lookup::Private(access) => Lookup::Private(access),
+        }
     }
     fn exported_value_target_at_for_import(
         &self,
@@ -990,6 +1287,46 @@ impl ModuleTable {
     }
     pub(super) fn select_decl(
         &self,
+        requester: ModuleId,
+        module: ModuleId,
+        decls: &[ModuleDeclId],
+        site: ModuleOrder,
+        kind: NamespaceKind,
+        route: VisibilityRoute,
+    ) -> Lookup<&ModuleDecl> {
+        let node = &self.nodes[module.0];
+        let mut candidates = decls
+            .iter()
+            .map(|decl| &node.decls[decl.0])
+            .collect::<Vec<_>>();
+        candidates.sort_by(
+            |left, right| match (left.order <= site, right.order <= site) {
+                (true, true) => right.order.cmp(&left.order),
+                (false, false) => left.order.cmp(&right.order),
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+            },
+        );
+        let mut private = None;
+        for decl in candidates {
+            if self.visibility_allows(requester, module, decl.vis, route) {
+                return Lookup::Found(decl);
+            }
+            if decl.vis == Vis::My {
+                private.get_or_insert_with(|| PrivateAccess {
+                    kind,
+                    name: decl.name.clone(),
+                    origin: decl
+                        .private_origin
+                        .expect("my declaration has private origin"),
+                });
+            }
+        }
+        private.map_or(Lookup::Missing, Lookup::Private)
+    }
+
+    fn select_decl_ignoring_privacy_until_myvis_e(
+        &self,
         module: ModuleId,
         decls: &[ModuleDeclId],
         site: ModuleOrder,
@@ -1031,19 +1368,64 @@ impl ModuleTable {
                     .min_by_key(|decl| decl.order)
             })
     }
-    fn select_import<'a, T>(&self, imports: &'a [T], site: ModuleOrder) -> Option<&'a T>
+    fn select_import<'a, T>(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        imports: &'a [T],
+        site: ModuleOrder,
+        kind: NamespaceKind,
+    ) -> Lookup<&'a T>
+    where
+        T: ImportOrder,
+    {
+        let mut candidates = imports.iter().collect::<Vec<_>>();
+        candidates.sort_by(
+            |left, right| match (left.order() <= site, right.order() <= site) {
+                (true, true) => right.order().cmp(&left.order()),
+                (false, false) => left.order().cmp(&right.order()),
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+            },
+        );
+        let mut private = None;
+        for entry in candidates {
+            let allowed =
+                self.visibility_allows(requester, module, entry.vis(), VisibilityRoute::SameBand)
+                    && entry.private_origin().is_none_or(|origin| {
+                        self.is_descendant_or_same(requester, self.private_origin(origin).scope)
+                    });
+            if allowed {
+                return Lookup::Found(entry);
+            }
+            if let Some(origin) = entry.private_origin() {
+                private.get_or_insert_with(|| PrivateAccess {
+                    kind,
+                    name: Name("<import>".to_string()),
+                    origin,
+                });
+            }
+        }
+        private.map_or(Lookup::Missing, Lookup::Private)
+    }
+
+    fn select_import_ignoring_privacy_until_myvis_e<'a, T>(
+        &self,
+        imports: &'a [T],
+        site: ModuleOrder,
+    ) -> Option<&'a T>
     where
         T: ImportOrder,
     {
         imports
             .iter()
-            .filter(|decl| decl.order() <= site)
-            .max_by_key(|decl| decl.order())
+            .filter(|entry| entry.order() <= site)
+            .max_by_key(|entry| entry.order())
             .or_else(|| {
                 imports
                     .iter()
-                    .filter(|decl| decl.order() > site)
-                    .min_by_key(|decl| decl.order())
+                    .filter(|entry| entry.order() > site)
+                    .min_by_key(|entry| entry.order())
             })
     }
     pub(super) fn add_dump_labels(

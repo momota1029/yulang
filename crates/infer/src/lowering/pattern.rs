@@ -1,6 +1,7 @@
 //! lambda / case / catch arm に共通する pattern lowering。
 
 use super::*;
+use crate::Lookup;
 use crate::{ConstructorDecl, ConstructorPayload};
 
 impl<'a> ExprLowerer<'a> {
@@ -168,6 +169,7 @@ impl<'a> ExprLowerer<'a> {
         if self.bare_pattern_name_is_nullary_constructor(&name) {
             return self.lower_constructor_pattern_path(
                 vec![name],
+                source_range.into_iter().collect(),
                 Vec::new(),
                 value,
                 call_return_effect,
@@ -178,7 +180,11 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn bare_pattern_name_is_nullary_constructor(&self, name: &Name) -> bool {
-        let Some(target) = self.modules.lexical_value_at(self.module, name, self.site) else {
+        let Some(target) = self
+            .modules
+            .lexical_value_at(self.module, name, self.site)
+            .found()
+        else {
             return false;
         };
         self.modules
@@ -582,21 +588,36 @@ impl<'a> ExprLowerer<'a> {
         value: TypeVar,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
-        let path = pattern_path(node)
+        let segments = pattern_path_segments(node)
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
+        let (path, segment_ranges): (Vec<_>, Vec<_>) = segments.into_iter().unzip();
         let payloads = pattern_payloads(node);
-        self.lower_constructor_pattern_path(path, payloads, value, call_return_effect)
+        self.lower_constructor_pattern_path(
+            path,
+            segment_ranges,
+            payloads,
+            value,
+            call_return_effect,
+        )
     }
 
     fn lower_constructor_pattern_path(
         &mut self,
         path: Vec<Name>,
+        segment_ranges: Vec<SourceRange>,
         payloads: Vec<Cst>,
         value: TypeVar,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let constructor_value = self.fresh_type_var();
         let target = self.modules.value_path_at(self.module, &path, self.site);
+        if let Lookup::Private(access) = target {
+            return Err(LoweringError::PrivateAccess {
+                source_range: path_segment_source_range(&path, &segment_ranges, &access.name),
+                access,
+            });
+        }
+        let target = target.found();
         let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
 
         if let Some(target) = target
@@ -639,6 +660,15 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<PatId, LoweringError> {
         let constructor_value = self.fresh_type_var();
         let target = self.modules.value_path_at(self.module, &path, self.site);
+        if let Lookup::Private(access) = target {
+            return Err(LoweringError::PrivateAccess {
+                access,
+                // This path was synthesized after its payloads were lowered, so it
+                // has no CST segment to use as a primary diagnostic span.
+                source_range: None,
+            });
+        }
+        let target = target.found();
         let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
 
         if let Some(target) = target
@@ -1047,6 +1077,10 @@ fn pattern_is_constructor_spine(node: &Cst) -> bool {
 }
 
 pub(super) fn pattern_path(node: &Cst) -> Option<Vec<Name>> {
+    pattern_path_segments(node).map(|segments| segments.into_iter().map(|(name, _)| name).collect())
+}
+
+fn pattern_path_segments(node: &Cst) -> Option<Vec<(Name, SourceRange)>> {
     let mut names = Vec::new();
     for item in node
         .children_with_tokens()
@@ -1055,12 +1089,15 @@ pub(super) fn pattern_path(node: &Cst) -> Option<Vec<Name>> {
         match item {
             NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
                 if names.is_empty() {
-                    names.push(Name(token.text().to_string()));
+                    names.push((
+                        Name(token.text().to_string()),
+                        crate::token_source_range(&token),
+                    ));
                 }
             }
             NodeOrToken::Node(child) if child.kind() == SyntaxKind::PathSep => {
-                if let Some(name) = path_sep_name(&child) {
-                    names.push(name);
+                if let Some((name, range)) = path_sep_name_and_range(&child) {
+                    names.push((name, range));
                 }
             }
             _ => {}
@@ -1069,11 +1106,26 @@ pub(super) fn pattern_path(node: &Cst) -> Option<Vec<Name>> {
     (!names.is_empty()).then_some(names)
 }
 
-fn path_sep_name(node: &Cst) -> Option<Name> {
+fn path_segment_source_range(
+    path: &[Name],
+    segment_ranges: &[SourceRange],
+    rejected: &Name,
+) -> Option<SourceRange> {
+    path.iter()
+        .position(|name| name == rejected)
+        .and_then(|index| segment_ranges.get(index).copied())
+}
+
+fn path_sep_name_and_range(node: &Cst) -> Option<(Name, SourceRange)> {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .find(|token| token.kind() == SyntaxKind::Ident)
-        .map(|token| Name(token.text().to_string()))
+        .map(|token| {
+            (
+                Name(token.text().to_string()),
+                crate::token_source_range(&token),
+            )
+        })
 }
 
 fn empty_apply_c(node: &Cst) -> bool {

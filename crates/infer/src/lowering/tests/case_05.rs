@@ -1463,7 +1463,8 @@ fn case_lambda_lowers_to_lambda_with_case_body() {
 
 #[test]
 fn case_constructor_pattern_resolves_path_reference() {
-    let root = parse("mod m:\n  my some = 0\nmy x = 1\nmy f = case x: m::some y -> y\n");
+    // The root is outside `m`, so this constructor must be public under D1.
+    let root = parse("mod m:\n  pub some = 0\nmy x = 1\nmy f = case x: m::some y -> y\n");
     let lower = lower_module_map(&root);
     let root_module = lower.modules.root_id();
     let m = lower.modules.module_decls(root_module, &Name("m".into()))[0].module;

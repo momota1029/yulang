@@ -613,7 +613,7 @@ impl ModuleTable {
             private_origin,
         });
     }
-    pub(crate) fn private_origin(&self, id: PrivateOriginId) -> &PrivateOrigin {
+    pub fn private_origin(&self, id: PrivateOriginId) -> &PrivateOrigin {
         &self.private_origins[id.0 as usize]
     }
 
@@ -676,42 +676,123 @@ impl ModuleTable {
             })
             .sum()
     }
-    pub fn value_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<DefId> {
-        let decl = self.select_decl(module, self.nodes[module.0].values.get(name)?, site)?;
-        match decl.kind {
-            ModuleDeclKind::Value { def } => Some(def),
-            ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+    pub fn is_descendant_or_same(&self, requester: ModuleId, declaring_module: ModuleId) -> bool {
+        let mut current = Some(requester);
+        while let Some(module) = current {
+            if module == declaring_module {
+                return true;
+            }
+            current = self.nodes[module.0].parent.map(|parent| parent.module);
+        }
+        false
+    }
+
+    pub(crate) fn visibility_allows(
+        &self,
+        requester: ModuleId,
+        declaring_module: ModuleId,
+        vis: Vis,
+        route: VisibilityRoute,
+    ) -> bool {
+        match vis {
+            Vis::My => self.is_descendant_or_same(requester, declaring_module),
+            Vis::Our => route.is_same_band(),
+            Vis::Pub => true,
+        }
+    }
+
+    pub fn value_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<DefId> {
+        match self.select_decl(
+            requester,
+            module,
+            self.nodes[module.0]
+                .values
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Value,
+            VisibilityRoute::SameBand,
+        ) {
+            Lookup::Found(decl) => match decl.kind {
+                ModuleDeclKind::Value { def } => Lookup::Found(def),
+                ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => Lookup::Missing,
+            },
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
         }
     }
     pub fn type_at(
         &self,
+        requester: ModuleId,
         module: ModuleId,
         name: &Name,
         site: ModuleOrder,
-    ) -> Option<ModuleTypeDecl> {
-        let decl = self.select_decl(module, self.nodes[module.0].types.get(name)?, site)?;
-        match decl.kind {
-            ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
-                name: decl.name.clone(),
-                vis: decl.vis,
-                order: decl.order,
-                module,
-                id,
-                kind,
-                private_origin: decl.private_origin,
-            }),
-            ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+    ) -> Lookup<ModuleTypeDecl> {
+        match self.select_decl(
+            requester,
+            module,
+            self.nodes[module.0]
+                .types
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Type,
+            VisibilityRoute::SameBand,
+        ) {
+            Lookup::Found(decl) => match decl.kind {
+                ModuleDeclKind::Type { id, kind } => Lookup::Found(ModuleTypeDecl {
+                    name: decl.name.clone(),
+                    vis: decl.vis,
+                    order: decl.order,
+                    module,
+                    id,
+                    kind,
+                    private_origin: decl.private_origin,
+                }),
+                ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => Lookup::Missing,
+            },
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
         }
     }
-    pub fn module_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<ModuleId> {
-        let decl = self.select_decl(module, self.nodes[module.0].modules.get(name)?, site)?;
-        match decl.kind {
-            ModuleDeclKind::Module { module: child, .. } => same_band_allows_module_step(
-                self.module_band_path(module),
-                self.module_band_path(child),
-            )
-            .then_some(child),
-            ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
+    pub fn module_at(
+        &self,
+        requester: ModuleId,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Lookup<ModuleId> {
+        match self.select_decl(
+            requester,
+            module,
+            self.nodes[module.0]
+                .modules
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            site,
+            NamespaceKind::Module,
+            VisibilityRoute::SameBand,
+        ) {
+            Lookup::Found(decl) => match decl.kind {
+                ModuleDeclKind::Module { module: child, .. } => same_band_allows_module_step(
+                    self.module_band_path(module),
+                    self.module_band_path(child),
+                )
+                .then_some(child)
+                .map_or(Lookup::Missing, Lookup::Found),
+                ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => Lookup::Missing,
+            },
+            Lookup::Private(access) => Lookup::Private(access),
+            Lookup::Missing => Lookup::Missing,
         }
     }
     pub fn lexical_value_at(
@@ -719,15 +800,22 @@ impl ModuleTable {
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
-    ) -> Option<DefId> {
+    ) -> Lookup<DefId> {
+        let requester = module;
         loop {
-            if let Some(def) = self.value_at(module, name, site) {
-                return Some(def);
+            match self.value_at(requester, module, name, site) {
+                Lookup::Found(def) => return Lookup::Found(def),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            if let Some(def) = self.imported_value_at(module, name, site) {
-                return Some(def);
+            match self.imported_value_at(requester, module, name, site) {
+                Lookup::Found(def) => return Lookup::Found(def),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            let parent = self.nodes[module.0].parent?;
+            let Some(parent) = self.nodes[module.0].parent else {
+                return Lookup::Missing;
+            };
             module = parent.module;
             site = parent.order;
         }
@@ -737,34 +825,46 @@ impl ModuleTable {
         module: ModuleId,
         path: &[Name],
         site: ModuleOrder,
-    ) -> Option<DefId> {
+    ) -> Lookup<DefId> {
         let Some((last, prefix)) = path.split_last() else {
-            return None;
+            return Lookup::Missing;
         };
         if prefix.is_empty() {
             return self.lexical_value_at(module, last, site);
         }
 
-        let target = self.module_path_with_imports_from(module, prefix, site)?;
-        self.value_at(target, last, module_path_site())
-            .or_else(|| self.exported_value_at(target, last))
+        let target = match self.module_path_with_imports_from(module, prefix, site) {
+            Lookup::Found(target) => target,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
+        };
+        match self.value_at(module, target, last, module_path_site()) {
+            Lookup::Missing => self.exported_value_at(module, target, last),
+            result => result,
+        }
     }
     pub fn type_path_at(
         &self,
         module: ModuleId,
         path: &[Name],
         site: ModuleOrder,
-    ) -> Option<ModuleTypeDecl> {
+    ) -> Lookup<ModuleTypeDecl> {
         let Some((last, prefix)) = path.split_last() else {
-            return None;
+            return Lookup::Missing;
         };
         if prefix.is_empty() {
             return self.lexical_type_at(module, last, site);
         }
 
-        let target = self.module_path_with_imports_from(module, prefix, site)?;
-        self.type_at(target, last, module_path_site())
-            .or_else(|| self.exported_type_at(target, last))
+        let target = match self.module_path_with_imports_from(module, prefix, site) {
+            Lookup::Found(target) => target,
+            Lookup::Private(access) => return Lookup::Private(access),
+            Lookup::Missing => return Lookup::Missing,
+        };
+        match self.type_at(module, target, last, module_path_site()) {
+            Lookup::Missing => self.exported_type_at(module, target, last),
+            result => result,
+        }
     }
     pub fn act_operation_decls_at(
         &self,
@@ -774,10 +874,15 @@ impl ModuleTable {
     ) -> Vec<ActOperationDecl> {
         let Some(effect) = self
             .type_path_at(module, effect_path, site)
-            .filter(|decl| matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error))
+            .ignore_privacy_until_myvis_e(|_| {
+                self.type_path_ignoring_privacy_until_myvis_e(module, effect_path, site)
+            })
         else {
             return Vec::new();
         };
+        if !matches!(effect.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
+            return Vec::new();
+        }
 
         self.act_ops
             .get(&effect.id)
@@ -787,7 +892,16 @@ impl ModuleTable {
             .map(|op| ActOperationDecl {
                 def: self
                     .type_companion(effect.id)
-                    .and_then(|companion| self.value_at(companion, &op.name, module_path_site()))
+                    .and_then(|companion| {
+                        self.value_at(module, companion, &op.name, module_path_site())
+                            .ignore_privacy_until_myvis_e(|_| {
+                                self.value_at_ignoring_privacy_until_myvis_e(
+                                    companion,
+                                    &op.name,
+                                    module_path_site(),
+                                )
+                            })
+                    })
                     .filter(|def| {
                         self.act_op_defs
                             .get(def)
@@ -827,15 +941,22 @@ impl ModuleTable {
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
-    ) -> Option<ModuleTypeDecl> {
+    ) -> Lookup<ModuleTypeDecl> {
+        let requester = module;
         loop {
-            if let Some(found) = self.type_at(module, name, site) {
-                return Some(found);
+            match self.type_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            if let Some(found) = self.imported_type_at(module, name, site) {
-                return Some(found);
+            match self.imported_type_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            let parent = self.nodes[module.0].parent?;
+            let Some(parent) = self.nodes[module.0].parent else {
+                return Lookup::Missing;
+            };
             module = parent.module;
             site = parent.order;
         }
@@ -845,15 +966,22 @@ impl ModuleTable {
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
-    ) -> Option<ModuleId> {
+    ) -> Lookup<ModuleId> {
+        let requester = module;
         loop {
-            if let Some(found) = self.module_at(module, name, site) {
-                return Some(found);
+            match self.module_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            if let Some(found) = self.imported_module_at(module, name, site) {
-                return Some(found);
+            match self.imported_module_at(requester, module, name, site) {
+                Lookup::Found(found) => return Lookup::Found(found),
+                Lookup::Private(access) => return Lookup::Private(access),
+                Lookup::Missing => {}
             }
-            let parent = self.nodes[module.0].parent?;
+            let Some(parent) = self.nodes[module.0].parent else {
+                return Lookup::Missing;
+            };
             module = parent.module;
             site = parent.order;
         }
@@ -945,11 +1073,19 @@ fn remap_def_keyed_vec<T>(
 
 trait ImportOrder {
     fn order(&self) -> ModuleOrder;
+    fn vis(&self) -> Vis;
+    fn private_origin(&self) -> Option<PrivateOriginId>;
 }
 
 impl ImportOrder for ImportedValueDecl {
     fn order(&self) -> ModuleOrder {
         self.order
+    }
+    fn vis(&self) -> Vis {
+        self.vis
+    }
+    fn private_origin(&self) -> Option<PrivateOriginId> {
+        self.private_origin
     }
 }
 
@@ -957,11 +1093,23 @@ impl ImportOrder for ImportedTypeDecl {
     fn order(&self) -> ModuleOrder {
         self.order
     }
+    fn vis(&self) -> Vis {
+        self.vis
+    }
+    fn private_origin(&self) -> Option<PrivateOriginId> {
+        self.private_origin
+    }
 }
 
 impl ImportOrder for ImportedModuleDecl {
     fn order(&self) -> ModuleOrder {
         self.order
+    }
+    fn vis(&self) -> Vis {
+        self.vis
+    }
+    fn private_origin(&self) -> Option<PrivateOriginId> {
+        self.private_origin
     }
 }
 

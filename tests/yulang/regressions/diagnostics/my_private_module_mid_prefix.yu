@@ -1,0 +1,4 @@
+pub mod owner:
+  my mod private:
+    pub value = 1
+owner::private::value

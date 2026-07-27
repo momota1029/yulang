@@ -1052,7 +1052,7 @@ impl Lower {
         let name = Name(name.to_string());
         if self
             .modules
-            .value_at(error.companion, &name, module_path_site())
+            .value_at(error.companion, error.companion, &name, module_path_site())
             .is_some()
         {
             return None;

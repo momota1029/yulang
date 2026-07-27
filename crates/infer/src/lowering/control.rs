@@ -1398,6 +1398,7 @@ impl<'a> ExprLowerer<'a> {
         if let Some(target) = self
             .modules
             .value_path_at(self.module, &effect_op.path, self.site)
+            .found()
         {
             if let Some(decl) = self.modules.act_operation_decl_by_def(target) {
                 return Some(decl);

@@ -1,22 +1,38 @@
 //! Name and local reference lowering.
 
 use super::*;
+use crate::Lookup;
 
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_path_name_at(
         &mut self,
         path: &[Name],
         source_range: Option<SourceRange>,
+        segment_ranges: &[SourceRange],
     ) -> Result<Computation, LoweringError> {
         if let Some(builtin) = builtin_op_from_path(path) {
             return self.lower_builtin_op(builtin);
         }
 
-        let Some(target) = self.modules.value_path_at(self.module, path, self.site) else {
-            return Err(LoweringError::UnresolvedName {
-                name: Name(path_label(path)),
-                source_range,
-            });
+        let target = match self.modules.value_path_at(self.module, path, self.site) {
+            Lookup::Found(target) => target,
+            Lookup::Private(access) => {
+                let source_range = path
+                    .iter()
+                    .position(|name| name == &access.name)
+                    .and_then(|index| segment_ranges.get(index).copied())
+                    .or(source_range);
+                return Err(LoweringError::PrivateAccess {
+                    access,
+                    source_range,
+                });
+            }
+            Lookup::Missing => {
+                return Err(LoweringError::UnresolvedName {
+                    name: Name(path_label(path)),
+                    source_range,
+                });
+            }
         };
         Ok(self.lower_resolved_value_ref_at(path_label(path), target, source_range))
     }
@@ -26,9 +42,10 @@ impl<'a> ExprLowerer<'a> {
         path: Vec<String>,
     ) -> Result<Computation, LoweringError> {
         let path = path.into_iter().map(Name).collect::<Vec<_>>();
-        let Some(target) =
-            self.modules
-                .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+        let Some(target) = self
+            .modules
+            .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+            .found()
         else {
             return Err(LoweringError::UnresolvedName {
                 name: Name(path_label(&path)),
@@ -63,8 +80,15 @@ impl<'a> ExprLowerer<'a> {
             _ => {}
         }
 
-        let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
-            return Err(LoweringError::UnresolvedName { name, source_range });
+        let target = match self.modules.lexical_value_at(self.module, &name, self.site) {
+            Lookup::Found(target) => target,
+            Lookup::Private(access) => {
+                return Err(LoweringError::PrivateAccess {
+                    access,
+                    source_range,
+                });
+            }
+            Lookup::Missing => return Err(LoweringError::UnresolvedName { name, source_range }),
         };
         let label = name.0.clone();
         let value = self.fresh_type_var();

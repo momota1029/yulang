@@ -1,0 +1,3 @@
+pub mod owner:
+  my some = 0
+my f = case 1: owner::some value -> value

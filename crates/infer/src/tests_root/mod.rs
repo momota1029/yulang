@@ -1172,6 +1172,26 @@ fn registers_act_operation_names_for_coverage() {
 }
 
 #[test]
+fn myvis_e_placeholder_private_act_operation_remains_resolvable_outside_owner() {
+    let cst = parse("mod owner:\n  my act hidden:\n    our ping: () -> unit\nmy site = 1\n");
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+
+    let operations = lower
+        .modules
+        .act_operation_decls_at(root, &[Name("owner".into()), Name("hidden".into())], site)
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    // MYVIS-E owns changing this legacy allowance into private-access with
+    // descendant parity. MYVIS-C must keep the pre-slice result observable.
+    assert_eq!(operations.len(), 1);
+    assert_eq!(operations[0].name, Name("ping".into()));
+    assert!(operations[0].def.is_some());
+}
+
+#[test]
 fn registers_act_operation_value_defs_in_companion_scope() {
     let cst = parse("act out:\n  our say: int -> unit\nmy site = 1\n");
     let lower = lower_module_map(&cst);
@@ -1481,7 +1501,9 @@ fn ordered_lookup_prefers_last_previous_decl() {
 
     assert_eq!(a_decls.len(), 2);
     assert_eq!(
-        lower.modules.value_at(root, &Name("a".into()), b_order),
+        lower
+            .modules
+            .value_at(root, root, &Name("a".into()), b_order),
         Some(a_decls[0].def)
     );
 }
@@ -1495,7 +1517,9 @@ fn ordered_lookup_uses_nearest_following_decl_when_no_previous_decl_exists() {
     let b_order = lower.modules.value_decls(root, &Name("b".into()))[0].order;
 
     assert_eq!(
-        lower.modules.value_at(root, &Name("a".into()), b_order),
+        lower
+            .modules
+            .value_at(root, root, &Name("a".into()), b_order),
         Some(a_decls[0].def)
     );
 }
@@ -1532,4 +1556,70 @@ fn lexical_lookup_prefers_parent_decl_before_child_module_over_later_parent_decl
             .lexical_value_at(m, &Name("x".into()), y_order),
         Some(x_decls[0].def)
     );
+}
+
+#[test]
+fn my_visibility_direct_namespace_matrix_keeps_requester_fixed() {
+    let mut lower = lower_source(
+        "pub mod owner:\n  my value = 1\n  type Hidden\n  my mod private:\n    pub value = 2\n  pub mod child:\n    pub mod grandchild:\n      pub witness = 0\npub mod sibling:\n  pub witness = 0\npub mod unrelated:\n  pub witness = 0\n",
+    );
+    let modules = &lower.modules;
+    let root = modules.root_id();
+    let owner = modules.module_decls(root, &Name("owner".into()))[0].module;
+    let child = modules.module_decls(owner, &Name("child".into()))[0].module;
+    let grandchild = modules.module_decls(child, &Name("grandchild".into()))[0].module;
+    let sibling = modules.module_decls(root, &Name("sibling".into()))[0].module;
+    let unrelated = modules.module_decls(root, &Name("unrelated".into()))[0].module;
+    assert_eq!(
+        modules.value_decls(owner, &Name("value".into()))[0].vis,
+        Vis::My
+    );
+    assert!(!modules.is_descendant_or_same(sibling, owner));
+    let hidden = lower.modules.nodes[owner.0].types[&Name("Hidden".into())].clone();
+    let hidden_origin = lower
+        .modules
+        .private_origin_for(owner, Vis::My, None)
+        .expect("my visibility has an origin");
+    for id in hidden {
+        let decl = &mut lower.modules.nodes[owner.0].decls[id.0];
+        decl.vis = Vis::My;
+        decl.private_origin = Some(hidden_origin);
+    }
+    let modules = &lower.modules;
+    let site = ModuleOrder::from_index(u32::MAX);
+    let value_path = [Name("owner".into()), Name("value".into())];
+    let type_path = [Name("owner".into()), Name("Hidden".into())];
+    let private_path = [Name("owner".into()), Name("private".into())];
+    assert!(matches!(
+        modules.value_at(sibling, owner, &Name("value".into()), site),
+        Lookup::Private(_)
+    ));
+
+    for (relationship, requester, allowed) in [
+        ("same module", owner, true),
+        ("child", child, true),
+        ("grandchild", grandchild, true),
+        ("parent reaching into child", root, false),
+        ("sibling", sibling, false),
+        ("unrelated", unrelated, false),
+    ] {
+        let value = modules.value_path_at(requester, &value_path, site);
+        let ty = modules.type_path_at(requester, &type_path, site);
+        let module = modules.module_path_with_imports_from(requester, &private_path, site);
+        if allowed {
+            assert!(matches!(value, Lookup::Found(_)), "value {relationship}");
+            assert!(matches!(ty, Lookup::Found(_)), "type {relationship}");
+            assert!(matches!(module, Lookup::Found(_)), "module {relationship}");
+        } else {
+            assert!(
+                matches!(value, Lookup::Private(_)),
+                "value {relationship}: {value:?}"
+            );
+            assert!(matches!(ty, Lookup::Private(_)), "type {relationship}");
+            assert!(
+                matches!(module, Lookup::Private(_)),
+                "module {relationship}"
+            );
+        }
+    }
 }

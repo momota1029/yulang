@@ -169,11 +169,17 @@ fn local_module_wins_over_glob_imported_module_alias() {
     let root = output.modules.root_id();
     let local_net = output
         .modules
-        .module_at(root, &Name("net".into()), ModuleOrder::from_index(u32::MAX))
+        .module_at(
+            root,
+            root,
+            &Name("net".into()),
+            ModuleOrder::from_index(u32::MAX),
+        )
         .expect("local net module");
     let local_serve = output
         .modules
         .value_at(
+            local_net,
             local_net,
             &Name("serve".into()),
             ModuleOrder::from_index(u32::MAX),

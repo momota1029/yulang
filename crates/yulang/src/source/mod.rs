@@ -3161,7 +3161,8 @@ fn source_completion_from_check(
             let def = check
                 .lowering
                 .modules
-                .lexical_value_at(module, &name, site)?;
+                .lexical_value_at(module, &name, site)
+                .found()?;
             let detail = match check.lowering.session.poly.defs.get(def) {
                 Some(poly::expr::Def::Let {
                     scheme: Some(scheme),
@@ -3291,11 +3292,16 @@ fn source_member_completion_from_check(
 
     if let Some(receiver_path) = receiver.nominal_path {
         let path = receiver_path.iter().cloned().map(Name).collect::<Vec<_>>();
-        if let Some(owner) = check.lowering.modules.type_path_at(
-            format_context.module,
-            &path,
-            infer::ModuleOrder::from_index(u32::MAX),
-        ) {
+        if let Some(owner) = check
+            .lowering
+            .modules
+            .type_path_at(
+                format_context.module,
+                &path,
+                infer::ModuleOrder::from_index(u32::MAX),
+            )
+            .found()
+        {
             items.extend(
                 check
                     .lowering
@@ -4054,11 +4060,12 @@ impl<'a> HoverFormatContext<'a> {
         let names = path.iter().cloned().map(Name).collect::<Vec<_>>();
         for start in (0..names.len()).rev() {
             let suffix = &names[start..];
-            let Some(found) =
-                self.check
-                    .lowering
-                    .modules
-                    .type_path_at(self.module, suffix, self.site)
+            let Some(found) = self
+                .check
+                .lowering
+                .modules
+                .type_path_at(self.module, suffix, self.site)
+                .found()
             else {
                 continue;
             };
@@ -4095,7 +4102,7 @@ impl<'a> HoverFormatContext<'a> {
                 .lowering
                 .modules
                 .value_path_at(self.module, suffix, self.site)
-                .is_some_and(|found| found == def)
+                .is_some_and(|found| *found == def)
             {
                 return suffix
                     .iter()
@@ -4201,7 +4208,7 @@ fn source_diagnostic_from_body_lowering_error(
         label,
         file: span.as_ref().map(|span| span.file.clone()),
         range: span.as_ref().map(|span| span.range),
-        message: format_body_lowering_error(error),
+        message: body_lowering_error_message(error, modules),
         hint: body_lowering_error_hint(error),
         related: body_lowering_error_related(error, modules, labels),
     }
@@ -4216,6 +4223,67 @@ fn source_diagnostics_for_check(
         out.extend(role_method_diagnostics_from_check(check));
     }
     out
+}
+
+fn body_lowering_error_message(
+    error: &infer::lowering::BodyLoweringError,
+    modules: &infer::ModuleTable,
+) -> String {
+    let Some(access) = body_lowering_private_access(error) else {
+        return format_body_lowering_error(error);
+    };
+    let scope = modules.module_path(modules.private_origin(access.origin).scope);
+    let scope = if scope.segments.is_empty() {
+        "<root>".to_string()
+    } else {
+        scope
+            .segments
+            .iter()
+            .map(|segment| segment.0.as_str())
+            .collect::<Vec<_>>()
+            .join("::")
+    };
+    format!(
+        "{} `{}` is private to module `{scope}`",
+        private_access_kind(access.kind),
+        access.name.0,
+    )
+}
+
+fn body_lowering_private_access(
+    error: &infer::lowering::BodyLoweringError,
+) -> Option<&infer::PrivateAccess> {
+    match error {
+        infer::lowering::BodyLoweringError::Expr { error, .. }
+        | infer::lowering::BodyLoweringError::RootExpr { error, .. } => {
+            lowering_private_access(error)
+        }
+        _ => None,
+    }
+}
+
+fn lowering_private_access(
+    error: &infer::lowering::LoweringError,
+) -> Option<&infer::PrivateAccess> {
+    match error {
+        infer::lowering::LoweringError::PrivateAccess { access, .. } => Some(access),
+        infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::PrivateAccess { access },
+            ..
+        } => Some(access),
+        infer::lowering::LoweringError::NegSignatureBuild {
+            error: infer::lowering::NegSignatureBuildError::PrivateAccess { access },
+        } => Some(access),
+        _ => None,
+    }
+}
+
+fn private_access_kind(kind: infer::NamespaceKind) -> &'static str {
+    match kind {
+        infer::NamespaceKind::Value => "value",
+        infer::NamespaceKind::Type => "type",
+        infer::NamespaceKind::Module => "module",
+    }
 }
 
 fn role_method_diagnostics_from_check(
@@ -4375,6 +4443,14 @@ fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Optio
 
 fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'static str> {
     match error {
+        infer::lowering::LoweringError::PrivateAccess { .. }
+        | infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::PrivateAccess { .. },
+            ..
+        }
+        | infer::lowering::LoweringError::NegSignatureBuild {
+            error: infer::lowering::NegSignatureBuildError::PrivateAccess { .. },
+        } => Some("yulang.private-access"),
         infer::lowering::LoweringError::UnsupportedSyntax { .. } => {
             Some("yulang.unsupported-syntax")
         }
@@ -4521,6 +4597,23 @@ fn body_lowering_error_related(
         _ => None,
     };
     match error {
+        infer::lowering::BodyLoweringError::Expr { error, .. }
+        | infer::lowering::BodyLoweringError::RootExpr { error, .. }
+            if lowering_private_access(error).is_some() =>
+        {
+            let access = lowering_private_access(error).expect("guarded above");
+            let origin = modules.private_origin(access.origin);
+            origin
+                .declaration_span
+                .iter()
+                .map(|span| SourceDiagnosticRelated {
+                    message: format!("private {} declared here", private_access_kind(access.kind)),
+                    file: span.file.clone(),
+                    range: span.range,
+                    origin: None,
+                })
+                .collect()
+        }
         infer::lowering::BodyLoweringError::RoleImplAssociatedTypeMismatch {
             method,
             associated,
@@ -4738,6 +4831,16 @@ fn implicit_cast_candidate_message(
 
 fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String> {
     match error {
+        infer::lowering::LoweringError::PrivateAccess { .. }
+        | infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::PrivateAccess { .. },
+            ..
+        }
+        | infer::lowering::LoweringError::NegSignatureBuild {
+            error: infer::lowering::NegSignatureBuildError::PrivateAccess { .. },
+        } => Some(
+            "move this access into the declaration's module or one of its nested modules, or widen the declaration's visibility".to_string(),
+        ),
         infer::lowering::LoweringError::UnsupportedSyntax { .. } => {
             Some("rewrite this form using supported expression syntax".to_string())
         }
@@ -4845,6 +4948,7 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
 fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option<SourceRange> {
     match error {
         infer::lowering::LoweringError::UnresolvedName { source_range, .. } => *source_range,
+        infer::lowering::LoweringError::PrivateAccess { source_range, .. } => *source_range,
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { source_range, .. } => {
             *source_range
         }

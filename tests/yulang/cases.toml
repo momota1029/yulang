@@ -3438,6 +3438,42 @@ expect_stderr = ""
 contracts = ["stable-core", "runtime", "roles"]
 
 [[case]]
+name = "my_private_module_mid_prefix_diagnostic"
+file = "regressions/diagnostics/my_private_module_mid_prefix.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.private-access]: module `private` is private to module `owner`",
+]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 87
+expect_diagnostic_end = 94
+expect_diagnostic_related_count = 1
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
+name = "my_private_constructor_pattern_diagnostic"
+file = "regressions/diagnostics/my_private_constructor_pattern.yu"
+kind = "check"
+expect_success = false
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.private-access]: f: value `some` is private to module `owner`",
+]
+expect_diagnostic_code = "yulang.private-access"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 80
+expect_diagnostic_end = 84
+expect_diagnostic_related_count = 1
+contracts = ["diagnostics", "related-ranges"]
+
+[[case]]
 name = "derive_unresolved_role_diagnostic"
 file = "regressions/diagnostics/derive_unresolved_role.yu"
 kind = "check"

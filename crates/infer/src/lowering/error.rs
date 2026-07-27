@@ -4,6 +4,7 @@
 //! structured annotation/signature error needed by diagnostics.
 
 use super::*;
+use crate::PrivateAccess;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoweringError {
@@ -22,6 +23,10 @@ pub enum LoweringError {
     },
     UnresolvedName {
         name: Name,
+        source_range: Option<SourceRange>,
+    },
+    PrivateAccess {
+        access: PrivateAccess,
         source_range: Option<SourceRange>,
     },
     InvalidNumber {
@@ -129,6 +134,10 @@ fn annotation_build_source_range(error: &AnnBuildError, type_expr: &Cst) -> Sour
             .last()
             .and_then(|name| crate::source_range_for_name(type_expr, name))
             .unwrap_or_else(|| crate::node_source_range(type_expr)),
+        AnnBuildError::PrivateAccess { access } => {
+            crate::source_range_for_name(type_expr, &access.name)
+                .unwrap_or_else(|| crate::node_source_range(type_expr))
+        }
         _ => crate::node_source_range(type_expr),
     }
 }

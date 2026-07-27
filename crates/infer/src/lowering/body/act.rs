@@ -70,7 +70,8 @@ impl BodyLowerer {
         };
         let Some(def) = self
             .modules
-            .value_at(companion, &name, signature_module_path_site())
+            .value_at(companion, companion, &name, signature_module_path_site())
+            .found()
         else {
             self.errors
                 .push(BodyLoweringError::MissingBindingDecl { name });

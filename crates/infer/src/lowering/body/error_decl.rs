@@ -505,6 +505,7 @@ impl BodyLowerer {
                     .lexical_type_at(module, &Name("Throw".to_string()), module_path_site())
             })
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
+            .found()
     }
 
     fn display_role_decl(&self, module: ModuleId) -> Option<ModuleTypeDecl> {
@@ -519,6 +520,7 @@ impl BodyLowerer {
                 )
             })
             .filter(|decl| decl.kind == ModuleTypeKind::Role)
+            .found()
     }
 
     fn error_throw_candidate(

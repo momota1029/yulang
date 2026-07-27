@@ -453,6 +453,7 @@ impl Lower {
         self.modules
             .type_path_at(self.modules.root_id(), &path, module_path_site())
             .filter(|decl| decl.kind == ModuleTypeKind::Act)
+            .found()
     }
 
     pub(super) fn std_label_sub_act_decl(&self) -> Option<ModuleTypeDecl> {
@@ -463,6 +464,7 @@ impl Lower {
         self.modules
             .type_path_at(self.modules.root_id(), &path, module_path_site())
             .filter(|decl| decl.kind == ModuleTypeKind::Act)
+            .found()
     }
 
     pub(super) fn resolve_act_copy(&self, dest: &ModuleTypeDecl) -> Option<ResolvedActCopyDecl> {

@@ -129,12 +129,140 @@ struct ModuleNode {
 /// Import entries retain this opaque id instead of repeatedly cloning the
 /// source span and module scope while import views reach their fixed point.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub(crate) struct PrivateOriginId(u32);
+pub struct PrivateOriginId(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PrivateOrigin {
-    pub(crate) scope: ModuleId,
-    pub(crate) declaration_span: Option<SourceSpan>,
+pub struct PrivateOrigin {
+    pub scope: ModuleId,
+    pub declaration_span: Option<SourceSpan>,
+}
+
+/// The namespace whose lookup was denied by a `my` declaration.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NamespaceKind {
+    Value,
+    Type,
+    Module,
+}
+
+/// A direct lookup result.  In particular, `Private` is not a missing name:
+/// lowering must retain it to produce the visibility diagnostic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Lookup<T> {
+    Found(T),
+    Private(PrivateAccess),
+    Missing,
+}
+
+impl<T> Lookup<T> {
+    pub fn found(self) -> Option<T> {
+        match self {
+            Self::Found(value) => Some(value),
+            Self::Private(_) | Self::Missing => None,
+        }
+    }
+
+    /// Temporarily retain pre-MYVIS-E act-operation resolution semantics.
+    ///
+    /// Direct namespace users must preserve `Private` for diagnostics. Act
+    /// operations are deliberately deferred to MYVIS-E, where their access
+    /// diagnostic and descendant parity will land together.
+    pub(crate) fn ignore_privacy_until_myvis_e(
+        self,
+        resolve_private: impl FnOnce(&PrivateAccess) -> Option<T>,
+    ) -> Option<T> {
+        match self {
+            Self::Found(value) => Some(value),
+            Self::Private(access) => resolve_private(&access),
+            Self::Missing => None,
+        }
+    }
+
+    pub fn as_ref(&self) -> Lookup<&T> {
+        match self {
+            Self::Found(value) => Lookup::Found(value),
+            Self::Private(access) => Lookup::Private(access.clone()),
+            Self::Missing => Lookup::Missing,
+        }
+    }
+
+    pub fn is_some(&self) -> bool {
+        matches!(self, Self::Found(_))
+    }
+
+    pub fn is_some_and(&self, predicate: impl FnOnce(&T) -> bool) -> bool {
+        matches!(self, Self::Found(value) if predicate(value))
+    }
+
+    pub fn filter(self, predicate: impl FnOnce(&T) -> bool) -> Self {
+        match self {
+            Self::Found(value) if predicate(&value) => Self::Found(value),
+            Self::Found(_) => Self::Missing,
+            Self::Private(access) => Self::Private(access),
+            Self::Missing => Self::Missing,
+        }
+    }
+
+    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> Lookup<U> {
+        match self {
+            Self::Found(value) => Lookup::Found(map(value)),
+            Self::Private(access) => Lookup::Private(access),
+            Self::Missing => Lookup::Missing,
+        }
+    }
+
+    pub fn or_else(self, fallback: impl FnOnce() -> Self) -> Self {
+        match self {
+            Self::Missing => fallback(),
+            result => result,
+        }
+    }
+
+    pub fn ok_or_else<E>(self, error: impl FnOnce() -> E) -> Result<T, E> {
+        self.found().ok_or_else(error)
+    }
+
+    pub fn expect(self, message: &str) -> T {
+        self.found().expect(message)
+    }
+
+    pub fn unwrap(self) -> T {
+        self.found().unwrap()
+    }
+
+    pub fn unwrap_or_else(self, fallback: impl FnOnce() -> T) -> T {
+        self.found().unwrap_or_else(fallback)
+    }
+}
+
+impl<T: PartialEq> PartialEq<Option<T>> for Lookup<T> {
+    fn eq(&self, other: &Option<T>) -> bool {
+        match (self, other) {
+            (Self::Found(found), Some(expected)) => found == expected,
+            (Self::Missing, None) => true,
+            _ => false,
+        }
+    }
+}
+
+/// The origin retained for a denied direct namespace lookup.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PrivateAccess {
+    pub kind: NamespaceKind,
+    pub name: Name,
+    pub origin: PrivateOriginId,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum VisibilityRoute {
+    SameBand,
+    CrossBand,
+}
+
+impl VisibilityRoute {
+    fn is_same_band(self) -> bool {
+        matches!(self, Self::SameBand)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
