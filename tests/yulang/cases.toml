@@ -4051,3 +4051,18 @@ std = "repo"
 expect_stdout = ""
 expect_stderr = "runtime error [yulang.missing-field]: record does not contain field `secret`\n  hint: check the field name or provide a record value with this field\n"
 contracts = ["runtime-error", "runtime-failure", "types"]
+
+[[case]]
+name = "test_runner_suppresses_passing_stdout_and_reports_failing_stdout"
+file = "regressions/runtime/test_runner_captured_output.yu"
+kind = "test"
+expect_success = false
+std = "repo"
+expect_stdout = "test result: 1 passed; 1 failed\n"
+expect_stderr_contains = [
+  "FAIL output::failing",
+  "assertion failure [yulang.assertion-failed]",
+  "  captured stdout:",
+  "    FAILING TEST OUTPUT",
+]
+contracts = ["runtime"]

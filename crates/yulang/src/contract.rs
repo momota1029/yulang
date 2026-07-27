@@ -626,6 +626,14 @@ fn validate_contract_case_kind_tags(path: &Path, case: &ContractCase) {
                 );
             }
         }
+        "test" => {
+            if !contract_case_has_tag(case, "runtime") {
+                contract_manifest_fail(
+                    path,
+                    &format!("test contract case `{}` should carry runtime", case.name),
+                );
+            }
+        }
         other => contract_manifest_fail(
             path,
             &format!(
@@ -1007,8 +1015,18 @@ fn run_contract_case(
         ),
         "check" => run_contract_check_case(options, repo_root, case),
         "public-signature" => run_contract_public_signature_case(options, repo_root, case),
+        "test" => run_contract_test_case(options, repo_root, case),
         other => contract_fail(case, &format!("unsupported contract case kind `{other}`")),
     }
+}
+
+fn run_contract_test_case(options: &ContractOptions, repo_root: &Path, case: &ContractCase) {
+    let entry = contract_case_entry(repo_root, case);
+    let mut command = contract_child_command(options, case);
+    command.arg("test").arg(entry);
+    let output = contract_output(case, &mut command);
+    assert_contract_status(case, &output);
+    assert_contract_output(case, &output);
 }
 
 fn run_contract_run_case(

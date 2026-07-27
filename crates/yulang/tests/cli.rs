@@ -97,11 +97,35 @@ fn assert_eq_is_lazy_in_normal_runs_and_forces_both_operands_in_tests() {
         .unwrap();
 
     assert_success(&test);
-    assert_eq!(
-        stdout(&test),
-        "LEFT\nRIGHT\ntest result: 1 passed; 0 failed\n"
-    );
+    assert_eq!(stdout(&test), "test result: 1 passed; 0 failed\n");
     assert_eq!(stderr(&test), "");
+}
+
+#[test]
+fn test_runner_nocapture_shows_passing_test_output() {
+    let entry = write_entry(
+        "test-runner-nocapture",
+        "\
+mod test output:
+  my printed = { println \"VISIBLE\"; assert true }
+",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("test")
+        .arg("--nocapture")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        "VISIBLE\ntest result: 1 passed; 0 failed\n"
+    );
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]

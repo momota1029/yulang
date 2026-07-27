@@ -65,6 +65,12 @@ pub struct RuntimeEvidenceRunOutput {
     pub evidence_stats: RuntimeEvidenceRunStats,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeEvidenceTestRunError {
+    pub error: RuntimeEvidenceRunError,
+    pub stdout: String,
+}
+
 impl RuntimeEvidenceRunOutput {
     pub fn single_string_value(&self) -> Result<&str, RuntimeEvidenceSingleStringError> {
         let [value] = self.values.as_slice() else {
@@ -9298,11 +9304,15 @@ pub fn run_test_program_with_plan_with_labels(
     program: &Program,
     plan: &EvidenceVmPlan,
     labels: &poly::dump::DumpLabels,
-) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceTestRunError> {
     let context = RuntimeEvidenceRunContext::from_plan(plan)
         .with_forced_assertions()
         .with_host_constructors(RuntimeEvidenceHostConstructors::from_labels(labels));
-    RuntimeEvidenceRunner::new(program, context).run()
+    let mut runner = RuntimeEvidenceRunner::new(program, context);
+    runner.run().map_err(|error| RuntimeEvidenceTestRunError {
+        error,
+        stdout: runner.host_state.unflushed_stdout(),
+    })
 }
 
 pub fn run_program_with_plan_with_labels_print_nth(

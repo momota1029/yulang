@@ -81,7 +81,11 @@ pub(super) fn run(program: &str, options: &GlobalOptions, args: VecDeque<OsStrin
     for (root_index, test) in selected {
         let output = run_test_worker(options, artifact_root.path(), root_index, &args.entry);
         if output.status.success() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
+            // A successful worker stays quiet unless the caller explicitly asks for its streams.
+            if args.nocapture {
+                print!("{}", String::from_utf8_lossy(&output.stdout));
+                eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            }
             passed += 1;
             if args.show_passes {
                 println!("PASS {}", test.name);
@@ -181,7 +185,9 @@ pub(super) fn run_worker(program: &str, options: &GlobalOptions, mut args: VecDe
     let plan = evidence_vm::build_plan(&program, &artifact.runtime_evidence);
     match evidence_vm::run_test_program_with_plan_with_labels(&program, &plan, &artifact.labels) {
         Ok(output) => print!("{}", output.stdout),
-        Err(error) => {
+        Err(failure) => {
+            print!("{}", failure.stdout);
+            let error = failure.error;
             let code = match &error {
                 evidence_vm::RuntimeEvidenceRunError::AssertionFailed { .. } => {
                     eprintln!(
@@ -235,6 +241,7 @@ struct TestArgs {
     module_filters: BTreeSet<String>,
     binding_filters: BTreeSet<String>,
     show_passes: bool,
+    nocapture: bool,
 }
 
 impl TestArgs {
@@ -275,6 +282,7 @@ fn parse_test_args(program: &str, mut args: VecDeque<OsString>) -> TestArgs {
     let mut module_filters = BTreeSet::new();
     let mut binding_filters = BTreeSet::new();
     let mut show_passes = false;
+    let mut nocapture = false;
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
             Some("--module") => {
@@ -304,6 +312,7 @@ fn parse_test_args(program: &str, mut args: VecDeque<OsString>) -> TestArgs {
                 binding_filters.insert(value.to_string());
             }
             Some("--show-passes") => show_passes = true,
+            Some("--nocapture") => nocapture = true,
             Some(value) if value.starts_with("--") => {
                 print_usage_error_and_exit(program, &format!("unknown test option: {value}"));
             }
@@ -323,6 +332,7 @@ fn parse_test_args(program: &str, mut args: VecDeque<OsString>) -> TestArgs {
         module_filters,
         binding_filters,
         show_passes,
+        nocapture,
     }
 }
 
