@@ -2,7 +2,7 @@
 
 日付: 2026-07-28
 
-状態: **未承認・ユーザレビュー待ちの draft**。この文書は実装を認可しない。
+状態: **ユーザ承認済み（2026-07-28）**。実装を認可する。
 
 調査基準は `175db5b609b3`。本設計は、既に再現・確定済みの soundness gap を前提に、
 どの concrete-head pair を拒否し、どの representation bridge を残し、どの段階で
@@ -661,4 +661,4 @@ rollback は STF-B〜I の slice 単位で行う。matrix closure と bridge cer
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: 未承認・ユーザレビュー待ち
+状態: ユーザ承認済み（2026-07-28）
