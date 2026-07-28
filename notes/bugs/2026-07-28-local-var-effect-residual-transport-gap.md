@@ -94,27 +94,49 @@ handler result effect: [ρ]
   （どの `SubtractId` がどの binder に対応するか）が失われる transport gap**
   である。
 
-## 試して失敗した修正の方向
+## 試して失敗した修正の方向（2回、いずれも time-box で正しく停止）
 
-同じ `SubtractId` を local effect の push（`wrap_var_binding_run`）と
-handler result の pop の両方に使う案を試したが、local `ref` scheme の
+**1回目**: 同じ `SubtractId` を local effect の push（`wrap_var_binding_run`）と
+handler result の pop の両方に使う案。local `ref` scheme の
 generalization/instantiation で binder が複製され、対応が崩れた。
 monomorphic な use-site 化だけでは解消しなかった。
 
+**2回目（2026-07-28、act-method boundary との比較調査後）**: act-method の
+receiver boundary は `push(Set(owner))` を receiver effect へ、同じ
+`SubtractId` の `pop` を `Fun.ret_eff`/`Fun.ret` へ置くことで、**関数の戻り値の
+polarity boundary の内側**に push/pop の両方を収め、一つの scheme として
+generalize されるので対応が保たれる、と判明。同じ機構を `wrap_var_binding_run`
+へ移植しようとしたが、**具体的な不整合**に当たって断念:
+
+- `wrap_var_binding_run` の時点では body は既に lowering 済みで、
+  既存の local-family lower を持つ `body.effect` へ後から push edge を
+  足そうとすると、その既存 lower が push を迂回してしまう
+- 既存 body effect を強制的に push edge へ合流させると、同じ `SubtractId` に
+  対して `Empty` と `Set(local-family, payload)` が直接 replay で衝突し、
+  `directed_weight.rs:413` の「一つの stack id は複数の family を持てない」
+  という solver の不変条件に違反した（`panic`）
+- act-method では `Fun.ret_eff`/`Fun.ret` という**関数戻り値の polarity
+  boundary** がこの直接合流を防いでいるが、`wrap_var_binding_run` が
+  扱う `Computation` slot だけの wrapper には同じ boundary が無い
+
+**教訓**: 「既存の動くパターンを後から移植する」だけでは足りない。push/pop の
+boundary は body を lowering する**前**に確立する必要があり、かつ
+`Computation` slot 用に act-method の `Fun` polarity boundary に相当する
+何かを新設するか、body lowering の順序自体を変える設計判断が要る。
+これは実装の粘りでは埋まらない、**設計レベルの決定が要る箇所**と判断し、
+2回目もここで停止した。
+
 ## 次に調べるべきこと
 
-- generalize 前後、および local-ref instantiation 後の `SubtractId` 対応を
-  記録して、正確にどの段階で対応が失われるかを特定する。
-- 既存の act-method receiver boundary（同じ形の「handler が state を
-  provide し、callback の残余 effect だけを外に見せる」パターン）が
-  binder を維持できている理由との差分を確認する。
-- 解決には、synthetic local-var boundary ごとの subtraction binder を
-  `ref` effect 側と `wrap_var_binding_run` 側の両方で共有し、その binder を
-  local binding generalization が複製・prune しない表現が必要と見られる。
-- `SyntheticVarActUse` 単位の boundary object を lowering 中に保持し、
-  local-var reference 専用の scheme capture へ渡す形が最も狭い修正候補だが、
-  stack quantifier と最終 poly scheme の整合を要確認。
-- generalization 全体を変える修正は影響範囲が広いため避ける。
+- push/pop boundary を **body lowering より前**に確立する経路を設計する
+  （act-methodは receiver boundary を body lowering 前に持つ。local-var
+  も同じ順序に揃えられないか）。
+- `Computation` slot 専用に、`Fun.ret_eff`/`Fun.ret` に相当する polarity
+  boundary をどう表現するか（新しい type 構造が要るか、既存の `Stack`/
+  `Computation` の組み合わせで表現できるか）を先に決める。
+- generalization 全体を変える修正は影響範囲が広いため避ける。この設計判断は
+  ユーザ承認済み設計文書として起こしてから着手するのが筋（他の signed design
+  文書と同じ扱い）。
 
 ## 現状の扱い
 
