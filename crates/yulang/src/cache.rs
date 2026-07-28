@@ -25,7 +25,9 @@ use crate::time::{Duration, Instant};
 const POLY_CACHE_FORMAT: u32 = 10;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 11;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 21;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 22;
+#[cfg(test)]
+const EFFECT_FAMILY_POPULATION_PRE_COMPILED_UNIT_CACHE_FORMAT: u32 = 21;
 #[cfg(test)]
 const BRIDGE_CERTIFICATE_PRE_COMPILED_UNIT_CACHE_FORMAT: u32 = 20;
 #[cfg(test)]
@@ -5298,6 +5300,33 @@ mod tests {
             errors: &artifact.errors,
         };
         let bytes = bincode::serialize(&v20).unwrap();
+        assert!(
+            decode_compiled_unit_artifact_bytes(&bytes, key)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn compiled_unit_cache_treats_v21_incomplete_effect_family_format_as_a_miss() {
+        let files = vec![source("main.yu", &[], "pub act signal;\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        let mut v21_manifest = artifact.manifest.clone();
+        v21_manifest.compiled_unit_format = EFFECT_FAMILY_POPULATION_PRE_COMPILED_UNIT_CACHE_FORMAT;
+        let v21 = CompiledUnitCacheEnvelope {
+            format: EFFECT_FAMILY_POPULATION_PRE_COMPILED_UNIT_CACHE_FORMAT,
+            manifest: &v21_manifest,
+            syntax: &artifact.syntax,
+            namespace: &artifact.namespace,
+            lowering: &artifact.lowering,
+            typed: &artifact.typed,
+            runtime: &artifact.runtime,
+            external_runtime: &artifact.external_runtime,
+            errors: &artifact.errors,
+        };
+        let bytes = bincode::serialize(&v21).unwrap();
         assert!(
             decode_compiled_unit_artifact_bytes(&bytes, key)
                 .unwrap()

@@ -1434,13 +1434,38 @@ my first_over limit = sub:
 
 first_over 40
 ";
-    let build =
-        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
-            .unwrap();
-    assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_evidence_on_vm_test_stack(build);
+    let sub_family = vec![
+        "std".to_string(),
+        "control".to_string(),
+        "flow".to_string(),
+        "sub".to_string(),
+    ];
+    let cold_loaded =
+        load_source_text_with_embedded_playground_std("playground.yu", source.to_string()).unwrap();
+    let cold_poly = build_poly_from_loaded_files(cold_loaded).unwrap();
+    assert!(cold_poly.errors.is_empty(), "{:?}", cold_poly.errors);
+    assert!(cold_poly.arena.effect_family_paths.contains(&sub_family));
+    let cold_build = build_control_from_poly_output(&cold_poly).unwrap();
+    assert!(cold_build.errors.is_empty(), "{:?}", cold_build.errors);
+    let cold_output = run_built_evidence_on_vm_test_stack(cold_build);
 
-    assert_eq!(output.0, "run roots [7]\n");
+    let cached_poly =
+        build_poly_from_source_text_with_embedded_playground_std("playground.yu", source).unwrap();
+    assert!(cached_poly.errors.is_empty(), "{:?}", cached_poly.errors);
+    assert!(
+        !cached_poly.arena.effect_family_paths.is_empty(),
+        "compiled playground-std import should retain effect-family certificates"
+    );
+    assert!(
+        cached_poly.arena.effect_family_paths.contains(&sub_family),
+        "compiled playground-std import should retain std::control::flow::sub"
+    );
+    let cached_build = build_control_from_poly_output(&cached_poly).unwrap();
+    assert!(cached_build.errors.is_empty(), "{:?}", cached_build.errors);
+    let cached_output = run_built_evidence_on_vm_test_stack(cached_build);
+
+    assert_eq!(cold_output, cached_output);
+    assert_eq!(cached_output.0, "run roots [7]\n");
 }
 
 #[test]
