@@ -2057,15 +2057,25 @@ contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 [[case]]
 name = "subtype_tuple_cross_shape_provenance"
 file = "regressions/diagnostics/subtype_tuple_cross_shape.yu"
-kind = "run"
+kind = "check"
 std = "repo"
 expect_success = false
-expect_stdout = ""
-expect_stderr_contains = [
-  "compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: int <: (int, int)",
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unsatisfied-subtype]: type shape `int` is not compatible with required shape `tuple(2)`",
+  "    --> line 2, column 3\n    2 | f 2\n      |   ^",
   "hint: check that the value provides the fields or shape required by this use",
-  "note: this callee requires an argument compatible with `(int, int)`\n    --> line 2, column 3\n    2 | f 2\n      |   ^",
+  "note: required shape `tuple(2)` comes from this requirement\n    --> line 2, column 1\n    2 | f 2\n      | ^",
 ]
+expect_diagnostic_code = "yulang.unsatisfied-subtype"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 55
+expect_diagnostic_end = 57
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_start = 53
+expect_diagnostic_related_end = 54
+expect_diagnostic_related_origins = ["expression"]
 contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
