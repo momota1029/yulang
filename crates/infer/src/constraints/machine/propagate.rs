@@ -159,6 +159,28 @@ impl ConstraintMachine {
             self.merge_scheme_instantiations_into_lower_bound(target, constraint.lower, scheme);
             return;
         }
+        if let (Some(actual), Some(expected)) = (
+            Self::fixed_positive_concrete_head(self.types.pos(constraint.lower)),
+            Self::fixed_negative_concrete_head(self.types.neg(constraint.upper)),
+        ) && !Self::same_concrete_head_kind(&actual, &expected)
+            // STF-E: preserve the two existing bridge paths until their certificate checks land.
+            && !matches!(
+                (&actual, &expected),
+                (
+                    ConcreteSubtypeHead::Constructor(_),
+                    ConcreteSubtypeHead::Record(_) | ConcreteSubtypeHead::EffectRow
+                )
+            )
+        {
+            self.events.push(ConstraintEvent::UnsatisfiedSubtypeShape(
+                UnsatisfiedSubtypeShapeEvent {
+                    actual,
+                    expected,
+                    producer: parent,
+                },
+            ));
+            return;
+        }
         match (
             self.types.pos(constraint.lower).clone(),
             self.types.neg(constraint.upper).clone(),
@@ -296,6 +318,70 @@ impl ConstraintMachine {
             }
             _ => {}
         }
+    }
+
+    fn fixed_positive_concrete_head(pos: &Pos) -> Option<ConcreteSubtypeHead> {
+        match pos {
+            Pos::Con(path, _) => Some(ConcreteSubtypeHead::Constructor(path.clone())),
+            Pos::Fun { .. } => Some(ConcreteSubtypeHead::Function),
+            Pos::Tuple(items) => Some(ConcreteSubtypeHead::Tuple(items.len())),
+            Pos::Record(fields)
+            | Pos::RecordTailSpread { fields, .. }
+            | Pos::RecordHeadSpread { fields, .. } => Some(ConcreteSubtypeHead::Record(
+                fields.iter().map(|field| field.name.clone()).collect(),
+            )),
+            Pos::PolyVariant(items) => Some(ConcreteSubtypeHead::PolyVariant(
+                items.iter().map(|(name, _)| name.clone()).collect(),
+            )),
+            Pos::Row(_) => Some(ConcreteSubtypeHead::EffectRow),
+            Pos::Bot
+            | Pos::Var(_)
+            | Pos::Stack { .. }
+            | Pos::NonSubtract(_, _)
+            | Pos::Union(_, _) => None,
+        }
+    }
+
+    fn fixed_negative_concrete_head(neg: &Neg) -> Option<ConcreteSubtypeHead> {
+        match neg {
+            Neg::Con(path, _) => Some(ConcreteSubtypeHead::Constructor(path.clone())),
+            Neg::Fun { .. } => Some(ConcreteSubtypeHead::Function),
+            Neg::Tuple(items) => Some(ConcreteSubtypeHead::Tuple(items.len())),
+            Neg::Record(fields) => Some(ConcreteSubtypeHead::Record(
+                fields.iter().map(|field| field.name.clone()).collect(),
+            )),
+            Neg::PolyVariant(items) => Some(ConcreteSubtypeHead::PolyVariant(
+                items.iter().map(|(name, _)| name.clone()).collect(),
+            )),
+            Neg::Row(_, _) => Some(ConcreteSubtypeHead::EffectRow),
+            Neg::Top | Neg::Bot | Neg::Var(_) | Neg::Stack { .. } | Neg::Intersection(_, _) => None,
+        }
+    }
+
+    fn same_concrete_head_kind(
+        actual: &ConcreteSubtypeHead,
+        expected: &ConcreteSubtypeHead,
+    ) -> bool {
+        matches!(
+            (actual, expected),
+            (
+                ConcreteSubtypeHead::Constructor(_),
+                ConcreteSubtypeHead::Constructor(_)
+            ) | (ConcreteSubtypeHead::Function, ConcreteSubtypeHead::Function)
+                | (ConcreteSubtypeHead::Tuple(_), ConcreteSubtypeHead::Tuple(_))
+                | (
+                    ConcreteSubtypeHead::Record(_),
+                    ConcreteSubtypeHead::Record(_)
+                )
+                | (
+                    ConcreteSubtypeHead::PolyVariant(_),
+                    ConcreteSubtypeHead::PolyVariant(_)
+                )
+                | (
+                    ConcreteSubtypeHead::EffectRow,
+                    ConcreteSubtypeHead::EffectRow
+                )
+        )
     }
 
     pub(in crate::constraints) fn pure_arg_effect_passthrough_target(

@@ -192,7 +192,7 @@ mod test equality:
 }
 
 #[test]
-fn test_runner_isolates_runtime_error_and_aggregates_other_modules() {
+fn test_runner_rejects_not_callable_before_aggregating_modules() {
     let entry = write_entry(
         "test-runner-runtime-isolation",
         "\
@@ -214,18 +214,19 @@ mod test passing:
         .unwrap();
 
     assert_failure(&output);
-    assert_eq!(stdout(&output), "test result: 1 passed; 2 failed\n");
+    assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
-    assert!(stderr.contains("FAIL crashing::boom"), "{stderr}");
     assert!(
-        stderr.contains("runtime error [yulang.not-callable]"),
+        stderr.contains("compile error [yulang.lowering]: source has lowering errors"),
         "{stderr}"
     );
-    assert!(stderr.contains("FAIL failing::falsehood"), "{stderr}");
     assert!(
-        stderr.contains("assertion failure [yulang.assertion-failed]"),
+        stderr
+            .contains("detail: type shape `int` is not compatible with required shape `function`"),
         "{stderr}"
     );
+    assert!(!stderr.contains("FAIL "), "{stderr}");
+    assert!(!stderr.contains("test result:"), "{stderr}");
 }
 
 #[test]
@@ -312,7 +313,7 @@ fn test_runner_reports_doc_assertion_at_absolute_multiline_source_position() {
 }
 
 #[test]
-fn test_runner_reports_doc_runtime_error_at_absolute_multiline_source_position() {
+fn test_runner_rejects_doc_not_callable_before_runtime() {
     let entry = write_entry(
         "test-runner-doc-runtime-error-position",
         concat!(
@@ -339,22 +340,18 @@ fn test_runner_reports_doc_runtime_error_at_absolute_multiline_source_position()
         .unwrap();
 
     assert_failure(&output);
-    assert_eq!(stdout(&output), "test result: 0 passed; 1 failed\n");
+    assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
-    assert!(stderr.contains("FAIL doc::documented#1"), "{stderr}");
     assert!(
-        stderr.contains("    --> line 8, column 1\n    8 | 1 2\n      | ^"),
+        stderr.contains("compile error [yulang.lowering]: source has lowering errors"),
         "{stderr}"
     );
     assert!(
-        stderr.contains(concat!(
-            "  note: application occurs here\n",
-            "    --> line 8, column 1\n",
-            "    8 | 1 2\n",
-            "      | ^^^",
-        )),
+        stderr
+            .contains("detail: type shape `int` is not compatible with required shape `function`"),
         "{stderr}"
     );
+    assert!(!stderr.contains("FAIL doc::documented#1"), "{stderr}");
 }
 
 #[test]
@@ -1088,14 +1085,13 @@ fn compatible_run_reports_unhandled_effect_source_ranges_and_hint() {
 }
 
 #[test]
-fn compatible_run_reports_not_callable_source_ranges_and_hint() {
+fn compatible_check_reports_not_callable_as_unsatisfied_subtype() {
     let entry = write_entry("run-not-callable", "my a = 1 2\na\n");
 
     let output = yulang_command()
         .arg("--no-prelude")
         .arg("--no-cache")
-        .arg("run")
-        .arg("--print-roots")
+        .arg("check")
         .arg(&entry)
         .output()
         .unwrap();
@@ -1107,31 +1103,31 @@ fn compatible_run_reports_not_callable_source_ranges_and_hint() {
         stdout(&output),
         stderr(&output)
     );
-    assert_eq!(stdout(&output), "");
-    let stderr = stderr(&output);
+    assert_eq!(stderr(&output), "");
+    let stdout = stdout(&output);
     assert!(
-        stderr.contains(
-            "runtime error [yulang.not-callable]: tried to call a non-function value 1\n\
-             \x20   --> line 1, column 8\n\
+        stdout.contains(
+            "error [yulang.unsatisfied-subtype]: type shape `int` is not compatible with required shape `function`\n\
+             \x20   --> line 1, column 10\n\
              \x20   1 | my a = 1 2\n\
-             \x20     |        ^\n"
+             \x20     |          ^\n"
         ),
-        "{stderr}"
+        "{stdout}"
     );
     assert!(
-        stderr.contains(
-            "hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
+        stdout.contains(
+            "hint: check that the value provides the fields or shape required by this use"
         ),
-        "{stderr}"
+        "{stdout}"
     );
     assert!(
-        stderr.contains(
-            "note: application occurs here\n\
+        stdout.contains(
+            "note: required shape `function` comes from this requirement\n\
              \x20   --> line 1, column 8\n\
              \x20   1 | my a = 1 2\n\
-             \x20     |        ^^^"
+             \x20     |        ^"
         ),
-        "{stderr}"
+        "{stdout}"
     );
 }
 
@@ -1190,7 +1186,7 @@ fn compatible_run_reports_unsupported_host_capability_source_ranges() {
 }
 
 #[test]
-fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
+fn compatible_run_interpreter_rejects_not_callable_before_runtime() {
     let entry = write_entry("run-interpreter-not-callable", "my x = 1 2\nx\n");
 
     let output = yulang_command()
@@ -1213,15 +1209,22 @@ fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
     assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
     assert!(
-        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
+        stderr.contains("compile error [yulang.lowering]: source has lowering errors"),
         "{stderr}"
     );
     assert!(
         stderr
-            .contains("hint: try the interpreter oracle or reduce this source to a smaller report"),
+            .contains("detail: type shape `int` is not compatible with required shape `function`"),
         "{stderr}"
     );
-    assert!(!stderr.contains("value is not a function"), "{stderr}");
+    assert!(
+        stderr.contains("hint: run `yulang check` to see source ranges before running"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("runtime error [yulang.unsupported-runtime-feature]"),
+        "{stderr}"
+    );
 }
 
 #[test]
@@ -1295,7 +1298,7 @@ fn compatible_run_reports_pattern_mismatch_hint() {
 }
 
 #[test]
-fn structural_tuple_boundary_mismatches_are_rejected_during_specialization() {
+fn structural_tuple_boundary_mismatches_are_rejected_at_the_appropriate_stage() {
     for (name, argument, expected_actual) in [("int", "2", "int"), ("bool", "true", "bool")] {
         let entry = write_entry(
             &format!("structural-tuple-argument-{name}"),
@@ -1308,27 +1311,15 @@ fn structural_tuple_boundary_mismatches_are_rejected_during_specialization() {
             .arg(&entry)
             .output()
             .unwrap();
-        assert_success(&check);
-        assert_eq!(stdout(&check), "");
+        assert_failure(&check);
         assert_eq!(stderr(&check), "");
-
-        let run = yulang_command()
-            .arg("--no-prelude")
-            .arg("--no-cache")
-            .arg("run")
-            .arg("--print-roots")
-            .arg(&entry)
-            .output()
-            .unwrap();
-        assert_failure(&run);
-        assert_eq!(stdout(&run), "");
         assert!(
-            stderr(&run).contains(&format!(
-                "compile error [yulang.unsatisfied-subtype]: \
-                 unsatisfied subtype constraint: {expected_actual} <: (int, int)\n"
+            stdout(&check).contains(&format!(
+                "error [yulang.unsatisfied-subtype]: \
+                 type shape `{expected_actual}` is not compatible with required shape `tuple(2)`\n"
             )),
             "{}",
-            stderr(&run)
+            stdout(&check)
         );
     }
 
@@ -1349,24 +1340,15 @@ fn structural_tuple_boundary_mismatches_are_rejected_during_specialization() {
         .arg(&destructuring)
         .output()
         .unwrap();
-    assert_success(&check);
-    let run = yulang_command()
-        .arg("--no-prelude")
-        .arg("--no-cache")
-        .arg("run")
-        .arg("--print-roots")
-        .arg(&destructuring)
-        .output()
-        .unwrap();
-    assert_failure(&run);
-    assert_eq!(stdout(&run), "");
+    assert_failure(&check);
+    assert_eq!(stderr(&check), "");
     assert!(
-        stderr(&run).contains(concat!(
-            "compile error [yulang.unsatisfied-subtype]: ",
-            "unsatisfied subtype constraint: int <: (int, int)\n",
+        stdout(&check).contains(concat!(
+            "error [yulang.unsatisfied-subtype]: ",
+            "type shape `int` is not compatible with required shape `tuple(2)`\n",
         )),
         "{}",
-        stderr(&run)
+        stdout(&check)
     );
 
     let wrong_arity = write_entry(
@@ -1446,26 +1428,15 @@ fn structural_tuple_boundary_mismatches_are_rejected_during_specialization() {
         .arg(&field)
         .output()
         .unwrap();
-    assert_success(&check);
-    assert_eq!(stdout(&check), "");
+    assert_failure(&check);
     assert_eq!(stderr(&check), "");
-    let dump = yulang_command()
-        .arg("--no-prelude")
-        .arg("--no-cache")
-        .arg("dump")
-        .arg(&field)
-        .arg("--mono")
-        .output()
-        .unwrap();
-    assert_failure(&dump);
-    assert_eq!(stdout(&dump), "");
     assert!(
-        stderr(&dump).contains(concat!(
-            "compile error [yulang.unsatisfied-subtype]: ",
-            "unsatisfied subtype constraint: int <: (int, int)\n",
+        stdout(&check).contains(concat!(
+            "error [yulang.unsatisfied-subtype]: ",
+            "type shape `int` is not compatible with required shape `tuple(2)`\n",
         )),
         "{}",
-        stderr(&dump)
+        stdout(&check)
     );
 }
 
@@ -6172,8 +6143,8 @@ fn public_contract_manifest_covers_status_spine_claims() {
         ManifestTagRequirement::new("diagnostics", &["diagnostics"]),
         ManifestTagRequirement::new("runtime diagnostics", &["diagnostics", "runtime-failure"]),
         ManifestTagRequirement::new(
-            "runtime call diagnostics",
-            &["diagnostics", "runtime-failure", "calls"],
+            "call shape diagnostics",
+            &["diagnostics", "typechecker", "calls"],
         ),
         ManifestTagRequirement::new(
             "runtime effect diagnostics",

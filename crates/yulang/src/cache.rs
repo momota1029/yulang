@@ -4440,7 +4440,7 @@ mod tests {
     fn control_cache_preserves_runtime_application_provenance() {
         let root = temp_root("control-application-provenance");
         let cache = ArtifactCache::new(&root);
-        let files = vec![source("main.yu", &[], "my a = 1 2\na\n")];
+        let files = vec![source("main.yu", &[], "my f x = x\nmy a = f 2\na\n")];
         let key = source_cache_key(&files);
         let poly = crate::build_poly_from_collected_sources(files).unwrap();
         let control = crate::build_control_from_poly_output(&poly).unwrap();
@@ -4475,11 +4475,11 @@ mod tests {
         );
         assert_eq!(
             expected.callee_span.range,
-            sources::SourceRange { start: 7, end: 8 }
+            sources::SourceRange { start: 18, end: 19 }
         );
         assert_eq!(
             expected.application_span.range,
-            sources::SourceRange { start: 7, end: 11 }
+            sources::SourceRange { start: 18, end: 22 }
         );
 
         let _ = fs::remove_dir_all(root);

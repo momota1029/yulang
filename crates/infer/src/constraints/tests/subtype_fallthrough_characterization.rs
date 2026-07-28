@@ -31,63 +31,64 @@ impl FixedHead {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MatrixExpectation {
     Accepts,
+    Rejects,
 }
 
 // Rows are lower heads and columns are upper heads in FixedHead::ALL order.
-// STF-D can flip individual off-diagonal cells without changing the sweep.
+// STF-E owns the two remaining accepted bridge cells.
 const CURRENT_FIXED_HEAD_MATRIX: [[Option<MatrixExpectation>; 6]; 6] = [
     [
         None,
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
         Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
         Some(MatrixExpectation::Accepts),
     ],
     [
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
         None,
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
     ],
     [
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
         None,
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
     ],
     [
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
         None,
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
     ],
     [
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
         None,
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
     ],
     [
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
+        Some(MatrixExpectation::Rejects),
         None,
     ],
 ];
 
 #[test]
-fn stf_a_surface_fixtures_characterize_the_six_current_fail_open_results() {
+fn stf_d_surface_fixtures_reject_the_six_confirmed_counterexamples() {
     for fixture in [
         "subtype_fallthrough_con_to_fun.yu",
         "subtype_fallthrough_fun_to_con.yu",
@@ -100,8 +101,13 @@ fn stf_a_surface_fixtures_characterize_the_six_current_fail_open_results() {
             .unwrap_or_else(|error| panic!("{fixture}: {error}"));
         let output = lower_source(&source);
         assert!(
-            output.errors.is_empty(),
-            "{fixture} must remain a known inference gap until STF-D: {:?}",
+            output.errors.iter().any(|error| matches!(
+                error,
+                crate::lowering::BodyLoweringError::Analysis(
+                    crate::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape { .. }
+                )
+            )),
+            "{fixture} must be rejected as an unsatisfied fixed-head subtype: {:?}",
             output.errors
         );
     }
@@ -237,12 +243,11 @@ fn characterize_fixed_head_pair(lower_head: FixedHead, upper_head: FixedHead) ->
         machine.canonical_constraint_count() >= 1,
         "{lower_head:?} <: {upper_head:?} must reach the constraint machine"
     );
-    assert!(
-        machine.events().is_empty(),
-        "STF-A expects silent success for {lower_head:?} <: {upper_head:?}, got {:?}",
-        machine.events()
-    );
-    MatrixExpectation::Accepts
+    match machine.events() {
+        [] => MatrixExpectation::Accepts,
+        [ConstraintEvent::UnsatisfiedSubtypeShape(_)] => MatrixExpectation::Rejects,
+        events => panic!("unexpected events for {lower_head:?} <: {upper_head:?}: {events:?}"),
+    }
 }
 
 fn fixed_pos(machine: &mut ConstraintMachine, head: FixedHead) -> PosId {

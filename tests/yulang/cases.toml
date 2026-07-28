@@ -1901,20 +1901,28 @@ contracts = ["runtime", "diagnostics", "syntax", "refs"]
 [[case]]
 name = "not_callable_error"
 file = "regressions/runtime/not_callable_error.yu"
-kind = "run"
+kind = "check"
 std = "none"
 expect_success = false
-expect_stdout = ""
-expect_stderr_contains = [
-  "runtime error [yulang.not-callable]: tried to call a non-function value 1",
-  "    --> line 1, column 8\n    1 | my x = 1 2\n      |        ^",
-  "hint: check the expression before the argument; calls are written as `f x` or `f(...)`",
-  "note: application occurs here\n    --> line 1, column 8\n    1 | my x = 1 2\n      |        ^^^",
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unsatisfied-subtype]: type shape `int` is not compatible with required shape `function`",
+  "    --> line 1, column 10\n    1 | my x = 1 2\n      |          ^",
+  "hint: check that the value provides the fields or shape required by this use",
+  "note: required shape `function` comes from this requirement\n    --> line 1, column 8\n    1 | my x = 1 2\n      |        ^",
 ]
-contracts = ["runtime-error", "runtime-failure", "diagnostics", "calls"]
+expect_diagnostic_code = "yulang.unsatisfied-subtype"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_start = 9
+expect_diagnostic_end = 11
+expect_diagnostic_related_count = 1
+expect_diagnostic_related_start = 7
+expect_diagnostic_related_end = 8
+contracts = ["stable-core", "diagnostics", "calls", "typechecker", "related-ranges"]
 
 [[case]]
-name = "not_callable_interpreter_unsupported_runtime_error"
+name = "not_callable_interpreter_compile_error"
 file = "regressions/runtime/not_callable_error.yu"
 kind = "run"
 backend = "interpreter"
@@ -1922,10 +1930,11 @@ std = "none"
 expect_success = false
 expect_stdout = ""
 expect_stderr_contains = [
-  "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature:",
-  "hint: try the interpreter oracle or reduce this source to a smaller report",
+  "compile error [yulang.lowering]: source has lowering errors",
+  "detail: type shape `int` is not compatible with required shape `function`",
+  "hint: run `yulang check` to see source ranges before running",
 ]
-contracts = ["runtime-error", "runtime-failure", "diagnostics", "calls", "backend.interpreter"]
+contracts = ["runtime-error", "compile-error", "diagnostics", "calls", "backend.interpreter"]
 
 [[case]]
 name = "not_record_error"
