@@ -936,6 +936,27 @@ fn compatible_run_accepts_eval_source() {
 }
 
 #[test]
+fn compatible_run_ml_style_header_result_annotation_applies_to_return() {
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg("-e")
+        .arg(concat!(
+            "struct zzz { qqq: int }\n",
+            "my mk (a: int): zzz = zzz { qqq: a }\n",
+            "mk 1\n",
+        ))
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [zzz({qqq: 1})]\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_run_reads_piped_stdin_without_path() {
     let output = yulang_command_with_stdin(["--no-prelude", "run", "--print-roots"], "1\n");
 

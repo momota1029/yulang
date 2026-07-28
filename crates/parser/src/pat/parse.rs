@@ -117,6 +117,7 @@ enum Prec {
     Or = 1,
     As = 2,
     TypeAnn = 3,
+    ApplyML = 4,
 }
 
 fn parse_tail_bp<I: EventInput, S: EventSink>(
@@ -243,7 +244,8 @@ fn parse_tail_bp<I: EventInput, S: EventSink>(
                 };
                 let mut j = i.rb();
                 j.env.ml_arg = true;
-                match parse_pattern_from_nud_bp(min_prec, j, nud)? {
+                // Outer pattern operators belong to the whole application, not its final argument.
+                match parse_pattern_from_nud_bp(Prec::ApplyML, j, nud)? {
                     Ok(Either::Left(info)) => {
                         leading_info = info;
                         i.env.state.sink.finish();

@@ -2402,6 +2402,65 @@ fn stmt_binding_multi_arg_pattern() {
 }
 
 #[test]
+fn stmt_binding_ml_argument_leaves_result_annotation_on_outer_pattern() {
+    let got = parse_stmt_once("my mk (a: int): zzz = a");
+    let expected = vec![
+        "(Binding",
+        "  (BindingHeader",
+        "    My \"my\"",
+        "    (Pattern",
+        "      Ident \"mk\"",
+        "      (ApplyML",
+        "        (Pattern",
+        "          (PatParenGroup",
+        "            ParenL \"(\"",
+        "            (Pattern",
+        "              Ident \"a\"",
+        "              (TypeAnn",
+        "                Colon \":\"",
+        "                (TypeExpr",
+        "                  Ident \"int\"",
+        "                )",
+        "              )",
+        "            )",
+        "            ParenR \")\"",
+        "          )",
+        "        )",
+        "      )",
+        "      (TypeAnn",
+        "        Colon \":\"",
+        "        (TypeExpr",
+        "          Ident \"zzz\"",
+        "        )",
+        "      )",
+        "    )",
+        "    Equal \"=\"",
+        "  )",
+        "  (BindingBody",
+        "    (Expr",
+        "      Ident \"a\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+
+    let tight = parse_stmt_once("my mk(a: int): zzz = a");
+    let outer_result_annotation = [
+        "      (TypeAnn",
+        "        Colon \":\"",
+        "        (TypeExpr",
+        "          Ident \"zzz\"",
+    ];
+    assert!(
+        tight
+            .windows(outer_result_annotation.len())
+            .any(|lines| lines == outer_result_annotation),
+        "tight ApplyC header should attach the same result annotation to the outer pattern: {tight:?}"
+    );
+}
+
+#[test]
 fn stmt_binding_number_arg_pattern() {
     let got = parse_stmt_once("my is_zero 0 = true");
     let expected = vec![
