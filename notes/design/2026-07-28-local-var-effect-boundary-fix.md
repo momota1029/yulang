@@ -2,40 +2,96 @@
 
 日付: 2026-07-28
 
-状態: **未承認・ユーザレビュー待ち（改訂あり）**。実装認可をリセットする。
+状態: **未承認・ユーザレビュー待ち（改訂あり）**
 
-調査基準は `fb2fbbea`。既知の症状、根因、二つの失敗案は
+調査基準は `fb2fbbea`。既知の症状と5回の試行・調査は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` を正本とし、本書では
-再掲しない。
+設計判断に必要な差分だけを扱う。
 
 ## 改訂履歴
 
-### 2026-07-28: LVB-A 調査による semantic model の訂正
+### 2026-07-29: v2 から v3 — target invariant と carrier の再設計
 
-承認済みだった初版は、act method の push / pop が raw `SubtractId` のまま
-generalization を越え、stack binder として一単位で alpha-renaming される、と説明していた。
-未コミットの LVB-A characterization と production act-method の直接 trace により、この説明は
-誤りだと判明した。
+v2 は、compiler-generated ref を引数に取る scoped lambda を作り、ref の invariant な
+effect argument 内へ `push(Set(local-family, payload))` を置けば、body の実使用を通じて
 
-実際には、body が receiver を使うことで同じ effect type variable が argument side から
-return side へ流れ、その chain 上で `push.union(pop)` が compact 中に合成される。
-`StackWeight::push_pops` は push を pop で相殺し、使用済み `SubtractId` は scheme から消える。
-最終 scheme の `stack_quantifiers: []` は act method の正常形であり、対応を運ぶのは通常の
-type quantifier である。
+```text
+argument ref effect: [local-family(payload); ρ]
+body/result effect:  [ρ]
+```
 
-初版 LVB-A は、effect-bearing ref を `Fun.arg` の data type 内へ置く一方、body effect /
-body value を独立に freshen し、ref を実際に使う body constraint を作っていなかった。
-したがって三箇所の raw ID が残るという期待は production の成立条件を測っていなかった。
-本改訂は §0、§2.1、§3、§6〜§8 をこの調査結果に合わせて訂正し、承認状態を
-「未承認・ユーザレビュー待ち（改訂あり）」へ戻す。
+という concrete row correspondence が残る、とした。
+
+5回目の read-only investigation により、この前提は反証された。区別すべき軸は
+parameterized family の引数の有無ではなく、family が**独立した concrete row item**として
+存在するか、`StackWeight` の push / pop evidence 内だけに存在するかである。
+
+- `StackWeight::push_pops` は、arity や payload を見ずに matching push 全体を消す
+- positive `Pos::Stack` が invariant constructor argument の中へ入ると、
+  `compact_neu_id` は family を row prefix にせず `CompactVar` の weight へ畳む
+- `Fun.arg` の反変性の下にあるその weight は covariantly live と数えられず、prune される
+- act method の `Set(owner)` も同じく消える。act method を成立させるのは family metadata
+  ではなく、receiver の実使用が作る通常の `receiver_effect` correspondence である
+
+したがって v2 が目標にした追加の concrete row item は、push-only scoped carrier からは
+一度もその形で生まれない。誤りは scoped lambda の組み方だけではなく、target invariant を
+`ref` の invariant effect argument へ置いたことにもある。local ref 自身の operation effect
+と、callback body 全体の ambient residual `ρ` は別の責務であり、後者を
+`ref [local-family; ρ] payload` へ詰める根拠はなかった。
+
+v3 は target を、ref value ではなく実際の callback computation boundary へ移す。
+compiler-private な callback-form helper を使い、概念上
+
+```text
+(ref [local-family(payload)] payload
+    -> [local-family(payload); ρ] result)
+-> [ρ] result
+```
+
+を一つの function scheme として表す。callback が helper の argument になるため、その
+return effect は negative-side effect slot を通る。ここでは既存の
+`compact_neg_stack_effect` が active family を concrete row prefix へ materialize できる。
+v2 の push-only ref carrier は廃止し、LVB-A もこの negative-side contract を production
+lowering 変更前に証明する characterization へ置き換える。
+
+この訂正により、承認状態は引き続き
+「未承認・ユーザレビュー待ち（改訂あり）」とする。
+
+### 2026-07-28: v1 から v2 — raw `SubtractId` 生存モデルの訂正
+
+承認済みだった v1 は、act method の push / pop が raw `SubtractId` のまま
+generalization を越え、stack binder として alpha-renaming される、と説明していた。
+LVB-A characterization と production act-method の直接 trace により、この説明は誤りだと
+判明した。
+
+実際には、body が receiver を使うことで通常の effect type variable が argument side から
+return side へ流れ、その chain 上で push と pop が相殺される。使用済み
+`SubtractId` は scheme から消え、production act-method の
+`stack_quantifiers: []` は正常形である。v2 は raw ID の生存ではなく ordinary variable
+correspondence を target にしたが、family が push evidence から concrete row item に変わると
+いう別の誤った前提を残した。
 
 ## 0. 決定の要約
 
-local mutable state の残りの block を、compiler-generated ref を引数に取る内部 lambda
-として lower する。ref の data type に入る `reference_effect` には、lambda body の
-lowering 前に `push(Set(local-family, payload))` を持つ inner effect を接続する。同じ
-`SubtractId` の `pop` は lambda の `Fun.ret_eff` と `Fun.ret` に置くが、この ID を
-generalization 後まで残すことは目的にしない。
+local mutable state boundary を、compiler-private な callback-form helper として表す。
+一つの synthetic local-var family を `F`、payload を `P` と書くと、target contract は
+次である。
+
+```text
+local ref capability:
+    ref [F(P)] P
+
+callback:
+    ref [F(P)] P -> [F(P); ρ] R
+
+scoped handler result:
+    [ρ] R
+```
+
+`F(P)` は callback の実際の return effect にある独立した concrete row item である。
+`ρ` は callback effect と handler result に現れる同じ ordinary type variable であり、
+raw `SubtractId` ではない。local ref の effect argument は、その ref operation が実際に
+起こす exact family `[F(P)]` のままとし、body 全体の ambient residual `ρ` を混ぜない。
 
 概念上、現在の
 
@@ -44,46 +100,37 @@ let &x = var_ref()
 run init <rest>
 ```
 
-を次の scoped carrier へ変える。
+を次へ変える。
 
 ```text
-run init ((\&x -> <rest>) var_ref())
+with_ref init (\&x -> <rest>)
 ```
 
-`var_ref()` は値を作るだけの pure computation であり、lambda application 全体は従来の
-`run` の第2 computation 引数に置く。したがって local effect を実際に処理する runtime
-handler は引き続き synthetic `var.run` が所有する。内部 lambda は新しい handler ではなく、
-ref effect の入力側と handled computation の出力側を、一つの ordinary type-variable
-correspondence に載せる type carrier である。
-
-local ref は act-method receiver と異なり、`get` / `update_effect` を持つ first-class value
-である。したがって内部 lambda では、
+compiler-private helper の意味は次である。
 
 ```text
-Fun.arg     = std::control::var::ref reference_effect payload
-Fun.arg_eff = Never
+with_ref init callback =
+    run init (callback var_ref())
 ```
 
-とする。ref lookup や `var_ref()` の評価自体は pure のままにし、`$x` の read、
-`&x` の update、ref method call が ref type の invariant `reference_effect` argument を
-実際の `body.effect` へ流す。
+callback application は既存 `run` の handled computation 内で起動する。callback value を
+helper へ渡す時点では body を評価しない。`var_ref()` の construction と `&x` の bare lookup
+は pure のままであり、runtime state handler は引き続き synthetic `var.run` が所有する。
 
-正しい body use があると、return 側の pop は同じ type-variable chain 上の push と compact
-中に相殺される。最終 scheme に残すべき不変条件は、raw `SubtractId` ではなく次である。
-
-```text
-argument ref effect: [local-family(payload); ρ]
-body/result effect:  [ρ]
-```
-
-両辺の `ρ` と payload の invariant relation は通常の type variable として共有される。
-generalize / instantiate は `ρ` を ordinary polymorphism として freshen し、
+helper の callback parameter は function type なので、helper の正の function root から見ると
+negative position にある。その callback の `ret_eff` は
+`compact_neg_effect_id` / `compact_neg_stack_effect` を通り、contravariant concrete
+annotation が作った active `Set(F, [P])` を `[F(P); ρ]` という row prefix と tail に変える。
+materialize 後は使用済み stack ID が消えてよく、最終 scheme の
 `stack_quantifiers` は空でよい。
 
 この設計では次を行わない。
 
-- `Pos` / `Neg` / `Neu` に computation 専用 variant を追加しない
-- `Scheme` に第2 predicate や computation pair を追加しない
+- invariant な `ref` effect argument の中へ push-only carrier を再導入しない
+- local ref effect を `[F(P); ρ]` に広げて ambient residual を持たせない
+- constructor variance または stack liveness を local-var のために変更しない
+- v3 の初期 slice で `Pos` / `Neg` / `Neu` に computation 専用 variant を追加しない
+- `Scheme` に第2 predicateや raw computation pair を追加しない
 - generalize / instantiate の binder 規則を変更しない
 - 異なる scheme 間で一つの `SubtractId` を共有しない
 - `directed_weight` の family invariant を緩めない
@@ -91,262 +138,301 @@ generalize / instantiate は `ρ` を ordinary polymorphism として freshen �
 ## 1. 問題
 
 bug note の repro では、local ref、synthetic `run`、ref を中継する値が別々の
-generalization root になり、callback effect
+generalization root になる。local ref の scheme には exact local family が見えても、
+callback computation の
 
 ```text
-[local-family; ρ]
+[F(P); ρ]
 ```
 
-と handler result effect
+と handler result の
 
 ```text
 [ρ]
 ```
 
-の対応が specialize まで届かない。
+を結ぶ subtraction contract が同じ scheme として運ばれない。specialize は、その失われた
+対応を復元できず、local-family を含む候補と含まない候補を衝突として報告する。
 
-post-body の `wrap_var_binding_run` で新しい push を body effect へ足す案は、body lowering
-が既に作った lower と同じ slot で合流する。このとき同じ `SubtractId` に
-`Subtractability::Empty` と `Subtractability::Set(local-family, payload)` が載り、
-`crates/infer/src/constraints/directed_weight.rs` の invariant に違反する。
+post-body の `wrap_var_binding_run` で同じ `SubtractId` を ref scheme と handler resultへ
+配る attempt 1 は generalization で identity を失った。body lowering 後に push を
+retrofit する attempt 2 は、既存 lower と同じ slot へ `Empty` / `Set(F, [P])` を重ね、
+one-ID-one-family invariant に違反した。
 
-修正すべきものは solver の候補比較でも family 分類でもない。local ref が body へ入る
-極性と、body computation が scope から出る極性を、body lowering より前に一つの構造へ
-収める必要がある。
+v1 / v2 はこの gap を、ref と body を一つの `Fun` root に入れることで埋めようとした。
+しかし ref の invariant effect argument 内にある positive push は concrete row prefix に
+ならない。修正すべきものは compaction の arity 分岐でも pruning の保護規則でもない。
+実際に handler が受け取る callback computation を function boundary として表し、その
+negative-side effect contract と handler result を一つの helper scheme に置く必要がある。
 
 ## 2. 調査結果
 
-### 2.1 act method の実際の成立条件（訂正）
+### 2.1 5回目の調査で確定した消失機構
 
-`crates/infer/src/lowering/expr/method_body.rs` の act method は次の順で処理する。
+`crates/infer/src/constraints/machine/propagate.rs` の
+`pos_is_effect_marker_row_item` は、`Pos::Con(path, args)` の `args` を見ず、登録済み
+family path かどうかだけで row item を分類する。同じ path の payload と row tail は
+`enqueue_derived_row_item_neu_args` と
+`enqueue_derived_upper_tail_to_lower_row_tail` の別々の辺として処理される。
+したがって payload-bearing family の row-tail transport が arity 分岐で落ちる、という
+v2 までの作業仮説は誤りである。
 
-1. `receiver_value` / `receiver_effect` を freshen する
-2. fresh `SubtractId` と inner effect を作り、inner に
-   `Subtractability::Set(owner)` の declared fact を置く
-3. `Stack(inner, push(id, Set(owner))) <: receiver_effect` を置く
-4. `receiver_effect` を `Fun.arg_eff` に使い、receiver を
-   `Def::Arg` + `LocalEffect::Var(receiver_effect)` として local scope へ bind する
-5. receiver が scope にある状態で method body を実際に lower する
-6. matching `pop(id)` を predicate subtract として `Fun.ret_eff` / `Fun.ret` へ置く
-7. 一つの `Pos::Fun` を method value の lower にする
+独立した `Pos::Row` / `Pos::Con(F, [P])` は `compact_pos_row` と
+`merge_row_items_with_sink` を通り、path と payload を保ったまま compact row に残る。
+一方、`crates/poly/src/types.rs` の `StackWeight::push_pops` は matching pop の数だけ
+`entry.stack` を truncate する。`Subtractability::Set(path, args)` の path、arity、payload は
+一切見ないため、push 内だけにある family は丸ごと消える。
 
-identity-shaped body `our x.flip = x` では、`Def::Arg` の local lookup が scheme
-instantiation を挟まず、`body.value == receiver_value` かつ
-`body.effect == receiver_effect` になる。一般の body でも、receiver の実使用が通常の
-subtype constraint を通じて同じ receiver-side variable chain を body output へ流す。
+positive `Pos::Stack` は `compact_pos_id` で inner へ weight を畳み込む。local ref の effect
+argument は `Neu::Bounds` の invariant constructor argument なので、`compact_neu_id` は
+その weight を `CompactVar` occurrence へ運ぶだけで、concrete prefix を作らない。
+concrete stack prefix を作る既存経路は、effect slot 専用の
+`compact_neg_stack_effect` である。
 
-compact が return 側の `pop` から `receiver_effect` の lower bound を展開すると、
-`compact_lower_bounds` は lower-bound weight を outer weight より先に
-`left_weight.union(outer_weight)` で合成する。したがって同じ chain 上で
+`collect_live_stack_ids_in_type` は root を covariant に開始し、`Fun.arg` /
+`Fun.arg_eff` で polarity を反転する。ref constructor argument はその負の位置を引き継ぐ
+ため、active push があっても covariantly live と数えられない。
+`cleanup_stack_weights_in_root_and_roles` と
+`prune_dead_subtract_weights_in_type` はその ID を除去する。
 
-```text
-push(id, Set(owner)).union(pop(id))
-```
+act method の `Set(owner)` も同じ経路で除去される。act method の正常形を支えるのは
+owner family の生存ではなく、body が receiver を実際に使うことで
+`receiver_effect` が argument から result へ流れる ordinary correspondence である。
+local-var に act-method の push placement を移植しても、追加の concrete row item は得られない。
 
-となり、`StackWeight::push_pops` が active push を取り除く。これは
-`collect_composes_lower_bound_weight_before_outer_weight` が固定している合成順序である。
+### 2.2 `ref` の invariance が意味するもの
 
-相殺後に active push は残らない。`collect_live_stack_ids_in_type` が covariant position で
-live とみなすのは `entry.stack` が non-empty の ID だけであり、pop-only entry は
-`cleanup_stack_weights_in_root_and_roles` で除かれる。よって production act-method の
-final scheme が `stack_quantifiers: []` になるのは正常である。`instantiate` も stack-level
-freshening を行わない。freshen される必要がある correspondence は、argument effect と
-body/result effect に現れる通常の type variable が運ぶ。
+`std::control::var::ref 'e 'a` の `'e` は、lowering で
+`invariant_var_arg(effect)` により `Neu::Bounds(lower, upper)` へ入る。同じ nominal
+constructor 同士の subtype は `enqueue_derived_invariant_neu_args` が両方向の制約を作る。
+現在の invariance は、この generic nominal-constructor 表現に由来する。
 
-初版が述べた「同じ `Fun` に push / pop があるため stack binder が一単位で生存する」は
-因果を取り違えていた。同じ `Fun` に置くことは compact が一つの root から両側を見られる
-構造を作るが、正しさを決めるのは body が receiver を本当に使い、push を持つ effect
-variable 自体が return-side pop の下へ流れることである。body が receiver を使わず、
-return slot を独立 fresh にしたなら、この correspondence は存在せず、保存されないのが
-正しい。
-
-未コミットの LVB-A はさらに二点で production と異なる。
-
-- act method は receiver effect を `Fun.arg_eff` に置くが、LVB-A は effect-bearing ref
-  value を `Fun.arg` の data type 内に置いた
-- LVB-A の `body_effect` / `body_value` は ref-side variable から独立しており、body が
-  ref を使う constraint がなかった
-
-第一の差は local ref 固有の意味論として §3 で解決する必要がある。第二の差は単なる
-characterization error であり、raw `SubtractId` の生存を期待する根拠にはならない。
-
-### 2.2 `Computation` は永続する polarity structure ではない
-
-`crates/infer/src/typing.rs` の `Computation` は expression lowering 中だけの
-`(expr, value, effect, evaluation)` である。型 node でも scheme root でもない。
-
-関連する既存構造も今回の carrier にはならない。
-
-- `AnnComputationTarget` / `AnnComputationConnection` は annotation lowering の API であり、
-  subtract weight を `FunctionPredicateFrame` へ返す。永続化されるのは最終的に
-  `Fun.ret_eff` / `Fun.ret` へ入った場合である。
-- `EffectViewId` / `LocalEffect::Stack` は local name を `catch` の scrutinee として読む
-  ときの一時 view であり、scheme に freeze / instantiate されない。
-- `Pos::Stack` / `Neg::Stack` / `Pos::NonSubtract` は weight wrapper である。bare な
-  `(value, effect)` pair に入力の負極性を新設する container ではない。
-- `notes/design/handler-row-subtraction.md` の `HandlerMatchEdge` は未実装の設計案であり、
-  現行 code に再利用できる construct はない。
-- constraint provenance / subtype explanation の boundary ID は説明の identity である。
-  semantic な `SubtractId` の寿命を運ぶものではない。
-
-### 2.3 directed weight invariant は維持する
-
-`LeftStackWeightEntry` は一つの `SubtractId` について次だけを持つ。
-
-```text
-(leading_pops, one family, push count)
-```
-
-同じ ID の `take(H); pop` を相殺し、残った active push の family から row split の
-`Common(L)` を計算するため、同じ ID に複数 family を載せる表現力はない。
-`merge_same_id_family` の equality assertion を緩めて一方を選ぶと、subtraction の対象が
-constraint の到達順に依存する。intersection に変えると、一つの static boundary の replay
-と、異なる boundary の誤合流を区別できない。
-
-したがってこの assertion は単なる実装制限ではない。同じ ID は同じ static boundary と
-family を表す、という directed normal form の意味論上の invariant である。attempt 2 の
-`Empty` / `Set` 衝突は invariant が厳しすぎる証拠ではなく、post-body retrofit が二つの
-boundary を同じ ID に重ねた証拠である。
-
-## 3. 選んだ設計: scoped ref lambda
-
-### 3.1 boundary の形
-
-一つの local var scope につき、lowering-only の `LocalVarScopeBoundary` を作る。
-概念上、次の情報を持つ。
-
-```text
-LocalVarScopeBoundary {
-    subtract,
-    family,
-    reference_inner_effect,
-    reference_effect,
-    reference_value,
-    reference_pattern,
-    reference_expr,
-    locals_start,
-}
-```
-
-実際の field 名と分割は実装時に既存 module の責務へ合わせてよい。ただし次の lifecycle は
-変えない。
-
-#### prepare（body lowering 前）
-
-1. synthetic act path と payload の invariant argument から
-   `Subtractability::Set(path, [payload])` を作る
-2. fresh `SubtractId`、inner effect、public reference effect を作る
-3. act method と同じ向きで
-   `Stack(inner, push(id, family)) <: reference_effect` を置く
-4. `var_ref()` の value を
-   `std::control::var::ref reference_effect payload` へ接続する
-5. `&x` を `Def::Arg` の value parameter として bind する。bare lookup は pure なので
-   `LocalEffect::Var(reference_effect)` は付けない
-6. この parameter が local scope に存在する状態で `<rest>` を lower し、`$x` の
-   `get`、`&x` の `update_effect` / `RefSet`、その他 ref method が ref type の
-   `reference_effect` argument を body computation へ流す
-
-`local_var_effect_value` が行っている synthetic family / operation 登録と payload invariant
-connection は残す。ただし boundary 用 effect を返せる形へ責務を分け、同じ ref value に
-独立な effect slot を繰り返し作らない。
-
-#### finish（body lowering 後）
-
-1. body effect と body value を正側 node にする
-2. matching `StackWeight::pop(id)` で両方を `Pos::NonSubtract` に包む
-3. `std::control::var::ref reference_effect payload` へ接続された parameter value を
-   `Fun.arg`、`Neg::Bot` を `Fun.arg_eff`、wrapped body slots を
-   `Fun.ret_eff` / `Fun.ret` にした内部 lambda を作る
-4. prepare 済みの `var_ref()` をその lambda へ internal application する
-5. 現行どおり `run init <scoped-lambda-application>` を作る
-6. local parameter scope を終了する
-
-push と二つの pop は generalization 前の同じ内部 `Fun` construction に属する。ただし
-correctness witness は ID の生存ではない。body が ref を実際に使うと、
-`reference_effect` から body output までの ordinary constraint chain 上で push と pop が
-相殺され、`reference_inner_effect` に対応する残差 `ρ` が argument ref effect と
-body/result effect の両方に残る。local ref 自身を `Def::Let` として別に generalize
-しないため、attempt 1 の scheme 間 transport も不要になる。
-
-### 3.2 `Fun.arg` と `Fun.arg_eff` の配置
-
-local ref carrier は act method の field assignment をそのまま複製しない。
-
-act-method receiver は value type の外にある computation effect を
-`LocalEffect::Var(receiver_effect)` と `Fun.arg_eff` で表す。identity body が receiver
-name を読むだけで、その同じ effect variable が body effect になる。
-
-一方、`std::control::var::ref 'e 'a` は `get` と `update_effect` を持つ first-class
-value である。`lib/std/control/var.yu` では、
+`lib/std/control/var.yu` の surface declaration では、
 
 ```text
 get:           () -> ['e] 'a
 update_effect: () -> [ref_update 'a; 'e] ()
 ```
 
-となり、`make_ref_set` も ref value の invariant effect argument を result effect へ
-接続する。したがって local-var の `reference_effect` は
-`std::control::var::ref reference_effect payload` の data argument として
-`Fun.arg` に置く必要がある。`var_ref()` の construction と `&x` の bare lookup は pure
-なので、`Fun.arg_eff` は `Neg::Bot` のままにする。
+のどちらも `'e` を operation の output effect として使う。片方が effect を読み、片方が
+effect を書くために `'e` が意味論上 invariant、という証拠はない。payload `'a` は
+`get` の output と `ref_update` / update function の input の両方へ現れるため invariance の
+根拠があるが、`'e` と同一視してはならない。
 
-`reference_effect` を `Fun.arg_eff` にも置いたり、`&x` を
-`LocalEffect::Var(reference_effect)` として bind したりすると、ref を渡すだけの program
-にも local operation effect を課し、method が data argument から effect を取り出す
-既存 semantics と二重になる。この案は採らない。
+ただし、ここから直ちに `'e` を contravariant / covariant pair に分けてよいとはならない。
+現行 `CompactBounds::Con` の liveness traversal は constructor ごとの variance を持たず、
+outer `Fun.arg` の負極性を argument 全体へ伝える。local-var ID を live にするためだけに
+反変 facet を追加すると、surface API に存在しない「ref が effect を入力として消費する」
+経路を捏造する。constructor variance を一般化するなら別 project として型宣言、subtyping、
+compact、role / cache compatibility まで設計する必要がある。
 
-正しい flow は次である。
+### 2.3 v2 target invariant の訂正
+
+local ref capability と callback body effect を分ける。
 
 ```text
-Fun.arg の ref effect argument
-    -> body 内の get / update_effect / RefSet
-    -> body.effect の ordinary subtype chain
-    -> Fun.ret_eff の pop
+ref capability       = [F(P)]
+body ambient effects = [ρ]
+callback effect      = [F(P); ρ]
+handled result       = [ρ]
 ```
 
-body が ref を使わなければこの chain は作られず、argument-side `ρ` と result-side effect
-に correspondence が残らない。それは ref operation を実行していない program の正しい
-結果であり、boundary failure ではない。
+`ref [F(P); ρ] P` とすると、ref の `get` 一回にも body の他の operation `ρ` を課す。
+これは ref が起こす effect と、ref を使う computation が別途起こす effect を混同する。
+v2 の target は push-only carrier で到達不能だっただけでなく、この責務分離も証明して
+いなかった。
 
-### 3.3 effect を処理する場所は変えない
+v3 が scheme に残したい concrete item は callback の `ret_eff` にある `F(P)` である。
+ref argument 内には exact capability `F(P)` が既存の concrete row として残るが、そこへ
+residual correspondence の責務を負わせない。
 
-内部 lambda の push/pop は effect family を実行時に処理する handler ではない。
-実際の `catch` と state threading は引き続き `lib/std/control/var.yu` から作られた
-synthetic act copy の `run` が行う。
+### 2.4 negative-side effect slot は既存の materialization boundary である
 
-従来の第2引数 `<rest>` が、内部 lambda applicationへ置き換わるだけである。
+`compact_neg_id` が `Neg::Fun` を読むと、function の `ret_eff` を
+`compact_neg_effect_id` へ渡す。そこに `Neg::Stack` があれば
+`compact_neg_stack_effect` は active `Set(path, args)` を concrete row prefix に変え、
+inner effect を tail として残す。
+
+これは generic `Neg::Stack` を constructor argument 内へ置く経路とは異なる。
+`Fun.arg` の data type や `Neu::Bounds` の upper を `compact_neg_id` で読むだけでは
+prefix materialization は起きない。callback の**実際の return effect slot**へ置くことが
+必要である。
+
+既存の compact characterization
+`compact_neg_stack_effect_surfaces_concrete_push_as_row_prefix` は、payload のない family で
+この性質を固定している。
+`negative_filter_stack_effect_projects_set_as_row_prefix` は `Neg::Fun.ret_eff` 経由を固定する。
+LVB-A はこの形を payload-bearing synthetic family と shared residual まで拡張する。
+
+## 3. 候補方向の比較
+
+| 方向 | soundness risk | blast radius | production 前 characterization | 判断 |
+| --- | --- | --- | --- | --- |
+| A. `ref` effect argument を variance-aware pair に分解 | 高い。liveness のための反変 facet が surface semantics にない | 高い。nominal subtyping、compact、liveness、cache へ波及 | pair の polarity trace 自体は可能 | 採らない |
+| B. `ref` effect argument へ `[F(P); ρ]` を direct row として埋める | 中〜高。compact は生存するが ref capability と body ambient effect を混同 | 中。local lowering は狭いが全 ref use の inferred effect が変わる | direct `Pos::Row` の生存と過剰 effect を対照化できる | 採らない |
+| C. callback-form helper の negative `ret_eff` で `[F(P); ρ]` を表す | 中。既存 callback hygiene と evaluation order の確認が要る | 中。synthetic var helper と local-var lowering が中心 | production 未変更で helper scheme、compact、instantiate を固定できる | **推奨** |
+| D. 新しい computation-polarity IR を作る | 意味論は明示できるが実装回帰リスクが高い | 非常に高い。全 type walker、compact、generalize、cache、specialize へ波及 | isolated IR test は可能だが、導入自体が別 project | C が失敗した場合の scope decision |
+
+### 3.1 A: invariance の分解
+
+constructor argument の lower / upper を別の polarity path に置き、outer `Fun.arg` の反変性と
+組み合わせて片側を covariantly live にすることは、表現上は可能である。しかし現行
+`ref` surface に effect を入力として受け取る operation はない。stack ID を残すためだけの
+contravariant occurrence は型の利用可能性を実態より狭め、subtyping の意味を変える。
+
+将来 constructor variance を declaration signature から導出する project はあり得る。
+その場合 `'e` はむしろ covariant と判定される可能性が高く、outer callback argument の下では
+依然 negative になる。今回の residual transport を解く直接の根拠にはならない。
+
+### 3.2 B: invariant ref argument への direct row
+
+independent `Pos::Row([Con(F, [P]), Var(ρ)])` と対応する negative row を
+`Neu::Bounds` へ直接入れれば、`compact_pos_row` は `F(P)` を保持する。この点では
+push-only carrier と異なり、v2 の構造的消失を回避できる。
+
+しかし現在の `local_var_effect_value` はすでに exact `[F(P)]` を concrete row として
+ref effect argument へ置いている。欠けているのは `F(P)` の存在そのものではなく、
+callback ambient `ρ` と handler result `ρ` の対応である。ref argument を
+`[F(P); ρ]` に広げると、全 ref method call が ambient `ρ` まで起こす型になり、
+correspondence を得る代わりに別の過剰 effect を導入する。この案は採らない。
+
+### 3.3 C: callback-form helper
+
+callback は local ref value を引数に取り、body computation を return effect として持つ。
+helper の argument typeにある callback `ret_eff` は negative-side effect slot であり、
+contravariant concrete contract `F(P)` を既存規則どおり active push として受け取る。
+compact はそれを `[F(P); ρ]` へ materialize し、helper resultには ordinary tail `ρ` を残す。
+
+この形は local ref の exact capabilityを変えない。handler が処理する対象も、実際に
+callback が実行する computation effect である。v2 の ref-data carrier ではなく、
+handler API が本来扱う computation boundary に責務を戻すため、この案を推奨する。
+
+### 3.4 D: computation-polarity IR
+
+v1 は `Pos::ComputationBoundary` のような新 node を、既存 `Fun` で十分だとして拒否した。
+5回目の調査により「invariant ref argument 内の既存 `Fun` で concrete family を運べる」
+という根拠は失われた。したがって新 IR を永久に除外する理由はもうない。
+
+ただし、callback-form helper は既存の本物の function / effect polarity を使える。
+まず LVB-A でこれを検証する。C が structural contract を作れない、または callback hygiene
+上 local handler に family を見せられないと判明した場合は、B や liveness patch へ戻らず
+停止する。その時点で新 IR の blast radius を受け入れるか、ユーザの scope decision を
+得る別設計へ移る。
+
+## 4. 選んだ設計: compiler-private callback boundary
+
+### 4.1 helper contract
+
+一つの synthetic local-var act copy につき、既存 private `var_ref` / `run` と同じ owner に
+compiler-private helper を持たせる。以下では仮に `with_ref` と呼ぶが、実装名は builtin
+kind または resolved `DefId` として構造化し、inference 中の文字列 special case にはしない。
+
+概念型は次である。
 
 ```text
-before: run init <rest>
-after:  run init ((\&x -> <rest>) var_ref())
+with_ref:
+    P
+    -> (ref [F(P)] P -> [F(P); ρ] R)
+    -> [ρ] R
 ```
 
-`var_ref()` が pure であることと、lambda application 全体が `run` の computation 引数の
-内側に残ることを implementation test で固定する。lambda application を `run` の外で先に
-評価する rewrite は禁止する。
-
-### 3.4 複数 binding の順序
-
-pattern が複数の local var を導入する場合、現在の handler nesting を維持する。
-`run_inputs = [a, b]` なら概念上の形は次である。
+概念実装は次である。
 
 ```text
-run_a init_a (
-    (\&a ->
-        run_b init_b (
-            (\&b -> body) ref_b
-        )
-    ) ref_a
+with_ref init callback =
+    run init (callback var_ref())
+```
+
+callback parameter の effect contract は `F(P)` を明示し、残りを `ρ` とする。この
+contravariant concrete annotation が、negative `ret_eff` の active
+`Set(F, [P])` と residual tail を作る。helper result の `ρ` は同じ ordinary type variable
+であり、generalize / instantiate の通常経路で freshen される。
+
+helper を public `std::control::var` API にはしない。synthetic act copy の private member、
+または同じ型構造を作る compiler-owned resolved definition とする。どちらを選んでも
+family path と payload は通常の act-copy substitution / symbol resolution から得て、
+path 文字列比較で推論しない。
+
+### 4.2 lowering lifecycle
+
+#### prepare（body lowering 前）
+
+1. synthetic act copy、init binding、payload `P` を確定する
+2. existing `var_ref()` の exact value type `ref [F(P)] P` を使う
+3. callback の parameter value を同じ ref typeへ接続する
+4. `&x` を pure な `Def::Arg` として local scopeへ bind する
+5. callback parameter が scope にある状態で `<rest>` を lower する
+
+`Fun.arg_eff` は `Never` のままにする。ref construction と bare lookup は pure であり、
+local operation effect は `$x` の `get`、`&x` の `update_effect` / `RefSet`、その他
+ref method の実使用から callback body effect へ入る。
+
+#### finish（body lowering 後）
+
+1. callback parameterを `Fun.arg`、pure lookup を `Fun.arg_eff`、body effect / value を
+   `Fun.ret_eff` / `Fun.ret` とする lambda value を作る
+2. private `with_ref` を init valueへ apply する
+3. その結果へ callback lambda **value** を apply する
+4. callback body の application は helper 内の既存 `run` computation argumentとして
+   評価される
+5. callback parameter scopeを終了する
+
+local lowering は ref argument の中へ独自 push / pop を組み立てない。
+subtraction contract は private helper の function scheme が所有する。
+standalone local ref `Let` scheme と handler result scheme の間で raw ID を共有しない。
+
+### 4.3 v2 scoped lambda との違い
+
+v2 は次を local lowering 内で作った。
+
+```text
+run init ((\&x -> body) var_ref())
+```
+
+さらに ref effect argument 内へ push を置き、callback body output の pop と相殺して
+concrete family が残ると期待した。v3 は lambda applicationを helper 実装の内側へ移すだけの
+表面的 rewriteではない。
+
+- family contract は invariant ref argument 内の `Pos::Stack` ではなく、helper parameter の
+  callback `Neg::Fun.ret_eff` にある
+- concrete prefix は positive push cancellation の副産物ではなく、
+  `compact_neg_stack_effect` の定義済み projection で作る
+- ref argument は exact `[F(P)]` のままで、ambient `ρ` を持たない
+- subtraction と residual correspondence は private helper の一つの scheme に属する
+- local lowering は family-bearing `SubtractId` の owner にならない
+
+同じ syntax tree の形に見えても、type evidence の owner と polarity が異なる。
+
+### 4.4 callback hygiene と runtime order
+
+callback-origin effect を内側 handler が捕捉できるかは、単なる path 一致ではなく callback
+effect contract に依存する。private helper の callback parameterには `F(P)` を明示し、
+この synthetic state handlerだけが family を処理できる contract metadataを持たせる。
+ambient `ρ` は同じ contractで local handlerに許可しない。
+
+characterization と implementation test では次を固定する。
+
+- callback value の作成は pure であり、body は helper 呼び出し前に実行されない
+- `callback var_ref()` は `run init` の handled computation 内で起動する
+- callback contract marker は `F(P)` と payload correspondence を持つ
+- unrelated outer / inner handler が callback-origin residual `ρ` を捕捉しない
+- shallow / deep handler と continuation resume の可視性が従来から変わらない
+
+### 4.5 複数 binding と対象 lowering path
+
+複数の local var は現在の handler nesting を維持する。`run_inputs = [a, b]` なら概念上、
+
+```text
+with_ref_a init_a (\&a ->
+    with_ref_b init_b (\&b ->
+        body
+    )
 )
 ```
 
-prepare は source order で local parameter を scope に入れ、finish は逆順に閉じる。
-`ActiveVarPatternBindings` は reference statements と post-body run inputs の組ではなく、
-prepare 済み scope boundary の stack を持つ形へ変える。
+prepare は source order、finish は逆順とする。
 
-### 3.5 対象となる lowering path
-
-同じ sugar を別経路だけ旧方式で残さない。少なくとも次を同じ helper に通す。
+同じ sugar を一部の構文だけ旧方式で残さない。少なくとも次を同じ helper lifecycleへ通す。
 
 - ordinary block の `my $x = ...`
 - tuple / record 等の var pattern binding
@@ -356,52 +442,8 @@ prepare 済み scope boundary の stack を持つ形へ変える。
 - protocol lambda / protocol do continuation が作る local ref
 - nested / multiple local var scopes
 
-親 module には prepare / lower body / finish の順序が読める orchestration を残し、構文別
-call site が独自に push/pop を組み立てない。
-
-### 3.6 lowering API の変更
-
-`wrap_var_binding_run(..., body: Computation)` のように、既に lower 済みの body だけを受け取る
-API では正しい順序を表せない。これを概念上、次の二段階へ分ける。
-
-```text
-boundary = prepare_var_binding_scope(act, reference_name, payload)
-body = lower_body_with_reference_parameter_in_scope(...)
-result = finish_var_binding_scope(boundary, init_name, init_value, body)
-```
-
-`prepare_var_binding_scope` は ref expression、`Def::Arg` pattern、reference effect の push を
-所有する。`finish_var_binding_scope` は matching pop を持つ lambda、lambda への ref
-application、従来の `run init` application を所有する。Rust の closure に `&mut
-ExprLowerer` を保持させず、owned な prepared descriptor を返すことで borrow と error cleanup
-を局所化する。
-
-`lower_var_ref_constructor` / `constrain_local_ref_value` には、呼び出すたびに独立な effect を
-作る経路とは別に、prepare 済み `reference_effect` を接続する入口を持たせる。
-`ActiveVarPatternBindings` はこの owned descriptor を複数保持する。途中で body lowering が
-失敗した場合も、各 call site は `locals_start` まで truncate し、parameter scope を残さない。
-
-## 4. なぜ新しい Computation polarity node を作らないか
-
-`Pos::ComputationBoundary` のような node を追加すれば、bare computation pair に負極性と
-正極性を持たせることはできる。しかし最低でも次を同時に変更する必要がある。
-
-- `poly::types` と全 type walker
-- compact collect / merge / simplify / finalize
-- generalize / instantiate と stack binder liveness
-- interface oracle / alpha equivalence
-- compiled typed/cache import
-- specialize の type graph
-- dump / diagnostics
-
-これは local-var lowering の transport gap に対して広すぎる。さらに local mutable scope は
-すでに「ref を scope へ導入して body computation を返す」という関数的な境界を持つ。
-既存 `Fun` で ref data argument と body output を同じ generalization root に置き、通常の
-type-variable correspondence を表せるため、新しい型構造を正当化する不足はない。
-
-scoped lambda 案が stop condition に当たった場合も、直ちに新 variant を追加しない。
-その時点で runtime-free な internal scope IR が必要か、private `var.run` を callback form
-へ変えるかを別 design review で決める。
+親 module には prepare / lower body / finish の orchestration を残し、構文別 call site が
+独自に callback contract や push / pop を作らない。
 
 ## 5. 変更しないもの
 
@@ -409,78 +451,88 @@ scoped lambda 案が stop condition に当たった場合も、直ちに新 vari
   `Pos::Con(path, args)` は args の有無にかかわらず、登録済み family なら row item である。
 - `step_subtype` / `process_subtype` の fixed concrete-head matrix と
   `notes/design/2026-07-28-subtype-fallthrough-closure.md` の決定を変更しない。
-- `directed_weight.rs` の「one stack id, one family」invariant を変更しない。
+- `directed_weight.rs` の one-stack-ID-one-family invariant を変更しない。
+- `StackWeight::push_pops` の cancellation を payload-bearing family だけ止めない。
 - co-occurrence analysis / polarity elimination に rigid、blocked pair、protected variable set
   を追加しない。
+- stack liveness に local-var path、constructor kind、fixture 名の special case を追加しない。
+- nominal constructor argument の invariance を今回の修正で変更しない。
 - generalization boundary level、quantifier selection、instantiate の freshening を変更しない。
-- act-method / local-var scheme に non-empty `stack_quantifiers` を要求しない。
-- local ref の `reference_effect` を `Fun.arg_eff` に複製せず、ref value の invariant data
-  argument だけに置く。
-- synthetic act path、source path、fixture 名の文字列 special case を inference に追加しない。
+- helper scheme に non-empty `stack_quantifiers` を要求しない。
+- synthetic act path、source path、function 名の文字列 special case を inference に追加しない。
 - specialize の `ConflictingTypeCandidates` 比較を緩めない。
 - current wrong output に合わせて正しい expected result を変更しない。
 - public `std::control::var` API と runtime state semantics を変更しない。
+- LVB-A が失敗した場合、承認なしに新しい computation IR を追加しない。
 
 ## 6. 実装 slicing plan
 
-### LVB-A: boundary characterization と scoped carrier
+### LVB-A: negative callback boundary characterization
+
+この slice は production lowering code を変更しない。
 
 変更:
 
-- 現在の、effect-bearing ref を `Fun.arg` に置きながら body slots を独立 fresh にした
-  hand-built test を、production-shaped characterization へ置き換える
-- parameter value は
-  `std::control::var::ref reference_effect payload` として `Fun.arg` に置き、
-  `Fun.arg_eff` は `Neg::Bot` にする
-- parameter を pure な `Def::Arg` として scope に入れ、独立な `body_effect` を直接作らず、
-  実際の `$x` read または `&x` update / ref method call を lower して、
-  ref type の `reference_effect` が body computation へ流れる constraint を作る
-- pre-compact の構造確認では、prepared push と `Fun.ret_eff` / `Fun.ret` の matching pop が
-  同じ ID を使うことだけを固定する。これは local construction の balance witness であり、
-  scheme での ID 生存 witness ではない
-- generalize / finalize 後は `scheme.stack_quantifiers.is_empty()` であり、使用済み ID が
-  predicate に残らないことを固定する
-- final scheme から、argument ref effect が `[local-family(payload); ρ]`、body/result effect
-  が `[ρ]` となり、両方の `ρ` が同じ ordinary quantifier、family payload と ref payload が
-  同じ invariant variable であることを構造的に取り出す
-- instantiate を少なくとも二回行い、各 instance 内では argument-side / result-side が同じ
-  fresh `ρ` を共有し、二つの instance 間では `ρ` が別に freshen されることを固定する。
-  raw `SubtractId` の freshening は期待しない
-- control として、body が ref を使わず独立 fresh effect を返す construction、または
-  argument/result effect を意図的に別 fresh variable にした construction を置く。この
-  control では shared-`ρ` witness が得られないことを assert し、正例が variable name や
-  単独 quantifier の存在だけで vacuously pass していないことを固定する
+- payload-bearing family `F(P)`、exact ref `ref [F(P)] P`、callback ambient tail `ρ` を持つ
+  private-helper-shaped constraint witness を作る
+- helper の callback parameterを実際の `Neg::Fun` とし、その `ret_eff` に
+  contravariant `[F(P); ρ]` contractを置く
+- helper result effectを同じ ordinary `ρ` に接続する
+- pre-compact では callback `ret_eff` の `Neg::Stack` が active
+  `Set(F, [P])` を持ち、family push が ref constructor argument の
+  `Neu::Bounds` 内にはないことを固定する
+- compact 後は callback `ret_eff` から独立した concrete row prefix `F(P)` と tail `ρ` を
+  構造的に取り出し、helper result effectの `ρ` と同じ `TypeVar` correspondenceであることを
+  固定する
+- generalize / finalize 後は使用済み raw ID が predicate に残らず、
+  `scheme.stack_quantifiers.is_empty()` であることを固定する
+- instantiate を二回行い、各 instance 内では callback / result が同じ fresh `ρ` を共有し、
+  instance 間では別に freshen されること、payload `P` の invariant relationが保たれることを
+  固定する
+- arity control として payload なし `Set(owner)` でも同じ materialization pathを通ることを
+  確認し、argument-less / payload-bearing を failure axis に戻さない
+- direct-row control として invariant ref argument 内の exact `[F(P)]` 自体は compactを
+  生き残るが、そこへ push-only evidenceを置いても callback/result `ρ` correspondenceは
+  作られないことを固定する
+- callback parameterの explicit effect contract metadataが `F(P)` を許可し、ambient `ρ` を
+  local handlerへ許可しない形を確認する
 
 ordinary correspondence の判定は dump 上の変数名だけに依存させない。同じ `TypeVar` への
-正規化、または両方向の ordinary subtype connection を構造から確認する。この slice では
-production call site を切り替えず、corrected semantic contract だけを確認する。
+正規化、または両方向の ordinary subtype connection を構造から確認する。
 
 check:
 
-- targeted `crates/infer/src/lowering/tests` unit tests
+- targeted compact / lowering / generalize unit tests
 - targeted generalize / instantiate witness
 - `timeout 180s cargo test -p infer`
 
-### LVB-B: 全 local-var lowering path を scoped carrier へ切り替える
+LVB-A が成立するまで production `wrap_var_binding_run` と call siteを変更しない。
+
+### LVB-B: private helper と全 local-var lowering path
 
 変更:
 
-- act-method precedent と同じ push-before-body / pop-on-return の lifecycle を持つ
-  `LocalVarScopeBoundary` helper を追加する。ただし effect placement は §3.2 に従い、
-  ref type を `Fun.arg`、pure computation を `Fun.arg_eff` に置く
-- `local_var_effect_value` の family 登録、effect slot 構築、ref type connection を分け、
-  一つの prepared boundary effect を ref parameter に使う
-- `lower_local_var_binding` を init、prepare、body lowering、finish の順へ変える
-- `install_var_pattern_bindings` / `wrap_var_pattern_bindings` を prepared boundary stack に変える
-- protocol lambda / do、lambda pattern、case、catch の既存 call site を同じ lifecycle へ移す
-- standalone reference `Let` scheme を作らず、内部 lambda の `Arg` local を使う
-- runtime expression が必ず `run init (scoped application)` の nesting になることを固定する
-- bug note の最小 repro を regression test に追加する
+- synthetic var act copyへ compiler-private callback-form helperを追加し、通常の
+  definition / symbol resolution経路で参照する
+- helper callback parameterの explicit `F(P)` contractと result residual `ρ` を、一つの
+  schemeとして generalizeする
+- `wrap_var_binding_run(..., body: Computation)` を、callback parameterを先に scopeへ入れられる
+  prepare / finish lifecycleへ置き換える
+- `local_var_effect_value` の exact `[F(P)]` construction は維持し、ambient tailを追加しない
+- standalone reference `Let` schemeを作らず、callbackの pure `Def::Arg` localを使う
+- ordinary block、var pattern、lambda、case、catch、protocol / do の全 call siteを
+  同じ helperへ切り替える
+- runtime expressionが必ず helper 内で
+  `run init (callback var_ref())` を評価することを固定する
+- callback contract metadata / runtime markerが synthetic familyだけを handlerへ見せることを
+  固定する
+- bug note の最小 repro を regression testに追加する
 
 check:
 
 - ordinary read / update、single / nested / pattern local-var lowering tests
-- intermediate function を介する最小 repro の check / specialize / run
+- callback hygiene、shallow/deep handler、continuation resume controls
+- intermediate functionを介する最小 reproの check / specialize / run
 - `timeout 180s cargo test -p infer`
 - `timeout 180s cargo test -p specialize`
 - 対象 yulang runtime cases
@@ -489,16 +541,16 @@ check:
 
 変更:
 
-- `file_mock_text_with_rollback_on_error` を known-gap failure から正しい success contract へ戻す
-- `expect_success = false` と current conflict stderr を外し、次を復元する
+- `file_mock_text_with_rollback_on_error` を known-gap failure から正しい success contractへ戻す
+- `expect_success = false` と current conflict stderrを外し、次を復元する
 
 ```text
 run roots [(result::err(edit_err::abort), "start")]
 ```
 
-- ordinary local-var controls、nested local state、function commit、protocol/pattern forms を
-  regression corpus として明示する
-- parameterized family の既存 acceptance witness を変更なしで通す
+- ordinary local-var controls、nested local state、function commit、protocol / pattern formsを
+  regression corpusとして明示する
+- parameterized familyの既存 acceptance witnessを変更なしで通す
 
 check:
 
@@ -515,67 +567,74 @@ check:
 
 ### 7.1 stop conditions
 
-次のいずれかが判明した時点で semantic slice を止め、design review へ戻す。
+次のいずれかが判明した時点で semantic slice を止め、design reviewへ戻す。
 
-1. ref を実際に read / update する internal lambda で、argument ref effect と
-   body/result effect の shared ordinary `ρ` が generalize / instantiate 後に成立しない。
-   または ref を使わない broken control でも同じ witness が成立する。
-2. 修正に non-empty `stack_quantifiers`、使用済み raw `SubtractId` の scheme 内生存、
-   または local ref scheme と handler result scheme の間での ID 共有が必要になる。
-3. 同じ ID に `Empty` と `Set(local-family, payload)` が再び現れる。この場合
-   `merge_same_id_family` を緩めず、boundary の重複または誤った placement と判断する。
-4. internal lambda application が `run` の外で評価され、local operation が handler から
-   見えなくなる、または従来見えなかった operation が見える。
-5. shallow handler / thunk delimiter の runtime evidence が一段増減し、ordinary local-var
-   program の effect capture semantics が変わる。
-6. escaping ref、nested local vars、pattern local vars の lexical scope または handler nesting
-   が従来と一致しない。
-7. internal lambda が既存 specialization で消えず、local mutation の hot path に
-   avoidable な per-scope closure allocation または有意な回帰を加える。この場合は
-   source helper を場当たり的に inline せず、runtime-free internal scope IR と
-   private callback-form `run`
-   のどちらを採るかを別設計にする。
-8. fix のために generalize / instantiate、co-occurrence、polarity elimination、cache format
-   の変更が必要になる。
-9. `650fec0b` の classification または subtype matrix を緩めなければ test が通らない。
-10. ordinary `my $x` control の型、runtime output、handler rollback semantics が変わる。
+1. payload-bearing `F(P)` が callback parameterの negative `ret_eff` から independent
+   concrete row prefixへ materializeされない。
+2. callback `ret_eff` の tailと helper result effectが、generalize / instantiate後に同じ
+   ordinary `ρ` を共有しない。
+3. contract成立のために ref effect argumentを `[F(P); ρ]` へ広げる必要がある。
+4. contract成立のために nominal constructor variance、stack liveness、
+   `compact_neu_id` の global ruleを変更する必要がある。
+5. non-empty `stack_quantifiers`、使用済み raw `SubtractId` の scheme内生存、または
+   callback schemeと result schemeの間での ID共有が必要になる。
+6. 同じ ID に `Empty` と `Set(F, [P])` が現れる。この場合
+   `merge_same_id_family` を緩めず、helper contractの重複と判断する。
+7. callback contract metadataで `F(P)` だけを local handlerへ見せられず、ambient `ρ` または
+   unrelated callback-origin effectまで捕捉される。
+8. callback bodyが `run` の外で先に評価される、shallow/deep delimiterが一段増減する、
+   continuation resumeの handler visibilityが変わる。
+9. escaping ref、nested local vars、pattern local varsの lexical scopeまたは handler nestingが
+   従来と一致しない。
+10. callback helperが specializationで消えず、local mutationの hot pathへ avoidable な
+    per-scope closure allocationまたは有意な回帰を加える。
+11. C を成立させるには新しい computation-polarity IRが必要だと判明する。この場合 v1 の
+    rejectionを既定路線にせず、blast radiusを受け入れるかユーザ判断を求める別設計へ止める。
+12. `650fec0b` の classification、subtype matrix、specialize候補比較を緩めなければ testが
+    通らない。
+13. ordinary `my $x` controlの型、runtime output、handler rollback semanticsが変わる。
 
 ### 7.2 rollback unit
 
-rollback は slice 単位とする。
-
-- LVB-A の helper / witness が成立しなければ production wiring を始めない。
-- LVB-B の一経路で stop condition に当たった場合、旧方式と新方式を syntax ごとに混在
-  させず、LVB-B 全体を戻す。
-- LVB-C の full gate で unrelated failure が出た場合、正しい success expectation を再び
-  wrong failure に書き換えず、LVB-B を原因単位で戻す。
-- performance gate だけが不合格なら semantic fix と runtime representation を混ぜて
-  partial landing せず、scoped carrier の representation decision へ戻る。
+- LVB-A の witnessが成立しなければ production wiringを始めない。
+- LVB-B の一経路で stop conditionに当たった場合、旧方式と新方式を syntaxごとに混在させず、
+  LVB-B 全体を戻す。
+- LVB-C の full gateで unrelated failureが出た場合、正しい success expectationを再び
+  wrong failureへ書き換えず、LVB-B を原因単位で戻す。
+- performance gateだけが不合格なら semantic contractと runtime representationを混ぜて
+  partial landingせず、runtime-free callback representationまたは新 IR の design reviewへ戻る。
 
 ## 8. completion contract
 
 本 project は次をすべて満たしたときだけ完了する。
 
-1. bug note の original repro が `SpecializeError::ConflictingTypeCandidates` を出さず、
+1. bug note の original reproが `SpecializeError::ConflictingTypeCandidates` を出さず、
    `run roots [(result::err(edit_err::abort), "start")]` を返す。
-2. `file_mock_text_with_rollback_on_error` が known-gap ではなく success contract になる。
-3. pre-compact では ref effect の push と scoped lambda の `ret_eff` / `ret` pop が同じ
-   local ID を持ち、final scheme ではそれらが相殺・cleanup される。
-4. final scheme の `stack_quantifiers` が空で、argument ref effect
-   `[local-family(payload); ρ]` と body/result effect `[ρ]` が同じ ordinary quantifier を
-   共有する。instantiate 後も instance 内の対応と payload invariance が保たれる。
-5. standalone local ref `Let` scheme と result boundary の間で `SubtractId` を共有しない。
-6. ordinary direct read / write、function commit、nested local state、tuple / lambda / case /
-   catch / protocol pattern の local-var controls が通る。
-7. multiple local vars の prepare / finish 順序と runtime handler nesting が従来と一致する。
-8. `parameterized_effect_items_keep_row_tail_residuals_and_payload_invariance` が変更なしで通り、
-   `650fec0b` の effect-family acceptance が維持される。
-9. `step_subtype` / `process_subtype` の matrix test と subtype-fallthrough closure の contract
-   が変更なしで通る。
-10. directed weight invariant violation、new fallback、fixture/path special case がない。
-11. internal scoped carrier が handler visibility と performance gate を満たす。
-12. implementation diff が local-var boundary とその tests に限られ、無関係な refactor を
-    含まない。
+2. `file_mock_text_with_rollback_on_error` が known-gap ではなく success contractになる。
+3. private helperの final schemeが構造上
+   `(ref [F(P)] P -> [F(P); ρ] R) -> [ρ] R` の対応を持つ。
+4. local ref effectは exact `[F(P)]` のままで、ambient `ρ` を含まない。
+5. callback argument側の `F(P)` は independent concrete row itemであり、pathと payloadを
+   保つ。callback tailと helper resultは同じ ordinary quantifier `ρ` を共有する。
+6. final schemeの `stack_quantifiers` は空で、instantiate後も instance内の `ρ` correspondence
+   と payload invarianceが保たれる。
+7. standalone local ref schemeと handler result boundaryの間で `SubtractId` を共有しない。
+8. callback effect contract / runtime markerは synthetic `F(P)` だけを local handlerへ見せ、
+   ambient residualと unrelated callback-origin effectを捕捉しない。
+9. callback bodyは既存 `run` の handled computation内でだけ評価される。
+10. ordinary direct read / write、function commit、nested local state、tuple / lambda / case /
+    catch / protocol patternの local-var controlsが通る。
+11. multiple local varsの prepare / finish順序と runtime handler nestingが従来と一致する。
+12. `parameterized_effect_items_keep_row_tail_residuals_and_payload_invariance` が変更なしで通り、
+    `650fec0b` の effect-family acceptanceが維持される。
+13. `step_subtype` / `process_subtype` の matrix testと subtype-fallthrough closureの contractが
+    変更なしで通る。
+14. constructor variance、stack liveness、`StackWeight::push_pops`、
+    generalize / instantiateの global ruleに local-var patchがない。
+15. directed weight invariant violation、new fallback、fixture / path special caseがない。
+16. private callback carrierが handler visibilityと performance gateを満たす。
+17. implementation diffが local-var boundary、private synthetic helper、その testsに限られ、
+    無関係な refactorを含まない。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
