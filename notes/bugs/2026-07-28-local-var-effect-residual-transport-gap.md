@@ -229,20 +229,69 @@ Codex MCP (`gpt-5.6-sol`, xhigh, read-only) による単独調査で検証した
 `[local-family(payload); ρ] -> [ρ]` という追加の具体的 row item は、
 現在の push-only スコープ機構のままでは原理的に届かない。
 
+## v3 改訂と LVB-A の成功（2026-07-29）
+
+5回目の投資調査を受け、設計文書を v2 から v3 へ改訂した
+（`notes/design/2026-07-28-local-var-effect-boundary-fix.md`、`0f015c82`）。
+target を ref の invariant effect argument から、compiler-private な
+callback-form helper の **negative side `ret_eff`** へ移す
+（`(ref [F(P)] P -> [F(P); ρ] R) -> [ρ] R` という helper scheme）。
+
+LVB-A（characterization のみ、production 未変更、`35a53830`）はこの新しい
+target invariant を **isolated witness で構造的に証明できた**: payload 付き
+family `F(P)` が callback の negative `ret_eff` から独立した concrete row
+prefix として materialize され、helper result 側と同じ `TypeVar` の `ρ` を
+共有する。引数なし family の control、旧 push-only carrier の negative
+control も含め4件のテストが通った。5回連続の停止の後、初めて狙った
+correspondence が実機で成立した瞬間だった。
+
+## 6回目: LVB-B production wiring で新しい stop condition（2026-07-29）
+
+LVB-A 成立を受け、production wiring（LVB-B）に着手したが、最初の call site
+（ordinary block `my $x = ...`）の段階で `notes/design/2026-07-28-local-var-effect-boundary-fix.md`
+§7.1 の stop condition 6（「同じ ID に `Empty` と `Set(F, [P])` が現れる」）に
+到達し、`directed_weight.rs:413` の one-ID-one-family invariant 違反で panic した。
+workaround は試さず、該当 slice を完全に rollback（commit なし、working tree
+clean を確認済み）。
+
+**原因**: LVB-A の isolated witness は、helper の function scheme（callback
+の明示的 effect contract `F(P)` on `ret_eff`）だけを手で組んでいた。しかし
+実際の production body lowering では、helper 自身の実装
+`with_ref init callback = run init (callback var_ref())` の中に、
+**既存の `run` 自体が local-family に対して持つ独自の push/pop 機構**が
+別途存在する。isolated witness にはこの (2) が無かったため見えなかったが、
+実機では次の**2つの独立した subtraction の主張**が同じ `SubtractId` に
+競合する:
+
+1. callback 自身の明示的 effect contract（LVB-A が証明した、`ret_eff` への
+   `F(P)` の push/pop）
+2. helper 本体の既存 `run` が local-family に対してすでに持つ、独自の
+   push/pop
+
+**教訓**: v3 の §4.1 helper contract は「callback の effect contract」と
+「helper 内の既存 `run` の handler 機構」を、別々の subtraction 源として
+併存させられる、という前提を検証していなかった。isolated witness は
+mechanism の**片方**しか証明していなかった。
+
 ## 次に調べるべきこと
 
-- **設計判断が要る**: argument 側で local-family を「push evidence だけ」
-  ではなく「独立した具体的 row item」として持たせる表現をどう作るか。
-  これは compaction のバグ修正では埋まらない、IR/lowering 側の判断。
-  例えば、a) local ref の effect argument を invariant ではなく
-  contravariant/covariant に分解して stack liveness の traversal に
-  covariant に見せる、b) push evidence とは別に明示的な row item を
-  argument 型へ直接埋め込む、等の方向性があり得るが、いずれも
+- **設計判断が要る（v4 相当）**: helper 内の「callback 自身の explicit
+  effect contract」と「既存 `run` handler の push/pop」を、同じ
+  `SubtractId` の重複主張にせず両立させる表現をどう作るか。考えられる方向:
+  a) callback の effect contract を独立に宣言せず、helper 内の `run` が
+  実際に処理する push/pop から**導出**する（explicit annotation を廃止し、
+  `run` の handler 型から `ret_eff` の contract を逆算する）、
+  b) helper の実装自体を変え、`run` による push/pop と callback boundary の
+  push/pop が異なる `SubtractId` を持つように構造を分離する（ただし
+  それでも residual `ρ` の対応をどう保つかが課題）、
+  c) 他の方向。いずれも
   `notes/design/2026-07-28-local-var-effect-boundary-fix.md` の
   改訂が必要（ユーザ承認済み設計文書として起こしてから着手する筋）。
+- LVB-A の characterization 自体は生きている（isolated mechanism としては
+  正しく証明済み）。反証されたのは「その mechanism を、helper 自身の
+  既存 `run` 実装と組み合わせても両立するか」という、より広い前提。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
-  骨格自体はまだ反証されていない。反証されたのは「不変条件をどう
-  証明するか」「その不変条件が push-only 機構で表現可能か」の部分。
+  骨格自体はまだ反証されていない。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
 
 ## 現状の扱い
