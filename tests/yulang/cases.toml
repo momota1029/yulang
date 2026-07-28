@@ -2119,11 +2119,7 @@ kind = "run"
 std = "repo"
 expect_success = false
 expect_stdout = ""
-expect_stderr_contains = [
-  "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
-  "detail: no role implementation satisfies this method call for receiver {x: int, y: int}",
-  "--> line 3, column 22",
-]
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `point` is not compatible with required shape `function`\n  detail: type shape `function` is not compatible with required shape `record {x, y}`\n  hint: run `yulang check` to see source ranges before running\n"
 contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
 
 [[case]]
