@@ -4825,6 +4825,106 @@ fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn rejected_subtype_matches_across_cold_and_opened_std_prefix_artifact() {
+    let root = temp_root("rejected-subtype-std-prefix-hit");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let std_root = write_minimal_std(&root);
+    let cache_root = root.join("cache-root");
+    let seed = root.join("seed.yu");
+    let entry = root.join("reject.yu");
+    fs::write(&seed, "0\n").unwrap();
+    fs::write(&entry, "my f(p: int -> unit) = p\nf 2\n").unwrap();
+
+    let seed_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&seed)
+        .output()
+        .unwrap();
+    assert_success(&seed_output);
+    assert_cache_route(&seed_output, "std-prefix-build");
+
+    let options = yulang::StdSourceOptions {
+        std_root: Some(std_root.clone()),
+    };
+    let files = yulang::collect_local_sources_with_std_options(&entry, &options).unwrap();
+    let prefix_indices = std_prefix_file_indices(&files);
+    let prefix_key = std_prefix_cache_key(&files, &prefix_indices);
+    let cache = yulang::cache::ArtifactCache::new(&cache_root);
+    let prefix_path = cache.compiled_unit_artifact_path(prefix_key);
+    let prefix = cache
+        .read_compiled_unit_artifact(prefix_key)
+        .unwrap()
+        .unwrap_or_else(|| {
+            panic!(
+                "missing seeded std-prefix artifact {}",
+                prefix_path.display()
+            )
+        });
+    let suffix = files
+        .iter()
+        .enumerate()
+        .filter_map(|(index, file)| (!prefix_indices.contains(&index)).then_some(file.clone()))
+        .collect::<Vec<_>>();
+
+    let cold_import = yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone())
+        .expect("cold subtype rejection build");
+    let warm_import =
+        yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+            prefix, files, suffix,
+        )
+        .expect("forced std-prefix subtype rejection build");
+    assert!(!cold_import.poly.errors.is_empty());
+    assert_eq!(
+        warm_import.poly.errors, cold_import.poly.errors,
+        "the on-disk std-prefix artifact must preserve the cold rejection detail"
+    );
+
+    let cold = yulang_command()
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_failure(&cold);
+    assert_eq!(stdout(&cold), "");
+    assert!(stderr(&cold).contains(
+        "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `int` is not compatible with required shape `function`\n"
+    ));
+
+    let prefix_open = InotifyOpenWatch::new(&prefix_path);
+    let warm = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_failure(&warm);
+    assert!(
+        prefix_open.observed(),
+        "failing run did not open seeded std-prefix artifact {}",
+        prefix_path.display()
+    );
+    assert_eq!(stdout(&warm), stdout(&cold));
+    assert_eq!(stderr(&warm), stderr(&cold));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn std_prefix_boundary_metrics_report_non_empty_canonical_artifact() {
     let root = temp_root("std-prefix-non-empty-boundary-metrics");
@@ -7599,6 +7699,20 @@ fn std_prefix_file_indices(files: &[yulang::CollectedSource]) -> Vec<usize> {
     indices
 }
 
+fn std_prefix_cache_key(
+    files: &[yulang::CollectedSource],
+    prefix_indices: &[usize],
+) -> yulang::cache::SourceCacheKey {
+    let mut cache_sources = Vec::with_capacity(prefix_indices.len() + 1);
+    cache_sources.push(yulang::CollectedSource::new(
+        PathBuf::from("<std-prefix-root>"),
+        sources::Path::default(),
+        format!("{}mod std;\n", yulang::IMPLICIT_PRELUDE_IMPORT),
+    ));
+    cache_sources.extend(prefix_indices.iter().map(|index| files[*index].clone()));
+    yulang::cache::source_cache_key(&cache_sources)
+}
+
 fn build_std_prefix_characterization_artifact(
     files: &[yulang::CollectedSource],
     prefix_indices: &[usize],
@@ -8249,6 +8363,57 @@ fn temp_root(name: &str) -> PathBuf {
             .unwrap()
             .as_nanos()
     ))
+}
+
+#[cfg(target_os = "linux")]
+struct InotifyOpenWatch {
+    fd: libc::c_int,
+}
+
+#[cfg(target_os = "linux")]
+impl InotifyOpenWatch {
+    fn new(path: &Path) -> Self {
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+
+        let path = CString::new(path.as_os_str().as_bytes()).unwrap();
+        let fd = unsafe { libc::inotify_init1(libc::IN_CLOEXEC | libc::IN_NONBLOCK) };
+        assert!(
+            fd >= 0,
+            "failed to initialize inotify: {}",
+            std::io::Error::last_os_error()
+        );
+        let watch = unsafe { libc::inotify_add_watch(fd, path.as_ptr(), libc::IN_OPEN) };
+        if watch < 0 {
+            let error = std::io::Error::last_os_error();
+            unsafe {
+                libc::close(fd);
+            }
+            panic!("failed to watch std-prefix artifact open: {error}");
+        }
+        Self { fd }
+    }
+
+    fn observed(self) -> bool {
+        let mut event = std::mem::MaybeUninit::<libc::inotify_event>::uninit();
+        let read = unsafe {
+            libc::read(
+                self.fd,
+                event.as_mut_ptr().cast(),
+                std::mem::size_of::<libc::inotify_event>(),
+            )
+        };
+        read >= std::mem::size_of::<libc::inotify_event>() as isize
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for InotifyOpenWatch {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
 }
 
 fn control_cache_file_count(root: &Path) -> usize {

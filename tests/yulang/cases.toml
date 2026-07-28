@@ -1993,62 +1993,66 @@ expect_stderr_contains = [
 ]
 contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
 
-# STF-A known-gap witnesses. These deliberately pin the current fail-open runtime
-# result from notes/design/2026-07-28-subtype-fallthrough-closure.md until STF-I
-# turns the same fixtures into final rejection contracts.
+# STF-I final rejection contracts for the six STF-A counterexamples.
 [[case]]
 name = "subtype_fallthrough_con_to_fun_characterization"
 file = "regressions/runtime/subtype_fallthrough_con_to_fun.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [2]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `int` is not compatible with required shape `function`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_fallthrough_fun_to_con_characterization"
 file = "regressions/runtime/subtype_fallthrough_fun_to_con.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [<closure>]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `function` is not compatible with required shape `int`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_fallthrough_tuple_to_con_characterization"
 file = "regressions/runtime/subtype_fallthrough_tuple_to_con.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [(1, 2)]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `tuple(2)` is not compatible with required shape `int`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_fallthrough_polyvariant_to_con_characterization"
 file = "regressions/runtime/subtype_fallthrough_polyvariant_to_con.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [some(2)]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `polymorphic variant {some}` is not compatible with required shape `int`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_fallthrough_record_to_fun_characterization"
 file = "regressions/runtime/subtype_fallthrough_record_to_fun.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [{x: 2}]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `record {x}` is not compatible with required shape `function`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_fallthrough_record_to_nominal_characterization"
 file = "regressions/runtime/subtype_fallthrough_record_to_nominal.yu"
 kind = "run"
 std = "none"
-expect_stdout = "run roots [{x: 2}]\n"
-expect_stderr = ""
-contracts = ["runtime", "typechecker"]
+expect_success = false
+expect_stdout = ""
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `record {x}` is not compatible with required shape `point`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker"]
 
 [[case]]
 name = "subtype_tuple_cross_shape_provenance"
