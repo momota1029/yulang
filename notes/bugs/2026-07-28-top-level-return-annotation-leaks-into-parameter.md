@@ -1,7 +1,7 @@
 # トップレベル関数の戻り値注釈が構築先struct名と一致すると引数まで巻き込まれる
 
 発見日: 2026-07-28
-状態: 未修正
+状態: **修正済み（2026-07-28、`f327989c`）**
 発見経緯: `notes/design/2026-07-28-subtype-fallthrough-closure.md` の STF-H push 後、
 CI で `my_type_ancestry_allowed` 契約が回帰。その fixture 修正中に、修正案自体が
 別の pre-existing バグ（本件）に阻まれた。
@@ -58,23 +58,38 @@ run roots [zzz({qqq: 1})]
 `my make (value: int): hidden = hidden { raw: value }` という形を試したところ、
 本件バグに阻まれた）。
 
-## 未確認事項
+## 根本原因（判明済み）
 
-- `654fec0b` 以前の parameter/local binding 二重適用バグ（`f67dba12`）と
-  同じ機構が原因か、それともトップレベル binding 固有の別経路か。
-  `f67dba12` は「header result annotation と whole binding annotation の
-  二重適用」を local binding で修正したが、本件はトップレベルで起きている。
-  トップレベルは「二重適用を回避できている」はずだった
-  （`crates/infer/src/lowering/body/mod.rs:2178` 付近）。ここが本件でも
-  正しく機能しているか要確認。
-- struct 名と戻り値注釈が一致することが条件か、それとも任意の nominal 型
-  一致で起きるか（enum/error でも再現するか）は未確認。
-- 引数が複数ある場合にどの引数が巻き込まれるか（全部か、body 内で
-  struct field へ使われた引数だけか）は未確認。
+`f67dba12`（local binding の二重適用）とは**別の機構**だった。
+`crates/infer/src/lowering/body/mod.rs:2178` 付近のトップレベル binding lowering は
+実際には二重適用を正しく回避していて、本件はそこに到達すらしていなかった。
+
+真因は **parser の precedence バグ**。ML-style 適用（`mk (a: int): zzz` のように
+括弧の前にスペースがある形）では、末尾の `: zzz` が binding 自身の戻り値注釈ではなく、
+**最後の引数パターン `(a: int)` の中に飲み込まれて**しまっていた
+（`crates/parser/src/pat/parse.rs:123` 付近、ML 引数を外側と同じ `min_prec` で
+parse していたため `TypeAnn` がそのまま届いていた）。
+
+括弧無し（`mk(a: int): zzz`、ApplyC 形）は最初から正しく parse できていた。
+つまり「struct 名と戻り値型が一致する」ことは条件ではなく、**ML-style 適用に
+戻り値注釈を付けること自体**が条件だった。引数が複数ある場合も、影響を受けるのは
+常に最後の引数だけだった。
+
+## 修正
+
+`Prec::ApplyML` という TypeAnn より強い precedence 階層を新設し、ML 引数の nud を
+その固定 precedence で parse するよう変更（`crates/parser/src/pat/parse.rs`）。
+括弧内部の注釈（`(a: int)` 自体）の解釈は変えていない。infer 側は無変更——
+純粋に parser 層のバグだった。
+
+検証: parser 全8バイナリ350件、infer 991件、yulang 376件（既知flake1件除く）、
+`--test cli` 158件、stdlib 全体の `check-poly-std` でエラー0件。判明していた
+再現条件マトリクス（struct/enum/qualified nominal 戻り値、中間 `my` 束縛、
+複数引数、local ML-style binding）を全て再検証し修正を確認。
 
 ## 関連
 
-- `crates/infer/src/lowering/body/mod.rs`（トップレベル binding lowering、
-  header result annotation と whole binding annotation の分離箇所）
-- `f67dba12`（local binding での同種の二重適用を修正済み。トップレベル版が
-  同じ根なのか別なのかが本件の核心）
+- `crates/parser/src/pat/parse.rs`（修正箇所、`Prec::ApplyML`）
+- `crates/infer/src/lowering/body/mod.rs`（トップレベル binding lowering。
+  疑ったが無関係と判明）
+- `f67dba12`（local binding での別の二重適用バグ。似た症状だが機構は無関係）
