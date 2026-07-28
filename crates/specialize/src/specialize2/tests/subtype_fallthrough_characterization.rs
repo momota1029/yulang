@@ -37,60 +37,61 @@ enum MatrixExpectation {
 use MatrixExpectation::{Accepts, Rejects};
 
 // Rows are lower heads and columns are upper heads in FixedHead::ALL order.
-// STF-F can flip individual cells while retaining the same exhaustive sweep.
 const CURRENT_FIXED_HEAD_MATRIX: [[Option<MatrixExpectation>; 6]; 6] = [
     [
         None,
+        Some(Rejects),
+        Some(Rejects),
+        // STF-G owns the nominal-record bridge.
         Some(Accepts),
         Some(Rejects),
-        Some(Accepts),
-        Some(Accepts),
-        Some(Accepts),
-    ],
-    [
-        Some(Accepts),
-        None,
-        Some(Rejects),
-        Some(Accepts),
-        Some(Accepts),
+        // STF-G owns the effect-family bridge.
         Some(Accepts),
     ],
     [
-        Some(Accepts),
-        Some(Accepts),
-        None,
-        Some(Accepts),
-        Some(Accepts),
-        Some(Accepts),
-    ],
-    [
-        Some(Accepts),
-        Some(Accepts),
         Some(Rejects),
         None,
-        Some(Accepts),
-        Some(Accepts),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
     ],
     [
-        Some(Accepts),
-        Some(Accepts),
         Some(Rejects),
-        Some(Accepts),
+        Some(Rejects),
         None,
-        Some(Accepts),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
     ],
     [
-        Some(Accepts),
-        Some(Accepts),
         Some(Rejects),
-        Some(Accepts),
-        Some(Accepts),
+        Some(Rejects),
+        Some(Rejects),
+        None,
+        Some(Rejects),
+        Some(Rejects),
+    ],
+    [
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
+        None,
+        Some(Rejects),
+    ],
+    [
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
+        Some(Rejects),
         None,
     ],
 ];
 
 #[test]
-fn stf_a_surface_fixtures_reach_the_current_specialize_fail_open_paths() {
+fn stf_f_surface_fixtures_reject_cross_shape_subtypes_during_specialize() {
     for fixture in [
         "subtype_fallthrough_con_to_fun.yu",
         "subtype_fallthrough_fun_to_con.yu",
@@ -101,15 +102,19 @@ fn stf_a_surface_fixtures_reach_the_current_specialize_fail_open_paths() {
     ] {
         let source = fs::read_to_string(runtime_fixture(fixture))
             .unwrap_or_else(|error| panic!("{fixture}: {error}"));
-        let lowering = lower_real_source(&source);
-        specialize(&lowering.session.poly, lowering.subtype_provenance()).unwrap_or_else(|error| {
-            panic!("{fixture} must remain a known gap until STF-F/G: {error}")
-        });
+        let lowering = lower_real_source_even_with_inference_diagnostics(&source);
+        assert!(
+            matches!(
+                specialize(&lowering.session.poly, lowering.subtype_provenance()),
+                Err(SpecializeError::UnsatisfiedSubtype { .. })
+            ),
+            "{fixture} must reject during specialization",
+        );
     }
 }
 
 #[test]
-fn stf_a_specialize_fixed_head_matrix_characterizes_all_thirty_ordered_pairs() {
+fn stf_f_specialize_fixed_head_matrix_rejects_all_non_bridge_off_diagonal_pairs() {
     let mut visited = 0;
     for lower in FixedHead::ALL {
         for upper in FixedHead::ALL {
@@ -185,7 +190,7 @@ fn stf_a_specialize_keeps_top_bottom_and_all_six_same_shape_controls() {
 }
 
 #[test]
-fn stf_a_specialize_keeps_effect_family_and_nominal_field_projection_controls() {
+fn stf_f_specialize_preserves_effect_family_bridge_control() {
     let arena = arena_with_effect_families(&[&["tick"]]);
     let mut graph = TypeGraph::new(&arena);
     let item = con(&["tick"], Vec::new());
@@ -193,7 +198,10 @@ fn stf_a_specialize_keeps_effect_family_and_nominal_field_projection_controls() 
         .constrain_subtype(item.clone(), Type::EffectRow(vec![item]))
         .unwrap();
     graph.solve_constraints().unwrap();
+}
 
+#[test]
+fn stf_f_specialize_preserves_nominal_field_projection_control() {
     let lowering = lower_real_source(concat!(
         "struct point { x: int }\n",
         "my get(p: point): int = p.x\n",
@@ -201,6 +209,42 @@ fn stf_a_specialize_keeps_effect_family_and_nominal_field_projection_controls() 
     ));
     specialize(&lowering.session.poly, lowering.subtype_provenance())
         .expect("nominal field projection remains valid");
+}
+
+#[test]
+fn stf_f_weighted_effect_family_item_preserves_existing_stack_filter_semantics() {
+    let arena = arena_with_effect_families(&[&["tick"]]);
+    let lower = con(&["tick"], vec![Type::Tuple(vec![Type::unit()])]);
+    let upper = con(
+        &["tick"],
+        vec![Type::Tuple(vec![Type::unit(), Type::unit()])],
+    );
+
+    let mut unweighted = TypeGraph::new(&arena);
+    unweighted
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert!(matches!(
+        unweighted.solve_constraints(),
+        Err(SpecializeError::UnsatisfiedSubtype { .. })
+    ));
+
+    let excluding_tick = StackWeight {
+        entries: vec![StackWeightEntry {
+            id: 0,
+            pops: 0,
+            floor: vec![EffectFamilies::AllExcept(vec![EffectFamily {
+                path: vec!["tick".into()],
+                args: Vec::new(),
+            }])],
+            stack: Vec::new(),
+        }],
+    };
+    let mut weighted = TypeGraph::new(&arena);
+    weighted
+        .constrain_weighted_subtype(lower, excluding_tick, upper, empty_stack_weight())
+        .unwrap();
+    weighted.solve_constraints().unwrap();
 }
 
 fn characterize_fixed_head_pair(lower_head: FixedHead, upper_head: FixedHead) -> MatrixExpectation {
@@ -282,4 +326,16 @@ fn runtime_fixture(name: &str) -> PathBuf {
         .join("../..")
         .join("tests/yulang/regressions/runtime")
         .join(name)
+}
+
+fn lower_real_source_even_with_inference_diagnostics(
+    source: &str,
+) -> infer::lowering::BodyLowering {
+    let files = sources::load(vec![sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: source.to_string(),
+    }]);
+    infer::dump::dump_loaded_files(&files)
+        .expect("real subtype fixture should lower")
+        .lowering
 }

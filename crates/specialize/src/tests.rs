@@ -973,12 +973,11 @@ mod tests {
 
     #[test]
     fn specialize2_structural_tuple_argument_rejects_cross_shape_and_wrong_arity() {
-        for (name, source, expected_lower) in [
-            ("int", "my f(p: (int, int)) = p\nf 2\n", int_type()),
-            ("bool", "my f(p: (int, int)) = p\nf true\n", bool_type()),
+        for (source, expected_lower) in [
+            ("my f(p: (int, int)) = p\nf 2\n", int_type()),
+            ("my f(p: (int, int)) = p\nf true\n", bool_type()),
         ] {
-            let lowering = lower_source(source);
-            assert!(lowering.errors.is_empty(), "{name}: {:?}", lowering.errors);
+            let lowering = lower_source_without_error_assertion(source);
 
             assert!(matches!(
                 specialize2(&lowering.session.poly),
@@ -998,8 +997,8 @@ mod tests {
         assert!(text.contains("mono roots [(m0 (1, 2))]"), "{text}");
         assert!(!text.contains("coerce["), "{text}");
 
-        let wrong_arity = lower_source("my f(p: (int, int)) = p\nf (1, 2, 3)\n");
-        assert!(wrong_arity.errors.is_empty(), "{:?}", wrong_arity.errors);
+        let wrong_arity =
+            lower_source_without_error_assertion("my f(p: (int, int)) = p\nf (1, 2, 3)\n");
         assert!(matches!(
             specialize2(&wrong_arity.session.poly),
             Err(crate::SpecializeError::UnsatisfiedSubtype {

@@ -709,10 +709,6 @@ impl<'a> TypeGraph<'a> {
                     provenance,
                 )
             }
-            (lower, Type::Tuple(upper_items)) if concrete_head_cannot_resolve_to_tuple(&lower) => {
-                let provenance = self.record_shadow_failure(provenance);
-                unsatisfied_subtype(lower, Type::Tuple(upper_items), provenance)
-            }
             (Type::Record(lower_fields), Type::Record(upper_fields)) => {
                 let missing_required_field = upper_fields.iter().any(|upper_field| {
                     !upper_field.optional
@@ -803,7 +799,24 @@ impl<'a> TypeGraph<'a> {
                     upper_items,
                     upper_weight,
                 ),
-            _ => Ok(()),
+            (lower, upper) => {
+                if let (Some(lower_head), Some(upper_head)) =
+                    (fixed_concrete_head(&lower), fixed_concrete_head(&upper))
+                    && !same_concrete_head_kind(lower_head, upper_head)
+                    // STF-G: preserve the two bridge cells until their specialize checks land.
+                    && !matches!(
+                        (lower_head, upper_head),
+                        (
+                            FixedConcreteHead::Con,
+                            FixedConcreteHead::Record | FixedConcreteHead::EffectRow
+                        )
+                    )
+                {
+                    let provenance = self.record_shadow_failure(provenance);
+                    return unsatisfied_subtype(lower, upper, provenance);
+                }
+                Ok(())
+            }
         }
     }
 
@@ -874,6 +887,49 @@ impl<'a> TypeGraph<'a> {
         self.constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
     }
+}
+
+#[derive(Clone, Copy)]
+enum FixedConcreteHead {
+    Con,
+    Fun,
+    Tuple,
+    Record,
+    PolyVariant,
+    EffectRow,
+}
+
+fn fixed_concrete_head(ty: &Type) -> Option<FixedConcreteHead> {
+    match ty {
+        Type::Con { .. } => Some(FixedConcreteHead::Con),
+        Type::Fun { .. } => Some(FixedConcreteHead::Fun),
+        Type::Tuple(_) => Some(FixedConcreteHead::Tuple),
+        Type::Record(_) => Some(FixedConcreteHead::Record),
+        Type::PolyVariant(_) => Some(FixedConcreteHead::PolyVariant),
+        Type::EffectRow(_) => Some(FixedConcreteHead::EffectRow),
+        Type::Any
+        | Type::Never
+        | Type::Thunk { .. }
+        | Type::Stack { .. }
+        | Type::Union(_, _)
+        | Type::Intersection(_, _)
+        | Type::OpenVar(_) => None,
+    }
+}
+
+fn same_concrete_head_kind(left: FixedConcreteHead, right: FixedConcreteHead) -> bool {
+    matches!(
+        (left, right),
+        (FixedConcreteHead::Con, FixedConcreteHead::Con)
+            | (FixedConcreteHead::Fun, FixedConcreteHead::Fun)
+            | (FixedConcreteHead::Tuple, FixedConcreteHead::Tuple)
+            | (FixedConcreteHead::Record, FixedConcreteHead::Record)
+            | (
+                FixedConcreteHead::PolyVariant,
+                FixedConcreteHead::PolyVariant
+            )
+            | (FixedConcreteHead::EffectRow, FixedConcreteHead::EffectRow)
+    )
 }
 
 fn incomplete_positions() -> SubtypePositionProvenance {
