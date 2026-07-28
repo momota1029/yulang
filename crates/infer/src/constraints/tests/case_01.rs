@@ -1461,6 +1461,73 @@ fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms
 }
 
 #[test]
+fn parameterized_effect_items_keep_row_tail_residuals_and_payload_invariance() {
+    let mut machine = ConstraintMachine::new();
+    let state = vec!["state".to_string()];
+    machine.register_effect_family_path(state.clone());
+    let lower_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+    let lower_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+    let lower_payload = machine.alloc_neu(Neu::Bounds(lower_payload_lower, lower_payload_upper));
+    let state_pos = machine.alloc_pos(Pos::Con(state.clone(), vec![lower_payload]));
+    let tail_var = TypeVar(0);
+    let upper_tail = machine.alloc_neg(Neg::Var(tail_var));
+    let lower = machine.alloc_pos(Pos::Row(vec![state_pos]));
+    let upper = machine.alloc_neg(Neg::Row(vec![], upper_tail));
+
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+
+    let tail_bounds = machine.bounds().of(tail_var).expect("upper tail bounds");
+    assert!(
+        tail_bounds.lowers().iter().any(|lower| {
+            lower.weights.is_empty()
+                && matches!(
+                    machine.types().pos(lower.pos),
+                    Pos::Row(items) if items == &[state_pos]
+                )
+        }),
+        "parameterized effect should flow into the tail as a row: {tail_bounds:?}"
+    );
+    assert!(
+        !tail_bounds.lowers().iter().any(|lower| {
+            matches!(
+                machine.types().pos(lower.pos),
+                Pos::Con(path, args) if path == &state && args == &[lower_payload]
+            )
+        }),
+        "parameterized effect must not become a naked tail constructor: {tail_bounds:?}"
+    );
+
+    let upper_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
+    let upper_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
+    let upper_payload = machine.alloc_neu(Neu::Bounds(upper_payload_lower, upper_payload_upper));
+    let state_neg = machine.alloc_neg(Neg::Con(state, vec![upper_payload]));
+    let closed_tail = machine.alloc_neg(Neg::Bot);
+    let matched_upper = machine.alloc_neg(Neg::Row(vec![state_neg], closed_tail));
+    let tail_lower = machine.alloc_pos(Pos::Var(tail_var));
+
+    machine.subtype(
+        tail_lower,
+        matched_upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
+        lower: lower_payload_lower,
+        upper: upper_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+    assert!(machine.has_canonical_constraint(&SubtypeConstraintKey {
+        lower: upper_payload_lower,
+        upper: lower_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+}
+
+#[test]
 fn row_items_keep_non_effect_atoms_direct_for_tail_residuals() {
     let mut machine = ConstraintMachine::new();
     let unit = machine.alloc_pos(Pos::Con(vec!["unit".into()], vec![]));

@@ -735,7 +735,7 @@ impl ConstraintMachine {
 
     fn pos_is_effect_marker_row_item(&self, item: PosId) -> bool {
         match self.types.pos(item) {
-            Pos::Con(path, args) => args.is_empty() && self.effect_family_paths.contains(path),
+            Pos::Con(path, _) => self.effect_family_paths.contains(path),
             Pos::Row(items) => items
                 .iter()
                 .all(|item| self.pos_is_effect_marker_row_item(*item)),
