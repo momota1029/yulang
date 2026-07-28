@@ -4143,14 +4143,14 @@ expect_diagnostic_related_end = 55
 contracts = ["diagnostics", "related-ranges"]
 
 [[case]]
-name = "my_private_method_selection_remains_runtime_field_fallback"
+name = "my_private_method_selection_missing_field_rejects_after_record_fallback"
 file = "regressions/runtime/my_private_method_selection_deferred.yu"
 kind = "run"
 expect_success = false
 std = "repo"
 expect_stdout = ""
-expect_stderr = "runtime error [yulang.missing-field]: record does not contain field `secret`\n  hint: check the field name or provide a record value with this field\n"
-contracts = ["runtime-error", "runtime-failure", "types"]
+expect_stderr = "compile error [yulang.lowering]: source has lowering errors\n  detail: type shape `owner::point` is not compatible with required shape `record {secret}`\n  hint: run `yulang check` to see source ranges before running\n"
+contracts = ["runtime-error", "compile-error", "diagnostics", "types"]
 
 [[case]]
 name = "test_runner_suppresses_passing_stdout_and_reports_failing_stdout"
