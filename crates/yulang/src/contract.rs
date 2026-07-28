@@ -1005,6 +1005,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "host.native"
             | "host.unsupported"
             | "junction"
+            | "known-gap"
             | "lambda-my"
             | "lists"
             | "metadata"
