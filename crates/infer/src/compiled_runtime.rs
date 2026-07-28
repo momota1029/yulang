@@ -2614,6 +2614,10 @@ mod tests {
         assert_eq!(imported.errors, Vec::new());
         let cold_certificates = bridge_certificate_view(&cold.session.poly);
         assert_eq!(
+            cold_certificates.1,
+            vec![vec!["models".to_string(), "signal".to_string()]]
+        );
+        assert_eq!(
             bridge_certificate_view(&warm.session.poly),
             cold_certificates
         );

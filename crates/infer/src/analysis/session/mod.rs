@@ -11,6 +11,7 @@ mod generalize_role_snapshot;
 mod generalize_snapshot_characterization;
 mod instantiate;
 mod lifecycle;
+mod nominal_record_shape;
 mod ocast_activation;
 mod occurrence_provenance;
 mod owner_dirty_scheduler;

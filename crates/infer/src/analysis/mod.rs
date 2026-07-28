@@ -224,6 +224,8 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     unsatisfied_subtype_shape_diagnostic_keys:
         FxHashSet<(ConstraintRecordId, ConcreteSubtypeHead, ConcreteSubtypeHead)>,
+    nominal_record_shape_obligation_keys: FxHashSet<ConstraintRecordId>,
+    pending_nominal_record_shape_obligations: Vec<crate::constraints::NominalRecordShapeObligation>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
     pending_ocast_requests: Vec<PendingNominalCastRequest>,

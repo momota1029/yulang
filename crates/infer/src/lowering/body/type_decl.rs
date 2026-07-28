@@ -12,14 +12,7 @@ impl BodyLowerer {
             return;
         };
         if matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
-            let path = self
-                .modules
-                .type_decl_path(&decl)
-                .segments
-                .into_iter()
-                .map(|name| name.0)
-                .collect();
-            self.session.poly.register_effect_family_path(path);
+            self.register_effect_family(&decl);
         }
         self.lower_type_constructors(node, module, &decl);
         self.lower_type_decl_with_body(node, &decl);
@@ -27,6 +20,18 @@ impl BodyLowerer {
             self.lower_error_synthetic_decls(node, &decl);
         }
         self.lower_derive_requests(node, &decl);
+    }
+
+    pub(super) fn register_effect_family(&mut self, decl: &ModuleTypeDecl) {
+        let path: Vec<String> = self
+            .modules
+            .type_decl_path(decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect();
+        self.session.poly.register_effect_family_path(path.clone());
+        self.session.infer.register_effect_family_path(path);
     }
 
     pub(super) fn lower_type_decl_with_body(&mut self, node: &Cst, decl: &ModuleTypeDecl) {

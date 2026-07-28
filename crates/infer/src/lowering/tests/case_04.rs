@@ -368,7 +368,20 @@ fn local_type_named_ref_does_not_resolve_ref_selection() {
 
     let output = lower_binding_bodies(&root, lower);
 
-    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert!(
+        output.errors.iter().any(|error| matches!(
+            error,
+            BodyLoweringError::Analysis(
+                crate::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+                    actual: crate::analysis::ConcreteSubtypeHead::Constructor(path),
+                    expected: crate::analysis::ConcreteSubtypeHead::Record(fields),
+                    ..
+                }
+            ) if path == &["ref".to_string()] && fields == &["id".to_string()]
+        )),
+        "a non-struct nominal ref cannot satisfy record fallback: {:?}",
+        output.errors
+    );
     let got_body = binding_body_id(&output, got);
     let select = match output.session.poly.expr(got_body) {
         Expr::Select(_, select) => *select,
@@ -395,7 +408,20 @@ fn private_type_method_is_available_only_inside_companion_scope() {
 
     let output = lower_binding_bodies(&root, lower);
 
-    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert!(
+        output.errors.iter().any(|error| matches!(
+            error,
+            BodyLoweringError::Analysis(
+                crate::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+                    actual: crate::analysis::ConcreteSubtypeHead::Constructor(path),
+                    expected: crate::analysis::ConcreteSubtypeHead::Record(fields),
+                    ..
+                }
+            ) if path == &["User".to_string()] && fields == &["secret".to_string()]
+        )),
+        "a non-struct nominal User cannot satisfy out-of-scope record fallback: {:?}",
+        output.errors
+    );
     assert!(
         output
             .session

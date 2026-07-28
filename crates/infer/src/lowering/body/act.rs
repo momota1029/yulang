@@ -27,6 +27,7 @@ impl BodyLowerer {
         let Some(decl) = self.next_type_decl(module, &name) else {
             return;
         };
+        self.register_effect_family(&decl);
         let Some(companion) = self.modules.type_companion(decl.id) else {
             return;
         };

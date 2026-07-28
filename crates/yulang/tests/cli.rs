@@ -1228,7 +1228,7 @@ fn compatible_run_interpreter_rejects_not_callable_before_runtime() {
 }
 
 #[test]
-fn compatible_run_reports_not_record_range_and_hint() {
+fn compatible_run_rejects_non_record_before_runtime() {
     let entry = write_entry("run-not-record", "1.a\n");
 
     let output = yulang_command()
@@ -1250,17 +1250,21 @@ fn compatible_run_reports_not_record_range_and_hint() {
     assert_eq!(stdout(&output), "");
     let stderr = stderr(&output);
     assert!(
+        stderr.contains("compile error [yulang.lowering]: source has lowering errors"),
+        "{stderr}"
+    );
+    assert!(
         stderr.contains(
-            "runtime error [yulang.not-record]: tried to read fields from non-record value 1\n"
+            "detail: type shape `int` is not compatible with required shape `record {a}`"
         ),
         "{stderr}"
     );
     assert!(
-        stderr.contains("    --> line 1, column 3\n    1 | 1.a\n      |   ^"),
+        stderr.contains("hint: run `yulang check` to see source ranges before running"),
         "{stderr}"
     );
     assert!(
-        stderr.contains("hint: use `.field` only on record values"),
+        !stderr.contains("runtime error [yulang.not-record]"),
         "{stderr}"
     );
 }

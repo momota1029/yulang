@@ -294,6 +294,9 @@ pub enum ConstraintEvent {
         effect: Option<Vec<String>>,
         filter: Subtractability,
     },
+    /// A nominal constructor must be checked against struct projection metadata outside the
+    /// constraint core.
+    NominalRecordShapeObligation(NominalRecordShapeObligation),
     /// A fixed concrete-head relation that cannot satisfy the subtype matrix.
     ///
     /// STF-C only defines this event contract. `step_subtype` starts producing it in STF-D/E.
@@ -319,6 +322,13 @@ pub struct UnsatisfiedSubtypeShapeEvent {
     pub actual: ConcreteSubtypeHead,
     pub expected: ConcreteSubtypeHead,
     pub producer: ConstraintRecordId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NominalRecordShapeObligation {
+    pub producer: ConstraintRecordId,
+    pub lower: PosId,
+    pub upper: NegId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

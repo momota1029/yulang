@@ -957,6 +957,7 @@ impl AnalysisSession {
             return;
         };
         *target = Some(scheme);
+        self.retry_pending_nominal_record_shape_obligations();
     }
 }
 

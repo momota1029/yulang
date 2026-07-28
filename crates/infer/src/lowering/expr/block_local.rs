@@ -1167,6 +1167,7 @@ impl<'a> ExprLowerer<'a> {
                 .poly
                 .register_synthetic_var_effect(path.clone());
         }
+        self.session.infer.register_effect_family_path(path.clone());
         let payload_arg = self.invariant_var_arg(payload);
         let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
         let lower_row = self.alloc_pos(Pos::Row(vec![lower_item]));

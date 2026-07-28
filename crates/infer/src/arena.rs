@@ -175,6 +175,16 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub(crate) fn derive_nominal_record_fields(
+        &mut self,
+        parent: crate::constraints::ConstraintRecordId,
+        fields: impl IntoIterator<Item = (usize, NegId, PosId, NegId)>,
+    ) {
+        self.constraints
+            .derive_nominal_record_fields(parent, fields);
+        self.sync_type_ids_with_constraints();
+    }
+
     pub fn subtract_fact(
         &mut self,
         effect: TypeVar,

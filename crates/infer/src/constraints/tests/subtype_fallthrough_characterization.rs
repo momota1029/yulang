@@ -31,19 +31,20 @@ impl FixedHead {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MatrixExpectation {
     Accepts,
+    NominalRecordObligation,
     Rejects,
 }
 
 // Rows are lower heads and columns are upper heads in FixedHead::ALL order.
-// STF-E owns the two remaining accepted bridge cells.
+// STF-E routes the nominal-record cell to analysis and gates the effect-row cell by registry.
 const CURRENT_FIXED_HEAD_MATRIX: [[Option<MatrixExpectation>; 6]; 6] = [
     [
         None,
         Some(MatrixExpectation::Rejects),
         Some(MatrixExpectation::Rejects),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::NominalRecordObligation),
         Some(MatrixExpectation::Rejects),
-        Some(MatrixExpectation::Accepts),
+        Some(MatrixExpectation::Rejects),
     ],
     [
         Some(MatrixExpectation::Rejects),
@@ -234,6 +235,143 @@ fn stf_a_infer_keeps_effect_family_and_nominal_field_projection_controls() {
     );
 }
 
+#[test]
+fn stf_e_nominal_record_bridge_accepts_generic_nested_optional_and_renamed_shapes() {
+    for (case, source) in [
+        (
+            "generic field",
+            concat!(
+                "struct box 'a { value: 'a }\n",
+                "my unpack({value}) = value\n",
+                "my got: int = unpack (box { value: 2 })\n",
+            ),
+        ),
+        (
+            "nested field type",
+            concat!(
+                "struct inner { number: int }\n",
+                "struct outer { payload: inner }\n",
+                "my read({payload: {number}}) = number\n",
+                "my got: int = read (outer { payload: inner { number: 2 } })\n",
+            ),
+        ),
+        (
+            "missing optional field",
+            concat!(
+                "struct marker { other: int }\n",
+                "my optional({value = 7}) = value\n",
+                "my got: int = optional (marker { other: 2 })\n",
+            ),
+        ),
+        (
+            "renamed owner and field",
+            concat!(
+                "struct parcel 'item { content: 'item }\n",
+                "my extract({content}) = content\n",
+                "my got: int = extract (parcel { content: 2 })\n",
+            ),
+        ),
+        (
+            "renamed module path",
+            concat!(
+                "mod catalog:\n",
+                "  pub struct packet 'item { body: 'item }\n",
+                "my extract({body}) = body\n",
+                "my got: int = extract (catalog::packet { body: 2 })\n",
+            ),
+        ),
+    ] {
+        let output = lower_source(source);
+        assert!(output.errors.is_empty(), "{case}: {:?}", output.errors);
+    }
+}
+
+#[test]
+fn stf_e_nominal_record_bridge_rejects_missing_and_nested_mismatching_fields() {
+    for (case, source) in [
+        (
+            "non-struct constructor",
+            concat!("my required({value}) = value\n", "required 1\n",),
+        ),
+        (
+            "missing required field",
+            concat!(
+                "struct marker { other: int }\n",
+                "my required({value}) = value\n",
+                "required (marker { other: 2 })\n",
+            ),
+        ),
+        (
+            "nested field mismatch",
+            concat!(
+                "struct pair { value: (int, int) }\n",
+                "my scalar({value}): int = value\n",
+                "scalar (pair { value: (1, 2) })\n",
+            ),
+        ),
+    ] {
+        let output = lower_source(source);
+        assert!(
+            output.errors.iter().any(|error| matches!(
+                error,
+                crate::lowering::BodyLoweringError::Analysis(
+                    crate::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape { .. }
+                )
+            )),
+            "{case}: {:?}",
+            output.errors
+        );
+    }
+}
+
+#[test]
+fn stf_e_effect_family_gate_uses_registry_and_rejects_non_effect_constructors() {
+    let mut effect = ConstraintMachine::new();
+    effect.register_effect_family_path(vec!["renamed".into(), "pulse".into()]);
+    let lower = effect.alloc_pos(Pos::Con(vec!["renamed".into(), "pulse".into()], Vec::new()));
+    let item = effect.alloc_neg(Neg::Con(vec!["renamed".into(), "pulse".into()], Vec::new()));
+    let tail = effect.alloc_neg(Neg::Top);
+    let upper = effect.alloc_neg(Neg::Row(vec![item], tail));
+    effect.subtype(lower, upper, OriginId::unknown_internal());
+    assert!(
+        effect.events().is_empty(),
+        "registered effect family should use the existing row comparison: {:?}",
+        effect.events()
+    );
+
+    let mut value = ConstraintMachine::new();
+    let lower = value.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+    let tail = value.alloc_neg(Neg::Top);
+    let upper = value.alloc_neg(Neg::Row(Vec::new(), tail));
+    value.subtype(lower, upper, OriginId::unknown_internal());
+    assert!(matches!(
+        value.events(),
+        [ConstraintEvent::UnsatisfiedSubtypeShape(_)]
+    ));
+
+    let mut poly = poly::expr::Arena::new();
+    poly.register_effect_family_path(vec!["imported".into(), "pulse".into()]);
+    let mut session = crate::analysis::AnalysisSession::new(poly);
+    let lower = session.infer.alloc_pos(Pos::Con(
+        vec!["imported".into(), "pulse".into()],
+        Vec::new(),
+    ));
+    let item = session.infer.alloc_neg(Neg::Con(
+        vec!["imported".into(), "pulse".into()],
+        Vec::new(),
+    ));
+    let tail = session.infer.alloc_neg(Neg::Top);
+    let upper = session.infer.alloc_neg(Neg::Row(vec![item], tail));
+    session
+        .infer
+        .subtype(lower, upper, OriginId::unknown_internal());
+    session.route_constraint_events();
+    assert!(
+        session.take_diagnostics().is_empty(),
+        "poly effect-family certificate should seed the inference registry"
+    );
+}
+
 fn characterize_fixed_head_pair(lower_head: FixedHead, upper_head: FixedHead) -> MatrixExpectation {
     let mut machine = ConstraintMachine::new();
     let lower = fixed_pos(&mut machine, lower_head);
@@ -245,6 +383,9 @@ fn characterize_fixed_head_pair(lower_head: FixedHead, upper_head: FixedHead) ->
     );
     match machine.events() {
         [] => MatrixExpectation::Accepts,
+        [ConstraintEvent::NominalRecordShapeObligation(_)] => {
+            MatrixExpectation::NominalRecordObligation
+        }
         [ConstraintEvent::UnsatisfiedSubtypeShape(_)] => MatrixExpectation::Rejects,
         events => panic!("unexpected events for {lower_head:?} <: {upper_head:?}: {events:?}"),
     }

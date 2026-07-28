@@ -101,6 +101,8 @@ impl AnalysisSession {
             binding_fetches: FxHashMap::default(),
             diagnostics: Vec::new(),
             unsatisfied_subtype_shape_diagnostic_keys: FxHashSet::default(),
+            nominal_record_shape_obligation_keys: FxHashSet::default(),
+            pending_nominal_record_shape_obligations: Vec::new(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
             pending_ocast_requests: Vec::new(),
@@ -118,8 +120,8 @@ impl AnalysisSession {
             imported_scheme_validations: FxHashMap::default(),
             imported_scheme_instantiation_failures: Vec::new(),
         };
-        session.route_constraint_events();
         session.seed_existing_poly_surface();
+        session.route_constraint_events();
         session
     }
 
@@ -133,6 +135,9 @@ impl AnalysisSession {
     /// A prefix is not part of the current SCC graph: its schemes are final, while root source
     /// added later can still instantiate those definitions, casts, and role implementations.
     fn seed_existing_poly_surface(&mut self) {
+        for path in self.poly.effect_family_paths.iter().cloned() {
+            self.infer.register_effect_family_path(path);
+        }
         let quantified_defs = self
             .poly
             .defs
@@ -467,6 +472,9 @@ impl AnalysisSession {
                 ConstraintEvent::EffectFilterViolation { effect, filter } => {
                     self.diagnostics
                         .push(AnalysisDiagnostic::EffectFilterViolation { effect, filter });
+                }
+                ConstraintEvent::NominalRecordShapeObligation(obligation) => {
+                    self.route_nominal_record_shape_obligation(obligation);
                 }
                 ConstraintEvent::UnsatisfiedSubtypeShape(event) => {
                     self.record_unsatisfied_subtype_shape(event);

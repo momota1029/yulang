@@ -159,18 +159,42 @@ impl ConstraintMachine {
             self.merge_scheme_instantiations_into_lower_bound(target, constraint.lower, scheme);
             return;
         }
+        if matches!(
+            (
+                self.types.pos(constraint.lower),
+                self.types.neg(constraint.upper)
+            ),
+            (Pos::Con(_, _), Neg::Record(_))
+        ) {
+            self.events
+                .push(ConstraintEvent::NominalRecordShapeObligation(
+                    NominalRecordShapeObligation {
+                        producer: parent,
+                        lower: constraint.lower,
+                        upper: constraint.upper,
+                    },
+                ));
+            return;
+        }
+        if let (Pos::Con(path, args), Neg::Row(upper_items, upper_tail)) = (
+            self.types.pos(constraint.lower).clone(),
+            self.types.neg(constraint.upper).clone(),
+        ) && self.effect_family_paths.contains(&path)
+        {
+            self.enqueue_row_item_to_upper_row(
+                path,
+                args,
+                upper_items,
+                upper_tail,
+                constraint.weights,
+                parent,
+            );
+            return;
+        }
         if let (Some(actual), Some(expected)) = (
             Self::fixed_positive_concrete_head(self.types.pos(constraint.lower)),
             Self::fixed_negative_concrete_head(self.types.neg(constraint.upper)),
         ) && !Self::same_concrete_head_kind(&actual, &expected)
-            // STF-E: preserve the two existing bridge paths until their certificate checks land.
-            && !matches!(
-                (&actual, &expected),
-                (
-                    ConcreteSubtypeHead::Constructor(_),
-                    ConcreteSubtypeHead::Record(_) | ConcreteSubtypeHead::EffectRow
-                )
-            )
         {
             self.events.push(ConstraintEvent::UnsatisfiedSubtypeShape(
                 UnsatisfiedSubtypeShapeEvent {
@@ -265,16 +289,6 @@ impl ConstraintMachine {
                     weights: constraint.weights,
                     producer: parent,
                 });
-            }
-            (Pos::Con(path, args), Neg::Row(upper_items, upper_tail)) => {
-                self.enqueue_row_item_to_upper_row(
-                    path,
-                    args,
-                    upper_items,
-                    upper_tail,
-                    constraint.weights,
-                    parent,
-                );
             }
             (Pos::Record(lower_fields), Neg::Record(upper_fields)) => {
                 self.enqueue_record_fields(lower_fields, upper_fields, constraint.weights, parent);

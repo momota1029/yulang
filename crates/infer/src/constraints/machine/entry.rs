@@ -547,6 +547,41 @@ impl ConstraintMachine {
         }
     }
 
+    pub(crate) fn derive_nominal_record_fields(
+        &mut self,
+        parent: ConstraintRecordId,
+        fields: impl IntoIterator<Item = (usize, NegId, PosId, NegId)>,
+    ) {
+        let owner = self.constraint_records[parent.0 as usize].key.lower;
+        let weights = self.constraint_records[parent.0 as usize]
+            .key
+            .weights
+            .clone();
+        let mut queued = false;
+        for (index, projection_receiver, projection_result, required_field) in fields {
+            let rule = StructuralDerivationRule::RecordField {
+                index: StructuralIndex::from_usize(index),
+            };
+            queued |= self.enqueue_derived_subtype(
+                owner,
+                weights.clone(),
+                projection_receiver,
+                parent,
+                rule,
+            );
+            queued |= self.enqueue_derived_subtype(
+                projection_result,
+                weights.clone(),
+                required_field,
+                parent,
+                rule,
+            );
+        }
+        if queued || !self.queue.is_empty() {
+            self.drain();
+        }
+    }
+
     pub(crate) fn constrain_subtype(
         &mut self,
         lower: PosId,

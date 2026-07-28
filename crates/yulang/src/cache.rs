@@ -4489,7 +4489,9 @@ mod tests {
     fn control_cache_preserves_runtime_selection_provenance() {
         let root = temp_root("control-selection-provenance");
         let cache = ArtifactCache::new(&root);
-        let files = vec![source("main.yu", &[], "my a = 1.a\na\n")];
+        let source_text = "my object = {a: 1}\nmy got = object.a\ngot\n";
+        let field_start = source_text.find("object.a").unwrap() + "object.".len();
+        let files = vec![source("main.yu", &[], source_text)];
         let key = source_cache_key(&files);
         let poly = crate::build_poly_from_collected_sources(files).unwrap();
         let control = crate::build_control_from_poly_output(&poly).unwrap();
@@ -4519,7 +4521,13 @@ mod tests {
         let restored = cache.read_control_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored.selection_provenance.resolve(site), Some(&expected));
-        assert_eq!(expected.range, sources::SourceRange { start: 9, end: 10 });
+        assert_eq!(
+            expected.range,
+            sources::SourceRange {
+                start: field_start,
+                end: field_start + 1,
+            }
+        );
 
         let _ = fs::remove_dir_all(root);
     }
