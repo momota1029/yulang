@@ -1010,7 +1010,7 @@ impl<'a> Specializer2<'a> {
         })
     }
 
-    fn boundary_expr_with_argument_contract(
+    pub(super) fn boundary_expr_with_argument_contract(
         &mut self,
         arena: &poly_expr::Arena,
         actual: &Type,
@@ -1032,12 +1032,27 @@ impl<'a> Specializer2<'a> {
                 Box::new(expr),
             )));
         }
-        Ok(boundary_expr_with_argument_contract(
+        let boundary_kind = ValueBoundaryKind::classify(&actual, &expected);
+        if !boundary_kind.is_supported() {
+            return Err(SpecializeError::UnsatisfiedSubtype {
+                lower: actual,
+                upper: expected,
+                origin: None,
+                provenance: None,
+            });
+        }
+        let boundary = boundary_expr_with_argument_contract(
             &actual,
             &expected,
             expr,
             argument_effect_contract,
-        ))
+        );
+        debug_assert!(
+            !matches!(boundary.kind, ExprKind::Coerce { .. })
+                || boundary_kind.supports_generic_coerce(),
+            "generic Coerce must stay inside the shared value-boundary allowlist"
+        );
+        Ok(boundary)
     }
 
     pub(super) fn cast_boundary_instance(

@@ -888,6 +888,7 @@ pub(super) fn boundary_expr_with_argument_contract(
     );
     let actual = &actual;
     let expected = &expected;
+    let boundary_kind = ValueBoundaryKind::classify(actual, expected);
     if equivalent_boundary_types(actual, expected) && argument_effect_contract.is_none() {
         return expr;
     }
@@ -913,6 +914,7 @@ pub(super) fn boundary_expr_with_argument_contract(
             value: target_value,
         },
     ) = (actual, expected)
+        && ValueBoundaryKind::classify(source_value, target_value).is_supported()
     {
         let forced = Expr::new(ExprKind::ForceThunk {
             source: EffectiveThunkType {
@@ -948,8 +950,13 @@ pub(super) fn boundary_expr_with_argument_contract(
         });
     }
     if let Type::Thunk { effect, value } = expected
-        && equivalent_boundary_types(actual, value.as_ref())
+        && ValueBoundaryKind::classify(actual, value).is_supported()
     {
+        let body = if equivalent_boundary_types(actual, value) {
+            expr
+        } else {
+            boundary_expr_with_argument_contract(actual, value, expr, argument_effect_contract)
+        };
         return Expr::new(ExprKind::MakeThunk {
             source: ComputationType {
                 effect: effect.as_ref().clone(),
@@ -959,23 +966,32 @@ pub(super) fn boundary_expr_with_argument_contract(
                 effect: effect.as_ref().clone(),
                 value: value.as_ref().clone(),
             },
-            body: Box::new(expr),
+            body: Box::new(body),
         });
     }
     if let Type::Thunk { effect, value } = actual
-        && equivalent_boundary_types(value.as_ref(), expected)
+        && ValueBoundaryKind::classify(value, expected).is_supported()
     {
-        return Expr::new(ExprKind::ForceThunk {
+        let forced = Expr::new(ExprKind::ForceThunk {
             source: EffectiveThunkType {
                 effect: effect.as_ref().clone(),
                 value: value.as_ref().clone(),
             },
             target: ComputationType {
                 effect: effect.as_ref().clone(),
-                value: expected.clone(),
+                value: value.as_ref().clone(),
             },
             thunk: Box::new(expr),
         });
+        if equivalent_boundary_types(value, expected) {
+            return forced;
+        }
+        return boundary_expr_with_argument_contract(
+            value,
+            expected,
+            forced,
+            argument_effect_contract,
+        );
     }
     if function_boundary_types(actual, expected) {
         return Expr::new(ExprKind::FunctionAdapter {
@@ -993,9 +1009,25 @@ pub(super) fn boundary_expr_with_argument_contract(
         !matches!(expected, Type::Tuple(_)) || !concrete_head_cannot_resolve_to_tuple(actual),
         "non-tuple actual must be rejected before tuple boundary emission: {actual:?} => {expected:?}"
     );
-    Expr::new(ExprKind::Coerce {
-        source: actual.clone(),
-        target: expected.clone(),
-        expr: Box::new(expr),
-    })
+    match boundary_kind {
+        ValueBoundaryKind::Trivial
+        | ValueBoundaryKind::TupleElements
+        | ValueBoundaryKind::RecordFields => Expr::new(ExprKind::Coerce {
+            source: actual.clone(),
+            target: expected.clone(),
+            expr: Box::new(expr),
+        }),
+        ValueBoundaryKind::FunctionAdapter | ValueBoundaryKind::Thunk(_) => {
+            unreachable!(
+                "dedicated value boundary must not fall through to generic Coerce: \
+                 {actual:?} => {expected:?}"
+            )
+        }
+        ValueBoundaryKind::Unsupported => {
+            unreachable!(
+                "unsupported value boundary must be rejected before emission: \
+                 {actual:?} => {expected:?}"
+            )
+        }
+    }
 }

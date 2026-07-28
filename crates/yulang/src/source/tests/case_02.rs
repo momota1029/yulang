@@ -121,9 +121,9 @@ fn dump_mono_without_std_specializes_method_select_result() {
     fs::create_dir_all(&root).unwrap();
     fs::write(
         root.join("main.yu"),
-        "type User with:\n\
+        "struct User {} with:\n\
              \x20 our x.id = x\n\
-             my u: User = 1\n\
+             my u: User = User\n\
              my keep x = x\n\
              keep(u.id)\n",
     )
@@ -133,8 +133,8 @@ fn dump_mono_without_std_specializes_method_select_result() {
 
     assert_eq!(output.file_count, 1);
     assert_mono_dump_contains(&output, ".id <method>");
-    assert_mono_dump_contains(&output, "m0 = d3 : User -> User");
-    assert_mono_dump_contains(&output, "m2 = d1 : User -> User");
+    assert_mono_dump_contains(&output, "m0 = d4 : User -> User");
+    assert_mono_dump_contains(&output, "m2 = d2 : User -> User");
 }
 
 #[test]
@@ -144,9 +144,9 @@ fn dump_mono_without_std_specializes_method_select_remaining_function() {
     fs::create_dir_all(&root).unwrap();
     fs::write(
         root.join("main.yu"),
-        "type User with:\n\
+        "struct User {} with:\n\
              \x20 our x.pick y = y\n\
-             my u: User = 1\n\
+             my u: User = User\n\
              my keep x = x\n\
              keep(u.pick(1))\n",
     )
@@ -156,8 +156,8 @@ fn dump_mono_without_std_specializes_method_select_remaining_function() {
 
     assert_eq!(output.file_count, 1);
     assert_mono_dump_contains(&output, ".pick <method>");
-    assert_mono_dump_contains(&output, "m0 = d3 : int -> int");
-    assert_mono_dump_contains(&output, "m2 = d1 : User -> int -> int");
+    assert_mono_dump_contains(&output, "m0 = d4 : int -> int");
+    assert_mono_dump_contains(&output, "m2 = d2 : User -> int -> int");
 }
 
 #[test]
@@ -4361,7 +4361,7 @@ fn hover_entry_source_reports_record_field_selection_type() {
 /// test's expectations is a contract change; update the design doc alongside it.
 #[test]
 fn hover_entry_source_reports_selected_method_type() {
-    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
+    let source = "struct User {} with:\n  our x.id = x\nmy u: User = User\nmy got = u.id\n";
     let method_offset = source.rfind("id").unwrap();
     let hover = hover_entry_source("main.yu", source, method_offset)
         .unwrap()
@@ -4379,7 +4379,7 @@ fn hover_entry_source_reports_selected_method_type() {
 
 #[test]
 fn definition_entry_source_reports_selected_method_target() {
-    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
+    let source = "struct User {} with:\n  our x.id = x\nmy u: User = User\nmy got = u.id\n";
     let decl_offset = source.find("id").unwrap();
     let method_offset = source.rfind("id").unwrap();
     let definition = definition_entry_source("main.yu", source, method_offset)
@@ -4406,7 +4406,8 @@ fn definition_entry_source_reports_selected_method_target() {
 
 #[test]
 fn references_entry_source_reports_selected_method_refs() {
-    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy a = u.id\nmy b = u.id\n";
+    let source =
+        "struct User {} with:\n  our x.id = x\nmy u: User = User\nmy a = u.id\nmy b = u.id\n";
     let decl_offset = source.find("id").unwrap();
     let first_method_offset = source.find("u.id").unwrap() + 2;
     let second_method_offset = source.rfind("id").unwrap();
@@ -4443,7 +4444,8 @@ fn references_entry_source_reports_selected_method_refs() {
 
 #[test]
 fn rename_entry_source_reports_selected_method_edits() {
-    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy a = u.id\nmy b = u.id\n";
+    let source =
+        "struct User {} with:\n  our x.id = x\nmy u: User = User\nmy a = u.id\nmy b = u.id\n";
     let decl_offset = source.find("id").unwrap();
     let first_method_offset = source.find("u.id").unwrap() + 2;
     let second_method_offset = source.rfind("id").unwrap();

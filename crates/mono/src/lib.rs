@@ -5,10 +5,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod boundary;
 pub mod dump;
 
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
+
+pub use boundary::{ThunkBoundaryKind, ValueBoundaryKind, equivalent_value_boundary_types};
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Program {

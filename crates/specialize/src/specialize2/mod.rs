@@ -11,7 +11,7 @@ use mono::{
     ComputationType, EffectFamilies, EffectFamily, EffectiveThunkType, Expr, ExprKind, Instance,
     InstanceId, InstanceSource, Pat, Program, RecordField, RecordSpread, Root, SelectResolution,
     SelectionProvenanceTag, Signature, StackWeight, StackWeightEntry, Stmt, Type, TypeField,
-    TypeVariant,
+    TypeVariant, ValueBoundaryKind,
 };
 use poly::expr as poly_expr;
 use poly::provenance::{

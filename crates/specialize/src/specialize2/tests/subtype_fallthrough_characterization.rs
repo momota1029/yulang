@@ -131,6 +131,25 @@ fn stf_g_specialize_fixed_head_matrix_rejects_all_ungated_off_diagonal_pairs() {
 }
 
 #[test]
+fn stf_h_emission_classifier_rejects_every_fixed_head_matrix_reject_pair() {
+    let mut visited = 0;
+    for lower in FixedHead::ALL {
+        for upper in FixedHead::ALL {
+            if CURRENT_FIXED_HEAD_MATRIX[lower.index()][upper.index()] != Some(Rejects) {
+                continue;
+            }
+            visited += 1;
+            assert_eq!(
+                ValueBoundaryKind::classify(&fixed_type(lower), &fixed_type(upper)),
+                ValueBoundaryKind::Unsupported,
+                "{lower:?} => {upper:?} must not emit generic Coerce",
+            );
+        }
+    }
+    assert_eq!(visited, 30);
+}
+
+#[test]
 fn stf_a_specialize_keeps_open_and_unresolved_alternative_controls() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);

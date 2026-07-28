@@ -19,7 +19,7 @@ use list_tree::{ListTree, ListView};
 use smallvec::SmallVec;
 use specialize::mono::{
     EffectiveThunkType, FunctionAdapterHygiene, GuardMarker, Lit, PrimitiveContext, PrimitiveOp,
-    RangeConstructors, Type,
+    RangeConstructors, Type, ValueBoundaryKind,
 };
 
 mod format;
@@ -9542,7 +9542,10 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 target,
                 expr,
             } => {
-                if matches!((source, target), (Type::Tuple(_), Type::Tuple(_))) {
+                let boundary_kind = ValueBoundaryKind::classify(source, target);
+                if matches!((source, target), (Type::Tuple(_), Type::Tuple(_)))
+                    || !boundary_kind.supports_generic_coerce()
+                {
                     RuntimeEvidenceExpr::Coerce {
                         source: source.clone(),
                         target: target.clone(),
@@ -25694,54 +25697,7 @@ fn record_field_boundary_should_defer(source: &Type, target: &Type) -> bool {
 }
 
 fn value_boundary_supported(source: &Type, target: &Type) -> bool {
-    if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
-        return true;
-    }
-    if matches!(source, Type::Never) {
-        return true;
-    }
-    match (source, target) {
-        (Type::Fun { .. }, Type::Fun { .. }) => function_boundary_supported(source, target),
-        (Type::Thunk { value: source, .. }, Type::Thunk { value: target, .. }) => {
-            value_boundary_supported(source, target)
-        }
-        (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
-        (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
-        (Type::Tuple(source_items), Type::Tuple(target_items))
-            if source_items.len() == target_items.len() =>
-        {
-            source_items
-                .iter()
-                .zip(target_items)
-                .all(|(source, target)| value_boundary_supported(source, target))
-        }
-        (Type::Record(source_fields), Type::Record(target_fields)) => {
-            record_value_boundary_supported(source_fields, target_fields)
-        }
-        _ => false,
-    }
-}
-
-fn function_boundary_supported(source: &Type, target: &Type) -> bool {
-    let Some((source_arg, source_ret)) = function_parts(source) else {
-        return false;
-    };
-    let Some((target_arg, target_ret)) = function_parts(target) else {
-        return false;
-    };
-    value_boundary_supported(target_arg, source_arg)
-        && value_boundary_supported(source_ret, target_ret)
-}
-
-fn record_value_boundary_supported(
-    source_fields: &[specialize::mono::TypeField],
-    target_fields: &[specialize::mono::TypeField],
-) -> bool {
-    target_fields.iter().all(|target| {
-        record_field_type(source_fields, &target.name)
-            .map(|source| value_boundary_supported(&source.value, &target.value))
-            .unwrap_or(target.optional)
-    })
+    ValueBoundaryKind::classify(source, target).is_supported()
 }
 
 fn path_is_prefix(prefix: &[String], path: &[String]) -> bool {
@@ -26215,6 +26171,42 @@ mod tests {
         assert_eq!(
             multiple.single_string_value(),
             Err(RuntimeEvidenceSingleStringError::ValueCount { actual: 2 })
+        );
+    }
+
+    #[test]
+    fn unsupported_generic_coerce_reaches_the_runtime_boundary_check() {
+        let int = Type::Con {
+            path: vec!["int".to_string()],
+            args: Vec::new(),
+        };
+        let function = Type::Fun {
+            arg: Box::new(int.clone()),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(Type::pure_effect()),
+            ret: Box::new(Type::unit()),
+        };
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(1))],
+            exprs: vec![
+                Expr::Lit(Lit::Int(1)),
+                Expr::Coerce {
+                    source: int,
+                    target: function,
+                    expr: ExprId(0),
+                },
+            ],
+            ..Program::default()
+        };
+        let runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+
+        assert!(matches!(
+            runner.runtime_exprs[1],
+            RuntimeEvidenceExpr::Coerce { .. }
+        ));
+        assert_eq!(
+            run_program(&program),
+            Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary"))
         );
     }
 

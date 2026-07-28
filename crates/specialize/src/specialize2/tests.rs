@@ -794,6 +794,22 @@ fn boundary_expr_rejects_non_tuple_actual_at_tuple_emission_invariant() {
     let _ = boundary_expr(&actual, &expected, expr);
 }
 
+#[test]
+fn stf_h_emitter_rejects_unsupported_boundary_before_generic_coerce() {
+    let arena = poly_expr::Arena::new();
+    let sidecar = SubtypeProvenanceSidecar::empty();
+    let mut emitter = Specializer2::new(&sidecar);
+    let actual = int_type();
+    let expected = types::pure_function_type(int_type(), Type::unit());
+    let expr = Expr::new(ExprKind::Lit(mono::Lit::Int(1)));
+
+    let error = emitter
+        .boundary_expr_with_argument_contract(&arena, &actual, &expected, expr, None)
+        .unwrap_err();
+
+    assert_unsatisfied_subtype(error, actual, expected);
+}
+
 /// SUBP-A characterization: semantic queue ownership is currently only the
 /// `(lower type, lower weight, upper type, upper weight)` key. Distinct future
 /// occurrence owners for the same semantic relation would therefore converge

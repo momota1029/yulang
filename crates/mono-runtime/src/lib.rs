@@ -13,7 +13,7 @@ use list_tree::{ListTree, ListView};
 use mono::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprKind, FunctionAdapterHygiene, InstanceId, Lit, Pat,
     PrimitiveContext, PrimitiveOp, RangeConstructors, RecordField, RecordPatField, RecordSpread,
-    Root, SelectResolution, Stmt, Type,
+    Root, SelectResolution, Stmt, Type, ValueBoundaryKind,
 };
 use num_bigint::BigInt;
 use text_tree::{BytesTree, StringTree};
@@ -454,54 +454,7 @@ fn mono_record_field_type<'a>(
 }
 
 fn value_boundary_supported(source: &Type, target: &Type) -> bool {
-    if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
-        return true;
-    }
-    if matches!(source, Type::Never) {
-        return true;
-    }
-    match (source, target) {
-        (Type::Fun { .. }, Type::Fun { .. }) => function_boundary_supported(source, target),
-        (Type::Thunk { value: source, .. }, Type::Thunk { value: target, .. }) => {
-            value_boundary_supported(source, target)
-        }
-        (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
-        (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
-        (Type::Tuple(source_items), Type::Tuple(target_items))
-            if source_items.len() == target_items.len() =>
-        {
-            source_items
-                .iter()
-                .zip(target_items)
-                .all(|(source, target)| value_boundary_supported(source, target))
-        }
-        (Type::Record(source_fields), Type::Record(target_fields)) => {
-            record_value_boundary_supported(source_fields, target_fields)
-        }
-        _ => false,
-    }
-}
-
-fn function_boundary_supported(source: &Type, target: &Type) -> bool {
-    let Some((source_arg, source_ret)) = function_parts(source) else {
-        return false;
-    };
-    let Some((target_arg, target_ret)) = function_parts(target) else {
-        return false;
-    };
-    value_boundary_supported(target_arg, source_arg)
-        && value_boundary_supported(source_ret, target_ret)
-}
-
-fn record_value_boundary_supported(
-    source_fields: &[mono::TypeField],
-    target_fields: &[mono::TypeField],
-) -> bool {
-    target_fields.iter().all(|target| {
-        mono_record_field_type(source_fields, &target.name).map_or(target.optional, |source| {
-            value_boundary_supported(&source.value, &target.value)
-        })
-    })
+    ValueBoundaryKind::classify(source, target).is_supported()
 }
 
 fn record_field_with_index<'a>(
