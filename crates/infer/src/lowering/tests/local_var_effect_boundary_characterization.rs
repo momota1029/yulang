@@ -1,0 +1,626 @@
+use super::*;
+
+use crate::compact::{
+    CompactBounds, CompactFun, CompactRoot, CompactType, compact_type_var_for_scheme,
+};
+use crate::constraints::{ConstraintMachine, OriginId, TypeLevel};
+use crate::generalize::{finalize_generalized_compact_root, generalize_compact_root};
+use crate::instantiate::instantiate_scheme;
+use rustc_hash::FxHashSet;
+
+const FAMILY_PATH: [&str; 2] = ["synthetic", "local_state"];
+const REF_PATH: [&str; 2] = ["synthetic", "ref"];
+
+struct NegativeCallbackBoundaryWitness {
+    machine: ConstraintMachine,
+    root: TypeVar,
+    callback_ret_eff: NegId,
+    ref_effect_bounds: NeuId,
+    payload: TypeVar,
+    residual: TypeVar,
+    family_args: Vec<NeuId>,
+    subtract: SubtractId,
+}
+
+struct DirectRowControlWitness {
+    machine: ConstraintMachine,
+    root: TypeVar,
+    ref_effect_bounds: NeuId,
+    callback_residual: TypeVar,
+    helper_residual: TypeVar,
+}
+
+fn negative_callback_boundary_witness(payload_bearing: bool) -> NegativeCallbackBoundaryWitness {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    let payload = TypeVar(1);
+    let residual = TypeVar(2);
+    let result = TypeVar(3);
+    for var in [root, payload, residual, result] {
+        machine.register_type_var(var, TypeLevel::root().child());
+    }
+
+    let payload_lower = machine.alloc_pos(Pos::Var(payload));
+    let payload_upper = machine.alloc_neg(Neg::Var(payload));
+    let payload_bounds = machine.alloc_neu(Neu::Bounds(payload_lower, payload_upper));
+    let family_args = payload_bearing
+        .then_some(payload_bounds)
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    let family_path = family_path();
+    let ref_effect_lower_item =
+        machine.alloc_pos(Pos::Con(family_path.clone(), family_args.clone()));
+    let ref_effect_lower = machine.alloc_pos(Pos::Row(vec![ref_effect_lower_item]));
+    let ref_effect_upper_item =
+        machine.alloc_neg(Neg::Con(family_path.clone(), family_args.clone()));
+    let ref_effect_upper_tail = machine.alloc_neg(Neg::Bot);
+    let ref_effect_upper =
+        machine.alloc_neg(Neg::Row(vec![ref_effect_upper_item], ref_effect_upper_tail));
+    let ref_effect_bounds = machine.alloc_neu(Neu::Bounds(ref_effect_lower, ref_effect_upper));
+
+    let callback_arg = machine.alloc_pos(Pos::Con(
+        ref_path(),
+        vec![ref_effect_bounds, payload_bounds],
+    ));
+    let callback_arg_eff = machine.alloc_pos(Pos::Bot);
+    let callback_ret_eff_tail = machine.alloc_neg(Neg::Var(residual));
+    let subtract = SubtractId(0);
+    let family = Subtractability::Set(family_path, family_args.clone());
+    let callback_ret_eff = machine.alloc_neg(Neg::Stack {
+        inner: callback_ret_eff_tail,
+        weight: StackWeight::push(subtract, family),
+    });
+    let callback_ret = machine.alloc_neg(Neg::Var(result));
+    let callback = machine.alloc_neg(Neg::Fun {
+        arg: callback_arg,
+        arg_eff: callback_arg_eff,
+        ret_eff: callback_ret_eff,
+        ret: callback_ret,
+    });
+
+    let helper_arg_eff = machine.alloc_neg(Neg::Bot);
+    let helper_ret_eff = machine.alloc_pos(Pos::Var(residual));
+    let helper_ret = machine.alloc_pos(Pos::Var(result));
+    let helper = machine.alloc_pos(Pos::Fun {
+        arg: callback,
+        arg_eff: helper_arg_eff,
+        ret_eff: helper_ret_eff,
+        ret: helper_ret,
+    });
+    let root_upper = machine.alloc_neg(Neg::Var(root));
+    machine.subtype(helper, root_upper, OriginId::unknown_internal());
+
+    NegativeCallbackBoundaryWitness {
+        machine,
+        root,
+        callback_ret_eff,
+        ref_effect_bounds,
+        payload,
+        residual,
+        family_args,
+        subtract,
+    }
+}
+
+#[test]
+fn negative_callback_boundary_materializes_payload_family_and_shared_residual() {
+    let witness = negative_callback_boundary_witness(true);
+    let expected_family = Subtractability::Set(family_path(), witness.family_args.clone());
+
+    let Neg::Stack { inner, weight } = witness.machine.types().neg(witness.callback_ret_eff) else {
+        panic!("callback ret_eff should be a negative stack");
+    };
+    assert_eq!(
+        witness.machine.types().neg(*inner),
+        &Neg::Var(witness.residual)
+    );
+    assert_eq!(
+        weight,
+        &StackWeight::push(witness.subtract, expected_family)
+    );
+    assert_precompact_ref_effect_is_exact_direct_row(
+        witness.machine.types(),
+        witness.ref_effect_bounds,
+        true,
+    );
+
+    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let (callback, helper) = compact_callback_and_helper(&compact);
+    let row =
+        callback.ret_eff.rows.first().unwrap_or_else(|| {
+            panic!("callback ret_eff should contain a concrete row: {compact:?}")
+        });
+    let payload_args = row
+        .items
+        .get(&family_path())
+        .unwrap_or_else(|| panic!("callback ret_eff should materialize F(P): {compact:?}"));
+    assert_eq!(payload_args.len(), 1, "{compact:?}");
+    assert!(
+        compact_contains_plain_var(&row.tail, witness.residual),
+        "callback row tail should retain rho: {compact:?}"
+    );
+    assert!(
+        compact_contains_plain_var(&helper.ret_eff, witness.residual),
+        "helper result effect should retain the same rho: {compact:?}"
+    );
+
+    let generalized = generalize_compact_root(
+        &witness.machine,
+        TypeLevel::root(),
+        compact,
+        &FxHashSet::default(),
+    );
+    assert!(
+        generalized.stack_quantifiers.is_empty(),
+        "materialized callback prefixes must not retain raw stack binders: {generalized:?}"
+    );
+    let mut scheme_types = TypeArena::new();
+    let finalized =
+        finalize_generalized_compact_root(&mut scheme_types, &witness.machine, &generalized);
+    assert!(finalized.scheme.stack_quantifiers.is_empty());
+
+    let finalized_vars = extract_boundary_instance(&scheme_types, finalized.scheme.predicate, true);
+    assert_eq!(finalized_vars.residual, witness.residual);
+    assert_eq!(finalized_vars.payload, Some(witness.payload));
+    assert!(finalized.scheme.quantifiers.contains(&witness.residual));
+    assert!(finalized.scheme.quantifiers.contains(&witness.payload));
+
+    let mut instances = crate::arena::Arena::new();
+    let first = instantiate_scheme(
+        &scheme_types,
+        &mut instances,
+        TypeLevel::root(),
+        &finalized.scheme,
+    );
+    let second = instantiate_scheme(
+        &scheme_types,
+        &mut instances,
+        TypeLevel::root(),
+        &finalized.scheme,
+    );
+    let first_vars = extract_boundary_instance(instances.constraints().types(), first, true);
+    let second_vars = extract_boundary_instance(instances.constraints().types(), second, true);
+
+    assert_ne!(first_vars.residual, witness.residual);
+    assert_ne!(second_vars.residual, witness.residual);
+    assert_ne!(first_vars.residual, second_vars.residual);
+    assert_ne!(first_vars.payload, second_vars.payload);
+}
+
+#[test]
+fn negative_callback_boundary_materializes_argumentless_family_through_same_path() {
+    let witness = negative_callback_boundary_witness(false);
+    let expected_family = Subtractability::Set(family_path(), Vec::new());
+    let Neg::Stack { inner, weight } = witness.machine.types().neg(witness.callback_ret_eff) else {
+        panic!("callback ret_eff should be a negative stack");
+    };
+    assert_eq!(
+        witness.machine.types().neg(*inner),
+        &Neg::Var(witness.residual)
+    );
+    assert_eq!(
+        weight,
+        &StackWeight::push(witness.subtract, expected_family)
+    );
+    assert_precompact_ref_effect_is_exact_direct_row(
+        witness.machine.types(),
+        witness.ref_effect_bounds,
+        false,
+    );
+
+    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let (callback, helper) = compact_callback_and_helper(&compact);
+    let row =
+        callback.ret_eff.rows.first().unwrap_or_else(|| {
+            panic!("callback ret_eff should contain a concrete row: {compact:?}")
+        });
+    assert_eq!(
+        row.items
+            .get(&family_path())
+            .unwrap_or_else(|| panic!("callback ret_eff should materialize F: {compact:?}"))
+            .len(),
+        0
+    );
+    assert!(compact_contains_plain_var(&row.tail, witness.residual));
+    assert!(compact_contains_plain_var(
+        &helper.ret_eff,
+        witness.residual
+    ));
+
+    let generalized = generalize_compact_root(
+        &witness.machine,
+        TypeLevel::root(),
+        compact,
+        &FxHashSet::default(),
+    );
+    assert!(generalized.stack_quantifiers.is_empty());
+    let mut scheme_types = TypeArena::new();
+    let finalized =
+        finalize_generalized_compact_root(&mut scheme_types, &witness.machine, &generalized);
+    assert!(finalized.scheme.stack_quantifiers.is_empty());
+    let finalized_vars =
+        extract_boundary_instance(&scheme_types, finalized.scheme.predicate, false);
+    assert_eq!(finalized_vars.residual, witness.residual);
+    assert_eq!(finalized_vars.payload, None);
+
+    let mut instances = crate::arena::Arena::new();
+    let first = instantiate_scheme(
+        &scheme_types,
+        &mut instances,
+        TypeLevel::root(),
+        &finalized.scheme,
+    );
+    let second = instantiate_scheme(
+        &scheme_types,
+        &mut instances,
+        TypeLevel::root(),
+        &finalized.scheme,
+    );
+    let first_vars = extract_boundary_instance(instances.constraints().types(), first, false);
+    let second_vars = extract_boundary_instance(instances.constraints().types(), second, false);
+    assert_ne!(first_vars.residual, second_vars.residual);
+}
+
+#[test]
+fn invariant_direct_row_push_only_control_does_not_create_residual_correspondence() {
+    let witness = direct_row_control_witness();
+    assert_precompact_ref_effect_contains_push_only_carrier(
+        witness.machine.types(),
+        witness.ref_effect_bounds,
+    );
+    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let (callback, helper) = compact_callback_and_helper(&compact);
+
+    let ref_effect = compact_ref_effect_bounds(callback);
+    let CompactBounds::Interval { lower, upper } = ref_effect else {
+        panic!("ref effect argument should compact as invariant bounds: {compact:?}");
+    };
+    assert!(
+        compact_has_family_row(lower),
+        "the old direct [F(P)] lower itself should survive compact: {compact:?}"
+    );
+    assert!(
+        compact_has_family_row(upper),
+        "the old direct [F(P)] upper itself should survive compact: {compact:?}"
+    );
+    assert!(
+        !compact_has_family_row(&callback.ret_eff),
+        "push-only ref evidence must not materialize F(P) on callback ret_eff: {compact:?}"
+    );
+    assert!(
+        compact_contains_plain_var(&callback.ret_eff, witness.callback_residual),
+        "callback residual should remain structurally observable: {compact:?}"
+    );
+    assert!(
+        compact_contains_plain_var(&helper.ret_eff, witness.helper_residual),
+        "helper residual should remain structurally observable: {compact:?}"
+    );
+    assert_ne!(
+        witness.callback_residual, witness.helper_residual,
+        "the old carrier supplies no ordinary callback/result rho correspondence"
+    );
+}
+
+fn direct_row_control_witness() -> DirectRowControlWitness {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    let payload = TypeVar(1);
+    let callback_residual = TypeVar(2);
+    let helper_residual = TypeVar(3);
+    let result = TypeVar(4);
+    for var in [root, payload, callback_residual, helper_residual, result] {
+        machine.register_type_var(var, TypeLevel::root().child());
+    }
+
+    let payload_lower = machine.alloc_pos(Pos::Var(payload));
+    let payload_upper = machine.alloc_neg(Neg::Var(payload));
+    let payload_bounds = machine.alloc_neu(Neu::Bounds(payload_lower, payload_upper));
+    let family_args = vec![payload_bounds];
+    let family = Subtractability::Set(family_path(), family_args.clone());
+    let lower_item = machine.alloc_pos(Pos::Con(family_path(), family_args.clone()));
+    let lower_row = machine.alloc_pos(Pos::Row(vec![lower_item]));
+    let lower_with_push = machine.alloc_pos(Pos::Stack {
+        inner: lower_row,
+        weight: StackWeight::push(SubtractId(0), family),
+    });
+    let upper_item = machine.alloc_neg(Neg::Con(family_path(), family_args));
+    let upper_tail = machine.alloc_neg(Neg::Bot);
+    let upper_row = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
+    let ref_effect_bounds = machine.alloc_neu(Neu::Bounds(lower_with_push, upper_row));
+
+    let callback_arg = machine.alloc_pos(Pos::Con(
+        ref_path(),
+        vec![ref_effect_bounds, payload_bounds],
+    ));
+    let callback_arg_eff = machine.alloc_pos(Pos::Bot);
+    let callback_ret_eff = machine.alloc_neg(Neg::Var(callback_residual));
+    let callback_ret = machine.alloc_neg(Neg::Var(result));
+    let callback = machine.alloc_neg(Neg::Fun {
+        arg: callback_arg,
+        arg_eff: callback_arg_eff,
+        ret_eff: callback_ret_eff,
+        ret: callback_ret,
+    });
+    let helper_arg_eff = machine.alloc_neg(Neg::Bot);
+    let helper_ret_eff = machine.alloc_pos(Pos::Var(helper_residual));
+    let helper_ret = machine.alloc_pos(Pos::Var(result));
+    let helper = machine.alloc_pos(Pos::Fun {
+        arg: callback,
+        arg_eff: helper_arg_eff,
+        ret_eff: helper_ret_eff,
+        ret: helper_ret,
+    });
+    let root_upper = machine.alloc_neg(Neg::Var(root));
+    machine.subtype(helper, root_upper, OriginId::unknown_internal());
+
+    DirectRowControlWitness {
+        machine,
+        root,
+        ref_effect_bounds,
+        callback_residual,
+        helper_residual,
+    }
+}
+
+#[test]
+fn callback_contract_metadata_exposes_only_the_concrete_payload_family() {
+    let root = parse(concat!(
+        "act local_state 'p;\n",
+        "my h(f: _ -> [local_state int; 'e] _) = f 0\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let param = first_lambda_param_def(&output, h);
+    let contract = output
+        .session
+        .poly
+        .arg_effect_contracts
+        .get(&param)
+        .expect("callback parameter should retain its explicit effect contract");
+    assert_eq!(
+        contract.markers,
+        vec![poly::expr::ArgEffectContractMarker {
+            path: vec!["local_state".into()],
+            depth: 1,
+            resume: poly::expr::ContractResumePolicy::PreserveMatchingPath,
+        }],
+        "the concrete F(P), but not ambient rho, is visible to the handler contract"
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BoundaryInstance {
+    residual: TypeVar,
+    payload: Option<TypeVar>,
+}
+
+fn extract_boundary_instance(
+    types: &TypeArena,
+    predicate: PosId,
+    payload_bearing: bool,
+) -> BoundaryInstance {
+    let Pos::Fun {
+        arg: callback,
+        ret_eff: helper_ret_eff,
+        ..
+    } = types.pos(predicate)
+    else {
+        panic!("expected helper function, got {:?}", types.pos(predicate));
+    };
+    let Neg::Fun {
+        arg: callback_arg,
+        ret_eff: callback_ret_eff,
+        ..
+    } = types.neg(*callback)
+    else {
+        panic!("expected callback function, got {:?}", types.neg(*callback));
+    };
+    let Neg::Row(items, tail) = types.neg(*callback_ret_eff) else {
+        panic!(
+            "callback ret_eff should finalize as a concrete row, got {:?}",
+            types.neg(*callback_ret_eff)
+        );
+    };
+    let family_args = items
+        .iter()
+        .find_map(|item| match types.neg(*item) {
+            Neg::Con(path, args) if path == &family_path() => Some(args),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("callback row should contain F(P)"));
+    let Neg::Var(callback_residual) = types.neg(*tail) else {
+        panic!("callback row should retain an ordinary residual tail");
+    };
+    let Pos::Var(helper_residual) = types.pos(*helper_ret_eff) else {
+        panic!("helper result should retain an ordinary residual");
+    };
+    assert_eq!(
+        callback_residual, helper_residual,
+        "callback and helper result must share the same structural rho"
+    );
+
+    let Pos::Con(path, ref_args) = types.pos(*callback_arg) else {
+        panic!("callback argument should be the exact ref capability");
+    };
+    assert_eq!(path, &ref_path());
+    assert_eq!(ref_args.len(), 2);
+    assert_exact_ref_effect(types, ref_args[0], payload_bearing);
+    let ref_payload = invariant_var(types, ref_args[1]);
+
+    let payload = if payload_bearing {
+        assert_eq!(family_args.len(), 1);
+        let family_payload = invariant_var(types, family_args[0]);
+        assert_eq!(
+            family_payload, ref_payload,
+            "F(P) and ref payload must preserve the same invariant P"
+        );
+        Some(family_payload)
+    } else {
+        assert!(family_args.is_empty());
+        None
+    };
+
+    BoundaryInstance {
+        residual: *callback_residual,
+        payload,
+    }
+}
+
+fn assert_exact_ref_effect(types: &TypeArena, bounds: NeuId, payload_bearing: bool) {
+    let Neu::Bounds(lower, upper) = types.neu(bounds) else {
+        panic!("ref effect argument should remain invariant bounds");
+    };
+    let Pos::Row(lower_items) = types.pos(*lower) else {
+        panic!("ref effect lower should remain an exact direct row");
+    };
+    let Neg::Row(upper_items, upper_tail) = types.neg(*upper) else {
+        panic!("ref effect upper should remain an exact direct row");
+    };
+    assert_eq!(lower_items.len(), 1);
+    assert_eq!(upper_items.len(), 1);
+    assert!(matches!(types.neg(*upper_tail), Neg::Bot));
+
+    let Pos::Con(lower_path, lower_args) = types.pos(lower_items[0]) else {
+        panic!("ref effect lower row should contain F(P)");
+    };
+    let Neg::Con(upper_path, upper_args) = types.neg(upper_items[0]) else {
+        panic!("ref effect upper row should contain F(P)");
+    };
+    assert_eq!(lower_path, &family_path());
+    assert_eq!(upper_path, &family_path());
+    assert_eq!(lower_args.len(), usize::from(payload_bearing));
+    assert_eq!(upper_args.len(), usize::from(payload_bearing));
+    if payload_bearing {
+        assert_eq!(
+            invariant_var(types, lower_args[0]),
+            invariant_var(types, upper_args[0])
+        );
+    }
+}
+
+fn invariant_var(types: &TypeArena, bounds: NeuId) -> TypeVar {
+    let Neu::Bounds(lower, upper) = types.neu(bounds) else {
+        panic!("expected invariant bounds");
+    };
+    let Pos::Var(lower) = types.pos(*lower) else {
+        panic!("expected invariant variable lower");
+    };
+    let Neg::Var(upper) = types.neg(*upper) else {
+        panic!("expected invariant variable upper");
+    };
+    assert_eq!(lower, upper);
+    *lower
+}
+
+fn assert_precompact_ref_effect_is_exact_direct_row(
+    types: &TypeArena,
+    bounds: NeuId,
+    payload_bearing: bool,
+) {
+    let Neu::Bounds(lower, upper) = types.neu(bounds) else {
+        panic!("ref effect should use invariant bounds");
+    };
+    let Pos::Row(lower_items) = types.pos(*lower) else {
+        panic!("ref lower must be a direct row, not a stack carrier");
+    };
+    let Neg::Row(upper_items, upper_tail) = types.neg(*upper) else {
+        panic!("ref upper must be a direct row, not a stack carrier");
+    };
+    assert_eq!(lower_items.len(), 1);
+    assert_eq!(upper_items.len(), 1);
+    assert!(matches!(types.neg(*upper_tail), Neg::Bot));
+    let Pos::Con(lower_path, lower_args) = types.pos(lower_items[0]) else {
+        panic!("ref lower row should contain F");
+    };
+    let Neg::Con(upper_path, upper_args) = types.neg(upper_items[0]) else {
+        panic!("ref upper row should contain F");
+    };
+    assert_eq!(lower_path, &family_path());
+    assert_eq!(upper_path, &family_path());
+    assert_eq!(lower_args.len(), usize::from(payload_bearing));
+    assert_eq!(upper_args.len(), usize::from(payload_bearing));
+    if payload_bearing {
+        assert_eq!(
+            invariant_var(types, lower_args[0]),
+            invariant_var(types, upper_args[0])
+        );
+    }
+}
+
+fn assert_precompact_ref_effect_contains_push_only_carrier(types: &TypeArena, bounds: NeuId) {
+    let Neu::Bounds(lower, upper) = types.neu(bounds) else {
+        panic!("old ref effect should use invariant bounds");
+    };
+    let Pos::Stack { inner, weight } = types.pos(*lower) else {
+        panic!("old ref lower should contain push-only evidence");
+    };
+    let Pos::Row(items) = types.pos(*inner) else {
+        panic!("old ref carrier should wrap the exact direct row");
+    };
+    assert_eq!(items.len(), 1);
+    assert!(matches!(
+        types.pos(items[0]),
+        Pos::Con(path, args) if path == &family_path() && args.len() == 1
+    ));
+    assert!(weight.entries().iter().any(|entry| {
+        entry.stack.iter().any(|family| {
+            matches!(family, Subtractability::Set(path, args)
+                if path == &family_path() && args.len() == 1)
+        })
+    }));
+    assert!(matches!(types.neg(*upper), Neg::Row(_, _)));
+}
+
+fn compact_callback_and_helper(compact: &CompactRoot) -> (&CompactFun, &CompactFun) {
+    let helper = compact
+        .root
+        .funs
+        .first()
+        .unwrap_or_else(|| panic!("expected helper function: {compact:?}"));
+    let callback = helper
+        .arg
+        .funs
+        .first()
+        .unwrap_or_else(|| panic!("expected callback argument function: {compact:?}"));
+    (callback, helper)
+}
+
+fn compact_ref_effect_bounds(callback: &CompactFun) -> &CompactBounds {
+    let ref_args = callback
+        .arg
+        .cons
+        .get(&ref_path())
+        .unwrap_or_else(|| panic!("callback argument should contain the ref constructor"));
+    &ref_args[0]
+}
+
+fn compact_has_family_row(compact: &CompactType) -> bool {
+    compact
+        .rows
+        .iter()
+        .any(|row| row.items.contains_key(&family_path()))
+}
+
+fn compact_contains_plain_var(compact: &CompactType, expected: TypeVar) -> bool {
+    compact
+        .vars
+        .iter()
+        .any(|var| var.var == expected && var.weight.is_empty())
+}
+
+fn family_path() -> Vec<String> {
+    FAMILY_PATH
+        .iter()
+        .map(|segment| (*segment).into())
+        .collect()
+}
+
+fn ref_path() -> Vec<String> {
+    REF_PATH.iter().map(|segment| (*segment).into()).collect()
+}

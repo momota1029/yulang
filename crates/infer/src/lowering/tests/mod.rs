@@ -315,6 +315,7 @@ mod case_04;
 mod case_05;
 mod case_06;
 mod case_07;
+mod local_var_effect_boundary_characterization;
 mod ordinary_cast_characterization;
 
 use case_01::{
@@ -322,6 +323,7 @@ use case_01::{
     assert_pos_stack_pop_var, find_pos_or_var_lower_stack_pop_var, function_lower_bound,
     role_arg_vars, type_field_method, weight_has_empty_stack,
 };
+use case_05::first_lambda_param_def;
 use case_06::{
     assert_neg_bottom, assert_role_arg_is_exact_con, assert_var_has_exact_con_bound,
     assert_var_has_lower_con_bound, assert_var_has_lower_con_path, expr_ref, find_select_by_name,

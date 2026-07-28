@@ -1827,7 +1827,7 @@ fn catch_lambda_lowers_to_lambda_with_catch_body() {
     );
 }
 
-fn first_lambda_param_def(output: &BodyLowering, def: DefId) -> DefId {
+pub(super) fn first_lambda_param_def(output: &BodyLowering, def: DefId) -> DefId {
     let body = binding_body_id(output, def);
     let Expr::Lambda(param, _) = output.session.poly.expr(body) else {
         panic!("expected lowered binding body to start with a lambda");
