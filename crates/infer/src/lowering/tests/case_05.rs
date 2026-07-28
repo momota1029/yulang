@@ -1493,11 +1493,21 @@ fn case_lambda_lowers_to_lambda_with_case_body() {
 #[test]
 fn case_constructor_pattern_resolves_path_reference() {
     // The root is outside `m`, so this constructor must be public under D1.
-    let root = parse("mod m:\n  pub some = 0\nmy x = 1\nmy f = case x: m::some y -> y\n");
+    let root = parse(concat!(
+        "mod m:\n",
+        "  pub enum option 'a = some 'a\n",
+        "my x = m::option::some 1\n",
+        "my f = case x: m::option::some y -> y\n",
+    ));
     let lower = lower_module_map(&root);
     let root_module = lower.modules.root_id();
     let m = lower.modules.module_decls(root_module, &Name("m".into()))[0].module;
-    let constructor = lower.modules.value_decls(m, &Name("some".into()))[0].def;
+    let option = lower.modules.type_decls(m, &Name("option".into()))[0].id;
+    let companion = lower
+        .modules
+        .type_companion(option)
+        .expect("option companion");
+    let constructor = lower.modules.value_decls(companion, &Name("some".into()))[0].def;
     let (f, _) = binding_def_and_order(&lower.modules, root_module, "f");
 
     let output = lower_binding_bodies(&root, lower);
