@@ -14,6 +14,10 @@ pub enum LoweringError {
     UnsupportedPatternSyntax {
         kind: SyntaxKind,
     },
+    InvalidConstructorPatternTarget {
+        path: Vec<Name>,
+        source_range: Option<SourceRange>,
+    },
     UnsupportedRuleLazyQuantifier {
         kind: SyntaxKind,
         source_range: SourceRange,

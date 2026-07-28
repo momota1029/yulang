@@ -2471,6 +2471,12 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
         infer::lowering::LoweringError::UnsupportedPatternSyntax { kind } => {
             format!("unsupported pattern syntax: {}", format_syntax_kind(*kind))
         }
+        infer::lowering::LoweringError::InvalidConstructorPatternTarget { path, .. } => {
+            format!(
+                "`{}` is not a constructor and cannot be used in a constructor pattern",
+                format_name_path(path)
+            )
+        }
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. } => {
             let quantifier = match kind {
                 parser::lex::SyntaxKind::RuleQuantStarLazy => "*?",

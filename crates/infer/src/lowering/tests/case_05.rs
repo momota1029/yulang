@@ -1539,6 +1539,36 @@ fn case_constructor_pattern_resolves_path_reference() {
 }
 
 #[test]
+fn constructor_pattern_rejects_resolved_non_constructor_target() {
+    let root = parse(concat!(
+        "mod m:\n",
+        "  pub some = 0\n",
+        "my x = 1\n",
+        "my f = case x: m::some y -> y\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(
+        output.errors.iter().any(|error| matches!(
+            error,
+            BodyLoweringError::Expr {
+                name,
+                error: LoweringError::InvalidConstructorPatternTarget {
+                    path,
+                    source_range: Some(_),
+                },
+                ..
+            } if name == &Name("f".into())
+                && path == &[Name("m".into()), Name("some".into())]
+        )),
+        "{:?}",
+        output.errors
+    );
+}
+
+#[test]
 fn bare_nullary_constructor_pattern_resolves_scope_reference() {
     let root = parse(concat!(
         "pub enum opt 'a = none | some 'a\n",

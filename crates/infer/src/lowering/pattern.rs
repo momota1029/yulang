@@ -618,11 +618,15 @@ impl<'a> ExprLowerer<'a> {
             });
         }
         let target = target.found();
-        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
-
-        if let Some(target) = target
-            && let Some(constructor) = self.modules.constructor_by_def(target).cloned()
-        {
+        if let Some(target) = target {
+            let Some(constructor) = self.modules.constructor_by_def(target).cloned() else {
+                return Err(LoweringError::InvalidConstructorPatternTarget {
+                    source_range: segment_ranges.last().copied(),
+                    path,
+                });
+            };
+            let reference =
+                self.lower_pattern_constructor_reference(&path, constructor_value, Some(target));
             return self.lower_declared_constructor_pattern(
                 reference,
                 constructor,
@@ -632,6 +636,7 @@ impl<'a> ExprLowerer<'a> {
             );
         }
 
+        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, None);
         let mut payload_pats = Vec::with_capacity(payloads.len());
         let mut applied_value = constructor_value;
         for payload in payloads {
@@ -669,11 +674,15 @@ impl<'a> ExprLowerer<'a> {
             });
         }
         let target = target.found();
-        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
-
-        if let Some(target) = target
-            && let Some(constructor) = self.modules.constructor_by_def(target).cloned()
-        {
+        if let Some(target) = target {
+            let Some(constructor) = self.modules.constructor_by_def(target).cloned() else {
+                return Err(LoweringError::InvalidConstructorPatternTarget {
+                    path,
+                    source_range: None,
+                });
+            };
+            let reference =
+                self.lower_pattern_constructor_reference(&path, constructor_value, Some(target));
             return self.lower_declared_constructor_pattern_from_lowered_payloads(
                 reference,
                 constructor,
@@ -682,6 +691,7 @@ impl<'a> ExprLowerer<'a> {
             );
         }
 
+        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, None);
         let mut payload_pats = Vec::with_capacity(payloads.len());
         let mut applied_value = constructor_value;
         for payload in payloads {

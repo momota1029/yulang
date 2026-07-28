@@ -4472,6 +4472,9 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::UnsupportedPatternSyntax { .. } => {
             Some("yulang.unsupported-pattern-syntax")
         }
+        infer::lowering::LoweringError::InvalidConstructorPatternTarget { .. } => {
+            Some("yulang.invalid-constructor-pattern-target")
+        }
         infer::lowering::LoweringError::TypeMismatch { .. } => Some("yulang.type-mismatch"),
         infer::lowering::LoweringError::InvalidNumber { .. } => Some("yulang.invalid-number"),
         infer::lowering::LoweringError::MissingLambdaBody => Some("yulang.missing-lambda-body"),
@@ -4918,6 +4921,10 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
         infer::lowering::LoweringError::UnsupportedPatternSyntax { .. } => {
             Some("rewrite this form using supported pattern syntax".to_string())
         }
+        infer::lowering::LoweringError::InvalidConstructorPatternTarget { .. } => Some(
+            "use a struct, enum variant, or error constructor in constructor-pattern position"
+                .to_string(),
+        ),
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
             Some("use greedy `*` or `+`, then handle optional matching explicitly".to_string())
         }
@@ -5020,6 +5027,9 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
     match error {
         infer::lowering::LoweringError::UnresolvedName { source_range, .. } => *source_range,
         infer::lowering::LoweringError::PrivateAccess { source_range, .. } => *source_range,
+        infer::lowering::LoweringError::InvalidConstructorPatternTarget {
+            source_range, ..
+        } => *source_range,
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { source_range, .. } => {
             *source_range
         }
