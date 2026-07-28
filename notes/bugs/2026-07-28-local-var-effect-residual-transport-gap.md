@@ -126,17 +126,72 @@ boundary は body を lowering する**前**に確立する必要があり、か
 これは実装の粘りでは埋まらない、**設計レベルの決定が要る箇所**と判断し、
 2回目もここで停止した。
 
+## 設計文書を起こして3回目・4回目の停止（2026-07-28深夜〜2026-07-29）
+
+ユーザ承認を得て `notes/design/2026-07-28-local-var-effect-boundary-fix.md` を
+起案・承認・着手した。LVB-A（characterization のみ、production 未変更）で
+2回さらに停止した。
+
+**3回目（設計初版の LVB-A 実装）**: 設計文書初版は「同じ `SubtractId` が
+push/pop の両方を持てば、一つの `Fun` の中で generalize/instantiate を
+越えて stack binder として生存する」と説明していたが、これは**誤り**だった。
+act-method の実コードを直接 trace したところ、生の `SubtractId` は
+generalization 後に **一切残っていない**（`stack_quantifiers: []` が
+act-method の正常形）。実際に起きているのは:
+
+- body が receiver を実際に使うことで、`receiver_effect` という**同じ通常の
+  型変数**が argument 側から return 側へ流れる
+- compact が `push.union(pop)` を合成する際、同じ chain 上で
+  push と pop が**相殺**される（`StackWeight::push_pops`）
+- 残るのは stack binder ではなく、argument effect と return effect を結ぶ
+  **通常の type variable 対応**
+
+つまり「同じ `Fun` に push/pop を置けば binder が生存する」という初版の
+因果関係そのものが取り違いだった。設計文書を訂正（`19a014b6`）し、
+承認状態を「未承認・ユーザレビュー待ち（改訂あり）」へ戻した。
+
+**4回目（訂正後の LVB-A 再実装）**: 訂正された不変条件——
+「push/pop は相殺されるが、`[local-family(payload); ρ] -> [ρ]` という
+残余の対応は残る」——を狙って、`get`/`update_effect` の実使用を忠実に
+再現した witness を組んだ。push/pop の相殺自体は成功した
+（`stack_quantifiers: []` を確認）。しかし**最終 scheme から
+local-family の情報自体が消えていた**:
+
+```text
+std::control::var::ref 'a 'b -> ['a] ()
+```
+
+argument と return は通常変数 `'a` を共有していたが、狙っていた
+`local-family(payload)` という row item の痕跡が最終 scheme のどこにも
+残っていなかった。「family は閉じるが `ρ` は共有する」という訂正後の
+target invariant すら、忠実な reference use だけでは成立しなかった。
+
+control（reference を使わない独立 fresh construction）は正しく
+correspondence を示さなかった——witness 自体は歯が立っている。
+問題は「local-family が丸ごと消える」という、さらに一段深い場所にある。
+
+**教訓**: act-method の receiver は単純な `Set(owner)`（引数なし）だが、
+local-var の family は payload 付きの parameterized family
+（`Set(local-family, [payload])`）である。今日の `650fec0b` も
+「引数なしの effect と引数ありの effect で挙動が違う」という同じ形の
+非対称性が原因だった。この4回目の停止は、**parameterized family が
+compaction を通るときに、単純な family とは違う経路で情報を失っている**
+可能性を示唆している。次に調べるべきはこの非対称性そのもの。
+
 ## 次に調べるべきこと
 
-- push/pop boundary を **body lowering より前**に確立する経路を設計する
-  （act-methodは receiver boundary を body lowering 前に持つ。local-var
-  も同じ順序に揃えられないか）。
-- `Computation` slot 専用に、`Fun.ret_eff`/`Fun.ret` に相当する polarity
-  boundary をどう表現するか（新しい type 構造が要るか、既存の `Stack`/
-  `Computation` の組み合わせで表現できるか）を先に決める。
+- **最優先**: なぜ payload 付き parameterized family だけ、compaction 後の
+  最終 scheme から row item ごと消えるのか。単純な `Set(owner)` 形の
+  act-method では起きない。`650fec0b` が触った
+  `pos_is_effect_marker_row_item` 周辺と同じ compaction 経路を、
+  parameterized family に限定して trace する。
+- push/pop boundary を **body lowering より前**に確立する、という設計の
+  骨格自体は（3回の停止を経ても）まだ反証されていない。反証されたのは
+  「不変条件をどう証明するか」の部分だけ。
 - generalization 全体を変える修正は影響範囲が広いため避ける。この設計判断は
   ユーザ承認済み設計文書として起こしてから着手するのが筋（他の signed design
-  文書と同じ扱い）。
+  文書と同じ扱い）。次回は「parameterized family が compaction でどう
+  扱われるか」を単独で調べる読み取り専用の投資を先に行うのがよさそうだねぇ。
 
 ## 現状の扱い
 
