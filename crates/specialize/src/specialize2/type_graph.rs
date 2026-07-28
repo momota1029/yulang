@@ -2,6 +2,7 @@ use super::*;
 
 mod bounds;
 mod effect_rows;
+mod nominal_record_shape;
 
 const MAX_SUBTYPE_PROVENANCE_RECORDS: usize = 16_384;
 const MAX_INCOMING_PROVENANCE_PER_RECORD: usize = 64;
@@ -277,6 +278,43 @@ impl<'a> TypeGraph<'a> {
         let positions = SubtypePositionProvenance {
             lower: advance_materialized_positions(&parent_positions.lower, lower_step),
             upper: advance_materialized_positions(&parent_positions.upper, upper_step),
+        };
+        let completeness = compose_completeness(
+            self.subtype_provenance_records[parent.index()].completeness,
+            compose_completeness(positions.lower.completeness, positions.upper.completeness),
+        );
+        self.intern_weighted_subtype(
+            lower,
+            lower_weight,
+            upper,
+            upper_weight,
+            SpecializeProvenanceDerivation::Structural {
+                parent,
+                step: lower_step,
+            },
+            positions,
+            completeness,
+        );
+        Ok(())
+    }
+
+    fn constrain_reverse_structural_subtype(
+        &mut self,
+        lower: Type,
+        lower_weight: StackWeight,
+        upper: Type,
+        upper_weight: StackWeight,
+        parent: Option<SpecializeSubtypeProvenanceRecordId>,
+        lower_step: TypePositionStep,
+        upper_step: TypePositionStep,
+    ) -> Result<(), SpecializeError> {
+        let Some(parent) = parent else {
+            return self.constrain_weighted_subtype(lower, lower_weight, upper, upper_weight);
+        };
+        let parent_positions = &self.subtype_position_provenance[parent.index()];
+        let positions = SubtypePositionProvenance {
+            lower: advance_materialized_positions(&parent_positions.upper, lower_step),
+            upper: advance_materialized_positions(&parent_positions.lower, upper_step),
         };
         let completeness = compose_completeness(
             self.subtype_provenance_records[parent.index()].completeness,
@@ -641,18 +679,28 @@ impl<'a> TypeGraph<'a> {
                 {
                     return Ok(());
                 }
-                for (lower, upper) in lower_args.into_iter().zip(upper_args) {
-                    self.constrain_weighted_subtype(
+                for (index, (lower, upper)) in lower_args.into_iter().zip(upper_args).enumerate() {
+                    let step = TypePositionStep::ConstructorArgument {
+                        alternative: poly::provenance::TypePositionIndex::from_usize(0),
+                        argument: poly::provenance::TypePositionIndex::from_usize(index),
+                    };
+                    self.constrain_structural_subtype(
                         lower.clone(),
                         lower_weight.clone(),
                         upper.clone(),
                         upper_weight.clone(),
+                        provenance,
+                        step,
+                        step,
                     )?;
-                    self.constrain_weighted_subtype(
+                    self.constrain_reverse_structural_subtype(
                         upper,
                         upper_weight.clone(),
                         lower,
                         lower_weight.clone(),
+                        provenance,
+                        step,
+                        step,
                     )?;
                 }
                 Ok(())
@@ -747,6 +795,20 @@ impl<'a> TypeGraph<'a> {
                 }
                 Ok(())
             }
+            (
+                Type::Con {
+                    path: owner_path,
+                    args: owner_args,
+                },
+                Type::Record(required_fields),
+            ) => self.constrain_nominal_record_shape(
+                owner_path,
+                owner_args,
+                lower_weight,
+                required_fields,
+                upper_weight,
+                provenance,
+            ),
             (Type::PolyVariant(lower_variants), Type::PolyVariant(upper_variants)) => {
                 if lower_variants
                     .iter()
@@ -799,18 +861,32 @@ impl<'a> TypeGraph<'a> {
                     upper_items,
                     upper_weight,
                 ),
+            (
+                Type::Con {
+                    path: lower_path,
+                    args: lower_args,
+                },
+                Type::EffectRow(upper_items),
+            ) => {
+                let lower = Type::Con {
+                    path: lower_path.clone(),
+                    args: lower_args,
+                };
+                if !self.is_effect_family_path(&lower_path) {
+                    let provenance = self.record_shadow_failure(provenance);
+                    return unsatisfied_subtype(lower, Type::EffectRow(upper_items), provenance);
+                }
+                self.constrain_effect_rows_weighted(
+                    vec![lower],
+                    lower_weight,
+                    upper_items,
+                    upper_weight,
+                )
+            }
             (lower, upper) => {
                 if let (Some(lower_head), Some(upper_head)) =
                     (fixed_concrete_head(&lower), fixed_concrete_head(&upper))
                     && !same_concrete_head_kind(lower_head, upper_head)
-                    // STF-G: preserve the two bridge cells until their specialize checks land.
-                    && !matches!(
-                        (lower_head, upper_head),
-                        (
-                            FixedConcreteHead::Con,
-                            FixedConcreteHead::Record | FixedConcreteHead::EffectRow
-                        )
-                    )
                 {
                     let provenance = self.record_shadow_failure(provenance);
                     return unsatisfied_subtype(lower, upper, provenance);
@@ -860,7 +936,7 @@ impl<'a> TypeGraph<'a> {
             .cloned()
             .collect::<Vec<_>>();
         for candidate in candidates {
-            let predicate = self.instantiate_cast_scheme(candidate.def, &candidate.scheme)?;
+            let predicate = self.instantiate_scheme(candidate.def, &candidate.scheme)?;
             self.constrain_subtype(
                 predicate,
                 types::pure_function_type(lower.clone(), upper.clone()),
@@ -869,7 +945,7 @@ impl<'a> TypeGraph<'a> {
         Ok(())
     }
 
-    pub(super) fn instantiate_cast_scheme(
+    fn instantiate_scheme(
         &mut self,
         def: poly_expr::DefId,
         scheme: &poly::types::Scheme,
