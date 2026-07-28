@@ -178,20 +178,72 @@ local-var の family は payload 付きの parameterized family
 compaction を通るときに、単純な family とは違う経路で情報を失っている**
 可能性を示唆している。次に調べるべきはこの非対称性そのもの。
 
+## 5回目: read-only investigation で作業仮説を反証（2026-07-29、Sol xhigh）
+
+4回目が立てた「payload 付き parameterized family は `args.is_empty()` の
+非対称性で compaction 中に消える（`650fec0b` と同じ形の穴）」という作業仮説を、
+Codex MCP (`gpt-5.6-sol`, xhigh, read-only) による単独調査で検証した。
+**結果: 反証された。** 消失点は `pos_is_effect_marker_row_item` でも
+`args.is_empty()` 分岐でもなかった。
+
+判明した実際のメカニズム:
+
+1. `pos_is_effect_marker_row_item`
+   （`crates/infer/src/constraints/machine/propagate.rs:836`）は空/非空の
+   引数リストを完全に同一に扱う。消失点ではない。
+2. payload は row tail を消費・unify しない。row item の payload と
+   row-tail transport は別々の制約辺として構築される
+   （`enqueue_derived_row_item_neu_args` / `enqueue_derived_upper_tail_to_lower_row_tail`,
+   同ファイル 955行目・1044行目付近）。
+3. **独立した具体的 row item として存在する** parameterized family は
+   compaction を問題なく生き残る（`compact_pos_row`、
+   `merge_row_items_with_sink` が path・payload とも保持する）。
+4. 実際に消しているのは **push/pop 相殺**
+   （`StackWeight::push_pops`、`crates/poly/src/types.rs:541`）。ここは
+   `Subtractability::Set(path, args)` を path・payload ごと丸ごと消す。
+   `args` が空かどうかは一切見ていない。`merge_same_id_family`
+   （同一 ID の push が同じ family かを確認するだけ）は無関係。
+5. local ref の effect は `std::control::var::ref` の
+   **invariant な引数の中**にいるため、正の `Pos::Stack` 収集経路は
+   push を具体的な row prefix として表面化させず、`CompactVar` の重みへ
+   畳み込む（`compact_neu_id`）。具体的な stack prefix を作るのは
+   negative 側の `compact_neg_stack_effect`
+   （`crates/infer/src/compact/collect/type_nodes.rs:543`）だけ。
+6. stack liveness は `Fun.arg` を **反変的に**辿る
+   （`crates/infer/src/generalize/core/stack_ids.rs:95`）。ref とその
+   invariant effect 引数はこの負の位置の下にあるため covariant に
+   生きている扱いにならず、`cleanup_stack_weights_in_root_and_roles` /
+   `prune_dead_subtract_weights_in_type` で完全に刈られる。
+7. act-method の `Set(owner)` も **全く同じ機構で完全に消える**。
+   act-method が正しく見えていたのは family 情報が残っているからではなく、
+   body が実際に receiver を使うことで生まれる**普通の型変数の対応**
+   （`receiver_effect`）が別途残っているから。今回の witness の
+   `ref 'a 'b -> ['a] ()` にも同じ対応（`'a` の共有）は正しく残っていた
+   ——4回目が「消えた」と報告した `local-family(payload)` という
+   追加の具体的 row item は、**push-only なスコープ機構では push/pop
+   相殺前に一度もその形で存在しない**、という構造上の帰結だった。
+
+**訂正された理解**: 区別すべき軸は「引数あり/なし」ではなく、
+「**独立した具体的 row item として存在するか、stack evidence（push/pop の
+中）だけに埋め込まれているか**」。設計文書が目標にしている
+`[local-family(payload); ρ] -> [ρ]` という追加の具体的 row item は、
+現在の push-only スコープ機構のままでは原理的に届かない。
+
 ## 次に調べるべきこと
 
-- **最優先**: なぜ payload 付き parameterized family だけ、compaction 後の
-  最終 scheme から row item ごと消えるのか。単純な `Set(owner)` 形の
-  act-method では起きない。`650fec0b` が触った
-  `pos_is_effect_marker_row_item` 周辺と同じ compaction 経路を、
-  parameterized family に限定して trace する。
+- **設計判断が要る**: argument 側で local-family を「push evidence だけ」
+  ではなく「独立した具体的 row item」として持たせる表現をどう作るか。
+  これは compaction のバグ修正では埋まらない、IR/lowering 側の判断。
+  例えば、a) local ref の effect argument を invariant ではなく
+  contravariant/covariant に分解して stack liveness の traversal に
+  covariant に見せる、b) push evidence とは別に明示的な row item を
+  argument 型へ直接埋め込む、等の方向性があり得るが、いずれも
+  `notes/design/2026-07-28-local-var-effect-boundary-fix.md` の
+  改訂が必要（ユーザ承認済み設計文書として起こしてから着手する筋）。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
-  骨格自体は（3回の停止を経ても）まだ反証されていない。反証されたのは
-  「不変条件をどう証明するか」の部分だけ。
-- generalization 全体を変える修正は影響範囲が広いため避ける。この設計判断は
-  ユーザ承認済み設計文書として起こしてから着手するのが筋（他の signed design
-  文書と同じ扱い）。次回は「parameterized family が compaction でどう
-  扱われるか」を単独で調べる読み取り専用の投資を先に行うのがよさそうだねぇ。
+  骨格自体はまだ反証されていない。反証されたのは「不変条件をどう
+  証明するか」「その不変条件が push-only 機構で表現可能か」の部分。
+- generalization 全体を変える修正は影響範囲が広いため避ける。
 
 ## 現状の扱い
 
