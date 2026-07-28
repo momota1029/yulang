@@ -659,6 +659,68 @@ rollback は STF-B〜I の slice 単位で行う。matrix closure と bridge cer
 8. cold / warm / imported-prefix の acceptance と diagnostic code が一致する。
 9. implementation diff が slice ごとに原因へ対応し、無関係な refactor を含まない。
 
+## 13. STF-I closeout verification
+
+2026-07-28 の STF-I 検証では、STF-A〜H の semantic slice は実装済みである一方、
+completion contract 1 と 8 の未達が判明した。このため STF-I と本 project 全体は
+**未完了**とする。六反例の contract fixture も、誤った diagnostic code を最終契約として
+固定しないため、STF-A の known-gap expectation から切り替えていない。
+
+実装済み slice:
+
+- STF-A `9ea19f12` — characterization と matrix contract
+- STF-B `ae322581` — structured bridge certificates と cache transport
+- STF-C `eff2628f` — inference diagnostic plumbing
+- STF-D `640fa35a` — inference の non-bridge concrete pair closure
+- STF-E `52788245` — inference の nominal-record / effect-family bridge
+- STF-F `0633a9da` — specialization の closed matrix と effect gate
+- STF-G `327602a5` — specialization の nominal-record bridge
+- STF-H `9a4e5951` — generic `Coerce` allowlist
+- STF-I — 未完了。completion contract 1 / 8 を閉じる commit はまだ存在しない
+
+途中で必要になった七つの prerequisite / producer-bug fix:
+
+- `d3289e5b` — impl の associated type assignment を lexical type namespace から分離
+- `f67dba12` — local result annotation の二重生成を解消
+- `650fec0b` — parameterized effect row residual を修正
+- `430fdf05` — lowering fixture を実在 stdlib contract に合わせる
+- `9c345123` — constructor pattern の non-constructor target を拒否
+- `d466d900` — incomplete v21 effect certificate cache を無効化
+- `ba3489c5` — CLI file fixture の暗黙 `str -> path` 依存を explicit path へ移行
+
+completion contract の実測結果:
+
+1. **未達**。六反例は `check` / `run` の両方で compile-time rejection になるが、
+   `check` は `yulang.unsatisfied-subtype`、`run` は `yulang.lowering` を返す。
+2. **達成**。infer / specialize の fixed-head characterization と六 surface fixture が一致する。
+3. **達成**。`Con -> Record` は実在 struct certificate と requested projection field で検査される。
+4. **達成**。anonymous `Record -> Con` は同じ field を持っても拒否される。
+5. **達成**。`Con -> EffectRow` は registered effect family に限られる。
+6. **達成**。open candidates、Top / Bottom、same-shape control が両 characterization suite で通る。
+7. **達成**。全 fixed-head reject pair と emitter-level test で unsupported generic `Coerce` を拒否する。
+8. **未達**。既存 `run_cache_parity` は成功する `run` case だけを受け付け、
+   compile-time rejection case を manifest validation で禁止する。また失敗した `run` は
+   `--runtime-phase-timings` の cache route を出さないため、六反例が本当に
+   `std-prefix-hit` を通ったことをこの oracle で証明できない。cold 同士の比較では代用していない。
+9. **達成**。STF-A〜H、上記七修正、追加の semantic test comparison 修正
+   `4388f0ea` を commit 単位でレビューし、原因と無関係な refactor は見つからなかった。
+
+verification gate:
+
+- `cargo test -p infer` — pass
+- `cargo test -p specialize` — pass
+- `cargo test -p mono` — pass
+- `cargo test -p mono-runtime` — pass
+- `cargo test -p yulang --test cli` — pass
+- `cargo test -p yulang` — 376 pass / 1 fail。既知の高並列 cache flake
+  `embedded_std_compiled_unit_artifact_persists_to_user_cache` のみ失敗し、
+  同 test の `--test-threads=1` 隔離再実行は pass
+- `cargo test --workspace` — 30 分の STF-I 検証上限のため未実行
+
+再開時は、まず `run` が inference の structured subtype diagnostic code を保持する経路と、
+compile-time rejection を genuine `std-prefix-hit` と確認できる cache-aware oracle を設計する。
+この二点を閉じる前に STF-I または本 project を complete としない。
+
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
 状態: ユーザ承認済み（2026-07-28）
