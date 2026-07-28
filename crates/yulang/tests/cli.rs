@@ -609,8 +609,8 @@ my wrote = std::io::file::write_text output (before + \" world\")
 my after = std::io::file::read_text output
 (before, after, std::io::file::exists output, std::io::file::is_file output, std::io::file::is_dir output)
 ",
-            input = yulang_string_literal(&input),
-            output = yulang_string_literal(&output_path),
+            input = yulang_path_expression(&input),
+            output = yulang_path_expression(&output_path),
         ),
     )
     .unwrap();
@@ -652,7 +652,7 @@ case result:
     ok text -> text
     err e -> e.show
 ",
-            missing = yulang_string_literal(&missing),
+            missing = yulang_path_expression(&missing),
         ),
     )
     .unwrap();
@@ -696,9 +696,9 @@ my dir_meta = std::io::file::meta {dir}
 my missing_meta = std::io::file::meta {missing}
 (file_meta.kind, dir_meta.kind, missing_meta.kind)
 ",
-            file = yulang_string_literal(&file),
-            dir = yulang_string_literal(&dir),
-            missing = yulang_string_literal(&missing),
+            file = yulang_path_expression(&file),
+            dir = yulang_path_expression(&dir),
+            missing = yulang_path_expression(&missing),
         ),
     )
     .unwrap();
@@ -758,8 +758,8 @@ my scoped_after = std::io::file::read_text {scoped}
 
 (direct_result, direct_after, scoped_result, scoped_after)
 ",
-            direct = yulang_string_literal(&direct),
-            scoped = yulang_string_literal(&scoped),
+            direct = yulang_path_expression(&direct),
+            scoped = yulang_path_expression(&scoped),
         ),
     )
     .unwrap();
@@ -810,7 +810,7 @@ my scoped_after = std::io::file::read_text {scoped}
 
 (scoped_result, scoped_after)
 ",
-            scoped = yulang_string_literal(&scoped),
+            scoped = yulang_path_expression(&scoped),
         ),
     )
     .unwrap();
@@ -846,7 +846,10 @@ fn compatible_run_std_file_unsupported_host_reports_capability_error() {
         .arg("unsupported")
         .arg("--print-roots")
         .arg("-e")
-        .arg("std::io::file::exists \"/tmp/yulang-unsupported-host\"")
+        .arg(format!(
+            "std::io::file::exists {}",
+            yulang_path_expression(Path::new("/tmp/yulang-unsupported-host"))
+        ))
         .output()
         .unwrap();
 
