@@ -665,10 +665,9 @@ rollback は STF-B〜I の slice 単位で行う。matrix closure と bridge cer
 六反例は final rejection contract へ移行し、cold / on-disk imported prefix / cache-enabled
 run の拒否理由も genuine cache artifact open を含む oracle で一致した。
 
-ただし、この closeout session の sandbox は `.git` を read-only にしており、
-`git commit` は `.git/index.lock` を作れず失敗した。したがって semantic / verification
-contract は **完了**、repository への STF-I / closeout commit は **環境 blocker により未完了**
-である。以下の STF-I hash は commit 可能な環境で作成するまで存在しない。
+STF-I の実装は Codex sandbox の `.git` read-only 制約で commit できなかったため、
+Claude が diff をレビューした上で代行 commit した（`bdd5bb6b`）。これにより本 project は
+**完了**する。
 
 実装済み slice:
 
@@ -680,8 +679,8 @@ contract は **完了**、repository への STF-I / closeout commit は **環境
 - STF-F `0633a9da` — specialization の closed matrix と effect gate
 - STF-G `327602a5` — specialization の nominal-record bridge
 - STF-H `9a4e5951` — generic `Coerce` allowlist
-- STF-I — current worktree。六反例の final reject contract と genuine cache-aware rejection
-  parity test。commit hash は上記 `.git` write blocker のため未作成
+- STF-I `bdd5bb6b` — 六反例の final reject contract と genuine cache-aware rejection
+  parity test
 
 途中で必要になった七つの prerequisite / producer-bug fix:
 
