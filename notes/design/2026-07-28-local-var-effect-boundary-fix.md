@@ -2,7 +2,7 @@
 
 日付: 2026-07-28
 
-状態: **未承認・ユーザレビュー待ち**。本書だけでは実装を認可しない。
+状態: **ユーザ承認済み（2026-07-28）**。実装を認可する。
 
 調査基準は `fb2fbbea`。既知の症状、根因、二つの失敗案は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` を正本とし、本書では
@@ -421,4 +421,4 @@ rollback は slice 単位とする。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: 未承認・ユーザレビュー待ち
+状態: ユーザ承認済み（2026-07-28）
