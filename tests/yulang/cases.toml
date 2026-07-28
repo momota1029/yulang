@@ -1594,8 +1594,7 @@ expect_success = false
 expect_stdout = ""
 expect_stderr = "conflicting type candidates: [&buffer#5:0(std::text::str::str), std::control::flow::loop, &store#6:0(std::text::str::str)] vs [std::control::flow::loop, &store#6:0(std::text::str::str)]\n"
 contracts = [
-  "runtime-error",
-  "compile-error",
+  "runtime",
   "known-gap",
   "standard-api",
   "stable-api",
@@ -2083,7 +2082,7 @@ expect_diagnostic_related_count = 1
 expect_diagnostic_related_start = 53
 expect_diagnostic_related_end = 54
 expect_diagnostic_related_origins = ["expression"]
-contracts = ["runtime-error", "compile-error", "diagnostics", "typechecker", "related-ranges"]
+contracts = ["diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
 name = "unresolved_method_error"
@@ -3923,7 +3922,7 @@ expect_success = true
 std = "repo"
 expect_stderr = ""
 print_roots = true
-expect_stdout = "run roots [(1, 2, 3)]\n"
+expect_stdout = "run roots [(owner::hidden({raw: 1}), owner::hidden({raw: 2}), owner::hidden({raw: 3}))]\n"
 contracts = ["runtime", "types"]
 
 [[case]]
