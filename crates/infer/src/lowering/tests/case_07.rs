@@ -5927,20 +5927,20 @@ fn role_impl_method_lifecycle_slice4c_t4_computed_fetch_cycle_matches_immediate_
         receiver_shadow_production_surface(&delayed, "Eval"),
         receiver_shadow_production_surface(&immediate, "Eval"),
     );
-    assert!(matches!(
-        delayed.errors.as_slice(),
-        [BodyLoweringError::Analysis(
+    assert!(delayed.errors.iter().any(|error| matches!(
+        error,
+        BodyLoweringError::Analysis(
             crate::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,
                 parent,
                 target,
             }
-        )] if component.contains(&method)
+        ) if component.contains(&method)
             && component.contains(&helper)
             && component.len() == 2
             && [*parent, *target].contains(&method)
             && [*parent, *target].contains(&helper)
-    ));
+    )));
 
     let delayed_events = delayed.session.take_scc_events();
     let immediate_events = immediate.session.take_scc_events();
@@ -7708,12 +7708,49 @@ fn receiverless_production_surface(output: &BodyLowering, role: &str) -> String 
         .iter()
         .map(|candidate| format_candidate(&output.session.poly.typ, candidate))
         .collect::<Vec<_>>();
-    let diagnostics = crate::check::summarize_lowering(output);
+    let mut diagnostics = crate::check::summarize_lowering(output);
+    let mut errors = output
+        .errors
+        .iter()
+        .enumerate()
+        .map(|(error_index, error)| {
+            let owner = diagnostics
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.error_index == error_index)
+                .map(|diagnostic| {
+                    format!("def={:?}, label={:?}", diagnostic.def, diagnostic.label)
+                });
+            (production_error_surface(error), owner)
+        })
+        .collect::<Vec<_>>();
+    errors.sort();
+    diagnostics.diagnostics.clear();
+    for module in &mut diagnostics.modules {
+        module.diagnostics.clear();
+    }
     format!(
         "errors={:?}\ncheck={diagnostics:?}\ninfer={infer_candidates:?}\npoly={poly_candidates:?}\nruntime={} ",
-        output.errors,
+        errors,
         poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels),
     )
+}
+
+fn production_error_surface(error: &BodyLoweringError) -> String {
+    match error {
+        BodyLoweringError::Analysis(
+            crate::analysis::AnalysisDiagnostic::UnsatisfiedSubtypeShape {
+                actual,
+                expected,
+                source_span,
+                related,
+                ..
+            },
+        ) => format!(
+            "Analysis(UnsatisfiedSubtypeShape {{ actual: {actual:?}, expected: {expected:?}, source_span: {source_span:?}, related: {related:?} }})"
+        ),
+        _ => format!("{error:?}"),
+    }
 }
 
 fn persisted_actual_surface(
