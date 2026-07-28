@@ -3,13 +3,394 @@ use super::*;
 use crate::compact::{
     CompactBounds, CompactFun, CompactRoot, CompactType, compact_type_var_for_scheme,
 };
-use crate::constraints::{ConstraintMachine, OriginId, TypeLevel};
+use crate::constraints::{ConstraintMachine, LeftConstraintWeight, OriginId, TypeLevel};
 use crate::generalize::{finalize_generalized_compact_root, generalize_compact_root};
 use crate::instantiate::instantiate_scheme;
 use rustc_hash::FxHashSet;
 
 const FAMILY_PATH: [&str; 2] = ["synthetic", "local_state"];
 const REF_PATH: [&str; 2] = ["synthetic", "ref"];
+
+#[test]
+fn real_run_single_source_transport_reaches_callback_without_a_second_stack_owner() {
+    let root = parse(concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "      pub act var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "my h(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
+        "  my $x = init\n",
+        "  callback &x\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+    let local_var_act = lower.modules.synthetic_var_act_uses(h)[0].clone();
+    let local_var_companion = lower.modules.type_companion(local_var_act.act).unwrap();
+    let run = lower
+        .modules
+        .value_decls(local_var_companion, &Name("run".into()))[0]
+        .def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let run_scheme = def_scheme(&output, run);
+    assert!(
+        output.session.generalized_scheme_record(run).is_some(),
+        "the synthetic run definition must be generalized through the ordinary analysis path"
+    );
+    assert!(
+        run_scheme.stack_quantifiers.is_empty(),
+        "run must materialize its family row before the resolved use is instantiated"
+    );
+    let run_boundary = extract_real_run_boundary(&output.session.poly.typ, run_scheme.predicate);
+
+    let callback_ref = assert_real_run_two_step_application(&output, h, run);
+    assert_callback_call_uses_bare_return_effect(&output, callback_ref);
+    assert_no_helper_owned_stack_source(
+        output.session.infer.constraints().types(),
+        &run_boundary.family_path,
+    );
+
+    let helper_scheme = def_scheme(&output, h);
+    assert!(helper_scheme.stack_quantifiers.is_empty());
+    let helper_boundary =
+        extract_real_run_helper_boundary(&output.session.poly.typ, helper_scheme.predicate);
+    assert_eq!(helper_boundary.family_path, run_boundary.family_path);
+    assert_ne!(
+        helper_boundary.payload, run_boundary.payload,
+        "the resolved run scheme must be freshened at the helper use site"
+    );
+    assert_ne!(
+        helper_boundary.residual, run_boundary.residual,
+        "the resolved run residual must be freshened at the helper use site"
+    );
+
+    let mut instances = crate::arena::Arena::new();
+    let first = instantiate_scheme(
+        &output.session.poly.typ,
+        &mut instances,
+        TypeLevel::root(),
+        helper_scheme,
+    );
+    let second = instantiate_scheme(
+        &output.session.poly.typ,
+        &mut instances,
+        TypeLevel::root(),
+        helper_scheme,
+    );
+    let first = extract_real_run_helper_boundary(instances.constraints().types(), first);
+    let second = extract_real_run_helper_boundary(instances.constraints().types(), second);
+    assert_ne!(first.payload, helper_boundary.payload);
+    assert_ne!(first.residual, helper_boundary.residual);
+    assert_ne!(second.payload, helper_boundary.payload);
+    assert_ne!(second.residual, helper_boundary.residual);
+    assert_ne!(first.payload, second.payload);
+    assert_ne!(first.residual, second.residual);
+}
+
+#[test]
+fn duplicate_callback_stack_control_reproduces_empty_set_same_id_collision() {
+    let id = SubtractId(0);
+    let run_owned_empty = LeftConstraintWeight::push(id, Subtractability::Empty);
+    let callback_owned_set =
+        LeftConstraintWeight::push(id, Subtractability::Set(family_path(), vec![NeuId(0)]));
+
+    let collision = std::panic::catch_unwind(|| run_owned_empty.compose(&callback_owned_set))
+        .expect_err("Empty and Set on one SubtractId must hit stop condition 6");
+    let message = panic_message(collision);
+    assert!(message.contains("one stack id must not use multiple families"));
+    assert!(message.contains("Empty"));
+    assert!(message.contains("Set"));
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RealRunBoundary {
+    family_path: Vec<String>,
+    payload: TypeVar,
+    residual: TypeVar,
+}
+
+fn extract_real_run_boundary(types: &TypeArena, predicate: PosId) -> RealRunBoundary {
+    let Pos::Fun {
+        arg: init,
+        ret: run_with_init,
+        ..
+    } = types.pos(predicate)
+    else {
+        panic!("run must take init first");
+    };
+    let Neg::Var(init) = types.neg(*init) else {
+        panic!("run init must be an ordinary payload variable");
+    };
+    let Pos::Fun {
+        arg: computation_result,
+        arg_eff: computation_effect,
+        ret_eff: result_effect,
+        ret: result,
+    } = types.pos(*run_with_init)
+    else {
+        panic!("run must take the handled computation second");
+    };
+    let Neg::Var(computation_result) = types.neg(*computation_result) else {
+        panic!("run computation result must be an ordinary variable");
+    };
+    let Pos::Var(result) = types.pos(*result) else {
+        panic!("run result must preserve the computation value");
+    };
+    assert_eq!(computation_result, result);
+
+    let (family_path, family_payload, residual) =
+        negative_single_family_row(types, *computation_effect);
+    let Pos::Var(result_residual) = types.pos(*result_effect) else {
+        panic!("run result effect must be the ordinary residual rho");
+    };
+    assert_eq!(
+        residual, *result_residual,
+        "run input tail and result effect must share rho"
+    );
+    assert_eq!(
+        *init, family_payload,
+        "run init P and handled family F(P) must preserve the invariant payload"
+    );
+
+    RealRunBoundary {
+        family_path,
+        payload: *init,
+        residual,
+    }
+}
+
+fn extract_real_run_helper_boundary(types: &TypeArena, predicate: PosId) -> RealRunBoundary {
+    let Pos::Fun {
+        arg: init,
+        ret: with_init,
+        ..
+    } = types.pos(predicate)
+    else {
+        panic!("helper must take init first");
+    };
+    let Neg::Var(init) = types.neg(*init) else {
+        panic!("helper init must be an ordinary payload variable");
+    };
+    let Pos::Fun {
+        arg: callback,
+        ret_eff: helper_effect,
+        ..
+    } = types.pos(*with_init)
+    else {
+        panic!("helper must take callback second");
+    };
+    let Neg::Fun {
+        arg: callback_arg,
+        ret_eff: callback_effect,
+        ..
+    } = types.neg(*callback)
+    else {
+        panic!("helper callback must be callable");
+    };
+    let (family_path, family_payload, residual) =
+        negative_single_family_row(types, *callback_effect);
+    let Pos::Var(helper_residual) = types.pos(*helper_effect) else {
+        panic!("helper result effect must be the ordinary residual rho");
+    };
+    assert_eq!(
+        residual, *helper_residual,
+        "callback row tail and helper result must share rho"
+    );
+    assert_eq!(*init, family_payload);
+
+    let Pos::Con(ref_path, ref_args) = types.pos(*callback_arg) else {
+        panic!("callback must receive the local ref capability");
+    };
+    assert_eq!(ref_path, &crate::std_paths::control_var_ref_type());
+    assert_eq!(ref_args.len(), 2);
+    assert_eq!(
+        invariant_var(types, ref_args[1]),
+        *init,
+        "ref payload and handled family payload must be the same invariant P"
+    );
+    let Neu::Bounds(ref_effect_lower, _) = types.neu(ref_args[0]) else {
+        panic!("ref effect must retain structural bounds");
+    };
+    let Pos::Row(ref_effect_items) = types.pos(*ref_effect_lower) else {
+        panic!("ref effect lower must be the concrete F(P) row");
+    };
+    let [ref_effect_item] = ref_effect_items.as_slice() else {
+        panic!("ref effect must contain exactly one local family");
+    };
+    let Pos::Con(ref_family_path, ref_family_args) = types.pos(*ref_effect_item) else {
+        panic!("ref effect item must be the local family constructor");
+    };
+    assert_eq!(ref_family_path, &family_path);
+    let [ref_family_payload] = ref_family_args.as_slice() else {
+        panic!("local family must carry its payload");
+    };
+    assert_eq!(invariant_var(types, *ref_family_payload), *init);
+
+    RealRunBoundary {
+        family_path,
+        payload: *init,
+        residual,
+    }
+}
+
+fn negative_single_family_row(types: &TypeArena, effect: NegId) -> (Vec<String>, TypeVar, TypeVar) {
+    let Neg::Row(items, tail) = types.neg(effect) else {
+        panic!(
+            "effect must be a concrete F(P) prefix with an ordinary tail, got {:?}",
+            types.neg(effect)
+        );
+    };
+    let [item] = items.as_slice() else {
+        panic!("effect row must contain exactly one handled family");
+    };
+    let Neg::Con(path, args) = types.neg(*item) else {
+        panic!("effect row item must be a family constructor");
+    };
+    let [payload] = args.as_slice() else {
+        panic!("handled family must carry one payload");
+    };
+    let payload = invariant_var(types, *payload);
+    let Neg::Var(residual) = types.neg(*tail) else {
+        panic!("effect row must keep an ordinary residual tail");
+    };
+    (path.clone(), payload, *residual)
+}
+
+fn assert_real_run_two_step_application(output: &BodyLowering, helper: DefId, run: DefId) -> RefId {
+    let Expr::Lambda(_, helper_after_init) =
+        output.session.poly.expr(binding_body_id(output, helper))
+    else {
+        panic!("helper must lower init as its first lambda");
+    };
+    let Expr::Lambda(callback_pat, helper_body) = output.session.poly.expr(*helper_after_init)
+    else {
+        panic!("helper must lower callback as its second lambda");
+    };
+    let Pat::Var(callback) = output.session.poly.pat(*callback_pat) else {
+        panic!("callback parameter must be a local definition");
+    };
+
+    let Expr::Block(_, Some(after_init)) = output.session.poly.expr(*helper_body) else {
+        panic!("local var lowering must introduce its init block");
+    };
+    let Expr::Block(_, Some(wrapped)) = output.session.poly.expr(*after_init) else {
+        panic!("local var lowering must introduce its ref block");
+    };
+    let Expr::App(run_with_init, callback_call) = output.session.poly.expr(*wrapped) else {
+        panic!("wrapper must apply run to the callback computation");
+    };
+    let Expr::App(run_ref, _) = output.session.poly.expr(*run_with_init) else {
+        panic!("wrapper must apply run to init first");
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, *run_ref)),
+        Some(run),
+        "the first callee must be a resolved ref to the generalized synthetic run definition"
+    );
+    let Expr::App(callback_ref, _) = output.session.poly.expr(*callback_call) else {
+        panic!("run's second argument must be callback var_ref()");
+    };
+    let callback_ref = expr_ref(&output.session, *callback_ref);
+    assert_eq!(
+        output.session.poly.ref_target(callback_ref),
+        Some(*callback)
+    );
+    callback_ref
+}
+
+fn assert_callback_call_uses_bare_return_effect(output: &BodyLowering, callback: RefId) {
+    let callback = output
+        .session
+        .refs
+        .value(callback)
+        .expect("callback reference use type");
+    let bounds = output
+        .session
+        .infer
+        .constraints()
+        .bounds()
+        .of(callback)
+        .expect("callback should have callable upper bounds");
+    let types = output.session.infer.constraints().types();
+    let ret_effects = bounds
+        .uppers()
+        .iter()
+        .filter_map(|bound| match types.neg(bound.neg) {
+            Neg::Fun { ret_eff, .. } => Some(*ret_eff),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(!ret_effects.is_empty());
+    assert!(
+        ret_effects
+            .iter()
+            .any(|effect| matches!(types.neg(*effect), Neg::Var(_))),
+        "the resolved callback call must start from a bare fresh return-effect variable"
+    );
+    assert!(
+        ret_effects
+            .iter()
+            .all(|effect| !matches!(types.neg(*effect), Neg::Stack { .. })),
+        "the callback call must not enter the generic unannotated Empty stack path"
+    );
+}
+
+fn assert_no_helper_owned_stack_source(types: &TypeArena, family_path: &[String]) {
+    let family_ids = types
+        .pos_nodes()
+        .iter()
+        .filter_map(|node| match node {
+            Pos::Stack { weight, .. } | Pos::NonSubtract(_, weight) => Some(weight),
+            _ => None,
+        })
+        .chain(types.neg_nodes().iter().filter_map(|node| match node {
+            Neg::Stack { weight, .. } => Some(weight),
+            _ => None,
+        }))
+        .flat_map(|weight| weight.entries())
+        .filter(|entry| {
+            entry.stack.iter().any(
+                |family| matches!(family, Subtractability::Set(path, _) if path == family_path),
+            )
+        })
+        .map(|entry| entry.id)
+        .collect::<FxHashSet<_>>();
+    assert!(
+        family_ids.is_empty(),
+        "the finalized run row must reach the helper without a helper-owned family stack ID"
+    );
+}
+
+fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    match payload.downcast::<String>() {
+        Ok(message) => *message,
+        Err(payload) => payload
+            .downcast::<&'static str>()
+            .map(|message| (*message).to_string())
+            .unwrap_or_else(|_| "<non-string panic>".into()),
+    }
+}
 
 struct NegativeCallbackBoundaryWitness {
     machine: ConstraintMachine,
