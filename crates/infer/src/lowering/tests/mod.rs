@@ -316,6 +316,7 @@ mod case_05;
 mod case_06;
 mod case_07;
 mod local_var_effect_boundary_characterization;
+mod local_var_effect_boundary_edge_comparison;
 mod ordinary_cast_characterization;
 
 use case_01::{
