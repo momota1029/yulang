@@ -686,7 +686,8 @@ real synthetic `run` schemeをinstantiateせず、`run init (callback var_ref())
 
 ### LVB-A2: real `run` single-source transport characterization
 
-このsliceもproduction lowering codeを変更しない。LVB-B再開前の新しい必須gateとする。
+このsliceもproduction lowering codeを変更しない。direct-call primitiveを固定し、
+separate definition boundaryを検証するLVB-A3の前提とする。
 
 変更:
 
@@ -733,7 +734,52 @@ check:
 - targeted non-subtractive runtime-marker witness
 - `timeout 180s cargo test -p infer`
 
-LVB-A2が成立するまでproduction `wrap_var_binding_run`とcall siteを変更しない。
+LVB-A2のdirect-call primitiveが成立するまでLVB-A3へ進まない。
+
+### LVB-A3: separately-resolved private helper transport characterization（完了、production gate）
+
+このsliceもproduction lowering codeを変更しない。LVB-A2が固定したdirect-call primitiveを、
+§4.1 / §4.2のproduction IR形状まで一般化し、LVB-B再開前の必須gateをLVB-A2から
+LVB-A3へ置き換える。LVB-A2は成立済みのprimitive characterizationとして残すが、
+separate definition boundaryを持たないためproduction十分条件とはしない。
+
+変更:
+
+- LVB-A2と同じpayload-bearing synthetic local-var act copyを作り、そのcopyのreal
+  `var_ref` / `run`を通常のdefinition / symbol resolutionで参照するprivate-helper-shapedな
+  **別定義**を置く。helper自身のbodyを正確に
+  `run init (callback var_ref())` とし、callerへ展開しない
+- helperのcallerは`run` / `var_ref`を直接書かず、通常のresolved definition refとして
+  helperをresolve / instantiateし、`init`、`callback`の順にapplyする
+- helper自身をgeneralizeしたschemeが
+  `P -> (ref [F(P)] P -> [F(P); ρ] R) -> [ρ] R`の構造を持つことを固定する
+- helper callbackの`ret_eff`はapplication chainだけから制約され、explicit
+  `Neg::Stack` / family-bearing push / generic unannotated-callの`Empty` pairを持たないことを
+  pre-compact graphとresolved application traceで固定する
+- helper自身とcallerそれぞれのgeneralization boundaryで`stack_quantifiers`が空であり、
+  callback row tailとhelper / caller resultが同じordinary `ρ`を共有することを固定する
+- helper definition内のreal `run` applicationだけがsubtraction ownerであり、helper resolve /
+  instantiateとcaller applicationを越えてduplicate `SubtractId` ownershipが生じないことを
+  固定する
+- 同じresolved helper definitionを二つの別call siteからapplyするcontrolを置く。各caller内では
+  payload `P`とresidual `ρ`が正しく共有され、helper schemeおよび他方のcallerとはfreshenされる
+  ことを構造で固定する
+- 本sliceの成立を受け、§7.2のproduction gateをLVB-A3へ更新する
+
+check:
+
+- targeted separate-helper definition generalize / resolve / instantiate characterization
+- targeted helper-internal real-run二段application trace
+- targeted two-call-site freshening control
+- full `local_var_effect_boundary_characterization` test suite
+
+characterization
+`separately_resolved_helper_preserves_single_source_transport_across_two_call_sites`は成立した。
+helper自身のschemeと二つのcaller schemeはいずれもtarget構造と空の`stack_quantifiers`を持ち、
+callback / resultのordinary `ρ`を共有した。helper内callback callのreturn effectはbare
+variableから始まり、pre-compact graphにhelper-owned family stack sourceはなかった。二つの
+callerは同じresolved helper `DefId`を二段applyし、各schemeの`P` / `ρ`はhelperおよび他方の
+callerからfreshenされた。これによりLVB-A3をLVB-Bのproduction gateとする。
 
 ### LVB-B: private helper と全 local-var lowering path
 
@@ -834,9 +880,9 @@ check:
 ### 7.2 rollback unit
 
 - LVB-Aはprimitive characterizationとして保持するが、それだけを根拠にproduction wiringを
-  再開しない。LVB-A2が成立しなければLVB-Bを始めない。
-- LVB-A2でsingle-source routeが成立しなければ、explicit callback contractまたはtwo-ID案を
-  試さず、design reviewへ戻す。
+  再開しない。LVB-A2が成立してもLVB-A3が成立しなければLVB-Bを始めない。
+- LVB-A3でseparate helper definitionを越えるsingle-source routeが成立しなければ、explicit
+  callback contractまたはtwo-ID案を試さず、design reviewへ戻す。
 - LVB-B の一経路で stop conditionに当たった場合、旧方式と新方式を syntaxごとに混在させず、
   LVB-B 全体を戻す。
 - LVB-C の full gateで unrelated failureが出た場合、正しい success expectationを再び

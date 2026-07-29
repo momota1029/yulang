@@ -106,6 +106,103 @@ fn real_run_single_source_transport_reaches_callback_without_a_second_stack_owne
 }
 
 #[test]
+fn separately_resolved_helper_preserves_single_source_transport_across_two_call_sites() {
+    let root = parse(concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "      pub act var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "my with_ref(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
+        "  my $x = init\n",
+        "  callback &x\n",
+        "my first(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
+        "  with_ref init callback\n",
+        "my second(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
+        "  with_ref init callback\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (with_ref, _) = binding_def_and_order(&lower.modules, module, "with_ref");
+    let (first, _) = binding_def_and_order(&lower.modules, module, "first");
+    let (second, _) = binding_def_and_order(&lower.modules, module, "second");
+    let local_var_act = lower.modules.synthetic_var_act_uses(with_ref)[0].clone();
+    assert!(
+        lower.modules.synthetic_var_act_uses(first).is_empty()
+            && lower.modules.synthetic_var_act_uses(second).is_empty(),
+        "the callers must resolve the separate helper rather than inline local-var lowering"
+    );
+    let local_var_companion = lower.modules.type_companion(local_var_act.act).unwrap();
+    let run = lower
+        .modules
+        .value_decls(local_var_companion, &Name("run".into()))[0]
+        .def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let run_scheme = def_scheme(&output, run);
+    assert!(run_scheme.stack_quantifiers.is_empty());
+    let run_boundary = extract_real_run_boundary(&output.session.poly.typ, run_scheme.predicate);
+
+    let callback_ref = assert_real_run_two_step_application(&output, with_ref, run);
+    assert_callback_call_uses_bare_return_effect(&output, callback_ref);
+    assert_no_helper_owned_stack_source(
+        output.session.infer.constraints().types(),
+        &run_boundary.family_path,
+    );
+
+    let helper_scheme = def_scheme(&output, with_ref);
+    let first_scheme = def_scheme(&output, first);
+    let second_scheme = def_scheme(&output, second);
+    for (label, scheme) in [
+        ("separate helper", helper_scheme),
+        ("first caller", first_scheme),
+        ("second caller", second_scheme),
+    ] {
+        assert!(
+            scheme.stack_quantifiers.is_empty(),
+            "{label} must not retain a raw subtraction owner"
+        );
+    }
+
+    assert_resolved_helper_two_step_application(&output, first, with_ref);
+    assert_resolved_helper_two_step_application(&output, second, with_ref);
+
+    let helper_boundary =
+        extract_real_run_helper_boundary(&output.session.poly.typ, helper_scheme.predicate);
+    let first_boundary =
+        extract_real_run_helper_boundary(&output.session.poly.typ, first_scheme.predicate);
+    let second_boundary =
+        extract_real_run_helper_boundary(&output.session.poly.typ, second_scheme.predicate);
+    assert_eq!(helper_boundary.family_path, run_boundary.family_path);
+    assert_eq!(first_boundary.family_path, helper_boundary.family_path);
+    assert_eq!(second_boundary.family_path, helper_boundary.family_path);
+    assert_ne!(helper_boundary.payload, run_boundary.payload);
+    assert_ne!(helper_boundary.residual, run_boundary.residual);
+    assert_ne!(first_boundary.payload, helper_boundary.payload);
+    assert_ne!(first_boundary.residual, helper_boundary.residual);
+    assert_ne!(second_boundary.payload, helper_boundary.payload);
+    assert_ne!(second_boundary.residual, helper_boundary.residual);
+    assert_ne!(first_boundary.payload, second_boundary.payload);
+    assert_ne!(first_boundary.residual, second_boundary.residual);
+}
+
+#[test]
 fn duplicate_callback_stack_control_reproduces_empty_set_same_id_collision() {
     let id = SubtractId(0);
     let run_owned_empty = LeftConstraintWeight::push(id, Subtractability::Empty);
@@ -192,6 +289,7 @@ fn extract_real_run_helper_boundary(types: &TypeArena, predicate: PosId) -> Real
     let Pos::Fun {
         arg: callback,
         ret_eff: helper_effect,
+        ret: helper_result,
         ..
     } = types.pos(*with_init)
     else {
@@ -200,11 +298,22 @@ fn extract_real_run_helper_boundary(types: &TypeArena, predicate: PosId) -> Real
     let Neg::Fun {
         arg: callback_arg,
         ret_eff: callback_effect,
+        ret: callback_result,
         ..
     } = types.neg(*callback)
     else {
         panic!("helper callback must be callable");
     };
+    let Neg::Var(callback_result) = types.neg(*callback_result) else {
+        panic!("callback result must be an ordinary result variable");
+    };
+    let Pos::Var(helper_result) = types.pos(*helper_result) else {
+        panic!("helper result must be an ordinary result variable");
+    };
+    assert_eq!(
+        callback_result, helper_result,
+        "callback and helper must preserve the same result R"
+    );
     let (family_path, family_payload, residual) =
         negative_single_family_row(types, *callback_effect);
     let Pos::Var(helper_residual) = types.pos(*helper_effect) else {
@@ -317,6 +426,35 @@ fn assert_real_run_two_step_application(output: &BodyLowering, helper: DefId, ru
         Some(*callback)
     );
     callback_ref
+}
+
+fn assert_resolved_helper_two_step_application(
+    output: &BodyLowering,
+    caller: DefId,
+    helper: DefId,
+) {
+    let Expr::Lambda(_, caller_after_init) =
+        output.session.poly.expr(binding_body_id(output, caller))
+    else {
+        panic!("caller must lower init as its first lambda");
+    };
+    let Expr::Lambda(_, caller_body) = output.session.poly.expr(*caller_after_init) else {
+        panic!("caller must lower callback as its second lambda");
+    };
+    let Expr::App(helper_with_init, _) = output.session.poly.expr(*caller_body) else {
+        panic!("caller must apply the separate helper to callback second");
+    };
+    let Expr::App(helper_ref, _) = output.session.poly.expr(*helper_with_init) else {
+        panic!("caller must apply the separate helper to init first");
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, *helper_ref)),
+        Some(helper),
+        "caller must use a normally resolved reference to the separate helper definition"
+    );
 }
 
 fn assert_callback_call_uses_bare_return_effect(output: &BodyLowering, callback: RefId) {
