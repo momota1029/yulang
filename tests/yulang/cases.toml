@@ -3350,8 +3350,13 @@ file = "regressions/effect/parser_pattern_public_signature.yu"
 kind = "public-signature"
 std = "repo"
 symbol = "classify_parser_pattern_rest"
-expect_type = "std::text::str::str -> std::text::str::str where 'a: std::text::parse::ParseError(item = 'b, pos = 'c)"
-deny_type_contains = ["#", "AllExcept", "[std::text::parse::parse"]
+# 215ba17f (URR row_effect.rs fix) correctly discharges a spurious residual
+# ParseError role demand that never appeared in the function's own type
+# (the 'a/'b/'c variables occurred nowhere else) -- solver debris from the
+# pre-fix late-lower reduction bug, not a real public requirement. Verified
+# via read-only investigation before updating this expectation.
+expect_type = "std::text::str::str -> std::text::str::str"
+deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "parser-dsl", "std.parse", "patterns", "effect-hygiene"]
 
 [[case]]
