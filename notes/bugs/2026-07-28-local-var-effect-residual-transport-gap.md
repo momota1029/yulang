@@ -468,18 +468,60 @@ call site の組み合わせで、残留した family が今度こそ実際に c
 「一つの CLI 出力が正しい」ことは、この bug の completion contract
 （§8）が求める水準ではない。
 
+## 12回目: read-only investigation、SCC/cache を容疑から除外し3択へ
+（2026-07-29、Sol xhigh）
+
+11回目を受け、read-only investigation を実施。reflog / stash /
+`git fsck` を確認したが attempt 5 の diff は残っていなかった
+（今回は binary も clean HEAD から再 build 済みで、stale binary trace の
+手も使えなかった）。
+
+代わりに現行コードの読み込みだけで、SCC-based generalize による
+row の merge/widen 仮説と、stale cache 仮説を**根拠付きで否定**した:
+
+- SCC は component 内でも root ごとに個別 generalize/finalize/store
+  している（`instantiate.rs:19-82`）。merge は実際に cycle が閉じた
+  場合だけ（`scc.rs:267`）。
+- generalize の compact cache は `(root, constraint epoch)` で照合し、
+  final scheme は上書き（merge ではない）（`generalize.rs:579,955`）。
+- specialize の instance cache も `(DefId, runtime signature)` 単位で
+  別 scheme を作らない。
+
+残った容疑は3択:
+
+1. helper application の結果（二段目 application の result effect）
+   自体に family が残っている（callback/helper wiring 自体の問題）
+2. helper application result には family がないが、attempt 5 の
+   custom finish が **旧 body `Computation` の effect を enclosing
+   effect へ直接残してしまった**（新旧の再接続ミス）
+3. callback value 自体の evaluation effect を**通常の lambda
+   構築の不変条件どおり exact pure にできていなかった**
+   （`lambda.rs:954-975` の invariant からの逸脱）
+
+`finalize.rs` は runtime 到達性を見ずに compact root を構造的に freeze
+するだけなので、「runtime では発生しなかった」という理由だけでは
+family は消えない——static scheme が over-approximate（実際より広い）
+になっていて、たまたま今回の repro の runtime path では問題にならな
+かっただけ、という説明が最有力。
+
 ## 次に調べるべきこと
 
-- **最優先**: production の enclosing definition の scheme が、CLI
-  出力上は正しく振る舞いながらも、なぜ finalized scheme に local family
-  を残すのかを特定する。LVB-A4 の witness と production の
-  generalization lifecycle の間に、まだ埋まっていない差分がある。
-  read-only investigation が有効かもしれない——10回目と同じ手法
-  （stale binary の scheme trace）が使えるなら、rollback 前に scheme
-  を trace してから rollback する、という手順が次回は要るかもしれない。
-- ロールバック済み実装の正確な diff は今回も reflog/stash に残って
-  いない可能性が高い。次回実装時は同じ prepare/finish lifecycle を
-  再構築する必要がある。
+- **最優先（LVB-A5 相当）**: LVB-A4 の「primitive-layer で構築した
+  copied caller」ではなく、**実際の production `my $x` prepare/finish**
+  で作った enclosing definition について、次を同時に記録する
+  characterization を作り、上記3択を区別する:
+  - callback body の effect slot
+  - callback value の evaluation effect（pure であるべき）
+  - callback `Fun.ret_eff`
+  - helper 二段目 application の result effect
+  - enclosing lambda/root の `ret_eff`
+  - `F(P)` row item から各 slot への constraint provenance
+  helper application result に family が無く enclosing root だけに
+  再出現するなら (2) が原因。helper application result 自体に残るなら
+  (1)。callback value の evaluation effect が pure でないなら (3)。
+- 次回 LVB-B 実装時は、rollback する**前**に production scheme を
+  trace する手順を組み込む（今回は binary が clean rebuild されて
+  しまい、事後の trace ができなかった）。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
