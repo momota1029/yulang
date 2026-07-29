@@ -10,6 +10,37 @@
 
 ## 改訂履歴
 
+### 2026-07-29: v4 から v5 — local callback parameter の concrete ref 接続を遅延
+
+v4 §4.2 は、local binding の `prepare` で callback lambda parameter を
+`ref [F(P)] P` へ接続してから callback body を lower するとしていた。この順序は誤りだった。
+21回目で正しい block-aggregate 経路へ直しても複数文 callback body から family が漏れ、
+22回目の8地点 instrumentation（bug note `4311f845`、比較 test `23459b3b`）により、
+body lowering 前の concrete local-ref 接続が漏れの必要十分条件だと確定した。
+
+wrapper、block aggregate、callback `Fun.ret_eff`、callback evaluation effect、TypeLevel を
+同じに保ち、parameter への reference structure 接続だけを helper resolution まで遅らせると、
+二段目 application result と enclosing finalized scheme の両方から family が消えた。
+TypeLevel だけを parsed lowering に揃えた対照では漏れが残ったため、修正対象は body level
+ではなく parameter type を concrete 化する時点である。
+
+v5 では、local callback parameter を ordinary lambda と同じ fresh type variable として
+scope へ入れ、そのまま body を lower する。body lowering 後、その variable を
+`Fun.arg` に持つ callback value を組み立て、resolved helper へ `init` と callback value を
+二段 apply する。helper scheme が期待する `ref [F(P)] P` との接続は、二段目 application の
+ordinary subtyping が helper instantiation 時に初めて作る。
+
+helper の target scheme、real `run` を唯一の subtraction owner とする機構、
+exact local-ref capability、runtime `ArgEffectContract` は変えない。この訂正は explicit family
+contractを再導入せず、「既存 scheme の instantiation と application に制約を供給させ、
+lowering が手置きしない」という v4 の原則を callback argument type の接続時点にも適用する。
+LVB-A3 / LVB-A4 が示した helper scheme と application transport は反証されていないが、
+body lowering前のeager connectionが安全だというproduction lifecycleの十分性までは
+示していなかった。v5では22回目のdeferred-reference対照をその不足分のgateとする。
+
+この訂正により、承認状態は引き続き
+「未承認・ユーザレビュー待ち（改訂あり）」とする。
+
 ### 2026-07-29: v3 から v4 — subtraction owner を既存 `run` へ一本化
 
 v3 は、compiler-private helper の callback `ret_eff` に
@@ -143,6 +174,20 @@ callback before run application:
 helper result before run application:
     [δ] R
 ```
+
+ここで `ref [F(P)] P` は helper definition 側の expected callback shape であり、local binding
+側の callback lambda parameter を body lowering 前に concrete 化する指示ではない。
+local callback は body lowering 中、ordinary fresh variable `α` を argument に持つ。
+
+```text
+local callback during body lowering:
+    α -> [κ] R
+```
+
+`α` は body 内の実使用から通常の制約を受けうるが、この時点では exact
+`ref [F(P)] P` structureへ先回りして接続しない。body lowering 後に callback valueを
+helperへapplyし、resolved helper schemeをinstantiateした二段目applicationのsubtypingが
+`α` と expected callback argumentを接続する。
 
 compiler-private helper の意味は次である。
 
@@ -524,14 +569,20 @@ synthetic act copyのstructured ownerから`F`を得るが、type annotation low
 stack weightやsubtract factを作らない。type relationとruntime visibility certificateを
 同じbuilderから二重生成しない。
 
+このhelper-side expected typeと、caller-side callback lambda parameterのlowering lifecycleを
+区別する。helperのfinal schemeは引き続きcallback argumentへexact `ref [F(P)] P`を要求するが、
+callerはその構造をannotationや`constrain_local_ref_value`で先に置かない。resolved helperの
+scheme instantiationと二段目applicationが作るordinary subtypingだけを接続元とする。
+
 ### 4.2 lowering lifecycle
 
 #### private helper definition
 
 1. synthetic act copyのstructured owner、payload `P`、existing private `var_ref` / `run`の
    resolved `DefId`を確定する
-2. `init: P` と callable `callback` parameterを作る。callback argumentはexact
-   `ref [F(P)] P`、return effectはordinary fresh `ε`、resultはfresh `R`とする
+2. `init: P` と callable `callback` parameterを作る。helper definition側のexpected callback
+   argumentはexact `ref [F(P)] P`、return effectはordinary fresh `ε`、resultはfresh `R`
+   とする。このexpected shapeをlocal binding側のcallback lambda parameterへ先置きしない
 3. callback localはcallable skeletonを既知とし、call return effectをbare `ε`へ接続する。
    generic unannotated-call用の`Empty` pairは作らない
 4. callback parameterへnon-subtractiveな`ArgEffectContract(F, depth=1)`を登録する
@@ -546,10 +597,13 @@ stack weightやsubtract factを作らない。type relationとruntime visibility
 #### local binding prepare（callback body lowering前）
 
 1. synthetic act copy、init binding、payload `P` を確定する
-2. callback lambdaのparameter valueをexisting `var_ref()` のexact value type
-   `ref [F(P)] P`へ接続する
-3. `&x` をpureな`Def::Arg`としてlocal scopeへbindする
-4. `&x` がscopeにある状態で`<rest>`をlowerする
+2. ordinary lambda parameterと同じく、callback lambdaのparameter value `α` をordinary
+   fresh type variableとして作る。この時点ではexisting `var_ref()` のexact value type
+   `ref [F(P)] P`へ接続しない
+3. `α` を持つ`&x`をpureな`Def::Arg`としてlocal scopeへbindする
+4. `&x` がscopeにある状態で`<rest>`を通常のblock-aggregate経路からlowerする。body内の
+   `&x`の実使用は`α`へ通常の制約を加えてよいが、prepareはconcrete ref structureを
+   pre-bindしない
 
 callback lambdaの`Fun.arg_eff`は`Never`のままにする。ref constructionとbare lookupはpureで
 あり、local operation effectは`$x`の`get`、`&x`の`update_effect` / `RefSet`、その他ref
@@ -557,10 +611,13 @@ methodの実使用からcallback body effectへ入る。
 
 #### local binding finish（callback body lowering後）
 
-1. callback lambda parameterを`Fun.arg`、pure lookupを`Fun.arg_eff`、body effect / valueを
-   `Fun.ret_eff` / `Fun.ret`とするlambda valueを作る
-2. private `with_ref`をinit valueへapplyする
-3. その結果へcallback lambda **value** をapplyする
+1. prepareで作ったfresh parameter `α`を`Fun.arg`、exact pureな`Never`を`Fun.arg_eff`、
+   block aggregateのbody effect / valueを`Fun.ret_eff` / `Fun.ret`とするlambda valueを作る。
+   lambda value自身のevaluation effectもexact pureとする
+2. private `with_ref`のresolved referenceをinit valueへ`make_internal_app`でapplyする
+3. その結果へcallback lambda **value** を二段目の`make_internal_app`でapplyする。この
+   application edgeへhelper schemeがresolve / instantiateされたとき、そのexpected
+   `ref [F(P)] P` argumentと`α`がordinary application subtypingで初めて接続される
 4. callback bodyのapplicationはhelper内のexisting `run` computation argumentとして
    評価される
 5. callback lambda parameter scopeを終了する
@@ -569,6 +626,7 @@ local lowering は ref argument の中へ独自 push / pop を組み立てない
 private helperもcallback `ret_eff`へ独自push / popを組み立てない。
 subtraction contractはexisting `run` schemeが所有し、private helperのschemeはその
 applicationから導かれる。
+local callback parameterへbody lowering前のexact ref lower / upper boundも置かない。
 standalone local ref `Let` scheme と handler result scheme の間で raw ID を共有しない。
 
 ### 4.3 v2 scoped lambda との違い
@@ -841,7 +899,10 @@ ordinary `observe(P)`だけを残し、異なる二つのlocal familyは外側sc
 症状の`run`から`text_with_mock`を呼ぶ二境界形状をcharacterization layerで直接固定する。
 
 したがって、10回目で不足していた「concrete callback application後のenclosing generalization」
-は現行v4 mechanismで成立する。LVB-A3とLVB-A4を合わせてLVB-Bのcorrected production gateとする。
+は当時のv4 helper mechanismで成立した。ただし22回目により、このcharacterizationは
+callback body lowering前のconcrete ref接続が安全だとは示していなかったことが判明した。
+LVB-A3 / LVB-A4はhelper schemeとapplication transportのcharacterizationとして保持し、
+production lifecycleのgateにはdeferred-reference対照も加える。
 
 ### LVB-B: private helper と全 local-var lowering path
 
@@ -856,8 +917,12 @@ ordinary `observe(P)`だけを残し、異なる二つのlocal familyは外側sc
 - compiler-owned callback callをgeneric unannotated-call `Empty` pairへ流さない
 - callbackのruntime `ArgEffectContract` markerはstructured synthetic familyから
   non-subtractive certificateとして登録し、type annotation lowererを通さない
-- `wrap_var_binding_run(..., body: Computation)` を、callback parameterを先に scopeへ入れられる
-  prepare / finish lifecycleへ置き換える
+- `wrap_var_binding_run(..., body: Computation)` をprepare / finish lifecycleへ置き換える。
+  prepareはcallback parameterをordinary fresh type variableのpure `Def::Arg`としてscopeへ
+  入れるだけで、exact `ref [F(P)] P`をpre-bindしない
+- finishはblock aggregateを`Fun.ret_eff`に持つexact-pure callback valueを作り、resolved
+  helperへinit / callbackの順で`make_internal_app`する。二段目applicationのordinary
+  subtypingだけがfresh parameterをhelper schemeのconcrete ref shapeへ接続する
 - `local_var_effect_value` の exact `[F(P)]` construction は維持し、ambient tailを追加しない
 - standalone reference `Let` schemeを作らず、callbackの pure `Def::Arg` localを使う
 - ordinary block、var pattern、lambda、case、catch、protocol / do の全 call siteを
@@ -866,6 +931,8 @@ ordinary `observe(P)`だけを残し、異なる二つのlocal familyは外側sc
   `run init (callback var_ref())` を評価することを固定する
 - callback runtime markerがsynthetic familyだけをhandlerへ見せ、型solverへstack sourceを
   追加しないことを固定する
+- 22回目の8地点比較をregression contractとして残し、複数文callback bodyでも二段目
+  application resultとenclosing finalized schemeにlocal familyが残らないことを固定する
 - bug note の最小 repro を regression testに追加する
 
 check:
@@ -977,7 +1044,9 @@ check:
 11. callback bodyは既存 `run` の handled computation内でだけ評価される。
 12. ordinary direct read / write、function commit、nested local state、tuple / lambda / case /
     catch / protocol patternの local-var controlsが通る。
-13. multiple local varsの prepare / finish順序と runtime handler nestingが従来と一致する。
+13. local callback parameterはbody lowering中ordinary fresh placeholderのままであり、
+    resolved helperへの二段目applicationだけがconcrete ref structureへ接続する。multiple
+    local varsのprepare / finish順序とruntime handler nestingは従来と一致する。
 14. `parameterized_effect_items_keep_row_tail_residuals_and_payload_invariance` が変更なしで通り、
     `650fec0b` の effect-family acceptanceが維持される。
 15. `step_subtype` / `process_subtype` の matrix testと subtype-fallthrough closureの contractが
