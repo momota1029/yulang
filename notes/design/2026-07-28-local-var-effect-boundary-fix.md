@@ -749,6 +749,11 @@ separate definition boundaryを持たないためproduction十分条件とはし
   `var_ref` / `run`を通常のdefinition / symbol resolutionで参照するprivate-helper-shapedな
   **別定義**を置く。helper自身のbodyを正確に
   `run init (callback var_ref())` とし、callerへ展開しない
+- witness初版はhelper bodyの記述に`my $x` sugarを使っていたため、LVB-B後にはhelper構築が
+  general local-var loweringへ自己参照する欠陥があった。これを訂正し、`with_ref`と二つの
+  callerを`var_ref` / `run`と同じsynthetic companionの`CopiedSourceInternal` memberとして
+  直接lowerする。synthetic copyを起動するtop-level triggerだけをhelper定義から分離し、
+  helper自身は`my $x`も別のsynthetic local-var act copyも持たない
 - helperのcallerは`run` / `var_ref`を直接書かず、通常のresolved definition refとして
   helperをresolve / instantiateし、`init`、`callback`の順にapplyする
 - helper自身をgeneralizeしたschemeが
@@ -775,11 +780,14 @@ check:
 
 characterization
 `separately_resolved_helper_preserves_single_source_transport_across_two_call_sites`は成立した。
+上記の自己参照を除いたcorrected witnessでも同じ結果となり、helper内bodyは二つのlocal-var
+`Block`を介さないflatな`run init (callback var_ref())`として固定された。
 helper自身のschemeと二つのcaller schemeはいずれもtarget構造と空の`stack_quantifiers`を持ち、
 callback / resultのordinary `ρ`を共有した。helper内callback callのreturn effectはbare
 variableから始まり、pre-compact graphにhelper-owned family stack sourceはなかった。二つの
 callerは同じresolved helper `DefId`を二段applyし、各schemeの`P` / `ρ`はhelperおよび他方の
-callerからfreshenされた。これによりLVB-A3をLVB-Bのproduction gateとする。
+callerからfreshenされた。check listとproduction gateの結論は変わらず、LVB-A3をLVB-Bの
+production gateとする。
 
 ### LVB-B: private helper と全 local-var lowering path
 

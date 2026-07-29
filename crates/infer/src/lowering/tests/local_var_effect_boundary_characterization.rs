@@ -127,26 +127,45 @@ fn separately_resolved_helper_preserves_single_source_transport_across_two_call_
         "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
         "          get(), k -> run v: k v\n",
         "          set v, k -> run v: k()\n",
-        "my with_ref(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        my first(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = with_ref init callback\n",
+        "        my second(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = with_ref init callback\n",
+        "my trigger(init: 'p) =\n",
         "  my $x = init\n",
-        "  callback &x\n",
-        "my first(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
-        "  with_ref init callback\n",
-        "my second(init: 'p, callback: std::control::var::ref _ 'p -> [_] 'r) =\n",
-        "  with_ref init callback\n",
+        "  $x\n",
     ));
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
-    let (with_ref, _) = binding_def_and_order(&lower.modules, module, "with_ref");
-    let (first, _) = binding_def_and_order(&lower.modules, module, "first");
-    let (second, _) = binding_def_and_order(&lower.modules, module, "second");
-    let local_var_act = lower.modules.synthetic_var_act_uses(with_ref)[0].clone();
-    assert!(
-        lower.modules.synthetic_var_act_uses(first).is_empty()
-            && lower.modules.synthetic_var_act_uses(second).is_empty(),
-        "the callers must resolve the separate helper rather than inline local-var lowering"
-    );
+    let (trigger, _) = binding_def_and_order(&lower.modules, module, "trigger");
+    let local_var_act = lower.modules.synthetic_var_act_uses(trigger)[0].clone();
     let local_var_companion = lower.modules.type_companion(local_var_act.act).unwrap();
+    let with_ref = lower
+        .modules
+        .value_decls(local_var_companion, &Name("with_ref".into()))[0]
+        .def;
+    let first = lower
+        .modules
+        .value_decls(local_var_companion, &Name("first".into()))[0]
+        .def;
+    let second = lower
+        .modules
+        .value_decls(local_var_companion, &Name("second".into()))[0]
+        .def;
+    assert!(
+        lower.modules.synthetic_var_act_uses(with_ref).is_empty()
+            && lower.modules.synthetic_var_act_uses(first).is_empty()
+            && lower.modules.synthetic_var_act_uses(second).is_empty(),
+        "the copied helper and callers must not recursively enter local-var lowering"
+    );
     let run = lower
         .modules
         .value_decls(local_var_companion, &Name("run".into()))[0]
@@ -159,7 +178,7 @@ fn separately_resolved_helper_preserves_single_source_transport_across_two_call_
     assert!(run_scheme.stack_quantifiers.is_empty());
     let run_boundary = extract_real_run_boundary(&output.session.poly.typ, run_scheme.predicate);
 
-    let callback_ref = assert_real_run_two_step_application(&output, with_ref, run);
+    let callback_ref = assert_flat_real_run_two_step_application(&output, with_ref, run);
     assert_callback_call_uses_bare_return_effect(&output, callback_ref);
     assert_no_helper_owned_stack_source(
         output.session.infer.constraints().types(),
@@ -384,6 +403,30 @@ fn negative_single_family_row(types: &TypeArena, effect: NegId) -> (Vec<String>,
 }
 
 fn assert_real_run_two_step_application(output: &BodyLowering, helper: DefId, run: DefId) -> RefId {
+    let (callback, helper_body) = helper_callback_and_body(output, helper);
+    let Expr::Block(_, Some(after_init)) = output.session.poly.expr(helper_body) else {
+        panic!("local var lowering must introduce its init block");
+    };
+    let Expr::Block(_, Some(wrapped)) = output.session.poly.expr(*after_init) else {
+        panic!("local var lowering must introduce its ref block");
+    };
+    assert_run_application(output, *wrapped, callback, run)
+}
+
+fn assert_flat_real_run_two_step_application(
+    output: &BodyLowering,
+    helper: DefId,
+    run: DefId,
+) -> RefId {
+    let (callback, helper_body) = helper_callback_and_body(output, helper);
+    assert!(
+        matches!(output.session.poly.expr(helper_body), Expr::App(_, _)),
+        "the copied helper must directly contain the flat run application"
+    );
+    assert_run_application(output, helper_body, callback, run)
+}
+
+fn helper_callback_and_body(output: &BodyLowering, helper: DefId) -> (DefId, ExprId) {
     let Expr::Lambda(_, helper_after_init) =
         output.session.poly.expr(binding_body_id(output, helper))
     else {
@@ -396,14 +439,16 @@ fn assert_real_run_two_step_application(output: &BodyLowering, helper: DefId, ru
     let Pat::Var(callback) = output.session.poly.pat(*callback_pat) else {
         panic!("callback parameter must be a local definition");
     };
+    (*callback, *helper_body)
+}
 
-    let Expr::Block(_, Some(after_init)) = output.session.poly.expr(*helper_body) else {
-        panic!("local var lowering must introduce its init block");
-    };
-    let Expr::Block(_, Some(wrapped)) = output.session.poly.expr(*after_init) else {
-        panic!("local var lowering must introduce its ref block");
-    };
-    let Expr::App(run_with_init, callback_call) = output.session.poly.expr(*wrapped) else {
+fn assert_run_application(
+    output: &BodyLowering,
+    application: ExprId,
+    callback: DefId,
+    run: DefId,
+) -> RefId {
+    let Expr::App(run_with_init, callback_call) = output.session.poly.expr(application) else {
         panic!("wrapper must apply run to the callback computation");
     };
     let Expr::App(run_ref, _) = output.session.poly.expr(*run_with_init) else {
@@ -421,10 +466,7 @@ fn assert_real_run_two_step_application(output: &BodyLowering, helper: DefId, ru
         panic!("run's second argument must be callback var_ref()");
     };
     let callback_ref = expr_ref(&output.session, *callback_ref);
-    assert_eq!(
-        output.session.poly.ref_target(callback_ref),
-        Some(*callback)
-    );
+    assert_eq!(output.session.poly.ref_target(callback_ref), Some(callback));
     callback_ref
 }
 
