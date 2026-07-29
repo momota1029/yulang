@@ -284,8 +284,8 @@ impl ConstraintMachine {
             return false;
         }
 
-        let original_upper = self.effect_row_upper(items, tail);
-        let reduced_upper = self.effect_row_upper(remaining, tail);
+        let original_upper = self.effect_row_upper(items.clone(), tail);
+        let reduced_upper = self.effect_row_upper(remaining.clone(), tail);
         let mut parents = producer
             .map(RowDerivationParent::Constraint)
             .into_iter()
@@ -306,12 +306,24 @@ impl ConstraintMachine {
                 derivation,
             );
         }
-        self.store_upper_bound_without_replay(
+        let materialization = self.store_upper_bound_without_replay(
             source,
             reduced_upper,
             ConstraintWeights::empty(),
             BoundDerivation::Row(aggregate),
         );
+        let processed_lower_records = lowers.iter().map(|(record, _)| *record).collect();
+        self.register_unweighted_row_reduction(UnweightedRowReductionRecord {
+            source,
+            original_items: items.clone(),
+            original_tail: tail,
+            original_upper,
+            consumed_items: consumed_row_items(&items, &remaining),
+            remaining_items: remaining,
+            current_reduced_upper: materialization,
+            processed_lower_records,
+            provenance_head: aggregate,
+        });
 
         for (index, (_, lower)) in lowers.into_iter().enumerate() {
             let upper = if matched_lowers[index] {
@@ -322,6 +334,196 @@ impl ConstraintMachine {
             self.enqueue_row_derived_subtype(lower.pos, lower.weights, upper, aggregate);
         }
         true
+    }
+
+    pub(super) fn unweighted_row_reduction_routes_for_new_lower(
+        &mut self,
+        source: TypeVar,
+        lower_record: BoundRecordId,
+        pos: PosId,
+        weights: &ConstraintWeights,
+    ) -> Vec<UnweightedRowReductionReplayRoute> {
+        let state_ids = self
+            .unweighted_row_reductions_by_source
+            .get(&source)
+            .cloned()
+            .unwrap_or_default();
+        let mut routes = Vec::new();
+        for state_id in state_ids {
+            let state_index = state_id.0 as usize;
+            if self.unweighted_row_reduction_records[state_index]
+                .processed_lower_records
+                .contains(&lower_record)
+            {
+                continue;
+            }
+            let snapshot = self.unweighted_row_reduction_records[state_index].clone();
+            let mut local_remaining = snapshot.original_items.clone();
+            let mut item_matches = Vec::new();
+            let matched = Self::constraint_weights_are_alias_neutral(weights)
+                && self.consume_row_items_from_lower_bound(
+                    pos,
+                    &mut local_remaining,
+                    &mut FxHashSet::default(),
+                    &mut item_matches,
+                );
+
+            if !matched {
+                self.unweighted_row_reduction_records[state_index]
+                    .processed_lower_records
+                    .insert(lower_record);
+                routes.push(UnweightedRowReductionReplayRoute {
+                    upper: snapshot.current_reduced_upper.endpoint,
+                    upper_record: snapshot.current_reduced_upper.record,
+                    provenance: snapshot.provenance_head,
+                });
+                continue;
+            }
+
+            let successor = self.intern_row_derivation(
+                RowDerivationRule::UnweightedReduction,
+                vec![
+                    RowDerivationParent::RowDerivation(snapshot.provenance_head),
+                    RowDerivationParent::Bound(lower_record),
+                ],
+                Vec::new(),
+            );
+            for (lower, upper) in item_matches {
+                let derivation = self.intern_row_derivation(
+                    RowDerivationRule::RowItemMatch,
+                    vec![RowDerivationParent::RowDerivation(successor)],
+                    vec![upper],
+                );
+                self.enqueue_row_item_match_from_row(
+                    lower,
+                    upper,
+                    ConstraintWeights::empty(),
+                    derivation,
+                );
+            }
+
+            let consumed = consumed_row_items(&snapshot.original_items, &local_remaining);
+            let mut remaining = snapshot.remaining_items.clone();
+            for item in &consumed {
+                remove_first_row_item(&mut remaining, *item);
+            }
+            let materialization = if remaining != snapshot.remaining_items {
+                let reduced_upper =
+                    self.effect_row_upper(remaining.clone(), snapshot.original_tail);
+                let materialization = self.store_upper_bound_without_replay(
+                    source,
+                    reduced_upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Row(successor),
+                );
+                self.unregister_unweighted_row_reduction_owner(
+                    snapshot.current_reduced_upper.record,
+                    state_id,
+                );
+                materialization
+            } else {
+                self.merge_unweighted_row_reduction_derivation(
+                    snapshot.current_reduced_upper.record,
+                    BoundDerivation::Row(successor),
+                );
+                snapshot.current_reduced_upper
+            };
+
+            {
+                let state = &mut self.unweighted_row_reduction_records[state_index];
+                for item in consumed {
+                    if !state.consumed_items.contains(&item) {
+                        state.consumed_items.push(item);
+                    }
+                }
+                state.remaining_items = remaining;
+                state.current_reduced_upper = materialization;
+                state.processed_lower_records.insert(lower_record);
+                state.provenance_head = successor;
+            }
+            self.register_unweighted_row_reduction_owner(
+                materialization.record,
+                state_id,
+                BoundDerivation::Row(successor),
+            );
+            routes.push(UnweightedRowReductionReplayRoute {
+                upper: snapshot.original_upper,
+                upper_record: materialization.record,
+                provenance: successor,
+            });
+        }
+        routes
+    }
+
+    fn register_unweighted_row_reduction(
+        &mut self,
+        record: UnweightedRowReductionRecord,
+    ) -> UnweightedRowReductionRecordId {
+        let id = UnweightedRowReductionRecordId(self.unweighted_row_reduction_records.len() as u32);
+        let source = record.source;
+        let materialization = record.current_reduced_upper;
+        let provenance = record.provenance_head;
+        self.unweighted_row_reduction_records.push(record);
+        self.unweighted_row_reductions_by_source
+            .entry(source)
+            .or_default()
+            .push(id);
+        self.register_unweighted_row_reduction_owner(
+            materialization.record,
+            id,
+            BoundDerivation::Row(provenance),
+        );
+        id
+    }
+
+    fn register_unweighted_row_reduction_owner(
+        &mut self,
+        upper: BoundRecordId,
+        state: UnweightedRowReductionRecordId,
+        derivation: BoundDerivation,
+    ) {
+        let owner = UnweightedRowReductionOwner { state, derivation };
+        let owners = self
+            .unweighted_row_reduction_owners_by_upper
+            .entry(upper)
+            .or_default();
+        if !owners.contains(&owner) {
+            owners.push(owner);
+        }
+    }
+
+    fn unregister_unweighted_row_reduction_owner(
+        &mut self,
+        upper: BoundRecordId,
+        state: UnweightedRowReductionRecordId,
+    ) {
+        let Some(owners) = self
+            .unweighted_row_reduction_owners_by_upper
+            .get_mut(&upper)
+        else {
+            return;
+        };
+        owners.retain(|owner| owner.state != state);
+        if owners.is_empty() {
+            self.unweighted_row_reduction_owners_by_upper.remove(&upper);
+        }
+    }
+
+    fn merge_unweighted_row_reduction_derivation(
+        &mut self,
+        upper: BoundRecordId,
+        derivation: BoundDerivation,
+    ) {
+        let Some(record) = self.bounds.record(upper).cloned() else {
+            return;
+        };
+        let BoundEndpoint::Upper(neg) = record.endpoint() else {
+            return;
+        };
+        let insertion =
+            self.bounds
+                .add_upper(record.owner(), neg, record.weights().clone(), derivation);
+        self.record_bound_provenance(insertion, BoundDirection::Upper, false);
     }
 
     fn consume_row_items_from_lower_bound(
@@ -411,9 +613,10 @@ impl ConstraintMachine {
         neg: NegId,
         weights: ConstraintWeights,
         derivation: BoundDerivation,
-    ) -> bool {
+    ) -> UnweightedRowReductionMaterialization {
         let neg = self.extrude_neg(neg, self.level_of(source));
         if let Some(survivor) = self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+            self.merge_unweighted_row_reduction_derivation(survivor, derivation.clone());
             self.record_bound_disposition(
                 BoundDirection::Upper,
                 source,
@@ -423,7 +626,10 @@ impl ConstraintMachine {
                 BoundDisposition::SubsumedBy(survivor),
                 None,
             );
-            return false;
+            return UnweightedRowReductionMaterialization {
+                endpoint: neg,
+                record: survivor,
+            };
         }
         let pruned = if weights.is_empty() {
             self.prune_upper_rows_subsumed_by_reduced_upper(source, neg)
@@ -449,7 +655,10 @@ impl ConstraintMachine {
         );
         self.record_pruned_bound_dispositions(pruned, insertion.id);
         if !insertion.semantic_changed {
-            return false;
+            return UnweightedRowReductionMaterialization {
+                endpoint: neg,
+                record: insertion.id,
+            };
         }
         self.timing.record_row_upper_bound_added_without_replay();
         // Keep this mutation outside the legacy replay/lifecycle epoch: changing that epoch can
@@ -473,7 +682,10 @@ impl ConstraintMachine {
             self.bounds.of(source),
             &self.types,
         );
-        true
+        UnweightedRowReductionMaterialization {
+            endpoint: neg,
+            record: insertion.id,
+        }
     }
 
     fn intersect_row_items_with_left_stack(

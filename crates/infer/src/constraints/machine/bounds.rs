@@ -475,12 +475,55 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after lower", target, self.bounds.of(target), &self.types);
 
+        let incremental_routes =
+            self.unweighted_row_reduction_routes_for_new_lower(target, insertion.id, pos, &weights);
         let mut replay = self.lower_bound_replay_actions(target, insertion.id, pos, &weights);
+        let mut planned_incremental_actions = FxHashSet::default();
+        for route in &incremental_routes {
+            let generic_replay_covers_route =
+                self.bounds
+                    .record(route.upper_record)
+                    .is_some_and(|record| {
+                        record.endpoint() == BoundEndpoint::Upper(route.upper)
+                            && self.upper_record_requires_generic_replay(route.upper_record)
+                    });
+            let derivation = BinaryReplayDerivation {
+                pivot: target,
+                lower: insertion.id,
+                upper: route.upper_record,
+                rule: ReplayRule::LowerBoundAdded,
+            };
+            if generic_replay_covers_route
+                || !planned_incremental_actions.insert((route.upper, derivation))
+            {
+                continue;
+            }
+            replay.input_count += 1;
+            replay.generated += 1;
+            if self.is_var_var_replay(pos, route.upper) {
+                replay.var_var += 1;
+            }
+            self.push_replay_constraint_or_prefilter(
+                pos,
+                weights.clone(),
+                route.upper,
+                derivation,
+                &mut replay,
+            );
+        }
         self.apply_prefiltered_replay_provenance(replay.duplicate_actions, replay.trivial_actions);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
         self.apply_bound_replay_evidence_actions(replay.evidence_actions);
+        for route in incremental_routes {
+            self.merge_unweighted_row_route_provenance(
+                pos,
+                weights.clone(),
+                route.upper,
+                route.provenance,
+            );
+        }
         self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_lower_bound_added(
             replay.input_count,
@@ -860,13 +903,19 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(target) else {
             return BoundReplayPlan::default();
         };
-        let replay_input_count = bounds.projection_uppers().count();
+        let replay_input_count = bounds
+            .projection_upper_records()
+            .filter(|(record, _)| self.upper_record_requires_generic_replay(*record))
+            .count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
         for (index, (upper_record, upper)) in bounds.projection_upper_records().enumerate() {
+            if !self.upper_record_requires_generic_replay(upper_record) {
+                continue;
+            }
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
@@ -887,6 +936,39 @@ impl ConstraintMachine {
             );
         }
         replay
+    }
+
+    fn upper_record_requires_generic_replay(&self, upper: BoundRecordId) -> bool {
+        let Some(record) = self.bounds.record(upper) else {
+            return false;
+        };
+        let Some(owners) = self.unweighted_row_reduction_owners_by_upper.get(&upper) else {
+            return true;
+        };
+        record
+            .derivations()
+            .iter()
+            .any(|derivation| !owners.iter().any(|owner| &owner.derivation == derivation))
+    }
+
+    fn merge_unweighted_row_route_provenance(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        derivation: RowDerivationId,
+    ) {
+        let Some(key) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            return;
+        };
+        let Some(record) = self.canonical_constraints.get(&key).copied() else {
+            return;
+        };
+        let row_derivations = &mut self.constraint_records[record.0 as usize].row_derivations;
+        if !row_derivations.contains(&derivation) {
+            row_derivations.push(derivation);
+            self.bump_provenance_epoch();
+        }
     }
 
     fn upper_bound_replay_actions(

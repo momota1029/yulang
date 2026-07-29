@@ -753,7 +753,7 @@ fn single_multi_statement_boundary_traces_block_aggregate_through_finalization()
     assert_ne!(
         semantic_multi_statement_trace(&post_parsed),
         semantic_multi_statement_trace(&post_hand_built),
-        "the post-resolution trace must retain the result-effect divergence"
+        "the post-resolution trace must retain the construction-level lifecycle divergence"
     );
     assert!(
         pre_parsed
@@ -793,23 +793,22 @@ fn single_multi_statement_boundary_traces_block_aggregate_through_finalization()
     );
     assert!(
         !post_parsed.second_application_effect.has_family_lower
-            && post_hand_built.second_application_effect.has_family_lower,
-        "point (f) is the first family-presence divergence after quiescence"
+            && !post_hand_built.second_application_effect.has_family_lower,
+        "incremental unweighted row reduction must close the former point (f) divergence"
     );
     assert_eq!(
         post_parsed.aggregate_effect.birth_level,
         post_level_aligned.aggregate_effect.birth_level
     );
-    assert_ne!(
+    assert_eq!(
         post_parsed.aggregate_effect.level, post_level_aligned.aggregate_effect.level,
-        "matching birth levels alone must not hide the later hand-built extrusion"
+        "incremental row reduction must leave the level-aligned aggregate at the parsed level"
     );
     assert!(
-        post_level_aligned
+        !post_level_aligned
             .second_application_effect
             .has_family_lower,
-        "adding only the missing enclosing-body TypeLevel is insufficient to discharge the \
-         hand-built block aggregate"
+        "the level-aligned control must also discharge after incremental row reduction"
     );
     assert!(
         post_parsed
@@ -877,19 +876,17 @@ fn single_multi_statement_boundary_traces_block_aggregate_through_finalization()
         "the parsed multi-statement control must discharge {family_name}: {parsed_scheme}"
     );
     assert!(
-        hand_built_scheme.contains(&family_name),
-        "the hand-built multi-statement boundary must preserve the reproduced leak of \
-         {family_name}: \
+        !hand_built_scheme.contains(&family_name),
+        "incremental row reduction must discharge {family_name} from the hand-built boundary: \
          {hand_built_scheme}"
     );
-    assert_ne!(
+    assert_eq!(
         parsed_scheme, hand_built_scheme,
-        "the finalized schemes are the eighth and final comparison point"
+        "the repaired hand-built boundary must finalize to the parsed scheme"
     );
     assert_eq!(
         hand_built_scheme, level_aligned_scheme,
-        "the birth-level-aligned control must preserve the same leak, ruling out raw birth depth \
-         as the sufficient cause"
+        "the birth-level-aligned control must converge independently of raw birth depth"
     );
     assert_eq!(
         parsed_scheme, deferred_reference_scheme,

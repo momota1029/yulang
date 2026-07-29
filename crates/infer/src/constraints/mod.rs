@@ -71,6 +71,10 @@ pub struct ConstraintMachine {
     row_residuals: FxHashMap<RowResidualKey, TypeVar>,
     row_residual_record_ids: FxHashMap<RowResidualKey, RowResidualRecordId>,
     row_residual_records: Vec<RowResidualRecord>,
+    unweighted_row_reductions_by_source: FxHashMap<TypeVar, Vec<UnweightedRowReductionRecordId>>,
+    unweighted_row_reduction_owners_by_upper:
+        FxHashMap<BoundRecordId, Vec<UnweightedRowReductionOwner>>,
+    unweighted_row_reduction_records: Vec<UnweightedRowReductionRecord>,
     row_derivations: Vec<RowDerivation>,
     row_derivation_index: FxHashMap<RowDerivation, RowDerivationId>,
     bound_dispositions: Vec<BoundDispositionRecord>,
@@ -356,6 +360,41 @@ struct RowResidualKey {
     source: TypeVar,
     retained_families: Vec<EffectFamily>,
     weight: LeftConstraintWeight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct UnweightedRowReductionRecordId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UnweightedRowReductionRecord {
+    source: TypeVar,
+    original_items: Vec<NegId>,
+    original_tail: NegId,
+    original_upper: NegId,
+    consumed_items: Vec<NegId>,
+    remaining_items: Vec<NegId>,
+    current_reduced_upper: UnweightedRowReductionMaterialization,
+    processed_lower_records: FxHashSet<BoundRecordId>,
+    provenance_head: RowDerivationId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UnweightedRowReductionMaterialization {
+    endpoint: NegId,
+    record: BoundRecordId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UnweightedRowReductionOwner {
+    state: UnweightedRowReductionRecordId,
+    derivation: BoundDerivation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UnweightedRowReductionReplayRoute {
+    upper: NegId,
+    upper_record: BoundRecordId,
+    provenance: RowDerivationId,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
