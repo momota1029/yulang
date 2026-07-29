@@ -667,17 +667,56 @@ production の実際の enclosing local-var binding lifecycle（
 act の登録タイミング、outer generalize/SCC の frame wiring 等、
 10回目で調べた module 境界周りとも関係しうる領域）にある。
 
+## 17回目: LVB-B 八度目、16回目の比較方法自体に見落としが判明
+（2026-07-29）
+
+16回目の isolated harness を production の実際の enclosing 文脈へ
+移植して同じ6 edge を比較したところ、production 側では6本中5本が
+「まだ存在しない」（欠落ではなく、endpoint 自体が未確立）という
+大きな divergence が見つかった。
+
+**原因**: production の resolved helper ref は、二段目 application を
+lowering する時点では **`ApplyRefResolution` を enqueue するだけ**で、
+実際の `UseResolved` 接続は analysis work 処理まで**遅延**する
+（`lifecycle.rs:1061`）。一方 16回目の isolated harness は、比較の
+ために helper scheme を `TypeLevel::root()` で**明示的に eager
+instantiate** してから application を組んでいた
+（`edge_comparison.rs:93,108`）。
+
+**これは16回目の結論自体への訂正を要する**: LVB-A3/A4 の parsed-source
+witness も、実際には `lower_module_map`+`lower_binding_bodies` という
+**通常の full pipeline**（つまり deferred `ApplyRefResolution`/
+`UseResolved` を経由する、production と同じ遅延解決）を通っている。
+つまり「parsed source（動く）」も「production hand-built（動かない）」
+も、どちらも実際には deferred resolution を使っている。16回目の
+isolated harness は、そのどちらとも異なる**第三の変種（eager
+instantiate）**を比較していたことになる——「両ケースで edge が一致
+した」という16回目の結論は、実は「parsed source（動く）」と
+「production（動かない）」のどちらとも異なる基準に対する比較であり、
+本当の分岐点を隠していた可能性がある。
+
+**教訓**: eager instantiate はほぼ確実に成功する（型がすでに具体化
+されているため）。真の比較対象は「deferred resolution を経た**後**、
+`UseResolved` 接続が完了した時点」での6 edge でなければならない。
+
 ## 次に調べるべきこと
 
-- **最優先**: isolated な比較 harness ではなく、**production の実際の
-  enclosing local-var binding 全体の文脈**（`wrap_var_binding_run` が
-  実際に呼ばれる完全な状況——synthetic act 登録、prepare タイミング、
-  outer definition の generalize/SCC 処理）を比較器へ移植し、
-  同じ edge-level 比較を行う。孤立した callback+helper application だけ
-  では差が出ないと分かったので、次は「それを取り巻く production
-  固有の文脈」が疑わしい。
-- 4つの不変条件、callback/helper application 機構は共に潔白と確定。
-  疑うべき範囲がさらに絞られた。
+- **最優先**: 二段目 application の slot ID（helper-with-init、
+  callback、body effect、result effect、call effect）を、`prepare`/
+  `finish` の時点だけでなく **analysis work（`ApplyRefResolution` →
+  `UseResolved`）が完了した後まで保持**し、その時点で同じ6 edge を
+  再照合する。これを、parsed-source（LVB-A3/A4 witness）側と
+  production（hand-built）側の**両方**で行い、真に deferred resolution
+  後の状態を比較する。今回の investigation はこの「保持して後で
+  再照合する」ための snapshot seam をまだ持っていない——それ自体を
+  次回の実装課題とする。
+- 4つの不変条件、callback/helper application の「即時 lowering 時点」
+  での構造は共に潔白と確定済みだが、**deferred resolution 後の状態**
+  はまだ未検証のまま残っている——ここが本当の分岐点である可能性が高い。
+- 参考データ: 今回、application 直後に work queue を強制 drain する
+  診断も試したが、conflict の形が変わっただけで（`[&buffer...; loop;
+  edit_err]` vs 元の `[&buffer...; &store...; loop]`）、fix にはならず、
+  pipeline が timing-sensitive であることの追加証拠になった。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
