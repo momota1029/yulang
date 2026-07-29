@@ -738,7 +738,7 @@ fn unweighted_row_upper_late_payload_match_generates_invariant_constraints() {
 
 #[test]
 fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
-    {
+    let alias_case_passes = {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let alias = TypeVar(1);
@@ -764,29 +764,26 @@ fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
         machine.subtype(alias_family, alias_neg, origin);
         machine.subtype(alias_pos, source_neg, origin);
 
-        assert!(
-            !has_lower_family_with_weights(
-                &machine,
-                residual,
-                &["effect", "f"],
-                &ConstraintWeights::empty(),
-            ) && !has_lower_alias_with_weights(
-                &machine,
-                residual,
-                alias,
-                &ConstraintWeights::empty(),
-            ),
-            "a late alias whose lower graph contains F must match the original prefix"
-        );
-        let alias_record = lower_bound_record(&machine, source, alias_pos);
-        let successor = unweighted_reduction_reaching(
+        let stays_out_of_residual = !has_lower_family_with_weights(
             &machine,
-            &[
-                RowDerivationParent::Constraint(producer),
-                RowDerivationParent::Bound(alias_record),
-            ],
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ) && !has_lower_alias_with_weights(
+            &machine,
+            residual,
+            alias,
+            &ConstraintWeights::empty(),
         );
-        assert!(
+        stays_out_of_residual && {
+            let alias_record = lower_bound_record(&machine, source, alias_pos);
+            let successor = unweighted_reduction_reaching(
+                &machine,
+                &[
+                    RowDerivationParent::Constraint(producer),
+                    RowDerivationParent::Bound(alias_record),
+                ],
+            );
             constraint_has_row_route_to_original(
                 &machine,
                 alias_pos,
@@ -794,15 +791,15 @@ fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
                 residual,
                 &ConstraintWeights::empty(),
                 successor,
-            ),
-            "the alias-routed late lower should use the original-row route"
-        );
-    }
+            )
+        }
+    };
 
-    {
+    let pop_only_case_passes = {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let residual = TypeVar(1);
+        let through = TypeVar(2);
         let subtract = SubtractId(0);
         let initial_family =
             machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
@@ -810,6 +807,8 @@ fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
             machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
         let family_upper =
             machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let through_neg = machine.alloc_neg(Neg::Var(through));
+        let through_pos = machine.alloc_pos(Pos::Var(through));
         let source_neg = machine.alloc_neg(Neg::Var(source));
         let source_pos = machine.alloc_pos(Pos::Var(source));
         let tail = machine.alloc_neg(Neg::Var(residual));
@@ -824,32 +823,42 @@ fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
         machine.subtype(source_pos, row_upper, origin);
         let producer =
             constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
-        machine.weighted_subtype(late_family, pop_only.clone(), source_neg, origin);
+        machine.subtype(late_family, through_neg, origin);
+        machine.weighted_subtype(through_pos, pop_only.clone(), source_neg, origin);
 
-        assert!(
-            !has_lower_family_with_weights(&machine, residual, &["effect", "f"], &pop_only,),
-            "a filter-free, zero-push pop-only late lower must match the original prefix"
-        );
-        let late_record = lower_bound_record(&machine, source, late_family);
-        let successor = unweighted_reduction_reaching(
-            &machine,
-            &[
-                RowDerivationParent::Constraint(producer),
-                RowDerivationParent::Bound(late_record),
-            ],
-        );
-        assert!(
+        let stays_out_of_residual =
+            !has_lower_alias_with_weights(&machine, residual, through, &pop_only)
+                && !has_lower_family_with_weights(
+                    &machine,
+                    residual,
+                    &["effect", "f"],
+                    &ConstraintWeights::empty(),
+                );
+        stays_out_of_residual && {
+            let late_record = lower_bound_record(&machine, source, through_pos);
+            let successor = unweighted_reduction_reaching(
+                &machine,
+                &[
+                    RowDerivationParent::Constraint(producer),
+                    RowDerivationParent::Bound(late_record),
+                ],
+            );
             constraint_has_row_route_to_original(
                 &machine,
-                late_family,
+                through_pos,
                 &[&["effect", "f"]],
                 residual,
                 &pop_only,
                 successor,
-            ),
-            "the pop-only late lower should use the original-row route with exact weights"
-        );
-    }
+            )
+        }
+    };
+
+    assert!(
+        alias_case_passes && pop_only_case_passes,
+        "both initial-matching eligibility paths must use the original prefix: \
+         alias={alias_case_passes}, pop_only={pop_only_case_passes}"
+    );
 }
 
 #[test]
