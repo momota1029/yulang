@@ -316,19 +316,53 @@ LVB-B の全差分を rollback した（commit なし、working tree clean 確�
 同じ性質が保たれるか」はまだ証明されていない。この間接層自体が
 LVB-A2 の isolated witness には存在しなかった。
 
+## LVB-A3 の成功（2026-07-29）
+
+7回目の gap を受け、`notes/design/2026-07-28-local-var-effect-boundary-fix.md`
+§6 へ LVB-A3 を追加し、production gate を LVB-A2 から LVB-A3 へ置き換えた
+（`5eff6fe5`）。helper を独立した definition として resolve/instantiate し、
+call site 側は inline せずその definition を apply するだけ、という
+production の実形状で single-source 性質を証明。2つの別 call site が
+同じ resolved helper definition を apply する control も含めて成立した。
+
+## 8回目: LVB-B 三度目の挑戦、witness 自身の自己参照（2026-07-29）
+
+LVB-A3 成立を受け production wiring（LVB-B、三度目）に着手したが、
+slice (a) の試作段階で **§7.1 の15個の semantic stop condition のどれにも
+当たらず、IR 形状の不一致でもない、第三の種類の壁**で停止した。
+
+**原因**: LVB-A3 の witness は、helper 定義の body を書くために `my $x`
+sugar を含む yulang source を使っていた。LVB-A3 を書いた時点では `my $x`
+はまだ旧経路で lowering されていたため、これは単なる記述手段の一つに
+過ぎなかった。しかし LVB-B が実際に `my $x` を新しい helper 経由へ
+migrate すると、**LVB-A3 の witness 自身が使っている `my $x` も新経路で
+解決される**ことになり、helper の定義自体が「もう一つの `with_ref` を
+再帰的に呼ぶ」形になってしまう。LVB-A3 が固定した「flat な
+`run init (callback var_ref())` そのもの」という前提が、migration 完了後には
+もう成立しない——**witness が自分自身の前提を破壊する自己参照**。
+
+Codex は該当 slice の特殊ケース化や witness の書き換えでごまかさず、
+全差分を rollback した（commit なし、working tree clean 確認済み）。
+
+**教訓**: `var_ref` と `run` 自身の定義が `my $x` を一切使わず、直接
+`get`/`update_effect` のクロージャで構築されているのと同じ理由で、
+production の **helper 定義自体も、一般的な `my $x` local-var lowering
+経路を経由せず、`var_ref`/`run` と同じより低いレベルで構築する必要がある**。
+これは type-soundness の問題ではなく、bootstrap 順序の設計要件。
+
 ## 次に調べるべきこと
 
-- **新しい characterization スライスが要る（LVB-A3 相当）**: `run init
-  (callback var_ref())` を、call site が直接書くのではなく、独立に
-  resolve/instantiate される **private helper definition の内部**へ
-  封じ込めた形で、LVB-A2 と同じ single-source 性質（`stack_quantifiers`
-  空、explicit push 不在、`ρ` の共有）が保たれることを証明する。
-  `notes/design/2026-07-28-local-var-effect-boundary-fix.md` §6 へ
-  この slice を明示的に追加してから着手する。
-- LVB-A2 の characterization 自体は生きている（direct-call の
-  isolated mechanism としては正しく証明済み）。反証されたのは
-  「その mechanism を、production が要る helper-indirection の形へ
-  そのまま転用できるか」という、より広い前提。
+- **新しい characterization/設計の手当てが要る**: LVB-A3 の witness を、
+  helper body の構築が `my $x` sugar（= 移行対象の general local-var
+  lowering 経路）に一切依存しない形へ書き直す。具体的には、helper
+  definition を `var_ref`/`run` 自身と同じ、synthetic act copy 構築時の
+  直接的な construction（`get`/`update_effect` closure 相当のプリミティブ
+  経路）で作る。production 側の実装も同じ層で helper を構築する必要がある
+  ——一般の local-var lowering 呼び出し（`wrap_var_binding_run` 経由）を
+  一切通さずに。
+- LVB-A3 の characterization 自体は、witness の構築方法に上記の欠陥が
+  あった以外は生きている（helper-indirection の single-source 性質は
+  正しく証明済み）。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
   骨格自体はまだ反証されていない。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
