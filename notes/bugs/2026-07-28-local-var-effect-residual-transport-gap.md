@@ -832,25 +832,59 @@ ordering、七本目の edge、block-aggregate による逐次文集約——す
 個別には正しいと確認済みなのに、それらを**すべて production の
 実際の enclosing 文脈で組み合わせる**と、まだ漏れが起きる。
 
+## 22回目: 必要十分条件を特定——callback parameter への concrete ref
+構造の早期接続（2026-07-29、決定的な前進）
+
+21回目で見つかった最小失敗ケース（単一・複数文 callback body）を、
+8地点で deep instrument して比較したところ、**必要十分な再現条件**が
+特定できた（`23459b3b`）。
+
+**発見**: callback body を lowering する**前**に、callback パラメータへ
+**concrete な local-ref 構造**（`ref [F(P)] P`）を接続することが、
+漏れの必要十分条件だった。wrapper・block-aggregate・TypeLevel を
+全て同じに保ったまま、この reference 構造の接続だけを
+**helper resolution まで遅延**させると、**漏れが消えた**。
+
+8地点の比較（parsed / failing hand-built / TypeLevel を揃えた対照 /
+reference 接続を遅延させた対照）:
+
+- (a) 各文の effect、(b) block-aggregate、(c) callback `Fun.ret_eff`、
+  (d) callback evaluation effect（exact pure）——**すべて4ケース共通で
+  正常**
+- (e) 一段目 application の result effect——**4ケース全て family なし
+  （正常）**
+- (f)/(g) 二段目 application の result effect（post-quiescence）——
+  **parsed と「reference 接続を遅延」ケースは family なし（正常）。
+  failing hand-built と「TypeLevel だけ揃えた」ケースは family
+  あり（漏れ）**
+- (h) enclosing scheme——同様のパターン
+
+つまり漏れは block-aggregate の構築時ではなく、**事前に concrete 化
+された local-ref parameter を持つ callback が deferred resolution
+（`UseResolved`）を完了する際**に発生する。その条件下では、statement/
+aggregate effect が enclosing level へ extrude し、
+`propagate.rs:257` の function return-effect decomposition の後、
+二段目 result へ family が残る。
+
+**設計への直接の示唆**: v4 §4.2 の `prepare` は「callback パラメータを
+concrete な `ref [F(P)] P` 型で pure な `Def::Arg` として束縛」すると
+記述しているが、この記述自体が漏れの原因だった。正しくは、callback
+パラメータは body lowering 中は**抽象的な placeholder**のままにして、
+concrete な local-ref 構造との接続は helper resolution の時点まで
+**遅延**させる必要がある。
+
 ## 次に調べるべきこと
 
-- **最優先**: production の実際の callback body（block-aggregate 経由、
-  deferred resolution 経由）の `ret_eff` と、helper 二段目 application
-  の expected callback 引数型との**subtype 接続そのもの**を、
-  deferred resolution 完了後の時点で直接 trace する。18回目の
-  post-quiescence 比較は単一 boundary の単純 callback でのみ行われて
-  おり、block-aggregate を経た複数文 callback body でも同じ比較を
-  やり直す必要がある。
-- 9回の production wiring 挑戦すべてが、個別には正しいと確認された
-  複数の要素を組み合わせた時点で失敗している。これは、まだ発見して
-  いない**追加の要素**がある可能性を示唆する——あるいは、これまで
-  「正しい」と確認してきた個々の要素の組み合わせ方自体に、まだ
-  characterize されていない相互作用がある。
-- 次回も、rollback する前に診断値を記録する手順を継続する。
+- **最優先（設計改訂が必要）**: `notes/design/2026-07-28-local-var-effect-boundary-fix.md`
+  §4.2 の prepare/finish lifecycle を、この発見に合わせて改訂する。
+  callback パラメータを prepare 時点で concrete ref 型として束縛せず、
+  抽象的な placeholder として body lowering を通し、helper resolution
+  （二段目 application の構築時）で初めて concrete な `ref [F(P)] P`
+  型と接続する形へ変える。これは v4 の core mechanism を否定するもの
+  ではなく、prepare/finish の**タイミング**に関する訂正。
+- 改訂後、この22回目の発見を反映した LVB-B 十度目の実装に進む。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
-- push/pop boundary を **body lowering より前**に確立する、という設計の
-  骨格自体はまだ反証されていない。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
 
 ## 現状の扱い
