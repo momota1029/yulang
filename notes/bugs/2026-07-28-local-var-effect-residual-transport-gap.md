@@ -953,24 +953,96 @@ reduction）が、特定の bound の持ち方の組み合わせで正しく res
 ような bound の持ち方）を満たすよう construction を変えるべきなのか
 は、まだ設計判断が必要。
 
+## 25回目: root cause 確定——solver 内の one-shot reduction が
+late-arriving lower を取りこぼす（2026-07-29、Sol xhigh read-only）
+
+`add_unweighted_effect_row_upper_bound_from_existing_lowers` の
+read-only investigation により、正確な defect mechanism と
+安全な修正の方向性が確定した。
+
+**関数の役割**: `source <: [expected-items; tail]`（empty weight）を
+処理する際、`source` がすでに持つ concrete lower から、期待 row の
+prefix をどれだけ消費済みかを判定し、未消費分（residual）だけを
+`source` の新しい upper bound として保存する。
+
+**影響範囲**: 直接の呼び出し元は `row_effect.rs:97` 一箇所、その親
+`add_effect_row_upper_bound` の呼び出し元も `propagate.rs:131`
+一箇所——だが**入口自体は普遍的**で、solver が処理する**すべての**
+empty-weight `Pos::Var <: Neg::Row` 制約がここを通る。local-var 専用
+経路ではない。production の std ライブラリだけで54〜128回発火する、
+core な hot path。
+
+**正確な defect**: prefix の消費計算自体（走査・reduced upper 計算）
+は、処理時点の lower snapshot に対しては正しい。欠陥は、
+**reduced upper を保存する際、元の prefix との関係を保持しない**点。
+具体的な time series（hand-built ケース）:
+
+```text
+1. TypeVar(1524) に18個の lower が既存
+2. FunctionReturnEffect から 1524 <: [inner-family; 1669] が到着
+3. 既存 inner-family lower が prefix を消費、remaining が empty に
+4. reduced upper として 1524 <: 1669（plain Neg::Var）を保存
+5. 後から PosId(2133) = [inner-family] が1524の19個目のlowerとして到着
+6. 通常の lower-bound replay は保存済み plain Neg::Var(1669) しか見えず、
+   original prefix と照合できないまま、そのまま 1669 の14個目の
+   lower として直送される
+```
+
+つまり **residual の別名との取り違えでも、reduction が早すぎるのでも
+ない**。「reduction 一発で終わらせて、それ以降に到着する family
+lower をこの reduced upper と正しく再照合する仕組みがない」という、
+**順序依存の solver logic gap**。parsed 側で漏れないのは、単に
+family lower が reduction 発火**前**に揃っていて、one-shot 計算に
+問題が出ないタイミングだったから。
+
+既存テスト（`unweighted_row_upper_matches_each_lower_independently`
+等）はこの独立照合規則を**初期 snapshot 内の lower**についてしか
+固定しておらず、reduction 後に到着する late lower は一度も
+検証されていない——テストの盲点でもあった。
+
+**修正の方向**: lowering 側の回避策（呼び出しパターンを変えて
+reduction 経路を避ける）は不適切——同じ row-subtyping 関係が構文の
+出処によって異なる意味を持つことになる。正しい方向は **solver 側**:
+reduction を一発の plain upper で潰さず、`source` ごとに永続的な
+reduction state（元の items/tail、消費済み items、残り items、現在の
+reduced upper record、provenance）を保持し、reduction 後に到着する
+新しい lower にも同じ独立照合規則を incremental に適用する。
+
+**blast radius**: 意味論的に変わるのは「reduction が発火した source
+に、その後さらに lower が追加されるケース」だけ。初期 lower が
+揃っている既存 passing test の結果は維持される見込み——修正の性質は
+「漏れを塞ぐ narrowing」であって新しい許可を作るものではない。ただし
+発火頻度が高いため、現在 passing している他のプログラムにも同種の
+潜伏したケースがあれば、scheme・制約数・provenance census が
+変わりうる。「既存 passing 出力に絶対に影響しない」とは言い切れない
+——実装前に regression suite の再確認が要る。
+
+追加すべき test（実装前に用意）:
+
+- lower `F` → upper `[F; ρ]` → late lower `F` の順で `ρ` に `F` が
+  入らないこと
+- 制約の挿入順序を変えても同じ fixpoint になること
+- late の unmatched `G` は正しく `ρ` へ流れること
+- partial/multi-item row、payload-bearing family invariance
+- alias 経由・pop-only の late lower
+- reduction bound の prune/subsumption 後も state・provenance が
+  stale にならないこと
+
 ## 次に調べるべきこと
 
-- **最優先（設計判断が必要）**: `row_effect.rs` の
-  `add_unweighted_effect_row_upper_bound_from_existing_lowers`
-  （96, 258, 287-309行）が、なぜ hand-built 側でだけ発火し、なぜ
-  reduced upper（residual）に family を再付与してしまうのかを、
-  read-only で深掘りする。その上で、(a) lowering 側の construction を
-  変えてこの reduction 経路に入らないようにする、(b) solver 側の
-  reduction 自体に修正が要る、のどちらが正しい対応かを判断する。
-  (b) は solver 全体に影響する可能性があるため、慎重な検討が必要。
+- **最優先**: この発見を signed design document として起こし、
+  `row_effect.rs` の persistent reduction state 化を実装する。hot
+  path の性能設計（source-indexed state、tombstone 連携、provenance
+  census への影響）は慎重なレビューが要る。ユーザ承認済み設計文書と
+  してから着手する。
 - 単一 boundary（複数文含む）の discharge は完全に解決済み。CLI
-  end-to-end も成功している。残るのは nested 構造の inner family の
-  閉じ込めだけ、というところまで絞れている。
-- 次回も、rollback する前に診断値を記録する手順を継続する。
+  end-to-end も成功している。残るのはこの solver 側の修正だけ、
+  というところまで絞れた。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
-  `row_effect.rs` の reduction 自体を変える場合も同様に慎重に。
+  `row_effect.rs` の修正も同様に、regression suite を十分に整えてから
+  着手する。
 
 ## 現状の扱い
 
