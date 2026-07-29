@@ -2,7 +2,7 @@
 
 日付: 2026-07-29
 
-状態: **未承認・ユーザレビュー待ち**
+状態: **ユーザ承認済み（2026-07-29）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
@@ -707,4 +707,4 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: 未承認・ユーザレビュー待ち
+状態: ユーザ承認済み（2026-07-29）
