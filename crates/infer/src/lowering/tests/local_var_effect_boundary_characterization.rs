@@ -10,6 +10,7 @@ use rustc_hash::FxHashSet;
 
 const FAMILY_PATH: [&str; 2] = ["synthetic", "local_state"];
 const REF_PATH: [&str; 2] = ["synthetic", "ref"];
+const OBSERVE_PATH: [&str; 4] = ["std", "control", "var", "observe"];
 
 #[test]
 fn real_run_single_source_transport_reaches_callback_without_a_second_stack_owner() {
@@ -219,6 +220,251 @@ fn separately_resolved_helper_preserves_single_source_transport_across_two_call_
     assert_ne!(second_boundary.residual, helper_boundary.residual);
     assert_ne!(first_boundary.payload, second_boundary.payload);
     assert_ne!(first_boundary.residual, second_boundary.residual);
+}
+
+#[test]
+fn concrete_callback_application_discharge_reaches_enclosing_generalized_scheme() {
+    let root = parse(concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act observe 'a:\n",
+        "        pub mark: 'a -> 'a\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "        pub r.update f =\n",
+        "          my loop(x: [_] _) = catch x:\n",
+        "            ref_update::update v, k -> loop:k:f v\n",
+        "          loop:r.update_effect()\n",
+        "      pub act var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        my enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::observe::mark:r.get()\n",
+        "my trigger(init: 'p) =\n",
+        "  my $x = init\n",
+        "  $x\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (trigger, _) = binding_def_and_order(&lower.modules, module, "trigger");
+    let local_var_act = lower.modules.synthetic_var_act_uses(trigger)[0].clone();
+    let local_var_companion = lower.modules.type_companion(local_var_act.act).unwrap();
+    let run = lower
+        .modules
+        .value_decls(local_var_companion, &Name("run".into()))[0]
+        .def;
+    let with_ref = lower
+        .modules
+        .value_decls(local_var_companion, &Name("with_ref".into()))[0]
+        .def;
+    let enclosing = lower
+        .modules
+        .value_decls(local_var_companion, &Name("enclosing".into()))[0]
+        .def;
+    assert!(
+        lower.modules.synthetic_var_act_uses(enclosing).is_empty(),
+        "the concrete caller must stay at the same primitive layer as the corrected LVB-A3 helper"
+    );
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let run_scheme = def_scheme(&output, run);
+    let run_boundary = extract_real_run_boundary(&output.session.poly.typ, run_scheme.predicate);
+    let callback_body =
+        assert_concrete_callback_enclosing_application(&output, enclosing, with_ref);
+    assert!(
+        find_select_by_name(&output.session, callback_body, "get").is_some(),
+        "the concrete callback must actually read through its ref argument"
+    );
+    assert!(
+        find_select_by_name(&output.session, callback_body, "update").is_some(),
+        "the concrete callback must actually update through its ref argument"
+    );
+
+    let enclosing_scheme = def_scheme(&output, enclosing);
+    assert!(
+        output
+            .session
+            .generalized_scheme_record(enclosing)
+            .is_some(),
+        "the enclosing definition must pass through ordinary generalization"
+    );
+    assert!(
+        enclosing_scheme.stack_quantifiers.is_empty(),
+        "the enclosing finalized scheme must not retain a raw subtraction owner"
+    );
+    assert_enclosing_observe_only_scheme(
+        &output.session.poly.typ,
+        enclosing_scheme,
+        &[&run_boundary.family_path],
+    );
+}
+
+#[test]
+fn nested_concrete_callback_boundaries_discharge_both_families_from_outer_scheme() {
+    let root = parse(concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act observe 'a:\n",
+        "        pub mark: 'a -> 'a\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "        pub r.update f =\n",
+        "          my loop(x: [_] _) = catch x:\n",
+        "            ref_update::update v, k -> loop:k:f v\n",
+        "          loop:r.update_effect()\n",
+        "      pub act inner_var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[inner_var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        pub enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::observe::mark:r.get()\n",
+        "      pub act outer_var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[outer_var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        my enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::inner_var::enclosing:r.get()\n",
+        "my trigger = 0\n",
+    ));
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let std = lower.modules.module_decls(root_module, &Name("std".into()))[0].module;
+    let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
+    let var = lower.modules.module_decls(control, &Name("var".into()))[0].module;
+    let inner_act = lower.modules.type_decls(var, &Name("inner_var".into()))[0].id;
+    let outer_act = lower.modules.type_decls(var, &Name("outer_var".into()))[0].id;
+    let inner_companion = lower.modules.type_companion(inner_act).unwrap();
+    let outer_companion = lower.modules.type_companion(outer_act).unwrap();
+    let inner_run = lower
+        .modules
+        .value_decls(inner_companion, &Name("run".into()))[0]
+        .def;
+    let inner_helper = lower
+        .modules
+        .value_decls(inner_companion, &Name("with_ref".into()))[0]
+        .def;
+    let inner_enclosing = lower
+        .modules
+        .value_decls(inner_companion, &Name("enclosing".into()))[0]
+        .def;
+    let outer_run = lower
+        .modules
+        .value_decls(outer_companion, &Name("run".into()))[0]
+        .def;
+    let outer_helper = lower
+        .modules
+        .value_decls(outer_companion, &Name("with_ref".into()))[0]
+        .def;
+    let outer_enclosing = lower
+        .modules
+        .value_decls(outer_companion, &Name("enclosing".into()))[0]
+        .def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let inner_boundary = extract_real_run_boundary(
+        &output.session.poly.typ,
+        def_scheme(&output, inner_run).predicate,
+    );
+    let outer_boundary = extract_real_run_boundary(
+        &output.session.poly.typ,
+        def_scheme(&output, outer_run).predicate,
+    );
+    assert_ne!(
+        inner_boundary.family_path, outer_boundary.family_path,
+        "the nested witness must use two distinct local families"
+    );
+
+    let inner_callback =
+        assert_concrete_callback_enclosing_application(&output, inner_enclosing, inner_helper);
+    let outer_callback =
+        assert_concrete_callback_enclosing_application(&output, outer_enclosing, outer_helper);
+    for (label, callback) in [
+        ("inner callback", inner_callback),
+        ("outer callback", outer_callback),
+    ] {
+        assert!(
+            find_select_by_name(&output.session, callback, "get").is_some(),
+            "{label} must actually read through its ref argument"
+        );
+        assert!(
+            find_select_by_name(&output.session, callback, "update").is_some(),
+            "{label} must actually update through its ref argument"
+        );
+    }
+
+    for (label, enclosing) in [
+        ("inner enclosing definition", inner_enclosing),
+        ("outer enclosing definition", outer_enclosing),
+    ] {
+        let scheme = def_scheme(&output, enclosing);
+        assert!(
+            output
+                .session
+                .generalized_scheme_record(enclosing)
+                .is_some(),
+            "{label} must pass through ordinary generalization"
+        );
+        assert!(
+            scheme.stack_quantifiers.is_empty(),
+            "{label} must not retain a raw subtraction owner"
+        );
+        assert_enclosing_observe_only_scheme(
+            &output.session.poly.typ,
+            scheme,
+            &[&inner_boundary.family_path, &outer_boundary.family_path],
+        );
+    }
 }
 
 #[test]
@@ -496,6 +742,101 @@ fn assert_resolved_helper_two_step_application(
             .ref_target(expr_ref(&output.session, *helper_ref)),
         Some(helper),
         "caller must use a normally resolved reference to the separate helper definition"
+    );
+}
+
+fn assert_concrete_callback_enclosing_application(
+    output: &BodyLowering,
+    enclosing: DefId,
+    helper: DefId,
+) -> ExprId {
+    let Expr::Lambda(_, enclosing_body) =
+        output.session.poly.expr(binding_body_id(output, enclosing))
+    else {
+        panic!("enclosing definition must lower its init parameter as a lambda");
+    };
+    let Expr::App(helper_with_init, callback) = output.session.poly.expr(*enclosing_body) else {
+        panic!("enclosing body must apply the helper to the concrete callback second");
+    };
+    let Expr::App(helper_ref, _) = output.session.poly.expr(*helper_with_init) else {
+        panic!("enclosing body must apply the helper to init first");
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, *helper_ref)),
+        Some(helper),
+        "enclosing body must resolve and instantiate the separate helper definition"
+    );
+    let Expr::Lambda(callback_param, callback_body) = output.session.poly.expr(*callback) else {
+        panic!("helper caller must supply a concrete callback lambda");
+    };
+    assert!(
+        matches!(output.session.poly.pat(*callback_param), Pat::Var(_)),
+        "the concrete callback must bind the ref capability it actually uses"
+    );
+    *callback_body
+}
+
+fn assert_enclosing_observe_only_scheme(
+    types: &TypeArena,
+    scheme: &poly::types::Scheme,
+    local_family_paths: &[&[String]],
+) {
+    assert!(
+        scheme.role_predicates.is_empty() && scheme.recursive_bounds.is_empty(),
+        "the simple enclosing witness must keep its complete effect structure in the predicate"
+    );
+    let Pos::Fun {
+        arg,
+        arg_eff,
+        ret_eff,
+        ret,
+    } = types.pos(scheme.predicate)
+    else {
+        panic!("enclosing scheme must be a function");
+    };
+    let Neg::Var(input) = types.neg(*arg) else {
+        panic!("enclosing input must remain an ordinary payload variable");
+    };
+    assert!(
+        matches!(types.neg(*arg_eff), Neg::Bot),
+        "evaluating the enclosing function argument must stay pure"
+    );
+    let Pos::Row(effect_items) = types.pos(*ret_eff) else {
+        panic!(
+            "enclosing result effect must finalize as the ordinary observe row, got {:?}",
+            types.pos(*ret_eff)
+        );
+    };
+    let [effect_item] = effect_items.as_slice() else {
+        panic!("enclosing result effect must contain only the ordinary observe family");
+    };
+    let Pos::Con(effect_path, effect_args) = types.pos(*effect_item) else {
+        panic!("enclosing ordinary residual effect must be a concrete family");
+    };
+    assert_eq!(effect_path, &observe_path());
+    for local_family_path in local_family_paths {
+        assert_ne!(
+            effect_path, local_family_path,
+            "a concrete local family F(P) must not leak into the enclosing finalized scheme"
+        );
+    }
+    let [effect_payload] = effect_args.as_slice() else {
+        panic!("the ordinary observe family must retain its payload");
+    };
+    assert_eq!(
+        invariant_var(types, *effect_payload),
+        *input,
+        "the ordinary residual effect must retain the enclosing payload"
+    );
+    let Pos::Var(result) = types.pos(*ret) else {
+        panic!("the concrete callback must produce an ordinary result value");
+    };
+    assert_eq!(
+        result, input,
+        "the enclosing result must be produced from the concrete callback's ref read"
     );
 }
 
@@ -1184,4 +1525,11 @@ fn family_path() -> Vec<String> {
 
 fn ref_path() -> Vec<String> {
     REF_PATH.iter().map(|segment| (*segment).into()).collect()
+}
+
+fn observe_path() -> Vec<String> {
+    OBSERVE_PATH
+        .iter()
+        .map(|segment| (*segment).into())
+        .collect()
 }

@@ -789,6 +789,60 @@ callerは同じresolved helper `DefId`を二段applyし、各schemeの`P` / `ρ`
 callerからfreshenされた。check listとproduction gateの結論は変わらず、LVB-A3をLVB-Bの
 production gateとする。
 
+### LVB-A4: concrete callback application and enclosing generalization characterization
+
+このsliceもproduction lowering codeを変更しない。LVB-A3が証明したseparate helper definitionの
+producer-side schemeを、concrete callback applicationとそのcaller自身のgeneralizationまで
+追跡する。LVB-A3と合わせて、LVB-B再開前のcorrected production gateとする。
+
+変更:
+
+- LVB-A3のcorrected witnessと同じく、payload-bearing synthetic local-var act copyの
+  `var_ref` / `run` / `with_ref`を`CopiedSourceInternal` memberとしてprimitive layerで直接作る。
+  helper自身に`my $x` sugarや別のsynthetic local-var act copyを含めない
+- bare applicationではなく、通常のdefinition boundaryを持つenclosing functionを作る。
+  enclosing bodyはresolved `with_ref`へ`init`とconcrete callback lambdaを順にapplyし、
+  enclosing definition自身を通常のlowering / generalize / finalize経路へ通す
+- callbackはopaqueなgeneric parameterをforwardしない。受け取ったrefの`get`相当と
+  `update_effect`相当を実際に呼ぶnon-trivial bodyを持ち、その操作結果からordinary result
+  valueを作る
+- helper自身やapplication直後のlocal typeだけでなく、enclosing definitionのfinalized schemeを
+  検査する。`stack_quantifiers`が空で、local familyのconcrete row item `F(P)`がschemeの
+  effect structureのどこにも残らず、callback内のlocal operation以外のordinary residual
+  effectだけが正しい形で残ることを固定する
+- 可能なら、外側のlocal familyを扱うcallback bodyが、concrete callbackと固有のlocal familyを
+  持つ第二のgeneralized functionを呼ぶnested-boundary controlも置く。元の症状の
+  `run` / `text_with_mock`形状に対応し、enclosing schemeから内外両方のlocal familyが消える
+  ことを固定する
+- 本sliceが成立した場合、LVB-A3とLVB-A4を合わせてLVB-Bのcorrected production gateとする。
+  反証された場合は「helper schemeは正しいがconcrete callerがfamilyをdischargeできない」
+  deeper mechanism gapとして記録し、追加設計なしにLVB-Bを再開しない
+
+check:
+
+- targeted concrete-callback `get` / `update_effect` application characterization
+- targeted enclosing-definition generalize / finalize characterization
+- targeted finalized-scheme family absence and ordinary residual-effect shape
+- possible nested two-boundary enclosing-generalization characterization
+- full `local_var_effect_boundary_characterization` test suite
+
+characterization
+`concrete_callback_application_discharge_reaches_enclosing_generalized_scheme`は成立した。
+corrected LVB-A3と同じprimitive-layer synthetic act copyに`with_ref`とenclosing definitionを
+置き、enclosing bodyからresolved helperへinitとconcrete callback lambdaを二段applyした。
+callbackはrefの`get`と`update`を実際に使い、local operationとは別のordinary `observe(P)` effectを
+発生させた。enclosing definitionのfinalized schemeは`P -> [observe(P)] P`となり、
+`stack_quantifiers`は空、local family `F(P)`はeffect structureへ残らなかった。
+
+`nested_concrete_callback_boundaries_discharge_both_families_from_outer_scheme`も成立した。
+外側callbackが自分のrefをread / updateした後、別のlocal familyを同じprimitive helper mechanismで
+処理するgeneralized inner functionを呼ぶ。inner / outer definitionのfinalized schemeはいずれも
+ordinary `observe(P)`だけを残し、異なる二つのlocal familyは外側schemeへ漏れなかった。これは元の
+症状の`run`から`text_with_mock`を呼ぶ二境界形状をcharacterization layerで直接固定する。
+
+したがって、10回目で不足していた「concrete callback application後のenclosing generalization」
+は現行v4 mechanismで成立する。LVB-A3とLVB-A4を合わせてLVB-Bのcorrected production gateとする。
+
 ### LVB-B: private helper と全 local-var lowering path
 
 変更:
