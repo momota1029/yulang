@@ -7,7 +7,10 @@
 
 use super::*;
 
-use crate::constraints::{ConstraintWeights, OriginId, TypeLevel};
+use crate::constraints::explain::{ExplanationBudget, ExplanationEdgeKind};
+use crate::constraints::{
+    ConstraintWeights, OriginId, RowDerivationRule, StructuralDerivationRule, TypeLevel,
+};
 use crate::instantiate::instantiate_scheme;
 
 #[derive(Debug)]
@@ -55,6 +58,7 @@ struct HandBuiltNestedDefinition {
 
 #[derive(Debug, Clone, Copy)]
 struct DeferredNestedApplicationSnapshot {
+    target_ref_value: TypeVar,
     callee_ref_value: TypeVar,
     argument_value: TypeVar,
     argument_effect: TypeVar,
@@ -109,6 +113,25 @@ struct MultiStatementBoundaryTrace {
     callback_evaluation_effect: EffectSlotTrace,
     first_application_effect: EffectSlotTrace,
     second_application_effect: EffectSlotTrace,
+}
+
+#[derive(Debug, Clone)]
+struct V5NestedBoundaryTrace {
+    instantiated_inner_return_effect: EffectSlotTrace,
+    actual_callback_body_effect: EffectSlotTrace,
+    inner_return_family_lower_path: Vec<String>,
+    callback_body_to_residual_rules: Vec<StructuralDerivationRule>,
+    callback_body_to_residual_row_rules: Vec<RowDerivationRule>,
+    argument_effect: EffectSlotTrace,
+    call_effect: EffectSlotTrace,
+    result_effect: EffectSlotTrace,
+    outer_aggregate_effect: EffectSlotTrace,
+    outer_callback_ret_eff: TypeVar,
+    outer_second_application_effect: EffectSlotTrace,
+    argument_effect_to_call: bool,
+    inner_return_effect_to_call: bool,
+    call_to_result: bool,
+    result_to_outer_aggregate: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -229,7 +252,7 @@ fn parsed_and_hand_built_callbacks_keep_the_same_edges_after_deferred_resolution
 
 #[test]
 fn nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_generalization() {
-    let (mut output, parsed_inner, parsed_outer, hand_inner, hand_outer) =
+    let (mut output, parsed_inner, parsed_outer, hand_inner, hand_outer, _, _, _, _) =
         nested_deferred_resolution_fixture();
     assert!(
         !output.session.has_pending_work(),
@@ -431,6 +454,157 @@ fn nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_gen
         "the nested hand-built gap must retain the outer family {hand_outer_family_name}: \
          {hand_outer_scheme}"
     );
+}
+
+#[test]
+fn v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization() {
+    let (mut output, _, _, _, _, parsed_inner, parsed_outer, hand_inner, hand_outer) =
+        nested_deferred_resolution_fixture();
+    assert!(
+        !output.session.has_pending_work(),
+        "the v5 nested comparison must inspect a quiescent post-UseResolved graph"
+    );
+
+    let parsed_inner_family = resolved_snapshot_family_path(&output, parsed_inner.boundary);
+    let parsed_outer_family = resolved_snapshot_family_path(&output, parsed_outer.boundary);
+    let hand_inner_family = resolved_snapshot_family_path(&output, hand_inner.boundary);
+    let hand_outer_family = resolved_snapshot_family_path(&output, hand_outer.boundary);
+    assert_ne!(parsed_inner_family, parsed_outer_family);
+    assert_ne!(hand_inner_family, hand_outer_family);
+
+    let parsed_inner_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, parsed_inner.def),
+    );
+    let hand_inner_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, hand_inner.def),
+    );
+    let parsed_outer_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, parsed_outer.def),
+    );
+    let hand_outer_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, hand_outer.def),
+    );
+    eprintln!("v5 parsed inner finalized scheme: {parsed_inner_scheme}");
+    eprintln!("v5 hand-built inner finalized scheme: {hand_inner_scheme}");
+    eprintln!("v5 parsed outer finalized scheme: {parsed_outer_scheme}");
+    eprintln!("v5 hand-built outer finalized scheme: {hand_outer_scheme}");
+
+    let parsed_nested =
+        v5_nested_boundary_trace(&output, parsed_outer, parsed_inner_family.as_slice());
+    let hand_nested = v5_nested_boundary_trace(&output, hand_outer, hand_inner_family.as_slice());
+    eprintln!("v5 parsed nested trace: {parsed_nested:#?}");
+    eprintln!("v5 hand-built nested trace: {hand_nested:#?}");
+    for (label, trace) in [("parsed", &parsed_nested), ("hand-built", &hand_nested)] {
+        assert!(
+            trace.argument_effect_to_call
+                && trace.inner_return_effect_to_call
+                && trace.call_to_result
+                && trace.result_to_outer_aggregate,
+            "{label} nested call must retain the complete call-to-aggregate wiring: {trace:#?}"
+        );
+        assert_eq!(
+            trace.outer_callback_ret_eff, trace.outer_aggregate_effect.var,
+            "{label} outer callback Fun.ret_eff must be the block aggregate"
+        );
+    }
+
+    let hand_inner_family_name = hand_inner_family.join("::");
+    let hand_outer_family_name = hand_outer_family.join("::");
+    let parsed_inner_family_name = parsed_inner_family.join("::");
+    let parsed_outer_family_name = parsed_outer_family.join("::");
+    let normalized_parsed_inner =
+        parsed_inner_scheme.replace(&parsed_inner_family_name, "<inner-family>");
+    let normalized_hand_inner = hand_inner_scheme
+        .replace(&format!("\"{hand_inner_family_name}\""), "<inner-family>")
+        .replace(&hand_inner_family_name, "<inner-family>");
+    assert_eq!(
+        normalized_parsed_inner, normalized_hand_inner,
+        "the v5 hand-built inner must finalize to the parsed LVB-A3 target structure"
+    );
+    assert!(
+        def_scheme(&output, hand_inner.def)
+            .stack_quantifiers
+            .is_empty(),
+        "the v5 inner target must not retain a raw subtraction owner: {hand_inner_scheme}"
+    );
+    assert!(
+        !hand_outer_scheme.contains(&hand_outer_family_name),
+        "the v5 outer boundary must discharge its own family: {hand_outer_scheme}"
+    );
+    assert!(
+        !parsed_outer_scheme.contains(&parsed_inner_family_name)
+            && !parsed_outer_scheme.contains(&parsed_outer_family_name),
+        "the parsed nested control must isolate both local families: {parsed_outer_scheme}"
+    );
+    assert!(
+        hand_outer_scheme.contains(&hand_inner_family_name),
+        "the v5 nested witness must preserve the inner-family leak: {hand_outer_scheme}"
+    );
+    assert!(
+        parsed_nested.actual_callback_body_effect.has_family_lower
+            && hand_nested.actual_callback_body_effect.has_family_lower,
+        "both callbacks genuinely use the inner ref family"
+    );
+    assert!(
+        !parsed_nested.argument_effect.has_family_lower
+            && !hand_nested.argument_effect.has_family_lower,
+        "callback value evaluation stays exact-pure; the leak is not argument evaluation"
+    );
+    assert!(
+        !parsed_nested
+            .instantiated_inner_return_effect
+            .has_family_lower
+            && !parsed_nested.call_effect.has_family_lower
+            && !parsed_nested.result_effect.has_family_lower
+            && !parsed_nested.outer_aggregate_effect.has_family_lower
+            && !parsed_nested
+                .outer_second_application_effect
+                .has_family_lower,
+        "the parsed control must keep the inner family out of every result-side effect slot: \
+         {parsed_nested:#?}"
+    );
+    assert!(
+        hand_nested
+            .instantiated_inner_return_effect
+            .has_family_lower
+            && hand_nested.call_effect.has_family_lower
+            && hand_nested.result_effect.has_family_lower
+            && hand_nested.outer_aggregate_effect.has_family_lower
+            && hand_nested.outer_second_application_effect.has_family_lower,
+        "the first hand-built result-side contamination must propagate through outer finalize: \
+         {hand_nested:#?}"
+    );
+    assert!(
+        !hand_nested.inner_return_family_lower_path.is_empty()
+            && parsed_nested.inner_return_family_lower_path.is_empty(),
+        "only the hand-built instantiated residual may have a concrete inner-family lower path"
+    );
+    assert!(
+        !hand_nested.callback_body_to_residual_rules.is_empty()
+            && parsed_nested.callback_body_to_residual_rules.is_empty(),
+        "only the hand-built callback body may connect directly to the instantiated residual"
+    );
+    assert!(
+        hand_nested
+            .callback_body_to_residual_rules
+            .contains(&StructuralDerivationRule::FunctionReturnEffect),
+        "the direct residual connection must be derived by function return-effect decomposition"
+    );
+    assert!(
+        hand_nested
+            .callback_body_to_residual_row_rules
+            .contains(&RowDerivationRule::UnweightedReduction),
+        "the concrete family must enter the residual when the expected handled row is reduced \
+         against callback-body lowers that already exist"
+    );
+
+    let events = output.session.take_scc_events();
+    assert_inner_generalized_before_outer_use(events.as_slice(), parsed_inner, parsed_outer);
+    assert_inner_generalized_before_outer_use(events.as_slice(), hand_inner, hand_outer);
 }
 
 #[test]
@@ -1084,6 +1258,54 @@ fn var_reaches_family(
         }
     }
     false
+}
+
+fn family_lower_path(
+    machine: &crate::constraints::ConstraintMachine,
+    root: TypeVar,
+    family_path: &[String],
+) -> Vec<String> {
+    let mut pending = std::collections::VecDeque::from([(root, Vec::new())]);
+    let mut visited = rustc_hash::FxHashSet::default();
+    while let Some((var, path)) = pending.pop_front() {
+        if !visited.insert(var) {
+            continue;
+        }
+        let Some(bounds) = machine.bounds().of(var) else {
+            continue;
+        };
+        for lower in bounds.lowers() {
+            let node = machine.types().pos(lower.pos);
+            let mut next_path = path.clone();
+            next_path.push(format!("{var:?} <- {:?} {node:?}", lower.pos));
+            match node {
+                Pos::Con(found, _) if found == family_path => return next_path,
+                Pos::Row(items)
+                    if items.iter().any(|item| {
+                        matches!(
+                            machine.types().pos(*item),
+                            Pos::Con(found, _) if found == family_path
+                        )
+                    }) =>
+                {
+                    let family_item = items
+                        .iter()
+                        .find_map(|item| match machine.types().pos(*item) {
+                            Pos::Con(found, args) if found == family_path => {
+                                Some(format!("{:?} {} {args:?}", item, found.join("::")))
+                            }
+                            _ => None,
+                        })
+                        .expect("matching family row item");
+                    next_path.push(family_item);
+                    return next_path;
+                }
+                Pos::Var(next) => pending.push_back((*next, next_path)),
+                _ => {}
+            }
+        }
+    }
+    Vec::new()
 }
 
 fn multi_statement_single_boundary_fixture() -> (
@@ -1753,6 +1975,10 @@ fn nested_deferred_resolution_fixture() -> (
     HandBuiltNestedDefinition,
     HandBuiltNestedDefinition,
     HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
 ) {
     let root = parse(nested_deferred_resolution_fixture_source());
     let lower = lower_module_map(&root);
@@ -1786,6 +2012,14 @@ fn nested_deferred_resolution_fixture() -> (
         .modules
         .value_decls(parsed_outer_companion, &Name("enclosing".into()))[0]
         .def;
+    let parsed_higher_inner_def = lower
+        .modules
+        .value_decls(parsed_inner_companion, &Name("higher_inner".into()))[0]
+        .def;
+    let parsed_higher_outer_def = lower
+        .modules
+        .value_decls(parsed_outer_companion, &Name("higher_outer".into()))[0]
+        .def;
 
     let (inner_trigger, _) =
         binding_def_and_order(&lower.modules, root_module, "text_with_mock_trigger");
@@ -1812,6 +2046,19 @@ fn nested_deferred_resolution_fixture() -> (
         inner_local_act.act, outer_local_act.act,
         "the hand-built nested pair must resolve each helper in its own synthetic act copy"
     );
+    let hand_inner_family_path = lower
+        .modules
+        .type_decl_by_id(inner_local_act.act)
+        .map(|decl| {
+            lower
+                .modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>()
+        })
+        .expect("hand-built inner family path");
 
     let mut lowerer = crate::lowering::body::BodyLowerer::new(lower);
     lowerer.lower_block(&root, root_module);
@@ -1850,6 +2097,39 @@ fn nested_deferred_resolution_fixture() -> (
         )),
         queued_registration: None,
     };
+    let parsed_higher_inner = HandBuiltNestedDefinition {
+        def: parsed_higher_inner_def,
+        root: lowerer
+            .typing
+            .def(parsed_higher_inner_def)
+            .expect("parsed higher-order inner generalization root"),
+        boundary: recover_parsed_second_application_snapshot(
+            &lowerer.session,
+            parsed_higher_inner_def,
+            parsed_inner_helper,
+        ),
+        nested_call: None,
+        queued_registration: None,
+    };
+    let parsed_higher_outer_boundary = recover_parsed_second_application_snapshot(
+        &lowerer.session,
+        parsed_higher_outer_def,
+        parsed_outer_helper,
+    );
+    let parsed_higher_outer = HandBuiltNestedDefinition {
+        def: parsed_higher_outer_def,
+        root: lowerer
+            .typing
+            .def(parsed_higher_outer_def)
+            .expect("parsed higher-order outer generalization root"),
+        boundary: parsed_higher_outer_boundary,
+        nested_call: Some(recover_second_stage_nested_application_snapshot(
+            &lowerer.session,
+            parsed_higher_outer_boundary.callback_expr,
+            parsed_higher_inner_def,
+        )),
+        queued_registration: None,
+    };
 
     let hand_inner = lower_hand_built_nested_function(
         &mut lowerer,
@@ -1875,6 +2155,20 @@ fn nested_deferred_resolution_fixture() -> (
             "  std::control::var::observe::mark:r.get()\n",
         ),
     );
+    let v5_inner = lower_v5_corrected_nested_function(
+        &mut lowerer,
+        inner_local_companion,
+        hand_inner_helper,
+        None,
+        None,
+    );
+    let v5_outer = lower_v5_corrected_nested_function(
+        &mut lowerer,
+        outer_local_companion,
+        hand_outer_helper,
+        Some(v5_inner.def),
+        Some(hand_inner_family_path.as_slice()),
+    );
 
     lowerer.drain_analysis_with_conformance();
     lowerer
@@ -1882,7 +2176,325 @@ fn nested_deferred_resolution_fixture() -> (
         .resolve_unresolved_selections_as_record_fields();
     let output = lowerer.finish();
     assert!(output.errors.is_empty(), "{:?}", output.errors);
-    (output, parsed_inner, parsed_outer, hand_inner, hand_outer)
+    (
+        output,
+        parsed_inner,
+        parsed_outer,
+        hand_inner,
+        hand_outer,
+        parsed_higher_inner,
+        parsed_higher_outer,
+        v5_inner,
+        v5_outer,
+    )
+}
+
+fn lower_v5_corrected_nested_function(
+    body_lowerer: &mut crate::lowering::body::BodyLowerer,
+    module: ModuleId,
+    helper: DefId,
+    nested_target: Option<DefId>,
+    nested_family_path: Option<&[String]>,
+) -> HandBuiltNestedDefinition {
+    let def = body_lowerer.session.poly.defs.fresh();
+    body_lowerer.session.poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::My,
+            scheme: None,
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let previous_level = body_lowerer.session.infer.enter_child_level();
+    let root = body_lowerer.session.infer.fresh_type_var();
+    body_lowerer.typing.set_def(def, root);
+    let queued_registration = DefinitionRegistration {
+        queue_index: body_lowerer.session.work().len(),
+        root,
+    };
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+
+    let (function, boundary, nested_call) = {
+        let mut lowerer = ExprLowerer::new(
+            &mut body_lowerer.session,
+            &body_lowerer.modules,
+            module,
+            ModuleOrder::from_index(u32::MAX),
+            def,
+        );
+        let init_value = lowerer.fresh_type_var();
+        let enclosing_body_level = lowerer.session.infer.enter_child_level();
+        let before_function_locals = lowerer.locals.len();
+        let higher_order_param = nested_target.is_none().then(|| {
+            let value = lowerer.fresh_type_var();
+            let pat = lowerer.bind_pattern_local(
+                Name("f".into()),
+                value,
+                None,
+                LocalCallReturnEffect::Annotated,
+            );
+            let body_level = lowerer.session.infer.enter_child_level();
+            (value, pat, body_level)
+        });
+        let init_expr = lowerer.session.poly.add_expr(Expr::Lit(Lit::Unit));
+        let init = Computation::value(init_expr, init_value, lowerer.fresh_exact_pure_effect());
+        let helper_ref = lowerer.lower_resolved_value_ref("with_ref".into(), helper);
+        let helper_ref_value = helper_ref.value;
+        let helper_with_init = lowerer.make_internal_app(helper_ref, init);
+
+        // v5 prepare: bind only a fresh placeholder. The helper application below is the first
+        // connection from this parameter to concrete `ref [F(P)] P`.
+        let callback_param = lowerer.fresh_type_var();
+        let before_callback_locals = lowerer.locals.len();
+        let callback_pat = lowerer.bind_pattern_local(
+            Name("r".into()),
+            callback_param,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        lowerer
+            .function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let callback_body_level = lowerer.session.infer.enter_child_level();
+
+        let (body, nested_call) = if let Some(nested_target) = nested_target {
+            let first_root = parse("my item = r.get()\n");
+            let first = lowerer
+                .lower_expr(&binding_expr(&first_root, "item"))
+                .expect("v5 outer callback leading statement");
+            let backing_root = parse("my item = r.get()\n");
+            let backing = lowerer
+                .lower_expr(&binding_expr(&backing_root, "item"))
+                .expect("v5 nested backing argument");
+            let nested_ref = lowerer.lower_resolved_value_ref("v5_inner".into(), nested_target);
+            let target_ref_value = nested_ref.value;
+            let nested_with_backing = lowerer.make_internal_app(nested_ref, backing);
+            let nested_callback_param = lowerer.fresh_type_var();
+            constrain_hand_built_local_reference(
+                &mut lowerer,
+                nested_callback_param,
+                init_value,
+                nested_family_path.expect("nested call must identify the inner family"),
+            );
+            let before_nested_callback_locals = lowerer.locals.len();
+            let nested_callback_pat = lowerer.bind_pattern_local(
+                Name("inner_r".into()),
+                nested_callback_param,
+                None,
+                LocalCallReturnEffect::Annotated,
+            );
+            lowerer
+                .function_frames
+                .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+            let nested_callback_level = lowerer.session.infer.enter_child_level();
+            let callback_root = parse(concat!(
+                "my callback_body =\n",
+                "  my before = inner_r.get()\n",
+                "  inner_r.update (\\_ -> before)\n",
+                "  std::control::var::observe::mark:inner_r.get()\n",
+            ));
+            let nested_callback_body = lowerer
+                .lower_expr(&binding_expr(&callback_root, "callback_body"))
+                .expect("v5 nested higher-order callback body");
+            lowerer.session.infer.restore_level(nested_callback_level);
+            lowerer
+                .function_frames
+                .pop()
+                .expect("nested callback frame must be balanced");
+            lowerer.locals.truncate(before_nested_callback_locals);
+            let nested_callback_value = lowerer.fresh_type_var();
+            let nested_callback_effect = lowerer.fresh_exact_pure_effect();
+            let arg = lowerer.alloc_neg(Neg::Var(nested_callback_param));
+            let arg_eff = lowerer.never_neg();
+            let ret_eff = lowerer.alloc_pos(Pos::Var(nested_callback_body.effect));
+            let ret = lowerer.alloc_pos(Pos::Var(nested_callback_body.value));
+            lowerer.constrain_lower(
+                nested_callback_value,
+                Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                },
+            );
+            let nested_callback_expr = lowerer
+                .session
+                .poly
+                .add_expr(Expr::Lambda(nested_callback_pat, nested_callback_body.expr));
+            let nested_callback = Computation::value(
+                nested_callback_expr,
+                nested_callback_value,
+                nested_callback_effect,
+            );
+            let callee_ref_value = nested_with_backing.value;
+            let next = lowerer.session.infer.constraints().next_type_var();
+            let nested_result = lowerer.make_internal_app(nested_with_backing, nested_callback);
+            assert_eq!(nested_result.value, TypeVar(next));
+            assert_eq!(nested_result.effect, TypeVar(next + 1));
+            let nested_call = DeferredNestedApplicationSnapshot {
+                target_ref_value,
+                callee_ref_value,
+                argument_value: nested_callback.value,
+                argument_effect: nested_callback.effect,
+                result_value: TypeVar(next),
+                result_effect: TypeVar(next + 1),
+                call_effect: TypeVar(next + 2),
+            };
+            let first_stmt = LoweredLocalStmt {
+                stmt: Stmt::Expr(first.expr),
+                effect: first.effect,
+            };
+            (
+                lowerer.prepend_block(first_stmt, nested_result),
+                Some(nested_call),
+            )
+        } else {
+            let callback_ref = lowerer
+                .lower_name(Name("f".into()))
+                .expect("v5 inner higher-order callback reference");
+            let local_ref = lowerer
+                .lower_name(Name("r".into()))
+                .expect("v5 inner local-ref callback parameter");
+            let user_result = lowerer.make_internal_app(callback_ref, local_ref);
+            let read_root = parse("my item = r.get()\n");
+            let read = lowerer
+                .lower_expr(&binding_expr(&read_root, "item"))
+                .expect("v5 inner final local-ref read");
+            (lowerer.synthetic_tuple_value(vec![user_result, read]), None)
+        };
+
+        lowerer.session.infer.restore_level(callback_body_level);
+        lowerer
+            .function_frames
+            .pop()
+            .expect("v5 callback frame must be balanced");
+        lowerer.locals.truncate(before_callback_locals);
+
+        let callback_value = lowerer.fresh_type_var();
+        let callback_effect = lowerer.fresh_exact_pure_effect();
+        let arg = lowerer.alloc_neg(Neg::Var(callback_param));
+        let arg_eff = lowerer.never_neg();
+        let ret_eff = lowerer.alloc_pos(Pos::Var(body.effect));
+        let ret = lowerer.alloc_pos(Pos::Var(body.value));
+        lowerer.constrain_lower(
+            callback_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let callback_fun = function_lower_bound(&lowerer, callback_value);
+        let callback_expr = lowerer
+            .session
+            .poly
+            .add_expr(Expr::Lambda(callback_pat, body.expr));
+        let callback = Computation::value(callback_expr, callback_value, callback_effect);
+
+        let next = lowerer.session.infer.constraints().next_type_var();
+        let result = lowerer.make_internal_app(helper_with_init, callback);
+        assert_eq!(result.value, TypeVar(next));
+        assert_eq!(result.effect, TypeVar(next + 1));
+        let boundary = DeferredSecondApplicationSnapshot {
+            helper_ref_value,
+            init_value,
+            callback_expr,
+            callback_value,
+            callback_fun,
+            callback_body_effect: body.effect,
+            result_effect: result.effect,
+            call_effect: TypeVar(next + 2),
+        };
+
+        let function_body =
+            if let Some((higher_order_value, higher_order_pat, body_level)) = higher_order_param {
+                lowerer.session.infer.restore_level(body_level);
+                let value = lowerer.fresh_type_var();
+                let effect = lowerer.fresh_exact_pure_effect();
+                let arg = lowerer.alloc_neg(Neg::Var(higher_order_value));
+                let arg_eff = lowerer.never_neg();
+                let ret_eff = lowerer.alloc_pos(Pos::Var(result.effect));
+                let ret = lowerer.alloc_pos(Pos::Var(result.value));
+                lowerer.constrain_lower(
+                    value,
+                    Pos::Fun {
+                        arg,
+                        arg_eff,
+                        ret_eff,
+                        ret,
+                    },
+                );
+                let expr = lowerer
+                    .session
+                    .poly
+                    .add_expr(Expr::Lambda(higher_order_pat, result.expr));
+                lowerer.locals.truncate(before_function_locals);
+                Computation::value(expr, value, effect)
+            } else {
+                result
+            };
+        lowerer.session.infer.restore_level(enclosing_body_level);
+        let param_def = lowerer.session.poly.defs.fresh();
+        lowerer.session.poly.defs.set(param_def, Def::Arg);
+        let pat = lowerer.session.poly.add_pat(Pat::Var(param_def));
+        let function_value = lowerer.fresh_type_var();
+        let function_effect = lowerer.fresh_exact_pure_effect();
+        let arg = lowerer.alloc_neg(Neg::Var(init_value));
+        let arg_eff = lowerer.never_neg();
+        let ret_eff = lowerer.alloc_pos(Pos::Var(function_body.effect));
+        let ret = lowerer.alloc_pos(Pos::Var(function_body.value));
+        lowerer.constrain_lower(
+            function_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let expr = lowerer
+            .session
+            .poly
+            .add_expr(Expr::Lambda(pat, function_body.expr));
+        (
+            Computation::value(expr, function_value, function_effect),
+            boundary,
+            nested_call,
+        )
+    };
+
+    let body_pos = body_lowerer
+        .session
+        .infer
+        .alloc_pos(Pos::Var(function.value));
+    let root_neg = body_lowerer.session.infer.alloc_neg(Neg::Var(root));
+    body_lowerer
+        .session
+        .infer
+        .subtype(body_pos, root_neg, OriginId::unknown_internal());
+    let Some(Def::Let { body, .. }) = body_lowerer.session.poly.defs.get_mut(def) else {
+        unreachable!()
+    };
+    *body = Some(function.expr);
+    body_lowerer
+        .session
+        .record_binding_fetch(def, BindingFetch::from_evaluation(function.evaluation));
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    body_lowerer.session.infer.restore_level(previous_level);
+
+    HandBuiltNestedDefinition {
+        def,
+        root,
+        boundary,
+        nested_call,
+        queued_registration: Some(queued_registration),
+    }
 }
 
 fn lower_hand_built_nested_function(
@@ -2074,6 +2686,7 @@ fn wrap_callback_body_in_nested_call(
     assert_eq!(nested_result.value, TypeVar(next));
     assert_eq!(nested_result.effect, TypeVar(next + 1));
     let nested_call = DeferredNestedApplicationSnapshot {
+        target_ref_value: callee_ref_value,
         callee_ref_value,
         argument_value: nested_arg.value,
         argument_effect: nested_arg.effect,
@@ -2118,7 +2731,7 @@ fn assert_inner_generalized_before_outer_use(
     let nested_ref_value = outer
         .nested_call
         .expect("outer definition must retain its nested call")
-        .callee_ref_value;
+        .target_ref_value;
     let inner_quantify = events
         .iter()
         .position(|event| {
@@ -2236,17 +2849,22 @@ fn recover_parsed_second_application_snapshot(
     enclosing: DefId,
     helper: DefId,
 ) -> DeferredSecondApplicationSnapshot {
-    let Expr::Lambda(_, enclosing_body) =
-        session.poly.expr(match session.poly.defs.get(enclosing) {
-            Some(Def::Let {
-                body: Some(body), ..
-            }) => *body,
-            _ => panic!("parsed enclosing witness must have a lowered body"),
-        })
-    else {
-        panic!("parsed enclosing witness must lower its init parameter as a lambda");
+    let mut enclosing_body = match session.poly.defs.get(enclosing) {
+        Some(Def::Let {
+            body: Some(body), ..
+        }) => *body,
+        _ => panic!("parsed enclosing witness must have a lowered body"),
     };
-    let Expr::App(helper_with_init, callback_expr) = session.poly.expr(*enclosing_body) else {
+    let mut parameter_count = 0;
+    while let Expr::Lambda(_, body) = session.poly.expr(enclosing_body) {
+        enclosing_body = *body;
+        parameter_count += 1;
+    }
+    assert!(
+        parameter_count > 0,
+        "parsed enclosing witness must lower at least its init parameter as a lambda"
+    );
+    let Expr::App(helper_with_init, callback_expr) = session.poly.expr(enclosing_body) else {
         panic!("parsed enclosing body must apply helper to callback second");
     };
     let Expr::App(helper_ref_expr, _) = session.poly.expr(*helper_with_init) else {
@@ -2342,11 +2960,67 @@ fn recover_nested_application_snapshot(
     };
 
     DeferredNestedApplicationSnapshot {
+        target_ref_value: callee_ref_value,
         callee_ref_value,
         argument_value: *argument_value,
         argument_effect: *argument_effect,
         result_value: *result_value,
         // `make_app_with_origins` allocates result value, result effect, and call effect in order.
+        result_effect: TypeVar(result_value.0 + 1),
+        call_effect: *call_effect,
+    }
+}
+
+fn recover_second_stage_nested_application_snapshot(
+    session: &AnalysisSession,
+    callback_expr: ExprId,
+    nested_target: DefId,
+) -> DeferredNestedApplicationSnapshot {
+    let first_application = find_call_to_target(session, callback_expr, nested_target)
+        .expect("parsed outer callback must call the higher-order inner definition");
+    let Expr::App(callee_expr, _) = session.poly.expr(first_application) else {
+        unreachable!()
+    };
+    let nested_ref = expr_ref(session, *callee_expr);
+    let target_ref_value = session
+        .refs
+        .value(nested_ref)
+        .expect("higher-order nested ref value slot");
+    let first_upper = function_upper_bound(session.infer.constraints(), target_ref_value);
+    let Neg::Fun { ret, .. } = session.infer.constraints().types().neg(first_upper) else {
+        unreachable!()
+    };
+    let Neg::Var(callee_ref_value) = session.infer.constraints().types().neg(*ret) else {
+        panic!("higher-order first application must preserve its result slot");
+    };
+    let second_upper = function_upper_bound(session.infer.constraints(), *callee_ref_value);
+    let Neg::Fun {
+        arg,
+        arg_eff,
+        ret_eff,
+        ret,
+    } = session.infer.constraints().types().neg(second_upper)
+    else {
+        unreachable!()
+    };
+    let Pos::Var(argument_value) = session.infer.constraints().types().pos(*arg) else {
+        panic!("higher-order callback argument must preserve its value slot");
+    };
+    let Pos::Var(argument_effect) = session.infer.constraints().types().pos(*arg_eff) else {
+        panic!("higher-order callback argument must preserve its evaluation-effect slot");
+    };
+    let Neg::Var(call_effect) = session.infer.constraints().types().neg(*ret_eff) else {
+        panic!("higher-order nested call effect must preserve its slot");
+    };
+    let Neg::Var(result_value) = session.infer.constraints().types().neg(*ret) else {
+        panic!("higher-order nested result must preserve its value slot");
+    };
+    DeferredNestedApplicationSnapshot {
+        target_ref_value,
+        callee_ref_value: *callee_ref_value,
+        argument_value: *argument_value,
+        argument_effect: *argument_effect,
+        result_value: *result_value,
         result_effect: TypeVar(result_value.0 + 1),
         call_effect: *call_effect,
     }
@@ -2703,6 +3377,141 @@ fn post_resolution_edges(
     }
 }
 
+fn v5_nested_boundary_trace(
+    output: &BodyLowering,
+    definition: HandBuiltNestedDefinition,
+    inner_family: &[String],
+) -> V5NestedBoundaryTrace {
+    let snapshot = definition
+        .nested_call
+        .expect("outer definition must retain its nested-call slots");
+    let machine = output.session.infer.constraints();
+    let resolved_fun = function_lower_bound_in_machine(machine, snapshot.callee_ref_value);
+    let Pos::Fun {
+        arg: expected_callback,
+        ret_eff: inner_return_effect,
+        ..
+    } = machine.types().pos(resolved_fun)
+    else {
+        unreachable!()
+    };
+    let application = function_upper_bound(machine, snapshot.callee_ref_value);
+    let Neg::Fun { arg_eff, .. } = machine.types().neg(application) else {
+        unreachable!()
+    };
+    let Pos::Var(argument_effect) = machine.types().pos(*arg_eff) else {
+        panic!("nested callback evaluation effect must preserve its variable slot");
+    };
+    assert_eq!(*argument_effect, snapshot.argument_effect);
+    let Neg::Fun {
+        ret_eff: expected_callback_effect,
+        ..
+    } = machine.types().neg(*expected_callback)
+    else {
+        panic!("higher-order inner callback argument must remain callable");
+    };
+    let Neg::Row(_, expected_callback_tail) = machine.types().neg(*expected_callback_effect) else {
+        panic!("higher-order inner callback must expose its handled family and residual tail");
+    };
+    let Neg::Var(expected_residual) = machine.types().neg(*expected_callback_tail) else {
+        panic!("higher-order inner callback residual must instantiate as a variable");
+    };
+    let Pos::Var(inner_return_var) = machine.types().pos(*inner_return_effect) else {
+        panic!("higher-order inner return effect must be the instantiated residual variable");
+    };
+    assert_eq!(
+        inner_return_var, expected_residual,
+        "the inner result effect must reuse the callback contract's residual"
+    );
+    let actual_callback_fun = function_lower_bound_in_machine(machine, snapshot.argument_value);
+    let actual_callback_body_effect = function_return_effect_var(machine, actual_callback_fun);
+    let callback_body_effect = definition.boundary.callback_body_effect;
+    let callback_ret_eff = function_return_effect_var(machine, definition.boundary.callback_fun);
+    let has_edge = |lower, upper| {
+        machine
+            .debug_constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .is_some()
+    };
+    let residual_upper = neg_var_id(machine.types(), *inner_return_var);
+    let callback_body_to_residual_explanation = machine
+        .bounds()
+        .of(actual_callback_body_effect)
+        .and_then(|bounds| {
+            bounds
+                .uppers()
+                .iter()
+                .position(|upper| upper.neg == residual_upper)
+                .map(|index| bounds.upper_record_ids()[index])
+        })
+        .and_then(|record| {
+            machine
+                .why_upper_bound(
+                    actual_callback_body_effect,
+                    record,
+                    ExplanationBudget::default(),
+                )
+                .ok()
+        });
+    let callback_body_to_residual_rules = callback_body_to_residual_explanation
+        .iter()
+        .flat_map(|explanation| explanation.edges.iter())
+        .filter_map(|edge| match &edge.kind {
+            ExplanationEdgeKind::Structural(rule) => Some(*rule),
+            _ => None,
+        })
+        .collect();
+    let callback_body_to_residual_row_rules = callback_body_to_residual_explanation
+        .iter()
+        .flat_map(|explanation| explanation.edges.iter())
+        .filter_map(|edge| match &edge.kind {
+            ExplanationEdgeKind::Row(rule) => Some(*rule),
+            _ => None,
+        })
+        .collect();
+
+    V5NestedBoundaryTrace {
+        instantiated_inner_return_effect: effect_slot_trace(
+            machine,
+            *inner_return_var,
+            inner_family,
+        ),
+        actual_callback_body_effect: effect_slot_trace(
+            machine,
+            actual_callback_body_effect,
+            inner_family,
+        ),
+        inner_return_family_lower_path: family_lower_path(machine, *inner_return_var, inner_family),
+        callback_body_to_residual_rules,
+        callback_body_to_residual_row_rules,
+        argument_effect: effect_slot_trace(machine, snapshot.argument_effect, inner_family),
+        call_effect: effect_slot_trace(machine, snapshot.call_effect, inner_family),
+        result_effect: effect_slot_trace(machine, snapshot.result_effect, inner_family),
+        outer_aggregate_effect: effect_slot_trace(machine, callback_body_effect, inner_family),
+        outer_callback_ret_eff: callback_ret_eff,
+        outer_second_application_effect: effect_slot_trace(
+            machine,
+            definition.boundary.result_effect,
+            inner_family,
+        ),
+        argument_effect_to_call: has_edge(
+            pos_var_id(machine.types(), snapshot.argument_effect),
+            neg_var_id(machine.types(), snapshot.call_effect),
+        ),
+        inner_return_effect_to_call: has_edge(
+            *inner_return_effect,
+            neg_var_id(machine.types(), snapshot.call_effect),
+        ),
+        call_to_result: has_edge(
+            pos_var_id(machine.types(), snapshot.call_effect),
+            neg_var_id(machine.types(), snapshot.result_effect),
+        ),
+        result_to_outer_aggregate: has_edge(
+            pos_var_id(machine.types(), snapshot.result_effect),
+            neg_var_id(machine.types(), callback_body_effect),
+        ),
+    }
+}
+
 fn nested_application_edges(
     output: &BodyLowering,
     definition: HandBuiltNestedDefinition,
@@ -2725,9 +3534,12 @@ fn nested_application_edges(
         matches!(machine.types().neg(*inner_argument_effect), Neg::Bot),
         "both nested targets take an ordinary pure function parameter"
     );
-    let Neg::Var(instantiated_argument) = machine.types().neg(*instantiated_argument) else {
-        panic!("the nested target's generalized input must instantiate into a fresh variable");
-    };
+    let instantiated_argument_birth_level =
+        if let Neg::Var(instantiated_argument) = machine.types().neg(*instantiated_argument) {
+            machine.birth_level_of(*instantiated_argument)
+        } else {
+            TypeLevel::secondary()
+        };
 
     let application = function_upper_bound(machine, snapshot.callee_ref_value);
     let Neg::Fun {
@@ -2841,7 +3653,7 @@ fn nested_application_edges(
         argument_effect_birth_level: machine.birth_level_of(snapshot.argument_effect),
         result_effect_birth_level: machine.birth_level_of(snapshot.result_effect),
         call_effect_birth_level: machine.birth_level_of(snapshot.call_effect),
-        instantiated_argument_birth_level: machine.birth_level_of(*instantiated_argument),
+        instantiated_argument_birth_level,
     }
 }
 
@@ -3096,6 +3908,11 @@ fn nested_deferred_resolution_fixture_source() -> &'static str {
         "          my before = r.get()\n",
         "          r.update (\\_ -> before)\n",
         "          std::control::var::observe::mark:r.get()\n",
+        "        pub higher_inner(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = with_ref init: \\r ->\n",
+        "          (callback r, r.get())\n",
         "      pub act outer_var 't:\n",
         "        pub get: () -> 't\n",
         "        pub set: 't -> ()\n",
@@ -3114,6 +3931,12 @@ fn nested_deferred_resolution_fixture_source() -> &'static str {
         "          my before = r.get()\n",
         "          r.update (\\_ -> before)\n",
         "          std::control::var::inner_var::enclosing:r.get()\n",
+        "        my higher_outer(init: 'p) = with_ref init: \\r ->\n",
+        "          r.get()\n",
+        "          std::control::var::inner_var::higher_inner r.get(): \\inner_r ->\n",
+        "            my before = inner_r.get()\n",
+        "            inner_r.update (\\_ -> before)\n",
+        "            std::control::var::observe::mark:inner_r.get()\n",
         "my text_with_mock_trigger(init: 'p) =\n",
         "  my $buffer = init\n",
         "  $buffer\n",
