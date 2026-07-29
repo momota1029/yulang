@@ -873,16 +873,52 @@ concrete な `ref [F(P)] P` 型で pure な `Def::Arg` として束縛」する�
 concrete な local-ref 構造との接続は helper resolution の時点まで
 **遅延**させる必要がある。
 
+## 23回目: v5 反映で LVB-B 十度目、単一 boundary は完全にクリーン、
+nested は inner family だけ残留（2026-07-29、大きな前進）
+
+設計 v5（`62c151a7`、prepare 時点の concrete ref 接続を遅延）を
+production へ反映して LVB-B 十度目を実施した。
+
+**前進**:
+
+- **単一 boundary（複数文含む）は完全にクリーンになった**——finalized
+  scheme が `'a -> 'a`、family 残留なし
+- **実際の CLI end-to-end repro が成功した**
+  （`run roots [(result::err(edit_err::abort), "start")]`）
+- outer（`$store`）の family は nested のケースでも正しく消えている
+  ——これまで9回連続で問題だった箇所は解消
+
+**残る問題**: nested のケースで、今度は **inner（`$buffer`）の
+family** が outer の finalized scheme に残った:
+
+```text
+('a & std::text::str::str) ->
+["&buffer#5:0" std::text::str::str, std::control::flow::loop]
+(std::data::result::result('b | (), 'c | edit_err), 'a)
+```
+
+inner helper scheme・outer helper scheme はどちらも LVB-A3 の target
+structure と一致していて正しい。つまり helper 自体・単一 boundary の
+discharge は完全に機能してるのに、**nested call から outer の
+callback aggregate・第二 application result へ、inner の residual が
+伝わってしまう**という、これまでとは違う経路の問題が新たに見えた。
+
+**この結果の意味**: CLI が成功しただけでは dirty な finalized scheme
+を検出できない、という22回目までの教訓が改めて有効だった証拠でもある
+——今回も CLI だけ見てたら「直った」と誤認するところだった。
+
 ## 次に調べるべきこと
 
-- **最優先（設計改訂が必要）**: `notes/design/2026-07-28-local-var-effect-boundary-fix.md`
-  §4.2 の prepare/finish lifecycle を、この発見に合わせて改訂する。
-  callback パラメータを prepare 時点で concrete ref 型として束縛せず、
-  抽象的な placeholder として body lowering を通し、helper resolution
-  （二段目 application の構築時）で初めて concrete な `ref [F(P)] P`
-  型と接続する形へ変える。これは v4 の core mechanism を否定するもの
-  ではなく、prepare/finish の**タイミング**に関する訂正。
-- 改訂後、この22回目の発見を反映した LVB-B 十度目の実装に進む。
+- **最優先**: nested call（outer callback body 内で inner 関数を呼ぶ
+  箇所）から、outer の callback aggregate・第二 application result
+  へ、**inner 自身の family がどう伝わるか**を、post-quiescence の
+  instrumentation で trace する。これまでの23回の investigation は
+  「outer 自身の family が消えるか」を中心に見てきたが、「inner の
+  family が outer へ漏れずに閉じるか」はまだ深く検証していない
+  新しい軸。
+- 単一 boundary（複数文含む）の discharge は完全に解決したと言って
+  良い水準。残るのは nested 構造特有の、inner family の閉じ込め方。
+- 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
