@@ -38,6 +38,20 @@ struct DeferredSecondApplicationSnapshot {
     call_effect: TypeVar,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DefinitionRegistration {
+    queue_index: usize,
+    root: TypeVar,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct HandBuiltNestedDefinition {
+    def: DefId,
+    root: TypeVar,
+    boundary: DeferredSecondApplicationSnapshot,
+    queued_registration: Option<DefinitionRegistration>,
+}
+
 #[test]
 fn parsed_and_hand_built_callbacks_register_the_same_second_application_edges() {
     let parsed = second_application_edges(CallbackConstruction::Parsed);
@@ -124,7 +138,126 @@ fn parsed_and_hand_built_callbacks_keep_the_same_edges_after_deferred_resolution
     );
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[test]
+fn nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_generalization() {
+    let (mut output, parsed_inner, parsed_outer, hand_inner, hand_outer) =
+        nested_deferred_resolution_fixture();
+    assert!(
+        !output.session.has_pending_work(),
+        "the nested comparison must inspect a quiescent post-UseResolved constraint graph"
+    );
+
+    let parsed_inner_edges = post_resolution_edges(&output, parsed_inner.boundary);
+    let parsed_outer_edges = post_resolution_edges(&output, parsed_outer.boundary);
+    let hand_inner_edges = post_resolution_edges(&output, hand_inner.boundary);
+    let hand_outer_edges = post_resolution_edges(&output, hand_outer.boundary);
+    assert_eq!(parsed_inner_edges, hand_inner_edges);
+    for (label, edges) in [
+        ("parsed inner", parsed_inner_edges),
+        ("parsed outer", parsed_outer_edges),
+        ("hand-built inner", hand_inner_edges),
+        ("hand-built outer", hand_outer_edges),
+    ] {
+        assert!(
+            edges.callback_to_expected
+                && edges.callback_fun_to_expected
+                && edges.callback_effect_to_expected
+                && edges.family_row_to_expected
+                && edges.helper_effect_to_call
+                && edges.call_to_result,
+            "{label} must retain all six canonical post-resolution edges: {edges:#?}"
+        );
+    }
+    assert!(!parsed_outer_edges.result_has_family_lower);
+    assert!(hand_outer_edges.result_has_family_lower);
+
+    let parsed_inner_family = resolved_snapshot_family_path(&output, parsed_inner.boundary);
+    let parsed_outer_family = resolved_snapshot_family_path(&output, parsed_outer.boundary);
+    let hand_inner_family = resolved_snapshot_family_path(&output, hand_inner.boundary);
+    let hand_outer_family = resolved_snapshot_family_path(&output, hand_outer.boundary);
+    assert_ne!(parsed_inner_family, parsed_outer_family);
+    assert_ne!(hand_inner_family, hand_outer_family);
+
+    let events = output.session.take_scc_events();
+    assert!(
+        parsed_inner.def.0 < parsed_outer.def.0,
+        "module-map source registration must assign the inner definition before the outer"
+    );
+    assert_hand_registration_root(hand_inner);
+    assert_hand_registration_root(hand_outer);
+    assert!(
+        hand_inner
+            .queued_registration
+            .expect("hand inner registration")
+            .queue_index
+            < hand_outer
+                .queued_registration
+                .expect("hand outer registration")
+                .queue_index,
+        "the hand-built inner RegisterDef must be enqueued before the outer RegisterDef"
+    );
+    for pair in [(parsed_inner, parsed_outer), (hand_inner, hand_outer)] {
+        assert_inner_generalized_before_outer_use(events.as_slice(), pair.0, pair.1);
+    }
+
+    for definition in [parsed_inner, parsed_outer, hand_inner, hand_outer] {
+        assert!(
+            output
+                .session
+                .generalized_scheme_record(definition.def)
+                .is_some(),
+            "{:?} must have a finalized generalized-scheme record",
+            definition.def
+        );
+        assert!(
+            def_scheme(&output, definition.def)
+                .stack_quantifiers
+                .is_empty(),
+            "{:?} must not retain a raw subtraction owner",
+            definition.def
+        );
+    }
+    let parsed_outer_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, parsed_outer.def),
+    );
+    for family in [&parsed_inner_family, &parsed_outer_family] {
+        let family = family.join("::");
+        assert!(
+            !parsed_outer_scheme.contains(&family),
+            "the parsed outer control must discharge {family}: {parsed_outer_scheme}"
+        );
+    }
+
+    let hand_inner_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, hand_inner.def),
+    );
+    let hand_inner_family_name = hand_inner_family.join("::");
+    assert!(
+        !hand_inner_scheme.contains(&hand_inner_family_name),
+        "the single hand-built inner boundary must discharge {hand_inner_family_name}: \
+         {hand_inner_scheme}"
+    );
+
+    let hand_outer_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, hand_outer.def),
+    );
+    assert!(
+        !hand_outer_scheme.contains(&hand_inner_family_name),
+        "the already-generalized inner family must not leak into the hand-built outer scheme: \
+         {hand_outer_scheme}"
+    );
+    let hand_outer_family_name = hand_outer_family.join("::");
+    assert!(
+        hand_outer_scheme.contains(&hand_outer_family_name),
+        "the nested hand-built gap must retain the outer family {hand_outer_family_name}: \
+         {hand_outer_scheme}"
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct PostResolutionEdges {
     callback_to_expected: bool,
     callback_fun_to_expected: bool,
@@ -433,6 +566,409 @@ fn var_reaches_family(
         }
     }
     false
+}
+
+fn nested_deferred_resolution_fixture() -> (
+    BodyLowering,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+    HandBuiltNestedDefinition,
+) {
+    let root = parse(nested_deferred_resolution_fixture_source());
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let std = lower.modules.module_decls(root_module, &Name("std".into()))[0].module;
+    let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
+    let var = lower.modules.module_decls(control, &Name("var".into()))[0].module;
+    let parsed_inner_act = lower.modules.type_decls(var, &Name("inner_var".into()))[0].id;
+    let parsed_outer_act = lower.modules.type_decls(var, &Name("outer_var".into()))[0].id;
+    let parsed_inner_companion = lower
+        .modules
+        .type_companion(parsed_inner_act)
+        .expect("parsed inner companion");
+    let parsed_outer_companion = lower
+        .modules
+        .type_companion(parsed_outer_act)
+        .expect("parsed outer companion");
+    let parsed_inner_helper = lower
+        .modules
+        .value_decls(parsed_inner_companion, &Name("with_ref".into()))[0]
+        .def;
+    let parsed_outer_helper = lower
+        .modules
+        .value_decls(parsed_outer_companion, &Name("with_ref".into()))[0]
+        .def;
+    let parsed_inner_def = lower
+        .modules
+        .value_decls(parsed_inner_companion, &Name("enclosing".into()))[0]
+        .def;
+    let parsed_outer_def = lower
+        .modules
+        .value_decls(parsed_outer_companion, &Name("enclosing".into()))[0]
+        .def;
+
+    let (inner_trigger, _) =
+        binding_def_and_order(&lower.modules, root_module, "text_with_mock_trigger");
+    let (outer_trigger, _) = binding_def_and_order(&lower.modules, root_module, "run_trigger");
+    let inner_local_act = lower.modules.synthetic_var_act_uses(inner_trigger)[0].clone();
+    let outer_local_act = lower.modules.synthetic_var_act_uses(outer_trigger)[0].clone();
+    let inner_local_companion = lower
+        .modules
+        .type_companion(inner_local_act.act)
+        .expect("inner synthetic local-var companion");
+    let outer_local_companion = lower
+        .modules
+        .type_companion(outer_local_act.act)
+        .expect("outer synthetic local-var companion");
+    let hand_inner_helper = lower
+        .modules
+        .value_decls(inner_local_companion, &Name("with_ref".into()))[0]
+        .def;
+    let hand_outer_helper = lower
+        .modules
+        .value_decls(outer_local_companion, &Name("with_ref".into()))[0]
+        .def;
+    assert_ne!(
+        inner_local_act.act, outer_local_act.act,
+        "the hand-built nested pair must resolve each helper in its own synthetic act copy"
+    );
+
+    let mut lowerer = crate::lowering::body::BodyLowerer::new(lower);
+    lowerer.lower_block(&root, root_module);
+    lowerer.lower_synthetic_act_copy_bodies_for_test();
+
+    let parsed_inner = HandBuiltNestedDefinition {
+        def: parsed_inner_def,
+        root: lowerer
+            .typing
+            .def(parsed_inner_def)
+            .expect("parsed inner generalization root"),
+        boundary: recover_parsed_second_application_snapshot(
+            &lowerer.session,
+            parsed_inner_def,
+            parsed_inner_helper,
+        ),
+        queued_registration: None,
+    };
+    let parsed_outer = HandBuiltNestedDefinition {
+        def: parsed_outer_def,
+        root: lowerer
+            .typing
+            .def(parsed_outer_def)
+            .expect("parsed outer generalization root"),
+        boundary: recover_parsed_second_application_snapshot(
+            &lowerer.session,
+            parsed_outer_def,
+            parsed_outer_helper,
+        ),
+        queued_registration: None,
+    };
+
+    let hand_inner = lower_hand_built_nested_function(
+        &mut lowerer,
+        inner_local_companion,
+        hand_inner_helper,
+        None,
+        concat!(
+            "my callback = \\r ->\n",
+            "  my before = r.get()\n",
+            "  r.update (\\_ -> before)\n",
+            "  std::control::var::observe::mark:r.get()\n",
+        ),
+    );
+    let hand_outer = lower_hand_built_nested_function(
+        &mut lowerer,
+        outer_local_companion,
+        hand_outer_helper,
+        Some(hand_inner.def),
+        concat!(
+            "my callback = \\r ->\n",
+            "  my before = r.get()\n",
+            "  r.update (\\_ -> before)\n",
+            "  std::control::var::observe::mark:r.get()\n",
+        ),
+    );
+
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    let output = lowerer.finish();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    (output, parsed_inner, parsed_outer, hand_inner, hand_outer)
+}
+
+fn lower_hand_built_nested_function(
+    body_lowerer: &mut crate::lowering::body::BodyLowerer,
+    module: ModuleId,
+    helper: DefId,
+    nested_target: Option<DefId>,
+    callback_source: &str,
+) -> HandBuiltNestedDefinition {
+    let def = body_lowerer.session.poly.defs.fresh();
+    body_lowerer.session.poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::My,
+            scheme: None,
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let previous_level = body_lowerer.session.infer.enter_child_level();
+    let root = body_lowerer.session.infer.fresh_type_var();
+    body_lowerer.typing.set_def(def, root);
+    let queued_registration = DefinitionRegistration {
+        queue_index: body_lowerer.session.work().len(),
+        root,
+    };
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+    assert!(matches!(
+        body_lowerer.session.work().get(queued_registration.queue_index),
+        Some(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: registered,
+            root: registered_root,
+        })) if *registered == def && *registered_root == root
+    ));
+
+    let (function, boundary) = {
+        let mut lowerer = ExprLowerer::new(
+            &mut body_lowerer.session,
+            &body_lowerer.modules,
+            module,
+            ModuleOrder::from_index(u32::MAX),
+            def,
+        );
+        let init_value = lowerer.fresh_type_var();
+        let init_expr = lowerer.session.poly.add_expr(Expr::Lit(Lit::Unit));
+        let init = Computation::value(init_expr, init_value, lowerer.fresh_exact_pure_effect());
+        let helper_ref = lowerer.lower_resolved_value_ref("with_ref".into(), helper);
+        let helper_ref_value = helper_ref.value;
+        let helper_with_init = lowerer.make_internal_app(helper_ref, init);
+
+        let callback_root = parse(callback_source);
+        let callback = lowerer
+            .lower_expr(&binding_expr(&callback_root, "callback"))
+            .expect("nested hand-built callback lowering");
+        let callback = if let Some(nested_target) = nested_target {
+            wrap_callback_body_in_nested_call(&mut lowerer, callback, nested_target)
+        } else {
+            callback
+        };
+        let callback_fun = function_lower_bound(&lowerer, callback.value);
+        let callback_body_effect =
+            function_return_effect_var(lowerer.session.infer.constraints(), callback_fun);
+        let next = lowerer.session.infer.constraints().next_type_var();
+        let result = lowerer.make_internal_app(helper_with_init, callback);
+        assert_eq!(result.value, TypeVar(next));
+        assert_eq!(result.effect, TypeVar(next + 1));
+        let boundary = DeferredSecondApplicationSnapshot {
+            helper_ref_value,
+            init_value,
+            callback_expr: callback.expr,
+            callback_value: callback.value,
+            callback_fun,
+            callback_body_effect,
+            result_effect: result.effect,
+            call_effect: TypeVar(next + 2),
+        };
+
+        let param_def = lowerer.session.poly.defs.fresh();
+        lowerer.session.poly.defs.set(param_def, Def::Arg);
+        let pat = lowerer.session.poly.add_pat(Pat::Var(param_def));
+        let function_value = lowerer.fresh_type_var();
+        let function_effect = lowerer.fresh_exact_pure_effect();
+        let arg = lowerer.alloc_neg(Neg::Var(init_value));
+        let arg_eff = lowerer.never_neg();
+        let ret_eff = lowerer.alloc_pos(Pos::Var(result.effect));
+        let ret = lowerer.alloc_pos(Pos::Var(result.value));
+        lowerer.constrain_lower(
+            function_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let expr = lowerer
+            .session
+            .poly
+            .add_expr(Expr::Lambda(pat, result.expr));
+        (
+            Computation::value(expr, function_value, function_effect),
+            boundary,
+        )
+    };
+
+    let body_pos = body_lowerer
+        .session
+        .infer
+        .alloc_pos(Pos::Var(function.value));
+    let root_neg = body_lowerer.session.infer.alloc_neg(Neg::Var(root));
+    body_lowerer
+        .session
+        .infer
+        .subtype(body_pos, root_neg, OriginId::unknown_internal());
+    let Some(Def::Let { body, .. }) = body_lowerer.session.poly.defs.get_mut(def) else {
+        unreachable!()
+    };
+    *body = Some(function.expr);
+    body_lowerer
+        .session
+        .record_binding_fetch(def, BindingFetch::from_evaluation(function.evaluation));
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    body_lowerer.session.infer.restore_level(previous_level);
+    HandBuiltNestedDefinition {
+        def,
+        root,
+        boundary,
+        queued_registration: Some(queued_registration),
+    }
+}
+
+fn wrap_callback_body_in_nested_call(
+    lowerer: &mut ExprLowerer<'_>,
+    callback: Computation,
+    nested_target: DefId,
+) -> Computation {
+    let callback_fun = function_lower_bound(lowerer, callback.value);
+    let (arg, arg_eff, body_effect, body_value) = match lowerer
+        .session
+        .infer
+        .constraints()
+        .types()
+        .pos(callback_fun)
+    {
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            let Pos::Var(body_effect) = lowerer.session.infer.constraints().types().pos(*ret_eff)
+            else {
+                panic!("nested callback body effect must use a variable slot");
+            };
+            let Pos::Var(body_value) = lowerer.session.infer.constraints().types().pos(*ret) else {
+                panic!("nested callback body value must use a variable slot");
+            };
+            (*arg, *arg_eff, *body_effect, *body_value)
+        }
+        _ => unreachable!(),
+    };
+    let (pat, body) = match lowerer.session.poly.expr(callback.expr) {
+        Expr::Lambda(pat, body) => (*pat, *body),
+        _ => panic!("nested callback must be a lambda"),
+    };
+    let nested_arg = Computation::computation(body, body_value, body_effect);
+    let previous_level = lowerer.session.infer.enter_child_level();
+    let nested_ref = lowerer.lower_resolved_value_ref("text_with_mock".into(), nested_target);
+    let nested_result = lowerer.make_internal_app(nested_ref, nested_arg);
+    lowerer.session.infer.restore_level(previous_level);
+
+    let value = lowerer.fresh_type_var();
+    let effect = lowerer.fresh_exact_pure_effect();
+    let ret_eff = lowerer.alloc_pos(Pos::Var(nested_result.effect));
+    let ret = lowerer.alloc_pos(Pos::Var(nested_result.value));
+    lowerer.constrain_lower(
+        value,
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        },
+    );
+    let expr = lowerer
+        .session
+        .poly
+        .add_expr(Expr::Lambda(pat, nested_result.expr));
+    Computation::value(expr, value, effect)
+}
+
+fn assert_hand_registration_root(definition: HandBuiltNestedDefinition) {
+    let registration = definition
+        .queued_registration
+        .expect("hand-built definition registration trace");
+    assert_eq!(registration.root, definition.root);
+}
+
+fn assert_inner_generalized_before_outer_use(
+    events: &[SccEvent],
+    inner: HandBuiltNestedDefinition,
+    outer: HandBuiltNestedDefinition,
+) {
+    let inner_quantify = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, roots }
+                    if component == &vec![inner.def] && roots == &vec![inner.root]
+            )
+        })
+        .expect("inner definition must quantify as its own component");
+    let instantiate = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::InstantiateUse { parent, target, .. }
+                    if *parent == outer.def && *target == inner.def
+            )
+        })
+        .expect("outer use must instantiate the finalized inner scheme");
+    let outer_quantify = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent { component, roots }
+                    if component == &vec![outer.def] && roots == &vec![outer.root]
+            )
+        })
+        .expect("outer definition must quantify as its own component");
+    assert!(
+        inner_quantify < instantiate && instantiate < outer_quantify,
+        "inner must finalize before the outer deferred use instantiates it: \
+         inner={inner_quantify}, instantiate={instantiate}, outer={outer_quantify}"
+    );
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            SccEvent::MergeComponents { merged, .. }
+                if merged.contains(&inner.def) && merged.contains(&outer.def)
+        )),
+        "the acyclic nested definitions must not merge into one SCC"
+    );
+}
+
+fn resolved_snapshot_family_path(
+    output: &BodyLowering,
+    snapshot: DeferredSecondApplicationSnapshot,
+) -> Vec<String> {
+    let machine = output.session.infer.constraints();
+    let helper = function_lower_bound_in_machine(machine, snapshot.helper_ref_value);
+    let Pos::Fun { ret, .. } = machine.types().pos(helper) else {
+        unreachable!()
+    };
+    let Pos::Fun {
+        arg: expected_callback,
+        ..
+    } = machine.types().pos(*ret)
+    else {
+        panic!("resolved helper must expose its callback argument");
+    };
+    let Neg::Fun { ret_eff, .. } = machine.types().neg(*expected_callback) else {
+        panic!("resolved helper callback argument must be callable");
+    };
+    expected_family_path(machine.types(), *ret_eff)
 }
 
 fn deferred_resolution_fixture() -> (
@@ -875,6 +1411,82 @@ fn expected_family_path(types: &TypeArena, expected_effect: NegId) -> Vec<String
         })
         .expect("helper callback effect family");
     family.clone()
+}
+
+fn nested_deferred_resolution_fixture_source() -> &'static str {
+    concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act observe 'a:\n",
+        "        pub mark: 'a -> 'a\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "        pub r.update f =\n",
+        "          my loop(x: [_] _) = catch x:\n",
+        "            ref_update::update v, k -> loop:k:f v\n",
+        "          loop:r.update_effect()\n",
+        "      pub act var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "      pub act inner_var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[inner_var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        pub enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::observe::mark:r.get()\n",
+        "      pub act outer_var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[outer_var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        my enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::inner_var::enclosing:r.get()\n",
+        "my text_with_mock_trigger(init: 'p) =\n",
+        "  my $buffer = init\n",
+        "  $buffer\n",
+        "my run_trigger(init: 'p) =\n",
+        "  my $store = init\n",
+        "  $store\n",
+    )
 }
 
 fn deferred_resolution_fixture_source() -> &'static str {
