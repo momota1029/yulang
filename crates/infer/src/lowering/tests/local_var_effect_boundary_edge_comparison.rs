@@ -87,6 +87,60 @@ struct NestedApplicationEdges {
     instantiated_argument_birth_level: TypeLevel,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EffectSlotTrace {
+    var: TypeVar,
+    level: TypeLevel,
+    birth_level: TypeLevel,
+    has_family_lower: bool,
+    has_bottom_lower: bool,
+    has_closed_empty_upper: bool,
+    lower_nodes: Vec<String>,
+    upper_nodes: Vec<String>,
+    upper_var_closure: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct MultiStatementBoundaryTrace {
+    statement_effects: Vec<EffectSlotTrace>,
+    tail_effect: EffectSlotTrace,
+    aggregate_effect: EffectSlotTrace,
+    callback_ret_eff: TypeVar,
+    callback_evaluation_effect: EffectSlotTrace,
+    first_application_effect: EffectSlotTrace,
+    second_application_effect: EffectSlotTrace,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MultiStatementBoundarySnapshot {
+    definition: HandBuiltNestedDefinition,
+    statement_effects: [TypeVar; 2],
+    tail_effect: TypeVar,
+    aggregate_effect: TypeVar,
+    callback_evaluation_effect: TypeVar,
+    first_application_effect: TypeVar,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SemanticEffectSlotTrace {
+    level: TypeLevel,
+    birth_level: TypeLevel,
+    has_family_lower: bool,
+    has_bottom_lower: bool,
+    has_closed_empty_upper: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SemanticMultiStatementBoundaryTrace {
+    statement_effects: Vec<SemanticEffectSlotTrace>,
+    tail_effect: SemanticEffectSlotTrace,
+    aggregate_effect: SemanticEffectSlotTrace,
+    callback_ret_eff_is_aggregate: bool,
+    callback_evaluation_effect: SemanticEffectSlotTrace,
+    first_application_effect: SemanticEffectSlotTrace,
+    second_application_effect: SemanticEffectSlotTrace,
+}
+
 #[test]
 fn parsed_and_hand_built_callbacks_register_the_same_second_application_edges() {
     let parsed = second_application_edges(CallbackConstruction::Parsed);
@@ -376,6 +430,348 @@ fn nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_gen
         hand_outer_scheme.contains(&hand_outer_family_name),
         "the nested hand-built gap must retain the outer family {hand_outer_family_name}: \
          {hand_outer_scheme}"
+    );
+}
+
+#[test]
+fn single_multi_statement_boundary_traces_block_aggregate_through_finalization() {
+    let (
+        mut output,
+        parsed,
+        hand_built,
+        level_aligned,
+        deferred_reference,
+        pre_parsed,
+        pre_hand_built,
+        pre_level_aligned,
+        pre_deferred_reference,
+        helper,
+    ) = multi_statement_single_boundary_fixture();
+    assert!(
+        !output.session.has_pending_work(),
+        "the comparison must inspect a quiescent post-UseResolved constraint graph"
+    );
+
+    let family_path = resolved_snapshot_family_path(&output, parsed.definition.boundary);
+    let post_parsed = multi_statement_boundary_trace(&output.session, parsed, &family_path);
+    let post_hand_built = multi_statement_boundary_trace(&output.session, hand_built, &family_path);
+    let post_level_aligned =
+        multi_statement_boundary_trace(&output.session, level_aligned, &family_path);
+    let post_deferred_reference =
+        multi_statement_boundary_trace(&output.session, deferred_reference, &family_path);
+    eprintln!("pre-quiescence parsed: {pre_parsed:#?}");
+    eprintln!("pre-quiescence hand-built: {pre_hand_built:#?}");
+    eprintln!("pre-quiescence level-aligned control: {pre_level_aligned:#?}");
+    eprintln!("pre-quiescence deferred-reference control: {pre_deferred_reference:#?}");
+    eprintln!("post-quiescence parsed: {post_parsed:#?}");
+    eprintln!("post-quiescence hand-built: {post_hand_built:#?}");
+    eprintln!("post-quiescence level-aligned control: {post_level_aligned:#?}");
+    eprintln!("post-quiescence deferred-reference control: {post_deferred_reference:#?}");
+    eprintln!(
+        "post aggregate upper closure parsed={:?}",
+        post_parsed.aggregate_effect.upper_var_closure
+    );
+    eprintln!(
+        "post aggregate upper closure hand-built={:?}",
+        post_hand_built.aggregate_effect.upper_var_closure
+    );
+    eprintln!(
+        "post aggregate upper closure level-aligned={:?}",
+        post_level_aligned.aggregate_effect.upper_var_closure
+    );
+    for (phase, label, trace) in [
+        ("pre", "parsed", &pre_parsed),
+        ("pre", "hand-built", &pre_hand_built),
+        ("pre", "level-aligned", &pre_level_aligned),
+        ("pre", "deferred-reference", &pre_deferred_reference),
+        ("post", "parsed", &post_parsed),
+        ("post", "hand-built", &post_hand_built),
+        ("post", "level-aligned", &post_level_aligned),
+        ("post", "deferred-reference", &post_deferred_reference),
+    ] {
+        let slots = |effects: &[EffectSlotTrace]| {
+            effects
+                .iter()
+                .map(|effect| {
+                    (
+                        effect.var,
+                        effect.birth_level,
+                        effect.level,
+                        effect.has_family_lower,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        eprintln!(
+            "{phase} compact {label}: statements={:?}, tail={:?}, aggregate={:?}, \
+             callback_ret={:?}, callback_eval={:?}, first_app={:?}, second_app={:?}",
+            slots(trace.statement_effects.as_slice()),
+            slots(std::slice::from_ref(&trace.tail_effect))[0],
+            slots(std::slice::from_ref(&trace.aggregate_effect))[0],
+            trace.callback_ret_eff,
+            slots(std::slice::from_ref(&trace.callback_evaluation_effect))[0],
+            slots(std::slice::from_ref(&trace.first_application_effect))[0],
+            slots(std::slice::from_ref(&trace.second_application_effect))[0],
+        );
+    }
+
+    for (label, snapshot, trace) in [
+        ("parsed", parsed, &post_parsed),
+        ("hand-built", hand_built, &post_hand_built),
+        (
+            "level-aligned hand-built control",
+            level_aligned,
+            &post_level_aligned,
+        ),
+        (
+            "deferred-reference hand-built control",
+            deferred_reference,
+            &post_deferred_reference,
+        ),
+    ] {
+        assert_eq!(
+            snapshot.aggregate_effect, snapshot.definition.boundary.callback_body_effect,
+            "{label} callback Fun.ret_eff must retain the real block-aggregate slot"
+        );
+        assert_eq!(
+            trace.callback_ret_eff, trace.aggregate_effect.var,
+            "{label} callback Fun.ret_eff must be the aggregate itself"
+        );
+        assert!(
+            trace
+                .statement_effects
+                .iter()
+                .all(|effect| effect.has_family_lower),
+            "{label} statement effects must each receive the handled family after deferred \
+             operation resolution: {trace:#?}"
+        );
+        assert!(
+            trace.aggregate_effect.has_family_lower,
+            "{label} block aggregate must receive its statements' handled family: {trace:#?}"
+        );
+        assert!(
+            snapshot
+                .statement_effects
+                .into_iter()
+                .chain([snapshot.tail_effect])
+                .all(|effect| {
+                    var_reaches_var(
+                        output.session.infer.constraints(),
+                        snapshot.aggregate_effect,
+                        effect,
+                    )
+                }),
+            "{label} block aggregate must remain downstream of every individual computation"
+        );
+        assert!(
+            trace.callback_evaluation_effect.has_closed_empty_upper
+                && !trace.callback_evaluation_effect.has_family_lower,
+            "{label} callback value evaluation must retain the exact-pure closed-empty upper and \
+             no non-pure family lower: {trace:#?}"
+        );
+    }
+
+    assert_ne!(
+        semantic_multi_statement_trace(&pre_parsed),
+        semantic_multi_statement_trace(&pre_hand_built),
+        "the construction-time trace must expose the hand-built lifecycle divergence"
+    );
+    assert_ne!(
+        semantic_multi_statement_trace(&post_parsed),
+        semantic_multi_statement_trace(&post_hand_built),
+        "the post-resolution trace must retain the result-effect divergence"
+    );
+    assert!(
+        pre_parsed
+            .statement_effects
+            .iter()
+            .all(|effect| !effect.has_family_lower)
+            && pre_hand_built
+                .statement_effects
+                .iter()
+                .all(|effect| !effect.has_family_lower),
+        "both controls must defer source-level operation resolution"
+    );
+    for (parsed_effect, hand_effect) in post_parsed
+        .statement_effects
+        .iter()
+        .chain([&post_parsed.tail_effect, &post_parsed.aggregate_effect])
+        .zip(post_hand_built.statement_effects.iter().chain([
+            &post_hand_built.tail_effect,
+            &post_hand_built.aggregate_effect,
+        ]))
+    {
+        assert_eq!(
+            parsed_effect.birth_level,
+            hand_effect.birth_level.child(),
+            "the first stable divergence is already present in each statement and block aggregate"
+        );
+        assert_eq!(
+            parsed_effect.level,
+            hand_effect.level.child(),
+            "the hand-built callback body remains one TypeLevel shallower"
+        );
+    }
+    assert!(
+        !post_parsed.first_application_effect.has_family_lower
+            && !post_hand_built.first_application_effect.has_family_lower,
+        "point (e) must remain family-free in both constructions"
+    );
+    assert!(
+        !post_parsed.second_application_effect.has_family_lower
+            && post_hand_built.second_application_effect.has_family_lower,
+        "point (f) is the first family-presence divergence after quiescence"
+    );
+    assert_eq!(
+        post_parsed.aggregate_effect.birth_level,
+        post_level_aligned.aggregate_effect.birth_level
+    );
+    assert_ne!(
+        post_parsed.aggregate_effect.level, post_level_aligned.aggregate_effect.level,
+        "matching birth levels alone must not hide the later hand-built extrusion"
+    );
+    assert!(
+        post_level_aligned
+            .second_application_effect
+            .has_family_lower,
+        "adding only the missing enclosing-body TypeLevel is insufficient to discharge the \
+         hand-built block aggregate"
+    );
+    assert!(
+        post_parsed
+            .aggregate_effect
+            .upper_nodes
+            .iter()
+            .any(|upper| upper.starts_with("Row("))
+            && post_hand_built
+                .aggregate_effect
+                .upper_nodes
+                .iter()
+                .any(|upper| upper.starts_with("Row("))
+            && post_level_aligned
+                .aggregate_effect
+                .upper_nodes
+                .iter()
+                .any(|upper| upper.starts_with("Row(")),
+        "all three main cases must receive the helper's concrete expected callback row"
+    );
+    assert_eq!(
+        post_parsed.aggregate_effect.birth_level,
+        post_deferred_reference.aggregate_effect.birth_level
+    );
+    assert_eq!(
+        post_parsed.aggregate_effect.level,
+        post_deferred_reference.aggregate_effect.level
+    );
+    assert!(
+        !post_deferred_reference
+            .second_application_effect
+            .has_family_lower,
+        "deferring the local-reference structure until helper resolution must restore discharge"
+    );
+
+    let parsed_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, parsed.definition.def),
+    );
+    let hand_built_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, hand_built.definition.def),
+    );
+    let level_aligned_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, level_aligned.definition.def),
+    );
+    let deferred_reference_scheme = poly::dump::format_scheme(
+        &output.session.poly.typ,
+        def_scheme(&output, deferred_reference.definition.def),
+    );
+    let helper_scheme =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, helper));
+    eprintln!("helper scheme: {helper_scheme}");
+    eprintln!("parsed finalized scheme: {parsed_scheme}");
+    eprintln!("hand-built finalized scheme: {hand_built_scheme}");
+    eprintln!("level-aligned finalized scheme: {level_aligned_scheme}");
+    eprintln!("deferred-reference finalized scheme: {deferred_reference_scheme}");
+    assert!(
+        def_scheme(&output, helper).stack_quantifiers.is_empty(),
+        "the helper producer must not retain a raw subtraction owner: {helper_scheme}"
+    );
+    let family_name = family_path.join("::");
+    assert!(
+        !parsed_scheme.contains(&family_name),
+        "the parsed multi-statement control must discharge {family_name}: {parsed_scheme}"
+    );
+    assert!(
+        hand_built_scheme.contains(&family_name),
+        "the hand-built multi-statement boundary must preserve the reproduced leak of \
+         {family_name}: \
+         {hand_built_scheme}"
+    );
+    assert_ne!(
+        parsed_scheme, hand_built_scheme,
+        "the finalized schemes are the eighth and final comparison point"
+    );
+    assert_eq!(
+        hand_built_scheme, level_aligned_scheme,
+        "the birth-level-aligned control must preserve the same leak, ruling out raw birth depth \
+         as the sufficient cause"
+    );
+    assert_eq!(
+        parsed_scheme, deferred_reference_scheme,
+        "with identical hand-built wrapping and levels, only deferring the reference structure \
+         restores the parsed finalized scheme"
+    );
+
+    // Preserve and inspect SCC ordering only after all finalized-scheme observations are complete.
+    let events = output.session.take_scc_events();
+    let event_positions = |snapshot: MultiStatementBoundarySnapshot| {
+        let instantiate = events
+            .iter()
+            .position(|event| {
+                matches!(
+                    event,
+                    SccEvent::InstantiateUse {
+                        parent,
+                        target,
+                        use_value,
+                    } if *parent == snapshot.definition.def
+                        && *target == helper
+                        && *use_value == snapshot.definition.boundary.helper_ref_value
+                )
+            })
+            .expect("the helper ref must instantiate through deferred UseResolved");
+        let quantify = events
+            .iter()
+            .position(|event| {
+                matches!(
+                    event,
+                    SccEvent::QuantifyComponent { component, roots }
+                        if component == &vec![snapshot.definition.def]
+                            && roots == &vec![snapshot.definition.root]
+                )
+            })
+            .expect("the enclosing definition must be quantified");
+        (instantiate, quantify)
+    };
+    let parsed_events = event_positions(parsed);
+    let hand_built_events = event_positions(hand_built);
+    let level_aligned_events = event_positions(level_aligned);
+    let deferred_reference_events = event_positions(deferred_reference);
+    eprintln!(
+        "helper InstantiateUse/parent QuantifyComponent positions: parsed={parsed_events:?}, \
+         hand-built={hand_built_events:?}, level-aligned={level_aligned_events:?}, \
+         deferred-reference={deferred_reference_events:?}"
+    );
+    assert!(
+        parsed_events.0 < parsed_events.1,
+        "parsed lowering must instantiate the helper before finalizing its parent"
+    );
+    assert!(
+        hand_built_events.0 < hand_built_events.1
+            && level_aligned_events.0 < level_aligned_events.1
+            && deferred_reference_events.0 < deferred_reference_events.1,
+        "SCC ordering must be identical: every helper use instantiates before parent quantification"
     );
 }
 
@@ -688,6 +1084,667 @@ fn var_reaches_family(
         }
     }
     false
+}
+
+fn multi_statement_single_boundary_fixture() -> (
+    BodyLowering,
+    MultiStatementBoundarySnapshot,
+    MultiStatementBoundarySnapshot,
+    MultiStatementBoundarySnapshot,
+    MultiStatementBoundarySnapshot,
+    MultiStatementBoundaryTrace,
+    MultiStatementBoundaryTrace,
+    MultiStatementBoundaryTrace,
+    MultiStatementBoundaryTrace,
+    DefId,
+) {
+    let root = parse(multi_statement_single_boundary_fixture_source());
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let std = lower.modules.module_decls(root_module, &Name("std".into()))[0].module;
+    let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
+    let var = lower.modules.module_decls(control, &Name("var".into()))[0].module;
+    let act = lower.modules.type_decls(var, &Name("single_var".into()))[0].id;
+    let family_path = lower
+        .modules
+        .type_decl_by_id(act)
+        .map(|decl| {
+            lower
+                .modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>()
+        })
+        .expect("single-boundary act path");
+    let companion = lower
+        .modules
+        .type_companion(act)
+        .expect("single-boundary act companion");
+    let helper = lower
+        .modules
+        .value_decls(companion, &Name("with_ref".into()))[0]
+        .def;
+    let parsed_def = lower
+        .modules
+        .value_decls(companion, &Name("parsed_enclosing".into()))[0]
+        .def;
+
+    let mut lowerer = crate::lowering::body::BodyLowerer::new(lower);
+    lowerer.lower_block(&root, root_module);
+    let parsed_boundary =
+        recover_parsed_second_application_snapshot(&lowerer.session, parsed_def, helper);
+    let parsed_calls =
+        selection_application_effects(&lowerer.session, parsed_boundary.callback_expr, "get");
+    let [parsed_first, parsed_second, parsed_tail] = parsed_calls.as_slice() else {
+        panic!(
+            "parsed callback must contain exactly three direct get applications: {parsed_calls:?}"
+        );
+    };
+    let parsed = MultiStatementBoundarySnapshot {
+        definition: HandBuiltNestedDefinition {
+            def: parsed_def,
+            root: lowerer
+                .typing
+                .def(parsed_def)
+                .expect("parsed enclosing generalization root"),
+            boundary: parsed_boundary,
+            nested_call: None,
+            queued_registration: None,
+        },
+        statement_effects: [*parsed_first, *parsed_second],
+        tail_effect: *parsed_tail,
+        aggregate_effect: parsed_boundary.callback_body_effect,
+        callback_evaluation_effect: second_application_argument_effect(
+            lowerer.session.infer.constraints(),
+            parsed_boundary.helper_ref_value,
+        ),
+        first_application_effect: first_application_effect(
+            lowerer.session.infer.constraints(),
+            parsed_boundary.helper_ref_value,
+        ),
+    };
+    let hand_built = lower_hand_built_multi_statement_definition(
+        &mut lowerer,
+        companion,
+        helper,
+        family_path.as_slice(),
+        false,
+        true,
+    );
+    let level_aligned = lower_hand_built_multi_statement_definition(
+        &mut lowerer,
+        companion,
+        helper,
+        family_path.as_slice(),
+        true,
+        true,
+    );
+    let deferred_reference = lower_hand_built_multi_statement_definition(
+        &mut lowerer,
+        companion,
+        helper,
+        family_path.as_slice(),
+        true,
+        false,
+    );
+
+    let pre_parsed =
+        multi_statement_boundary_trace(&lowerer.session, parsed, family_path.as_slice());
+    let pre_hand_built =
+        multi_statement_boundary_trace(&lowerer.session, hand_built, family_path.as_slice());
+    let pre_level_aligned =
+        multi_statement_boundary_trace(&lowerer.session, level_aligned, family_path.as_slice());
+    let pre_deferred_reference = multi_statement_boundary_trace(
+        &lowerer.session,
+        deferred_reference,
+        family_path.as_slice(),
+    );
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    let output = lowerer.finish();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    (
+        output,
+        parsed,
+        hand_built,
+        level_aligned,
+        deferred_reference,
+        pre_parsed,
+        pre_hand_built,
+        pre_level_aligned,
+        pre_deferred_reference,
+        helper,
+    )
+}
+
+fn lower_hand_built_multi_statement_definition(
+    body_lowerer: &mut crate::lowering::body::BodyLowerer,
+    module: ModuleId,
+    helper: DefId,
+    family_path: &[String],
+    align_enclosing_body_level: bool,
+    preconstrain_reference: bool,
+) -> MultiStatementBoundarySnapshot {
+    let def = body_lowerer.session.poly.defs.fresh();
+    body_lowerer.session.poly.defs.set(
+        def,
+        Def::Let {
+            vis: Vis::My,
+            scheme: None,
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let previous_level = body_lowerer.session.infer.enter_child_level();
+    let root = body_lowerer.session.infer.fresh_type_var();
+    body_lowerer.typing.set_def(def, root);
+    let queued_registration = DefinitionRegistration {
+        queue_index: body_lowerer.session.work().len(),
+        root,
+    };
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+
+    let (function, boundary, statement_effects, tail_effect, callback_effect, first_effect) = {
+        let mut lowerer = ExprLowerer::new(
+            &mut body_lowerer.session,
+            &body_lowerer.modules,
+            module,
+            ModuleOrder::from_index(u32::MAX),
+            def,
+        );
+        let init_value = lowerer.fresh_type_var();
+        let enclosing_body_level =
+            align_enclosing_body_level.then(|| lowerer.session.infer.enter_child_level());
+        let init_expr = lowerer.session.poly.add_expr(Expr::Lit(Lit::Unit));
+        let init = Computation::value(init_expr, init_value, lowerer.fresh_exact_pure_effect());
+        let helper_ref = lowerer.lower_resolved_value_ref("with_ref".into(), helper);
+        let helper_ref_value = helper_ref.value;
+        let helper_with_init = lowerer.make_internal_app(helper_ref, init);
+        let first_effect = helper_with_init.effect;
+
+        // Reproduce normal lambda staging without asking `lower_lambda` to create an extra
+        // witness Fun: bind the parameter outside, lower only the block at a child level, restore
+        // the level, then build the production-style pure Fun around the aggregate slots.
+        let callback_param = lowerer.fresh_type_var();
+        if preconstrain_reference {
+            constrain_hand_built_local_reference(
+                &mut lowerer,
+                callback_param,
+                init_value,
+                family_path,
+            );
+        }
+        let before_callback_locals = lowerer.locals.len();
+        let callback_pat = lowerer.bind_pattern_local(
+            Name("r".into()),
+            callback_param,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        lowerer
+            .function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let callback_body_level = lowerer.session.infer.enter_child_level();
+        let callback_root = parse(concat!(
+            "my callback_body =\n",
+            "  r.get()\n",
+            "  r.get()\n",
+            "  r.get()\n",
+        ));
+        let body = lowerer
+            .lower_expr(&binding_expr(&callback_root, "callback_body"))
+            .expect("hand-built callback body lowering");
+        lowerer.session.infer.restore_level(callback_body_level);
+        lowerer
+            .function_frames
+            .pop()
+            .expect("hand-built callback frame must be balanced");
+        lowerer.locals.truncate(before_callback_locals);
+        let aggregate_effect = body.effect;
+        let calls = selection_application_effects(lowerer.session, body.expr, "get");
+        let [first_statement_effect, second_statement_effect, tail_effect] = calls.as_slice()
+        else {
+            panic!("hand-built callback must contain three get selections: {calls:?}");
+        };
+        let statement_effects = [*first_statement_effect, *second_statement_effect];
+        let tail_effect = *tail_effect;
+        let callback_value = lowerer.fresh_type_var();
+        let callback_effect = lowerer.fresh_exact_pure_effect();
+        let arg = lowerer.alloc_neg(Neg::Var(callback_param));
+        let arg_eff = lowerer.never_neg();
+        let ret_eff = lowerer.alloc_pos(Pos::Var(body.effect));
+        let ret = lowerer.alloc_pos(Pos::Var(body.value));
+        lowerer.constrain_lower(
+            callback_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let callback_fun = function_lower_bound(&lowerer, callback_value);
+        let callback_expr = lowerer
+            .session
+            .poly
+            .add_expr(Expr::Lambda(callback_pat, body.expr));
+        let callback = Computation::value(callback_expr, callback_value, callback_effect);
+
+        let next = lowerer.session.infer.constraints().next_type_var();
+        let result = lowerer.make_internal_app(helper_with_init, callback);
+        assert_eq!(result.value, TypeVar(next));
+        assert_eq!(result.effect, TypeVar(next + 1));
+        let boundary = DeferredSecondApplicationSnapshot {
+            helper_ref_value,
+            init_value,
+            callback_expr,
+            callback_value,
+            callback_fun,
+            callback_body_effect: aggregate_effect,
+            result_effect: result.effect,
+            call_effect: TypeVar(next + 2),
+        };
+
+        if let Some(previous_level) = enclosing_body_level {
+            lowerer.session.infer.restore_level(previous_level);
+        }
+        let param_def = lowerer.session.poly.defs.fresh();
+        lowerer.session.poly.defs.set(param_def, Def::Arg);
+        let pat = lowerer.session.poly.add_pat(Pat::Var(param_def));
+        let function_value = lowerer.fresh_type_var();
+        let function_effect = lowerer.fresh_exact_pure_effect();
+        let arg = lowerer.alloc_neg(Neg::Var(init_value));
+        let arg_eff = lowerer.never_neg();
+        let ret_eff = lowerer.alloc_pos(Pos::Var(result.effect));
+        let ret = lowerer.alloc_pos(Pos::Var(result.value));
+        lowerer.constrain_lower(
+            function_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let expr = lowerer
+            .session
+            .poly
+            .add_expr(Expr::Lambda(pat, result.expr));
+        (
+            Computation::value(expr, function_value, function_effect),
+            boundary,
+            statement_effects,
+            tail_effect,
+            callback_effect,
+            first_effect,
+        )
+    };
+
+    let body_pos = body_lowerer
+        .session
+        .infer
+        .alloc_pos(Pos::Var(function.value));
+    let root_neg = body_lowerer.session.infer.alloc_neg(Neg::Var(root));
+    body_lowerer
+        .session
+        .infer
+        .subtype(body_pos, root_neg, OriginId::unknown_internal());
+    let Some(Def::Let { body, .. }) = body_lowerer.session.poly.defs.get_mut(def) else {
+        unreachable!()
+    };
+    *body = Some(function.expr);
+    body_lowerer
+        .session
+        .record_binding_fetch(def, BindingFetch::from_evaluation(function.evaluation));
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    body_lowerer.session.infer.restore_level(previous_level);
+
+    MultiStatementBoundarySnapshot {
+        definition: HandBuiltNestedDefinition {
+            def,
+            root,
+            boundary,
+            nested_call: None,
+            queued_registration: Some(queued_registration),
+        },
+        statement_effects,
+        tail_effect,
+        aggregate_effect: boundary.callback_body_effect,
+        callback_evaluation_effect: callback_effect,
+        first_application_effect: first_effect,
+    }
+}
+
+fn constrain_hand_built_local_reference(
+    lowerer: &mut ExprLowerer<'_>,
+    reference: TypeVar,
+    payload: TypeVar,
+    family_path: &[String],
+) {
+    let payload_arg = lowerer.invariant_var_arg(payload);
+    let effect = lowerer.fresh_type_var();
+    let lower_item = lowerer.alloc_pos(Pos::Con(family_path.to_vec(), vec![payload_arg]));
+    let lower_row = lowerer.alloc_pos(Pos::Row(vec![lower_item]));
+    let effect_upper = lowerer.alloc_neg(Neg::Var(effect));
+    lowerer
+        .session
+        .infer
+        .subtype(lower_row, effect_upper, OriginId::internal());
+    let upper_item = lowerer.alloc_neg(Neg::Con(family_path.to_vec(), vec![payload_arg]));
+    let upper_tail = lowerer.alloc_neg(Neg::Bot);
+    let effect_lower = lowerer.alloc_pos(Pos::Var(effect));
+    let upper_row = lowerer.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
+    lowerer
+        .session
+        .infer
+        .subtype(effect_lower, upper_row, OriginId::internal());
+
+    let effect_arg = lowerer.invariant_var_arg(effect);
+    let args = vec![effect_arg, payload_arg];
+    let reference_type = crate::std_paths::control_var_ref_type();
+    let lower = lowerer.alloc_pos(Pos::Con(reference_type.clone(), args.clone()));
+    let reference_upper = lowerer.alloc_neg(Neg::Var(reference));
+    lowerer
+        .session
+        .infer
+        .subtype(lower, reference_upper, OriginId::internal());
+    let reference_lower = lowerer.alloc_pos(Pos::Var(reference));
+    let upper = lowerer.alloc_neg(Neg::Con(reference_type, args));
+    lowerer
+        .session
+        .infer
+        .subtype(reference_lower, upper, OriginId::internal());
+}
+
+fn multi_statement_boundary_trace(
+    session: &AnalysisSession,
+    snapshot: MultiStatementBoundarySnapshot,
+    family_path: &[String],
+) -> MultiStatementBoundaryTrace {
+    let machine = session.infer.constraints();
+    let callback_ret_eff =
+        function_return_effect_var(machine, snapshot.definition.boundary.callback_fun);
+    MultiStatementBoundaryTrace {
+        statement_effects: snapshot
+            .statement_effects
+            .into_iter()
+            .map(|effect| effect_slot_trace(machine, effect, family_path))
+            .collect(),
+        tail_effect: effect_slot_trace(machine, snapshot.tail_effect, family_path),
+        aggregate_effect: effect_slot_trace(machine, snapshot.aggregate_effect, family_path),
+        callback_ret_eff,
+        callback_evaluation_effect: effect_slot_trace(
+            machine,
+            snapshot.callback_evaluation_effect,
+            family_path,
+        ),
+        first_application_effect: effect_slot_trace(
+            machine,
+            snapshot.first_application_effect,
+            family_path,
+        ),
+        second_application_effect: effect_slot_trace(
+            machine,
+            snapshot.definition.boundary.result_effect,
+            family_path,
+        ),
+    }
+}
+
+fn effect_slot_trace(
+    machine: &crate::constraints::ConstraintMachine,
+    var: TypeVar,
+    family_path: &[String],
+) -> EffectSlotTrace {
+    let bounds = machine.bounds().of(var);
+    let has_bottom_lower = bounds.is_some_and(|bounds| {
+        bounds
+            .lowers()
+            .iter()
+            .any(|bound| matches!(machine.types().pos(bound.pos), Pos::Bot))
+    });
+    let has_closed_empty_upper = bounds.is_some_and(|bounds| {
+        bounds.uppers().iter().any(|bound| {
+            matches!(
+                machine.types().neg(bound.neg),
+                Neg::Row(items, tail)
+                    if items.is_empty() && matches!(machine.types().neg(*tail), Neg::Top)
+            )
+        })
+    });
+    let lower_nodes = bounds
+        .map(|bounds| {
+            bounds
+                .lowers()
+                .iter()
+                .map(|bound| format!("{:?}", machine.types().pos(bound.pos)))
+                .collect()
+        })
+        .unwrap_or_default();
+    let upper_nodes = bounds
+        .map(|bounds| {
+            bounds
+                .uppers()
+                .iter()
+                .map(|bound| format!("{:?}", machine.types().neg(bound.neg)))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut upper_var_closure = Vec::new();
+    let mut pending = vec![var];
+    let mut visited = rustc_hash::FxHashSet::default();
+    while let Some(current) = pending.pop() {
+        if !visited.insert(current) {
+            continue;
+        }
+        let Some(current_bounds) = machine.bounds().of(current) else {
+            upper_var_closure.push(format!(
+                "{current:?}@{:?}/{:?} -> <no bounds>",
+                machine.birth_level_of(current),
+                machine.level_of(current),
+            ));
+            continue;
+        };
+        for upper in current_bounds.uppers() {
+            let node = machine.types().neg(upper.neg);
+            upper_var_closure.push(format!(
+                "{current:?}@{:?}/{:?} -> {node:?}",
+                machine.birth_level_of(current),
+                machine.level_of(current),
+            ));
+            if let Neg::Var(next) = node {
+                pending.push(*next);
+            }
+        }
+    }
+    EffectSlotTrace {
+        var,
+        level: machine.level_of(var),
+        birth_level: machine.birth_level_of(var),
+        has_family_lower: var_reaches_family(machine, var, family_path),
+        has_bottom_lower,
+        has_closed_empty_upper,
+        lower_nodes,
+        upper_nodes,
+        upper_var_closure,
+    }
+}
+
+fn semantic_multi_statement_trace(
+    trace: &MultiStatementBoundaryTrace,
+) -> SemanticMultiStatementBoundaryTrace {
+    let semantic_effect = |effect: &EffectSlotTrace| SemanticEffectSlotTrace {
+        level: effect.level,
+        birth_level: effect.birth_level,
+        has_family_lower: effect.has_family_lower,
+        has_bottom_lower: effect.has_bottom_lower,
+        has_closed_empty_upper: effect.has_closed_empty_upper,
+    };
+    SemanticMultiStatementBoundaryTrace {
+        statement_effects: trace
+            .statement_effects
+            .iter()
+            .map(semantic_effect)
+            .collect(),
+        tail_effect: semantic_effect(&trace.tail_effect),
+        aggregate_effect: semantic_effect(&trace.aggregate_effect),
+        callback_ret_eff_is_aggregate: trace.callback_ret_eff == trace.aggregate_effect.var,
+        callback_evaluation_effect: semantic_effect(&trace.callback_evaluation_effect),
+        first_application_effect: semantic_effect(&trace.first_application_effect),
+        second_application_effect: semantic_effect(&trace.second_application_effect),
+    }
+}
+
+fn first_application_effect(
+    machine: &crate::constraints::ConstraintMachine,
+    helper_ref_value: TypeVar,
+) -> TypeVar {
+    let first_upper = function_upper_bound(machine, helper_ref_value);
+    let Neg::Fun { ret, .. } = machine.types().neg(first_upper) else {
+        unreachable!()
+    };
+    let Neg::Var(result) = machine.types().neg(*ret) else {
+        panic!("first application result must use its fresh value slot");
+    };
+    TypeVar(result.0 + 1)
+}
+
+fn second_application_argument_effect(
+    machine: &crate::constraints::ConstraintMachine,
+    helper_ref_value: TypeVar,
+) -> TypeVar {
+    let first_upper = function_upper_bound(machine, helper_ref_value);
+    let Neg::Fun { ret, .. } = machine.types().neg(first_upper) else {
+        unreachable!()
+    };
+    let Neg::Var(helper_with_init) = machine.types().neg(*ret) else {
+        panic!("first application result must use its fresh value slot");
+    };
+    let second_upper = function_upper_bound(machine, *helper_with_init);
+    let Neg::Fun { arg_eff, .. } = machine.types().neg(second_upper) else {
+        unreachable!()
+    };
+    let Pos::Var(callback_effect) = machine.types().pos(*arg_eff) else {
+        panic!("second application argument effect must preserve the callback evaluation slot");
+    };
+    *callback_effect
+}
+
+fn selection_application_effects(
+    session: &AnalysisSession,
+    expr: ExprId,
+    selection_name: &str,
+) -> Vec<TypeVar> {
+    fn collect(
+        session: &AnalysisSession,
+        expr: ExprId,
+        selection_name: &str,
+        effects: &mut Vec<TypeVar>,
+    ) {
+        match session.poly.expr(expr) {
+            Expr::App(callee, arg) => {
+                if let Expr::Select(_, select) = session.poly.expr(*callee)
+                    && session.poly.select(*select).name == selection_name
+                {
+                    let selected_value = session
+                        .selections
+                        .get(*select)
+                        .map(|use_site| use_site.selected_value)
+                        .or_else(|| {
+                            session
+                                .selections
+                                .resolved(*select)
+                                .map(|use_site| use_site.selected_value)
+                        })
+                        .expect("selection application selected-value slot");
+                    let upper = function_upper_bound(session.infer.constraints(), selected_value);
+                    let Neg::Fun { ret, .. } = session.infer.constraints().types().neg(upper)
+                    else {
+                        unreachable!()
+                    };
+                    let Neg::Var(result) = session.infer.constraints().types().neg(*ret) else {
+                        panic!("selection application result must use a fresh value slot");
+                    };
+                    effects.push(TypeVar(result.0 + 1));
+                }
+                collect(session, *callee, selection_name, effects);
+                collect(session, *arg, selection_name, effects);
+            }
+            Expr::RefSet(reference, value) => {
+                collect(session, *reference, selection_name, effects);
+                collect(session, *value, selection_name, effects);
+            }
+            Expr::Lambda(_, body) | Expr::Select(body, _) => {
+                collect(session, *body, selection_name, effects);
+            }
+            Expr::Tuple(items) | Expr::PolyVariant(_, items) => {
+                for item in items {
+                    collect(session, *item, selection_name, effects);
+                }
+            }
+            Expr::Record { fields, spread } => {
+                for (_, value) in fields {
+                    collect(session, *value, selection_name, effects);
+                }
+                match spread {
+                    RecordSpread::None => {}
+                    RecordSpread::Tail(value) | RecordSpread::Head(value) => {
+                        collect(session, *value, selection_name, effects);
+                    }
+                }
+            }
+            Expr::Case(scrutinee, arms) => {
+                collect(session, *scrutinee, selection_name, effects);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        collect(session, guard, selection_name, effects);
+                    }
+                    collect(session, arm.body, selection_name, effects);
+                }
+            }
+            Expr::Catch(scrutinee, arms) => {
+                collect(session, *scrutinee, selection_name, effects);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        collect(session, guard, selection_name, effects);
+                    }
+                    collect(session, arm.body, selection_name, effects);
+                }
+            }
+            Expr::Block(statements, tail) => {
+                for statement in statements {
+                    match statement {
+                        Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
+                            collect(session, *expr, selection_name, effects);
+                        }
+                        Stmt::Module(_, statements) => {
+                            for statement in statements {
+                                if let Stmt::Let(_, _, expr) | Stmt::Expr(expr) = statement {
+                                    collect(session, *expr, selection_name, effects);
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(tail) = tail {
+                    collect(session, *tail, selection_name, effects);
+                }
+            }
+            Expr::Lit(_) | Expr::PrimitiveOp(_) | Expr::Var(_) => {}
+        }
+    }
+
+    let mut effects = Vec::new();
+    collect(session, expr, selection_name, &mut effects);
+    effects
 }
 
 fn nested_deferred_resolution_fixture() -> (
@@ -1961,6 +3018,33 @@ fn expected_family_path(types: &TypeArena, expected_effect: NegId) -> Vec<String
         })
         .expect("helper callback effect family");
     family.clone()
+}
+
+fn multi_statement_single_boundary_fixture_source() -> &'static str {
+    concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "      pub act single_var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[single_var 't] 't = ",
+        "std::control::var::ref { get: \\() -> get() }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        pub parsed_enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          r.get()\n",
+        "          r.get()\n",
+        "          r.get()\n",
+    )
 }
 
 fn nested_deferred_resolution_fixture_source() -> &'static str {
