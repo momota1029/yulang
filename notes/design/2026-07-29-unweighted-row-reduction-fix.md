@@ -2,7 +2,7 @@
 
 日付: 2026-07-29
 
-状態: **未承認・ユーザレビュー待ち（v3。v2 狭域スコープは2026-07-29承認済み）**
+状態: **ユーザ承認済み（v3、2026-07-30）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
@@ -1048,4 +1048,4 @@ URR-Eではlocal-var production wiringを再開しない。solver gateが閉じ�
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: 未承認・ユーザレビュー待ち（v3。v2 狭域スコープは2026-07-29承認済み）
+状態: ユーザ承認済み（v3、2026-07-30）
