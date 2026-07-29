@@ -395,18 +395,55 @@ specialization の cache 境界等）には、まだ witness が捉えていな�
 差分がある。この差は `infer` crate の unit test では見えず、CLI の
 full specialization を通して初めて表面化した。
 
+## 10回目: unit-vs-CLI 乖離の read-only investigation（2026-07-29、Sol xhigh）
+
+9回目を受け、rollback 済みだが `target/debug/yulang` に残っていた LVB-B
+四度目の binary を `YULANG_TRACE_DEFS` / `YULANG_TRACE_SCHEME_DEFS` で
+trace し、実際の production scheme を直接観察した。
+
+**判明したこと**:
+
+1. helper（`with_ref`）自身の producer-side scheme は v4 §4.1 通り正しい
+   形だった（`buffer`/`store` 両方）。
+2. しかし **enclosing source `run` の finalized scheme には `&buffer`、
+   `&store` が両方とも残っていた**——helper 自体は正しくても、それを
+   concrete callback へ apply した結果が enclosing 関数の scheme から
+   family を落とせていない。
+3. specialize は、この時点ですでに壊れている infer 出力を fresh
+   instantiate して再推論しているだけで、conflict の原因ではなく
+   顕在化させているだけ（`type_resolver.rs:441`）。
+4. cache/re-instantiation の問題ではない（`--no-cache` で persistent
+   cache を排除済み、specialize 内の instance cache・candidate cache も
+   別 scheme を作らないことを確認）。
+5. `&buffer` → `&store` の shift は「一部だけ新経路」の混在の証拠では
+   ない。両 helper とも正しく形成されていた。resolver が最初の conflict
+   で止まるため、`&store` が先に出ただけで `&buffer` 側が本当に解決した
+   かは確認できていない。
+
+**教訓**: LVB-A2/A3 が証明したのは「generic な callback parameter を
+helper へ forward できるか」まで。**concrete な callback lambda を
+helper へ実際に apply したとき、enclosing 関数自身の finalized scheme
+から local family が正しく消えるか**は一度も characterize されていな
+かった。v4 の core mechanism（helper 自体の scheme）は反証されていない
+——production 十分条件がまだ一段足りなかった。
+
 ## 次に調べるべきこと
 
-- **最優先**: なぜ unit test（isolated construction、または実際の
-  synthetic act 経由の lowering でも）では成立する single-source
-  correspondence が、CLI の full specialize pipeline を通すと崩れるのか。
-  疑うべき箇所: module 境界を越えた scheme の再 instantiate、
-  specialization の cache/reuse 境界、複数 binding（今回の repro は
-  `text_with_mock` を介した二重の local-var boundary を持つ）が絡む
-  複合ケース。read-only investigation が要る。
+- **新しい characterization スライスが要る（LVB-A4 相当）**: LVB-A3 の
+  「generic callback を helper へ forward する」形ではなく、「concrete な
+  callback lambda を helper へ実際に apply し、その application を含む
+  **enclosing 関数自身を generalize したとき**、finalized scheme から
+  local family が正しく落ちる」ことを証明する。LVB-A3 の witness は
+  helper と caller の scheme までしか見ておらず、helper 適用結果を
+  含む outer definition 自体の generalize は一度も通していない。
+- ロールバック済み実装の正確な diff は reflog/stash に残っていない
+  ため、次回実装時は同じ prepare/finish lifecycle を再構築する必要が
+  ある（stale binary の trace から挙動は再現できたが、source diff その
+  ものは失われている）。
 - LVB-A3（訂正後）の characterization 自体はまだ生きている——反証された
-  のは「isolated witness で証明した性質が、production の完全な
-  specialize pipeline でもそのまま成立するか」という、さらに広い前提。
+  のは「isolated witness で証明した性質が、concrete application + outer
+  generalize + full specialize pipeline でもそのまま成立するか」という、
+  さらに広い前提。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
