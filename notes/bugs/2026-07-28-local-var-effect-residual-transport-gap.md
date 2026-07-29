@@ -350,19 +350,65 @@ production の **helper 定義自体も、一般的な `my $x` local-var lowerin
 経路を経由せず、`var_ref`/`run` と同じより低いレベルで構築する必要がある**。
 これは type-soundness の問題ではなく、bootstrap 順序の設計要件。
 
+## LVB-A3 witness の訂正（2026-07-29）
+
+8回目を受け、LVB-A3 の witness を `my $x` sugar に依存しない形へ書き直した
+（`031a06e8`）。helper body を `var_ref`/`run` 自身と同じ primitive 層
+（`CopiedSourceInternal` member の直接構築）で組み、single-source
+correspondence が訂正後も成立することを再確認した。副産物として、
+LVB-A2 の `h` witness にも同種の潜在リスク（`h` 自身が `my $x` を使って
+おり、migration 後に意味が変わりうる）があると判明したが、LVB-A2 はもう
+production gate ではないため、今回はブロッカーにしなかった。
+
+## 9回目: LVB-B 四度目の挑戦、unit test は通るが CLI end-to-end で
+stop condition 1（2026-07-29）
+
+訂正済み LVB-A3 を根拠に production wiring（LVB-B、四度目）に着手。
+今回は初めて `infer` crate の unit test が全部通った（999/999、
+LVB-A/A2/A3 含む）。ordinary block（slice a）の実装、regression test、
+CPROV-A targeted test まで全部 pass。
+
+しかし bug note の最小 repro を実際の CLI（`run`→specialize の完全な
+pipeline）で流すと、`file_mock_text_with_rollback_on_error` と同種の
+conflict が再発した:
+
+```console
+conflicting type candidates: [&store#6:0(std::text::str::str)] vs []
+```
+
+元の症状（`[&buffer...; std::control::flow::loop; &store...]` vs
+`[std::control::flow::loop; &store...]`）とは candidate の中身が違う
+——`&buffer` 側が消えて `&store` だけになっている。完全に同じ失敗では
+なく、構造が変わった形跡はあるが、本質的にはまだ conflict。
+
+これは §7.1 の stop condition 1（「real `run` scheme の instantiate+
+application だけでは、payload-bearing `F(P)` が callback parameter の
+negative `ret_eff` へ independent concrete row prefix として届かない」）
+に該当すると Codex は判断し、workaround・solver 緩和を試さず LVB-B
+全体を rollback した（commit なし、working tree clean 確認済み）。
+
+**教訓**: isolated witness（LVB-A3）は unit test レベルの
+lowering/generalize/instantiate では single-source correspondence を
+証明できたが、**production の実際の registration/generalization
+lifecycle**（synthetic act copy の module 境界を越えた登録、
+specialization の cache 境界等）には、まだ witness が捉えていない
+差分がある。この差は `infer` crate の unit test では見えず、CLI の
+full specialization を通して初めて表面化した。
+
 ## 次に調べるべきこと
 
-- **新しい characterization/設計の手当てが要る**: LVB-A3 の witness を、
-  helper body の構築が `my $x` sugar（= 移行対象の general local-var
-  lowering 経路）に一切依存しない形へ書き直す。具体的には、helper
-  definition を `var_ref`/`run` 自身と同じ、synthetic act copy 構築時の
-  直接的な construction（`get`/`update_effect` closure 相当のプリミティブ
-  経路）で作る。production 側の実装も同じ層で helper を構築する必要がある
-  ——一般の local-var lowering 呼び出し（`wrap_var_binding_run` 経由）を
-  一切通さずに。
-- LVB-A3 の characterization 自体は、witness の構築方法に上記の欠陥が
-  あった以外は生きている（helper-indirection の single-source 性質は
-  正しく証明済み）。
+- **最優先**: なぜ unit test（isolated construction、または実際の
+  synthetic act 経由の lowering でも）では成立する single-source
+  correspondence が、CLI の full specialize pipeline を通すと崩れるのか。
+  疑うべき箇所: module 境界を越えた scheme の再 instantiate、
+  specialization の cache/reuse 境界、複数 binding（今回の repro は
+  `text_with_mock` を介した二重の local-var boundary を持つ）が絡む
+  複合ケース。read-only investigation が要る。
+- LVB-A3（訂正後）の characterization 自体はまだ生きている——反証された
+  のは「isolated witness で証明した性質が、production の完全な
+  specialize pipeline でもそのまま成立するか」という、さらに広い前提。
+- LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
+  変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
   骨格自体はまだ反証されていない。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
