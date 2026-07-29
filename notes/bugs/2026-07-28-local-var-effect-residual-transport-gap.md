@@ -273,23 +273,62 @@ clean を確認済み）。
 併存させられる、という前提を検証していなかった。isolated witness は
 mechanism の**片方**しか証明していなかった。
 
+## v4 改訂と LVB-A2 の成功（2026-07-29）
+
+6回目を受け、設計文書を v3 から v4 へ改訂した
+（`notes/design/2026-07-28-local-var-effect-boundary-fix.md`、`cf82dbc0`）。
+helper の callback `ret_eff` へ explicit な family contract を手置きするのを
+やめ、既存の `run` definition を通常どおり resolve/instantiate し、
+`run init (callback var_ref())` の application constraint だけで
+`[F(P); ρ] -> [ρ]` を導く single-source 方式へ変更した。
+
+LVB-A2（characterization、`4eb5ad49`）はこの v4 の core hypothesis を
+isolated witness で証明した: 実際の yulang source を `parse` /
+`lower_module_map` / `lower_binding_bodies` で end-to-end lowering し、
+`run`/`var_ref` を直接呼ぶ `my h(init, callback) = my $x = init; callback &x`
+という関数の中で、callback の `ret_eff` が bare fresh 変数のまま、
+explicit push も generic unannotated-call の `Empty` pair も入らず、
+`run` の resolve+application だけで `[F(P); ρ]` / `[ρ]` の対応が成立する
+ことを確認した。negative control で v3/LVB-B の衝突も意図的に再現し、
+今回の成功が偶然でないことも確認済み。
+
+## 7回目: LVB-B 二度目の挑戦、semantic stop condition ではなく IR 形状の不一致（2026-07-29）
+
+LVB-A2 成立を受け production wiring（LVB-B、v4 版）に着手したが、
+slice (a)（ordinary block）の試作段階で **§7.1 の15個の semantic stop
+condition のどれにも当たらないまま**、別の壁で停止した。
+
+**原因**: LVB-A2 の witness は「`run`/`var_ref` を直接呼ぶ普通の関数」
+という形（`h` 自体が `my $x = init; callback &x` を直接書いている）を
+証明した。しかし v4 の実際の production 設計（§4.1）は、
+`run init (callback var_ref())` を**別の private helper 定義の内部**に
+封じ込め、call site 側はその helper を resolve/apply するだけ、という
+もう一段の間接層を持つ。
+
+LVB-A2 が固定したテストの IR 形状（`Let` block + 直接 resolved `run`）と、
+v4 の finish lifecycle が実際に作ろうとする形（helper 適用へ置換、
+`run` は helper 定義の内側へ移動）が両立しなかった。Codex は LVB-A2 の
+assertion を弱めることも、旧経路との併存で誤魔化すことも行わず、
+LVB-B の全差分を rollback した（commit なし、working tree clean 確認済み）。
+
+**教訓**: 「resolve+apply が single-source になる」ことは証明済みだが、
+「その resolve+apply を、もう一段 private helper 定義でラップしても
+同じ性質が保たれるか」はまだ証明されていない。この間接層自体が
+LVB-A2 の isolated witness には存在しなかった。
+
 ## 次に調べるべきこと
 
-- **設計判断が要る（v4 相当）**: helper 内の「callback 自身の explicit
-  effect contract」と「既存 `run` handler の push/pop」を、同じ
-  `SubtractId` の重複主張にせず両立させる表現をどう作るか。考えられる方向:
-  a) callback の effect contract を独立に宣言せず、helper 内の `run` が
-  実際に処理する push/pop から**導出**する（explicit annotation を廃止し、
-  `run` の handler 型から `ret_eff` の contract を逆算する）、
-  b) helper の実装自体を変え、`run` による push/pop と callback boundary の
-  push/pop が異なる `SubtractId` を持つように構造を分離する（ただし
-  それでも residual `ρ` の対応をどう保つかが課題）、
-  c) 他の方向。いずれも
-  `notes/design/2026-07-28-local-var-effect-boundary-fix.md` の
-  改訂が必要（ユーザ承認済み設計文書として起こしてから着手する筋）。
-- LVB-A の characterization 自体は生きている（isolated mechanism としては
-  正しく証明済み）。反証されたのは「その mechanism を、helper 自身の
-  既存 `run` 実装と組み合わせても両立するか」という、より広い前提。
+- **新しい characterization スライスが要る（LVB-A3 相当）**: `run init
+  (callback var_ref())` を、call site が直接書くのではなく、独立に
+  resolve/instantiate される **private helper definition の内部**へ
+  封じ込めた形で、LVB-A2 と同じ single-source 性質（`stack_quantifiers`
+  空、explicit push 不在、`ρ` の共有）が保たれることを証明する。
+  `notes/design/2026-07-28-local-var-effect-boundary-fix.md` §6 へ
+  この slice を明示的に追加してから着手する。
+- LVB-A2 の characterization 自体は生きている（direct-call の
+  isolated mechanism としては正しく証明済み）。反証されたのは
+  「その mechanism を、production が要る helper-indirection の形へ
+  そのまま転用できるか」という、より広い前提。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
   骨格自体はまだ反証されていない。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
