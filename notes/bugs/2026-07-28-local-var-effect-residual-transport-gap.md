@@ -427,23 +427,59 @@ helper へ実際に apply したとき、enclosing 関数自身の finalized sch
 かった。v4 の core mechanism（helper 自体の scheme）は反証されていない
 ——production 十分条件がまだ一段足りなかった。
 
+## LVB-A4 の成功（2026-07-29）
+
+10回目を受け、`notes/design/2026-07-28-local-var-effect-boundary-fix.md`
+§6 へ LVB-A4 を追加した（`03574c1c`）。concrete な callback lambda を
+helper へ実際に apply し、その application を含む enclosing 関数自身を
+generalize したとき、finalized scheme から local family が正しく落ちる
+ことを証明。single-boundary と、実際のバグ構造そのもの（`$store` →
+`text_with_mock` → `$buffer`）を模した nested two-boundary variant の
+両方が成立した。
+
+## 11回目: LVB-B 五度目の挑戦、CLI は成功するが scheme が契約に違反
+（2026-07-29）
+
+LVB-A4 成立を受け production wiring（LVB-B、五度目）に着手。今回は
+初めて **CLI end-to-end の実行結果が正しかった**:
+
+```console
+run roots [(result::err(edit_err::abort), "start")]
+```
+
+しかし、LVB-A4 が固定した契約（concrete callback application 後、
+enclosing 関数の finalized scheme から local family が消える）を
+実際の production scheme で確認したところ、まだ残っていた:
+
+```text
+["&buffer#5:0" ..., "&store#6:0" ..., std::control::flow::loop]
+```
+
+Codex は「実行結果が正しいから良い」とはせず、証明済みの契約と食い違う
+ことを理由に、workaround を入れず LVB-B 全体を rollback した（commit
+なし、working tree clean 確認済み）。
+
+**この結果の意味**: 実行結果がたまたま正しくても、scheme に family の
+残留物があるということは、型レベルでは「実際には discharge されていない
+のに、たまたま今回の repro では表に出なかった」状態である可能性がある。
+これは soundness の観点では受け入れられない——別の repro や別の
+call site の組み合わせで、残留した family が今度こそ実際に conflict を
+起こす、あるいは誤って許可されるべきでない状況を許してしまう危険がある。
+「一つの CLI 出力が正しい」ことは、この bug の completion contract
+（§8）が求める水準ではない。
+
 ## 次に調べるべきこと
 
-- **新しい characterization スライスが要る（LVB-A4 相当）**: LVB-A3 の
-  「generic callback を helper へ forward する」形ではなく、「concrete な
-  callback lambda を helper へ実際に apply し、その application を含む
-  **enclosing 関数自身を generalize したとき**、finalized scheme から
-  local family が正しく落ちる」ことを証明する。LVB-A3 の witness は
-  helper と caller の scheme までしか見ておらず、helper 適用結果を
-  含む outer definition 自体の generalize は一度も通していない。
-- ロールバック済み実装の正確な diff は reflog/stash に残っていない
-  ため、次回実装時は同じ prepare/finish lifecycle を再構築する必要が
-  ある（stale binary の trace から挙動は再現できたが、source diff その
-  ものは失われている）。
-- LVB-A3（訂正後）の characterization 自体はまだ生きている——反証された
-  のは「isolated witness で証明した性質が、concrete application + outer
-  generalize + full specialize pipeline でもそのまま成立するか」という、
-  さらに広い前提。
+- **最優先**: production の enclosing definition の scheme が、CLI
+  出力上は正しく振る舞いながらも、なぜ finalized scheme に local family
+  を残すのかを特定する。LVB-A4 の witness と production の
+  generalization lifecycle の間に、まだ埋まっていない差分がある。
+  read-only investigation が有効かもしれない——10回目と同じ手法
+  （stale binary の scheme trace）が使えるなら、rollback 前に scheme
+  を trace してから rollback する、という手順が次回は要るかもしれない。
+- ロールバック済み実装の正確な diff は今回も reflog/stash に残って
+  いない可能性が高い。次回実装時は同じ prepare/finish lifecycle を
+  再構築する必要がある。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
