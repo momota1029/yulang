@@ -766,19 +766,54 @@ effect と第二 application の result へどう接続されるか**という�
 同じ漏れを確実に再現できる。今後の investigation はこの test を
 起点にできる。
 
+## 20回目: 真因を特定——callback body 内の逐次文の effect 集約方法
+（2026-07-29、決定的な前進）
+
+19回目の nested test をさらに深掘りし、「七本目の edge」自体
+（nested call の argument effect → call effect → result effect、
+`propagate.rs:234` の pure passthrough + `tail.rs:615` の通常接続）は
+**両ケースで存在し、正しく機能している**と確認した。問題は edge の
+有無ではなく、**その edge に何が流れ込むか**だった。
+
+**決定的な差分**（`d1365b1c`）:
+
+- **parsed lowering**（動く）: nested call の引数には、その call が
+  実際に必要とする値の effect（`r.get()` 単体の effect）**だけ**が
+  流れる。callback body 内の**それより前の文の effect**は、call の
+  外側に留まり、call の**後で**新しい block-aggregate effect
+  （`block_local.rs:1289`）へ合流する。
+- **hand-built construction**（漏れる）: 前の文の `body_value`/
+  `body_effect`——**それまでの callback body 全体の、すでに集約済みの
+  computation**——を丸ごと nested call の引数として渡していた。
+
+つまり hand-built 側は、nested call の**引数そのもの**に、outer の
+family を含む「それまでの callback body 全体」を混ぜ込んでしまって
+いた。診断上、この結果 outer family へ到達可能な constraint 経路の
+数が、parsed 側で3本、hand-built 側で9本——**3倍**に膨れ上がっていた。
+
+この時点で「一つの statement の effect」ではなく「それまでの
+callback body 全体の集約 effect」を次の nested call の引数へ
+渡していた、という**construction 上の具体的な誤り**が特定された。
+これは production の `wrap_var_binding_run`/callback body lowering が
+逐次文をどう繋ぐか、という、次に実装すべき箇所への直接の指針になる。
+
+**教訓**: production の callback body lowering（複数文を含む場合）は、
+**各文・各 nested call の effect を個別に保ちつつ、正しい aggregation
+point（parsed lowering と同じ block-aggregate 方式）で後から合流させる
+**必要がある。前の文の効果を後続の call の引数へそのまま伝播させては
+いけない。
+
 ## 次に調べるべきこと
 
-- **最優先**: `nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_generalization`
-  を起点に、**nested call の引数評価 effect**（outer callback body 内で
-  inner 関数を呼ぶ際の call effect）が、outer callback body effect や
-  outer 第二 application の result effect とどう接続されるかを、
-  constraint edge レベルでさらに深掘りする。six canonical edges は
-  揃っているのに漏れる、ということは、**七本目以降の、まだ列挙して
-  いない edge**（nested call 由来のもの）が疑わしい。
-- callback/helper application 機構自体（単一 boundary、4回の独立検証）
-  と、4つの construction 不変条件は、ともに潔白と確定済み。SCC
-  ordering も今回否定された。疑うべき範囲は「nested call の evaluation
-  effect の配線」まで絞られた。
+- **最優先**: この知見を production の実装へ反映する。次回 LVB-B
+  実装では、callback body 内の逐次文（特に nested function call を
+  含む場合）の effect 集約を、`block_local.rs:1289` が使っている
+  parsed lowering と同じ block-aggregate pattern に**忠実に**従わせる
+  ——前の文の集約済み effect を次の call の引数へ混入させない。
+- callback/helper application 機構自体、4つの construction 不変条件、
+  SCC ordering、七本目の edge（nested call 自体の配線）は、すべて
+  潔白と確定済み。原因は「callback body の逐次文をどう繋ぐか」という
+  construction の具体的な誤りまで絞り込めた。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
