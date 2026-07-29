@@ -1028,21 +1028,57 @@ reduced upper record、provenance）を保持し、reduction 後に到着する
 - reduction bound の prune/subsumption 後も state・provenance が
   stale にならないこと
 
+## URR 着地と LVB-B 十一度目、まだ nested が直らない（2026-07-29〜30）
+
+`notes/design/2026-07-29-unweighted-row-reduction-fix.md` の solver 修正
+（v2、狭域スコープ）を実装・着地した（`82c79dd2`、`215ba17f`）。
+1012 tests 全通過、独立再検証済み。ただし CLI で実際の repro を流すと
+まだ直っていなかった——production の local-var lowering 自体
+（`wrap_var_binding_run`）が旧経路のままで、v5 helper 機構へ一度も
+migrate されていないため（LVB-B は10回とも rollback 済み）。
+
+これを受け LVB-B 十一度目に着手したが、production wiring の前提
+gate として `v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`
+（既存の nested characterization test）を再実行したところ、**URR の
+solver 修正後もまだ inner family の漏れが再現した**。single-boundary
+（複数文含む）は完全解決のまま、nested のケースだけがまだ直っていない。
+
+**新しく判明した原因**: URR の設計は「reduction-owned な reduced upper
+の replay は、incremental path だけが所有する」ことを求めていた
+（§5.4）。しかし実際の nested trace では、reduced upper が**既存の
+canonical upper へ subsume される**状況で、その canonical upper に
+`FunctionReturnEffect` 由来の**独立した derivation が同居**していた。
+このとき `upper_record_requires_generic_replay`（実装名は暫定）が
+「state 外の独立 derivation がある」と判定し、plain residual への
+generic replay を許可してしまう。結果、正しい incremental route が
+存在するのに、late matching lower が plain residual へも同時に
+流れる経路が残る——URR が「二重処理しない」と定めた不変条件（§4.4）
+を、この co-owned survivor という形では満たせていなかった。
+
+URR の7つの regression test はこの「subsumption + 独立 derivation の
+共存」という形を一つもカバーしていなかった——実際の nested local-var
+の複雑さが、テストでは想定してなかった組み合わせを露呈させた形。
+
 ## 次に調べるべきこと
 
-- **最優先**: この発見を signed design document として起こし、
-  `row_effect.rs` の persistent reduction state 化を実装する。hot
-  path の性能設計（source-indexed state、tombstone 連携、provenance
-  census への影響）は慎重なレビューが要る。ユーザ承認済み設計文書と
-  してから着手する。
-- 単一 boundary（複数文含む）の discharge は完全に解決済み。CLI
-  end-to-end も成功している。残るのはこの solver 側の修正だけ、
-  というところまで絞れた。
+- **最優先**: URR 設計文書のさらなる改訂（v3 相当）が必要。reduced
+  upper が既存 canonical upper へ subsume されたとき、その survivor
+  record が persistent reduction state と独立 derivation の**両方**を
+  持つ場合の replay ownership を正しく判定する仕組みを設計する。
+  「state record ID と derivation linkage から所有権を判定する」
+  （URR v1 §5.4 の原則）を、subsumption 後の survivor にも正しく
+  適用できる形へ拡張する必要がある。
+- この co-owned survivor 形を再現する regression test を追加してから
+  修正に着手する（URR の test-first 規律を継続）。
+- LVB-B の production wiring は、この追加修正が着地するまで再開しない
+  ——今回は production コードを一切変更せず、gate 段階で正しく停止した。
+- 単一 boundary（複数文含む）の discharge、CLI での成功は維持されている
+  ——退行はない。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
-  `row_effect.rs` の修正も同様に、regression suite を十分に整えてから
-  着手する。
+  `row_effect.rs` の追加修正も同様に、regression suite を十分に整えて
+  から着手する。
 
 ## 現状の扱い
 
