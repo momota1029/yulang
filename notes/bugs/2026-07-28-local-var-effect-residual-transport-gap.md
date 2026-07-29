@@ -803,17 +803,49 @@ point（parsed lowering と同じ block-aggregate 方式）で後から合流さ
 **必要がある。前の文の効果を後続の call の引数へそのまま伝播させては
 いけない。
 
+## 21回目: LVB-B 九度目の挑戦、block-aggregate 修正は必要だが
+まだ不十分（2026-07-29）
+
+20回目の知見（callback body の逐次文は通常の `Expr::Block`/
+`lower_block_items` の block-aggregate 経路へ正しく通す）を production
+実装へ反映して九度目の LVB-B を試みたが、**それでもまだ family が
+漏れた**。
+
+**新しい観察**: 今回初めて、**単独（nested じゃない）でも複数文の
+callback body**（実際の block-aggregate 経路を通したもの）を持つ
+inner 関数のケースを試した。結果、inner 単独でも
+`("&buffer" ('a & 'b), observe('b | 'a)) 'a` という不正な finalized
+scheme になった——これまでの単一 boundary 成功例（LVB-A4 等）は
+恐らく単純な（単一文の）callback body だけを使っていて、複数文の
+callback body という条件自体がまだ検証されていなかった可能性がある。
+
+**現状の理解**: helper producer scheme は今回も正しい
+（`stack_quantifiers` 空、target structure と一致）。しかし正しい
+block aggregate を callback `Fun.ret_eff` に載せた**後**の、helper
+二段目 application で、やはり local family が discharge されない。
+20回目の修正（先行文を nested call 引数へ混ぜない）は必要条件では
+あったが、production landing の十分条件ではなかった。
+
+**教訓**: これで LVB-B は9回連続で停止した。callback/helper
+application 機構（4回独立検証）、4つの construction 不変条件、SCC
+ordering、七本目の edge、block-aggregate による逐次文集約——すべて
+個別には正しいと確認済みなのに、それらを**すべて production の
+実際の enclosing 文脈で組み合わせる**と、まだ漏れが起きる。
+
 ## 次に調べるべきこと
 
-- **最優先**: この知見を production の実装へ反映する。次回 LVB-B
-  実装では、callback body 内の逐次文（特に nested function call を
-  含む場合）の effect 集約を、`block_local.rs:1289` が使っている
-  parsed lowering と同じ block-aggregate pattern に**忠実に**従わせる
-  ——前の文の集約済み effect を次の call の引数へ混入させない。
-- callback/helper application 機構自体、4つの construction 不変条件、
-  SCC ordering、七本目の edge（nested call 自体の配線）は、すべて
-  潔白と確定済み。原因は「callback body の逐次文をどう繋ぐか」という
-  construction の具体的な誤りまで絞り込めた。
+- **最優先**: production の実際の callback body（block-aggregate 経由、
+  deferred resolution 経由）の `ret_eff` と、helper 二段目 application
+  の expected callback 引数型との**subtype 接続そのもの**を、
+  deferred resolution 完了後の時点で直接 trace する。18回目の
+  post-quiescence 比較は単一 boundary の単純 callback でのみ行われて
+  おり、block-aggregate を経た複数文 callback body でも同じ比較を
+  やり直す必要がある。
+- 9回の production wiring 挑戦すべてが、個別には正しいと確認された
+  複数の要素を組み合わせた時点で失敗している。これは、まだ発見して
+  いない**追加の要素**がある可能性を示唆する——あるいは、これまで
+  「正しい」と確認してきた個々の要素の組み合わせ方自体に、まだ
+  characterize されていない相互作用がある。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
