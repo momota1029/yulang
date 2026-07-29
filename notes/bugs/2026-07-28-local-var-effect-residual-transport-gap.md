@@ -699,24 +699,50 @@ instantiate）**を比較していたことになる——「両ケースで edg
 されているため）。真の比較対象は「deferred resolution を経た**後**、
 `UseResolved` 接続が完了した時点」での6 edge でなければならない。
 
+## 18回目: post-quiescence 比較でも callback/helper application は
+潔白確定（2026-07-29）
+
+17回目の指摘どおり、slot ID を `ApplyRefResolution` → `UseResolved` の
+deferred resolution 完了後まで保持する snapshot seam を作り（
+`8808ff61`）、parsed-source 側と production hand-built 側の両方を
+**同じ full pipeline（`lower_module_map`+`lower_binding_bodies`）**へ
+通した上で、post-quiescence の6 edge を再照合した。
+
+**結果**: 今度こそ本当に同じ条件での比較になったが、**それでも構造差は
+見つからなかった**。6 edge すべてが両ケースに存在し、どちらの
+result effect からも local family への到達性はない。
+
+**この結果の意味**: callback/helper application 機構は、(1) LVB-A3、
+(2) LVB-A4、(3) 16回目の eager 比較、(4) 今回の post-quiescence deferred
+比較——**4回とも独立に潔白が確定した**。この機構そのものに原因がある
+可能性は、現実的にはもう排除してよい水準に達している。
+
+真の divergence は、この二段 application の**外側**にある。疑うべき
+次の軸:
+
+- local-var binding **自身の definition 登録**が、enclosing scope の
+  generalization/SCC root とどう関係しているか（10回目で「SCC は
+  merge/widen しない」と確認済みだが、merge/widen 以外の順序依存が
+  残っている可能性）
+- 同じ enclosing scope 内の **sibling binding との相互作用**
+  （実際のバグ repro は `$store` と、その中で呼ばれる
+  `text_with_mock` の `$buffer` という、ネストした2つの local-var
+  boundary を持つ——この「同じ関数内に複数の local-var 由来 helper
+  application が存在する」状況そのものが、まだ characterize されて
+  いない）
+
 ## 次に調べるべきこと
 
-- **最優先**: 二段目 application の slot ID（helper-with-init、
-  callback、body effect、result effect、call effect）を、`prepare`/
-  `finish` の時点だけでなく **analysis work（`ApplyRefResolution` →
-  `UseResolved`）が完了した後まで保持**し、その時点で同じ6 edge を
-  再照合する。これを、parsed-source（LVB-A3/A4 witness）側と
-  production（hand-built）側の**両方**で行い、真に deferred resolution
-  後の状態を比較する。今回の investigation はこの「保持して後で
-  再照合する」ための snapshot seam をまだ持っていない——それ自体を
-  次回の実装課題とする。
-- 4つの不変条件、callback/helper application の「即時 lowering 時点」
-  での構造は共に潔白と確定済みだが、**deferred resolution 後の状態**
-  はまだ未検証のまま残っている——ここが本当の分岐点である可能性が高い。
-- 参考データ: 今回、application 直後に work queue を強制 drain する
-  診断も試したが、conflict の形が変わっただけで（`[&buffer...; loop;
-  edit_err]` vs 元の `[&buffer...; &store...; loop]`）、fix にはならず、
-  pipeline が timing-sensitive であることの追加証拠になった。
+- **最優先**: production の実際の enclosing 関数の**完全な形**
+  （複数の local-var boundary が同じ scope に共存し、一方が他方を
+  呼び出す、という実際のバグ repro の構造）を、hand-built helper
+  application と共に構築し、definition 登録順序・generalization root
+  の割り当て・SCC component の構成を trace する。単一の local-var
+  boundary だけを切り出した比較では、もう差が出ないと分かった。
+- callback/helper application 機構自体（4回の独立検証）と、4つの
+  construction 不変条件は、ともに潔路と確定。疑うべき範囲は
+  「local-var binding の definition 登録と、それを含む enclosing
+  関数全体の generalization lifecycle」まで絞られた。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
