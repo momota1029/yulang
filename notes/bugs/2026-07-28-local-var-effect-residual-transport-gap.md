@@ -644,21 +644,41 @@ finish が手で組む Fun 値）に、まだ特定できていない違いが�
 確認したが、それ以外の——generalization boundary の扱い、quantifier
 scoping、occurs-check 関連など——構築上の細部までは検証していない。
 
+## 16回目: constraint edge 比較、callback/helper 機構そのものは
+無罪確定（2026-07-29、Sol xhigh）
+
+15回目を受け、parsed-source callback（動く）と hand-built `Fun` 値
+callback（動かない）を、isolated な比較 harness で個々の constraint
+edge レベル・TypeLevel scoping レベルで比較した
+（`519fff63`、`local_var_effect_boundary_edge_comparison.rs`）。
+
+**結果**: 両ケースで **構造差は一切見つからなかった**——canonical な
+6本の edge（callback value → helper expected callback、
+`Pos::Fun <: Neg::Fun` 分解、callback body effect → 期待される
+`[F(P); ρ]`、concrete row match、payload invariance、residual
+propagation）も、TypeLevel の割り当て順序も完全に同一。
+
+**この結果の意味**: callback を helper へ apply する機構そのものは、
+（LVB-A3/A4 に続いて）**今回も無罪だと確定した**。isolated な比較では
+両ケースとも正しく discharge される。したがって attempt 7 で実際に
+漏れた原因は、**この callback/helper application 機構の外側**——
+production の実際の enclosing local-var binding lifecycle（
+`wrap_var_binding_run`/`local_var_effect_value` 全体の文脈、synthetic
+act の登録タイミング、outer generalize/SCC の frame wiring 等、
+10回目で調べた module 境界周りとも関係しうる領域）にある。
+
 ## 次に調べるべきこと
 
-- **最優先**: LVB-A4 の parsed-source callback lambda 構築
-  （`\r -> ...` を通常の `lambda.rs` lowering で経由するケース）と、
-  production の finish が手で組む callback Fun 値の構築を、**個々の
-  constraint edge レベル**で比較する。scheme の形状比較だけでは
-  4不変条件を満たしても見分けがつかなかったため、次はどちらのケースも
-  同じ repro に対して制約発行そのものを trace/dump し、diff を取る
-  投資が要る。具体的には `propagate.rs` の該当箇所に一時的な debug
-  出力を入れて両ケースを走らせ、発行される制約の集合を比較するのが
-  有効かもしれない。
-- 4つの不変条件自体は否定されていない——満たしても足りないという
-  新しい事実が判明しただけ。
-- 次回も、rollback する前に診断値を記録する手順を継続する（今回も
-  成功）。
+- **最優先**: isolated な比較 harness ではなく、**production の実際の
+  enclosing local-var binding 全体の文脈**（`wrap_var_binding_run` が
+  実際に呼ばれる完全な状況——synthetic act 登録、prepare タイミング、
+  outer definition の generalize/SCC 処理）を比較器へ移植し、
+  同じ edge-level 比較を行う。孤立した callback+helper application だけ
+  では差が出ないと分かったので、次は「それを取り巻く production
+  固有の文脈」が疑わしい。
+- 4つの不変条件、callback/helper application 機構は共に潔白と確定。
+  疑うべき範囲がさらに絞られた。
+- 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
