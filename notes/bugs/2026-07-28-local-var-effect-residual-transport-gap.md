@@ -504,24 +504,65 @@ family は消えない——static scheme が over-approximate（実際より広
 になっていて、たまたま今回の repro の runtime path では問題にならな
 かっただけ、という説明が最有力。
 
+## 13回目: LVB-B 六度目の挑戦、5-slot 計装で仮説1を確定（2026-07-29）
+
+12回目で絞った3択を、production の実際の `my $x` prepare/finish 経路へ
+5-slot 計装を入れて検証した。今回は rollback する前に診断値を記録する
+よう明示的に指示し、実際に記録できた。
+
+**観測値**（`&x` 一本の local-var boundary、production primitive-layer
+construction）:
+
+- (a) callback body effect: `TypeVar(195)`、compact row
+  `["&x#18:0"(P), std::control::var::observe(P)]` — family **あり**
+- (b) callback value の evaluation effect: exact pure（non-bottom lower
+  なし、closed empty-row upper あり）— 正常
+- (c) callback `Fun.ret_eff`: `Pos::Var(TypeVar(195))`、(a) をそのまま
+  保持 — 正常
+- helper producer scheme: `'a -> (ref '["&x#18:0" 'a] 'a ->
+  ["&x#18:0" 'a; 'b] 'c) -> ['b] 'c` — LVB-A3 の target structure と
+  **一致**（helper 自体は正しい）
+- (d) helper application（二段目）の result effect: compact row
+  `["&x#18:0"(P), observe(P)]` — family **残留**
+- (e) enclosing finalized scheme: `('a & 'b) -> ["&x#18:0"('a & 'b),
+  std::control::var::observe('b | 'a)] 'b | 'a` — family **残留**
+
+family presence: `(a)=true, (d)=true, (e)=true`。
+
+**結論**: **仮説1が確定**。helper 自体の producer scheme は
+（LVB-A3 が証明した通り）正しいのに、**helper を実際に concrete
+callback へ apply した二段目 application の結果自体**に、すでに
+family が残っている。仮説2（finish の再接続漏れ）は divergence が
+finish 後ではなく application の時点で既に存在するため refuted。
+仮説3（callback value の非 pure 化）は slot (b) が正常だったため
+refuted。
+
+**新しく判明した本質的な違い**: LVB-A3/A4 の witness は、helper 自身の
+body 構築だけを primitive layer（`my $x` 非依存）にしていたが、
+**helper を呼び出す application 自体は parsed yulang source**
+（`h(init, callback) = ...` のような、通常の parser 経由の application
+lowering）を使っていた。一方、production の `wrap_var_binding_run` の
+finish は、この二段 application を **プログラム的に直接構築**
+している（parsed source を経由しない、Rust レベルでの AST/IR node
+構築）。この「parsed source 経由の application」と「programmatic に
+直接構築した application」の違いこそが、LVB-A3/A4 が証明した性質が
+production では成立しない理由である可能性が高い——通常の application
+lowering（`tail.rs` 等）が持つ、まだ特定できていない何らかの副次的な
+配線を、直接構築が再現できていない。
+
 ## 次に調べるべきこと
 
-- **最優先（LVB-A5 相当）**: LVB-A4 の「primitive-layer で構築した
-  copied caller」ではなく、**実際の production `my $x` prepare/finish**
-  で作った enclosing definition について、次を同時に記録する
-  characterization を作り、上記3択を区別する:
-  - callback body の effect slot
-  - callback value の evaluation effect（pure であるべき）
-  - callback `Fun.ret_eff`
-  - helper 二段目 application の result effect
-  - enclosing lambda/root の `ret_eff`
-  - `F(P)` row item から各 slot への constraint provenance
-  helper application result に family が無く enclosing root だけに
-  再出現するなら (2) が原因。helper application result 自体に残るなら
-  (1)。callback value の evaluation effect が pure でないなら (3)。
-- 次回 LVB-B 実装時は、rollback する**前**に production scheme を
-  trace する手順を組み込む（今回は binary が clean rebuild されて
-  しまい、事後の trace ができなかった）。
+- **最優先（LVB-A5 相当、更新）**: 「parsed source 経由で構築した
+  二段 application」と「production の finish が直接構築する二段
+  application」を、同じ helper scheme に対して並べて比較する
+  characterization を作る。具体的には、通常の application lowering
+  （`crates/infer/src/lowering/expr/tail.rs` の application 処理）が
+  `Neg::Fun` へ接続する際に行っている、programmatic construction が
+  見落としている可能性のある配線（例: 二段階目の application で
+  callee 型を re-resolve するタイミング、effect variable の fresh 化
+  順序、`Pos::Fun <: Neg::Fun` の制約発行順序など）を特定する。
+- 次回 LVB-B 実装時も、rollback する前に診断値を記録する手順を継続する
+  （今回はこれで成功した）。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
