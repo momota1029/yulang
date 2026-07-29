@@ -550,19 +550,69 @@ production では成立しない理由である可能性が高い——通常の
 lowering（`tail.rs` 等）が持つ、まだ特定できていない何らかの副次的な
 配線を、直接構築が再現できていない。
 
+## 14回目: 「parsed source 差」仮説の反証と正しい construction pattern の
+特定（2026-07-29、Sol xhigh）
+
+13回目末尾の推測——「parsed source 経由の application と、production の
+直接構築 application で配線が違う」——を read-only investigation で
+検証したところ、**この推測自体が誤りだった**。
+
+- `make_source_app`（parser 経由）と `make_internal_app`
+  （programmatic）は、どちらも同じ `make_app_with_origins`
+  （`tail.rs:535`）を呼んでいる。parsed source 側にしか無いのは
+  source span・expected-type provenance・`ApplicationProvenance` の
+  ような**診断用の付帯情報だけ**で、effect の配線そのものは完全に同一。
+- しかも、**現行の（rollback 前の、まだ移行していない）
+  `wrap_var_binding_run` 自体がすでに正しいパターンを使っている**:
+
+  ```rust
+  let run_with_init = self.make_internal_app(run, init);
+  Ok(self.make_internal_app(run_with_init, body))
+  ```
+
+  （`block_local.rs:945-957`）——`make_internal_app` を2回、段階を
+  追って chain する形で、これは今この瞬間も動いている実証済みコード。
+
+**正しい construction pattern**（次回実装がそのまま複製すべき形）:
+
+```text
+helper = resolved-ref helper_def
+step1  = make_internal_app(helper, init)
+step2  = make_internal_app(step1, callback_value)
+```
+
+守るべき4つの不変条件:
+
+- 各段が独立した fresh `result_value` / `result_effect` / `call_effect`
+  を持つ
+- **二段目の callee は元の helper ではなく、一段目が返した
+  `Computation` そのもの**（helper の `Neg::Fun` を使い回さない）
+- callback の `arg_eff` には exact-pure な callback value evaluation
+  effect を使う
+- callback body effect は callback value の `Fun.ret_eff` にだけ置き、
+  application result へ直結したり `call_effect`/`result_effect` と
+  slot を使い回したりしない
+
+**教訓**: 13回目の推測（「parsed source にだけ秘密の配線がある」）は
+反証された。attempt 6 が実際に family を残した原因は、この
+`make_internal_app` を2回使う既存の正しいパターンから、**何らかの形で
+逸脱していた**（元の helper の `Neg::Fun` を再利用した、fresh slot を
+使い回した、prepare/finish の分割特有の TypeLevel/timing 順序の問題、
+のいずれか）と考えられるが、rollback 済みで diff が残っていないため
+一意には確定できなかった。
+
 ## 次に調べるべきこと
 
-- **最優先（LVB-A5 相当、更新）**: 「parsed source 経由で構築した
-  二段 application」と「production の finish が直接構築する二段
-  application」を、同じ helper scheme に対して並べて比較する
-  characterization を作る。具体的には、通常の application lowering
-  （`crates/infer/src/lowering/expr/tail.rs` の application 処理）が
-  `Neg::Fun` へ接続する際に行っている、programmatic construction が
-  見落としている可能性のある配線（例: 二段階目の application で
-  callee 型を re-resolve するタイミング、effect variable の fresh 化
-  順序、`Pos::Fun <: Neg::Fun` の制約発行順序など）を特定する。
-- 次回 LVB-B 実装時も、rollback する前に診断値を記録する手順を継続する
-  （今回はこれで成功した）。
+- **最優先（次回 LVB-B 実装の直接の指針）**: 上記の正しい
+  construction pattern（`make_internal_app` を2回、二段目の callee は
+  一段目の `Computation`）を**一字一句忠実に**複製する。特に
+  prepare/finish の分割（callback body lowering の**前**に helper
+  application の骨格を prepare し、body lowering の**後**に finish
+  する、という非対称なタイミング）が、この pattern の TypeLevel や
+  fresh slot 割り当て順序とどう相互作用するかを、実装前に明示的に
+  検証する。
+- 次回も、rollback する前に診断値（5-slot、可能なら各 slot の
+  identity/provenance も）を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
