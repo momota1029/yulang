@@ -2,13 +2,40 @@
 
 日付: 2026-07-29
 
-状態: **ユーザ承認済み（2026-07-29）**
+状態: **ユーザ承認済み（2026-07-29、v2 狭域スコープ）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
 本書のコード行番号は同 commit の working tree に対して 2026-07-29 に再確認した。
 
 ## 改訂履歴
+
+### 2026-07-29: v2 — initial matching 成立後の incremental replay に限定
+
+ユーザーの明示的な承認により、URR-B の保証範囲を、row upper 到着時に一件以上の matching
+lower がすでに存在し、initial reduction が成立した source に限定する。
+
+v1 の全面的な insertion-order invariance を目指した三回の実装結果は次の通りだった。
+
+- すべての source に eager な dormant state を作る案はtestを通したが、repository stdだけで
+  `UnweightedReduction`が54から191、tombstoneが0から93へ増え、poly hashも一件変わった。
+- initial matching成立時だけpersistent recordを作る案は、zero-lowerでupperが先行する一順序を
+  除くtarget test、既存三test、characterizationをcleanに通した。repository stdでは
+  `UnweightedReduction`が54から77、tombstoneは0のまま、lower replay inputsは
+  492,998から493,009、upper replay inputsは388,053から387,997で、全poly/check hashが不変だった。
+- zero-lower caseをlate lower到着時にlazy activationする案は、無関係なordinary `Neg::Row`
+  upperまで拾い、`UnweightedReduction`が54から176、tombstoneが0から35へ増え、
+  `config-read-false-positive-repro`のpoly hashも説明なく変えた。
+
+第三案が広く発火した根因は、「このreduction mechanismのzero/no-match branchから来たordinary
+`Neg::Row` upper」と「compiler内の無関係なordinary `Neg::Row` upper」を区別する構造的なtagが
+ないことにある。このtagの設計なしにzero-lower caseまで広げない。
+
+実際の報告bugはbug noteの「24回目」「25回目」に記録された通り、row upper到着前に
+`TypeVar(1524)`が18個のlowerをすでに持ち、initial matchingが成立する順序である。したがって
+zero-lower / UpperFirstをdeferしても実bugは未修正のまま残らない。deferする抽象的な
+solver-generality propertyは§6.6に明示し、将来、reduction-eligible upperを構造的に識別する
+設計から再開する。
 
 ### 2026-07-29: v1 — 初版
 
@@ -24,9 +51,9 @@ local-var effect boundary の調査が発見経路ではあるが、本書は
 
 本設計で選ぶ方向は次の通り。
 
-1. unweighted row reduction を、plain な residual upper 一本へ不可逆に潰さない。reduction が
-   成立した source variable ごとに、元の row と現在の residual の関係を表す persistent
-   reduction state を solver 内へ持つ。
+1. row upper到着時に一件以上のmatching lowerがすでに存在し、unweighted row reductionが
+   成立したsource variableについて、reductionをplainなresidual upper一本へ不可逆に潰さない。
+   元のrowと現在のresidualの関係を表すpersistent reduction stateをsolver内へ持つ。
 2. state は少なくとも original items / tail、消費済み items、残り items、現在の
    reduced-upper record、元 upper と寄与 lower の provenance を保持する。同じ source に
    複数の row upper がありうるため、source index の値は一つの record ではなく active record
@@ -41,9 +68,11 @@ local-var effect boundary の調査が発見経路ではあるが、本書は
    reduction-owned derivation は incremental path が所有し、同じ canonical bound record に
    reduction と無関係な derivation が共存する場合だけ、その独立した relation の通常 replay を
    残す。
-6. lowering、local-var boundary、generalize / instantiate、specialize を回避策として変更しない。
-   同じ row-subtyping relation は、構文の出処や constraint の到着順によらず同じ fixpoint を
-   持たなければならない。
+6. zero-lowerまたはinitial no-matchのsourceへspeculative / dormant stateを作らない。late-lower
+   transitionは、initial matching成立時に作られたrecordだけへ適用する。
+7. lowering、local-var boundary、generalize / instantiate、specialize を回避策として変更しない。
+   persistent recordが成立するorder familyの内側では、構文の出処やlate lowerの到着順によらず
+   同じfixpointを持たなければならない。真のzero-initial-lower UpperFirstは§6.6へdeferする。
 
 ## 1. 問題
 
@@ -141,8 +170,8 @@ lower replay で contamination が起きていた。25回目は、この挙動�
 
 - local-var project は、callback parameter を body lowering 中は placeholder のまま保ち、
   helper applicationで concrete refへ接続する v5 mechanismを引き続き所有する。
-- 本 project は、同じ `Pos::Var <: Neg::Row` relation がいつ solver へ到着しても同じ row
-  reductionになることを所有する。
+- 本 project は、`Pos::Var <: Neg::Row` relation の到着時に一件以上のmatching lowerがすでに
+  存在する場合、その後のlate lowerを元のrowへ再照合することを所有する。
 - local-var loweringが constraint orderを変えてこのbranchを避ける案は採らない。その案では、
   surface syntaxやprogrammatic constructionの違いがsolver semanticsへ漏れる。
 
@@ -219,7 +248,8 @@ materialized endpointはtail単体になるが、logical relationまで`source <
 
 ### 4.2 independent matching
 
-各 lower は、到着時刻によらず original items の完全なcopyから照合を開始する。
+active reduction recordが作られた後に到着する各lowerは、original itemsの完全なcopyから
+照合を開始する。
 先に別の lower が消費した remaining itemsだけを入力にしてはならない。これは既存
 `unweighted_row_upper_matches_each_lower_independently` がinitial snapshotについて固定した規則を、
 late lowerへ延長するものである。
@@ -244,9 +274,14 @@ compositionで保持する。matching eligibilityは現在の
 
 ### 4.4 fixpoint と idempotence
 
-同じ semantic lower / upper 集合は、constraint insertion orderによらず同じfinal boundsと
-effect-row shapeへ収束する。canonical dedupで同じ lower recordが再観測されても、stateの
+row upper到着時に一件以上のmatching lowerが存在するorder familyでは、同じsemantic
+lower / upper集合は、先行lowerの個数や残りのlowerの到着順によらず同じfinal boundsと
+effect-row shapeへ収束する。canonical dedupで同じlower recordが再観測されても、stateの
 consumed / remaining、provenance、incremental counterを二重更新しない。
+
+row upperがzero lowerで到着する真のUpperFirst caseはこのinvariantへ含めない。その時点では
+recordを作らず、後着lowerからordinary `Neg::Row`を形だけでreduction recordへ昇格させない。
+これは未解決caseを正しいとみなすものではなく、§6.6の明示的なfollow-upである。
 
 ### 4.5 provenance
 
@@ -323,6 +358,9 @@ equivalentとして再挿入された場合、bound recordの追加derivationは
 initial snapshotに対するbound shape、row-item constraint、hyperedge parentは既存三テストと同じに
 する。persistent state化を理由に、初期結果やテスト期待値を変更しない。
 
+`false`を返すbranchではrecord、source index entry、dormant ownershipを作らない。後からlowerが
+到着しても、このbranchをordinary `Neg::Row`のshapeだけから遡ってactivationしない。
+
 ### 5.3 late lower transition
 
 新しいlowerの入口は`ConstraintMachine::add_lower_bound`
@@ -331,7 +369,8 @@ stableなlower `BoundRecordId`が確定した後、通常の
 `lower_bound_replay_actions`を作る`bounds.rs:478`より前に、source indexからactive
 unweighted statesを引く。
 
-各stateについて次を行う。
+initial matching成立時にすでに作られた各stateについて次を行う。source indexにrecordが
+なければ追加処理をせず、ordinary replayだけを従来どおり行う。
 
 1. lowerのweightsがmatching対象になりうるかを現行規則で判定する。
 2. `local_remaining = original_items.clone()`から開始し、現行
@@ -460,6 +499,22 @@ fresh varを一段増やしても、late lowerがoriginal prefixと再照合さ�
 変わるだけである。compact / finalize / specializeでfamilyを消す後段cleanupも、誤ったsolver
 relationを隠すため採らない。
 
+### 6.6 zero-lower / UpperFirstのlazy activation
+
+row upperがzero lowerで先に到着し、lowerが一件ずつ後から来るcaseを、本sliceでは扱わない。
+このcaseは抽象的なsolver-generality propertyとして未解決のまま残す。
+
+ordinary `Neg::Row` upperへmatching lowerが後着したことだけをtriggerにlazy recordを作る案は
+採らない。実装attemptで、reductionのzero/no-match branch由来のupperだけでなく、compiler内の
+無関係なordinary `Neg::Row` upperにも広く一致し、reduction / tombstone増幅と説明不能なpoly
+hash変化を起こしたためである。
+
+再開条件は、reduction-eligibleなordinary row upperと無関係なordinary row upperを、型形状の
+推測ではなく構造的なtag / definition kind / ownership linkageで区別できる設計を先に作ること。
+そのtagのlifecycle、dedup、prune / subsumption、provenance、characterization costを別projectで
+設計する。bug note「24回目」「25回目」の実reproはupper到着前に18 lowerを持つため、このdeferで
+実bugの修正範囲は失われない。
+
 ## 7. この設計で変更しないもの
 
 - `notes/design/2026-07-28-local-var-effect-boundary-fix.md` のv5 local callback parameter
@@ -477,6 +532,8 @@ relationを隠すため採らない。
 - path、module、function、fixture名によるspecial caseをinferenceへ追加しない。
 - initial snapshotだけを扱う既存三テストの期待値・テスト名・意図を変更しない。
 - current characterization baselineの差分を、実装出力に合わせるだけの更新でgreenにしない。
+- zero-lower / UpperFirst用のspeculative stateや、ordinary `Neg::Row`のshapeだけを見るlazy
+  activationを追加しない。
 
 ## 8. 実装前に用意する7 regression tests
 
@@ -490,9 +547,11 @@ relationを隠すため採らない。
    固定する。late lowerがoriginal upperへrouteされ、late bound recordが
    `UnweightedReduction` / `RowItemMatch` provenanceから辿れることも確認する。
 2. **constraint insertion order不変**  
-   同じlower / upper集合を「全lowerがupperより前」「一件がupperより後」「upperを最初」の
-   少なくとも三順序で投入し、semantic bounds、residual row、payload constraintが同じfixpointに
-   なることを固定する。record IDやqueue順そのものは比較しない。
+   同じlower / upper集合を、row upper到着時に一件以上のmatching lowerがすでに存在する
+   「全lowerがupperより前」「一件以上がupperより後」の少なくとも二順序で投入し、semantic
+   bounds、residual row、payload constraintが同じfixpointになることを固定する。record IDや
+   queue順そのものは比較しない。zero-lowerの真のUpperFirst permutationはgreen contractへ
+   混ぜず、§6.6を参照する明示的なknown-gap witnessとしてtest codeに残す。
 3. **unmatched late familyのresidual transport**  
    initial `F`で`[F; ρ]`をreductionした後にlate `G`を追加し、`G`は正しく`ρ`へ流れる一方、
    `F`は流れないことを固定する。unmatched routeでlower weightsが失われないことも確認する。
@@ -555,12 +614,14 @@ solver fixと同じ作業単位の中でredを確認してからURR-Bへ進む�
 変更:
 
 - `ConstraintMachine`へsource-indexed record tableを追加する
-- current initial reduction成功時にpersistent stateを作る
+- current initial reduction成功時だけpersistent stateを作る
 - `add_lower_bound`のsemantic insertion後・generic replay plan前へsource-local hookを置く
 - original itemsに対するindependent late matching、matched / unmatched routing、
   remaining updateを実装する
 - reduction-owned replayと同一endpoint上のindependent ordinary replayをderivation単位で分ける
 - state / late match / replacement / reuse timing censusを追加する
+- zero-lower / initial no-match branchではrecordを作らず、ordinary `Neg::Row`からのlazy
+  activationも行わない
 
 gate:
 
@@ -568,7 +629,9 @@ gate:
 - 既存三テストが期待値無変更でpassする
 - initial snapshotだけのbounds / derivation shapeが変わらない
 - weighted row reductionのrecord / timing contractが変わらない
-- 同じsemantic inputのpermutationが同じfixpointになる
+- row upper到着時に一件以上のmatching lowerが存在する§8 test 2のpermutationが同じfixpointになる
+- zero-lower / UpperFirst known-gap witnessが§6.6を参照して残り、誤ってgreen contractに
+  取り込まれていない
 
 URR-Bの途中でplain reduced upper replayも残す暫定二重routeをlandingしない。
 
@@ -629,8 +692,9 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
 3. initial snapshotだけで完結するcaseのbounds、row item constraints、provenance parentが変わる。
 4. late matched lowerがcurrent residualにもreplayされる、またはlate unmatched lowerが
    current residualへ届かない。
-5. 同じsemantic constraint集合のinsertion orderを変えると、final row shape、
-   payload constraint、schemeのいずれかがまだ変わる。
+5. row upper到着時に一件以上のmatching lowerが存在するorder familyで、同じsemantic
+   constraint集合のinsertion orderを変えると、final row shape、payload constraint、
+   schemeのいずれかがまだ変わる。
 6. fixのためにlowering order、local-var helper、block aggregation、generalize / instantiate、
    specialize candidate comparisonを変更する必要がある。
 7. state lookupがsource-indexedにならず、lower insertionごとに全stateまたは全constraint graphを
@@ -671,7 +735,9 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
 
 1. §8の7 regressionがすべてpassする。
 2. `lower F -> upper [F; ρ] -> late lower F`で、late `F`が`ρ`のlowerにならない。
-3. 同じsemantic lower / upper集合が、少なくとも§8 test 2の三挿入順で同じfixpointになる。
+3. 同じsemantic lower / upper集合が、row upper到着時に一件以上のmatching lowerが存在する
+   §8 test 2の挿入順で同じfixpointになる。zero-lower / UpperFirstは§6.6を参照するknown-gap
+   witnessとしてtest codeに残る。
 4. late unmatched `G`はcurrent residualへ流れ、matching eligibility外のlowerも従来どおり
    residual relationを受ける。
 5. partial / multi-item rowでremainingがincrementally縮み、old materializationがlive replay
@@ -704,7 +770,9 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
     `cargo test -p specialize`、`cargo test -p yulang`、workspace gateが通る。
 19. implementation diffがpersistent unweighted reduction、bound replay / lifecycle、
     provenance / timing、そのtestsだけに限られ、原因と無関係なrefactorを含まない。
+20. zero-lower / initial no-match sourceへspeculative / dormant recordを作らず、ordinary
+    `Neg::Row` upperのshapeだけをtriggerにlazy activationしない。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: ユーザ承認済み（2026-07-29）
+状態: ユーザ承認済み（2026-07-29、v2 狭域スコープ。ユーザーの本タスクでの明示指示による再承認）
