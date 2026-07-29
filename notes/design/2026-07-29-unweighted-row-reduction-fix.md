@@ -2,13 +2,53 @@
 
 日付: 2026-07-29
 
-状態: **ユーザ承認済み（2026-07-29、v2 狭域スコープ）**
+状態: **未承認・ユーザレビュー待ち（v3。v2 狭域スコープは2026-07-29承認済み）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
-本書のコード行番号は同 commit の working tree に対して 2026-07-29 に再確認した。
+v1 / v2のコード行番号は同 commit の working tree に対して 2026-07-29 に再確認した。
+v3で追加したコード行番号とtraceは`4ec031b3`のworking treeに対して2026-07-30に再確認した。
 
 ## 改訂履歴
+
+### 2026-07-30: v3 — canonical upper の claim と reduction coverage を分離
+
+LVB-B attempt 11 の prerequisite gate で、v2 実装後も
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization` の hand-built nested
+caseだけにinner family漏れが残ることが判明した。`YULANG_TRACE_VAR_BOUNDS=1524`で再確認すると、
+問題のsourceは18本のlowerと0本のordinary upperを持つ状態からinitial reductionへ入り、
+`after row-match upper`で`NegId(2055) = Var(TypeVar(1669))`を初めてordinary upperとして
+materializeする。`store_upper_bound_without_replay`
+（現行`crates/infer/src/constraints/row_effect.rs:610-689`）の分岐に照らすと、この遷移は
+pre-existing active upperへの`SubsumedBy`ではなく`Inserted(record)`である。
+
+co-ownershipはその後、同じsemantic keyのcanonical recordへ
+`FunctionReturnEffect`由来の別proofがprovenance-onlyに合流して成立する。
+`TypeBounds::add_bound`（`constraints/mod.rs:523-577`）は同じkeyならrecordを増やさず
+`derivations`へ追加し、`semantic_changed = false` / `provenance_changed = true`を返す。
+evidence-only合流は`apply_bound_replay_evidence_actions`
+（`machine/bounds.rs:1213-1288`）からこの経路へ入り、追加の`BoundDisposition`を作らない。
+ordinary `add_upper_bound`のactive-upper subsumption
+（同`:581-640`）は`SubsumedBy`を記録するだけでsurvivorのderivationを追加しないため、
+今回のco-owned recordを作る遷移ではない。したがってv2とbug noteにあった
+「reduced upper自体が既存active upperへsubsumedされた」という用語を訂正し、確認済みの
+lifecycleを **`Inserted` → later same-key provenance/evidence merge（second dispositionなし）**
+とする。
+
+現行`upper_record_requires_generic_replay`（`machine/bounds.rs:941-952`）は、
+canonical upperの全`BoundDerivation`を、そのrecordに現在登録された
+`UnweightedRowReductionOwner.derivation`とのidentity一致だけで分類する。このため、
+live stateがすでにincremental routeとして覆う同じlogical residual-tail relationの別proofと、
+別constraintが本当に直接要求する`source <: tail`を区別できない。前者を「独立derivation」と
+みなすとmatched late lowerをplain residualへ二重routeし、後者まで抑止すると正しいsubtype
+relationを失う。
+
+v3では、derivation identityをreplay ownershipの正本にしない。各canonical upperへ
+producer-root付きのlogical replay claimを記録し、各live reduction stateへ、自分がincremental
+routeで覆うclaimのcoverage token/setを記録する。generic replayは、upper recordに同居する
+claimのうち、どのlive stateのcoverageにも含まれないclaimだけから作る。これはv2のstate model、
+initial-matching限定、source-local hot pathを維持した追加sliceであり、URR-A〜Dの実装済み範囲を
+作り直さない。v3は新しい実質的設計変更なので、文書全体を未承認・ユーザレビュー待ちへ戻す。
 
 ### 2026-07-29: v2 — initial matching 成立後の incremental replay に限定
 
@@ -154,6 +194,42 @@ contract がすでに三つある。
 `row_effect.rs:309-314` の保存後に lower を追加する case は一つもない。本修正はこの blind spot
 を埋め、三つの既存 contract は期待値を変えずに維持する。
 
+### 1.4 v3で確定したclaim co-ownership gap
+
+v2実装後の現行構造は次の通りである。
+
+- `UnweightedRowReductionRecord`は`source`、original items / tail、current materialization、
+  processed lower、provenance headを持つ（`constraints/mod.rs:368-379`）。
+- current upperとの対応は
+  `BoundRecordId -> [UnweightedRowReductionOwner { state, derivation }]`
+  で持つ（同`:381-398`、`row_effect.rs:458-527`）。
+- `add_lower_bound`はincremental routeを先に作り、同じupperをgeneric replayが覆うと判定した場合は
+  incremental actionを省く（`machine/bounds.rs:478-525`）。
+- generic replayの要否は`BoundRecord.derivations`にownerのderivationと一致しない要素が一つでも
+  あるかだけを見る（同`:896-952`）。
+
+`BoundDerivation`は`Constraint(ConstraintRecordId)`、`ReplayEvidence(BinaryReplayDerivation)`、
+`Row(RowDerivationId)`などのproof identityであり（`constraints/mod.rs:1058-1066`）、
+logical relationのidentityではない。reduction自身のcurrent materializationは通常
+`BoundDerivation::Row(provenance_head)`で、ownerにも同じ値が入る。一方、canonical same-key mergeは
+同じ`source` / endpoint / weightsの`BoundRecord`へ、別の`Constraint`または`ReplayEvidence`を
+追加できる。後者がstateのoriginal producerへ遡る同じresidual-tail claimでも、enum値が違えば
+現行判定は「state外」とする。
+
+ここで区別すべきものは次の二つである。
+
+1. **同じrelationの別proof**: stateのproducer constraintが要求した
+   `source <: [original_items; original_tail]`をreductionした結果として、
+   current endpointへの別derivation / replay evidenceが同じcanonical recordへ合流したもの。
+   proof IDが違っても、そのlate-lower routeはstateがすでに所有する。
+2. **真に独立したrelation**: 別のproducer constraintが、reductionのoriginal rowと無関係に
+   `source <: tail`を直接要求したもの。このclaimはcurrent endpointが同じでもstate coverage外で、
+   generic replayを残さなければならない。
+
+`FunctionReturnEffect`は`StructuralDerivationRule`であり（`constraints/mod.rs:1581-1628`）、
+それだけでは1と2を分類できない。producer constraint identityと、そこから生じたlogical
+row relationへのlinkageが必要である。
+
 ## 2. 発見文脈と責務の切り分け
 
 この bug は local-var effect boundary project の nested case から見つかった。bug note の
@@ -231,6 +307,17 @@ hot pathへ許容する index は `TypeVar -> reduction record IDs` であり、
 incremental match数、reduced-upper replacement / reuse数は timing censusへ追加し、
 correctness changeとaccidental replay増加を区別できるようにする。
 
+### 3.4 v3のblast radius
+
+v3が意味を変えるのは、live unweighted reduction stateのcurrent upper recordに複数のreplay
+claimが同居する場合だけである。single-owner record、weighted row、zero-lower / initial
+no-match、別sourceのrecord、current endpointが異なるrecordは変えない。
+
+hot pathへの追加は、`add_lower_bound`で既に取得するsource-local reduction statesと、そのcurrent
+upperに付いたclaimの差集合計算である。constraint graphやprovenance graphをlate lowerごとに
+逆走査してproducerを復元してはならない。claim / coverage linkageはadmissionまたは
+materialization時に一度作り、canonical recordとstateから直接参照する。
+
 ## 4. 必須 invariant
 
 ### 4.1 logical relation
@@ -304,6 +391,18 @@ current reduced upperが置換、equivalent dedup、subsumption、pruneを受け
 logical reduction stateは、current materialized boundが別boundにsubsumedされたという理由だけで
 失わない。late lowerのoriginal-row matchingとprovenanceは引き続き必要である。一方、
 subsuming boundがreductionと独立したrelationを表すなら、そのrelationの通常replayは残す。
+
+### 4.7 logical claim coverage
+
+generic replayの単位は`BoundRecord`でも`BoundDerivation`でもなくlogical claimである。
+同じrecordにcovered claimとuncovered claimが同居できる。live stateが覆うclaimはincremental
+routeだけが処理し、uncovered claimだけがgeneric replayを作る。一つでもuncovered claimがある
+ことを理由にrecord全体をgeneric replayしてはならない。
+
+coverageはsource、original row、producer-rootをまたいで推移させない。subsumption、
+equivalent merge、evidence promotionでendpointが一致しても、producer linkageを確認せず
+token setをunionしてはならない。逆に、同じstate-owned claimのproof identityだけが変わった
+場合はcoverageを失ってはならない。
 
 ## 5. 選んだ設計: source-indexed persistent reduction state
 
@@ -468,6 +567,79 @@ mergeする。recordの解放を急ぐためのglobal compactionはinitial slice
 - current std-backed characterizationへstate / transition censusを追加し、global replay totalの
   意図しない増加を検出する。
 
+### 5.8 v3: replay claim と coverage token/set
+
+必要な意味形は次である。実装時の型名は既存命名へ合わせてよい。
+
+```text
+UnweightedRowLogicalRelation {
+    source
+    original_items
+    original_tail
+    producer_constraint
+}
+
+UpperReplayClaim {
+    id
+    source
+    endpoint
+    weights
+    producer_constraint
+    logical_relation: Direct | Reduced(UnweightedRowLogicalRelationId)
+}
+
+UnweightedRowReductionRecord {
+    ...v2 fields...
+    covered_claims: small set<UpperReplayClaimId>
+}
+
+claims_by_upper_record:
+    BoundRecordId -> small set<UpperReplayClaimId>
+```
+
+tokenが識別する正本は、単なる`(source, current endpoint)`ではない。
+`source <: [original_items; original_tail]`という元relationと、それを導入した
+`producer_constraint`を含む。current endpointとcurrent recordはmaterialization lifecycleで
+変わりうるためtoken identityへ含めず、claim側の現在位置として持つ。itemsは順序と重複を保つ。
+
+claimはupper-bound derivationをcanonical recordへ加える入口で作る。reduction materializationの
+claimはstateのlogical relation IDとproducerを持つ。同じproducer-rootから生じた
+structural / row / replay-evidenceの別proofがsame-key mergeされる場合、新しいproof identityを
+追加しても同じclaimへcoalesceする。別constraintが直接`source <: tail`を導入した場合は
+`Direct`かつ別producerの新claimとし、state coverageへ入れない。producerが不明な
+`Origin(unknown_internal)`を形だけで既存tokenへ吸収せず、uncoveredとして保守的にgeneric
+replayする。
+
+`lower_bound_replay_actions`はprojection upper recordごとに、
+`claims_by_upper_record[record] - union(live_state.covered_claims)`を求める。差集合がemptyなら
+generic actionを作らず、incremental routeを使う。差集合がnon-emptyなら、その**未covered
+claimだけ**を根拠にgeneric actionを一件作り、全claim IDをprovenance / accountingへ残す。
+同じsemantic subtype actionをclaim数だけ重複enqueueしない。
+
+lifecycle規則は次の通りである。
+
+1. **insert**: materialized recordへclaimを付け、stateのcovered setへ同じclaim IDを入れる。
+2. **same-key equivalent / evidence merge**: proofを既存claimへcoalesceできるのは
+   source、weights、producer-root、logical relationが一致するときだけである。別producerなら
+   survivor recordへuncovered claimを追加する。
+3. **subsumption**: attempted materializationのclaimをsurvivorへ移す。state-owned claimなら
+   state coverageも同じclaim IDを保持するが、survivorに以前からある別claimをcoveredへ昇格
+   させない。
+4. **replacement / prune**: state-owned claimのcurrent record indexをnew recordへ移し、
+   tombstone側はhistoryだけに残す。logical tokenとproducer identityは変えない。
+5. **複数stateのcoalescing**: 各stateは自分のclaimだけをcoverする。setはclaim IDでdedupし、
+   record上の全claimを相互にcoverしたことにしない。
+
+一recordあたりのclaim数、same-key coalesce数、covered / uncovered generic replay planning数、
+subsumption / replacement時のclaim移送数をtiming censusへ加える。setがproof追加回数に比例して
+無制限に増えるなら、claim canonicalizationが失敗しているのでlandingしない。
+
+この方向を選ぶ理由は、claim admission時ならproducer-rootとlogical relationを定数時間で
+構造化して残せるからである。derivation identityの比較は同じrelationの別proofを誤分類し、
+record-wide suppressionは真に独立したdirect tail relationを失い、replay時のprovenance逆走査は
+hot pathを非局所化する。coverage setはこの三つを避けながら、v2のsource-indexed stateと
+canonical replay dedupをそのまま利用できる。
+
 ## 6. 採らない方向
 
 ### 6.1 lowering-side order workaround
@@ -514,6 +686,14 @@ hash変化を起こしたためである。
 そのtagのlifecycle、dedup、prune / subsumption、provenance、characterization costを別projectで
 設計する。bug note「24回目」「25回目」の実reproはupper到着前に18 lowerを持つため、このdeferで
 実bugの修正範囲は失われない。
+
+### 6.7 v3で採らないownership判定
+
+- `BoundDerivation`のvariantや`FunctionReturnEffect`の有無だけでcovered / independentを決めない。
+- survivorにreduction ownerが一つあれば全derivationを抑止するrecord-wide suppressionをしない。
+- ownerのderivation identityと違えば常にindependentとするv2判定を延命しない。
+- replay planning時にprovenance graphを逆走査してproducerを推測しない。
+- subsumption / equivalent mergeでsurvivorの全claimへcoverage tokenをばらまかない。
 
 ## 7. この設計で変更しないもの
 
@@ -574,7 +754,34 @@ hash変化を起こしたためである。
    original-row matching、current materialization、producer / lower provenanceがstaleに
    ならないことを固定する。
 
-この7 testに加え、次の既存testは名前も期待値も変更せず通す。
+### 8.1 v3で先に追加する3 regression tests
+
+URR-Eのproduction codeを変更する前に、次の三つを同じ`case_02.rs`へ追加する。producer
+constraint ID、claim ID、canonical bound record IDをtest helperから観測し、derivationの有無や
+endpoint equalityだけで判定しない。
+
+1. **later same-key mergeはcoveredのまま**
+   initial matchingで`source <: [F; ρ]`を`source <: ρ`へreductionし、reduced upperを
+   `Inserted(R)`としてmaterializeした後、同じproducer-rootから得た別proofをsame-key
+   provenance/evidence mergeで`R`へ追加する。その後late matching `F`を追加しても`ρ`へ届かず、
+   generic replayは0、incremental matched routeだけが存在することを固定する。
+2. **真に独立したdirect tail relationはreplayする**
+   test 1と同じreductionに加え、別のreal constraintとして`source <: ρ`を導入する。二つのclaimが
+   別producer constraint IDを持ち、reduction claimだけがcovered、direct claimはuncoveredである
+   ことを確認する。late matching `F`はoriginal row routeに加え、独立claimのgeneric replayにより
+   正しく`ρ`へ届く。単にrecordに複数derivationがあることをtest oracleにしない。
+3. **確認済みlifecycleを直接固定する**
+   nested witnessを最小化し、ordinary upper 0本からreductionが`R`を`Inserted`し、その後の
+   same-key provenance/evidence mergeがrecord identityを変えず
+   `semantic_changed = false` / `provenance_changed = true`となり、二つ目の
+   `EquivalentTo` / `SubsumedBy` dispositionを作らないことを固定する。merge後もstate tokenが
+   claimをcoverし、late matching lowerがresidualへgeneric replayされないことまで確認する。
+
+test 1と3は現行実装でinner-family contaminationまたは誤ったgeneric replay countによりred、
+test 2はcoverageをrecord-wideに広げる誤修正に対するgreen controlでなければならない。三つを
+一つのfixture名や`FunctionReturnEffect`文字列へspecial case化しない。
+
+この10 testに加え、次の既存testは名前も期待値も変更せず通す。
 
 - `unweighted_row_upper_uses_concrete_lower_item_before_residual_tail`
 - `unweighted_row_upper_consumes_pop_only_weighted_lower_item`
@@ -694,6 +901,36 @@ local-var known-gap contractの反転は、本projectのsolver fixが完了し�
 `notes/design/2026-07-28-local-var-effect-boundary-fix.md` の残りsliceとして扱う。
 URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書き換えない。
 
+### URR-E: logical replay claim coverage
+
+v3がユーザ承認済みになるまで開始しない。URR-A〜Dのlanded implementationをbaselineとし、
+§8.1の三testを先に追加してred / controlを確認する。
+
+変更:
+
+- reduction stateへlogical relation IDとcovered claim setを追加する
+- canonical upper recordへproducer-root付きclaim setを対応づける
+- insert、same-key provenance/evidence merge、subsumption、replacement / pruneでclaimとcoverageを
+  §5.8の規則どおり移送する
+- `upper_record_requires_generic_replay`のrecord-wide booleanを、未covered claimを返す
+  source-local planningへ置き換える
+- incremental / generic actionのsemantic dedupを保ったまま、claim IDをprovenanceとtimingへ残す
+
+gate:
+
+- §8.1 test 1でlater same-key merge後のlate matching lowerがresidualへ届かない
+- §8.1 test 2で別producerのdirect `source <: tail`だけはgeneric replayされる
+- §8.1 test 3で`Inserted -> same-key provenance/evidence merge`のrecord identity、
+  disposition count、coverageが固定される
+- §8の既存7 regressionと既存三contractが期待値無変更でpassする
+- nested hand-built characterizationからinner familyが消え、parsed controlと同じisolationを持つ
+- single-boundary、weighted row、zero-lower known-gapのscopeが変わらない
+- claim lookupはsource / current upper localで、late lowerごとのprovenance graph走査がない
+- repository-stdでclaim setの最大長、generic replay総数、wall time / memory差分を説明できる
+
+URR-Eではlocal-var production wiringを再開しない。solver gateが閉じた後、LVB-Bを別sliceとして
+再開する。
+
 ## 10. stop / rollback conditions
 
 ### 10.1 stop conditions
@@ -729,6 +966,14 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
     再現する。正しさfixをglobal scanのままlandingせずindex設計へ戻る。
 15. testをgreenにするため、fixture、path、module、function名のspecial case、
     `Any` fallback、後段family cleanupが必要になる。
+16. coverage tokenが別source、別original row、別producer constraintのclaimへ伝播し、
+    真に独立した`source <: tail`を抑止する。
+17. same-key merge、subsumption、replacement / pruneのいずれかでstate-owned coverageを失い、
+    matched late lowerが再びplain residualへ二重routeする。
+18. claim / token setがcanonical logical relation数ではなくproof追加、equivalent admission、
+    replay回数に比例して増え続ける。
+19. covered / uncoveredの分類にlate-lowerごとのprovenance graph逆走査、derivation rule名、
+    `FunctionReturnEffect`のspecial caseが必要になる。
 
 ### 10.2 rollback unit
 
@@ -740,6 +985,9 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
   tombstone safetyと説明可能性はsolver hot-path fixの一部である。
 - URR-Dでunexplained baseline shiftが出たらcharacterization expectationを更新せず、
   原因をURR-B / Cへ戻して切り分ける。
+- URR-Eでclaim identityとcoverage lifecycleのどちらかが成立しなければ、record-wide suppression
+  だけをlandingしない。三つのv3 regressionは正しい期待値のまま保持し、URR-Eのsemantic
+  implementation全体を戻す。
 - performanceだけが不合格でもglobal scanをdefault-onで残さない。source indexまたはstate keyを
   再設計し、意味論を変えるcache / early returnは入れない。
 
@@ -786,7 +1034,18 @@ URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書
     provenance / timing、そのtestsだけに限られ、原因と無関係なrefactorを含まない。
 20. zero-lower / initial no-match sourceへspeculative / dormant recordを作らず、ordinary
     `Neg::Row` upperのshapeだけをtriggerにlazy activationしない。
+21. §8.1の三regressionがpassし、同じproducer-rootのlater same-key proofはcovered、
+    別producer constraintのdirect tail claimはuncoveredとして区別される。
+22. nested witnessのreduced upper lifecycleが
+    `Inserted -> same-key provenance/evidence merge（second dispositionなし）`としてtestで固定され、
+    inner familyがresidualへ届かない。
+23. insert、equivalent / evidence merge、subsumption、replacement / prune後も、claimとcoverageが
+    source、logical original row、producer identityを保つ。
+24. generic replayは未covered claimだけから計画され、covered claimとの同居を理由にcanonical
+    record全体をreplayまたは抑止しない。
+25. claim / token setがcanonical logical relation数でboundedになり、source-local lookup、
+    replay accounting、explanation completenessを維持する。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: ユーザ承認済み（2026-07-29、v2 狭域スコープ。ユーザーの本タスクでの明示指示による再承認）
+状態: 未承認・ユーザレビュー待ち（v3。v2 狭域スコープは2026-07-29承認済み）
