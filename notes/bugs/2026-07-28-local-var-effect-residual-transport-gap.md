@@ -907,21 +907,70 @@ callback aggregate・第二 application result へ、inner の residual が
 を検出できない、という22回目までの教訓が改めて有効だった証拠でもある
 ——今回も CLI だけ見てたら「直った」と誤認するところだった。
 
+## 24回目: inner family 漏れの正確な機構を constraint solver 内部まで
+特定（2026-07-29、最深部の発見）
+
+23回目の続きとして、v5 修正済みの構成で inner/outer 両方を
+deferred parameter binding で構築した nested test を作り、
+post-quiescence で trace したところ、**constraint solver 内部の
+具体的な関数まで漏れの機構が特定できた**（`c6a4d824`）。
+
+**発見した機構**:
+
+1. inner 関数自身の finalized scheme は正しい（LVB-A3 の target
+   structure と一致）
+2. 問題は、この**すでに generalize 済みの inner scheme が nested
+   call site で instantiate された後**に起きる
+3. **hand-built 側**: outer callback の body TypeVar（`propagate.rs:257`
+   の `FunctionReturnEffect` 関係を通る時点）が、**すでに concrete な
+   inner-family lower を持っている**状態で instantiated expected row
+   に接続される。これが `row_effect.rs:96` の
+   `add_unweighted_effect_row_upper_bound_from_existing_lowers` という
+   分岐へ入り、`row_effect.rs:258` で matching handled prefix を消費、
+   `row_effect.rs:287-309` で「reduced upper」（residual だけ）を
+   計算して、それを callback body の TypeVar へ**直接**格納する。
+   ところがこの reduced upper（residual のはずの変数）が、なぜか
+   再び concrete な `[inner-family]` row を獲得してしまう
+4. **parsed 側**: 同じ状況（callback body が concrete inner-family
+   lower を持つ）でも、instantiated residual 変数には inner-family
+   lower が付かず、正しく clean のまま call → result → aggregate →
+   outer 第二 result まで伝わる
+
+つまり両者の違いは、「callback body の effect 変数が、この
+`row_effect.rs` の unweighted reduction 経路を通るときの、既存
+lower の持ち方」にある。hand-built 側だけがこの reduction 経路に
+入り、residual のはずの変数へ family を再付与してしまっている。
+
+diagnostic は provenance rule を2つ記録した: `FunctionReturnEffect`
+（上流の関係）と `UnweightedReduction`（実際の contamination 発生点）。
+
+**この発見の位置づけ**: これは lowering の construction 方法の問題
+というより、**constraint solver 内部（`row_effect.rs` の unweighted
+reduction）が、特定の bound の持ち方の組み合わせで正しく residual を
+分離できていない**、という一段深い層の問題である可能性が高い。
+これが本当に solver のバグなのか、それとも lowering 側が
+`row_effect.rs` の想定する前提条件（この reduction 経路に入らない
+ような bound の持ち方）を満たすよう construction を変えるべきなのか
+は、まだ設計判断が必要。
+
 ## 次に調べるべきこと
 
-- **最優先**: nested call（outer callback body 内で inner 関数を呼ぶ
-  箇所）から、outer の callback aggregate・第二 application result
-  へ、**inner 自身の family がどう伝わるか**を、post-quiescence の
-  instrumentation で trace する。これまでの23回の investigation は
-  「outer 自身の family が消えるか」を中心に見てきたが、「inner の
-  family が outer へ漏れずに閉じるか」はまだ深く検証していない
-  新しい軸。
-- 単一 boundary（複数文含む）の discharge は完全に解決したと言って
-  良い水準。残るのは nested 構造特有の、inner family の閉じ込め方。
+- **最優先（設計判断が必要）**: `row_effect.rs` の
+  `add_unweighted_effect_row_upper_bound_from_existing_lowers`
+  （96, 258, 287-309行）が、なぜ hand-built 側でだけ発火し、なぜ
+  reduced upper（residual）に family を再付与してしまうのかを、
+  read-only で深掘りする。その上で、(a) lowering 側の construction を
+  変えてこの reduction 経路に入らないようにする、(b) solver 側の
+  reduction 自体に修正が要る、のどちらが正しい対応かを判断する。
+  (b) は solver 全体に影響する可能性があるため、慎重な検討が必要。
+- 単一 boundary（複数文含む）の discharge は完全に解決済み。CLI
+  end-to-end も成功している。残るのは nested 構造の inner family の
+  閉じ込めだけ、というところまで絞れている。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
+  `row_effect.rs` の reduction 自体を変える場合も同様に慎重に。
 
 ## 現状の扱い
 
