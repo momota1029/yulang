@@ -601,18 +601,64 @@ step2  = make_internal_app(step1, callback_value)
 のいずれか）と考えられるが、rollback 済みで diff が残っていないため
 一意には確定できなかった。
 
+## 15回目: LVB-B 七度目の挑戦、4不変条件を満たしても漏れる（2026-07-29）
+
+14回目が特定した「既存の証明済み pattern」（`make_internal_app` を
+2回、二段目の callee は一段目の `Computation`）と4つの不変条件を
+**すべて満たした状態で実装**したが、それでも family が漏れた。
+今回は前回よりさらに細かく、二段の application それぞれの
+value/effect を個別に記録できた。
+
+**観測値**（helper finalized scheme は LVB-A3 の target と一致、
+`'a -> (ref '["&x#19:0" 'a] 'a -> ["&x#19:0" 'a; 'b] 'c) -> ['b] 'c`）:
+
+- (a) callback body effect: family **あり**（正常、body が実際に
+  local ref を使うため）
+- (b) callback value evaluation effect: family **なし**、exact pure
+  （不変条件3 満たす）
+- (c) callback `Fun.ret_eff`: family **あり**（不変条件4 満たす、body
+  effect がそのまま乗っている）
+- (d1) 一段目 application（helper に init を apply）: family **なし**
+  （正しい——init 自体に local family は無い）
+- (d2) 二段目 application（helper_with_init に callback を apply）
+  **自体の result effect**: family **あり** ← ここで漏れている
+- (e) enclosing finalized scheme: family **あり**
+
+**この結果の意味**: 4つの不変条件（fresh slot の分離、callee chaining、
+callback value の pure 化、body effect の配置）は**必要条件ではあるが
+十分条件ではなかった**。callback の実際の型（`ref[...] 'a ->
+["&x" 'a; observe] 'c`）を、helper が期待する callback 引数の型
+（`ref[...] 'a -> ["&x" 'a; 'b] 'c`）へ apply したとき、本来なら
+family 部分は「helper が処理する」契約として discharge され、二段目の
+application 自体の result effect には `'b`（residual）だけが残るはず
+だった。しかし production では、この discharge が起きず、二段目の
+result effect に family がそのまま残る。
+
+LVB-A3/A4 の witness（parsed source 経由で同じ apply を行った）では
+この discharge が正しく起きていた。14回目で `make_source_app` と
+`make_internal_app` の semantic core が同一だと確認済みなので、
+**application 自体の配線の問題ではなく**、callback lambda **値**の
+構築方法（parsed source の `\r -> body` 由来 vs. production の
+finish が手で組む Fun 値）に、まだ特定できていない違いがある可能性が
+高い。attempt 6/7 は callback value の evaluation effect（pure 化）は
+確認したが、それ以外の——generalization boundary の扱い、quantifier
+scoping、occurs-check 関連など——構築上の細部までは検証していない。
+
 ## 次に調べるべきこと
 
-- **最優先（次回 LVB-B 実装の直接の指針）**: 上記の正しい
-  construction pattern（`make_internal_app` を2回、二段目の callee は
-  一段目の `Computation`）を**一字一句忠実に**複製する。特に
-  prepare/finish の分割（callback body lowering の**前**に helper
-  application の骨格を prepare し、body lowering の**後**に finish
-  する、という非対称なタイミング）が、この pattern の TypeLevel や
-  fresh slot 割り当て順序とどう相互作用するかを、実装前に明示的に
-  検証する。
-- 次回も、rollback する前に診断値（5-slot、可能なら各 slot の
-  identity/provenance も）を記録する手順を継続する。
+- **最優先**: LVB-A4 の parsed-source callback lambda 構築
+  （`\r -> ...` を通常の `lambda.rs` lowering で経由するケース）と、
+  production の finish が手で組む callback Fun 値の構築を、**個々の
+  constraint edge レベル**で比較する。scheme の形状比較だけでは
+  4不変条件を満たしても見分けがつかなかったため、次はどちらのケースも
+  同じ repro に対して制約発行そのものを trace/dump し、diff を取る
+  投資が要る。具体的には `propagate.rs` の該当箇所に一時的な debug
+  出力を入れて両ケースを走らせ、発行される制約の集合を比較するのが
+  有効かもしれない。
+- 4つの不変条件自体は否定されていない——満たしても足りないという
+  新しい事実が判明しただけ。
+- 次回も、rollback する前に診断値を記録する手順を継続する（今回も
+  成功）。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - push/pop boundary を **body lowering より前**に確立する、という設計の
