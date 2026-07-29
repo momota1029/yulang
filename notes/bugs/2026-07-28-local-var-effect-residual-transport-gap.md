@@ -731,18 +731,54 @@ result effect からも local family への到達性はない。
   application が存在する」状況そのものが、まだ characterize されて
   いない）
 
+## 19回目: nested 固有の divergence を発見（2026-07-29、大きな前進）
+
+18回目の指摘どおり、実際のバグ repro の完全な入れ子構造
+（inner 関数 `text_with_mock` 相当が自身の `$buffer` boundary を持ち、
+outer 関数 `run` 相当がその inner を呼ぶ callback body の中に
+`$store` boundary を持つ）を hand-built helper application で
+再現したところ、**単一 boundary の比較では4回とも出なかった
+divergence が、nested の組み合わせで初めて現れた**
+（`765d6131`、`nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_generalization`）。
+
+**発見**:
+
+- parsed inner・parsed outer・**hand-built inner 単体**は、いずれも
+  正しく family を discharge する
+- **hand-built outer だけ**、nested のときに限って、canonical
+  six edges が全部存在するにもかかわらず、outer 自身の
+  `$store` family が result effect と finalized scheme に残る
+- 漏れるのは outer の `$store` family だけ——inner の `$buffer` family
+  は outer scheme に漏れない
+- SCC は inner/outer とも別々の単独 component、順序も
+  `inner quantify → outer use instantiate → outer quantify` で
+  merge は起きない——**SCC ordering は原因ではないと確定**
+
+**この結果の意味**: 単一 boundary では起きず、「hand-built な outer
+callback body の中で、別の（inner）関数への呼び出しがある」ときにだけ
+起きる。次に疑うべきは、`wrap_var_binding_run`/`local_var_effect_value`
+が実際に扱う、**nested call の引数評価 effect が outer callback body
+effect と第二 application の result へどう接続されるか**という、
+まだ検証していない配線。
+
+このテストは、**元のバグの最小 isolated 再現**にもなっている——CLI
+全体を経由せず、production の全体パイプラインより遥かに軽い形で、
+同じ漏れを確実に再現できる。今後の investigation はこの test を
+起点にできる。
+
 ## 次に調べるべきこと
 
-- **最優先**: production の実際の enclosing 関数の**完全な形**
-  （複数の local-var boundary が同じ scope に共存し、一方が他方を
-  呼び出す、という実際のバグ repro の構造）を、hand-built helper
-  application と共に構築し、definition 登録順序・generalization root
-  の割り当て・SCC component の構成を trace する。単一の local-var
-  boundary だけを切り出した比較では、もう差が出ないと分かった。
-- callback/helper application 機構自体（4回の独立検証）と、4つの
-  construction 不変条件は、ともに潔路と確定。疑うべき範囲は
-  「local-var binding の definition 登録と、それを含む enclosing
-  関数全体の generalization lifecycle」まで絞られた。
+- **最優先**: `nested_hand_built_outer_retains_family_despite_matching_edges_and_ordered_generalization`
+  を起点に、**nested call の引数評価 effect**（outer callback body 内で
+  inner 関数を呼ぶ際の call effect）が、outer callback body effect や
+  outer 第二 application の result effect とどう接続されるかを、
+  constraint edge レベルでさらに深掘りする。six canonical edges は
+  揃っているのに漏れる、ということは、**七本目以降の、まだ列挙して
+  いない edge**（nested call 由来のもの）が疑わしい。
+- callback/helper application 機構自体（単一 boundary、4回の独立検証）
+  と、4つの construction 不変条件は、ともに潔白と確定済み。SCC
+  ordering も今回否定された。疑うべき範囲は「nested call の evaluation
+  effect の配線」まで絞られた。
 - 次回も、rollback する前に診断値を記録する手順を継続する。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
