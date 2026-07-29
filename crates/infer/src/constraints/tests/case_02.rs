@@ -475,6 +475,885 @@ fn unweighted_row_upper_matches_each_lower_independently() {
 }
 
 #[test]
+fn unweighted_row_upper_matches_late_lower_against_original_row() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let family_path = vec!["effect".into(), "f".into()];
+    let initial_family = machine.alloc_pos(Pos::Con(family_path.clone(), Vec::new()));
+    let late_family_item = machine.alloc_pos(Pos::Con(family_path.clone(), Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(family_path, Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let before_late = unweighted_row_debug_dump(&machine, source, residual);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+
+    machine.subtype(late_family, source_neg, origin);
+
+    let after_late = unweighted_row_debug_dump(&machine, source, residual);
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "a late family already accepted by the original prefix must not contaminate the residual\n\
+         before late lower:\n{before_late}\n\
+         after late lower:\n{after_late}"
+    );
+    let late_record = lower_bound_record(&machine, source, late_family);
+    let successor = unweighted_reduction_reaching(
+        &machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(late_record),
+        ],
+    );
+    assert!(
+        constraint_has_row_route_to_original(
+            &machine,
+            late_family,
+            &[&["effect", "f"]],
+            residual,
+            &ConstraintWeights::empty(),
+            successor,
+        ),
+        "the late matching lower should route to the original row"
+    );
+    assert!(
+        machine.row_derivations.iter().any(|edge| {
+            edge.rule == RowDerivationRule::RowItemMatch
+                && edge
+                    .parents
+                    .contains(&RowDerivationParent::RowDerivation(successor))
+        }),
+        "the late bound should remain traceable through UnweightedReduction/RowItemMatch"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_fixpoint_is_insertion_order_invariant() {
+    let all_lowers_before_upper =
+        unweighted_row_order_fixpoint(UnweightedRowInsertionOrder::AllLowersBeforeUpper);
+    let one_lower_after_upper =
+        unweighted_row_order_fixpoint(UnweightedRowInsertionOrder::OneLowerAfterUpper);
+    let upper_first = unweighted_row_order_fixpoint(UnweightedRowInsertionOrder::UpperFirst);
+    let expected = UnweightedRowOrderFixpoint {
+        source_has_only_residual_upper: true,
+        residual_lower_families: Vec::new(),
+        payload_constraints: [true; 4],
+    };
+
+    assert_eq!(
+        all_lowers_before_upper, expected,
+        "all lowers before the upper should reach the reduced semantic fixpoint"
+    );
+    assert_eq!(
+        one_lower_after_upper, expected,
+        "a late lower should reach the same reduced semantic fixpoint"
+    );
+    assert_eq!(
+        upper_first, expected,
+        "an upper inserted first should reach the same reduced semantic fixpoint"
+    );
+    assert_eq!(all_lowers_before_upper, one_lower_after_upper);
+    assert_eq!(all_lowers_before_upper, upper_first);
+}
+
+#[test]
+fn unweighted_row_upper_routes_unmatched_late_family_to_residual_with_weights() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let through = TypeVar(2);
+    let subtract = SubtractId(0);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let unmatched_family =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let through_neg = machine.alloc_neg(Neg::Var(through));
+    let through_pos = machine.alloc_pos(Pos::Var(through));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let unmatched_weights = ConstraintWeights {
+        left: LeftConstraintWeight::pop(subtract),
+        right: RightConstraintWeight::empty(),
+    };
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    machine.subtype(unmatched_family, through_neg, origin);
+    machine.weighted_subtype(through_pos, unmatched_weights.clone(), source_neg, origin);
+
+    assert!(
+        has_lower_alias_with_weights(&machine, residual, through, &unmatched_weights)
+            && has_lower_family_with_weights(
+                &machine,
+                through,
+                &["effect", "g"],
+                &ConstraintWeights::empty(),
+            ),
+        "an unmatched late G should reach the residual through its alias with exact lower weights\n{}",
+        unweighted_row_debug_dump(&machine, source, residual)
+    );
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "the initially matched family should stay out of the residual"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_incrementally_consumes_late_item_from_original_multi_item_row() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let first_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let second_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![first_upper, second_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let old_reduced_upper =
+        upper_bound_record_for_row(&machine, source, &[&["effect", "g"]], residual);
+
+    machine.subtype(late_family, source_neg, origin);
+
+    assert_only_empty_upper_var(&machine, source, residual);
+    assert_eq!(
+        machine
+            .bounds()
+            .record(old_reduced_upper)
+            .expect("stable old reduced-upper record")
+            .state(),
+        BoundRecordState::Tombstone,
+        "the old [G; rho] materialization must not remain a live replay owner"
+    );
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "g"],
+            &ConstraintWeights::empty(),
+        ),
+        "the incrementally consumed G must not leak to the residual"
+    );
+    let late_record = lower_bound_record(&machine, source, late_family);
+    let successor = unweighted_reduction_reaching(
+        &machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(late_record),
+        ],
+    );
+    assert!(
+        constraint_has_row_route_to_original(
+            &machine,
+            late_family,
+            &[&["effect", "f"], &["effect", "g"]],
+            residual,
+            &ConstraintWeights::empty(),
+            successor,
+        ),
+        "late G must match the original [F, G; rho], not only [G; rho]"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_late_payload_match_generates_invariant_constraints() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_payload_pos = machine.alloc_pos(Pos::Var(TypeVar(10)));
+    let initial_payload_neg = machine.alloc_neg(Neg::Var(TypeVar(10)));
+    let initial_payload = machine.alloc_neu(Neu::Bounds(initial_payload_pos, initial_payload_neg));
+    let late_payload_pos = machine.alloc_pos(Pos::Var(TypeVar(11)));
+    let late_payload_neg = machine.alloc_neg(Neg::Var(TypeVar(11)));
+    let late_payload = machine.alloc_neu(Neu::Bounds(late_payload_pos, late_payload_neg));
+    let upper_payload_pos = machine.alloc_pos(Pos::Var(TypeVar(12)));
+    let upper_payload_neg = machine.alloc_neg(Neg::Var(TypeVar(12)));
+    let upper_payload = machine.alloc_neu(Neu::Bounds(upper_payload_pos, upper_payload_neg));
+    let family_path = vec!["effect".into(), "f".into()];
+    let initial_family = machine.alloc_pos(Pos::Con(family_path.clone(), vec![initial_payload]));
+    let late_family = machine.alloc_pos(Pos::Con(family_path.clone(), vec![late_payload]));
+    let family_upper = machine.alloc_neg(Neg::Con(family_path, vec![upper_payload]));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+
+    machine.subtype(late_family, source_neg, origin);
+
+    let late_record = lower_bound_record(&machine, source, late_family);
+    let successor = unweighted_reduction_reaching(
+        &machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(late_record),
+        ],
+    );
+    let item_match = row_item_match_from(&machine, successor, family_upper);
+    assert_constraint_has_row_derivation(&machine, late_payload_pos, upper_payload_neg, item_match);
+    assert_constraint_has_row_derivation(&machine, upper_payload_pos, late_payload_neg, item_match);
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "a payload-bearing family is consumed only together with its invariant constraints"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_matches_alias_routed_and_pop_only_late_lowers() {
+    {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let alias = TypeVar(1);
+        let residual = TypeVar(2);
+        let initial_family =
+            machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let alias_family =
+            machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let family_upper =
+            machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let alias_neg = machine.alloc_neg(Neg::Var(alias));
+        let alias_pos = machine.alloc_pos(Pos::Var(alias));
+        let source_neg = machine.alloc_neg(Neg::Var(source));
+        let source_pos = machine.alloc_pos(Pos::Var(source));
+        let tail = machine.alloc_neg(Neg::Var(residual));
+        let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+        let origin = crate::constraints::OriginId::unknown_internal();
+
+        machine.subtype(initial_family, source_neg, origin);
+        machine.subtype(source_pos, row_upper, origin);
+        let producer =
+            constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+        machine.subtype(alias_family, alias_neg, origin);
+        machine.subtype(alias_pos, source_neg, origin);
+
+        assert!(
+            !has_lower_family_with_weights(
+                &machine,
+                residual,
+                &["effect", "f"],
+                &ConstraintWeights::empty(),
+            ) && !has_lower_alias_with_weights(
+                &machine,
+                residual,
+                alias,
+                &ConstraintWeights::empty(),
+            ),
+            "a late alias whose lower graph contains F must match the original prefix"
+        );
+        let alias_record = lower_bound_record(&machine, source, alias_pos);
+        let successor = unweighted_reduction_reaching(
+            &machine,
+            &[
+                RowDerivationParent::Constraint(producer),
+                RowDerivationParent::Bound(alias_record),
+            ],
+        );
+        assert!(
+            constraint_has_row_route_to_original(
+                &machine,
+                alias_pos,
+                &[&["effect", "f"]],
+                residual,
+                &ConstraintWeights::empty(),
+                successor,
+            ),
+            "the alias-routed late lower should use the original-row route"
+        );
+    }
+
+    {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let residual = TypeVar(1);
+        let subtract = SubtractId(0);
+        let initial_family =
+            machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let late_family =
+            machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let family_upper =
+            machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+        let source_neg = machine.alloc_neg(Neg::Var(source));
+        let source_pos = machine.alloc_pos(Pos::Var(source));
+        let tail = machine.alloc_neg(Neg::Var(residual));
+        let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+        let pop_only = ConstraintWeights {
+            left: LeftConstraintWeight::pop(subtract),
+            right: RightConstraintWeight::empty(),
+        };
+        let origin = crate::constraints::OriginId::unknown_internal();
+
+        machine.subtype(initial_family, source_neg, origin);
+        machine.subtype(source_pos, row_upper, origin);
+        let producer =
+            constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+        machine.weighted_subtype(late_family, pop_only.clone(), source_neg, origin);
+
+        assert!(
+            !has_lower_family_with_weights(&machine, residual, &["effect", "f"], &pop_only,),
+            "a filter-free, zero-push pop-only late lower must match the original prefix"
+        );
+        let late_record = lower_bound_record(&machine, source, late_family);
+        let successor = unweighted_reduction_reaching(
+            &machine,
+            &[
+                RowDerivationParent::Constraint(producer),
+                RowDerivationParent::Bound(late_record),
+            ],
+        );
+        assert!(
+            constraint_has_row_route_to_original(
+                &machine,
+                late_family,
+                &[&["effect", "f"]],
+                residual,
+                &pop_only,
+                successor,
+            ),
+            "the pop-only late lower should use the original-row route with exact weights"
+        );
+    }
+}
+
+#[test]
+fn unweighted_row_upper_replacement_keeps_live_state_and_append_only_provenance() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let transition_family =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let first_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let second_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![first_upper, second_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    let initial_lower_record = lower_bound_record(&machine, source, initial_family);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let old_reduced_upper =
+        upper_bound_record_for_row(&machine, source, &[&["effect", "g"]], residual);
+
+    machine.subtype(transition_family, source_neg, origin);
+    let transition_lower_record = lower_bound_record(&machine, source, transition_family);
+    machine.subtype(late_family, source_neg, origin);
+    let late_lower_record = lower_bound_record(&machine, source, late_family);
+
+    assert_eq!(
+        machine
+            .bounds()
+            .record(old_reduced_upper)
+            .expect("stable replaced reduced-upper record")
+            .state(),
+        BoundRecordState::Tombstone,
+        "replacement must leave the old [G; rho] endpoint as history, not a live owner"
+    );
+    let live_tail_record = assert_only_empty_upper_var(&machine, source, residual);
+    assert_eq!(
+        machine
+            .bounds()
+            .record(live_tail_record)
+            .expect("live reduced tail record")
+            .state(),
+        BoundRecordState::Ordinary,
+    );
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ) && !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "g"],
+            &ConstraintWeights::empty(),
+        ),
+        "matching lowers after replacement must not replay through the tombstoned endpoint"
+    );
+    let latest = unweighted_reduction_reaching(
+        &machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(initial_lower_record),
+            RowDerivationParent::Bound(transition_lower_record),
+            RowDerivationParent::Bound(late_lower_record),
+        ],
+    );
+    assert!(
+        constraint_has_row_route_to_original(
+            &machine,
+            late_family,
+            &[&["effect", "f"], &["effect", "g"]],
+            residual,
+            &ConstraintWeights::empty(),
+            latest,
+        ),
+        "post-replacement matching should retain the original row and latest provenance head"
+    );
+    assert!(
+        machine.row_derivations.iter().any(|edge| {
+            edge.rule == RowDerivationRule::RowItemMatch
+                && edge
+                    .parents
+                    .contains(&RowDerivationParent::RowDerivation(latest))
+        }),
+        "producer, initial lower, transition lower, and late lower should reach RowItemMatch"
+    );
+}
+
+#[derive(Clone, Copy)]
+enum UnweightedRowInsertionOrder {
+    AllLowersBeforeUpper,
+    OneLowerAfterUpper,
+    UpperFirst,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct UnweightedRowOrderFixpoint {
+    source_has_only_residual_upper: bool,
+    residual_lower_families: Vec<(Vec<String>, String)>,
+    payload_constraints: [bool; 4],
+}
+
+fn unweighted_row_order_fixpoint(order: UnweightedRowInsertionOrder) -> UnweightedRowOrderFixpoint {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let first_payload_var = TypeVar(10);
+    let second_payload_var = TypeVar(11);
+    let upper_payload_var = TypeVar(12);
+    let first_payload_pos = machine.alloc_pos(Pos::Var(first_payload_var));
+    let first_payload_neg = machine.alloc_neg(Neg::Var(first_payload_var));
+    let first_payload = machine.alloc_neu(Neu::Bounds(first_payload_pos, first_payload_neg));
+    let second_payload_pos = machine.alloc_pos(Pos::Var(second_payload_var));
+    let second_payload_neg = machine.alloc_neg(Neg::Var(second_payload_var));
+    let second_payload = machine.alloc_neu(Neu::Bounds(second_payload_pos, second_payload_neg));
+    let upper_payload_pos = machine.alloc_pos(Pos::Var(upper_payload_var));
+    let upper_payload_neg = machine.alloc_neg(Neg::Var(upper_payload_var));
+    let upper_payload = machine.alloc_neu(Neu::Bounds(upper_payload_pos, upper_payload_neg));
+    let family_path = vec!["effect".into(), "f".into()];
+    let first_family = machine.alloc_pos(Pos::Con(family_path.clone(), vec![first_payload]));
+    let second_family = machine.alloc_pos(Pos::Con(family_path.clone(), vec![second_payload]));
+    let family_upper = machine.alloc_neg(Neg::Con(family_path, vec![upper_payload]));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    match order {
+        UnweightedRowInsertionOrder::AllLowersBeforeUpper => {
+            machine.subtype(first_family, source_neg, origin);
+            machine.subtype(second_family, source_neg, origin);
+            machine.subtype(source_pos, row_upper, origin);
+        }
+        UnweightedRowInsertionOrder::OneLowerAfterUpper => {
+            machine.subtype(first_family, source_neg, origin);
+            machine.subtype(source_pos, row_upper, origin);
+            machine.subtype(second_family, source_neg, origin);
+        }
+        UnweightedRowInsertionOrder::UpperFirst => {
+            machine.subtype(source_pos, row_upper, origin);
+            machine.subtype(first_family, source_neg, origin);
+            machine.subtype(second_family, source_neg, origin);
+        }
+    }
+
+    let source_has_only_residual_upper = machine.bounds().of(source).is_some_and(|bounds| {
+        bounds.uppers().len() == 1
+            && bounds.uppers()[0].weights.is_empty()
+            && matches!(
+                machine.types().neg(bounds.uppers()[0].neg),
+                Neg::Var(found) if *found == residual
+            )
+    });
+    UnweightedRowOrderFixpoint {
+        source_has_only_residual_upper,
+        residual_lower_families: semantic_lower_families(&machine, residual),
+        payload_constraints: [
+            machine.has_canonical_constraint(&SubtypeConstraintKey {
+                lower: first_payload_pos,
+                upper: upper_payload_neg,
+                weights: ConstraintWeights::empty(),
+            }),
+            machine.has_canonical_constraint(&SubtypeConstraintKey {
+                lower: upper_payload_pos,
+                upper: first_payload_neg,
+                weights: ConstraintWeights::empty(),
+            }),
+            machine.has_canonical_constraint(&SubtypeConstraintKey {
+                lower: second_payload_pos,
+                upper: upper_payload_neg,
+                weights: ConstraintWeights::empty(),
+            }),
+            machine.has_canonical_constraint(&SubtypeConstraintKey {
+                lower: upper_payload_pos,
+                upper: second_payload_neg,
+                weights: ConstraintWeights::empty(),
+            }),
+        ],
+    }
+}
+
+fn has_lower_family_with_weights(
+    machine: &ConstraintMachine,
+    var: TypeVar,
+    expected_path: &[&str],
+    expected_weights: &ConstraintWeights,
+) -> bool {
+    machine
+        .bounds()
+        .of(var)
+        .into_iter()
+        .flat_map(|bounds| bounds.lowers())
+        .any(|lower| {
+            &lower.weights == expected_weights
+                && pos_contains_family(machine, lower.pos, expected_path)
+        })
+}
+
+fn pos_contains_family(machine: &ConstraintMachine, pos: PosId, expected_path: &[&str]) -> bool {
+    match machine.types().pos(pos) {
+        Pos::Con(path, _) => path
+            .iter()
+            .map(String::as_str)
+            .eq(expected_path.iter().copied()),
+        Pos::Row(items) => items
+            .iter()
+            .any(|item| pos_contains_family(machine, *item, expected_path)),
+        _ => false,
+    }
+}
+
+fn has_lower_alias_with_weights(
+    machine: &ConstraintMachine,
+    var: TypeVar,
+    expected_alias: TypeVar,
+    expected_weights: &ConstraintWeights,
+) -> bool {
+    machine
+        .bounds()
+        .of(var)
+        .into_iter()
+        .flat_map(|bounds| bounds.lowers())
+        .any(|lower| {
+            &lower.weights == expected_weights
+                && matches!(
+                    machine.types().pos(lower.pos),
+                    Pos::Var(found) if *found == expected_alias
+                )
+        })
+}
+
+fn semantic_lower_families(
+    machine: &ConstraintMachine,
+    var: TypeVar,
+) -> Vec<(Vec<String>, String)> {
+    fn collect(
+        machine: &ConstraintMachine,
+        pos: PosId,
+        weights: &ConstraintWeights,
+        families: &mut Vec<(Vec<String>, String)>,
+    ) {
+        match machine.types().pos(pos) {
+            Pos::Con(path, _) => families.push((path.clone(), format!("{weights:?}"))),
+            Pos::Row(items) => {
+                for item in items {
+                    collect(machine, *item, weights, families);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut families = Vec::new();
+    if let Some(bounds) = machine.bounds().of(var) {
+        for lower in bounds.lowers() {
+            collect(machine, lower.pos, &lower.weights, &mut families);
+        }
+    }
+    families.sort();
+    families
+}
+
+fn constraint_record_for_key(
+    machine: &ConstraintMachine,
+    lower: PosId,
+    upper: NegId,
+    weights: &ConstraintWeights,
+) -> ConstraintRecordId {
+    let index = machine
+        .constraint_records
+        .iter()
+        .position(|record| {
+            record.key.lower == lower && record.key.upper == upper && &record.key.weights == weights
+        })
+        .expect("canonical constraint record");
+    ConstraintRecordId(index as u32)
+}
+
+fn assert_only_empty_upper_var(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    expected: TypeVar,
+) -> BoundRecordId {
+    let bounds = machine.bounds().of(owner).expect("upper-bound owner");
+    assert_eq!(
+        bounds.uppers().len(),
+        1,
+        "{owner:?} should have exactly one current reduced upper"
+    );
+    assert!(
+        bounds.uppers()[0].weights.is_empty()
+            && matches!(
+                machine.types().neg(bounds.uppers()[0].neg),
+                Neg::Var(found) if *found == expected
+            ),
+        "{owner:?} should retain only the reduced tail {expected:?}"
+    );
+    bounds.upper_record_ids()[0]
+}
+
+fn lower_bound_record(machine: &ConstraintMachine, owner: TypeVar, lower: PosId) -> BoundRecordId {
+    let bounds = machine.bounds().of(owner).expect("lower-bound owner");
+    bounds
+        .lower_record_ids()
+        .iter()
+        .copied()
+        .zip(bounds.lowers())
+        .find_map(|(record, bound)| (bound.pos == lower).then_some(record))
+        .expect("stable lower-bound record")
+}
+
+fn upper_bound_record_for_row(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    expected_items: &[&[&str]],
+    expected_tail: TypeVar,
+) -> BoundRecordId {
+    let bounds = machine.bounds().of(owner).expect("upper-bound owner");
+    bounds
+        .upper_record_ids()
+        .iter()
+        .copied()
+        .zip(bounds.uppers())
+        .find_map(|(record, bound)| {
+            if !bound.weights.is_empty() {
+                return None;
+            }
+            let Neg::Row(items, tail) = machine.types().neg(bound.neg) else {
+                return None;
+            };
+            (matches!(machine.types().neg(*tail), Neg::Var(found) if *found == expected_tail)
+                && items.len() == expected_items.len()
+                && items.iter().zip(expected_items).all(|(item, expected)| {
+                    matches!(
+                        machine.types().neg(*item),
+                        Neg::Con(path, _)
+                            if path.iter().map(String::as_str).eq(expected.iter().copied())
+                    )
+                }))
+            .then_some(record)
+        })
+        .expect("live reduced row upper")
+}
+
+fn unweighted_reduction_reaching(
+    machine: &ConstraintMachine,
+    required_parents: &[RowDerivationParent],
+) -> RowDerivationId {
+    machine
+        .row_derivations
+        .iter()
+        .enumerate()
+        .find_map(|(index, edge)| {
+            let id = RowDerivationId(index as u32);
+            (edge.rule == RowDerivationRule::UnweightedReduction
+                && required_parents
+                    .iter()
+                    .all(|parent| row_derivation_reaches(machine, id, *parent)))
+            .then_some(id)
+        })
+        .expect("unweighted reduction provenance reaches every required parent")
+}
+
+fn row_derivation_reaches(
+    machine: &ConstraintMachine,
+    start: RowDerivationId,
+    expected: RowDerivationParent,
+) -> bool {
+    fn visit(
+        machine: &ConstraintMachine,
+        current: RowDerivationId,
+        expected: RowDerivationParent,
+        seen: &mut FxHashSet<RowDerivationId>,
+    ) -> bool {
+        if !seen.insert(current) {
+            return false;
+        }
+        machine.row_derivations[current.0 as usize]
+            .parents
+            .iter()
+            .copied()
+            .any(|parent| {
+                parent == expected
+                    || matches!(
+                        parent,
+                        RowDerivationParent::RowDerivation(parent)
+                            if visit(machine, parent, expected, seen)
+                    )
+            })
+    }
+
+    visit(machine, start, expected, &mut FxHashSet::default())
+}
+
+fn row_item_match_from(
+    machine: &ConstraintMachine,
+    parent: RowDerivationId,
+    upper_item: NegId,
+) -> RowDerivationId {
+    machine
+        .row_derivations
+        .iter()
+        .enumerate()
+        .find_map(|(index, edge)| {
+            (edge.rule == RowDerivationRule::RowItemMatch
+                && edge
+                    .parents
+                    .contains(&RowDerivationParent::RowDerivation(parent))
+                && edge.retained_items == [upper_item])
+            .then_some(RowDerivationId(index as u32))
+        })
+        .expect("RowItemMatch child of the reduction provenance head")
+}
+
+fn assert_constraint_has_row_derivation(
+    machine: &ConstraintMachine,
+    lower: PosId,
+    upper: NegId,
+    derivation: RowDerivationId,
+) {
+    let record = machine
+        .constraint_records
+        .iter()
+        .find(|record| {
+            record.key.lower == lower && record.key.upper == upper && record.key.weights.is_empty()
+        })
+        .expect("payload invariant constraint");
+    assert!(
+        record.row_derivations.contains(&derivation),
+        "payload invariant constraint should be derived by the late RowItemMatch"
+    );
+}
+
+fn constraint_has_row_route_to_original(
+    machine: &ConstraintMachine,
+    lower: PosId,
+    expected_items: &[&[&str]],
+    expected_tail: TypeVar,
+    expected_weights: &ConstraintWeights,
+    provenance: RowDerivationId,
+) -> bool {
+    machine.constraint_records.iter().any(|record| {
+        if record.key.lower != lower
+            || &record.key.weights != expected_weights
+            || !record.row_derivations.contains(&provenance)
+        {
+            return false;
+        }
+        let Neg::Row(items, tail) = machine.types().neg(record.key.upper) else {
+            return false;
+        };
+        matches!(machine.types().neg(*tail), Neg::Var(found) if *found == expected_tail)
+            && items.len() == expected_items.len()
+            && items.iter().zip(expected_items).all(|(item, expected)| {
+                matches!(
+                    machine.types().neg(*item),
+                    Neg::Con(path, _)
+                        if path.iter().map(String::as_str).eq(expected.iter().copied())
+                )
+            })
+    })
+}
+
+fn unweighted_row_debug_dump(
+    machine: &ConstraintMachine,
+    source: TypeVar,
+    residual: TypeVar,
+) -> String {
+    fn bounds(machine: &ConstraintMachine, var: TypeVar) -> String {
+        let Some(bounds) = machine.bounds().of(var) else {
+            return "<none>".to_string();
+        };
+        let lowers = bounds
+            .lowers()
+            .iter()
+            .map(|lower| format!("{:?} @ {:?}", machine.types().pos(lower.pos), lower.weights))
+            .collect::<Vec<_>>();
+        let uppers = bounds
+            .uppers()
+            .iter()
+            .map(|upper| format!("{:?} @ {:?}", machine.types().neg(upper.neg), upper.weights))
+            .collect::<Vec<_>>();
+        format!("lowers={lowers:#?}, uppers={uppers:#?}")
+    }
+
+    format!(
+        "source {source:?}: {}\nresidual {residual:?}: {}\nrow derivations: {:#?}",
+        bounds(machine, source),
+        bounds(machine, residual),
+        machine.row_derivations,
+    )
+}
+
+#[test]
 fn var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
