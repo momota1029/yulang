@@ -676,6 +676,20 @@ check:
 - `timeout 240s cargo test -p yulang`
 - `timeout 300s cargo test --workspace`
 
+URR-D closeout 実施記録（2026-07-30）: `215ba17f` push 後の CI で
+`contract shard 4/4` が `parser_pattern_rest_public_signature` の型
+不一致で fail した。read-only investigation の結果、URR fix が
+無関係な parser fixture の spurious residual role demand
+（関数の型のどこにも現れない `where 'a: ParseError(...)`）を正しく
+discharge した narrowing だと確定——回帰ではない。期待値を更新
+（`1b6a83da`）。契約スイート全体（287件）と `cargo test -p yulang`
+（377 passed、既知の flaky test 1件は単独実行で pass 確認済み）を
+再検証し、他に影響を受けた case は無いことを確認した。`cargo test
+-p infer`（1012 passed）は前日に確認済み。`-p specialize` と
+`--workspace` full run は CI の各 job（`workspace build`、
+`yulang tests`、`runtime tests`、`user cache isolation test`
+等）でカバーされている。
+
 local-var known-gap contractの反転は、本projectのsolver fixが完了した後、
 `notes/design/2026-07-28-local-var-effect-boundary-fix.md` の残りsliceとして扱う。
 URR-Dでlocal-var lowering mechanismやexpected production outputを同時に書き換えない。
