@@ -25,6 +25,19 @@ struct SecondApplicationEdges {
     body_effect_birth_level: TypeLevel,
 }
 
+/// Slots that survive from second-application construction until the analysis queue is quiescent.
+#[derive(Debug, Clone, Copy)]
+struct DeferredSecondApplicationSnapshot {
+    helper_ref_value: TypeVar,
+    init_value: TypeVar,
+    callback_expr: ExprId,
+    callback_value: TypeVar,
+    callback_fun: PosId,
+    callback_body_effect: TypeVar,
+    result_effect: TypeVar,
+    call_effect: TypeVar,
+}
+
 #[test]
 fn parsed_and_hand_built_callbacks_register_the_same_second_application_edges() {
     let parsed = second_application_edges(CallbackConstruction::Parsed);
@@ -79,6 +92,47 @@ fn parsed_and_hand_built_callbacks_register_the_same_second_application_edges() 
         TypeLevel::root().child(),
         "both callback body effects are born in the child level used by normal lambda lowering"
     );
+}
+
+#[test]
+fn parsed_and_hand_built_callbacks_keep_the_same_edges_after_deferred_resolution() {
+    let (output, parsed, hand_built) = deferred_resolution_fixture();
+    assert!(
+        !output.session.has_pending_work(),
+        "the comparison must inspect a quiescent post-UseResolved constraint graph"
+    );
+
+    let parsed = post_resolution_edges(&output, parsed);
+    let hand_built = post_resolution_edges(&output, hand_built);
+
+    assert_eq!(
+        parsed, hand_built,
+        "the post-resolution canonical edge snapshots must agree"
+    );
+    assert!(
+        !parsed.result_has_family_lower,
+        "both full-pipeline witnesses must discharge the handled local family"
+    );
+    assert!(
+        parsed.callback_to_expected
+            && parsed.callback_fun_to_expected
+            && parsed.callback_effect_to_expected
+            && parsed.family_row_to_expected
+            && parsed.helper_effect_to_call
+            && parsed.call_to_result,
+        "all six canonical post-resolution edges must remain inspectable: {parsed:#?}"
+    );
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct PostResolutionEdges {
+    callback_to_expected: bool,
+    callback_fun_to_expected: bool,
+    callback_effect_to_expected: bool,
+    family_row_to_expected: bool,
+    helper_effect_to_call: bool,
+    call_to_result: bool,
+    result_has_family_lower: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -379,6 +433,489 @@ fn var_reaches_family(
         }
     }
     false
+}
+
+fn deferred_resolution_fixture() -> (
+    BodyLowering,
+    DeferredSecondApplicationSnapshot,
+    DeferredSecondApplicationSnapshot,
+) {
+    let root = parse(deferred_resolution_fixture_source());
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let (trigger, _) = binding_def_and_order(&lower.modules, root_module, "trigger");
+    let local_var_act = lower.modules.synthetic_var_act_uses(trigger)[0].clone();
+    let companion = lower
+        .modules
+        .type_companion(local_var_act.act)
+        .expect("synthetic var act companion");
+    let helper = lower
+        .modules
+        .value_decls(companion, &Name("with_ref".into()))[0]
+        .def;
+    let enclosing = lower
+        .modules
+        .value_decls(companion, &Name("enclosing".into()))[0]
+        .def;
+    let mut lowerer = crate::lowering::body::BodyLowerer::new(lower);
+    lowerer.lower_block(&root, root_module);
+    lowerer.lower_synthetic_act_copy_bodies_for_test();
+
+    // Match `lower_binding_bodies`: snapshot after body construction, add the hand-built control,
+    // then use the ordinary analysis/conformance and remaining-selection drains.
+    let parsed = recover_parsed_second_application_snapshot(&lowerer.session, enclosing, helper);
+    let hand_built = lower_hand_built_second_application(&mut lowerer, companion, helper, parsed);
+
+    lowerer.drain_analysis_with_conformance();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    let output = lowerer.finish();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    (output, parsed, hand_built)
+}
+
+fn recover_parsed_second_application_snapshot(
+    session: &AnalysisSession,
+    enclosing: DefId,
+    helper: DefId,
+) -> DeferredSecondApplicationSnapshot {
+    let Expr::Lambda(_, enclosing_body) =
+        session.poly.expr(match session.poly.defs.get(enclosing) {
+            Some(Def::Let {
+                body: Some(body), ..
+            }) => *body,
+            _ => panic!("parsed enclosing witness must have a lowered body"),
+        })
+    else {
+        panic!("parsed enclosing witness must lower its init parameter as a lambda");
+    };
+    let Expr::App(helper_with_init, callback_expr) = session.poly.expr(*enclosing_body) else {
+        panic!("parsed enclosing body must apply helper to callback second");
+    };
+    let Expr::App(helper_ref_expr, _) = session.poly.expr(*helper_with_init) else {
+        panic!("parsed enclosing body must apply helper to init first");
+    };
+    let helper_ref = expr_ref(session, *helper_ref_expr);
+    let helper_ref_value = session
+        .refs
+        .value(helper_ref)
+        .expect("helper ref value slot");
+    assert!(
+        session.poly.ref_target(helper_ref) == Some(helper)
+            || session.work().iter().any(|work| matches!(
+                work,
+                AnalysisWork::ApplyRefResolution { ref_id, target }
+                    if *ref_id == helper_ref && *target == helper
+            )),
+        "the parsed witness must retain either its deferred ApplyRefResolution or its completed \
+         resolution"
+    );
+
+    let init_value = application_argument_value(session.infer.constraints(), helper_ref_value, 1);
+    let callback_value =
+        application_argument_value(session.infer.constraints(), helper_ref_value, 2);
+    let callback_fun = function_lower_bound_in_machine(session.infer.constraints(), callback_value);
+    let callback_body_effect =
+        function_return_effect_var(session.infer.constraints(), callback_fun);
+    let (result_effect, call_effect) =
+        second_application_effect_slots(session.infer.constraints(), helper_ref_value);
+    assert!(matches!(
+        session.poly.expr(*callback_expr),
+        Expr::Lambda(_, _)
+    ));
+
+    DeferredSecondApplicationSnapshot {
+        helper_ref_value,
+        init_value,
+        callback_expr: *callback_expr,
+        callback_value,
+        callback_fun,
+        callback_body_effect,
+        result_effect,
+        call_effect,
+    }
+}
+
+fn lower_hand_built_second_application(
+    body_lowerer: &mut crate::lowering::body::BodyLowerer,
+    module: ModuleId,
+    helper: DefId,
+    parsed: DeferredSecondApplicationSnapshot,
+) -> DeferredSecondApplicationSnapshot {
+    let owner = body_lowerer.session.poly.defs.fresh();
+    body_lowerer.session.poly.defs.set(
+        owner,
+        Def::Let {
+            vis: Vis::My,
+            scheme: None,
+            body: None,
+            children: Vec::new(),
+        },
+    );
+    let previous_level = body_lowerer.session.infer.enter_child_level();
+    let root = body_lowerer.session.infer.fresh_type_var();
+    body_lowerer.typing.set_def(owner, root);
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: owner,
+            root,
+        }));
+
+    let (result, snapshot) = {
+        let mut lowerer = ExprLowerer::new(
+            &mut body_lowerer.session,
+            &body_lowerer.modules,
+            module,
+            ModuleOrder::from_index(u32::MAX),
+            owner,
+        );
+        let helper_ref = lowerer.lower_resolved_value_ref("with_ref".into(), helper);
+        let helper_ref_value = helper_ref.value;
+        let Expr::Var(helper_ref_id) = lowerer.session.poly.expr(helper_ref.expr) else {
+            unreachable!()
+        };
+        assert_eq!(lowerer.session.poly.ref_target(*helper_ref_id), None);
+        assert!(lowerer.session.work().iter().any(|work| matches!(
+            work,
+            AnalysisWork::ApplyRefResolution { ref_id, target }
+                if *ref_id == *helper_ref_id && *target == helper
+        )));
+        let init_expr = lowerer.session.poly.add_expr(Expr::Lit(Lit::Unit));
+        let init = Computation::value(
+            init_expr,
+            parsed.init_value,
+            lowerer.fresh_exact_pure_effect(),
+        );
+        let helper_with_init = lowerer.make_internal_app(helper_ref, init);
+        // Reuse the parsed body's slots and change only the value wrapper. This mirrors the
+        // production migration shape, where an already-lowered body is wrapped in a fresh pure
+        // `Fun` before the helper's second application.
+        let (arg, arg_eff, ret_eff, ret) = match lowerer
+            .session
+            .infer
+            .constraints()
+            .types()
+            .pos(parsed.callback_fun)
+        {
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => (*arg, *arg_eff, *ret_eff, *ret),
+            _ => unreachable!(),
+        };
+        let callback_value = lowerer.fresh_type_var();
+        let callback_effect = lowerer.fresh_exact_pure_effect();
+        lowerer.constrain_lower(
+            callback_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let Expr::Lambda(pat, body) = lowerer.session.poly.expr(parsed.callback_expr) else {
+            panic!("parsed comparison callback must be a lambda");
+        };
+        let callback_expr = lowerer.session.poly.add_expr(Expr::Lambda(*pat, *body));
+        let callback = Computation::value(callback_expr, callback_value, callback_effect);
+        let callback_fun = function_lower_bound(&lowerer, callback.value);
+        let next = lowerer.session.infer.constraints().next_type_var();
+        let result = lowerer.make_internal_app(helper_with_init, callback);
+        assert_eq!(result.value, TypeVar(next));
+        assert_eq!(result.effect, TypeVar(next + 1));
+        let snapshot = DeferredSecondApplicationSnapshot {
+            helper_ref_value,
+            init_value: init.value,
+            callback_expr,
+            callback_value: callback.value,
+            callback_fun,
+            callback_body_effect: parsed.callback_body_effect,
+            result_effect: result.effect,
+            call_effect: TypeVar(next + 2),
+        };
+        (result, snapshot)
+    };
+
+    let body_pos = body_lowerer.session.infer.alloc_pos(Pos::Var(result.value));
+    let root_neg = body_lowerer.session.infer.alloc_neg(Neg::Var(root));
+    body_lowerer
+        .session
+        .infer
+        .subtype(body_pos, root_neg, OriginId::unknown_internal());
+    let Some(Def::Let { body, .. }) = body_lowerer.session.poly.defs.get_mut(owner) else {
+        unreachable!()
+    };
+    *body = Some(result.expr);
+    body_lowerer
+        .session
+        .record_binding_fetch(owner, BindingFetch::from_evaluation(result.evaluation));
+    body_lowerer
+        .session
+        .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: owner }));
+    body_lowerer.session.infer.restore_level(previous_level);
+    snapshot
+}
+
+fn application_argument_value(
+    machine: &crate::constraints::ConstraintMachine,
+    helper_ref_value: TypeVar,
+    stage: usize,
+) -> TypeVar {
+    let mut callee = helper_ref_value;
+    for current in 1..=stage {
+        let upper = function_upper_bound(machine, callee);
+        let Neg::Fun { arg, ret, .. } = machine.types().neg(upper) else {
+            unreachable!()
+        };
+        if current == stage {
+            let Pos::Var(argument) = machine.types().pos(*arg) else {
+                panic!("application argument must use its computation value slot");
+            };
+            return *argument;
+        }
+        let Neg::Var(result) = machine.types().neg(*ret) else {
+            panic!("application result must use its fresh value slot");
+        };
+        callee = *result;
+    }
+    unreachable!()
+}
+
+fn second_application_effect_slots(
+    machine: &crate::constraints::ConstraintMachine,
+    helper_ref_value: TypeVar,
+) -> (TypeVar, TypeVar) {
+    let first_upper = function_upper_bound(machine, helper_ref_value);
+    let Neg::Fun { ret, .. } = machine.types().neg(first_upper) else {
+        unreachable!()
+    };
+    let Neg::Var(helper_with_init) = machine.types().neg(*ret) else {
+        panic!("first application result must use its fresh value slot");
+    };
+    let second_upper = function_upper_bound(machine, *helper_with_init);
+    let Neg::Fun { ret_eff, ret, .. } = machine.types().neg(second_upper) else {
+        unreachable!()
+    };
+    let Neg::Var(result_value) = machine.types().neg(*ret) else {
+        panic!("second application result must use its fresh value slot");
+    };
+    let Neg::Var(call_effect) = machine.types().neg(*ret_eff) else {
+        panic!("second application call effect must be a bare deferred slot");
+    };
+    // `make_app_with_origins` allocates result value, result effect, and call effect in order.
+    (TypeVar(result_value.0 + 1), *call_effect)
+}
+
+fn function_upper_bound(machine: &crate::constraints::ConstraintMachine, value: TypeVar) -> NegId {
+    machine
+        .bounds()
+        .of(value)
+        .and_then(|bounds| {
+            bounds.uppers().iter().find_map(|bound| {
+                matches!(machine.types().neg(bound.neg), Neg::Fun { .. }).then_some(bound.neg)
+            })
+        })
+        .unwrap_or_else(|| panic!("value {value:?} must have an application function upper"))
+}
+
+fn function_lower_bound_in_machine(
+    machine: &crate::constraints::ConstraintMachine,
+    value: TypeVar,
+) -> PosId {
+    machine
+        .bounds()
+        .of(value)
+        .and_then(|bounds| {
+            bounds.lowers().iter().find_map(|bound| {
+                matches!(machine.types().pos(bound.pos), Pos::Fun { .. }).then_some(bound.pos)
+            })
+        })
+        .unwrap_or_else(|| panic!("value {value:?} must have a function lower"))
+}
+
+fn function_return_effect_var(
+    machine: &crate::constraints::ConstraintMachine,
+    function: PosId,
+) -> TypeVar {
+    let Pos::Fun { ret_eff, .. } = machine.types().pos(function) else {
+        unreachable!()
+    };
+    let Pos::Var(effect) = machine.types().pos(*ret_eff) else {
+        panic!("callback return effect must preserve its body slot");
+    };
+    *effect
+}
+
+fn post_resolution_edges(
+    output: &BodyLowering,
+    snapshot: DeferredSecondApplicationSnapshot,
+) -> PostResolutionEdges {
+    let machine = output.session.infer.constraints();
+    let helper = function_lower_bound_in_machine(machine, snapshot.helper_ref_value);
+    let Pos::Fun { ret, .. } = machine.types().pos(helper) else {
+        unreachable!()
+    };
+    let Pos::Fun {
+        arg: expected_callback,
+        ret_eff: helper_result_effect,
+        ..
+    } = machine.types().pos(*ret)
+    else {
+        panic!("resolved helper must expose the second-stage callback application");
+    };
+    let Neg::Fun {
+        ret_eff: expected_callback_effect,
+        ..
+    } = machine.types().neg(*expected_callback)
+    else {
+        panic!("resolved helper callback argument must be callable");
+    };
+    let callback_var = pos_var_id(machine.types(), snapshot.callback_value);
+    let callback_effect = match machine.types().pos(snapshot.callback_fun) {
+        Pos::Fun { ret_eff, .. } => {
+            assert!(
+                matches!(
+                    machine.types().pos(*ret_eff),
+                    Pos::Var(effect) if *effect == snapshot.callback_body_effect
+                ),
+                "the callback Fun must retain the snapshotted body-effect slot"
+            );
+            *ret_eff
+        }
+        _ => unreachable!(),
+    };
+    let call_effect_upper = neg_var_id(machine.types(), snapshot.call_effect);
+    let result_effect_upper = neg_var_id(machine.types(), snapshot.result_effect);
+    let call_effect_lower = pos_var_id(machine.types(), snapshot.call_effect);
+    let has_edge = |lower, upper| {
+        machine
+            .debug_constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .is_some()
+    };
+    let family_path = expected_family_path(machine.types(), *expected_callback_effect);
+    let family_row = family_row_reaching_var(machine, snapshot.callback_body_effect, &family_path);
+
+    PostResolutionEdges {
+        callback_to_expected: has_edge(callback_var, *expected_callback),
+        callback_fun_to_expected: has_edge(snapshot.callback_fun, *expected_callback),
+        callback_effect_to_expected: has_edge(callback_effect, *expected_callback_effect),
+        family_row_to_expected: has_edge(family_row, *expected_callback_effect),
+        helper_effect_to_call: has_edge(*helper_result_effect, call_effect_upper),
+        call_to_result: has_edge(call_effect_lower, result_effect_upper),
+        result_has_family_lower: var_reaches_family(machine, snapshot.result_effect, &family_path),
+    }
+}
+
+fn family_row_reaching_var(
+    machine: &crate::constraints::ConstraintMachine,
+    root: TypeVar,
+    family_path: &[String],
+) -> PosId {
+    let mut pending = vec![root];
+    let mut visited = rustc_hash::FxHashSet::default();
+    while let Some(var) = pending.pop() {
+        if !visited.insert(var) {
+            continue;
+        }
+        let Some(bounds) = machine.bounds().of(var) else {
+            continue;
+        };
+        for lower in bounds.lowers() {
+            match machine.types().pos(lower.pos) {
+                Pos::Row(items)
+                    if items.iter().any(|item| {
+                        matches!(
+                            machine.types().pos(*item),
+                            Pos::Con(path, _) if path == family_path
+                        )
+                    }) =>
+                {
+                    return lower.pos;
+                }
+                Pos::Var(next) => pending.push(*next),
+                _ => {}
+            }
+        }
+    }
+    panic!("callback body effect must retain its concrete local-family row")
+}
+
+fn pos_var_id(types: &TypeArena, var: TypeVar) -> PosId {
+    types
+        .pos_nodes()
+        .iter()
+        .position(|node| matches!(node, Pos::Var(found) if *found == var))
+        .map(|index| PosId(index as u32))
+        .unwrap_or_else(|| panic!("positive use for {var:?}"))
+}
+
+fn neg_var_id(types: &TypeArena, var: TypeVar) -> NegId {
+    types
+        .neg_nodes()
+        .iter()
+        .position(|node| matches!(node, Neg::Var(found) if *found == var))
+        .map(|index| NegId(index as u32))
+        .unwrap_or_else(|| panic!("negative use for {var:?}"))
+}
+
+fn expected_family_path(types: &TypeArena, expected_effect: NegId) -> Vec<String> {
+    let Neg::Row(items, _) = types.neg(expected_effect) else {
+        panic!("helper callback effect must expose a concrete family prefix");
+    };
+    let family = items
+        .iter()
+        .find_map(|item| match types.neg(*item) {
+            Neg::Con(path, _) => Some(path),
+            _ => None,
+        })
+        .expect("helper callback effect family");
+    family.clone()
+}
+
+fn deferred_resolution_fixture_source() -> &'static str {
+    concat!(
+        "pub mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod var:\n",
+        "      pub act observe 'a:\n",
+        "        pub mark: 'a -> 'a\n",
+        "      pub act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      pub type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "        pub r.update f =\n",
+        "          my loop(x: [_] _) = catch x:\n",
+        "            ref_update::update v, k -> loop:k:f v\n",
+        "          loop:r.update_effect()\n",
+        "      pub act var 't:\n",
+        "        pub get: () -> 't\n",
+        "        pub set: 't -> ()\n",
+        "        my var_ref(): std::control::var::ref '[var 't] 't = std::control::var::ref {\n",
+        "          get: \\() -> get(),\n",
+        "          update_effect: \\() -> set:std::control::var::ref_update::update:get()\n",
+        "        }\n",
+        "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+        "          get(), k -> run v: k v\n",
+        "          set v, k -> run v: k()\n",
+        "        my with_ref(\n",
+        "          init: 'p,\n",
+        "          callback: std::control::var::ref _ 'p -> [_] 'r,\n",
+        "        ) = run init (callback var_ref())\n",
+        "        my enclosing(init: 'p) = with_ref init: \\r ->\n",
+        "          my before = r.get()\n",
+        "          r.update (\\_ -> before)\n",
+        "          std::control::var::observe::mark:r.get()\n",
+        "my trigger(init: 'p) =\n",
+        "  my $x = init\n",
+        "  $x\n",
+    )
 }
 
 fn boundary_fixture() -> (BodyLowering, DefId, DefId, ModuleOrder) {
