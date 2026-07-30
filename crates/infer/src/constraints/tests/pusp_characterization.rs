@@ -949,10 +949,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "inferred-if-condition",
             &["BoundRecordId(99)"],
             Some(query(
-                33,
-                40,
+                32,
+                39,
                 13,
-                17_768_386_504_748_785_697,
+                12_736_020_287_974_442_807,
                 &[
                     "internal",
                     "unknown-internal",
@@ -962,10 +962,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                56,
-                77,
+                54,
+                75,
                 19,
-                17_760_765_525_437_880_643,
+                4_575_010_705_800_922_019,
                 &[
                     "internal",
                     "unknown-internal",
@@ -990,10 +990,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "annotated-parameter-control",
             &["BoundRecordId(17)"],
             Some(query(
-                34,
-                41,
+                33,
+                40,
                 13,
-                8_124_893_317_848_988_519,
+                9_644_678_397_531_326_783,
                 &[
                     "annotation",
                     "internal",
@@ -1004,10 +1004,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                57,
-                78,
+                55,
+                76,
                 19,
-                12_210_693_845_174_782_278,
+                13_687_912_110_321_903_145,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1049,10 +1049,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "imported-cache-loaded-callee",
             &["BoundRecordId(90)"],
             Some(query(
-                33,
-                40,
+                32,
+                39,
                 13,
-                6_397_523_539_046_006_471,
+                15_220_722_176_271_338_519,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1085,10 +1085,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "multiple-body-uses",
             &["BoundRecordId(160)"],
             Some(query(
-                49,
-                62,
+                48,
+                61,
                 13,
-                7_501_278_655_382_016_244,
+                6_865_798_677_926_543_350,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1099,10 +1099,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                74,
-                109,
+                72,
+                107,
                 19,
-                9_974_680_381_325_004_816,
+                7_025_038_626_893_909_947,
                 &[
                     "internal",
                     "unknown-internal",

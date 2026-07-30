@@ -44,8 +44,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 35,
                 upper_bounds: 37,
                 record: ConstraintRecordId(45),
-                explanation_nodes: 36,
-                explanation_edges: 48,
+                explanation_nodes: 35,
+                explanation_edges: 47,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,
@@ -67,8 +67,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 65,
                 upper_bounds: 67,
                 record: ConstraintRecordId(89),
-                explanation_nodes: 71,
-                explanation_edges: 94,
+                explanation_nodes: 69,
+                explanation_edges: 92,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,
@@ -91,8 +91,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 46,
                 upper_bounds: 50,
                 record: ConstraintRecordId(69),
-                explanation_nodes: 41,
-                explanation_edges: 53,
+                explanation_nodes: 40,
+                explanation_edges: 52,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,

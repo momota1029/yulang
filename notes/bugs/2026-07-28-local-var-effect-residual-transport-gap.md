@@ -1840,4 +1840,85 @@ derivationがlocal nodeにもportable originにも現れないことも固定し
 `scheme_projectable_lowers`の`reason`を使って実際の`BoundClaim` parentを構築するwitness
 collection wiringである。
 
+## 38回目: URR-H3 step 4、production witness wiringと既存snapshot gateの衝突
+（2026-07-30）
+
+`generalize/provenance.rs::WitnessCollector`のpositive branchを
+`ConstraintMachine::scheme_projectable_lowers`へ接続した。`Unclaimed`は従来どおり
+`GeneralizationParent::Bound(record)`を使い、`UncoveredClaims`はclaimごとの
+`GeneralizationParent::BoundClaim { bound, claim }`を使う。選択したparent集合を一つの
+structural traversalへ渡すため、mixed recordのendpointは一回だけ走査し、nested pathにも同じ
+claim qualificationを保つ。negative-upper branchの本体は変更していない。
+
+production captureを直接通す四testも追加した。covered-only relationはwitness parentを作らず、
+mixed relationはuncovered `BoundClaim`だけをroot lowerとnested `ConstraintRelation`へ残し、
+no-claimの二段Var lowerはraw traversalの`Bound(record)` edge列と完全一致した。同じ
+`(bound, claim)`がunionの二経路から到達するcaseは、arena insertion前に2 edgeをconsiderし、
+1 edgeをinsert、1 edgeをdedupして、既存のbudget accounting式を保った。
+
+局所test、generalize、explain、occurrence provenance、case_02、compactはgreenだった。一方、
+full provenance filterでは既存characterization二件がredになった。
+
+- `general_subtype_failures_have_infer_analogs_but_carry_no_record_identity`:
+  tuple-arityのlocal explanationが36 nodes / 48 edgesから35 / 47へ変化
+- `pusp_a_characterizes_parameter_and_scheme_provenance_gaps`:
+  claim-qualifiedなparameter / call queryの既存node / edge countとhashが変化
+
+一時的なread-only相当のtrace（最終diffから除去済み）で、前者の変化元は
+`TypeVar(0)`の`BoundRecordId(27)`が
+`UncoveredClaims([UpperReplayClaimId(14)])`としてprojectされたrelationだと確認した。同じcapture
+内の`BoundRecordId(26)`と`BoundRecordId(29)`は`Unclaimed`だった。したがって、no-claim common
+pathの回帰ではなく、step 4が初めてproductionで`BoundClaim`を構築し、step 3のconsumer contract
+どおりmixed/raw audit boundをsemantic explanation parentとして展開しなくなった結果である。
+node / edgeが一つずつ減る形もこのprojectionと一致する。
+
+ただし今回のsliceには「pre-existing testの期待値を変更しない」という明示gateがあるため、
+characterization期待値は更新していない。要求された全test greenとこのgateを同時には満たせず、
+commitを作らずprepared working treeのまま停止した。motivating nested testも指示どおり未実行。
+
+## 39回目: URR-H3 step 4完了、witness wiringとbenign topology baseline更新
+（2026-07-30）
+
+前回未commitだった`generalize/provenance.rs::WitnessCollector`のproduction wiringを再確認した。
+positive lower collectionは`scheme_projectable_lowers`を一回materializeし、`Unclaimed`を従来の
+`Bound(record)` parentへ、`UncoveredClaims`をclaimごとの`BoundClaim { bound, claim }` parentへ
+写す。選択済みparent sliceをstructural traversalへ渡すため、mixed lowerのendpointをclaim数だけ
+再走査せず、nested witnessにも同じclaim identityを保つ。covered-only lowerはiteratorから除外され、
+negative upper collectionは従来経路のままである。production captureを通す四testは、covered-onlyの
+除外、mixed lowerのuncovered claim限定、ordinary no-claim edge列の完全一致、duplicate claim pathの
+considered / inserted / deduplicated accountingを固定する。
+
+前回redだった二characterization baselineは、実測と保存済みrecord-level traceに基づいて更新した。
+general subtype failure四caseのlocal explanation topologyは次の結果だった。
+
+- tuple arity: 36 nodes / 48 edgesから35 / 47
+- tuple arity through generic: 71 / 94から69 / 92
+- nested tuple arity: 41 / 53から40 / 52
+- poly variant tag: 17 / 18のまま不変
+
+新規観測した前二変化はredundant raw-bound wrapper除去と整合する小さなnode / edge同数減で、
+poly variantは影響を受けないcontrolだった。全caseでcanonical constraint / lower / upper count、
+matching record、nominal-cast count、origin列は不変だった。
+
+PUSP-Aは、inferred parameter / call、annotated parameter / call、imported parameter、
+multiple-use parameter / callのnode / edge / query Debug hashだけを実測値へ更新した。
+imported callとgeneric caseは既存baselineのままである。baseline全体の比較により、max depth、
+completeness、origin列、source-leaf count、original parameter bound到達性、schemeとそのhash、
+constraint / bound / replay count、nominal-cast classification、poly hash、diagnostic hash / countが
+すべて不変であることも再確認した。これは`BoundClaim`がuncovered claimをraw mixed bound wrapper
+経由ではなく、自身のproducer / lineage carrierへ直接解決することで生じたinternal explanation
+graph topology normalizationであり、user-facing diagnostic payloadの変更ではない。
+
+更新後はsubtype provenance characterization 8件、PUSP characterization 13件がgreenだった。
+broader gateも`generalize::` filter 41件（generalize core / witness 35件を含む）、
+constraints 174 pass / 1 known-ignore、compact 69件、explain 14件、occurrence provenance 1件が
+greenだった。
+
+informationalにmotivating test
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`も実行したが、hand-built outer
+finalized schemeに`"&buffer#36:0"` familyが残る既知assertionで引き続きredだった。raw traceは
+inner return、call、result、outer aggregate、second applicationへのfamily lower到達と、
+`FunctionReturnEffect` / `UnweightedReduction`経路を引き続き観測した。full H3 gateは後続sliceに
+残る。
+
 <!-- bug-append-anchor: 2026-07-30 -->
