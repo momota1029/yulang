@@ -1257,8 +1257,395 @@ fn unweighted_row_upper_pins_insert_then_same_key_merge_lifecycle() {
     );
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[test]
+fn unweighted_row_upper_cross_source_replay_inherits_covered_lineage() {
+    let mut machine = ConstraintMachine::new();
+    let alpha = TypeVar(0);
+    let beta = TypeVar(1);
+    let residual = TypeVar(2);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let alpha_neg = machine.alloc_neg(Neg::Var(alpha));
+    let alpha_pos = machine.alloc_pos(Pos::Var(alpha));
+    let beta_pos = machine.alloc_pos(Pos::Var(beta));
+    let beta_neg = machine.alloc_neg(Neg::Var(beta));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, alpha_neg, origin);
+    machine.subtype(alpha_pos, row_upper, origin);
+    let root_producer =
+        constraint_record_for_key(&machine, alpha_pos, row_upper, &ConstraintWeights::empty());
+    let alpha_tail_record = assert_only_empty_upper_var(&machine, alpha, residual);
+
+    let top_arg = machine.alloc_neg(Neg::Top);
+    let bottom_arg = machine.alloc_pos(Pos::Bot);
+    let top_effect = machine.alloc_neg(Neg::Top);
+    let bottom_effect = machine.alloc_pos(Pos::Bot);
+    let bottom_return = machine.alloc_pos(Pos::Bot);
+    let top_return = machine.alloc_neg(Neg::Top);
+    let lower_function = machine.alloc_pos(Pos::Fun {
+        arg: top_arg,
+        arg_eff: top_effect,
+        ret_eff: beta_pos,
+        ret: bottom_return,
+    });
+    let upper_function = machine.alloc_neg(Neg::Fun {
+        arg: bottom_arg,
+        arg_eff: bottom_effect,
+        ret_eff: alpha_neg,
+        ret: top_return,
+    });
+    let ignored_union_branch = machine.alloc_pos(Pos::Bot);
+    let nested_union = machine.alloc_pos(Pos::Union(lower_function, ignored_union_branch));
+
+    machine.subtype(nested_union, upper_function, origin);
+
+    let union_parent = constraint_record_for_key(
+        &machine,
+        nested_union,
+        upper_function,
+        &ConstraintWeights::empty(),
+    );
+    let function_parent = constraint_record_for_key(
+        &machine,
+        lower_function,
+        upper_function,
+        &ConstraintWeights::empty(),
+    );
+    let beta_alpha =
+        constraint_record_for_key(&machine, beta_pos, alpha_neg, &ConstraintWeights::empty());
+    assert_structural_derivation(
+        &machine,
+        function_parent,
+        union_parent,
+        StructuralDerivationRule::UnionBranch {
+            branch: StructuralIndex::from_usize(0),
+        },
+    );
+    assert_structural_derivation(
+        &machine,
+        beta_alpha,
+        function_parent,
+        StructuralDerivationRule::FunctionReturnEffect,
+    );
+
+    let beta_alpha_lower = lower_bound_record(&machine, alpha, beta_pos);
+    let beta_tail_result =
+        constraint_record_for_key(&machine, beta_pos, tail, &ConstraintWeights::empty());
+    let replay = exact_replay_derivation(
+        &machine,
+        beta_tail_result,
+        alpha,
+        beta_alpha_lower,
+        alpha_tail_record,
+    );
+    let beta_tail_record = upper_bound_record_for_var(&machine, beta, residual);
+    assert!(
+        machine
+            .bounds()
+            .record(beta_tail_record)
+            .expect("cross-source target upper")
+            .derivations()
+            .contains(&BoundDerivation::Constraint(beta_tail_result)),
+        "the replay result constraint must produce beta's canonical tail upper"
+    );
+    assert!(
+        machine
+            .unweighted_row_reductions_by_source
+            .get(&beta)
+            .is_none(),
+        "beta must inherit coverage without owning a reduction state"
+    );
+
+    let claims = observed_replay_lineage(&machine);
+    let alpha_claim = claims.claim_for(alpha, alpha_tail_record, root_producer);
+    let beta_claim = claims.claim_for(beta, beta_tail_record, beta_tail_result);
+    assert!(
+        alpha_claim.id < beta_claim.id,
+        "the originating claim must be older than the replay-derived child"
+    );
+
+    machine.subtype(late_family, beta_neg, origin);
+    let late_beta_record = lower_bound_record(&machine, beta, late_family);
+    let cross_source_generic =
+        exact_replay_count(&machine, beta, late_beta_record, beta_tail_record);
+    let residual_contaminated = has_lower_family_with_weights(
+        &machine,
+        residual,
+        &["effect", "f"],
+        &ConstraintWeights::empty(),
+    );
+
+    assert_eq!(
+        (
+            beta_claim.coverage_root,
+            beta_claim.lineage,
+            claims.is_covered(beta_claim.id),
+            cross_source_generic,
+            residual_contaminated,
+        ),
+        (
+            alpha_claim.id,
+            ObservedReplayClaimLineage::Derived {
+                parent: alpha_claim.id,
+                result: beta_tail_result,
+                replay,
+                depth: 1,
+            },
+            true,
+            0,
+            false,
+        ),
+        "the exact replay edge must carry alpha's covered claim to beta without generic residual replay"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_other_source_same_endpoint_direct_claim_stays_uncovered() {
+    let mut machine = ConstraintMachine::new();
+    let alpha = TypeVar(0);
+    let gamma = TypeVar(1);
+    let residual = TypeVar(2);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let alpha_neg = machine.alloc_neg(Neg::Var(alpha));
+    let alpha_pos = machine.alloc_pos(Pos::Var(alpha));
+    let gamma_neg = machine.alloc_neg(Neg::Var(gamma));
+    let gamma_pos = machine.alloc_pos(Pos::Var(gamma));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, alpha_neg, origin);
+    machine.subtype(alpha_pos, row_upper, origin);
+    let root_producer =
+        constraint_record_for_key(&machine, alpha_pos, row_upper, &ConstraintWeights::empty());
+    let alpha_tail_record = assert_only_empty_upper_var(&machine, alpha, residual);
+
+    machine.subtype(gamma_pos, tail, origin);
+    let direct_producer =
+        constraint_record_for_key(&machine, gamma_pos, tail, &ConstraintWeights::empty());
+    assert_ne!(
+        direct_producer, root_producer,
+        "the direct gamma relation must have its own producer"
+    );
+    let gamma_tail_record = upper_bound_record_for_var(&machine, gamma, residual);
+    assert!(
+        !constraint_or_bound_has_replay_parent_upper(
+            &machine,
+            direct_producer,
+            gamma_tail_record,
+            alpha_tail_record,
+        ),
+        "sharing rho must not invent an exact replay edge from alpha's claim"
+    );
+
+    let claims = observed_replay_lineage(&machine);
+    let alpha_claim = claims.claim_for(alpha, alpha_tail_record, root_producer);
+    let gamma_claim = claims.claim_for(gamma, gamma_tail_record, direct_producer);
+    assert_eq!(
+        (
+            gamma_claim.coverage_root,
+            gamma_claim.lineage,
+            claims.is_covered(gamma_claim.id),
+        ),
+        (gamma_claim.id, ObservedReplayClaimLineage::Original, false,),
+        "an unrelated same-endpoint producer must remain its own uncovered root"
+    );
+    assert_ne!(
+        gamma_claim.coverage_root, alpha_claim.id,
+        "endpoint equality alone must not inherit alpha's root"
+    );
+
+    machine.subtype(late_family, gamma_neg, origin);
+    let late_gamma_record = lower_bound_record(&machine, gamma, late_family);
+    assert_eq!(
+        exact_replay_count(&machine, gamma, late_gamma_record, gamma_tail_record,),
+        1,
+        "the independent direct claim must generic-replay its matching lower"
+    );
+    assert!(
+        has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "the independent gamma <: rho relation must carry late F to rho"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_multihop_lineage_root_compresses_without_cycle_growth() {
+    let mut machine = ConstraintMachine::new();
+    let alpha = TypeVar(0);
+    let beta = TypeVar(1);
+    let gamma = TypeVar(2);
+    let residual = TypeVar(3);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let alpha_neg = machine.alloc_neg(Neg::Var(alpha));
+    let alpha_pos = machine.alloc_pos(Pos::Var(alpha));
+    let beta_pos = machine.alloc_pos(Pos::Var(beta));
+    let gamma_pos = machine.alloc_pos(Pos::Var(gamma));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, alpha_neg, origin);
+    machine.subtype(alpha_pos, row_upper, origin);
+    let root_producer =
+        constraint_record_for_key(&machine, alpha_pos, row_upper, &ConstraintWeights::empty());
+    let alpha_tail_record = assert_only_empty_upper_var(&machine, alpha, residual);
+
+    machine.add_lower_bound(
+        alpha,
+        beta_pos,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+    let beta_alpha_lower = lower_bound_record(&machine, alpha, beta_pos);
+    let beta_tail_result =
+        constraint_record_for_key(&machine, beta_pos, tail, &ConstraintWeights::empty());
+    let first_replay = exact_replay_derivation(
+        &machine,
+        beta_tail_result,
+        alpha,
+        beta_alpha_lower,
+        alpha_tail_record,
+    );
+    let beta_tail_record = upper_bound_record_for_var(&machine, beta, residual);
+
+    machine.add_lower_bound(
+        beta,
+        gamma_pos,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+    let gamma_beta_lower = lower_bound_record(&machine, beta, gamma_pos);
+    let gamma_tail_result =
+        constraint_record_for_key(&machine, gamma_pos, tail, &ConstraintWeights::empty());
+    let second_replay = exact_replay_derivation(
+        &machine,
+        gamma_tail_result,
+        beta,
+        gamma_beta_lower,
+        beta_tail_record,
+    );
+    let gamma_tail_record = upper_bound_record_for_var(&machine, gamma, residual);
+
+    machine.add_lower_bound(
+        gamma,
+        alpha_pos,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+    let alpha_gamma_lower = lower_bound_record(&machine, gamma, alpha_pos);
+    let alpha_tail_result =
+        constraint_record_for_key(&machine, alpha_pos, tail, &ConstraintWeights::empty());
+    let reverse_replay = exact_replay_derivation(
+        &machine,
+        alpha_tail_result,
+        gamma,
+        alpha_gamma_lower,
+        gamma_tail_record,
+    );
+    assert_eq!(
+        upper_bound_record_for_var(&machine, alpha, residual),
+        alpha_tail_record,
+        "the reverse replay must return to the existing canonical root target"
+    );
+    assert!(
+        machine.queue.is_empty(),
+        "the semantic alpha-beta-gamma cycle must drain without re-enqueue growth"
+    );
+
+    let alternate_origin = machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    machine.add_lower_bound(
+        gamma,
+        alpha_pos,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(alternate_origin),
+    );
+    machine.drain();
+    assert!(
+        machine.queue.is_empty(),
+        "a proof-only merge on the reverse edge must also leave the queue drained"
+    );
+
+    let claims = observed_replay_lineage(&machine);
+    let alpha_claim = claims.claim_for(alpha, alpha_tail_record, root_producer);
+    let beta_claim = claims.claim_for(beta, beta_tail_record, beta_tail_result);
+    let gamma_claim = claims.claim_for(gamma, gamma_tail_record, gamma_tail_result);
+    assert!(
+        alpha_claim.id < beta_claim.id && beta_claim.id < gamma_claim.id,
+        "each replay hop must allocate a child after its parent"
+    );
+
+    assert_eq!(
+        (
+            beta_claim.coverage_root,
+            beta_claim.lineage,
+            claims.is_covered(beta_claim.id),
+            gamma_claim.coverage_root,
+            gamma_claim.lineage,
+            claims.is_covered(gamma_claim.id),
+            claims.metrics_for_root(alpha_claim.id),
+        ),
+        (
+            alpha_claim.id,
+            ObservedReplayClaimLineage::Derived {
+                parent: alpha_claim.id,
+                result: beta_tail_result,
+                replay: first_replay,
+                depth: 1,
+            },
+            true,
+            alpha_claim.id,
+            ObservedReplayClaimLineage::Derived {
+                parent: beta_claim.id,
+                result: gamma_tail_result,
+                replay: second_replay,
+                depth: 2,
+            },
+            true,
+            ObservedReplayLineageMetrics {
+                claim_count: 3,
+                maximum_depth: 2,
+                cycle_coalesces: 1,
+            },
+        ),
+        "two hops must root-compress directly to alpha; reverse replay {reverse_replay:?} must coalesce once"
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ObservedReplayClaimId(u32);
+
+impl PartialOrd for ObservedReplayClaimId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ObservedReplayClaimId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ObservedReplayClaimKind {
@@ -1279,6 +1666,232 @@ struct ObservedReplayClaim {
 struct LateMatchingReplayCounts {
     generic: usize,
     incremental_matched: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservedReplayClaimLineage {
+    Original,
+    Derived {
+        parent: ObservedReplayClaimId,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedLineageClaim {
+    id: ObservedReplayClaimId,
+    source: TypeVar,
+    producer: ConstraintRecordId,
+    record: BoundRecordId,
+    coverage_root: ObservedReplayClaimId,
+    lineage: ObservedReplayClaimLineage,
+}
+
+#[derive(Debug, Default)]
+struct ObservedReplayLineage {
+    claims: Vec<ObservedLineageClaim>,
+    covered_roots: FxHashSet<ObservedReplayClaimId>,
+    cycle_coalesces: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedReplayLineageMetrics {
+    claim_count: usize,
+    maximum_depth: u32,
+    cycle_coalesces: usize,
+}
+
+impl ObservedReplayLineage {
+    fn claim_for(
+        &self,
+        source: TypeVar,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) -> ObservedLineageClaim {
+        self.claims
+            .iter()
+            .copied()
+            .find(|claim| {
+                claim.source == source && claim.record == record && claim.producer == producer
+            })
+            .expect("upper replay claim identified by source, record, and producer")
+    }
+
+    fn is_covered(&self, claim: ObservedReplayClaimId) -> bool {
+        let claim = self
+            .claims
+            .get(claim.0 as usize)
+            .expect("observed claim ID");
+        self.covered_roots.contains(&claim.coverage_root)
+    }
+
+    fn metrics_for_root(
+        &self,
+        coverage_root: ObservedReplayClaimId,
+    ) -> ObservedReplayLineageMetrics {
+        let mut claim_count = 0;
+        let mut maximum_depth = 0;
+        for claim in &self.claims {
+            if claim.coverage_root != coverage_root {
+                continue;
+            }
+            claim_count += 1;
+            maximum_depth = maximum_depth.max(match claim.lineage {
+                ObservedReplayClaimLineage::Original => 0,
+                ObservedReplayClaimLineage::Derived { depth, .. } => depth,
+            });
+        }
+        ObservedReplayLineageMetrics {
+            claim_count,
+            maximum_depth,
+            cycle_coalesces: self.cycle_coalesces,
+        }
+    }
+}
+
+fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage {
+    let mut observed = ObservedReplayLineage::default();
+
+    for (state_index, state) in machine.unweighted_row_reduction_records.iter().enumerate() {
+        let id = ObservedReplayClaimId(observed.claims.len() as u32);
+        observed.claims.push(ObservedLineageClaim {
+            id,
+            source: state.source,
+            producer: row_derivation_producer(machine, state.provenance_head),
+            record: state.current_reduced_upper.record,
+            coverage_root: id,
+            lineage: ObservedReplayClaimLineage::Original,
+        });
+        assert_eq!(
+            reduction_state_for_source(machine, state.source),
+            UnweightedRowReductionRecordId(state_index as u32),
+            "the preflight fixture keeps one canonical reduction state per source"
+        );
+        observed.covered_roots.insert(id);
+    }
+
+    for (record_index, record) in machine.bounds.records.iter().enumerate() {
+        if record.direction() != BoundDirection::Upper
+            || record.state() == BoundRecordState::Tombstone
+        {
+            continue;
+        }
+        let record_id = BoundRecordId(record_index as u32);
+        for derivation in record.derivations() {
+            let BoundDerivation::Constraint(producer) = derivation else {
+                continue;
+            };
+            if observed
+                .claims
+                .iter()
+                .any(|claim| claim.record == record_id && claim.producer == *producer)
+            {
+                continue;
+            }
+            let id = ObservedReplayClaimId(observed.claims.len() as u32);
+            observed.claims.push(ObservedLineageClaim {
+                id,
+                source: record.owner(),
+                producer: *producer,
+                record: record_id,
+                coverage_root: id,
+                lineage: ObservedReplayClaimLineage::Original,
+            });
+        }
+    }
+
+    observed
+}
+
+fn assert_structural_derivation(
+    machine: &ConstraintMachine,
+    child: ConstraintRecordId,
+    parent: ConstraintRecordId,
+    rule: StructuralDerivationRule,
+) {
+    assert!(
+        machine.constraint_records[child.0 as usize]
+            .structural_derivations
+            .contains(&StructuralDerivation { parent, rule }),
+        "canonical child {child:?} must retain structural parent {parent:?} via {rule:?}"
+    );
+}
+
+fn exact_replay_derivation(
+    machine: &ConstraintMachine,
+    result: ConstraintRecordId,
+    pivot: TypeVar,
+    lower: BoundRecordId,
+    upper: BoundRecordId,
+) -> BinaryReplayDerivation {
+    machine.constraint_records[result.0 as usize]
+        .replay_derivations
+        .iter()
+        .copied()
+        .find(|replay| replay.pivot == pivot && replay.lower == lower && replay.upper == upper)
+        .expect("result constraint retains the exact binary replay edge")
+}
+
+fn exact_replay_count(
+    machine: &ConstraintMachine,
+    pivot: TypeVar,
+    lower: BoundRecordId,
+    upper: BoundRecordId,
+) -> usize {
+    machine
+        .constraint_records
+        .iter()
+        .flat_map(|record| &record.replay_derivations)
+        .filter(|replay| replay.pivot == pivot && replay.lower == lower && replay.upper == upper)
+        .count()
+}
+
+fn constraint_or_bound_has_replay_parent_upper(
+    machine: &ConstraintMachine,
+    producer: ConstraintRecordId,
+    record: BoundRecordId,
+    parent_upper: BoundRecordId,
+) -> bool {
+    machine.constraint_records[producer.0 as usize]
+        .replay_derivations
+        .iter()
+        .any(|replay| replay.upper == parent_upper)
+        || machine
+            .bounds()
+            .record(record)
+            .expect("upper claim record")
+            .derivations()
+            .iter()
+            .any(|derivation| {
+                matches!(
+                    derivation,
+                    BoundDerivation::ReplayEvidence(replay) if replay.upper == parent_upper
+                )
+            })
+}
+
+fn upper_bound_record_for_var(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    expected: TypeVar,
+) -> BoundRecordId {
+    let bounds = machine.bounds().of(owner).expect("upper-bound owner");
+    bounds
+        .upper_record_ids()
+        .iter()
+        .copied()
+        .zip(bounds.uppers())
+        .find_map(|(record, bound)| {
+            (bound.weights.is_empty()
+                && matches!(
+                    machine.types().neg(bound.neg),
+                    Neg::Var(found) if *found == expected
+                ))
+            .then_some(record)
+        })
+        .expect("canonical variable upper bound")
 }
 
 fn observed_upper_replay_claims(
