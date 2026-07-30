@@ -2,7 +2,7 @@
 
 日付: 2026-07-29
 
-状態: **ユーザ承認済み（v4、2026-07-30）**
+状態: **未承認・ユーザレビュー待ち（v5）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
@@ -10,8 +10,52 @@ v1 / v2のコード行番号は同 commit の working tree に対して 2026-07-
 v3で追加したコード行番号とtraceは`4ec031b3`のworking treeに対して2026-07-30に再確認した。
 v4のcross-source経路、現行provenance carrier、v3 test 2 controlは`0264e950`のworking treeに
 対して2026-07-30に再確認した。
+v5のreduction-own unmatched-lower routing、`RowDerivation` carrier、shared enqueue helperの
+call-site境界は`09237c6b`のworking treeに対して2026-07-30に再確認した。
 
 ## 改訂履歴
+
+### 2026-07-30: v5 — reduction-own unmatched route の作成時self-tagging
+
+承認済みv4のURR-F一度目では、§8.1 / §8.2の六testを
+`051be5fc`のpreflightからred / green / redで固定した後、§5.8のclaim-local coverageと
+§5.9のproof-carrying lineageをproductionへ試作した。v3の対象二test、v4の対象二test、
+両versionのcontrol二testはすべてgreenになった。それでも最終integration gateの
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`ではinner family漏れが
+残ったため、production差分はrollbackされた。記録は`4107919e`を正本とする。
+
+最初のtraceでは、漏れたclaimのproducer `ConstraintRecordId(6472)`が
+`StructuralDerivation` / `BinaryReplayDerivation`を持たず、`RowDerivationId(196)`だけを持つことから、
+v4が見ていない別種のcross-source propagation carrierが必要に見えた。しかし
+`09237c6b`のread-only investigationで、この読みを狭めた。`RowDerivationId(196)`は別claimから
+covered reductionへ到達する発見済みproof edgeではなく、**reduction自身がinitial lower snapshotを
+matched / unmatchedへ振り分けたときに作った副産物**である。
+
+具体的には、`TypeVar(1524)`のreductionが`&buffer` itemを消費した時点で、
+`PosId(1725) = Var(TypeVar(1522))`はunmatchedだった。現行
+`add_unweighted_effect_row_upper_bound_from_existing_lowers`末尾のrouting loop
+（`row_effect.rs:328-334`）は、このlowerをreduced upper
+`NegId(2055) = Var(TypeVar(1669))`へ送るため、
+`enqueue_row_derived_subtype(1725, ..., 2055, RowDerivationId(196))`を発行した。これが
+`ConstraintRecordId(6472)`であり、そのresultが作った1522側のupper claimは、reductionが
+最初から所有するrouteなのにroot-self / uncoveredとして登録された。後から1522へmatching
+`&buffer` lowerが到着すると、その誤分類されたclaimだけがgeneric replayを要求してfamilyを漏らした。
+
+したがってv5は、別sourceからのlineageを新しいderivation graph走査で発見しない。
+initial reduction自身の**unmatched arm**がrow-derived subtypeをenqueueする時点で、
+そのresult constraintが作るclaimへreduction自身のclaim IDをexplicit parentとして渡し、
+作成時から同じcompressed coverage rootを持たせる。`RowDerivation`はN-ary hyperedgeだが、
+result `ConstraintRecord`はexact `RowDerivationId`を保持するため、carrierは
+`(result ConstraintRecordId, RowDerivationId)`で一意に説明できる。これはv4のcross-source
+lineage discoveryを広げる変更ではなく、v4のclaim identity / root compressionへfirst-party
+byproductを一箇所から登録する、よりnarrowな追加である。
+
+`enqueue_row_derived_subtype` helper自体は、weighted residual、row invariant、row-item matchにも
+共有されている。`09237c6b`時点で確認した`row_effect.rs:334`のlexical call siteはinitial
+unweighted reductionのsnapshot routing専用だが、同じloopはmatched armもoriginal upperへ送る。
+よってself-taggingはhelper全体にもloop全体にも適用せず、unmatched armから明示的なowner claimを
+渡す。v5は新しい実質的設計変更なので、v1〜v4の承認履歴を維持したまま、文書全体を
+未承認・ユーザレビュー待ちへ戻す。実装sliceはURR-F一度目を再試行せず、URR-Gとして分ける。
 
 ### 2026-07-30: v4 — proof-carrying edge に沿う cross-source claim lineage
 
@@ -162,6 +206,10 @@ local-var effect boundary の調査が発見経路ではあるが、本書は
    target claimへoriginating claimのlineageを残す。coverageそのものはcopyせず、圧縮済みroot
    claimを通じてlive stateを参照する。同じendpointを共有するだけの別source / 別producer
    claimにはlineageを作らず、generic replayを残す。
+9. initial reduction自身のsnapshot routingがunmatched lowerをreduced upperへ送って作るclaimは、
+   enqueue時にreduction自身のclaimをexplicit parentとして受け取り、同じcompressed rootへ
+   作成時から属する。`RowDerivation`を後から逆走査して親を発見せず、shared
+   `enqueue_row_derived_subtype`の他用途やmatched armへこのself-tagを広げない。
 
 ## 1. 問題
 
@@ -381,6 +429,23 @@ coverage checkはclaimに保存したroot IDとlive coverage indexのlookupで�
 canonical `(target bound, root claim)`の数、lineage link数はそのclaim数でboundedにし、
 同じsemantic replayのproof追加やconstraint graphのcycleに比例させない。
 
+### 3.6 v5のblast radius
+
+v5が追加で意味を変えるのは、
+`add_unweighted_effect_row_upper_bound_from_existing_lowers`がinitial reductionを成立させた後、
+同じsnapshot内の**unmatched lower**をcurrent reduced upperへ送る一箇所だけである。
+matched lowerのoriginal-upper route、late-lower transition、weighted residual、row invariant、
+row-item matchは変更しない。generic `enqueue_row_derived_subtype`の全callerを
+`RowDerivationRule`やendpoint shapeから分類しない。
+
+追加metadataは、unmatched armがすでに知っているreduction claim IDとaggregate
+`RowDerivationId`を、canonical result constraint admissionへ渡すdirect ownership linkである。
+result constraintがnewでもduplicateでも、target upper claimが登録される時点までこのlinkを
+保つ。late lowerごとのproof graph走査、`RowDerivation` parentの探索、cross-source propagation
+candidateの追加発見は行わない。claim canonicalizationとcoverage lookupはv4の
+`(target BoundRecordId, coverage_root)` / compressed rootをそのまま使うため、追加costはこの
+initial unmatched routeごとの定数時間metadata admissionに限る。
+
 ## 4. 必須 invariant
 
 ### 4.1 logical relation
@@ -464,10 +529,13 @@ routeだけが処理し、uncovered claimだけがgeneric replayを作る。一�
 
 coverage token / setそのものはsource、original row、producer-rootをまたいでcopyまたはunion
 しない。subsumption、equivalent merge、evidence promotion、endpoint一致だけを理由に別claimを
-coveredへ昇格させない。唯一のcross-source inheritanceは、originating claimをparentに持つ
-exact replay derivationがcanonical constraintへ登録され、そのconstraintがtarget bound claimを
-導いた場合、または同じedgeがtarget evidence boundの`ReplayEvidence`として登録された場合で
-ある。target claimはcoverageのcopyではなくlineage rootへの参照を持つ。
+coveredへ昇格させない。別claimがcoverage rootを継承できるのは、(a) originating claimを
+parentに持つexact replay derivationがcanonical constraintへ登録され、そのconstraintがtarget
+bound claimを導いた場合、(b) 同じedgeがtarget evidence boundの`ReplayEvidence`として登録された
+場合、または(c) initial reduction自身のunmatched armが、自分のrouting byproductへ
+reduction claimをexplicit parentとして渡した場合だけである。(c)は別sourceのproof edgeを
+発見する規則ではなく、routeを作ったownerによる作成時登録である。target claimはcoverageの
+copyではなくlineage rootへの参照を持つ。
 
 同じstate-owned claimのproof identityだけが変わった場合はcoverageを失ってはならない。
 同じroot claimから同じcanonical target boundへ再到達した場合もclaimを増やさず、既存lineage
@@ -478,15 +546,30 @@ claimへcoalesceする。一方、同じendpointへのdirect claimは、source�
 ### 4.8 claim lineage
 
 lineageはsemantic subtype relationを新しく作る規則ではない。既存solverがすでに作ったrelation
-について、「このtarget claimはどのoriginating claimをupper parentとするreplayから来たか」を
-admission時に固定するaccountingである。lineage linkはexact parent claimとexact replay edgeを
-持ち、edgeが存在しないshape-based推測を許さない。
+について、「このtarget claimはどのoriginating claimをupper parentとするreplayから来たか」、
+または「どのreduction claimが自分のinitial unmatched routeとして直接作ったか」をadmission時に
+固定するaccountingである。lineage linkはexact parent claimと、exact replay edgeまたは
+`(result ConstraintRecordId, RowDerivationId)`のdirect route carrierを持ち、carrierが存在しない
+shape-based推測を許さない。
 
 lineage graphはappend-onlyかつacyclicにする。derived claimのparentは必ず先に確定したclaim IDで
 あり、childはparentより後にallocateする。各claimはroot claim IDを作成時にpath-compressして
 保持し、coverage checkでparent chainを歩かない。constraint graphがcycleして既存
 `(canonical target bound, root claim)`へ戻った場合は新しいclaim / parent linkを作らず、
 既存claimへproofをcoalesceする。
+
+### 4.9 reduction-own routing ownership
+
+initial reductionのunmatched routeから生じるclaimは、routeを発行したreduction claimのchildで
+あり、独立direct claimではない。このownershipはresult constraintのrow derivationを後から
+探索して推測せず、unmatched armがenqueue admissionへparent claimを明示した場合だけ成立する。
+childの`coverage_root`はparentの圧縮済みroot、`depth`は`parent.depth + 1`とし、root stateが
+liveでなくなればv4と同じ`live_coverage_by_root` lookupでuncoveredになる。
+
+同じcanonical target upperに、以前から別producerのdirect claimが存在しても、そのclaimを
+coveredへ昇格させない。reduction routeは同じrecord上へroot別のderived claimを追加または
+coalesceするだけである。matched arm、trivial constraint、explicit parentを持たない
+row-derived constraintは、この規則からclaimを作成または再分類しない。
 
 ## 5. 選んだ設計: source-indexed persistent reduction state
 
@@ -881,6 +964,97 @@ duplicate / cycleでcoalesceした回数をtiming censusへ加える。claim数�
 bound × logical rootで説明できず増える、depth overflowが起きる、またはcoverage checkが
 parent graphを歩く必要が出た場合はlandingしない。
 
+### 5.10 v5: initial unmatched route のexplicit parent
+
+`09237c6b`時点の現行codeでは、initial reductionはreduced upperをmaterializeし、
+`register_unweighted_row_reduction`でstate / ownerを登録した後、
+`row_effect.rs:328-334`のloopでsnapshot lowerをrouteする。matched lowerは
+`original_upper`、unmatched lowerは`reduced_upper`を選び、どちらも最後は
+`enqueue_row_derived_subtype(lower.pos, lower.weights, upper, aggregate)`へ入る。このlexical
+call siteはinitial unweighted reduction専用だが、helper本体
+（`machine/entry.rs:1361-1407`）はrow invariant、weighted residual、row-item matchからも
+呼ばれる。
+
+v5では、state登録時に確定したreduction自身のoriginal claimを`root_claim`として取り出し、
+loopを次の意味形へ分ける。実装名は既存admission APIへ合わせてよいが、owner metadataを
+`RowDerivationRule`やendpointから推測してはならない。
+
+```text
+for snapshot lower:
+    if matched:
+        enqueue_row_derived_subtype(lower, original_upper, aggregate)
+    else:
+        enqueue_initial_unmatched_reduction_subtype(
+            lower,
+            reduced_upper,
+            aggregate,
+            parent_claim = root_claim,
+        )
+```
+
+`enqueue_initial_unmatched_reduction_subtype`は別のsemantic subtype ruleではない。
+generic row-derived admissionへ、明示的なclaim parentを追加するnarrow wrapperまたはparameterで
+ある。canonicalization後にnon-trivial resultが得られたら、new / duplicateのどちらでも次を
+exact result constraintへmergeする。
+
+```text
+ReductionRouteClaimParent {
+    claim: UpperReplayClaimId
+    derivation: RowDerivationId
+}
+
+reduction_route_claim_parents_by_constraint:
+    ConstraintRecordId -> small set<ReductionRouteClaimParent>
+```
+
+§5.9の`UpperReplayClaimLineage.carrier`には次の第三variantを加える。
+
+```text
+ReductionRouteConstraint {
+    result: ConstraintRecordId
+    derivation: RowDerivationId
+}
+```
+
+carrierを有効とみなす条件は、(1) `result`の
+`ConstraintRecord.row_derivations`へexact `derivation`が登録済み、(2) explicit
+`parent_claim`が、同じrouting loopを発行したlive reduction state自身のclaim、(3) routeが
+unmatched armからcurrent reduced upperへ向く、の三つである。`RowDerivation`は
+`parents: Vec<RowDerivationParent>`を持つN-ary hyperedgeだが、親集合をcoverage判定でwalkしない。
+result constraintとexact aggregate IDのpairは説明carrier、explicit claim IDはownershipの正本と
+して役割を分ける。
+
+result constraintが後続`step_subtype`でcanonical upper recordを初めて登録するとき、
+`(target BoundRecordId, parent.coverage_root)`をkeyにderived claimを作る。claimは
+`parent_claim = root_claim`、`coverage_root = root_claim.coverage_root`、
+`depth = root_claim.depth + 1`、carrierを上記pairとする。通常のconfirmed shapeではreduction
+claim自身がrootなので、childのrootはそのreduction claimである。constraintがduplicateでtarget
+record / claimがすでに存在する場合は、semantic queueの再実行や後日のedge discoveryに頼らず、
+同じadmission中に既存derived claimへmetadataをcoalesceする。target recordがまだ無ければ、
+constraint-local parent metadataを後続の最初のbound admissionが読む。trivial constraintは
+result recordもtarget claimも作らない。
+
+この経路で作るchildは「別claimから証明edgeを見つけて継承したclaim」ではなく、reductionが
+自分で発行したfirst-party byproductである。したがってv4の
+`BinaryReplayDerivation` discovery条件を緩めず、`ReplayClaimParent`の候補探索へ
+`RowDerivation`全体を追加しない。root compression、same-record上のroot別claim、
+replacement / prune、live-root lookup、cycle / duplicate boundは§5.9をそのまま再利用する。
+
+over-taggingについて、`09237c6b`時点ではself-tag対象のlexical call siteはinitial reduction
+routing専用であり、unmatched armは必ずそのreduction自身のdirect byproductを作るため、
+explicit taggingは無条件に安全と判断する。ただし実装開始時に次を再確認する。
+
+1. dedicated wrapper / explicit parent parameterを呼ぶのが、このunmatched armだけである。
+2. matched armと、helperを共有するweighted residual / row invariant / row-item matchは従来の
+   generic admissionを使う。
+3. canonical duplicate上の既存direct claimをderivedへ書き換えず、root別childだけを
+   add / coalesceする。
+
+もし同じtagged call siteまたはwrapperがunrelated constraint purposeからも呼ばれているなら、
+この安全仮定は破れ、taggingは広すぎる。その場合はlandingせず、call siteを分離してexplicit
+ownerをunmatched branchだけへ戻す。helper全体へのimplicit tagging、`UnweightedReduction`
+rule名だけでのtagging、row-derivation parent walkによる後付けclassificationは代案にしない。
+
 ## 6. 採らない方向
 
 ### 6.1 lowering-side order workaround
@@ -1064,7 +1238,43 @@ test 1と3のlineage assertionはproduction lineage未実装でred、test 2はen
 入れない限りgreen controlでなければならない。三testとも、fixture / function名、
 `FunctionReturnEffect` variant単体、endpoint equalityをcoverage oracleにしない。
 
-この13 testに加え、次の既存testは名前も期待値も変更せず通す。
+### 8.3 v5で先に追加する2 regression tests
+
+URR-Gのproduction codeを変更する前に、次の二つを同じ`case_02.rs`へ追加する。§8.2で使った
+claim / root / carrier observation helperを、`ReductionRouteConstraint`も区別できる形へ拡張する。
+test helperは`RowDerivation` graphをwalkしてcoverageを推測せず、production admissionが記録した
+explicit parentとcarrierを直接観測する。
+
+1. **initial unmatched routeのresult claimは作成時からreduction rootに属する**
+   source `α`へ、original item `F`に一致するconcrete lowerと、reduction時点では`F`に一致しない
+   variable lower `β`を先に追加する。その後`α <: [F; ρ]`を追加してinitial reductionを成立させ、
+   `β`がunmatched armからreduced upper `ρ`へrouteされるshapeを作る。result
+   `β <: ρ` constraintがaggregate `UnweightedReduction`のexact `RowDerivationId`を持ち、
+   `BinaryReplayDerivation`を必要としないことを確認する。queue drain直後、後続のlineage
+   discoveryや追加constraint投入を行う前に、`β`のupper claimが`α`のreduction claimを
+   `parent_claim` / `coverage_root`に持ち、
+   `ReductionRouteConstraint { result, derivation }`をcarrierとするdepth 1のderived claimである
+   ことを固定する。`β`自身にはreduction stateがないことも確認する。
+
+   その後`β`へmatching `F` lowerを追加し、`β`のlate lowerとrouted-to upperのpairから
+   generic replayが0本であること、`F`が`ρ`へ漏れないことを確認する。initial matched lowerの
+   original-upper routeと、`α`側のincremental ownershipは従来どおり残す。このtestはconfirmed
+   `PosId(1725) -> NegId(2055)` shapeをarena数値なしで固定し、self-tag未実装ではclaimの
+   `coverage_root = self`とgeneric replayによりredでなければならない。
+2. **shared row-derived enqueueのunrelated constraintはuncoveredのまま**
+   reduction stateを持たない別source `γ`について、`RowDerivationRule::WeightedResidual`の
+   non-reduction derivationを作り、現行でも共有されている`enqueue_row_derived_subtype` admissionで
+   `γ <: ρ`を導く。result constraintがexact `RowDerivationId`を持つ一方、initial-unmatched-routeの
+   explicit parent metadataを持たないことを確認する。`γ`のclaimは
+   `lineage = Original`、`coverage_root = self`、uncoveredであり、late `F` lowerはgeneric replay
+   一本で`ρ`へ届かなければならない。このcontrolはhelper全体、`RowDerivationRule`全体、または
+   row-derived constraint全体をcoveredにする誤修正を検出する。
+
+test 1はself-tag未実装でred、test 2はnarrow call-site taggingを守るgreen controlでなければ
+ならない。両testとも、production graphのarena ID、fixture名、endpoint equalityをoracleにせず、
+exact parent claim、compressed root、`(result ConstraintRecordId, RowDerivationId)` carrierで判定する。
+
+この15 testに加え、次の既存testは名前も期待値も変更せず通す。
 
 - `unweighted_row_upper_uses_concrete_lower_item_before_residual_tail`
 - `unweighted_row_upper_consumes_pop_only_weighted_lower_item`
@@ -1273,6 +1483,73 @@ gate:
 URR-Fではlocal-var production wiringを再開しない。nested characterizationはsolverのintegration
 gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとして再開する。
 
+URR-F一度目の実施記録（2026-07-30）: §8.1 / §8.2の六testは`051be5fc`のpreflightから
+red / green / redで固定され、production試作では対象四testとcontrol二testがすべてgreenになった。
+しかしnested hand-built characterizationだけは、reduction自身のinitial unmatched routeが作った
+claimをroot-selfとしたためinner familyを漏らした。production差分はcommitせずrollbackした。
+`4107919e` / `09237c6b`の調査結果により、URR-Fのproof-discovery範囲をさらに広げず、
+first-party byproductの作成時taggingをURR-Gへ分離する。
+
+### URR-G: reduction-own unmatched route self-tagging
+
+v5がユーザ承認済みになるまで開始しない。`09237c6b`のclean production baseline、
+§8.1 / §8.2のlanded preflight六test、URR-F一度目で確認したgreen / nested-red結果を起点にする。
+URR-Gは§5.8 / §5.9のclaim-local coverageとroot compressionを再導入したURR-F implementationへ、
+§5.10のexplicit parent admissionだけを加えるatomic sliceとする。新しいcross-source
+propagation discoveryや`RowDerivation` graph walkを同じsliceへ混ぜない。
+
+test-first preflight:
+
+1. §8.3 test 1で、initial reductionのunmatched armが作るresult constraintにexact aggregate
+   `RowDerivationId`がある一方、target claimがroot-self / uncoveredで、late matching lowerを
+   generic replayする現行gapをredとして確認する。
+2. §8.3 test 2で、shared `enqueue_row_derived_subtype`を通るunrelated
+   `WeightedResidual` constraintがexplicit reduction parentを持たず、root-self / uncoveredとして
+   generic replayするgreen controlを固定する。
+3. URR-F一度目と同じ六testを再実行し、v4のexact replay lineageとdirect-claim controlsの
+   baselineを変えない。
+4. `v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`のinner-family漏れと
+   parsed controlのisolationを、URR-F一度目と同じ期待値で保存する。expected schemeを漏れへ
+   合わせない。
+
+変更:
+
+- initial reduction state / original claimの登録結果から、route ownerとなるclaim IDを取得する
+- `row_effect.rs:328-334`のloopをmatched / unmatched admissionへ分け、unmatched armだけが
+  reduction claimとaggregate `RowDerivationId`をexplicitに渡す
+- generic row-derived admissionのsemantic dedupを変えず、new / duplicate result
+  `ConstraintRecordId`へ`ReductionRouteClaimParent`をmergeできるnarrow wrapperまたはparameterを
+  追加する
+- target upperのnew admissionではconstraint-local metadataからderived claimを作り、duplicateで
+  target recordが既存なら同じadmission中に`(target BoundRecordId, coverage_root)`へcoalesceする
+- §5.9のlineage carrierへ
+  `ReductionRouteConstraint { result: ConstraintRecordId, derivation: RowDerivationId }`を追加し、
+  root / depth / lifecycle / timingは既存compressed-root modelを再利用する
+- matched arm、weighted residual、row invariant、row-item match、trivial constraintには
+  reduction-route parentを付けない
+
+gate:
+
+- §8.3 test 1でrouted result claimが作成直後からreduction claimをparent / rootに持ち、
+  late matching lowerをgeneric replayせず、residual contaminationを起こさない
+- §8.3 test 2でunrelated row-derived claimがroot-self / uncoveredのままgeneric replayされる
+- §8.1 / §8.2の六testが期待値無変更でpassし、v4のexact replay carrierとv5のdirect route
+  carrierが混同されない
+- §8の既存7 regressionと既存三contractが期待値無変更でpassする
+- `v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`からinner familyが消え、
+  parsed controlと同じisolationを持つ。これはURR-Fがすでに要求した**同じ最終integration
+  gate**であり、URR-Gでは新しい期待値へ置き換えず、今度こそ実際に満たす
+- single-boundary、weighted row、zero-lower known-gapのscopeが変わらない
+- self-tagging callerがinitial unmatched arm一箇所に限られ、helperの他callerとmatched armに
+  explicit parent metadataがない
+- carrierの`result` / `derivation`がcanonical recordのrow proofとexact一致し、childのrootが
+  routeを発行したreduction claimのcompressed rootと一致する
+- new / duplicate admissionのどちらもsemantic queue再実行やpost-hoc graph discoveryを要求せず、
+  claim数がcanonical `(target bound, root claim)`数で説明できる
+
+URR-Gでもlocal-var production wiringを再開しない。nested characterizationはURR-Fから継続する
+solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとして再開する。
+
 ## 10. stop / rollback conditions
 
 ### 10.1 stop conditions
@@ -1308,18 +1585,20 @@ gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとし�
     再現する。正しさfixをglobal scanのままlandingせずindex設計へ戻る。
 15. testをgreenにするため、fixture、path、module、function名のspecial case、
     `Any` fallback、後段family cleanupが必要になる。
-16. originating claimをparentとするexact `BinaryReplayDerivation`なしに、endpoint equality、
-    source alias、same-key mergeだけでcoverageが別claimへ伝播する。またはその誤伝播により、
-    真に独立した別source / 別producerの`source <: tail`を抑止する。
+16. originating claimをparentとするexact `BinaryReplayDerivation`、または§5.10のinitial
+    unmatched armが明示するexact reduction-route carrierなしに、endpoint equality、source
+    alias、same-key mergeだけでcoverageが別claimへ伝播する。またはその誤伝播により、真に
+    独立した別source / 別producerの`source <: tail`を抑止する。
 17. same-key merge、subsumption、replacement / pruneのいずれかでstate-owned coverageを失い、
     matched late lowerが再びplain residualへ二重routeする。
 18. claim / token setがcanonical logical relation数ではなくproof追加、equivalent admission、
     replay回数に比例して増え続ける。
 19. covered / uncoveredの分類にlate-lowerごとのprovenance graph逆走査、derivation rule名、
     `FunctionReturnEffect`のspecial caseが必要になる。
-20. lineage carrierのreplay edgeがresult constraintまたはtarget boundの`ReplayEvidence`へ
+20. replay lineage carrierのedgeがresult constraintまたはtarget boundの`ReplayEvidence`へ
     登録されていない、edgeの`upper`がparent claimのrecordと一致しない、または
-    `IncompleteReplay`へ落ちたedgeをcovered inheritanceの証明として使う必要がある。
+    `IncompleteReplay`へ落ちたedgeをcovered inheritanceの証明として使う必要がある。v5のdirect
+    route carrierについては、result constraintへexact `RowDerivationId`が登録されていない。
 21. new constraintではlineageを保持できるが、duplicate / prefiltered duplicate、
     evidence-only / promotionのいずれかで同じexact edgeのlineageを失い、semantic queueの再実行を
     correctnessのために要求する。
@@ -1327,6 +1606,15 @@ gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとし�
     ID以降を指す、constraint cycleでlineage cycle / non-termination / depth overflowが起きる。
 23. derived claim / lineage linkがcanonical `(target bound, root claim)`数ではなく、alternate
     proof、duplicate replay、semantic cycleの周回数に比例して増え続ける。
+24. reduction-route self-taggingがgeneric `enqueue_row_derived_subtype` helper、matched arm、
+    weighted residual、row invariant、row-item matchのいずれかへ広がり、unrelated
+    row-derived claimをcoveredにする。
+25. initial unmatched routeのchildが、routeを発行したreduction claim以外をparent / rootにする、
+    root-selfのまま残る、またはsame canonical record上の独立direct claimを同じrootへ
+    書き換える。
+26. new admissionではself-tagを保持できるがduplicate admissionで失う、またはduplicateを
+    coveredにするためsemantic queueの再実行、`RowDerivation` graphのpost-hoc walk、
+    rule-name / endpoint-based inferenceが必要になる。
 
 ### 10.2 rollback unit
 
@@ -1345,6 +1633,10 @@ gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとし�
   成立しなければ、cross-source token copyやendpoint-wide suppressionだけをlandingしない。
   §8.1 / §8.2の六regressionは正しい期待値のまま保持し、URR-Fのsemantic implementation全体を
   戻す。
+- URR-Gでinitial unmatched armだけのexplicit parent admission、exact reduction-route carrier、
+  unrelated row-derived controlのどれかが成立しなければ、helper-wide taggingや
+  `RowDerivationRule` special caseをlandingしない。§8.3の二regressionは正しい期待値のまま保持し、
+  URR-F / Gのsemantic implementationをpartialに残さない。
 - performanceだけが不合格でもglobal scanをdefault-onで残さない。source indexまたはstate keyを
   再設計し、意味論を変えるcache / early returnは入れない。
 
@@ -1405,8 +1697,10 @@ gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとし�
     replay accounting、explanation completenessを維持する。
 26. §8.2の三regressionがpassし、confirmed `1670 <: 1524` shapeのcross-source claim、
     unrelated same-endpoint direct claim、multi-hop / cycleを別々のoracleで固定する。
-27. cross-source inheritanceは、originating claim IDと、result `ConstraintRecordId`へ登録済みの
-    exact `BinaryReplayDerivation`、またはtarget boundのexact `ReplayEvidence`で説明できる。
+27. proof-discovered cross-source inheritanceは、originating claim IDと、result
+    `ConstraintRecordId`へ登録済みのexact `BinaryReplayDerivation`、またはtarget boundのexact
+    `ReplayEvidence`で説明できる。initial unmatched routeのfirst-party inheritanceは、explicit
+    reduction claim IDと、resultへ登録済みのexact `RowDerivationId`で別に説明できる。
     `UnionBranch` / `FunctionReturnEffect`はlower relationの既存structural provenanceとして残り、
     coverage用special caseにならない。
 28. covered rootから別sourceへ派生したclaimは、target sourceにlocal reduction stateがなくても
@@ -1417,7 +1711,16 @@ gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとし�
     parent walk、cycle non-termination、depth overflowがない。
 30. new / duplicate / prefiltered duplicate / evidence-only / promotionの全pathでlineage identityが
     同じであり、必要なedgeが`IncompleteReplay`へ落ちない。
+31. §8.3の二regressionがpassし、initial unmatched routeのself-taggingと、shared helperを使う
+    unrelated row-derived constraintの非coverageを別々のoracleで固定する。
+32. initial unmatched routeが作るresult claimは、後続discoveryなしに作成時からreduction
+    claimをparent、同じcompressed claimをroot、
+    `(result ConstraintRecordId, RowDerivationId)`をcarrierとして持つ。new / duplicateの両admissionで
+    このidentityを失わず、same record上のdirect claimをcoveredへ書き換えない。
+33. self-taggingはinitial reduction routingのunmatched armだけに限られ、matched arm、weighted
+    residual、row invariant、row-item matchへ広がらない。URR-Fと同じnested characterization gateが
+    新しい期待値への変更なしで実際にpassし、inner familyがouter finalizationへ漏れない。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: ユーザ承認済み（v4、2026-07-30）
+状態: 未承認・ユーザレビュー待ち（v5）
