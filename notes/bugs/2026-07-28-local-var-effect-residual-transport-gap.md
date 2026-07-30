@@ -1800,4 +1800,44 @@ witness collectionには触れておらず、別sliceへ残す。motivating test
 `v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`も、
 provenance wiring前の結果をcompletion条件に混ぜないため今回は実行していない。
 
+## 37回目: URR-H3 step 3、claim-qualified provenance表現とconsumer plumbing
+（2026-07-30）
+
+`GeneralizationParent`へ
+`BoundClaim { bound: BoundRecordId, claim: UpperReplayClaimId }`をadditiveに追加した。
+このsliceでは`capture_generalized_witnesses`を変更しておらず、production pathはまだ
+`BoundClaim`を構築しない。
+
+claim-qualified parentの解決は`ConstraintMachine::generalization_parent_carriers`へ集約した。
+`bound`が存在し、`scheme_projection_claims_by_lower_record[bound]`へ`claim`が実際にlink
+されていることを検証し、debug buildではinvalid pairをassertする。release buildでmetadataが
+壊れていた場合もcomplete provenanceとして黙ってdropせず、local explanationとoccurrence
+provenanceをincompleteにする。
+
+projectionはclaim自身のlineageだけを公開する。`Original`は
+`producer_constraint`、`ReplayConstraint`と`ReductionRouteConstraint`は記録済み`result`
+constraint、`ReplayEvidence`はexact replay lower / upper boundsへ投影する。raw mixed
+`BoundRecord`はaudit linkとしてparent内に残るが、semantic explanation parentにはしない。
+local explanationとoccurrence provenanceは同じprojection helperを使い、portable exportは
+投影済みのconstraint / bound carrierだけを変換する。
+
+manually constructed `BoundClaim`を使うdirect testを追加し、四lineageすべてについてlocal
+explanationとoccurrence-to-portable round tripを確認した。同じraw boundへ置いたsibling
+derivationがlocal nodeにもportable originにも現れないことも固定した。既存expectationは
+変更していない。
+
+検証結果:
+
+- `RUSTC_WRAPPER= cargo check -p infer`: pass
+- `RUSTC_WRAPPER= cargo test -p infer claim_qualified_ -- --nocapture`: 2 pass
+- `RUSTC_WRAPPER= cargo test -p infer generalize::tests::`: 31 pass
+- `RUSTC_WRAPPER= cargo test -p infer constraints::tests::`: 174 pass / 1 known-ignore
+- `RUSTC_WRAPPER= cargo test -p infer compact::tests::`: 69 pass
+- `RUSTC_WRAPPER= cargo test -p infer explain`: 14 pass
+- `RUSTC_WRAPPER= cargo test -p infer occurrence_provenance`: 1 pass
+
+次sliceは予定どおり`generalize/provenance.rs::capture_generalized_witnesses`が
+`scheme_projectable_lowers`の`reason`を使って実際の`BoundClaim` parentを構築するwitness
+collection wiringである。
+
 <!-- bug-append-anchor: 2026-07-30 -->

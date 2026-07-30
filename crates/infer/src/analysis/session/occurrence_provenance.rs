@@ -2,7 +2,7 @@ use super::*;
 
 use crate::constraints::explain::{PortableProvenanceExportBudget, PortableProvenanceExportRoot};
 use crate::constraints::{
-    BoundDirection, GeneralizationParent, GeneralizedWitnessRole, OccurrenceProvenanceRoot,
+    BoundDirection, GeneralizationParentCarriers, GeneralizedWitnessRole, OccurrenceProvenanceRoot,
     PendingOccurrenceProvenance,
 };
 use poly::provenance::{
@@ -103,12 +103,13 @@ impl AnalysisSession {
         let mut ranges = Vec::with_capacity(pending.len());
         for (_, provenance) in &pending {
             let start = roots.len();
-            roots.extend(provenance.roots.iter().map(|root| match root {
-                OccurrenceProvenanceRoot::Constraint(id) => {
-                    PortableProvenanceExportRoot::Constraint(*id)
-                }
-                OccurrenceProvenanceRoot::Bound(id) => PortableProvenanceExportRoot::Bound(*id),
-            }));
+            roots.extend(
+                provenance
+                    .roots
+                    .iter()
+                    .copied()
+                    .map(OccurrenceProvenanceRoot::portable_export_root),
+            );
             ranges.push(start..roots.len());
         }
 
@@ -248,16 +249,36 @@ impl AnalysisSession {
                     _ => TypeOccurrenceRole::DefinitionPredicate,
                 };
                 let mut roots = Vec::new();
+                let mut completeness = witness.completeness;
                 for derivation in &witness.incoming {
                     for parent in &derivation.parents {
-                        let root = match parent {
-                            GeneralizationParent::Constraint(id) => {
-                                OccurrenceProvenanceRoot::Constraint(*id)
+                        match machine.generalization_parent_carriers(*parent) {
+                            Some(GeneralizationParentCarriers::Constraint(id)) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::Constraint(id),
+                                );
                             }
-                            GeneralizationParent::Bound(id) => OccurrenceProvenanceRoot::Bound(*id),
-                        };
-                        if !roots.contains(&root) {
-                            roots.push(root);
+                            Some(GeneralizationParentCarriers::Bound(id)) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::Bound(id),
+                                );
+                            }
+                            Some(GeneralizationParentCarriers::ReplayEvidence { lower, upper }) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::Bound(lower),
+                                );
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::Bound(upper),
+                                );
+                            }
+                            None => {
+                                completeness =
+                                    crate::constraints::ProvenanceCompleteness::Incomplete;
+                            }
                         }
                     }
                 }
@@ -269,11 +290,26 @@ impl AnalysisSession {
                     },
                     PendingOccurrenceProvenance {
                         roots,
-                        completeness: witness.completeness,
+                        completeness,
                     },
                 ));
             }
         }
+    }
+}
+
+impl OccurrenceProvenanceRoot {
+    fn portable_export_root(self) -> PortableProvenanceExportRoot {
+        match self {
+            Self::Constraint(id) => PortableProvenanceExportRoot::Constraint(id),
+            Self::Bound(id) => PortableProvenanceExportRoot::Bound(id),
+        }
+    }
+}
+
+fn push_occurrence_root(roots: &mut Vec<OccurrenceProvenanceRoot>, root: OccurrenceProvenanceRoot) {
+    if !roots.contains(&root) {
+        roots.push(root);
     }
 }
 

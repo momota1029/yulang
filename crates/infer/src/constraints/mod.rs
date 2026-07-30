@@ -406,7 +406,7 @@ struct UnweightedRowReductionRegistration {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct UpperReplayClaimId(u32);
+pub struct UpperReplayClaimId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UpperReplayClaimKind {
@@ -1560,6 +1560,69 @@ pub enum GeneralizedWitnessRole {
 pub enum GeneralizationParent {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    BoundClaim {
+        bound: BoundRecordId,
+        claim: UpperReplayClaimId,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GeneralizationParentCarriers {
+    Constraint(ConstraintRecordId),
+    Bound(BoundRecordId),
+    ReplayEvidence {
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+    },
+}
+
+impl ConstraintMachine {
+    /// Resolve a generalized parent to the exact records that carry its explanation.
+    ///
+    /// A claim-qualified parent keeps `bound` as its audit link, but deliberately does not
+    /// expand that mixed record: only the selected claim's own lineage is semantic provenance.
+    pub(crate) fn generalization_parent_carriers(
+        &self,
+        parent: GeneralizationParent,
+    ) -> Option<GeneralizationParentCarriers> {
+        let GeneralizationParent::BoundClaim { bound, claim } = parent else {
+            return Some(match parent {
+                GeneralizationParent::Constraint(record) => {
+                    GeneralizationParentCarriers::Constraint(record)
+                }
+                GeneralizationParent::Bound(record) => GeneralizationParentCarriers::Bound(record),
+                GeneralizationParent::BoundClaim { .. } => unreachable!(),
+            });
+        };
+        let claim_record = self.bounds.upper_replay_claims.get(claim.0 as usize);
+        let linked = self.bounds.record(bound).is_some()
+            && claim_record.is_some()
+            && self
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&bound)
+                .is_some_and(|claims| claims.contains(&claim));
+        debug_assert!(
+            linked,
+            "claim-qualified generalization parent must link claim {claim:?} to bound {bound:?}"
+        );
+        let claim_record = claim_record.filter(|_| linked)?;
+        Some(match claim_record.lineage {
+            UpperReplayClaimLineage::Original => {
+                GeneralizationParentCarriers::Constraint(claim_record.producer_constraint)
+            }
+            UpperReplayClaimLineage::ReplayConstraint { result, .. }
+            | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
+                GeneralizationParentCarriers::Constraint(result)
+            }
+            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => {
+                GeneralizationParentCarriers::ReplayEvidence {
+                    lower: replay.lower,
+                    upper: replay.upper,
+                }
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1225,20 +1225,31 @@ impl<'a> ExplanationQuery<'a> {
             .incoming
             .clone();
         for derivation in incoming {
+            let mut parents = Vec::new();
+            for parent in derivation.parents {
+                match self.machine.generalization_parent_carriers(parent) {
+                    Some(GeneralizationParentCarriers::Constraint(id)) => {
+                        parents.push(ExplanationNodeId::Constraint(id));
+                    }
+                    Some(GeneralizationParentCarriers::Bound(id)) => {
+                        parents.push(ExplanationNodeId::Bound(id));
+                    }
+                    Some(GeneralizationParentCarriers::ReplayEvidence { lower, upper }) => {
+                        parents.extend([
+                            ExplanationNodeId::Bound(lower),
+                            ExplanationNodeId::Bound(upper),
+                        ]);
+                    }
+                    None => {
+                        self.underlying_incomplete = true;
+                    }
+                }
+            }
             self.push_edge(
                 ExplanationEdge {
                     child: ExplanationNodeId::GeneralizedWitness(id),
                     kind: ExplanationEdgeKind::Generalization(derivation.rule),
-                    parents: derivation
-                        .parents
-                        .into_iter()
-                        .map(|parent| match parent {
-                            GeneralizationParent::Constraint(id) => {
-                                ExplanationNodeId::Constraint(id)
-                            }
-                            GeneralizationParent::Bound(id) => ExplanationNodeId::Bound(id),
-                        })
-                        .collect(),
+                    parents,
                 },
                 depth,
             );
@@ -1388,6 +1399,7 @@ fn portable_edge_kind(kind: &ExplanationEdgeKind) -> PortableProvenanceEdgeKind 
             PortableProvenanceEdgeKind::BoundDisposition(portable_disposition(*disposition))
         }
         ExplanationEdgeKind::Generalization(rule) => {
+            // BoundClaim has already become only its claim-local carrier nodes in the local graph.
             PortableProvenanceEdgeKind::Generalization(match rule {
                 GeneralizationDerivationRule::BoundCollection => {
                     PortableGeneralizationDerivationRule::BoundCollection
