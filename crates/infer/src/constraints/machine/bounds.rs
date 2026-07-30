@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 /// rows. Semantic queue admission remains prefiltered, while duplicate/trivial
 /// pairings retain small provenance-only actions so their exact parents are not lost.
 type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
-type ReplayClaimParents = SmallVec<[UpperReplayClaimId; 2]>;
+type ReplayClaimParents = SmallVec<[SideTaggedReplayClaim; 2]>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BoundReplayAction {
@@ -511,12 +511,19 @@ impl ConstraintMachine {
             if self.is_var_var_replay(pos, route.upper) {
                 replay.var_var += 1;
             }
+            let mut claim_parents = self.lower_record_replay_claim_parents(insertion.id);
+            if let Some(claim) = route.claim {
+                claim_parents.push(SideTaggedReplayClaim {
+                    claim,
+                    parent_side: ReplayClaimParentSide::Upper,
+                });
+            }
             self.push_replay_constraint_or_prefilter(
                 pos,
                 weights.clone(),
                 route.upper,
                 derivation,
-                route.claim.into_iter().collect(),
+                claim_parents,
                 &mut replay,
             );
         }
@@ -743,6 +750,7 @@ impl ConstraintMachine {
                     .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
                         UpperReplayClaimLineage::ReplayConstraint {
                             parent_claim: parent.claim,
+                            parent_side: parent.parent_side,
                             result: producer,
                             replay: parent.replay,
                             depth,
@@ -787,7 +795,7 @@ impl ConstraintMachine {
         &mut self,
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
-        parents: &[UpperReplayClaimId],
+        parents: &[SideTaggedReplayClaim],
         materialize_existing_target: bool,
     ) {
         if parents.is_empty()
@@ -798,9 +806,20 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
-        for claim in parents {
+        for parent in parents {
+            let coverage_root =
+                self.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root;
+            let key = ReplayClaimParentKey {
+                result,
+                coverage_root,
+                parent_side: parent.parent_side,
+            };
+            if !self.bounds.replay_claim_parent_keys.insert(key) {
+                continue;
+            }
             let parent = ReplayClaimParent {
-                claim: *claim,
+                claim: parent.claim,
+                parent_side: parent.parent_side,
                 replay,
             };
             let entries = self
@@ -808,9 +827,7 @@ impl ConstraintMachine {
                 .replay_claim_parents_by_constraint
                 .entry(result)
                 .or_default();
-            if !entries.contains(&parent) {
-                entries.push(parent);
-            }
+            entries.push(parent);
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
@@ -1072,29 +1089,17 @@ impl ConstraintMachine {
             .projection_upper_records()
             .map(|(record, upper)| (record, upper.clone()))
             .collect::<Vec<_>>();
+        let lower_claim_parents = self.lower_record_replay_claim_parents(lower_record);
         let decisions = uppers
             .iter()
             .map(|(record, _)| {
                 let requires_generic = self.upper_record_requires_generic_replay(*record);
-                let mut claim_parents = self
-                    .bounds
-                    .uncovered_claims(*record)
-                    .into_iter()
-                    .collect::<ReplayClaimParents>();
-                if matches!(self.types.pos(pos), Pos::Var(_)) {
-                    for claim in self.bounds.covered_claims(*record) {
-                        let handled_by_incremental_route = incremental_routes.iter().any(|route| {
-                            route.upper_record == *record && route.claim == Some(claim)
-                        });
-                        if !handled_by_incremental_route && !claim_parents.contains(&claim) {
-                            claim_parents.push(claim);
-                        }
-                    }
-                }
-                (
-                    *record,
-                    (requires_generic || !claim_parents.is_empty(), claim_parents),
-                )
+                let upper_claim_parents =
+                    self.upper_record_replay_claim_parents(pos, *record, incremental_routes);
+                let should_replay = requires_generic || !upper_claim_parents.is_empty();
+                let mut claim_parents = lower_claim_parents.clone();
+                claim_parents.extend(upper_claim_parents);
+                (*record, (should_replay, claim_parents))
             })
             .collect::<FxHashMap<_, _>>();
         let replay_input_count = decisions
@@ -1132,6 +1137,58 @@ impl ConstraintMachine {
             );
         }
         replay
+    }
+
+    fn lower_record_replay_claim_parents(&self, lower_record: BoundRecordId) -> ReplayClaimParents {
+        self.bounds
+            .scheme_projection_claims_by_lower_record
+            .get(&lower_record)
+            .into_iter()
+            .flatten()
+            .copied()
+            .map(|claim| SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            })
+            .collect()
+    }
+
+    fn upper_record_replay_claim_parents(
+        &self,
+        lower: PosId,
+        upper_record: BoundRecordId,
+        incremental_routes: &[UnweightedRowReductionReplayRoute],
+    ) -> ReplayClaimParents {
+        let mut parents = self.uncovered_upper_replay_claim_parents(upper_record);
+        if matches!(self.types.pos(lower), Pos::Var(_)) {
+            for claim in self.bounds.covered_claims(upper_record) {
+                let handled_by_incremental_route = incremental_routes
+                    .iter()
+                    .any(|route| route.upper_record == upper_record && route.claim == Some(claim));
+                let parent = SideTaggedReplayClaim {
+                    claim,
+                    parent_side: ReplayClaimParentSide::Upper,
+                };
+                if !handled_by_incremental_route && !parents.contains(&parent) {
+                    parents.push(parent);
+                }
+            }
+        }
+        parents
+    }
+
+    fn uncovered_upper_replay_claim_parents(
+        &self,
+        upper_record: BoundRecordId,
+    ) -> ReplayClaimParents {
+        self.bounds
+            .uncovered_claims(upper_record)
+            .into_iter()
+            .map(|claim| SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Upper,
+            })
+            .collect()
     }
 
     fn upper_record_requires_generic_replay(&self, upper: BoundRecordId) -> bool {
@@ -1185,12 +1242,10 @@ impl ConstraintMachine {
         if !requires_generic {
             return replay;
         }
-        let claim_parents = self
-            .bounds
-            .uncovered_claims(upper_record)
-            .into_iter()
-            .collect::<ReplayClaimParents>();
+        let upper_claim_parents = self.uncovered_upper_replay_claim_parents(upper_record);
         for (index, (lower_record, lower)) in bounds.projection_lower_records().enumerate() {
+            let mut claim_parents = self.lower_record_replay_claim_parents(lower_record);
+            claim_parents.extend(upper_claim_parents.iter().copied());
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, neg) {
@@ -1207,7 +1262,7 @@ impl ConstraintMachine {
                     upper: upper_record,
                     rule: ReplayRule::UpperBoundAdded,
                 },
-                claim_parents.clone(),
+                claim_parents,
                 &mut replay,
             );
         }
@@ -1500,14 +1555,15 @@ impl ConstraintMachine {
             }
             if evidence_complete {
                 for parent in action.claim_parents {
-                    let producer =
-                        self.bounds.upper_replay_claims[parent.0 as usize].producer_constraint;
+                    let producer = self.bounds.upper_replay_claims[parent.claim.0 as usize]
+                        .producer_constraint;
                     let registration = self.bounds.derived_upper_replay_claim(
                         upper_record,
-                        parent,
+                        parent.claim,
                         producer,
                         |depth| UpperReplayClaimLineage::ReplayEvidence {
-                            parent_claim: parent,
+                            parent_claim: parent.claim,
+                            parent_side: parent.parent_side,
                             replay: action.derivation,
                             depth,
                         },

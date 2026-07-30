@@ -262,6 +262,7 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                             LineageCase::ReplayConstraint => {
                                 UpperReplayClaimLineage::ReplayConstraint {
                                     parent_claim: original_claim,
+                                    parent_side: ReplayClaimParentSide::Upper,
                                     result: replay_result,
                                     replay,
                                     depth,
@@ -278,6 +279,7 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                             LineageCase::ReplayEvidence => {
                                 UpperReplayClaimLineage::ReplayEvidence {
                                     parent_claim: original_claim,
+                                    parent_side: ReplayClaimParentSide::Upper,
                                     replay,
                                     depth,
                                 }

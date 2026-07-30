@@ -419,12 +419,14 @@ enum UpperReplayClaimLineage {
     Original,
     ReplayConstraint {
         parent_claim: UpperReplayClaimId,
+        parent_side: ReplayClaimParentSide,
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
         depth: u32,
     },
     ReplayEvidence {
         parent_claim: UpperReplayClaimId,
+        parent_side: ReplayClaimParentSide,
         replay: BinaryReplayDerivation,
         depth: u32,
     },
@@ -475,9 +477,29 @@ enum SchemeProjectionMutation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ReplayClaimParentSide {
+    Lower,
+    Upper,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SideTaggedReplayClaim {
+    claim: UpperReplayClaimId,
+    parent_side: ReplayClaimParentSide,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReplayClaimParent {
     claim: UpperReplayClaimId,
+    parent_side: ReplayClaimParentSide,
     replay: BinaryReplayDerivation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReplayClaimParentKey {
+    result: ConstraintRecordId,
+    coverage_root: UpperReplayClaimId,
+    parent_side: ReplayClaimParentSide,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -690,6 +712,7 @@ pub struct TypeBounds {
         FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
     replay_claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ReplayClaimParent>>,
+    replay_claim_parent_keys: FxHashSet<ReplayClaimParentKey>,
     reduction_route_claim_parents_by_constraint:
         FxHashMap<ConstraintRecordId, Vec<ReductionRouteClaimParent>>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,

@@ -2055,4 +2055,26 @@ baseline / regression結果:
 - existing `case_02`は53 pass / 1 known-ignore、generalize 42、compact 69、explain 14、
   occurrence provenance 1がすべてgreen。
 
+## 43回目: DCP-B、replay両側のside付きclaim parent
+（2026-07-31）
+
+approved design §5.1案Dと§6.1に従い、binary replay actionがexact lower recordの
+`scheme_projection_claims_by_lower_record`とexisting upper-side claim selectionの双方を読むようにした。
+各parentは`Lower` / `Upper`のsideを持ち、一つのsemantic action上で加算的にmergeする。
+lower×upperの直積やclaim数ぶんのenqueueは作っていない。new、queue duplicate、
+prefiltered duplicate、evidence-onlyの全pathへ同じside metadataを通し、canonical
+`(result, compressed root, parent side)` indexで再到達をdedupする。lower / upper replayの
+semantic eligibilityは既存条件を維持したため、claim metadataだけでは新しいsubtype actionを作らない。
+
+DCP-Aの§8.1、§8.2、§8.3はすべてgreenになった。§8.4、§8.5、§8.6、§8.8は従来と同じ
+structural / one-sided linkage assertionでred、§8.7はgreenのままで、DCP-C / Dのscopeを先取りして
+いない。URR-H1はoriginal 18 pass / 1 known-ignore、v6 4/4 passで期待値変更なし。
+`cargo check -p infer`は既知dead-code warning一件だけで成功し、compact 80、generalize 42、
+explain 14、occurrence provenance 1、claim-qualified provenance 2もすべてgreenだった。
+
+five-case characterizationは保存済み構造体とのexact comparisonを三回試したが、assertion結果へ
+到達する前に240秒timeout二回、約4分半での手動中断一回となった。期待値は変更しておらず、
+programmatic zero-diffはこのrunでは未確認として残す。287-case contract suiteは指示どおり
+実行していない。
+
 <!-- bug-append-anchor: 2026-07-30 -->

@@ -2797,28 +2797,14 @@ fn observed_replay_claim_parents(
         .into_iter()
         .flatten()
         .filter(|parent| parent.replay == replay)
-        .map(|parent| {
-            let side = if machine
-                .bounds
-                .scheme_projection_claims_by_lower_record
-                .get(&replay.lower)
-                .is_some_and(|claims| claims.contains(&parent.claim))
-            {
-                ObservedReplayParentSide::Lower
-            } else {
-                debug_assert_eq!(
-                    machine.bounds.upper_replay_claims[parent.claim.0 as usize].current_record,
-                    replay.upper,
-                    "current replay parents are carried by one exact replay side"
-                );
-                ObservedReplayParentSide::Upper
-            };
-            ObservedReplayClaimParent {
-                claim: parent.claim,
-                coverage_root: claim_root(machine, parent.claim),
-                side,
-                replay,
-            }
+        .map(|parent| ObservedReplayClaimParent {
+            claim: parent.claim,
+            coverage_root: claim_root(machine, parent.claim),
+            side: match parent.parent_side {
+                ReplayClaimParentSide::Lower => ObservedReplayParentSide::Lower,
+                ReplayClaimParentSide::Upper => ObservedReplayParentSide::Upper,
+            },
+            replay,
         })
         .collect()
 }
@@ -3533,6 +3519,7 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                 UpperReplayClaimLineage::Original => ObservedReplayClaimLineage::Original,
                 UpperReplayClaimLineage::ReplayConstraint {
                     parent_claim,
+                    parent_side: _,
                     result,
                     replay,
                     depth,
@@ -3544,6 +3531,7 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                 },
                 UpperReplayClaimLineage::ReplayEvidence {
                     parent_claim,
+                    parent_side: _,
                     replay,
                     depth,
                 } => ObservedReplayClaimLineage::DerivedEvidence {
