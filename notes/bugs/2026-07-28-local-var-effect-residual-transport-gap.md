@@ -1298,19 +1298,62 @@ prepare/finish という中核判断を巻き戻す、(b) local-var callback bod
 したがって **compaction 層の claim-aware projection が本当に必要**、
 という結論に戻った。ユーザ承認を得て URR v6 として進める。
 
+## URR-H1 一度目、MCP timeout 経由での回収と census 差分での正しい停止
+（2026-07-30）
+
+URR v6 承認後、URR-H1（claim model 再構築 + inert scheme view）に着手した
+Codex MCP 呼び出しが、30分応答なしでタイムアウトした。プロジェクトの
+確立手順（`feedback-codex-timeout-recovery`）通り、まず working tree を
+確認したところ、実装は完了していた（4ファイル、1168行、v3〜v6 の
+claim/coverage/lineage/self-tagging/scheme-projectable-view を含む）。
+Claude が独立に検証:
+
+- `cargo check -p infer` は clean（新しい `scheme_projectable_lowers`
+  等が未配線ゆえの dead-code warning のみ、これは意図通り）
+- `constraints::tests::case_02` の50 test 全部 pass、0.00秒（ハングなし）
+- diff review で `row_effect.rs`（unmatched arm だけの self-tagging）、
+  `mod.rs`（`UpperReplayClaim` 等の新データ構造）が設計文書の記述と
+  正確に一致
+
+ここまでは良好だったが、five-case characterization
+（`cprov_a_characterizes_constraints_replay_std_and_regressions`）が
+fail した。最初の目視確認では `provenance_epoch`（internal counter）
+だけが違って見えたため、それが「新しい bookkeeping による無害な増加」
+かを狭く再調査させたところ、**Claude 自身の目視確認が不十分**だったと
+判明——実際には5ケース中4ケースで、`provenance_epoch` 以外にも
+canonical constraint 数・replay derivation 数・lower/upper replay
+census が本物にズレていた（例: `ref-update-local-buffer` で
+canonical/lower bound が11件減、subsumption が8件減、replay
+derivation が69件減）。poly/check hash は5ケースとも不変だったが、
+これは「late-lower narrowing」「追加 provenance」の二分類では説明
+できない census 差分であり、v1 由来の stop condition 11 に該当すると
+Codex は正しく判定し、実装全体を rollback した（commit なし、working
+tree clean 確認済み）。
+
+**この結果の意味**: 巨大な `assert_eq!` の出力を人間が目視で diff
+するのは信頼できない——今回、Claude 自身が「epoch だけの違い」と
+誤読しかけたところを、より丁寧な再調査が正しく訂正した。URR-H1 の
+claim/lineage 機構自体は（unit test レベルでは）正しく動いてるように
+見えるが、production の real std を含む compile 全体を通すと、
+まだ何らかの経路で replay/bound の実際の生成数が変わる——単なる
+epoch bookkeeping の増加では済まない、まだ特定できていない副作用が
+残っている。
+
 ## 次に調べるべきこと
 
-- **最優先（URR v6、設計中）**: compaction・positive alias
-  expansion・scheme provenance が共有する claim-aware な
-  「scheme へ投影可能な bound view」を設計する。v1〜v5 の
-  claim/coverage/lineage/self-tagging 機構は生かしたまま、その
-  情報を replay 判定だけでなく compaction 時の bound 読み取りにも
-  接続する。
-- local-var 設計文書（`notes/design/2026-07-28-local-var-effect-boundary-fix.md`）
-  の v5 機構自体は、今回の investigation でも一切反証されていない——
-  lowering 側の代替案が feasible でないと確認できただけ。
+- **最優先**: `ref-update-local-buffer` 等で見えた canonical/lower
+  bound・subsumption・replay derivation の減少（および
+  `config-read-false-positive-repro` での duplicate lower replay の
+  増加）が、具体的にどの新しいコードパスから来ているかを read-only で
+  特定する。poly/check hash が不変なので**最終的な型推論結果は
+  変わっていない**——内部的な reduction/replay の回数だけが変わって
+  いる可能性が高いが、それでも stop condition の趣旨通り、明確に
+  説明できるまで先に進まない。
+- URR v6 の設計（claim-aware scheme projection）自体は反証されて
+  いない——反証されたのは「今回の実装がまだ完全に副作用フリーか」
+  という点。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
-  いる——退行はない。v3・v4・v5 の regression test も生きている。
+  いる——退行はない。v1〜v5 の regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
