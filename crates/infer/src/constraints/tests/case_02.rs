@@ -967,6 +967,494 @@ fn unweighted_row_upper_replacement_keeps_live_state_and_append_only_provenance(
     );
 }
 
+#[test]
+fn unweighted_row_upper_same_producer_merge_remains_covered() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let reduced_record = assert_only_empty_upper_var(&machine, source, residual);
+    assert_eq!(
+        upper_dispositions_for(&machine, source, tail),
+        vec![BoundDisposition::Inserted(reduced_record)],
+        "initial matching must insert the canonical reduced upper"
+    );
+
+    let merge = merge_same_key_upper_proof(
+        &mut machine,
+        source,
+        tail,
+        BoundDerivation::Constraint(producer),
+    );
+    assert_eq!(merge.id, reduced_record);
+    assert!(!merge.semantic_changed && merge.provenance_changed);
+    let claims = observed_upper_replay_claims(&machine, source, reduced_record);
+    assert_eq!(claims.len(), 1, "same-producer proofs must coalesce");
+    let reduction_claim = claims[0];
+    assert_eq!(reduction_claim.producer, producer);
+    assert_eq!(reduction_claim.record, reduced_record);
+    assert_eq!(
+        reduction_claim.kind,
+        ObservedReplayClaimKind::Reduced(reduction_state_for_source(&machine, source))
+    );
+    assert!(
+        reduction_claim.covered,
+        "the state token must continue to cover claim {:?}",
+        reduction_claim.id
+    );
+    assert_eq!(
+        machine
+            .bounds()
+            .record(reduced_record)
+            .expect("canonical reduced upper")
+            .derivations()
+            .len(),
+        2,
+        "the canonical record must retain both proofs without creating another claim"
+    );
+
+    let replay_inputs_before = machine.timing().lower_replay_inputs;
+    machine.subtype(late_family, source_neg, origin);
+    let replay = late_matching_replay_counts(
+        &machine,
+        source,
+        residual,
+        late_family,
+        row_upper,
+        producer,
+        replay_inputs_before,
+    );
+
+    assert_eq!(
+        replay,
+        LateMatchingReplayCounts {
+            generic: 0,
+            incremental_matched: 1,
+        },
+        "a covered claim must use only the incremental original-row route"
+    );
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "a same-producer proof must not make the matched family reach the residual"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_independent_direct_tail_claim_replays() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, tail, origin);
+    let direct_producer =
+        constraint_record_for_key(&machine, source_pos, tail, &ConstraintWeights::empty());
+    machine.subtype(source_pos, row_upper, origin);
+    let reduction_producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    assert_ne!(
+        reduction_producer, direct_producer,
+        "the reduced row and direct tail relation need distinct producer roots"
+    );
+    let reduced_record = assert_only_empty_upper_var(&machine, source, residual);
+
+    let same_producer_merge = merge_same_key_upper_proof(
+        &mut machine,
+        source,
+        tail,
+        BoundDerivation::Constraint(reduction_producer),
+    );
+    assert_eq!(same_producer_merge.id, reduced_record);
+    assert!(!same_producer_merge.semantic_changed && same_producer_merge.provenance_changed);
+    let claims = observed_upper_replay_claims(&machine, source, reduced_record);
+    assert_eq!(
+        claims.len(),
+        2,
+        "one reduced claim and one genuinely direct claim must coexist"
+    );
+    let reduction_claim = claims
+        .iter()
+        .find(|claim| claim.producer == reduction_producer)
+        .copied()
+        .expect("reduction claim");
+    let direct_claim = claims
+        .iter()
+        .find(|claim| claim.producer == direct_producer)
+        .copied()
+        .expect("direct claim");
+    assert_ne!(reduction_claim.id, direct_claim.id);
+    assert_eq!(reduction_claim.record, reduced_record);
+    assert_eq!(direct_claim.record, reduced_record);
+    assert_eq!(
+        reduction_claim.kind,
+        ObservedReplayClaimKind::Reduced(reduction_state_for_source(&machine, source))
+    );
+    assert_eq!(direct_claim.kind, ObservedReplayClaimKind::Direct);
+    assert!(
+        reduction_claim.covered && !direct_claim.covered,
+        "coverage must remain claim-local: reduction={reduction_claim:?}, direct={direct_claim:?}"
+    );
+
+    let replay_inputs_before = machine.timing().lower_replay_inputs;
+    machine.subtype(late_family, source_neg, origin);
+    let replay = late_matching_replay_counts(
+        &machine,
+        source,
+        residual,
+        late_family,
+        row_upper,
+        reduction_producer,
+        replay_inputs_before,
+    );
+
+    assert_eq!(
+        replay,
+        LateMatchingReplayCounts {
+            generic: 1,
+            incremental_matched: 1,
+        },
+        "only the independent direct claim should add generic replay"
+    );
+    assert!(
+        has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "the independent source <: rho constraint must carry late F to rho"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_pins_insert_then_same_key_merge_lifecycle() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    assert_eq!(
+        machine
+            .bounds()
+            .of(source)
+            .expect("source has the initial lower")
+            .uppers()
+            .len(),
+        0,
+        "the minimized nested lifecycle starts with no ordinary source upper"
+    );
+
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let reduced_record = assert_only_empty_upper_var(&machine, source, residual);
+    assert_eq!(
+        upper_dispositions_for(&machine, source, tail),
+        vec![BoundDisposition::Inserted(reduced_record)],
+        "reduction must materialize R through BoundDisposition::Inserted"
+    );
+    let before_merge = observed_upper_replay_claims(&machine, source, reduced_record);
+    assert_eq!(before_merge.len(), 1);
+    let covered_claim = before_merge[0];
+    assert_eq!(covered_claim.producer, producer);
+    assert!(covered_claim.covered);
+
+    let merge = merge_same_key_upper_proof(
+        &mut machine,
+        source,
+        tail,
+        BoundDerivation::Constraint(producer),
+    );
+    assert_eq!(
+        (merge.id, merge.semantic_changed, merge.provenance_changed),
+        (reduced_record, false, true),
+        "same-key proof merge must preserve R and change provenance only"
+    );
+    assert_eq!(
+        assert_only_empty_upper_var(&machine, source, residual),
+        reduced_record,
+        "the same-key merge must not change canonical record identity"
+    );
+    assert_eq!(
+        upper_dispositions_for(&machine, source, tail),
+        vec![BoundDisposition::Inserted(reduced_record)],
+        "the merge must not create a second EquivalentTo/SubsumedBy disposition"
+    );
+    let after_merge = observed_upper_replay_claims(&machine, source, reduced_record);
+    assert_eq!(
+        after_merge,
+        vec![covered_claim],
+        "the same producer must keep the same covered claim ID on R"
+    );
+
+    let replay_inputs_before = machine.timing().lower_replay_inputs;
+    machine.subtype(late_family, source_neg, origin);
+    let replay = late_matching_replay_counts(
+        &machine,
+        source,
+        residual,
+        late_family,
+        row_upper,
+        producer,
+        replay_inputs_before,
+    );
+
+    assert_eq!(
+        replay,
+        LateMatchingReplayCounts {
+            generic: 0,
+            incremental_matched: 1,
+        },
+        "the confirmed Inserted-to-merge lifecycle must retain claim coverage"
+    );
+    assert!(
+        !has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "late matching F must not be generic-replayed to the residual"
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedReplayClaimId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservedReplayClaimKind {
+    Reduced(UnweightedRowReductionRecordId),
+    Direct,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedReplayClaim {
+    id: ObservedReplayClaimId,
+    producer: ConstraintRecordId,
+    record: BoundRecordId,
+    kind: ObservedReplayClaimKind,
+    covered: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LateMatchingReplayCounts {
+    generic: usize,
+    incremental_matched: usize,
+}
+
+fn observed_upper_replay_claims(
+    machine: &ConstraintMachine,
+    source: TypeVar,
+    record: BoundRecordId,
+) -> Vec<ObservedReplayClaim> {
+    let mut claims = Vec::new();
+    for state_id in machine
+        .unweighted_row_reductions_by_source
+        .get(&source)
+        .into_iter()
+        .flatten()
+        .copied()
+    {
+        let state = &machine.unweighted_row_reduction_records[state_id.0 as usize];
+        if state.current_reduced_upper.record != record {
+            continue;
+        }
+        let producer = row_derivation_producer(machine, state.provenance_head);
+        claims.push(ObservedReplayClaim {
+            id: ObservedReplayClaimId(claims.len() as u32),
+            producer,
+            record,
+            kind: ObservedReplayClaimKind::Reduced(state_id),
+            covered: true,
+        });
+    }
+
+    for derivation in machine
+        .bounds()
+        .record(record)
+        .expect("claim-bearing upper record")
+        .derivations()
+    {
+        let BoundDerivation::Constraint(producer) = derivation else {
+            continue;
+        };
+        if claims.iter().any(|claim| claim.producer == *producer) {
+            continue;
+        }
+        claims.push(ObservedReplayClaim {
+            id: ObservedReplayClaimId(claims.len() as u32),
+            producer: *producer,
+            record,
+            kind: ObservedReplayClaimKind::Direct,
+            covered: false,
+        });
+    }
+    claims
+}
+
+fn row_derivation_producer(
+    machine: &ConstraintMachine,
+    derivation: RowDerivationId,
+) -> ConstraintRecordId {
+    fn visit(
+        machine: &ConstraintMachine,
+        derivation: RowDerivationId,
+        seen: &mut FxHashSet<RowDerivationId>,
+    ) -> Option<ConstraintRecordId> {
+        if !seen.insert(derivation) {
+            return None;
+        }
+        machine.row_derivations[derivation.0 as usize]
+            .parents
+            .iter()
+            .find_map(|parent| match parent {
+                RowDerivationParent::Constraint(producer) => Some(*producer),
+                RowDerivationParent::RowDerivation(parent) => visit(machine, *parent, seen),
+                RowDerivationParent::Bound(_)
+                | RowDerivationParent::SubtractFact(_)
+                | RowDerivationParent::LowerFilter(_)
+                | RowDerivationParent::Origin(_) => None,
+            })
+    }
+
+    visit(machine, derivation, &mut FxHashSet::default())
+        .expect("unweighted reduction producer constraint")
+}
+
+fn reduction_state_for_source(
+    machine: &ConstraintMachine,
+    source: TypeVar,
+) -> UnweightedRowReductionRecordId {
+    let states = machine
+        .unweighted_row_reductions_by_source
+        .get(&source)
+        .expect("source-local reduction state");
+    assert_eq!(states.len(), 1, "test fixture has one logical row relation");
+    states[0]
+}
+
+fn merge_same_key_upper_proof(
+    machine: &mut ConstraintMachine,
+    source: TypeVar,
+    upper: NegId,
+    derivation: BoundDerivation,
+) -> BoundInsertResult {
+    let insertion = machine
+        .bounds
+        .add_upper(source, upper, ConstraintWeights::empty(), derivation);
+    machine.record_bound_provenance(insertion, BoundDirection::Upper, false);
+    insertion
+}
+
+fn upper_dispositions_for(
+    machine: &ConstraintMachine,
+    source: TypeVar,
+    upper: NegId,
+) -> Vec<BoundDisposition> {
+    machine
+        .bound_dispositions
+        .iter()
+        .filter_map(|record| {
+            (record.direction == BoundDirection::Upper
+                && record.owner == source
+                && record.endpoint == BoundEndpoint::Upper(upper)
+                && record.weights.is_empty())
+            .then_some(record.disposition)
+        })
+        .collect()
+}
+
+fn late_matching_replay_counts(
+    machine: &ConstraintMachine,
+    source: TypeVar,
+    residual: TypeVar,
+    late_lower: PosId,
+    original_upper: NegId,
+    producer: ConstraintRecordId,
+    replay_inputs_before: usize,
+) -> LateMatchingReplayCounts {
+    let late_record = lower_bound_record(machine, source, late_lower);
+    let successor = unweighted_reduction_reaching(
+        machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(late_record),
+        ],
+    );
+    let incremental_matched = usize::from(machine.constraint_records.iter().any(|record| {
+        record.key.lower == late_lower
+            && record.key.upper == original_upper
+            && record.key.weights.is_empty()
+            && record.row_derivations.contains(&successor)
+    }));
+    assert_eq!(
+        incremental_matched, 1,
+        "the late matching lower must keep its original-row route"
+    );
+    let replay_inputs = machine
+        .timing()
+        .lower_replay_inputs
+        .checked_sub(replay_inputs_before)
+        .expect("lower replay input count is monotonic");
+    let generic = replay_inputs
+        .checked_sub(incremental_matched)
+        .expect("incremental matched route is included in replay accounting");
+    if generic == 0 {
+        assert!(
+            !has_lower_family_with_weights(
+                machine,
+                residual,
+                &["effect", "f"],
+                &ConstraintWeights::empty(),
+            ),
+            "zero generic replay must keep F out of the residual"
+        );
+    }
+    LateMatchingReplayCounts {
+        generic,
+        incremental_matched,
+    }
+}
+
 #[derive(Clone, Copy)]
 enum UnweightedRowInsertionOrder {
     AllLowersBeforeUpper,
