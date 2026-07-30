@@ -32,6 +32,28 @@ fn apply_merge_constraints_until_quiescent(machine: &mut ConstraintMachine, root
     panic!("compact merge constraints did not reach quiescence");
 }
 
+#[test]
+fn raw_and_scheme_projection_collectors_are_identical_while_mode_is_inert() {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(0);
+    let lower = machine.alloc_pos(Pos::Con(vec!["value".into()], Vec::new()));
+    let upper = machine.alloc_neg(Neg::Var(root));
+    machine.subtype(
+        lower,
+        upper,
+        crate::constraints::OriginId::unknown_internal(),
+    );
+
+    let raw = CompactCollector::new(&machine).compact_root(root);
+    let scheme = CompactCollector::new_for_scheme(&machine).compact_root(root);
+    assert_eq!(raw, scheme);
+
+    let raw = CompactCollector::new_recording(&machine).compact_root_with_merge_constraints(root);
+    let scheme = CompactCollector::new_recording_for_scheme(&machine)
+        .compact_root_with_merge_constraints(root);
+    assert_eq!(raw, scheme);
+}
+
 mod case_01;
 mod case_02;
 

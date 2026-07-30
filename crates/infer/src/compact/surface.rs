@@ -13,14 +13,14 @@ pub(crate) fn compact_type_var_for_scheme(
     machine: &ConstraintMachine,
     root: TypeVar,
 ) -> CompactRoot {
-    CompactCollector::new(machine).compact_root(root)
+    CompactCollector::new_for_scheme(machine).compact_root(root)
 }
 
 pub(crate) fn compact_negative_type_var_for_scheme(
     machine: &ConstraintMachine,
     root: TypeVar,
 ) -> CompactRoot {
-    CompactCollector::new(machine).compact_root_with_polarity(root, Polarity::Negative)
+    CompactCollector::new_for_scheme(machine).compact_root_with_polarity(root, Polarity::Negative)
 }
 
 #[cfg(test)]
@@ -161,7 +161,7 @@ pub(crate) fn compact_type_var_recording_merge_constraints_for_scheme(
     machine: &ConstraintMachine,
     root: TypeVar,
 ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
-    CompactCollector::new_recording(machine).compact_root_with_merge_constraints(root)
+    CompactCollector::new_recording_for_scheme(machine).compact_root_with_merge_constraints(root)
 }
 
 #[allow(
@@ -509,7 +509,7 @@ pub(crate) fn compact_reachable_role_constraints_from_seed_vars_recording_merge_
     if constraints.is_empty() {
         return (Vec::new(), Vec::new());
     }
-    CompactCollector::new_recording(machine)
+    CompactCollector::new_recording_for_scheme(machine)
         .compact_reachable_role_constraints_with_merge_constraints(seed, raw_seed_vars, constraints)
 }
 

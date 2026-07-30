@@ -1585,3 +1585,28 @@ projectable→non-projectable、non-empty→non-empty provenance-onlyの三test�
 `cargo check -p infer`は成功し、`constraints::tests::case_02`は
 53 pass / 0 fail / 1 known-ignore（54 selected）。既存期待値は変更していない。
 `compact/`と`generalize/`には触れておらず、H2 consumer wiringは引き続き次sliceである。
+
+## 31回目: H2のinert mode plumbingとlower-bound kernel分離
+（2026-07-30）
+
+H2のstep 3+4として、`CompactCollector`へcollector lifetime中不変の
+`Raw` / `SchemeProjection` modeを追加した。既存の`new` / `new_recording` /
+`new_recording_owner_dependencies`はrawのまま残し、scheme専用の
+`new_for_scheme` / `new_recording_for_scheme`を追加した。local compact cacheの
+`(var, polarity, weight)` keyは変更していない。
+
+`compact_type_var_for_scheme`、`compact_negative_type_var_for_scheme`、
+`compact_type_var_recording_merge_constraints_for_scheme`と、generalizeが使う
+reachable-role collectorだけをscheme constructorへ切り替えた。generic compaction、
+generic recording、owner-dependency、boundary capture、通常のrole/selection/conformance
+surfaceは既存raw constructorのままである。
+
+positive lowerの処理本体は`WeightedLowerBound` iteratorを受け取る
+`compact_lower_bounds_from`へ分離し、weight合成、stack-family coexistence記録、
+再帰変数の収集経路を複製せず共有した。このcheckpointでは両modeとも
+`VarBounds::projection_lowers()`を渡すため、claim-aware filteringはまだ発生しない。
+`scheme_projectable_lowers`は呼んでおらず、実際のiterator切り替えは次sliceへ残した。
+
+`cargo check -p infer`は成功した。compact test suiteは新しいinert-mode同値testを含め
+65 pass / 0 fail、`constraints::tests::case_02`は53 pass / 0 fail /
+1 known-ignore（54 selected）。既存testの期待値は変更していない。

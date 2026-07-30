@@ -6,6 +6,7 @@ mod type_nodes;
 
 pub(in crate::compact) struct CompactCollector<'a> {
     machine: &'a ConstraintMachine,
+    bound_mode: CompactBoundMode,
     record_merge_constraints: bool,
     record_owner_dependencies: bool,
     merge_constraints: Vec<CompactMergeConstraint>,
@@ -14,6 +15,12 @@ pub(in crate::compact) struct CompactCollector<'a> {
     recursive: FxHashSet<(TypeVar, Polarity)>,
     rec_vars: FxHashMap<TypeVar, CompactBounds>,
     cache: FxHashMap<CompactVarSideKey, CompactType>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompactBoundMode {
+    Raw,
+    SchemeProjection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -25,23 +32,24 @@ pub(in crate::compact) struct CompactVarSideKey {
 
 impl<'a> CompactCollector<'a> {
     pub(in crate::compact) fn new(machine: &'a ConstraintMachine) -> Self {
-        Self {
-            machine,
-            record_merge_constraints: false,
-            record_owner_dependencies: false,
-            merge_constraints: Vec::new(),
-            in_progress: FxHashSet::default(),
-            row_tail_in_progress: FxHashSet::default(),
-            recursive: FxHashSet::default(),
-            rec_vars: FxHashMap::default(),
-            cache: FxHashMap::default(),
-        }
+        Self::with_bound_mode(machine, CompactBoundMode::Raw)
+    }
+
+    pub(in crate::compact) fn new_for_scheme(machine: &'a ConstraintMachine) -> Self {
+        Self::with_bound_mode(machine, CompactBoundMode::SchemeProjection)
     }
 
     pub(in crate::compact) fn new_recording(machine: &'a ConstraintMachine) -> Self {
         Self {
             record_merge_constraints: true,
             ..Self::new(machine)
+        }
+    }
+
+    pub(in crate::compact) fn new_recording_for_scheme(machine: &'a ConstraintMachine) -> Self {
+        Self {
+            record_merge_constraints: true,
+            ..Self::new_for_scheme(machine)
         }
     }
 
@@ -52,6 +60,21 @@ impl<'a> CompactCollector<'a> {
             record_merge_constraints: true,
             record_owner_dependencies: true,
             ..Self::new(machine)
+        }
+    }
+
+    fn with_bound_mode(machine: &'a ConstraintMachine, bound_mode: CompactBoundMode) -> Self {
+        Self {
+            machine,
+            bound_mode,
+            record_merge_constraints: false,
+            record_owner_dependencies: false,
+            merge_constraints: Vec::new(),
+            in_progress: FxHashSet::default(),
+            row_tail_in_progress: FxHashSet::default(),
+            recursive: FxHashSet::default(),
+            rec_vars: FxHashMap::default(),
+            cache: FxHashMap::default(),
         }
     }
 
@@ -625,9 +648,22 @@ impl<'a> CompactCollector<'a> {
         bounds: &VarBounds,
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
+        match self.bound_mode {
+            CompactBoundMode::Raw | CompactBoundMode::SchemeProjection => {
+                self.compact_lower_bounds_from(var, bounds.projection_lowers(), outer_weight)
+            }
+        }
+    }
+
+    fn compact_lower_bounds_from<'bound>(
+        &mut self,
+        var: TypeVar,
+        bounds: impl Iterator<Item = &'bound crate::constraints::WeightedLowerBound>,
+        outer_weight: &ConstraintWeight,
+    ) -> CompactType {
         let mut acc = CompactType::default();
         let mut pending_stack_families = self.compact_pre_pop_stack_families(var);
-        for bound in bounds.projection_lowers() {
+        for bound in bounds {
             let left_weight = bound.weights.left.to_stack_weight();
             let mut bound_stack_families = self.compact_weight_stack_families(&left_weight);
             bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
