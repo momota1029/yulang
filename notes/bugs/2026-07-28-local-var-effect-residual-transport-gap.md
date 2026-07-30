@@ -1495,3 +1495,56 @@ formula 修正後の native run で最終 baseline assertion まで到達し、�
 `check_report_fnv1a64` は既存 baseline から一件も変わらず、最終的な poly 型と
 check 結果が不変であることを確認した。更新後に同じ characterization test を
 再実行し、1 pass / 0 fail を確認した。
+
+## 29回目: URR-H1 全 completion gate 通過、完全完了
+（2026-07-30）
+
+URR-H1、すなわち v3〜v5 の claim / coverage / lineage 機構を live な
+generic-replay eligibility decision とし、v6 の
+`scheme_projectable_lowers` view を genuinely inert な状態で追加する slice が、
+次の3 commit で完全に着地した。
+
+- `f73910ed`: v3〜v5 live-wiring checkpoint。URR 17/18 green の状態で着地し、
+  multihop lineage の coalescing bug 修正も含む
+- `45bbf367`: inert な v6 `scheme_projectable_lowers` view を追加。
+  URR 18件 + 新規 v6 4件の 22/22 が green
+- `8ea20004`: five-case characterization baseline を更新。実際の
+  deduplication を反映するよう storage-proxy formula を修正し、全5ケースの
+  baseline を更新
+
+最後の characterization では、全5ケースで `poly_dump_fnv1a64` と
+`check_report_fnv1a64` が作業前から **UNCHANGED** であることも確認した。
+つまり内部 census は live claim machinery を反映した新 baseline になったが、
+最終的な type-checking output はこの作業前と byte-identical のままである。
+
+設計文書が H1 completion gate として要求した項目は、これですべて通過した。
+
+- `case_02` の URR + v6 対象 test は 22/22 green
+- no-claim-owner の view path は byte-for-byte の raw passthrough。
+  `ordinary_scheme_projectable_lowers_are_byte_for_byte_raw_passthrough` で固定
+- claim / coverage lookup は全 claim scan ではなく、requested owner の
+  records に触れる claim 数に対して O(claims touching the requested owner's
+  records)。`crates/infer/src/constraints/mod.rs` の code review でも、
+  `FxHashSet` / `FxHashMap` による owner-local / record-local lookup、
+  compressed-root reference、reverse-indexed な liveness invalidation を確認
+- five-case characterization は、意図的に更新した baseline と完全一致
+- full contract suite は 287/287 green。現在の system load では suite runtime が
+  単一 Codex MCP call の実用的な window を超えるため、直前に direct background
+  run で完走を確認した。出たのは、まだ配線していない v6 view に対する想定内の
+  dead-code warning だけ
+
+これにより **URR-H1 は fully complete** とする。次の slice は、設計文書自身の
+H1 / H2 / H3 分割どおり、`scheme_projectable_lowers` を compaction **だけ**へ
+配線する H2 であり、まだ着手していない。H2 はそれ単独で full 287-case
+contract-suite gate を再度通す必要がある。その後、alias expansion と provenance
+にも配線する H3 でも、同じ gate をもう一度通す。H2 だけで当初の motivating
+nested local-var isolation test が偶然 green になっても、H3 とその gate を
+省略してはならない。
+
+今回の arc は、直前まで「URR-H1 attempt 1」の characterization divergence として
+見えていた謎も解消した。最初の「real decision は legacy predicate に残し、
+claim machinery は観測だけにする」という framing は、HEAD の実態と整合して
+いなかった。以前の rollback 後、v3〜v5 は preflight test と観測 helper として
+しか残っておらず、live decision になったことは一度もなかった。必要だったのは
+legacy decision の温存ではなく、v3〜v5 を faithful かつ atomic に live-wiring
+し直すことだった。今回実際に着地したのは、その正しい再構築である。
