@@ -1166,18 +1166,62 @@ lineage を継承する経路を追加する（v3 §10.1(16)/(20) の趣旨に�
 ——今回はどちらも承認済み範囲を超えると判断し、production コードは
 全て rollback した（commit なし、working tree clean 確認済み）。
 
+## RowDerivation の正体を特定——reduction 自身の unmatched-lower
+routing だった（2026-07-30、Sol xhigh read-only）
+
+read-only investigation の結果、`RowDerivationId(196)` は「別の
+claim から covered reduction へ証明済みで繋がる経路」ではなく、
+**covered reduction 自身が、その場で作った副産物**だと判明した。
+
+**判明した具体的な処理**:
+
+1. `TypeVar(1524)` の18本の lower に対する reduction が、
+   `producer ConstraintRecordId(6462)` の expected row
+   `[&buffer#36:0(...); TypeVar(1669)]` を処理する
+2. 実際に family item を消費した concrete lower は `PosId(1680)`。
+   これを含む5本の top-level matching lower（alias closure 経由で
+   同じ `PosId(1680)` へ到達するものも含む）が
+   `RowDerivationId(196)` という N-ary `UnweightedReduction`
+   aggregate の parents になる
+3. `PosId(1725) = Var(TypeVar(1522))` は 1524 の4番目の lower だが、
+   reduction 時点では `observe` family しか持たず、`&buffer` には
+   マッチしなかった
+4. reduction の**末尾にある matched/unmatched routing 自体**が、
+   この unmatched lower を reduced upper（`NegId(2055) =
+   Var(TypeVar(1669))`）へ送るために
+   `enqueue_row_derived_subtype(1725, 2055, 196)` を発行する——これが
+   `ConstraintRecordId(6472)` そのもの
+5. 後から 1522 へ別の `&buffer` lower が2本到着したとき、この claim
+   6379 が「独立した root-self な claim」として誤分類されてたせいで
+   generic replay され、family が漏れた
+
+**この結果の意味**: v3・v4 が対象にしてきた「別の claim から covered
+reduction へ、証明済みの edge を辿って繋がる」という形ではなく、
+**reduction 自身が最初から所有すべき、自分自身の unmatched-lower
+routing の副産物**だった。つまり別 source からの cross-source
+propagation を新たに設計する必要はなく、**reduction が自分の
+unmatched routing で作る claim に、最初から reduction 自身を
+lineage parent として明示的に taggingする**だけでよい——v4 の
+lineage 機構より narrow で、原理的にはシンプルな拡張になる。
+
+`RowDerivation` は N-ary hyperedge だが、v4 の lineage モデルと
+根本的に不適合ではない。result constraint は exact
+`RowDerivationId` を持ち、carrier は概念上
+`(result ConstraintRecordId, RowDerivationId)` として扱える。
+
 ## 次に調べるべきこと
 
-- **最優先（設計判断が必要、URR v5 相当）**: `RowDerivation` 経由で
-  covered claim から派生した claim を、`BinaryReplayDerivation` 経由
-  の場合と同じように lineage 継承できる設計。まず
-  `RowDerivationId(196)` に相当する経路が、どんな row-item matching
-  から生まれるかを read-only で trace してから、carrier の集合を
-  拡張する（無関係な row derivation まで covered 扱いにしないよう、
-  同じ「証明済みかどうか」の区別が要る）。
+- **最優先（URR v5、比較的 narrow な拡張）**: reduction の
+  matched/unmatched routing 自体が作る claim（`enqueue_row_derived_subtype`
+  経由）に、その reduction 自身を lineage parent として最初から
+  taggingする。arbitrary な `RowItemMatch`／payload/filter
+  derivation やルール名の一致だけでは継承しないという区別は維持する
+  ——「reduction 自身が作った副産物」という限定された条件だけを対象に
+  する。
 - claim/coverage/lineage の基本設計（v3・v4）自体は反証されていない
   ——反証されたのは「carrier が `BinaryReplayDerivation` だけで十分」
-  という前提。
+  という前提。今回の穴はさらに narrow（reduction 自身の副産物への
+  自己 tagging 漏れ）。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
   いる——退行はない。v3・v4 の6 regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
