@@ -2461,16 +2461,6 @@ fn dcp_a_8_4_row_aggregate_child_inherits_exact_structural_claim() {
     };
     let child = structural_child_for(&machine, parent, rule);
     let derivation = StructuralDerivation { parent, rule };
-    let coverage_root = claim_root(&machine, parent_claim);
-    let coverage_state = UnweightedRowReductionRecordId(
-        20_000u32
-            .checked_add(coverage_root.0)
-            .expect("test coverage state ID"),
-    );
-    assert!(
-        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
-        "the structural preflight observes the child under live coverage"
-    );
     assert_eq!(
         exact_structural_carriers(&machine, child)
             .iter()
@@ -2486,19 +2476,7 @@ fn dcp_a_8_4_row_aggregate_child_inherits_exact_structural_claim() {
         }),
         "the exact structural child must inherit its parent's claim root; observed {child_claims:?}"
     );
-
-    let child_lower = machine.constraint_records[child.0 as usize].key.lower;
-    let child_record = lower_bound_record(&machine, target, child_lower);
-    let projection = observed_lower_projection(&machine, target, child_record);
-    assert_eq!(
-        projection.claimed_roots,
-        vec![coverage_root],
-        "the one-sided aggregate admission links the same root"
-    );
-    assert_eq!(
-        projection.projected_count, 0,
-        "the raw aggregate lower stays present but live coverage removes it from the scheme view"
-    );
+    // Stable one-sided lower linkage is DCP-D's admission contract, covered by §8.6 and §8.8.
 }
 
 #[test]
@@ -2534,6 +2512,48 @@ fn dcp_a_8_5_non_row_structural_children_use_the_generic_claim_carrier() {
             "{shape:?} must inherit without a row/effect whitelist; observed {child_claims:?}"
         );
     }
+}
+
+#[test]
+fn dcp_c_trivial_structural_child_creates_no_claim_parent() {
+    let mut fixture = non_row_structural_claim_fixture(NonRowStructuralShape::FunctionReturnEffect);
+    let canonical_before = fixture.machine.canonical_constraint_count();
+    let claim_parents_before = fixture
+        .machine
+        .bounds
+        .claim_parents_by_constraint
+        .values()
+        .map(Vec::len)
+        .sum::<usize>();
+    let bottom = fixture.machine.alloc_pos(Pos::Bot);
+    let top = fixture.machine.alloc_neg(Neg::Top);
+
+    assert!(
+        !fixture.machine.enqueue_derived_subtype(
+            bottom,
+            ConstraintWeights::empty(),
+            top,
+            fixture.child,
+            StructuralDerivationRule::FunctionReturn,
+        ),
+        "a trivial structural consequence has no canonical child"
+    );
+    assert_eq!(
+        fixture.machine.canonical_constraint_count(),
+        canonical_before,
+        "trivial structural admission creates no canonical constraint"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .claim_parents_by_constraint
+            .values()
+            .map(Vec::len)
+            .sum::<usize>(),
+        claim_parents_before,
+        "trivial structural admission creates no claim entry"
+    );
 }
 
 #[test]
@@ -2675,6 +2695,17 @@ fn dcp_a_8_8_duplicate_evidence_and_promotion_keep_root_and_exact_carrier() {
         1,
         "new and duplicate paths retain one exact structural carrier"
     );
+    let structural_claims =
+        observed_structural_claim_parents(&fixture.machine, fixture.child, fixture.derivation);
+    assert_eq!(
+        structural_claims.len(),
+        1,
+        "new and duplicate paths merge one structural claim parent"
+    );
+    assert_eq!(
+        structural_claims[0].coverage_root, fixture.coverage_root,
+        "the duplicate structural path keeps the parent's compressed root"
+    );
     let projection =
         observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
     assert_eq!(
@@ -2792,19 +2823,27 @@ fn observed_replay_claim_parents(
 ) -> Vec<ObservedReplayClaimParent> {
     machine
         .bounds
-        .replay_claim_parents_by_constraint
+        .claim_parents_by_constraint
         .get(&result)
         .into_iter()
         .flatten()
-        .filter(|parent| parent.replay == replay)
-        .map(|parent| ObservedReplayClaimParent {
-            claim: parent.claim,
-            coverage_root: claim_root(machine, parent.claim),
-            side: match parent.parent_side {
-                ReplayClaimParentSide::Lower => ObservedReplayParentSide::Lower,
-                ReplayClaimParentSide::Upper => ObservedReplayParentSide::Upper,
-            },
-            replay,
+        .filter_map(|parent| match *parent {
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim,
+                parent_side,
+                replay: candidate,
+            } if candidate == replay => Some(ObservedReplayClaimParent {
+                claim: parent_claim,
+                coverage_root: claim_root(machine, parent_claim),
+                side: match parent_side {
+                    ReplayClaimParentSide::Lower => ObservedReplayParentSide::Lower,
+                    ReplayClaimParentSide::Upper => ObservedReplayParentSide::Upper,
+                },
+                replay,
+            }),
+            ClaimQualifiedParent::ReplayConstraint { .. }
+            | ClaimQualifiedParent::StructuralConstraint { .. }
+            | ClaimQualifiedParent::ReductionRouteConstraint { .. } => None,
         })
         .collect()
 }
@@ -2823,31 +2862,24 @@ fn observed_structural_claim_parents(
     child: ConstraintRecordId,
     derivation: StructuralDerivation,
 ) -> Vec<ObservedStructuralClaimParent> {
-    if !machine.constraint_records[child.0 as usize]
-        .structural_derivations
-        .contains(&derivation)
-    {
-        return Vec::new();
-    }
-    let Some(lower_record) = machine
-        .bounds
-        .scheme_projection_lower_record_by_constraint
-        .get(&child)
-        .copied()
-    else {
-        return Vec::new();
-    };
     machine
         .bounds
-        .scheme_projection_claims_by_lower_record
-        .get(&lower_record)
+        .claim_parents_by_constraint
+        .get(&child)
         .into_iter()
         .flatten()
-        .copied()
-        .map(|claim| ObservedStructuralClaimParent {
-            claim,
-            coverage_root: claim_root(machine, claim),
-            derivation,
+        .filter_map(|parent| match *parent {
+            ClaimQualifiedParent::StructuralConstraint {
+                parent_claim,
+                derivation: candidate,
+            } if candidate == derivation => Some(ObservedStructuralClaimParent {
+                claim: parent_claim,
+                coverage_root: claim_root(machine, parent_claim),
+                derivation,
+            }),
+            ClaimQualifiedParent::ReplayConstraint { .. }
+            | ClaimQualifiedParent::StructuralConstraint { .. }
+            | ClaimQualifiedParent::ReductionRouteConstraint { .. } => None,
         })
         .collect()
 }
@@ -3234,6 +3266,12 @@ enum ObservedReplayClaimLineage {
         replay: BinaryReplayDerivation,
         depth: u32,
     },
+    Structural {
+        parent: ObservedReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+        depth: u32,
+    },
     ReductionRoute {
         parent: ObservedReplayClaimId,
         result: ConstraintRecordId,
@@ -3492,6 +3530,7 @@ impl ObservedReplayLineage {
                 ObservedReplayClaimLineage::Original => 0,
                 ObservedReplayClaimLineage::Derived { depth, .. }
                 | ObservedReplayClaimLineage::DerivedEvidence { depth, .. }
+                | ObservedReplayClaimLineage::Structural { depth, .. }
                 | ObservedReplayClaimLineage::ReductionRoute { depth, .. } => depth,
             });
         }
@@ -3537,6 +3576,17 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                 } => ObservedReplayClaimLineage::DerivedEvidence {
                     parent: claim_id(parent_claim),
                     replay,
+                    depth,
+                },
+                UpperReplayClaimLineage::StructuralConstraint {
+                    parent_claim,
+                    result,
+                    derivation,
+                    depth,
+                } => ObservedReplayClaimLineage::Structural {
+                    parent: claim_id(parent_claim),
+                    result,
+                    derivation,
                     depth,
                 },
                 UpperReplayClaimLineage::ReductionRouteConstraint {

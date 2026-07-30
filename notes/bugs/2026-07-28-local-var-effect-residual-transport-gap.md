@@ -2105,4 +2105,55 @@ generalize 42、explain 14、occurrence provenance 1がすべてgreenだった�
 57 pass / 4 fail / 1 known-ignoreで、DCP-B対象の§8.1〜§8.3とcontrolの§8.7はgreen、
 既知のDCP-C / D scopeである§8.4、§8.5、§8.6、§8.8だけが従来どおりredだった。
 
+## 45回目: DCP-C、generic structural claim propagation
+（2026-07-31）
+
+承認済み設計§5.2案B、§6.2、§9 DCP-Cに従い、DCP-Bのreplay / reduction-route parentを
+汎用`claim_parents_by_constraint` reverse indexへ統合した。
+`enqueue_derived_subtype`がcanonical childを得た後、親constraintのclaim-qualified parentsを
+exact `StructuralDerivation { parent, rule }`と組にしてchildへmergeする。
+new、canonical duplicate、`merge_structural_derivation`のsecondary carrierは同じhelperを通り、
+dedup keyは`(result, compressed coverage root, exact structural derivation)`である。
+canonical resultを作らないtrivial childはclaim entryを作らない。
+structural ruleのwhitelist、row / `MarkerAggregateToUpperTail`専用分岐、arena ID条件、
+derivation graph walkは追加していない。
+
+DCP-A regressionは§8.4 row aggregateと§8.5 function-return-effect / tuple controlがgreenになった。
+§8.4はDCP-Cのconstraint-level lineage gateまでを検証し、stable one-sided lower linkageは
+§8.6 / §8.8に残した。§8.6と§8.8はどちらもlower rootが未linkというDCP-D境界で予定どおりred。
+duplicate structural admissionはexact carrierとcompressed rootを一件へdedupし、
+追加したtrivial controlもgreenだった。
+
+regression結果:
+
+- `cargo check -p infer`: 成功（既知dead-code warning 1件）
+- `case_02`: 60 pass / 2 expected-red（§8.6、§8.8）/ 1 known-ignore
+- compact: 80 pass
+- generalize: 42 pass
+- explain: 14 pass
+- occurrence provenance: 1 pass
+
+five-case release characterizationのactual / expectedをprogrammaticに比較した。
+両payloadは12,943 bytes、`provenance_epoch`正規化後はともに12,968 bytes、SHA-256は
+`15e02d75907dfa4d3734ec187f2d297250184862e3d5f09a72d779b6eddbe4de`で一致した。
+全5ケースの`poly_dump_fnv1a64` / `check_report_fnv1a64`も一致し、差分は
+`provenance_epoch`だけだった。baseline refreshはproduction変更と分けて次commitへ置く。
+287-case contract suiteは指示どおり実行していない。
+
+## 46回目: DCP-C five-case characterization baseline refresh
+（2026-07-31）
+
+45回目のprogrammatic classificationに基づき、five-case baselineの
+`provenance_epoch`だけを次の実測値へ更新した。
+
+- repository-std-only: 2,937,880
+- effect-callback-residual: 2,940,791
+- ref-update-local-buffer: 2,991,884
+- config-read-false-positive-repro: 3,021,873
+- file-rollback-false-positive-repro: 2,983,969
+
+更新後のrelease characterizationは1 pass / 0 failだった。
+production semantic census、poly hash、check hash、formatted scheme、diagnosticのbaselineは
+変更していない。
+
 <!-- bug-append-anchor: 2026-07-30 -->

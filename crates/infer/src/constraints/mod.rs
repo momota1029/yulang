@@ -430,6 +430,12 @@ enum UpperReplayClaimLineage {
         replay: BinaryReplayDerivation,
         depth: u32,
     },
+    StructuralConstraint {
+        parent_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+        depth: u32,
+    },
     ReductionRouteConstraint {
         parent_claim: UpperReplayClaimId,
         result: ConstraintRecordId,
@@ -444,6 +450,7 @@ impl UpperReplayClaimLineage {
             Self::Original => 0,
             Self::ReplayConstraint { depth, .. }
             | Self::ReplayEvidence { depth, .. }
+            | Self::StructuralConstraint { depth, .. }
             | Self::ReductionRouteConstraint { depth, .. } => depth,
         }
     }
@@ -489,10 +496,30 @@ struct SideTaggedReplayClaim {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ReplayClaimParent {
-    claim: UpperReplayClaimId,
-    parent_side: ReplayClaimParentSide,
-    replay: BinaryReplayDerivation,
+enum ClaimQualifiedParent {
+    ReplayConstraint {
+        parent_claim: UpperReplayClaimId,
+        parent_side: ReplayClaimParentSide,
+        replay: BinaryReplayDerivation,
+    },
+    StructuralConstraint {
+        parent_claim: UpperReplayClaimId,
+        derivation: StructuralDerivation,
+    },
+    ReductionRouteConstraint {
+        parent_claim: UpperReplayClaimId,
+        derivation: RowDerivationId,
+    },
+}
+
+impl ClaimQualifiedParent {
+    fn parent_claim(self) -> UpperReplayClaimId {
+        match self {
+            Self::ReplayConstraint { parent_claim, .. }
+            | Self::StructuralConstraint { parent_claim, .. }
+            | Self::ReductionRouteConstraint { parent_claim, .. } => parent_claim,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -503,9 +530,10 @@ struct ReplayClaimParentKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ReductionRouteClaimParent {
-    claim: UpperReplayClaimId,
-    derivation: RowDerivationId,
+struct StructuralClaimParentKey {
+    result: ConstraintRecordId,
+    coverage_root: UpperReplayClaimId,
+    derivation: StructuralDerivation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -711,10 +739,9 @@ pub struct TypeBounds {
     derived_claim_by_record_and_root:
         FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
-    replay_claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ReplayClaimParent>>,
+    claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
     replay_claim_parent_keys: FxHashSet<ReplayClaimParentKey>,
-    reduction_route_claim_parents_by_constraint:
-        FxHashMap<ConstraintRecordId, Vec<ReductionRouteClaimParent>>,
+    structural_claim_parent_keys: FxHashSet<StructuralClaimParentKey>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
@@ -1099,6 +1126,7 @@ impl TypeBounds {
                 .get(&producer_constraint)
                 .copied(),
             UpperReplayClaimLineage::ReplayConstraint { result, .. }
+            | UpperReplayClaimLineage::StructuralConstraint { result, .. }
             | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => self
                 .scheme_projection_lower_record_by_constraint
                 .get(&result)
@@ -1635,6 +1663,7 @@ impl ConstraintMachine {
                 GeneralizationParentCarriers::Constraint(claim_record.producer_constraint)
             }
             UpperReplayClaimLineage::ReplayConstraint { result, .. }
+            | UpperReplayClaimLineage::StructuralConstraint { result, .. }
             | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
                 GeneralizationParentCarriers::Constraint(result)
             }

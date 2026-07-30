@@ -1269,10 +1269,15 @@ impl ConstraintMachine {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let record_id = *entry.get();
+                let mut provenance_changed = false;
                 let derivations =
                     &mut self.constraint_records[record_id.0 as usize].structural_derivations;
                 if !derivations.contains(&derivation) {
                     derivations.push(derivation);
+                    provenance_changed = true;
+                }
+                provenance_changed |= self.merge_structural_claim_parents(record_id, derivation);
+                if provenance_changed {
                     self.bump_provenance_epoch();
                 }
                 self.merge_scheme_instantiation_routes(record_id, scheme_routes);
@@ -1298,6 +1303,7 @@ impl ConstraintMachine {
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        self.merge_structural_claim_parents(record_id, derivation);
         self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
@@ -1328,11 +1334,55 @@ impl ConstraintMachine {
             return;
         };
         let derivation = StructuralDerivation { parent, rule };
+        let mut provenance_changed = false;
         let derivations = &mut self.constraint_records[record_id.0 as usize].structural_derivations;
         if !derivations.contains(&derivation) {
             derivations.push(derivation);
+            provenance_changed = true;
+        }
+        provenance_changed |= self.merge_structural_claim_parents(record_id, derivation);
+        if provenance_changed {
             self.bump_provenance_epoch();
         }
+    }
+
+    fn merge_structural_claim_parents(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+    ) -> bool {
+        let Some(parents) = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&derivation.parent)
+            .cloned()
+        else {
+            return false;
+        };
+        let mut inserted = false;
+        for parent in parents {
+            let parent_claim = parent.parent_claim();
+            let coverage_root =
+                self.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
+            let key = StructuralClaimParentKey {
+                result,
+                coverage_root,
+                derivation,
+            };
+            if !self.bounds.structural_claim_parent_keys.insert(key) {
+                continue;
+            }
+            self.bounds
+                .claim_parents_by_constraint
+                .entry(result)
+                .or_default()
+                .push(ClaimQualifiedParent::StructuralConstraint {
+                    parent_claim,
+                    derivation,
+                });
+            inserted = true;
+        }
+        inserted
     }
 
     pub(in crate::constraints) fn intern_row_derivation(

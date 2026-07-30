@@ -731,48 +731,53 @@ impl ConstraintMachine {
         let Some(producer) = producer else {
             return Vec::new();
         };
-        let replay_parents = self
+        let parents = self
             .bounds
-            .replay_claim_parents_by_constraint
-            .get(&producer)
-            .cloned()
-            .unwrap_or_default();
-        let route_parents = self
-            .bounds
-            .reduction_route_claim_parents_by_constraint
+            .claim_parents_by_constraint
             .get(&producer)
             .cloned()
             .unwrap_or_default();
         let mut claims = Vec::new();
-        for parent in replay_parents {
-            let registration =
-                self.bounds
-                    .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
-                        UpperReplayClaimLineage::ReplayConstraint {
-                            parent_claim: parent.claim,
-                            parent_side: parent.parent_side,
+        for parent in parents {
+            let parent_claim = parent.parent_claim();
+            let registration = match parent {
+                ClaimQualifiedParent::ReplayConstraint {
+                    parent_side,
+                    replay,
+                    ..
+                } => self.bounds.derived_upper_replay_claim(
+                    record,
+                    parent_claim,
+                    producer,
+                    |depth| UpperReplayClaimLineage::ReplayConstraint {
+                        parent_claim,
+                        parent_side,
+                        result: producer,
+                        replay,
+                        depth,
+                    },
+                ),
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => self
+                    .bounds
+                    .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                        UpperReplayClaimLineage::StructuralConstraint {
+                            parent_claim,
                             result: producer,
-                            replay: parent.replay,
+                            derivation,
                             depth,
                         }
-                    });
-            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
-            let claim = registration.claim;
-            if !claims.contains(&claim) {
-                claims.push(claim);
-            }
-        }
-        for parent in route_parents {
-            let registration =
-                self.bounds
-                    .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
+                    }),
+                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => self
+                    .bounds
+                    .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
                         UpperReplayClaimLineage::ReductionRouteConstraint {
-                            parent_claim: parent.claim,
+                            parent_claim,
                             result: producer,
-                            derivation: parent.derivation,
+                            derivation,
                             depth,
                         }
-                    });
+                    }),
+            };
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             let claim = registration.claim;
             if !claims.contains(&claim) {
@@ -817,14 +822,14 @@ impl ConstraintMachine {
             if !self.bounds.replay_claim_parent_keys.insert(key) {
                 continue;
             }
-            let parent = ReplayClaimParent {
-                claim: parent.claim,
+            let parent = ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: parent.claim,
                 parent_side: parent.parent_side,
                 replay,
             };
             let entries = self
                 .bounds
-                .replay_claim_parents_by_constraint
+                .claim_parents_by_constraint
                 .entry(result)
                 .or_default();
             entries.push(parent);
@@ -850,10 +855,13 @@ impl ConstraintMachine {
         {
             return;
         }
-        let parent = ReductionRouteClaimParent { claim, derivation };
+        let parent = ClaimQualifiedParent::ReductionRouteConstraint {
+            parent_claim: claim,
+            derivation,
+        };
         let entries = self
             .bounds
-            .reduction_route_claim_parents_by_constraint
+            .claim_parents_by_constraint
             .entry(result)
             .or_default();
         if !entries.contains(&parent) {
