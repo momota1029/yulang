@@ -1209,21 +1209,57 @@ lineage 機構より narrow で、原理的にはシンプルな拡張になる�
 `RowDerivationId` を持ち、carrier は概念上
 `(result ConstraintRecordId, RowDerivationId)` として扱える。
 
+## URR-G 一度目、self-tagging 自体は成功したが別種の漏れ経路が残る
+（2026-07-30）
+
+URR v5（`12086949`、`b1692ffd`）承認後、URR-G に着手した。§8.3 の
+preflight 2件は先に red/green で確立（`b2cc6eff`）。v3・v4・v5 の
+機構をまとめて production へ試作したところ、**self-tagging 自体は
+正しく機能した**——実際の nested trace で `1522 → 1669` の claim が
+exact `RowDerivationId(196)` carrier・reduction root・covered=true に
+なることを確認できた。18 個の unit test も全部 green になった。
+
+それでも nested local-var characterization の isolation gate は
+まだ失敗した。原因を追うと、covered な `UpperBoundAdded` replay を
+正しく抑止しても、**別の経路**が残っていた:
+
+```text
+1669 <- Var(1522) <- Row([inner-family])
+```
+
+これは generic replay の抑止では触れない、**alias bound を
+finalization/projection が直接辿って到達する経路**——claim/coverage/
+lineage の仕組みは「generic replay を抑止する」ことは正しくできてる
+のに、finalization 側がそれとは別に、covered claim が作った alias
+bound を直接辿って family を拾ってしまう。
+
+**この結果の意味**: v1〜v5 で積み重ねてきた claim/coverage/lineage
+という枠組みは、「generic replay という特定のアクションキューを
+抑止する」ことだけを対象にしてきた。しかし今回見えたのは、それとは
+別の経路（finalization が bound を直接辿る）で漏れが起きるケースが
+存在する、ということ。これは §10.1(4) 相当（「late matched lower が
+current residual にも replay される」）の一種だが、self-tagging
+だけでは閉じない**新しい種類の gap**。
+
+今回も production コードは全て rollback 済み（v5 preflight test の
+commit だけは残した——`.git` read-only で Codex が commit できな
+かった分を Claude が代行）。
+
 ## 次に調べるべきこと
 
-- **最優先（URR v5、比較的 narrow な拡張）**: reduction の
-  matched/unmatched routing 自体が作る claim（`enqueue_row_derived_subtype`
-  経由）に、その reduction 自身を lineage parent として最初から
-  taggingする。arbitrary な `RowItemMatch`／payload/filter
-  derivation やルール名の一致だけでは継承しないという区別は維持する
-  ——「reduction 自身が作った副産物」という限定された条件だけを対象に
-  する。
-- claim/coverage/lineage の基本設計（v3・v4）自体は反証されていない
-  ——反証されたのは「carrier が `BinaryReplayDerivation` だけで十分」
-  という前提。今回の穴はさらに narrow（reduction 自身の副産物への
-  自己 tagging 漏れ）。
+- **最優先（設計判断が必要、URR v6 相当）**: coverage/lineage の
+  適用範囲を「generic replay の抑止」だけでなく、**finalization/
+  projection が alias bound を辿るときの reachability** にも
+  拡張する設計が必要。post-hoc cleanup や endpoint-based
+  suppression では解決できないことは確認済み——claim の coverage
+  情報を、replay 以外の場所（scheme finalize 時の bound walk）でも
+  参照できるようにする必要がある。
+- v1〜v5 で確立した claim/coverage/lineage/self-tagging の各機構は
+  それぞれ正しく機能してる（今回も反証されていない）。反証されたのは
+  「これらの機構が、generic replay の抑止だけで nested isolation を
+  保証するのに十分」という前提。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
-  いる——退行はない。v3・v4 の6 regression test も生きている。
+  いる——退行はない。v3・v4・v5 の regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
