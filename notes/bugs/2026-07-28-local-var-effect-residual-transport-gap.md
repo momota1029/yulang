@@ -2077,4 +2077,32 @@ five-case characterizationは保存済み構造体とのexact comparisonを三�
 programmatic zero-diffはこのrunでは未確認として残す。287-case contract suiteは指示どおり
 実行していない。
 
+## 44回目: DCP-B five-case characterization baseline refresh
+（2026-07-31）
+
+DCP-B（`5b492709`）はreplay action planningでlower / upper両recordのclaim parentを対称に読み、
+各parentへ`Lower` / `Upper`のsideを付けた。再到達は
+`(result, coverage_root, parent_side)`でdedupし、`should_replay`のdecision logicは変更していない。
+このため変更はside付きclaim metadataとprovenance bookkeepingに限られる。
+
+five-case characterizationをrelease testで再実行し、失敗出力のactual / expectedを
+programmaticに比較した。各ケースの`provenance_epoch`だけを正規化したserialized structureは
+ともに12,969 bytes、SHA-256
+`34d7c880f80b91cdfac5a9305b936f9e9da240c8f3752a48b8a1d81916377ac9`でbyte-identicalだった。
+したがって差分は全5ケースとも`provenance_epoch`だけであり、残る86 fieldsはすべて不変である。
+特に`poly_dump_fnv1a64`と`check_report_fnv1a64`は全5ケースで既存baselineと一致した。
+
+実測値に合わせ、five-case baselineの`provenance_epoch`だけを次の値へ更新した。
+
+- repository-std-only: 2,398,021
+- effect-callback-residual: 2,400,896
+- ref-update-local-buffer: 2,446,796
+- config-read-false-positive-repro: 2,473,200
+- file-rollback-false-positive-repro: 2,440,266
+
+更新後のfive-case characterizationは1 pass / 0 failとなった。最終sanity checkではcompact 80、
+generalize 42、explain 14、occurrence provenance 1がすべてgreenだった。full `case_02`は
+57 pass / 4 fail / 1 known-ignoreで、DCP-B対象の§8.1〜§8.3とcontrolの§8.7はgreen、
+既知のDCP-C / D scopeである§8.4、§8.5、§8.6、§8.8だけが従来どおりredだった。
+
 <!-- bug-append-anchor: 2026-07-30 -->
