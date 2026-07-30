@@ -368,6 +368,7 @@ struct UnweightedRowReductionRecordId(u32);
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct UnweightedRowReductionRecord {
     source: TypeVar,
+    producer_constraint: Option<ConstraintRecordId>,
     original_items: Vec<NegId>,
     original_tail: NegId,
     original_upper: NegId,
@@ -395,6 +396,80 @@ struct UnweightedRowReductionReplayRoute {
     upper: NegId,
     upper_record: BoundRecordId,
     provenance: RowDerivationId,
+    claim: Option<UpperReplayClaimId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UnweightedRowReductionRegistration {
+    state: UnweightedRowReductionRecordId,
+    root_claim: Option<UpperReplayClaimId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct UpperReplayClaimId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UpperReplayClaimKind {
+    Direct,
+    Reduced(UnweightedRowReductionRecordId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UpperReplayClaimLineage {
+    Original,
+    ReplayConstraint {
+        parent_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+    ReplayEvidence {
+        parent_claim: UpperReplayClaimId,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+    ReductionRouteConstraint {
+        parent_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+        depth: u32,
+    },
+}
+
+impl UpperReplayClaimLineage {
+    fn depth(self) -> u32 {
+        match self {
+            Self::Original => 0,
+            Self::ReplayConstraint { depth, .. }
+            | Self::ReplayEvidence { depth, .. }
+            | Self::ReductionRouteConstraint { depth, .. } => depth,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UpperReplayClaim {
+    id: UpperReplayClaimId,
+    source: TypeVar,
+    endpoint: NegId,
+    weights: ConstraintWeights,
+    producer_constraint: ConstraintRecordId,
+    kind: UpperReplayClaimKind,
+    current_record: BoundRecordId,
+    coverage_root: UpperReplayClaimId,
+    lineage: UpperReplayClaimLineage,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReplayClaimParent {
+    claim: UpperReplayClaimId,
+    replay: BinaryReplayDerivation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReductionRouteClaimParent {
+    claim: UpperReplayClaimId,
+    derivation: RowDerivationId,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -406,6 +481,18 @@ pub struct TypeBounds {
     vars: Vec<Option<VarBounds>>,
     canonical: FxHashMap<BoundSemanticKey, BoundRecordId>,
     records: Vec<BoundRecord>,
+    upper_replay_claims: Vec<UpperReplayClaim>,
+    claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
+    original_claim_by_record_and_producer:
+        FxHashMap<(BoundRecordId, ConstraintRecordId), UpperReplayClaimId>,
+    derived_claim_by_record_and_root:
+        FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
+    reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
+    replay_claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ReplayClaimParent>>,
+    reduction_route_claim_parents_by_constraint:
+        FxHashMap<ConstraintRecordId, Vec<ReductionRouteClaimParent>>,
+    live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
+    replay_claim_cycle_coalesces: usize,
 }
 
 impl TypeBounds {
@@ -628,6 +715,177 @@ impl TypeBounds {
 
     fn record_var_epoch(&mut self, var: TypeVar, epoch: ConstraintEpoch) {
         self.bounds_mut(var).epoch = epoch;
+    }
+
+    fn original_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer_constraint: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> UpperReplayClaimId {
+        let key = (record, producer_constraint);
+        if let Some(claim) = self.original_claim_by_record_and_producer.get(&key) {
+            return *claim;
+        }
+        let bound = &self.records[record.0 as usize];
+        let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
+            unreachable!("upper replay claims belong to upper records");
+        };
+        let id = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
+        self.upper_replay_claims.push(UpperReplayClaim {
+            id,
+            source: bound.owner,
+            endpoint,
+            weights: bound.weights.clone(),
+            producer_constraint,
+            kind,
+            current_record: record,
+            coverage_root: id,
+            lineage: UpperReplayClaimLineage::Original,
+        });
+        self.original_claim_by_record_and_producer.insert(key, id);
+        self.claims_by_upper_record
+            .entry(record)
+            .or_default()
+            .push(id);
+        id
+    }
+
+    fn derived_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        producer_constraint: ConstraintRecordId,
+        lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
+    ) -> UpperReplayClaimId {
+        let parent = self.upper_replay_claims[parent_claim.0 as usize].clone();
+        let root = parent.coverage_root;
+        // The derived index contains child claims only, but the root itself is the canonical
+        // claim for `(root.current_record, root)`. A replay cycle returning there must coalesce
+        // instead of allocating a derived copy of the original claim.
+        if self.upper_replay_claims[root.0 as usize].current_record == record {
+            self.replay_claim_cycle_coalesces += 1;
+            return root;
+        }
+        if let Some(claim) = self
+            .derived_claim_by_record_and_root
+            .get(&(record, root))
+            .copied()
+        {
+            self.replay_claim_cycle_coalesces += 1;
+            return claim;
+        }
+        let bound = &self.records[record.0 as usize];
+        let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
+            unreachable!("upper replay claims belong to upper records");
+        };
+        let depth = parent
+            .lineage
+            .depth()
+            .checked_add(1)
+            .expect("upper replay claim lineage depth overflow");
+        let id = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
+        debug_assert!(parent_claim < id);
+        self.upper_replay_claims.push(UpperReplayClaim {
+            id,
+            source: bound.owner,
+            endpoint,
+            weights: bound.weights.clone(),
+            producer_constraint,
+            kind: parent.kind,
+            current_record: record,
+            coverage_root: root,
+            lineage: lineage(depth),
+        });
+        self.derived_claim_by_record_and_root
+            .insert((record, root), id);
+        self.claims_by_upper_record
+            .entry(record)
+            .or_default()
+            .push(id);
+        id
+    }
+
+    fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {
+        let old_record = self.upper_replay_claims[claim.0 as usize].current_record;
+        if old_record == new_record {
+            return;
+        }
+        if let Some(claims) = self.claims_by_upper_record.get_mut(&old_record) {
+            claims.retain(|candidate| *candidate != claim);
+        }
+        let bound = &self.records[new_record.0 as usize];
+        let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
+            unreachable!("upper replay claims belong to upper records");
+        };
+        let replay_claim = &mut self.upper_replay_claims[claim.0 as usize];
+        self.original_claim_by_record_and_producer
+            .remove(&(old_record, replay_claim.producer_constraint));
+        self.derived_claim_by_record_and_root
+            .remove(&(old_record, replay_claim.coverage_root));
+        replay_claim.current_record = new_record;
+        replay_claim.source = bound.owner;
+        replay_claim.endpoint = endpoint;
+        replay_claim.weights = bound.weights.clone();
+        match replay_claim.lineage {
+            UpperReplayClaimLineage::Original => {
+                self.original_claim_by_record_and_producer
+                    .insert((new_record, replay_claim.producer_constraint), claim);
+            }
+            _ => {
+                self.derived_claim_by_record_and_root
+                    .insert((new_record, replay_claim.coverage_root), claim);
+            }
+        }
+        let claims = self.claims_by_upper_record.entry(new_record).or_default();
+        if !claims.contains(&claim) {
+            claims.push(claim);
+        }
+    }
+
+    fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {
+        let Some(claims) = self.claims_by_upper_record.get(&record) else {
+            return true;
+        };
+        if claims.is_empty() {
+            return true;
+        }
+        claims.iter().any(|claim| {
+            let claim = &self.upper_replay_claims[claim.0 as usize];
+            self.live_coverage_by_root
+                .get(&claim.coverage_root)
+                .is_none_or(Vec::is_empty)
+        })
+    }
+
+    fn uncovered_claims(&self, record: BoundRecordId) -> Vec<UpperReplayClaimId> {
+        self.claims_by_upper_record
+            .get(&record)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|claim| {
+                let root = self.upper_replay_claims[claim.0 as usize].coverage_root;
+                self.live_coverage_by_root
+                    .get(&root)
+                    .is_none_or(Vec::is_empty)
+            })
+            .collect()
+    }
+
+    fn covered_claims(&self, record: BoundRecordId) -> Vec<UpperReplayClaimId> {
+        self.claims_by_upper_record
+            .get(&record)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|claim| {
+                let root = self.upper_replay_claims[claim.0 as usize].coverage_root;
+                self.live_coverage_by_root
+                    .get(&root)
+                    .is_some_and(|states| !states.is_empty())
+            })
+            .collect()
     }
 }
 

@@ -7,11 +7,13 @@ use smallvec::SmallVec;
 /// rows. Semantic queue admission remains prefiltered, while duplicate/trivial
 /// pairings retain small provenance-only actions so their exact parents are not lost.
 type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
+type ReplayClaimParents = SmallVec<[UpperReplayClaimId; 2]>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BoundReplayAction {
     constraint: SubtypeConstraintKey,
     derivation: BinaryReplayDerivation,
+    claim_parents: ReplayClaimParents,
     canonicalization_disposition: Option<ConstraintCanonicalizationDisposition>,
 }
 
@@ -477,7 +479,13 @@ impl ConstraintMachine {
 
         let incremental_routes =
             self.unweighted_row_reduction_routes_for_new_lower(target, insertion.id, pos, &weights);
-        let mut replay = self.lower_bound_replay_actions(target, insertion.id, pos, &weights);
+        let mut replay = self.lower_bound_replay_actions(
+            target,
+            insertion.id,
+            pos,
+            &weights,
+            &incremental_routes,
+        );
         let mut planned_incremental_actions = FxHashSet::default();
         for route in &incremental_routes {
             let generic_replay_covers_route =
@@ -508,6 +516,7 @@ impl ConstraintMachine {
                 weights.clone(),
                 route.upper,
                 derivation,
+                route.claim.into_iter().collect(),
                 &mut replay,
             );
         }
@@ -605,6 +614,7 @@ impl ConstraintMachine {
                 BoundDisposition::SubsumedBy(survivor),
                 None,
             );
+            self.register_constraint_upper_replay_claims(survivor, producer);
             return;
         }
         if let Some(survivor) = self.upper_bound_subsumed_by_existing(source, neg, &weights) {
@@ -617,6 +627,7 @@ impl ConstraintMachine {
                 BoundDisposition::SubsumedBy(survivor),
                 None,
             );
+            self.register_constraint_upper_replay_claims(survivor, producer);
             return;
         }
         let pruned = self.prune_upper_rows_subsumed_by(source, neg, &weights);
@@ -638,6 +649,7 @@ impl ConstraintMachine {
             None,
         );
         self.record_pruned_bound_dispositions(pruned, insertion.id);
+        self.register_constraint_upper_replay_claims(insertion.id, producer);
         if !insertion.semantic_changed {
             return;
         }
@@ -702,6 +714,152 @@ impl ConstraintMachine {
             insertion.provenance_changed && !insertion.semantic_changed,
             insertion.promoted,
         );
+    }
+
+    fn register_constraint_upper_replay_claims(
+        &mut self,
+        record: BoundRecordId,
+        producer: Option<ConstraintRecordId>,
+    ) -> Vec<UpperReplayClaimId> {
+        let Some(producer) = producer else {
+            return Vec::new();
+        };
+        let replay_parents = self
+            .bounds
+            .replay_claim_parents_by_constraint
+            .get(&producer)
+            .cloned()
+            .unwrap_or_default();
+        let route_parents = self
+            .bounds
+            .reduction_route_claim_parents_by_constraint
+            .get(&producer)
+            .cloned()
+            .unwrap_or_default();
+        let mut claims = Vec::new();
+        for parent in replay_parents {
+            let claim =
+                self.bounds
+                    .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
+                        UpperReplayClaimLineage::ReplayConstraint {
+                            parent_claim: parent.claim,
+                            result: producer,
+                            replay: parent.replay,
+                            depth,
+                        }
+                    });
+            if !claims.contains(&claim) {
+                claims.push(claim);
+            }
+        }
+        for parent in route_parents {
+            let claim =
+                self.bounds
+                    .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
+                        UpperReplayClaimLineage::ReductionRouteConstraint {
+                            parent_claim: parent.claim,
+                            result: producer,
+                            derivation: parent.derivation,
+                            depth,
+                        }
+                    });
+            if !claims.contains(&claim) {
+                claims.push(claim);
+            }
+        }
+        if claims.is_empty() {
+            claims.push(self.bounds.original_upper_replay_claim(
+                record,
+                producer,
+                UpperReplayClaimKind::Direct,
+            ));
+        }
+        claims
+    }
+
+    fn register_replay_claim_parents(
+        &mut self,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        parents: &[UpperReplayClaimId],
+        materialize_existing_target: bool,
+    ) {
+        if parents.is_empty()
+            || !self.constraint_records[result.0 as usize]
+                .replay_derivations
+                .contains(&replay)
+        {
+            return;
+        }
+        let target_record = self.var_var_upper_record_for_constraint(result);
+        for claim in parents {
+            let parent = ReplayClaimParent {
+                claim: *claim,
+                replay,
+            };
+            let entries = self
+                .bounds
+                .replay_claim_parents_by_constraint
+                .entry(result)
+                .or_default();
+            if !entries.contains(&parent) {
+                entries.push(parent);
+            }
+        }
+        // Newly enqueued constraints consume this metadata during their bound admission.
+        // Queue-suppressed duplicates need the eager path because no later admission will run.
+        if materialize_existing_target {
+            if let Some(record) = target_record {
+                self.register_constraint_upper_replay_claims(record, Some(result));
+            }
+        }
+    }
+
+    pub(in crate::constraints) fn register_reduction_route_claim_parent(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+        claim: UpperReplayClaimId,
+    ) {
+        if !self.constraint_records[result.0 as usize]
+            .row_derivations
+            .contains(&derivation)
+        {
+            return;
+        }
+        let parent = ReductionRouteClaimParent { claim, derivation };
+        let entries = self
+            .bounds
+            .reduction_route_claim_parents_by_constraint
+            .entry(result)
+            .or_default();
+        if !entries.contains(&parent) {
+            entries.push(parent);
+        }
+        if let Some(record) = self.var_var_upper_record_for_constraint(result) {
+            self.register_constraint_upper_replay_claims(record, Some(result));
+        }
+    }
+
+    fn var_var_upper_record_for_constraint(
+        &self,
+        result: ConstraintRecordId,
+    ) -> Option<BoundRecordId> {
+        let constraint = &self.constraint_records[result.0 as usize].key;
+        let (Pos::Var(source), Neg::Var(_)) = (
+            self.types.pos(constraint.lower),
+            self.types.neg(constraint.upper),
+        ) else {
+            return None;
+        };
+        self.bounds
+            .canonical
+            .get(&BoundSemanticKey::Upper {
+                owner: *source,
+                endpoint: constraint.upper,
+                weights: constraint.weights.clone(),
+            })
+            .copied()
     }
 
     fn check_and_erase_lower_left_filter(
@@ -899,21 +1057,52 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         pos: PosId,
         weights: &ConstraintWeights,
+        incremental_routes: &[UnweightedRowReductionReplayRoute],
     ) -> BoundReplayPlan {
         let Some(bounds) = self.bounds.of(target) else {
             return BoundReplayPlan::default();
         };
-        let replay_input_count = bounds
+        let uppers = bounds
             .projection_upper_records()
-            .filter(|(record, _)| self.upper_record_requires_generic_replay(*record))
+            .map(|(record, upper)| (record, upper.clone()))
+            .collect::<Vec<_>>();
+        let decisions = uppers
+            .iter()
+            .map(|(record, _)| {
+                let requires_generic = self.upper_record_requires_generic_replay(*record);
+                let mut claim_parents = self
+                    .bounds
+                    .uncovered_claims(*record)
+                    .into_iter()
+                    .collect::<ReplayClaimParents>();
+                if matches!(self.types.pos(pos), Pos::Var(_)) {
+                    for claim in self.bounds.covered_claims(*record) {
+                        let handled_by_incremental_route = incremental_routes.iter().any(|route| {
+                            route.upper_record == *record && route.claim == Some(claim)
+                        });
+                        if !handled_by_incremental_route && !claim_parents.contains(&claim) {
+                            claim_parents.push(claim);
+                        }
+                    }
+                }
+                (
+                    *record,
+                    (requires_generic || !claim_parents.is_empty(), claim_parents),
+                )
+            })
+            .collect::<FxHashMap<_, _>>();
+        let replay_input_count = decisions
+            .values()
+            .filter(|(should_replay, _)| *should_replay)
             .count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
-        for (index, (upper_record, upper)) in bounds.projection_upper_records().enumerate() {
-            if !self.upper_record_requires_generic_replay(upper_record) {
+        for (index, (upper_record, upper)) in uppers.into_iter().enumerate() {
+            let (should_replay, claim_parents) = &decisions[&upper_record];
+            if !should_replay {
                 continue;
             }
             trace_bound_replay_progress("lower", target, index);
@@ -932,6 +1121,7 @@ impl ConstraintMachine {
                     upper: upper_record,
                     rule: ReplayRule::LowerBoundAdded,
                 },
+                claim_parents.clone(),
                 &mut replay,
             );
         }
@@ -939,16 +1129,10 @@ impl ConstraintMachine {
     }
 
     fn upper_record_requires_generic_replay(&self, upper: BoundRecordId) -> bool {
-        let Some(record) = self.bounds.record(upper) else {
+        if self.bounds.record(upper).is_none() {
             return false;
         };
-        let Some(owners) = self.unweighted_row_reduction_owners_by_upper.get(&upper) else {
-            return true;
-        };
-        record
-            .derivations()
-            .iter()
-            .any(|derivation| !owners.iter().any(|owner| &owner.derivation == derivation))
+        self.bounds.claim_requires_generic_replay(upper)
     }
 
     fn merge_unweighted_row_route_provenance(
@@ -981,12 +1165,25 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(source) else {
             return BoundReplayPlan::default();
         };
-        let replay_input_count = bounds.projection_lowers().count();
+        let requires_generic = self.upper_record_requires_generic_replay(upper_record);
+        let replay_input_count = if requires_generic {
+            bounds.projection_lowers().count()
+        } else {
+            0
+        };
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("upper", source, replay_input_count);
+        if !requires_generic {
+            return replay;
+        }
+        let claim_parents = self
+            .bounds
+            .uncovered_claims(upper_record)
+            .into_iter()
+            .collect::<ReplayClaimParents>();
         for (index, (lower_record, lower)) in bounds.projection_lower_records().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(weights);
@@ -1004,6 +1201,7 @@ impl ConstraintMachine {
                     upper: upper_record,
                     rule: ReplayRule::UpperBoundAdded,
                 },
+                claim_parents.clone(),
                 &mut replay,
             );
         }
@@ -1016,6 +1214,7 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         upper: NegId,
         derivation: BinaryReplayDerivation,
+        claim_parents: ReplayClaimParents,
         replay: &mut BoundReplayPlan,
     ) {
         let attempted = SubtypeConstraintKey {
@@ -1032,6 +1231,7 @@ impl ConstraintMachine {
             replay.trivial_actions.push(BoundReplayAction {
                 constraint: attempted,
                 derivation,
+                claim_parents,
                 canonicalization_disposition,
             });
             return;
@@ -1045,6 +1245,7 @@ impl ConstraintMachine {
             replay.duplicate_actions.push(BoundReplayAction {
                 constraint,
                 derivation,
+                claim_parents,
                 canonicalization_disposition,
             });
             return;
@@ -1054,6 +1255,7 @@ impl ConstraintMachine {
             replay.evidence_actions.push(BoundReplayAction {
                 constraint,
                 derivation,
+                claim_parents,
                 canonicalization_disposition,
             });
             return;
@@ -1061,6 +1263,7 @@ impl ConstraintMachine {
         replay.actions.push(BoundReplayAction {
             constraint,
             derivation,
+            claim_parents,
             canonicalization_disposition,
         });
     }
@@ -1191,6 +1394,15 @@ impl ConstraintMachine {
             let constraint = action.constraint.clone();
             let (enqueued, disposition) =
                 self.enqueue_replay_subtype(action.constraint, action.derivation);
+            if disposition != ReplayDerivationInsert::Incomplete {
+                let result = self.canonical_constraints[&constraint];
+                self.register_replay_claim_parents(
+                    result,
+                    action.derivation,
+                    &action.claim_parents,
+                    !enqueued,
+                );
+            }
             self.merge_constraint_canonicalization_disposition(
                 &constraint,
                 action.canonicalization_disposition,
@@ -1273,11 +1485,28 @@ impl ConstraintMachine {
                 constraint.weights,
                 upper_derivation,
             );
+            let upper_record = insertion.id;
             let upper_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Upper, true);
             if insertion.semantic_changed {
                 self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
+            }
+            if evidence_complete {
+                for parent in action.claim_parents {
+                    let producer =
+                        self.bounds.upper_replay_claims[parent.0 as usize].producer_constraint;
+                    self.bounds.derived_upper_replay_claim(
+                        upper_record,
+                        parent,
+                        producer,
+                        |depth| UpperReplayClaimLineage::ReplayEvidence {
+                            parent_claim: parent,
+                            replay: action.derivation,
+                            depth,
+                        },
+                    );
+                }
             }
             self.timing.record_replay_derivation_edge(
                 evidence_complete && (lower_edge_inserted || upper_edge_inserted),
@@ -1299,6 +1528,14 @@ impl ConstraintMachine {
                 .get(&action.constraint)
                 .expect("prefiltered replay duplicate remains canonical");
             let disposition = self.merge_replay_derivation(result, action.derivation);
+            if disposition != ReplayDerivationInsert::Incomplete {
+                self.register_replay_claim_parents(
+                    result,
+                    action.derivation,
+                    &action.claim_parents,
+                    true,
+                );
+            }
             self.merge_constraint_canonicalization_disposition(
                 &action.constraint,
                 action.canonicalization_disposition,
@@ -1850,6 +2087,7 @@ mod mutation_tests {
                 upper: BoundRecordId(1),
                 rule: ReplayRule::LowerBoundAdded,
             },
+            claim_parents: ReplayClaimParents::new(),
             canonicalization_disposition: None,
         });
         machine.apply_bound_replay_evidence_actions(actions);

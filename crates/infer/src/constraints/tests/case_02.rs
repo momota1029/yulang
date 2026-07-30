@@ -1633,6 +1633,10 @@ fn unweighted_row_upper_multihop_lineage_root_compresses_without_cycle_growth() 
 }
 
 #[test]
+// Checkpoint note: this v5 test predates the v6 projection view. Its final reachability
+// assertion still traverses raw bounds, where `beta <: residual` intentionally remains.
+// Per `notes/design/2026-07-29-unweighted-row-reduction-fix.md` §4.10, the next H1b slice
+// will observe `scheme_projectable_lowers` instead; the no-contamination outcome is unchanged.
 fn unweighted_row_upper_initial_unmatched_route_inherits_reduction_root() {
     let mut machine = ConstraintMachine::new();
     let alpha = TypeVar(0);
@@ -1826,6 +1830,11 @@ enum ObservedReplayClaimLineage {
         replay: BinaryReplayDerivation,
         depth: u32,
     },
+    DerivedEvidence {
+        parent: ObservedReplayClaimId,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
     ReductionRoute {
         parent: ObservedReplayClaimId,
         result: ConstraintRecordId,
@@ -1896,6 +1905,7 @@ impl ObservedReplayLineage {
             maximum_depth = maximum_depth.max(match claim.lineage {
                 ObservedReplayClaimLineage::Original => 0,
                 ObservedReplayClaimLineage::Derived { depth, .. }
+                | ObservedReplayClaimLineage::DerivedEvidence { depth, .. }
                 | ObservedReplayClaimLineage::ReductionRoute { depth, .. } => depth,
             });
         }
@@ -1908,57 +1918,65 @@ impl ObservedReplayLineage {
 }
 
 fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage {
-    let mut observed = ObservedReplayLineage::default();
+    let claim_id = |id: UpperReplayClaimId| ObservedReplayClaimId(id.0);
+    let claims = machine
+        .bounds
+        .upper_replay_claims
+        .iter()
+        .map(|claim| ObservedLineageClaim {
+            id: claim_id(claim.id),
+            source: claim.source,
+            producer: claim.producer_constraint,
+            record: claim.current_record,
+            coverage_root: claim_id(claim.coverage_root),
+            lineage: match claim.lineage {
+                UpperReplayClaimLineage::Original => ObservedReplayClaimLineage::Original,
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim,
+                    result,
+                    replay,
+                    depth,
+                } => ObservedReplayClaimLineage::Derived {
+                    parent: claim_id(parent_claim),
+                    result,
+                    replay,
+                    depth,
+                },
+                UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim,
+                    replay,
+                    depth,
+                } => ObservedReplayClaimLineage::DerivedEvidence {
+                    parent: claim_id(parent_claim),
+                    replay,
+                    depth,
+                },
+                UpperReplayClaimLineage::ReductionRouteConstraint {
+                    parent_claim,
+                    result,
+                    derivation,
+                    depth,
+                } => ObservedReplayClaimLineage::ReductionRoute {
+                    parent: claim_id(parent_claim),
+                    result,
+                    derivation,
+                    depth,
+                },
+            },
+        })
+        .collect();
+    let covered_roots = machine
+        .bounds
+        .live_coverage_by_root
+        .iter()
+        .filter_map(|(root, states)| (!states.is_empty()).then_some(claim_id(*root)))
+        .collect();
 
-    for (state_index, state) in machine.unweighted_row_reduction_records.iter().enumerate() {
-        let id = ObservedReplayClaimId(observed.claims.len() as u32);
-        observed.claims.push(ObservedLineageClaim {
-            id,
-            source: state.source,
-            producer: row_derivation_producer(machine, state.provenance_head),
-            record: state.current_reduced_upper.record,
-            coverage_root: id,
-            lineage: ObservedReplayClaimLineage::Original,
-        });
-        assert_eq!(
-            reduction_state_for_source(machine, state.source),
-            UnweightedRowReductionRecordId(state_index as u32),
-            "the preflight fixture keeps one canonical reduction state per source"
-        );
-        observed.covered_roots.insert(id);
+    ObservedReplayLineage {
+        claims,
+        covered_roots,
+        cycle_coalesces: machine.bounds.replay_claim_cycle_coalesces,
     }
-
-    for (record_index, record) in machine.bounds.records.iter().enumerate() {
-        if record.direction() != BoundDirection::Upper
-            || record.state() == BoundRecordState::Tombstone
-        {
-            continue;
-        }
-        let record_id = BoundRecordId(record_index as u32);
-        for derivation in record.derivations() {
-            let BoundDerivation::Constraint(producer) = derivation else {
-                continue;
-            };
-            if observed
-                .claims
-                .iter()
-                .any(|claim| claim.record == record_id && claim.producer == *producer)
-            {
-                continue;
-            }
-            let id = ObservedReplayClaimId(observed.claims.len() as u32);
-            observed.claims.push(ObservedLineageClaim {
-                id,
-                source: record.owner(),
-                producer: *producer,
-                record: record_id,
-                coverage_root: id,
-                lineage: ObservedReplayClaimLineage::Original,
-            });
-        }
-    }
-
-    observed
 }
 
 fn assert_structural_derivation(

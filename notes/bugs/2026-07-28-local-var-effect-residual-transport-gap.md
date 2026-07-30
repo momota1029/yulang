@@ -1376,3 +1376,61 @@ epoch bookkeeping の増加では済まない、まだ特定できていない�
   `local_var_effect_value`）
 - `crates/specialize/src/specialize2/type_resolver.rs:441`（`ConflictingTypeCandidates`
   を発生させている箇所）
+
+## 26回目: v3〜v5 live-wiring checkpoint と blocker 2 の扱い
+（2026-07-30）
+
+今回の作業は、最初に HEAD の
+`upper_record_requires_generic_replay` が行っていた owner / derivation
+判定を「legacy-pinned な real decision」と見なし、claim model はその
+既存判断を観測するだけ、という枠で始めた。しかし commit 履歴と production
+code / test helper を突き合わせると、この枠自体が誤りだった。
+
+HEAD に存在した v3〜v5 は preflight test と観測 helper だけであり、
+`observed_replay_lineage` が reduction state と raw bound derivation から
+test 内で claim を組み立てていた。production の `TypeBounds` には
+`UpperReplayClaim`、coverage root、lineage index がなく、claim-based
+suppression が generic replay の可否を決めたことも一度もなかった。
+実際の判断は、reduction owner と bound derivation の一致を見る従来の
+heuristic のままだった。したがって必要なのは legacy decision の保存ではなく、
+承認済み v3〜v5 の claim / coverage / lineage を live decision として再構築する
+ことだった。
+
+再構築では、canonical upper record ごとの claim、compressed coverage root、
+live reduction state、replay / reduction-route parent を `TypeBounds` に保持した。
+initial unmatched route は exact `RowDerivationId` と root claim を admission 時に
+self-tagging し、binary replay は constraint / evidence のどちらを通っても
+parent claim を次の upper recordへ運ぶ。generic replay の判断は
+`claim_requires_generic_replay` が covered / uncovered claim を見て行い、
+test helper も合成観測をやめて production claim table を直接読むようにした。
+これで v3〜v5 の claim model が初めて live generic-replay decision になった。
+
+その途中で multihop lineage の coalescing bug も見つかった。
+`derived_upper_replay_claim` は child 用の
+`derived_claim_by_record_and_root` だけを検索していたため、
+`alpha -> beta -> gamma -> alpha` の reverse replay が root の canonical
+recordへ戻ると、index に original root がないまま root の derived copy を
+一件増やしていた。修正後は、target record が compressed root claim の
+`current_record` と一致する場合に original root 自体へ coalesce し、それ以外の
+既存 child は従来どおり `(record, root)` indexへ coalesceする。これにより
+二hopは depth 2 のまま root-compressされ、reverse edgeは新しい claim を作らない。
+
+残った
+`unweighted_row_upper_initial_unmatched_route_inherits_reduction_root`
+は blocker 2、すなわち**設計と test 作成時期の不一致**に分類した。これは
+「v6 scopeだから理由なく deferする」という問題ではない。この test は v5
+時点で作られ、まだ projection view がなかったため、「F contamination が
+到達不能」という outcome を raw stored bounds の推移走査で代用している。
+一方、承認済み v6 の §4.10 は raw `beta <: residual` を audit と
+re-projectability のため永久に保持し、scheme projection 時だけ
+`scheme_projectable_lowers` で covered claim を除外する。したがって現在の
+raw traversal は設計どおり relation を見つけ、最後の assertionだけが赤になる。
+
+ユーザ確認により、この checkpoint は test body・期待値を弱めず、`#[ignore]`
+にもせず、URR checkpoint 18件中17件 green の状態で commitする。次の H1b
+sliceでこの一件の reachability check を raw traversal から
+`scheme_projectable_lowers` viewへ切り替える。変わるのは contamination の
+観測方法だけで、「schemeへ F を混ぜない」という outcome expectation は
+変えない。最終再確認は `cargo check -p infer` が成功し、
+`constraints::tests::case_02` が45 pass / 1 fail / 1 known-ignore、失敗は
+この一件だけだった。

@@ -313,8 +313,9 @@ impl ConstraintMachine {
             BoundDerivation::Row(aggregate),
         );
         let processed_lower_records = lowers.iter().map(|(record, _)| *record).collect();
-        self.register_unweighted_row_reduction(UnweightedRowReductionRecord {
+        let registration = self.register_unweighted_row_reduction(UnweightedRowReductionRecord {
             source,
+            producer_constraint: producer,
             original_items: items.clone(),
             original_tail: tail,
             original_upper,
@@ -326,12 +327,22 @@ impl ConstraintMachine {
         });
 
         for (index, (_, lower)) in lowers.into_iter().enumerate() {
-            let upper = if matched_lowers[index] {
-                original_upper
+            if matched_lowers[index] {
+                self.enqueue_row_derived_subtype(
+                    lower.pos,
+                    lower.weights,
+                    original_upper,
+                    aggregate,
+                );
             } else {
-                reduced_upper
-            };
-            self.enqueue_row_derived_subtype(lower.pos, lower.weights, upper, aggregate);
+                self.enqueue_initial_unmatched_reduction_subtype(
+                    lower.pos,
+                    lower.weights,
+                    reduced_upper,
+                    aggregate,
+                    registration.root_claim,
+                );
+            }
         }
         true
     }
@@ -376,6 +387,7 @@ impl ConstraintMachine {
                     upper: snapshot.current_reduced_upper.endpoint,
                     upper_record: snapshot.current_reduced_upper.record,
                     provenance: snapshot.provenance_head,
+                    claim: self.bounds.reduction_claim_by_state.get(&state_id).copied(),
                 });
                 continue;
             }
@@ -441,6 +453,10 @@ impl ConstraintMachine {
                 state.processed_lower_records.insert(lower_record);
                 state.provenance_head = successor;
             }
+            if let Some(claim) = self.bounds.reduction_claim_by_state.get(&state_id).copied() {
+                self.bounds
+                    .move_upper_replay_claim(claim, materialization.record);
+            }
             self.register_unweighted_row_reduction_owner(
                 materialization.record,
                 state_id,
@@ -450,6 +466,7 @@ impl ConstraintMachine {
                 upper: snapshot.original_upper,
                 upper_record: materialization.record,
                 provenance: successor,
+                claim: self.bounds.reduction_claim_by_state.get(&state_id).copied(),
             });
         }
         routes
@@ -458,9 +475,10 @@ impl ConstraintMachine {
     fn register_unweighted_row_reduction(
         &mut self,
         record: UnweightedRowReductionRecord,
-    ) -> UnweightedRowReductionRecordId {
+    ) -> UnweightedRowReductionRegistration {
         let id = UnweightedRowReductionRecordId(self.unweighted_row_reduction_records.len() as u32);
         let source = record.source;
+        let producer = record.producer_constraint;
         let materialization = record.current_reduced_upper;
         let provenance = record.provenance_head;
         self.unweighted_row_reduction_records.push(record);
@@ -468,12 +486,49 @@ impl ConstraintMachine {
             .entry(source)
             .or_default()
             .push(id);
+        let root_claim = producer.map(|producer| {
+            let claim = self.bounds.original_upper_replay_claim(
+                materialization.record,
+                producer,
+                UpperReplayClaimKind::Reduced(id),
+            );
+            self.bounds.reduction_claim_by_state.insert(id, claim);
+            let states = self.bounds.live_coverage_by_root.entry(claim).or_default();
+            if !states.contains(&id) {
+                states.push(id);
+            }
+            claim
+        });
         self.register_unweighted_row_reduction_owner(
             materialization.record,
             id,
             BoundDerivation::Row(provenance),
         );
-        id
+        UnweightedRowReductionRegistration {
+            state: id,
+            root_claim,
+        }
+    }
+
+    fn enqueue_initial_unmatched_reduction_subtype(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        derivation: RowDerivationId,
+        parent_claim: Option<UpperReplayClaimId>,
+    ) {
+        self.enqueue_row_derived_subtype(lower, weights.clone(), upper, derivation);
+        let Some(parent_claim) = parent_claim else {
+            return;
+        };
+        let Some(key) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            return;
+        };
+        let Some(result) = self.canonical_constraints.get(&key).copied() else {
+            return;
+        };
+        self.register_reduction_route_claim_parent(result, derivation, parent_claim);
     }
 
     fn register_unweighted_row_reduction_owner(
