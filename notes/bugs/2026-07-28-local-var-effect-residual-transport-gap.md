@@ -2001,4 +2001,58 @@ baseline更新対象は0件である。
 宣言できない。motivating failureのderived-row claim propagation gapと、Claude側の287-case
 結果を合わせてreviewする必要がある。
 
+## 42回目: DCP-A red baseline と proof model preflight
+（2026-07-31）
+
+承認済み
+`notes/design/2026-07-30-derived-row-claim-propagation-gap.md`
+§8.1〜§8.8を`constraints/tests/case_02.rs`へ追加した。production codeと既存test expectationは
+変更していない。test-only inspectionはarena IDを使わず、canonical constraint / lower record、
+exact `BinaryReplayDerivation`のlower / upper side、exact `StructuralDerivation`、
+producerから引いたstable one-sided lower、lowerごとのclaim root / independent direct carrier /
+scheme view inclusionを読む。
+
+current productionに対する個別結果は次の通り。
+
+- §8.1 replay lower-side inheritance: **red**。exact replayは
+  `lower = R_lower`を保持しsemantic replayも1件だが、result parentはordinary upper側の1claimだけ。
+  `R_lower`へlink済みのcovered rootはresultへ届かない。
+- §8.2 existing upper-side control: **green**。existing H1 pathはexact upper recordからcovered
+  rootを1件継ぎ、semantic replayは1件のまま。
+- §8.3 both-side mixed replay: **red**。canonical result / replayは1件だが、観測parentはupper側
+  1件だけ。mixed lowerのcovered rootとindependent uncovered rootの両方が欠落した。
+- §8.4 structural row aggregate: **red**。`MarkerAggregateToUpperTail` childはexact
+  `StructuralDerivation { parent, rule }`を1件持つ一方、structural claim parentとchild lowerの
+  root linkは0件。
+- §8.5 non-row structural control: **red**。ordinary one-sided controlはraw 1 / project 1 /
+  independent support 1を保つ。`FunctionReturnEffect`と`TupleElement`はいずれもexact structural
+  carrierを持つが、child claim parentは0件。
+- §8.6 one-sided concrete lower: **red**。producerはexact replay claim parentを1件持ち、
+  stable concrete-row lowerも1件あるが、そのlowerにlinkされたrootは0件。
+- §8.7 independent same-key lower: **green**。direct-first / claimed-firstともcanonical raw lower
+  1件、scheme projection 1回、independent direct carrier 1件、exact replay carrier 1件、
+  `IncompleteReplay = false`で一致した。current semanticsがindependent relation自体を失って
+  いないcontrolであり、covered siblingが未linkのままというleakを正しい期待値にはしていない。
+- §8.8 duplicate / evidence / promotion: **red**。canonical structural carrierは1件にdedupされ、
+  evidence-only recordからordinaryへのpromotionもstable IDを保ち、`IncompleteReplay`はない。
+  しかしstructural one-sided lowerにlinkされたrootは0件。
+
+比較用censusは、§8.1の`(exact replay, lower-root parent, upper parent) = (1, 0, 1)`、
+§8.4の`(structural carrier, child claim parent, child lower root) = (1, 0, 0)`、
+§8.6の`(producer replay claim parent, stable lower, lower root) = (1, 1, 0)`、
+§8.7の各順序`(raw, projected, independent, replay, incomplete) = (1, 1, 1, 1, false)`、
+§8.8の`(structural carrier, linked root, incomplete) = (1, 0, false)`として保存する。
+
+baseline / regression結果:
+
+- motivating testはhand-built outer schemeに`"&buffer#36:0"`が残る既知assertionで**red**。
+  parsed outer schemeはinner familyを含まない。
+- five-case characterizationは80.48秒でpassし、保存済みbound / replay census、poly hash、
+  check hashに差分なし。claim censusは上記DCP fixture snapshotとして別に保存した。
+- 287-case contract suiteは指示どおり未実行。DCP-Aはproduction無変更なので既存baseline不変を
+  期待し、Claude側の別実行へ残す。
+- `cargo check -p infer`は既知dead-code warning 1件だけで成功。
+- existing `case_02`は53 pass / 1 known-ignore、generalize 42、compact 69、explain 14、
+  occurrence provenance 1がすべてgreen。
+
 <!-- bug-append-anchor: 2026-07-30 -->

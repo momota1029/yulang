@@ -2264,6 +2264,940 @@ fn unweighted_row_upper_weighted_residual_route_stays_uncovered() {
     );
 }
 
+#[test]
+fn dcp_a_8_1_replay_inherits_claim_from_exact_lower_parent() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    let pivot = fixture.residual;
+    let lower_record = fixture.lower_record;
+    let lower = lower_endpoint(&fixture.machine, lower_record);
+    let pivot_pos = fixture.machine.alloc_pos(Pos::Var(pivot));
+    let target = TypeVar(3);
+    let upper = fixture.machine.alloc_neg(Neg::Var(target));
+    let origin = OriginId::unknown_internal();
+
+    fixture.machine.subtype(pivot_pos, upper, origin);
+
+    let upper_record = upper_bound_record(&fixture.machine, pivot, upper);
+    let result =
+        constraint_record_for_key(&fixture.machine, lower, upper, &ConstraintWeights::empty());
+    let replay =
+        exact_replay_derivation(&fixture.machine, result, pivot, lower_record, upper_record);
+    let parents = observed_replay_claim_parents(&fixture.machine, result, replay);
+
+    assert_eq!(
+        replay.lower, lower_record,
+        "the replay keeps the exact lower carrier"
+    );
+    assert_eq!(
+        exact_replay_count(&fixture.machine, pivot, lower_record, upper_record),
+        1,
+        "claim accounting must not multiply the semantic replay"
+    );
+    assert!(
+        parents.iter().any(|parent| {
+            parent.side == ObservedReplayParentSide::Lower
+                && parent.claim == fixture.covered_claim
+                && parent.coverage_root == fixture.coverage_root
+        }),
+        "the result must inherit the covered root through replay.lower = {lower_record:?}; observed {parents:?}"
+    );
+}
+
+#[test]
+fn dcp_a_8_2_replay_keeps_existing_upper_side_claim_inheritance() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    let pivot = fixture.beta;
+    let lower_var = TypeVar(3);
+    let lower = fixture.machine.alloc_pos(Pos::Var(lower_var));
+    let upper = fixture.machine.alloc_neg(Neg::Var(fixture.residual));
+    let origin = OriginId::unknown_internal();
+    let upper_record = upper_bound_record(&fixture.machine, pivot, upper);
+
+    fixture.machine.add_lower_bound(
+        pivot,
+        lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    fixture.machine.drain();
+
+    let lower_record = lower_bound_record(&fixture.machine, pivot, lower);
+    let result =
+        constraint_record_for_key(&fixture.machine, lower, upper, &ConstraintWeights::empty());
+    let replay =
+        exact_replay_derivation(&fixture.machine, result, pivot, lower_record, upper_record);
+    let parents = observed_replay_claim_parents(&fixture.machine, result, replay);
+
+    assert!(
+        parents.iter().any(|parent| {
+            parent.side == ObservedReplayParentSide::Upper
+                && parent.claim == fixture.covered_claim
+                && parent.coverage_root == fixture.coverage_root
+        }),
+        "the existing H1 upper-side path must retain the covered root; observed {parents:?}"
+    );
+    assert_eq!(
+        exact_replay_count(&fixture.machine, pivot, lower_record, upper_record),
+        1,
+        "upper-side metadata must not duplicate the semantic replay"
+    );
+}
+
+#[test]
+fn dcp_a_8_3_both_replay_sides_remain_independent_on_one_result() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(true);
+    let independent_claim = fixture
+        .direct_claim
+        .expect("the mixed lower has its independent uncovered claim");
+    let pivot = fixture.residual;
+    let lower_record = fixture.lower_record;
+    let lower = lower_endpoint(&fixture.machine, lower_record);
+    let pivot_pos = fixture.machine.alloc_pos(Pos::Var(pivot));
+    let target = TypeVar(3);
+    let upper = fixture.machine.alloc_neg(Neg::Var(target));
+    let origin = OriginId::unknown_internal();
+
+    fixture.machine.subtype(pivot_pos, upper, origin);
+
+    let upper_record = upper_bound_record(&fixture.machine, pivot, upper);
+    let upper_claim = claim_for_upper_record(&fixture.machine, upper_record);
+    let result =
+        constraint_record_for_key(&fixture.machine, lower, upper, &ConstraintWeights::empty());
+    let replay =
+        exact_replay_derivation(&fixture.machine, result, pivot, lower_record, upper_record);
+    let parents = observed_replay_claim_parents(&fixture.machine, result, replay);
+    let expected = [
+        (
+            ObservedReplayParentSide::Lower,
+            fixture.covered_claim,
+            fixture.coverage_root,
+        ),
+        (
+            ObservedReplayParentSide::Lower,
+            independent_claim,
+            claim_root(&fixture.machine, independent_claim),
+        ),
+        (
+            ObservedReplayParentSide::Upper,
+            upper_claim,
+            claim_root(&fixture.machine, upper_claim),
+        ),
+    ];
+
+    for (side, claim, coverage_root) in expected {
+        let missing = (side, claim, coverage_root);
+        assert!(
+            parents.iter().any(|parent| {
+                parent.side == side
+                    && parent.claim == claim
+                    && parent.coverage_root == coverage_root
+            }),
+            "each replay-side proof remains an independent lineage; missing {missing:?} from {parents:?}"
+        );
+    }
+    assert_eq!(
+        fixture
+            .machine
+            .constraint_records
+            .iter()
+            .filter(|record| record.key.lower == lower && record.key.upper == upper)
+            .count(),
+        1,
+        "three claim parents still qualify one canonical semantic constraint"
+    );
+    let result_lower = lower_bound_record(&fixture.machine, target, lower);
+    assert_eq!(
+        fixture
+            .machine
+            .scheme_projectable_lowers(target)
+            .filter(|candidate| candidate.record == result_lower)
+            .count(),
+        1,
+        "uncovered support projects the result endpoint once"
+    );
+}
+
+#[test]
+fn dcp_a_8_4_row_aggregate_child_inherits_exact_structural_claim() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(target));
+    let matched_path = vec!["effect".into(), "matched".into()];
+    let marker_path = vec!["effect".into(), "marker".into()];
+    machine.register_effect_family_path(matched_path.clone());
+    machine.register_effect_family_path(marker_path.clone());
+    let matched_upper = machine.alloc_neg(Neg::Con(matched_path.clone(), Vec::new()));
+    let upper = machine.alloc_neg(Neg::Row(vec![matched_upper], tail));
+    let matched_lower = machine.alloc_pos(Pos::Con(matched_path, Vec::new()));
+    let marker_lower = machine.alloc_pos(Pos::Con(marker_path, Vec::new()));
+    let lower = machine.alloc_pos(Pos::Row(vec![matched_lower, marker_lower]));
+    let origin = OriginId::unknown_internal();
+
+    machine.subtype(source_pos, upper, origin);
+    let upper_record = upper_bound_record(&machine, source, upper);
+    let parent_claim = claim_for_upper_record(&machine, upper_record);
+    machine.add_lower_bound(
+        source,
+        lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+
+    let lower_record = lower_bound_record(&machine, source, lower);
+    let parent = constraint_record_for_key(&machine, lower, upper, &ConstraintWeights::empty());
+    let replay = exact_replay_derivation(&machine, parent, source, lower_record, upper_record);
+    assert!(
+        observed_replay_claim_parents(&machine, parent, replay)
+            .iter()
+            .any(|candidate| candidate.claim == parent_claim),
+        "the row-against-row replay parent starts claim-qualified"
+    );
+    let rule = StructuralDerivationRule::RowItem {
+        index: StructuralIndex::from_usize(1),
+        route: RowItemRoute::MarkerAggregateToUpperTail,
+    };
+    let child = structural_child_for(&machine, parent, rule);
+    let derivation = StructuralDerivation { parent, rule };
+    let coverage_root = claim_root(&machine, parent_claim);
+    let coverage_state = UnweightedRowReductionRecordId(
+        20_000u32
+            .checked_add(coverage_root.0)
+            .expect("test coverage state ID"),
+    );
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
+        "the structural preflight observes the child under live coverage"
+    );
+    assert_eq!(
+        exact_structural_carriers(&machine, child)
+            .iter()
+            .filter(|carrier| **carrier == derivation)
+            .count(),
+        1,
+        "the aggregate child keeps its exact structural carrier"
+    );
+    let child_claims = observed_structural_claim_parents(&machine, child, derivation);
+    assert!(
+        child_claims.iter().any(|claim| {
+            claim.claim == parent_claim && claim.coverage_root == claim_root(&machine, parent_claim)
+        }),
+        "the exact structural child must inherit its parent's claim root; observed {child_claims:?}"
+    );
+
+    let child_lower = machine.constraint_records[child.0 as usize].key.lower;
+    let child_record = lower_bound_record(&machine, target, child_lower);
+    let projection = observed_lower_projection(&machine, target, child_record);
+    assert_eq!(
+        projection.claimed_roots,
+        vec![coverage_root],
+        "the one-sided aggregate admission links the same root"
+    );
+    assert_eq!(
+        projection.projected_count, 0,
+        "the raw aggregate lower stays present but live coverage removes it from the scheme view"
+    );
+}
+
+#[test]
+fn dcp_a_8_5_non_row_structural_children_use_the_generic_claim_carrier() {
+    let ordinary = ordinary_one_sided_row_snapshot();
+    assert_eq!(
+        (
+            ordinary.raw_count,
+            ordinary.projected_count,
+            ordinary.independent_supports
+        ),
+        (1, 1, 1),
+        "the unclaimed control remains a one-record raw passthrough"
+    );
+
+    for shape in [
+        NonRowStructuralShape::FunctionReturnEffect,
+        NonRowStructuralShape::TupleElement,
+    ] {
+        let fixture = non_row_structural_claim_fixture(shape);
+        assert_eq!(
+            exact_structural_carriers(&fixture.machine, fixture.child),
+            vec![fixture.derivation],
+            "{shape:?} keeps the exact generic structural carrier"
+        );
+        let child_claims =
+            observed_structural_claim_parents(&fixture.machine, fixture.child, fixture.derivation);
+        assert!(
+            child_claims.iter().any(|claim| {
+                claim.claim == fixture.parent_claim
+                    && claim.coverage_root == claim_root(&fixture.machine, fixture.parent_claim)
+            }),
+            "{shape:?} must inherit without a row/effect whitelist; observed {child_claims:?}"
+        );
+    }
+}
+
+#[test]
+fn dcp_a_8_6_one_sided_concrete_lower_links_claim_without_var_var_mirror() {
+    let mut fixture = one_sided_claim_fixture(false);
+    assert!(matches!(
+        fixture.machine.types().pos(fixture.lower),
+        Pos::Row(_)
+    ));
+    assert!(matches!(
+        fixture.machine.types().neg(fixture.upper),
+        Neg::Var(found) if *found == fixture.target
+    ));
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .get(&fixture.producer),
+        Some(&fixture.lower_record),
+        "the producer resolves to its stable one-sided lower record"
+    );
+    let projection =
+        observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    assert_eq!(
+        projection.claimed_roots,
+        vec![fixture.coverage_root],
+        "stable lower admission must link the producer's exact claim root"
+    );
+    assert_eq!(
+        projection.projected_count, 0,
+        "the live covered proof suppresses the one-sided relation"
+    );
+
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            ),
+        "the fixture removes the last live state"
+    );
+    let uncovered =
+        observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    assert_eq!(
+        uncovered.projected_count, 1,
+        "the same stable raw record becomes projectable after liveness removal"
+    );
+}
+
+#[test]
+fn dcp_a_8_7_independent_same_key_lower_stays_projectable_in_both_orders() {
+    let direct_first = one_sided_claim_fixture(true);
+    let claimed_first = one_sided_claim_fixture_with_claimed_first_then_direct();
+    let direct_snapshot = mixed_one_sided_snapshot(&direct_first);
+    let claimed_snapshot = mixed_one_sided_snapshot(&claimed_first);
+
+    assert_eq!(
+        direct_snapshot, claimed_snapshot,
+        "direct-first and claimed-first preserve the same canonical proof model"
+    );
+    assert_eq!(
+        direct_snapshot,
+        MixedOneSidedSnapshot {
+            raw_count: 1,
+            projected_count: 1,
+            independent_supports: 1,
+            exact_replay_carriers: 1,
+            incomplete_replay: false,
+        },
+        "the independent direct carrier keeps the endpoint projectable once while the claim path remains separately observable"
+    );
+}
+
+#[test]
+fn dcp_a_8_8_duplicate_evidence_and_promotion_keep_root_and_exact_carrier() {
+    let mut fixture = row_structural_claim_fixture();
+    let alternate_origin = fixture
+        .machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    let child_key = fixture.machine.constraint_records[fixture.child.0 as usize]
+        .key
+        .clone();
+    assert!(
+        !fixture.machine.enqueue_derived_subtype(
+            child_key.lower,
+            child_key.weights.clone(),
+            child_key.upper,
+            fixture.derivation.parent,
+            fixture.derivation.rule,
+        ),
+        "the second structural admission is a canonical duplicate"
+    );
+    let replay = fixture.replay;
+    let evidence = fixture.machine.bounds.add_evidence_lower(
+        fixture.target,
+        fixture.lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::ReplayEvidence(replay),
+    );
+    assert_eq!(
+        evidence.id, fixture.lower_record,
+        "evidence-only metadata merges into the canonical lower key"
+    );
+
+    let promotion_target = TypeVar(9);
+    let promotion_item = fixture.machine.alloc_pos(Pos::Con(
+        vec!["effect".into(), "promotion".into()],
+        Vec::new(),
+    ));
+    let promotion_lower = fixture.machine.alloc_pos(Pos::Row(vec![promotion_item]));
+    let evidence_only = fixture.machine.bounds.add_evidence_lower(
+        promotion_target,
+        promotion_lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::ReplayEvidence(replay),
+    );
+    let promoted = fixture.machine.bounds.add_lower(
+        promotion_target,
+        promotion_lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(alternate_origin),
+    );
+    assert_eq!(
+        promoted.id, evidence_only.id,
+        "ordinary promotion preserves the evidence-only stable lower identity"
+    );
+    assert!(
+        promoted.promoted,
+        "the fixture exercises evidence promotion"
+    );
+    assert_eq!(
+        exact_structural_carriers(&fixture.machine, fixture.child)
+            .iter()
+            .filter(|carrier| **carrier == fixture.derivation)
+            .count(),
+        1,
+        "new and duplicate paths retain one exact structural carrier"
+    );
+    let projection =
+        observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    assert_eq!(
+        projection.claimed_roots,
+        vec![fixture.coverage_root],
+        "new, duplicate, evidence, and promotion paths converge on the same root"
+    );
+    assert!(
+        !fixture.machine.bounds.records[fixture.lower_record.0 as usize]
+            .derivations()
+            .contains(&BoundDerivation::IncompleteReplay),
+        "the exact carrier must not fail open through IncompleteReplay"
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservedReplayParentSide {
+    Lower,
+    Upper,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedReplayClaimParent {
+    claim: UpperReplayClaimId,
+    coverage_root: UpperReplayClaimId,
+    side: ObservedReplayParentSide,
+    replay: BinaryReplayDerivation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedStructuralClaimParent {
+    claim: UpperReplayClaimId,
+    coverage_root: UpperReplayClaimId,
+    derivation: StructuralDerivation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ObservedLowerProjection {
+    claimed_roots: Vec<UpperReplayClaimId>,
+    independent_supports: usize,
+    projected_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OrdinaryOneSidedSnapshot {
+    raw_count: usize,
+    projected_count: usize,
+    independent_supports: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MixedOneSidedSnapshot {
+    raw_count: usize,
+    projected_count: usize,
+    independent_supports: usize,
+    exact_replay_carriers: usize,
+    incomplete_replay: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum NonRowStructuralShape {
+    FunctionReturnEffect,
+    TupleElement,
+}
+
+struct NonRowStructuralClaimFixture {
+    machine: ConstraintMachine,
+    child: ConstraintRecordId,
+    derivation: StructuralDerivation,
+    parent_claim: UpperReplayClaimId,
+}
+
+struct OneSidedClaimFixture {
+    machine: ConstraintMachine,
+    target: TypeVar,
+    lower: PosId,
+    upper: NegId,
+    producer: ConstraintRecordId,
+    replay: BinaryReplayDerivation,
+    lower_record: BoundRecordId,
+    coverage_root: UpperReplayClaimId,
+    coverage_state: UnweightedRowReductionRecordId,
+}
+
+struct RowStructuralClaimFixture {
+    machine: ConstraintMachine,
+    target: TypeVar,
+    child: ConstraintRecordId,
+    derivation: StructuralDerivation,
+    lower: PosId,
+    lower_record: BoundRecordId,
+    coverage_root: UpperReplayClaimId,
+    replay: BinaryReplayDerivation,
+}
+
+fn claim_root(machine: &ConstraintMachine, claim: UpperReplayClaimId) -> UpperReplayClaimId {
+    machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+}
+
+fn claim_for_upper_record(
+    machine: &ConstraintMachine,
+    record: BoundRecordId,
+) -> UpperReplayClaimId {
+    machine.bounds.claims_by_upper_record[&record]
+        .iter()
+        .copied()
+        .find(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].current_record == record)
+        .expect("upper record has an exact replay claim")
+}
+
+fn observed_replay_claim_parents(
+    machine: &ConstraintMachine,
+    result: ConstraintRecordId,
+    replay: BinaryReplayDerivation,
+) -> Vec<ObservedReplayClaimParent> {
+    machine
+        .bounds
+        .replay_claim_parents_by_constraint
+        .get(&result)
+        .into_iter()
+        .flatten()
+        .filter(|parent| parent.replay == replay)
+        .map(|parent| {
+            let side = if machine
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&replay.lower)
+                .is_some_and(|claims| claims.contains(&parent.claim))
+            {
+                ObservedReplayParentSide::Lower
+            } else {
+                debug_assert_eq!(
+                    machine.bounds.upper_replay_claims[parent.claim.0 as usize].current_record,
+                    replay.upper,
+                    "current replay parents are carried by one exact replay side"
+                );
+                ObservedReplayParentSide::Upper
+            };
+            ObservedReplayClaimParent {
+                claim: parent.claim,
+                coverage_root: claim_root(machine, parent.claim),
+                side,
+                replay,
+            }
+        })
+        .collect()
+}
+
+fn exact_structural_carriers(
+    machine: &ConstraintMachine,
+    child: ConstraintRecordId,
+) -> Vec<StructuralDerivation> {
+    machine.constraint_records[child.0 as usize]
+        .structural_derivations
+        .clone()
+}
+
+fn observed_structural_claim_parents(
+    machine: &ConstraintMachine,
+    child: ConstraintRecordId,
+    derivation: StructuralDerivation,
+) -> Vec<ObservedStructuralClaimParent> {
+    if !machine.constraint_records[child.0 as usize]
+        .structural_derivations
+        .contains(&derivation)
+    {
+        return Vec::new();
+    }
+    let Some(lower_record) = machine
+        .bounds
+        .scheme_projection_lower_record_by_constraint
+        .get(&child)
+        .copied()
+    else {
+        return Vec::new();
+    };
+    machine
+        .bounds
+        .scheme_projection_claims_by_lower_record
+        .get(&lower_record)
+        .into_iter()
+        .flatten()
+        .copied()
+        .map(|claim| ObservedStructuralClaimParent {
+            claim,
+            coverage_root: claim_root(machine, claim),
+            derivation,
+        })
+        .collect()
+}
+
+fn observed_lower_projection(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    record: BoundRecordId,
+) -> ObservedLowerProjection {
+    let mut claimed_roots = machine
+        .bounds
+        .scheme_projection_claims_by_lower_record
+        .get(&record)
+        .into_iter()
+        .flatten()
+        .map(|claim| claim_root(machine, *claim))
+        .collect::<Vec<_>>();
+    claimed_roots.sort_by_key(|root| root.0);
+    claimed_roots.dedup();
+
+    let independent_supports = machine.bounds.records[record.0 as usize]
+        .derivations()
+        .iter()
+        .filter(|derivation| match derivation {
+            BoundDerivation::Constraint(producer) => !machine.constraint_records
+                [producer.0 as usize]
+                .root_origins
+                .is_empty(),
+            BoundDerivation::Origin(_) | BoundDerivation::SchemeInstantiation(_) => true,
+            BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::Row(_)
+            | BoundDerivation::IncompleteReplay => false,
+        })
+        .count();
+    let projected_count = machine
+        .scheme_projectable_lowers(owner)
+        .filter(|candidate| candidate.record == record)
+        .count();
+    ObservedLowerProjection {
+        claimed_roots,
+        independent_supports,
+        projected_count,
+    }
+}
+
+fn lower_endpoint(machine: &ConstraintMachine, record: BoundRecordId) -> PosId {
+    match machine.bounds.records[record.0 as usize].endpoint() {
+        BoundEndpoint::Lower(lower) => lower,
+        BoundEndpoint::Upper(_) => panic!("expected a lower record"),
+    }
+}
+
+fn upper_bound_record(machine: &ConstraintMachine, owner: TypeVar, upper: NegId) -> BoundRecordId {
+    let bounds = machine.bounds().of(owner).expect("upper-bound owner");
+    bounds
+        .upper_record_ids()
+        .iter()
+        .copied()
+        .zip(bounds.uppers())
+        .find_map(|(record, bound)| {
+            (bound.neg == upper && bound.weights.is_empty()).then_some(record)
+        })
+        .expect("stable upper-bound record")
+}
+
+fn structural_child_for(
+    machine: &ConstraintMachine,
+    parent: ConstraintRecordId,
+    rule: StructuralDerivationRule,
+) -> ConstraintRecordId {
+    machine
+        .constraint_records
+        .iter()
+        .enumerate()
+        .find_map(|(index, record)| {
+            record
+                .structural_derivations
+                .contains(&StructuralDerivation { parent, rule })
+                .then_some(ConstraintRecordId(index as u32))
+        })
+        .expect("canonical structural child with exact carrier")
+}
+
+fn ordinary_one_sided_row_snapshot() -> OrdinaryOneSidedSnapshot {
+    let mut machine = ConstraintMachine::new();
+    let target = TypeVar(0);
+    let item = machine.alloc_pos(Pos::Con(vec!["effect".into(), "direct".into()], Vec::new()));
+    let lower = machine.alloc_pos(Pos::Row(vec![item]));
+    let upper = machine.alloc_neg(Neg::Var(target));
+    machine.subtype(lower, upper, OriginId::unknown_internal());
+    let record = lower_bound_record(&machine, target, lower);
+    let projection = observed_lower_projection(&machine, target, record);
+    OrdinaryOneSidedSnapshot {
+        raw_count: machine
+            .bounds()
+            .of(target)
+            .expect("ordinary target")
+            .generalized_projection_lowers()
+            .filter(|(candidate, _)| *candidate == record)
+            .count(),
+        projected_count: projection.projected_count,
+        independent_supports: projection.independent_supports,
+    }
+}
+
+fn non_row_structural_claim_fixture(shape: NonRowStructuralShape) -> NonRowStructuralClaimFixture {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let target_neg = machine.alloc_neg(Neg::Var(target));
+    let item = machine.alloc_pos(Pos::Con(
+        vec!["effect".into(), "non-row".into()],
+        Vec::new(),
+    ));
+    let concrete = machine.alloc_pos(Pos::Row(vec![item]));
+    let top = machine.alloc_neg(Neg::Top);
+    let bottom = machine.alloc_pos(Pos::Bot);
+    let origin = OriginId::unknown_internal();
+    let (lower, upper, rule) = match shape {
+        NonRowStructuralShape::FunctionReturnEffect => (
+            machine.alloc_pos(Pos::Fun {
+                arg: top,
+                arg_eff: top,
+                ret_eff: concrete,
+                ret: bottom,
+            }),
+            machine.alloc_neg(Neg::Fun {
+                arg: bottom,
+                arg_eff: bottom,
+                ret_eff: target_neg,
+                ret: top,
+            }),
+            StructuralDerivationRule::FunctionReturnEffect,
+        ),
+        NonRowStructuralShape::TupleElement => (
+            machine.alloc_pos(Pos::Tuple(vec![concrete])),
+            machine.alloc_neg(Neg::Tuple(vec![target_neg])),
+            StructuralDerivationRule::TupleElement {
+                index: StructuralIndex::from_usize(0),
+            },
+        ),
+    };
+
+    machine.subtype(source_pos, upper, origin);
+    let source_upper = upper_bound_record(&machine, source, upper);
+    let parent_claim = claim_for_upper_record(&machine, source_upper);
+    machine.add_lower_bound(
+        source,
+        lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+    let parent = constraint_record_for_key(&machine, lower, upper, &ConstraintWeights::empty());
+    let child = structural_child_for(&machine, parent, rule);
+    NonRowStructuralClaimFixture {
+        machine,
+        child,
+        derivation: StructuralDerivation { parent, rule },
+        parent_claim,
+    }
+}
+
+fn row_structural_claim_fixture() -> RowStructuralClaimFixture {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(target));
+    let matched_path = vec!["effect".into(), "duplicate-matched".into()];
+    let marker_path = vec!["effect".into(), "duplicate-marker".into()];
+    machine.register_effect_family_path(matched_path.clone());
+    machine.register_effect_family_path(marker_path.clone());
+    let matched_upper = machine.alloc_neg(Neg::Con(matched_path.clone(), Vec::new()));
+    let upper = machine.alloc_neg(Neg::Row(vec![matched_upper], tail));
+    let matched_lower = machine.alloc_pos(Pos::Con(matched_path, Vec::new()));
+    let marker_lower = machine.alloc_pos(Pos::Con(marker_path, Vec::new()));
+    let row = machine.alloc_pos(Pos::Row(vec![matched_lower, marker_lower]));
+    let origin = OriginId::unknown_internal();
+
+    machine.subtype(source_pos, upper, origin);
+    let source_upper_record = upper_bound_record(&machine, source, upper);
+    let parent_claim = claim_for_upper_record(&machine, source_upper_record);
+    machine.add_lower_bound(
+        source,
+        row,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+
+    let source_lower_record = lower_bound_record(&machine, source, row);
+    let parent = constraint_record_for_key(&machine, row, upper, &ConstraintWeights::empty());
+    let replay = exact_replay_derivation(
+        &machine,
+        parent,
+        source,
+        source_lower_record,
+        source_upper_record,
+    );
+    let rule = StructuralDerivationRule::RowItem {
+        index: StructuralIndex::from_usize(1),
+        route: RowItemRoute::MarkerAggregateToUpperTail,
+    };
+    let child = structural_child_for(&machine, parent, rule);
+    let derivation = StructuralDerivation { parent, rule };
+    let lower = machine.constraint_records[child.0 as usize].key.lower;
+    let lower_record = lower_bound_record(&machine, target, lower);
+    let coverage_root = claim_root(&machine, parent_claim);
+    let coverage_state = UnweightedRowReductionRecordId(
+        30_000u32
+            .checked_add(coverage_root.0)
+            .expect("test coverage state ID"),
+    );
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
+        "the duplicate fixture observes a live claim root"
+    );
+
+    RowStructuralClaimFixture {
+        machine,
+        target,
+        child,
+        derivation,
+        lower,
+        lower_record,
+        coverage_root,
+        replay,
+    }
+}
+
+fn one_sided_claim_fixture(direct_first: bool) -> OneSidedClaimFixture {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Var(target));
+    let item = machine.alloc_pos(Pos::Con(
+        vec!["effect".into(), "one-sided".into()],
+        Vec::new(),
+    ));
+    let lower = machine.alloc_pos(Pos::Row(vec![item]));
+    let origin = OriginId::unknown_internal();
+
+    if direct_first {
+        machine.subtype(lower, upper, origin);
+    }
+    machine.subtype(source_pos, upper, origin);
+    let source_upper_record = upper_bound_record(&machine, source, upper);
+    let root_claim = claim_for_upper_record(&machine, source_upper_record);
+    machine.add_lower_bound(
+        source,
+        lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.drain();
+
+    let source_lower_record = lower_bound_record(&machine, source, lower);
+    let producer = constraint_record_for_key(&machine, lower, upper, &ConstraintWeights::empty());
+    let replay = exact_replay_derivation(
+        &machine,
+        producer,
+        source,
+        source_lower_record,
+        source_upper_record,
+    );
+    assert!(
+        observed_replay_claim_parents(&machine, producer, replay)
+            .iter()
+            .any(|parent| parent.claim == root_claim),
+        "the one-sided producer itself is claim-qualified by exact replay"
+    );
+    let lower_record = lower_bound_record(&machine, target, lower);
+    let coverage_root = claim_root(&machine, root_claim);
+    let coverage_state = UnweightedRowReductionRecordId(
+        10_000u32
+            .checked_add(coverage_root.0)
+            .expect("test coverage state ID"),
+    );
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
+        "the preflight fixture makes its root live"
+    );
+
+    OneSidedClaimFixture {
+        machine,
+        target,
+        lower,
+        upper,
+        producer,
+        replay,
+        lower_record,
+        coverage_root,
+        coverage_state,
+    }
+}
+
+fn one_sided_claim_fixture_with_claimed_first_then_direct() -> OneSidedClaimFixture {
+    let mut fixture = one_sided_claim_fixture(false);
+    let direct_origin = fixture
+        .machine
+        .alloc_source_boundary(ConstraintOriginKind::Annotation)
+        .origin();
+    fixture
+        .machine
+        .subtype(fixture.lower, fixture.upper, direct_origin);
+    fixture
+}
+
+fn mixed_one_sided_snapshot(fixture: &OneSidedClaimFixture) -> MixedOneSidedSnapshot {
+    let projection =
+        observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    MixedOneSidedSnapshot {
+        raw_count: fixture
+            .machine
+            .bounds()
+            .of(fixture.target)
+            .expect("mixed target")
+            .generalized_projection_lowers()
+            .filter(|(record, _)| *record == fixture.lower_record)
+            .count(),
+        projected_count: projection.projected_count,
+        independent_supports: projection.independent_supports,
+        exact_replay_carriers: fixture.machine.constraint_records[fixture.producer.0 as usize]
+            .replay_derivations
+            .iter()
+            .filter(|replay| **replay == fixture.replay)
+            .count(),
+        incomplete_replay: fixture.machine.bounds.records[fixture.lower_record.0 as usize]
+            .derivations()
+            .contains(&BoundDerivation::IncompleteReplay),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ObservedReplayClaimId(u32);
 
