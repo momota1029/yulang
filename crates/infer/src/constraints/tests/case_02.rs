@@ -2466,6 +2466,28 @@ impl ConstraintMachine {
         self.remove_scheme_projection_live_coverage_state(root, state)
     }
 
+    pub(crate) fn reinsert_scheme_projection_coverage_for_compact_test(
+        &mut self,
+        root: UpperReplayClaimId,
+    ) -> bool {
+        let states = self
+            .bounds
+            .live_coverage_by_root
+            .get(&root)
+            .expect("compact fixture retains its empty coverage root");
+        assert!(
+            states.is_empty(),
+            "compact fixture reinsertion starts after its last live state leaves"
+        );
+        let state = match self.bounds.upper_replay_claims[root.0 as usize].kind {
+            UpperReplayClaimKind::Reduced(state) => state,
+            UpperReplayClaimKind::Direct => {
+                panic!("compact fixture coverage root is a reduction claim")
+            }
+        };
+        self.insert_scheme_projection_live_coverage_state(root, state)
+    }
+
     pub(crate) fn ordinary_no_claim_positive_alias_fixture() -> (Self, TypeVar, TypeVar, TypeVar) {
         let mut machine = Self::new();
         let owner = TypeVar(0);

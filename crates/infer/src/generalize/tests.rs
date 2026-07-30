@@ -1,4 +1,6 @@
-use crate::constraints::ConstraintWeight;
+use crate::constraints::{
+    BoundRecordId, ConstraintWeight, GeneralizationParent, GeneralizedWitnessDraft,
+};
 
 use poly::types::{Neg, Neu, Pos, SubtractId, Subtractability};
 
@@ -47,6 +49,120 @@ fn positive_aliases_for(
         &mut FxHashSet::default(),
         owner,
     )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SchemeProjectionConsumerSnapshot {
+    view: bool,
+    aliases: bool,
+    witnesses: bool,
+    compact: bool,
+}
+
+impl SchemeProjectionConsumerSnapshot {
+    fn assert_consistent_with(self, expected: bool, transition: &str) {
+        assert_eq!(
+            [self.aliases, self.witnesses, self.compact],
+            [self.view; 3],
+            "{transition}: all scheme-projection consumers must agree with the shared view: {self:?}"
+        );
+        assert_eq!(
+            self.view, expected,
+            "{transition}: the shared view has the expected liveness classification"
+        );
+    }
+}
+
+#[test]
+fn scheme_projection_consumers_share_liveness_snapshots() {
+    let (mut machine, endpoint, owner, coverage_root) =
+        ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
+    let record = raw_var_lower_record(&machine, owner, endpoint);
+
+    projection_consumer_snapshot(&machine, owner, endpoint, record)
+        .assert_consistent_with(false, "live coverage");
+
+    assert!(
+        machine.remove_last_scheme_projection_coverage_for_compact_test(coverage_root),
+        "the fixture removes the claim's last live coverage state"
+    );
+    projection_consumer_snapshot(&machine, owner, endpoint, record)
+        .assert_consistent_with(true, "after last-live-state removal");
+
+    assert!(
+        machine.reinsert_scheme_projection_coverage_for_compact_test(coverage_root),
+        "the fixture restores the claim's live coverage state"
+    );
+    projection_consumer_snapshot(&machine, owner, endpoint, record)
+        .assert_consistent_with(false, "after live-state reinsertion");
+}
+
+fn projection_consumer_snapshot(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    endpoint: TypeVar,
+    record: BoundRecordId,
+) -> SchemeProjectionConsumerSnapshot {
+    let view = machine
+        .scheme_projectable_lowers(owner)
+        .any(|entry| entry.record == record);
+    let aliases = positive_aliases_for(machine, owner, [endpoint]).contains(&endpoint);
+    let witnesses = capture_generalized_witnesses(
+        machine,
+        owner,
+        &GeneralizedCompactRoot {
+            compact: CompactRoot::default(),
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        },
+    )
+    .0
+    .iter()
+    .any(|draft| witness_references_record(draft, record));
+    let compact = compact_type_var_for_scheme(machine, owner)
+        .root
+        .vars
+        .iter()
+        .any(|var| var.var == endpoint);
+
+    SchemeProjectionConsumerSnapshot {
+        view,
+        aliases,
+        witnesses,
+        compact,
+    }
+}
+
+fn raw_var_lower_record(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    endpoint: TypeVar,
+) -> BoundRecordId {
+    machine
+        .bounds()
+        .of(owner)
+        .expect("fixture owner has raw lower bounds")
+        .generalized_projection_lowers()
+        .find_map(|(record, bound)| {
+            matches!(machine.types().pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                .then_some(record)
+        })
+        .expect("fixture has the raw claim-linked Var lower")
+}
+
+fn witness_references_record(draft: &GeneralizedWitnessDraft, record: BoundRecordId) -> bool {
+    draft
+        .incoming
+        .iter()
+        .flat_map(|edge| &edge.parents)
+        .any(|parent| match parent {
+            GeneralizationParent::Bound(found)
+            | GeneralizationParent::BoundClaim { bound: found, .. } => *found == record,
+            GeneralizationParent::Constraint(_) => false,
+        })
 }
 
 #[test]

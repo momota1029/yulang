@@ -1921,4 +1921,26 @@ inner return、call、result、outer aggregate、second applicationへのfamily 
 `FunctionReturnEffect` / `UnweightedReduction`経路を引き続き観測した。full H3 gateは後続sliceに
 残る。
 
+## 40回目: URR-H3 step 5、shared snapshot / liveness contractを統合testで固定
+（2026-07-30）
+
+`compact_scheme_projection_unmatched_route_fixture(false)`が作るcovered-onlyの同一claim / lower
+recordを使い、`scheme_projectable_lowers`、`positive_aliases_within_scheme`、
+`capture_generalized_witnesses`、`compact_type_var_for_scheme`の四consumerを一回のtestから
+同じmachine snapshotに対して照合した。assertionは各consumerの完全な出力を重複して固定せず、
+同じrecord / endpointの包含判定がshared viewと一致することだけを比較する。
+
+live coverageがある最初のsnapshotでは四consumerがすべてrelationを除外した。
+`remove_last_scheme_projection_coverage_for_compact_test`でclaim rootの最後のlive stateを外した
+snapshotでは四consumerがすべて同じrelationを包含した。さらにtest-only reinsertion helperで
+同じreduction stateをrootへ戻したsnapshotでは、四consumerがすべて再び除外へ戻った。
+これによりnon-empty→emptyだけでなくempty→non-emptyでも、各consumerのpure queryとH2の
+scheme compactionが同じ時点のliveness classificationを共有することを一つのintegration-style
+testで固定した。consumer間の不一致は観測されず、production codeと既存test期待値は変更していない。
+
+`cargo check -p infer`は既存の`generalized_projection_lowers` dead-code warning一件だけで成功した。
+新規testは1 pass / 0 fail。broader gateはgeneralize 42件、compact 69件、explain 14件、
+occurrence provenance 1件、subtype provenance characterization 8件、PUSP characterization
+13件がすべてgreenで、`constraints::tests::case_02`も53 pass / 1 known-ignoreだった。
+
 <!-- bug-append-anchor: 2026-07-30 -->
