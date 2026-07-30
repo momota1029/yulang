@@ -1736,3 +1736,41 @@ H3にはまだ着手していない。全体のarcでは、H1がconstraint-machi
 H2がcompaction層を直した。残るH3がalias expansionとprovenanceを直すことで、
 ORIGINALのmotivating bugであるnested local-var effect boundary leakを、
 部分的にmaskされた状態ではなく、fullyかつ正しく閉じる。
+
+## 35回目: URR-H3 alias / finalized-scheme red baseline
+（2026-07-30）
+
+URR-H3のstep 1として、production codeを変更せず、alias expansionとmotivating
+finalized schemeのpost-H3 contractをtest-firstで固定した。
+`generalize/mod.rs::positive_aliases_within_scheme`は引き続きraw
+`projection_lowers()`を走査している。
+
+`case_02`の既存unmatched-route fixtureを再利用し、`generalize/tests.rs`へ次の四testを
+追加した。
+
+- covered-only lowerはalias expansionから除外する
+- covered / uncovered claimが同居するmixed recordは、covered-only controlとの差を保ちつつ
+  uncovered relationを一回だけ残す
+- last live coverage stateの除去前はaliasを除外し、除去後は同じraw relationを再び含める
+- claimを持たないdirect / transitive aliasは順序と重複度を含めて従来どおり残す
+
+現行productionに対する結果は、最初の三testが意図したred、no-claim controlがgreenだった。
+covered-onlyの実値は`[TypeVar(1)]`、mixedの
+`(covered, mixed)`実値は`([TypeVar(1)], [TypeVar(1)])`、livenessの
+`(before, after)`実値も`([TypeVar(1)], [TypeVar(1)])`である。post-H3 expectationは
+それぞれ`[]`、`([], [TypeVar(1)])`、`([], [TypeVar(1)])`であり、raw lowerを読む現在の
+consumerがlive coverageを無視していることだけで三failureを説明できる。no-claim controlは
+`[TypeVar(1), TypeVar(2)]`でpassした。
+
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`は、
+hand-built outer finalized schemeにinner familyが**存在しない**ことだけを要求するように
+既存assertionを反転した。現行schemeは
+`["&buffer#36:0"('a & 'b), std::control::var::observe('b | 'a)]`を含むため、そのassertionで
+意図どおりredになった。raw constraint / audit traceのassertionは変更しておらず、
+hand-built traceは引き続きinner return、call、result、outer aggregate、second applicationに
+family lowerが存在することと、`FunctionReturnEffect` / `UnweightedReduction`経路を観測する。
+
+`RUSTC_WRAPPER= cargo check -p infer`と`cargo fmt --all -- --check`は成功した。
+このcheckpointはfailing testを意図的に含む。次sliceは
+`positive_aliases_within_scheme`とgeneralized provenance collectionを同じ
+`scheme_projectable_lowers` viewへ配線し、この特定の四redをgreenへ変える。

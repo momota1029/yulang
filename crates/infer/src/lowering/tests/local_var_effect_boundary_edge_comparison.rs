@@ -541,8 +541,9 @@ fn v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization() {
         "the parsed nested control must isolate both local families: {parsed_outer_scheme}"
     );
     assert!(
-        hand_outer_scheme.contains(&hand_inner_family_name),
-        "the v5 nested witness must preserve the inner-family leak: {hand_outer_scheme}"
+        !hand_outer_scheme.contains(&hand_inner_family_name),
+        "the v5 nested witness must exclude the inner family from the outer finalized scheme: \
+         {hand_outer_scheme}"
     );
     assert!(
         parsed_nested.actual_callback_body_effect.has_family_lower

@@ -35,6 +35,84 @@ fn neg_contains_var(types: &TypeArena, id: NegId, var: TypeVar) -> bool {
     }
 }
 
+fn positive_aliases_for(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+    allowed: impl IntoIterator<Item = TypeVar>,
+) -> Vec<TypeVar> {
+    positive_aliases_within_scheme(
+        machine,
+        &allowed.into_iter().collect(),
+        &mut FxHashMap::default(),
+        &mut FxHashSet::default(),
+        owner,
+    )
+}
+
+#[test]
+fn positive_aliases_exclude_covered_only_lower() {
+    let (machine, covered, owner, _) =
+        ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
+
+    let aliases = positive_aliases_for(&machine, owner, [covered]);
+
+    assert!(
+        aliases.is_empty(),
+        "a lower justified only by a live covered claim must not enter alias expansion: \
+         {aliases:?}"
+    );
+}
+
+#[test]
+fn positive_aliases_keep_mixed_record_uncovered_relation_exactly_once() {
+    let (covered_machine, covered, covered_owner, _) =
+        ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
+    let (mixed_machine, mixed, mixed_owner, _) =
+        ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+
+    let covered_aliases = positive_aliases_for(&covered_machine, covered_owner, [covered]);
+    let mixed_aliases = positive_aliases_for(&mixed_machine, mixed_owner, [mixed]);
+
+    assert_eq!(
+        (covered_aliases, mixed_aliases),
+        (Vec::<TypeVar>::new(), vec![mixed]),
+        "the independent uncovered claim must retain the canonical relation exactly once"
+    );
+}
+
+#[test]
+fn positive_aliases_follow_last_live_coverage_transition() {
+    let (mut machine, covered, owner, coverage_root) =
+        ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
+
+    let aliases_before = positive_aliases_for(&machine, owner, [covered]);
+    assert!(
+        machine.remove_last_scheme_projection_coverage_for_compact_test(coverage_root),
+        "the fixture removes the root's last live coverage state"
+    );
+    let aliases_after = positive_aliases_for(&machine, owner, [covered]);
+
+    assert_eq!(
+        (aliases_before, aliases_after),
+        (Vec::<TypeVar>::new(), vec![covered]),
+        "alias expansion must re-evaluate coverage liveness for each immutable pass"
+    );
+}
+
+#[test]
+fn positive_aliases_preserve_no_claim_relations_byte_for_byte() {
+    let (machine, owner, direct, transitive) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+
+    let aliases = positive_aliases_for(&machine, owner, [direct, transitive]);
+
+    assert_eq!(
+        aliases,
+        vec![direct, transitive],
+        "the no-claim fast path preserves direct/transitive alias order and multiplicity"
+    );
+}
+
 #[test]
 fn quantifies_only_vars_above_boundary() {
     let mut machine = ConstraintMachine::new();

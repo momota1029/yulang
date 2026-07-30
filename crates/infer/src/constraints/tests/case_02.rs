@@ -2465,6 +2465,38 @@ impl ConstraintMachine {
         let state = states[0];
         self.remove_scheme_projection_live_coverage_state(root, state)
     }
+
+    pub(crate) fn ordinary_no_claim_positive_alias_fixture() -> (Self, TypeVar, TypeVar, TypeVar) {
+        let mut machine = Self::new();
+        let owner = TypeVar(0);
+        let direct = TypeVar(1);
+        let transitive = TypeVar(2);
+        let origin = OriginId::unknown_internal();
+        let direct_pos = machine.alloc_pos(Pos::Var(direct));
+        let transitive_pos = machine.alloc_pos(Pos::Var(transitive));
+
+        machine.bounds.add_lower(
+            owner,
+            direct_pos,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        );
+        machine.bounds.add_lower(
+            direct,
+            transitive_pos,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        );
+
+        assert!(
+            machine
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .is_empty(),
+            "the ordinary alias fixture must not create scheme-projection claims"
+        );
+        (machine, owner, direct, transitive)
+    }
 }
 
 fn has_constraint_bounds_mutation(mutations: &[MethodRoleMutation], owner: TypeVar) -> bool {
