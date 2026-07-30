@@ -1943,4 +1943,62 @@ testで固定した。consumer間の不一致は観測されず、production cod
 occurrence provenance 1件、subtype provenance characterization 8件、PUSP characterization
 13件がすべてgreenで、`constraints::tests::case_02`も53 pass / 1 known-ignoreだった。
 
+## 41回目: URR-H3 step 7 completion gateでmotivating failureが残存
+（2026-07-30）
+
+H1 / H2 / H3の全commitが載った`63b062cf`でcompletion gateを実行した。最重要の
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`は、corrected assertionの
+まま**失敗した**。parsed outer finalized schemeは
+`('a & 'b) -> [std::control::var::observe('b | 'a)] ('b | 'a, 'a)`でinner familyを除外したが、
+hand-built outer finalized schemeは
+`('a & 'b) -> ["&buffer#36:0"('a & 'b), std::control::var::observe('b | 'a)] ('b | 'a, 'a)`
+となり、inner familyを残した。raw traceも従来どおり、instantiated inner return、call、result、
+outer aggregate、second applicationの全slotでfamily lowerを観測した。
+
+一時的なreadoutを追加して、failureをshared viewの単純な未配線ではなくrecord単位で局所化した
+（readoutは調査後に完全に除去した）。最初のcontamination alias
+`TypeVar(1669) <- Var(TypeVar(1522))`は`BoundRecordId(10185)`で、説明は
+`ConstraintRecordId(6472)`、`RowDerivationId(196)`、`UnweightedReduction`、
+`FunctionReturnEffect`へ到達する。このrecordはraw graphには残る一方、
+`scheme_projectable_lowers(TypeVar(1669))`から正しく除外されていた。したがってH1/H2/H3の
+covered-alias suppression自体はこのproduction witnessでも働いている。
+
+残っているgapは、その後にmaterializeされたconcrete row recordである。inner-familyの
+`Row([PosId(2132)])`はactual callback bodyの`BoundRecordId(10318)`から、callの`10472`、
+resultの`10478`、outer aggregateの`10484`、outer second applicationの`10555`へ到達していた。
+これらはすべてshared scheme viewで`Unclaimed`としてprojectableだった。各下流recordの説明は
+binary replay / structural decompositionを通って同じcallback-body sourceへ戻るが、元のcovered
+claim / coverage identityを持たない。つまりH3 consumer wiringはclaim-linked aliasを正しく
+除外している一方、すでに下流へ複製されたderived concrete-row lowerへclaim qualificationが
+運ばれていない。step 5のcross-consumer testは一つのclaim-linked recordに対するview / alias /
+provenance / compactの一致を証明したが、このproduction materialization経路を覆っていなかった。
+これは期待値やtest fixtureの問題ではなく、H3の前提より深いclaim/projection propagation gapである。
+原因を理解せずにprojection側でconcrete rowを一括除外する修正は入れていない。
+
+motivating testが失敗したため、指示の条件分岐に従いbroader local-var lowering suiteは実行しなかった。
+five-case characterizationは`actual == expected_characterization()`の構造体比較で1 passとなり、
+全5ケースのcensus、`poly_dump_fnv1a64`、`check_report_fnv1a64`に差分はなかった。したがって
+approvedなnested principal narrowingはまだproduction characterizationへ現れておらず、
+baseline更新対象は0件である。
+
+設計文書§9のbroader gate結果:
+
+- constraint characterization: 5 pass
+- explanation: 7 pass
+- portable provenance: 7 pass
+- `timeout 240s cargo test -p infer`: motivating test failureを観測し、最終集計前に240秒timeout。
+  観測範囲の他testにfailureはなかった
+- `timeout 240s cargo test -p specialize`: 163 pass
+- `timeout 300s cargo test -p yulang`: 376 pass / 1 fail。failureは既知flakyの
+  `embedded_std_compiled_unit_artifact_persists_to_user_cache`で、artifact countが期待1に対して
+  実値3だった。同testの単独再実行は1 pass
+- `timeout 600s cargo test --workspace`: `control-ir`の
+  `source_not_callable_application_reaches_its_final_control_site`と
+  `source_not_record_selection_reaches_its_final_control_site`が既存analysis diagnosticを受けて
+  4 pass / 2 failで早期停止し、workspace全体は未完走
+
+287-case contract suiteは指示どおり実行していない。今回の結果だけではURR-H3をfully completeと
+宣言できない。motivating failureのderived-row claim propagation gapと、Claude側の287-case
+結果を合わせてreviewする必要がある。
+
 <!-- bug-append-anchor: 2026-07-30 -->
