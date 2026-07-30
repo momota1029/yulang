@@ -2,14 +2,59 @@
 
 日付: 2026-07-29
 
-状態: **ユーザ承認済み（v3、2026-07-30）**
+状態: **未承認・ユーザレビュー待ち（v4）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
 v1 / v2のコード行番号は同 commit の working tree に対して 2026-07-29 に再確認した。
 v3で追加したコード行番号とtraceは`4ec031b3`のworking treeに対して2026-07-30に再確認した。
+v4のcross-source経路、現行provenance carrier、v3 test 2 controlは`0264e950`のworking treeに
+対して2026-07-30に再確認した。
 
 ## 改訂履歴
+
+### 2026-07-30: v4 — proof-carrying edge に沿う cross-source claim lineage
+
+承認済みv3のURR-E一度目では、§8.1の三test（`0db4bf91`）を
+red / green controlとして固定した後、claim / coverage modelをproductionへ試作した。三testと
+既存URR contractはすべてgreenになったが、最終integration gateである
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`だけはinner family漏れを
+残した。試作したproduction差分はrollback済みであり、v3 testは正しいpreflightとして残っている。
+
+一度目のtraceでは、covered stateを持つ`TypeVar(1524)`とは別sourceの
+`TypeVar(1670)`に、同じresidual endpointを指すupperがあるところまでを確認した。この時点では
+1670を独立producerと読んだが、commit `0264e950`のread-only investigationで、その読みを訂正した。
+`ConstraintRecordId(6611)`の`1670 <: 1524`はarena interningの偶然でも無関係なdirect constraint
+でもない。`inner_r.update`のscheme instantiationでfresh化されたeffect componentが、callback
+bodyへ入るUnion decompositionとfunction return effect decompositionを通った、正当なsubtype
+relationである。
+
+現行コードでこの証明は、`propagate.rs`の`enqueue_derived_subtype`がchild
+`ConstraintRecord`へ登録する`StructuralDerivation`として表される。実際のvariant名は
+`StructuralDerivationRule::UnionBranch`と`StructuralDerivationRule::FunctionReturnEffect`である。
+その`1670 <: 1524` boundと1524のcovered upperを結ぶcross-source transfer自体は、
+`bounds.rs`の`BoundReplayAction`が持つ
+`BinaryReplayDerivation { pivot, lower, upper, rule }`であり、result constraintの
+`ConstraintRecord.replay_derivations`へ登録される。したがってv4は
+`FunctionReturnEffect`という文字列やvariantをcoverage条件にせず、この既存のexact replay edgeを
+claim propagationのproof carrierとして使う。
+
+v3 §10.1(16)の意図——endpoint一致だけでcoverageを無関係なsource / producerへばらまかない——は
+正しかった。しかし「別sourceへの伝播」を一律に禁止したため、`1670 <: 1524`のような証明済み
+derivation chainまで遮断していた。v4は、**lineageを持たないcross-source propagation**と、
+**すでに登録されたderivation edgeに沿ってoriginating claimを引き継ぐcross-source
+propagation**を区別する。target claimはcoverage setのcopyを持たず、originating claimとexact
+replay edgeへのlink、およびroot claimへの圧縮済み参照だけを持つ。
+
+この規則はendpoint-based coverageではない。investigationで確認した
+`ConstraintRecordId(6483)`の`PosId(1681) <: NegId(2056)`のように、covered reductionとは別に
+導入されたdirect producerは、同じ`NegId` endpointを共有しても、covered claimから始まる
+`BinaryReplayDerivation`を持たない。そのclaimはlineage rootが自分自身のuncovered claimのまま
+なのでgeneric replayされる。v3 §8.1 test 2はこの境界を守るcontrolとして期待値無変更で残す。
+
+v4はclaim identityとhot-path coverage lookupへ新しい実質的設計を加えるため、v1〜v3の承認履歴を
+維持したまま、文書全体を未承認・ユーザレビュー待ちへ戻す。実装sliceはURR-Eを作り直さず、
+rollback済みattemptをbaselineにしたURR-Fとして分ける。
 
 ### 2026-07-30: v3 — canonical upper の claim と reduction coverage を分離
 
@@ -113,6 +158,10 @@ local-var effect boundary の調査が発見経路ではあるが、本書は
 7. lowering、local-var boundary、generalize / instantiate、specialize を回避策として変更しない。
    persistent recordが成立するorder familyの内側では、構文の出処やlate lowerの到着順によらず
    同じfixpointを持たなければならない。真のzero-initial-lower UpperFirstは§6.6へdeferする。
+8. covered claimをupper parentとする既存binary replayが別sourceのupper claimを作る場合、
+   target claimへoriginating claimのlineageを残す。coverageそのものはcopyせず、圧縮済みroot
+   claimを通じてlive stateを参照する。同じendpointを共有するだけの別source / 別producer
+   claimにはlineageを作らず、generic replayを残す。
 
 ## 1. 問題
 
@@ -318,6 +367,20 @@ upperに付いたclaimの差集合計算である。constraint graphやprovenanc
 逆走査してproducerを復元してはならない。claim / coverage linkageはadmissionまたは
 materialization時に一度作り、canonical recordとstateから直接参照する。
 
+### 3.5 v4のblast radius
+
+v4が追加で意味を変えるのは、claim-awareなbound replayが、covered claimのcurrent upperを
+parentとして別sourceのcanonical upperを導く場合だけである。endpointが同じでも、ordinary
+constraint admission、structural decompositionだけ、または別producerから直接作られたboundは
+変えない。`1670 <: 1524`を作った`UnionBranch` / `FunctionReturnEffect`も、そのsubtype relation
+自体も変更しない。
+
+追加metadataはreplay planning / admission時のoriginating claim IDと、target claim作成時の
+lineage linkである。late lowerごとのstructural / replay provenance逆走査は行わない。
+coverage checkはclaimに保存したroot IDとlive coverage indexのlookupで完結させる。claim数は
+canonical `(target bound, root claim)`の数、lineage link数はそのclaim数でboundedにし、
+同じsemantic replayのproof追加やconstraint graphのcycleに比例させない。
+
 ## 4. 必須 invariant
 
 ### 4.1 logical relation
@@ -399,10 +462,31 @@ generic replayの単位は`BoundRecord`でも`BoundDerivation`でもなくlogica
 routeだけが処理し、uncovered claimだけがgeneric replayを作る。一つでもuncovered claimがある
 ことを理由にrecord全体をgeneric replayしてはならない。
 
-coverageはsource、original row、producer-rootをまたいで推移させない。subsumption、
-equivalent merge、evidence promotionでendpointが一致しても、producer linkageを確認せず
-token setをunionしてはならない。逆に、同じstate-owned claimのproof identityだけが変わった
-場合はcoverageを失ってはならない。
+coverage token / setそのものはsource、original row、producer-rootをまたいでcopyまたはunion
+しない。subsumption、equivalent merge、evidence promotion、endpoint一致だけを理由に別claimを
+coveredへ昇格させない。唯一のcross-source inheritanceは、originating claimをparentに持つ
+exact replay derivationがcanonical constraintへ登録され、そのconstraintがtarget bound claimを
+導いた場合、または同じedgeがtarget evidence boundの`ReplayEvidence`として登録された場合で
+ある。target claimはcoverageのcopyではなくlineage rootへの参照を持つ。
+
+同じstate-owned claimのproof identityだけが変わった場合はcoverageを失ってはならない。
+同じroot claimから同じcanonical target boundへ再到達した場合もclaimを増やさず、既存lineage
+claimへcoalesceする。一方、同じendpointへのdirect claimは、sourceまたはproducerが違えば
+自分自身をrootとする別claimであり、covered rootへのproof-carrying edgeがない限りuncoveredで
+ある。
+
+### 4.8 claim lineage
+
+lineageはsemantic subtype relationを新しく作る規則ではない。既存solverがすでに作ったrelation
+について、「このtarget claimはどのoriginating claimをupper parentとするreplayから来たか」を
+admission時に固定するaccountingである。lineage linkはexact parent claimとexact replay edgeを
+持ち、edgeが存在しないshape-based推測を許さない。
+
+lineage graphはappend-onlyかつacyclicにする。derived claimのparentは必ず先に確定したclaim IDで
+あり、childはparentより後にallocateする。各claimはroot claim IDを作成時にpath-compressして
+保持し、coverage checkでparent chainを歩かない。constraint graphがcycleして既存
+`(canonical target bound, root claim)`へ戻った場合は新しいclaim / parent linkを作らず、
+既存claimへproofをcoalesceする。
 
 ## 5. 選んだ設計: source-indexed persistent reduction state
 
@@ -640,6 +724,163 @@ record-wide suppressionは真に独立したdirect tail relationを失い、repl
 hot pathを非局所化する。coverage setはこの三つを避けながら、v2のsource-indexed stateと
 canonical replay dedupをそのまま利用できる。
 
+### 5.9 v4: proof-carrying replay edge と claim lineage
+
+`0264e950`時点のproductionには、rollbackされたURR-E試作のclaim型は残っていない。現在の
+materialized ownershipは`UnweightedRowReductionOwner { state, derivation }`、
+canonical boundのproofは`BoundRecord.derivations`、canonical constraintのproofは
+`ConstraintRecord`の`structural_derivations` / `replay_derivations`へ保存される。v4は§5.8の
+claim modelを再導入する際、この既存proof recordへ小さいcross-linkを足す。別のprovenance graphを
+並行して構築しない。
+
+必要な意味形は次である。実装名とsmall collectionの型は既存命名へ合わせてよい。
+
+```text
+UpperReplayClaim {
+    ...v3 fields...
+    current_record: BoundRecordId
+    coverage_root: UpperReplayClaimId
+    lineage: Original | Derived(UpperReplayClaimLineage)
+}
+
+UpperReplayClaimLineage {
+    parent_claim: UpperReplayClaimId
+    carrier: ReplayConstraint {
+        result: ConstraintRecordId
+        replay: BinaryReplayDerivation
+    } | ReplayEvidence {
+        replay: BinaryReplayDerivation
+    }
+    depth: u32
+}
+
+ReplayClaimParent {
+    claim: UpperReplayClaimId
+    replay: BinaryReplayDerivation
+}
+
+replay_claim_parents_by_constraint:
+    ConstraintRecordId -> small set<ReplayClaimParent>
+
+derived_claim_by_record_and_root:
+    (BoundRecordId, UpperReplayClaimId) -> UpperReplayClaimId
+
+live_coverage_by_root:
+    UpperReplayClaimId -> small set<UnweightedRowReductionRecordId>
+```
+
+root reduction claimのoriginal row / producer説明は、stateがすでに持つ
+`provenance_head: RowDerivationId`と、既存の`RowDerivationParent::{Constraint, Bound,
+RowDerivation, ...}`を正本にする。lineage linkはこれらと同じID参照方式で、
+cross-source replay部分だけを`ConstraintRecordId` / `BinaryReplayDerivation`へ接続する。
+original row、structural chain、binary replayをclaim内へ複製しない。
+
+original reduction claimと独立direct claimは`lineage = Original`、`coverage_root = self`である。
+reduction stateだけが自分のoriginal claimを`live_coverage_by_root`へ登録する。derived claimは
+coverage setをcopyしない。`coverage_root = parent.coverage_root`とし、親claim、result
+constraint、exact replay edgeを一件だけwitnessとして保持する。root stateがreplacement /
+subsumptionを経てもliveならindexを維持し、stateがliveでなくなればindexから外す。これにより
+derived claimのcoverageはstate lifecycleへ追随し、target claimへstaleなbooleanを焼き付けない。
+
+#### 5.9.1 現行derivation recordとの対応
+
+`propagate.rs`は`Pos::Union`を
+`StructuralDerivationRule::UnionBranch { branch }`で分解し、function subtypeのreturn effectを
+`StructuralDerivationRule::FunctionReturnEffect`で分解する。どちらも
+`enqueue_derived_subtype`を通り、result `ConstraintRecord`へ
+`StructuralDerivation { parent, rule }`を登録する。confirmed nested caseの
+`ConstraintRecordId(6611)`、`1670 <: 1524`はこのchainから来る。
+
+そのlower relationを使って1524のupperを1670へ運ぶ直接のedgeは、structural ruleではなく
+既存のbinary bound replayである。`BoundReplayAction`は
+`BinaryReplayDerivation { pivot, lower, upper, rule }`を持ち、
+`enqueue_replay_subtype` / `merge_replay_derivation`がresult
+`ConstraintRecord.replay_derivations`へ登録する。`lower`は`1670 <: 1524`を表すlower
+`BoundRecordId`、`upper`は1524のcovered upper record、`pivot`は1524を識別する。result
+constraintが`Pos::Var(1670) <: Neg::Var(1669)`なら、`step_subtype`が1670側のcanonical upper
+recordを作る。
+
+lineage carrierはこの`BinaryReplayDerivation`である。`ReplayClaimParent`は
+`BoundReplayAction`が実際に根拠にしたclaim IDとedgeをresult constraintへ対応づける。
+`UnionBranch` / `FunctionReturnEffect`は`carrier.replay.lower`から既存bound /
+constraint provenanceを辿れば説明できるが、coverage判定ではrule名を読まない。これにより、
+function return effectだけを通すspecial caseではなく、solverがすでに登録した任意の正当な
+binary replayへ同じ一般規則を適用できる。
+
+lineageを有効とみなすには、次をすべて満たす。
+
+1. ordinary / duplicate constraint pathでは、carrierの`replay`が
+   `carrier.result.replay_derivations`にexactに登録済みである。evidence-only pathでは、target
+   boundが同じ`BinaryReplayDerivation`の`BoundDerivation::ReplayEvidence`を持つ。
+2. carrierの`replay.upper`が、action作成時に`parent_claim`を保持していたcanonical upper
+   recordである。
+3. ordinary / duplicate pathのtarget upper boundが
+   `BoundDerivation::Constraint(carrier.result)`を持つ。evidence-only pathでは、前項の
+   `ReplayEvidence`がこの役割を持つ。
+4. replay planningがそのactionの根拠として`parent_claim`を明示的に渡している。upper recordに
+   claimが同居するというだけで全claimをparentにしない。
+
+`ReplayDerivationInsert::Incomplete`でcanonical exact edgeが保存されなかった場合、または
+evidence budget dropでtarget boundが`BoundDerivation::IncompleteReplay`になった場合、そのedge
+からcoverageを継承したことにしない。必要なconfirmed pathがbudget dropへ落ちるなら、generic
+replayへ黙ってfallbackした状態をlandingせず、§10.1のstop conditionとしてprovenance budget /
+representation設計へ戻る。
+
+#### 5.9.2 admission と duplicate / evidence path
+
+v3のreplay planningは、一つのsemantic actionをclaim数だけenqueueせず、そのactionを根拠づける
+claim ID群をaccountingへ残す。v4ではこのclaim ID群を`BoundReplayAction`相当のsnapshotへ載せる。
+covered stateのincremental unmatched routeは、そのrouteを所有するcovered claimを載せる。
+uncovered generic routeは、generic actionを要求したuncovered claimだけを載せる。
+
+new canonical replay constraintでは、edge登録と同時に`ReplayClaimParent`をconstraintへ登録し、
+後続のvar-var bound admissionでtarget upper claimを作る。すでにcanonical constraintが存在して
+queueへ再投入されないduplicate pathでもparent metadataをmergeする。deterministicなtarget
+upper boundがすでに存在すれば同じ時点でlineage claimをmergeし、まだ存在しなければ後続の
+original queue admissionがparent metadataを読む。evidence-only pathでも
+`apply_bound_replay_evidence_actions`が作るupper evidence recordへ同じlineageを付け、ordinaryへ
+promotionされたときにclaim identityを失わない。trivial actionはtarget boundを作らないため
+lineage claimも作らない。
+
+target claimのcanonical keyは`(target BoundRecordId, coverage_root)`である。同じroot claimが
+same-key proof、duplicate replay、別のsemantic pathから同じtarget recordへ再到達しても、
+新しいclaimを作らず既存claimへcoalesceする。alternate proofの完全な説明は既存
+`ConstraintRecord.structural_derivations` / `replay_derivations`と
+`BoundRecord.derivations`へ残し、claim側へ全proofをcopyしない。別rootのdirect claimは同じ
+record上でも別claimのまま残る。
+
+§5.8のlifecycle規則はderived claimにもそのまま適用する。replacement / pruneでは
+`current_record`と`derived_claim_by_record_and_root`のkeyをsurvivorへ移し、lineage parent /
+root / carrierは変えない。same-key merge、subsumption、evidence promotionで別rootのclaimが
+同じsurvivorへ集まってもrootごとに別claimを保ち、survivor全体をcoveredへ昇格させない。
+
+#### 5.9.3 coverage lookup とcycle bound
+
+canonical upper recordのclaimを分類するときは、各claimについて次だけを行う。
+
+```text
+root = claim.coverage_root
+covered = live_coverage_by_root[root] is non-empty
+```
+
+自分自身のsourceにlive reduction stateがあるかは必要条件ではない。これにより、1524のcovered
+claimからexact replay edgeで派生した1670のclaimは、1670自身がreductionを一度も起こして
+いなくてもcoveredになる。一方、`ConstraintRecordId(6483)`の
+`PosId(1681) <: NegId(2056)`はcovered claimをparentにするreplay edgeを持たないため、
+`coverage_root = self`のuncovered direct claimであり、endpointを共有してもgeneric replayする。
+
+parent chainのwalkはcoverage hot pathへ置かない。derived claim作成時にparentの
+`coverage_root`をcopyしてroot参照を圧縮し、`depth = parent.depth + 1`をchecked arithmeticで
+記録する。parent claim IDはchildより小さいことをassertし、既存
+`(target record, root claim)`に戻るedgeは新しいclaimを作らない。したがってconstraint graphに
+alias cycleがあってもclaim lineage自体はDAGであり、coverage checkはO(1)で停止する。
+
+claim / link数の上限は、replay回数やproof追加回数ではなくcanonical
+`(target bound, root claim)`数である。maximum depth、rootあたりのderived claim数、
+duplicate / cycleでcoalesceした回数をtiming censusへ加える。claim数がcanonical semantic
+bound × logical rootで説明できず増える、depth overflowが起きる、またはcoverage checkが
+parent graphを歩く必要が出た場合はlandingしない。
+
 ## 6. 採らない方向
 
 ### 6.1 lowering-side order workaround
@@ -690,10 +931,13 @@ hash変化を起こしたためである。
 ### 6.7 v3で採らないownership判定
 
 - `BoundDerivation`のvariantや`FunctionReturnEffect`の有無だけでcovered / independentを決めない。
+- `UnionBranch` / `FunctionReturnEffect`をlineage propagationのwhitelistにしない。必要なのは、
+  それらが作りうるlower relationをparentに持つexact `BinaryReplayDerivation`である。
 - survivorにreduction ownerが一つあれば全derivationを抑止するrecord-wide suppressionをしない。
 - ownerのderivation identityと違えば常にindependentとするv2判定を延命しない。
 - replay planning時にprovenance graphを逆走査してproducerを推測しない。
 - subsumption / equivalent mergeでsurvivorの全claimへcoverage tokenをばらまかない。
+- 同じ`NegId` endpointを共有する別sourceのclaimを、lineage edgeなしでcoveredへ昇格させない。
 
 ## 7. この設計で変更しないもの
 
@@ -715,7 +959,7 @@ hash変化を起こしたためである。
 - zero-lower / UpperFirst用のspeculative stateや、ordinary `Neg::Row`のshapeだけを見るlazy
   activationを追加しない。
 
-## 8. 実装前に用意する7 regression tests
+## 8. regression tests
 
 次の7 testを`crates/infer/src/constraints/tests/case_02.rs`の既存unweighted-row-upper test群と
 同じ構造で用意する。test名は実装sliceで既存命名へ最終調整してよいが、各semantic contractを
@@ -781,7 +1025,46 @@ test 1と3は現行実装でinner-family contaminationまたは誤ったgeneric 
 test 2はcoverageをrecord-wideに広げる誤修正に対するgreen controlでなければならない。三つを
 一つのfixture名や`FunctionReturnEffect`文字列へspecial case化しない。
 
-この10 testに加え、次の既存testは名前も期待値も変更せず通す。
+### 8.2 v4で先に追加する3 regression tests
+
+URR-Fのproduction codeを変更する前に、次の三つを同じ`case_02.rs`へ追加する。investigationの
+arena IDは説明にだけ使い、test oracleへ`TypeVar(1670)` / `ConstraintRecordId(6611)`の数値を
+hard-codeしない。claim ID、root claim ID、parent claim ID、result constraintに登録された
+`BinaryReplayDerivation`、target bound recordをtest helperから構造的に観測する。
+
+1. **証明済みcross-source replayはcovered lineageを継承する**
+   source `α`で`α <: [F; ρ]`のinitial reductionを成立させ、別source `β`から`β <: α`を、
+   nested Union branchのfunction return effect decompositionで導く。`β <: α`のcanonical
+   constraintに`StructuralDerivationRule::UnionBranch` /
+   `StructuralDerivationRule::FunctionReturnEffect`のparent chainがあり、そのlower boundと
+   `α`のcovered upperから作られたresult constraintに、`pivot = α`、parent upper record一致の
+   exact `BinaryReplayDerivation`があることを先に固定する。resultの`β <: ρ` upper claimは
+   `β`にreduction stateがなくても、`α`のcovered claimをparent、同じclaimをcoverage rootとして
+   持つ。`β`のmatching family lowerはgeneric replayで`ρ`へ届かず、cross-source claim由来の
+   generic replay countが0になる。これはconfirmed `1670 <: 1524` shapeの最小testであり、
+   lineage未実装ではredでなければならない。
+2. **別sourceのsame-endpoint direct producerはuncoveredのまま**
+   test 1と同じcovered `α <: ρ` materializationを持つ一方、reductionと無関係な別source `γ`へ
+   real direct constraint `γ <: ρ`を導入する。二つは同じ`NegId(ρ)` endpointを使うが、
+   `γ`のconstraint / boundには`α`のclaimをparentにするexact replay edgeがないことを確認する。
+   `γ`のclaimは`coverage_root = self`、別producer、uncoveredであり、late lowerはgeneric replayで
+   `ρ`へ届く。このcontrolはinvestigationの
+   `ConstraintRecordId(6483): PosId(1681) <: NegId(2056)`に対応し、endpoint-wide suppressionを
+   必ず検出する。§8.1 test 2の同一source上のclaim co-ownership controlも期待値無変更で残す。
+3. **multi-hop lineageはroot-compressされ、cycleで増殖しない**
+   covered root claim `α`から二つのcanonical replay hopで`β`、`γ`のupper claimを作る。
+   両derived claimの`coverage_root`が`α`のoriginal claimへ直接圧縮され、depthが1、2、
+   parent IDが常にchild IDより小さいことを固定する。その後、既存targetへ戻るreverse alias /
+   replay edgeを追加してsemantic constraint graphにcycleを作り、同じ
+   `(target BoundRecordId, root claim)`のclaimが増えず、coverage lookupとqueue drainが停止する
+   ことを確認する。proof merge後のclaim count、maximum lineage depth、cycle coalesce countも
+   固定し、parent graph walkをtest helperのcovered判定へ持ち込まない。
+
+test 1と3のlineage assertionはproduction lineage未実装でred、test 2はendpoint-based誤修正を
+入れない限りgreen controlでなければならない。三testとも、fixture / function名、
+`FunctionReturnEffect` variant単体、endpoint equalityをcoverage oracleにしない。
+
+この13 testに加え、次の既存testは名前も期待値も変更せず通す。
 
 - `unweighted_row_upper_uses_concrete_lower_item_before_residual_tail`
 - `unweighted_row_upper_consumes_pop_only_weighted_lower_item`
@@ -931,6 +1214,65 @@ gate:
 URR-Eではlocal-var production wiringを再開しない。solver gateが閉じた後、LVB-Bを別sliceとして
 再開する。
 
+URR-E一度目の実施記録（2026-07-30）: §8.1の三testは`0db4bf91`で追加され、
+production試作では三test、既存URR contractともgreenになった。しかしnested hand-built
+characterizationだけはcross-source経路からinner familyを漏らしたため、production差分はcommitせず
+rollbackした。§8.1 testは保持し、同じURR-E実装を再試行しない。
+
+### URR-F: proof-carrying cross-source claim lineage
+
+v4がユーザ承認済みになるまで開始しない。`0264e950`のclean production baselineと、
+§8.1のlanded preflight三testを起点にする。URR-E一度目のclaim / coverage実装はrollback済みなので、
+URR-Fは§5.8のclaim-local coverageと§5.9のcross-source lineageを一つのatomic sliceとして実装する。
+
+test-first preflight:
+
+1. §8.2 test 1で、`β <: α`のstructural proofと、covered upperをparentにするexact
+   `BinaryReplayDerivation`が現行provenanceへ存在する一方、target `β` claimのcovered lineageが
+   無くgeneric replayされることをredとして確認する。
+2. §8.2 test 2で、別sourceのdirect same-endpoint claimにcovered parent edgeがなく、generic
+   replayされるgreen controlを確認する。§8.1 test 2も期待値無変更でgreenのまま固定する。
+3. §8.2 test 3で、semantic alias cycle自体は現行queueで停止するbaselineを確認し、lineage
+   root / depth / claim-count assertionだけをredとして分離する。
+4. nested hand-built characterizationのinner-family漏れと、parsed controlのisolation baselineを
+   実装前に保存する。expected schemeを現行漏れへ合わせない。
+
+変更:
+
+- §5.8の`UpperReplayClaim`、record-local claim index、state coverageをreintroduceする
+- claimへ§5.9の`Original | Derived` lineage、parent claim、exact replay edge、compressed rootを
+  追加する
+- `BoundReplayAction`相当へ、そのsemantic actionを根拠づけたclaim IDのsmall setを載せる
+- `enqueue_replay_subtype` / `merge_replay_derivation`のexact edge登録と同じadmissionで
+  `ReplayClaimParent`をresult constraintへ対応づける
+- new、duplicate、prefilter duplicate、evidence-only / promotionの各pathでtarget upper claimへ
+  lineageを移し、trivial actionではclaimを作らない
+- `(target BoundRecordId, coverage_root)` indexとmonotonic parent IDでduplicate / cycleを
+  coalesceし、coverage checkをcompressed rootと`live_coverage_by_root`のlookupにする
+- claim count、rootあたりderived count、maximum depth、cycle coalesce、lineage付きreplay
+  provenance budgetをtiming censusへ追加する
+
+gate:
+
+- §8.2 test 1で、different-source target claimがexact replay edgeとcovered rootを持ち、
+  generic replayされない
+- §8.2 test 2と§8.1 test 2で、same endpointでもunrelated direct claimだけはuncoveredとして
+  generic replayされる
+- §8.2 test 3で二hopのroot compression、acyclic parent ID、cycle dedup、queue / coverage lookupの
+  停止性が固定される
+- §8.1 test 1〜3、§8の既存7 regression、既存三contractが期待値無変更でpassする
+- `v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`からinner familyが消え、
+  parsed controlと同じisolationを持つ。これをURR-Fの最終integration gateとする
+- single-boundary、weighted row、zero-lower known-gapのscopeが変わらない
+- covered classificationはroot index lookupで完結し、`StructuralDerivationRule`名のbranch、
+  endpoint-wide token、late-lowerごとのprovenance graph逆走査がない
+- lineage-bearing exact replay edgeが`IncompleteReplay`へ落ちず、claim / link数がcanonical
+  `(target bound, root claim)`数で説明できる
+- repository-stdでclaim / maximum depth / replay census、wall time、memory差分を説明できる
+
+URR-Fではlocal-var production wiringを再開しない。nested characterizationはsolverのintegration
+gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとして再開する。
+
 ## 10. stop / rollback conditions
 
 ### 10.1 stop conditions
@@ -966,14 +1308,25 @@ URR-Eではlocal-var production wiringを再開しない。solver gateが閉じ�
     再現する。正しさfixをglobal scanのままlandingせずindex設計へ戻る。
 15. testをgreenにするため、fixture、path、module、function名のspecial case、
     `Any` fallback、後段family cleanupが必要になる。
-16. coverage tokenが別source、別original row、別producer constraintのclaimへ伝播し、
-    真に独立した`source <: tail`を抑止する。
+16. originating claimをparentとするexact `BinaryReplayDerivation`なしに、endpoint equality、
+    source alias、same-key mergeだけでcoverageが別claimへ伝播する。またはその誤伝播により、
+    真に独立した別source / 別producerの`source <: tail`を抑止する。
 17. same-key merge、subsumption、replacement / pruneのいずれかでstate-owned coverageを失い、
     matched late lowerが再びplain residualへ二重routeする。
 18. claim / token setがcanonical logical relation数ではなくproof追加、equivalent admission、
     replay回数に比例して増え続ける。
 19. covered / uncoveredの分類にlate-lowerごとのprovenance graph逆走査、derivation rule名、
     `FunctionReturnEffect`のspecial caseが必要になる。
+20. lineage carrierのreplay edgeがresult constraintまたはtarget boundの`ReplayEvidence`へ
+    登録されていない、edgeの`upper`がparent claimのrecordと一致しない、または
+    `IncompleteReplay`へ落ちたedgeをcovered inheritanceの証明として使う必要がある。
+21. new constraintではlineageを保持できるが、duplicate / prefiltered duplicate、
+    evidence-only / promotionのいずれかで同じexact edgeのlineageを失い、semantic queueの再実行を
+    correctnessのために要求する。
+22. coverage checkがcompressed root lookupで完結せずparent chainを都度歩く、parent IDがchild
+    ID以降を指す、constraint cycleでlineage cycle / non-termination / depth overflowが起きる。
+23. derived claim / lineage linkがcanonical `(target bound, root claim)`数ではなく、alternate
+    proof、duplicate replay、semantic cycleの周回数に比例して増え続ける。
 
 ### 10.2 rollback unit
 
@@ -988,6 +1341,10 @@ URR-Eではlocal-var production wiringを再開しない。solver gateが閉じ�
 - URR-Eでclaim identityとcoverage lifecycleのどちらかが成立しなければ、record-wide suppression
   だけをlandingしない。三つのv3 regressionは正しい期待値のまま保持し、URR-Eのsemantic
   implementation全体を戻す。
+- URR-Fでclaim-local coverage、exact replay-edge lineage、compressed-root lookupのどれかが
+  成立しなければ、cross-source token copyやendpoint-wide suppressionだけをlandingしない。
+  §8.1 / §8.2の六regressionは正しい期待値のまま保持し、URR-Fのsemantic implementation全体を
+  戻す。
 - performanceだけが不合格でもglobal scanをdefault-onで残さない。source indexまたはstate keyを
   再設計し、意味論を変えるcache / early returnは入れない。
 
@@ -1040,12 +1397,27 @@ URR-Eではlocal-var production wiringを再開しない。solver gateが閉じ�
     `Inserted -> same-key provenance/evidence merge（second dispositionなし）`としてtestで固定され、
     inner familyがresidualへ届かない。
 23. insert、equivalent / evidence merge、subsumption、replacement / prune後も、claimとcoverageが
-    source、logical original row、producer identityを保つ。
+    original source、logical original row、producer identityを保ち、derived claimはtarget sourceと
+    root claimの両方を区別する。
 24. generic replayは未covered claimだけから計画され、covered claimとの同居を理由にcanonical
     record全体をreplayまたは抑止しない。
 25. claim / token setがcanonical logical relation数でboundedになり、source-local lookup、
     replay accounting、explanation completenessを維持する。
+26. §8.2の三regressionがpassし、confirmed `1670 <: 1524` shapeのcross-source claim、
+    unrelated same-endpoint direct claim、multi-hop / cycleを別々のoracleで固定する。
+27. cross-source inheritanceは、originating claim IDと、result `ConstraintRecordId`へ登録済みの
+    exact `BinaryReplayDerivation`、またはtarget boundのexact `ReplayEvidence`で説明できる。
+    `UnionBranch` / `FunctionReturnEffect`はlower relationの既存structural provenanceとして残り、
+    coverage用special caseにならない。
+28. covered rootから別sourceへ派生したclaimは、target sourceにlocal reduction stateがなくても
+    compressed root lookupでcoveredになる。一方、別sourceのdirect same-endpoint claimは
+    lineageを持たずgeneric replayされる。
+29. lineage parent IDはstrictly olderで、coverage rootは作成時に圧縮される。duplicate proofと
+    constraint cycleは`(target BoundRecordId, root claim)`へcoalesceし、claim増殖、unbounded
+    parent walk、cycle non-termination、depth overflowがない。
+30. new / duplicate / prefiltered duplicate / evidence-only / promotionの全pathでlineage identityが
+    同じであり、必要なedgeが`IncompleteReplay`へ落ちない。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: ユーザ承認済み（v3、2026-07-30）
+状態: 未承認・ユーザレビュー待ち（v4）
