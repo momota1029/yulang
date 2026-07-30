@@ -2,7 +2,7 @@
 
 日付: 2026-07-29
 
-状態: **ユーザ承認済み（v5、2026-07-30）**
+状態: **未承認・ユーザレビュー待ち（v6）**
 
 調査基準は `c40a5cb49ab5`。根因の確定記録は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` の「25回目」を正本とする。
@@ -12,8 +12,65 @@ v4のcross-source経路、現行provenance carrier、v3 test 2 controlは`0264e9
 対して2026-07-30に再確認した。
 v5のreduction-own unmatched-lower routing、`RowDerivation` carrier、shared enqueue helperの
 call-site境界は`09237c6b`のworking treeに対して2026-07-30に再確認した。
+v6のordinary lower保存、compaction、positive alias expansion、scheme provenance、
+finalization、generalize compact cacheの各経路は`bc1dc55a`のworking treeに対して
+2026-07-30に再確認した。v3〜v5のproduction試作は各stop conditionでrollback済みであり、
+`bc1dc55a`にはpreflight testと設計だけが残る。v6の型名・API名は、v3〜v5を再導入する
+implementation sliceで既存命名へ合わせる。
 
 ## 改訂履歴
+
+### 2026-07-30: v6 — scheme projectionをclaim / coverage / lineageへ接続
+
+承認済みv5のURR-G一度目では、§5.8〜§5.10をproductionへ試作し、initial unmatched routeが
+作った`1522 -> 1669` claimを、exact `RowDerivationId(196)` carrier、originating reduction root、
+`covered = true`として登録できた。§8のv1〜v5 accumulated 18 testもすべてgreenになり、
+generic replayの
+二重routeは止まった。それでもnested integration gateではinner familyが残ったため、
+production差分はrollbackした。記録は`73c5e850`を正本とする。
+
+`bc1dc55a`までの二つのread-only investigationで、残った経路を正確に切り分けた。
+`step_subtype`の通常のVar–Var branchは`1522 <: 1669`から、
+`TypeBounds::add_lower`を通して`1669 <- Var(1522)`をordinary lower recordとして保存する。
+`VarBounds::projection_lowers`はevidence lowerとordinary lowerを無条件に連結し、
+`compact_var_bounds` / `compact_lower_bounds`はその全件をcompact graphへ入れる。
+`compact_pos_bound_id`は`Pos::Var(1522)`をpositive secondary variableへするため、
+generic replayを抑止してもaliasからinner familyへ到達できる。
+`positive_aliases_within_scheme`も同じunfiltered lower graphを推移的に辿り、
+`capture_generalized_witnesses`も`generalized_projection_lowers`の全recordをscheme provenanceへ
+採る。一方`finalize_generalized_compact_root`はmachine boundsを読まず、すでに構築済みの
+`CompactRoot`をscheme arenaへfreezeするだけである。
+
+lowering側でこのaliasを作らせない代案も反証済みである。`TypeVar(1522)`は
+`inner_r.update (\_ -> before)` / `inner_r.get()`に対応する正当なblock-aggregate effectであり、
+lowering時点では後でどのfamilyへ具体化するか分からない。これを消すにはlocal-var v5の
+prepare / finish判断を巻き戻す、callback bodyだけを特別扱いする、または全block aggregationを
+再設計する必要があり、いずれもsolver relationのownership gapを解かない。
+
+v6は§5.8〜§5.10のclaim identity、compressed coverage root、作成時self-taggingを置き換えない。
+Var–Var admissionで同じlogical claim IDをmirror lower recordにも対応づけ、compaction、
+positive alias expansion、scheme provenanceが共有する
+**scheme-projectable bound view**を追加する。viewはraw recordを削除せず、recordにclaim linkageが
+なければ従来のlowerをそのまま返す。claim linkageがあれば各claimのcompressed rootを
+projection時に`live_coverage_by_root`へ照会し、少なくとも一つuncovered claimがあるrecordだけを
+一回返す。返すprovenanceはuncovered claimだけに限定する。同じcanonical recordにcovered claimと
+independent claimが同居する場合、endpointは一回projectし、independent claimだけをschemeの
+根拠にする。
+
+coverage rootの最後のlive stateが消えたときは、raw relationがまだactiveなら再びprojectableに
+なる。したがってlivenessはclaim作成時のbooleanではなく、projection時のcompressed-root lookupで
+判定する。現行`CompactCollector`のcacheとpositive-alias cacheは一回のimmutable pass内だけなので
+個別invalidationは不要だが、analysis sessionには`(root TypeVar, ConstraintEpoch)`でkeyされた
+`GeneralizeCompactCache`が実在する。raw boundsを変えずにprojectabilityだけが変わるliveness
+transitionも`ConstraintEpoch`と該当owner dependencyを更新し、stale compact rootの再利用を
+禁止する。
+
+compactionはすべてのfinalized schemeで共有されるため、v6はv3〜v5より小さい
+URR-H1 / H2 / H3へ分ける。H1はviewとliveness / cache contractをtest-firstで固定し、
+production compactionはまだ切り替えない。H2でcompactionだけをviewへ切り替え、full
+characterizationと287-case contract suiteをgateにする。H3でpositive alias expansionとscheme
+provenanceを同じviewへ揃え、同じfull gateをもう一度通す。v6は新しい実質的設計変更なので、
+v1〜v5の承認履歴を維持したまま文書全体を未承認・ユーザレビュー待ちへ戻す。
 
 ### 2026-07-30: v5 — reduction-own unmatched route の作成時self-tagging
 
@@ -446,6 +503,35 @@ candidateの追加発見は行わない。claim canonicalizationとcoverage look
 `(target BoundRecordId, coverage_root)` / compressed rootをそのまま使うため、追加costはこの
 initial unmatched routeごとの定数時間metadata admissionに限る。
 
+### 3.7 v6のblast radius
+
+v6のsemantic対象は、§5.10のexplicit parent、または§5.9のexact replay lineageによって
+unweighted reductionのcoverage rootへ属するclaimが作った**lower-side mirror record**である。
+そのrootを一つ以上のlive reduction stateがcoverする間だけ、claim由来のrelationをscheme
+projectionから除外する。同じrecordにuncovered claimがあればrecordは一回projectし、そのclaimを
+根拠として残す。claim linkageを一度も持たないlower、weighted-row由来lower、direct ordinary
+lower、上界側projectionの意味は変えない。
+
+変更対象のbound集合は狭いが、viewのconsumerは広い。`compact_type_var_for_scheme`と
+`compact_type_var_recording_merge_constraints_for_scheme`はあらゆるdefinitionのscheme構築で
+使われ、positive alias expansionとgeneralized witness captureも同じgeneralization pipelineに
+ある。local-var fixtureだけでなく、全programの全finalized schemeが回帰範囲である。
+したがって「対象claimが少ない」ことを「compactionのblast radiusが小さい」ことと混同しない。
+
+ordinary pathの性能契約は、machine全体にprojection claimが一件もなければraw iteratorへ即時
+passthroughし、claimがあっても対象ownerにlinkがなければboundごとのroot lookupを行わない、
+という二段fast pathである。対象ownerだけがrecord-localなsmall claim setを分類する。
+root判定は§5.9の圧縮済み`coverage_root`から`live_coverage_by_root`を一回引き、
+parent chainや`RowDerivation` / constraint graphを歩かない。
+
+cacheのblast radiusも明示する。`CompactCollector.cache`はcollector一回だけの
+`(TypeVar, Polarity, ConstraintWeight)` cacheで、collectorはimmutableな`ConstraintMachine`を
+借りる。positive aliasの`TypeVar -> Vec<TypeVar>` cacheも一回のimmutable expansionだけである。
+この二つはpass途中のinvalidationを必要としない。一方、analysis sessionの
+`GeneralizeCompactCache`は`(root TypeVar, ConstraintEpoch)`を跨いで保持するため、
+raw boundsが同じでもcoverage livenessによってviewが変わるtransitionをepoch mutationとして
+公開しなければstale schemeを返す。これはv6 correctnessの一部であり、後続最適化へdeferしない。
+
 ## 4. 必須 invariant
 
 ### 4.1 logical relation
@@ -570,6 +656,34 @@ liveでなくなればv4と同じ`live_coverage_by_root` lookupでuncoveredに�
 coveredへ昇格させない。reduction routeは同じrecord上へroot別のderived claimを追加または
 coalesceするだけである。matched arm、trivial constraint、explicit parentを持たない
 row-derived constraintは、この規則からclaimを作成または再分類しない。
+
+### 4.10 scheme projection ownership
+
+schemeへprojectするlogical relationの単位もclaimである。raw `BoundRecord`はcanonical subtype
+storageとauditの正本として残し、scheme projectionの可否をrecord stateへ焼き付けない。
+claim linkageのないactive lower recordは常に従来どおりprojectableである。linkageがあるrecordは、
+各claimについて
+
+```text
+root = claim.coverage_root
+projectable(claim) = live_coverage_by_root[root] is empty
+```
+
+をprojection時に評価する。recordはunclaimedなら一回、またはprojectable claimが一つ以上なら
+一回だけconsumerへ返す。全linked claimがcoveredなら返さない。同じrecord上のcovered /
+uncovered claimを一つのrecord-wide booleanへ潰さず、provenanceにはprojectable claimだけを渡す。
+
+covered claimをschemeから除外できる根拠は、そのlive reduction stateがoriginal rowとcurrent
+reduced-upper materializationを所有し、同じlogical inputをincremental routeで既に表している
+ことにある。unmatched routeが作ったlower-side aliasをもう一度raw graphからprojectすると、
+stateが受理・除外した情報を別経路でaggregateへ戻し、v6のconfirmed leakになる。
+
+最後のlive stateがrootから外れた場合、この根拠は消える。raw lower recordがactiveならclaimは
+再びprojectableになる。historical materializationが一度同値情報を含んだという理由で
+suppressionを残さない。同値relationが本当に不要なら通常のbound lifecycleがtombstone /
+pruneする責務であり、stale coverageで隠す責務ではない。v6は新しいstate expiry policyを
+導入せず、既存または将来のlifecycleが`live_coverage_by_root`の最後のstateを外したときの
+projection semanticsだけを定める。
 
 ## 5. 選んだ設計: source-indexed persistent reduction state
 
@@ -1055,6 +1169,184 @@ explicit taggingは無条件に安全と判断する。ただし実装開始時�
 ownerをunmatched branchだけへ戻す。helper全体へのimplicit tagging、`UnweightedReduction`
 rule名だけでのtagging、row-derivation parent walkによる後付けclassificationは代案にしない。
 
+### 5.11 v6: claim-aware scheme-projectable bound view
+
+#### 5.11.1 current bypassとAPI境界
+
+`bc1dc55a`時点の`step_subtype`はVar–Var constraintで、targetへ
+`add_lower_bound(..., BoundDerivation::Constraint(parent))`、sourceへ
+`add_upper_bound(..., BoundDerivation::Constraint(parent))`をこの順に呼ぶ
+（`machine/propagate.rs:104-128`）。前者の`TypeBounds::add_lower`
+（`constraints/mod.rs:435-455`）は`BoundRecordState::Ordinary`を指定し、
+same-keyなら`add_bound`がcanonical recordへderivationだけをmergeする。
+
+`VarBounds::projection_lowers`（同`:669-671`）はrecord IDを返さず、evidence / ordinary
+lowerを無条件に連結する。record ID付きの
+`generalized_projection_lowers`（同`:687-691`）もfilterは行わない。
+claim / livenessは`VarBounds`だけでは判定できないため、既存`projection_lowers`の意味を
+全consumer向けに変更しない。`ConstraintMachine`が所有するscheme専用viewを新しい境界にする。
+
+必要な意味形は次である。型名とsmall collectionはimplementation時に既存命名へ合わせてよい。
+
+```text
+SchemeProjectionClaimLink {
+    lower_record: BoundRecordId
+    claim: UpperReplayClaimId
+}
+
+scheme_projection_claims_by_lower_record:
+    BoundRecordId -> small set<UpperReplayClaimId>
+
+scheme_projection_lower_records_by_root:
+    UpperReplayClaimId -> small set<BoundRecordId>
+
+scheme_projection_claimed_lower_owners:
+    small set<TypeVar>
+
+SchemeProjectableLower {
+    record: BoundRecordId
+    bound: WeightedLowerBound
+    reason:
+        Unclaimed
+        | UncoveredClaims(small non-empty set<UpperReplayClaimId>)
+}
+
+ConstraintMachine::scheme_projectable_lowers(TypeVar)
+    -> iterator<SchemeProjectableLower>
+```
+
+`UpperReplayClaimId`は§5.8〜§5.10のlogical claim identityをそのまま使う。lower用の第二claim
+graphやendpoint tokenを作らない。名前はupper replay admissionから始まった歴史を持つが、
+v6では同じVar–Var logical relationのlower-side scheme projectionもこのIDへlinkする。
+`scheme_projection_lower_records_by_root`はliveness transition時に影響ownerをglobal scanなしで
+列挙するreverse indexであり、coverage判定のhot pathでは使わない。
+
+現行`add_lower_bound` / `add_upper_bound`はstable `BoundRecordId`をcallerへ返さない。
+claim-aware Var–Var admissionは、既存のinsert / evidence / replay / event順を変えず、
+両側のcanonical record IDをnarrow internal resultとして受け取れるようにする。
+§5.9 / §5.10がtarget upper claimをnew / duplicate / evidence promotionで作成または
+coalesceした同じadmission中に、そのclaim IDをmirror lower recordへlinkする。
+後日のderivation graph walk、producer文字列、endpoint shapeからlinkを復元しない。
+
+#### 5.11.2 per-claim filtering
+
+viewはownerにraw `VarBounds`がなければemptyを返す。machine全体のlink tableがempty、または
+ownerが`scheme_projection_claimed_lower_owners`に無ければ、
+`generalized_projection_lowers`と同じrecord順、evidence / ordinary順、endpoint、weightsを
+そのまま`Unclaimed`として返す。これはordinary programのno-op fast pathである。
+
+linkを持つrecordでは、linked claimごとに圧縮済み`coverage_root`を読み、
+`live_coverage_by_root[root]`がemptyのclaimだけを`uncovered`へ入れる。
+
+```text
+links(record) == empty
+    => yield(record, Unclaimed)
+
+links(record) != empty && uncovered(record) != empty
+    => yield(record, UncoveredClaims(uncovered(record)))
+
+links(record) != empty && uncovered(record) == empty
+    => suppress from scheme projection
+```
+
+canonical lower recordに、reduction-own covered claimと別producerのindependent claimが同居する
+場合、同じendpointをclaim数だけcompactへ重複投入しない。recordを一回yieldし、
+`UncoveredClaims`にはindependent claimだけを入れる。covered claimはraw record /
+claim table / lineageへ残るが、schemeのsemantic inputにもgeneralized witnessのparentにも
+数えない。これは§8.1 test 2と§8.2 test 2のco-ownership境界をscheme projectionへそのまま
+延長する規則である。
+
+linkの欠落、存在しないclaim ID、壊れたroot参照を「covered」とみなしてrelationを消さない。
+release buildでは情報を失わない側へfail-openしてprojectし、timing / completenessへ
+incompleteを記録する。ただしreduction-own routeにこの状態が一件でも出た実装は§10.1の
+stop conditionによりlandingしない。fail-openは破損metadataを正しいと認めるfallbackではなく、
+unsoundなscheme narrowingを避ける最後の防波堤である。
+
+#### 5.11.3 liveness、lifecycle、epoch
+
+coverageはlink作成時にcopyしない。queryのたびに
+`claim.coverage_root -> live_coverage_by_root`を引くため、replacement / subsumptionでstateが
+別materializationへ移ってもrootがliveならsuppressionを保ち、last stateがcomplete / expire /
+pruneでindexから外れれば同じraw relationを再びprojectする。root非live化後も
+「以前coveredだった」というbooleanをlower recordへ残さない。
+
+v6はstateをいつcomplete / expireさせるかを新しく決めない。現行設計がstateをliveに保つcaseは
+そのまま保つ。liveness-transition regressionは、production lifecycleが最後のstateを外す
+narrow helper、または同じhelperを使うtest-only constructionでviewの前後を観測する。
+testのためだけに新しいexpiry policyをproductionへ追加しない。
+
+claim linkのinsert / move / coalesce、evidence promotion、lower recordの将来のsubsumption /
+pruneでは、root別claimを維持する。survivorへ移す場合も、survivorに以前からある別claimを
+coveredへ昇格させない。tombstone recordのlinkはaudit historyとして保持してよいが、
+active raw iteratorに出ないためviewへは出さない。
+
+projectabilityが変わるmetadata mutationはraw lower vectorを変えなくてもscheme semanticsの
+mutationである。implementationには、意味形として
+
+```text
+record_scheme_projection_mutation(owner: TypeVar)
+```
+
+を置き、少なくとも次をatomicに行う。
+
+1. global `ConstraintEpoch`をbumpする。
+2. ownerのbound / projection epochを同じ値へ進める。
+3. owner dirty schedulingがactiveなら`DependencyKey::ConstraintBounds(owner)`をpublishする。
+4. projection metadataの変更として`ProvenanceEpoch`もbumpする。
+
+rootのlive setがnon-emptyから別のnon-emptyへ変わるだけならprojectabilityは変わらないため、
+compact invalidationは不要である。empty/non-emptyを跨ぐtransition、またはrecordの
+unclaimed / all-covered / partly-uncovered分類が変わるlink mutationだけが、reverse indexから
+影響するactive lower ownerを列挙して上記mutationをpublishする。claim-qualified provenance
+だけが変わりcompact endpoint集合が同じ場合も`ProvenanceEpoch`は進める。live setのmemberが
+non-emptyのまま入れ替わる場合も、audit上のowner stateが変わるため`ProvenanceEpoch`は進める。
+
+`CompactCollector.cache`とpositive-alias cacheはimmutable machineを借りる一pass内cacheなので、
+pass途中のliveness changeは起きず、key追加や手動clearをしない。
+`GeneralizeCompactCache`は`analysis/mod.rs:297-365`と
+`analysis/session/generalize.rs:580-600`で確認した通り
+`(root TypeVar, ConstraintEpoch)`をkeyにするため、上記global epoch bumpで必ずmissする。
+将来per-variable projection cacheを追加する場合も、raw `VarBounds::epoch`だけでなくこの
+scheme-projection mutationをkey / dependencyへ含めるまで有効化しない。
+
+#### 5.11.4 compaction、alias expansion、provenanceの共有
+
+三consumerはfilterを別々に再実装しない。
+
+- `compact_var_bounds` / `compact_lower_bounds`はpositive sideで
+  `ConstraintMachine::scheme_projectable_lowers(var)`を使い、yieldされた`bound`だけを現在と同じ
+  weight処理、stack-family coexistence、`compact_pos_bound_id`へ渡す。negative upper collectionと
+  concrete node compactionは変更しない。
+- `positive_aliases_within_scheme`も同じiteratorを使い、その後に現在どおり
+  alias-neutral weight、`Pos::Var`、`allowed`を判定する。covered-only recordをtransitive alias
+  cacheへ入れない。cache keyは一pass内の`TypeVar`のままでよい。
+- `capture_generalized_witnesses`は同じiteratorのrecord / endpoint / `reason`を使う。別の
+  provenance-only projectability判定を持たない。
+
+最初の二consumerは`reason`を無視してendpointを一回処理できるが、provenanceはclaim granularityを
+保存する必要がある。`Unclaimed`では既存
+`GeneralizationParent::Bound(record)`をそのまま使う。
+`UncoveredClaims`では意味形として
+
+```text
+GeneralizationParent::BoundClaim {
+    bound: BoundRecordId
+    claim: UpperReplayClaimId
+}
+```
+
+をclaimごとに使い、covered claimのderivationをscheme witnessへ入れない。
+explanation / occurrence-provenance / portable exportのexhaustive consumerはこのparentを
+claimのproducer / lineage carrierへ辿れるようにする一方、raw `BoundRecord`と全derivationは
+audit APIから引き続き参照できる。mixed recordをplain `Bound(record)`として登録し、
+説明時に全derivationを展開する形ではper-claim filteringにならないため採らない。
+
+claim-qualified generalized parentはscheme provenanceの精度変更であり、quantifier /
+freshening規則の変更ではない。incoming edge budgetはprojectable claim数でboundedにし、
+同じ`(bound, claim)`をdedupする。claim-qualified parentを既存portable provenanceへ安全に
+表現できない場合は、covered proofをplain bound parentとして混ぜたり黙ってdropしたりせず、
+H3を止めてprovenance representationを再設計する。
+
 ## 6. 採らない方向
 
 ### 6.1 lowering-side order workaround
@@ -1113,6 +1405,21 @@ hash変化を起こしたためである。
 - subsumption / equivalent mergeでsurvivorの全claimへcoverage tokenをばらまかない。
 - 同じ`NegId` endpointを共有する別sourceのclaimを、lineage edgeなしでcoveredへ昇格させない。
 
+### 6.8 v6で採らないprojection workaround
+
+- `projection_lowers`自体からrecordを削除し、solver replayやauditまで同時に変えない。
+- lower endpointへ`covered: bool`をcopyし、rootがnon-liveになった後も隠し続けない。
+- 一つのcovered claimを理由にcanonical lower record全体を隠さない。
+- compactionだけをfilterし、positive alias expansionまたはscheme provenanceにraw graphを
+  残さない。
+- `finalize_generalized_compact_root`で完成済み`CompactRoot`から特定family / variableを
+  cleanupしない。根因はfreezeより前にある。
+- local-var callback body、`inner_r`、`&buffer`、block aggregationへcase-specificな
+  suppressionを入れない。
+- state completion後も「materializationが一度代替した」という履歴だけでrelationを
+  non-projectableにしない。
+- cacheを無効化せず、testではcacheをoffにして正しさを装わない。
+
 ## 7. この設計で変更しないもの
 
 - `notes/design/2026-07-28-local-var-effect-boundary-fix.md` のv5 local callback parameter
@@ -1132,6 +1439,14 @@ hash変化を起こしたためである。
 - current characterization baselineの差分を、実装出力に合わせるだけの更新でgreenにしない。
 - zero-lower / UpperFirst用のspeculative stateや、ordinary `Neg::Row`のshapeだけを見るlazy
   activationを追加しない。
+- claim linkageを一度も持たないordinary lowerは、compaction、positive alias expansion、
+  scheme provenanceのすべてで従来と同じ順序・weights・endpointをprojectする。
+- weighted row reduction、generalize / instantiateのquantifier / freshening、
+  specialize candidate comparison、finalizerのfreeze semanticsをv6のために変更しない。
+- raw `projection_lowers`、canonical `BoundRecord`、全derivationをaudit / explanation sourceから
+  削除しない。scheme viewだけをclaim-awareにする。
+- compaction cacheの正しさをlivenessが不変という仮定へ置かない。projectability transitionは
+  epoch / dependency mutationとして明示する。
 
 ## 8. regression tests
 
@@ -1274,7 +1589,52 @@ test 1はself-tag未実装でred、test 2はnarrow call-site taggingを守るgre
 ならない。両testとも、production graphのarena ID、fixture名、endpoint equalityをoracleにせず、
 exact parent claim、compressed root、`(result ConstraintRecordId, RowDerivationId)` carrierで判定する。
 
-この15 testに加え、次の既存testは名前も期待値も変更せず通す。
+### 8.4 v6で先に追加する4 regression contracts
+
+URR-Hのproduction consumerを変更する前に、次の四つを固定する。test 1〜3は
+`case_02.rs`の既存claim / root / carrier / canonical record helperを拡張し、
+raw bounds、scheme view、compact / finalized resultを別々に観測する。test 4は一個の小さいfixture
+ではなく、既存five-case characterizationとfull contract corpusをno-op oracleとして使う。
+
+1. **covered unmatched-route lowerはrawに残るがschemeへprojectされない**
+   §8.3 test 1と同じ`α`、unmatched variable lower `β`、residual `ρ`を作り、v5のexplicit
+   reduction-route parentによって`β <: ρ` claimがcovered rootへ属することを確認する。
+   `ρ <- Var(β)`のcanonical lower recordが`BoundRecordState::Ordinary`のままraw
+   `projection_lowers`と`BoundRecord` auditに存在する一方、
+   `scheme_projectable_lowers(ρ)`には出ず、positive compact graphと最終schemeへ`β`由来familyが
+   入らないことを固定する。generic replay countが0というv5 assertionだけではこのtestを
+   greenにしない。current codeではraw compaction bypassによりredでなければならない。
+2. **同じcanonical lowerのindependent claimだけをprojectする**
+   test 1の`β <: ρ`と同じsemantic keyへ、別producerのreal direct constraintを追加し、
+   mirror lower record一件にcovered reduction claimとuncovered direct claimを同居させる。
+   raw record identityとendpointは一件のまま、viewもendpointを一回だけ返し、
+   `UncoveredClaims`がdirect claim IDだけを含むことを確認する。compact resultにはrelationが残り、
+   generalized witnessはdirect `BoundClaim`だけをparentにし、covered claimをscheme provenanceへ
+   混ぜない。record-wide suppressionとclaim数ぶんの重複projectionを両方検出する。
+3. **last live stateが外れるとrelationは再びprojectableになる**
+   covered-only recordを持つrootについて、live stateありのview / compact結果とepochを保存する。
+   production lifecycleと同じnarrow helperで最後のstateを`live_coverage_by_root`から外し、
+   raw lower recordを変更しないまま、viewが同じrecordを
+   `UncoveredClaims`として返し、compact / schemeへrelationが戻ることを固定する。
+   `ConstraintEpoch`、owner epoch、`ProvenanceEpoch`が進み、cache-enabledな
+   `GeneralizeCompactCache`が旧rootをhitせず再構築することも確認する。materializationが過去に
+   equivalent informationを持ったという理由でrelationを隠し続ける期待値にはしない。
+   productionにstate expiry policyがまだ無ければ、testはliveness indexのtransition helperを
+   直接使い、新しいexpiry policyを導入しない。
+4. **ordinary bound projectionはbroad corpusでbyte-for-byte no-op**
+   `crates/infer/src/constraints/tests/characterization.rs`のstd-backed five caseについて、
+   v6実装前のpoly / check hash、formatted scheme、constraint / bound / replay censusを保存する。
+   reduction claim linkageを持たない全recordのview countがraw countと一致し、H2 / H3後も
+   target nested local-var case以外のhash / scheme / diagnosticがbyte-for-byte不変であることを
+   比較する。さらに`tests/yulang/cases.toml`のfull contract suite 287件を一つの必須gateとして
+   通す。`cargo test -p infer`だけをこのno-op controlの代用にしない。
+
+test 1はcompaction consumerを切り替えるまでred、test 2はper-claim viewとclaim-qualified
+provenanceが揃うまでred、test 3はprojection-time liveness / epoch contractが無ければredである。
+test 4はunrelated compaction driftを一件でも出した時点でredとし、expected hashを実装出力へ
+合わせてgreenにしない。
+
+この19 testに加え、次の既存testは名前も期待値も変更せず通す。
 
 - `unweighted_row_upper_uses_concrete_lower_item_before_residual_tail`
 - `unweighted_row_upper_consumes_pop_only_weighted_lower_item`
@@ -1550,6 +1910,138 @@ gate:
 URR-Gでもlocal-var production wiringを再開しない。nested characterizationはURR-Fから継続する
 solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-Bを別sliceとして再開する。
 
+### URR-H: claim-aware scheme projectionの段階導入
+
+v6がユーザ承認済みになるまで開始しない。`bc1dc55a`のclean production baseline、
+§8.1〜§8.3のlanded preflight八test、URR-G一度目で確認した18-test green /
+nested-red結果、§8.4の新しいcontractを起点にする。URR-F / Gのproduction実装はrollback済みなので、
+URR-Hはlanded Gへ小さいpatchを足す作業ではない。H1の最初に§5.8〜§5.10を同じ意味で再構築し、
+18 testが再びgreenになるcheckpointを作ってからv6 metadataへ進む。以前rollbackした実装を
+設計変更なしに再試行するのではなく、v6 viewが必要とするclaim IDを同じadmissionから供給する
+controlled reconstructionとして扱う。
+
+URR-Hは一つのatomic diffにしない。H1 / H2 / H3を順に進め、各gateを満たすまで後続consumerを
+切り替えない。H1のinert viewだけをlandingできるか、H2を単独landingできるかは各gateの
+baseline次第であり、partial landingを事前に約束しない。
+
+#### URR-H1: claim model再構築とinert scheme view
+
+test-first / characterization:
+
+1. §8.1〜§8.3の八testと既存十testを再実行し、clean baselineで既知のred / greenを保存する。
+2. §8.4 test 1〜3を追加し、raw lower storage、view classification、compact / final scheme、
+   claim-qualified provenance、epoch / cache assertionのどこがredかを分けて記録する。
+3. five-case characterizationのpoly / check hash、formatted scheme、constraint / bound / replay /
+   provenance census、wall time / peak memoryを保存する。
+4. full contract corpus 287件のbaselineを保存する。H1では期待値を変更しない。
+
+変更:
+
+- §5.8〜§5.10のclaim-local coverage、proof-carrying lineage、initial unmatched self-taggingを
+  URR-G一度目と同じsemantic contractで再構築する
+- Var–Var admissionからmirror lower `BoundRecordId`をnarrow resultとして受け取り、
+  同じ`UpperReplayClaimId`へlinkする
+- lower-record / root reverse index、claimed-owner fast path、
+  `scheme_projectable_lowers`を追加する
+- projectability transition用のconstraint / owner / provenance epoch mutationを追加する
+- raw / view count、unclaimed passthrough、all-covered suppression、mixed-claim yield、
+  liveness transition、invalid metadata fail-openをtiming / test inspectionへ出す
+- compaction、positive alias expansion、scheme witness collectionはまだraw iteratorのままにする
+
+gate:
+
+- §8.1〜§8.3の八testと既存十testが期待値無変更でpassする
+- §8.4 test 1のraw record / all-covered view、test 2のuncovered claim set、
+  test 3のliveness / epoch部分がpassする。compact / provenance consumer assertionは、
+  未配線箇所を明示したままredである
+- no-claim ownerではviewのrecord ID、順序、state、endpoint、weightsがraw
+  `generalized_projection_lowers`と完全一致する
+- root lookupは対象recordのsmall claim setだけに比例し、machine全体 / provenance graphを
+  scanしない
+- five-case hash / schemeと287-case contract outputがbaselineから変わらない
+- claim / lower-link / reverse-index数がcanonical `(lower bound, root claim)`で説明でき、
+  proof mergeやcycle回数に比例しない
+
+H1でview consumerを一つだけ先行変更しない。inert metadataでもordinary workloadのwall time /
+memoryが説明できない場合はH2へ進まない。
+
+#### URR-H2: scheme compactionだけをviewへ切り替える
+
+H2の前に`CompactCollector`のentrypoint ownershipを監査する。`bc1dc55a`では
+`compact_type_var_for_scheme`、`compact_negative_type_var_for_scheme`、
+`compact_type_var_recording_merge_constraints_for_scheme`がscheme用の名前を持つ一方、
+collector constructorはgeneric entrypointと同じ`CompactCollector::new`を使う。
+generalization中のreachable role predicate collectionもscheme出力へ入るが、entrypoint名だけでは
+scheme modeと分からない。したがってcollectorへ
+`Raw | SchemeProjection`の固定mode、または同等に明示的なscheme constructorを置き、
+finalized schemeを構築する全call siteを列挙する。generic `compact_type_var`やscheme外のrole
+solveを一括でclaim-awareへ変えない。exact call-site集合に不確実性が残る場合はH2を止める。
+
+変更:
+
+- scheme-mode collectorのpositive `compact_var_bounds` / `compact_lower_bounds`だけを
+  `scheme_projectable_lowers`へ切り替える
+- negative upper collection、raw-mode collector、weight composition、stack-family coexistence、
+  recursive detection、`compact_pos_bound_id`自体は変更しない
+- collector modeは一instanceで不変とし、local cache keyへmodeを足す必要がない構造にする
+- cache-enabled generalizationでcoverage liveness transition後のrebuildを観測する
+
+gate:
+
+- §8.4 test 1のcompact assertionがgreenになり、covered-only `Var(β)`がsecondary compact
+  variableにならない。raw recordは引き続きordinaryとして存在する
+- §8.4 test 2でmixed recordを一回projectし、independent claimのrelationはcompactへ残る
+- §8.4 test 3でlast-live-state transition後のcompact resultが再構築される
+- §8.1〜§8.3の八test、§8の既存七regression、既存三contractが期待値無変更でpassする
+- production five-case characterizationをfullで実行し、target nested relation以外のpoly /
+  check hash、scheme、diagnostic、census shiftがない。target差分もraw claim/rootまで説明する
+- `timeout 900s cargo run -q -p yulang -- --std-root lib contract tests/yulang/cases.toml`で
+  full 287 casesを実行し、全件passする。shard一部や`cargo test -p infer`だけで代用しない
+- `timeout 240s cargo test -p infer`とcache-enabled generalization testsがpassする
+- ordinary no-claim workloadのcompact node / cache hit / wall time / memory差分が測定誤差を越えて
+  悪化しない
+
+H2時点ではpositive alias expansionとscheme provenanceはまだraw graphを読むため、
+finalized nested gateを完了と宣言しない。nestedが偶然greenになった場合も、alias /
+provenanceが同じviewを使うH3を省略しない。
+
+#### URR-H3: alias expansionとscheme provenanceを同じviewへ揃える
+
+変更:
+
+- `positive_aliases_within_scheme`をH2と同じ`scheme_projectable_lowers`へ切り替える
+- `capture_generalized_witnesses`も同じentryのrecord / endpoint / reasonを使う
+- unclaimed entryは既存`GeneralizationParent::Bound`を保ち、claimed entryはprojectable claimだけを
+  `BoundClaim` parentとして記録する
+- explanation、occurrence provenance、portable exportのexhaustive consumerへclaim-qualified
+  parentを追加し、raw bound auditとのlinkを保つ
+- incoming budget、dedup、completeness、portable round-tripを`(bound, claim)`単位で計測する
+- `finalize_generalized_compact_root`は変更しない
+
+gate:
+
+- §8.4 test 1でraw aliasがpositive alias cacheから再流入せず、confirmed nested leak caseの
+  finalized schemeからinner familyが消える
+- §8.4 test 2でmixed recordのgeneralized witnessがindependent claimだけをparentにし、
+  covered claimを含まない。raw auditでは両claimを引き続き観測できる
+- §8.4 test 3のliveness transitionでview、alias、provenance、cached compactが同じsnapshotを
+  表す
+- §8の19 contractと既存三testが期待値無変更でpassする
+- production five-case characterizationをH2後にもう一度fullで実行し、nested local-var caseの
+  principal narrowing以外のpoly / check hash、formatted scheme、diagnosticが変わらない
+- full repository contract suite 287件をH2と同じunsharded commandで再実行し、全件passする
+- constraint characterization / explanation / portable provenance suites、
+  `timeout 240s cargo test -p infer`、`timeout 240s cargo test -p specialize`、
+  `timeout 300s cargo test -p yulang`、`timeout 600s cargo test --workspace`がpassする
+- claim-qualified provenanceがbudget drop / `IncompleteReplay`へ落ちず、ordinary
+  `GeneralizationParent::Bound`の既存expectationを不要に更新しない
+- repository-stdでscheme-view query、covered suppression、mixed yield、liveness invalidation、
+  compact cache hit、wall time、peak memoryを説明できる
+
+URR-H3の全gateが閉じるまでlocal-var production wiringを再開しない。full contract suiteで
+target nested case以外のbaseline shiftが一件でも出たら、expectedを更新せずH2 / H3のどちらで
+初めて変わったかへ戻して切り分ける。
+
 ## 10. stop / rollback conditions
 
 ### 10.1 stop conditions
@@ -1615,6 +2107,29 @@ solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-
 26. new admissionではself-tagを保持できるがduplicate admissionで失う、またはduplicateを
     coveredにするためsemantic queueの再実行、`RowDerivation` graphのpost-hoc walk、
     rule-name / endpoint-based inferenceが必要になる。
+27. unweighted reductionのclaim linkageを一度も持たないlowerについて、compact node、positive
+    alias、formatted scheme、generalized witness parentのいずれかが変わる。
+28. compaction、positive alias expansion、scheme provenanceが別々のprojectability判定を持ち、
+    同じrecord / liveness snapshotについてconsumer間でinclude / excludeが食い違う。
+29. same canonical lower record上のcovered claimを除くためにindependent uncovered claimまで
+    失う、またはindependent claim数だけ同じendpointをcompactへ重複投入する。
+30. coverage rootがliveな間にcovered-only relationがschemeへprojectされる、またはlast live
+    stateが外れた後もactive raw relationがnon-projectableのまま残る。
+31. coverage livenessのempty / non-empty transition後に`ConstraintEpoch` / owner dependencyが
+    更新されず、`GeneralizeCompactCache`が旧`CompactRoot`をhitする。cacheをoffにしたtestだけで
+    correctnessを示す場合も同じstop conditionとする。
+32. production five-case characterizationまたはfull 287-case contract suiteで、confirmed nested
+    local-var narrowing以外のscheme / poly hash / check hash / diagnosticが動く。各差分を
+    claim rootまで説明できても、v6 scope外ならexpected更新前に止める。
+33. scheme用collectorを識別するためにgeneric `compact_type_var`、scheme外role solve、
+    negative upper projectionまで一括でclaim-awareへ変える必要がある。
+34. raw `projection_lowers` / `BoundRecord` / derivationを削除・書換えしないとscheme viewを
+    実装できない、またはaudit queryがcovered proofを見られなくなる。
+35. mixed recordのscheme provenanceをclaim-qualifiedにできず、plain
+    `GeneralizationParent::Bound`からcovered derivationまでscheme parentとして展開する、
+    portable exportでclaim identityをdropする、またはbudget不足をcompleteとして扱う。
+36. ordinary no-claim fast pathでもboundごとのhash lookup / allocationが必須になり、
+    repository-stdのwall time / peak memory / compact cache hit regressionが再現する。
 
 ### 10.2 rollback unit
 
@@ -1637,6 +2152,18 @@ solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-
   unrelated row-derived controlのどれかが成立しなければ、helper-wide taggingや
   `RowDerivationRule` special caseをlandingしない。§8.3の二regressionは正しい期待値のまま保持し、
   URR-F / Gのsemantic implementationをpartialに残さない。
+- URR-H1でlower-side claim link、per-claim view、liveness / epoch contractのどれかが成立しなければ、
+  raw record-wide flagやendpoint suppressionを残さない。§8.4の正しいregressionは保持し、
+  H1 metadata implementationを戻す。再構築したURR-F / G codeも18-test checkpointを単独で
+  再現できなければ同じrollback unitへ含める。
+- URR-H2のscheme collector modeまたはno-claim passthroughが成立しなければ、generic compactionへ
+  filterを広げずH2 wiringを戻す。H1のinert viewはbaseline / performanceが完全no-opの場合だけ
+  独立に残せる。
+- URR-H3でalias expansion、claim-qualified provenance、portable explanationのどれかが
+  同じviewへ揃わなければ、compactionだけをsemantic landingしない。H2 / H3のconsumer wiringを
+  一つのrollback unitとして戻し、raw graphとfiltered graphが混在するreleaseを作らない。
+- H2またはH3のfull five-case / 287-case gateでunexplained shiftが出たら、期待値を更新せず、
+  初めてshiftしたstage全体を戻す。
 - performanceだけが不合格でもglobal scanをdefault-onで残さない。source indexまたはstate keyを
   再設計し、意味論を変えるcache / early returnは入れない。
 
@@ -1675,12 +2202,15 @@ solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-
     そのaudit recordとしてcaseごとに説明されている。
 16. sourceと無関係なstateのglobal scan、CST / AST再走査、path / fixture special case、
     fresh-var workaround、後段cleanupがない。
-17. local-var mechanism、generalize / instantiate、specializeのsemantic codeに本fix由来の変更が
-    ない。
+17. local-var mechanism、generalize / instantiateのlevel / quantifier / freshening、
+    specialize candidate comparisonに本fix由来の変更がない。generalizeの変更はscheme-viewを
+    使うpositive alias collectionとclaim-qualified provenanceに限られる。
 18. targeted tests、constraint characterization / explanation suites、`cargo test -p infer`、
-    `cargo test -p specialize`、`cargo test -p yulang`、workspace gateが通る。
+    `cargo test -p specialize`、`cargo test -p yulang`、workspace gateに加え、production
+    five-case characterizationとfull 287-case contract suiteが通る。
 19. implementation diffがpersistent unweighted reduction、bound replay / lifecycle、
-    provenance / timing、そのtestsだけに限られ、原因と無関係なrefactorを含まない。
+    scheme-projectable bound view、scheme-mode compaction、positive alias、scheme provenance /
+    cache invalidation / timing、そのtestsだけに限られ、原因と無関係なrefactorを含まない。
 20. zero-lower / initial no-match sourceへspeculative / dormant recordを作らず、ordinary
     `Neg::Row` upperのshapeだけをtriggerにlazy activationしない。
 21. §8.1の三regressionがpassし、同じproducer-rootのlater same-key proofはcovered、
@@ -1718,9 +2248,30 @@ solver integration gateとしてだけ使い、solver gateが閉じた後にLVB-
     `(result ConstraintRecordId, RowDerivationId)`をcarrierとして持つ。new / duplicateの両admissionで
     このidentityを失わず、same record上のdirect claimをcoveredへ書き換えない。
 33. self-taggingはinitial reduction routingのunmatched armだけに限られ、matched arm、weighted
-    residual、row invariant、row-item matchへ広がらない。URR-Fと同じnested characterization gateが
-    新しい期待値への変更なしで実際にpassし、inner familyがouter finalizationへ漏れない。
+    residual、row invariant、row-item matchへ広がらない。
+34. §8.4の四contractがpassし、covered-only mirror lowerはraw ordinary recordとして残る一方、
+    live root中はscheme-projectable view、compact graph、positive alias、scheme provenanceから
+    除外される。
+35. same canonical lowerにcovered / uncovered claimが同居するとき、endpointは一回だけprojectされ、
+    semantic relationとgeneralized witness parentはuncovered claimだけを根拠にする。raw auditでは
+    両claimと全derivationを引き続き観測できる。
+36. coverage判定はprojection時のcompressed-root lookupであり、last live stateが外れればactive
+    raw relationが再びprojectableになる。stale boolean、parent-chain walk、historical
+    materializationによる永久suppressionがない。
+37. projectabilityのempty / non-empty transitionは`ConstraintEpoch`、owner dependency、
+    `ProvenanceEpoch`へ反映され、cache-enabled `GeneralizeCompactCache`がstale
+    `CompactRoot`を再利用しない。
+38. compaction、positive alias expansion、scheme provenanceが一つのview APIを共有し、
+    raw `projection_lowers`はsolver replay / audit用に維持される。
+39. scheme-mode collectorのcall siteが明示され、generic compaction、scheme外role solve、
+    negative upper collection、finalizer freeze semanticsは変わらない。
+40. claim linkageを持たないordinary lowerのrecord順、weights、compact output、alias、
+    generalized witness、formatted schemeがbyte-for-byte不変であり、ordinary fast pathに
+    global scanまたはper-bound allocationがない。
+41. URR-Fから継続したnested characterization gateが新しい期待値への変更なしで実際にpassし、
+    inner familyがouter finalizationへ漏れない。production five-caseのそれ以外のcaseとfull
+    287-case contract suiteにbaseline shiftがない。
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: ユーザ承認済み（v5、2026-07-30）
+状態: 未承認・ユーザレビュー待ち（v6）
