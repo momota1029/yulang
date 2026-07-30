@@ -1633,10 +1633,6 @@ fn unweighted_row_upper_multihop_lineage_root_compresses_without_cycle_growth() 
 }
 
 #[test]
-// Checkpoint note: this v5 test predates the v6 projection view. Its final reachability
-// assertion still traverses raw bounds, where `beta <: residual` intentionally remains.
-// Per `notes/design/2026-07-29-unweighted-row-reduction-fix.md` §4.10, the next H1b slice
-// will observe `scheme_projectable_lowers` instead; the no-contamination outcome is unchanged.
 fn unweighted_row_upper_initial_unmatched_route_inherits_reduction_root() {
     let mut machine = ConstraintMachine::new();
     let alpha = TypeVar(0);
@@ -1718,7 +1714,7 @@ fn unweighted_row_upper_initial_unmatched_route_inherits_reduction_root() {
         "the covered routed claim must not generic-replay beta's matching family"
     );
     assert!(
-        !has_reachable_lower_family_with_weights(
+        !has_reachable_scheme_projectable_lower_family_with_weights(
             &machine,
             residual,
             &["effect", "f"],
@@ -1726,6 +1722,260 @@ fn unweighted_row_upper_initial_unmatched_route_inherits_reduction_root() {
         ),
         "beta's matching family must stay out of the residual, including through routed aliases"
     );
+}
+
+#[test]
+fn covered_unmatched_route_lower_is_raw_but_not_scheme_projectable() {
+    let fixture = scheme_projection_unmatched_route_fixture(false);
+    let raw = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual raw bounds")
+        .generalized_projection_lowers()
+        .map(|(record, bound)| (record, bound.clone()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        raw.iter()
+            .filter(|(record, _)| *record == fixture.lower_record)
+            .count(),
+        1,
+        "the covered beta <: residual relation remains one canonical raw lower"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds()
+            .record(fixture.lower_record)
+            .expect("stable raw lower record")
+            .state(),
+        BoundRecordState::Ordinary,
+        "scheme suppression must not tombstone the audit record"
+    );
+    assert!(
+        matches!(
+            fixture
+                .machine
+                .types()
+                .pos(raw.iter()
+                    .find(|(record, _)| *record == fixture.lower_record)
+                    .expect("raw lower endpoint")
+                    .1
+                    .pos),
+            Pos::Var(found) if *found == fixture.beta
+        ),
+        "the raw endpoint remains beta"
+    );
+    assert!(
+        fixture
+            .machine
+            .scheme_projectable_lowers(fixture.residual)
+            .all(|lower| lower.record != fixture.lower_record),
+        "the live covered claim must suppress only the scheme view"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_claims_by_lower_record
+            .get(&fixture.lower_record),
+        Some(&vec![fixture.covered_claim]),
+        "the mirror lower must retain the exact reduction-route claim"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_records_by_root
+            .get(&fixture.coverage_root),
+        Some(&vec![fixture.lower_record]),
+        "the compressed root reverse index must identify the affected raw record"
+    );
+}
+
+#[test]
+fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
+    let fixture = scheme_projection_unmatched_route_fixture(true);
+    let direct_claim = fixture
+        .direct_claim
+        .expect("mixed fixture has an independent direct claim");
+    let raw_records = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual raw bounds")
+        .generalized_projection_lowers()
+        .filter(|(record, _)| *record == fixture.lower_record)
+        .count();
+    let projected = fixture
+        .machine
+        .scheme_projectable_lowers(fixture.residual)
+        .filter(|lower| lower.record == fixture.lower_record)
+        .collect::<Vec<_>>();
+
+    assert_eq!(raw_records, 1, "the semantic lower key stays canonical");
+    assert_eq!(
+        projected.len(),
+        1,
+        "mixed claims must project their endpoint once, not once per claim"
+    );
+    assert_eq!(
+        projected[0].reason,
+        SchemeProjectableLowerReason::UncoveredClaims(vec![direct_claim]),
+        "only the independent direct claim may justify scheme projection"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_claims_by_lower_record
+            .get(&fixture.lower_record),
+        Some(&vec![direct_claim, fixture.covered_claim]),
+        "the canonical mirror lower must retain both claim identities"
+    );
+}
+
+#[test]
+fn scheme_projectability_returns_after_last_live_coverage_state_leaves() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    let raw_before = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual raw bounds")
+        .generalized_projection_lowers()
+        .map(|(record, bound)| (record, bound.clone()))
+        .collect::<Vec<_>>();
+    assert!(
+        fixture
+            .machine
+            .scheme_projectable_lowers(fixture.residual)
+            .all(|lower| lower.record != fixture.lower_record),
+        "the live state initially covers the only linked claim"
+    );
+    let constraint_epoch_before = fixture.machine.epoch();
+    let owner_epoch_before = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual owner epoch")
+        .epoch();
+    let provenance_epoch_before = fixture.machine.provenance_epoch();
+
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            ),
+        "the fixture removes the root's last live state through the lifecycle primitive"
+    );
+
+    let raw_after = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual raw bounds after liveness transition")
+        .generalized_projection_lowers()
+        .map(|(record, bound)| (record, bound.clone()))
+        .collect::<Vec<_>>();
+    let projected = fixture
+        .machine
+        .scheme_projectable_lowers(fixture.residual)
+        .find(|lower| lower.record == fixture.lower_record)
+        .expect("the uncovered raw relation becomes projectable again");
+    let owner_epoch_after = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual owner epoch after transition")
+        .epoch();
+
+    assert_eq!(
+        raw_after, raw_before,
+        "liveness changes projection metadata, never the raw lower relation"
+    );
+    assert_eq!(
+        projected.reason,
+        SchemeProjectableLowerReason::UncoveredClaims(vec![fixture.covered_claim]),
+        "the formerly covered claim is re-evaluated at projection time"
+    );
+    assert!(
+        fixture.machine.epoch() > constraint_epoch_before
+            && owner_epoch_after > owner_epoch_before
+            && fixture.machine.provenance_epoch() > provenance_epoch_before,
+        "constraint, owner, and provenance epochs must all advance"
+    );
+    assert_eq!(
+        owner_epoch_after,
+        fixture.machine.epoch(),
+        "the affected owner's projection epoch follows the global mutation epoch"
+    );
+}
+
+#[test]
+fn ordinary_scheme_projectable_lowers_are_byte_for_byte_raw_passthrough() {
+    let mut machine = ConstraintMachine::new();
+    let owner = TypeVar(0);
+    let ordinary = machine.alloc_pos(Pos::Con(
+        vec!["effect".into(), "ordinary".into()],
+        Vec::new(),
+    ));
+    let evidence = machine.alloc_pos(Pos::Con(
+        vec!["effect".into(), "evidence".into()],
+        Vec::new(),
+    ));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.bounds.add_lower(
+        owner,
+        ordinary,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+    machine.bounds.add_evidence_lower(
+        owner,
+        evidence,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+
+    let raw = machine
+        .bounds()
+        .of(owner)
+        .expect("ordinary owner raw bounds")
+        .generalized_projection_lowers()
+        .map(|(record, bound)| (record, bound.clone()))
+        .collect::<Vec<_>>();
+    let projected = machine
+        .scheme_projectable_lowers(owner)
+        .map(|lower| (lower.record, lower.bound.clone(), lower.reason))
+        .collect::<Vec<_>>();
+
+    assert!(
+        !machine
+            .bounds
+            .scheme_projection_claimed_lower_owners
+            .contains(&owner),
+        "ordinary lower records stay on the no-claim fast path"
+    );
+    assert_eq!(
+        projected.len(),
+        raw.len(),
+        "the view must preserve every raw record"
+    );
+    for ((projected_record, projected_bound, reason), (raw_record, raw_bound)) in
+        projected.iter().zip(&raw)
+    {
+        assert_eq!(
+            (projected_record, projected_bound),
+            (raw_record, raw_bound),
+            "record identity, evidence/ordinary ordering, endpoint, and weights must pass through"
+        );
+        assert_eq!(reason, &SchemeProjectableLowerReason::Unclaimed);
+    }
 }
 
 #[test]
@@ -1865,6 +2115,95 @@ struct ObservedReplayLineageMetrics {
     claim_count: usize,
     maximum_depth: u32,
     cycle_coalesces: usize,
+}
+
+struct SchemeProjectionUnmatchedRouteFixture {
+    machine: ConstraintMachine,
+    beta: TypeVar,
+    residual: TypeVar,
+    lower_record: BoundRecordId,
+    covered_claim: UpperReplayClaimId,
+    direct_claim: Option<UpperReplayClaimId>,
+    coverage_root: UpperReplayClaimId,
+    coverage_state: UnweightedRowReductionRecordId,
+}
+
+fn scheme_projection_unmatched_route_fixture(
+    with_independent_direct_claim: bool,
+) -> SchemeProjectionUnmatchedRouteFixture {
+    let mut machine = ConstraintMachine::new();
+    let alpha = TypeVar(0);
+    let beta = TypeVar(1);
+    let residual = TypeVar(2);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let alpha_neg = machine.alloc_neg(Neg::Var(alpha));
+    let alpha_pos = machine.alloc_pos(Pos::Var(alpha));
+    let beta_pos = machine.alloc_pos(Pos::Var(beta));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, alpha_neg, origin);
+    machine.subtype(beta_pos, alpha_neg, origin);
+    if with_independent_direct_claim {
+        machine.subtype(beta_pos, tail, origin);
+    }
+    machine.subtype(alpha_pos, row_upper, origin);
+
+    let lower_record = lower_bound_record(&machine, residual, beta_pos);
+    let upper_record = upper_bound_record_for_var(&machine, beta, residual);
+    let linked_claims = machine
+        .bounds
+        .scheme_projection_claims_by_lower_record
+        .get(&lower_record)
+        .cloned()
+        .expect("the Var-Var admission links its mirror lower record");
+    let covered_claim = linked_claims
+        .iter()
+        .copied()
+        .find(|claim| {
+            let root = machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root;
+            machine
+                .bounds
+                .live_coverage_by_root
+                .get(&root)
+                .is_some_and(|states| !states.is_empty())
+        })
+        .expect("the unmatched reduction route carries a covered claim");
+    let direct_claim = linked_claims.iter().copied().find(|claim| {
+        let claim = &machine.bounds.upper_replay_claims[claim.0 as usize];
+        claim.current_record == upper_record
+            && machine
+                .bounds
+                .live_coverage_by_root
+                .get(&claim.coverage_root)
+                .is_none_or(Vec::is_empty)
+    });
+    let coverage_root = machine.bounds.upper_replay_claims[covered_claim.0 as usize].coverage_root;
+    let coverage_state = machine.bounds.live_coverage_by_root[&coverage_root][0];
+
+    assert_eq!(
+        linked_claims.len(),
+        1 + usize::from(with_independent_direct_claim),
+        "the fixture has exactly its covered route and optional direct claim"
+    );
+    assert_eq!(
+        machine.bounds.records[lower_record.0 as usize].endpoint(),
+        BoundEndpoint::Lower(beta_pos),
+        "the linked record is the raw residual <- beta mirror"
+    );
+
+    SchemeProjectionUnmatchedRouteFixture {
+        machine,
+        beta,
+        residual,
+        lower_record,
+        covered_claim,
+        direct_claim,
+        coverage_root,
+        coverage_state,
+    }
 }
 
 impl ObservedReplayLineage {
@@ -2353,7 +2692,7 @@ fn has_lower_family_with_weights(
         })
 }
 
-fn has_reachable_lower_family_with_weights(
+fn has_reachable_scheme_projectable_lower_family_with_weights(
     machine: &ConstraintMachine,
     var: TypeVar,
     expected_path: &[&str],
@@ -2369,22 +2708,20 @@ fn has_reachable_lower_family_with_weights(
         if !seen.insert(var) {
             return false;
         }
-        machine.bounds().of(var).is_some_and(|bounds| {
-            bounds.lowers().iter().any(|lower| {
-                &lower.weights == expected_weights
-                    && (pos_contains_family(machine, lower.pos, expected_path)
-                        || matches!(
-                            machine.types().pos(lower.pos),
-                            Pos::Var(next)
-                                if visit_var(
-                                    machine,
-                                    *next,
-                                    expected_path,
-                                    expected_weights,
-                                    seen,
-                                )
-                        ))
-            })
+        machine.scheme_projectable_lowers(var).any(|lower| {
+            &lower.bound.weights == expected_weights
+                && (pos_contains_family(machine, lower.bound.pos, expected_path)
+                    || matches!(
+                        machine.types().pos(lower.bound.pos),
+                        Pos::Var(next)
+                            if visit_var(
+                                machine,
+                                *next,
+                                expected_path,
+                                expected_weights,
+                                seen,
+                            )
+                    ))
         })
     }
 

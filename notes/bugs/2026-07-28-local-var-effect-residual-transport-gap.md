@@ -1434,3 +1434,41 @@ sliceでこの一件の reachability check を raw traversal から
 変えない。最終再確認は `cargo check -p infer` が成功し、
 `constraints::tests::case_02` が45 pass / 1 fail / 1 known-ignore、失敗は
 この一件だけだった。
+
+## 27回目: URR-H1b inert scheme-projectable view の着地
+（2026-07-30）
+
+v6 §5.11 の `scheme_projectable_lowers` を constraint machine に追加した。
+Var–Var admission で upper claim と mirror lower の canonical
+`BoundRecordId` を対応づけ、lower record ごとの claim、compressed root
+ごとの lower record、claim を持つ lower owner の逆引きを `TypeBounds` に
+保持する。raw `BoundRecord` と既存の `projection_lowers` /
+`generalized_projection_lowers` は変更していない。
+
+view は record に claim linkage がなければ evidence / ordinary の raw 順序、
+record ID、endpoint、weight をそのまま `Unclaimed` として返す。linkage が
+ある場合は、query のたびに各 claim の `coverage_root` から
+`live_coverage_by_root` を引き、uncovered claim が一つ以上ある record だけを
+一回返す。mixed record の reason には uncovered claim だけを残す。coverage
+を claim 作成時の boolean に焼き付けていないため、最後の live state を外すと
+raw relation を変更せず再び projectable になる。その transition は global
+constraint epoch、該当 lower owner の epoch、provenance epoch を進める。
+
+§8.4 の H1 regression として次の4件を追加し、すべて green にした。
+
+- `covered_unmatched_route_lower_is_raw_but_not_scheme_projectable`
+- `scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record`
+- `scheme_projectability_returns_after_last_live_coverage_state_leaves`
+- `ordinary_scheme_projectable_lowers_are_byte_for_byte_raw_passthrough`
+
+前 checkpoint で唯一 red だった
+`unweighted_row_upper_initial_unmatched_route_inherits_reduction_root` は、
+最終 reachability helper の走査元だけを raw lower bounds から
+`scheme_projectable_lowers` へ切り替えた。「F contamination が residual
+へ到達しない」という outcome expectation は変更していない。
+
+この slice では compaction、positive alias expansion、scheme provenance、
+real generic-replay decision の consumer を一つも view へ切り替えていない。
+`cargo check -p infer` は成功し、`constraints::tests::case_02` は
+50 pass / 0 fail / 1 known-ignore（51 selected）となった。指定に従い
+five-case characterization は未実行であり、次の H2 slice の gate として残す。

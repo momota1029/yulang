@@ -406,7 +406,7 @@ struct UnweightedRowReductionRegistration {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct UpperReplayClaimId(u32);
+pub(crate) struct UpperReplayClaimId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UpperReplayClaimKind {
@@ -472,6 +472,155 @@ struct ReductionRouteClaimParent {
     derivation: RowDerivationId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SchemeProjectableLowerReason {
+    Unclaimed,
+    UncoveredClaims(Vec<UpperReplayClaimId>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SchemeProjectableLower<'a> {
+    pub(crate) record: BoundRecordId,
+    pub(crate) bound: &'a WeightedLowerBound,
+    pub(crate) reason: SchemeProjectableLowerReason,
+}
+
+impl ConstraintMachine {
+    /// Return the active lower relations that may contribute to a generalized scheme.
+    ///
+    /// Raw bounds remain the audit source of truth. Claim coverage is deliberately resolved here,
+    /// at projection time, so a relation becomes visible again when its last live coverage state
+    /// leaves the compressed root.
+    pub(crate) fn scheme_projectable_lowers(
+        &self,
+        var: TypeVar,
+    ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
+        let bounds = &self.bounds;
+        let claimed_owner = bounds.scheme_projection_claimed_lower_owners.contains(&var);
+        bounds
+            .vars
+            .get(var.0 as usize)
+            .and_then(Option::as_ref)
+            .into_iter()
+            .flat_map(move |var_bounds| {
+                var_bounds
+                    .projection_lower_records()
+                    .filter_map(move |(record, bound)| {
+                        let Some(linked_claims) = claimed_owner
+                            .then(|| bounds.scheme_projection_claims_by_lower_record.get(&record))
+                            .flatten()
+                        else {
+                            return Some(SchemeProjectableLower {
+                                record,
+                                bound,
+                                reason: SchemeProjectableLowerReason::Unclaimed,
+                            });
+                        };
+                        if linked_claims.is_empty() {
+                            return Some(SchemeProjectableLower {
+                                record,
+                                bound,
+                                reason: SchemeProjectableLowerReason::Unclaimed,
+                            });
+                        }
+
+                        let mut uncovered = Vec::new();
+                        for claim_id in linked_claims {
+                            let Some(claim) = bounds.upper_replay_claims.get(claim_id.0 as usize)
+                            else {
+                                // Broken projection metadata must fail open rather than narrow a
+                                // scheme by silently dropping a valid raw relation.
+                                return Some(SchemeProjectableLower {
+                                    record,
+                                    bound,
+                                    reason: SchemeProjectableLowerReason::Unclaimed,
+                                });
+                            };
+                            if bounds
+                                .upper_replay_claims
+                                .get(claim.coverage_root.0 as usize)
+                                .is_none()
+                            {
+                                return Some(SchemeProjectableLower {
+                                    record,
+                                    bound,
+                                    reason: SchemeProjectableLowerReason::Unclaimed,
+                                });
+                            }
+                            if bounds
+                                .live_coverage_by_root
+                                .get(&claim.coverage_root)
+                                .is_none_or(Vec::is_empty)
+                            {
+                                uncovered.push(*claim_id);
+                            }
+                        }
+
+                        (!uncovered.is_empty()).then_some(SchemeProjectableLower {
+                            record,
+                            bound,
+                            reason: SchemeProjectableLowerReason::UncoveredClaims(uncovered),
+                        })
+                    })
+            })
+    }
+
+    /// Remove one state from the live coverage index without defining a new expiry policy.
+    ///
+    /// This is the lifecycle primitive needed by projection-time liveness. No production caller
+    /// is wired in URR-H1; tests use it to exercise the empty/non-empty transition directly.
+    #[allow(dead_code)]
+    fn remove_scheme_projection_live_coverage_state(
+        &mut self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+    ) -> bool {
+        let Some(states) = self.bounds.live_coverage_by_root.get_mut(&root) else {
+            return false;
+        };
+        let old_len = states.len();
+        states.retain(|candidate| *candidate != state);
+        if states.len() == old_len {
+            return false;
+        }
+        if !states.is_empty() {
+            self.bump_provenance_epoch();
+            return true;
+        }
+
+        let affected_owners = self
+            .bounds
+            .scheme_projection_lower_records_by_root
+            .get(&root)
+            .into_iter()
+            .flatten()
+            .filter_map(|record| self.bounds.record(*record))
+            .filter(|record| record.state() != BoundRecordState::Tombstone)
+            .map(BoundRecord::owner)
+            .collect::<FxHashSet<_>>();
+        self.record_scheme_projection_mutation(affected_owners);
+        true
+    }
+
+    fn record_scheme_projection_mutation(&mut self, owners: FxHashSet<TypeVar>) {
+        for owner in &owners {
+            if self.method_role_mutations.is_active() {
+                self.method_role_mutations
+                    .record(DependencyKey::ConstraintBounds(*owner));
+            }
+        }
+        if owners.is_empty() {
+            self.bump_provenance_epoch();
+            return;
+        }
+        let epoch = self.bump_epoch();
+        for owner in owners {
+            self.bounds.record_var_epoch(owner, epoch);
+        }
+        self.bump_provenance_epoch();
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// 型変数ごとの weighted lower / upper bounds。
 ///
@@ -492,6 +641,11 @@ pub struct TypeBounds {
     reduction_route_claim_parents_by_constraint:
         FxHashMap<ConstraintRecordId, Vec<ReductionRouteClaimParent>>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
+    scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
+    scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
+    scheme_projection_claims_by_lower_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
+    scheme_projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
+    scheme_projection_claimed_lower_owners: FxHashSet<TypeVar>,
     replay_claim_cycle_coalesces: usize,
 }
 
@@ -526,7 +680,11 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
-        self.add_bound(
+        let producer = match &derivation {
+            BoundDerivation::Constraint(producer) => Some(*producer),
+            _ => None,
+        };
+        let insertion = self.add_bound(
             BoundSemanticKey::Lower {
                 owner: var,
                 endpoint: pos,
@@ -538,7 +696,12 @@ impl TypeBounds {
             weights,
             BoundRecordState::Ordinary,
             derivation,
-        )
+        );
+        if let Some(producer) = producer {
+            self.scheme_projection_lower_record_by_constraint
+                .insert(producer, insertion.id);
+        }
+        insertion
     }
 
     fn add_upper(
@@ -570,7 +733,11 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
-        self.add_bound(
+        let replay = match &derivation {
+            BoundDerivation::ReplayEvidence(replay) => Some(*replay),
+            _ => None,
+        };
+        let insertion = self.add_bound(
             BoundSemanticKey::Lower {
                 owner: var,
                 endpoint: pos,
@@ -582,7 +749,12 @@ impl TypeBounds {
             weights,
             BoundRecordState::Evidence,
             derivation,
-        )
+        );
+        if let Some(replay) = replay {
+            self.scheme_projection_lower_record_by_replay
+                .insert(replay, insertion.id);
+        }
+        insertion
     }
 
     fn add_evidence_upper(
@@ -724,8 +896,13 @@ impl TypeBounds {
         kind: UpperReplayClaimKind,
     ) -> UpperReplayClaimId {
         let key = (record, producer_constraint);
-        if let Some(claim) = self.original_claim_by_record_and_producer.get(&key) {
-            return *claim;
+        if let Some(claim) = self
+            .original_claim_by_record_and_producer
+            .get(&key)
+            .copied()
+        {
+            self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
+            return claim;
         }
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
@@ -748,6 +925,7 @@ impl TypeBounds {
             .entry(record)
             .or_default()
             .push(id);
+        self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
         id
     }
 
@@ -760,11 +938,22 @@ impl TypeBounds {
     ) -> UpperReplayClaimId {
         let parent = self.upper_replay_claims[parent_claim.0 as usize].clone();
         let root = parent.coverage_root;
+        let depth = parent
+            .lineage
+            .depth()
+            .checked_add(1)
+            .expect("upper replay claim lineage depth overflow");
+        let lineage = lineage(depth);
+        let lower_record =
+            self.scheme_projection_lower_record_for_lineage(producer_constraint, lineage);
         // The derived index contains child claims only, but the root itself is the canonical
         // claim for `(root.current_record, root)`. A replay cycle returning there must coalesce
         // instead of allocating a derived copy of the original claim.
         if self.upper_replay_claims[root.0 as usize].current_record == record {
             self.replay_claim_cycle_coalesces += 1;
+            if let Some(lower_record) = lower_record {
+                self.link_scheme_projection_claim(lower_record, root);
+            }
             return root;
         }
         if let Some(claim) = self
@@ -773,17 +962,15 @@ impl TypeBounds {
             .copied()
         {
             self.replay_claim_cycle_coalesces += 1;
+            if let Some(lower_record) = lower_record {
+                self.link_scheme_projection_claim(lower_record, claim);
+            }
             return claim;
         }
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
-        let depth = parent
-            .lineage
-            .depth()
-            .checked_add(1)
-            .expect("upper replay claim lineage depth overflow");
         let id = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
         debug_assert!(parent_claim < id);
         self.upper_replay_claims.push(UpperReplayClaim {
@@ -795,7 +982,7 @@ impl TypeBounds {
             kind: parent.kind,
             current_record: record,
             coverage_root: root,
-            lineage: lineage(depth),
+            lineage,
         });
         self.derived_claim_by_record_and_root
             .insert((record, root), id);
@@ -803,7 +990,79 @@ impl TypeBounds {
             .entry(record)
             .or_default()
             .push(id);
+        if let Some(lower_record) = lower_record {
+            self.link_scheme_projection_claim(lower_record, id);
+        }
         id
+    }
+
+    fn scheme_projection_lower_record_for_lineage(
+        &self,
+        producer_constraint: ConstraintRecordId,
+        lineage: UpperReplayClaimLineage,
+    ) -> Option<BoundRecordId> {
+        match lineage {
+            UpperReplayClaimLineage::Original => self
+                .scheme_projection_lower_record_by_constraint
+                .get(&producer_constraint)
+                .copied(),
+            UpperReplayClaimLineage::ReplayConstraint { result, .. }
+            | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => self
+                .scheme_projection_lower_record_by_constraint
+                .get(&result)
+                .copied(),
+            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
+                .scheme_projection_lower_record_by_replay
+                .get(&replay)
+                .copied(),
+        }
+    }
+
+    fn link_scheme_projection_claim_to_constraint_lower(
+        &mut self,
+        claim: UpperReplayClaimId,
+        producer_constraint: ConstraintRecordId,
+    ) {
+        if let Some(lower_record) = self
+            .scheme_projection_lower_record_by_constraint
+            .get(&producer_constraint)
+            .copied()
+        {
+            self.link_scheme_projection_claim(lower_record, claim);
+        }
+    }
+
+    fn link_scheme_projection_claim(
+        &mut self,
+        lower_record: BoundRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        let Some(record) = self.records.get(lower_record.0 as usize) else {
+            return;
+        };
+        let owner = record.owner;
+        let Some(root) = self
+            .upper_replay_claims
+            .get(claim.0 as usize)
+            .map(|claim| claim.coverage_root)
+        else {
+            return;
+        };
+        let claims = self
+            .scheme_projection_claims_by_lower_record
+            .entry(lower_record)
+            .or_default();
+        if !claims.contains(&claim) {
+            claims.push(claim);
+        }
+        let records = self
+            .scheme_projection_lower_records_by_root
+            .entry(root)
+            .or_default();
+        if !records.contains(&lower_record) {
+            records.push(lower_record);
+        }
+        self.scheme_projection_claimed_lower_owners.insert(owner);
     }
 
     fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {
