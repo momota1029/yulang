@@ -1472,3 +1472,26 @@ real generic-replay decision の consumer を一つも view へ切り替えて�
 `cargo check -p infer` は成功し、`constraints::tests::case_02` は
 50 pass / 0 fail / 1 known-ignore（51 selected）となった。指定に従い
 five-case characterization は未実行であり、次の H2 slice の gate として残す。
+
+## 28回目: URR v3〜v5 live-wiring の five-case baseline 更新
+（2026-07-30）
+
+`f73910ed` の claim-based replay suppression と `45bbf367` の inert v6 view が
+載った HEAD で five-case characterization を native 実行し、全5ケースの
+constraint / replay census を live-wiring 後の値へ意図的に更新した。
+
+先に test harness 自身の replay storage proxy を修正した。従来は
+accepted / semantic-duplicate の全 replay derivation が保存されると仮定して
+`considered * size_of::<BinaryReplayDerivation>()` 相当を計上していたが、実際に
+保存されるのは deduplication 後の derivation だけである。そこで
+`(considered - deduplicated) * size_of::<BinaryReplayDerivation>()` 相当へ変更し、
+trivial drop record の別単価は従来どおり分離した。
+`ref-update-local-buffer` では deduplicated 5件 × 16 byte = 80 byte の減少と
+storage proxy の実測差が一致した。baseline helper も
+`inserted = considered - deduplicated` を表す形へ更新した。
+
+formula 修正後の native run で最終 baseline assertion まで到達し、その実測値から
+5ケースを更新した。各ケースの `poly_dump_fnv1a64` と
+`check_report_fnv1a64` は既存 baseline から一件も変わらず、最終的な poly 型と
+check 結果が不変であることを確認した。更新後に同じ characterization test を
+再実行し、1 pass / 0 fail を確認した。

@@ -602,10 +602,14 @@ impl ConstraintCharacterization {
             timing.structural_derivations.unknown_rule, 0,
             "{name}: structural decomposition escaped the typed rule taxonomy"
         );
-        let expected_replay_bytes_proxy = (timing.lower_replay_accepted
+        let considered_binary_replay_derivations = timing.lower_replay_accepted
             + timing.upper_replay_accepted
             + timing.lower_replay_duplicate
-            + timing.upper_replay_duplicate)
+            + timing.upper_replay_duplicate;
+        let stored_binary_replay_derivations = considered_binary_replay_derivations
+            .checked_sub(timing.replay_derivations.deduplicated)
+            .expect("deduplicated replay derivations are a subset of considered derivations");
+        let expected_replay_bytes_proxy = stored_binary_replay_derivations
             * std::mem::size_of::<BinaryReplayDerivation>()
             + (timing.lower_replay_trivial + timing.upper_replay_trivial)
                 * (std::mem::size_of::<ReplayDropRecord>() * 2
@@ -767,13 +771,16 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 }
 
 fn replay_derivations(
-    considered_and_inserted: usize,
+    considered: usize,
+    deduplicated: usize,
     semantic_duplicate_results: usize,
 ) -> ReplayDerivationCoverage {
     ReplayDerivationCoverage {
-        considered: considered_and_inserted,
-        inserted: considered_and_inserted,
-        deduplicated: 0,
+        considered,
+        inserted: considered
+            .checked_sub(deduplicated)
+            .expect("deduplicated replay derivations are a subset of considered derivations"),
+        deduplicated,
         budget_dropped: 0,
         semantic_duplicate_results,
     }
@@ -845,6 +852,9 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
     // has 27 incremental routes: 13 matched (11 accepted, 2 prefiltered duplicate) and 14 unmatched
     // (10 accepted, 4 prefiltered trivial). They replace reduction-owned generic replay routes and
     // are counted explicitly here; the earlier 493_009 trial total omitted those 27 audit inputs.
+    // URR v3-v5 makes claim coverage the live generic-replay decision. The census below records the
+    // resulting replay suppression and real derivation deduplication; poly/check hashes stay pinned
+    // to the pre-live-wiring values because final type-checking results are unchanged.
     vec![
         ConstraintCharacterization {
             name: "repository-std-only",
@@ -856,8 +866,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             row_coverage: row_coverage(70, 77, 136, 337, 43, 43, 638, 85, 0),
             bound_disposition_coverage: bound_dispositions(231_701, 35, 1_875, 0),
             stable_record_coverage: stable_records(113_489, 118_212, 35, 14, 107),
-            replay_derivation_coverage: replay_derivations(881_033, 768_593),
-            provenance_epoch: 1_411_747,
+            replay_derivation_coverage: replay_derivations(880_958, 0, 768_523),
+            provenance_epoch: 1_411_672,
             canonical_subtype_constraints: 143_171,
             subtype_duplicate_admissions: 13_146,
             subtype_trivial_admissions: 12_133,
@@ -871,7 +881,7 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             row_residuals_created: 70,
             row_residuals_reused: 0,
             lower_replay: replay(493_036, 493_036, 27_938, 0, 457_371, 7_727, 465_060),
-            upper_replay: replay(387_997, 387_997, 69_052, 0, 311_222, 7_723, 318_907),
+            upper_replay: replay(387_922, 387_922, 69_052, 0, 311_152, 7_718, 318_832),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
             poly_dump_fnv1a64: 8_557_020_867_750_974_498,
@@ -887,9 +897,9 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             row_coverage: row_coverage(70, 87, 158, 337, 43, 43, 661, 97, 0),
             bound_disposition_coverage: bound_dispositions(232_350, 35, 1_892, 0),
             stable_record_coverage: stable_records(113_786, 118_564, 35, 14, 108),
-            replay_derivation_coverage: replay_derivations(881_783, 769_069),
-            provenance_epoch: 1_414_092,
-            canonical_subtype_constraints: 143_617,
+            replay_derivation_coverage: replay_derivations(881_686, 0, 768_978),
+            provenance_epoch: 1_413_995,
+            canonical_subtype_constraints: 143_616,
             subtype_duplicate_admissions: 13_218,
             subtype_trivial_admissions: 12_162,
             ordinary_lower_bounds_added: 113_786,
@@ -901,8 +911,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             subtract_facts_added: 108,
             row_residuals_created: 70,
             row_residuals_reused: 0,
-            lower_replay: replay(493_436, 493_436, 28_037, 0, 457_666, 7_733, 465_361),
-            upper_replay: replay(388_347, 388_347, 69_215, 0, 311_403, 7_729, 319_094),
+            lower_replay: replay(493_435, 493_435, 28_036, 0, 457_666, 7_733, 465_361),
+            upper_replay: replay(388_251, 388_251, 69_215, 0, 311_312, 7_724, 318_998),
             nominal_cast_events: 2,
             nominal_cast_pairs: vec![
                 pair("int", "float", 1),
@@ -919,14 +929,14 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 33_264, 332, 15_760, 13_756, 2_558, 484, 200, 0, 174, 91,
             ),
             row_coverage: row_coverage(71, 156, 329, 337, 43, 43, 797, 199, 0),
-            bound_disposition_coverage: bound_dispositions(234_908, 35, 1_901, 5),
-            stable_record_coverage: stable_records(115_098, 119_810, 35, 70, 108),
-            replay_derivation_coverage: replay_derivations(897_385, 782_965),
-            provenance_epoch: 1_436_967,
-            canonical_subtype_constraints: 145_709,
+            bound_disposition_coverage: bound_dispositions(234_905, 35, 1_901, 5),
+            stable_record_coverage: stable_records(115_095, 119_810, 35, 70, 108),
+            replay_derivation_coverage: replay_derivations(897_274, 5, 782_862),
+            provenance_epoch: 1_436_845,
+            canonical_subtype_constraints: 145_706,
             subtype_duplicate_admissions: 14_298,
             subtype_trivial_admissions: 12_316,
-            ordinary_lower_bounds_added: 115_098,
+            ordinary_lower_bounds_added: 115_095,
             ordinary_upper_bounds_added: 119_724,
             row_upper_bounds_added_without_replay: 86,
             evidence_lower_bounds_added: 0,
@@ -935,8 +945,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             subtract_facts_added: 108,
             row_residuals_created: 71,
             row_residuals_reused: 0,
-            lower_replay: replay(500_375, 500_375, 28_499, 0, 463_880, 7_996, 471_838),
-            upper_replay: replay(397_010, 397_010, 69_936, 0, 319_085, 7_989, 327_036),
+            lower_replay: replay(500_365, 500_365, 28_496, 0, 463_873, 7_996, 471_831),
+            upper_replay: replay(396_909, 396_909, 69_936, 0, 318_989, 7_984, 326_935),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
             poly_dump_fnv1a64: 10_414_515_087_808_807_663,
@@ -952,8 +962,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             row_coverage: row_coverage(74, 297, 539, 337, 43, 43, 1_086, 264, 0),
             bound_disposition_coverage: bound_dispositions(241_064, 35, 1_923, 0),
             stable_record_coverage: stable_records(118_158, 122_906, 35, 189, 111),
-            replay_derivation_coverage: replay_derivations(906_222, 788_480),
-            provenance_epoch: 1_460_110,
+            replay_derivation_coverage: replay_derivations(906_177, 0, 788_440),
+            provenance_epoch: 1_460_065,
             canonical_subtype_constraints: 149_371,
             subtype_duplicate_admissions: 14_600,
             subtype_trivial_admissions: 12_809,
@@ -966,8 +976,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             subtract_facts_added: 111,
             row_residuals_created: 74,
             row_residuals_reused: 0,
-            lower_replay: replay(504_828, 504_828, 29_115, 0, 467_407, 8_306, 475_675),
-            upper_replay: replay(401_394, 401_394, 72_031, 0, 321_073, 8_290, 329_325),
+            lower_replay: replay(504_858, 504_858, 29_115, 0, 467_437, 8_306, 475_705),
+            upper_replay: replay(401_319, 401_319, 72_031, 0, 321_003, 8_285, 329_250),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
             poly_dump_fnv1a64: 2_651_795_298_064_615_825,
@@ -981,14 +991,14 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
                 33_405, 337, 15_614, 13_880, 2_654, 488, 202, 0, 230, 113,
             ),
             row_coverage: row_coverage(73, 192, 434, 337, 44, 44, 874, 268, 0),
-            bound_disposition_coverage: bound_dispositions(236_512, 35, 1_901, 5),
-            stable_record_coverage: stable_records(115_906, 120_606, 35, 96, 111),
-            replay_derivation_coverage: replay_derivations(894_171, 779_033),
-            provenance_epoch: 1_437_803,
-            canonical_subtype_constraints: 146_771,
+            bound_disposition_coverage: bound_dispositions(236_509, 35, 1_901, 5),
+            stable_record_coverage: stable_records(115_903, 120_606, 35, 96, 111),
+            replay_derivation_coverage: replay_derivations(894_010, 0, 778_880),
+            provenance_epoch: 1_437_636,
+            canonical_subtype_constraints: 146_768,
             subtype_duplicate_admissions: 14_535,
             subtype_trivial_admissions: 12_513,
-            ordinary_lower_bounds_added: 115_906,
+            ordinary_lower_bounds_added: 115_903,
             ordinary_upper_bounds_added: 120_510,
             row_upper_bounds_added_without_replay: 96,
             evidence_lower_bounds_added: 0,
@@ -997,8 +1007,8 @@ fn expected_characterization() -> Vec<ConstraintCharacterization> {
             subtract_facts_added: 111,
             row_residuals_created: 73,
             row_residuals_reused: 0,
-            lower_replay: replay(499_035, 499_035, 28_556, 0, 462_403, 8_076, 470_441),
-            upper_replay: replay(395_136, 395_136, 70_440, 0, 316_630, 8_066, 324_658),
+            lower_replay: replay(499_024, 499_024, 28_560, 0, 462_388, 8_076, 470_426),
+            upper_replay: replay(394_986, 394_986, 70_433, 0, 316_492, 8_061, 324_515),
             nominal_cast_events: 1,
             nominal_cast_pairs: vec![pair("int", "float", 1)],
             poly_dump_fnv1a64: 5_327_582_227_547_795_948,
