@@ -2,7 +2,7 @@
 
 日付: 2026-07-28
 
-状態: **未承認・ユーザレビュー待ち（改訂あり）**
+状態: **ユーザ承認済み（v5、2026-07-30 事後確認）**
 
 調査基準は `fb2fbbea`。既知の症状と6回の試行・調査は
 `notes/bugs/2026-07-28-local-var-effect-residual-transport-gap.md` を正本とし、本書では
@@ -1061,4 +1061,4 @@ check:
 
 ---
 著者: Claude (Sol xhigh, via Codex MCP, supervised by Claude Sonnet 5)
-状態: 未承認・ユーザレビュー待ち（改訂あり）
+状態: ユーザ承認済み（v5、2026-07-30 事後確認）
