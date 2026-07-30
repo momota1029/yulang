@@ -1638,3 +1638,35 @@ compact固有のregressionとして、既存`case_02`のunmatched-route fixture�
 1 known-ignore（54 selected）、`cargo fmt --all -- --check`も成功した。
 既存testの期待値は変更していない。指定どおりfive-case characterizationと
 287-case contract suiteは実行しておらず、次sliceのfinal H2 gateとして残す。
+
+## 33回目: H2 five-case characterization gate通過
+（2026-07-30）
+
+H2のcompaction wiring後のfive-case characterization差分をrecord単位で追跡した。
+`lib/std/data/list.yu`と`lib/std/text/str.yu`にある5個のstd index-implementation
+definitionから、claim-covered lower recordが合計10件
+`compact_type_var_recording_merge_constraints_for_scheme`で除外された。4個の
+scheme compaction entry pointのうち、このfive-case差分に関与したのはこのentry
+pointだけである。各recordには`UpperReplayClaimKind::Reduced`の正当なlive claim、
+`ReductionRouteConstraint` lineage、non-emptyな`live_coverage_by_root`があった。
+
+この除外により、8個のcanonical union constraintに付随していた重複
+`UnionBranch` derivation 16 edgeが消えた。全5ケースでcanonical constraintは8件、
+semantic duplicate resultは8件、`full_unary`と`union_intersection`は各16件減り、
+upper replayはacceptedが8件増え、duplicateとprefilteredが各8件減った。これは
+「replay candidateを作ってからduplicateと判定する」経路を、covered claimにより
+candidate自体を正しく作らない経路へ置き換えた結果である。
+
+`provenance_epoch`の約11.5万〜12万の増加は、H2 wiring自体ではなく、先行する
+`92f990b4`がclaim-link / liveness mutationを正しくpublishするようにした結果である。
+`09b8e857`のwiringは、unwiredなraw projectionなら生じる24件のcanonical /
+structural insertionと、それぞれのprovenance bumpを消すため、むしろそのraw比較
+よりepochを24減らしている。
+
+HEAD `09b8e857`で実測した値へfive-case baselineを意図的に更新した。更新前の
+failureで全5ケースの`poly_dump_fnv1a64`と`check_report_fnv1a64`が既存baseline
+から不変であることを確認し、更新後はcharacterizationが1 pass / 0 failとなった。
+compact test suiteも69 pass / 0 fail、`constraints::tests::case_02`も
+53 pass / 0 fail / 1 known-ignore（54 selected）である。これによりH2の
+characterization gateは通過した。287-case contract suite gateはClaudeが別途
+実行中であり、この記録時点では結果未確認である。
