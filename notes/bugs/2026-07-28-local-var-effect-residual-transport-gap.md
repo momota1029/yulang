@@ -1059,21 +1059,53 @@ URR の7つの regression test はこの「subsumption + 独立 derivation の
 共存」という形を一つもカバーしていなかった——実際の nested local-var
 の複雑さが、テストでは想定してなかった組み合わせを露呈させた形。
 
+## URR v3 承認・URR-E 一度目、cross-source な漏れ経路を発見（2026-07-30）
+
+URR v3（`d4819f04`、`904ee2cb`）を起こし、承認を得て URR-E に着手した。
+§8.1 の3 regression test は先に red/green/red で確立（`0db4bf91`）。
+本体実装（claim/coverage モデル）を試作したところ、**3つの v3 test は
+全部 green になり、既存 URR 契約も全部通った**のに、実際の nested
+local-var characterization test だけがまだ漏れを示した。
+
+**新しく判明した経路**: 漏れは、reduction state が正しく coverage
+してる canonical record（`BoundRecordId(10172)`、source
+`TypeVar(1524)`）を直接 generic replay することでは**なくなった**
+——そこは今回の実装で正しく抑止できていた。しかし `PosId(2133)` は
+**別の source 変数（`TypeVar(1670)`）**の bound record
+（`BoundRecordId(10389)`）経由で residual `TypeVar(1669)` へ届いていた。
+`TypeVar(1670)` は 1524 の reduction state とは無関係な、別の
+producer constraint（`ConstraintRecordId(3726)`、`6483`）から生まれた
+row-derived relation を持ち、自分自身は reduction を一度も起こして
+いない（matching lower が無かったか、別の経路で `NegId(2055)` という
+**同じ endpoint** を共有してるだけ）。
+
+**この結果の意味**: v3 の coverage モデルは source 単位で設計されて
+いたが、実際の漏れは「同じ endpoint を共有する、別の source からの
+独立した bound」という、source を跨ぐ経路で起きていた。この経路を
+塞ぐには 1524 の coverage token を 1670 へ伝播させる必要があるが、
+それは URR v3 §10.1(16) の stop condition（「coverage token が別
+source へ伝播する」）に直接抵触する。かといって 1670 側を後着 lower
+で lazy に activation する案は、v2 で明示的に deferred にした
+zero/no-match lazy activation（§6.6）そのものに踏み込む。
+
+v3 承認済みの範囲内では、この2つを両立させる linkage 規則が無い。
+production コードは全て rollback 済み（commit なし、working tree
+clean 確認済み）。3つの v3 test 自体は生きたまま——今回否定された
+のは「source 単位の coverage だけで十分」という前提。
+
 ## 次に調べるべきこと
 
-- **最優先**: URR 設計文書のさらなる改訂（v3 相当）が必要。reduced
-  upper が既存 canonical upper へ subsume されたとき、その survivor
-  record が persistent reduction state と独立 derivation の**両方**を
-  持つ場合の replay ownership を正しく判定する仕組みを設計する。
-  「state record ID と derivation linkage から所有権を判定する」
-  （URR v1 §5.4 の原則）を、subsumption 後の survivor にも正しく
-  適用できる形へ拡張する必要がある。
-- この co-owned survivor 形を再現する regression test を追加してから
-  修正に着手する（URR の test-first 規律を継続）。
-- LVB-B の production wiring は、この追加修正が着地するまで再開しない
-  ——今回は production コードを一切変更せず、gate 段階で正しく停止した。
-- 単一 boundary（複数文含む）の discharge、CLI での成功は維持されている
-  ——退行はない。
+- **最優先（設計判断が必要、URR v4 相当）**: 「同じ endpoint を共有する
+  複数 source」という cross-source な関係を、coverage token の
+  source 間伝播（禁止済み）や zero-lower lazy activation（別途
+  deferred 済み）を使わずに正しく扱う設計。候補: endpoint 自体に
+  対する coverage（source 単位ではなく `NegId` 単位で coverage を
+  持たせる）、または 1670 のような「reduction を起こしてない別
+  source」がなぜ 1524 と同じ endpoint を共有するに至ったか
+  （aliasing の経路）を先に read-only で辿る。
+- 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
+  いる——退行はない。v3 の3 regression test も生きている。
+- LVB-B の production wiring は、この追加修正が着地するまで再開しない。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
 - generalization 全体を変える修正は影響範囲が広いため避ける。
