@@ -1245,19 +1245,70 @@ current residual にも replay される」）の一種だが、self-tagging
 commit だけは残した——`.git` read-only で Codex が commit できな
 かった分を Claude が代行）。
 
+## compaction 経路の正確な特定と lowering 側代替案の反証（2026-07-30、
+Sol xhigh read-only ×2）
+
+URR-G 一度目の finalization bypass を受け、2つの read-only
+investigation を行った。
+
+**1つ目（compaction の正確な機構）**: 漏れの中心は「finalization が
+直接 bounds を読む」という粗い表現より正確には、**compaction と
+pre-finalization alias projection**にあると確定した。
+
+- `TypeBounds::add_lower`（`constraints/mod.rs`）は
+  `1669 <- Var(1522)` を通常の `BoundRecordState::Ordinary` lower
+  として `VarBounds.lowers` へ保存する——これは union-find alias でも
+  compaction-time discovery でもなく、`step_subtype` の通常の
+  Var–Var 処理が作る、ごく普通の subtype bound
+- `projection_lowers()`（`constraints/mod.rs:669`）は evidence lower
+  と ordinary lower を無条件に全部連結するだけで、claim ID や
+  coverage を一切見ない
+- `compact_var_bounds`／`compact_lower_bounds`（`compact/collect/mod.rs`）
+  がこの `projection_lowers()` を無条件に走査し、`Var(1522)` を
+  secondary compact variable として compact graph へ引き込む
+- `positive_aliases_within_scheme`（`generalize/mod.rs:543`）も同じ
+  unfiltered lower graph を推移的に辿る
+- 一方 `finalize_generalized_compact_root`（`generalize/finalize.rs`）
+  は machine bounds を読まない——すでに出来た `CompactRoot` を凍結する
+  だけで、主因ではない
+
+つまり claim/coverage の情報を、compaction が bound を読む時点でも
+参照できるようにする必要がある。「coverage の boolean を lower
+endpoint へ雑にコピーする」「record 全体を隠す」という単純な案は
+どちらも不適切——独立した uncovered claim が同じ endpoint に同居する
+ケース（v3 test 2、v4 control）を壊す。必要なのは、compaction・
+positive alias expansion・scheme provenance が**同じ semantic
+projection view**を共有し、生の bounds/provenance は audit 用として
+別に保持する、という設計。
+
+**2つ目（lowering 側の代替案）**: compaction を触らずに、LVB-B の
+lowering 側で alias 自体を作らせない案を検証したが、**反証された**。
+漏れの原因 `TypeVar(1522)` は、正当な後続文（`inner_r.update
+(\_ -> before)` / `std::control::var::observe::mark:inner_r.get()`）の
+block-aggregate 効果——省くと実際の実行を取りこぼす、本物の必要な
+効果。v5 が「local ref を後まで抽象のままにしておく」設計を意図的に
+選んでるため、lowering の時点ではこの文が最終的に `&buffer` family を
+必要とするかどうか判定できない。これを避けるには (a) v5 の
+prepare/finish という中核判断を巻き戻す、(b) local-var callback body
+だけ block-aggregate を特別扱いする（プロジェクトが繰り返し却下して
+きた道）、(c) block aggregation 全体（あらゆる block で共有される
+一般機構）を広く再設計する、のどれかが要る——どれも今回は避けるべきと
+判断した。
+
+したがって **compaction 層の claim-aware projection が本当に必要**、
+という結論に戻った。ユーザ承認を得て URR v6 として進める。
+
 ## 次に調べるべきこと
 
-- **最優先（設計判断が必要、URR v6 相当）**: coverage/lineage の
-  適用範囲を「generic replay の抑止」だけでなく、**finalization/
-  projection が alias bound を辿るときの reachability** にも
-  拡張する設計が必要。post-hoc cleanup や endpoint-based
-  suppression では解決できないことは確認済み——claim の coverage
-  情報を、replay 以外の場所（scheme finalize 時の bound walk）でも
-  参照できるようにする必要がある。
-- v1〜v5 で確立した claim/coverage/lineage/self-tagging の各機構は
-  それぞれ正しく機能してる（今回も反証されていない）。反証されたのは
-  「これらの機構が、generic replay の抑止だけで nested isolation を
-  保証するのに十分」という前提。
+- **最優先（URR v6、設計中）**: compaction・positive alias
+  expansion・scheme provenance が共有する claim-aware な
+  「scheme へ投影可能な bound view」を設計する。v1〜v5 の
+  claim/coverage/lineage/self-tagging 機構は生かしたまま、その
+  情報を replay 判定だけでなく compaction 時の bound 読み取りにも
+  接続する。
+- local-var 設計文書（`notes/design/2026-07-28-local-var-effect-boundary-fix.md`）
+  の v5 機構自体は、今回の investigation でも一切反証されていない——
+  lowering 側の代替案が feasible でないと確認できただけ。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
   いる——退行はない。v3・v4・v5 の regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
