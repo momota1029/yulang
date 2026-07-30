@@ -1774,3 +1774,30 @@ family lowerが存在することと、`FunctionReturnEffect` / `UnweightedReduc
 このcheckpointはfailing testを意図的に含む。次sliceは
 `positive_aliases_within_scheme`とgeneralized provenance collectionを同じ
 `scheme_projectable_lowers` viewへ配線し、この特定の四redをgreenへ変える。
+
+## 36回目: URR-H3 step 2、positive alias expansionをclaim-aware viewへ接続
+（2026-07-30）
+
+`generalize/mod.rs::positive_aliases_within_scheme`がraw
+`VarBounds::projection_lowers()`を直接読むbypassを再確認し、lower sourceだけを
+`ConstraintMachine::scheme_projectable_lowers(var)`へ切り替えた。iteratorは
+`Vec`へcollectせず、各entryの`bound`を既存処理へ一回渡す。`reason`はこのsliceでは
+使用していない。weightのneutrality判定、`Pos::Var`判定、scheme内allowed set、
+再帰順序、重複除去、pass-local alias cacheは変更していない。
+
+直前のred baselineで追加したalias testは4件すべてgreenになった。covered-only
+lowerは除外され、mixed recordはindependent uncovered relationを一回だけ残し、
+last live coverage state除去後はrelationが再び見える。no-claim controlも従来どおり
+`[TypeVar(1), TypeVar(2)]`を同じ順序で返した。test期待値は変更していない。
+
+`RUSTC_WRAPPER= cargo check -p infer`は成功した。broader
+`generalize::tests::`は31 pass / 0 fail、`constraints::tests::case_02`は
+53 pass / 0 fail / 1 known-ignore（54 selected）、compact suiteは
+69 pass / 0 failだった。
+
+これはH3のalias expansion wiringだけである。`generalize/provenance.rs`と
+witness collectionには触れておらず、別sliceへ残す。motivating test
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`も、
+provenance wiring前の結果をcompletion条件に混ぜないため今回は実行していない。
+
+<!-- bug-append-anchor: 2026-07-30 -->

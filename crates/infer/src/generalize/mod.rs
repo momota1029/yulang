@@ -555,21 +555,20 @@ fn positive_aliases_within_scheme(
     }
 
     let mut out = Vec::new();
-    if let Some(bounds) = machine.bounds().of(var) {
-        for bound in bounds.projection_lowers() {
-            if !alias_neutral_constraint(&bound.weights) {
-                continue;
-            }
-            let Pos::Var(next) = machine.types().pos(bound.pos) else {
-                continue;
-            };
-            if !allowed.contains(next) {
-                continue;
-            }
-            push_unique_var(&mut out, *next);
-            for alias in positive_aliases_within_scheme(machine, allowed, cache, visiting, *next) {
-                push_unique_var(&mut out, alias);
-            }
+    for entry in machine.scheme_projectable_lowers(var) {
+        let bound = entry.bound;
+        if !alias_neutral_constraint(&bound.weights) {
+            continue;
+        }
+        let Pos::Var(next) = machine.types().pos(bound.pos) else {
+            continue;
+        };
+        if !allowed.contains(next) {
+            continue;
+        }
+        push_unique_var(&mut out, *next);
+        for alias in positive_aliases_within_scheme(machine, allowed, cache, visiting, *next) {
+            push_unique_var(&mut out, alias);
         }
     }
 
