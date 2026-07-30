@@ -2,10 +2,12 @@
 
 日付: 2026-07-30
 
-状態: **未承認・ユーザレビュー待ち**
+状態: **ユーザ承認済み（2026-07-31、§5.1 案D・§5.4 案Cで確定）**
 
-本書は後続セッションでの設計判断に供するドラフトである。semantic implementation は開始しない。
-推奨案を記すが、選択済みの仕様とは扱わない。
+本書はDCP-A〜Eの実装を進めるための正本である。
+§5.1（replay両側claimの独立lineage扱い）と§5.4（mixed recordのindependent proof表現）は
+ユーザレビューを経て、いずれも推奨案（案D・案C）のまま確定した。他の推奨案（§5.2 案B、
+§5.3 案C、§5.5 案B）も本書の記述どおり確定として扱う。
 
 調査基準は `d27a5140f3c9cc32ee2c8cf42d4cc95b1c4fbb46`。
 同 commit は URR-H1 / H2 / H3 の完了記録までを含む。
@@ -40,8 +42,8 @@ arena ID は一回の確定 trace を説明するためにだけ使い、test or
    claim が実際に触れた canonical constraint / lower record にだけ遅延 materialize する。
 
 この方向のうち、特に「両側の claim を同じ result の独立 lineage として扱う」ことと、
-「mixed record の independent proof をどの ID で表すか」は genuine design decision である。
-ユーザレビュー前に確定事項として扱わない。
+「mixed record の independent proof をどの ID で表すか」は genuine design decision だった。
+ユーザレビューにより、いずれも本書の推奨案（案D・案C）のまま確定した。
 
 ## 1. 問題
 
@@ -860,7 +862,7 @@ expected:
 
 ## 9. implementation slicing plan
 
-本書がレビューを通るまで、どのsliceも開始しない。
+本書は承認済みであり、DCP-Aから着手できる。
 各sliceは前sliceのgateを閉じてから進め、production consumerを先行変更しない。
 
 ### DCP-A: red baseline と proof model preflight
@@ -1045,6 +1047,6 @@ gate:
     provenance、tests / characterizationだけに限られ、local-var固有patchを含まない。
 
 ---
-作成者: Codex (GPT-5.6 Sol、設計ドラフト)
-状態: **未承認・ユーザレビュー待ち**
-承認記録: なし（後続セッションでレビュー予定）
+作成者: Claude Sonnet 5（設計監督）／ドラフト作成: Codex (GPT-5.6 Sol)
+状態: **ユーザ承認済み**
+承認記録: 2026-07-31、§5.1 案D・§5.4 案Cを含む本書の推奨案すべてを確定として承認
