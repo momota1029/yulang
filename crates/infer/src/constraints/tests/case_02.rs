@@ -1632,6 +1632,155 @@ fn unweighted_row_upper_multihop_lineage_root_compresses_without_cycle_growth() 
     );
 }
 
+#[test]
+fn unweighted_row_upper_initial_unmatched_route_inherits_reduction_root() {
+    let mut machine = ConstraintMachine::new();
+    let alpha = TypeVar(0);
+    let beta = TypeVar(1);
+    let residual = TypeVar(2);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family_item =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Row(vec![late_family_item]));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let alpha_neg = machine.alloc_neg(Neg::Var(alpha));
+    let alpha_pos = machine.alloc_pos(Pos::Var(alpha));
+    let beta_pos = machine.alloc_pos(Pos::Var(beta));
+    let beta_neg = machine.alloc_neg(Neg::Var(beta));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, alpha_neg, origin);
+    machine.subtype(beta_pos, alpha_neg, origin);
+    machine.subtype(alpha_pos, row_upper, origin);
+
+    let root_producer =
+        constraint_record_for_key(&machine, alpha_pos, row_upper, &ConstraintWeights::empty());
+    let alpha_tail_record = assert_only_empty_upper_var(&machine, alpha, residual);
+    let beta_tail_result =
+        constraint_record_for_key(&machine, beta_pos, tail, &ConstraintWeights::empty());
+    let beta_tail_record = upper_bound_record_for_var(&machine, beta, residual);
+    let route_derivation = machine.constraint_records[beta_tail_result.0 as usize]
+        .row_derivations
+        .iter()
+        .copied()
+        .find(|derivation| {
+            machine.row_derivations[derivation.0 as usize].rule
+                == RowDerivationRule::UnweightedReduction
+        })
+        .expect("the initial unmatched route retains the aggregate row derivation");
+    assert!(
+        machine.constraint_records[beta_tail_result.0 as usize]
+            .replay_derivations
+            .is_empty(),
+        "the first-party reduction route does not require binary replay lineage"
+    );
+    assert!(
+        machine
+            .unweighted_row_reductions_by_source
+            .get(&beta)
+            .is_none(),
+        "beta receives a routed claim without owning a reduction state"
+    );
+
+    let claims = observed_replay_lineage(&machine);
+    let alpha_claim = claims.claim_for(alpha, alpha_tail_record, root_producer);
+    let beta_claim = claims.claim_for(beta, beta_tail_record, beta_tail_result);
+    assert_eq!(
+        (
+            beta_claim.coverage_root,
+            beta_claim.lineage,
+            claims.is_covered(beta_claim.id),
+        ),
+        (
+            alpha_claim.id,
+            ObservedReplayClaimLineage::ReductionRoute {
+                parent: alpha_claim.id,
+                result: beta_tail_result,
+                derivation: route_derivation,
+                depth: 1,
+            },
+            true,
+        ),
+        "the unmatched route must self-tag its child at admission"
+    );
+
+    machine.subtype(late_family, beta_neg, origin);
+    let late_beta_record = lower_bound_record(&machine, beta, late_family);
+    assert_eq!(
+        exact_replay_count(&machine, beta, late_beta_record, beta_tail_record),
+        0,
+        "the covered routed claim must not generic-replay beta's matching family"
+    );
+    assert!(
+        !has_reachable_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "beta's matching family must stay out of the residual, including through routed aliases"
+    );
+}
+
+#[test]
+fn unweighted_row_upper_weighted_residual_route_stays_uncovered() {
+    let mut machine = ConstraintMachine::new();
+    let gamma = TypeVar(0);
+    let residual = TypeVar(1);
+    let origin = crate::constraints::OriginId::unknown_internal();
+    let gamma_pos = machine.alloc_pos(Pos::Var(gamma));
+    let gamma_neg = machine.alloc_neg(Neg::Var(gamma));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let derivation = machine.intern_row_derivation(
+        RowDerivationRule::WeightedResidual,
+        vec![RowDerivationParent::Origin(origin)],
+        Vec::new(),
+    );
+
+    machine.enqueue_row_derived_subtype(gamma_pos, ConstraintWeights::empty(), tail, derivation);
+    machine.drain();
+
+    let result = constraint_record_for_key(&machine, gamma_pos, tail, &ConstraintWeights::empty());
+    assert!(
+        machine.constraint_records[result.0 as usize]
+            .row_derivations
+            .contains(&derivation),
+        "the shared row-derived admission retains its exact row proof"
+    );
+    let record = upper_bound_record_for_var(&machine, gamma, residual);
+    let claims = observed_replay_lineage(&machine);
+    let claim = claims.claim_for(gamma, record, result);
+    assert_eq!(
+        (
+            claim.coverage_root,
+            claim.lineage,
+            claims.is_covered(claim.id),
+        ),
+        (claim.id, ObservedReplayClaimLineage::Original, false),
+        "an unrelated WeightedResidual route must remain an uncovered root"
+    );
+
+    let late_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    machine.subtype(late_family, gamma_neg, origin);
+    let late_record = lower_bound_record(&machine, gamma, late_family);
+    assert_eq!(
+        exact_replay_count(&machine, gamma, late_record, record),
+        1,
+        "the unrelated row-derived claim must generic-replay"
+    );
+    assert!(
+        has_lower_family_with_weights(
+            &machine,
+            residual,
+            &["effect", "f"],
+            &ConstraintWeights::empty(),
+        ),
+        "the uncovered gamma <: rho relation must carry F to rho"
+    );
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ObservedReplayClaimId(u32);
 
@@ -1675,6 +1824,12 @@ enum ObservedReplayClaimLineage {
         parent: ObservedReplayClaimId,
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+    ReductionRoute {
+        parent: ObservedReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
         depth: u32,
     },
 }
@@ -1740,7 +1895,8 @@ impl ObservedReplayLineage {
             claim_count += 1;
             maximum_depth = maximum_depth.max(match claim.lineage {
                 ObservedReplayClaimLineage::Original => 0,
-                ObservedReplayClaimLineage::Derived { depth, .. } => depth,
+                ObservedReplayClaimLineage::Derived { depth, .. }
+                | ObservedReplayClaimLineage::ReductionRoute { depth, .. } => depth,
             });
         }
         ObservedReplayLineageMetrics {
@@ -2177,6 +2333,50 @@ fn has_lower_family_with_weights(
             &lower.weights == expected_weights
                 && pos_contains_family(machine, lower.pos, expected_path)
         })
+}
+
+fn has_reachable_lower_family_with_weights(
+    machine: &ConstraintMachine,
+    var: TypeVar,
+    expected_path: &[&str],
+    expected_weights: &ConstraintWeights,
+) -> bool {
+    fn visit_var(
+        machine: &ConstraintMachine,
+        var: TypeVar,
+        expected_path: &[&str],
+        expected_weights: &ConstraintWeights,
+        seen: &mut FxHashSet<TypeVar>,
+    ) -> bool {
+        if !seen.insert(var) {
+            return false;
+        }
+        machine.bounds().of(var).is_some_and(|bounds| {
+            bounds.lowers().iter().any(|lower| {
+                &lower.weights == expected_weights
+                    && (pos_contains_family(machine, lower.pos, expected_path)
+                        || matches!(
+                            machine.types().pos(lower.pos),
+                            Pos::Var(next)
+                                if visit_var(
+                                    machine,
+                                    *next,
+                                    expected_path,
+                                    expected_weights,
+                                    seen,
+                                )
+                        ))
+            })
+        })
+    }
+
+    visit_var(
+        machine,
+        var,
+        expected_path,
+        expected_weights,
+        &mut FxHashSet::default(),
+    )
 }
 
 fn pos_contains_family(machine: &ConstraintMachine, pos: PosId, expected_path: &[&str]) -> bool {
