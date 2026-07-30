@@ -1837,6 +1837,173 @@ fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
 }
 
 #[test]
+fn scheme_projection_empty_to_nonempty_live_coverage_publishes_inclusion_mutation() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            ),
+        "the setup makes the covered claim projectable again"
+    );
+    assert!(
+        fixture
+            .machine
+            .scheme_projectable_lowers(fixture.residual)
+            .any(|lower| lower.record == fixture.lower_record),
+        "the empty root starts included in the scheme view"
+    );
+    let constraint_epoch_before = fixture.machine.epoch();
+    let owner_epoch_before = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual owner epoch before reinsertion")
+        .epoch();
+    let provenance_epoch_before = fixture.machine.provenance_epoch();
+    let journal = fixture.machine.activate_method_role_mutations();
+
+    assert!(
+        fixture
+            .machine
+            .insert_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            ),
+        "reinserting the first live state changes the root from empty to non-empty"
+    );
+
+    let owner_epoch_after = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual owner epoch after reinsertion")
+        .epoch();
+    assert!(
+        fixture
+            .machine
+            .scheme_projectable_lowers(fixture.residual)
+            .all(|lower| lower.record != fixture.lower_record),
+        "the first live state makes the covered-only relation non-projectable"
+    );
+    assert!(
+        fixture.machine.epoch() > constraint_epoch_before
+            && owner_epoch_after > owner_epoch_before
+            && fixture.machine.provenance_epoch() > provenance_epoch_before,
+        "empty-to-non-empty coverage must advance constraint, owner, and provenance epochs"
+    );
+    assert_eq!(
+        owner_epoch_after,
+        fixture.machine.epoch(),
+        "the affected owner's epoch follows the global inclusion mutation"
+    );
+    assert!(
+        has_constraint_bounds_mutation(
+            &fixture.machine.take_method_role_mutations(),
+            fixture.residual,
+        ),
+        "empty-to-non-empty coverage publishes the affected owner dependency"
+    );
+    journal.finish();
+}
+
+#[test]
+fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let owner = TypeVar(1);
+    let producer = ConstraintRecordId(0);
+    let state = UnweightedRowReductionRecordId(0);
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Var(owner));
+    let upper_record = machine
+        .bounds
+        .add_upper(
+            source,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        )
+        .id;
+    let registration = machine.bounds.original_upper_replay_claim(
+        upper_record,
+        producer,
+        UpperReplayClaimKind::Reduced(state),
+    );
+    assert_eq!(
+        registration.scheme_projection_mutation,
+        SchemeProjectionMutation::None,
+        "a claim created before its mirror lower has no projection metadata to mutate"
+    );
+    machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(registration.claim, state),
+        "the root is live before its mirror lower becomes linked"
+    );
+    let lower_record = machine
+        .bounds
+        .add_lower(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        )
+        .id;
+    assert_eq!(
+        machine
+            .scheme_projectable_lowers(owner)
+            .find(|candidate| candidate.record == lower_record)
+            .map(|candidate| candidate.reason),
+        Some(SchemeProjectableLowerReason::Unclaimed),
+        "before linking, the active mirror lower remains projectable"
+    );
+    let constraint_epoch_before = machine.epoch();
+    let owner_epoch_before = machine
+        .bounds()
+        .of(owner)
+        .expect("mirror lower owner")
+        .epoch();
+    let provenance_epoch_before = machine.provenance_epoch();
+    let journal = machine.activate_method_role_mutations();
+
+    assert_eq!(
+        machine.register_constraint_upper_replay_claims(upper_record, Some(producer)),
+        vec![registration.claim],
+        "constraint-claim registration reuses the covered canonical claim"
+    );
+
+    let owner_epoch_after = machine
+        .bounds()
+        .of(owner)
+        .expect("mirror lower owner after claim link")
+        .epoch();
+    assert!(
+        machine
+            .scheme_projectable_lowers(owner)
+            .all(|candidate| candidate.record != lower_record),
+        "linking the live covered claim changes the record to non-projectable"
+    );
+    assert!(
+        machine.epoch() > constraint_epoch_before
+            && owner_epoch_after > owner_epoch_before
+            && machine.provenance_epoch() > provenance_epoch_before,
+        "claim-link inclusion changes advance constraint, owner, and provenance epochs"
+    );
+    assert_eq!(
+        owner_epoch_after,
+        machine.epoch(),
+        "the linked lower owner's epoch follows the global inclusion mutation"
+    );
+    assert!(
+        has_constraint_bounds_mutation(&machine.take_method_role_mutations(), owner),
+        "claim-link inclusion changes publish the linked lower owner dependency"
+    );
+    journal.finish();
+}
+
+#[test]
 fn scheme_projectability_returns_after_last_live_coverage_state_leaves() {
     let mut fixture = scheme_projection_unmatched_route_fixture(false);
     let raw_before = fixture
@@ -1862,6 +2029,7 @@ fn scheme_projectability_returns_after_last_live_coverage_state_leaves() {
         .expect("residual owner epoch")
         .epoch();
     let provenance_epoch_before = fixture.machine.provenance_epoch();
+    let journal = fixture.machine.activate_method_role_mutations();
 
     assert!(
         fixture
@@ -1913,6 +2081,67 @@ fn scheme_projectability_returns_after_last_live_coverage_state_leaves() {
         fixture.machine.epoch(),
         "the affected owner's projection epoch follows the global mutation epoch"
     );
+    assert!(
+        has_constraint_bounds_mutation(
+            &fixture.machine.take_method_role_mutations(),
+            fixture.residual,
+        ),
+        "non-empty-to-empty coverage still publishes the affected owner dependency"
+    );
+    journal.finish();
+}
+
+#[test]
+fn second_live_coverage_state_bumps_only_provenance_epoch() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    let second_state = UnweightedRowReductionRecordId(
+        fixture
+            .coverage_state
+            .0
+            .checked_add(1)
+            .expect("test state ID remains representable"),
+    );
+    let constraint_epoch_before = fixture.machine.epoch();
+    let owner_epoch_before = fixture
+        .machine
+        .bounds()
+        .of(fixture.residual)
+        .expect("residual owner before second live state")
+        .epoch();
+    let provenance_epoch_before = fixture.machine.provenance_epoch();
+    let journal = fixture.machine.activate_method_role_mutations();
+
+    assert!(
+        fixture
+            .machine
+            .insert_scheme_projection_live_coverage_state(fixture.coverage_root, second_state),
+        "a distinct second live state changes liveness metadata"
+    );
+
+    assert_eq!(
+        fixture.machine.epoch(),
+        constraint_epoch_before,
+        "non-empty-to-non-empty coverage must not invalidate compact inclusion"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds()
+            .of(fixture.residual)
+            .expect("residual owner after second live state")
+            .epoch(),
+        owner_epoch_before,
+        "the owner epoch stays unchanged when inclusion stays non-projectable"
+    );
+    assert!(
+        fixture.machine.provenance_epoch() > provenance_epoch_before,
+        "the added live member still advances provenance metadata"
+    );
+    assert!(
+        fixture.machine.take_method_role_mutations().is_empty(),
+        "provenance-only liveness changes do not publish bounds dependencies"
+    );
+    journal.finish();
 }
 
 #[test]
@@ -2204,6 +2433,18 @@ fn scheme_projection_unmatched_route_fixture(
         coverage_root,
         coverage_state,
     }
+}
+
+fn has_constraint_bounds_mutation(mutations: &[MethodRoleMutation], owner: TypeVar) -> bool {
+    mutations.iter().any(|mutation| {
+        matches!(
+            mutation,
+            MethodRoleMutation::Changed {
+                key: DependencyKey::ConstraintBounds(found),
+                ..
+            } if *found == owner
+        )
+    })
 }
 
 impl ObservedReplayLineage {

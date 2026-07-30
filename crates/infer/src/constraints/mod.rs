@@ -460,6 +460,20 @@ struct UpperReplayClaim {
     lineage: UpperReplayClaimLineage,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UpperReplayClaimRegistration {
+    claim: UpperReplayClaimId,
+    scheme_projection_mutation: SchemeProjectionMutation,
+}
+
+/// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SchemeProjectionMutation {
+    None,
+    ProvenanceOnly,
+    InclusionChanged { owner: TypeVar },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReplayClaimParent {
     claim: UpperReplayClaimId,
@@ -578,16 +592,43 @@ impl ConstraintMachine {
         let Some(states) = self.bounds.live_coverage_by_root.get_mut(&root) else {
             return false;
         };
+        let was_empty = states.is_empty();
         let old_len = states.len();
         states.retain(|candidate| *candidate != state);
         if states.len() == old_len {
             return false;
         }
-        if !states.is_empty() {
-            self.bump_provenance_epoch();
-            return true;
-        }
+        let is_empty = states.is_empty();
+        self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
+        true
+    }
 
+    fn insert_scheme_projection_live_coverage_state(
+        &mut self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+    ) -> bool {
+        let states = self.bounds.live_coverage_by_root.entry(root).or_default();
+        if states.contains(&state) {
+            return false;
+        }
+        let was_empty = states.is_empty();
+        states.push(state);
+        let is_empty = states.is_empty();
+        self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
+        true
+    }
+
+    fn record_scheme_projection_liveness_mutation(
+        &mut self,
+        root: UpperReplayClaimId,
+        was_empty: bool,
+        is_empty: bool,
+    ) {
+        if was_empty == is_empty {
+            self.bump_provenance_epoch();
+            return;
+        }
         let affected_owners = self
             .bounds
             .scheme_projection_lower_records_by_root
@@ -599,7 +640,18 @@ impl ConstraintMachine {
             .map(BoundRecord::owner)
             .collect::<FxHashSet<_>>();
         self.record_scheme_projection_mutation(affected_owners);
-        true
+    }
+
+    fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
+        match mutation {
+            SchemeProjectionMutation::None => {}
+            SchemeProjectionMutation::ProvenanceOnly => {
+                self.bump_provenance_epoch();
+            }
+            SchemeProjectionMutation::InclusionChanged { owner } => {
+                self.record_scheme_projection_mutation(FxHashSet::from_iter([owner]));
+            }
+        }
     }
 
     fn record_scheme_projection_mutation(&mut self, owners: FxHashSet<TypeVar>) {
@@ -894,15 +946,19 @@ impl TypeBounds {
         record: BoundRecordId,
         producer_constraint: ConstraintRecordId,
         kind: UpperReplayClaimKind,
-    ) -> UpperReplayClaimId {
+    ) -> UpperReplayClaimRegistration {
         let key = (record, producer_constraint);
         if let Some(claim) = self
             .original_claim_by_record_and_producer
             .get(&key)
             .copied()
         {
-            self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
-            return claim;
+            let scheme_projection_mutation =
+                self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
+            return UpperReplayClaimRegistration {
+                claim,
+                scheme_projection_mutation,
+            };
         }
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
@@ -925,8 +981,12 @@ impl TypeBounds {
             .entry(record)
             .or_default()
             .push(id);
-        self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
-        id
+        let scheme_projection_mutation =
+            self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
+        UpperReplayClaimRegistration {
+            claim: id,
+            scheme_projection_mutation,
+        }
     }
 
     fn derived_upper_replay_claim(
@@ -935,7 +995,7 @@ impl TypeBounds {
         parent_claim: UpperReplayClaimId,
         producer_constraint: ConstraintRecordId,
         lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
-    ) -> UpperReplayClaimId {
+    ) -> UpperReplayClaimRegistration {
         let parent = self.upper_replay_claims[parent_claim.0 as usize].clone();
         let root = parent.coverage_root;
         let depth = parent
@@ -951,10 +1011,13 @@ impl TypeBounds {
         // instead of allocating a derived copy of the original claim.
         if self.upper_replay_claims[root.0 as usize].current_record == record {
             self.replay_claim_cycle_coalesces += 1;
-            if let Some(lower_record) = lower_record {
-                self.link_scheme_projection_claim(lower_record, root);
-            }
-            return root;
+            let scheme_projection_mutation = lower_record
+                .map(|lower_record| self.link_scheme_projection_claim(lower_record, root))
+                .unwrap_or(SchemeProjectionMutation::None);
+            return UpperReplayClaimRegistration {
+                claim: root,
+                scheme_projection_mutation,
+            };
         }
         if let Some(claim) = self
             .derived_claim_by_record_and_root
@@ -962,10 +1025,13 @@ impl TypeBounds {
             .copied()
         {
             self.replay_claim_cycle_coalesces += 1;
-            if let Some(lower_record) = lower_record {
-                self.link_scheme_projection_claim(lower_record, claim);
-            }
-            return claim;
+            let scheme_projection_mutation = lower_record
+                .map(|lower_record| self.link_scheme_projection_claim(lower_record, claim))
+                .unwrap_or(SchemeProjectionMutation::None);
+            return UpperReplayClaimRegistration {
+                claim,
+                scheme_projection_mutation,
+            };
         }
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
@@ -990,10 +1056,13 @@ impl TypeBounds {
             .entry(record)
             .or_default()
             .push(id);
-        if let Some(lower_record) = lower_record {
-            self.link_scheme_projection_claim(lower_record, id);
+        let scheme_projection_mutation = lower_record
+            .map(|lower_record| self.link_scheme_projection_claim(lower_record, id))
+            .unwrap_or(SchemeProjectionMutation::None);
+        UpperReplayClaimRegistration {
+            claim: id,
+            scheme_projection_mutation,
         }
-        id
     }
 
     fn scheme_projection_lower_record_for_lineage(
@@ -1022,38 +1091,43 @@ impl TypeBounds {
         &mut self,
         claim: UpperReplayClaimId,
         producer_constraint: ConstraintRecordId,
-    ) {
+    ) -> SchemeProjectionMutation {
         if let Some(lower_record) = self
             .scheme_projection_lower_record_by_constraint
             .get(&producer_constraint)
             .copied()
         {
-            self.link_scheme_projection_claim(lower_record, claim);
+            return self.link_scheme_projection_claim(lower_record, claim);
         }
+        SchemeProjectionMutation::None
     }
 
     fn link_scheme_projection_claim(
         &mut self,
         lower_record: BoundRecordId,
         claim: UpperReplayClaimId,
-    ) {
+    ) -> SchemeProjectionMutation {
         let Some(record) = self.records.get(lower_record.0 as usize) else {
-            return;
+            return SchemeProjectionMutation::None;
         };
         let owner = record.owner;
+        let record_is_active = record.state != BoundRecordState::Tombstone;
         let Some(root) = self
             .upper_replay_claims
             .get(claim.0 as usize)
             .map(|claim| claim.coverage_root)
         else {
-            return;
+            return SchemeProjectionMutation::None;
         };
+        let was_included = self.scheme_projection_record_is_included(lower_record);
+        let mut metadata_changed = false;
         let claims = self
             .scheme_projection_claims_by_lower_record
             .entry(lower_record)
             .or_default();
         if !claims.contains(&claim) {
             claims.push(claim);
+            metadata_changed = true;
         }
         let records = self
             .scheme_projection_lower_records_by_root
@@ -1061,8 +1135,47 @@ impl TypeBounds {
             .or_default();
         if !records.contains(&lower_record) {
             records.push(lower_record);
+            metadata_changed = true;
         }
-        self.scheme_projection_claimed_lower_owners.insert(owner);
+        if self.scheme_projection_claimed_lower_owners.insert(owner) {
+            metadata_changed = true;
+        }
+        if !metadata_changed {
+            return SchemeProjectionMutation::None;
+        }
+        let is_included = self.scheme_projection_record_is_included(lower_record);
+        if record_is_active && was_included != is_included {
+            SchemeProjectionMutation::InclusionChanged { owner }
+        } else {
+            SchemeProjectionMutation::ProvenanceOnly
+        }
+    }
+
+    fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
+        let Some(claims) = self
+            .scheme_projection_claims_by_lower_record
+            .get(&lower_record)
+        else {
+            return true;
+        };
+        if claims.is_empty() {
+            return true;
+        }
+        claims.iter().any(|claim_id| {
+            let Some(claim) = self.upper_replay_claims.get(claim_id.0 as usize) else {
+                return true;
+            };
+            if self
+                .upper_replay_claims
+                .get(claim.coverage_root.0 as usize)
+                .is_none()
+            {
+                return true;
+            }
+            self.live_coverage_by_root
+                .get(&claim.coverage_root)
+                .is_none_or(Vec::is_empty)
+        })
     }
 
     fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {

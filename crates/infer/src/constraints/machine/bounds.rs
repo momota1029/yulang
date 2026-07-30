@@ -716,7 +716,7 @@ impl ConstraintMachine {
         );
     }
 
-    fn register_constraint_upper_replay_claims(
+    pub(in crate::constraints) fn register_constraint_upper_replay_claims(
         &mut self,
         record: BoundRecordId,
         producer: Option<ConstraintRecordId>,
@@ -738,7 +738,7 @@ impl ConstraintMachine {
             .unwrap_or_default();
         let mut claims = Vec::new();
         for parent in replay_parents {
-            let claim =
+            let registration =
                 self.bounds
                     .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
                         UpperReplayClaimLineage::ReplayConstraint {
@@ -748,12 +748,14 @@ impl ConstraintMachine {
                             depth,
                         }
                     });
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            let claim = registration.claim;
             if !claims.contains(&claim) {
                 claims.push(claim);
             }
         }
         for parent in route_parents {
-            let claim =
+            let registration =
                 self.bounds
                     .derived_upper_replay_claim(record, parent.claim, producer, |depth| {
                         UpperReplayClaimLineage::ReductionRouteConstraint {
@@ -763,16 +765,20 @@ impl ConstraintMachine {
                             depth,
                         }
                     });
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            let claim = registration.claim;
             if !claims.contains(&claim) {
                 claims.push(claim);
             }
         }
         if claims.is_empty() {
-            claims.push(self.bounds.original_upper_replay_claim(
+            let registration = self.bounds.original_upper_replay_claim(
                 record,
                 producer,
                 UpperReplayClaimKind::Direct,
-            ));
+            );
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            claims.push(registration.claim);
         }
         claims
     }
@@ -1496,7 +1502,7 @@ impl ConstraintMachine {
                 for parent in action.claim_parents {
                     let producer =
                         self.bounds.upper_replay_claims[parent.0 as usize].producer_constraint;
-                    self.bounds.derived_upper_replay_claim(
+                    let registration = self.bounds.derived_upper_replay_claim(
                         upper_record,
                         parent,
                         producer,
@@ -1506,6 +1512,7 @@ impl ConstraintMachine {
                             depth,
                         },
                     );
+                    self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
                 }
             }
             self.timing.record_replay_derivation_edge(

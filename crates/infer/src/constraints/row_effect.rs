@@ -487,16 +487,15 @@ impl ConstraintMachine {
             .or_default()
             .push(id);
         let root_claim = producer.map(|producer| {
-            let claim = self.bounds.original_upper_replay_claim(
+            let registration = self.bounds.original_upper_replay_claim(
                 materialization.record,
                 producer,
                 UpperReplayClaimKind::Reduced(id),
             );
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            let claim = registration.claim;
             self.bounds.reduction_claim_by_state.insert(id, claim);
-            let states = self.bounds.live_coverage_by_root.entry(claim).or_default();
-            if !states.contains(&id) {
-                states.push(id);
-            }
+            self.insert_scheme_projection_live_coverage_state(claim, id);
             claim
         });
         self.register_unweighted_row_reduction_owner(

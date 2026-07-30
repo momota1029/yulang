@@ -1548,3 +1548,40 @@ claim machinery は観測だけにする」という framing は、HEAD の実�
 しか残っておらず、live decision になったことは一度もなかった。必要だったのは
 legacy decision の温存ではなく、v3〜v5 を faithful かつ atomic に live-wiring
 し直すことだった。今回実際に着地したのは、その正しい再構築である。
+
+## 30回目: H2前提のscheme-projectability invalidationを両方向で閉じた
+（2026-07-30）
+
+H2でcompactionを`scheme_projectable_lowers`へ接続する前提を再監査し、
+H1のinvalidation contractに二つの未配線方向が残っていることを確認した。
+last live stateが外れるnon-empty→emptyは既存helperからglobal
+`ConstraintEpoch`、該当owner epoch、`DependencyKey::ConstraintBounds(owner)`、
+`ProvenanceEpoch`を更新していた。一方、row reduction登録時の
+`live_coverage_by_root`直接insertによるempty→non-emptyと、lower recordへ
+claim linkを追加してunclaimed / partly-uncovered / all-covered分類を変える経路は、
+projection metadataだけを更新し、同じpublishを行っていなかった。
+
+claim-link helperは`TypeBounds`に属し、`ConstraintMachine`のglobal epochと
+mutation outboxへ直接触れない。この境界を崩さず、
+`SchemeProjectionMutation::{None, ProvenanceOnly, InclusionChanged { owner }}`
+を返す形へ変更した。constraint claim登録のreplay parent、reduction-route parent、
+direct original claim、replay evidenceの四call siteとrow reductionのoriginal claim登録が
+outcomeを受け取り、`InclusionChanged`だけを既存のscheme-projection publishへ渡す。
+link追加前後のrecord inclusionを比較するため、covered-onlyへの遷移だけでなく、
+covered-onlyへuncovered claimが加わって再びprojectableになる方向も同じ規則で扱う。
+duplicate linkは何も更新せず、metadataだけが変わってinclusionが同じ場合は
+provenanceだけを進める。
+
+coverage livenessはinsert / removeを同じnarrow helperへ揃え、mutation前後の
+root emptinessを比較する。empty / non-empty境界を跨いだときだけreverse indexから
+active lower ownerを列挙してglobal / owner / dependency / provenanceをpublishし、
+non-empty→non-emptyは`ProvenanceEpoch`だけを進める。これにより、H2後の
+`GeneralizeCompactCache`がprojectability transition後に古い
+`(root, ConstraintEpoch)` entryを再利用する穴を両方向で閉じた。
+
+`case_02`にはempty→non-empty、covered claim linkによる
+projectable→non-projectable、non-empty→non-empty provenance-onlyの三testを追加し、
+既存のnon-empty→empty testもowner dependency publishまで強化した。
+`cargo check -p infer`は成功し、`constraints::tests::case_02`は
+53 pass / 0 fail / 1 known-ignore（54 selected）。既存期待値は変更していない。
+`compact/`と`generalize/`には触れておらず、H2 consumer wiringは引き続き次sliceである。
