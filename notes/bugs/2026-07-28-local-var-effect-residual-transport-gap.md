@@ -1133,16 +1133,53 @@ read-only investigation の結果、`TypeVar(1670)` が `TypeVar(1524)` と
 **証明済み派生鎖に沿った lineage 追跡**を区別できていなかった、と
 いうことになる。ここは URR v4 相当の設計改訂が必要。
 
+## URR-F 一度目、v4 の6テストは全部 green なのにまだ nested が漏れる
+（2026-07-30）
+
+URR v4 の§8.2 の3 regression test（`051be5fc`）は正しく red/green/red
+で確立できた。本体実装（claim lineage、`BinaryReplayDerivation` を
+proof carrier とする root compression）を試作したところ、**対象4
+テスト（v3の2件 + v4の2件）は全部 green、control 2件も green 維持**
+——単体テストレベルでは v4 の設計通りに動いた。
+
+それでも実際の nested local-var characterization test はまだ漏れを
+示した。原因を trace すると、今回漏れを起こしてた未 covered な
+claim（source `TypeVar(1522)`、producer `ConstraintRecordId(6472)`）
+は、`StructuralDerivationRule`/`BinaryReplayDerivation` の chain を
+一切持たず（`structural_derivations=[]`、`replay_derivations=[]`）、
+代わりに **`RowDerivationId(196)` という別の derivation 経路**
+（row-item matching 由来）だけを持っていた。
+
+**この結果の意味**: v4 の設計は「証明済みの subtype edge
+（`StructuralDerivationRule::UnionBranch`/`FunctionReturnEffect` が
+運ぶ `BinaryReplayDerivation`）」を proof carrier として選んだが、
+実際の production graph には、**それとは別種の伝播経路
+（`RowDerivation` 経由の row-item matching）**もあり、こちらは
+v4 の 3 regression test では一度も構築されてなかった。テストの
+盲点——3つの unit test は「union decomposition から来るケース」
+だけを構築してて、「row-item match から来るケース」を見ていなかった。
+
+これを covered にするには、(a) `BinaryReplayDerivation` 無しでも
+lineage を継承する経路を追加する（v3 §10.1(16)/(20) の趣旨に抵触
+しないか要検討）、(b) initial row route 自体を binary replay 形へ
+変える（承認済み §5.9 の carrier 設計を越える変更）のどちらかが要る
+——今回はどちらも承認済み範囲を超えると判断し、production コードは
+全て rollback した（commit なし、working tree clean 確認済み）。
+
 ## 次に調べるべきこと
 
-- **最優先（設計判断が必要、URR v4）**: claim lineage を、証明済みの
-  派生関係（`1670 <: 1524` のような union decomposition/
-  FunctionReturnEffect 由来の subtype edge）に沿ってだけ伝播させ、
-  無関係な producer の claim には伝播させない設計。v3 の
-  stop condition 16 を「無条件禁止」から「lineage のない伝播だけ
-  禁止」へ書き換える必要がある。
+- **最優先（設計判断が必要、URR v5 相当）**: `RowDerivation` 経由で
+  covered claim から派生した claim を、`BinaryReplayDerivation` 経由
+  の場合と同じように lineage 継承できる設計。まず
+  `RowDerivationId(196)` に相当する経路が、どんな row-item matching
+  から生まれるかを read-only で trace してから、carrier の集合を
+  拡張する（無関係な row derivation まで covered 扱いにしないよう、
+  同じ「証明済みかどうか」の区別が要る）。
+- claim/coverage/lineage の基本設計（v3・v4）自体は反証されていない
+  ——反証されたのは「carrier が `BinaryReplayDerivation` だけで十分」
+  という前提。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
-  いる——退行はない。v3 の3 regression test も生きている。
+  いる——退行はない。v3・v4 の6 regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
 - LVB-A2 の `h` witness の潜在リスク（`my $x` migration 後に意味が
   変わりうる）は未対応のまま残っている。
