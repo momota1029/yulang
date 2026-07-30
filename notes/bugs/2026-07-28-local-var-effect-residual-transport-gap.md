@@ -1610,3 +1610,31 @@ positive lowerの処理本体は`WeightedLowerBound` iteratorを受け取る
 `cargo check -p infer`は成功した。compact test suiteは新しいinert-mode同値testを含め
 65 pass / 0 fail、`constraints::tests::case_02`は53 pass / 0 fail /
 1 known-ignore（54 selected）。既存testの期待値は変更していない。
+
+## 32回目: H2のscheme compactionをclaim coverageへ接続
+（2026-07-30）
+
+`CompactCollector`の`SchemeProjection` branchだけを
+`ConstraintMachine::scheme_projectable_lowers(var)`へ切り替え、各entryの`bound`を
+既存のlower-bound処理kernelへ一回渡すようにした。`Raw` branchは従来どおり
+`VarBounds::projection_lowers()`を使う。collectorからmachine参照を先にcopyすることで、
+iteratorを`Vec`へcollectせず、viewのno-claim fast pathとO(claims) contractを維持した。
+negative upper collection、weight合成、stack-family coexistence、recursive detection、
+`compact_pos_bound_id`、`generalize/`は変更していない。
+
+compact固有のregressionとして、既存`case_02`のunmatched-route fixtureをtest-only helper
+経由で再利用し、次の四contractを追加した。
+
+- covered-only lowerはraw compactionではsecondary positive variableとして残り、
+  scheme compactionでは除外される
+- covered claimとindependent claimが同じcanonical lowerに同居するmixed recordは、
+  scheme compactionへ一回だけ残る
+- last live coverage stateを外す前はscheme compactionから除外され、global epochが進んだ後の
+  fresh compactionでは同じraw lowerが再びprojectされる
+- claimを持たないownerではraw / schemeの`CompactRoot`がnode、weight、順序を含め完全一致する
+
+`cargo check -p infer`は成功した。compact test suiteは69 pass / 0 fail、
+`constraints::tests::case_02`は53 pass / 0 fail /
+1 known-ignore（54 selected）、`cargo fmt --all -- --check`も成功した。
+既存testの期待値は変更していない。指定どおりfive-case characterizationと
+287-case contract suiteは実行しておらず、次sliceのfinal H2 gateとして残す。

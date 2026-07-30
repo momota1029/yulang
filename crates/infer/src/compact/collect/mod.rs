@@ -649,8 +649,18 @@ impl<'a> CompactCollector<'a> {
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
         match self.bound_mode {
-            CompactBoundMode::Raw | CompactBoundMode::SchemeProjection => {
+            CompactBoundMode::Raw => {
                 self.compact_lower_bounds_from(var, bounds.projection_lowers(), outer_weight)
+            }
+            CompactBoundMode::SchemeProjection => {
+                let machine = self.machine;
+                self.compact_lower_bounds_from(
+                    var,
+                    machine
+                        .scheme_projectable_lowers(var)
+                        .map(|entry| entry.bound),
+                    outer_weight,
+                )
             }
         }
     }

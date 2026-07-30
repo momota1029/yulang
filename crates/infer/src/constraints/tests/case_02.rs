@@ -2435,6 +2435,38 @@ fn scheme_projection_unmatched_route_fixture(
     }
 }
 
+impl ConstraintMachine {
+    pub(crate) fn compact_scheme_projection_unmatched_route_fixture(
+        with_independent_direct_claim: bool,
+    ) -> (Self, TypeVar, TypeVar, UpperReplayClaimId) {
+        let fixture = scheme_projection_unmatched_route_fixture(with_independent_direct_claim);
+        (
+            fixture.machine,
+            fixture.beta,
+            fixture.residual,
+            fixture.coverage_root,
+        )
+    }
+
+    pub(crate) fn remove_last_scheme_projection_coverage_for_compact_test(
+        &mut self,
+        root: UpperReplayClaimId,
+    ) -> bool {
+        let states = self
+            .bounds
+            .live_coverage_by_root
+            .get(&root)
+            .expect("compact fixture has a live coverage root");
+        assert_eq!(
+            states.len(),
+            1,
+            "compact fixture transition must remove the root's last live state"
+        );
+        let state = states[0];
+        self.remove_scheme_projection_live_coverage_state(root, state)
+    }
+}
+
 fn has_constraint_bounds_mutation(mutations: &[MethodRoleMutation], owner: TypeVar) -> bool {
     mutations.iter().any(|mutation| {
         matches!(
