@@ -1093,16 +1093,54 @@ production コードは全て rollback 済み（commit なし、working tree
 clean 確認済み）。3つの v3 test 自体は生きたまま——今回否定された
 のは「source 単位の coverage だけで十分」という前提。
 
+## cross-source 経路の正体を特定（2026-07-30、Sol xhigh read-only）
+
+read-only investigation の結果、`TypeVar(1670)` が `TypeVar(1524)` と
+`NegId(2055)` を共有するのは、**arena の偶然の interning ではなく、
+本物の意味論的な型関係**だと確定した。
+
+**判明した由来**:
+
+1. `ConstraintRecordId(6462)` で 1524 の reduction が `NegId(2055)`
+   （= `Var(TypeVar(1669))`）を materialize する
+2. `ConstraintRecordId(6611)` が `1670 <: 1524` という**正当な
+   subtype 関係**を成立させる——`inner_r.update` 自身の scheme
+   instantiation（`DefId(13)`）が fresh 化した先頭量化変数 `'a`
+   （local ref 自身の effect component）が 1670 で、`r.update` の
+   結果効果 `['b, 'a]` が callback body へ入る Union decomposition/
+   `FunctionReturnEffect` 経由の、正しい派生関係
+3. `ConstraintRecordId(6613)` が 1670 自身へ 2055 を upper として追加
+4. `ConstraintRecordId(6620)` で inner-family row が 1670 の lower に
+5. `ConstraintRecordId(6647)` がその lower を 1670 の 2055 upper へ
+   replay し、1669 を汚染する
+
+**3方向の verdict**:
+
+- **(a) endpoint 単位の coverage は不健全**——同じ 1669 を target に
+  する本当に独立した direct-tail relation まで抑止し、v3 §5.8 と
+  §8.1 test 2 を破る
+- **(b) 1670 の生成や `1670 <: 1524` を禁止するのも誤り**——
+  `r.update` の正しい型関係そのもの
+- **(c) 最も根拠のある方向**: 1670 側の bound は「独立した ordinary
+  upper」ではなく、**covered reduction から派生した claim
+  lineage を継承すべき**もの。1524 の reduction claim が、正当な
+  派生鎖（`1670 <: 1524` のような証明済み関係）を辿って 1670 側の
+  bound へも伝わる必要がある。無関係な producer の claim へは伝播
+  させない
+
+つまり v3 §10.1(16) の「coverage token の cross-source 伝播を全面
+禁止」という stop condition 自体が、**無関係な claim への伝播**と
+**証明済み派生鎖に沿った lineage 追跡**を区別できていなかった、と
+いうことになる。ここは URR v4 相当の設計改訂が必要。
+
 ## 次に調べるべきこと
 
-- **最優先（設計判断が必要、URR v4 相当）**: 「同じ endpoint を共有する
-  複数 source」という cross-source な関係を、coverage token の
-  source 間伝播（禁止済み）や zero-lower lazy activation（別途
-  deferred 済み）を使わずに正しく扱う設計。候補: endpoint 自体に
-  対する coverage（source 単位ではなく `NegId` 単位で coverage を
-  持たせる）、または 1670 のような「reduction を起こしてない別
-  source」がなぜ 1524 と同じ endpoint を共有するに至ったか
-  （aliasing の経路）を先に read-only で辿る。
+- **最優先（設計判断が必要、URR v4）**: claim lineage を、証明済みの
+  派生関係（`1670 <: 1524` のような union decomposition/
+  FunctionReturnEffect 由来の subtype edge）に沿ってだけ伝播させ、
+  無関係な producer の claim には伝播させない設計。v3 の
+  stop condition 16 を「無条件禁止」から「lineage のない伝播だけ
+  禁止」へ書き換える必要がある。
 - 単一 boundary（複数文含む）の discharge、CLI での成功は維持されて
   いる——退行はない。v3 の3 regression test も生きている。
 - LVB-B の production wiring は、この追加修正が着地するまで再開しない。
