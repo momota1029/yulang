@@ -1670,3 +1670,69 @@ compact test suiteも69 pass / 0 fail、`constraints::tests::case_02`も
 53 pass / 0 fail / 1 known-ignore（54 selected）である。これによりH2の
 characterization gateは通過した。287-case contract suite gateはClaudeが別途
 実行中であり、この記録時点では結果未確認である。
+
+## 34回目: URR-H2全completion gate通過、完全完了
+（2026-07-30）
+
+URR-H2、すなわち承認済み設計文書のH1 / H2 / H3分割どおり、
+claim-awareな`scheme_projectable_lowers` viewをcompactionだけへ配線するsliceが、
+次の4 commitと全gate通過をもって完全に着地した。
+
+- `92f990b4`: epoch / liveness-invalidationの前提を閉じた。claim coverageが変わる
+  両方向のtransitionを、以前から正しかったremoval方向だけでなくaddition方向も
+  `GeneralizeCompactCache`のinvalidation機構へ正しくpublishする
+- `c6770c5a`: `CompactCollector`へinertな`Raw` / `SchemeProjection` modeを追加。
+  behavior-preservingなcheckpoint
+- `09b8e857`: real wiring。`SchemeProjection` modeが
+  `machine.scheme_projectable_lowers(var)`を使うようにし、
+  `compact_type_var_for_scheme`、`compact_negative_type_var_for_scheme`、
+  `compact_type_var_recording_merge_constraints_for_scheme`、generalizationの
+  reachable-role collectorという4個のscheme-compaction entry pointだけへ配線。
+  negative-upper collection、generic compaction、role-solving compactionはscopeどおり
+  すべてrawのまま
+- `25f4ec5c`: record-levelの検証済みattributionを根拠にfive-case
+  characterization baselineを更新
+
+characterization gateは、通常より強いrecord単位の根拠を伴って通過した。
+全5ケースで同一だった差分、すなわち`canonical_subtype_constraints` -8、
+structuralの`full_unary` / `union_intersection`各-16、upper replayの
+accepted / duplicate / prefilteredがそれぞれ+8 / -8 / -8、
+`provenance_epoch`約+11.5万〜12万、poly / check hash **UNCHANGED**を、
+`lib/std/data/list.yu`と`lib/std/text/str.yu`の5個のstd index-implementation
+definitionにある、exactly 10個のclaim-covered lower recordまで追跡した。
+
+10 recordはすべて
+`compact_type_var_recording_merge_constraints_for_scheme`だけで除外され、このケースでは
+他の3 entry pointによる除外は0件だった。各recordを個別に確認し、
+`UpperReplayClaimKind::Reduced`の正当なlive claim、
+`ReductionRouteConstraint` lineage、non-emptyな`live_coverage_by_root`が
+そのrecordをcoverしていた。この10 recordの除外が、8個のcanonical union
+constraintに付随する重複`UnionBranch` derivation 16 edgeをcollapseした。
+つまり「replay actionを生成してからduplicateと判定する」経路が、
+「冗長なcandidate自体を生成しない」経路へ変わったことが、replay dispositionの
+差分を正確に説明する。
+
+`provenance_epoch`増加も`09b8e857`のwiring由来ではなく、先行する
+`92f990b4`が新たに正しく行うmutation publishingへ帰属した。wiring自体は、
+unwired projectionとの比較ではepoch総数を24減らしている。したがって、
+characterization差分の全項目について、record・claim・lineage・replay disposition・
+epoch sourceまで説明が閉じている。
+
+最後のfull contract-suite gateは、`tests/yulang/cases.toml`の287ケースが
+287/287 greenで完走した。今回のsystem loadではsingle-threaded local runに
+24分以上かかり、先に起きたCodex MCP transport timeoutのriskがあるため、
+Claudeがbackgroundで直接、別runとして完走を確認した。
+
+これにより **URR-H2はfully complete** とする。本session中に先行して行った
+full `cargo test -p infer`では、当初のnested local-var isolation test
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`も
+passしたと報告されている。ただし、これはH3を省略する根拠にはならない。
+設計文書自身の明示的な指示どおり、H2だけでこのtestがgreenになってもH3は必須である。
+
+次かつ最後のsliceはURR-H3である。alias expansionの
+`generalize/mod.rs::positive_aliases_within_scheme`とprovenance consumerを
+`scheme_projectable_lowers`へ配線する。両方とも現在はrawのままであり、
+H3にはまだ着手していない。全体のarcでは、H1がconstraint-machine replay層を直し、
+H2がcompaction層を直した。残るH3がalias expansionとprovenanceを直すことで、
+ORIGINALのmotivating bugであるnested local-var effect boundary leakを、
+部分的にmaskされた状態ではなく、fullyかつ正しく閉じる。
