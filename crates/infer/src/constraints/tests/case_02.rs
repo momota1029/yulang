@@ -2799,6 +2799,145 @@ fn dcp_a_8_8_duplicate_evidence_and_promotion_keep_root_and_exact_carrier() {
 }
 
 #[test]
+fn cdm_a_9_1_bulk_oracle_matches_current_ledgers_on_pinned_and_composite_fixtures() {
+    let mut direct_first = one_sided_claim_fixture(true);
+    assert_cdm_bulk_oracle_fixed_point(
+        &mut direct_first.machine,
+        direct_first.producer,
+        direct_first.lower_record,
+        direct_first.target,
+        "direct-first dcp_a_8_7 fixture",
+    );
+
+    let mut mixed = scheme_projection_unmatched_route_fixture(true);
+    let mixed_producers = mixed.machine.bounds.records[mixed.lower_record.0 as usize]
+        .derivations()
+        .iter()
+        .filter_map(|derivation| match derivation {
+            BoundDerivation::Constraint(producer) => Some(*producer),
+            BoundDerivation::Origin(_)
+            | BoundDerivation::ReplayEvidence(_)
+            | BoundDerivation::Row(_)
+            | BoundDerivation::SchemeInstantiation(_)
+            | BoundDerivation::IncompleteReplay => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !mixed_producers.is_empty(),
+        "the scheme_projectable_lower pinned fixture exposes its claim-bearing producers"
+    );
+    for producer in mixed_producers {
+        assert_cdm_bulk_oracle_fixed_point(
+            &mut mixed.machine,
+            producer,
+            mixed.lower_record,
+            mixed.residual,
+            "scheme_projectable_lower mixed-record fixture",
+        );
+    }
+
+    let mut composite =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    assert_cdm_bulk_oracle_fixed_point(
+        &mut composite.machine,
+        composite.result_constraint,
+        composite.result_record,
+        composite.result_owner,
+        "multi-root replay composite fixture",
+    );
+}
+
+#[test]
+fn cdm_a_9_2_direct_and_claimed_insertion_orders_match_after_bulk_oracle() {
+    let mut direct_first = one_sided_claim_fixture(true);
+    let mut claimed_first = one_sided_claim_fixture_with_claimed_first_then_direct();
+    assert_cdm_bulk_oracle_fixed_point(
+        &mut direct_first.machine,
+        direct_first.producer,
+        direct_first.lower_record,
+        direct_first.target,
+        "direct-first fixture",
+    );
+    assert_cdm_bulk_oracle_fixed_point(
+        &mut claimed_first.machine,
+        claimed_first.producer,
+        claimed_first.lower_record,
+        claimed_first.target,
+        "claimed-first fixture",
+    );
+
+    assert_eq!(
+        mixed_one_sided_snapshot(&direct_first),
+        mixed_one_sided_snapshot(&claimed_first),
+        "direct-first and claimed-first reach the same ledger, decision, and snapshot"
+    );
+}
+
+// CDM §9.2's qualified-carrier-index comparison is intentionally deferred to CDM-B, where D3
+// introduces that index. The ledger, decision, snapshot, and exact carrier-order controls are
+// executable now; pretending to observe a not-yet-existing index would add no contract.
+
+// CDM §9.3 is intentionally deferred to CDM-D. Its observable contract requires D2's delta
+// events and a production delta-vs-bulk branch; in CDM-A every listed admission path necessarily
+// uses the same bulk implementation, so path fixtures could not detect a missing delta emission
+// or a silent bulk fallback and would only duplicate the existing DCP/MPC admission controls.
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ObservedCdmBulkOracleSnapshot {
+    claim_parents: Vec<ClaimQualifiedParent>,
+    projection_claims: Vec<UpperReplayClaimId>,
+    projection_proofs: Vec<SchemeProjectionProof>,
+    included: bool,
+}
+
+fn observed_cdm_bulk_oracle_snapshot(
+    machine: &ConstraintMachine,
+    producer: ConstraintRecordId,
+    lower_record: BoundRecordId,
+    owner: TypeVar,
+) -> ObservedCdmBulkOracleSnapshot {
+    ObservedCdmBulkOracleSnapshot {
+        claim_parents: machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&producer)
+            .cloned()
+            .unwrap_or_default(),
+        projection_claims: machine
+            .bounds
+            .scheme_projection_claims_by_lower_record
+            .get(&lower_record)
+            .cloned()
+            .unwrap_or_default(),
+        projection_proofs: machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .get(&lower_record)
+            .cloned()
+            .unwrap_or_default(),
+        included: machine
+            .scheme_projectable_lowers(owner)
+            .any(|candidate| candidate.record == lower_record),
+    }
+}
+
+fn assert_cdm_bulk_oracle_fixed_point(
+    machine: &mut ConstraintMachine,
+    producer: ConstraintRecordId,
+    lower_record: BoundRecordId,
+    owner: TypeVar,
+    fixture: &str,
+) {
+    let maintained = observed_cdm_bulk_oracle_snapshot(machine, producer, lower_record, owner);
+    machine.recompute_claim_parent_bulk_oracle(producer);
+    let bulk = observed_cdm_bulk_oracle_snapshot(machine, producer, lower_record, owner);
+    assert_eq!(
+        maintained, bulk,
+        "{fixture}: claim parents, claim ledger, proof ledger, and inclusion match the bulk oracle"
+    );
+}
+
+#[test]
 fn mpc_a_9_1_conjunctive_only_mixed_replay_is_suppressed() {
     let mut fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
     let snapshot = observed_mpc_replay_snapshot(&fixture);

@@ -1046,11 +1046,34 @@ impl ConstraintMachine {
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
         if inserted && materialize_existing_target {
-            if let Some(record) = target_record {
-                self.register_constraint_upper_replay_claims(record, Some(result));
-            }
-            self.register_existing_constraint_lower_projection_proofs(result);
+            self.materialize_existing_claim_parents_bulk(result, target_record);
         }
+    }
+
+    /// Recompute every claim-parent consequence already attached to `result`.
+    ///
+    /// CDM-A keeps the current correct-but-expensive implementation as one named bulk reference
+    /// point. Production continues to call it until the later delta slices retire it from the hot
+    /// path; tests call the cfg(test) oracle entrypoint below to compare maintained state against
+    /// this ground truth.
+    fn materialize_existing_claim_parents_bulk(
+        &mut self,
+        result: ConstraintRecordId,
+        target_record: Option<BoundRecordId>,
+    ) {
+        if let Some(record) = target_record {
+            self.register_constraint_upper_replay_claims(record, Some(result));
+        }
+        self.register_existing_constraint_lower_projection_proofs(result);
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn recompute_claim_parent_bulk_oracle(
+        &mut self,
+        result: ConstraintRecordId,
+    ) {
+        let target_record = self.var_var_upper_record_for_constraint(result);
+        self.materialize_existing_claim_parents_bulk(result, target_record);
     }
 
     pub(in crate::constraints) fn register_reduction_route_claim_parent(
@@ -1078,10 +1101,8 @@ impl ConstraintMachine {
             return;
         }
         entries.push(parent);
-        if let Some(record) = self.var_var_upper_record_for_constraint(result) {
-            self.register_constraint_upper_replay_claims(record, Some(result));
-        }
-        self.register_existing_constraint_lower_projection_proofs(result);
+        let target_record = self.var_var_upper_record_for_constraint(result);
+        self.materialize_existing_claim_parents_bulk(result, target_record);
     }
 
     fn var_var_upper_record_for_constraint(
@@ -2418,6 +2439,534 @@ mod mutation_tests {
             1,
             "dedup by result/root/side must not leave a second exact replay carrier unqualified"
         );
+    }
+
+    #[test]
+    fn cdm_a_9_2_exact_carrier_arrival_order_preserves_bulk_snapshot() {
+        let lower_first =
+            cdm_carrier_order_snapshot([ReplayRule::LowerBoundAdded, ReplayRule::UpperBoundAdded]);
+        let upper_first =
+            cdm_carrier_order_snapshot([ReplayRule::UpperBoundAdded, ReplayRule::LowerBoundAdded]);
+
+        assert_eq!(
+            lower_first, upper_first,
+            "exact carrier arrival order preserves parent keys, canonical roots, ledger, and inclusion"
+        );
+    }
+
+    #[test]
+    fn cdm_a_9_1_current_eager_path_matches_bulk_oracle() {
+        let mut current = cdm_replay_claim_fixture();
+        let replay = current.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            current
+                .machine
+                .merge_replay_derivation(current.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        current.machine.register_replay_claim_parents(
+            current.result,
+            replay,
+            &[current.parent],
+            true,
+        );
+
+        let mut oracle = cdm_replay_claim_fixture();
+        let replay = oracle.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            oracle
+                .machine
+                .merge_replay_derivation(oracle.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        oracle.machine.register_replay_claim_parents(
+            oracle.result,
+            replay,
+            &[oracle.parent],
+            false,
+        );
+        oracle
+            .machine
+            .recompute_claim_parent_bulk_oracle(oracle.result);
+
+        assert_eq!(
+            cdm_oracle_ledger_snapshot(&current),
+            cdm_oracle_ledger_snapshot(&oracle),
+            "the production eager call and separately invoked bulk oracle agree on all four ledger surfaces"
+        );
+    }
+
+    #[test]
+    fn cdm_a_9_4_independent_then_claimed_keeps_both_occurrences() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let independent = fixture.replay(ReplayRule::LowerBoundAdded);
+        let bootstrap_claimed = fixture.replay(ReplayRule::UpperBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, independent),
+            ReplayDerivationInsert::Inserted
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, bootstrap_claimed),
+            ReplayDerivationInsert::Inserted
+        );
+
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            bootstrap_claimed,
+            &[fixture.parent],
+            true,
+        );
+        let independent_support = ProjectionProofCarrier::ReplayConstraint {
+            result: fixture.result,
+            derivation: independent,
+        };
+        assert!(
+            fixture.machine.bounds.projection_proofs_by_lower_record[&fixture.lower_record]
+                .iter()
+                .any(|proof| {
+                    proof.support == SchemeProjectionProofSupport::Independent(independent_support)
+                }),
+            "bootstrap records the exact unqualified replay occurrence as independent"
+        );
+
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            independent,
+            &[fixture.parent],
+            true,
+        );
+        let proofs =
+            &fixture.machine.bounds.projection_proofs_by_lower_record[&fixture.lower_record];
+        assert!(
+            proofs.iter().any(|proof| {
+                proof.support == SchemeProjectionProofSupport::Independent(independent_support)
+            }),
+            "the earlier independent occurrence remains in the add-only ledger"
+        );
+        assert!(
+            proofs.iter().any(|proof| {
+                matches!(proof.support, SchemeProjectionProofSupport::Claimed(claim)
+                    if fixture.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+                        == fixture.coverage_root)
+            }),
+            "the later claim-qualified occurrence links the same root separately"
+        );
+        assert!(
+            fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+                .iter()
+                .any(|parent| {
+                    matches!(parent, ClaimQualifiedParent::ReplayConstraint { replay, .. }
+                        if *replay == independent)
+                }),
+            "the claimed occurrence retains its exact replay carrier"
+        );
+    }
+
+    #[test]
+    fn cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let first = fixture.replay(ReplayRule::LowerBoundAdded);
+        let second = fixture.replay(ReplayRule::UpperBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, first),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            first,
+            &[fixture.parent],
+            true,
+        );
+        let claims_after_first = fixture.machine.bounds.upper_replay_claims.len();
+        let proofs_after_first =
+            fixture.machine.bounds.projection_proofs_by_lower_record[&fixture.lower_record].len();
+
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, second),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            second,
+            &[fixture.parent],
+            true,
+        );
+
+        let exact_keys = fixture
+            .machine
+            .bounds
+            .replay_claim_parent_keys
+            .iter()
+            .filter(|key| {
+                key.result == fixture.result && key.coverage_root == fixture.coverage_root
+            })
+            .count();
+        let exact_parents = fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+            .iter()
+            .filter(|parent| {
+                matches!(parent, ClaimQualifiedParent::ReplayConstraint { parent_claim, .. }
+                    if fixture.machine.bounds.upper_replay_claims[parent_claim.0 as usize]
+                        .coverage_root == fixture.coverage_root)
+            })
+            .count();
+        let materialized_roots = fixture
+            .machine
+            .bounds
+            .derived_claim_by_record_and_root
+            .keys()
+            .filter(|(record, root)| {
+                *record == fixture.upper_record && *root == fixture.coverage_root
+            })
+            .count();
+        let linked_roots = fixture
+            .machine
+            .bounds
+            .scheme_projection_claims_by_lower_record[&fixture.lower_record]
+            .iter()
+            .filter(|claim| {
+                fixture.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+                    == fixture.coverage_root
+            })
+            .count();
+
+        assert_eq!((exact_keys, exact_parents), (2, 2));
+        assert_eq!(
+            (materialized_roots, linked_roots),
+            (1, 1),
+            "the upper claim and lower ledger remain canonical per (record, root)"
+        );
+        assert_eq!(
+            fixture.machine.bounds.upper_replay_claims.len(),
+            claims_after_first,
+            "the second exact carrier does not allocate another derived claim"
+        );
+        assert_eq!(
+            fixture.machine.bounds.projection_proofs_by_lower_record[&fixture.lower_record].len(),
+            proofs_after_first,
+            "the second exact carrier does not add another root-ledger entry"
+        );
+    }
+
+    #[test]
+    fn cdm_a_9_6_materialized_state_census_is_linear_in_link_events() {
+        // This baseline counts successful add-only entries, not the current bulk path's repeated
+        // scan attempts. CDM-C/D retain these semantic counts while making the processing census
+        // event-linear.
+        for link_events in [1usize, 4, 16] {
+            let census = cdm_linear_materialization_census(link_events);
+            assert_eq!(
+                census,
+                CdmMaterializationCensus {
+                    parent_entries: link_events,
+                    materialized_roots: link_events,
+                    claim_ledger_entries: link_events,
+                    claimed_proof_entries: link_events,
+                },
+                "{link_events} distinct root-link events create one entry on each add-only semantic surface"
+            );
+        }
+    }
+
+    struct CdmReplayClaimFixture {
+        machine: ConstraintMachine,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        upper_record: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        parent: SideTaggedReplayClaim,
+        pivot: TypeVar,
+    }
+
+    impl CdmReplayClaimFixture {
+        fn replay(&self, rule: ReplayRule) -> BinaryReplayDerivation {
+            BinaryReplayDerivation {
+                pivot: self.pivot,
+                lower: self.lower_record,
+                upper: self.upper_record,
+                rule,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct CdmOracleLedgerSnapshot {
+        claim_parents: Vec<ClaimQualifiedParent>,
+        projection_claims: Vec<UpperReplayClaimId>,
+        projection_proofs: Vec<SchemeProjectionProof>,
+        included: bool,
+    }
+
+    fn cdm_oracle_ledger_snapshot(fixture: &CdmReplayClaimFixture) -> CdmOracleLedgerSnapshot {
+        CdmOracleLedgerSnapshot {
+            claim_parents: fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+                .clone(),
+            projection_claims: fixture
+                .machine
+                .bounds
+                .scheme_projection_claims_by_lower_record[&fixture.lower_record]
+                .clone(),
+            projection_proofs: fixture.machine.bounds.projection_proofs_by_lower_record
+                [&fixture.lower_record]
+                .clone(),
+            included: fixture
+                .machine
+                .scheme_projectable_lowers(TypeVar(1))
+                .any(|candidate| candidate.record == fixture.lower_record),
+        }
+    }
+
+    fn cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let target = TypeVar(1);
+        let parent_source = TypeVar(2);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        let origin = OriginId::unknown_internal();
+        machine.subtype(lower, upper, origin);
+
+        let result = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the direct relation is canonical");
+        let lower_record = machine.bounds.of(target).unwrap().lower_record_ids()[0];
+        let upper_record = machine.bounds.of(source).unwrap().upper_record_ids()[0];
+        let parent_record = machine
+            .bounds
+            .add_upper(
+                parent_source,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let registration = machine.bounds.original_upper_replay_claim(
+            parent_record,
+            ConstraintRecordId(10_000),
+            UpperReplayClaimKind::Direct,
+        );
+        machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+        let coverage_root = registration.claim;
+
+        CdmReplayClaimFixture {
+            machine,
+            result,
+            lower_record,
+            upper_record,
+            coverage_root,
+            parent: SideTaggedReplayClaim {
+                claim: coverage_root,
+                parent_side: ReplayClaimParentSide::Lower,
+            },
+            pivot: source,
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct CdmCarrierOrderSnapshot {
+        lower_rule_parents: usize,
+        upper_rule_parents: usize,
+        exact_keys: usize,
+        materialized_roots: usize,
+        linked_roots: usize,
+        claimed_proofs: usize,
+        independent_proofs: usize,
+        included: bool,
+    }
+
+    fn cdm_carrier_order_snapshot(order: [ReplayRule; 2]) -> CdmCarrierOrderSnapshot {
+        let mut fixture = cdm_replay_claim_fixture();
+        for rule in order {
+            let replay = fixture.replay(rule);
+            assert_eq!(
+                fixture
+                    .machine
+                    .merge_replay_derivation(fixture.result, replay),
+                ReplayDerivationInsert::Inserted
+            );
+            fixture.machine.register_replay_claim_parents(
+                fixture.result,
+                replay,
+                &[fixture.parent],
+                true,
+            );
+        }
+        fixture
+            .machine
+            .recompute_claim_parent_bulk_oracle(fixture.result);
+
+        let parents = &fixture.machine.bounds.claim_parents_by_constraint[&fixture.result];
+        let proofs =
+            &fixture.machine.bounds.projection_proofs_by_lower_record[&fixture.lower_record];
+        CdmCarrierOrderSnapshot {
+            lower_rule_parents: parents
+                .iter()
+                .filter(|parent| {
+                    matches!(parent, ClaimQualifiedParent::ReplayConstraint { replay, .. }
+                        if replay.rule == ReplayRule::LowerBoundAdded)
+                })
+                .count(),
+            upper_rule_parents: parents
+                .iter()
+                .filter(|parent| {
+                    matches!(parent, ClaimQualifiedParent::ReplayConstraint { replay, .. }
+                        if replay.rule == ReplayRule::UpperBoundAdded)
+                })
+                .count(),
+            exact_keys: fixture
+                .machine
+                .bounds
+                .replay_claim_parent_keys
+                .iter()
+                .filter(|key| {
+                    key.result == fixture.result && key.coverage_root == fixture.coverage_root
+                })
+                .count(),
+            materialized_roots: fixture
+                .machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(fixture.upper_record, fixture.coverage_root))
+                .into(),
+            linked_roots: fixture
+                .machine
+                .bounds
+                .scheme_projection_claims_by_lower_record[&fixture.lower_record]
+                .iter()
+                .filter(|claim| {
+                    fixture.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+                        == fixture.coverage_root
+                })
+                .count(),
+            claimed_proofs: proofs
+                .iter()
+                .filter(|proof| matches!(proof.support, SchemeProjectionProofSupport::Claimed(_)))
+                .count(),
+            independent_proofs: proofs
+                .iter()
+                .filter(|proof| {
+                    matches!(proof.support, SchemeProjectionProofSupport::Independent(_))
+                })
+                .count(),
+            included: fixture
+                .machine
+                .scheme_projectable_lowers(TypeVar(1))
+                .any(|candidate| candidate.record == fixture.lower_record),
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct CdmMaterializationCensus {
+        parent_entries: usize,
+        materialized_roots: usize,
+        claim_ledger_entries: usize,
+        claimed_proof_entries: usize,
+    }
+
+    impl CdmMaterializationCensus {
+        fn delta_from(self, baseline: Self) -> Self {
+            Self {
+                parent_entries: self.parent_entries - baseline.parent_entries,
+                materialized_roots: self.materialized_roots - baseline.materialized_roots,
+                claim_ledger_entries: self.claim_ledger_entries - baseline.claim_ledger_entries,
+                claimed_proof_entries: self.claimed_proof_entries - baseline.claimed_proof_entries,
+            }
+        }
+    }
+
+    fn cdm_materialization_census(fixture: &CdmReplayClaimFixture) -> CdmMaterializationCensus {
+        CdmMaterializationCensus {
+            parent_entries: fixture
+                .machine
+                .bounds
+                .claim_parents_by_constraint
+                .get(&fixture.result)
+                .map_or(0, Vec::len),
+            materialized_roots: fixture
+                .machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .keys()
+                .filter(|(record, _)| *record == fixture.upper_record)
+                .count(),
+            claim_ledger_entries: fixture
+                .machine
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&fixture.lower_record)
+                .map_or(0, Vec::len),
+            claimed_proof_entries: fixture
+                .machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get(&fixture.lower_record)
+                .into_iter()
+                .flatten()
+                .filter(|proof| matches!(proof.support, SchemeProjectionProofSupport::Claimed(_)))
+                .count(),
+        }
+    }
+
+    fn cdm_linear_materialization_census(link_events: usize) -> CdmMaterializationCensus {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let baseline = cdm_materialization_census(&fixture);
+        let upper = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let origin = OriginId::unknown_internal();
+
+        for index in 0..link_events {
+            let parent_source = TypeVar(
+                20u32
+                    .checked_add(index as u32)
+                    .expect("test parent source ID"),
+            );
+            let parent_record = fixture
+                .machine
+                .bounds
+                .add_upper(
+                    parent_source,
+                    upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id;
+            let registration = fixture.machine.bounds.original_upper_replay_claim(
+                parent_record,
+                ConstraintRecordId(
+                    20_000u32
+                        .checked_add(index as u32)
+                        .expect("test producer ID"),
+                ),
+                UpperReplayClaimKind::Direct,
+            );
+            fixture
+                .machine
+                .apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            let parent = SideTaggedReplayClaim {
+                claim: registration.claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            };
+            fixture
+                .machine
+                .register_replay_claim_parents(fixture.result, replay, &[parent], true);
+        }
+
+        cdm_materialization_census(&fixture).delta_from(baseline)
     }
 
     #[test]
