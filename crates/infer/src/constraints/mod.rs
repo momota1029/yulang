@@ -520,6 +520,25 @@ impl ClaimQualifiedParent {
             | Self::ReductionRouteConstraint { parent_claim, .. } => parent_claim,
         }
     }
+
+    fn exact_carrier(self) -> QualifiedCarrier {
+        match self {
+            Self::ReplayConstraint { replay, .. } => QualifiedCarrier::Replay(replay),
+            Self::StructuralConstraint { derivation, .. } => {
+                QualifiedCarrier::Structural(derivation)
+            }
+            Self::ReductionRouteConstraint { derivation, .. } => {
+                QualifiedCarrier::ReductionRoute(derivation)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum QualifiedCarrier {
+    Replay(BinaryReplayDerivation),
+    Structural(StructuralDerivation),
+    ReductionRoute(RowDerivationId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -799,6 +818,8 @@ pub struct TypeBounds {
         FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
     claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
+    // Append-only exact-carrier projection of `claim_parents_by_constraint`.
+    qualified_carrier_index: FxHashMap<ConstraintRecordId, FxHashSet<QualifiedCarrier>>,
     replay_claim_parent_keys: FxHashSet<ReplayClaimParentKey>,
     structural_claim_parent_keys: FxHashSet<StructuralClaimParentKey>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
@@ -826,6 +847,41 @@ impl TypeBounds {
 
     pub fn record(&self, id: BoundRecordId) -> Option<&BoundRecord> {
         self.records.get(id.0 as usize)
+    }
+
+    fn push_claim_qualified_parent(
+        &mut self,
+        result: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        self.claim_parents_by_constraint
+            .entry(result)
+            .or_default()
+            .push(parent);
+        self.qualified_carrier_index
+            .entry(result)
+            .or_default()
+            .insert(parent.exact_carrier());
+
+        #[cfg(debug_assertions)]
+        self.debug_assert_qualified_carrier_index_matches_linear_scan(result);
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_qualified_carrier_index_matches_linear_scan(&self, result: ConstraintRecordId) {
+        let linear_scan = self
+            .claim_parents_by_constraint
+            .get(&result)
+            .into_iter()
+            .flatten()
+            .copied()
+            .map(ClaimQualifiedParent::exact_carrier)
+            .collect::<FxHashSet<_>>();
+        debug_assert_eq!(
+            self.qualified_carrier_index.get(&result),
+            Some(&linear_scan),
+            "qualified carrier index diverged from claim-parent linear scan for {result:?}"
+        );
     }
 
     fn contains_derivation(&self, key: &BoundSemanticKey, derivation: &BoundDerivation) -> bool {

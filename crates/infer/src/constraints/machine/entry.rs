@@ -1374,14 +1374,13 @@ impl ConstraintMachine {
             if !self.bounds.structural_claim_parent_keys.insert(key) {
                 continue;
             }
-            self.bounds
-                .claim_parents_by_constraint
-                .entry(result)
-                .or_default()
-                .push(ClaimQualifiedParent::StructuralConstraint {
+            self.bounds.push_claim_qualified_parent(
+                result,
+                ClaimQualifiedParent::StructuralConstraint {
                     parent_claim,
                     derivation,
-                });
+                },
+            );
             inserted = true;
         }
         if inserted {

@@ -1035,12 +1035,7 @@ impl ConstraintMachine {
                 parent_side: parent.parent_side,
                 replay,
             };
-            let entries = self
-                .bounds
-                .claim_parents_by_constraint
-                .entry(result)
-                .or_default();
-            entries.push(parent);
+            self.bounds.push_claim_qualified_parent(result, parent);
             inserted = true;
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -1092,15 +1087,15 @@ impl ConstraintMachine {
             parent_claim: claim,
             derivation,
         };
-        let entries = self
+        if self
             .bounds
             .claim_parents_by_constraint
-            .entry(result)
-            .or_default();
-        if entries.contains(&parent) {
+            .get(&result)
+            .is_some_and(|entries| entries.contains(&parent))
+        {
             return;
         }
-        entries.push(parent);
+        self.bounds.push_claim_qualified_parent(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
         self.materialize_existing_claim_parents_bulk(result, target_record);
     }
@@ -2675,6 +2670,143 @@ mod mutation_tests {
         }
     }
 
+    #[test]
+    fn cdm_b_qualified_carrier_index_census_is_linear_in_distinct_carriers() {
+        for link_events in [1usize, 4, 16] {
+            let (materialized, indexed_carriers) =
+                cdm_linear_qualified_carrier_index_census(link_events);
+            assert_eq!(
+                materialized,
+                CdmMaterializationCensus {
+                    parent_entries: link_events,
+                    materialized_roots: link_events,
+                    claim_ledger_entries: link_events,
+                    claimed_proof_entries: link_events,
+                },
+                "{link_events} distinct carrier/root links retain the CDM-A semantic census"
+            );
+            assert_eq!(
+                indexed_carriers, link_events,
+                "each distinct exact carrier creates one append-only index entry"
+            );
+        }
+    }
+
+    #[test]
+    fn cdm_b_no_claim_workload_does_not_allocate_qualified_carrier_index() {
+        let mut machine = ConstraintMachine::new();
+        let target = TypeVar(0);
+        let lower = machine.alloc_pos(Pos::Con(vec!["plain".into()], Vec::new()));
+        machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        assert!(machine.bounds.upper_replay_claims.is_empty());
+        assert!(machine.bounds.claim_parents_by_constraint.is_empty());
+        assert!(machine.bounds.qualified_carrier_index.is_empty());
+        assert_eq!(
+            machine.bounds.qualified_carrier_index.capacity(),
+            0,
+            "an ordinary no-claim bound must not allocate the carrier index"
+        );
+    }
+
+    #[test]
+    fn cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            replay,
+            &[fixture.parent],
+            true,
+        );
+
+        let reduction_route = RowDerivationId(10_000);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction_route);
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction_route,
+            fixture.coverage_root,
+        );
+
+        let child_lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["child".into()], Vec::new()));
+        let child_upper = fixture.machine.alloc_neg(Neg::Var(TypeVar(50)));
+        let structural_rule = StructuralDerivationRule::FunctionReturn;
+        assert!(fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            structural_rule,
+        ));
+        let child = fixture
+            .machine
+            .constraint_record_id(child_lower, ConstraintWeights::empty(), child_upper)
+            .expect("the structural child is canonical");
+
+        let parent_carriers = &fixture.machine.bounds.qualified_carrier_index[&fixture.result];
+        assert!(parent_carriers.contains(&QualifiedCarrier::Replay(replay)));
+        assert!(
+            parent_carriers.contains(&QualifiedCarrier::ReductionRoute(reduction_route)),
+            "reduction-route admission maintains the same index as replay admission"
+        );
+        assert!(
+            fixture.machine.bounds.qualified_carrier_index[&child].contains(
+                &QualifiedCarrier::Structural(StructuralDerivation {
+                    parent: fixture.result,
+                    rule: structural_rule,
+                })
+            ),
+            "new structural admission maintains the exact child carrier"
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "qualified carrier index diverged from claim-parent linear scan")]
+    fn cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            replay,
+            &[fixture.parent],
+            false,
+        );
+        fixture
+            .machine
+            .bounds
+            .qualified_carrier_index
+            .get_mut(&fixture.result)
+            .expect("the production insertion creates the index entry")
+            .clear();
+
+        fixture
+            .machine
+            .bounds
+            .debug_assert_qualified_carrier_index_matches_linear_scan(fixture.result);
+    }
+
     struct CdmReplayClaimFixture {
         machine: ConstraintMachine,
         result: ConstraintRecordId,
@@ -2967,6 +3099,76 @@ mod mutation_tests {
         }
 
         cdm_materialization_census(&fixture).delta_from(baseline)
+    }
+
+    fn cdm_linear_qualified_carrier_index_census(
+        link_events: usize,
+    ) -> (CdmMaterializationCensus, usize) {
+        let mut fixture = cdm_replay_claim_fixture();
+        let baseline = cdm_materialization_census(&fixture);
+        let indexed_baseline = fixture
+            .machine
+            .bounds
+            .qualified_carrier_index
+            .get(&fixture.result)
+            .map_or(0, FxHashSet::len);
+        let upper = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let origin = OriginId::unknown_internal();
+
+        for index in 0..link_events {
+            let offset = u32::try_from(index).expect("test link-event index fits in u32");
+            let replay = BinaryReplayDerivation {
+                pivot: TypeVar(100u32.checked_add(offset).expect("test replay pivot ID")),
+                lower: fixture.lower_record,
+                upper: fixture.upper_record,
+                rule: ReplayRule::LowerBoundAdded,
+            };
+            assert_eq!(
+                fixture
+                    .machine
+                    .merge_replay_derivation(fixture.result, replay),
+                ReplayDerivationInsert::Inserted
+            );
+            let parent_record = fixture
+                .machine
+                .bounds
+                .add_upper(
+                    TypeVar(200u32.checked_add(offset).expect("test parent source ID")),
+                    upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id;
+            let registration = fixture.machine.bounds.original_upper_replay_claim(
+                parent_record,
+                ConstraintRecordId(
+                    30_000u32
+                        .checked_add(offset)
+                        .expect("test parent producer ID"),
+                ),
+                UpperReplayClaimKind::Direct,
+            );
+            fixture
+                .machine
+                .apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            fixture.machine.register_replay_claim_parents(
+                fixture.result,
+                replay,
+                &[SideTaggedReplayClaim {
+                    claim: registration.claim,
+                    parent_side: ReplayClaimParentSide::Lower,
+                }],
+                true,
+            );
+        }
+
+        let indexed = fixture.machine.bounds.qualified_carrier_index[&fixture.result].len();
+        (
+            cdm_materialization_census(&fixture).delta_from(baseline),
+            indexed - indexed_baseline,
+        )
     }
 
     #[test]
