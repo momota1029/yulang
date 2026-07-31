@@ -541,6 +541,7 @@ impl ConstraintMachine {
                 weights.clone(),
                 route.upper,
                 route.provenance,
+                route.claim,
             );
         }
         self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
@@ -740,9 +741,22 @@ impl ConstraintMachine {
             .get(&producer)
             .cloned()
             .unwrap_or_default();
-        let mut claims = Vec::new();
+        let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();
+            let coverage_root =
+                self.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
+            // The exact route carrier remains in `claim_parents_by_constraint`, while the
+            // materialized upper claim is canonical per record and coverage root. Replaying the
+            // second carrier would only count the same proof as a claim cycle.
+            if matches!(
+                parent,
+                ClaimQualifiedParent::ReductionRouteConstraint { .. }
+            ) && claims.iter().any(|claim| {
+                self.bounds.upper_replay_claims[claim.0 as usize].coverage_root == coverage_root
+            }) {
+                continue;
+            }
             let registration = match parent {
                 ClaimQualifiedParent::ReplayConstraint {
                     parent_side,
@@ -1409,6 +1423,7 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         upper: NegId,
         derivation: RowDerivationId,
+        parent_claim: Option<UpperReplayClaimId>,
     ) {
         let Some(key) = self.canonical_subtype_constraint(lower, weights, upper) else {
             return;
@@ -1416,10 +1431,17 @@ impl ConstraintMachine {
         let Some(record) = self.canonical_constraints.get(&key).copied() else {
             return;
         };
-        let row_derivations = &mut self.constraint_records[record.0 as usize].row_derivations;
-        if !row_derivations.contains(&derivation) {
-            row_derivations.push(derivation);
+        if !self.constraint_records[record.0 as usize]
+            .row_derivations
+            .contains(&derivation)
+        {
+            self.constraint_records[record.0 as usize]
+                .row_derivations
+                .push(derivation);
             self.bump_provenance_epoch();
+        }
+        if let Some(parent_claim) = parent_claim {
+            self.register_reduction_route_claim_parent(record, derivation, parent_claim);
         }
     }
 

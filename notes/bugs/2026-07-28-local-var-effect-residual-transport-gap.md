@@ -2284,4 +2284,36 @@ filter内で900秒、続くexact再試行でも240秒でtimeoutし、pass確認�
 `cargo check -p infer`も既知dead-code warning一件だけで成功した。full generalize gate未完了のため、
 このrunではWIP commitをfinal amendしない。
 
+## 50回目: incremental row routeのexact claim carrierを登録、motivating failureは残存
+（2026-07-31）
+
+`add_lower_bound`のincremental unweighted-row routeは、side付き`ReplayConstraint` parentを
+登録した後、同じrouteの`RowDerivationId`をcanonical constraintへmergeしていた。しかし後者を
+`ReductionRouteConstraint` parentとして登録していなかったため、DCP-Dのproof ledgerはexact
+row carrierをunqualifiedなindependent supportとして数えていた。
+
+先に`case_02`へ、liveなreduction claimを持つ`[F, G; rho]`をFで初期簡約し、late Gをoriginal rowへ
+incremental routeするregressionを追加した。canonical constraintがexact
+`UnweightedReduction` derivationを持つ一方、対応する
+`ReductionRouteConstraint { parent_claim, derivation }`を持たないassertionでredを確認した。
+
+修正では`merge_unweighted_row_route_provenance`へ`route.claim`を渡し、row derivationをcanonical
+constraintへmergeした直後に既存`register_reduction_route_claim_parent`を呼ぶ。initial-unmatched
+routeと同じcarrier登録を使い、新しいclaim identityやgraph walkは追加していない。同じresult /
+coverage rootへreplay carrierとroute carrierが併存するとき、exact parent tableには両carrierを
+残しつつ、canonical upper claimの二度目のmaterializationを省いた。これによりroute carrierを
+replay cycleとして二重計上せず、既存multihop lineage censusを維持する。
+
+新regressionはgreen。full constraints `case_02`は63 pass / 1 known-ignore、compact 69、
+explain 14、occurrence provenance 1、claim-qualified provenance 2がgreenだった。
+full generalize filterは並列実行の出力回収がterminal resultへ到達せず、pass / failを確定できていない。
+
+critical motivating
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`は**redのまま**だった。
+失敗点は従来と同じouter finalized scheme assertionで、hand-built schemeは
+`('a & 'b) -> ["&buffer#36:0"('a & 'b), std::control::var::observe('b | 'a)] ('b | 'a, 'a)`
+を返した。したがって今回のexact carrier gapはproduction上の実在gapだったが、
+`"&buffer#36:0"`漏れの必要十分な最後の原因ではない。stop ruleに従い、別gapの探索、
+broader local-var suite、five-case characterizationはこのrunでは行っていない。
+
 <!-- bug-append-anchor: 2026-07-30 -->

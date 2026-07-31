@@ -695,6 +695,77 @@ fn unweighted_row_upper_incrementally_consumes_late_item_from_original_multi_ite
 }
 
 #[test]
+fn unweighted_row_upper_incremental_route_registers_reduction_route_claim_parent() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let first_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let second_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![first_upper, second_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let state = reduction_state_for_source(&machine, source);
+    let claim = machine.bounds.reduction_claim_by_state[&state];
+    let coverage_root = machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root;
+    assert!(
+        machine
+            .bounds
+            .live_coverage_by_root
+            .get(&coverage_root)
+            .is_some_and(|states| states.contains(&state)),
+        "the incremental route starts from a live covered reduction claim"
+    );
+
+    machine.subtype(late_family, source_neg, origin);
+
+    let late_record = lower_bound_record(&machine, source, late_family);
+    let route_derivation = unweighted_reduction_reaching(
+        &machine,
+        &[
+            RowDerivationParent::Constraint(producer),
+            RowDerivationParent::Bound(late_record),
+        ],
+    );
+    let result = constraint_record_for_key(
+        &machine,
+        late_family,
+        row_upper,
+        &ConstraintWeights::empty(),
+    );
+    assert!(
+        machine.constraint_records[result.0 as usize]
+            .row_derivations
+            .contains(&route_derivation),
+        "the canonical incremental constraint keeps the exact row-route carrier"
+    );
+    assert!(
+        machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&result)
+            .into_iter()
+            .flatten()
+            .any(|parent| {
+                *parent
+                    == ClaimQualifiedParent::ReductionRouteConstraint {
+                        parent_claim: claim,
+                        derivation: route_derivation,
+                    }
+            }),
+        "the exact incremental row-route carrier must be qualified by its reduction claim"
+    );
+}
+
+#[test]
 fn unweighted_row_upper_late_payload_match_generates_invariant_constraints() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
