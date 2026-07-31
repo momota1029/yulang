@@ -2316,4 +2316,57 @@ critical motivating
 `"&buffer#36:0"`漏れの必要十分な最後の原因ではない。stop ruleに従い、別gapの探索、
 broader local-var suite、five-case characterizationはこのrunでは行っていない。
 
+## 51回目: exact replay carrier dedup gapを修正、motivating failureはなお残存
+（2026-07-31）
+
+§4.2のexact-carrier invariantに基づき、canonical constraint / boundへderivation carrierを
+作成・mergeする全入口を系統監査した。ordinary structural pathは
+`enqueue_derived_subtype`のnew / duplicateと`merge_structural_derivation`がexact
+`StructuralDerivation`を含むDCP-C keyでclaimをmergeしており、one-sided lower admissionも
+`add_lower_bound`のnew / equivalent / promotionでDCP-D ledgerへ接続済みだった。
+lower / upper replay planning、normal action、prefiltered duplicate、evidence-only、
+incremental / initial-unmatched row routeも確認した。
+
+既知traceの`BoundRecordId(10185)` / `ConstraintRecordId(6472)` /
+`RowDerivationId(196)`は、86071060後にはcovered claimだけを持ち、independent supportは空だった。
+その先で最初に観測した再流入は`BoundRecordId(10602)`の
+`ConstraintRecordId(6759)`にあるexact replay
+`BinaryReplayDerivation { pivot: TypeVar(1672), lower: BoundRecordId(10606),
+upper: BoundRecordId(10453), rule: LowerBoundAdded }`だった。lower recordはclaim-linkedなのに、
+このcarrierだけが`ReplayConstraint` parentを持たず、DCP-Dがindependent supportとしていた。
+
+根因は`ReplayClaimParentKey`が`(result, coverage_root, parent_side)`だけをkeyにし、
+exact `BinaryReplayDerivation`を含めていなかったことだった。同じcanonical result/root/sideへ
+別replay carrierが合流すると、carrier自体は`replay_derivations`へ残る一方、二本目以降の
+claim parentだけがdedupされていた。production修正前に、同じbound pairの
+`LowerBoundAdded` / `UpperBoundAdded` carrierを一canonical resultへmergeするunit regressionを
+追加し、二本目がunqualifiedになるredを確認した。修正は既存keyへexact replayを加えただけで、
+新しいclaim mechanismやgraph walkは追加していない。regressionはgreenになった。
+既存`case_02`も63 pass / 1 known-ignoreで期待値変更なしだった。
+
+ただしmotivating testは修正後も**red**だった。hand-built outer schemeは従来と同じ
+`('a & 'b) -> ["&buffer#36:0"('a & 'b), std::control::var::observe('b | 'a)] ('b | 'a, 'a)`
+で、parsed outer schemeはinner familyを含まない。
+
+修正後の次の再流入を追うと、inner rowのcanonical lower
+`BoundRecordId(10439)` / `PosId(2133)`は`independent_supports=[]`になっていた。
+exact replay carrierの未修飾は解消している。それでもrecordはprojectableで、理由は
+`uncovered_claims`だった。観測したcoverage root
+`22202`、`22308`、`22206`、`22217`、`22208`、`22222`、`22226`、`22251`、`22229`は
+いずれもlive coverageを持たず、元のcovered reduction root `36823`ではなかった。
+DCP-Dは承認済みper-proof contractどおり、uncovered claimが一つでもあればendpointを残している。
+
+したがって残るmotivating failureは、少なくとも現在観測した地点では
+「claim-covered exact carrierにregistration callがない」という同じ局所patternではない。
+これらの別rootを元reduction rootへ圧縮すべき理由があるのか、別のindependent proof自体が
+上流で誤生成されたのかを再設計・再調査する必要がある。step 6の停止条件に従い、
+二つ目のsemantic fixやbroader suiteには進んでいない。
+
+監査で残した要確認点は二つある。`enqueue_row_derived_subtype`はgeneric DCP-C mergeを持たず、
+initial-unmatched / incrementalだけがcall siteで明示登録するため、weighted residualや
+row-item-match carrierがclaim-qualified parentから作られる場合の契約を別途確認する必要がある。
+またevidence-only replayがordinary lowerへpromotionされた後、
+`BoundDerivation::ReplayEvidence`をledgerが無条件のindependent supportとして再分類しないかも
+production traceで未確認である。どちらも今回の時間枠では修正していない。
+
 <!-- bug-append-anchor: 2026-07-30 -->

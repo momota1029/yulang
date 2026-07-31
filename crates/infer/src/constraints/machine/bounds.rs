@@ -1025,6 +1025,7 @@ impl ConstraintMachine {
                 result,
                 coverage_root,
                 parent_side: parent.parent_side,
+                replay,
             };
             if !self.bounds.replay_claim_parent_keys.insert(key) {
                 continue;
@@ -2351,6 +2352,73 @@ impl ConstraintMachine {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    #[test]
+    fn replay_claim_parent_dedup_keeps_each_exact_replay_carrier() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let target = TypeVar(1);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        machine.subtype(lower, upper, OriginId::unknown_internal());
+
+        let result = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the direct relation is canonical");
+        let lower_record = machine.bounds.of(target).unwrap().lower_record_ids()[0];
+        let upper_record = machine.bounds.of(source).unwrap().upper_record_ids()[0];
+        let claim = machine.bounds.claims_by_upper_record[&upper_record][0];
+        let first = BinaryReplayDerivation {
+            pivot: source,
+            lower: lower_record,
+            upper: upper_record,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let second = BinaryReplayDerivation {
+            rule: ReplayRule::UpperBoundAdded,
+            ..first
+        };
+        let parent = SideTaggedReplayClaim {
+            claim,
+            parent_side: ReplayClaimParentSide::Lower,
+        };
+
+        assert_eq!(
+            machine.merge_replay_derivation(result, first),
+            ReplayDerivationInsert::Inserted
+        );
+        machine.register_replay_claim_parents(result, first, &[parent], false);
+        assert_eq!(
+            machine.merge_replay_derivation(result, second),
+            ReplayDerivationInsert::Inserted
+        );
+        machine.register_replay_claim_parents(result, second, &[parent], false);
+
+        let exact_claim_parents = |replay| {
+            machine
+                .bounds
+                .claim_parents_by_constraint
+                .get(&result)
+                .into_iter()
+                .flatten()
+                .filter(|parent| {
+                    matches!(
+                        parent,
+                        ClaimQualifiedParent::ReplayConstraint {
+                            replay: candidate,
+                            ..
+                        } if *candidate == replay
+                    )
+                })
+                .count()
+        };
+        assert_eq!(exact_claim_parents(first), 1);
+        assert_eq!(
+            exact_claim_parents(second),
+            1,
+            "dedup by result/root/side must not leave a second exact replay carrier unqualified"
+        );
+    }
 
     #[test]
     fn evidence_add_and_promotion_emit_bounds_only_while_active() {

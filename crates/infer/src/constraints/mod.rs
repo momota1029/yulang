@@ -527,6 +527,7 @@ struct ReplayClaimParentKey {
     result: ConstraintRecordId,
     coverage_root: UpperReplayClaimId,
     parent_side: ReplayClaimParentSide,
+    replay: BinaryReplayDerivation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
