@@ -536,10 +536,54 @@ struct StructuralClaimParentKey {
     derivation: StructuralDerivation,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ProjectionProofCarrier {
+    ConstraintOrigin {
+        constraint: ConstraintRecordId,
+        origin: OriginId,
+    },
+    StructuralConstraint {
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+    },
+    ReplayConstraint {
+        result: ConstraintRecordId,
+        derivation: BinaryReplayDerivation,
+    },
+    RowConstraint {
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+    },
+    SchemeInstantiationConstraint {
+        result: ConstraintRecordId,
+        source_witness: GeneralizedSchemeWitnessId,
+    },
+    Origin(OriginId),
+    ReplayEvidence(BinaryReplayDerivation),
+    Row(RowDerivationId),
+    SchemeInstantiation(GeneralizedSchemeWitnessId),
+    Incomplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum SchemeProjectionProofSupport {
+    Claimed(UpperReplayClaimId),
+    Independent(ProjectionProofCarrier),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct SchemeProjectionProof {
+    pub(crate) lower_record: BoundRecordId,
+    pub(crate) support: SchemeProjectionProofSupport,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum SchemeProjectableLowerReason {
     Unclaimed,
-    UncoveredClaims(Vec<UpperReplayClaimId>),
+    Qualified {
+        uncovered_claims: Vec<UpperReplayClaimId>,
+        independent_supports: Vec<ProjectionProofCarrier>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -570,8 +614,8 @@ impl ConstraintMachine {
                 var_bounds
                     .projection_lower_records()
                     .filter_map(move |(record, bound)| {
-                        let Some(linked_claims) = claimed_owner
-                            .then(|| bounds.scheme_projection_claims_by_lower_record.get(&record))
+                        let Some(proofs) = claimed_owner
+                            .then(|| bounds.projection_proofs_by_lower_record.get(&record))
                             .flatten()
                         else {
                             return Some(SchemeProjectableLower {
@@ -580,7 +624,7 @@ impl ConstraintMachine {
                                 reason: SchemeProjectableLowerReason::Unclaimed,
                             });
                         };
-                        if linked_claims.is_empty() {
+                        if proofs.is_empty() {
                             return Some(SchemeProjectableLower {
                                 record,
                                 bound,
@@ -588,8 +632,18 @@ impl ConstraintMachine {
                             });
                         }
 
-                        let mut uncovered = Vec::new();
-                        for claim_id in linked_claims {
+                        let mut uncovered_claims = Vec::new();
+                        let mut independent_supports = Vec::new();
+                        for proof in proofs {
+                            let SchemeProjectionProofSupport::Claimed(claim_id) = &proof.support
+                            else {
+                                if let SchemeProjectionProofSupport::Independent(carrier) =
+                                    &proof.support
+                                {
+                                    independent_supports.push(*carrier);
+                                }
+                                continue;
+                            };
                             let Some(claim) = bounds.upper_replay_claims.get(claim_id.0 as usize)
                             else {
                                 // Broken projection metadata must fail open rather than narrow a
@@ -616,15 +670,19 @@ impl ConstraintMachine {
                                 .get(&claim.coverage_root)
                                 .is_none_or(Vec::is_empty)
                             {
-                                uncovered.push(*claim_id);
+                                uncovered_claims.push(*claim_id);
                             }
                         }
 
-                        (!uncovered.is_empty()).then_some(SchemeProjectableLower {
-                            record,
-                            bound,
-                            reason: SchemeProjectableLowerReason::UncoveredClaims(uncovered),
-                        })
+                        (!uncovered_claims.is_empty() || !independent_supports.is_empty())
+                            .then_some(SchemeProjectableLower {
+                                record,
+                                bound,
+                                reason: SchemeProjectableLowerReason::Qualified {
+                                    uncovered_claims,
+                                    independent_supports,
+                                },
+                            })
                     })
             })
     }
@@ -746,6 +804,7 @@ pub struct TypeBounds {
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
     scheme_projection_claims_by_lower_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
+    projection_proofs_by_lower_record: FxHashMap<BoundRecordId, Vec<SchemeProjectionProof>>,
     scheme_projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     scheme_projection_claimed_lower_owners: FxHashSet<TypeVar>,
     replay_claim_cycle_coalesces: usize,
@@ -1158,35 +1217,100 @@ impl TypeBounds {
         lower_record: BoundRecordId,
         claim: UpperReplayClaimId,
     ) -> SchemeProjectionMutation {
+        self.update_scheme_projection_proofs(lower_record, &[claim], &[])
+    }
+
+    fn update_scheme_projection_proofs(
+        &mut self,
+        lower_record: BoundRecordId,
+        claims_to_link: &[UpperReplayClaimId],
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> SchemeProjectionMutation {
         let Some(record) = self.records.get(lower_record.0 as usize) else {
             return SchemeProjectionMutation::None;
         };
         let owner = record.owner;
         let record_is_active = record.state != BoundRecordState::Tombstone;
-        let Some(root) = self
-            .upper_replay_claims
-            .get(claim.0 as usize)
-            .map(|claim| claim.coverage_root)
-        else {
+        if claims_to_link.is_empty()
+            && !self
+                .projection_proofs_by_lower_record
+                .contains_key(&lower_record)
+        {
             return SchemeProjectionMutation::None;
-        };
+        }
         let was_included = self.scheme_projection_record_is_included(lower_record);
         let mut metadata_changed = false;
-        let claims = self
-            .scheme_projection_claims_by_lower_record
+        for claim in claims_to_link {
+            let Some(root) = self
+                .upper_replay_claims
+                .get(claim.0 as usize)
+                .map(|claim| claim.coverage_root)
+            else {
+                continue;
+            };
+            let claims = self
+                .scheme_projection_claims_by_lower_record
+                .entry(lower_record)
+                .or_default();
+            if let Some(existing) = claims.iter_mut().find(|existing| {
+                self.upper_replay_claims[existing.0 as usize].coverage_root == root
+            }) {
+                if *existing < *claim {
+                    *existing = *claim;
+                    metadata_changed = true;
+                }
+            } else {
+                claims.push(*claim);
+                metadata_changed = true;
+            }
+            let proofs = self
+                .projection_proofs_by_lower_record
+                .entry(lower_record)
+                .or_default();
+            if let Some(existing) = proofs.iter_mut().find(|proof| {
+                matches!(
+                    proof.support,
+                    SchemeProjectionProofSupport::Claimed(existing)
+                        if self.upper_replay_claims[existing.0 as usize].coverage_root == root
+                )
+            }) {
+                if matches!(
+                    existing.support,
+                    SchemeProjectionProofSupport::Claimed(existing_claim)
+                        if existing_claim < *claim
+                ) {
+                    existing.support = SchemeProjectionProofSupport::Claimed(*claim);
+                    metadata_changed = true;
+                }
+            } else {
+                proofs.push(SchemeProjectionProof {
+                    lower_record,
+                    support: SchemeProjectionProofSupport::Claimed(*claim),
+                });
+                metadata_changed = true;
+            }
+            let records = self
+                .scheme_projection_lower_records_by_root
+                .entry(root)
+                .or_default();
+            if !records.contains(&lower_record) {
+                records.push(lower_record);
+                metadata_changed = true;
+            }
+        }
+        let proofs = self
+            .projection_proofs_by_lower_record
             .entry(lower_record)
             .or_default();
-        if !claims.contains(&claim) {
-            claims.push(claim);
-            metadata_changed = true;
-        }
-        let records = self
-            .scheme_projection_lower_records_by_root
-            .entry(root)
-            .or_default();
-        if !records.contains(&lower_record) {
-            records.push(lower_record);
-            metadata_changed = true;
+        for carrier in independent_supports {
+            let proof = SchemeProjectionProof {
+                lower_record,
+                support: SchemeProjectionProofSupport::Independent(*carrier),
+            };
+            if !proofs.contains(&proof) {
+                proofs.push(proof);
+                metadata_changed = true;
+            }
         }
         if self.scheme_projection_claimed_lower_owners.insert(owner) {
             metadata_changed = true;
@@ -1203,16 +1327,16 @@ impl TypeBounds {
     }
 
     fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
-        let Some(claims) = self
-            .scheme_projection_claims_by_lower_record
-            .get(&lower_record)
-        else {
+        let Some(proofs) = self.projection_proofs_by_lower_record.get(&lower_record) else {
             return true;
         };
-        if claims.is_empty() {
+        if proofs.is_empty() {
             return true;
         }
-        claims.iter().any(|claim_id| {
+        proofs.iter().any(|proof| {
+            let SchemeProjectionProofSupport::Claimed(claim_id) = proof.support else {
+                return true;
+            };
             let Some(claim) = self.upper_replay_claims.get(claim_id.0 as usize) else {
                 return true;
             };
@@ -1437,6 +1561,9 @@ pub use poly::provenance::{
 pub(crate) enum OccurrenceProvenanceRoot {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    Origin(OriginId),
+    RowDerivation(RowDerivationId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1615,6 +1742,10 @@ pub enum GeneralizationParent {
         bound: BoundRecordId,
         claim: UpperReplayClaimId,
     },
+    BoundProjectionProof {
+        bound: BoundRecordId,
+        carrier: ProjectionProofCarrier,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1625,6 +1756,9 @@ pub(crate) enum GeneralizationParentCarriers {
         lower: BoundRecordId,
         upper: BoundRecordId,
     },
+    Origin(OriginId),
+    RowDerivation(RowDerivationId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
 impl ConstraintMachine {
@@ -1637,22 +1771,77 @@ impl ConstraintMachine {
         parent: GeneralizationParent,
     ) -> Option<GeneralizationParentCarriers> {
         let GeneralizationParent::BoundClaim { bound, claim } = parent else {
+            if let GeneralizationParent::BoundProjectionProof { bound, carrier } = parent {
+                let linked = self
+                    .bounds
+                    .projection_proofs_by_lower_record
+                    .get(&bound)
+                    .is_some_and(|proofs| {
+                        proofs.contains(&SchemeProjectionProof {
+                            lower_record: bound,
+                            support: SchemeProjectionProofSupport::Independent(carrier),
+                        })
+                    });
+                debug_assert!(
+                    linked,
+                    "independent projection parent must be ledger-backed"
+                );
+                if !linked {
+                    return None;
+                }
+                return Some(match carrier {
+                    ProjectionProofCarrier::ConstraintOrigin { origin, .. }
+                    | ProjectionProofCarrier::Origin(origin) => {
+                        GeneralizationParentCarriers::Origin(origin)
+                    }
+                    ProjectionProofCarrier::StructuralConstraint { derivation, .. } => {
+                        GeneralizationParentCarriers::Constraint(derivation.parent)
+                    }
+                    ProjectionProofCarrier::ReplayConstraint { derivation, .. }
+                    | ProjectionProofCarrier::ReplayEvidence(derivation) => {
+                        GeneralizationParentCarriers::ReplayEvidence {
+                            lower: derivation.lower,
+                            upper: derivation.upper,
+                        }
+                    }
+                    ProjectionProofCarrier::RowConstraint { derivation, .. }
+                    | ProjectionProofCarrier::Row(derivation) => {
+                        GeneralizationParentCarriers::RowDerivation(derivation)
+                    }
+                    ProjectionProofCarrier::SchemeInstantiationConstraint {
+                        source_witness,
+                        ..
+                    }
+                    | ProjectionProofCarrier::SchemeInstantiation(source_witness) => {
+                        GeneralizationParentCarriers::GeneralizedWitness(source_witness)
+                    }
+                    ProjectionProofCarrier::Incomplete => return None,
+                });
+            }
             return Some(match parent {
                 GeneralizationParent::Constraint(record) => {
                     GeneralizationParentCarriers::Constraint(record)
                 }
                 GeneralizationParent::Bound(record) => GeneralizationParentCarriers::Bound(record),
                 GeneralizationParent::BoundClaim { .. } => unreachable!(),
+                GeneralizationParent::BoundProjectionProof { .. } => unreachable!(),
             });
         };
         let claim_record = self.bounds.upper_replay_claims.get(claim.0 as usize);
+        let claim_root = claim_record.map(|claim| claim.coverage_root);
         let linked = self.bounds.record(bound).is_some()
             && claim_record.is_some()
             && self
                 .bounds
                 .scheme_projection_claims_by_lower_record
                 .get(&bound)
-                .is_some_and(|claims| claims.contains(&claim));
+                .is_some_and(|claims| {
+                    claims.contains(&claim)
+                        || claims.iter().any(|linked| {
+                            self.bounds.upper_replay_claims[linked.0 as usize].coverage_root
+                                == claim_root.expect("checked claim")
+                        })
+                });
         debug_assert!(
             linked,
             "claim-qualified generalization parent must link claim {claim:?} to bound {bound:?}"

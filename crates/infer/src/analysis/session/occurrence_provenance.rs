@@ -275,6 +275,24 @@ impl AnalysisSession {
                                     OccurrenceProvenanceRoot::Bound(upper),
                                 );
                             }
+                            Some(GeneralizationParentCarriers::Origin(id)) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::Origin(id),
+                                );
+                            }
+                            Some(GeneralizationParentCarriers::RowDerivation(id)) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::RowDerivation(id),
+                                );
+                            }
+                            Some(GeneralizationParentCarriers::GeneralizedWitness(id)) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::GeneralizedWitness(id),
+                                );
+                            }
                             None => {
                                 completeness =
                                     crate::constraints::ProvenanceCompleteness::Incomplete;
@@ -303,6 +321,9 @@ impl OccurrenceProvenanceRoot {
         match self {
             Self::Constraint(id) => PortableProvenanceExportRoot::Constraint(id),
             Self::Bound(id) => PortableProvenanceExportRoot::Bound(id),
+            Self::Origin(id) => PortableProvenanceExportRoot::Origin(id),
+            Self::RowDerivation(id) => PortableProvenanceExportRoot::RowDerivation(id),
+            Self::GeneralizedWitness(id) => PortableProvenanceExportRoot::GeneralizedWitness(id),
         }
     }
 }

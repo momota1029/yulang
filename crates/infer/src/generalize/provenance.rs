@@ -195,14 +195,23 @@ impl<'a> WitnessCollector<'a> {
                                 WitnessParents::Bound(entry.record),
                             );
                         }
-                        SchemeProjectableLowerReason::UncoveredClaims(claims) => {
-                            let parents = claims
+                        SchemeProjectableLowerReason::Qualified {
+                            uncovered_claims,
+                            independent_supports,
+                        } => {
+                            let mut parents = uncovered_claims
                                 .into_iter()
                                 .map(|claim| GeneralizationParent::BoundClaim {
                                     bound: entry.record,
                                     claim,
                                 })
                                 .collect::<Vec<_>>();
+                            parents.extend(independent_supports.into_iter().map(|carrier| {
+                                GeneralizationParent::BoundProjectionProof {
+                                    bound: entry.record,
+                                    carrier,
+                                }
+                            }));
                             let parents = WitnessParents::Selected(&parents);
                             self.add(&path, GeneralizedWitnessRole::LowerBound, parents);
                             self.collect_pos(endpoint, path.clone(), parents);
@@ -795,7 +804,10 @@ mod tests {
                 (entry.record == record)
                     .then_some(entry.reason)
                     .and_then(|reason| match reason {
-                        SchemeProjectableLowerReason::UncoveredClaims(claims) => Some(claims),
+                        SchemeProjectableLowerReason::Qualified {
+                            uncovered_claims: claims,
+                            ..
+                        } => Some(claims),
                         SchemeProjectableLowerReason::Unclaimed => None,
                     })
             })
@@ -856,9 +868,10 @@ mod tests {
         let claim = machine
             .scheme_projectable_lowers(owner)
             .find_map(|entry| match entry.reason {
-                SchemeProjectableLowerReason::UncoveredClaims(claims) if entry.record == record => {
-                    claims.first().copied()
-                }
+                SchemeProjectableLowerReason::Qualified {
+                    uncovered_claims: claims,
+                    ..
+                } if entry.record == record => claims.first().copied(),
                 _ => None,
             })
             .expect("mixed fixture has an uncovered claim");
@@ -985,6 +998,7 @@ mod tests {
         match parent {
             GeneralizationParent::Bound(found) => found == record,
             GeneralizationParent::BoundClaim { bound, .. } => bound == record,
+            GeneralizationParent::BoundProjectionProof { bound, .. } => bound == record,
             GeneralizationParent::Constraint(_) => false,
         }
     }

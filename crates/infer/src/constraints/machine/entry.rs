@@ -483,6 +483,7 @@ impl ConstraintMachine {
             return false;
         }
         roots.push(origin);
+        self.register_existing_constraint_lower_projection_proofs(record);
         self.bump_provenance_epoch();
         true
     }
@@ -1220,6 +1221,7 @@ impl ConstraintMachine {
                     }
                 }
                 if provenance_changed {
+                    self.register_existing_constraint_lower_projection_proofs(existing_record_id);
                     self.bump_provenance_epoch();
                 }
                 self.timing.record_subtype_duplicate_admission();
@@ -1381,6 +1383,9 @@ impl ConstraintMachine {
                     derivation,
                 });
             inserted = true;
+        }
+        if inserted {
+            self.register_existing_constraint_lower_projection_proofs(result);
         }
         inserted
     }

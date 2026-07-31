@@ -249,6 +249,9 @@ impl Default for PortableProvenanceExportBudget {
 pub(crate) enum PortableProvenanceExportRoot {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    Origin(OriginId),
+    RowDerivation(RowDerivationId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
 impl PortableProvenanceExportRoot {
@@ -256,6 +259,9 @@ impl PortableProvenanceExportRoot {
         match self {
             Self::Constraint(id) => ExplanationNodeId::Constraint(id),
             Self::Bound(id) => ExplanationNodeId::Bound(id),
+            Self::Origin(id) => ExplanationNodeId::Origin(id),
+            Self::RowDerivation(id) => ExplanationNodeId::RowDerivation(id),
+            Self::GeneralizedWitness(id) => ExplanationNodeId::GeneralizedWitness(id),
         }
     }
 }
@@ -1239,6 +1245,15 @@ impl<'a> ExplanationQuery<'a> {
                             ExplanationNodeId::Bound(lower),
                             ExplanationNodeId::Bound(upper),
                         ]);
+                    }
+                    Some(GeneralizationParentCarriers::Origin(id)) => {
+                        parents.push(ExplanationNodeId::Origin(id));
+                    }
+                    Some(GeneralizationParentCarriers::RowDerivation(id)) => {
+                        parents.push(ExplanationNodeId::RowDerivation(id));
+                    }
+                    Some(GeneralizationParentCarriers::GeneralizedWitness(id)) => {
+                        parents.push(ExplanationNodeId::GeneralizedWitness(id));
                     }
                     None => {
                         self.underlying_incomplete = true;

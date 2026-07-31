@@ -1822,7 +1822,10 @@ fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
     );
     assert_eq!(
         projected[0].reason,
-        SchemeProjectableLowerReason::UncoveredClaims(vec![direct_claim]),
+        SchemeProjectableLowerReason::Qualified {
+            uncovered_claims: vec![direct_claim],
+            independent_supports: Vec::new(),
+        },
         "only the independent direct claim may justify scheme projection"
     );
     assert_eq!(
@@ -2067,7 +2070,10 @@ fn scheme_projectability_returns_after_last_live_coverage_state_leaves() {
     );
     assert_eq!(
         projected.reason,
-        SchemeProjectableLowerReason::UncoveredClaims(vec![fixture.covered_claim]),
+        SchemeProjectableLowerReason::Qualified {
+            uncovered_claims: vec![fixture.covered_claim],
+            independent_supports: Vec::new(),
+        },
         "the formerly covered claim is re-evaluated at projection time"
     );
     assert!(
@@ -3194,6 +3200,27 @@ fn one_sided_claim_fixture_with_claimed_first_then_direct() -> OneSidedClaimFixt
 fn mixed_one_sided_snapshot(fixture: &OneSidedClaimFixture) -> MixedOneSidedSnapshot {
     let projection =
         observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    let ledger_supports = fixture
+        .machine
+        .scheme_projectable_lowers(fixture.target)
+        .find_map(|entry| (entry.record == fixture.lower_record).then_some(entry.reason))
+        .and_then(|reason| match reason {
+            SchemeProjectableLowerReason::Qualified {
+                uncovered_claims,
+                independent_supports,
+            } if uncovered_claims.is_empty() => Some(independent_supports),
+            SchemeProjectableLowerReason::Unclaimed
+            | SchemeProjectableLowerReason::Qualified { .. } => None,
+        })
+        .expect("the mixed one-sided record is projectable only through its qualified ledger");
+    assert!(
+        ledger_supports.iter().all(|support| matches!(
+            support,
+            ProjectionProofCarrier::ConstraintOrigin { constraint, .. }
+                if *constraint == fixture.producer
+        )),
+        "the ledger selects only the exact independent root carrier"
+    );
     MixedOneSidedSnapshot {
         raw_count: fixture
             .machine
@@ -3204,7 +3231,7 @@ fn mixed_one_sided_snapshot(fixture: &OneSidedClaimFixture) -> MixedOneSidedSnap
             .filter(|(record, _)| *record == fixture.lower_record)
             .count(),
         projected_count: projection.projected_count,
-        independent_supports: projection.independent_supports,
+        independent_supports: ledger_supports.len(),
         exact_replay_carriers: fixture.machine.constraint_records[fixture.producer.0 as usize]
             .replay_derivations
             .iter()

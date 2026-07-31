@@ -298,9 +298,10 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                 .scheme_projectable_lowers(audit_owner)
                 .find(|entry| entry.record == audit_bound)
                 .map(|entry| entry.reason),
-            Some(SchemeProjectableLowerReason::UncoveredClaims(vec![
-                selected_claim
-            ])),
+            Some(SchemeProjectableLowerReason::Qualified {
+                uncovered_claims: vec![selected_claim],
+                independent_supports: Vec::new(),
+            }),
             "fixture must use the same bound-claim link validated by projection"
         );
 

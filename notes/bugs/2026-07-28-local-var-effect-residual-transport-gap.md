@@ -2156,4 +2156,132 @@ five-case release characterizationのactual / expectedをprogrammaticに比較�
 production semantic census、poly hash、check hash、formatted scheme、diagnosticのbaselineは
 変更していない。
 
+## 47回目: DCP-D one-sided lower linkage / mixed proof ledger（30分停止）
+（2026-07-31）
+
+承認済み設計§5.3案C / §5.4案Cに従い、stable lower admissionからproducer constraintの
+claim-qualified parentをlower recordへlinkするshape非依存hookを実装した。new / equivalentの
+admissionに加え、queue-suppressed replay duplicate、structural duplicate、後着root originは
+exact constraint-to-lower indexとsemantic lower keyだけで既存recordへ合流する。dummy upper、
+fresh var、queue再実行、global bounds scanは使っていない。
+
+claim-aware recordだけに`SchemeProjectionProof` ledgerを遅延構築し、supportを
+`Claimed(UpperReplayClaimId)`とexact `Independent(ProjectionProofCarrier)`へ分離した。
+scheme viewは`Unclaimed`と
+`Qualified { uncovered_claims, independent_supports }`を区別し、projectable supportが空なら
+除外、残ればendpointを一回だけ返す。generalized witnessはindependent supportをraw
+`Bound(record)`へ戻さず、root origin / exact replay / structural parent / row derivation /
+scheme witnessへ解決する`BoundProjectionProof` parentを使う。portable explanationとoccurrence
+provenanceにも同じcarrierを通した。
+
+§8.1〜§8.8は8 pass、full `case_02`は62 pass / 1 known-ignoreだった。compact 80、
+generalize 58、constraint explain 7、occurrence provenance 1、claim-qualified provenance 2も
+green。§8.7のsnapshotはraw derivation数ではなく新ledgerのexact
+`ConstraintOrigin { constraint: producer, ... }` supportを直接検査し、direct-first /
+claimed-firstが一致した。
+
+five-case release characterizationは二回とも保存済みexpectationとの比較へ到達する前にtimeout
+した（180秒、代表claimの同root oscillationを除去後も300秒）。このためprogrammatic diff分類は
+未完了で、性能riskを未解決のままcommitしていない。287-case contract suiteは指示どおり未実行。
+motivating
+`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`は、DCP-E前の想定どおり
+hand-built outer schemeに`"&buffer#36:0"`が残ってredだった。
+
+30分停止条件に従い、変更はworking treeへ残した。次回はcharacterization timeoutを
+claim/projection mutation censusまで局所化し、停止条件16/18へ触れないことを確認してから
+commitする。
+
+## 48回目: DCP-D claim-link replay周回増幅の局所化
+（2026-07-31）
+
+単一の`ref_update_local_buffer_public.yu` checkで観測された32,837,511件の
+`lower-link` traceを局所化した。主因は`register_replay_claim_parents`が
+`ReplayClaimParentKey`ですべてのparentをduplicateとして除外した後も、queue-suppressed replay
+actionごとに`register_existing_constraint_lower_projection_proofs`を呼んでいたことだった。
+`register_reduction_route_claim_parent`にも、exact parentが既存でも同じeager materializationを
+行う対称な欠落があった。どちらもcanonical dedup identityは既に正しく、dedup結果を
+rematerialization条件へ使っていない局所的な実装バグだった。`add_lower_bound`もexact
+derivation duplicateではledger hookを呼ばないよう、`provenance_changed`で条件付けた。
+
+この修正は新しいcache、graph walk、claim identityを追加しない。新parent、late root、
+new local derivationでは従来どおりexact recordへeager mergeし、replay周回だけで再到達した
+no-opを除く。したがって承認済み§5.3案C / §5.4案Cの範囲内であり、stop condition 16を
+設計変更なしで解消する修正である。
+
+元のtemporary traceは一hook invocationごとではなく、現在のclaim parent / proof全件ごとに
+一行を出していた。修正後も旧形式では`lower-link` 6,539,587件となったが、traceを一時的に
+一invocation一行へ正規化した同じcheckでは次となった。
+
+- `lower-link`: 174,314 calls / 99,808 distinct lower records
+- actual ledger mutation: 156,286 / 99,550 distinct lower records
+- `classify-qualified`: 122,571 reads / 90,322 distinct lower records
+- `classify-excluded`: 58 reads / 32 distinct lower records
+
+commandは111秒で成功した。classificationはledger construction回数ではなく
+`scheme_projectable_lowers`のprojection-time local read回数であり、compaction /
+generalization / provenance consumerから同recordを読むこと自体は設計どおりである。
+compressed rootの直接lookupだけを使い、parent chain walkはなかった。temporary traceと
+`YULANG_TRACE_CLAIM_LEDGER`はすべて削除した。
+
+regressionはfull `case_02` 62 pass / 1 known-ignore、compact 80、explain 14、
+occurrence provenance 1、claim-qualified provenance 2がgreenだった。generalize filterは
+通常56件がgreenで、長時間characterizationのstage2も二回目にgreenになった。一方stage0は
+最初の300秒timeout後、二回目も全体30分停止に必要なcleanup時間へ達したため中断した。
+この未完了gateを理由にWIP commitはamendせず、修正と本記録をworking treeへ残した。
+
+## 49回目: DCP-D performance fix後のfive-case分類とfinal gate
+（2026-07-31）
+
+DCP-Dのcomplete implementationは、stable one-sided lower admissionからproducer constraintの
+claim-qualified parentをlower recordへ結ぶshape非依存hook、claim-aware recordだけに遅延構築する
+mixed `SchemeProjectionProof` ledger、scheme view / generalized witness / portable explanation /
+occurrence provenanceの同一carrier利用から成る。ledgerはcovered claimとexact independent supportを
+区別し、claimだけで覆われたone-sided lowerをscheme projectionから除外する一方、independent
+supportがあれば同じendpointを一回だけ残す。
+
+この実装後に見つかった性能バグは、canonical identityのdedup後にもproof materializationを再実行して
+いたことだった。`add_lower_bound`はprovenanceが変化しないexact derivation duplicateでも
+`register_lower_projection_proofs`を呼び、replay / reduction-route parent registrationも
+queue-suppressed duplicateまたはalready-linked parentが何も追加しない場合にexisting recordへの
+再登録を続けていた。修正では、前者を`provenance_changed`でguardし、後二者はparentを実際にinsert
+したときだけmaterializeする。claim identity、record decision、graph walk、cacheは変更していない。
+
+修正前の単一`ref_update_local_buffer_public.yu` checkは旧trace形式で`lower-link`
+32,837,511件まで増幅した。修正後に一invocation一行へ正規化した同じcheckは174,314 calls /
+99,808 distinct lower records、うちactual ledger mutationは156,286 /
+99,550 distinct lower recordsだった。five-case characterizationの実行時間も修正前
+2,687.98秒から修正後434.11秒へ短縮した。これはdecisionを変えず、no-opの再登録だけを除いた
+修正と整合する。
+
+修正後log `/tmp/dcpd_fix_char.log`（27,615 bytes、SHA-256
+`0b4a2194c6641feed0beaf627a5ba35054f1f71207871d099ca6a79c7cf85a44`）のassertion両vectorを
+recursive parserで全leaf比較した。`repository-std-only`、`effect-callback-residual`、
+`config-read-false-positive-repro`は`provenance_epoch`だけが変化した。
+`ref-update-local-buffer`と`file-rollback-false-positive-repro`は、いずれも
+`canonical_subtype_constraints`、`ordinary_lower_bounds_added`、
+`stable_record_coverage.ordinary_lower_created`、bound insertedが各+3だった。replay accountingは
+前者がgenerated = considered = +32、accepted = canonical = +3、
+duplicate = semantic duplicate = +29、後者が同じ順に+74、+3、+71でexactに閉じた。
+全5ケースのpoly dump hashとcheck report hashは不変だった。
+
+この二fixtureはともに`$buffer`、`std::control::var::ref`、`get`、`update_effect`を使う
+shared local-ref adapter patternを持つ。accounting closure、hash stability、DCP-Dが正しく
+claim-covered one-sided lower admissionを除外するexact target code patternとの相関から、
+各+3 canonical constraint / +3 ordinary lower recordはperformance fixの副作用ではなく、
+DCP-Dの意図したprojection decisionが下流replayへ現れたgenuineかつaccounted-forな結果と分類した。
+この分類に基づくfive-case baseline refresh後、対象characterizationは432.12秒で1 passとなった。
+
+ただし、H2と同じ厳密さで3 recordそれぞれをclaimへ対応付けるindividual-record-level verificationは、
+sandboxでptrace / gdbによる直接inspectionを使えないため完了していない。accounting closure、
+hash stability、target patternとの相関は強い証拠だがexhaustive proofではない。この点はDCP-Dの
+明示的なresidual riskとして残る。
+
+最終regressionでは`case_02`が155 pass / 1 known-ignore（constraints §8.1〜§8.8を含む）、
+compact 80、explain 14、occurrence provenance 1、claim-qualified provenance 2がgreenだった。
+full generalizeは通常56件と長時間stage2がgreenになったが、stage0 characterizationはfull
+filter内で900秒、続くexact再試行でも240秒でtimeoutし、pass確認へ到達しなかった。
+`cargo fmt --all -- --check`は成功し、
+`cargo check -p infer`も既知dead-code warning一件だけで成功した。full generalize gate未完了のため、
+このrunではWIP commitをfinal amendしない。
+
 <!-- bug-append-anchor: 2026-07-30 -->

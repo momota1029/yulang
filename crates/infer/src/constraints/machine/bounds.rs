@@ -461,6 +461,9 @@ impl ConstraintMachine {
             },
             None,
         );
+        if insertion.provenance_changed {
+            self.register_lower_projection_proofs(insertion.id, producer);
+        }
         if !insertion.semantic_changed {
             return;
         }
@@ -796,6 +799,195 @@ impl ConstraintMachine {
         claims
     }
 
+    pub(in crate::constraints) fn register_existing_constraint_lower_projection_proofs(
+        &mut self,
+        producer: ConstraintRecordId,
+    ) {
+        let Some(record) = self.lower_record_for_constraint(producer) else {
+            return;
+        };
+        self.register_lower_projection_proofs(record, Some(producer));
+    }
+
+    fn lower_record_for_constraint(&self, producer: ConstraintRecordId) -> Option<BoundRecordId> {
+        if let Some(record) = self
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .get(&producer)
+            .copied()
+        {
+            return Some(record);
+        }
+        let constraint = &self.constraint_records[producer.0 as usize].key;
+        let Neg::Var(target) = self.types.neg(constraint.upper) else {
+            return None;
+        };
+        self.bounds
+            .canonical
+            .get(&BoundSemanticKey::Lower {
+                owner: *target,
+                endpoint: constraint.lower,
+                weights: constraint.weights.clone(),
+            })
+            .copied()
+    }
+
+    fn register_lower_projection_proofs(
+        &mut self,
+        lower_record: BoundRecordId,
+        producer: Option<ConstraintRecordId>,
+    ) {
+        let claim_parents = producer
+            .and_then(|producer| {
+                self.bounds
+                    .claim_parents_by_constraint
+                    .get(&producer)
+                    .cloned()
+            })
+            .unwrap_or_default();
+        let ledger_exists = self
+            .bounds
+            .projection_proofs_by_lower_record
+            .contains_key(&lower_record);
+        if claim_parents.is_empty() && !ledger_exists {
+            return;
+        }
+        let claims = claim_parents
+            .iter()
+            .map(|parent| parent.parent_claim())
+            .collect::<Vec<_>>();
+        let independent_supports =
+            self.independent_projection_supports(lower_record, producer, &claim_parents);
+        let mutation = self.bounds.update_scheme_projection_proofs(
+            lower_record,
+            &claims,
+            &independent_supports,
+        );
+        self.apply_scheme_projection_mutation(mutation);
+    }
+
+    fn independent_projection_supports(
+        &self,
+        lower_record: BoundRecordId,
+        current_producer: Option<ConstraintRecordId>,
+        current_claim_parents: &[ClaimQualifiedParent],
+    ) -> Vec<ProjectionProofCarrier> {
+        let mut supports = Vec::new();
+        let Some(record) = self.bounds.record(lower_record) else {
+            return supports;
+        };
+        for derivation in record.derivations() {
+            match derivation {
+                BoundDerivation::Constraint(producer) => {
+                    let parents = if Some(*producer) == current_producer {
+                        current_claim_parents
+                    } else {
+                        self.bounds
+                            .claim_parents_by_constraint
+                            .get(producer)
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[])
+                    };
+                    let constraint = &self.constraint_records[producer.0 as usize];
+                    let roots_have_claim_support = self
+                        .bounds
+                        .scheme_projection_claims_by_lower_record
+                        .get(&lower_record)
+                        .into_iter()
+                        .flatten()
+                        .any(|claim| {
+                            self.bounds.upper_replay_claims[claim.0 as usize].producer_constraint
+                                == *producer
+                        });
+                    if !roots_have_claim_support {
+                        supports.extend(constraint.root_origins.iter().map(|origin| {
+                            ProjectionProofCarrier::ConstraintOrigin {
+                                constraint: *producer,
+                                origin: *origin,
+                            }
+                        }));
+                    }
+                    for carrier in &constraint.structural_derivations {
+                        if !parents.iter().any(|parent| {
+                            matches!(
+                                parent,
+                                ClaimQualifiedParent::StructuralConstraint {
+                                    derivation,
+                                    ..
+                                } if derivation == carrier
+                            )
+                        }) {
+                            supports.push(ProjectionProofCarrier::StructuralConstraint {
+                                result: *producer,
+                                derivation: *carrier,
+                            });
+                        }
+                    }
+                    for carrier in &constraint.replay_derivations {
+                        if !parents.iter().any(|parent| {
+                            matches!(
+                                parent,
+                                ClaimQualifiedParent::ReplayConstraint { replay, .. }
+                                    if replay == carrier
+                            )
+                        }) {
+                            supports.push(ProjectionProofCarrier::ReplayConstraint {
+                                result: *producer,
+                                derivation: *carrier,
+                            });
+                        }
+                    }
+                    for carrier in &constraint.row_derivations {
+                        if !parents.iter().any(|parent| {
+                            matches!(
+                                parent,
+                                ClaimQualifiedParent::ReductionRouteConstraint {
+                                    derivation,
+                                    ..
+                                } if derivation == carrier
+                            )
+                        }) {
+                            supports.push(ProjectionProofCarrier::RowConstraint {
+                                result: *producer,
+                                derivation: *carrier,
+                            });
+                        }
+                    }
+                    supports.extend(
+                        constraint
+                            .scheme_instantiation_derivations
+                            .iter()
+                            .cloned()
+                            .map(|derivation| {
+                                ProjectionProofCarrier::SchemeInstantiationConstraint {
+                                    result: *producer,
+                                    source_witness: derivation.source_witness,
+                                }
+                            }),
+                    );
+                }
+                BoundDerivation::Origin(origin) => {
+                    supports.push(ProjectionProofCarrier::Origin(*origin));
+                }
+                BoundDerivation::ReplayEvidence(replay) => {
+                    supports.push(ProjectionProofCarrier::ReplayEvidence(*replay));
+                }
+                BoundDerivation::Row(row) => supports.push(ProjectionProofCarrier::Row(*row)),
+                BoundDerivation::SchemeInstantiation(derivation) => {
+                    supports.push(ProjectionProofCarrier::SchemeInstantiation(
+                        derivation.source_witness,
+                    ));
+                }
+                BoundDerivation::IncompleteReplay => {
+                    supports.push(ProjectionProofCarrier::Incomplete);
+                }
+            }
+        }
+        let mut seen = FxHashSet::default();
+        supports.retain(|support| seen.insert(*support));
+        supports
+    }
+
     fn register_replay_claim_parents(
         &mut self,
         result: ConstraintRecordId,
@@ -811,6 +1003,7 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
+        let mut inserted = false;
         for parent in parents {
             let coverage_root =
                 self.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root;
@@ -833,13 +1026,15 @@ impl ConstraintMachine {
                 .entry(result)
                 .or_default();
             entries.push(parent);
+            inserted = true;
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
-        if materialize_existing_target {
+        if inserted && materialize_existing_target {
             if let Some(record) = target_record {
                 self.register_constraint_upper_replay_claims(record, Some(result));
             }
+            self.register_existing_constraint_lower_projection_proofs(result);
         }
     }
 
@@ -864,12 +1059,14 @@ impl ConstraintMachine {
             .claim_parents_by_constraint
             .entry(result)
             .or_default();
-        if !entries.contains(&parent) {
-            entries.push(parent);
+        if entries.contains(&parent) {
+            return;
         }
+        entries.push(parent);
         if let Some(record) = self.var_var_upper_record_for_constraint(result) {
             self.register_constraint_upper_replay_claims(record, Some(result));
         }
+        self.register_existing_constraint_lower_projection_proofs(result);
     }
 
     fn var_var_upper_record_for_constraint(
