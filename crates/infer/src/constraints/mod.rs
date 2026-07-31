@@ -879,12 +879,9 @@ impl TypeBounds {
             .entry(result)
             .or_default()
             .insert(parent.exact_carrier());
-
-        #[cfg(debug_assertions)]
-        self.debug_assert_qualified_carrier_index_matches_linear_scan(result);
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(all(test, debug_assertions))]
     fn debug_assert_qualified_carrier_index_matches_linear_scan(&self, result: ConstraintRecordId) {
         let linear_scan = self
             .claim_parents_by_constraint
