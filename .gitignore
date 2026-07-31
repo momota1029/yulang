@@ -35,6 +35,7 @@ test.ym
 # Local editor and agent metadata
 /.claude/
 /.codex
+/.codex-flow/
 /.temp/
 /.zed/
 .rules
