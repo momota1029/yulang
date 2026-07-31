@@ -757,46 +757,7 @@ impl ConstraintMachine {
             }) {
                 continue;
             }
-            let registration = match parent {
-                ClaimQualifiedParent::ReplayConstraint {
-                    parent_side,
-                    replay,
-                    ..
-                } => self.bounds.derived_upper_replay_claim(
-                    record,
-                    parent_claim,
-                    producer,
-                    |depth| UpperReplayClaimLineage::ReplayConstraint {
-                        parent_claim,
-                        parent_side,
-                        result: producer,
-                        replay,
-                        depth,
-                    },
-                ),
-                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => self
-                    .bounds
-                    .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
-                        UpperReplayClaimLineage::StructuralConstraint {
-                            parent_claim,
-                            result: producer,
-                            derivation,
-                            depth,
-                        }
-                    }),
-                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => self
-                    .bounds
-                    .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
-                        UpperReplayClaimLineage::ReductionRouteConstraint {
-                            parent_claim,
-                            result: producer,
-                            derivation,
-                            depth,
-                        }
-                    }),
-            };
-            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
-            let claim = registration.claim;
+            let claim = self.materialize_constraint_upper_replay_claim(record, producer, parent);
             if !claims.contains(&claim) {
                 claims.push(claim);
             }
@@ -811,6 +772,81 @@ impl ConstraintMachine {
             claims.push(registration.claim);
         }
         claims
+    }
+
+    fn register_constraint_upper_replay_claims_delta(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) -> Vec<UpperReplayClaimId> {
+        let mut claims = Vec::new();
+        for parent in parents.iter().copied() {
+            let coverage_root =
+                self.bounds.upper_replay_claims[parent.parent_claim().0 as usize].coverage_root;
+            // Materialization is canonical per (record, root), not per exact carrier. The caller
+            // has already recorded every newly admitted key and qualified parent unconditionally.
+            if self
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(record, coverage_root))
+            {
+                continue;
+            }
+            let claim = self.materialize_constraint_upper_replay_claim(record, producer, parent);
+            if !claims.contains(&claim) {
+                claims.push(claim);
+            }
+        }
+        claims
+    }
+
+    fn materialize_constraint_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) -> UpperReplayClaimId {
+        let parent_claim = parent.parent_claim();
+        let registration = match parent {
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_side,
+                replay,
+                ..
+            } => self
+                .bounds
+                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                    UpperReplayClaimLineage::ReplayConstraint {
+                        parent_claim,
+                        parent_side,
+                        result: producer,
+                        replay,
+                        depth,
+                    }
+                }),
+            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => self
+                .bounds
+                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                    UpperReplayClaimLineage::StructuralConstraint {
+                        parent_claim,
+                        result: producer,
+                        derivation,
+                        depth,
+                    }
+                }),
+            ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => self
+                .bounds
+                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                    UpperReplayClaimLineage::ReductionRouteConstraint {
+                        parent_claim,
+                        result: producer,
+                        derivation,
+                        depth,
+                    }
+                }),
+        };
+        self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+        registration.claim
     }
 
     pub(in crate::constraints) fn register_existing_constraint_lower_projection_proofs(
@@ -1017,7 +1053,7 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
-        let mut inserted = false;
+        let mut inserted_parents = Vec::new();
         for parent in parents {
             let coverage_root =
                 self.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root;
@@ -1036,21 +1072,35 @@ impl ConstraintMachine {
                 replay,
             };
             self.bounds.push_claim_qualified_parent(result, parent);
-            inserted = true;
+            inserted_parents.push(parent);
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
-        if inserted && materialize_existing_target {
-            self.materialize_existing_claim_parents_bulk(result, target_record);
+        if materialize_existing_target && !inserted_parents.is_empty() {
+            self.materialize_existing_claim_parents_delta(result, target_record, &inserted_parents);
         }
+    }
+
+    fn materialize_existing_claim_parents_delta(
+        &mut self,
+        result: ConstraintRecordId,
+        target_record: Option<BoundRecordId>,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        if let Some(record) = target_record {
+            self.register_constraint_upper_replay_claims_delta(record, result, parents);
+        }
+        // Lower-side delta maintenance and bootstrap separation belong to CDM-D. Until then this
+        // keeps the established bulk lower path and its visibility order unchanged.
+        self.register_existing_constraint_lower_projection_proofs(result);
     }
 
     /// Recompute every claim-parent consequence already attached to `result`.
     ///
     /// CDM-A keeps the current correct-but-expensive implementation as one named bulk reference
-    /// point. Production continues to call it until the later delta slices retire it from the hot
-    /// path; tests call the cfg(test) oracle entrypoint below to compare maintained state against
-    /// this ground truth.
+    /// point. The upper eager writers now use their delta path, while tests call this oracle to
+    /// compare maintained state against the original full recomputation ground truth.
+    #[cfg(test)]
     fn materialize_existing_claim_parents_bulk(
         &mut self,
         result: ConstraintRecordId,
@@ -1097,7 +1147,7 @@ impl ConstraintMachine {
         }
         self.bounds.push_claim_qualified_parent(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
-        self.materialize_existing_claim_parents_bulk(result, target_record);
+        self.materialize_existing_claim_parents_delta(result, target_record, &[parent]);
     }
 
     fn var_var_upper_record_for_constraint(
