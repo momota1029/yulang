@@ -312,6 +312,7 @@ textarea {
   height: calc(100vh - 156px);
   min-height: 520px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(320px, 1fr);
   overflow: hidden;
 }
@@ -495,6 +496,7 @@ html[data-lang="en"] .lang-ja {
 .example-buttons {
   display: flex;
   gap: 6px;
+  min-width: 0;
   padding: 0 14px 8px;
   overflow-x: auto;
 }
