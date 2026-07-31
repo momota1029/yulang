@@ -58,6 +58,8 @@ impl ConstraintMachine {
             role_solve_supplemental_epoch: RoleSolveSupplementalEpoch::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
             replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
+            #[cfg(test)]
+            cdm_lower_delta_census: CdmLowerDeltaCensus::default(),
         }
     }
 
@@ -483,7 +485,14 @@ impl ConstraintMachine {
             return false;
         }
         roots.push(origin);
-        self.register_existing_constraint_lower_projection_proofs(record);
+        self.register_constraint_projection_carrier_delta(
+            record,
+            &[],
+            ProjectionProofCarrier::ConstraintOrigin {
+                constraint: record,
+                origin,
+            },
+        );
         self.bump_provenance_epoch();
         true
     }
@@ -711,34 +720,51 @@ impl ConstraintMachine {
         routes: Vec<SchemeInstantiationRoute>,
     ) {
         let considered = routes.len();
-        let mut inserted = 0usize;
-        let target = &mut self.constraint_records[record.0 as usize];
-        for route in routes {
-            if route.remaining.0.is_empty() {
-                if !target
-                    .scheme_instantiation_derivations
-                    .contains(&route.derivation)
-                {
-                    target
+        let mut inserted_derivations = Vec::new();
+        let (inserted, incoming) = {
+            let mut inserted = 0usize;
+            let target = &mut self.constraint_records[record.0 as usize];
+            for route in routes {
+                if route.remaining.0.is_empty() {
+                    if !target
                         .scheme_instantiation_derivations
-                        .push(route.derivation);
+                        .contains(&route.derivation)
+                    {
+                        target
+                            .scheme_instantiation_derivations
+                            .push(route.derivation.clone());
+                        inserted_derivations.push(route.derivation);
+                        inserted += 1;
+                    }
+                } else if !target.scheme_instantiation_routes.contains(&route) {
+                    target.scheme_instantiation_routes.push(route);
                     inserted += 1;
                 }
-            } else if !target.scheme_instantiation_routes.contains(&route) {
-                target.scheme_instantiation_routes.push(route);
-                inserted += 1;
             }
-        }
+            (
+                inserted,
+                target.scheme_instantiation_derivations.len()
+                    + target.scheme_instantiation_routes.len(),
+            )
+        };
         let coverage = &mut self.timing.scheme_instantiations;
         coverage.edges_considered += considered;
         coverage.edges_inserted += inserted;
         coverage.edges_deduplicated += considered.saturating_sub(inserted);
-        coverage.max_incoming_edges_per_record = coverage.max_incoming_edges_per_record.max(
-            target.scheme_instantiation_derivations.len()
-                + target.scheme_instantiation_routes.len(),
-        );
+        coverage.max_incoming_edges_per_record =
+            coverage.max_incoming_edges_per_record.max(incoming);
         if inserted != 0 {
             self.bump_provenance_epoch();
+        }
+        for derivation in inserted_derivations {
+            self.register_constraint_projection_carrier_delta(
+                record,
+                &[],
+                ProjectionProofCarrier::SchemeInstantiationConstraint {
+                    result: record,
+                    source_witness: derivation.source_witness,
+                },
+            );
         }
     }
 
@@ -1210,18 +1236,25 @@ impl ConstraintMachine {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let existing_record_id = *entry.get();
-                let mut provenance_changed = false;
+                let mut inserted_origin = None;
                 if let Some(origin) = origin {
                     // A second root explains the existing fact without replaying semantic work.
                     let roots =
                         &mut self.constraint_records[existing_record_id.0 as usize].root_origins;
                     if !roots.contains(&origin) {
                         roots.push(origin);
-                        provenance_changed = true;
+                        inserted_origin = Some(origin);
                     }
                 }
-                if provenance_changed {
-                    self.register_existing_constraint_lower_projection_proofs(existing_record_id);
+                if let Some(origin) = inserted_origin {
+                    self.register_constraint_projection_carrier_delta(
+                        existing_record_id,
+                        &[],
+                        ProjectionProofCarrier::ConstraintOrigin {
+                            constraint: existing_record_id,
+                            origin,
+                        },
+                    );
                     self.bump_provenance_epoch();
                 }
                 self.timing.record_subtype_duplicate_admission();
@@ -1271,14 +1304,16 @@ impl ConstraintMachine {
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let record_id = *entry.get();
-                let mut provenance_changed = false;
+                let mut derivation_inserted = false;
                 let derivations =
                     &mut self.constraint_records[record_id.0 as usize].structural_derivations;
                 if !derivations.contains(&derivation) {
                     derivations.push(derivation);
-                    provenance_changed = true;
+                    derivation_inserted = true;
                 }
-                provenance_changed |= self.merge_structural_claim_parents(record_id, derivation);
+                let parent_changed =
+                    self.merge_structural_claim_parents(record_id, derivation, derivation_inserted);
+                let provenance_changed = derivation_inserted || parent_changed;
                 if provenance_changed {
                     self.bump_provenance_epoch();
                 }
@@ -1305,7 +1340,7 @@ impl ConstraintMachine {
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
-        self.merge_structural_claim_parents(record_id, derivation);
+        self.merge_structural_claim_parents(record_id, derivation, true);
         self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
@@ -1336,13 +1371,15 @@ impl ConstraintMachine {
             return;
         };
         let derivation = StructuralDerivation { parent, rule };
-        let mut provenance_changed = false;
+        let mut derivation_inserted = false;
         let derivations = &mut self.constraint_records[record_id.0 as usize].structural_derivations;
         if !derivations.contains(&derivation) {
             derivations.push(derivation);
-            provenance_changed = true;
+            derivation_inserted = true;
         }
-        provenance_changed |= self.merge_structural_claim_parents(record_id, derivation);
+        let parent_changed =
+            self.merge_structural_claim_parents(record_id, derivation, derivation_inserted);
+        let provenance_changed = derivation_inserted || parent_changed;
         if provenance_changed {
             self.bump_provenance_epoch();
         }
@@ -1352,16 +1389,15 @@ impl ConstraintMachine {
         &mut self,
         result: ConstraintRecordId,
         derivation: StructuralDerivation,
+        derivation_inserted: bool,
     ) -> bool {
-        let Some(parents) = self
+        let parents = self
             .bounds
             .claim_parents_by_constraint
             .get(&derivation.parent)
             .cloned()
-        else {
-            return false;
-        };
-        let mut inserted = false;
+            .unwrap_or_default();
+        let mut inserted_parents = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();
             let coverage_root =
@@ -1374,19 +1410,23 @@ impl ConstraintMachine {
             if !self.bounds.structural_claim_parent_keys.insert(key) {
                 continue;
             }
-            self.bounds.push_claim_qualified_parent(
+            let parent = ClaimQualifiedParent::StructuralConstraint {
+                parent_claim,
+                derivation,
+            };
+            self.bounds.push_claim_qualified_parent(result, parent);
+            inserted_parents.push(parent);
+        }
+        if derivation_inserted {
+            self.register_constraint_projection_carrier_delta(
                 result,
-                ClaimQualifiedParent::StructuralConstraint {
-                    parent_claim,
-                    derivation,
-                },
+                &inserted_parents,
+                ProjectionProofCarrier::StructuralConstraint { result, derivation },
             );
-            inserted = true;
+        } else {
+            self.register_constraint_projection_claims_delta(result, &inserted_parents);
         }
-        if inserted {
-            self.register_existing_constraint_lower_projection_proofs(result);
-        }
-        inserted
+        !inserted_parents.is_empty()
     }
 
     pub(in crate::constraints) fn intern_row_derivation(

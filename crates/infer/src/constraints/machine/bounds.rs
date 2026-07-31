@@ -38,6 +38,12 @@ struct BoundReplayApplyStats {
     trivial: usize,
 }
 
+enum LowerProjectionDelta {
+    ClaimsOnly,
+    Bound(BoundDerivation),
+    Carrier(ProjectionProofCarrier),
+}
+
 impl BoundReplayApplyStats {
     fn absorb(&mut self, other: Self) {
         self.accepted += other.accepted;
@@ -453,7 +459,7 @@ impl ConstraintMachine {
             target,
             BoundEndpoint::Lower(pos),
             weights.clone(),
-            Some(derivation),
+            Some(derivation.clone()),
             if insertion.semantic_changed {
                 BoundDisposition::Inserted(insertion.id)
             } else {
@@ -462,7 +468,7 @@ impl ConstraintMachine {
             None,
         );
         if insertion.provenance_changed {
-            self.register_lower_projection_proofs(insertion.id, producer);
+            self.register_lower_projection_derivation(insertion.id, producer, derivation);
         }
         if !insertion.semantic_changed {
             return;
@@ -572,29 +578,35 @@ impl ConstraintMachine {
         let Some(id) = self.bounds.canonical.get(&key).copied() else {
             return;
         };
-        let record = &mut self.bounds.records[id.0 as usize];
         let considered = derivations.len();
-        let mut inserted = 0usize;
-        for derivation in derivations {
-            let derivation = BoundDerivation::SchemeInstantiation(derivation);
-            if !record.derivations.contains(&derivation) {
-                record.derivations.push(derivation);
-                inserted += 1;
+        let mut inserted_derivations = Vec::new();
+        let incoming = {
+            let record = &mut self.bounds.records[id.0 as usize];
+            for derivation in derivations {
+                let derivation = BoundDerivation::SchemeInstantiation(derivation);
+                if !record.derivations.contains(&derivation) {
+                    record.derivations.push(derivation.clone());
+                    inserted_derivations.push(derivation);
+                }
             }
-        }
-        let coverage = &mut self.timing.scheme_instantiations;
-        coverage.edges_considered += considered;
-        coverage.edges_inserted += inserted;
-        coverage.edges_deduplicated += considered.saturating_sub(inserted);
-        coverage.max_incoming_edges_per_record = coverage.max_incoming_edges_per_record.max(
             record
                 .derivations
                 .iter()
                 .filter(|edge| matches!(edge, BoundDerivation::SchemeInstantiation(_)))
-                .count(),
-        );
+                .count()
+        };
+        let inserted = inserted_derivations.len();
+        let coverage = &mut self.timing.scheme_instantiations;
+        coverage.edges_considered += considered;
+        coverage.edges_inserted += inserted;
+        coverage.edges_deduplicated += considered.saturating_sub(inserted);
+        coverage.max_incoming_edges_per_record =
+            coverage.max_incoming_edges_per_record.max(incoming);
         if inserted != 0 {
             self.bump_provenance_epoch();
+        }
+        for derivation in inserted_derivations {
+            self.register_lower_projection_derivation(id, None, derivation);
         }
     }
 
@@ -849,16 +861,6 @@ impl ConstraintMachine {
         registration.claim
     }
 
-    pub(in crate::constraints) fn register_existing_constraint_lower_projection_proofs(
-        &mut self,
-        producer: ConstraintRecordId,
-    ) {
-        let Some(record) = self.lower_record_for_constraint(producer) else {
-            return;
-        };
-        self.register_lower_projection_proofs(record, Some(producer));
-    }
-
     fn lower_record_for_constraint(&self, producer: ConstraintRecordId) -> Option<BoundRecordId> {
         if let Some(record) = self
             .bounds
@@ -882,18 +884,319 @@ impl ConstraintMachine {
             .copied()
     }
 
-    fn register_lower_projection_proofs(
+    fn register_lower_projection_derivation(
         &mut self,
         lower_record: BoundRecordId,
         producer: Option<ConstraintRecordId>,
+        derivation: BoundDerivation,
     ) {
-        let claim_parents = producer
-            .and_then(|producer| {
-                self.bounds
-                    .claim_parents_by_constraint
-                    .get(&producer)
-                    .cloned()
-            })
+        #[cfg(test)]
+        match &derivation {
+            BoundDerivation::Constraint(_) => {
+                self.cdm_lower_delta_census.constraint_bound_events += 1;
+            }
+            _ => self.cdm_lower_delta_census.other_bound_events += 1,
+        }
+        let claims = if self
+            .bounds
+            .projection_proofs_by_lower_record
+            .contains_key(&lower_record)
+        {
+            Vec::new()
+        } else {
+            producer
+                .and_then(|producer| self.bounds.claim_parents_by_constraint.get(&producer))
+                .into_iter()
+                .flatten()
+                .map(|parent| parent.parent_claim())
+                .collect()
+        };
+        self.register_lower_projection_delta(
+            lower_record,
+            &claims,
+            LowerProjectionDelta::Bound(derivation),
+        );
+    }
+
+    fn register_existing_constraint_lower_projection_delta(
+        &mut self,
+        producer: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+        delta: LowerProjectionDelta,
+    ) {
+        let Some(lower_record) = self.lower_record_for_constraint(producer) else {
+            return;
+        };
+        let ledger_exists = self
+            .bounds
+            .projection_proofs_by_lower_record
+            .contains_key(&lower_record);
+        let parents = if ledger_exists {
+            parents
+        } else {
+            self.bounds
+                .claim_parents_by_constraint
+                .get(&producer)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+        };
+        let claims = parents
+            .iter()
+            .map(|parent| parent.parent_claim())
+            .collect::<Vec<_>>();
+        self.register_lower_projection_delta(lower_record, &claims, delta);
+    }
+
+    pub(in crate::constraints) fn register_constraint_projection_carrier_delta(
+        &mut self,
+        producer: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+        carrier: ProjectionProofCarrier,
+    ) {
+        #[cfg(test)]
+        self.record_cdm_lower_carrier_event(carrier);
+        let delta = if !parents.is_empty()
+            && self
+                .bounds
+                .claim_parents_by_constraint
+                .get(&producer)
+                .is_some_and(|all| all.len() == parents.len())
+        {
+            // A producer's bound derivation can predate its first qualified-parent admission.
+            // Classify that one bound derivation once; later admissions are exact carrier deltas.
+            LowerProjectionDelta::Bound(BoundDerivation::Constraint(producer))
+        } else {
+            LowerProjectionDelta::Carrier(carrier)
+        };
+        self.register_existing_constraint_lower_projection_delta(producer, parents, delta);
+    }
+
+    pub(in crate::constraints) fn register_constraint_projection_claims_delta(
+        &mut self,
+        producer: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        if parents.is_empty() {
+            return;
+        }
+        self.register_existing_constraint_lower_projection_delta(
+            producer,
+            parents,
+            LowerProjectionDelta::ClaimsOnly,
+        );
+    }
+
+    fn register_lower_record_projection_carrier_delta(
+        &mut self,
+        lower_record: BoundRecordId,
+        carrier: ProjectionProofCarrier,
+    ) {
+        #[cfg(test)]
+        self.record_cdm_lower_carrier_event(carrier);
+        self.register_lower_projection_delta(
+            lower_record,
+            &[],
+            LowerProjectionDelta::Carrier(carrier),
+        );
+    }
+
+    fn register_lower_projection_delta(
+        &mut self,
+        lower_record: BoundRecordId,
+        claims_to_link: &[UpperReplayClaimId],
+        delta: LowerProjectionDelta,
+    ) {
+        let ledger_exists = self
+            .bounds
+            .projection_proofs_by_lower_record
+            .contains_key(&lower_record);
+        #[cfg(test)]
+        {
+            if !claims_to_link.is_empty() {
+                self.cdm_lower_delta_census.parent_batches += 1;
+            }
+            if !ledger_exists && !claims_to_link.is_empty() {
+                self.cdm_lower_delta_census.bootstrap_scans += 1;
+            }
+        }
+        if claims_to_link.is_empty() && !ledger_exists {
+            return;
+        }
+        // Preserve D2-5: classify against the pre-link claim ledger. Exact carrier parents have
+        // already entered the append-only index, matching the old current-producer in-flight view.
+        let independent_supports = if ledger_exists {
+            match delta {
+                LowerProjectionDelta::ClaimsOnly => Vec::new(),
+                LowerProjectionDelta::Bound(derivation) => {
+                    self.independent_projection_supports_for_derivation(lower_record, &derivation)
+                }
+                LowerProjectionDelta::Carrier(carrier) => self
+                    .projection_carrier_is_independent(lower_record, carrier)
+                    .then_some(carrier)
+                    .into_iter()
+                    .collect(),
+            }
+        } else {
+            self.bootstrap_independent_projection_supports(lower_record)
+        };
+        let mutation = self.bounds.update_scheme_projection_proofs(
+            lower_record,
+            claims_to_link,
+            &independent_supports,
+        );
+        self.apply_scheme_projection_mutation(mutation);
+    }
+
+    fn bootstrap_independent_projection_supports(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> Vec<ProjectionProofCarrier> {
+        let mut supports = Vec::new();
+        let Some(record) = self.bounds.record(lower_record) else {
+            return supports;
+        };
+        for derivation in record.derivations() {
+            supports.extend(
+                self.independent_projection_supports_for_derivation(lower_record, derivation),
+            );
+        }
+        let mut seen = FxHashSet::default();
+        supports.retain(|support| seen.insert(*support));
+        supports
+    }
+
+    fn independent_projection_supports_for_derivation(
+        &self,
+        lower_record: BoundRecordId,
+        derivation: &BoundDerivation,
+    ) -> Vec<ProjectionProofCarrier> {
+        let mut supports = Vec::new();
+        match derivation {
+            BoundDerivation::Constraint(producer) => {
+                let constraint = &self.constraint_records[producer.0 as usize];
+                supports.extend(constraint.root_origins.iter().filter_map(|origin| {
+                    let carrier = ProjectionProofCarrier::ConstraintOrigin {
+                        constraint: *producer,
+                        origin: *origin,
+                    };
+                    self.projection_carrier_is_independent(lower_record, carrier)
+                        .then_some(carrier)
+                }));
+                supports.extend(constraint.structural_derivations.iter().filter_map(
+                    |derivation| {
+                        let carrier = ProjectionProofCarrier::StructuralConstraint {
+                            result: *producer,
+                            derivation: *derivation,
+                        };
+                        self.projection_carrier_is_independent(lower_record, carrier)
+                            .then_some(carrier)
+                    },
+                ));
+                supports.extend(
+                    constraint
+                        .replay_derivations
+                        .iter()
+                        .filter_map(|derivation| {
+                            let carrier = ProjectionProofCarrier::ReplayConstraint {
+                                result: *producer,
+                                derivation: *derivation,
+                            };
+                            self.projection_carrier_is_independent(lower_record, carrier)
+                                .then_some(carrier)
+                        }),
+                );
+                supports.extend(constraint.row_derivations.iter().filter_map(|derivation| {
+                    let carrier = ProjectionProofCarrier::RowConstraint {
+                        result: *producer,
+                        derivation: *derivation,
+                    };
+                    self.projection_carrier_is_independent(lower_record, carrier)
+                        .then_some(carrier)
+                }));
+                supports.extend(constraint.scheme_instantiation_derivations.iter().map(
+                    |derivation| ProjectionProofCarrier::SchemeInstantiationConstraint {
+                        result: *producer,
+                        source_witness: derivation.source_witness,
+                    },
+                ));
+            }
+            BoundDerivation::Origin(origin) => {
+                supports.push(ProjectionProofCarrier::Origin(*origin));
+            }
+            BoundDerivation::ReplayEvidence(replay) => {
+                supports.push(ProjectionProofCarrier::ReplayEvidence(*replay));
+            }
+            BoundDerivation::Row(row) => supports.push(ProjectionProofCarrier::Row(*row)),
+            BoundDerivation::SchemeInstantiation(derivation) => {
+                supports.push(ProjectionProofCarrier::SchemeInstantiation(
+                    derivation.source_witness,
+                ));
+            }
+            BoundDerivation::IncompleteReplay => {
+                supports.push(ProjectionProofCarrier::Incomplete);
+            }
+        }
+        supports
+    }
+
+    fn projection_carrier_is_independent(
+        &self,
+        lower_record: BoundRecordId,
+        carrier: ProjectionProofCarrier,
+    ) -> bool {
+        match carrier {
+            ProjectionProofCarrier::ConstraintOrigin { constraint, .. } => !self
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&lower_record)
+                .into_iter()
+                .flatten()
+                .any(|claim| {
+                    self.bounds.upper_replay_claims[claim.0 as usize].producer_constraint
+                        == constraint
+                }),
+            ProjectionProofCarrier::StructuralConstraint { result, derivation } => !self
+                .bounds
+                .qualified_carrier_index
+                .get(&result)
+                .is_some_and(|carriers| {
+                    carriers.contains(&QualifiedCarrier::Structural(derivation))
+                }),
+            ProjectionProofCarrier::ReplayConstraint { result, derivation } => !self
+                .bounds
+                .qualified_carrier_index
+                .get(&result)
+                .is_some_and(|carriers| carriers.contains(&QualifiedCarrier::Replay(derivation))),
+            ProjectionProofCarrier::RowConstraint { result, derivation } => !self
+                .bounds
+                .qualified_carrier_index
+                .get(&result)
+                .is_some_and(|carriers| {
+                    carriers.contains(&QualifiedCarrier::ReductionRoute(derivation))
+                }),
+            ProjectionProofCarrier::SchemeInstantiationConstraint { .. }
+            | ProjectionProofCarrier::Origin(_)
+            | ProjectionProofCarrier::ReplayEvidence(_)
+            | ProjectionProofCarrier::Row(_)
+            | ProjectionProofCarrier::SchemeInstantiation(_)
+            | ProjectionProofCarrier::Incomplete => true,
+        }
+    }
+
+    #[cfg(test)]
+    fn register_existing_constraint_lower_projection_proofs_bulk(
+        &mut self,
+        producer: ConstraintRecordId,
+    ) {
+        self.cdm_lower_delta_census.bulk_scans += 1;
+        let Some(lower_record) = self.lower_record_for_constraint(producer) else {
+            return;
+        };
+        let claim_parents = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&producer)
+            .cloned()
             .unwrap_or_default();
         let ledger_exists = self
             .bounds
@@ -907,7 +1210,7 @@ impl ConstraintMachine {
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         let independent_supports =
-            self.independent_projection_supports(lower_record, producer, &claim_parents);
+            self.independent_projection_supports_bulk(lower_record, Some(producer), &claim_parents);
         let mutation = self.bounds.update_scheme_projection_proofs(
             lower_record,
             &claims,
@@ -916,7 +1219,18 @@ impl ConstraintMachine {
         self.apply_scheme_projection_mutation(mutation);
     }
 
-    fn independent_projection_supports(
+    #[cfg(test)]
+    fn recompute_lower_projection_bulk_oracle_record(&mut self, lower_record: BoundRecordId) {
+        self.cdm_lower_delta_census.bulk_scans += 1;
+        let supports = self.independent_projection_supports_bulk(lower_record, None, &[]);
+        let mutation = self
+            .bounds
+            .update_scheme_projection_proofs(lower_record, &[], &supports);
+        self.apply_scheme_projection_mutation(mutation);
+    }
+
+    #[cfg(test)]
+    fn independent_projection_supports_bulk(
         &self,
         lower_record: BoundRecordId,
         current_producer: Option<ConstraintRecordId>,
@@ -1003,18 +1317,12 @@ impl ConstraintMachine {
                             });
                         }
                     }
-                    supports.extend(
-                        constraint
-                            .scheme_instantiation_derivations
-                            .iter()
-                            .cloned()
-                            .map(|derivation| {
-                                ProjectionProofCarrier::SchemeInstantiationConstraint {
-                                    result: *producer,
-                                    source_witness: derivation.source_witness,
-                                }
-                            }),
-                    );
+                    supports.extend(constraint.scheme_instantiation_derivations.iter().map(
+                        |derivation| ProjectionProofCarrier::SchemeInstantiationConstraint {
+                            result: *producer,
+                            source_witness: derivation.source_witness,
+                        },
+                    ));
                 }
                 BoundDerivation::Origin(origin) => {
                     supports.push(ProjectionProofCarrier::Origin(*origin));
@@ -1038,6 +1346,41 @@ impl ConstraintMachine {
         supports
     }
 
+    #[cfg(test)]
+    fn record_cdm_lower_carrier_event(&mut self, carrier: ProjectionProofCarrier) {
+        match carrier {
+            ProjectionProofCarrier::ReplayConstraint { .. } => {
+                self.cdm_lower_delta_census.replay_carrier_events += 1;
+            }
+            ProjectionProofCarrier::StructuralConstraint { .. } => {
+                self.cdm_lower_delta_census.structural_carrier_events += 1;
+            }
+            ProjectionProofCarrier::RowConstraint { .. } => {
+                self.cdm_lower_delta_census.row_carrier_events += 1;
+            }
+            ProjectionProofCarrier::ReplayEvidence(_) | ProjectionProofCarrier::Incomplete => {
+                self.cdm_lower_delta_census.evidence_carrier_events += 1;
+            }
+            ProjectionProofCarrier::ConstraintOrigin { .. }
+            | ProjectionProofCarrier::SchemeInstantiationConstraint { .. }
+            | ProjectionProofCarrier::Origin(_)
+            | ProjectionProofCarrier::Row(_)
+            | ProjectionProofCarrier::SchemeInstantiation(_) => {
+                self.cdm_lower_delta_census.other_carrier_events += 1;
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_cdm_lower_delta_census(&mut self) {
+        self.cdm_lower_delta_census = CdmLowerDeltaCensus::default();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn cdm_lower_delta_census(&self) -> CdmLowerDeltaCensus {
+        self.cdm_lower_delta_census
+    }
+
     fn register_replay_claim_parents(
         &mut self,
         result: ConstraintRecordId,
@@ -1045,10 +1388,9 @@ impl ConstraintMachine {
         parents: &[SideTaggedReplayClaim],
         materialize_existing_target: bool,
     ) {
-        if parents.is_empty()
-            || !self.constraint_records[result.0 as usize]
-                .replay_derivations
-                .contains(&replay)
+        if !self.constraint_records[result.0 as usize]
+            .replay_derivations
+            .contains(&replay)
         {
             return;
         }
@@ -1076,8 +1418,16 @@ impl ConstraintMachine {
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
-        if materialize_existing_target && !inserted_parents.is_empty() {
-            self.materialize_existing_claim_parents_delta(result, target_record, &inserted_parents);
+        if materialize_existing_target {
+            self.materialize_existing_claim_parents_delta(
+                result,
+                target_record,
+                &inserted_parents,
+                ProjectionProofCarrier::ReplayConstraint {
+                    result,
+                    derivation: replay,
+                },
+            );
         }
     }
 
@@ -1086,13 +1436,14 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         target_record: Option<BoundRecordId>,
         parents: &[ClaimQualifiedParent],
+        lower_carrier: ProjectionProofCarrier,
     ) {
-        if let Some(record) = target_record {
+        if let Some(record) = target_record
+            && !parents.is_empty()
+        {
             self.register_constraint_upper_replay_claims_delta(record, result, parents);
         }
-        // Lower-side delta maintenance and bootstrap separation belong to CDM-D. Until then this
-        // keeps the established bulk lower path and its visibility order unchanged.
-        self.register_existing_constraint_lower_projection_proofs(result);
+        self.register_constraint_projection_carrier_delta(result, parents, lower_carrier);
     }
 
     /// Recompute every claim-parent consequence already attached to `result`.
@@ -1109,7 +1460,7 @@ impl ConstraintMachine {
         if let Some(record) = target_record {
             self.register_constraint_upper_replay_claims(record, Some(result));
         }
-        self.register_existing_constraint_lower_projection_proofs(result);
+        self.register_existing_constraint_lower_projection_proofs_bulk(result);
     }
 
     #[cfg(test)]
@@ -1147,7 +1498,12 @@ impl ConstraintMachine {
         }
         self.bounds.push_claim_qualified_parent(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
-        self.materialize_existing_claim_parents_delta(result, target_record, &[parent]);
+        self.materialize_existing_claim_parents_delta(
+            result,
+            target_record,
+            &[parent],
+            ProjectionProofCarrier::RowConstraint { result, derivation },
+        );
     }
 
     fn var_var_upper_record_for_constraint(
@@ -1498,10 +1854,10 @@ impl ConstraintMachine {
         let Some(record) = self.canonical_constraints.get(&key).copied() else {
             return;
         };
-        if !self.constraint_records[record.0 as usize]
+        let derivation_inserted = !self.constraint_records[record.0 as usize]
             .row_derivations
-            .contains(&derivation)
-        {
+            .contains(&derivation);
+        if derivation_inserted {
             self.constraint_records[record.0 as usize]
                 .row_derivations
                 .push(derivation);
@@ -1509,6 +1865,15 @@ impl ConstraintMachine {
         }
         if let Some(parent_claim) = parent_claim {
             self.register_reduction_route_claim_parent(record, derivation, parent_claim);
+        } else if derivation_inserted {
+            self.register_constraint_projection_carrier_delta(
+                record,
+                &[],
+                ProjectionProofCarrier::RowConstraint {
+                    result: record,
+                    derivation,
+                },
+            );
         }
     }
 
@@ -1817,6 +2182,13 @@ impl ConstraintMachine {
             } else {
                 BoundDerivation::IncompleteReplay
             };
+            let lower_projection_carrier = match &lower_derivation {
+                BoundDerivation::ReplayEvidence(replay) => {
+                    ProjectionProofCarrier::ReplayEvidence(*replay)
+                }
+                BoundDerivation::IncompleteReplay => ProjectionProofCarrier::Incomplete,
+                _ => unreachable!("evidence lower uses replay or incomplete provenance"),
+            };
             let upper_derivation = if evidence_complete || !upper_derivation_new {
                 replay_derivation
             } else {
@@ -1828,6 +2200,7 @@ impl ConstraintMachine {
                 constraint.weights.clone(),
                 lower_derivation,
             );
+            let lower_record = insertion.id;
             let lower_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Lower, true);
             if insertion.semantic_changed {
@@ -1864,6 +2237,12 @@ impl ConstraintMachine {
                     );
                     self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
                 }
+            }
+            if lower_edge_inserted {
+                self.register_lower_record_projection_carrier_delta(
+                    lower_record,
+                    lower_projection_carrier,
+                );
             }
             self.timing.record_replay_derivation_edge(
                 evidence_complete && (lower_edge_inserted || upper_edge_inserted),
@@ -2857,6 +3236,316 @@ mod mutation_tests {
             .debug_assert_qualified_carrier_index_matches_linear_scan(fixture.result);
     }
 
+    #[test]
+    fn cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let source = TypeVar(60);
+        let target = TypeVar(61);
+        let lower = fixture.machine.alloc_pos(Pos::Var(source));
+        let upper = fixture.machine.alloc_neg(Neg::Var(target));
+        let key = SubtypeConstraintKey {
+            lower,
+            upper,
+            weights: ConstraintWeights::empty(),
+        };
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        let mut actions = BoundReplayActions::new();
+        actions.push(cdm_replay_action(&fixture, key.clone(), replay));
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        let stats = fixture.machine.apply_bound_replay_actions(actions);
+        assert_eq!(
+            stats.accepted, 1,
+            "the fixture takes replay-new queue admission"
+        );
+        fixture.machine.drain();
+        let result = fixture.machine.canonical_constraints[&key];
+        let lower_record = fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint[&result];
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert!(census.constraint_bound_events >= 1);
+        assert!(census.bootstrap_scans >= 1);
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            result,
+            lower_record,
+            target,
+            "replay new",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let mut actions = BoundReplayActions::new();
+        actions.push(cdm_replay_action(&fixture, key, replay));
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        let stats = fixture.machine.apply_bound_replay_actions(actions);
+        assert_eq!(
+            stats.duplicate, 1,
+            "the fixture takes canonical duplicate admission"
+        );
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert_eq!(census.replay_carrier_events, 1);
+        assert_eq!(census.parent_batches, 1);
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            fixture.result,
+            fixture.lower_record,
+            TypeVar(1),
+            "replay canonical duplicate",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::UpperBoundAdded);
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let mut duplicates = BoundReplayActions::new();
+        duplicates.push(cdm_replay_action(&fixture, key, replay));
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        fixture
+            .machine
+            .apply_prefiltered_replay_provenance(duplicates, BoundReplayActions::new());
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert_eq!(census.replay_carrier_events, 1);
+        assert_eq!(census.parent_batches, 1);
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            fixture.result,
+            fixture.lower_record,
+            TypeVar(1),
+            "replay prefiltered duplicate",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_reduction_route_emits_row_carrier_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let derivation = RowDerivationId(40_000);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(derivation);
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            derivation,
+            fixture.coverage_root,
+        );
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert_eq!(census.row_carrier_events, 1);
+        assert_eq!(census.parent_batches, 1);
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            fixture.result,
+            fixture.lower_record,
+            TypeVar(1),
+            "reduction route",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_structural_admission_emits_structural_carrier_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            replay,
+            &[fixture.parent],
+            true,
+        );
+        let lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["cdm-d-structural".into()], Vec::new()));
+        let target = TypeVar(62);
+        let upper = fixture.machine.alloc_neg(Neg::Var(target));
+        let rule = StructuralDerivationRule::FunctionReturn;
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        assert!(fixture.machine.enqueue_derived_subtype(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+            fixture.result,
+            rule,
+        ));
+        fixture.machine.drain();
+        let result = fixture
+            .machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the structural child is canonical");
+        let lower_record = fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint[&result];
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert_eq!(census.structural_carrier_events, 1);
+        assert!(census.constraint_bound_events >= 1);
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            result,
+            lower_record,
+            target,
+            "structural admission",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_one_sided_lower_emits_bound_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let target = TypeVar(63);
+        let lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["cdm-d-one-sided".into()], Vec::new()));
+        let upper = fixture.machine.alloc_neg(Neg::Var(target));
+        let key = SubtypeConstraintKey {
+            lower,
+            upper,
+            weights: ConstraintWeights::empty(),
+        };
+        let mut actions = BoundReplayActions::new();
+        actions.push(cdm_replay_action(
+            &fixture,
+            key.clone(),
+            fixture.replay(ReplayRule::LowerBoundAdded),
+        ));
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        assert_eq!(
+            fixture.machine.apply_bound_replay_actions(actions).accepted,
+            1
+        );
+        fixture.machine.drain();
+        let result = fixture.machine.canonical_constraints[&key];
+        let lower_record = fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint[&result];
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert!(census.constraint_bound_events >= 1);
+        assert!(
+            fixture
+                .machine
+                .var_var_upper_record_for_constraint(result)
+                .is_none(),
+            "the fixture stays on the one-sided lower surface"
+        );
+        assert_cdm_result_bulk_fixed_point(
+            &mut fixture.machine,
+            result,
+            lower_record,
+            target,
+            "one-sided lower",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_evidence_only_emits_replay_evidence_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let source = TypeVar(64);
+        let target = TypeVar(65);
+        let lower = fixture.machine.alloc_pos(Pos::Var(source));
+        let upper = fixture.machine.alloc_neg(Neg::Var(target));
+        let action = cdm_replay_action(
+            &fixture,
+            SubtypeConstraintKey {
+                lower,
+                upper,
+                weights: ConstraintWeights::empty(),
+            },
+            fixture.replay(ReplayRule::LowerBoundAdded),
+        );
+        let mut actions = BoundReplayActions::new();
+        actions.push(action);
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        fixture.machine.apply_bound_replay_evidence_actions(actions);
+        let lower_record = fixture
+            .machine
+            .bounds
+            .of(target)
+            .unwrap()
+            .evidence_lower_record_ids()[0];
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert_eq!(census.evidence_carrier_events, 1);
+        assert_cdm_lower_record_bulk_fixed_point(
+            &mut fixture.machine,
+            lower_record,
+            target,
+            "evidence-only",
+        );
+    }
+
+    #[test]
+    fn cdm_d_9_3_promotion_emits_single_bound_derivation_delta() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let source = TypeVar(66);
+        let target = TypeVar(67);
+        let lower = fixture.machine.alloc_pos(Pos::Var(source));
+        let upper = fixture.machine.alloc_neg(Neg::Var(target));
+        let mut evidence = BoundReplayActions::new();
+        evidence.push(cdm_replay_action(
+            &fixture,
+            SubtypeConstraintKey {
+                lower,
+                upper,
+                weights: ConstraintWeights::empty(),
+            },
+            fixture.replay(ReplayRule::LowerBoundAdded),
+        ));
+        fixture
+            .machine
+            .apply_bound_replay_evidence_actions(evidence);
+        let lower_record = fixture
+            .machine
+            .bounds
+            .of(target)
+            .unwrap()
+            .evidence_lower_record_ids()[0];
+
+        fixture.machine.reset_cdm_lower_delta_census();
+        fixture.machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let census = fixture.machine.cdm_lower_delta_census();
+        assert_eq!(census.bulk_scans, 0);
+        assert!(census.other_bound_events >= 1);
+        assert_cdm_lower_record_bulk_fixed_point(
+            &mut fixture.machine,
+            lower_record,
+            target,
+            "promotion",
+        );
+    }
+
     struct CdmReplayClaimFixture {
         machine: ConstraintMachine,
         result: ConstraintRecordId,
@@ -2876,6 +3565,96 @@ mod mutation_tests {
                 rule,
             }
         }
+    }
+
+    fn cdm_replay_action(
+        fixture: &CdmReplayClaimFixture,
+        constraint: SubtypeConstraintKey,
+        derivation: BinaryReplayDerivation,
+    ) -> BoundReplayAction {
+        let mut claim_parents = ReplayClaimParents::new();
+        claim_parents.push(fixture.parent);
+        BoundReplayAction {
+            constraint,
+            derivation,
+            claim_parents,
+            canonicalization_disposition: None,
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct CdmLowerOracleSnapshot {
+        projection_claims: Vec<UpperReplayClaimId>,
+        projection_proofs: Vec<SchemeProjectionProof>,
+        included: bool,
+    }
+
+    fn cdm_lower_oracle_snapshot(
+        machine: &ConstraintMachine,
+        lower_record: BoundRecordId,
+        owner: TypeVar,
+    ) -> CdmLowerOracleSnapshot {
+        CdmLowerOracleSnapshot {
+            projection_claims: machine
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&lower_record)
+                .cloned()
+                .unwrap_or_default(),
+            projection_proofs: machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get(&lower_record)
+                .cloned()
+                .unwrap_or_default(),
+            included: machine
+                .scheme_projectable_lowers(owner)
+                .any(|candidate| candidate.record == lower_record),
+        }
+    }
+
+    fn assert_cdm_lower_record_bulk_fixed_point(
+        machine: &mut ConstraintMachine,
+        lower_record: BoundRecordId,
+        owner: TypeVar,
+        path: &str,
+    ) {
+        let delta = cdm_lower_oracle_snapshot(machine, lower_record, owner);
+        machine.recompute_lower_projection_bulk_oracle_record(lower_record);
+        let bulk = cdm_lower_oracle_snapshot(machine, lower_record, owner);
+        assert_eq!(
+            delta, bulk,
+            "{path}: lower claim ledger, proof ledger, and inclusion match the bulk oracle"
+        );
+    }
+
+    fn assert_cdm_result_bulk_fixed_point(
+        machine: &mut ConstraintMachine,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        owner: TypeVar,
+        path: &str,
+    ) {
+        let parents = machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&result)
+            .cloned()
+            .unwrap_or_default();
+        let delta = cdm_lower_oracle_snapshot(machine, lower_record, owner);
+        machine.recompute_claim_parent_bulk_oracle(result);
+        let bulk_parents = machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&result)
+            .cloned()
+            .unwrap_or_default();
+        let bulk = cdm_lower_oracle_snapshot(machine, lower_record, owner);
+        assert_eq!(parents, bulk_parents, "{path}: claim parents match bulk");
+        assert_eq!(
+            delta, bulk,
+            "{path}: lower claim ledger, proof ledger, and inclusion match the bulk oracle"
+        );
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]

@@ -106,6 +106,23 @@ pub struct ConstraintMachine {
     role_solve_supplemental_epoch: RoleSolveSupplementalEpoch,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
     replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
+    #[cfg(test)]
+    cdm_lower_delta_census: CdmLowerDeltaCensus,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct CdmLowerDeltaCensus {
+    bootstrap_scans: usize,
+    bulk_scans: usize,
+    parent_batches: usize,
+    constraint_bound_events: usize,
+    other_bound_events: usize,
+    replay_carrier_events: usize,
+    structural_carrier_events: usize,
+    row_carrier_events: usize,
+    evidence_carrier_events: usize,
+    other_carrier_events: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
