@@ -2798,6 +2798,631 @@ fn dcp_a_8_8_duplicate_evidence_and_promotion_keep_root_and_exact_carrier() {
     );
 }
 
+#[test]
+fn mpc_a_9_1_conjunctive_only_mixed_replay_is_suppressed() {
+    let mut fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    let snapshot = observed_mpc_replay_snapshot(&fixture);
+
+    assert_eq!(
+        snapshot.clauses,
+        vec![ObservedMpcClause::ReplayConjunction {
+            lower_premise: ObservedMpcPremise::CoveredOnly,
+            upper_premise: ObservedMpcPremise::Standalone,
+        }],
+        "all result links belong to one exact binary-replay conjunction"
+    );
+    assert_eq!(
+        (snapshot.result_claim_roots, snapshot.standalone_links),
+        (2, 0),
+        "the result has both replay-side roots but no standalone admission"
+    );
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            ),
+        "the fixture removes the covered premise's last live state"
+    );
+    let result_after_liveness = projection_count(
+        &fixture.machine,
+        fixture.result_owner,
+        fixture.result_record,
+    );
+
+    assert_eq!(
+        (
+            snapshot.result_projected,
+            snapshot.direct_premise_projected,
+            snapshot.raw_result_records,
+            result_after_liveness,
+        ),
+        (0, 1, 1, 1),
+        "only the conjunctive result is suppressed while its covered premise is live"
+    );
+}
+
+#[test]
+fn mpc_a_9_2_roots_precede_reduction_registration_before_mixed_replay() {
+    let fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, false);
+    let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
+    let direct_producer =
+        fixture.machine.bounds.upper_replay_claims[direct_root.0 as usize].producer_constraint;
+    let covered_producer = fixture.machine.bounds.upper_replay_claims
+        [fixture.coverage_root.0 as usize]
+        .producer_constraint;
+    let snapshot = observed_mpc_replay_snapshot(&fixture);
+
+    assert!(
+        direct_root < fixture.coverage_root && direct_producer.0 < covered_producer.0,
+        "ordinary root admission must precede URR claim registration"
+    );
+    assert_eq!(
+        snapshot.clauses,
+        vec![ObservedMpcClause::ReplayConjunction {
+            lower_premise: ObservedMpcPremise::CoveredOnly,
+            upper_premise: ObservedMpcPremise::Standalone,
+        }],
+        "the later mixed replay still owns one conjunction, not two standalone roots"
+    );
+    assert_eq!(
+        (
+            snapshot.result_projected,
+            snapshot.direct_premise_projected,
+            snapshot.raw_result_records,
+        ),
+        (0, 1, 1),
+        "pre-URR root topology must not make the replay result independently projectable"
+    );
+}
+
+#[test]
+fn mpc_a_9_3_nested_replay_chain_suppresses_both_results() {
+    let mut fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    let second_owner = TypeVar(4);
+    let pivot_pos = fixture.machine.alloc_pos(Pos::Var(fixture.result_owner));
+    let second_upper = fixture.machine.alloc_neg(Neg::Var(second_owner));
+    fixture
+        .machine
+        .subtype(pivot_pos, second_upper, OriginId::unknown_internal());
+
+    let first_lower = lower_endpoint(&fixture.machine, fixture.result_record);
+    let second_result = constraint_record_for_key(
+        &fixture.machine,
+        first_lower,
+        second_upper,
+        &ConstraintWeights::empty(),
+    );
+    let second_upper_record =
+        upper_bound_record(&fixture.machine, fixture.result_owner, second_upper);
+    let second_replay = exact_replay_derivation(
+        &fixture.machine,
+        second_result,
+        fixture.result_owner,
+        fixture.result_record,
+        second_upper_record,
+    );
+    let second_record = lower_bound_record(&fixture.machine, second_owner, first_lower);
+    let second_parents =
+        observed_replay_claim_parents(&fixture.machine, second_result, second_replay);
+    assert!(
+        second_parents
+            .iter()
+            .any(|parent| parent.side == ObservedReplayParentSide::Lower),
+        "the second replay consumes the first replay result as its exact lower premise"
+    );
+    assert!(
+        fixture.machine.constraint_records[second_result.0 as usize]
+            .root_origins
+            .is_empty(),
+        "the nested result has no standalone root admission"
+    );
+
+    assert_eq!(
+        (
+            projection_count(
+                &fixture.machine,
+                fixture.result_owner,
+                fixture.result_record,
+            ),
+            projection_count(&fixture.machine, second_owner, second_record),
+        ),
+        (0, 0),
+        "a covered-only conjunction remains suppressed through a second replay"
+    );
+}
+
+#[test]
+fn mpc_a_9_4_premise_alternative_keeps_result_projectable() {
+    let fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, true);
+    let snapshot = observed_mpc_replay_snapshot(&fixture);
+
+    assert_eq!(
+        snapshot.clauses,
+        vec![ObservedMpcClause::ReplayConjunction {
+            lower_premise: ObservedMpcPremise::StandaloneAlternative,
+            upper_premise: ObservedMpcPremise::Standalone,
+        }],
+        "the independent direct root is an alternative for the covered upper premise"
+    );
+    assert_eq!(
+        (
+            snapshot.result_projected,
+            snapshot.direct_premise_projected,
+            snapshot.raw_result_records,
+            snapshot.standalone_links,
+        ),
+        (1, 1, 1, 0),
+        "the result remains projectable through its premise alternative, not a result-local standalone link"
+    );
+}
+
+#[test]
+fn mpc_a_9_5_unattributed_claim_link_fails_open() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let owner = TypeVar(1);
+    let producer = ConstraintRecordId(0);
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Var(owner));
+    let upper_record = machine
+        .bounds
+        .add_upper(
+            source,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        )
+        .id;
+    let claim = machine
+        .bounds
+        .original_upper_replay_claim(upper_record, producer, UpperReplayClaimKind::Direct)
+        .claim;
+    let lower_record = machine
+        .bounds
+        .add_lower(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        )
+        .id;
+
+    // This deliberately bypasses every admission occurrence. MPC-B must retain an equivalent
+    // test-only path so the claim has no clause tag and D4's flat fail-open remains observable.
+    let mutation = machine
+        .bounds
+        .update_scheme_projection_proofs(lower_record, &[claim], &[]);
+    machine.apply_scheme_projection_mutation(mutation);
+
+    assert_eq!(
+        machine
+            .scheme_projectable_lowers(owner)
+            .find(|candidate| candidate.record == lower_record)
+            .map(|candidate| candidate.reason),
+        Some(SchemeProjectableLowerReason::Qualified {
+            uncovered_claims: vec![claim],
+            independent_supports: Vec::new(),
+        }),
+        "an unattributed qualifying link must use the current flat fail-open rule"
+    );
+}
+
+#[test]
+fn mpc_a_9_6_replay_clause_snapshot_is_insertion_order_invariant() {
+    let covered_first =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    let direct_first = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, false);
+    assert_eq!(
+        observed_mpc_replay_snapshot(&covered_first),
+        observed_mpc_replay_snapshot(&direct_first),
+        "9.1 has the same clause set, decision, and snapshot in both replay admission orders"
+    );
+
+    let alternative_covered_first =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, true);
+    let alternative_direct_first =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, true);
+    assert_eq!(
+        observed_mpc_replay_snapshot(&alternative_covered_first),
+        observed_mpc_replay_snapshot(&alternative_direct_first),
+        "9.4 has the same clause set, decision, and snapshot in both replay admission orders"
+    );
+}
+
+// MPC §9.7 is intentionally deferred to MPC-D. Its observable contract requires D5's
+// `dependent_records_by_premise` reverse index, which is not introduced until MPC-C; a test in
+// MPC-A could only repeat the existing root-local empty/non-empty invalidation tests above.
+
+#[test]
+fn mpc_a_9_8_duplicate_evidence_and_promotion_preserve_clause_snapshot() {
+    let mut fixture = row_structural_claim_fixture();
+    let before = observed_mpc_preserved_clause_snapshot(&fixture);
+    assert_eq!(
+        before,
+        ObservedMpcPreservedClauseSnapshot {
+            exact_carriers: 1,
+            structural_claim_parents: 1,
+            linked_roots: 1,
+            projected_count: 0,
+            incomplete_replay: false,
+        },
+        "the pre-change claim census pins one covered unary clause"
+    );
+    let child_key = fixture.machine.constraint_records[fixture.child.0 as usize]
+        .key
+        .clone();
+
+    assert!(
+        !fixture.machine.enqueue_derived_subtype(
+            child_key.lower,
+            child_key.weights,
+            child_key.upper,
+            fixture.derivation.parent,
+            fixture.derivation.rule,
+        ),
+        "the exact structural clause exercises canonical duplicate admission"
+    );
+    let prefiltered_before = fixture.machine.timing.lower_replay_prefiltered
+        + fixture.machine.timing.upper_replay_prefiltered;
+    let duplicate_source = TypeVar(20);
+    let duplicate_pivot = TypeVar(21);
+    let duplicate_target = TypeVar(22);
+    let duplicate_source_pos = fixture.machine.alloc_pos(Pos::Var(duplicate_source));
+    let duplicate_pivot_pos = fixture.machine.alloc_pos(Pos::Var(duplicate_pivot));
+    let duplicate_pivot_neg = fixture.machine.alloc_neg(Neg::Var(duplicate_pivot));
+    let duplicate_target_neg = fixture.machine.alloc_neg(Neg::Var(duplicate_target));
+    fixture.machine.subtype(
+        duplicate_source_pos,
+        duplicate_target_neg,
+        OriginId::unknown_internal(),
+    );
+    fixture.machine.subtype(
+        duplicate_source_pos,
+        duplicate_pivot_neg,
+        OriginId::unknown_internal(),
+    );
+    fixture.machine.subtype(
+        duplicate_pivot_pos,
+        duplicate_target_neg,
+        OriginId::unknown_internal(),
+    );
+    assert!(
+        fixture.machine.timing.lower_replay_prefiltered
+            + fixture.machine.timing.upper_replay_prefiltered
+            > prefiltered_before,
+        "the alternate pivot reaches an existing result through production prefiltered duplicate admission"
+    );
+    let evidence = fixture.machine.bounds.add_evidence_lower(
+        fixture.target,
+        fixture.lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::ReplayEvidence(fixture.replay),
+    );
+    assert_eq!(
+        evidence.id, fixture.lower_record,
+        "evidence-only admission preserves the clause-bearing lower identity"
+    );
+    let promotion_target = TypeVar(9);
+    let promotion_lower = fixture.machine.alloc_pos(Pos::Row(vec![fixture.lower]));
+    let evidence_only = fixture.machine.bounds.add_evidence_lower(
+        promotion_target,
+        promotion_lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::ReplayEvidence(fixture.replay),
+    );
+    let promoted = fixture.machine.bounds.add_lower(
+        promotion_target,
+        promotion_lower,
+        ConstraintWeights::empty(),
+        BoundDerivation::Constraint(fixture.child),
+    );
+    assert_eq!(
+        promoted.id, evidence_only.id,
+        "ordinary promotion preserves the evidence-only stable identity"
+    );
+    assert!(
+        promoted.promoted,
+        "the fixture exercises promotion admission"
+    );
+
+    assert_eq!(
+        observed_mpc_preserved_clause_snapshot(&fixture),
+        before,
+        "new, canonical duplicate, prefiltered duplicate, evidence-only, and promotion paths preserve one exact clause and its decision"
+    );
+}
+
+#[derive(Debug, Clone, Copy)]
+enum MpcReplayAdmissionOrder {
+    DirectPremiseFirst,
+    CoveredPremiseFirst,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservedMpcPremise {
+    CoveredOnly,
+    Standalone,
+    StandaloneAlternative,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservedMpcClause {
+    ReplayConjunction {
+        lower_premise: ObservedMpcPremise,
+        upper_premise: ObservedMpcPremise,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ObservedMpcReplaySnapshot {
+    clauses: Vec<ObservedMpcClause>,
+    result_claim_roots: usize,
+    standalone_links: usize,
+    raw_result_records: usize,
+    result_projected: usize,
+    direct_premise_projected: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedMpcPreservedClauseSnapshot {
+    exact_carriers: usize,
+    structural_claim_parents: usize,
+    linked_roots: usize,
+    projected_count: usize,
+    incomplete_replay: bool,
+}
+
+struct MpcMixedReplayFixture {
+    machine: ConstraintMachine,
+    pivot: TypeVar,
+    result_owner: TypeVar,
+    covered_lower_record: BoundRecordId,
+    direct_upper_record: BoundRecordId,
+    direct_projection_record: BoundRecordId,
+    result_record: BoundRecordId,
+    result_constraint: ConstraintRecordId,
+    replay: BinaryReplayDerivation,
+    direct_claim: UpperReplayClaimId,
+    covered_claim: UpperReplayClaimId,
+    coverage_root: UpperReplayClaimId,
+    coverage_state: UnweightedRowReductionRecordId,
+}
+
+fn mpc_mixed_replay_fixture(
+    order: MpcReplayAdmissionOrder,
+    with_premise_alternative: bool,
+) -> MpcMixedReplayFixture {
+    let mut machine = ConstraintMachine::new();
+    let reduction_source = TypeVar(0);
+    let covered_source = TypeVar(1);
+    let pivot = TypeVar(2);
+    let result_owner = TypeVar(3);
+    let origin = OriginId::unknown_internal();
+    let initial_family =
+        machine.alloc_pos(Pos::Con(vec!["effect".into(), "mpc".into()], Vec::new()));
+    let family_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "mpc".into()], Vec::new()));
+    let reduction_source_neg = machine.alloc_neg(Neg::Var(reduction_source));
+    let reduction_source_pos = machine.alloc_pos(Pos::Var(reduction_source));
+    let covered_source_pos = machine.alloc_pos(Pos::Var(covered_source));
+    let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
+    let result_owner_neg = machine.alloc_neg(Neg::Var(result_owner));
+    let tail = machine.alloc_neg(Neg::Var(pivot));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![family_upper], tail));
+
+    machine.subtype(initial_family, reduction_source_neg, origin);
+    if matches!(order, MpcReplayAdmissionOrder::DirectPremiseFirst) {
+        machine.subtype(pivot_pos, result_owner_neg, origin);
+    }
+    machine.subtype(covered_source_pos, reduction_source_neg, origin);
+    machine.subtype(reduction_source_pos, row_upper, origin);
+    if with_premise_alternative {
+        machine.add_lower_bound(
+            pivot,
+            covered_source_pos,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        );
+    }
+    if matches!(order, MpcReplayAdmissionOrder::CoveredPremiseFirst) {
+        machine.subtype(pivot_pos, result_owner_neg, origin);
+    }
+
+    let covered_lower_record = lower_bound_record(&machine, pivot, covered_source_pos);
+    let direct_upper_record = upper_bound_record(&machine, pivot, result_owner_neg);
+    let direct_projection_record = lower_bound_record(&machine, result_owner, pivot_pos);
+    let result_constraint = constraint_record_for_key(
+        &machine,
+        covered_source_pos,
+        result_owner_neg,
+        &ConstraintWeights::empty(),
+    );
+    let replay = exact_replay_derivation(
+        &machine,
+        result_constraint,
+        pivot,
+        covered_lower_record,
+        direct_upper_record,
+    );
+    let result_record = lower_bound_record(&machine, result_owner, covered_source_pos);
+    let parents = observed_replay_claim_parents(&machine, result_constraint, replay);
+    let direct_claim = parents
+        .iter()
+        .find(|parent| {
+            parent.side == ObservedReplayParentSide::Upper
+                && machine
+                    .bounds
+                    .live_coverage_by_root
+                    .get(&parent.coverage_root)
+                    .is_none_or(Vec::is_empty)
+        })
+        .map(|parent| parent.claim)
+        .expect("the upper premise contributes its independent Direct claim");
+    let covered_claim = parents
+        .iter()
+        .find(|parent| {
+            parent.side == ObservedReplayParentSide::Lower
+                && machine
+                    .bounds
+                    .live_coverage_by_root
+                    .get(&parent.coverage_root)
+                    .is_some_and(|states| !states.is_empty())
+        })
+        .map(|parent| parent.claim)
+        .expect("the lower premise contributes its live covered claim");
+    let coverage_root = claim_root(&machine, covered_claim);
+    let coverage_states = &machine.bounds.live_coverage_by_root[&coverage_root];
+    assert_eq!(
+        coverage_states.len(),
+        1,
+        "the fixture has one live state for its covered premise"
+    );
+    let coverage_state = coverage_states[0];
+
+    MpcMixedReplayFixture {
+        machine,
+        pivot,
+        result_owner,
+        covered_lower_record,
+        direct_upper_record,
+        direct_projection_record,
+        result_record,
+        result_constraint,
+        replay,
+        direct_claim,
+        covered_claim,
+        coverage_root,
+        coverage_state,
+    }
+}
+
+fn observed_mpc_replay_snapshot(fixture: &MpcMixedReplayFixture) -> ObservedMpcReplaySnapshot {
+    let parents =
+        observed_replay_claim_parents(&fixture.machine, fixture.result_constraint, fixture.replay);
+    let lower_parents = parents
+        .iter()
+        .filter(|parent| parent.side == ObservedReplayParentSide::Lower)
+        .collect::<Vec<_>>();
+    let upper_parents = parents
+        .iter()
+        .filter(|parent| parent.side == ObservedReplayParentSide::Upper)
+        .collect::<Vec<_>>();
+    assert!(
+        lower_parents
+            .iter()
+            .any(|parent| parent.claim == fixture.covered_claim),
+        "the exact lower side carries the covered root"
+    );
+    assert!(
+        upper_parents
+            .iter()
+            .any(|parent| parent.claim == fixture.direct_claim),
+        "the exact upper side carries the ordinary Direct root"
+    );
+    assert_eq!(
+        exact_replay_count(
+            &fixture.machine,
+            fixture.pivot,
+            fixture.covered_lower_record,
+            fixture.direct_upper_record,
+        ),
+        1,
+        "the result has one exact binary-replay carrier"
+    );
+    let lower_has_uncovered_alternative = observed_lower_projection(
+        &fixture.machine,
+        fixture.pivot,
+        fixture.covered_lower_record,
+    )
+    .independent_supports
+        > 0;
+    let reason = fixture
+        .machine
+        .scheme_projectable_lowers(fixture.result_owner)
+        .find(|candidate| candidate.record == fixture.result_record)
+        .map(|candidate| candidate.reason);
+    let standalone_links = fixture.machine.constraint_records[fixture.result_constraint.0 as usize]
+        .root_origins
+        .len()
+        + match &reason {
+            Some(SchemeProjectableLowerReason::Qualified {
+                independent_supports,
+                ..
+            }) => independent_supports.len(),
+            Some(SchemeProjectableLowerReason::Unclaimed) | None => 0,
+        };
+    let mut result_roots = fixture
+        .machine
+        .bounds
+        .scheme_projection_claims_by_lower_record
+        .get(&fixture.result_record)
+        .into_iter()
+        .flatten()
+        .map(|claim| claim_root(&fixture.machine, *claim))
+        .collect::<Vec<_>>();
+    result_roots.sort_by_key(|root| root.0);
+    result_roots.dedup();
+
+    ObservedMpcReplaySnapshot {
+        clauses: vec![ObservedMpcClause::ReplayConjunction {
+            lower_premise: if lower_has_uncovered_alternative {
+                ObservedMpcPremise::StandaloneAlternative
+            } else {
+                ObservedMpcPremise::CoveredOnly
+            },
+            upper_premise: ObservedMpcPremise::Standalone,
+        }],
+        result_claim_roots: result_roots.len(),
+        standalone_links,
+        raw_result_records: fixture
+            .machine
+            .bounds()
+            .of(fixture.result_owner)
+            .expect("result owner raw bounds")
+            .generalized_projection_lowers()
+            .filter(|(record, _)| *record == fixture.result_record)
+            .count(),
+        result_projected: usize::from(reason.is_some()),
+        direct_premise_projected: projection_count(
+            &fixture.machine,
+            fixture.result_owner,
+            fixture.direct_projection_record,
+        ),
+    }
+}
+
+fn projection_count(machine: &ConstraintMachine, owner: TypeVar, record: BoundRecordId) -> usize {
+    machine
+        .scheme_projectable_lowers(owner)
+        .filter(|candidate| candidate.record == record)
+        .count()
+}
+
+fn observed_mpc_preserved_clause_snapshot(
+    fixture: &RowStructuralClaimFixture,
+) -> ObservedMpcPreservedClauseSnapshot {
+    let projection =
+        observed_lower_projection(&fixture.machine, fixture.target, fixture.lower_record);
+    ObservedMpcPreservedClauseSnapshot {
+        exact_carriers: exact_structural_carriers(&fixture.machine, fixture.child)
+            .iter()
+            .filter(|carrier| **carrier == fixture.derivation)
+            .count(),
+        structural_claim_parents: observed_structural_claim_parents(
+            &fixture.machine,
+            fixture.child,
+            fixture.derivation,
+        )
+        .len(),
+        linked_roots: projection.claimed_roots.len(),
+        projected_count: projection.projected_count,
+        incomplete_replay: fixture.machine.bounds.records[fixture.lower_record.0 as usize]
+            .derivations()
+            .contains(&BoundDerivation::IncompleteReplay),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ObservedReplayParentSide {
     Lower,
