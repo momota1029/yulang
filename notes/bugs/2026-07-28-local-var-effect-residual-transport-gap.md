@@ -2369,4 +2369,7 @@ row-item-match carrierがclaim-qualified parentから作られる場合の契約
 `BoundDerivation::ReplayEvidence`をledgerが無条件のindependent supportとして再分類しないかも
 production traceで未確認である。どちらも今回の時間枠では修正していない。
 
+[claim propagationの現行アーキテクチャ](../architecture/claim-propagation-architecture.md)を、
+検証済み範囲と未解決の9個のuncovered claim rootを時系列なしで読む入口として追加した。
+
 <!-- bug-append-anchor: 2026-07-30 -->
