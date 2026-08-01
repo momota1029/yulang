@@ -1315,14 +1315,30 @@ impl ConstraintMachine {
             &independent_supports,
         );
         self.apply_scheme_projection_mutation(mutation);
+        let mut pending_links = Vec::new();
+        let mut batch_link_keys = FxHashSet::default();
         for support in independent_supports {
             let support = SchemeProjectionProofSupport::Independent(support);
-            self.register_record_proof_clause_link(
-                lower_record,
+            let clause = RecordProofClause::Standalone { support };
+            if self
+                .bounds
+                .record_proof_clause_link_is_registered(lower_record, support, clause)
+            {
+                continue;
+            }
+            let batch_link_key = (
+                TypeBounds::record_proof_clause_key(lower_record, clause),
                 support,
-                RecordProofClause::Standalone { support },
             );
+            if !batch_link_keys.insert(batch_link_key) {
+                continue;
+            }
+            pending_links.push((support, clause));
         }
+        if pending_links.is_empty() {
+            return;
+        }
+        self.commit_record_proof_clause_link_batch(lower_record, pending_links);
     }
 
     fn bootstrap_independent_projection_supports(
