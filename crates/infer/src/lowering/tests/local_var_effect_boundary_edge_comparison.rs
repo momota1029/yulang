@@ -569,38 +569,45 @@ fn v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization() {
          {parsed_nested:#?}"
     );
     assert!(
-        hand_nested
+        !hand_nested
             .instantiated_inner_return_effect
             .has_family_lower
-            && hand_nested.call_effect.has_family_lower
-            && hand_nested.result_effect.has_family_lower
-            && hand_nested.outer_aggregate_effect.has_family_lower
-            && hand_nested.outer_second_application_effect.has_family_lower,
-        "the first hand-built result-side contamination must propagate through outer finalize: \
+            && !hand_nested.call_effect.has_family_lower
+            && !hand_nested.result_effect.has_family_lower
+            && !hand_nested.outer_aggregate_effect.has_family_lower
+            && !hand_nested.outer_second_application_effect.has_family_lower,
+        "the deferred hand-built connection must keep the inner family out of every result-side \
+         effect slot: \
          {hand_nested:#?}"
     );
     assert!(
-        !hand_nested.inner_return_family_lower_path.is_empty()
+        hand_nested.inner_return_family_lower_path.is_empty()
             && parsed_nested.inner_return_family_lower_path.is_empty(),
-        "only the hand-built instantiated residual may have a concrete inner-family lower path"
+        "neither instantiated residual may have a concrete inner-family lower path"
     );
     assert!(
-        !hand_nested.callback_body_to_residual_rules.is_empty()
+        hand_nested.callback_body_to_residual_rules.is_empty()
             && parsed_nested.callback_body_to_residual_rules.is_empty(),
-        "only the hand-built callback body may connect directly to the instantiated residual"
+        "neither callback body may connect directly to the instantiated residual"
     );
     assert!(
-        hand_nested
+        !hand_nested
             .callback_body_to_residual_rules
-            .contains(&StructuralDerivationRule::FunctionReturnEffect),
-        "the direct residual connection must be derived by function return-effect decomposition"
+            .contains(&StructuralDerivationRule::FunctionReturnEffect)
+            && !parsed_nested
+                .callback_body_to_residual_rules
+                .contains(&StructuralDerivationRule::FunctionReturnEffect),
+        "deferred connection must not derive a direct residual edge by function return-effect \
+         decomposition"
     );
     assert!(
-        hand_nested
+        !hand_nested
             .callback_body_to_residual_row_rules
-            .contains(&RowDerivationRule::UnweightedReduction),
-        "the concrete family must enter the residual when the expected handled row is reduced \
-         against callback-body lowers that already exist"
+            .contains(&RowDerivationRule::UnweightedReduction)
+            && !parsed_nested
+                .callback_body_to_residual_row_rules
+                .contains(&RowDerivationRule::UnweightedReduction),
+        "the concrete family must not enter the residual through unweighted row reduction"
     );
 
     let events = output.session.take_scc_events();
@@ -2044,20 +2051,6 @@ fn nested_deferred_resolution_fixture() -> (
         inner_local_act.act, outer_local_act.act,
         "the hand-built nested pair must resolve each helper in its own synthetic act copy"
     );
-    let hand_inner_family_path = lower
-        .modules
-        .type_decl_by_id(inner_local_act.act)
-        .map(|decl| {
-            lower
-                .modules
-                .type_decl_path(&decl)
-                .segments
-                .into_iter()
-                .map(|name| name.0)
-                .collect::<Vec<_>>()
-        })
-        .expect("hand-built inner family path");
-
     let mut lowerer = crate::lowering::body::BodyLowerer::new(lower);
     lowerer.lower_block(&root, root_module);
     lowerer.lower_synthetic_act_copy_bodies_for_test();
@@ -2158,14 +2151,12 @@ fn nested_deferred_resolution_fixture() -> (
         inner_local_companion,
         hand_inner_helper,
         None,
-        None,
     );
     let v5_outer = lower_v5_corrected_nested_function(
         &mut lowerer,
         outer_local_companion,
         hand_outer_helper,
         Some(v5_inner.def),
-        Some(hand_inner_family_path.as_slice()),
     );
 
     lowerer.drain_analysis_with_conformance();
@@ -2192,7 +2183,6 @@ fn lower_v5_corrected_nested_function(
     module: ModuleId,
     helper: DefId,
     nested_target: Option<DefId>,
-    nested_family_path: Option<&[String]>,
 ) -> HandBuiltNestedDefinition {
     let def = body_lowerer.session.poly.defs.fresh();
     body_lowerer.session.poly.defs.set(
@@ -2270,13 +2260,10 @@ fn lower_v5_corrected_nested_function(
             let nested_ref = lowerer.lower_resolved_value_ref("v5_inner".into(), nested_target);
             let target_ref_value = nested_ref.value;
             let nested_with_backing = lowerer.make_internal_app(nested_ref, backing);
+
+            // v5 nested prepare mirrors the outer callback above: keep the parameter as a fresh
+            // placeholder until the second-stage application after the callback body is lowered.
             let nested_callback_param = lowerer.fresh_type_var();
-            constrain_hand_built_local_reference(
-                &mut lowerer,
-                nested_callback_param,
-                init_value,
-                nested_family_path.expect("nested call must identify the inner family"),
-            );
             let before_nested_callback_locals = lowerer.locals.len();
             let nested_callback_pat = lowerer.bind_pattern_local(
                 Name("inner_r".into()),
