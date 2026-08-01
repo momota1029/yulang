@@ -454,7 +454,8 @@ impl ConstraintMachine {
                 state.provenance_head = successor;
             }
             if let Some(claim) = self.bounds.reduction_claim_by_state.get(&state_id).copied() {
-                self.move_upper_replay_claim(claim, materialization.record);
+                self.bounds
+                    .move_upper_replay_claim(claim, materialization.record);
             }
             self.register_unweighted_row_reduction_owner(
                 materialization.record,
@@ -486,7 +487,7 @@ impl ConstraintMachine {
             .or_default()
             .push(id);
         let root_claim = producer.map(|producer| {
-            let registration = self.original_upper_replay_claim(
+            let registration = self.bounds.original_upper_replay_claim(
                 materialization.record,
                 producer,
                 UpperReplayClaimKind::Reduced(id),
